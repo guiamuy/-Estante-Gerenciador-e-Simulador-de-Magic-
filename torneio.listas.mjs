@@ -82,23 +82,46 @@ function partida(seed, n0, n1, d0, d1, max = 1500) {
 }
 if (process.argv[1] && process.argv[1].endsWith('torneio.listas.mjs')) {
 const [forte, fraco, rodadas, base] = [process.argv[2] || 'shark', process.argv[3] || 'shark-v2', +(process.argv[4] || 2), +(process.argv[5] || 100)];
+// B-22 · LISTAS=shark: o torneio usa as cinco listas do Shark no lugar das sete prontas
+const EM_USO = process.env.LISTAS === 'shark' ? listasDoShark() : listas;
+// B-174 · MODO=confrontos: um nível só nos dois assentos, todos contra todos, placar por confronto e por lista contra o campo
+// (a força de cada LISTA com o Shark de hoje, não a força do Shark). `rodadas` sementes por confronto, cada uma nos dois assentos.
+if (process.env.MODO === 'confrontos') {
+  const nivel = forte, FAT = process.env.FATIA ? process.env.FATIA.split('/').map(Number) : null; let k = 0, pior = 0; const il = [], t0 = Date.now();
+  const placar = {}; const chave = (a, b) => `${a}|${b}`;
+  for (let a = 0; a < EM_USO.length; a++) for (let b = a + 1; b < EM_USO.length; b++) for (let r = 0; r < rodadas; r++) for (const assento of [0, 1]) {
+    const kk = k++; if (FAT && (kk % FAT[1]) !== FAT[0]) continue;
+    const seed = base + kk * 17;
+    const g = assento === 0 ? partida(seed, nivel, nivel, EM_USO[a], EM_USO[b]) : partida(seed, nivel, nivel, EM_USO[b], EM_USO[a]);
+    pior = Math.max(pior, g.pior); if (g.ilegal) il.push(g.ilegal);
+    if (g.v == null) continue;
+    const venceuA = (g.v === 0) === (assento === 0);
+    const pa = (placar[chave(a, b)] = placar[chave(a, b)] || [0, 0]); pa[venceuA ? 0 : 1]++;
+  }
+  const nome = i => EM_USO[i].arquetipo || EM_USO[i].name;
+  const campo = EM_USO.map(() => [0, 0]);
+  for (const [c, [va, vb]] of Object.entries(placar)) { const [a, b] = c.split('|').map(Number); campo[a][0] += va; campo[a][1] += vb; campo[b][0] += vb; campo[b][1] += va; console.log(`${nome(a)} × ${nome(b)}: ${va}–${vb}`); }
+  for (let i = 0; i < EM_USO.length; i++) { const [v, d] = campo[i]; console.log(`contra o campo · ${nome(i)}: ${v}–${d} (${v + d ? (100 * v / (v + d)).toFixed(0) : '-'}%)`); }
+  console.log(`nível ${nivel} · pior jogada ${pior} ms · ilegais ${il.length} ${JSON.stringify([...new Set(il)].slice(0, 4))} · ${Math.round((Date.now() - t0) / 1000)} s`);
+  process.exit(0);
+}
 // B9 · PILOTO=<índice da lista>: mede um baralho só. Cada partida é jogada duas vezes com a mesma semente e o mesmo
 // oponente (o nível fraco, com cada uma das outras listas): uma com o forte pilotando a lista, outra com o fraco.
 // O que muda é só o piloto; a sorte do embaralhamento é a mesma nos dois lados da comparação.
 if (process.env.PILOTO != null) {
   const li = +process.env.PILOTO, FAT = process.env.FATIA ? process.env.FATIA.split('/').map(Number) : null;
   let vf = 0, vr = 0, n = 0, soF = 0, soR = 0, k = 0, piorP = 0; const t0p = Date.now(); const il = [];
-  for (let b = 0; b < listas.length; b++) if (b !== li) for (let r = 0; r < rodadas; r++) for (const assento of [0, 1]) {
+  for (let b = 0; b < EM_USO.length; b++) if (b !== li) for (let r = 0; r < rodadas; r++) for (const assento of [0, 1]) {
     const kk = k++; if (FAT && (kk % FAT[1]) !== FAT[0]) continue;
     const seed = base + kk * 17;
-    const joga = nivel => assento === 0 ? partida(seed, nivel, fraco, listas[li], listas[b]) : partida(seed, fraco, nivel, listas[b], listas[li]);
+    const joga = nivel => assento === 0 ? partida(seed, nivel, fraco, EM_USO[li], EM_USO[b]) : partida(seed, fraco, nivel, EM_USO[b], EM_USO[li]);
     const gf = joga(forte), gr = joga(fraco);
     for (const g of [gf, gr]) { if (g.ilegal) il.push(g.ilegal); }
     piorP = Math.max(piorP, gf.pior);
     const wf = gf.v === assento, wr = gr.v === assento;
     n++; if (wf) vf++; if (wr) vr++; if (wf && !wr) soF++; if (wr && !wf) soR++;
   }
-  console.log(`piloto ${listas[li].name}: ${forte} venceu ${vf} de ${n} (${(100 * vf / n).toFixed(0)}%) · ${fraco} venceu ${vr} de ${n} (${(100 * vr / n).toFixed(0)}%) · só o novo ganhou ${soF} · só o antigo ganhou ${soR} · pior jogada do novo ${piorP} ms · ${Math.round((Date.now() - t0p) / 1000)} s`);
+  console.log(`piloto ${EM_USO[li].name}: ${forte} venceu ${vf} de ${n} (${(100 * vf / n).toFixed(0)}%) · ${fraco} venceu ${vr} de ${n} (${(100 * vr / n).toFixed(0)}%) · só o novo ganhou ${soF} · só o antigo ganhou ${soR} · pior jogada do novo ${piorP} ms · ${Math.round((Date.now() - t0p) / 1000)} s`);
   console.log('ilegais', il.length, [...new Set(il)].slice(0, 5));
   process.exit(0);
 }
@@ -106,11 +129,11 @@ const porLista = {}; // leva 118 · vitórias e derrotas do forte por lista que 
 let F = 0, R = 0, sem = 0, pior = 0, jogadas = 0; const ilegais = []; let k = 0;
 const t0 = Date.now();
 const FATIA = process.env.FATIA ? process.env.FATIA.split('/').map(Number) : null;
-for (let a = 0; a < listas.length; a++) for (let b = a; b < listas.length; b++) for (let r = 0; r < rodadas; r++) for (const troca of [0, 1]) {
+for (let a = 0; a < EM_USO.length; a++) for (let b = a; b < EM_USO.length; b++) for (let r = 0; r < rodadas; r++) for (const troca of [0, 1]) {
   // leva 119 · FATIA=i/n joga só uma fatia das partidas (para dividir o torneio entre os núcleos da máquina)
   if (FATIA && (k % FATIA[1]) !== FATIA[0]) { k++; continue; }
   // os dois lados de cada confronto e os dois assentos
-  const fd = troca ? listas[b] : listas[a], rd = troca ? listas[a] : listas[b];
+  const fd = troca ? EM_USO[b] : EM_USO[a], rd = troca ? EM_USO[a] : EM_USO[b];
   const forteP0 = (r + troca) % 2 === 0;
   const g = partida(base + (k++) * 17, forteP0 ? forte : fraco, forteP0 ? fraco : forte, forteP0 ? fd : rd, forteP0 ? rd : fd);
   pior = Math.max(pior, g.pior);

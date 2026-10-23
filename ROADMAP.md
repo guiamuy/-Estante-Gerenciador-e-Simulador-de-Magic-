@@ -400,7 +400,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-z10 🟡 | Shark: truque próprio no ataque (conta com a habilidade usada depois dos bloqueios e espera os bloqueios); Elves medido por piloto: sem ganho demonstrado (leva 159) | B16 | 1 | bloqueio com truque, truque do oponente |
 | 16º-z9 🟡 | Shark: plano do baralho — Walls Combo fecha a mana infinita; vitórias pilotando a lista 18% → 33% (leva 147) | B9 | 1 | Elves e os outros perfis |
 | 16º-z2 ✅ | Shark usa todas as mecânicas, inclusive as dos terrenos: estoura o terreno que busca básico, abre mana com habilidades, ordena antes do corte do relógio; auditoria de uso (leva 143) | B21 | 1 | — |
-| 16º-sa 🟡 | B22 Shark profissional com cinco listas: fatia 1 ✅ (B-173) listas de torneio embutidas e seletor do Shark só com elas; fatias 2–9 (linha de base, um perfil por lista, jogar em volta, fechamento) | B22 | 9 | 16º-z2 |
+| 16º-sa 🟡 | B22 Shark profissional com cinco listas: fatia 1 ✅ (B-173) listas de torneio embutidas e seletor do Shark só com elas; fatia 2 ✅ (B-174) linha de base: Madness 75% · Elves 63% · Faeries 50% · Control 38% · Terror 25% contra o campo; fatias 3–9 (um perfil por lista, do mais fraco ao mais forte; jogar em volta; fechamento) | B22 | 9 | 16º-z2 |
 | 16º-y ✅ | Shark: olhar o turno seguinte (simulação até o próximo turno) — medido, não pagou, fica desligado; achado: a força está no plano de cada baralho (leva 131) | B15 | 1 | — |
 | 16º-w ✅ | Shark: pesos da avaliação postos à prova por torneio — nenhum paga; achado: o limite é a profundidade, não o peso (leva 126) | B20 | 1 | — |
 | 16º-j3 🟡 | Scanner de referência (E52): X14 resposta imediata (leva 127) | E52 | 2 de 6 a 7 | teste no aparelho: "até aceitar" no diagnóstico |
@@ -7389,8 +7389,20 @@ Wildfire × Rakdos Madness) mostrou este como o erro mais caro.
   - um perfil por lista (plano, mulligan, sequência, ameaças, respostas), cada um medido por piloto: novo ≥ antigo, zero
     ilegais, p95 ≤ 400 ms (fatias 3–7); jogar em volta do que a lista do oponente tem (fatia 8);
   - fechamento: nenhuma das cinco abaixo de 45% contra o campo das outras; p95 ≤ 400 ms no orçamento do celular (fatia 9).
-- **Fatias:** 1 listas embutidas + seletor restrito (B-173 ✅) · 2 linha de base · 3 Madness · 4 Terror · 5 Faeries ·
-  6 Control · 7 Elves · 8 jogar em volta · 9 fechamento.
+- **Linha de base (B-174, 23/10/2026; `LISTAS=shark MODO=confrontos ORC=100 node torneio.listas.mjs shark shark 4 7`,
+  em duas fatias):** o Shark de hoje nos dois assentos, todos contra todos, 4 sementes × 2 assentos por confronto = 80
+  partidas, 32 por lista contra o campo (margem ≈ ±17 pontos por lista: é retrato, não veredito). **Contra o campo:
+  Grixis Madness 24–8 (75%) · Mono Green Elves 20–12 (63%) · Dimir Faeries 16–16 (50%) · Dimir Control 12–20 (38%) ·
+  Mono Blue Terror 8–24 (25%).** Por confronto (vitórias da primeira): Madness × Control 6–2 · Madness × Faeries 7–1 ·
+  Madness × Terror 7–1 · Madness × Elves 4–4 · Control × Faeries 4–4 · Control × Terror 4–4 · Control × Elves 2–6 ·
+  Faeries × Terror 7–1 · Faeries × Elves 4–4 · Terror × Elves 2–6. Zero jogadas ilegais; pior decisão 1,7 s com
+  orçamento de 100 ms (a busca estoura o relógio em posições grandes — o p95 entra na fatia de fechamento). Leitura: o
+  Shark joga bem os baralhos que pressionam (Madness, Elves) e mal os reativos (Terror, Control): não guarda resposta
+  nem joga em volta — é onde os perfis valem mais. **Ordem das fatias de perfil revista pelo dado:** Terror → Control →
+  Faeries → Elves → Madness. Esta tabela é a régua: cada perfil é medido pareado por piloto (`PILOTO=i`, mesma semente
+  e mesmo oponente) contra o Shark congelado sem o perfil, e a tabela inteira é refeita no fechamento.
+- **Fatias:** 1 listas embutidas + seletor restrito (B-173 ✅) · 2 linha de base (B-174 ✅) · 3 Terror · 4 Control ·
+  5 Faeries · 6 Elves · 7 Madness · 8 jogar em volta · 9 fechamento.
 - **Decisão registrada (divergência dita antes de executar):** o Shark deixa de jogar com qualquer lista da estante,
   inclusive fora do Pauper (Commander e livre ficam sem Shark). É o pedido do dono; se um dia quiser o Shark com
   lista própria de novo, é um chip "lista da estante" no seletor, uma leva.
