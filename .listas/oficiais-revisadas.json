@@ -1,5 +1,5 @@
 {
- "sobre": "Texto oficial (Oracle do Forge, GitHub, consultado em 12/10/2026) das cartas fora do acervo que o leitor lê por inteiro e que passaram pela revisão por lote (decisão A, M-326). A assinatura da revisão ignora lembretes e a forma de se referir à própria carta (nome × \"this creature\").",
+ "sobre": "Texto oficial (Oracle do Forge, GitHub, consultado em 12/10/2026) das cartas fora do acervo que o leitor lê por inteiro e que passaram pela revisão por lote (decisão A, M-326). A assinatura da revisão ignora lembretes e a forma de se referir à própria carta (nome × \"this creature\"). M-575 (23/10/2026): as cartas do catálogo Pauper que vinham do Forge passaram ao texto da Scryfall consultado nesse dia (o que o aparelho baixa).",
  "cartas": [
   {
    "name": "Evolving Wilds",
@@ -86,11 +86,11 @@
    "name": "Baleful Strix",
    "mana_cost": "{U}{B}",
    "type_line": "Artifact Creature — Bird",
-   "oracle_text": "Flying, deathtouch\nWhen Baleful Strix enters, draw a card.",
+   "oracle_text": "Flying, deathtouch\nWhen this creature enters, draw a card.",
    "power": "1",
    "toughness": "1",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/b/baleful_strix.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Baleful+Strix",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 82
   },
   {
@@ -116,17 +116,17 @@
    "mana_cost": "{1}",
    "type_line": "Artifact",
    "oracle_text": "When this artifact enters, scry 2. (Look at the top two cards of your library, then put any number of them on the bottom and the rest on top in any order.)\n{1}, {T}: Add one mana of any color.\n{7}, {T}, Sacrifice this artifact: Destroy target permanent.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/g/giants_boulder.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Giant's+Boulder",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 63
   },
   {
    "name": "Expedition Map",
    "mana_cost": "{1}",
    "type_line": "Artifact",
-   "oracle_text": "{2}, {T}, Sacrifice Expedition Map: Search your library for a land card, reveal it, put it into your hand, then shuffle.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/e/expedition_map.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "{2}, {T}, Sacrifice this artifact: Search your library for a land card, reveal it, put it into your hand, then shuffle.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Expedition+Map",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 60
   },
   {
@@ -134,17 +134,17 @@
    "mana_cost": "{4}{U}",
    "type_line": "Sorcery",
    "oracle_text": "Affinity for artifacts (This spell costs {1} less to cast for each artifact you control.)\nDraw two cards.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/t/thoughtcast.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Thoughtcast",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 52
   },
   {
    "name": "Contaminated Aquifer",
    "mana_cost": "",
    "type_line": "Land — Island Swamp",
-   "oracle_text": "({T}: Add {U} or {B}.)\nContaminated Aquifer enters tapped.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/c/contaminated_aquifer.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "({T}: Add {U} or {B}.)\nThis land enters tapped.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Contaminated+Aquifer",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 51
   },
   {
@@ -178,9 +178,9 @@
    "name": "Dimir Aqueduct",
    "mana_cost": "",
    "type_line": "Land",
-   "oracle_text": "Dimir Aqueduct enters tapped.\nWhen Dimir Aqueduct enters, return a land you control to its owner's hand.\n{T}: Add {U}{B}.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/d/dimir_aqueduct.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "This land enters tapped.\nWhen this land enters, return a land you control to its owner's hand.\n{T}: Add {U}{B}.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Dimir+Aqueduct",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 44
   },
   {
@@ -205,9 +205,9 @@
    "name": "Mistvault Bridge",
    "mana_cost": "",
    "type_line": "Artifact Land",
-   "oracle_text": "Mistvault Bridge enters tapped.\nIndestructible\n{T}: Add {U} or {B}.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/m/mistvault_bridge.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "This land enters tapped.\nIndestructible\n{T}: Add {U} or {B}.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Mistvault+Bridge",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 42
   },
   {
@@ -215,8 +215,8 @@
    "mana_cost": "{2}{B}",
    "type_line": "Instant",
    "oracle_text": "Creatures your opponents control get -1/-1 until end of turn.\nCycling {2} ({2}, Discard this card: Draw a card.)",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/s/suffocating_fumes.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Suffocating+Fumes",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 42
   },
   {
@@ -270,9 +270,9 @@
    "name": "Simic Growth Chamber",
    "mana_cost": "",
    "type_line": "Land",
-   "oracle_text": "Simic Growth Chamber enters tapped.\nWhen Simic Growth Chamber enters, return a land you control to its owner's hand.\n{T}: Add {G}{U}.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/s/simic_growth_chamber.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "This land enters tapped.\nWhen this land enters, return a land you control to its owner's hand.\n{T}: Add {G}{U}.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Simic+Growth+Chamber",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 36
   },
   {
@@ -288,9 +288,9 @@
    "name": "Razortide Bridge",
    "mana_cost": "",
    "type_line": "Artifact Land",
-   "oracle_text": "Razortide Bridge enters tapped.\nIndestructible\n{T}: Add {W} or {U}.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/r/razortide_bridge.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "This land enters tapped.\nIndestructible\n{T}: Add {W} or {U}.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Razortide+Bridge",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 31
   },
   {
@@ -335,9 +335,9 @@
    "name": "Barren Moor",
    "mana_cost": "",
    "type_line": "Land",
-   "oracle_text": "Barren Moor enters tapped.\n{T}: Add {B}.\nCycling {B} ({B}, Discard this card: Draw a card.)",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/b/barren_moor.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "This land enters tapped.\n{T}: Add {B}.\nCycling {B} ({B}, Discard this card: Draw a card.)",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Barren+Moor",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 28
   },
   {
@@ -380,36 +380,36 @@
    "name": "Azorius Chancery",
    "mana_cost": "",
    "type_line": "Land",
-   "oracle_text": "Azorius Chancery enters tapped.\nWhen Azorius Chancery enters, return a land you control to its owner's hand.\n{T}: Add {W}{U}.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/a/azorius_chancery.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "This land enters tapped.\nWhen this land enters, return a land you control to its owner's hand.\n{T}: Add {W}{U}.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Azorius+Chancery",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 26
   },
   {
    "name": "Gruul Turf",
    "mana_cost": "",
    "type_line": "Land",
-   "oracle_text": "Gruul Turf enters tapped.\nWhen Gruul Turf enters, return a land you control to its owner's hand.\n{T}: Add {R}{G}.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/g/gruul_turf.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "This land enters tapped.\nWhen this land enters, return a land you control to its owner's hand.\n{T}: Add {R}{G}.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Gruul+Turf",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 26
   },
   {
    "name": "Golgari Rot Farm",
    "mana_cost": "",
    "type_line": "Land",
-   "oracle_text": "Golgari Rot Farm enters tapped.\nWhen Golgari Rot Farm enters, return a land you control to its owner's hand.\n{T}: Add {B}{G}.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/g/golgari_rot_farm.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "This land enters tapped.\nWhen this land enters, return a land you control to its owner's hand.\n{T}: Add {B}{G}.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Golgari+Rot+Farm",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 26
   },
   {
    "name": "Seething Landscape",
    "mana_cost": "",
    "type_line": "Land",
-   "oracle_text": "{T}: Add {C}.\n{T}, Sacrifice Seething Landscape: Search your library for a basic Island, Swamp, or Mountain card, put it onto the battlefield tapped, then shuffle.\nCycling {U}{B}{R} ({U}{B}{R}, Discard this card: Draw a card.)",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/s/seething_landscape.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "{T}: Add {C}.\n{T}, Sacrifice this land: Search your library for a basic Island, Swamp, or Mountain card, put it onto the battlefield tapped, then shuffle.\nCycling {U}{B}{R} ({U}{B}{R}, Discard this card: Draw a card.)",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Seething+Landscape",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 26
   },
   {
@@ -444,17 +444,17 @@
    "mana_cost": "{U}",
    "type_line": "Instant",
    "oracle_text": "Target player mills two cards.\nDraw a card.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/t/thought_scour.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Thought+Scour",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 24
   },
   {
    "name": "Thornwood Falls",
    "mana_cost": "",
    "type_line": "Land",
-   "oracle_text": "Thornwood Falls enters tapped.\nWhen Thornwood Falls enters, you gain 1 life.\n{T}: Add {G} or {U}.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/t/thornwood_falls.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "This land enters tapped.\nWhen this land enters, you gain 1 life.\n{T}: Add {G} or {U}.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Thornwood+Falls",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 23
   },
   {
@@ -502,8 +502,8 @@
    "oracle_text": "Whenever another creature you control enters, you gain 1 life.",
    "power": "1",
    "toughness": "2",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/h/hinterland_sanctifier.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Hinterland+Sanctifier",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 23
   },
   {
@@ -519,9 +519,9 @@
    "name": "Goldmire Bridge",
    "mana_cost": "",
    "type_line": "Artifact Land",
-   "oracle_text": "Goldmire Bridge enters tapped.\nIndestructible\n{T}: Add {W} or {B}.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/g/goldmire_bridge.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "This land enters tapped.\nIndestructible\n{T}: Add {W} or {B}.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Goldmire+Bridge",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 22
   },
   {
@@ -537,9 +537,9 @@
    "name": "Izzet Boilerworks",
    "mana_cost": "",
    "type_line": "Land",
-   "oracle_text": "Izzet Boilerworks enters tapped.\nWhen Izzet Boilerworks enters, return a land you control to its owner's hand.\n{T}: Add {U}{R}.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/i/izzet_boilerworks.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "This land enters tapped.\nWhen this land enters, return a land you control to its owner's hand.\n{T}: Add {U}{R}.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Izzet+Boilerworks",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 21
   },
   {
@@ -565,8 +565,8 @@
    "mana_cost": "{U}",
    "type_line": "Instant",
    "oracle_text": "Mill two cards.\nDraw a card.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/m/mental_note.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Mental+Note",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 21
   },
   {
@@ -583,8 +583,8 @@
    "mana_cost": "{1}{U}",
    "type_line": "Instant",
    "oracle_text": "Return target creature to its owner's hand. Untap up to two lands.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/s/snap.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Snap",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 20
   },
   {
@@ -620,18 +620,18 @@
    "name": "Slippery Karst",
    "mana_cost": "",
    "type_line": "Land",
-   "oracle_text": "Slippery Karst enters tapped.\n{T}: Add {G}.\nCycling {2} ({2}, Discard this card: Draw a card.)",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/s/slippery_karst.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "This land enters tapped.\n{T}: Add {G}.\nCycling {2} ({2}, Discard this card: Draw a card.)",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Slippery+Karst",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 18
   },
   {
    "name": "Silverbluff Bridge",
    "mana_cost": "",
    "type_line": "Artifact Land",
-   "oracle_text": "Silverbluff Bridge enters tapped.\nIndestructible\n{T}: Add {U} or {R}.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/s/silverbluff_bridge.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "This land enters tapped.\nIndestructible\n{T}: Add {U} or {R}.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Silverbluff+Bridge",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 18
   },
   {
@@ -703,9 +703,9 @@
    "name": "Conduit Pylons",
    "mana_cost": "",
    "type_line": "Land — Desert",
-   "oracle_text": "When Conduit Pylons enters, surveil 1. (Look at the top card of your library. You may put it into your graveyard.)\n{T}: Add {C}.\n{1}, {T}: Add one mana of any color.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/c/conduit_pylons.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "When this land enters, surveil 1. (Look at the top card of your library. You may put it into your graveyard.)\n{T}: Add {C}.\n{1}, {T}: Add one mana of any color.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Conduit+Pylons",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 17
   },
   {
@@ -721,9 +721,9 @@
    "name": "Volatile Fjord",
    "mana_cost": "",
    "type_line": "Snow Land — Island Mountain",
-   "oracle_text": "({T}: Add {U} or {R}.)\nVolatile Fjord enters tapped.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/v/volatile_fjord.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "({T}: Add {U} or {R}.)\nThis land enters tapped.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Volatile+Fjord",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 17
   },
   {
@@ -795,9 +795,9 @@
    "name": "Khalni Garden",
    "mana_cost": "",
    "type_line": "Land",
-   "oracle_text": "Khalni Garden enters tapped.\nWhen Khalni Garden enters, create a 0/1 green Plant creature token.\n{T}: Add {G}.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/k/khalni_garden.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "This land enters tapped.\nWhen this land enters, create a 0/1 green Plant creature token.\n{T}: Add {G}.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Khalni+Garden",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 16
   },
   {
@@ -849,9 +849,9 @@
    "name": "Polluted Mire",
    "mana_cost": "",
    "type_line": "Land",
-   "oracle_text": "Polluted Mire enters tapped.\n{T}: Add {B}.\nCycling {2} ({2}, Discard this card: Draw a card.)",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/p/polluted_mire.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "This land enters tapped.\n{T}: Add {B}.\nCycling {2} ({2}, Discard this card: Draw a card.)",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Polluted+Mire",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 15
   },
   {
@@ -885,18 +885,18 @@
    "name": "Ice Tunnel",
    "mana_cost": "",
    "type_line": "Snow Land — Island Swamp",
-   "oracle_text": "({T}: Add {U} or {B}.)\nIce Tunnel enters tapped.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/i/ice_tunnel.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "({T}: Add {U} or {B}.)\nThis land enters tapped.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Ice+Tunnel",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 15
   },
   {
    "name": "Rustvale Bridge",
    "mana_cost": "",
    "type_line": "Artifact Land",
-   "oracle_text": "Rustvale Bridge enters tapped.\nIndestructible\n{T}: Add {R} or {W}.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/r/rustvale_bridge.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "This land enters tapped.\nIndestructible\n{T}: Add {R} or {W}.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Rustvale+Bridge",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 15
   },
   {
@@ -930,9 +930,9 @@
    "name": "Cartouche of Solidarity",
    "mana_cost": "{W}",
    "type_line": "Enchantment — Aura Cartouche",
-   "oracle_text": "Enchant creature you control\nWhen Cartouche of Solidarity enters, create a 1/1 white Warrior creature token with vigilance.\nEnchanted creature gets +1/+1 and has first strike.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/c/cartouche_of_solidarity.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "Enchant creature you control\nWhen this Aura enters, create a 1/1 white Warrior creature token with vigilance.\nEnchanted creature gets +1/+1 and has first strike. (It deals combat damage before creatures without first strike.)",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Cartouche+of+Solidarity",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 15
   },
   {
@@ -1114,18 +1114,18 @@
    "name": "Glacial Floodplain",
    "mana_cost": "",
    "type_line": "Snow Land — Plains Island",
-   "oracle_text": "({T}: Add {W} or {U}.)\nGlacial Floodplain enters tapped.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/g/glacial_floodplain.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "({T}: Add {W} or {U}.)\nThis land enters tapped.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Glacial+Floodplain",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 13
   },
   {
    "name": "Haunted Mire",
    "mana_cost": "",
    "type_line": "Land — Swamp Forest",
-   "oracle_text": "({T}: Add {B} or {G}.)\nHaunted Mire enters tapped.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/h/haunted_mire.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "({T}: Add {B} or {G}.)\nThis land enters tapped.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Haunted+Mire",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 13
   },
   {
@@ -1374,9 +1374,9 @@
    "name": "Geothermal Crevice",
    "mana_cost": "",
    "type_line": "Land",
-   "oracle_text": "Geothermal Crevice enters tapped.\n{T}: Add {R}.\n{T}, Sacrifice Geothermal Crevice: Add {B}{G}.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/g/geothermal_crevice.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "This land enters tapped.\n{T}: Add {R}.\n{T}, Sacrifice this land: Add {B}{G}.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Geothermal+Crevice",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 11
   },
   {
@@ -1528,9 +1528,9 @@
    "name": "Remote Isle",
    "mana_cost": "",
    "type_line": "Land",
-   "oracle_text": "Remote Isle enters tapped.\n{T}: Add {U}.\nCycling {2} ({2}, Discard this card: Draw a card.)",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/r/remote_isle.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "This land enters tapped.\n{T}: Add {U}.\nCycling {2} ({2}, Discard this card: Draw a card.)",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Remote+Isle",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 9
   },
   {
@@ -1591,8 +1591,8 @@
    "mana_cost": "{3}{U}{U}",
    "type_line": "Sorcery",
    "oracle_text": "Draw three cards.\nIslandcycling {1} ({1}, Discard this card: Search your library for an Island card, reveal it, put it into your hand, then shuffle.)",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/l/l_rien_revealed.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=L%C3%B3rien+Revealed",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 185
   },
   {
@@ -1600,8 +1600,8 @@
    "mana_cost": "{3}{B}",
    "type_line": "Instant",
    "oracle_text": "If you control a Swamp, you may pay 4 life rather than pay this spell's mana cost.\nDestroy target nonblack creature. It can't be regenerated.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/s/snuff_out.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Snuff+Out",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 87
   },
   {
@@ -1609,8 +1609,8 @@
    "mana_cost": "",
    "type_line": "Land",
    "oracle_text": "{T}: Add {C}.\nBasic landcycling {1} ({1}, Discard this card: Search your library for a basic land card, reveal it, put it into your hand, then shuffle.)",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/a/ash_barrens.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Ash+Barrens",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 68
   },
   {
@@ -1620,30 +1620,30 @@
    "oracle_text": "Whenever you cast an instant or sorcery spell, create a 1/1 blue Bird Illusion creature token with flying.",
    "power": "1",
    "toughness": "5",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/m/murmuring_mystic.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Murmuring+Mystic",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 58
   },
   {
    "name": "Guttersnipe",
    "mana_cost": "{2}{R}",
    "type_line": "Creature — Goblin Shaman",
-   "oracle_text": "Whenever you cast an instant or sorcery spell, Guttersnipe deals 2 damage to each opponent.",
+   "oracle_text": "Whenever you cast an instant or sorcery spell, this creature deals 2 damage to each opponent.",
    "power": "2",
    "toughness": "2",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/g/guttersnipe.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Guttersnipe",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 54
   },
   {
    "name": "Generous Ent",
    "mana_cost": "{5}{G}",
    "type_line": "Creature — Treefolk",
-   "oracle_text": "Reach\nWhen Generous Ent enters, create a Food token. (It's an artifact with \"{2}, {T}, Sacrifice this token: You gain 3 life.\")\nForestcycling {1} ({1}, Discard this card: Search your library for a Forest card, reveal it, put it into your hand, then shuffle.)",
+   "oracle_text": "Reach\nWhen this creature enters, create a Food token. (It's an artifact with \"{2}, {T}, Sacrifice this token: You gain 3 life.\")\nForestcycling {1} ({1}, Discard this card: Search your library for a Forest card, reveal it, put it into your hand, then shuffle.)",
    "power": "5",
    "toughness": "7",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/g/generous_ent.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Generous+Ent",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 52
   },
   {
@@ -1651,19 +1651,19 @@
    "mana_cost": "{4}{R}{R}",
    "type_line": "Instant",
    "oracle_text": "You may sacrifice two Mountains rather than pay this spell's mana cost.\nFireblast deals 4 damage to any target.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/f/fireblast.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Fireblast",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 49
   },
   {
    "name": "Kessig Flamebreather",
    "mana_cost": "{1}{R}",
    "type_line": "Creature — Human Shaman",
-   "oracle_text": "Whenever you cast a noncreature spell, Kessig Flamebreather deals 1 damage to each opponent.",
+   "oracle_text": "Whenever you cast a noncreature spell, this creature deals 1 damage to each opponent.",
    "power": "1",
    "toughness": "3",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/k/kessig_flamebreather.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Kessig+Flamebreather",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 37
   },
   {
@@ -1673,8 +1673,8 @@
    "oracle_text": "Affinity for artifacts (This spell costs {1} less to cast for each artifact you control.)\nFlying (This creature can't be blocked except by creatures with flying or reach.)",
    "power": "3",
    "toughness": "3",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/u/utrom_monitor.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Utrom+Monitor",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 34
   },
   {
@@ -1684,8 +1684,8 @@
    "oracle_text": "Affinity for artifacts (This spell costs {1} less to cast for each artifact you control.)",
    "power": "4",
    "toughness": "4",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/m/myr_enforcer.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Myr+Enforcer",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 33
   },
   {
@@ -1695,8 +1695,8 @@
    "oracle_text": "Affinity for artifacts (This spell costs {1} less to cast for each artifact you control.)",
    "power": "2",
    "toughness": "2",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/f/frogmite.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Frogmite",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 11
   },
   {
@@ -1714,9 +1714,9 @@
    "name": "Contaminated Landscape",
    "mana_cost": "",
    "type_line": "Land",
-   "oracle_text": "{T}: Add {C}.\n{T}, Sacrifice Contaminated Landscape: Search your library for a basic Plains, Island, or Swamp card, put it onto the battlefield tapped, then shuffle.\nCycling {W}{U}{B} ({W}{U}{B}, Discard this card: Draw a card.)",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/c/contaminated_landscape.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "{T}: Add {C}.\n{T}, Sacrifice this land: Search your library for a basic Plains, Island, or Swamp card, put it onto the battlefield tapped, then shuffle.\nCycling {W}{U}{B} ({W}{U}{B}, Discard this card: Draw a card.)",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Contaminated+Landscape",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 9
   },
   {
@@ -1733,8 +1733,8 @@
    "mana_cost": "{B}",
    "type_line": "Artifact",
    "oracle_text": "When this artifact enters, target creature an opponent controls gets -2/-2 until end of turn.\n{2}{B}, {T}, Sacrifice this artifact: Surveil 2. (Look at the top two cards of your library, then put any number of them into your graveyard and the rest on top of your library in any order.)",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/g/grim_bauble.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Grim+Bauble",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 9
   },
   {
@@ -1880,27 +1880,27 @@
    "name": "Kabira Crossroads",
    "mana_cost": "",
    "type_line": "Land",
-   "oracle_text": "Kabira Crossroads enters tapped.\nWhen Kabira Crossroads enters, you gain 2 life.\n{T}: Add {W}.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/k/kabira_crossroads.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "This land enters tapped.\nWhen this land enters, you gain 2 life.\n{T}: Add {W}.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Kabira+Crossroads",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 8
   },
   {
    "name": "Prophetic Prism",
    "mana_cost": "{2}",
    "type_line": "Artifact",
-   "oracle_text": "When Prophetic Prism enters, draw a card.\n{1}, {T}: Add one mana of any color.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/p/prophetic_prism.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "When this artifact enters, draw a card.\n{1}, {T}: Add one mana of any color.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Prophetic+Prism",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 8
   },
   {
    "name": "Foreboding Landscape",
    "mana_cost": "",
    "type_line": "Land",
-   "oracle_text": "{T}: Add {C}.\n{T}, Sacrifice Foreboding Landscape: Search your library for a basic Swamp, Forest, or Island card, put it onto the battlefield tapped, then shuffle.\nCycling {B}{G}{U} ({B}{G}{U}, Discard this card: Draw a card.)",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/f/foreboding_landscape.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "{T}: Add {C}.\n{T}, Sacrifice this land: Search your library for a basic Swamp, Forest, or Island card, put it onto the battlefield tapped, then shuffle.\nCycling {B}{G}{U} ({B}{G}{U}, Discard this card: Draw a card.)",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Foreboding+Landscape",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 8
   },
   {
@@ -2202,8 +2202,8 @@
    "mana_cost": "{R}",
    "type_line": "Instant",
    "oracle_text": "Lava Dart deals 1 damage to any target.\nFlashback—Sacrifice a Mountain. (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/l/lava_dart.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Lava+Dart",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 65
   },
   {
@@ -2211,8 +2211,8 @@
    "mana_cost": "{1}{U}",
    "type_line": "Instant",
    "oracle_text": "Draw a card. If this spell was cast from a graveyard, draw two cards instead.\nFlashback {3}{U} (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/p/plunder_the_trollshaws.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Plunder+the+Trollshaws",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 50
   },
   {
@@ -2220,8 +2220,8 @@
    "mana_cost": "{W}",
    "type_line": "Instant",
    "oracle_text": "Tap target creature.\nMetalcraft — If you control three or more artifacts, exile that creature.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/d/dispatch.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Dispatch",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 45
   },
   {
@@ -2229,8 +2229,8 @@
    "mana_cost": "{B}",
    "type_line": "Instant",
    "oracle_text": "Destroy target creature with total power and toughness 5 or less.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/c/cut_down.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Cut+Down",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 45
   },
   {
@@ -2238,8 +2238,8 @@
    "mana_cost": "{R}",
    "type_line": "Instant",
    "oracle_text": "Galvanic Blast deals 2 damage to any target.\nMetalcraft — Galvanic Blast deals 4 damage instead if you control three or more artifacts.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/g/galvanic_blast.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Galvanic+Blast",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 43
   },
   {
@@ -2256,8 +2256,8 @@
    "mana_cost": "{1}{U}",
    "type_line": "Instant",
    "oracle_text": "Counter target creature spell.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/r/remove_soul.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Remove+Soul",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 7
   },
   {
@@ -2276,30 +2276,30 @@
    "mana_cost": "{1}",
    "type_line": "Artifact — Equipment",
    "oracle_text": "Equipped creature gets +2/+0.\nEquip {1}",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/b/bonesplitter.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Bonesplitter",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 7
   },
   {
    "name": "Thorn of the Black Rose",
    "mana_cost": "{3}{B}",
    "type_line": "Creature — Human Assassin",
-   "oracle_text": "Deathtouch\nWhen Thorn of the Black Rose enters, you become the monarch.",
+   "oracle_text": "Deathtouch\nWhen this creature enters, you become the monarch.",
    "power": "1",
    "toughness": "3",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/t/thorn_of_the_black_rose.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Thorn+of+the+Black+Rose",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 47
   },
   {
    "name": "Avenging Hunter",
    "mana_cost": "{4}{G}",
    "type_line": "Creature — Dragon Ranger",
-   "oracle_text": "Trample\nWhen Avenging Hunter enters, you take the initiative.",
+   "oracle_text": "Trample\nWhen this creature enters, you take the initiative.",
    "power": "5",
    "toughness": "4",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/a/avenging_hunter.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Avenging+Hunter",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 37
   },
   {
@@ -2344,11 +2344,11 @@
    "name": "Crimson Fleet Commodore",
    "mana_cost": "{3}{R}",
    "type_line": "Creature — Ogre Pirate",
-   "oracle_text": "Trample\nWhen Crimson Fleet Commodore enters, you become the monarch.",
+   "oracle_text": "Trample\nWhen this creature enters, you become the monarch.",
    "power": "5",
    "toughness": "2",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/c/crimson_fleet_commodore.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Crimson+Fleet+Commodore",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
@@ -2411,8 +2411,8 @@
    "oracle_text": "This spell costs {1} less to cast for each instant and sorcery card in your graveyard.\nWard {2} (Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {2}.)",
    "power": "5",
    "toughness": "5",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/t/tolarian_terror.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Tolarian+Terror",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 23
   },
   {
@@ -2422,19 +2422,19 @@
    "oracle_text": "This spell costs {1} less to cast for each instant and sorcery card in your graveyard.",
    "power": "6",
    "toughness": "5",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/c/cryptic_serpent.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Cryptic+Serpent",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 22
   },
   {
    "name": "Search Party Captain",
    "mana_cost": "{3}{W}",
    "type_line": "Creature — Human Soldier",
-   "oracle_text": "This spell costs {1} less to cast for each creature you attacked with this turn.\nWhen Search Party Captain enters, draw a card.",
+   "oracle_text": "This spell costs {1} less to cast for each creature you attacked with this turn.\nWhen this creature enters, draw a card.",
    "power": "2",
    "toughness": "2",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/s/search_party_captain.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Search+Party+Captain",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 10
   },
   {
@@ -2557,8 +2557,8 @@
    "mana_cost": "{B}",
    "type_line": "Instant",
    "oracle_text": "Add {B}{B}{B}.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/d/dark_ritual.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Dark+Ritual",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 79
   },
   {
@@ -2566,8 +2566,8 @@
    "mana_cost": "{G}",
    "type_line": "Instant",
    "oracle_text": "As an additional cost to cast this spell, sacrifice a land.\nSearch your library for a land card, put that card onto the battlefield, then shuffle.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/c/crop_rotation.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Crop+Rotation",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 67
   },
   {
@@ -2583,11 +2583,11 @@
    "name": "Mulldrifter",
    "mana_cost": "{4}{U}",
    "type_line": "Creature — Elemental",
-   "oracle_text": "Flying\nWhen Mulldrifter enters, draw two cards.\nEvoke {2}{U} (You may cast this spell for its evoke cost. If you do, it's sacrificed when it enters.)",
+   "oracle_text": "Flying\nWhen this creature enters, draw two cards.\nEvoke {2}{U} (You may cast this spell for its evoke cost. If you do, it's sacrificed when it enters.)",
    "power": "2",
    "toughness": "2",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/m/mulldrifter.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Mulldrifter",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 35
   },
   {
@@ -2595,8 +2595,8 @@
    "mana_cost": "{1}{R}",
    "type_line": "Instant — Arcane",
    "oracle_text": "Add {R}{R}{R}.\nSplice onto Arcane {1}{R} (As you cast an Arcane spell, you may reveal this card from your hand and pay its splice cost. If you do, add this card's effects to that spell.)",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/d/desperate_ritual.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Desperate+Ritual",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 32
   },
   {
@@ -2604,8 +2604,8 @@
    "mana_cost": "{U}",
    "type_line": "Sorcery",
    "oracle_text": "Tap target creature. It doesn't untap during its controller's next untap step.\nEscape—{2}{U}, Exile three other cards from your graveyard. (You may cast this card from your graveyard for its escape cost.)",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/s/sleep_of_the_dead.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Sleep+of+the+Dead",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 22
   },
   {
@@ -2631,8 +2631,8 @@
    "mana_cost": "{2}{R}",
    "type_line": "Instant",
    "oracle_text": "Add {R}{R}{R}{R}{R}.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/s/seething_song.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Seething+Song",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 19
   },
   {
@@ -2658,19 +2658,19 @@
    "mana_cost": "{1}",
    "type_line": "Artifact",
    "oracle_text": "{1}: Add one mana of any color. Activate only once each turn.\n{5}, {T}, Sacrifice this artifact: It deals 5 damage to target creature.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/b/barrels_of_blasting_jelly.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Barrels+of+Blasting+Jelly",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 16
   },
   {
    "name": "Burning-Tree Emissary",
    "mana_cost": "{R/G}{R/G}",
    "type_line": "Creature — Human Shaman",
-   "oracle_text": "When Burning-Tree Emissary enters, add {R}{G}.",
+   "oracle_text": "When this creature enters, add {R}{G}.",
    "power": "2",
    "toughness": "2",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/b/burning_tree_emissary.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Burning-Tree+Emissary",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 13
   },
   {
@@ -2742,11 +2742,11 @@
    "name": "Augur of Bolas",
    "mana_cost": "{1}{U}",
    "type_line": "Creature — Merfolk Wizard",
-   "oracle_text": "When Augur of Bolas enters, look at the top three cards of your library. You may reveal an instant or sorcery card from among them and put it into your hand. Put the rest on the bottom of your library in any order.",
+   "oracle_text": "When this creature enters, look at the top three cards of your library. You may reveal an instant or sorcery card from among them and put it into your hand. Put the rest on the bottom of your library in any order.",
    "power": "1",
    "toughness": "3",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/a/augur_of_bolas.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Augur+of+Bolas",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 27
   },
   {
@@ -2798,9 +2798,9 @@
    "name": "Seal of Fire",
    "mana_cost": "{R}",
    "type_line": "Enchantment",
-   "oracle_text": "Sacrifice Seal of Fire: It deals 2 damage to any target.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/s/seal_of_fire.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "Sacrifice this enchantment: It deals 2 damage to any target.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Seal+of+Fire",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 7
   },
   {
@@ -2843,9 +2843,9 @@
    "name": "Idyllic Beachfront",
    "mana_cost": "",
    "type_line": "Land — Plains Island",
-   "oracle_text": "({T}: Add {W} or {U}.)\nIdyllic Beachfront enters tapped.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/i/idyllic_beachfront.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "({T}: Add {W} or {U}.)\nThis land enters tapped.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Idyllic+Beachfront",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 7
   },
   {
@@ -3036,11 +3036,11 @@
    "name": "Blood Pet",
    "mana_cost": "{B}",
    "type_line": "Creature — Thrull",
-   "oracle_text": "Sacrifice Blood Pet: Add {B}.",
+   "oracle_text": "Sacrifice this creature: Add {B}.",
    "power": "1",
    "toughness": "1",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/b/blood_pet.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Blood+Pet",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 7
   },
   {
@@ -3274,8 +3274,8 @@
    "mana_cost": "{U}",
    "type_line": "Sorcery",
    "oracle_text": "Look at the top three cards of your library, then put them back in any order. You may shuffle.\nDraw a card.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/p/ponder.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Ponder",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 155
   },
   {
@@ -3659,11 +3659,11 @@
    "name": "Carrion Feeder",
    "mana_cost": "{B}",
    "type_line": "Creature — Zombie",
-   "oracle_text": "Carrion Feeder can't block.\nSacrifice a creature: Put a +1/+1 counter on Carrion Feeder.",
+   "oracle_text": "This creature can't block.\nSacrifice a creature: Put a +1/+1 counter on this creature.",
    "power": "1",
    "toughness": "1",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/c/carrion_feeder.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Carrion+Feeder",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 11
   },
   {
@@ -3806,8 +3806,8 @@
    "oracle_text": "Swampwalk (This creature can't be blocked as long as defending player controls a Swamp.)\nCycling—Pay 2 life. (Pay 2 life, Discard this card: Draw a card.)",
    "power": "3",
    "toughness": "4",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/s/street_wraith.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Street+Wraith",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 52
   },
   {
@@ -3823,9 +3823,9 @@
    "name": "Escape Tunnel",
    "mana_cost": "",
    "type_line": "Land",
-   "oracle_text": "{T}, Sacrifice Escape Tunnel: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle.\n{T}, Sacrifice Escape Tunnel: Target creature with power 2 or less can't be blocked this turn.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/e/escape_tunnel.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "{T}, Sacrifice this land: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle.\n{T}, Sacrifice this land: Target creature with power 2 or less can't be blocked this turn.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Escape+Tunnel",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 31
   },
   {
@@ -4076,9 +4076,9 @@
    "name": "Candy Trail",
    "mana_cost": "{1}",
    "type_line": "Artifact — Food Clue",
-   "oracle_text": "When Candy Trail enters, scry 2.\n{2}, {T}, Sacrifice Candy Trail: You gain 3 life and draw a card.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/c/candy_trail.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "When this artifact enters, scry 2.\n{2}, {T}, Sacrifice this artifact: You gain 3 life and draw a card.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Candy+Trail",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 18
   },
   {
@@ -4123,9 +4123,9 @@
    "name": "Radiant Grove",
    "mana_cost": "",
    "type_line": "Land — Forest Plains",
-   "oracle_text": "({T}: Add {G} or {W}.)\nRadiant Grove enters tapped.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/r/radiant_grove.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "({T}: Add {G} or {W}.)\nThis land enters tapped.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Radiant+Grove",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 6
   },
   {
@@ -4177,9 +4177,9 @@
    "name": "Blood Fountain",
    "mana_cost": "{B}",
    "type_line": "Artifact",
-   "oracle_text": "When Blood Fountain enters, create a Blood token. (It's an artifact with \"{1}, {T}, Discard a card, Sacrifice this token: Draw a card.\")\n{3}{B}, {T}, Sacrifice Blood Fountain: Return up to two target creature cards from your graveyard to your hand.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/b/blood_fountain.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "When this artifact enters, create a Blood token. (It's an artifact with \"{1}, {T}, Discard a card, Sacrifice this token: Draw a card.\")\n{3}{B}, {T}, Sacrifice this artifact: Return up to two target creature cards from your graveyard to your hand.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Blood+Fountain",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 34
   },
   {
@@ -4425,19 +4425,19 @@
    "mana_cost": "{B}",
    "type_line": "Instant",
    "oracle_text": "Target creature gets -1/-1 until end of turn. Create a 1/1 green Saproling creature token.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/f/fungal_infection.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Fungal+Infection",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
    "name": "Jewel Thief",
    "mana_cost": "{2}{G}",
    "type_line": "Creature — Cat Rogue",
-   "oracle_text": "Vigilance, trample\nWhen Jewel Thief enters, create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")",
+   "oracle_text": "Vigilance, trample\nWhen this creature enters, create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")",
    "power": "3",
    "toughness": "3",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/j/jewel_thief.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Jewel+Thief",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
@@ -4445,37 +4445,37 @@
    "mana_cost": "{1}",
    "type_line": "Artifact — Food",
    "oracle_text": "Indestructible (Effects that say \"destroy\" don't destroy this artifact.)\n{2}, {T}, Sacrifice this artifact: You gain 3 life.\nWhen this artifact is put into a graveyard from the battlefield, draw a card.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/n/nutrient_block.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Nutrient+Block",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
    "name": "Rimewood Falls",
    "mana_cost": "",
    "type_line": "Snow Land — Forest Island",
-   "oracle_text": "({T}: Add {G} or {U}.)\nRimewood Falls enters tapped.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/r/rimewood_falls.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "({T}: Add {G} or {U}.)\nThis land enters tapped.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Rimewood+Falls",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
    "name": "Outlaw Medic",
    "mana_cost": "{1}{W}",
    "type_line": "Creature — Human Rogue",
-   "oracle_text": "Lifelink\nWhen Outlaw Medic dies, draw a card.",
+   "oracle_text": "Lifelink\nWhen this creature dies, draw a card.",
    "power": "1",
    "toughness": "3",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/o/outlaw_medic.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Outlaw+Medic",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
    "name": "Shattered Landscape",
    "mana_cost": "",
    "type_line": "Land",
-   "oracle_text": "{T}: Add {C}.\n{T}, Sacrifice Shattered Landscape: Search your library for a basic Mountain, Plains, or Swamp card, put it onto the battlefield tapped, then shuffle.\nCycling {R}{W}{B} ({R}{W}{B}, Discard this card: Draw a card.)",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/s/shattered_landscape.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "{T}: Add {C}.\n{T}, Sacrifice this land: Search your library for a basic Mountain, Plains, or Swamp card, put it onto the battlefield tapped, then shuffle.\nCycling {R}{W}{B} ({R}{W}{B}, Discard this card: Draw a card.)",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Shattered+Landscape",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
@@ -4483,8 +4483,8 @@
    "mana_cost": "{G}",
    "type_line": "Instant",
    "oracle_text": "Prevent all combat damage that would be dealt this turn.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/f/fog.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Fog",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
@@ -4492,8 +4492,8 @@
    "mana_cost": "",
    "type_line": "Land",
    "oracle_text": "This land enters tapped.\n{T}: Add {G} or {U}.\n{2}{G}{U}, {T}: Surveil 1. (Look at the top card of your library. You may put it into your graveyard.)",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/p/paradox_gardens.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Paradox+Gardens",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
@@ -4501,8 +4501,8 @@
    "mana_cost": "{U}",
    "type_line": "Instant",
    "oracle_text": "Counter target spell unless its controller pays {1}.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/f/force_spike.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Force+Spike",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
@@ -4510,28 +4510,28 @@
    "mana_cost": "{3}",
    "type_line": "Artifact",
    "oracle_text": "Sacrifice a creature: Add {C}{C}.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/a/ashnods_altar.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Ashnod's+Altar",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
    "name": "Tireless Tribe",
    "mana_cost": "{W}",
    "type_line": "Creature — Human Nomad",
-   "oracle_text": "Discard a card: Tireless Tribe gets +0/+4 until end of turn.",
+   "oracle_text": "Discard a card: This creature gets +0/+4 until end of turn.",
    "power": "1",
    "toughness": "1",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/t/tireless_tribe.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Tireless+Tribe",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
    "name": "Lonely Arroyo",
    "mana_cost": "",
    "type_line": "Land — Desert",
-   "oracle_text": "Lonely Arroyo enters tapped.\nWhen Lonely Arroyo enters, it deals 1 damage to target opponent.\n{T}: Add {W} or {U}.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/l/lonely_arroyo.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "This land enters tapped.\nWhen this land enters, it deals 1 damage to target opponent.\n{T}: Add {W} or {U}.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Lonely+Arroyo",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
@@ -4539,55 +4539,55 @@
    "mana_cost": "{2}{R}",
    "type_line": "Instant",
    "oracle_text": "Fiery Cannonade deals 2 damage to each non-Pirate creature.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/f/fiery_cannonade.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Fiery+Cannonade",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
    "name": "Molten Tributary",
    "mana_cost": "",
    "type_line": "Land — Island Mountain",
-   "oracle_text": "({T}: Add {U} or {R}.)\nMolten Tributary enters tapped.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/m/molten_tributary.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "({T}: Add {U} or {R}.)\nThis land enters tapped.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Molten+Tributary",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
    "name": "Tinder Farm",
    "mana_cost": "",
    "type_line": "Land",
-   "oracle_text": "Tinder Farm enters tapped.\n{T}: Add {G}.\n{T}, Sacrifice Tinder Farm: Add {R}{W}.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/t/tinder_farm.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "This land enters tapped.\n{T}: Add {G}.\n{T}, Sacrifice this land: Add {R}{W}.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Tinder+Farm",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
    "name": "Tangled Islet",
    "mana_cost": "",
    "type_line": "Land — Forest Island",
-   "oracle_text": "({T}: Add {G} or {U}.)\nTangled Islet enters tapped.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/t/tangled_islet.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "({T}: Add {G} or {U}.)\nThis land enters tapped.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Tangled+Islet",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
    "name": "Bloodthrone Vampire",
    "mana_cost": "{1}{B}",
    "type_line": "Creature — Vampire",
-   "oracle_text": "Sacrifice a creature: Bloodthrone Vampire gets +2/+2 until end of turn.",
+   "oracle_text": "Sacrifice a creature: This creature gets +2/+2 until end of turn.",
    "power": "1",
    "toughness": "1",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/b/bloodthrone_vampire.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Bloodthrone+Vampire",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
    "name": "Radiant Fountain",
    "mana_cost": "",
    "type_line": "Land",
-   "oracle_text": "When Radiant Fountain enters, you gain 2 life.\n{T}: Add {C}.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/r/radiant_fountain.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "When this land enters, you gain 2 life.\n{T}: Add {C}.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Radiant+Fountain",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
@@ -4597,19 +4597,19 @@
    "oracle_text": "Flash\nWhen this creature enters, target creature an opponent controls gets -2/-0 until end of turn.",
    "power": "1",
    "toughness": "2",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/h/humbling_elder.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Humbling+Elder",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
    "name": "Ichorclaw Myr",
    "mana_cost": "{2}",
    "type_line": "Artifact Creature — Phyrexian Myr",
-   "oracle_text": "Infect (This creature deals damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)\nWhenever Ichorclaw Myr becomes blocked, it gets +2/+2 until end of turn.",
+   "oracle_text": "Infect (This creature deals damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)\nWhenever this creature becomes blocked, it gets +2/+2 until end of turn.",
    "power": "1",
    "toughness": "1",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/i/ichorclaw_myr.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Ichorclaw+Myr",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
@@ -4617,41 +4617,41 @@
    "mana_cost": "",
    "type_line": "Land",
    "oracle_text": "This land enters tapped.\nWhen this land enters, you gain 1 life.\n{T}: Add {R} or {W}.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/d/dimension_x.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Dimension+X",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
    "name": "Whitemane Lion",
    "mana_cost": "{1}{W}",
    "type_line": "Creature — Cat",
-   "oracle_text": "Flash\nWhen Whitemane Lion enters, return a creature you control to its owner's hand.",
+   "oracle_text": "Flash\nWhen this creature enters, return a creature you control to its owner's hand.",
    "power": "2",
    "toughness": "2",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/w/whitemane_lion.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Whitemane+Lion",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
    "name": "Reckless Lackey",
    "mana_cost": "{R}",
    "type_line": "Creature — Goblin Pirate",
-   "oracle_text": "First strike, haste\n{2}{R}, Sacrifice Reckless Lackey: Draw a card and create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")",
+   "oracle_text": "First strike, haste\n{2}{R}, Sacrifice this creature: Draw a card and create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")",
    "power": "1",
    "toughness": "2",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/r/reckless_lackey.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Reckless+Lackey",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
    "name": "Goldhound",
    "mana_cost": "{R}",
    "type_line": "Artifact Creature — Treasure Dog",
-   "oracle_text": "First strike\nMenace (This creature can't be blocked except by two or more creatures.)\n{T}, Sacrifice Goldhound: Add one mana of any color.",
+   "oracle_text": "First strike\nMenace (This creature can't be blocked except by two or more creatures.)\n{T}, Sacrifice this creature: Add one mana of any color.",
    "power": "1",
    "toughness": "1",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/g/goldhound.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Goldhound",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
@@ -4659,8 +4659,8 @@
    "mana_cost": "{W/B}{W/B}{W/B}",
    "type_line": "Instant",
    "oracle_text": "Exile target creature.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/u/unmake.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Unmake",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
@@ -4668,28 +4668,28 @@
    "mana_cost": "{U}",
    "type_line": "Sorcery",
    "oracle_text": "Target creature can't be blocked this turn.\nFlashback {U} (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/a/artful_dodge.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Artful+Dodge",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
    "name": "Vampire Sovereign",
    "mana_cost": "{3}{B}{B}",
    "type_line": "Creature — Vampire Noble",
-   "oracle_text": "Flying\nWhen Vampire Sovereign enters, target opponent loses 3 life and you gain 3 life.",
+   "oracle_text": "Flying\nWhen this creature enters, target opponent loses 3 life and you gain 3 life.",
    "power": "3",
    "toughness": "4",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/v/vampire_sovereign.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Vampire+Sovereign",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
    "name": "Wooded Ridgeline",
    "mana_cost": "",
    "type_line": "Land — Mountain Forest",
-   "oracle_text": "({T}: Add {R} or {G}.)\nWooded Ridgeline enters tapped.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/w/wooded_ridgeline.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "({T}: Add {R} or {G}.)\nThis land enters tapped.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Wooded+Ridgeline",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
@@ -4697,17 +4697,17 @@
    "mana_cost": "{2}{G}{G}",
    "type_line": "Sorcery",
    "oracle_text": "Destroy target land. Search your library for a Forest card, put that card onto the battlefield tapped, then shuffle.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/m/mwonvuli_acid_moss.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Mwonvuli+Acid-Moss",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
    "name": "Abraded Bluffs",
    "mana_cost": "",
    "type_line": "Land — Desert",
-   "oracle_text": "Abraded Bluffs enters tapped.\nWhen Abraded Bluffs enters, it deals 1 damage to target opponent.\n{T}: Add {R} or {W}.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/a/abraded_bluffs.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "This land enters tapped.\nWhen this land enters, it deals 1 damage to target opponent.\n{T}: Add {R} or {W}.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Abraded+Bluffs",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
@@ -4715,19 +4715,19 @@
    "mana_cost": "",
    "type_line": "Land",
    "oracle_text": "This land enters tapped.\n{T}: Add {U} or {B}.\n{4}, {T}: Surveil 1. (Look at the top card of your library. You may put it into your graveyard.)",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/s/sinister_hideout.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Sinister+Hideout",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
    "name": "Blight Mamba",
    "mana_cost": "{1}{G}",
    "type_line": "Creature — Phyrexian Snake",
-   "oracle_text": "Infect (This creature deals damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)\n{1}{G}: Regenerate Blight Mamba.",
+   "oracle_text": "Infect (This creature deals damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)\n{1}{G}: Regenerate this creature.",
    "power": "1",
    "toughness": "1",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/b/blight_mamba.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Blight+Mamba",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
@@ -4735,28 +4735,28 @@
    "mana_cost": "{G}",
    "type_line": "Instant",
    "oracle_text": "Choose one —\n• Search your library for a basic land card, reveal it, put it into your hand, then shuffle.\n• Target creature gets +2/+2 until end of turn.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/g/go_forth.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Go+Forth",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
    "name": "Eroded Canyon",
    "mana_cost": "",
    "type_line": "Land — Desert",
-   "oracle_text": "Eroded Canyon enters tapped.\nWhen Eroded Canyon enters, it deals 1 damage to target opponent.\n{T}: Add {U} or {R}.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/e/eroded_canyon.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "This land enters tapped.\nWhen this land enters, it deals 1 damage to target opponent.\n{T}: Add {U} or {R}.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Eroded+Canyon",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
    "name": "Kiln Fiend",
    "mana_cost": "{1}{R}",
    "type_line": "Creature — Elemental Beast",
-   "oracle_text": "Whenever you cast an instant or sorcery spell, Kiln Fiend gets +3/+0 until end of turn.",
+   "oracle_text": "Whenever you cast an instant or sorcery spell, this creature gets +3/+0 until end of turn.",
    "power": "1",
    "toughness": "2",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/k/kiln_fiend.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Kiln+Fiend",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
@@ -4764,8 +4764,8 @@
    "mana_cost": "{U}",
    "type_line": "Sorcery",
    "oracle_text": "Devoid (This card has no color.)\nTarget creature can't be blocked this turn.\nDraw a card.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/s/slip_through_space.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Slip+Through+Space",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
@@ -4773,17 +4773,17 @@
    "mana_cost": "",
    "type_line": "Land",
    "oracle_text": "This land enters tapped.\n{T}: Add {W} or {U}.\n{4}, {T}, Sacrifice this land: Draw a card.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/n/north_pole_gates.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=North+Pole+Gates",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
    "name": "Golden Egg",
    "mana_cost": "{2}",
    "type_line": "Artifact — Food",
-   "oracle_text": "When Golden Egg enters, draw a card.\n{1}, {T}, Sacrifice Golden Egg: Add one mana of any color.\n{2}, {T}, Sacrifice Golden Egg: You gain 3 life.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/g/golden_egg.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "When this artifact enters, draw a card.\n{1}, {T}, Sacrifice this artifact: Add one mana of any color.\n{2}, {T}, Sacrifice this artifact: You gain 3 life.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Golden+Egg",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
@@ -4791,17 +4791,17 @@
    "mana_cost": "",
    "type_line": "Land",
    "oracle_text": "When this land enters, surveil 1. (Look at the top card of your library. You may put it into your graveyard.)\n{T}: Add {C}.\n{1}, {T}: Add one mana of any color.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/s/surveillance_room.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Surveillance+Room",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
    "name": "Tocasia's Dig Site",
    "mana_cost": "",
    "type_line": "Land",
-   "oracle_text": "{T}: Add {C}.\n{3}, {T}: Surveil 1. (Look at the top card of your library. You may put that card into your graveyard.)",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/t/tocasias_dig_site.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "{T}: Add {C}.\n{3}, {T}: Surveil 1. (Look at the top card of your library. You may put it into your graveyard.)",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Tocasia's+Dig+Site",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
@@ -4811,126 +4811,126 @@
    "oracle_text": "Vigilance\nCycling {1} ({1}, Discard this card: Draw a card.)",
    "power": "3",
    "toughness": "6",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/i/imposing_vantasaur.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Imposing+Vantasaur",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
    "name": "Alpine Meadow",
    "mana_cost": "",
    "type_line": "Snow Land — Mountain Plains",
-   "oracle_text": "({T}: Add {R} or {W}.)\nAlpine Meadow enters tapped.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/a/alpine_meadow.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "({T}: Add {R} or {W}.)\nThis land enters tapped.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Alpine+Meadow",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
    "name": "Lagonna-Band Trailblazer",
    "mana_cost": "{W}",
    "type_line": "Creature — Centaur Scout",
-   "oracle_text": "Heroic — Whenever you cast a spell that targets Lagonna-Band Trailblazer, put a +1/+1 counter on Lagonna-Band Trailblazer.",
+   "oracle_text": "Heroic — Whenever you cast a spell that targets this creature, put a +1/+1 counter on it.",
    "power": "0",
    "toughness": "4",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/l/lagonna_band_trailblazer.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Lagonna-Band+Trailblazer",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
    "name": "Energy Refractor",
    "mana_cost": "{2}",
    "type_line": "Artifact",
-   "oracle_text": "When Energy Refractor enters, draw a card.\n{2}: Add one mana of any color.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/e/energy_refractor.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "When this artifact enters, draw a card.\n{2}: Add one mana of any color.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Energy+Refractor",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
    "name": "Myr Kinsmith",
    "mana_cost": "{4}",
    "type_line": "Artifact Creature — Myr",
-   "oracle_text": "When Myr Kinsmith enters, you may search your library for a Myr card, reveal it, put it into your hand, then shuffle.",
+   "oracle_text": "When this creature enters, you may search your library for a Myr card, reveal it, put it into your hand, then shuffle.",
    "power": "3",
    "toughness": "1",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/m/myr_kinsmith.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Myr+Kinsmith",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
    "name": "Prosperous Pirates",
    "mana_cost": "{4}{U}",
    "type_line": "Creature — Human Pirate",
-   "oracle_text": "When Prosperous Pirates enters, create two Treasure tokens. (They're artifacts with \"{T}, Sacrifice this token: Add one mana of any color.\")",
+   "oracle_text": "When this creature enters, create two Treasure tokens. (They're artifacts with \"{T}, Sacrifice this token: Add one mana of any color.\")",
    "power": "3",
    "toughness": "4",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/p/prosperous_pirates.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Prosperous+Pirates",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
    "name": "Crystal Grotto",
    "mana_cost": "",
    "type_line": "Land",
-   "oracle_text": "When Crystal Grotto enters, scry 1. (Look at the top card of your library. You may put that card on the bottom.)\n{T}: Add {C}.\n{1}, {T}: Add one mana of any color.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/c/crystal_grotto.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "When this land enters, scry 1.\n{T}: Add {C}.\n{1}, {T}: Add one mana of any color.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Crystal+Grotto",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
    "name": "Omen of the Dead",
    "mana_cost": "{B}",
    "type_line": "Enchantment",
-   "oracle_text": "Flash\nWhen Omen of the Dead enters, return target creature card from your graveyard to your hand.\n{2}{B}, Sacrifice Omen of the Dead: Scry 2.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/o/omen_of_the_dead.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "Flash\nWhen this enchantment enters, return target creature card from your graveyard to your hand.\n{2}{B}, Sacrifice this enchantment: Scry 2.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Omen+of+the+Dead",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
    "name": "Creosote Heath",
    "mana_cost": "",
    "type_line": "Land — Desert",
-   "oracle_text": "Creosote Heath enters tapped.\nWhen Creosote Heath enters, it deals 1 damage to target opponent.\n{T}: Add {W} or {G}.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/c/creosote_heath.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "This land enters tapped.\nWhen this land enters, it deals 1 damage to target opponent.\n{T}: Add {G} or {W}.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Creosote+Heath",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
    "name": "Etched Cornfield",
    "mana_cost": "",
    "type_line": "Land",
-   "oracle_text": "Etched Cornfield enters tapped unless a player has 13 or less life.\n{T}: Add {G} or {W}.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/e/etched_cornfield.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "This land enters tapped unless a player has 13 or less life.\n{T}: Add {G} or {W}.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Etched+Cornfield",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
    "name": "Erebor Flamesmith",
    "mana_cost": "{1}{R}",
    "type_line": "Creature — Dwarf Artificer",
-   "oracle_text": "Whenever you cast an instant or sorcery spell, Erebor Flamesmith deals 1 damage to each opponent.",
+   "oracle_text": "Whenever you cast an instant or sorcery spell, this creature deals 1 damage to each opponent.",
    "power": "2",
    "toughness": "1",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/e/erebor_flamesmith.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Erebor+Flamesmith",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
    "name": "Firebrand Archer",
    "mana_cost": "{1}{R}",
    "type_line": "Creature — Human Archer",
-   "oracle_text": "Whenever you cast a noncreature spell, Firebrand Archer deals 1 damage to each opponent.",
+   "oracle_text": "Whenever you cast a noncreature spell, this creature deals 1 damage to each opponent.",
    "power": "2",
    "toughness": "1",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/f/firebrand_archer.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Firebrand+Archer",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
    "name": "Sunscorched Desert",
    "mana_cost": "",
    "type_line": "Land — Desert",
-   "oracle_text": "When Sunscorched Desert enters, it deals 1 damage to target player or planeswalker.\n{T}: Add {C}.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/s/sunscorched_desert.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "When this land enters, it deals 1 damage to target player or planeswalker.\n{T}: Add {C}.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Sunscorched+Desert",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
@@ -4938,17 +4938,17 @@
    "mana_cost": "{1}",
    "type_line": "Artifact",
    "oracle_text": "{1}, {T}, Sacrifice this artifact: Search your library for a basic land card, reveal it, put it into your hand, then shuffle.\n{3}, {T}, Sacrifice this artifact: Search your library for a land card, reveal it, put it into your hand, then shuffle.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/w/world_map.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=World+Map",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
    "name": "Tranquil Landscape",
    "mana_cost": "",
    "type_line": "Land",
-   "oracle_text": "{T}: Add {C}.\n{T}, Sacrifice Tranquil Landscape: Search your library for a basic Forest, Plains, or Island card, put it onto the battlefield tapped, then shuffle.\nCycling {G}{W}{U} ({G}{W}{U}, Discard this card: Draw a card.)",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/t/tranquil_landscape.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "{T}: Add {C}.\n{T}, Sacrifice this land: Search your library for a basic Forest, Plains, or Island card, put it onto the battlefield tapped, then shuffle.\nCycling {G}{W}{U} ({G}{W}{U}, Discard this card: Draw a card.)",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Tranquil+Landscape",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
@@ -4958,8 +4958,8 @@
    "oracle_text": "Lifelink\n{1}, Sacrifice this creature: Destroy target artifact or enchantment.",
    "power": "2",
    "toughness": "2",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/s/shattered_acolyte.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Shattered+Acolyte",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
@@ -4969,28 +4969,28 @@
    "oracle_text": "Flying\nWhen this creature enters, you gain 2 life. You may search your library for a basic land card, reveal it, then shuffle and put that card on top.",
    "power": "1",
    "toughness": "2",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/o/old_thrush.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Old+Thrush",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
    "name": "Cogwork Wrestler",
    "mana_cost": "{U}",
    "type_line": "Artifact Creature — Gnome",
-   "oracle_text": "Flash\nWhen Cogwork Wrestler enters, target creature an opponent controls gets -2/-0 until end of turn.",
+   "oracle_text": "Flash\nWhen this creature enters, target creature an opponent controls gets -2/-0 until end of turn.",
    "power": "1",
    "toughness": "2",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/c/cogwork_wrestler.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Cogwork+Wrestler",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
    "name": "Campfire",
    "mana_cost": "{1}",
    "type_line": "Artifact",
-   "oracle_text": "{1}, {T}: You gain 2 life.\n{2}, {T}, Exile Campfire: Put all commanders you own from the command zone and from your graveyard into your hand. Then shuffle your graveyard into your library.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/c/campfire.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "{1}, {T}: You gain 2 life.\n{2}, {T}, Exile this artifact: Put all commanders you own from the command zone and from your graveyard into your hand. Then shuffle your graveyard into your library.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Campfire",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 39
   },
   {
@@ -4998,8 +4998,8 @@
    "mana_cost": "{3}",
    "type_line": "Artifact",
    "oracle_text": "{T}: Add one mana of any color.\n{4}, {T}: Each player who controls a permanent named Bonder's Ornament draws a card.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/b/bonders_ornament.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Bonder's+Ornament",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 33
   },
   {
@@ -5007,8 +5007,8 @@
    "mana_cost": "{1}{B}",
    "type_line": "Instant",
    "oracle_text": "As an additional cost to cast this spell, sacrifice an artifact or creature.\nYou gain life equal to the sacrificed permanent's mana value. Draw two cards.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/r/reckoners_bargain.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Reckoner's+Bargain",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 21
   },
   {
@@ -5045,8 +5045,8 @@
    "mana_cost": "{R}{W}",
    "type_line": "Sorcery",
    "oracle_text": "You gain 2 life. You may discard a card. If you do, draw two cards.\nFlashback {2}{R}{W} (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/p/pursue_the_past.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Pursue+the+Past",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 13
   },
   {
@@ -5081,8 +5081,8 @@
    "mana_cost": "{1}{U/R}",
    "type_line": "Instant — Lesson",
    "oracle_text": "You may discard a card. If you do, draw two cards.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/a/abandon_attachments.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Abandon+Attachments",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 10
   },
   {
@@ -5090,17 +5090,17 @@
    "mana_cost": "{2}{R}",
    "type_line": "Instant",
    "oracle_text": "As an additional cost to cast this spell, discard a card.\nDraw two cards.\nFlashback {3}{R} (You may cast this card from your graveyard for its flashback cost and any additional costs. Then exile it.)",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/l/laughing_mad.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Laughing+Mad",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
    "name": "Bitter Reunion",
    "mana_cost": "{1}{R}",
    "type_line": "Enchantment",
-   "oracle_text": "When Bitter Reunion enters, you may discard a card. If you do, draw two cards.\n{1}, Sacrifice Bitter Reunion: Creatures you control gain haste until end of turn.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/b/bitter_reunion.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "When this enchantment enters, you may discard a card. If you do, draw two cards.\n{1}, Sacrifice this enchantment: Creatures you control gain haste until end of turn.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Bitter+Reunion",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
@@ -5108,8 +5108,8 @@
    "mana_cost": "{2}{R}",
    "type_line": "Instant",
    "oracle_text": "As an additional cost to cast this spell, discard a card.\nDraw two cards.\nFlashback {3}{R} (You may cast this card from your graveyard for its flashback cost and any additional costs. Then exile it.)",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/e/electric_revelation.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Electric+Revelation",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
@@ -5144,8 +5144,8 @@
    "mana_cost": "{W}",
    "type_line": "Instant",
    "oracle_text": "Target creature you control gains protection from the color of your choice until end of turn.\nRebound (If you cast this spell from your hand, exile it as it resolves. At the beginning of your next upkeep, you may cast this card from exile without paying its mana cost.)",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/e/emerge_unscathed.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Emerge+Unscathed",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
@@ -5162,39 +5162,39 @@
    "mana_cost": "{1}{R}",
    "type_line": "Sorcery",
    "oracle_text": "Exile the top two cards of your library. Until the end of your next turn, you may play those cards.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/w/wrenns_resolve.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Wrenn's+Resolve",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 32
   },
   {
    "name": "Clockwork Percussionist",
    "mana_cost": "{R}",
    "type_line": "Artifact Creature — Monkey Toy",
-   "oracle_text": "Haste\nWhen Clockwork Percussionist dies, exile the top card of your library. You may play it until the end of your next turn.",
+   "oracle_text": "Haste\nWhen this creature dies, exile the top card of your library. You may play it until the end of your next turn.",
    "power": "1",
    "toughness": "1",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/c/clockwork_percussionist.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Clockwork+Percussionist",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 13
   },
   {
    "name": "Glint Hawk",
    "mana_cost": "{W}",
    "type_line": "Creature — Bird",
-   "oracle_text": "Flying\nWhen Glint Hawk enters, sacrifice it unless you return an artifact you control to its owner's hand.",
+   "oracle_text": "Flying\nWhen this creature enters, sacrifice it unless you return an artifact you control to its owner's hand.",
    "power": "2",
    "toughness": "2",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/g/glint_hawk.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Glint+Hawk",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 23
   },
   {
    "name": "Gingerbread Cabin",
    "mana_cost": "",
    "type_line": "Land — Forest",
-   "oracle_text": "({T}: Add {G}.)\nGingerbread Cabin enters tapped unless you control three or more other Forests.\nWhen Gingerbread Cabin enters untapped, create a Food token. (It's an artifact with \"{2}, {T}, Sacrifice this token: You gain 3 life.\")",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/g/gingerbread_cabin.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "({T}: Add {G}.)\nThis land enters tapped unless you control three or more other Forests.\nWhen this land enters untapped, create a Food token. (It's an artifact with \"{2}, {T}, Sacrifice this token: You gain 3 life.\")",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Gingerbread+Cabin",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 23
   },
   {
@@ -5202,8 +5202,8 @@
    "mana_cost": "{1}{U}",
    "type_line": "Artifact",
    "oracle_text": "When this artifact enters or leaves the battlefield, draw a card.\n{1}{U}, Sacrifice this artifact: Put a stun counter on up to one target tapped creature. (If a permanent with a stun counter would become untapped, remove one from it instead.)",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/c/cryogen_relic.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Cryogen+Relic",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 46
   },
   {
@@ -5211,8 +5211,8 @@
    "mana_cost": "{W}",
    "type_line": "Instant",
    "oracle_text": "Exile target creature you control, then return it to the battlefield under its owner's control.\nRebound (If you cast this spell from your hand, exile it as it resolves. At the beginning of your next upkeep, you may cast this card from exile without paying its mana cost.)",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/e/ephemerate.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Ephemerate",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 48
   },
   {
@@ -5228,11 +5228,11 @@
    "name": "Troll of Khazad-dûm",
    "mana_cost": "{5}{B}",
    "type_line": "Creature — Troll",
-   "oracle_text": "Troll of Khazad-dûm can't be blocked except by three or more creatures.\nSwampcycling {1} ({1}, Discard this card: Search your library for a Swamp card, reveal it, put it into your hand, then shuffle.)",
+   "oracle_text": "This creature can't be blocked except by three or more creatures.\nSwampcycling {1} ({1}, Discard this card: Search your library for a Swamp card, reveal it, put it into your hand, then shuffle.)",
    "power": "6",
    "toughness": "5",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/t/troll_of_khazad_dm.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Troll+of+Khazad-d%C3%BBm",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 33
   },
   {
@@ -5240,8 +5240,8 @@
    "mana_cost": "{1}{R}",
    "type_line": "Artifact",
    "oracle_text": "When this artifact enters, you may discard a card. If you do, draw two cards.\n{3}, Sacrifice this artifact: Create a tapped 2/2 colorless Robot artifact creature token.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/m/melded_moxite.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Melded+Moxite",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 16
   },
   {
@@ -5249,17 +5249,17 @@
    "mana_cost": "{1}{R}",
    "type_line": "Sorcery",
    "oracle_text": "Exile the top two cards of your library. Until the end of your next turn, you may play those cards.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/r/reckless_impulse.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Reckless+Impulse",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 29
   },
   {
    "name": "Extract a Confession",
    "mana_cost": "{1}{B}",
    "type_line": "Sorcery",
-   "oracle_text": "As an additional cost to cast this spell, you may collect evidence 6. (Exile cards with total mana value 6 or greater from your graveyard.)\nEach opponent sacrifices a creature. If evidence was collected, instead each opponent sacrifices a creature with the greatest power among creatures they control.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/e/extract_a_confession.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "As an additional cost to cast this spell, you may collect evidence 6. (Exile cards with total mana value 6 or greater from your graveyard.)\nEach opponent sacrifices a creature of their choice. If evidence was collected, instead each opponent sacrifices a creature with the greatest power among creatures they control.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Extract+a+Confession",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 34
   },
   {
@@ -5267,8 +5267,8 @@
    "mana_cost": "{1}{G}",
    "type_line": "Sorcery",
    "oracle_text": "If you have no land cards in hand, you may reveal your hand rather than pay this spell's mana cost.\nSearch your library for a Forest card, reveal that card, put it into your hand, then shuffle.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/l/land_grant.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Land+Grant",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 27
   },
   {
@@ -5285,8 +5285,8 @@
    "mana_cost": "{3}{B}",
    "type_line": "Sorcery",
    "oracle_text": "Creatures target player controls get -2/-2 until end of turn.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/a/arms_of_hadar.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Arms+of+Hadar",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 13
   },
   {
@@ -5294,30 +5294,30 @@
    "mana_cost": "{2}{U}",
    "type_line": "Instant",
    "oracle_text": "Exile two target artifacts, creatures, and/or lands you control, then return those cards to the battlefield under your control.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/g/ghostly_flicker.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Ghostly+Flicker",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 11
   },
   {
    "name": "Goblin Tomb Raider",
    "mana_cost": "{R}",
    "type_line": "Creature — Goblin Pirate",
-   "oracle_text": "As long as you control an artifact, Goblin Tomb Raider gets +1/+0 and has haste.",
+   "oracle_text": "As long as you control an artifact, this creature gets +1/+0 and has haste.",
    "power": "1",
    "toughness": "2",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/g/goblin_tomb_raider.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Goblin+Tomb+Raider",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 11
   },
   {
    "name": "Bramble Wurm",
    "mana_cost": "{6}{G}",
    "type_line": "Creature — Wurm",
-   "oracle_text": "Reach, trample\nWhen Bramble Wurm enters, you gain 5 life.\n{2}{G}, Exile Bramble Wurm from your graveyard: You gain 5 life.",
+   "oracle_text": "Reach, trample\nWhen this creature enters, you gain 5 life.\n{2}{G}, Exile this card from your graveyard: You gain 5 life.",
    "power": "7",
    "toughness": "6",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/b/bramble_wurm.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Bramble+Wurm",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 17
   },
   {
@@ -5325,8 +5325,8 @@
    "mana_cost": "{3}{U}",
    "type_line": "Sorcery",
    "oracle_text": "This spell costs {1} less to cast for each card you've drawn this turn.\nThe owner of target nonland permanent puts it into their library second from the top or on the bottom.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/d/deem_inferior.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Deem+Inferior",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 17
   },
   {
@@ -5334,8 +5334,8 @@
    "mana_cost": "{1}{U/R}",
    "type_line": "Instant",
    "oracle_text": "Draw a card. If this spell wasn't cast from your hand, draw two cards instead.\nFlashback—{1}{U/R}{U/R}, Discard a card. (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/t/twinned_vision.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Twinned+Vision",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 20
   },
   {
@@ -5345,8 +5345,8 @@
    "oracle_text": "Each spell you cast that's red or green costs {1} less to cast.",
    "power": "2",
    "toughness": "2",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/g/goblin_anarchomancer.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Goblin+Anarchomancer",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 11
   },
   {
@@ -5356,28 +5356,28 @@
    "oracle_text": "Red spells and white spells you cast cost {1} less to cast.",
    "power": "2",
    "toughness": "1",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/t/thornscape_familiar.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Thornscape+Familiar",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 12
   },
   {
    "name": "Experimental Synthesizer",
    "mana_cost": "{R}",
    "type_line": "Artifact",
-   "oracle_text": "When Experimental Synthesizer enters or leaves the battlefield, exile the top card of your library. Until end of turn, you may play that card.\n{2}{R}, Sacrifice Experimental Synthesizer: Create a 2/2 white Samurai creature token with vigilance. Activate only as a sorcery.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/e/experimental_synthesizer.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "When this artifact enters or leaves the battlefield, exile the top card of your library. Until end of turn, you may play that card.\n{2}{R}, Sacrifice this artifact: Create a 2/2 white Samurai creature token with vigilance. Activate only as a sorcery.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Experimental+Synthesizer",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 22
   },
   {
    "name": "Mesmeric Fiend",
    "mana_cost": "{1}{B}",
    "type_line": "Creature — Nightmare Horror",
-   "oracle_text": "When Mesmeric Fiend enters, target opponent reveals their hand and you choose a nonland card from it. Exile that card.\nWhen Mesmeric Fiend leaves the battlefield, return the exiled card to its owner's hand.",
+   "oracle_text": "When this creature enters, target opponent reveals their hand and you choose a nonland card from it. Exile that card.\nWhen this creature leaves the battlefield, return the exiled card to its owner's hand.",
    "power": "1",
    "toughness": "1",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/m/mesmeric_fiend.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Mesmeric+Fiend",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 12
   },
   {
@@ -5385,8 +5385,8 @@
    "mana_cost": "{G}{U}",
    "type_line": "Instant",
    "oracle_text": "Draw a card. You may put a land card from your hand onto the battlefield.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/g/growth_spiral.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Growth+Spiral",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 16
   },
   {
@@ -5394,8 +5394,8 @@
    "mana_cost": "{3}{G}{U}",
    "type_line": "Instant",
    "oracle_text": "Draw three cards. You may put a land card from your hand onto the battlefield tapped.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/e/embrace_the_paradox.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Embrace+the+Paradox",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
@@ -5403,19 +5403,19 @@
    "mana_cost": "{2}{W}",
    "type_line": "Instant",
    "oracle_text": "Draw a card, then you gain life equal to the number of cards in your hand.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/u/union_of_the_third_path.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Union+of+the+Third+Path",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 7
   },
   {
    "name": "Lotleth Giant",
    "mana_cost": "{6}{B}",
    "type_line": "Creature — Zombie Giant",
-   "oracle_text": "Undergrowth — When Lotleth Giant enters, it deals 1 damage to target opponent for each creature card in your graveyard.",
+   "oracle_text": "Undergrowth — When this creature enters, it deals 1 damage to target opponent for each creature card in your graveyard.",
    "power": "6",
    "toughness": "5",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/l/lotleth_giant.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Lotleth+Giant",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 11
   },
   {
@@ -5423,8 +5423,8 @@
    "mana_cost": "{B}",
    "type_line": "Instant",
    "oracle_text": "Target creature gets -1/-1 until end of turn for each Swamp you control.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/d/defile.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Defile",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 10
   },
   {
@@ -5432,8 +5432,8 @@
    "mana_cost": "{G}",
    "type_line": "Sorcery",
    "oracle_text": "Look at the top five cards of your library. You may reveal a colorless card from among them and put it into your hand. Then put the rest on the bottom of your library in any order.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/a/ancient_stirrings.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Ancient+Stirrings",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 43
   },
   {
@@ -5441,8 +5441,8 @@
    "mana_cost": "{1}{R}",
    "type_line": "Instant",
    "oracle_text": "As an additional cost to cast this spell, sacrifice a creature.\nFling deals damage equal to the sacrificed creature's power to any target.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/f/fling.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Fling",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 11
   },
   {
@@ -5450,19 +5450,19 @@
    "mana_cost": "{U}{B}",
    "type_line": "Instant",
    "oracle_text": "Target creature gets -3/-0 until end of turn.\nTarget creature gets -0/-3 until end of turn.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/a/agony_warp.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Agony+Warp",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 8
   },
   {
    "name": "Ardent Recruit",
    "mana_cost": "{W}",
    "type_line": "Creature — Human Soldier",
-   "oracle_text": "Metalcraft — Ardent Recruit gets +2/+2 as long as you control three or more artifacts.",
+   "oracle_text": "Metalcraft — This creature gets +2/+2 as long as you control three or more artifacts.",
    "power": "1",
    "toughness": "1",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/a/ardent_recruit.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Ardent+Recruit",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
@@ -5470,19 +5470,19 @@
    "mana_cost": "{3}",
    "type_line": "Artifact",
    "oracle_text": "Untap this artifact during each other player's untap step.\n{T}: Add one mana of any color.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/b/benders_waterskin.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Bender's+Waterskin",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 11
   },
   {
    "name": "Chrome Courier",
    "mana_cost": "{1}{W}{U}",
    "type_line": "Artifact Creature — Thopter",
-   "oracle_text": "Flying\nWhen Chrome Courier enters, reveal the top two cards of your library. Put one of them into your hand and the other into your graveyard. If you put an artifact card into your hand this way, you gain 3 life.",
+   "oracle_text": "Flying\nWhen this creature enters, reveal the top two cards of your library. Put one of them into your hand and the other into your graveyard. If you put an artifact card into your hand this way, you gain 3 life.",
    "power": "1",
    "toughness": "1",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/c/chrome_courier.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Chrome+Courier",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
@@ -5490,8 +5490,8 @@
    "mana_cost": "{X}{R}",
    "type_line": "Sorcery",
    "oracle_text": "As long as Kaervek's Torch is on the stack, spells that target it cost {2} more to cast.\nKaervek's Torch deals X damage to any target.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/k/kaerveks_torch.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Kaervek's+Torch",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 8
   },
   {
@@ -5519,51 +5519,51 @@
    "name": "Inventor's Axe",
    "mana_cost": "{R}",
    "type_line": "Artifact — Equipment",
-   "oracle_text": "Flash\nWhen Inventor's Axe enters, you get {E}{E} (two energy counters).\nWhen Inventor's Axe enters, attach it to target creature you control.\nEquipped creature gets +2/+0.\nEquip—Pay {E}{E}.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/i/inventors_axe.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "Flash\nWhen this Equipment enters, you get {E}{E} (two energy counters).\nWhen this Equipment enters, attach it to target creature you control.\nEquipped creature gets +2/+0.\nEquip—Pay {E}{E}.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Inventor's+Axe",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 8
   },
   {
    "name": "Haunted Fengraf",
    "mana_cost": "",
    "type_line": "Land",
-   "oracle_text": "{T}: Add {C}.\n{3}, {T}, Sacrifice Haunted Fengraf: Return a creature card at random from your graveyard to your hand.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/h/haunted_fengraf.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "{T}: Add {C}.\n{3}, {T}, Sacrifice this land: Return a creature card at random from your graveyard to your hand.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Haunted+Fengraf",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 11
   },
   {
    "name": "Gingerbrute",
    "mana_cost": "{1}",
    "type_line": "Artifact Creature — Food Golem",
-   "oracle_text": "Haste\n{1}: Gingerbrute can't be blocked this turn except by creatures with haste.\n{2}, {T}, Sacrifice Gingerbrute: You gain 3 life.",
+   "oracle_text": "Haste (This creature can attack and {T} as soon as it comes under your control.)\n{1}: This creature can't be blocked this turn except by creatures with haste.\n{2}, {T}, Sacrifice this creature: You gain 3 life.",
    "power": "1",
    "toughness": "1",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/g/gingerbrute.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Gingerbrute",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 7
   },
   {
    "name": "Devoted Druid",
    "mana_cost": "{1}{G}",
    "type_line": "Creature — Elf Druid",
-   "oracle_text": "{T}: Add {G}.\nPut a -1/-1 counter on Devoted Druid: Untap Devoted Druid.",
+   "oracle_text": "{T}: Add {G}.\nPut a -1/-1 counter on this creature: Untap this creature.",
    "power": "0",
    "toughness": "2",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/d/devoted_druid.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Devoted+Druid",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 26
   },
   {
    "name": "Martyr's Soul",
    "mana_cost": "{2}{W}",
    "type_line": "Creature — Spirit Soldier",
-   "oracle_text": "Convoke (Your creatures can help cast this spell. Each creature you tap while casting this spell pays for {1} or one mana of that creature's color.)\nWhen Martyr's Soul enters, if you control no tapped lands, put two +1/+1 counters on it.",
+   "oracle_text": "Convoke (Your creatures can help cast this spell. Each creature you tap while casting this spell pays for {1} or one mana of that creature's color.)\nWhen this creature enters, if you control no tapped lands, put two +1/+1 counters on it.",
    "power": "3",
    "toughness": "2",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/m/martyrs_soul.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Martyr's+Soul",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 9
   },
   {
@@ -5571,8 +5571,8 @@
    "mana_cost": "{1}{G}",
    "type_line": "Instant",
    "oracle_text": "Choose one —\n• Destroy target artifact.\n• Destroy target enchantment.\n• Exile up to one target card from a graveyard. Draw a card.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/h/heritage_reclamation.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Heritage+Reclamation",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 8
   },
   {
@@ -5580,8 +5580,8 @@
    "mana_cost": "{R}{W}",
    "type_line": "Sorcery",
    "oracle_text": "You gain 2 life. Then you may discard two cards. If you do, draw three cards.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/t/thrilling_discovery.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Thrilling+Discovery",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
@@ -5589,8 +5589,8 @@
    "mana_cost": "{G}",
    "type_line": "Instant",
    "oracle_text": "Kicker {G} (You may pay an additional {G} as you cast this spell.)\nTarget creature can't be the target of spells or abilities your opponents control this turn. If this spell was kicked, that creature gets +4/+4 until end of turn.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/v/vines_of_vastwood.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Vines+of+Vastwood",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
@@ -5607,8 +5607,8 @@
    "mana_cost": "{X}{R}{R}",
    "type_line": "Sorcery",
    "oracle_text": "Rolling Thunder deals X damage divided as you choose among any number of targets.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/r/rolling_thunder.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Rolling+Thunder",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 8
   },
   {
@@ -5642,31 +5642,31 @@
    "name": "Balustrade Spy",
    "mana_cost": "{3}{B}",
    "type_line": "Creature — Vampire Rogue",
-   "oracle_text": "Flying\nWhen Balustrade Spy enters, target player reveals cards from the top of their library until they reveal a land card, then puts those cards into their graveyard.",
+   "oracle_text": "Flying\nWhen this creature enters, target player reveals cards from the top of their library until they reveal a land card, then puts those cards into their graveyard.",
    "power": "2",
    "toughness": "3",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/b/balustrade_spy.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Balustrade+Spy",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 10
   },
   {
    "name": "Gatecreeper Vine",
    "mana_cost": "{1}{G}",
    "type_line": "Creature — Plant",
-   "oracle_text": "Defender\nWhen Gatecreeper Vine enters, you may search your library for a basic land card or a Gate card, reveal it, put it into your hand, then shuffle.",
+   "oracle_text": "Defender\nWhen this creature enters, you may search your library for a basic land card or a Gate card, reveal it, put it into your hand, then shuffle.",
    "power": "0",
    "toughness": "2",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/g/gatecreeper_vine.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Gatecreeper+Vine",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 9
   },
   {
    "name": "Desert",
    "mana_cost": "",
    "type_line": "Land — Desert",
-   "oracle_text": "{T}: Add {C}.\n{T}: Desert deals 1 damage to target attacking creature. Activate only during the end of combat step.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/d/desert.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "{T}: Add {C}.\n{T}: This land deals 1 damage to target attacking creature. Activate only during the end of combat step.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Desert",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 7
   },
   {
@@ -5685,8 +5685,8 @@
    "mana_cost": "{2}{R}",
    "type_line": "Instant",
    "oracle_text": "Teamwork 2 (As an additional cost to cast this spell, you may tap any number of creatures you control with total power 2 or more.)\nExile the top two cards of your library. Until the end of your next turn, you may play those cards. If this spell was cast using teamwork, create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/c/crossover_collaboration.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Crossover+Collaboration",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 10
   },
   {
@@ -5696,8 +5696,8 @@
    "oracle_text": "When this creature enters, it endures 1. (Put a +1/+1 counter on it or create a 1/1 white Spirit creature token.)",
    "power": "1",
    "toughness": "2",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/f/fortress_kin_guard.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Fortress+Kin-Guard",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
@@ -5705,8 +5705,8 @@
    "mana_cost": "{2}{G}{U}",
    "type_line": "Instant",
    "oracle_text": "Draw two cards. You may put a land card from your hand onto the battlefield.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/e/eureka_moment.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Eureka+Moment",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 7
   },
   {
@@ -5714,8 +5714,8 @@
    "mana_cost": "{3}{U}",
    "type_line": "Instant",
    "oracle_text": "Scry 2, then draw two cards.\nForetell {1}{U} (During your turn, you may pay {2} and exile this card from your hand face down. Cast it on a later turn for its foretell cost.)",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/b/behold_the_multiverse.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Behold+the+Multiverse",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 8
   },
   {
@@ -5723,8 +5723,8 @@
    "mana_cost": "{4}{W}",
    "type_line": "Instant",
    "oracle_text": "This spell costs {3} less to cast if it targets a tapped permanent.\nExile target creature or Vehicle.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/r/rides_end.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Ride's+End",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 7
   },
   {
@@ -5732,8 +5732,8 @@
    "mana_cost": "{R}",
    "type_line": "Instant",
    "oracle_text": "Bargain (You may sacrifice an artifact, enchantment, or token as you cast this spell.)\nTorch the Tower deals 2 damage to target creature or planeswalker. If this spell was bargained, instead it deals 3 damage to that permanent and you scry 1.\nIf a permanent dealt damage by Torch the Tower would die this turn, exile it instead.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/t/torch_the_tower.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Torch+the+Tower",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 28
   },
   {
@@ -5741,8 +5741,8 @@
    "mana_cost": "{1}{R}",
    "type_line": "Sorcery",
    "oracle_text": "Choose one —\n• Suplex deals 3 damage to target creature. If that creature would die this turn, exile it instead.\n• Exile target artifact.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/s/suplex.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Suplex",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 7
   },
   {
@@ -5750,17 +5750,17 @@
    "mana_cost": "{1}{G}{G}",
    "type_line": "Sorcery",
    "oracle_text": "Destroy target land. If that land was a snow land, you gain 1 life.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/t/thermokarst.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Thermokarst",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
    "name": "Glimpse the Impossible",
    "mana_cost": "{2}{R}",
    "type_line": "Sorcery",
-   "oracle_text": "Exile the top three cards of your library. You may play those cards this turn.\nAt the beginning of the next end step, if any of those cards remain exiled, put them into your graveyard, then create a 0/1 colorless Eldrazi Spawn creature token for each card put into your graveyard this way. Those tokens have \"Sacrifice this creature: Add {C}.\"",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/g/glimpse_the_impossible.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "Exile the top three cards of your library. You may play those cards this turn. At the beginning of the next end step, if any of those cards remain exiled, put them into your graveyard, then create a 0/1 colorless Eldrazi Spawn creature token for each card put into your graveyard this way. Those tokens have \"Sacrifice this token: Add {C}.\"",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Glimpse+the+Impossible",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 13
   },
   {
@@ -5770,17 +5770,17 @@
    "oracle_text": "{X}{X}{1}: Destroy target noncreature artifact with mana value X.",
    "power": "1",
    "toughness": "1",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/g/gorilla_shaman.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Gorilla+Shaman",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
    "name": "Navigator's Compass",
    "mana_cost": "{1}",
    "type_line": "Artifact",
-   "oracle_text": "When Navigator's Compass enters, you gain 3 life.\n{T}: Until end of turn, target land you control becomes the basic land type of your choice in addition to its other types.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/n/navigators_compass.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "When this artifact enters, you gain 3 life.\n{T}: Until end of turn, target land you control becomes the basic land type of your choice in addition to its other types.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Navigator's+Compass",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
@@ -5788,8 +5788,8 @@
    "mana_cost": "{1}{R}",
    "type_line": "Instant",
    "oracle_text": "Whenever a creature you control enters this turn, put a +1/+1 counter on it and it gains haste until end of turn.\nLearn. (You may reveal a Lesson card you own from outside the game and put it into your hand, or discard a card to draw a card.)",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/f/first_day_of_class.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=First+Day+of+Class",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 10
   },
   {
@@ -5797,19 +5797,19 @@
    "mana_cost": "{W}",
    "type_line": "Instant — Arcane",
    "oracle_text": "Prevent all damage that would be dealt by creatures this turn.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/e/ethereal_haze.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Ethereal+Haze",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
    "name": "Azure Fleet Admiral",
    "mana_cost": "{3}{U}",
    "type_line": "Creature — Human Pirate",
-   "oracle_text": "When Azure Fleet Admiral enters, you become the monarch.\nAzure Fleet Admiral can't be blocked by creatures the monarch controls.",
+   "oracle_text": "When this creature enters, you become the monarch.\nThis creature can't be blocked by creatures the monarch controls.",
    "power": "3",
    "toughness": "3",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/a/azure_fleet_admiral.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Azure+Fleet+Admiral",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
@@ -5819,8 +5819,8 @@
    "oracle_text": "Web-slinging {W} (You may cast this spell for {W} if you also return a tapped creature you control to its owner's hand.)",
    "power": "3",
    "toughness": "3",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/s/spider_man_web_slinger.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Spider-Man%2C+Web-Slinger",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
@@ -5828,8 +5828,8 @@
    "mana_cost": "{W}",
    "type_line": "Sorcery",
    "oracle_text": "Choose up to one target artifact or creature card in your graveyard. You get {E}{E} (two energy counters). Then you may pay an amount of {E} equal to that card's mana value. If you do, return it from your graveyard to the battlefield.\nCycling {2} ({2}, Discard this card: Draw a card.)",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/j/jolted_awake.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Jolted+Awake",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
@@ -5863,20 +5863,20 @@
    "name": "Blighted Agent",
    "mana_cost": "{1}{U}",
    "type_line": "Creature — Phyrexian Human Rogue",
-   "oracle_text": "Infect (This creature deals damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)\nBlighted Agent can't be blocked.",
+   "oracle_text": "Infect (This creature deals damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)\nThis creature can't be blocked.",
    "power": "1",
    "toughness": "1",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/b/blighted_agent.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Blighted+Agent",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
    "name": "Idyllic Grange",
    "mana_cost": "",
    "type_line": "Land — Plains",
-   "oracle_text": "({T}: Add {W}.)\nIdyllic Grange enters tapped unless you control three or more other Plains.\nWhen Idyllic Grange enters untapped, put a +1/+1 counter on target creature you control.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/i/idyllic_grange.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "({T}: Add {W}.)\nThis land enters tapped unless you control three or more other Plains.\nWhen this land enters untapped, put a +1/+1 counter on target creature you control.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Idyllic+Grange",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
@@ -5886,8 +5886,8 @@
    "oracle_text": "Whenever you cast a blue, black, or red spell, you gain 1 life.",
    "power": "0",
    "toughness": "4",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/g/god_pharaohs_faithful.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=God-Pharaoh's+Faithful",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
@@ -5895,28 +5895,28 @@
    "mana_cost": "{1}{U}",
    "type_line": "Instant",
    "oracle_text": "Counter target spell. If that spell is countered this way, put it on top of its owner's library instead of into that player's graveyard.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/m/memory_lapse.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Memory+Lapse",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
    "name": "Pestilence",
    "mana_cost": "{2}{B}{B}",
    "type_line": "Enchantment",
-   "oracle_text": "At the beginning of the end step, if no creatures are on the battlefield, sacrifice Pestilence.\n{B}: Pestilence deals 1 damage to each creature and each player.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/p/pestilence.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "oracle_text": "At the beginning of the end step, if no creatures are on the battlefield, sacrifice this enchantment.\n{B}: This enchantment deals 1 damage to each creature and each player.",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Pestilence",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
    "name": "Cauldron Familiar",
    "mana_cost": "{B}",
    "type_line": "Creature — Cat",
-   "oracle_text": "When Cauldron Familiar enters, each opponent loses 1 life and you gain 1 life.\nSacrifice a Food: Return Cauldron Familiar from your graveyard to the battlefield.",
+   "oracle_text": "When this creature enters, each opponent loses 1 life and you gain 1 life.\nSacrifice a Food: Return this card from your graveyard to the battlefield.",
    "power": "1",
    "toughness": "1",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/c/cauldron_familiar.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Cauldron+Familiar",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 18
   },
   {
@@ -5924,8 +5924,8 @@
    "mana_cost": "{1}{R}",
    "type_line": "Instant",
    "oracle_text": "Target creature gains double strike until end of turn.\nFerocious — That creature also gains trample until end of turn if you control a creature with power 4 or greater.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/t/temur_battle_rage.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Temur+Battle+Rage",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
@@ -5933,8 +5933,8 @@
    "mana_cost": "{1}{W}",
    "type_line": "Sorcery",
    "oracle_text": "Return target artifact or creature card with mana value 3 or less from your graveyard to the battlefield. If a creature enters this way, it enters with an additional +1/+1 counter on it.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/r/recommission.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Recommission",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
@@ -5942,8 +5942,8 @@
    "mana_cost": "{1}{W}",
    "type_line": "Artifact — Equipment",
    "oracle_text": "Whenever equipped creature attacks, put a +1/+1 counter on it and tap up to one target creature defending player controls.\nEquip {W} ({W}: Attach to target creature you control. Equip only as a sorcery.)",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/g/greatsword_of_tyr.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Greatsword+of+Tyr",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
@@ -5964,8 +5964,8 @@
    "oracle_text": "Ward {2} (Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {2}.)\nThis creature has flying as long as it's modified. (Equipment, Auras you control, and counters are modifications.)",
    "power": "2",
    "toughness": "2",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/s/skyward_spider.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Skyward+Spider",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 0
   },
   {
@@ -5982,8 +5982,8 @@
    "mana_cost": "{R}",
    "type_line": "Instant",
    "oracle_text": "Choose target creature or planeswalker. You get {E}{E}{E} (three energy counters), then you may pay any amount of {E}. Galvanic Discharge deals that much damage to that permanent.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/g/galvanic_discharge.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Galvanic+Discharge",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 31
   },
   {
@@ -6018,8 +6018,8 @@
    "mana_cost": "{1}{G}",
    "type_line": "Instant",
    "oracle_text": "Target creature you control deals damage equal to its power to target creature you don't control. If the creature you control has trample, excess damage is dealt to that creature's controller instead.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/r/ram_through.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Ram+Through",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 8
   },
   {
@@ -6027,8 +6027,8 @@
    "mana_cost": "{X}{R}",
    "type_line": "Sorcery",
    "oracle_text": "This spell costs {1} more to cast for each target beyond the first.\nFireball deals X damage divided evenly, rounded down, among any number of targets.",
-   "fonte": "https://github.com/Card-Forge/forge/blob/master/forge-gui/res/cardsfolder/f/fireball.txt (linha Oracle)",
-   "consulta": "2026-10-12",
+   "fonte": "https://api.scryfall.com/cards/named?exact=Fireball",
+   "consulta": "2026-10-23",
    "listasNoCatalogo": 20
   },
   {

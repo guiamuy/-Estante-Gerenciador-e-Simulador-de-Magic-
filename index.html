@@ -9747,13 +9747,13 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Tocasia\'s Dig Site': { texto: '1cpzrep', leva: 'M-347' },
   'Imposing Vantasaur': { texto: '1oe0lfd', leva: 'M-347' },
   'Alpine Meadow': { texto: '1amo2my', leva: 'M-347' },
-  'Lagonna-Band Trailblazer': { texto: '1d3bgqh', leva: 'M-347' },
+  'Lagonna-Band Trailblazer': { texto: '1ld0ipm', leva: 'M-575' }, // M-347: texto da Scryfall de 23/10/2026
   'Energy Refractor': { texto: '20bnzh', leva: 'M-347' },
   'Myr Kinsmith': { texto: 'xw2d4y', leva: 'M-347' },
   'Prosperous Pirates': { texto: 'oqjl1h', leva: 'M-347' },
   'Crystal Grotto': { texto: 'th9afb', leva: 'M-347' },
   'Omen of the Dead': { texto: 'paqa6p', leva: 'M-347' },
-  'Creosote Heath': { texto: '5f7mg0', leva: 'M-347' },
+  'Creosote Heath': { texto: '4833vk', leva: 'M-575' }, // M-347: texto da Scryfall de 23/10/2026
   'Etched Cornfield': { texto: 'f55kkw', leva: 'M-347' },
   'Erebor Flamesmith': { texto: 'ro0bz7', leva: 'M-347' },
   'Firebrand Archer': { texto: 'm37r9g', leva: 'M-347' },
@@ -9786,7 +9786,7 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Melded Moxite': { texto: '153fvyb', leva: 'M-349' },
   // M-351 · Toxin Analysis, Sandstone Needle, Remote Farm e Thrill of Possibility (lote XXI) e Ramosian Rally (lote XXIII) saíram daqui: a L-1…L-4 publicaram script à mão para elas e o script à mão vence (as cartas seguem jogando)
   // M-351 · revisão por lote XXIII (Pauper: Extract a Confession, Land Grant, Ramosian Rally, Arms of Hadar, Ghostly Flicker, Goblin Tomb Raider), revisor independente com 131 (+56 na reconferência dos achados) verificações: 6 de 6 aprovadas
-  'Extract a Confession': { texto: 'rafyij', leva: 'M-351' },
+  'Extract a Confession': { texto: 't74ku3', leva: 'M-575' }, // M-351: texto da Scryfall de 23/10/2026
   'Land Grant': { texto: 'bp9bkx', leva: 'M-351' },
   'Arms of Hadar': { texto: '13y4fnp', leva: 'M-351' },
   'Ghostly Flicker': { texto: 'mu29yw', leva: 'M-351' },
@@ -9856,7 +9856,7 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   // M-385 · revisão por lote XLIII (Pauper: Thermokarst), revisor independente: lote conjunto com a M-386; aprovada (25 asserções, leitor nas 1.304 cartas, 26 partidas sem diferença); condição também nas habilidades
   'Thermokarst': { texto: '15giz1r', leva: 'M-385' },
   // M-386 · revisão por lote XLIV (Glimpse the Impossible), revisor independente: reprovada na primeira passada (o `lembra` do mover), corrigida com teste; 47 asserções, 151 salvamentos com replay idêntico
-  'Glimpse the Impossible': { texto: 'r0pnzy', leva: 'M-386' },
+  'Glimpse the Impossible': { texto: 'w8z46v', leva: 'M-575' }, // M-386: texto da Scryfall de 23/10/2026
   // M-387 · revisão por lote XLV (Pauper: Gorilla Shaman), revisor independente: lote conjunto com a M-388; aprovada (67 asserções, fuzz e diferencial sem diferença)
   'Gorilla Shaman': { texto: 'kna41h', leva: 'M-387' },
   // M-388 · revisão por lote XLVI (Pauper: Navigator's Compass), revisor independente: reprovada na primeira passada (205.4: a mudança de tipo tirava os supertipos), corrigida na classe com teste; 77 asserções e fuzz
@@ -19836,7 +19836,8 @@ const __m42 = (function () {
     const nome = (card && card.name) || ''; nomeAtual = nome; const tipo = String((card && card.type_line) || ''); tipoAtual = tipo;
     const texto = card && card.verso ? [card.oracle_text, '//', card.verso.oracle_text].join('\n') : card && card.oracle_text; // M-322 · a Aventura guardada à parte (.listas): mesma forma do app ("frente\n//\nverso")
     const linhas = semLembrete(texto).split('\n').map(x => x.trim().replace(/^(?:undergrowth|threshold|delirium|revolt|morbid|raid|hellbent|landfall|ferocious|coven|alliance|magecraft|imprint) — (?=(?:when|whenever|at|as long as|if|that creature also)\b)/i, '').replace(/^channel — (?=\{)/i, '') /* M-572 · palavra de habilidade (207.2c) */
-      .replace(/^(?!(?:Max speed|Solved|To solve|Visit|Prize|[IVX]+(?:, [IVX]+)*) — )[A-Z][A-Za-z'’-]*(?: [A-Za-z'’-]+){0,3} — (?=(?:When|Whenever|At the beginning)\b)/, '')).filter(Boolean); // M-354 · 207.2c: palavra de habilidade não tem efeito de regra (Lotleth Giant) · M-513 · 207.2d: nem a palavra de sabor ("Natural Recovery —", Circle of the Land Druid); ficam de fora os prefixos com regra (velocidade máxima, caso resolvido e condição do caso, visita e prêmio de atração, capítulo)
+      .replace(/^(?!(?:Max speed|Solved|To solve|Visit|Prize|[IVX]+(?:, [IVX]+)*) — )[A-Z][A-Za-z'’-]*(?: [A-Za-z'’-]+){0,3} — (?=(?:When|Whenever|At the beginning)\b)/, '')).filter(Boolean)
+      .flatMap(x => x.split(/(?<=\. )(?=At the beginning of the next end step, if any of those cards remain exiled)/).map(y => y.trim())); /* M-575 · a Scryfall junta as duas frases (Glimpse the Impossible) */ // M-354 · 207.2c: palavra de habilidade não tem efeito de regra (Lotleth Giant) · M-513 · 207.2d: nem a palavra de sabor ("Natural Recovery —", Circle of the Land Druid); ficam de fora os prefixos com regra (velocidade máxima, caso resolvido e condição do caso, visita e prêmio de atração, capítulo)
     const frases = [], efeitos = [], topo = {};
     const magica = /\b(Instant|Sorcery)\b/.test(tipo.split(' // ')[0]); // M-531 · Aventura e preparação: a linha de tipo do app junta as faces ("Creature — … // Instant — Adventure"); vale a da frente
     let modos = null; const coresVida = []; // M-342
@@ -20004,7 +20005,7 @@ const __m42 = (function () {
       const mc = til(linha.replace(/\.$/, ''), nome); // M-331 · M-394 · metalurgia (palavra de habilidade)
       const tq = mc.match(/^as long as ~ is on the stack, spells that target it cost \{(\d+)\} more to cast$/i); // M-364 · Kaervek's Torch (601.2f)
       if (tq) { topo.self = { ...(topo.self || {}), encareceQuemMira: +tq[1] }; frases.push({ texto: linha, lida: true }); continue; }
-      if (/^at the beginning of the next end step, if any of those cards remain exiled, put them into your graveyard, then create a 0\/1 colorless eldrazi spawn creature token for each card put into your graveyard this way\. those tokens have "sacrifice this creature: add \{c\}\.?"\.?$/i.test(mc) && efeitos.length && efeitos[efeitos.length - 1].do === 'exile_top_playable') { // M-386 · Glimpse the Impossible (603.7c)
+      if (/^at the beginning of the next end step, if any of those cards remain exiled, put them into your graveyard, then create a 0\/1 colorless eldrazi spawn creature token for each card put into your graveyard this way\. those tokens have "sacrifice this (?:creature|token): add \{c\}\.?"\.?$/i.test(mc) && efeitos.length && efeitos[efeitos.length - 1].do === 'exile_top_playable') { // M-386 · Glimpse the Impossible (603.7c)
         efeitos[efeitos.length - 1].lembraExiladas = true;
         efeitos.push({ do: 'delayed', when: 'next-end-step', lembraExiladas: true, seRestar: true, effects: [{ do: 'lembradas_ao_cemiterio' }, { do: 'token', amount: { per: 'movidas' }, token: { name: 'Eldrazi Spawn', types: ['creature'], subtypes: ['Eldrazi', 'Spawn'], colors: [], power: 0, toughness: 1, abilities: [{ kind: 'activated', cost: { sacrifice: true }, effects: [{ do: 'add_mana', symbols: ['C'] }] }] } }] });
         frases.push({ texto: linha, lida: true }); continue; }
