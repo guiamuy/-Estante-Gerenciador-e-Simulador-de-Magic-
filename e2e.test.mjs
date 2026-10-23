@@ -765,19 +765,40 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
   // Q10 · imagem GUARDADA aparece sem rede: o visualizador pede a "normal" (a que o guardião guarda), não a "large"
   await page.evaluate(async () => { const c = await caches.open('estante-img-v1'); const png = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='), c2 => c2.charCodeAt(0));
     for (const t of ['small', 'normal']) await c.put('https://cards.scryfall.io/' + t + '/front/x/sol.jpg', new Response(png, { headers: { 'Content-Type': 'image/png' } })); });
-  await page.route('https://**.scryfall.io/**', async r => { const hit = await page.evaluate(async u => { const c = await caches.open('estante-img-v1'); const m = await c.match(u); return m ? Array.from(new Uint8Array(await m.arrayBuffer())) : null; }, r.request().url()); return hit ? r.fulfill({ status: 200, contentType: 'image/png', body: Buffer.from(hit) }) : r.abort('internetdisconnected'); });
+  const pedidasScryfall = [];
+  await page.route('https://**.scryfall.io/**', async r => { pedidasScryfall.push(r.request().url()); const hit = await page.evaluate(async u => { const c = await caches.open('estante-img-v1'); const m = await c.match(u); return m ? Array.from(new Uint8Array(await m.arrayBuffer())) : null; }, r.request().url()); return hit ? r.fulfill({ status: 200, contentType: 'image/png', body: Buffer.from(hit) }) : r.abort('internetdisconnected'); });
   await page.click('.col-row[data-name="Sol Ring"] .col-row__thumb');
   await page.waitForSelector('#card-viewer img[src*="/normal/"]', { timeout: 8000 });
   // leva 102 · com srcset, a largura natural é dividida pela densidade: o PNG de 1 px do teste dá 0. Vale o evento de carga.
   await page.waitForFunction(() => { const i = document.querySelector('#card-viewer img'); return i && i.dataset.carregada === 'true'; }, null, { timeout: 8000 });
   assert.equal(await page.locator('#card-viewer [data-sem-imagem]').count(), 0, 'com a normal no aparelho, o visualizador mostra a carta');
+  // G-277 · relato #26 · o primeiro quadro é a normal guardada, pedida sem srcset; o srcset (sem o PNG) entra depois que ela chegou
+  assert.ok(!pedidasScryfall.some(u => /\/png\//.test(u)), 'o PNG nunca é pedido: ' + pedidasScryfall.join(' '));
+  await page.waitForFunction(() => { const i = document.querySelector('#card-viewer img'); return i && /\/large\//.test(i.getAttribute('srcset') || '') && !/\/png\//.test(i.getAttribute('srcset') || ''); });
+  assert.equal(await page.locator('#card-viewer img[data-nitida]').count(), 0, 'tela 1×: a normal já cobre 335 px, nada a trocar');
   await page.keyboard.press('Escape');
+  // G-277 · num celular 3× a nítida (large) chega por trás e troca a normal sem pular; sem ela no aparelho e sem rede, fica a normal
+  const cdp = await page.context().newCDPSession(page); await cdp.send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 3, mobile: true }); // o srcset escolhe pela densidade real da tela
+  await page.click('.col-row[data-name="Sol Ring"] .col-row__thumb');
+  await page.waitForFunction(() => { const i = document.querySelector('#card-viewer img'); return i && i.dataset.carregada === 'true' && /\/normal\//.test(i.currentSrc) && !i.hasAttribute('srcset'); }, null, { timeout: 8000 });
+  assert.equal(await page.locator('#card-viewer [data-sem-imagem]').count(), 0, 'a large não veio: a normal guardada fica na tela');
+  await page.keyboard.press('Escape');
+  await page.evaluate(async () => { const c = await caches.open('estante-img-v1'); const png = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='), c2 => c2.charCodeAt(0));
+    await c.put('https://cards.scryfall.io/large/front/x/sol.jpg', new Response(png, { headers: { 'Content-Type': 'image/png' } })); });
+  const antes = pedidasScryfall.length;
+  await page.click('.col-row[data-name="Sol Ring"] .col-row__thumb');
+  await page.waitForSelector('#card-viewer img[data-nitida="true"]', { timeout: 8000 });
+  assert.match(await page.evaluate(() => document.querySelector('#card-viewer img').currentSrc), /\/large\//, 'a nítida trocou a normal');
+  assert.deepEqual(pedidasScryfall.slice(antes).map(u => u.replace(/^.*\/\/cards\.scryfall\.io\//, '').split('/')[0]), ['normal', 'large'], 'primeiro a guardada, depois a nítida; nunca o PNG');
+  await page.keyboard.press('Escape');
+  await cdp.send('Emulation.clearDeviceMetricsOverride'); await cdp.detach();
   // Q10 · galeria e pilhas da coleção mostram a miniatura guardada; a que não está vira o nome, nunca um quadro vazio
   await page.click('[data-visao="galeria"]');
   await page.waitForSelector('.col-card[data-name="Sol Ring"] img');
   await page.waitForFunction(() => { const i = document.querySelector('.col-card[data-name="Sol Ring"] img'); return i && i.dataset.carregada === 'true'; }, null, { timeout: 8000 });
   // leva 102 · expectativa mudou: a galeria pede o tamanho nítido pela densidade da tela (srcset), começando pela "normal"
   assert.match(await page.$eval('.col-card[data-name="Sol Ring"] img', i => i.currentSrc), /\/(normal|small)\/front\/x\/sol\.jpg$/, 'a galeria mostra uma imagem guardada');
+  await page.waitForSelector('.col-card[data-name="Sol Ring"] img[srcset]'); // G-277 · o srcset entra depois da primeira carga
   assert.match(await page.getAttribute('.col-card[data-name="Sol Ring"] img', 'srcset'), /small\/front\/x\/sol\.jpg 146w, .*normal\/front\/x\/sol\.jpg 488w/);
   await page.click('[data-visao="pilhas"]');
   await page.waitForSelector('.col-pile', { timeout: 8000 });
@@ -3294,7 +3315,7 @@ test('e2e · leva 102 coleção com imagens nítidas e visor da carta: grande, t
   await p3.goto(base + '#/colecao'); await p3.waitForSelector('#col-import');
   await p3.click('#col-import'); await p3.fill('#col-import-text', '2 Sol Ring');
   await p3.click('#col-import-check'); await p3.waitForSelector('#col-import-run'); await p3.click('#col-import-run');
-  await p3.waitForSelector('.col-row[data-name="Sol Ring"] .col-row__thumb img');
+  await p3.waitForSelector('.col-row[data-name="Sol Ring"] .col-row__thumb img[srcset]'); // G-277 · o srcset entra depois da primeira carga (a guardada)
   // miniatura da linha: srcset com todos os tamanhos; numa tela 3× o navegador não pede a "small"
   const linha = await p3.$eval('.col-row[data-name="Sol Ring"] .col-row__thumb img', i => ({ srcset: i.getAttribute('srcset'), sizes: i.getAttribute('sizes') }));
   assert.match(linha.srcset, /146w.*488w.*672w/); assert.equal(linha.sizes, '64px');
@@ -7847,11 +7868,11 @@ test('e2e · H1 imagens nítidas: a folha da carta na mesa traz todos os tamanho
   const act = a => page.evaluate(a => { try { return window.__estanteMesa.act(a); } catch (e) { return String(e); } }, a);
   const oid = (nome, zona = 'hand') => page.evaluate(([nome, zona]) => { const s = window.__estanteMesa.estado(); return s.zones[0][zona].find(o => s.objects[o].name === nome) || null; }, [nome, zona]);
   // folha da carta: imagem com todos os tamanhos (a tela 3× pede a grande) e o botão de virar
-  await page.locator('#tb-hand .tb-card[aria-label^="Lunarch Veteran"]').first().click(); await page.waitForSelector('.ds-dialog .tb-sheet__img');
+  await page.locator('#tb-hand .tb-card[aria-label^="Lunarch Veteran"]').first().click(); await page.waitForSelector('.ds-dialog .tb-sheet__img[srcset]'); // G-277 · o srcset entra depois da primeira carga
   const frente = await page.$eval('.ds-dialog .tb-sheet__img', i => ({ srcset: i.getAttribute('srcset'), sizes: i.getAttribute('sizes'), alt: i.alt }));
   assert.match(frente.srcset, /normal\/front\/x\/vet\.png 488w/); assert.match(frente.srcset, /large\/front\/x\/vet\.png 672w/); assert.equal(frente.sizes, '240px'); assert.equal(frente.alt, 'Lunarch Veteran');
   assert.deepEqual(await page.$$eval('#tb-sheet-virar .ds-icon', is => is.map(i => i.dataset.icone)), ['virar']); assert.equal((await page.innerText('#tb-sheet-virar')).trim(), 'Virar carta');
-  await page.click('#tb-sheet-virar'); await page.waitForSelector('#tb-sheet-face');
+  await page.click('#tb-sheet-virar'); await page.waitForSelector('#tb-sheet-face'); await page.waitForSelector('.ds-dialog .tb-sheet__img[srcset]');
   const verso = await page.$eval('.ds-dialog .tb-sheet__img', i => ({ srcset: i.getAttribute('srcset'), alt: i.alt }));
   assert.match(verso.srcset, /large\/back\/x\/vet\.png 672w/, 'o verso vem com a imagem grande dele'); assert.equal(verso.alt, 'Luminous Phantom');
   assert.equal(await page.innerText('#tb-sheet-face'), 'Luminous Phantom'); assert.match(await page.innerText('.ds-dialog .tb-sheet__texto'), /Flying/);
@@ -7889,10 +7910,11 @@ test('e2e · H1 imagens nítidas: a folha da carta na mesa traz todos os tamanho
   await auditaTela(page, 'mesa com carta transformada');
   // troca com a reserva: cada carta com a imagem (dupla face pela frente), nítida para a tela
   await page.click('#tb-concede'); await page.click('.ds-dialog .ds-btn--danger'); await page.waitForSelector('#tb-serie-next'); await page.click('#tb-serie-next'); await page.waitForSelector('#troca');
+  // G-277 · o srcset (nítida para a tela) só entra depois que a primeira imagem, a guardada, chegou: a conferência vem depois da carga
+  await page.waitForFunction(() => [...document.querySelectorAll('img.troca-carta__img')].every(i => i.complete && i.naturalWidth > 0 && i.hasAttribute('srcset')));
   const troca = await page.$$eval('.troca-carta', bs => bs.map(b => { const i = b.querySelector('img.troca-carta__img'); return [b.dataset.nome, i ? i.getAttribute('srcset') : null, !!b.querySelector('.troca-carta__semimg')]; }));
   assert.deepEqual(troca.map(x => x[0]).sort(), ['Lunarch Veteran', 'Mountain', 'Plains']);
   for (const [nome, srcset, soNome] of troca) { assert.ok(srcset && /normal\/front\/.* 488w/.test(srcset), `${nome}: imagem com a normal no srcset (${srcset})`); assert.equal(soNome, false, `${nome}: não caiu para só o nome`); }
-  await page.waitForFunction(() => [...document.querySelectorAll('img.troca-carta__img')].every(i => i.complete && i.naturalWidth > 0));
   await auditaTela(page, 'trocas com imagem');
   assert.deepEqual(errors, []);
 });

@@ -3639,26 +3639,39 @@ const Range = ({ id, min = 0, max = 100, step = 1, value = 0, rotulo, onInput } 
    A Scryfall entrega a mesma carta em 146 (small), 488 (normal), 672 (large) e 745 px (png). No celular (tela 3×)
    uma miniatura de 100 px precisa de 300 px de imagem: a "small" ficava borrada. `srcset` deixa o navegador pedir
    o tamanho certo para a tela; sem rede, a imagem que não estiver guardada cai para a próxima da cadeia
-   (normal → small → large → png) e só no fim vira a carta em texto. */
+   (normal → small → large → png) e só no fim vira a carta em texto.
+   G-277 · relato #26 · o primeiro quadro é a "normal" (a que o guardião e a mesa guardam no aparelho), sem `srcset`:
+   com ele desde o começo, o navegador ignorava a guardada e esperava a candidata nítida chegar da rede. A nítida entra
+   por trás (o `srcset` é ligado depois que a primeira carregou) e troca sem pular; se não vier (sem rede), fica a
+   guardada. O PNG (745 px, 1 a 2 MB) sai das candidatas: a "large" (672 px, ~10× mais leve) é a maior que o
+   navegador pede; o PNG fica só como última reserva de quem não tem as outras. */
 function srcsetDaCarta(im) {
   if (!im) return '';
-  const pares = [[im.small, 146], [im.normal, 488], [im.large, 672], [im.png, 745]].filter(([u]) => u);
+  const pares = [[im.small, 146], [im.normal, 488], [im.large, 672]].filter(([u]) => u);
   const vistos = new Set();
   return pares.filter(([u]) => !vistos.has(u) && vistos.add(u)).map(([u, w]) => `${u} ${w}w`).join(', ');
 }
-/** <img> da carta. `sizes` é a largura em CSS px com que ela aparece (o navegador multiplica pela densidade da tela). */
+/** <img> da carta. `sizes` é a largura em CSS px com que ela aparece (o navegador multiplica pela densidade da tela).
+    `data-carregada` quando a primeira imagem chegou; `data-nitida` quando a candidata do `srcset` a trocou. */
 function ImagemCarta(im, { alt = '', sizes = '120px', classe = '', lazy = true, onFalha = null } = {}) {
   if (!im || !(im.normal || im.small || im.large || im.png)) return null;
   const cadeia = [...new Set([im.normal, im.small, im.large, im.png].filter(Boolean))];
-  const img = h('img', { class: ('ds-carta-img ' + classe).trim(), alt, src: cadeia[0], srcset: srcsetDaCarta(im), sizes, decoding: 'async', loading: lazy ? 'lazy' : null, draggable: 'false' });
-  const tentadas = new Set();
+  const img = h('img', { class: ('ds-carta-img ' + classe).trim(), alt, src: cadeia[0], sizes, decoding: 'async', loading: lazy ? 'lazy' : null, draggable: 'false' });
+  const tentadas = new Set(); let subindo = false;
   img.addEventListener('error', () => {
+    if (subindo) { subindo = false; img.removeAttribute('srcset'); return; } // a nítida não veio: fica a que já está na tela
     tentadas.add(img.currentSrc || img.src);
     img.removeAttribute('srcset');
     const prox = cadeia.find(u => !tentadas.has(u));
     if (prox) { tentadas.add(prox); img.src = prox; } else if (onFalha) onFalha(img);
   });
-  img.addEventListener('load', () => { img.dataset.carregada = 'true'; });
+  img.addEventListener('load', () => {
+    if (subindo) { subindo = false; if (img.currentSrc && img.currentSrc !== img.src) img.dataset.nitida = 'true'; return; }
+    if (img.dataset.carregada === 'true') return;
+    img.dataset.carregada = 'true';
+    const ss = srcsetDaCarta(im);
+    if (ss && !tentadas.size) { subindo = true; img.srcset = ss; } // só a partir da primeira da cadeia: quem já caiu de tamanho fica onde está
+  });
   return img;
 }
 
