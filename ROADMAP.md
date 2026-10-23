@@ -5479,6 +5479,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Correção no caminho:** com o canalizar lido, o leitor passou a ler por inteiro o Mirrorshell Crab, e o teste de concordância (LT1) acusou a salvaguarda `{3}` do script à mão; é a mesma que o motor lê do texto impresso (K-2), então a concordância passa a tratar salvaguarda de mana igual à impressa como repetição (expectativa ajustada com justificativa).
 - **Teste:** `lt254.unit` (5 testes; falham no motor anterior).
 
+**M-573 · catálogo: nome Oracle para as cartas que o Magic Online imprime com outro nome (Darval, Whose Web Protects)** ✅ (leva M-573, motor v112 sem mudança; toca `catalogo.mjs`, ponto comum da trilha `geral`, liberada)
+- **Valor:** as três listas Pauper que ficavam "sem dados da carta" (Mono White Raffine's Informant, Selesnya Might of the Masses, Mono White Ramosian Rally) passam a jogar — sexta leva do plano "Pauper 100%". "Darval, Whose Web Protects" é o nome que o Magic Online dá à reimpressão OM1 (Through the Omenpaths) da carta Oracle "Spider-Man, Web-Slinger" (Scryfall, 23/10/2026), que o motor já joga desde a M-392 (web-slinging).
+- **Regra (dados):** `NOMES_DO_MTGO`/`nomeOracle` em `catalogo.mjs`: a lista do evento do Magic Online já chega com o nome Oracle; a passada completa troca o nome nas listas publicadas antes (uma vez, juntando cópias repetidas; `renomeadas` no relatório). O ramo `catalogo` muda na próxima coleta (todo dia, 06:23 UTC).
+- **Fora (declarado):** a tabela tem só o nome que aparece hoje no catálogo; nome do MTGO numa lista colada pelo usuário no app ainda não é traduzido (pedido à trilha `armazem`: o mesmo apelido na busca de cartas do app).
+- **Teste:** `catalogo.nomes.unit` (3 testes; falham antes da M-573).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

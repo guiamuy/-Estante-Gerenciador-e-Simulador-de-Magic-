@@ -251,9 +251,12 @@ export function leDadosMtgo(html) {
 }
 const dataMtgo = d => { const m = String(d || '').match(/^(\d{4}-\d{2}-\d{2})/); return m ? m[1] : null; };
 /** As cartas de uma lista do Magic Online (qty e card_attributes.card_name), por zona. */
+/** M-573 · nomes do Magic Online (Universes Within) → nome Oracle. Conferido na Scryfall em 23/10/2026 (impressão OM1 #9). */
+export const NOMES_DO_MTGO = { 'darval, whose web protects': 'Spider-Man, Web-Slinger' };
+export const nomeOracle = n => NOMES_DO_MTGO[String(n || '').trim().toLowerCase()] || n;
 function entradasMtgo(deck) {
   const m = new Map();
-  const le = (lista, zona) => { for (const it of Array.isArray(lista) ? lista : []) { const nome = String((it && it.card_attributes && it.card_attributes.card_name) || '').trim(), qtd = Number(it && it.qty);
+  const le = (lista, zona) => { for (const it of Array.isArray(lista) ? lista : []) { const nome = nomeOracle(String((it && it.card_attributes && it.card_attributes.card_name) || '').trim()) /* M-573 */, qtd = Number(it && it.qty);
     if (!nome || !Number.isInteger(qtd) || qtd <= 0) continue; const k = zona + '|' + nome.toLowerCase(); if (m.has(k)) m.get(k).qty += qtd; else m.set(k, { name: nome, qty: qtd, zone: zona }); } };
   le(deck && deck.main_deck, 'main'); le(deck && deck.sideboard_deck, 'side');
   return [...m.values()];
@@ -428,6 +431,10 @@ export function eventoDe(l) {
 export async function completa(pasta, resumos, { busca = globalThis.fetch, pausa = 150, log = () => {} } = {}) {
   const cheias = new Map();
   for (const r of resumos) { const l = await leJson(join(pasta, 'listas', `${r.id}.json`)); if (l && Array.isArray(l.entradas) && l.entradas.every(e => e && typeof e.name === 'string' && Number.isInteger(e.qty))) cheias.set(r.id, l); }
+  let renomeadas = 0; // M-573 · as listas já publicadas com nome do Magic Online passam ao nome Oracle (uma vez; depois não há o que trocar)
+  for (const [id, l] of cheias) { if (!l.entradas.some(e => nomeOracle(e.name) !== e.name)) continue;
+    const m = new Map(); for (const e of l.entradas) { const n = nomeOracle(e.name), k = (e.zone || '') + '|' + n.toLowerCase(); if (m.has(k)) m.get(k).qty += e.qty; else m.set(k, { ...e, name: n }); }
+    l.entradas = [...m.values()]; await writeFile(join(pasta, 'listas', `${id}.json`), JSON.stringify(l) + '\n'); renomeadas++; }
   const dados = await dadosDosNomes([...new Set([...cheias.values()].flatMap(l => l.entradas.map(e => e.name)))], { busca, pausa, log });
   const porFormato = new Map();
   for (const r of resumos) if (deTorneio(r) && cheias.has(r.id) && !(r.comandante || []).length) { if (!porFormato.has(r.formato)) porFormato.set(r.formato, []); porFormato.get(r.formato).push({ cores: r.cores, entradas: cheias.get(r.id).entradas }); }
@@ -443,7 +450,7 @@ export async function completa(pasta, resumos, { busca = globalThis.fetch, pausa
     if (l.nome !== novo.nome || l.evento !== novo.evento) { await writeFile(join(pasta, 'listas', `${r.id}.json`), JSON.stringify({ ...l, nome: novo.nome, evento: novo.evento }) + '\n'); regravadas++; }
     out.push(novo);
   }
-  return { resumos: out, nomeadas, comValor, regravadas, cartas: dados.size };
+  return { resumos: out, nomeadas, comValor, regravadas, renomeadas, cartas: dados.size };
 }
 
 /* ---------------- G-242 · catálogo de fichas (relato #9) ----------------
