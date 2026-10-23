@@ -635,6 +635,9 @@ a { color: var(--accent); }
 .inicio__cab { display: flex; flex-direction: column; gap: var(--space-1); margin-bottom: calc(var(--space-2) * -1); } /* o cabeçalho fica mais perto do Jogar */
 .inicio__data { font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--fg-subtle); font-weight: var(--weight-medium); text-transform: uppercase; letter-spacing: .08em; }
 .inicio__cab .ds-text--muted { margin: 0; }
+.inicio__titulo-linha { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); min-width: 0; } /* G-276 · título e Sair da conta */
+.inicio__titulo-linha > .ds-text { min-width: 0; overflow-wrap: anywhere; }
+.inicio__titulo-linha > #home-sair { flex: none; margin-block: calc(-1 * var(--space-1)); } /* 44 px de toque sem empurrar o Jogar */
 #home-continuar-slot:empty { display: none; }
 .inicio__rapidos { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-2); }
 .inicio__rapidos .ds-atalho.ds-btn { flex-direction: column; align-items: center; justify-content: flex-start; gap: var(--space-2); min-height: 0; padding: var(--space-2) 0; border-color: transparent; background: none; box-shadow: none; text-align: center; }
@@ -692,6 +695,17 @@ body[data-tela="entrar"] .ds-appbar { display: none; }
 .porta[data-saida="true"] { opacity: 0; transform: translateY(calc(-1 * var(--space-2))); transition: opacity var(--dur-2) var(--ease-out), transform var(--dur-2) var(--ease-out); }
 @media (prefers-reduced-motion: reduce) { .porta__item { animation: none; } .porta[data-saida="true"] { transition: none; } }
 :root[data-movimento="reduzido"] .porta__item { animation: none; }
+/* G-276 · relato #27 · tela de transição de conta (`Transicao`): cobre o app, entra e sai em 180 ms */
+.ds-transicao { position: fixed; inset: 0; z-index: var(--z-modal); display: flex; align-items: center; justify-content: center; padding: var(--space-6) var(--space-4);
+  background: var(--bg); color: var(--fg); box-shadow: 0 0 0 100vmax var(--bg); /* I7 · sem faixa descoberta embaixo quando a barra do navegador recolhe */
+  animation: ds-transicao-entra var(--dur-2) var(--ease-out) both; transition: opacity var(--dur-2) var(--ease-out); }
+.ds-transicao[data-aberta="false"] { opacity: 0; pointer-events: none; }
+.ds-transicao__miolo { display: flex; flex-direction: column; align-items: center; gap: var(--space-4); text-align: center; }
+.ds-transicao .ds-carregando__arte { width: 120px; height: 90px; }
+.ds-transicao__texto { margin: 0; font-family: var(--font-display); font-size: var(--text-xl); line-height: var(--lh-xl); color: var(--fg-muted); }
+@keyframes ds-transicao-entra { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .ds-transicao { animation: none; transition: none; } }
+:root[data-movimento="reduzido"] .ds-transicao { animation: none; transition: none; }
 .inicio-nt__icone { color: var(--accent); flex: none; }
 .inicio-nt__titulo { margin: 0; flex: none; font-family: var(--font-display); font-size: var(--text-xl); line-height: var(--lh-xl); font-weight: var(--weight-regular); }
 .ds-atalho { flex-direction: column; align-items: flex-start; justify-content: space-between; gap: var(--space-3);
@@ -3512,6 +3526,30 @@ function Carregando(texto = 'Carregando…', { tamanho = 'bloco', id = null } = 
   return h('div', { class: 'ds-carregando', id, role: 'status', 'aria-live': 'polite', dataset: { tamanho: ['tela', 'bloco', 'linha'].includes(tamanho) ? tamanho : 'bloco' } },
     arte, typeof texto === 'string' ? h('span', { class: 'ds-carregando__texto' }, texto) : texto);
 }
+/** G-276 · relato #27 · tela de transição de conta: cobre o app enquanto a conta entra ou sai (a prateleira arrumando as
+    cartas do `Carregando` e uma frase). Entra em 180 ms, fica ao menos `minimo` ms (para não piscar) e sai em 180 ms quando
+    quem a abriu chama `fecha()`; com movimento reduzido, aparece e some sem transição. Uma por vez: abrir outra com a
+    primeira ainda na tela só troca a frase. */
+let transicaoEl = null, transicaoDesde = 0;
+function Transicao(texto = 'Um momento…', { id = 'ds-transicao', minimo = 450 } = {}) {
+  if (transicaoEl && transicaoEl.isConnected && transicaoEl.dataset.aberta !== 'false') { transicaoEl.querySelector('.ds-transicao__texto').textContent = texto; }
+  else {
+    transicaoEl = h('div', { class: 'ds-transicao', id, role: 'status', 'aria-live': 'polite', 'aria-busy': 'true', dataset: { aberta: 'true' } },
+      h('div', { class: 'ds-transicao__miolo' }, ArteDeEspera(), h('p', { class: 'ds-transicao__texto' }, texto)));
+    document.body.appendChild(transicaoEl); transicaoDesde = Date.now();
+  }
+  const el = transicaoEl;
+  return { el, async fecha() {
+    const falta = minimo - (Date.now() - transicaoDesde); if (falta > 0) await new Promise(r => setTimeout(r, falta));
+    if (!el.isConnected || el.dataset.aberta === 'false') return;
+    el.dataset.aberta = 'false';
+    const fim = () => { if (el.isConnected) el.remove(); if (transicaoEl === el) transicaoEl = null; };
+    const reduzido = (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches) || document.documentElement.dataset.movimento === 'reduzido';
+    if (reduzido) return fim();
+    let feito = false; const uma = () => { if (feito) return; feito = true; fim(); };
+    el.addEventListener('transitionend', uma, { once: true }); setTimeout(uma, 260);
+  } };
+}
 /** J6 · botão de ação da tela. `acoes`: [{ icone, rotulo, onClick, id }] (nulos são ignorados; sem ação, sem botão).
     Uma ação: o botão a executa. Várias (até quatro): o botão abre a lista para cima; toque fora, Esc ou escolher fecham.
     `rotulo` é o nome falado do botão quando ele abre a lista. */
@@ -3736,7 +3774,7 @@ function toast(message, ms = 2400, { acao = null } = {}) {
 }
 let toastVez = 0;
 return { h, seguro, Text, Button, Field, Select, Chip, ManaPips, Tabs, CardFace, Dialog, closeDialog, toast, fechaToast, reservaDoca, Avatar, clear, mount, Stack, Row, Surface, Input, Textarea, Badge, List, ListItem, ListGroup, Empty, Note, Spinner, CardGrid,
-  analisaSimbolos, SIMBOLO_RX, nomeDoSimbolo, Simbolo, ComSimbolos, simbolizar, srcsetDaCarta, ImagemCarta, ICONES, Icone, IconButton, Atalho, NavBotao, AvisoRede, AnelProgresso, Expansivel, Range, LinhaEstado, confirmaBotao, Dica, rotuloDeCampo, deveAncorar, instalaAncora, levaAte, levaSeEscondido, oQueEsconde, Carregando, Esqueleto, ArteDeEspera, BotaoDeAcao, usaRelatar, Bandeira, Chave };
+  analisaSimbolos, SIMBOLO_RX, nomeDoSimbolo, Simbolo, ComSimbolos, simbolizar, srcsetDaCarta, ImagemCarta, ICONES, Icone, IconButton, Atalho, NavBotao, AvisoRede, AnelProgresso, Expansivel, Range, LinhaEstado, confirmaBotao, Dica, rotuloDeCampo, deveAncorar, instalaAncora, levaAte, levaSeEscondido, oQueEsconde, Carregando, Esqueleto, ArteDeEspera, Transicao, BotaoDeAcao, usaRelatar, Bandeira, Chave };
 })();
 
 /* ==== src/ui/brand.js ==== */
@@ -4074,7 +4112,9 @@ function renderDS() {
       h('div', { id: 'ds-chaves' }, __m3.Chave('Ligada', { ligada: true }), __m3.Chave('Desligada', { detalhe: 'com uma linha de detalhe' })),
       // N2 · bandeiras do seletor de idioma
       Row({ id: 'ds-bandeiras' }, __m3.Bandeira('br'), __m3.Bandeira('us'), __m3.Bandeira('br', { tamanho: 10 }), __m3.Bandeira('us', { tamanho: 10 }), Text('Bandeira: enfeite de um rótulo que já diz o idioma', { size: 'sm', tone: 'muted' })),
-      Row({ id: 'ds-arte-de-espera' }, __m3.ArteDeEspera(), Text('ArteDeEspera: o desenho sozinho, dentro de uma arte que ainda não chegou', { size: 'sm', tone: 'muted' }))),
+      Row({ id: 'ds-arte-de-espera' }, __m3.ArteDeEspera(), Text('ArteDeEspera: o desenho sozinho, dentro de uma arte que ainda não chegou', { size: 'sm', tone: 'muted' })),
+      // G-276 · a tela que cobre o app enquanto a conta entra ou sai
+      Row({ id: 'ds-transicao-demo' }, Button('Ver transição', { icone: 'seguir', id: 'ds-transicao-ver', onClick: () => { const tr = __m3.Transicao('Entrando…'); setTimeout(() => tr.fecha(), 700); } }), Text('Transicao: cobre o app enquanto a conta entra ou sai; fica ao menos 450 ms e some sozinha', { size: 'sm', tone: 'muted' }))),
 
     Section('Sobreposições',
       Row({ class: 'ds-row--wrap' },
@@ -16442,7 +16482,7 @@ const __m15 = (function () {
    /listas/editar   criar ou editar colando o texto
    /lista?id=…      galeria, coleção, validação e exportação
    ===================================================================== */
-const { h, mount, clear, Stack, Row, Surface, Text, Button, Field, Input, Textarea, Select, Badge, Chip, ManaPips, CardFace, Empty, Note, Spinner, Dialog, closeDialog, toast, Simbolo, ComSimbolos, Icone, IconButton, AvisoRede, ImagemCarta, Avatar, Expansivel, LinhaEstado, confirmaBotao, ListItem } = __m3;
+const { h, mount, clear, Stack, Row, Surface, Text, Button, Field, Input, Textarea, Select, Badge, Chip, ManaPips, CardFace, Empty, Note, Spinner, Dialog, closeDialog, toast, Simbolo, ComSimbolos, Icone, IconButton, AvisoRede, ImagemCarta, Avatar, Expansivel, LinhaEstado, confirmaBotao, ListItem, Transicao } = __m3;
 const { norm } = __m7;
 const { opcoesDeImpressao, rotuloDaImpressao, comImpressao, herdaImpressoes, cartaNaImpressao, impressoesDaLista, IMPRESSOES_MAX, estatisticasDaLista, ajustaEntrada, sugereNomes, VERSOES_MAX, versoesDa, salvaVersao, rotuloDaVersao, diffListas, parseDeckText, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS, isCompanionCard, coresDaLista } = __m14;
 const { coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE } = __m23;
@@ -16706,9 +16746,11 @@ function createPortaDeEntrada({ conta = null, perfil = null, haptics = null, aoE
   const comGoogle = () => !!(conta && conta.disponivel && conta.disponivel());
   const entrou = async () => {
     if (haptics) haptics.evento('confirmacao');
+    const tr = Transicao('Entrando…', { id: 'transicao-conta' }); // G-276 · relato #27 · a transição cobre a troca da porta pelo Início
     root.dataset.saida = 'true'; // a porta se recolhe antes de abrir o app
     await new Promise(r => setTimeout(r, 160));
     aoEntrar();
+    await tr.fecha();
   };
   async function google(btn) {
     if (st.ocupado) return;
@@ -16882,6 +16924,11 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
 
   /* ---- Leva 129 · conta Google: entrar, usar nome e foto da conta, backup na nuvem, sair ---- */
   const quando = ms => { if (!ms) return 'nunca'; const d = new Date(ms); return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
+  /** G-276 · relato #27 · Sair com a tela de transição por cima; a porta (G-275) chega debaixo dela. */
+  async function saiComTransicao() {
+    const tr = Transicao('Saindo da conta…', { id: 'transicao-conta' });
+    try { await conta.sair(); toast('Conta desconectada'); if (aoSair) aoSair(); /* G-275 · volta à porta */ } finally { await tr.fecha(); }
+  }
   async function acaoDaConta(fn, { ocupa = true } = {}) {
     if (st.contaOcupada) return;
     st.contaOcupada = ocupa; paint();
@@ -17116,7 +17163,7 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
         Row({ class: 'ds-row--wrap' },
           Button('Trocar a senha', { icone: 'editar', id: 'conta-senha-trocar', variant: 'ghost', disabled: oc || e.estado !== 'conectada', title: e.estado !== 'conectada' ? 'Entre de novo antes de trocar a senha' : 'Trocar a senha desta conta', onClick: () => abreTrocarSenha() }),
           botaoExcluir(c, oc, e.estado),
-          Button('Sair', { icone: 'desistir', id: 'conta-sair', variant: 'ghost', disabled: oc, onClick: () => acaoDaConta(async () => { await conta.sair(); toast('Conta desconectada'); if (aoSair) aoSair(); /* G-275 · volta à porta */ }) }))));
+          Button('Sair', { icone: 'desistir', id: 'conta-sair', variant: 'ghost', disabled: oc, onClick: () => acaoDaConta(saiComTransicao) }))));
     }
     return Surface({ class: 'ds-surface--pad', id: 'perfil-conta', dataset: { conectada: 'true', chegou: String(chegouAgora()) } }, Stack({}, cabeca,
       Row({ class: 'perfil-conta__quem' },
@@ -17139,7 +17186,7 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
           toast(await backup.restaurar(b.texto)); await carrega();
         }) }),
         botaoExcluir(c, oc, conta.estante ? conta.estante().estado : 'desligada'),
-        Button('Sair', { icone: 'desistir', id: 'conta-sair', variant: 'ghost', disabled: oc, onClick: () => acaoDaConta(async () => { await conta.sair(); toast('Conta desconectada'); if (aoSair) aoSair(); /* G-275 · volta à porta */ }) }))));
+        Button('Sair', { icone: 'desistir', id: 'conta-sair', variant: 'ghost', disabled: oc, onClick: () => acaoDaConta(saiComTransicao) }))));
   }
   /** G-270 · a seção acabou de ganhar a conta (entrada nos últimos 1,5 s): a transição de sucesso roda uma vez — a
       próxima pintura (sincronia, nome de usuário) já não repete. */
@@ -41509,6 +41556,18 @@ async function saiDaPorta(via) {
   location.hash = d;
   if (await primeiraAbertura()) mostraApresentacao();
 }
+/** G-276 · relato #27 · Sair da conta a qualquer momento, do Início: confirma (nada se perde, mas o toque é visível no
+    cabeçalho), cobre com a tela de transição e volta à porta (G-275). */
+function sairDaConta() {
+  __m3.Dialog({ title: 'Sair da conta?', body: Text('O que está no aparelho continua aqui. Para entrar de novo, a porta do app.', { tone: 'muted' }),
+    actions: [Button('Cancelar', { id: 'home-sair-cancelar', onClick: __m3.closeDialog }), Button('Sair', { variant: 'primary', icone: 'desistir', id: 'home-sair-confirmar', onClick: async () => {
+      __m3.closeDialog();
+      const tr = __m3.Transicao('Saindo da conta…', { id: 'transicao-conta' });
+      try { await conta.sair(); const b = document.getElementById('home-sair'); if (b) b.remove(); voltaAPorta(); }
+      catch (e) { toast(__m29.motivoDe(e)); }
+      finally { await tr.fecha(); }
+    } })] });
+}
 /** D3 · nome do perfil em memória: a tela inicial cumprimenta sem esperar o armazenamento (o botão da barra mantém). */
 let nomeDoPerfil = null;
 function renderHome({ ancora = false } = {}) {
@@ -41522,8 +41581,9 @@ function renderHome({ ancora = false } = {}) {
   const hoje = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
   const continuar = h('div', { id: 'home-continuar-slot' });
   const rapido = (rotulo, icone, id, rota) => Atalho(rotulo, { icone, id, onClick: () => { location.hash = '#' + rota; } });
+  const tituloLinha = h('div', { class: 'inicio__titulo-linha' }, titulo); // G-276 · com a conta conectada, Sair da conta à direita do título
   const el = h('div', { class: 'ds-wrap inicio', id: 'home' },
-    h('header', { class: 'inicio__cab' }, h('span', { class: 'inicio__data', id: 'home-data' }, hoje), titulo, frase),
+    h('header', { class: 'inicio__cab' }, h('span', { class: 'inicio__data', id: 'home-data' }, hoje), tituloLinha, frase),
     continuar,
     // U2 · atalhos com ícone e uma palavra; K4 · Jogar continua o primário, os outros quatro numa linha
     h('nav', { class: 'ds-atalhos inicio__atalhos', id: 'home-atalhos', 'aria-label': 'Atalhos' },
@@ -41548,6 +41608,7 @@ function renderHome({ ancora = false } = {}) {
     titulo.textContent = nomeDoPerfil ? `Olá, ${nomeDoPerfil}` : 'Estante';
     frase.classList.toggle('ds-hidden', !!nomeDoPerfil);
   }).catch(() => {});
+  if (conta && conta.get) conta.get().then(c => { if (c && el.isConnected && !tituloLinha.querySelector('#home-sair')) tituloLinha.appendChild(__m3.IconButton('desistir', 'Sair da conta', { id: 'home-sair', variant: 'ghost', onClick: sairDaConta })); }).catch(() => {});
   painelContinuar().then(card => { if (card) { continuar.replaceChildren(card); el.querySelector('#go-play').classList.remove('ds-btn--primary'); } }).catch(() => {});
   return el;
 }

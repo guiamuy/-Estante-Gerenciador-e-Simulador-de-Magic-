@@ -14305,3 +14305,51 @@ test('e2e · MJ6b arrastar da permanente ativa a habilidade no alvo; arrastar da
   assert.equal(m4.sobre.mira, null, 'virado, nada acende');
   assert.deepEqual(errors, []);
 });
+
+test('e2e · G-276 relato #27: entrar e sair cobrem a troca de tela com a transição de conta; Sair da conta no Início, com confirmação, volta à porta; sem conta não há o botão', { skip }, async t => {
+  const { page, errors, base } = await open(t, { porta: true });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.addInitScript(() => {
+    window.__GOOGLE_CLIENT_ID = 'e2e.apps.googleusercontent.com';
+    window.__FIREBASE_API_KEY = 'chave-e2e';
+    const ok = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } });
+    window.__FIREBASE_FETCH = async (url, init) => {
+      const corpo = url.includes('securetoken') ? init.body : JSON.parse(init.body);
+      if (url.includes('securetoken')) return ok({ id_token: 'id-renovado', refresh_token: 'ref-porta3-e2e', expires_in: '3600', user_id: 'uidPorta_3' });
+      if (url.includes('accounts:signUp')) return ok({ localId: 'uidPorta_3', email: corpo.email, idToken: 'id-porta3', refreshToken: 'ref-porta3-e2e', expiresIn: '3600' });
+      return ok({ error: { message: 'NOT_FOUND' } }, 404);
+    };
+  });
+  await page.goto(base); await page.waitForSelector('#porta-email:not([disabled])');
+  // a transição some sozinha: um observador anota cada abertura (frase) e se ela chegou com o papel de status
+  await page.evaluate(() => { window.__transicoes = []; new MutationObserver(ms => { for (const m of ms) for (const n of m.addedNodes) if (n.id === 'transicao-conta') window.__transicoes.push([n.textContent.trim(), n.getAttribute('role'), n.dataset.aberta]); }).observe(document.body, { childList: true }); });
+  await page.click('#porta-email'); await page.waitForSelector('#conta-email-campo');
+  await page.click('#conta-email-modo [data-modo="criar"]'); await page.fill('#conta-email-campo', 'sair@exemplo.com'); await page.fill('#conta-senha', 'senha-certa-1');
+  await page.click('#conta-email-confirmar'); await page.waitForSelector('#porta-passo-nome');
+  // 1 · entrar: a transição "Entrando…" cobre a troca da porta pelo Início e fica ao menos 450 ms
+  const t0 = Date.now();
+  await page.click('#porta-nome-pular');
+  await page.waitForSelector('#transicao-conta[data-aberta="true"]'); assert.equal(await page.innerText('#transicao-conta'), 'Entrando…');
+  await page.waitForSelector('#home');
+  await page.waitForFunction(() => document.getElementById('transicao-conta') === null); assert.ok(Date.now() - t0 >= 450, 'ficou ao menos 450 ms');
+  assert.deepEqual(await page.evaluate(() => window.__transicoes), [['Entrando…', 'status', 'true']]);
+  // 2 · Sair da conta no cabeçalho do Início: 44 px, nome falado; Cancelar não sai
+  await page.waitForSelector('#home-sair'); assert.equal(await page.getAttribute('#home-sair', 'aria-label'), 'Sair da conta');
+  assert.ok((await page.locator('#home-sair').boundingBox()).height >= 44, 'Sair da conta com 44 px');
+  await page.waitForTimeout(400); await auditaTela(page, 'inicio · sair da conta');
+  await page.click('#home-sair'); await page.waitForSelector('#home-sair-confirmar'); assert.equal(await page.innerText('#ds-dialog-title'), 'Sair da conta?');
+  await page.click('#home-sair-cancelar'); await page.waitForFunction(() => (document.querySelector('#ds-overlay') || {}).dataset.open !== 'true');
+  assert.equal(await page.evaluate(() => location.hash), '#/'); assert.equal(await page.locator('#home-sair').count(), 1);
+  // 3 · confirmar: a transição "Saindo da conta…" cobre a volta à porta
+  await page.click('#home-sair'); await page.click('#home-sair-confirmar');
+  await page.waitForSelector('#transicao-conta[data-aberta="true"]'); assert.equal(await page.innerText('#transicao-conta'), 'Saindo da conta…');
+  await page.waitForSelector('#porta'); assert.equal(await page.evaluate(() => location.hash), '#/entrar');
+  await page.waitForFunction(() => document.getElementById('transicao-conta') === null);
+  assert.deepEqual(await page.evaluate(() => window.__transicoes.map(x => x[0])), ['Entrando…', 'Saindo da conta…']);
+  await page.waitForFunction(() => /Conta desconectada/.test((document.querySelector('#ds-toast') || {}).textContent || ''));
+  // 4 · sem conta, o Início não tem o botão
+  await page.click('#porta-pular'); await page.waitForSelector('#home'); await page.waitForTimeout(400);
+  assert.equal(await page.locator('#home-sair').count(), 0); assert.equal(await page.locator('#transicao-conta').count(), 0, 'Continuar sem conta não é entrar: sem transição');
+  if (process.env.SHOTS) { await page.screenshot({ path: process.env.SHOTS + '/g276-inicio.png', fullPage: true }); }
+  assert.deepEqual(errors, []);
+});
