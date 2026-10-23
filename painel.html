@@ -571,9 +571,9 @@ body {
 .pn-barras { display: flex; flex-direction: column; gap: var(--space-2); }
 .pn-barras__titulo { color: var(--fg); }
 .pn-barras__lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
-.pn-barras__linha { display: grid; grid-template-columns: minmax(72px, 30%) 1fr auto; align-items: center; gap: var(--space-2); width: 100%; min-height: var(--tap-min); padding: 0 var(--space-2); border-radius: var(--radius-1); text-align: left; color: inherit; }
+.pn-barras__linha { display: grid; grid-template-columns: minmax(96px, 42%) 1fr auto; /* R-29 · rótulo mais largo */ align-items: center; gap: var(--space-2); width: 100%; min-height: var(--tap-min); padding: 0 var(--space-2); border-radius: var(--radius-1); text-align: left; color: inherit; }
 button.pn-barras__linha[aria-pressed="true"] { background: var(--accent-soft); }
-.pn-barras__rotulo { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pn-barras__rotulo { min-width: 0; overflow-wrap: anywhere; line-height: 1.25; padding-block: var(--space-1); } /* R-29 · o rótulo inteiro, em até três linhas: no celular as reticências escondiam o que diferencia as barras ("19/10 pauper v1…") */
 .pn-barras__trilho { display: block; height: 10px; border-radius: var(--radius-1); background: var(--bg-elev-2); overflow: hidden; }
 .pn-barras__barra { display: block; height: 100%; width: var(--pn-largura, 0%); min-width: 2px; border-radius: var(--radius-1); background: var(--accent); transition: width var(--dur-2) var(--ease-out); }
 .pn-barras__barra[data-tom="negative"] { background: var(--negative); }

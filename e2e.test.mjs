@@ -14478,6 +14478,41 @@ test('e2e · R-28 Painel · retrato do CI: Pipeline e Eficiência abrem sem nenh
   assert.deepEqual(errors, []);
 });
 
+/* R-29 · revisão do Painel no celular (L2 da triagem de 19/10): nas barras, o rótulo inteiro, sem reticências */
+test('e2e · R-29 Painel: rótulo de barra aparece inteiro no celular (quebra em linhas, sem reticências), nos dois temas e sem sobreposição', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  const painel = base.replace('index.html', 'painel.html');
+  await page.setViewportSize({ width: 360, height: 780 });
+  const json = (r, corpo) => r.fulfill({ json: corpo, headers: { 'content-type': 'application/json', 'x-ratelimit-remaining': '50', 'x-ratelimit-limit': '60', 'access-control-expose-headers': 'etag, x-ratelimit-remaining, x-ratelimit-limit' } });
+  await page.route('https://api.github.com/**', r => json(r, /commits\?sha=main/.test(r.request().url()) ? [{ sha: 'abc1234def0', commit: { message: 'Leva M-390 · x', committer: { date: new Date().toISOString() } } }] : []));
+  const h = n => new Date(Date.now() - n * 3600000).toISOString();
+  // os formatos de nome mais longo do catálogo, cada um num placar: o rótulo da barra é "dd/mm formato vNNN"
+  const placares = ['commander', 'construido', 'pauper', 'standard', 'vintage'].map((f, i) => `{"trilha":"homologacao","motor":112,"formato":"${f}","listas_total":100,"listas_jogam":${50 + i},"falhas":0,"em":"${h(2 + i)}"}`).join('\n') + '\n';
+  await page.route('https://raw.githubusercontent.com/**', r => r.fulfill({ body: /placares\.jsonl/.test(r.request().url()) ? placares : '', headers: { 'content-type': 'text/plain', 'access-control-allow-origin': '*' } }));
+  await page.addInitScript(() => {
+    const jwt = email => 'h.' + btoa(JSON.stringify({ email })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') + '.s';
+    window.__PAINEL_FETCH = async (url) => new Response(JSON.stringify(url.includes('securetoken') ? { user_id: 'uidE2E', id_token: jwt('gui.amuy@gmail.com'), refresh_token: 'ref-e2e', expires_in: '3600' } : { localId: 'uidE2E', idToken: jwt('gui.amuy@gmail.com'), refreshToken: 'ref-e2e', expiresIn: '3600' }), { headers: { 'content-type': 'application/json' } });
+    window.__PAINEL_GOOGLE = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }), revoke: (tk, cb) => cb && cb() } } };
+  });
+  await page.goto(painel + '#jogo'); await page.waitForSelector('#pn-entrar'); await page.click('#pn-entrar');
+  await page.waitForSelector('#pn-k-jogam'); await page.waitForSelector('.pn-barras__rotulo');
+  const rotulos = () => page.$$eval('.pn-barras__rotulo', es => es.map(e => { const s = getComputedStyle(e); return { texto: e.textContent, corta: s.textOverflow === 'ellipsis' || s.whiteSpace === 'nowrap', sobra: e.scrollWidth - e.clientWidth, altura: e.getBoundingClientRect().height, linha: e.closest('.pn-barras__linha').getBoundingClientRect().height }; }));
+  for (const tema of ['dark', 'light']) {
+    await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema);
+    const rs = await rotulos();
+    assert.ok(rs.some(r => /commander v112/.test(r.texto)) && rs.some(r => /construido v112/.test(r.texto)), JSON.stringify(rs.map(r => r.texto)));
+    for (const r of rs) {
+      assert.equal(r.corta, false, `sem reticências: ${r.texto}`);
+      assert.ok(r.sobra <= 1, `o texto cabe na largura: ${r.texto} (${r.sobra}px a mais)`);
+      assert.ok(r.altura <= r.linha + 1, `o rótulo fica dentro da linha da barra: ${r.texto}`);
+      assert.ok(r.linha >= 44, 'a linha continua com 44 px');
+    }
+    await auditaTela(page, 'R-29 · barras com rótulo inteiro · ' + tema);
+  }
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/r29-barras.png', fullPage: true });
+  assert.deepEqual(errors, []);
+});
+
 // MJ6b (leva J-16, trilha jogabilidade) · mirar por arrasto a partir do campo: a permanente com habilidade de um alvo e a
 // fonte do gatilho que espera alvo; só elas trocam o gesto vertical pela mira; o dedo é desenhado uma vez por quadro
 test('e2e · MJ6b arrastar da permanente ativa a habilidade no alvo; arrastar da fonte do gatilho escolhe o alvo; terreno não mira; um desenho por quadro', { skip }, async t => {
