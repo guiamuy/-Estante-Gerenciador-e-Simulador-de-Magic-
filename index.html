@@ -5626,6 +5626,8 @@ const EFFECTS = {
   pisca: { fields: [], targets: ['creature', 'creature-you-control', 'permanent', 'permanent-you-control'] },
   topo_em_ordem: { fields: [], targets: ['player'] }, // M-515 · Drafna's Restoration: "Put any number of target [tipo] cards from target player's graveyard on top of their library in any order" (os alvos das cartas: `alvosLivres`, escolhidos logo depois de conjurar)
   transformar_pela_habilidade: { fields: [], targets: ['self'] }, // M-366 · montado pelo motor (701.27f); o script não o escreve
+  compra_se_topo_m: { fields: [], targets: ['self'] }, // M-570 · a segunda metade do revela_topo_compra
+  revela_topo_compra: { fields: [], targets: ['self'] }, // M-570 · Elven Farsight: "you may reveal the top card of your library. If a creature card is revealed this way, draw a card"
   revela_topo_transforma: { fields: [], targets: ['self'] }, // M-353 · Delver of Secrets: olha o topo; se for do tipo pedido, pode revelá-lo e transformar a fonte (701.28)
   exila_da_mao: { fields: ['amount'], targets: ['opponent', 'player'] },
   imprime_da_mao: { fields: [], targets: ['self'] }, // M-563 · Chrome Mox: "exile a nonartifact, nonland card from your hand", ligada à fonte
@@ -5887,7 +5889,7 @@ const REGRAS_DO_JOGADOR = ['naoGanhaVida', 'terrenosExtras', 'semLimiteDeMao']; 
 const PICK_DESTS = ['hand', 'graveyard', 'battlefield', 'battlefield-tapped', 'library-top', 'library-bottom', 'library-bottom-random', 'stay']; // M-262 · "on the bottom in a random order"
 const FILTER_TYPES = ['creature', 'land', 'artifact', 'enchantment', 'instant', 'sorcery', 'planeswalker', 'battle']; // M-246 · "nonland permanent" inclui batalha
 const LOYALTY_PT = c => (c > 0 ? '+' : '') + c;
-const CHOICE_EFFECTS = ['terreno_da_mao', 'exila_da_mao', 'revela_topo_transforma', 'topo_ou_fundo_do_dono', 'untap_chosen', 'discard_or_sacrifice_land_draw', 'return_chosen', 'discard', 'discard_chosen', 'exile_chosen', 'connive', 'search', 'look', 'scry', 'surveil', 'put_back', 'choose_type'];
+const CHOICE_EFFECTS = ['terreno_da_mao', 'exila_da_mao', 'revela_topo_transforma', 'revela_topo_compra' /* M-570 */, 'topo_ou_fundo_do_dono', 'untap_chosen', 'discard_or_sacrifice_land_draw', 'return_chosen', 'discard', 'discard_chosen', 'exile_chosen', 'connive', 'search', 'look', 'scry', 'surveil', 'put_back', 'choose_type'];
 /** S47 · condição do próprio efeito, olhando o que foi pago como custo. */
 /** M-249 · 122.1 · marcadores nomeados em português (o tipo é a chave em `counters`). */
 const MARCADOR_PT = { p1p1: '+1/+1', m0m1: '−0/−1', /* M-360 */ oil: 'de óleo', depletion: 'de esgotamento', charge: 'de carga', age: 'de idade', loyalty: 'de lealdade', time: 'de tempo', lore: 'de saga', poison: 'de veneno', energia: 'de energia' /* H-6 */ };
@@ -10626,6 +10628,10 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Volcanic Spite': { texto: '10adlnb', leva: 'M-569' },
   'Wither and Bloom': { texto: '1ig0hep', leva: 'M-569' },
   'Accumulated Knowledge': { texto: '1w5oodc', leva: 'M-569' },
+  // M-570 · revisão por lote CCV (Pauper: Elven Farsight, Bushwhack, Self-Assembler), textos da Scryfall de 23/10/2026 UTC, revisor independente
+  'Elven Farsight': { texto: '1qqwmib', leva: 'M-570' },
+  'Bushwhack': { texto: 'dp8fvk', leva: 'M-570' },
+  'Self-Assembler': { texto: '1isrci4', leva: 'M-570' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -19238,6 +19244,9 @@ const __m42 = (function () {
     [new RegExp(`^its controller creates ${N} (treasure|food|blood|map|clue|lander) tokens?$`, 'i'), m => fichaPredefinida(m[1], m[2]).map(e => ({ ...e, target: 'target-controller' }))], // LT11 · "its controller": o controlador do alvo
     [new RegExp(`^~ deals ${N} damage to each non-([A-Z][a-z]+) creature$`), m => [{ do: 'damage', amount: num(m[1]), target: 'each-creature', exceptSubtype: m[2] }]], // LT11
     [/^each player sacrifices a nontoken creature of their choice$/i, () => [{ do: 'sacrifice_each', types: ['creature'], nontoken: true }]], // LT11 · 701.21
+    [/^target creature you control fights target creature you don't control$/i, () => [{ do: 'lutador', target: 'creature-you-control' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }]], // M-570 · Bushwhack (701.14; o mesmo par da Prey Upon)
+    [/^search your library for an? ([A-Za-z-]+) creature card, reveal it, put it into your hand$/i, m => [{ do: 'search', amount: 1, filter: { types: ['creature'], subtypes: [m[1].replace(/(^|-)([a-z])/g, (x, a, b) => a + b.toUpperCase())] }, to: 'hand', revela: true }]], // M-570 · Self-Assembler (subtipo de criatura)
+    [/^you may reveal the top card of your library to draw a card if it is a creature card$/i, () => [{ do: 'revela_topo_compra', tipos: ['creature'] }]], // M-570 · Elven Farsight
     [/^search your library for a land card, put it into your graveyard$/i, () => [{ do: 'search', amount: 1, filter: { types: ['land'] }, to: 'graveyard' }]], // M-534 · Enroot (Carnivorous Cultivator); "then shuffle" é da busca
     [/^search your library for a creature card with (defender|flying|reach), reveal it, put it into your hand$/i, m => [{ do: 'search', amount: 1, filter: { types: ['creature'], keyword: m[1].toLowerCase() }, to: 'hand' }]], // LT11
     [/^prevent all combat damage that would be dealt this turn$/i, () => [{ do: 'fog' }]], // LT9
@@ -19686,6 +19695,7 @@ const __m42 = (function () {
     texto = texto.replace(/^(target player|target opponent) reveals cards from the top of their library until they reveal a land card, then puts those cards into their graveyard/i, 'revela_ate_terreno_cemiterio $1'); // M-377 · Balustrade Spy
     texto = texto.replace(/^(you may )?(?:sacrifice an? (artifact|land) or discard a card|discard a card or sacrifice an? (artifact|land))\. if you do, draw (\w+) cards?/i, (m0, pode, t1, t2, n) => `${pode ? '' : 'must_'}descarta_ou_sacrifica ${t1 || t2} ${n}`); // M-411 · Vision of Love, K'un-Lun Warrior (Highway Robbery: o "or" ao contrário); "you may" faz parte do efeito: escolher nada é recusar
     texto = texto.replace(/(?:^|(?<=\. ))(?:then )?(you may )?discard (a card|two cards|three cards)\. if you do, draw (\w+) cards?/i, (m0, pode, q, n) => `${pode ? 'you may' : 'must'} discard ${q} to draw ${n} cards`); // M-406 · sem "you may" o descarte é obrigatório (antes virava opcional) // M-373 · "Then you may discard two cards. If you do, draw three cards" (Thrilling Discovery)
+    texto = texto.replace(/, then you may reveal the top card of your library\. if a creature card is revealed this way, draw a card/i, '. you may reveal the top card of your library to draw a card if it is a creature card'); // M-570 · Elven Farsight: "Scry 3, then …" em duas frases
     texto = texto.replace(/(?:^|(?<=\. ))you may put a card from your hand on the bottom of your library\. if you do, draw a card/i, 'you may put a card from your hand on the bottom of your library to draw a card'); // M-569 · Volcanic Spite (uma frase só: o "if you do" depende da escolha)
     texto = texto.replace(/(?:^|(?<=\. ))you may sacrifice a permanent\. if you do, draw (\w+) cards?/i, (m0, n) => `you may sacrifice a permanent to draw ${n} cards`); // M-549 · Witherbloom Charm
     texto = texto.replace(/^exile (target (?:creature|permanent)(?: you control)?), then return (?:it|that card) to the battlefield under its owner's control/i, 'pisca $1'); // M-349 · Ephemerate
@@ -23332,6 +23342,12 @@ function applyEffectM449(s, src, eff, tgt, events) {
         then: { effects: [{ do: 'revela_topo' }, src.ability ? { do: 'transformar_pela_habilidade', hab: src.oid } : { do: 'transformar' }], source: fonte.oid, name: src.name, controller: ctrl, targets: [] } }; // M-366 · 701.27f: a habilidade só transforma se a permanente não transformou desde que ela foi para a pilha
       note({ pending: true }); break;
     }
+    case 'revela_topo_compra': { // M-570 · Elven Farsight (701.20a): revelar é opcional e a pergunta vem sempre (achado da revisão: perguntar só com criatura no topo contava ao jogador o que é a carta)
+      if (!s.zones[ctrl].library.length) { note({ amount: 0 }); break; }
+      s.pending = { kind: 'may_pay', p: ctrl, cost: null, name: `${src.name}: revelar a carta do topo? Se for uma criatura, você compra uma carta`, then: { effects: [{ do: 'revela_topo' }, { do: 'compra_se_topo_m', tipos: eff.tipos || ['creature'] }], source: src.oid, name: src.name, controller: ctrl, targets: [] } };
+      note({ pending: true }); break;
+    }
+    case 'compra_se_topo_m': { const topo = s.zones[ctrl].library[0], c = topo && s.objects[topo]; if (c && ((s.facts[c.name] || { types: [] }).types || []).some(x => (eff.tipos || ['creature']).includes(x))) { draw(s, ctrl, 1); note({ amount: 1, target: s.players[ctrl].name }); } else note({ amount: 0 }); break; } // M-570 · "If a creature card is revealed this way, draw a card"
     case 'transformar_pela_habilidade': { const alvo = src.ability ? s.objects[src.source] : src; if (alvo) transformaT(s, alvo, { ability: true, oid: eff.hab, source: alvo.oid }, events); break; } // M-366 · 701.27f (achado da revisão da Delver)
     case 'revela_topo': { const topo = s.zones[ctrl].library[0]; if (topo) events.push({ kind: 'revealed', oid: topo, name: s.objects[topo].name, p: ctrl }); note({}); break; } // M-353 · 701.20a
     case 'terreno_da_mao': { // M-354 · você escolhe um terreno da mão (ou nenhum); entra pelo efeito, não conta como jogada de terreno (305.2)
@@ -34443,6 +34459,7 @@ function effectLine(ev) {
     case 'continuo': { const pt = ev.power || ev.toughness ? `${ev.power >= 0 ? '+' : ''}${ev.power}/${ev.toughness >= 0 ? '+' : ''}${ev.toughness}` : '';
       const kw = (ev.palavras || []).map(k => PALAVRA_PT[k] || k).join(' e ');
       return `${t} ganhou ${[pt, kw].filter(Boolean).join(' e ')} ${duracaoPT(ev.ate)} (${ev.name})`; }
+    case 'compra_se_topo_m': return ev.amount ? `${ev.target} revelou uma criatura e comprou 1 carta (${ev.name})` : `${ev.name}: a carta revelada não é criatura, não compra`; // M-570
     case 'tap': return `${ev.name} virou ${t}`;
     case 'untap': return `${ev.name} desvirou ${t}`;
     case 'keyword': return ev.palavra ? `${ev.name} ganhou ${PALAVRA_PT[ev.palavra] || ev.palavra} ${duracaoPT(ev.ate)}` : `${ev.name} resolveu`; // M-567 · achado da revisão
@@ -35652,6 +35669,7 @@ function descreveEfeito(e) {
     case 'animate_dead': return 'devolve a carta encantada ao campo sob o seu controle e se anexa a ela'; // CR2d.4
     case 'craft_volta': return 'volta do exílio transformada, sob o controle do dono'; // M-356 · 702.167a
     case 'exile_return_transformed': return `é exilada e volta transformada, sob o controle ${e.sob === 'voce' ? 'de quem a controlava' : 'do dono'}`; // CR2d.5 · M-353
+    case 'revela_topo_compra': return 'pode revelar a carta do topo do grimório; se for uma criatura, compra uma carta'; // M-570
     case 'revela_topo_transforma': return 'olha a carta do topo; se for instantânea ou feitiço, pode revelá-la e transformar esta permanente'; // M-353
     case 'revela_topo': return 'revela a carta do topo'; // M-353
     case 'terreno_da_mao': return `você pode pôr um terreno da sua mão no campo${e.virado ? ', virado' : ''}`; // M-354
