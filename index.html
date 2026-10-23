@@ -14119,6 +14119,11 @@ function relatoDaFila(no) {
    está livre): o nome e o código da conta são públicos entre contas, como um @. A foto, o perfil e o e-mail, não.
    --------------------------------------------------------------------- */
 const NOME_USUARIO_MIN = 3, NOME_USUARIO_MAX = 20, NOME_USUARIO_OK = /^[a-z0-9_]+$/;
+/** G-278 · relato #25 (D16 = A): o nome de usuário é o nome do perfil e troca no máximo uma vez a cada 30 dias.
+    A regra do banco confere o mesmo prazo pelo instante guardado em perfis/<uid>/usuario/em. */
+const TROCA_NOME_MS = 30 * 24 * 60 * 60 * 1000;
+/** Quando a conta pode trocar de nome de novo (ms), ou 0 se já pode. `meu`: o que `meu()` devolveu. */
+const proximaTrocaDoNome = (meu, agora = Date.now()) => (meu && meu.em && agora < meu.em + TROCA_NOME_MS ? meu.em + TROCA_NOME_MS : 0);
 const normalizaNomeDeUsuario = n => String(n || '').trim().replace(/^@+/, '').toLowerCase();
 function erroDoNome(n) {
   const x = normalizaNomeDeUsuario(n);
@@ -14127,7 +14132,7 @@ function erroDoNome(n) {
   return NOME_USUARIO_OK.test(x) ? null : 'nome-formato';
 }
 const MOTIVO_NOME = { 'nome-curto': 'Use pelo menos 3 caracteres.', 'nome-longo': 'Use no máximo 20 caracteres.', 'nome-formato': 'Só letras sem acento, números e _.',
-  'nome-em-uso': 'Esse nome já é de outra conta. Tente outro.', 'nome-sem-regras': 'Nomes de usuário ainda não estão ligados no banco da Estante. Tente mais tarde.',
+  'nome-em-uso': 'Esse nome já é de outra conta. Tente outro.', 'nome-cedo': 'Você trocou de nome há menos de 30 dias.', 'nome-sem-regras': 'Nomes de usuário ainda não estão ligados no banco da Estante. Tente mais tarde.',
   'sem-rede': 'Sem internet agora. Tente de novo quando a conexão voltar.', api: 'O banco não respondeu. Tente de novo em instantes.' };
 function createNomeDeUsuario({ transporte, uid, agora = () => Date.now() }) {
   caminhos(uid);
@@ -14144,6 +14149,8 @@ function createNomeDeUsuario({ transporte, uid, agora = () => Date.now() }) {
       if (ruim) throw new Error(ruim);
       const atual = await this.meu();
       if (atual && atual.nome === n) return { nome: n, mudou: false };
+      const espera = proximaTrocaDoNome(atual, agora());
+      if (espera) throw Object.assign(new Error('nome-cedo'), { quando: espera }); // G-278 · uma troca a cada 30 dias
       let dono;
       try { dono = await transporte.ler(`usuarios/${n}`); } catch (e) { if (negado(e)) throw new Error('nome-sem-regras'); throw e; } // regras antigas: o ramo não existe
       if (dono && dono.uid !== uid) throw new Error('nome-em-uso');
@@ -14163,7 +14170,7 @@ function createNomeDeUsuario({ transporte, uid, agora = () => Date.now() }) {
     }
   };
 }
-return { createNomeDeUsuario, normalizaNomeDeUsuario, erroDoNome, MOTIVO_NOME, NOME_USUARIO_MIN, NOME_USUARIO_MAX,
+return { createNomeDeUsuario, normalizaNomeDeUsuario, erroDoNome, MOTIVO_NOME, NOME_USUARIO_MIN, NOME_USUARIO_MAX, TROCA_NOME_MS, proximaTrocaDoNome,
   caminhos, codifica, decodifica, paraRemoto, doRemoto, oQueSobe, createPerfilRemoto, createFilaDeRelatos, createSincronia, relatoDaFila, REMOTO_KIND, REMOTO_VERSION, RELATO_KIND, RELATO_VERSION, VALOR_MAX, RELATO_MAX };
 })();
 
@@ -17013,16 +17020,19 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
     const uid = conta.sessao && conta.sessao.uid();
     if (!st.usuario || st.usuario.de !== uid) {
       st.usuario = { de: uid, carregando: true, nome: null };
-      nu.meu().then(m => ({ de: uid, nome: m ? m.nome : null }), () => ({ de: uid, nome: null, falhou: true }))
+      nu.meu().then(m => ({ de: uid, nome: m ? m.nome : null, em: m ? m.em : 0 }), () => ({ de: uid, nome: null, falhou: true }))
         .then(u => { if (st.usuario && st.usuario.de === uid) { st.usuario = u; if (root.isConnected) paint(); } });
     }
     const u = st.usuario;
     return Row({ class: 'ds-row--wrap perfil-conta__estante', id: 'conta-usuario', dataset: { estado: u.carregando ? 'carregando' : u.nome ? 'tem' : u.falhou ? 'falhou' : 'sem' } },
       Text(u.carregando ? 'Conferindo o nome de usuário…' : u.nome ? '@' + u.nome : u.falhou ? 'Não deu para ler o nome de usuário agora.' : 'Sem nome de usuário ainda', { size: 'sm', tone: u.nome ? undefined : 'muted', class: 'ds-grow', attrs: { id: 'conta-usuario-texto', role: 'status' } }),
-      Button(u.nome ? 'Trocar' : 'Escolher', { icone: 'pessoa', id: 'conta-usuario-escolher', variant: 'ghost', disabled: oc || !!u.carregando, title: u.nome ? 'Trocar o nome de usuário' : 'Escolher um nome de usuário', onClick: () => abreNomeDeUsuario(nu, u.nome) }));
+      Button(u.nome ? 'Trocar' : 'Escolher', { icone: 'pessoa', id: 'conta-usuario-escolher', variant: 'ghost', disabled: oc || !!u.carregando, title: u.nome ? 'Trocar o nome de usuário' : 'Escolher um nome de usuário', onClick: () => abreNomeDeUsuario(nu, u.nome, u.em) }));
   }
-  function abreNomeDeUsuario(nu, atual) {
+  function abreNomeDeUsuario(nu, atual, em = 0) {
     const R = __m40, rotuloBase = atual ? 'Trocar' : 'Reservar';
+    // G-278 · uma troca a cada 30 dias: com a troca ainda presa, a folha diz quando libera e não deixa confirmar
+    const espera = atual ? R.proximaTrocaDoNome({ em }, Date.now()) : 0;
+    const quando = espera ? new Date(espera).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
     const erro = h('div', { class: 'conta-email__erro', id: 'conta-usuario-erro', role: 'alert' });
     const campo = h('input', { class: 'ds-input', type: 'text', id: 'conta-usuario-campo', value: atual || '', autocomplete: 'username', autocapitalize: 'none', spellcheck: 'false', maxlength: '21', placeholder: 'seu_nome' });
     const dica = h('span', { class: 'ds-field__hint', id: 'conta-usuario-dica', 'aria-live': 'polite' });
@@ -17033,14 +17043,14 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
       const n = R.normalizaNomeDeUsuario(campo.value), ruim = n ? R.erroDoNome(n) : null;
       dica.textContent = !n ? '3 a 20 caracteres: letras sem acento, números e _.' : ruim ? R.MOTIVO_NOME[ruim] : n === atual ? 'É o seu nome de agora.' : 'Fica @' + n + '.';
       dica.classList.toggle('ds-text--negative', !!ruim);
-      vai.disabled = !n || !!ruim || n === atual;
+      vai.disabled = !n || !!ruim || n === atual || !!espera;
     };
     async function confirma() {
       if (vai.disabled) return;
       clear(erro); vai.disabled = true; vai.setAttribute('aria-busy', 'true'); rot().textContent = 'Reservando…';
       try {
         const r = await nu.reservar(campo.value);
-        st.usuario = { de: conta.sessao.uid(), nome: r.nome };
+        st.usuario = { de: conta.sessao.uid(), nome: r.nome, em: r.mudou ? Date.now() : em };
         if (haptics) haptics.evento('confirmacao');
         closeDialog(); toast('@' + r.nome + ' agora é seu'); paint();
       } catch (e) {
@@ -17053,11 +17063,14 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
     Dialog({ title: atual ? 'Trocar o nome de usuário' : 'Escolher o nome de usuário', body: Stack({},
       Field('Nome de usuário', campo), dica,
       Text('É único: cada nome é de uma conta só. Quem tem conta na Estante consegue ver que ele está em uso.', { size: 'sm', tone: 'muted' }),
-      atual ? Text('Ao trocar, @' + atual + ' fica livre para outra pessoa.', { size: 'sm', tone: 'muted', attrs: { id: 'conta-usuario-aviso' } }) : null,
+      espera ? h('div', { id: 'conta-usuario-espera' }, Note('Você trocou de nome há menos de 30 dias. Dá para trocar de novo a partir de ' + quando + '.')) : null,
+      atual && !espera ? Text('Ao trocar, @' + atual + ' fica livre para outra pessoa.', { size: 'sm', tone: 'muted', attrs: { id: 'conta-usuario-aviso' } }) : null,
+      Text('Seu @ é o seu nome no Perfil e na mesa. Dá para trocar uma vez a cada 30 dias.', { size: 'sm', tone: 'muted', attrs: { id: 'conta-usuario-regra' } }),
       erro),
       actions: [Button('Cancelar', { id: 'conta-usuario-cancelar', onClick: closeDialog }), vai] });
+    if (espera) campo.disabled = true;
     confere();
-    campo.focus({ preventScroll: true });
+    if (!espera) campo.focus({ preventScroll: true });
   }
   /** G-268 · T6f-5a · trocar a senha da conta de e-mail: a atual (o Firebase pede entrada recente) e a nova. */
   function abreTrocarSenha() {

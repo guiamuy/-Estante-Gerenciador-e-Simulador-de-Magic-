@@ -378,9 +378,11 @@ test('R-11b · painel/$uid: só o próprio uid com o e-mail do dono lê e escrev
 });
 
 test('G-266 · nome de usuário: a primeira conta reserva; a outra recebe "em uso"; trocar solta o antigo; ninguém mexe na reserva dos outros', async () => {
-  const b = bancoComRegras();
-  const daAna = R.createNomeDeUsuario({ transporte: transporte(b, ANA), uid: ANA.uid, agora: () => 7 });
-  const doBeto = R.createNomeDeUsuario({ transporte: transporte(b, BETO), uid: BETO.uid, agora: () => 8 });
+  // G-278 · o relógio anda: a troca do fim do teste acontece 31 dias depois da primeira reserva (uma troca a cada 30 dias)
+  let relogio = 7;
+  const b = bancoComRegras({ agora: () => relogio });
+  const daAna = R.createNomeDeUsuario({ transporte: transporte(b, ANA), uid: ANA.uid, agora: () => relogio });
+  const doBeto = R.createNomeDeUsuario({ transporte: transporte(b, BETO), uid: BETO.uid, agora: () => relogio + 1 });
   assert.equal(await daAna.meu(), null);
   assert.deepEqual({ ...(await daAna.reservar('  @Ana_01 ')) }, { nome: 'ana_01', mudou: true });
   assert.equal(JSON.stringify(b.dados().usuarios), JSON.stringify({ ana_01: { uid: ANA.uid, em: 7 } }));
@@ -396,10 +398,40 @@ test('G-266 · nome de usuário: a primeira conta reserva; a outra recebe "em us
   await recusa(transporte(b, null).ler('usuarios/ana_01'), 'sem conta não lê');
   assert.equal((await transporte(b, BETO).ler('usuarios/ana_01')).uid, ANA.uid, 'com conta, dá para ver que está em uso');
   // trocar: reserva o novo, aponta o perfil e o antigo fica livre para o Beto
+  relogio += 31 * 24 * 60 * 60 * 1000;
   assert.deepEqual({ ...(await daAna.reservar('aninha')) }, { nome: 'aninha', mudou: true });
   assert.equal((await daAna.meu()).nome, 'aninha');
   assert.equal(b.dados().usuarios.ana_01, undefined, 'o antigo foi solto');
   assert.deepEqual({ ...(await doBeto.reservar('ana_01')) }, { nome: 'ana_01', mudou: true });
+});
+
+test('G-278 · relato #25 (D16 = A): o nome troca no máximo uma vez a cada 30 dias — o app avisa quando libera e não escreve nada; o banco recusa a troca antes do prazo mesmo de um cliente que pule o app; a primeira escolha e o mesmo nome não têm prazo; excluir a conta continua soltando o nome', async () => {
+  const DIA = 24 * 60 * 60 * 1000;
+  assert.equal(R.TROCA_NOME_MS, 30 * DIA);
+  let relogio = 1_700_000_000_000;
+  const b = bancoComRegras({ agora: () => relogio });
+  const nu = R.createNomeDeUsuario({ transporte: transporte(b, ANA), uid: ANA.uid, agora: () => relogio });
+  assert.deepEqual({ ...(await nu.reservar('ana')) }, { nome: 'ana', mudou: true }, 'a primeira escolha não tem prazo');
+  const reservadaEm = relogio;
+  assert.equal(R.proximaTrocaDoNome(await nu.meu(), relogio), reservadaEm + 30 * DIA);
+  relogio += 29 * DIA;
+  const antes = JSON.stringify(b.dados());
+  await assert.rejects(nu.reservar('ana_nova'), e => e.message === 'nome-cedo' && e.quando === reservadaEm + 30 * DIA);
+  assert.equal(JSON.stringify(b.dados()), antes, 'antes do prazo o app não escreve nada (nem a reserva do nome novo)');
+  assert.ok(R.MOTIVO_NOME['nome-cedo'] && /30 dias/.test(R.MOTIVO_NOME['nome-cedo']));
+  assert.deepEqual({ ...(await nu.reservar('ana')) }, { nome: 'ana', mudou: false }, 'o mesmo nome não conta como troca');
+  // um cliente que pule o app: reserva o nome novo (livre) e tenta apontar o perfil antes do prazo
+  await transporte(b, ANA).escrever('usuarios/pulador', { uid: ANA.uid, em: relogio });
+  await recusa(transporte(b, ANA).escrever(`perfis/${ANA.uid}/usuario`, { nome: 'pulador', em: relogio }), 'troca antes de 30 dias');
+  await transporte(b, ANA).escrever('usuarios/pulador', null);
+  relogio = reservadaEm + 30 * DIA;
+  assert.equal(R.proximaTrocaDoNome(await nu.meu(), relogio), 0, 'no dia 30 já pode');
+  assert.deepEqual({ ...(await nu.reservar('ana_nova')) }, { nome: 'ana_nova', mudou: true });
+  assert.equal(b.dados().usuarios.ana, undefined, 'o antigo foi solto');
+  relogio += DIA;
+  await assert.rejects(nu.reservar('ana_3'), /nome-cedo/, 'o prazo recomeça a cada troca');
+  assert.equal(await nu.liberar(), true, 'excluir a conta solta o nome mesmo dentro do prazo');
+  assert.equal((b.dados() || {}).usuarios, undefined, 'nenhuma reserva sobrou');
 });
 
 test('G-266 · nome de usuário: formato conferido no app e no banco; banco com as regras antigas diz "ainda não ligado"', async () => {

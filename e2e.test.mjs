@@ -5841,8 +5841,20 @@ test('e2e · G-266 nome de usuário: formato conferido a cada letra, nome em uso
   await page.waitForSelector('#conta-usuario[data-estado="tem"]');
   assert.equal(await page.innerText('#conta-usuario-texto'), '@gui');
   assert.equal(banco.usuarios.gui.uid, 'uidSenha'); assert.equal(banco.perfis.uidSenha.usuario.nome, 'gui');
-  // 5 · trocar: avisa que o antigo fica livre e o solta
+  // 5 · G-278 (relato #25, D16 = A) · trocar logo depois: a folha diz quando libera e não deixa confirmar (uma troca a cada 30 dias)
+  await page.click('#conta-usuario-escolher'); await page.waitForSelector('#conta-usuario-espera');
+  assert.match(await page.innerText('#conta-usuario-espera'), /a partir de \d{2}\/\d{2}\/\d{4}/);
+  assert.equal(await page.isDisabled('#conta-usuario-campo'), true); assert.equal(await page.isDisabled('#conta-usuario-confirmar'), true);
+  assert.match(await page.innerText('#conta-usuario-regra'), /uma vez a cada 30 dias/);
+  await auditaTela(page, 'perfil · troca de nome presa por 30 dias');
+  await page.click('#conta-usuario-cancelar');
+  // 31 dias depois (o instante guardado recua): trocar avisa que o antigo fica livre e o solta
+  banco.perfis.uidSenha.usuario.em -= 31 * 24 * 60 * 60 * 1000;
+  await page.reload(); await page.goto(base + '#/perfil');
+  await page.waitForSelector('#conta-usuario[data-estado="tem"]');
+  await page.waitForFunction(() => { const b = document.querySelector('#conta-usuario-escolher'); return !!b && !b.disabled && b.getBoundingClientRect().height >= 44; });
   await page.click('#conta-usuario-escolher'); await page.waitForSelector('#conta-usuario-aviso');
+  assert.equal(await page.$('#conta-usuario-espera'), null);
   assert.match(await page.innerText('#conta-usuario-aviso'), /@gui fica livre/);
   assert.equal(await page.isDisabled('#conta-usuario-confirmar'), true, 'o mesmo nome não troca');
   await page.fill('#conta-usuario-campo', 'gui_2'); await page.click('#conta-usuario-confirmar');
