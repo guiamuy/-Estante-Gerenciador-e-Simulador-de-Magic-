@@ -1889,6 +1889,18 @@ body[data-mesa-cheia="true"] .tb-steps__list li { padding: 0 0 1px; border-botto
 }
 .tb-steps__list li[data-current="true"] { color: var(--accent); border-bottom-color: var(--accent); font-weight: var(--weight-medium); }
 .tb-steps__curto { display: none; }
+/* MJ8 (J-18) · o trilho acende em sequência: cada fase entre a de antes e a de agora pisca uma luz (um fio de latão
+   logo acima da borda, só opacidade), uma depois da outra (--i × --dur-1), e a atual acende por último; com menos
+   movimento, a atual já está acesa e nada pisca */
+.tb-steps__list li { position: relative; }
+.tb-steps__list li::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--accent); opacity: 0; pointer-events: none; }
+.tb-steps__list li[data-acende="passa"]::after { animation: tb-fase-passa var(--dur-3) var(--ease-out) calc(var(--i, 0) * var(--dur-1)) both; }
+.tb-steps__list li[data-acende="fica"] { animation: tb-fase-fica var(--dur-2) var(--ease-out) calc(var(--i, 0) * var(--dur-1)) both; }
+.tb-steps__list li[data-acende="fica"]::after { animation: tb-fase-chega var(--dur-2) var(--ease-out) calc(var(--i, 0) * var(--dur-1)) both; }
+@keyframes tb-fase-passa { from { opacity: 0; } 35% { opacity: 1; } to { opacity: 0; } }
+@keyframes tb-fase-fica { from { color: var(--fg-muted); border-bottom-color: var(--border); } }
+@keyframes tb-fase-chega { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .tb-steps__list li[data-acende]::after, .tb-steps__list li[data-acende="fica"] { animation: none; } }
 
 
 .tb-board { display: flex; flex-direction: column; gap: var(--space-4); padding-top: var(--space-3); } /* MJ1c (J-4) · vão de 16 px: com o fundo do lado de cima (12 + 3) e o topo do de baixo (12 + 1), a faixa da pilha (44 px) cabe sem cobrir nada */
@@ -1936,6 +1948,13 @@ body[data-mesa-cheia="true"] .tb-steps__list li { padding: 0 0 1px; border-botto
 /* Leva 121 · sem escala: a faixa agora é um botão e precisa medir 44 px também durante a entrada */
 @keyframes tb-vez-troca { from { opacity: .2; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
 .tb-vez--troca { animation: tb-vez-troca var(--dur-3) var(--ease-out); }
+/* MJ8 (J-18) · a faixa de vez desliza na troca: vem do lado de quem recebe a vez (o oponente fica em cima, você embaixo),
+   só transform e opacidade; o selo da Conversa acompanha */
+@keyframes tb-vez-desce { from { opacity: .2; transform: translateY(-55%); } to { opacity: 1; transform: none; } }
+@keyframes tb-vez-sobe { from { opacity: .2; transform: translateY(55%); } to { opacity: 1; transform: none; } }
+.tb-vez--troca[data-papel="oponente"], .tb-vez-selo--troca[data-papel="oponente"] { animation: tb-vez-desce var(--dur-3) var(--ease-out); }
+.tb-vez--troca[data-papel="eu"], .tb-vez-selo--troca[data-papel="eu"] { animation: tb-vez-sobe var(--dur-3) var(--ease-out); }
+@media (prefers-reduced-motion: reduce) { .tb-vez--troca[data-papel], .tb-vez-selo--troca[data-papel] { animation: none; } }
 .tb-handoff .tb-vez { flex: none; width: min(100%, 360px); }
 @media (prefers-reduced-motion: reduce) { .tb-vez--troca { animation: none; } .tb-side { transition: none; } }
 /* MJ1b (leva J-3) · faixa compacta por lado: vida à esquerda e contadores (ícone + número) à direita numa linha de 44 px
@@ -34636,13 +34655,19 @@ const ZoneChip = (label, n, onClick, id, jogaveis = 0) => h('button', { class: '
 
 const PHASES = [['início', ['untap', 'upkeep', 'draw']], ['principal 1', ['main1']],
   ['combate', ['combat_begin', 'combat_attackers', 'combat_blockers', 'combat_damage', 'combat_end']], ['principal 2', ['main2']], ['final', ['end', 'cleanup']]];
-/** Cinco fases como trilho, com o passo exato escrito ao lado. */
-function StepBar({ turn, step, active, label, ciclo }) {
+/** Índice da fase do trilho (0 início … 4 final) de um passo do motor; −1 se não for do trilho. */
+const faseDoPasso = step => PHASES.findIndex(([, steps]) => steps.includes(step));
+/** Cinco fases como trilho, com o passo exato escrito ao lado.
+    MJ8 (J-18) · `acende`: fases que acendem em sequência neste desenho ([{ fase, k, fica }], de `__m33.fasesQueAcendem`):
+    as que só passam piscam uma luz; a que fica é a atual, que acende por último. */
+function StepBar({ turn, step, active, label, ciclo, acende = [] }) {
+  const luz = i => acende.find(a => a.fase === i);
   return h('div', { class: 'tb-steps', 'aria-label': `Turno ${turn}, ${label}, vez de ${active}${ciclo ? ', ' + ciclo.toLowerCase() : ''}` }, // T-48 · CR 731.1: dia ou noite, quando a partida tiver
     h('div', { class: 'tb-steps__head' }, h('span', {}, `Turno ${turn} · ${active}${ciclo ? ' · ' + ciclo : ''}`), h('strong', {}, label)),
     // U8 · na tela de 360 os nomes longos viram curtos ("princ. 1"); o nome inteiro fica no title
-    h('ol', { class: 'tb-steps__list' }, ...PHASES.map(([name, steps]) => h('li', { dataset: { current: String(steps.includes(step)) }, title: name },
-      h('span', { class: 'tb-steps__longo' }, name), h('span', { class: 'tb-steps__curto', 'aria-hidden': 'true' }, name.replace('principal', 'princ.'))))));
+    h('ol', { class: 'tb-steps__list' }, ...PHASES.map(([name, steps], i) => { const a = luz(i);
+      return h('li', { dataset: { current: String(steps.includes(step)), ...(a ? { acende: a.fica ? 'fica' : 'passa' } : {}) }, title: name, ...(a ? { style: { '--i': String(a.k) } } : {}) },
+        h('span', { class: 'tb-steps__longo' }, name), h('span', { class: 'tb-steps__curto', 'aria-hidden': 'true' }, name.replace('principal', 'princ.'))); })));
 }
 
 function StackStrip(items) {
@@ -34770,7 +34795,7 @@ function AdjudicationPanel({ name, image, oracle, controls, onDone }) {
     h('div', { class: 'tb-adj__actions' }, ...(controls || []), Button('Efeito aplicado', { variant: 'primary', id: 'tb-adj-done', onClick: onDone })));
 }
 
-return { QuadroDeBloqueios, retemImagem, retemImagemDaCarta, imagensRetidas, fonteParaLargura, animaVirada, TableCard, ZoneRow, LifeCounter, ZoneChip, StepBar, StackStrip, StackPanel, CardPeek, PriorityBanner, AdjudicationPanel, Icone, IconButton, gestoDeBandeja, ligaGestoDeBandeja };
+return { QuadroDeBloqueios, retemImagem, retemImagemDaCarta, imagensRetidas, fonteParaLargura, animaVirada, faseDoPasso, TableCard, ZoneRow, LifeCounter, ZoneChip, StepBar, StackStrip, StackPanel, CardPeek, PriorityBanner, AdjudicationPanel, Icone, IconButton, gestoDeBandeja, ligaGestoDeBandeja };
 })();
 
 
@@ -36717,6 +36742,19 @@ function virasDeFace(antes, s) {
   }
   return out;
 }
+/* ---------------- MJ8 (J-18) · ritmo do turno: o trilho de fases acende em sequência ----------------
+   Entre dois desenhos, que fases do trilho acendem e em que ordem: as que ficaram entre a fase de antes e a de agora
+   (passam, acendem por um instante) e a de agora (fica acesa), no sentido do jogo; turno novo dá a volta pelo fim do
+   trilho. Mesma fase, volta sem turno novo (desfazer) ou fase desconhecida: nada acende (a mesa só troca). `k` é a
+   ordem (a demora de cada luz). Puro. */
+function fasesQueAcendem(antes, agora, { fases = 5 } = {}) {
+  if (!antes || !agora || !(agora.fase >= 0) || !(antes.fase >= 0) || agora.fase >= fases || antes.fase >= fases) return [];
+  const turnoNovo = agora.turno != null && antes.turno != null && agora.turno > antes.turno;
+  if (!turnoNovo && agora.fase <= antes.fase) return [];
+  const out = []; let f = antes.fase;
+  for (let i = 0; i < fases; i++) { f = (f + 1) % fases; out.push(f); if (f === agora.fase) break; }
+  return out.map((fase, k) => ({ fase, k, fica: fase === agora.fase }));
+}
 /* ---------------- MJ6a/MJ6b · mirar por arrasto ----------------
    Arrastar para cima uma carta até o alvo age nele: a mágica da mão é conjurada (MJ6a); a permanente do campo ativa a
    habilidade (MJ6b); a fonte de um gatilho que espera alvo escolhe o alvo (MJ6b). `alvosDoArrasto` lê as ações legais
@@ -36915,7 +36953,7 @@ function createSom({ store = null, criaContexto = null } = {}) {
     get tocados() { return tocados.slice(); }
   };
 }
-return { eventosSensoriais, planoDeSom, planoDeEfeitos, planoDeVoo, ondePousa, planoDeSaida, monteDaPilha, saidasDaPilha, virasDeFace, alvosDoArrasto, origensDaMira, gestoDeMira, setasDoCombate, curvaDaSeta, marcasDaPrevia, roteiroDaJogada, createSom, limpaPrefs, duracaoDe, RECEITAS, NOMES, ORDEM, SOM_DO_TIPO, CHAVE, GLOBAL_A_PARTIR_DE };
+return { eventosSensoriais, planoDeSom, planoDeEfeitos, planoDeVoo, ondePousa, planoDeSaida, monteDaPilha, saidasDaPilha, virasDeFace, fasesQueAcendem, alvosDoArrasto, origensDaMira, gestoDeMira, setasDoCombate, curvaDaSeta, marcasDaPrevia, roteiroDaJogada, createSom, limpaPrefs, duracaoDe, RECEITAS, NOMES, ORDEM, SOM_DO_TIPO, CHAVE, GLOBAL_A_PARTIR_DE };
 })();
 
 /* ==== src/app/table.js ==== */
@@ -37631,6 +37669,9 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   }
   function voa(m, s, v) {
     if (!m) return;
+    // MJ8 (J-18) · o contador da mão do oponente é medido de novo depois do redesenho: se um chip novo apareceu no lado dele
+    // nesta jogada (cemitério, exílio) e o contador se moveu, o voo nasce onde ele está agora, não onde estava (achado da B-173)
+    if (m.oponente) { const chipAgora = root.querySelector('.tb-side--opp .tb-chip[data-zona="hand"]'); if (chipAgora) { const c = caixaDe(chipAgora); if (c.w && c.h) m.oponente.caixa = c; } }
     const chegaram = [];
     for (const z of s.zones) for (const oid of z.battlefield) {
       const k = String(oid); if (m.campo.has(k)) continue;
@@ -37872,6 +37913,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   // Q10 · o nó da faixa é um só e muda no lugar enquanto ainda está na tela: assim o leitor de tela
   // anuncia a troca (region viva recriada a cada pintura não é lida).
   let ultimoTurno = null, vezEl = null, vezPop = null, vezAberto = false;
+  let ultimoPasso = null; // MJ8 · a fase e o turno do desenho anterior: o trilho acende em sequência até a fase de agora
   /** Leva 125 · com a pergunta escrita no cabeçalho de decisão, o botão de texto do aviso (palavra do momento + balão) vira
    *  um trecho só de texto, fora da vista e fora do foco: o conteúdo continua no documento, sem alvo de toque invisível. */
   const semBotaoDeTexto = banner => { const tx = banner.querySelector('.tb-banner__text'); if (tx) { const sp = h('span', { class: 'tb-banner__text', 'aria-hidden': 'true' }); sp.append(...tx.childNodes); tx.replaceWith(sp); } return banner; };
@@ -39484,6 +39526,11 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
         Button(`Sou ${s.players[v].name}, mostrar a mesa`, { variant: 'primary', id: 'tb-reveal', onClick: () => { handoff = false; paint(); } })));
     }
     syncPlan(s, v);
+    // MJ8 (J-18) · o trilho acende em sequência da fase de antes até a de agora (só quando a mesa anda com sentidos: abrir,
+    // desfazer e menos movimento trocam de uma vez, como o voo)
+    const passoAgora = { fase: __m17.faseDoPasso(s.turn.step), turno: s.turn.number || 0 };
+    const acende = voo && s.status === 'playing' ? __m33.fasesQueAcendem(ultimoPasso, passoAgora) : [];
+    ultimoPasso = passoAgora;
     const opp = s.players.map((_, i) => i).find(i => i !== v);
     // A14 · a pilha explicada em português, do topo para baixo
     const pilha = T.explicaPilha(s, { oracleDe: oracleOf });
@@ -39513,7 +39560,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
           b.appendChild(h('span', { class: 'tb-online', id: 'tb-online', role: 'img', dataset: { ligado: String(lig) }, 'aria-label': lig ? 'Partida online, conectada' : 'Partida online, reconectando' }));
           b.title = `Conversa · sala ${table.online.codigo}` + (lig ? '' : ' · reconectando…'); return b; })() : null,
         // Leva 121 · o placar da série (leva 114) mora no balão da faixa: ver vezDaMesa
-        StepBar({ turn: s.turn.number || 0, step: s.turn.step, active: s.status === 'mulligan' ? 'mulligan' : s.players[s.turn.active].name, label: s.status === 'mulligan' ? 'Mão inicial' : E.STEP_PT[s.turn.step], ciclo: s.cicloT === 'noite' ? 'Noite' : s.cicloT === 'dia' ? 'Dia' : null }), // T-48 · CR 731.1 (Toca ponto comum: StepBar)
+        StepBar({ turn: s.turn.number || 0, step: s.turn.step, active: s.status === 'mulligan' ? 'mulligan' : s.players[s.turn.active].name, label: s.status === 'mulligan' ? 'Mão inicial' : E.STEP_PT[s.turn.step], ciclo: s.cicloT === 'noite' ? 'Noite' : s.cicloT === 'dia' ? 'Dia' : null, acende: acende }), // T-48 · CR 731.1 (Toca ponto comum: StepBar) · MJ8: fases que acendem
         h('div', { class: 'tb-top__actions' },
           // U2 · ações de ícone com nome acessível; desistir continua pedindo confirmação
           // MJ1e (J-7) · online não dá para desfazer: o botão, que só aparecia apagado, sai (a Conversa foi para a faixa de vez)

@@ -340,3 +340,19 @@ test('MJ7 · material: os tokens de sombra da carta, luz do feltro e latão exis
   // o palco do material no catálogo
   assert.ok(HTML.includes("id: 'ds-material'") && HTML.includes("id: 'ds-virar'"), 'o /ds mostra repouso, escolhida, segurada e a dupla face que vira');
 });
+
+/* ---------------- MJ8 (J-18) · ritmo do turno ---------------- */
+test('MJ8 · ritmo do turno: o trilho acende em sequência por um fio só de opacidade com demora por token, a faixa de vez desliza do lado de quem recebe a vez, e tudo tem regra de menos movimento', () => {
+  const trilho = css.match(/\.tb-steps__list li::after \{([^}]*)\}/); assert.ok(trilho, 'fio do trilho');
+  assert.match(trilho[1], /opacity: 0/); assert.match(trilho[1], /background: var\(--accent\)/); assert.match(trilho[1], /pointer-events: none/);
+  assert.match(css, /\.tb-steps__list li\[data-acende="passa"\]::after \{ animation: tb-fase-passa var\(--dur-3\) var\(--ease-out\) calc\(var\(--i, 0\) \* var\(--dur-1\)\) both; \}/);
+  assert.match(css, /\.tb-steps__list li\[data-acende="fica"\]::after \{ animation: tb-fase-chega var\(--dur-2\)/);
+  const passa = css.match(/@keyframes tb-fase-passa \{([^}]*\}[^}]*\}[^}]*)\}/); assert.ok(passa); assert.doesNotMatch(passa[1], /transform|width|height|left|top/, 'o fio só muda opacidade');
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{ \.tb-steps__list li\[data-acende\]::after, \.tb-steps__list li\[data-acende="fica"\] \{ animation: none; \} \}/);
+  // a faixa de vez: desce para o oponente (que fica em cima), sobe para você; o selo da Conversa acompanha; só transform e opacidade
+  for (const [papel, nome] of [['oponente', 'tb-vez-desce'], ['eu', 'tb-vez-sobe']]) {
+    assert.match(css, new RegExp(`\\.tb-vez--troca\\[data-papel="${papel}"\\], \\.tb-vez-selo--troca\\[data-papel="${papel}"\\] \\{ animation: ${nome} var\\(--dur-3\\) var\\(--ease-out\\); \\}`));
+    const kf = css.match(new RegExp(`@keyframes ${nome} \\{([^}]*\\}[^}]*)\\}`)); assert.ok(kf, nome); assert.doesNotMatch(kf[1], /width|height|left|top|margin/, nome + ' só transform e opacidade');
+  }
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{ \.tb-vez--troca\[data-papel\], \.tb-vez-selo--troca\[data-papel\] \{ animation: none; \} \}/);
+});

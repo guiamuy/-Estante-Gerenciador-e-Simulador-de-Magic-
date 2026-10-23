@@ -610,7 +610,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-jf ✅ | MJ5 pilha com profundidade: cartões empilhados, topo levantado, resolução descendo ao destino | MJ | 1 | 16º-jb, 16º-jd |
 | 16º-jg ✅ | MJ6 mirar por arrasto com linha curva (tocar continua valendo) — MJ6a (J-15), MJ6b (J-16) | MJ | 2 | 16º-je |
 | 16º-jh ✅ | MJ7 material: sombra que cresce ao levantar, luz do feltro, latão, dupla face virando (J-17) | MJ | 1 | 16º-jb; tokens pelo `/ds` |
-| 16º-ji | MJ8 ritmo do turno: transições de fase e de vez, cena do oponente com continuidade | MJ | 1–2 | 16º-jd |
+| 16º-ji ✅ | MJ8 ritmo do turno: transições de fase e de vez, cena do oponente com continuidade (J-18) | MJ | 1 | 16º-jd |
 | 16º-jj | MJ9 fim de partida com peso: placar, série, últimas jogadas | MJ | 1 | — |
 | 16º-jk | MJ10 espiar de patamar: carta grande com profundidade e brilho opcional | MJ | 1 | 16º-jh |
 | 16º-jl | MJ11 orçamento da mesa: passar a prioridade sem tarefa longa acima de 50 ms; quadros medidos no portão | MJ | 1–2 | `mtg-scale-architect`; redesenho por `oid` (MJ3) |
@@ -10893,8 +10893,26 @@ de duas faces virando em 3D curto; tokens novos pelo `/ds` nos dois temas.
     sombra que segue a direção da luz; virada da carta na mão ou na pilha (só o campo); a carta que vira dentro de um
     leque de cópias iguais faz só a metade nova da virada (não tem nó próprio para fotografar a face velha).
 
-**MJ8 · Ritmo do turno** ○ (1–2 levas) — o trilho de fases acende em sequência, a faixa de vez desliza, a cena do
+**MJ8 · Ritmo do turno** ✅ (J-18, 23/10/2026; coube em uma leva) — o trilho de fases acende em sequência, a faixa de vez desliza, a cena do
 oponente (H5) passa a mover as cartas (MJ3) em vez de redesenhar.
+  - **Entregue (J-18):** ao avançar, cada fase entre a de antes e a de agora pisca um fio de latão (2 px acima da borda,
+    só opacidade, `--dur-3`, uma depois da outra a cada `--dur-1`) e a atual acende por último (`tb-fase-fica`); turno
+    novo dá a volta pelo fim do trilho; mesma fase, desfazer, abrir a partida e menos movimento não acendem (mesma porta
+    do voo: só quando a mesa anda com sentidos). Puro: `__m33.fasesQueAcendem(antes, agora)`; `__m17.faseDoPasso`;
+    `StepBar({ acende })` põe `data-acende="passa|fica"` e `--i`. A faixa de vez desliza na troca do lado de quem
+    recebe a vez: desce para o oponente (`tb-vez-desce`), sobe para você (`tb-vez-sobe`), o selo da Conversa acompanha;
+    só transform e opacidade. A cena do oponente já movia as cartas desde a MJ3 (cada quadro é uma pintura com voo): a
+    leva prova isso no e2e e corrige o achado da B-173 — o contador da mão do oponente é medido de novo depois do
+    redesenho, e o voo nasce onde ele está (0 px de distância em 16 voos medidos; antes, até 15 px quando um chip novo
+    aparecia no lado dele na mesma jogada). **Medidas:** zero pixel de campo (fio dentro do `li`, faixa por transform);
+    +1,4 KB gzip. **Testes:** `sentidos.unit` (fases que acendem: passa/fica, volta de turno, dois turnos de uma vez,
+    mesma fase, desfazer, fora do trilho); `contract.visual` (fio só opacidade com demora por token, faixa só transform e
+    opacidade, regras de menos movimento); e2e "MJ8" (principal 1 → principal 2: combate passa k 0 e principal 2 fica k 1, a luz
+    some sozinha; na cena do Shark a faixa desce, as cartas dele voam a partir do contador de agora, o trilho acende
+    quadro a quadro; de volta a você a faixa sobe; menos movimento: nada pisca nem desliza; `auditaTela` nos dois temas).
+    **Fora:** ritmo do turno do bot jogada a jogada com pausa (já é a cena H5: um quadro por jogada); velocidade da cena;
+    destacar bloqueadoras obrigatórias e esconder "Sem bloqueio" com exigência (pedido do `motor`, M-567/M-572): leva
+    própria a seguir.
 
 **MJ9 · Fim de partida com peso** ○ (1 leva) — placar, série, as últimas jogadas e "Jogar de novo" num desfecho com
 presença.

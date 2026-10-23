@@ -14742,3 +14742,74 @@ test('e2e · B-173 · o Shark só joga com as suas cinco listas de torneio: sele
   assert.equal(await page.isDisabled('#mesa-start'), true, 'sem lista do Shark não há partida pela metade');
   assert.deepEqual(errors, []);
 });
+
+// MJ8 (leva J-18, trilha jogabilidade) · ritmo do turno: ao avançar, o trilho de fases acende em sequência (as fases no meio
+// piscam, a atual fica); a faixa de vez desliza do lado de quem recebe a vez; a cena do oponente (H5) move as cartas (MJ3) e o
+// voo nasce no contador da mão dele medido depois do redesenho; com menos movimento, nada pisca nem desliza.
+test('e2e · MJ8 ritmo do turno: trilho acende em sequência, faixa de vez desliza, a cena do oponente move as cartas a partir do contador de agora; menos movimento não anima', { skip }, async t => {
+  const { page, errors, base } = await open(t, { cena: true });
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 }); // o aparelho do dono
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/mesa'); await page.fill('#mesa-seed', '9');
+  await page.waitForFunction(() => { const c = document.querySelector('[data-opponent="shark"]'); return c && !c.disabled; }, null, { timeout: 8000 });
+  await page.click('[data-opponent="shark"]'); await page.waitForSelector('#mesa-bot-deck');
+  await page.waitForFunction(() => { const c = document.querySelector('[data-mode="full"]'); return c && !c.disabled; }, null, { timeout: 8000 });
+  await page.click('[data-mode="full"]'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  const fimDaCena = () => page.waitForFunction(() => !document.querySelector('#tb').dataset.cena, null, { timeout: 20000 });
+  await fimDaCena(); await page.waitForSelector('#tb-pass');
+  const trilho = () => page.evaluate(() => [...document.querySelectorAll('.tb-steps__list li')].map((li, i) => ({ i, atual: li.dataset.current === 'true', acende: li.dataset.acende || null, k: li.style.getPropertyValue('--i') || null,
+    fio: getComputedStyle(li, '::after').animationName, op: getComputedStyle(li, '::after').opacity, li: getComputedStyle(li).animationName })));
+  const passo = () => page.evaluate(() => { const s = window.__estanteMesa.estado(); return { passo: s.turn.step, ativo: s.turn.active, prio: s.turn.priority, pend: s.pending && s.pending.kind, turno: s.turn.number }; });
+  const minhaVez = async () => { for (let i = 0; i < 60; i++) { await fimDaCena(); const e = await page.evaluate(() => { const s = window.__estanteMesa.estado(); return { meu: s.turn.active === 0 && s.turn.priority === 0 && !s.pending && !s.stack.length, pend: s.pending && s.pending.kind }; });
+    if (e.meu && await page.locator('#tb-pass-turn').count()) return; if (e.pend === 'discard') { await page.locator('#tb-hand .tb-card').first().click(); continue; }
+    for (const id of ['#tb-no-block', '#tb-no-attack', '#tb-pass']) if (await page.locator(id).count()) { await page.click(id).catch(() => {}); break; } await page.waitForTimeout(80); } };
+  await minhaVez();
+  // 1 · passar a prioridade na principal 1 leva à principal 2: o combate pisca (k 0) e a principal 2 acende por último (k 1)
+  const p0 = await passo(); assert.equal(p0.passo, 'main1', JSON.stringify(p0));
+  await page.click('#tb-pass'); await page.waitForTimeout(40);
+  const p1 = await passo(); assert.equal(p1.passo, 'main2', 'passou a principal 2 ' + JSON.stringify(p1));
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/mj8-trilho-acende.png', clip: { x: 0, y: 0, width: 360, height: 90 } });
+  const t1 = await trilho();
+  assert.deepEqual(t1.map(x => [x.acende, x.k]), [[null, null], [null, null], ['passa', '0'], ['fica', '1'], [null, null]], 'o combate passa e a principal 2 fica ' + JSON.stringify(t1));
+  assert.equal(t1[2].fio, 'tb-fase-passa'); assert.equal(t1[3].fio, 'tb-fase-chega'); assert.equal(t1[3].li, 'tb-fase-fica'); assert.ok(t1[3].atual);
+  await page.waitForTimeout(700);
+  const t1b = await trilho(); assert.ok(t1b[3].atual && t1b[2].op === '0' && t1b[3].op === '1', 'a luz que passa some sozinha; a atual fica acesa ' + JSON.stringify([t1b[2], t1b[3]]));
+  // (mesma fase redesenhada não acende de novo: `fasesQueAcendem` devolve vazio — sentidos.unit)
+  // 2 · passar o turno: o Shark joga e a cena mostra; a faixa desliza para o oponente (desce) e os voos acontecem a partir do contador de agora
+  const sonda = () => page.evaluate(() => {
+    const tb = document.querySelector('#tb'), vez = document.querySelector('#tb-vez'), out = { cena: tb.dataset.cena || null, voos: tb.dataset.voos || '', vezTroca: vez.classList.contains('tb-vez--troca'), papel: vez.dataset.papel, anim: getComputedStyle(vez).animationName, delta: null,
+      acende: [...document.querySelectorAll('.tb-steps__list li[data-acende]')].map(li => li.dataset.acende) };
+    const foto = document.querySelector('#tb-fx .tb-voo[data-voo]'), chip = document.querySelector('.tb-side--opp .tb-chip[data-zona="hand"]');
+    if (foto && chip && /(^| )oponente:/.test(out.voos)) { const a = foto.getAnimations()[0]; if (a) { a.pause(); const t = a.currentTime; a.currentTime = 0; const f = foto.getBoundingClientRect(), c = chip.getBoundingClientRect();
+      out.delta = Math.round(Math.hypot((f.left + f.width / 2) - (c.left + c.width / 2), (f.top + f.height / 2) - (c.top + c.height / 2))); a.currentTime = t; a.play(); } }
+    return out; });
+  const visto = { desce: false, voos: new Set(), deltas: [], acende: new Set() };
+  for (let i = 0; i < 8; i++) {
+    await minhaVez(); await page.click('#tb-pass-turn'); await page.waitForTimeout(100);
+    if (await page.evaluate(() => { const s = window.__estanteMesa.estado(); return !!(s.pending && s.pending.kind === 'discard'); }) && !(await page.evaluate(() => window.__estanteMesa.cena()))) await page.locator('#tb-hand .tb-card').first().click();
+    let houve = false;
+    for (let j = 0; j < 400; j++) { const x = await sonda(); if (x.cena) houve = true; if (x.vezTroca && x.papel === 'oponente' && x.anim === 'tb-vez-desce') visto.desce = true;
+      for (const m of x.voos.split(' ').filter(Boolean)) visto.voos.add(m.split(':')[0]); if (x.delta != null) visto.deltas.push(x.delta); for (const k of x.acende) visto.acende.add(k);
+      if (houve && !x.cena) break; await page.waitForTimeout(25); }
+    if (houve && visto.voos.size) break;
+  }
+  assert.ok(visto.desce, 'na vez do oponente a faixa desce');
+  assert.ok(visto.voos.has('oponente') || visto.voos.has('verso'), 'durante a cena as cartas do Shark voam (do contador da mão dele): ' + JSON.stringify([...visto.voos]));
+  if (visto.deltas.length) assert.ok(Math.max(...visto.deltas) <= 3, 'o voo nasce no centro do contador medido depois do redesenho: ' + JSON.stringify(visto.deltas));
+  console.log(`# medida · MJ8 · voos vistos na cena ${JSON.stringify([...visto.voos])} · distância da foto ao contador de agora ${JSON.stringify(visto.deltas)} px`);
+  assert.ok(visto.acende.has('fica'), 'durante a cena o trilho acende quadro a quadro (as fases do Shark): ' + JSON.stringify([...visto.acende]));
+  // 3 · a vez volta a você: a faixa sobe
+  await fimDaCena(); await minhaVez();
+  const v3 = await page.evaluate(() => { const vez = document.querySelector('#tb-vez'); return { papel: vez.dataset.papel, anim: getComputedStyle(vez).animationName }; });
+  assert.equal(v3.papel, 'eu'); assert.ok(['tb-vez-sobe', 'none'].includes(v3.anim), 'a faixa de vez sua sobe (ou já assentou): ' + v3.anim);
+  for (const tema of ['dark', 'light']) { await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await auditaTela(page, `MJ8 · mesa 360 ${tema}`); }
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/mj8-trilho.png' });
+  // 4 · menos movimento: avançar a fase não acende nada e a faixa não desliza
+  await page.evaluate(() => document.documentElement.setAttribute('data-movimento', 'reduzido'));
+  const p4 = await passo(); if (p4.passo === 'main1') { await page.click('#tb-pass'); await page.waitForTimeout(40); }
+  assert.deepEqual((await trilho()).map(x => x.acende), [null, null, null, null, null], 'menos movimento: nada pisca');
+  const dur = await page.$eval('#tb-vez', el => getComputedStyle(el).animationDuration); assert.ok(/^0(\.0+)?1?ms|0s|0\.00001s/.test(dur) || parseFloat(dur) < 0.01, 'menos movimento: a faixa não desliza (' + dur + ')');
+  assert.deepEqual(errors, []);
+});

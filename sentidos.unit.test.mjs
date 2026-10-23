@@ -410,3 +410,16 @@ test('MJ7 · viradas de face: a dupla face que transformou (e a que voltou), a c
     'frente → verso vira para a direita, verso → frente para a esquerda, para baixo → para cima; a que entrou transformada (5), a que saiu (4), a que só mudou de nome (7) e a que entrou virada (8) não giram');
   assert.equal(S.virasDeFace(null, depois).length, 0); assert.equal(S.virasDeFace(antes, antes).length, 0);
 });
+
+test('MJ8 · fases que acendem: as que ficaram entre a de antes e a de agora passam e a atual fica; turno novo dá a volta; mesma fase, desfazer e fase desconhecida não acendem', () => {
+  const F = (a, b) => J(S.fasesQueAcendem(a, b));
+  assert.deepEqual(F({ fase: 1, turno: 3 }, { fase: 3, turno: 3 }), [{ fase: 2, k: 0, fica: false }, { fase: 3, k: 1, fica: true }], 'de principal 1 a principal 2: o combate passa, a principal 2 fica');
+  assert.deepEqual(F({ fase: 1, turno: 3 }, { fase: 2, turno: 3 }), [{ fase: 2, k: 0, fica: true }], 'fase seguinte: só ela, e fica');
+  assert.deepEqual(F({ fase: 3, turno: 3 }, { fase: 1, turno: 4 }).map(x => [x.fase, x.fica]), [[4, false], [0, false], [1, true]], 'turno novo dá a volta pelo fim do trilho');
+  assert.deepEqual(F({ fase: 4, turno: 3 }, { fase: 0, turno: 4 }), [{ fase: 0, k: 0, fica: true }], 'do final ao início do turno seguinte');
+  assert.deepEqual(F({ fase: 1, turno: 3 }, { fase: 1, turno: 5 }).map(x => x.fase), [2, 3, 4, 0, 1], 'dois turnos de uma vez: uma volta só, termina na atual');
+  assert.equal(F({ fase: 2, turno: 3 }, { fase: 2, turno: 3 }).length, 0, 'mesma fase: nada');
+  assert.equal(F({ fase: 3, turno: 3 }, { fase: 1, turno: 3 }).length, 0, 'voltou sem turno novo (desfazer): nada');
+  assert.equal(F(null, { fase: 1, turno: 1 }).length, 0); assert.equal(F({ fase: -1, turno: 1 }, { fase: 1, turno: 1 }).length, 0, 'fase desconhecida: nada');
+  assert.equal(F({ fase: 1, turno: 1 }, { fase: 7, turno: 1 }).length, 0, 'fora do trilho: nada');
+});
