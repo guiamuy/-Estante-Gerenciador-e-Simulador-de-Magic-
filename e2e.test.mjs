@@ -3362,6 +3362,57 @@ test('e2e · leva 102 coleção com imagens nítidas e visor da carta: grande, t
   assert.deepEqual(errors, []);
 });
 
+/* G-282 · relato #28 · a carta mostra a espera enquanto a imagem não chega */
+test('e2e · G-282 carta com a espera desenhada: enquanto a imagem não chega, a carta (galeria, visor e folha da mesa) mostra o brilho do DS no formato dela; some ao carregar; sem imagem continua a carta em texto; parada com movimento reduzido', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+  // as imagens demoram 1,2 s a chegar (rede do celular): o que a tela mostra nesse meio-tempo é o que o teste mede
+  let demora = 1200; const presas = [];
+  await page.route('https://**.scryfall.io/**', async r => { if (demora) await new Promise(ok => setTimeout(ok, demora)); return r.fulfill({ status: 200, contentType: 'image/png', body: PNG }); });
+  const estado = (sel) => page.$eval(sel, i => ({ carregada: i.dataset.carregada || null, animacao: getComputedStyle(i).animationName, raio: getComputedStyle(i).borderRadius }));
+  await page.goto(base + '#/colecao'); await page.waitForSelector('#col-import');
+  await page.click('#col-import'); await page.fill('#col-import-text', '2 Sol Ring');
+  await page.click('#col-import-check'); await page.waitForSelector('#col-import-run'); await page.click('#col-import-run');
+  // 1 · galeria: a carta aparece com o brilho e sem a imagem; 1,2 s depois a imagem chega e o brilho some
+  await page.click('[data-visao="galeria"]'); await page.waitForSelector('.col-card[data-name="Sol Ring"] img.ds-carta-img');
+  const antes = await estado('.col-card[data-name="Sol Ring"] img.ds-carta-img');
+  assert.equal(antes.carregada, null); assert.equal(antes.animacao, 'ds-brilho', 'o brilho do DS enquanto espera'); assert.notEqual(antes.raio, '0px', 'no formato da carta');
+  // a prateleira do DS por cima da carta, centrada e sem toque
+  const prat = await page.$eval('.col-card[data-name="Sol Ring"] .ds-card .ds-carta-espera', e => { const r = e.getBoundingClientRect(), c = e.closest('.ds-card').getBoundingClientRect(); return { visivel: getComputedStyle(e).display !== 'none', arte: !!e.querySelector('.ds-carregando__arte'), dentro: r.left >= c.left - 1 && r.right <= c.right + 1, toque: getComputedStyle(e).pointerEvents }; });
+  assert.deepEqual(prat, { visivel: true, arte: true, dentro: true, toque: 'none' });
+  await page.waitForSelector('.col-card[data-name="Sol Ring"] img.ds-carta-img[data-carregada="true"]', { timeout: 8000 });
+  const depois = await estado('.col-card[data-name="Sol Ring"] img.ds-carta-img');
+  assert.equal(depois.animacao, 'none', 'carregou: sem brilho');
+  assert.equal(await page.$eval('.col-card[data-name="Sol Ring"] .ds-carta-espera', e => getComputedStyle(e).display), 'none', 'carregou: a prateleira some');
+  // 2 · visor: a mesma espera na carta grande, por baixo do brilho da moldura (os dois somem juntos)
+  await page.click('.col-card[data-name="Sol Ring"] .ds-card'); await page.waitForSelector('#card-viewer .ds-visor__moldura img.ds-carta-img');
+  const visor = await estado('#card-viewer .ds-visor__moldura img.ds-carta-img'); assert.equal(visor.animacao, 'ds-brilho');
+  assert.equal(await page.$eval('#card-viewer .ds-visor__moldura .ds-carta-espera', e => getComputedStyle(e).display), 'flex', 'a prateleira no visor');
+  await page.waitForSelector('#card-viewer img.ds-carta-img[data-carregada="true"]', { timeout: 8000 });
+  await page.waitForSelector('#card-viewer .ds-visor__moldura[data-carregando="false"]');
+  assert.equal((await estado('#card-viewer .ds-visor__moldura img.ds-carta-img')).animacao, 'none');
+  assert.equal(await page.$eval('#card-viewer .ds-visor__moldura .ds-carta-espera', e => getComputedStyle(e).display), 'none');
+  await auditaTela(page, 'visor com a carta carregada');
+  await page.keyboard.press('Escape'); await page.waitForSelector('#ds-overlay[data-open="false"]', { state: 'attached' });
+  // 3 · sem imagem: a carta em texto, como antes (nenhum brilho preso)
+  demora = 0; await page.route('https://**.scryfall.io/**', r => r.abort('failed'));
+  await page.click('#col-import'); await page.fill('#col-import-text', '1 Island'); await page.click('#col-import-check'); await page.waitForSelector('#col-import-run'); await page.click('#col-import-run');
+  await page.waitForSelector('.col-card[data-name="Island"] .ds-card__fallback', { timeout: 8000 });
+  assert.equal(await page.locator('.col-card[data-name="Island"] img.ds-carta-img').count(), 0);
+  assert.equal(await page.$$eval('.col-card[data-name="Island"] .ds-carta-espera', es => es.filter(e => getComputedStyle(e).display !== 'none').length), 0, 'carta em texto: nenhuma prateleira presa');
+  // 4 · movimento reduzido: a espera fica parada (sem animação), mas continua visível
+  await page.unroute('https://**.scryfall.io/**'); demora = 1200;
+  await page.route('https://**.scryfall.io/**', async r => { await new Promise(ok => setTimeout(ok, demora)); return r.fulfill({ status: 200, contentType: 'image/png', body: PNG }); });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.click('#col-import'); await page.fill('#col-import-text', '1 Delver of Secrets'); await page.click('#col-import-check'); await page.waitForSelector('#col-import-run'); await page.click('#col-import-run');
+  await page.waitForSelector('.col-card[data-name="Delver of Secrets"] img.ds-carta-img');
+  const parada = await estado('.col-card[data-name="Delver of Secrets"] img.ds-carta-img');
+  assert.equal(parada.carregada, null); assert.equal(parada.animacao, 'none', 'movimento reduzido: sem animação');
+  assert.deepEqual(errors, []);
+});
+
+
 test('e2e · leva 104 escolhas de quem paga: Jaspera vira a criatura escolhida, Nyxborn Hydra pergunta o X', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.addInitScript(() => { window.__MTG_TEST = true; });
