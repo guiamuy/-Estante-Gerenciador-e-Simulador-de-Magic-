@@ -70,11 +70,12 @@ export function arquivosPorDia({ commits = [], agora = Date.now(), diasGravados 
   const desde = datas[0] || null;
   const gravados = new Set(diasGravados);
   const arquivos = {};
-  for (const d of [hoje, ontem, ...Object.keys(porDia)]) {
+  // I-297 · todo dia inteiro coberto pela lista ganha arquivo, mesmo sem commit (dia parado): senão o painel volta à API nesse dia
+  const cobertos = []; if (desde) for (let t = Date.parse(desde + 'T00:00:00Z') + DIA_MS; t <= Date.parse(hoje + 'T00:00:00Z'); t += DIA_MS) cobertos.push(new Date(t).toISOString().slice(0, 10));
+  for (const d of [hoje, ontem, ...cobertos]) {
     if (arquivos['commits/' + d + '.json']) continue;
     const inteiro = desde != null && d > desde;   // o primeiro dia da lista pode estar cortado pelo teto de commits
     if (d !== hoje && d !== ontem && (gravados.has(d) || !inteiro)) continue;
-    if (d !== hoje && d !== ontem && !porDia[d]) continue;
     arquivos['commits/' + d + '.json'] = JSON.stringify({ dia: d, em, commits: porDia[d] || [] }) + '\n';
   }
   const dias = [...new Set([...gravados, ...Object.keys(arquivos).map(a => a.slice(8, 18))])].sort();
@@ -111,6 +112,11 @@ export async function rodada({ repo, token, busca = globalThis.fetch, anterior =
   if (emCurso) { try { jobs = { id: emCurso.id, ...compactaJobs(await api(`/actions/runs/${emCurso.id}/jobs`)) }; } catch (e) { avisos.push(`jobs da rodada ${emCurso.id}: ${e.message}`); } }
   // execuções recentes de todos os fluxos (Pages, Notícias, Relatos…) e a lista de fluxos
   const execucoes = compactaExecucoes(await api('/actions/runs?per_page=50'));
+  // I-297 · com o próprio Retrato rodando dezenas de vezes por dia, as 50 últimas podem não ter o Pages: as 3 últimas publicações entram sempre
+  if (!execucoes.workflow_runs.some(e => /pages build and deployment/i.test(e.name || ''))) {
+    try { const pages = compactaExecucoes(await api('/actions/runs?per_page=3&event=dynamic')); const ids = new Set(execucoes.workflow_runs.map(e => e.id)); for (const e of pages.workflow_runs) if (!ids.has(e.id)) execucoes.workflow_runs.push(e); }
+    catch (e) { avisos.push(`pages: ${e.message}`); }
+  }
   const fluxos = compactaFluxos(await api('/actions/workflows?per_page=50'));
   // commits do main dos últimos dias, em páginas de 100
   const desde = new Date(agora - limites.dias * DIA_MS).toISOString();

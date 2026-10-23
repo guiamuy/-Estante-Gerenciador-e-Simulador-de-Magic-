@@ -197,3 +197,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           SO: ${{ steps.avanca.outputs.isolar }}
         run: gh workflow run fila.yml --repo "$GITHUB_REPOSITORY" --ref main -f so="$SO"
+      # I-297 · o retrato do GitHub para o painel (retrato.yml) não acorda pelo `workflow_run` desta rodada quando ela é a
+      # terceira (ou mais) da corrente de disparos (limite do GitHub: três níveis); por isso cada rodada dispara o retrato ao
+      # terminar, publicada ou não, depois de pedir a rodada seguinte (o retrato a vê na fila). Falhar não derruba a rodada.
+      - name: Retrato do GitHub para o painel
+        if: always() && needs.portao.result != 'skipped'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run retrato.yml --repo "$GITHUB_REPOSITORY" --ref main || echo "::warning::não consegui disparar retrato.yml"

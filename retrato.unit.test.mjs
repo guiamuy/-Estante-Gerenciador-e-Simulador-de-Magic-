@@ -82,8 +82,8 @@ test('I-296 · rodada com rede de mentira: token só no cabeçalho (nunca na URL
   assert.equal(r.respostas.ramos.length, 3); assert.ok(r.respostas['ramo.' + SHA(3)]); assert.ok(!r.respostas['ramo.' + SHA(1)], 'main não tem detalhe');
   assert.deepEqual(r.respostas['jobs.9'].jobs.map(j => j.name), ['monta', 'portao']);
   assert.equal(r.respostas.commits.length, 100, 'duas páginas lidas (100 + 1), o retrato guarda os 100 do `main`'); assert.equal(r.respostas.pages.workflow_runs[0].name, 'pages build and deployment');
-  assert.deepEqual(Object.keys(extras).sort(), ['commits/2026-10-20.json', 'commits/2026-10-21.json', 'commits/2026-10-22.json'], 'hoje, ontem e o dia antigo inteiro (o 1/10 é o primeiro da lista: pode estar cortado)');
-  assert.equal(JSON.parse(extras['commits/2026-10-21.json']).commits.length, 50); assert.deepEqual(JSON.parse(extras['commits/2026-10-22.json']).commits, []); assert.deepEqual(r.cobertura.dias, ['2026-10-20', '2026-10-21', '2026-10-22']);
+  assert.equal(Object.keys(extras).length, 21, 'de 2/10 (o 1/10 é o primeiro da lista: cortado) a 22/10, dias vazios inclusive (I-297)'); assert.ok(extras['commits/2026-10-20.json'] && extras['commits/2026-10-02.json']);
+  assert.equal(JSON.parse(extras['commits/2026-10-21.json']).commits.length, 50); assert.deepEqual(JSON.parse(extras['commits/2026-10-22.json']).commits, []); assert.equal(r.cobertura.dias.length, 21); assert.deepEqual(JSON.parse(extras['commits/2026-10-05.json']).commits, []);
   assert.equal(Object.keys(r.respostas.tamanhos).length, 10, 'limite por rodada'); assert.ok(r.avisos.some(a => /tamanhos/.test(a)) && r.avisos.some(a => /fila\/R-28: \/branches\/fila%2FR-28: HTTP 500/.test(a)));
   assert.equal(r.pedidos, chamadas.length); assert.equal(chamadas.filter(u => /git\/trees/.test(u)).length, 10);
   assert.deepEqual(valida('retrato', r), []);
@@ -91,6 +91,7 @@ test('I-296 · rodada com rede de mentira: token só no cabeçalho (nunca na URL
   chamadas.length = 0;
   const { retrato: r2, extras: e2 } = await rodada({ repo: 'guiamuy/estante', token: 'ghp_TESTE', busca, anterior: r, diasGravados: r.cobertura.dias, agora: Date.parse('2026-10-22T01:40:00Z'), limites: { ...LIMITES, tamanhosPorRodada: 10 } });
   assert.deepEqual(Object.keys(e2).sort(), ['commits/2026-10-21.json', 'commits/2026-10-22.json'], 'dia antigo já gravado não é regravado');
+  assert.ok(r2.respostas.pages.workflow_runs.some(e => /pages build/.test(e.name)), 'o Pages está nas 50 últimas: sem pedido a mais'); assert.equal(chamadas.filter(u => /event=dynamic/.test(u)).length, 0);
   assert.equal(chamadas.filter(u => /branches\//.test(u)).length, 1, 'só o ramo que falhou é lido de novo');
   assert.equal(Object.keys(r2.respostas.tamanhos).length, 20); assert.equal(chamadas.filter(u => /git\/trees/.test(u)).length, 10);
   assert.equal(privacidade(r2), null);
@@ -100,11 +101,12 @@ test('I-296 · arquivosPorDia (puro): hoje e ontem sempre (mesmo vazios); dia an
   const c = (sha, data) => ({ sha, commit: { message: 'Leva X-1', committer: { date: data }, author: { date: data } } });
   const commits = [c(SHA(1), '2026-10-22T03:00:00Z'), c(SHA(2), '2026-10-21T23:30:00Z'), c(SHA(3), '2026-10-19T10:00:00Z'), c(SHA(4), '2026-10-18T10:00:00Z')];
   const r = arquivosPorDia({ commits, agora: Date.parse('2026-10-22T04:00:00Z'), diasGravados: ['2026-10-10'], em: '2026-10-22T04:00:00Z' });
-  assert.deepEqual(Object.keys(r.arquivos).sort(), ['commits/2026-10-19.json', 'commits/2026-10-21.json', 'commits/2026-10-22.json'], '18/10 é o primeiro da lista: cortado; 19/10 inteiro');
+  assert.deepEqual(Object.keys(r.arquivos).sort(), ['commits/2026-10-19.json', 'commits/2026-10-20.json', 'commits/2026-10-21.json', 'commits/2026-10-22.json'], '18/10 é o primeiro da lista: cortado; 19/10 inteiro; 20/10 sem commit mas coberto (I-297): arquivo vazio');
+  assert.deepEqual(JSON.parse(r.arquivos['commits/2026-10-20.json']).commits, []);
   assert.deepEqual(JSON.parse(r.arquivos['commits/2026-10-22.json']), { dia: '2026-10-22', em: '2026-10-22T04:00:00Z', commits: [commits[0]] });
-  assert.deepEqual(r.dias, ['2026-10-10', '2026-10-19', '2026-10-21', '2026-10-22']);
+  assert.deepEqual(r.dias, ['2026-10-10', '2026-10-19', '2026-10-20', '2026-10-21', '2026-10-22']);
   const r2 = arquivosPorDia({ commits, agora: Date.parse('2026-10-22T04:00:00Z'), diasGravados: ['2026-10-19'] });
-  assert.deepEqual(Object.keys(r2.arquivos).sort(), ['commits/2026-10-21.json', 'commits/2026-10-22.json']);
+  assert.deepEqual(Object.keys(r2.arquivos).sort(), ['commits/2026-10-20.json', 'commits/2026-10-21.json', 'commits/2026-10-22.json'], 'o 19 já gravado não volta; o 20 (vazio, coberto) entra');
   assert.deepEqual(arquivosPorDia({ commits: [], agora: Date.parse('2026-10-22T04:00:00Z') }).dias, ['2026-10-21', '2026-10-22'], 'sem commit nenhum, hoje e ontem vazios');
 });
 
@@ -135,5 +137,29 @@ test('I-296 · o fluxo Retrato: dispara em push só de fila/* e recusada/*, ramo
   assert.match(yml, /git config --global "http\.\$\{GITHUB_SERVER_URL\}\/\.extraheader"/);
   assert.match(yml, /node retrato\.mjs --remoto "\$\{GITHUB_SERVER_URL\}\/\$\{GITHUB_REPOSITORY\}\.git" --pasta "\$RUNNER_TEMP\/telemetria"/);
   assert.doesNotMatch(yml, /npm (ci|install|run|test)|npx |--force|push -f|origin main|secrets\./);
-  assert.match(readFileSync(join(RAIZ, '.github/workflows/fila.yml'), 'utf8'), /^name: Fila de publicação$/m, 'o nome que o workflow_run escuta');
+  const fila = readFileSync(join(RAIZ, '.github/workflows/fila.yml'), 'utf8');
+  assert.match(fila, /^name: Fila de publicação$/m, 'o nome que o workflow_run escuta');
+  // I-297 · a rodada dispara o retrato ao terminar (o workflow_run não acorda além do terceiro nível da corrente de disparos)
+  const avanca = (fila.match(/\n  avanca:\n([\s\S]*?)(?=\n  [a-z]+:\n|$)/) || [])[1] || '';
+  const passo = avanca.split('\n      - ').find(p => /gh workflow run retrato\.yml/.test(p));
+  assert.ok(passo, 'a fila dispara retrato.yml'); assert.match(passo, /if: always\(\) && needs\.portao\.result != 'skipped'/); assert.match(passo, /\|\| echo "::warning::/);
+  assert.ok(avanca.indexOf('gh workflow run fila.yml') < avanca.indexOf('gh workflow run retrato.yml'), 'depois de pedir a rodada seguinte');
+});
+
+test('I-297 · as 50 últimas execuções sem o Pages (só Retrato, Fila, Pessoas): a rodada pede as 3 últimas por `event=dynamic` e junta sem repetir; com o Pages presente, nenhum pedido a mais', async () => {
+  const chamadas = [];
+  const busca = async (url) => {
+    chamadas.push(url); const u = new URL(url); const p = u.pathname.replace('/repos/x/y', '');
+    const json = x => ({ ok: true, status: 200, json: async () => x });
+    if (p === '/branches') return json([]);
+    if (p === '/actions/workflows/fila.yml/runs') return json({ workflow_runs: [] });
+    if (p === '/actions/runs') return json(u.searchParams.get('event') === 'dynamic' ? { workflow_runs: [{ id: 70, name: 'pages build and deployment', status: 'completed', conclusion: 'success', event: 'dynamic' }, { id: 60, name: 'pages build and deployment', status: 'completed', conclusion: 'success', event: 'dynamic' }] } : { workflow_runs: Array.from({ length: 50 }, (_, i) => ({ id: 100 + i, name: i % 2 ? 'Retrato' : 'Fila de publicação', status: 'completed', conclusion: 'success', event: 'push' })) });
+    if (p === '/actions/workflows') return json({ workflows: [] });
+    if (p === '/commits') return json([]);
+    throw new Error('pedido inesperado: ' + url);
+  };
+  const { retrato: r } = await rodada({ repo: 'x/y', token: 't', busca, agora: Date.parse('2026-10-22T01:10:00Z') });
+  assert.equal(chamadas.filter(u => /event=dynamic/.test(u)).length, 1);
+  assert.equal(r.respostas.pages.workflow_runs.length, 52); assert.deepEqual(r.respostas.pages.workflow_runs.slice(-2).map(e => e.id), [70, 60]);
+  assert.deepEqual(valida('retrato', r), []);
 });
