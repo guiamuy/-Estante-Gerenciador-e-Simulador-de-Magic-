@@ -8680,6 +8680,39 @@ test('e2e · I3 tela Jogar: o estado da lista é uma linha de ícones com folha 
 });
 
 /* ---------------- I4 · fichas do seu jeito ---------------- */
+/* G-285 · relato #31 · a lista do oponente (a dois ou Shark) também diz quanto roda no motor */
+test('e2e · G-285 tela Jogar: a lista do oponente (a dois e Shark) mostra o ladrilho Motor com a porcentagem, como a sua; abaixo de 100% o ladrilho avisa e o bloqueio continua; sem oponente com lista, nada', { skip }, async t => {
+  const { page, errors, base } = await open(t, { dev: false });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'Coberta', '30 Island\n30 Counterspell', 'pauper');
+  await createDeck(page, base, 'Furada', '30 Island\n10 Carta Inexistente\n20 Counterspell', 'pauper');
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-estado');
+  await page.click('[data-table-format="pauper"]').catch(() => {});
+  await escolheLista(page, 'mesa-mine', /^Coberta$/);
+  assert.equal(await page.locator('#mesa-estado-dele').count(), 0, 'goldfish: nenhuma lista do oponente, nenhum ladrilho');
+  // a dois: a lista dele a 100%
+  await page.click('[data-opponent="hotseat"]'); await escolheLista(page, 'mesa-theirs', /^Coberta$/);
+  await page.waitForSelector('#mesa-estado-dele');
+  assert.match(await page.getAttribute('#mesa-estado-dele', 'aria-label'), /^Lista do oponente: Motor 100%/);
+  assert.equal(await page.innerText('#mesa-motor-dele'), 'Motor\n100%'.replace('\n', (await page.innerText('#mesa-motor-dele')).includes('\n') ? '\n' : ' '));
+  assert.equal(await page.locator('#mesa-bloqueio-oponente .ds-note').count(), 0, 'a 100% não há aviso');
+  await page.click('#mesa-estado-dele'); await page.waitForSelector('.ds-dialog');
+  assert.match(await page.innerText('.ds-dialog'), /Motor 100% completo/); await page.keyboard.press('Escape'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
+  // a dois: a lista dele furada — a porcentagem cai, o ladrilho avisa e o bloqueio de sempre continua
+  await escolheLista(page, 'mesa-theirs', /^Furada$/);
+  await page.waitForFunction(() => /lista do oponente ainda não joga/.test(document.querySelector('#mesa-bloqueio-oponente').innerText));
+  const furada = await page.$eval('#mesa-estado-dele', e => ({ fala: e.getAttribute('aria-label'), tom: e.querySelector('#mesa-motor-dele').dataset.tom || e.querySelector('#mesa-motor-dele').className }));
+  assert.match(furada.fala, /^Lista do oponente: Motor \d\d?%/); assert.doesNotMatch(furada.fala, /100%/);
+  assert.ok(await page.$eval('#mesa-start', b => b.disabled), 'a partida não começa com a lista dele furada');
+  // Shark: a lista dele (uma das cinco) a 100%, com o título dele
+  await page.waitForFunction(() => { const c = document.querySelector('[data-opponent="shark"]'); return c && !c.disabled; }, null, { timeout: 8000 });
+  await page.click('[data-opponent="shark"]'); await page.waitForSelector('#mesa-bot-deck');
+  await page.waitForSelector('#mesa-estado-dele');
+  await page.waitForFunction(() => /^Lista do Shark: Motor \d+%/.test(document.querySelector('#mesa-estado-dele').getAttribute('aria-label') || ''), null, { timeout: 8000 });
+  await auditaTela(page, 'Jogar com a lista do oponente medida');
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · I4 Perfil › Fichas: lista com ícone e cores, artes buscadas na internet, escolha guardada (e usada na mesa), sem internet só o que já foi baixado, e volta ao padrão', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.addInitScript(() => { window.__MTG_TEST = true; });

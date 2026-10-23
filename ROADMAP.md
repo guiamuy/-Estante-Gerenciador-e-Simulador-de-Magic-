@@ -550,6 +550,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-fd ✅ | Q10-4 a carta mostra a espera enquanto a imagem não chega: brilho no formato da carta em toda tela, a prateleira do DS por cima na galeria e no visor, o giro na folha da carta da mesa (relato #28, fatia 1, leva G-282, 23/10) | G | 1 | teste no aparelho |
 | 16º-fe ✅ | Q10-5 imagens das duas listas prontas ao entrar na partida, com progresso no botão Começar; sem rede entra com o que tem (relato #28, fatia 2; leva G-283, 23/10/2026) | G | 1 | — |
 | 16º-ff ✅ | Q10-4b o brilho da carta sem imagem anda por `transform` no pseudo-elemento da espera, não por `background-position` na imagem: 120 cartas sem cache em 360×780 com CPU 4× voltam de 30 para 60 fps (dívida de escala da Q10-4 quitada; leva G-284, 23/10/2026) | G | 1 | 16º-fd |
+| 16º-fg ✅ | Q10-6 a lista do oponente (a dois ou Shark) também mostra quanto roda no motor, com o mesmo ladrilho da sua lista (relato #31; leva G-285, 23/10/2026) | G | 1 | — |
 | 16º-ee ✅ | T6e-2 Enviar relato sem sair do app: com a conta conectada e a fila ligada, o relato vai para a fila do Firebase e o cartão mostra "Na fila" até o número do registro (relato #13, leva G-255) | T | 1 | — |
 | 16º-eh ✅ | T6e-2 prazo honesto do relato pela fila: o GitHub atrasa o agendamento em horas, a tela diz "de minutos a algumas horas" e a conversa que lê relatos roda a fila antes (relato #13, leva G-256) | T | 1 | 16º-ee |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
@@ -11591,6 +11592,14 @@ regras** (`database.rules.json`) no console; até lá a tela diz "Nomes de usuá
   - **Fora:** nome de exibição separado do @ (opção B da D16, não escolhida).
 - **Testes (7c):** e2e "G-276" (a transição "Entrando…" cobre a troca da porta pelo Início e fica ≥ 450 ms; Sair da conta com 44 px e nome falado; Cancelar não sai; confirmar mostra "Saindo da conta…", volta à porta com o aviso; sem conta não há o botão nem transição; auditoria da Início com o botão).
 - **Fora (7c):** transição no "Continuar sem conta" e nas trocas de tela comuns (a porta já se recolhe sozinha); Sair da conta na barra do app em todas as telas (o Início e o Perfil bastam; a barra já está cheia em 360 px).
+
+**Q10-6 · A lista do oponente diz quanto roda no motor (relato #31)** ✅ (leva G-285, trilha `geral`, 23/10/2026; `16º-fg`)
+- **Pedido (texto do relato, dado):** ao escolher a lista do Shark ou do outro jogador no 1x1 no mesmo aparelho, mostrar quantos por cento dela roda no motor, e não só da minha lista.
+- **Antes:** a cobertura da lista do oponente já era calculada (leva 113), mas só aparecia como aviso quando ficava abaixo de 100%; a 100% a tela não dizia nada, e a dúvida "a dele joga?" não tinha resposta.
+- **Como:** `estadoDele()` desenha, sob o seletor da lista do oponente, a mesma `LinhaEstado` da sua lista com o ladrilho **Motor n%** (`#mesa-estado-dele`, `#mesa-motor-dele`; título "Lista do oponente" ou "Lista do Shark"; toque abre a folha com o detalhe e as cartas que faltam). Abaixo de 100% o ladrilho avisa em amarelo e o bloqueio de sempre ("A lista do oponente ainda não joga") continua por baixo; sem oponente com lista (Goldfish, Online), nada aparece.
+- **Testes:** e2e "G-285" logo depois do "I3" (a dois a 100% e furada; Shark com a lista dele; `auditaTela`).
+- **Fora:** Reserva e Offline da lista do oponente (o ladrilho Offline da sua lista já conta as cartas das duas quando o Shark está na mesa, B-22).
+
 
 **Q10-5 · As imagens do jogo descem antes de entrar na partida (relato #28, fatia 2)** ✅ (leva G-283, trilha `geral`, 23/10/2026; `16º-fe`)
 - **Pedido (texto do relato, dado):** "deveríamos ter alguma tratativa que garanta que, ao entrar na partida, as imagens dos decks já estão devidamente carregadas para serem exibidas".

@@ -37124,15 +37124,28 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
     async function confereOponente() {
       const run = ++covDeleRun;
       const d = deckDoOponente();
-      if (!d) { state.coberturaDele = ehBot() ? 0 : 100; state.faltamDele = []; return paintStart(); } // B-22 · Shark sem lista no formato não começa
+      if (!d) { state.coberturaDele = ehBot() ? 0 : 100; state.faltamDele = []; state.coberturaDeleDetalhe = null; return paintStart(); } // B-22 · Shark sem lista no formato não começa
       let cards = new Map();
       try { cards = await cardRepo.byNames(d.entries.map(e => e.name)); } catch (e) { /* sem rede */ }
       if (run !== covDeleRun) return;
       const cv = deckCoverage(d.entries.map(e => ({ ...e, key: norm(e.name) })), cards);
       state.coberturaDele = cv.pct; state.faltamDele = [...new Set(cv.pending.map(x => x.name))];
+      state.coberturaDeleDetalhe = cv;
       paintStart();
     }
     const bloqueioDele = h('div', { id: 'mesa-bloqueio-oponente' });
+    /** G-285 · relato #31 · a lista do oponente (Shark ou a dois) também diz quanto roda no motor, com o mesmo ladrilho da
+        sua lista — antes só aparecia o aviso quando ficava abaixo de 100%, e a dúvida "a dele joga?" não tinha resposta. */
+    function estadoDele() {
+      const d = deckDoOponente(); const cv = state.coberturaDeleDetalhe;
+      if (!d || !cv || (state.opponent !== 'hotseat' && !ehBot())) return null;
+      const xs = state.faltamDele, lista6 = ys => `${ys.slice(0, 6).join(', ')}${ys.length > 6 ? ` e mais ${ys.length - 6}` : ''}`;
+      const titulo = ehBot() ? 'Lista do Shark' : 'Lista do oponente';
+      const item = cv.pct === 100
+        ? { id: 'mesa-motor-dele', icone: 'marcar', tom: 'positive', rotulo: 'Motor', valor: '100%', detalhe: __m3.seguro`<b>Motor 100% completo.</b> O motor resolve sozinho todas as cartas da lista ${ehBot() ? 'do Shark' : 'do oponente'}.` }
+        : { id: 'mesa-motor-dele', icone: 'alerta', tom: 'warning', rotulo: 'Motor', valor: `${cv.pct}%`, detalhe: __m3.seguro`<b>Motor ${cv.pct}% completo.</b> O motor não resolve ${xs.length} carta(s) desta lista: ${lista6(xs)}.` };
+      return __m3.LinhaEstado([item], { id: 'mesa-estado-dele', titulo, ladrilhos: true });
+    }
     let startBtn = null;
     function paintStart() {
       if (!startBtn) return;
@@ -37140,7 +37153,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
       startBtn.disabled = !ok || state.busy;
       startBtn.classList.toggle('ds-hidden', state.opponent === 'online'); // leva 133 · online começa pela sala
       const xs = state.faltamDele;
-      mount(bloqueioDele, !DEV && state.coberturaDele < 100 ? Note(__m3.seguro`<b>A lista do oponente ainda não joga.</b> O motor não resolve ${xs.length} carta(s) dela: ${xs.slice(0, 6).join(', ')}${xs.length > 6 ? ` e mais ${xs.length - 6}` : ''}.`, 'warning') : null);
+      mount(bloqueioDele, estadoDele(), !DEV && state.coberturaDele < 100 ? Note(__m3.seguro`<b>A lista do oponente ainda não joga.</b> O motor não resolve ${xs.length} carta(s) dela: ${xs.slice(0, 6).join(', ')}${xs.length > 6 ? ` e mais ${xs.length - 6}` : ''}.`, 'warning') : null);
     }
     /** S64 · busca o que falta e guarda tudo, sem prazo de validade. */
     async function guardar(nomes) {
