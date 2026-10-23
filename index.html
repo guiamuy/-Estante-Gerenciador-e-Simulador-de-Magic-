@@ -6075,7 +6075,7 @@ function continuoErros(c, tag) {
   for (const k of Object.keys(c)) if (!CHAVES_CONTINUO.includes(k)) errs.push(`${tag}: chave "${k}" desconhecida`);
   const a = c.afetados;
   if (c.seAfetado != null) { if (typeof c.seAfetado !== 'object' || Array.isArray(c.seAfetado)) errs.push(`${tag}: "seAfetado" precisa ser um seletor`); else { errs.push(...seletorErros(c.seAfetado, `${tag}: seAfetado`)); for (const k of ['zona', 'ref', 'ou', 'jogadores', 'habilidades']) if (c.seAfetado[k] != null) errs.push(`${tag}: seAfetado não aceita "${k}"`); } }
-  if (c.se != null && !(c.se && Object.keys(c.se).length === 1 && (Number.isInteger(c.se.oponenteComVeneno) || TIPOS_DE_CARTA.includes(c.se.controlaTipo) || c.se.metalcraft === true || c.se.modificada === true || c.se.atacando === true /* M-518 */ || c.se.delirio === true /* M-525 */ || seMonarcaT(c.se)))) errs.push(`${tag}: "se" conhece só oponenteComVeneno (inteiro), controlaTipo (tipo de carta), metalcraft (true), modificada (true) ou monarca ('voce' ou 'oponente')`); // M-403 · 700.9 // M-363 // M-253 · Corrompido · M-351 · "as long as you control an artifact" (Goblin Tomb Raider)
+  if (c.se != null && !(c.se && Object.keys(c.se).length === 1 && (Number.isInteger(c.se.oponenteComVeneno) || TIPOS_DE_CARTA.includes(c.se.controlaTipo) || TIPOS_DE_CARTA.includes(c.se.controlaOutroTipo) /* M-571 */ || c.se.metalcraft === true || c.se.modificada === true || c.se.atacando === true /* M-518 */ || c.se.delirio === true /* M-525 */ || seMonarcaT(c.se)))) errs.push(`${tag}: "se" conhece só oponenteComVeneno (inteiro), controlaTipo (tipo de carta), metalcraft (true), modificada (true) ou monarca ('voce' ou 'oponente')`); // M-403 · 700.9 // M-363 // M-253 · Corrompido · M-351 · "as long as you control an artifact" (Goblin Tomb Raider)
   if (c.ward != null) errs.push(...wardCustoErrosK(c.ward, false).map(e => `${tag}: "ward" ${e}`)); // K-2 · 702.21
   if (a !== 'self' && a !== 'anexada' && a !== 'equipada-pela-anexada') {
     if (!a || typeof a !== 'object') errs.push(`${tag}: "afetados" precisa ser self, anexada ou um seletor (ou equipada-pela-anexada)`);
@@ -10632,6 +10632,9 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Elven Farsight': { texto: '1qqwmib', leva: 'M-570' },
   'Bushwhack': { texto: 'dp8fvk', leva: 'M-570' },
   'Self-Assembler': { texto: '1isrci4', leva: 'M-570' },
+  // M-571 · revisão por lote CCVI (Pauper: Oliphaunt, Magitek Infantry), textos da Scryfall de 23/10/2026 UTC, revisor independente
+  'Oliphaunt': { texto: '1guv44m', leva: 'M-571' },
+  'Magitek Infantry': { texto: '17kh2b2', leva: 'M-571' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -19059,7 +19062,7 @@ const __m42 = (function () {
   const ALVOS = {
     'any target': 'any', 'target creature': 'creature', 'target player': 'player', 'target opponent': 'opponent', 'target planeswalker': 'planeswalker',
     'target permanent': 'permanent', 'target artifact': 'artifact', 'target enchantment': 'enchantment', 'target land': 'land',
-    'target artifact or enchantment': 'artifact-enchantment', 'target creature you control': 'creature-you-control',
+    'target artifact or enchantment': 'artifact-enchantment', 'target creature you control': 'creature-you-control', 'another target creature you control': 'other-creature-you-control' /* M-571 */,
     'target creature an opponent controls': 'creature-opponent-controls', 'target creature you don\'t control': 'creature-opponent-controls',
     'each creature': 'each-creature', 'each opponent': 'each-opponent', 'each creature you control': 'each-own-creature',
     'each creature your opponents control': 'each-opponent-creature', 'each creature you don\'t control': 'each-opponent-creature',
@@ -19221,7 +19224,7 @@ const __m42 = (function () {
     [/^return (?:this aura|~) to its owner's hand$/i, () => [{ do: 'to_hand', target: 'self-source', from: 'battlefield' }]],
     [new RegExp(`^target player loses ${N} life and you gain ${N} life$`, 'i'), m => [{ do: 'lose', amount: num(m[1]), target: 'player' }, { do: 'gain', amount: num(m[2]) }]],
     [/^return ~ to its owner's hand$/i, () => [{ do: 'to_hand', target: 'self-source', from: 'battlefield' }]], // M-339 · achado da revisão: numa ativada (Crystal Seer) a permanente volta do campo; no "dies" o gatilho tira o `from` (volta do cemitério, Rancor)
-    [/^(?:until end of turn, )?(target creature|target creature you control|target attacking creature|~) gets ([+-]\d+)\/([+-]\d+) and gains ([a-z ,]+?)(?: until end of turn)?$/i, m => { // M-453 · "Target creature gets +3/+3 and gains trample until end of turn" (611.2a: um efeito contínuo só, com P/T e palavras)
+    [/^(?:until end of turn, )?(target creature|target creature you control|another target creature you control|target attacking creature|~) gets ([+-]\d+)\/([+-]\d+) and gains ([a-z ,]+?)(?: until end of turn)?$/i, m => { // M-453 · "Target creature gets +3/+3 and gains trample until end of turn" (611.2a: um efeito contínuo só, com P/T e palavras)
       const ut = /^until end of turn, /i.test(m[0]), fim = / until end of turn$/i.test(m[0]); if (ut === fim) return null;
       const ks = m[4].split(/,\s*(?:and\s+)?|\s+and\s+/).map(x => x.trim().toLowerCase()).filter(Boolean); if (!ks.length || ks.some(k => !KW.has(k))) return null;
       const base = { do: 'continuo', poder: SINAL(m[2]), resistencia: SINAL(m[3]), palavras: ks };
@@ -19835,6 +19838,8 @@ const __m42 = (function () {
         const mdg = lp.match(/^modified creatures you control have ([a-z ,]+)$/i), kmg = mdg && kwsDe(mdg[1]); // M-403 · 700.9 · Temperamental Oozewagg, Kodama of the West Tree, Invigorating Hot Spring
         if (kmg) { topo.continuo = [...(topo.continuo || []), { afetados: { tipos: ['creature'], de: 'you', modificada: true }, palavras: kmg }]; frases.push({ texto: linha, lida: true }); continue; }
         if (/^untap (?:this artifact|this permanent|~) during each other player's untap step$/i.test(lp)) { topo.self = { ...(topo.self || {}), desviraNosOutros: true }; frases.push({ texto: linha, lida: true }); continue; } // M-363 · Bender's Waterskin (502.3)
+        { const ao = lp.match(/^~ gets ([+-]\d+)\/([+-]\d+) as long as you control another (artifact|creature|enchantment|land|planeswalker)$/i); // M-571 · Magitek Infantry
+          if (ao) { topo.continuo = [...(topo.continuo || []), { afetados: 'self', poder: SINAL(ao[1]), resistencia: SINAL(ao[2]), se: { controlaOutroTipo: ao[3].toLowerCase() } }]; frases.push({ texto: linha, lida: true }); continue; } }
         const al = lp.match(/^as long as you control an? (artifact|creature|enchantment|land|planeswalker), ~ gets ([+-]\d+)\/([+-]\d+)(?: and has ([a-z ]+))?$/i); // M-351 · Goblin Tomb Raider (611.2 · condição conferida a cada leitura)
         if (al && (!al[4] || al[4].split(/ and /).every(k => KW.has(k.trim().toLowerCase())))) { topo.continuo = [...(topo.continuo || []), { afetados: 'self', poder: SINAL(al[2]), resistencia: SINAL(al[3]), ...(al[4] ? { palavras: al[4].split(/ and /).map(k => k.trim().toLowerCase()) } : {}), se: { controlaTipo: al[1].toLowerCase() } }]; frases.push({ texto: linha, lida: true }); continue; }
         const pe = lp.match(/^~ gets ([+-]\d+)\/([+-]\d+) for each (.+)$/i); // LT5 · "~ gets +1/+1 for each Aura on the battlefield"
@@ -20383,6 +20388,7 @@ function condicaoContinua(s, x, se) {
   if (!se) return true;
   if (se.oponenteComVeneno != null) return alive(s).some(q => q !== x.controller && (s.players[q].poison || 0) >= se.oponenteComVeneno);
   if (se.controlaTipo) return battlefield(s).some(o => o.controller === x.controller && tiposDe(s, o).includes(se.controlaTipo)); // a própria fonte conta se tiver o tipo
+  if (se.controlaOutroTipo) return battlefield(s).some(o => o.controller === x.controller && o.oid !== x.oid && tiposDe(s, o).includes(se.controlaOutroTipo)); // M-571 · "another artifact": a própria fonte não conta
   if (se.monarca) return monarcaCondT(s, x.controller, se.monarca); // T-62 · CR 725.5 / 611.2 · "as long as you're the monarch" (Toca ponto comum: condicaoContinua)
   if (se.modificada) return predicadosDeTipoT(s, x, { modificada: true }); // M-403 · 700.9 · "~ has flying as long as it's modified" (Skyward Spider, Obstinate Gargoyle)
   if (se.delirio) return tiposNoCemiterioM(s, x.controller) >= 4; // M-525 · Delirium: "four or more card types among cards in your graveyard" (205.2a; 611.2b: vale enquanto for verdade)
@@ -35296,7 +35302,7 @@ function descreveContinuo(c) {
   if (c.troca) partes.push('troca o poder e a resistência'); // CR2d.9
   if (c.torna) partes.unshift(descreveTorna(c.torna));
   const se = c.seAfetado ? `enquanto for ${c.seAfetado.lendaria ? 'lendária' : ''}${c.seAfetado.lendaria && (c.seAfetado.tipos || []).length ? ' e ' : ''}${(c.seAfetado.tipos || []).map(x => TIPO_PT[x] || x).join(' ou ')}, ` : ''; // M-251
-  const seJogo = c.se ? (c.se.atacando ? 'enquanto estiver atacando, ' /* M-518 */ : c.se.delirio ? 'com delírio (4+ tipos de carta no seu cemitério), ' /* M-525 */ : c.se.modificada ? 'enquanto estiver modificada, ' : c.se.metalcraft ? 'enquanto você controlar três artefatos ou mais, ' /* M-403 · faltava a vírgula */ : c.se.controlaTipo ? `enquanto você controlar ${({ artifact: 'um artefato', creature: 'uma criatura', enchantment: 'um encantamento', land: 'um terreno', planeswalker: 'um planeswalker' })[c.se.controlaTipo] || 'um ' + c.se.controlaTipo}, ` : `enquanto um oponente tiver ${c.se.oponenteComVeneno} ou mais marcadores de veneno, `) : ''; // M-253 · Corrompido · M-351 · controlaTipo
+  const seJogo = c.se ? (c.se.atacando ? 'enquanto estiver atacando, ' /* M-518 */ : c.se.delirio ? 'com delírio (4+ tipos de carta no seu cemitério), ' /* M-525 */ : c.se.modificada ? 'enquanto estiver modificada, ' : c.se.metalcraft ? 'enquanto você controlar três artefatos ou mais, ' /* M-403 · faltava a vírgula */ : c.se.controlaOutroTipo ? `enquanto você controlar outro ${({ artifact: 'artefato', creature: 'criatura', enchantment: 'encantamento', land: 'terreno', planeswalker: 'planeswalker' })[c.se.controlaOutroTipo] || c.se.controlaOutroTipo}, ` /* M-571 */ : c.se.controlaTipo ? `enquanto você controlar ${({ artifact: 'um artefato', creature: 'uma criatura', enchantment: 'um encantamento', land: 'um terreno', planeswalker: 'um planeswalker' })[c.se.controlaTipo] || 'um ' + c.se.controlaTipo}, ` : `enquanto um oponente tiver ${c.se.oponenteComVeneno} ou mais marcadores de veneno, `) : ''; // M-253 · Corrompido · M-351 · controlaTipo
   return `${seJogo}${se}${quem} ${partes.join(' e ')}`;
 }
 /** CR2-G R6 · a duração em português. */
