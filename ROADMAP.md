@@ -5503,6 +5503,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Revisão independente:** as 224 cartas leem o mesmo script com o texto novo e o antigo (só Creosote Heath inverte a ordem das cores); as quatro regravadas estão fiéis (no Extract a Confession quem escolhe a criatura é cada oponente); a divisão de linha nova não muda nenhuma outra das 1.981 cartas dos `.listas/oficiais*.json`. **Achado corrigido:** `.listas/oficiais-cartas.json` guardava o texto do Forge de Extract a Confession e Glimpse the Impossible, que com as assinaturas novas ficariam "em revisão" por ele; passou ao texto da Scryfall.
 - **Teste:** `lt256.unit` (3 testes; falham no motor anterior).
 
+**M-576 · LT234 · revisão por lote CCX: Abjure e Barbed Batterfist** ✅ (leva M-576, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** as duas cartas que entraram no catálogo Pauper na coleta de 23/10 (Abjure, 2 listas; Barbed Batterfist, 1) passam a jogar — **517 de 517 listas Pauper a 100% no app**, medido com o texto da Scryfall de 23/10/2026.
+- **Regra:** "As an additional cost to cast this spell, sacrifice a blue permanent" (601.2b) pelo leitor: `additional.sacrificeOther` com os tipos de permanente e `color` (o filtro de cor do custo, CR2d.8, já existia para virar outra criatura). Barbed Batterfist: por Mirrodin! (702.163, K-60) vem da palavra-chave; o leitor lê "+1/-1" e equipar {1}.
+- **Revisão independente:** sem divergências: Abjure só se conjura com permanente azul sua (artefato, encantamento, criatura multicolor e ficha azuis servem; terreno, incolor, vermelha e a do oponente não), o sacrifício é custo e já está feito quando ela entra na pilha, e sem mágica na pilha não se conjura; Batterfist cria a ficha Rebelde e se anexa (3/1), fica no campo se a ficha morre, equipar só como feitiço; 18 partidas entre bots com as duas cartas terminaram sem erro.
+- **Teste:** `lt257.unit` (3 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

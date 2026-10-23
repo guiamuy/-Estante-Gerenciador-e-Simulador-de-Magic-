@@ -10693,6 +10693,9 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   // M-572 · revisão por lote CCVII (Pauper: Clowning Around, Shinen of Life's Roar), textos da Scryfall de 23/10/2026 UTC, revisor independente
   'Clowning Around': { texto: 'ziw725', leva: 'M-572' },
   'Shinen of Life\'s Roar': { texto: '1vve0ah', leva: 'M-572' },
+  // M-576 · LT234 · revisão por lote CCX (textos da Scryfall de 23/10/2026): Abjure, Barbed Batterfist
+  'Abjure': { texto: '5g13ex', leva: 'M-576' },
+  'Barbed Batterfist': { texto: 's38nww', leva: 'M-576' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -19475,7 +19478,8 @@ const __m42 = (function () {
     [/^as an additional cost to cast this spell, discard a card or pay (\d+) life$/i, m => ({ additional: [{ discard: 1 }, { pagarVida: +m[1] }] })],
     [/^as an additional cost to cast this spell, discard a card or pay \{(\d+)\}$/i, m => ({ additional: [{ discard: 1 }, { generico: +m[1] }] })], // M-441 · Lightning Axe (601.2b: um ou outro; o {5} entra no custo total, 601.2f) // M-346 · Bitter Triumph (601.2b: um ou outro)
     [/^as an additional cost to cast this spell, sacrifice an artifact or creature$/i, () => ({ additional: { sacrificeOther: { types: ['artifact', 'creature'] } } })], // LT10 · 601.2b
-    [/^as an additional cost to cast this spell, sacrifice an? (land|creature|artifact|enchantment)$/i, m => ({ additional: { sacrificeOther: { types: [m[1].toLowerCase()] } } })], // M-334 · LT18 · 601.2b (Crop Rotation)
+    [/^as an additional cost to cast this spell, sacrifice an? (land|creature|artifact|enchantment)$/i, m => ({ additional: { sacrificeOther: { types: [m[1].toLowerCase()] } } })],
+    [/^as an additional cost to cast this spell, sacrifice an? (white|blue|black|red|green) permanent$/i, m => ({ additional: { sacrificeOther: { types: ['artifact', 'creature', 'enchantment', 'land', 'planeswalker', 'battle'], color: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[1].toLowerCase()] } } })], // M-576 · Abjure (601.2b) // M-334 · LT18 · 601.2b (Crop Rotation)
     [/^cycling—pay (\d+) life$/i, m => ({ cycling: { life: +m[1] } })],
     [/^cycling—sacrifice a land$/i, () => ({ cycling: { sacrificaTerreno: true } })], // M-539 · Edge of Autumn // M-341 · Street Wraith
     [/^bargain$/i, () => ({ bargain: true })], // M-384 · 702.166 (o motor barganha desde a S37)
