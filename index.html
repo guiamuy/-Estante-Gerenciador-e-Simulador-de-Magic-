@@ -816,6 +816,8 @@ body[data-tela="entrar"] .ds-appbar { display: none; }
 .ds-nav--perfil[aria-current="page"] .ds-avatar { border-color: var(--accent); }
 .perfil-cabeca { display: flex; align-items: center; gap: var(--space-4); }
 .perfil-cabeca .ds-field { flex: 1 1 auto; min-width: 0; }
+.perfil-identidade { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1); } /* G-279 */
+.perfil-identidade__nome { max-width: 100%; overflow-wrap: anywhere; }
 .perfil-foto { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); }
 /* leva 149 · enquadrar a foto: palco quadrado, a foto segue o dedo, o círculo mostra o que fica */
 .perfil-enquadre { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); }
@@ -16780,29 +16782,49 @@ function createPortaDeEntrada({ conta = null, perfil = null, haptics = null, aoE
   }
   const email = () => dialogoEntrarComEmail({ conta, ocupado: v => { st.ocupado = v; }, aoEntrar: async modo => {
     closeDialog(); toast(modo === 'criar' ? 'Conta criada e conectada' : 'Conta conectada');
-    if (modo === 'criar' && perfil) return pintaNome(); // G-275 · o perfil nasce com a conta: o nome na mesa, com pular
+    if (modo === 'criar') return pintaNome(); // G-275/G-280 · a conta nasce com o @ (nome no Perfil e na mesa), com pular
     await entrou(); } });
-  /** G-275 · T6f-7b · logo depois de criar a conta: como você aparece na mesa (o mesmo nome do Perfil, que sincroniza). */
+  /** G-275 · T6f-7b · logo depois de criar a conta, o nome. G-280 · relato #25 (D16 = A): o nome é o @ único da conta —
+      a porta pede o @ (formato conferido a cada letra, "já é de outra conta" do banco) e o reserva; Pular deixa "Você"
+      até escolher no Perfil. Sem o banco ligado não há @: segue direto. */
   async function pintaNome() {
-    let atual = { nome: '' }; try { atual = await perfil.get(); } catch (e) { /* sem disco: em branco */ }
-    const campo = Input({ id: 'porta-nome', value: atual.nome || '', maxlength: String(perfil.NOME_MAX || 24), placeholder: 'Como você aparece na mesa', autocomplete: 'nickname' });
+    const nu = conta && conta.nomeDeUsuario ? conta.nomeDeUsuario() : null;
+    if (!nu) return entrou();
+    const R = __m40;
+    const campo = Input({ id: 'porta-nome', value: '', maxlength: '21', placeholder: 'seu_nome', autocomplete: 'username' });
+    campo.setAttribute('autocapitalize', 'none'); campo.setAttribute('spellcheck', 'false');
+    const dica = h('span', { class: 'ds-field__hint', id: 'porta-nome-dica', 'aria-live': 'polite' });
     const erro = h('div', { class: 'porta__erro', id: 'porta-nome-erro', role: 'alert' });
-    const segue = async () => {
-      const nome = campo.value.trim(); if (!nome) { campo.focus(); return mount(erro, Note('Escreva um nome, ou toque em Pular.', 'negative')); }
-      try { await perfil.set({ nome }); document.dispatchEvent(new CustomEvent('estante:perfil')); } catch (e) { return mount(erro, Note('Não deu para guardar o nome agora. Tente de novo ou pule.', 'negative')); }
-      await entrou();
-    };
+    campo.addEventListener('input', () => { clear(erro); confere(); });
     campo.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); segue(); } });
     mount(root,
       h('div', { class: 'porta__marca' },
         item(0, h('span', { class: 'porta__ladrilho', 'aria-hidden': 'true', html: __m4.iconeDoApp({ tamanho: 88, animado: true }) })),
         item(1, Text('Conta criada', { size: '2xl', display: true, as: 'h1', attrs: { id: 'porta-titulo' } })),
-        item(2, Text('Como você quer aparecer na mesa? Dá para trocar depois, no Perfil.', { tone: 'muted', attrs: { id: 'porta-frase' } }))),
-      h('div', { class: 'porta__item', id: 'porta-passo-nome', style: { '--porta-i': '3' } }, Field('Nome', campo)),
+        item(2, Text('Escolha seu @: é o seu nome no Perfil e na mesa, só seu. Dá para trocar uma vez a cada 30 dias.', { tone: 'muted', attrs: { id: 'porta-frase' } }))),
+      h('div', { class: 'porta__item', id: 'porta-passo-nome', style: { '--porta-i': '3' } }, Field('Nome de usuário', campo), dica),
       h('div', { class: 'porta__acoes porta__item', id: 'porta-acoes', style: { '--porta-i': '4' } }, erro,
         Button('Seguir', { variant: 'primary', block: true, icone: 'seguir', id: 'porta-nome-seguir', onClick: segue }),
         Button('Pular', { variant: 'ghost', id: 'porta-nome-pular', onClick: () => entrou() })));
+    confere();
     campo.focus({ preventScroll: true });
+    function confere() {
+      const n = R.normalizaNomeDeUsuario(campo.value), ruim = n ? R.erroDoNome(n) : null;
+      dica.textContent = !n ? '3 a 20 caracteres: letras sem acento, números e _.' : ruim ? R.MOTIVO_NOME[ruim] : 'Fica @' + n + '.';
+      dica.classList.toggle('ds-text--negative', !!ruim);
+    }
+    async function segue() {
+      clear(erro);
+      const n = R.normalizaNomeDeUsuario(campo.value);
+      if (!n) { campo.focus(); return mount(erro, Note('Escolha um nome de usuário, ou toque em Pular.', 'negative')); }
+      const ruim = R.erroDoNome(n); if (ruim) { campo.focus(); return mount(erro, Note(R.MOTIVO_NOME[ruim], 'negative')); }
+      const b = root.querySelector('#porta-nome-seguir'); if (b) { b.disabled = true; b.setAttribute('aria-busy', 'true'); }
+      try { await nu.reservar(n); }
+      catch (e) { if (b) { b.disabled = false; b.removeAttribute('aria-busy'); } campo.focus(); return mount(erro, Note(R.MOTIVO_NOME[e && e.message] || R.MOTIVO_NOME.api, 'negative')); }
+      try { if (conta.espelhaNome) await conta.espelhaNome(); } catch (e) { /* o Perfil espelha depois */ }
+      toast('@' + n + ' agora é seu');
+      await entrou();
+    }
   }
   const item = (i, ...filhos) => h('div', { class: 'porta__item', style: { '--porta-i': String(i) } }, ...filhos);
   function pinta() {
@@ -17014,16 +17036,27 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
       closeDialog(); toast(modo === 'criar' ? 'Conta criada e conectada' : 'Conta conectada'); paint(); } });
   }
   /** G-266 · T6f-3 · nome de usuário único (@nome): lido da conta da Estante ao abrir o Perfil; Escolher/Trocar reserva. */
-  function linhaUsuario(oc) {
-    const nu = conta.nomeDeUsuario ? conta.nomeDeUsuario() : null;
+  /** G-279 · lê o @ desta conta uma vez por conta (o Perfil mostra o @ no topo e na Conta). Sem conta da Estante: null. */
+  function carregaUsuario() {
+    const nu = conta && conta.nomeDeUsuario ? conta.nomeDeUsuario() : null;
     if (!nu) return null;
     const uid = conta.sessao && conta.sessao.uid();
     if (!st.usuario || st.usuario.de !== uid) {
       st.usuario = { de: uid, carregando: true, nome: null };
       nu.meu().then(m => ({ de: uid, nome: m ? m.nome : null, em: m ? m.em : 0 }), () => ({ de: uid, nome: null, falhou: true }))
-        .then(u => { if (st.usuario && st.usuario.de === uid) { st.usuario = u; if (root.isConnected) paint(); } });
+        .then(u => { if (st.usuario && st.usuario.de === uid) { st.usuario = u; if (!u.falhou) espelha(); if (root.isConnected) paint(); } });
     }
-    const u = st.usuario;
+    return { nu, u: st.usuario };
+  }
+  /** G-279 · relato #25 (D16 = A): o nome do perfil neste aparelho é o @ da conta; sem conta, fica em branco ("Você"). */
+  async function espelha() {
+    if (!conta || !conta.espelhaNome) return;
+    try { await conta.espelhaNome(); const p = await perfil.get(); if (st.salvo) st.salvo = { ...st.salvo, nome: p.nome }; st.nome = p.nome; if (root.isConnected) paint(); } catch (e) { /* fica o que está */ }
+  }
+  function linhaUsuario(oc) {
+    const lido = carregaUsuario();
+    if (!lido) return null;
+    const { nu, u } = lido;
     return Row({ class: 'ds-row--wrap perfil-conta__estante', id: 'conta-usuario', dataset: { estado: u.carregando ? 'carregando' : u.nome ? 'tem' : u.falhou ? 'falhou' : 'sem' } },
       Text(u.carregando ? 'Conferindo o nome de usuário…' : u.nome ? '@' + u.nome : u.falhou ? 'Não deu para ler o nome de usuário agora.' : 'Sem nome de usuário ainda', { size: 'sm', tone: u.nome ? undefined : 'muted', class: 'ds-grow', attrs: { id: 'conta-usuario-texto', role: 'status' } }),
       Button(u.nome ? 'Trocar' : 'Escolher', { icone: 'pessoa', id: 'conta-usuario-escolher', variant: 'ghost', disabled: oc || !!u.carregando, title: u.nome ? 'Trocar o nome de usuário' : 'Escolher um nome de usuário', onClick: () => abreNomeDeUsuario(nu, u.nome, u.em) }));
@@ -17052,7 +17085,7 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
         const r = await nu.reservar(campo.value);
         st.usuario = { de: conta.sessao.uid(), nome: r.nome, em: r.mudou ? Date.now() : em };
         if (haptics) haptics.evento('confirmacao');
-        closeDialog(); toast('@' + r.nome + ' agora é seu'); paint();
+        closeDialog(); toast('@' + r.nome + ' agora é seu'); paint(); espelha();
       } catch (e) {
         vai.removeAttribute('aria-busy'); rot().textContent = rotuloBase; confere();
         mount(erro, Note(R.MOTIVO_NOME[e && e.message] || R.MOTIVO_NOME.api, 'negative')); campo.focus();
@@ -17199,9 +17232,10 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
       linhaUsuario(oc),
       linhaSincronia(oc),
       Row({ class: 'ds-row--wrap' },
-        Button('Usar na mesa', { icone: 'pessoa', id: 'conta-usar', title: 'Usar o nome e a foto da conta no perfil', disabled: oc, onClick: () => acaoDaConta(async () => {
-          st.nome = c.nome || st.nome;
-          if (c.foto) { try { st.avatar = await fotoDaConta(c.foto); } catch (e) { toast('A foto da conta não pôde ser baixada; o nome entrou.'); } }
+        Button('Usar a foto', { icone: 'pessoa', id: 'conta-usar', title: 'Usar a foto da conta Google no perfil', disabled: oc, onClick: () => acaoDaConta(async () => {
+          // G-279 · relato #25 (D16 = A): o nome é o @ da conta da Estante; daqui vem só a foto
+          if (!c.foto) return toast('A conta Google não tem foto.');
+          try { st.avatar = await fotoDaConta(c.foto); } catch (e) { return toast('A foto da conta não pôde ser baixada.'); }
           await salvar(true);
         }) })),
       Text(`Backup na nuvem · último envio: ${quando(c.backupEm)}`, { size: 'sm', tone: 'muted', attrs: { id: 'conta-backup-quando' } }),
@@ -17226,7 +17260,8 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
   async function salvar(forca = false) {
     if ((!mudou() && !forca) || st.ocupado) return;
     st.ocupado = true; paint();
-    try { st.salvo = await perfil.set({ nome: st.nome, avatar: st.avatar }); st.nome = st.salvo.nome; st.avatar = st.salvo.avatar; if (haptics) haptics.evento('confirmacao'); toast('Perfil salvo'); document.dispatchEvent(new CustomEvent('estante:perfil')); st.confirmaSalvo = true; }
+    // G-279 · o nome vem do @ da conta, não desta tela: salvar guarda só a foto
+    try { st.salvo = await perfil.set({ avatar: st.avatar }); st.nome = st.salvo.nome; st.avatar = st.salvo.avatar; if (haptics) haptics.evento('confirmacao'); toast('Perfil salvo'); document.dispatchEvent(new CustomEvent('estante:perfil')); st.confirmaSalvo = true; }
     catch (err) { toast('Não foi possível salvar o perfil'); }
     finally { st.ocupado = false; paint(); if (st.confirmaSalvo) { st.confirmaSalvo = false; const b = root.querySelector('#perfil-salvar'); if (b) confirmaBotao(b, { texto: 'Salvo' }); } } // D8 · ✓ no botão depois de a tela repintar
   }
@@ -17283,6 +17318,28 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
       })() : null,
       Text('Vale neste aparelho e vai junto no backup completo.', { size: 'sm', tone: 'muted' })));
   }
+  /** G-279 · relato #25 (D16 = A): um nome só. Com a conta da Estante, o topo mostra o @ (Trocar uma vez a cada 30 dias);
+      sem conta, "Você" e o convite para criar a conta — sem nome solto para configurar no aparelho. */
+  function identidade() {
+    const lido = carregaUsuario();
+    if (!lido) {
+      if (st.salvo && st.salvo.nome && !st.espelhou) { st.espelhou = true; espelha(); } // nome solto de antes: sai
+      return h('div', { class: 'perfil-identidade', id: 'perfil-identidade', dataset: { estado: 'sem-conta' } },
+        h('b', { class: 'ds-text ds-text--xl perfil-identidade__nome', id: 'perfil-arroba' }, (st.salvo && st.salvo.nome) || 'Você'),
+        Text('Na mesa você aparece como "Você". Crie sua conta para ter um nome só seu, o mesmo no Perfil e na mesa.', { size: 'sm', tone: 'muted', attrs: { id: 'perfil-convite' } }),
+        Button('Criar minha conta', { icone: 'pessoa', id: 'perfil-convite-criar', variant: 'ghost', onClick: () => {
+          const alvo = root.querySelector('#perfil-conta'); if (!alvo) return;
+          alvo.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          const b = alvo.querySelector('button:not([disabled])'); if (b) b.focus({ preventScroll: true });
+        } }));
+    }
+    const { nu, u } = lido, oc = !!st.contaOcupada;
+    return h('div', { class: 'perfil-identidade', id: 'perfil-identidade', dataset: { estado: u.carregando ? 'carregando' : u.nome ? 'tem' : 'sem' } },
+      h('b', { class: 'ds-text ds-text--xl perfil-identidade__nome', id: 'perfil-arroba' }, u.carregando ? 'Conferindo…' : u.nome ? '@' + u.nome : 'Escolha seu @'),
+      Text(u.nome ? 'Seu nome no Perfil e na mesa.' : 'Seu @ é único e vira o seu nome no Perfil e na mesa.', { size: 'sm', tone: 'muted' }),
+      u.carregando ? null : Button(u.nome ? 'Trocar' : 'Escolher', { icone: 'pessoa', id: 'perfil-arroba-trocar', variant: 'ghost', disabled: oc,
+        title: u.nome ? 'Trocar o nome de usuário' : 'Escolher um nome de usuário', onClick: () => abreNomeDeUsuario(nu, u.nome, u.em) }));
+  }
   function paint() {
     if (st.erro) return mount(root, Text('Perfil', { size: '2xl', display: true, as: 'h1' }), Note('Não foi possível ler o perfil guardado neste aparelho.', 'negative'));
     const previa = { nome: st.nome, avatar: st.avatar };
@@ -17296,8 +17353,7 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
             Row({ class: 'ds-row--wrap' },
               IconButton('camera', st.avatar ? 'Trocar foto' : 'Escolher foto', { id: 'perfil-foto', variant: 'ghost', onClick: () => fotoInput.click() }),
               st.avatar ? IconButton('lixeira', 'Remover foto', { id: 'perfil-foto-remover', variant: 'ghost', onClick: () => { st.avatar = null; paint(); } }) : null)),
-          Field('Nome', Input({ id: 'perfil-nome', value: st.nome, maxlength: String(perfil.NOME_MAX), placeholder: 'Como você aparece na mesa', autocomplete: 'nickname',
-            onInput: e => { st.nome = e.target.value; const b = root.querySelector('#perfil-salvar'); if (b) b.disabled = !mudou() || st.ocupado; } }))),
+          identidade()),
         Row({ class: 'ds-row--wrap' },
           Button('Salvar', { variant: 'primary', id: 'perfil-salvar', icone: 'marcar', disabled: !mudou() || st.ocupado, onClick: salvar })),
         fotoInput)),
@@ -41449,15 +41505,32 @@ conta.limpaNuvem = async () => {
 };
 // G-266 · T6f-3 · nome de usuário único: com a conta da Estante conectada e o banco ligado
 conta.nomeDeUsuario = () => { if (online.modo !== 'firebase' || conta.estante().estado !== 'conectada') return null; const uid = conta.sessao.uid(); return uid ? __m40.createNomeDeUsuario({ transporte: online.transporte, uid }) : null; };
+/* G-279 · relato #25 (D16 = A): um nome só. O nome do perfil neste aparelho é o @ da conta da Estante (Início, mesa, sala
+   online e sincronização leem daqui); sem conta, fica em branco e a mesa diz "Você". Banco desligado (sem conta possível),
+   nada muda. Sessão guardada que ainda não voltou
+   (sem rede) mantém o último nome; erro de rede ou banco também. */
+conta.espelhaNome = async () => {
+  try {
+    let nome = '';
+    const estado = conta.estante().estado;
+    if (estado === 'desligada') return; // sem o banco ligado não existe @: o nome guardado fica como está
+    if (estado === 'conectada') {
+      const nu = conta.nomeDeUsuario(); if (!nu) return;
+      const m = await nu.meu(); nome = m ? m.nome : '';
+    } else if (await platform.store.get('conta.sessao')) return;
+    const p = await perfil.get();
+    if (p.nome !== nome) { await perfil.set({ nome }); document.dispatchEvent(new CustomEvent('estante:perfil')); }
+  } catch (e) { /* sem rede ou banco: fica o último nome */ }
+};
 aoPreferencia = () => sincronia.mudou();
 { // conectar (ao entrar, no Perfil ou na sala) já sincroniza; sair para
   const conectar = conta.conectarEstante.bind(conta), sair = conta.sair.bind(conta);
-  conta.conectarEstante = async (...a) => { const r = await conectar(...a); if (conta.estante().estado === 'conectada') sincronia.agora(); return r; };
+  conta.conectarEstante = async (...a) => { const r = await conectar(...a); if (conta.estante().estado === 'conectada') { await conta.espelhaNome(); sincronia.agora(); } return r; };
   // G-265 · entrar ou criar a conta com e-mail e senha também conecta a conta da Estante: sincroniza na hora, como o Google
-  for (const nome of ['criarComEmail', 'entrarComEmail']) { const fn = conta[nome].bind(conta); conta[nome] = async (...a) => { const r = await fn(...a); if (conta.estante().estado === 'conectada') sincronia.agora(); return r; }; }
-  conta.sair = async (...a) => { sincronia.para(); return sair(...a); };
+  for (const nome of ['criarComEmail', 'entrarComEmail']) { const fn = conta[nome].bind(conta); conta[nome] = async (...a) => { const r = await fn(...a); if (conta.estante().estado === 'conectada') { await conta.espelhaNome(); sincronia.agora(); } return r; }; }
+  conta.sair = async (...a) => { sincronia.para(); const r = await sair(...a); await conta.espelhaNome(); return r; };
 }
-conta.pronta.then(() => sincronia.agora());
+conta.pronta.then(async () => { await conta.espelhaNome(); await sincronia.agora(); await conta.espelhaNome(); }); // G-279 · o @ antes e depois do encontro
 if (typeof window !== 'undefined' && window.addEventListener) {
   window.addEventListener('online', () => sincronia.agora());
   let ultimaVolta = Date.now();

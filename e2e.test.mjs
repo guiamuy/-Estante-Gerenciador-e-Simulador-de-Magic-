@@ -206,6 +206,14 @@ async function contagemDaColecao(page) {
   const m = /(\d+) cartas · (\d+) cópias/.exec(t);
   return m ? `${m[1]} carta(s) · ${m[2]} cópia(s)` : t;
 }
+/** G-279 · relato #25 (D16 = A): o Perfil não tem mais nome solto para digitar — o nome é o @ da conta da Estante. Nos
+    testes sem o banco ligado (conta "desligada"), o espelho do @ não mexe no nome guardado: este atalho põe um nome no
+    aparelho para os testes que precisam de um perfil com nome (mesa, Início, backup) e recarrega a tela atual. */
+async function poeNomeNoAparelho(page, nome) {
+  await page.evaluate(nome => new Promise((res, rej) => { const r = indexedDB.open('mtg', 1); r.onsuccess = () => { const tx = r.result.transaction('kv', 'readwrite'); const kv = tx.objectStore('kv');
+    const q = kv.get('perfil'); q.onsuccess = () => { kv.put({ ...(q.result || {}), nome, atualizadoEm: Date.now() }, 'perfil'); }; tx.oncomplete = () => { r.result.close(); res(); }; tx.onerror = rej; }; r.onerror = rej; }), nome);
+  await page.reload();
+}
 async function createDeck(page, base, name, text, format = 'pauper') {
   await page.goto(base + '#/listas/editar');
   await page.fill('#deck-name', name);
@@ -4066,8 +4074,9 @@ test('e2e · P-10 Apagar tudo deste aparelho: em Perfil › Dados, Cancelar não
   await createDeck(page, base, 'Para apagar', '20 Island');
   await page.evaluate(async () => { sessionStorage.setItem('estante.online.assento', '{}'); localStorage.setItem('estante.online:salas/ESTA-TEST', '{}'); localStorage.setItem('outro-site', 'fica');
     const c = await caches.open('estante-img-v1'); await c.put('https://cards.scryfall.io/x.png', new Response('x')); await (await caches.open('outro-app-v1')).put('/y', new Response('y')); });
-  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-nome');
-  await page.fill('#perfil-nome', 'Gui'); await page.click('#perfil-salvar'); await page.waitForTimeout(300);
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-arroba');
+  await poeNomeNoAparelho(page, 'Gui'); await page.waitForSelector('#perfil-arroba'); // G-279 · sem nome solto no Perfil
+  assert.ok((await chaves()).includes('perfil'), 'o perfil está guardado');
   assert.ok((await chaves()).some(k => k.startsWith('deck.')), 'a lista está guardada');
   // 1 · Cancelar não apaga nada
   await page.click('#perfil-apagar-tudo'); await page.waitForSelector('#apagar-confirmar');
@@ -4090,8 +4099,8 @@ test('e2e · P-10 Apagar tudo deste aparelho: em Perfil › Dados, Cancelar não
     img: await (async () => { if (!(await caches.has('estante-img-v1'))) return 0; return (await (await caches.open('estante-img-v1')).keys()).length; })(), outro: await caches.has('outro-app-v1') }));
   assert.deepEqual(fora, { sessao: [], local: ['outro-site'], img: 0, outro: true });
   await page.goto(base + '#/listas'); await page.waitForSelector('#decks-vazio');
-  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-nome');
-  assert.equal(await page.inputValue('#perfil-nome'), '');
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-arroba');
+  assert.equal(await page.innerText('#perfil-arroba'), 'Você', 'perfil recém-instalado');
   assert.deepEqual(errors, []);
 });
 
@@ -4923,7 +4932,11 @@ test('e2e · Leva 128 perfil: nome e foto na barra e na mesa, hot-seat preenchid
   const nb = await nav.boundingBox(); assert.ok(nb.height >= 44 && nb.width >= 44, JSON.stringify(nb));
   const jogar = await page.locator('#nav-play').boundingBox(); assert.ok(nb.x + nb.width <= jogar.x, 'o avatar não encosta em "Jogar"');
   // tela do perfil: Salvar só liga quando algo muda; foto da galeria entra reduzida; nome limitado
-  await nav.click(); await page.waitForSelector('#perfil-nome');
+  await nav.click(); await page.waitForSelector('#perfil-arroba');
+  // G-279 · relato #25 (D16 = A): sem conta não há nome para configurar — o topo diz "Você" e convida a criar a conta
+  assert.equal(await page.innerText('#perfil-arroba'), 'Você'); assert.match(await page.innerText('#perfil-convite'), /Crie sua conta/);
+  assert.equal(await page.locator('#perfil-nome').count(), 0, 'o campo de nome solto saiu');
+  assert.ok((await page.locator('#perfil-convite-criar').boundingBox()).height >= 44);
   assert.equal(await page.locator('#perfil-salvar').isDisabled(), true, 'nada mudou ainda');
   assert.equal(await page.locator('.ds-btn--primary:visible').count(), 1, 'um primário na tela');
   await page.setInputFiles('#perfil-foto-arquivo', { name: 'eu.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAEAAAAAwCAIAAAAuKetIAAAAVUlEQVR4nO3PAQnAQAzAwBYm5uVMzuRPxvGQIway33t25t6e2blaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oD2g+i4AIciMsj+gAAAABJRU5ErkJggg==', 'base64') });
@@ -4931,11 +4944,13 @@ test('e2e · Leva 128 perfil: nome e foto na barra e na mesa, hot-seat preenchid
   await page.waitForSelector('.perfil-avatar[data-tipo="foto"]');
   const foto = await page.$eval('.perfil-avatar img', i => ({ src: i.src.slice(0, 22), w: i.naturalWidth, h: i.naturalHeight }));
   assert.equal(foto.src, 'data:image/jpeg;base64'); assert.equal(foto.w, 192); assert.equal(foto.h, 192, 'quadrado central reduzido a 192 px');
-  await page.fill('#perfil-nome', 'Guilherme'); 
   assert.equal(await page.locator('#perfil-salvar').isDisabled(), false);
   await page.click('#perfil-salvar'); await page.waitForSelector('#ds-toast[data-open="true"]');
   assert.match(await page.innerText('#ds-toast'), /Perfil salvo/);
   assert.equal(await page.getAttribute('#nav-perfil .ds-avatar', 'data-tipo'), 'foto', 'a barra atualiza sem recarregar');
+  // o nome vem do @ da conta; aqui o aparelho recebe um nome para seguir com a mesa e o backup
+  await poeNomeNoAparelho(page, 'Guilherme'); await page.waitForSelector('#perfil-arroba');
+  assert.equal(await page.innerText('#perfil-arroba'), 'Guilherme');
   assert.equal(await nav.getAttribute('aria-label'), 'Perfil de Guilherme');
   assert.equal(await page.getAttribute('#nav-perfil', 'aria-current'), 'page', 'o avatar marca a tela atual');
   await auditaTela(page, 'perfil (escuro)');
@@ -4943,7 +4958,7 @@ test('e2e · Leva 128 perfil: nome e foto na barra e na mesa, hot-seat preenchid
   for (const w of [384, 390, 412]) { await page.setViewportSize({ width: w, height: w === 390 ? 844 : w === 384 ? 832 : 891 }); await auditaTela(page, 'perfil ' + w); }
   await page.setViewportSize({ width: 360, height: 780 }); await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   // recarrega: o perfil persiste no aparelho
-  await page.reload(); await page.waitForSelector('#perfil-nome'); assert.equal(await page.inputValue('#perfil-nome'), 'Guilherme');
+  await page.reload(); await page.waitForSelector('#perfil-arroba'); assert.equal(await page.innerText('#perfil-arroba'), 'Guilherme');
   assert.equal(await page.getAttribute('#nav-perfil .ds-avatar', 'data-tipo'), 'foto');
   // remover a foto: a inicial entra no lugar; salvar de novo
   await page.click('#perfil-foto-remover'); await page.waitForSelector('.perfil-avatar[data-tipo="inicial"]');
@@ -4959,7 +4974,7 @@ test('e2e · Leva 128 perfil: nome e foto na barra e na mesa, hot-seat preenchid
   assert.match(await page.innerText('.tb-side--me'), /Guilherme/, 'o contador de vida mostra o nome do perfil');
   assert.doesNotMatch(await page.innerText('.tb-side--me .tb-life, .tb-side--me'), /\bVocê\b.*Grimório/s, 'não sobra "Você" no assento');
   // foto do perfil no círculo da faixa de vez quando o turno é seu
-  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-nome');
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-arroba');
   await page.setInputFiles('#perfil-foto-arquivo', { name: 'eu.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAEAAAAAwCAIAAAAuKetIAAAAVUlEQVR4nO3PAQnAQAzAwBYm5uVMzuRPxvGQIway33t25t6e2blaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oD2g+i4AIciMsj+gAAAABJRU5ErkJggg==', 'base64') });
   await page.click('#perfil-foto-usar'); // leva 149 · a foto passa pelo enquadramento antes de entrar
   await page.waitForSelector('.perfil-avatar[data-tipo="foto"]'); await page.click('#perfil-salvar'); await page.waitForTimeout(200);
@@ -4977,10 +4992,10 @@ test('e2e · Leva 128 perfil: nome e foto na barra e na mesa, hot-seat preenchid
   const dados = JSON.parse(texto);
   assert.equal(dados.version, 3); assert.equal(dados.perfil.nome, 'Guilherme'); assert.match(dados.perfil.avatar, /^data:image\/jpeg/); assert.ok('ui.theme' in dados.prefs); assert.equal(dados.decks.length, 1);
   await page.evaluate(() => indexedDB.databases().then(ds => Promise.all(ds.map(d => new Promise(r => { const q = indexedDB.deleteDatabase(d.name); q.onsuccess = q.onerror = q.onblocked = r; })))));
-  await page.reload(); await page.waitForSelector('#perfil-nome'); assert.equal(await page.inputValue('#perfil-nome'), '', 'aparelho limpo');
+  await page.reload(); await page.waitForSelector('#perfil-arroba'); assert.equal(await page.innerText('#perfil-arroba'), 'Você', 'aparelho limpo');
   await page.setInputFiles('#perfil-backup-arquivo', { name: 'estante-backup.json', mimeType: 'application/json', buffer: Buffer.from(texto) });
   await page.waitForSelector('#ds-toast[data-open="true"]'); assert.match(await page.innerText('#ds-toast'), /1 lista\(s\) restaurada\(s\).*perfil.*preferências/);
-  await page.waitForFunction(() => document.querySelector('#perfil-nome').value === 'Guilherme');
+  await page.waitForFunction(() => (document.querySelector('#perfil-arroba') || {}).textContent === 'Guilherme');
   assert.equal(await page.getAttribute('#nav-perfil .ds-avatar', 'data-tipo'), 'foto');
   assert.equal(await page.evaluate(() => document.documentElement.getAttribute('data-theme')), dados.prefs['ui.theme'], 'o tema volta com o backup');
   // D5 (leva 150) · expectativa mudou: o backup vive só em Perfil › Dados; Listas fica com o uso
@@ -5028,9 +5043,11 @@ test('e2e · Leva 129 conta Google: sem Client ID a seção explica e fica apaga
   await auditaTela(page, 'perfil com conta (escuro)');
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light')); await auditaTela(page, 'perfil com conta (claro)');
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
-  // 3 · "Usar na mesa": nome e foto da conta viram o perfil (foto reduzida como a da galeria) e a barra atualiza
-  await page.click('#conta-usar'); await page.waitForFunction(() => document.querySelector('#perfil-nome') && document.querySelector('#perfil-nome').value === 'Gui da Conta');
-  await page.waitForSelector('.perfil-avatar[data-tipo="foto"]');
+  // 3 · G-279 (relato #25, D16 = A) · "Usar a foto": a foto da conta Google vira a do perfil (reduzida como a da galeria) e a
+  // barra atualiza; o nome não vem do Google — é o @ da conta da Estante
+  assert.equal(await page.innerText('#conta-usar .ds-btn__rotulo'), 'Usar a foto');
+  await page.click('#conta-usar'); await page.waitForSelector('.perfil-avatar[data-tipo="foto"]');
+  assert.equal(await page.innerText('#perfil-arroba'), 'Você', 'o nome do Google não entra no perfil');
   assert.equal(await page.$eval('.perfil-avatar img', i => i.naturalWidth), 192);
   assert.equal(await page.getAttribute('#nav-perfil .ds-avatar', 'data-tipo'), 'foto');
   // 4 · enviar o backup: o arquivo da nuvem é o backup v3 com o perfil; a hora do envio aparece
@@ -5039,7 +5056,7 @@ test('e2e · Leva 129 conta Google: sem Client ID a seção explica e fica apaga
   await page.evaluate(() => { const t = document.querySelector('#ds-toast'); if (t) t.dataset.open = 'false'; }); // o aviso "Lista criada" ainda estava aberto
   await page.click('#conta-enviar'); await page.waitForFunction(() => /nuvem/.test(document.querySelector('#ds-toast')?.textContent || ''));
   assert.match(await page.innerText('#ds-toast'), /enviado para a nuvem/);
-  const enviado = JSON.parse(nuvem.arquivo); assert.equal(enviado.version, 3); assert.equal(enviado.perfil.nome, 'Gui da Conta'); assert.equal(enviado.decks.length, 1);
+  const enviado = JSON.parse(nuvem.arquivo); assert.equal(enviado.version, 3); assert.match(enviado.perfil.avatar, /^data:image\/jpeg/); assert.equal(enviado.decks.length, 1);
   await page.waitForFunction(() => !/nunca/.test(document.querySelector('#conta-backup-quando').textContent));
   assert.equal(nuvem.pedidos.some(p => p.startsWith('POST /upload/drive/v3/files?uploadType=multipart')), true, 'primeiro envio cria o arquivo na pasta do app');
   await page.click('#conta-enviar'); await page.waitForTimeout(300);
@@ -5048,13 +5065,13 @@ test('e2e · Leva 129 conta Google: sem Client ID a seção explica e fica apaga
   // 5 · aparelho limpo + baixar da nuvem traz lista e perfil de volta
   await page.evaluate(() => indexedDB.databases().then(ds => Promise.all(ds.map(d => new Promise(r => { const q = indexedDB.deleteDatabase(d.name); q.onsuccess = q.onerror = q.onblocked = r; })))));
   await page.reload(); await page.waitForSelector('#conta-entrar:not([disabled])'); await page.click('#conta-entrar'); await page.waitForSelector('#conta-baixar');
-  await page.click('#conta-baixar'); await page.waitForFunction(() => document.querySelector('#perfil-nome') && document.querySelector('#perfil-nome').value === 'Gui da Conta');
+  await page.click('#conta-baixar'); await page.waitForSelector('.perfil-avatar[data-tipo="foto"]');
   await page.goto(base + '#/listas'); await page.waitForSelector('.deck-summary, #decks-list .ds-list__item, [data-deck]'); assert.match(await page.innerText('#decks-list'), /Delver/);
   // 6 · sair: revoga, apaga a conta do aparelho; o perfil local fica
   await page.goto(base + '#/perfil'); await page.waitForSelector('#conta-sair'); await page.click('#conta-sair');
   await page.waitForSelector('#conta-entrar:not([disabled])');
   assert.deepEqual(await page.evaluate(() => window.__googleLog.at(-1)), ['revoga', 'tok-e2e']);
-  assert.equal(await page.inputValue('#perfil-nome'), 'Gui da Conta', 'sair da conta não apaga o perfil local');
+  assert.equal(await page.getAttribute('.perfil-avatar', 'data-tipo'), 'foto', 'sair da conta Google não apaga a foto do perfil');
   // 7 · sem internet, entrar explica em vez de falhar em silêncio
   await page.context().setOffline(true); await page.click('#conta-entrar'); await page.waitForSelector('#ds-toast[data-open="true"]');
   assert.match(await page.innerText('#ds-toast'), /Sem internet/); await page.context().setOffline(false);
@@ -5234,8 +5251,8 @@ test('e2e · G-274 porta de entrada: a primeira abertura (até por um link) para
   await page.click('#conta-email-modo [data-modo="criar"]');
   await page.fill('#conta-email-campo', 'nova@exemplo.com'); await page.fill('#conta-senha', 'senha-certa-1');
   await page.click('#conta-email-confirmar');
-  // G-275 · criar a conta pede o nome na mesa antes; aqui, Pular (o Seguir tem o teste "G-275")
-  await page.waitForSelector('#porta-passo-nome'); await page.click('#porta-nome-pular');
+  // G-280 · o passo do @ só existe com o banco ligado (aqui não está): criar a conta segue direto (o @ tem o teste "G-275/G-280")
+  assert.equal(await page.locator('#porta-passo-nome').count(), 0);
   await page.waitForFunction(() => location.hash === '#/listas'); await page.waitForSelector('.ds-appbar', { state: 'visible' });
   assert.equal(await page.locator('#porta').count(), 0);
   // 4 · reabrir vai direto, sem porta
@@ -5266,10 +5283,26 @@ test('e2e · G-274 porta de entrada sem conta ligada no app: só Continuar sem c
   assert.deepEqual(errors, []);
 });
 
-test('e2e · G-275 porta de entrada: criar a conta pede o nome na mesa (vazio avisa, Seguir guarda e cumprimenta); Sair no Perfil volta à porta com o aviso, e sem conta segue', { skip }, async t => {
+test('e2e · G-275/G-280 porta de entrada: criar a conta pede o @ (vazio avisa, formato a cada letra, em uso avisa, Seguir reserva e cumprimenta pelo @); Sair no Perfil volta à porta com o aviso e o nome sai; sem conta segue como "Você"', { skip }, async t => {
   const { page, errors, base } = await open(t, { porta: true });
   await page.setViewportSize({ width: 360, height: 780 });
+  // G-280 · relato #25 (D16 = A): o nome é o @ único da conta; o banco de mentira aplica a regra da reserva (só se livre)
+  const banco = { usuarios: { ocupado: { uid: 'outraConta', em: 1 } } };
+  await page.route('https://teste.firebaseio.com/**', async r => {
+    const u = new URL(r.request().url()), seg = u.pathname.replace(/\.json$/, '').split('/').filter(Boolean), metodo = r.request().method();
+    if (!u.searchParams.get('auth')) return r.fulfill({ status: 401, json: { error: 'Permission denied' } });
+    const corpo = r.request().postData() ? JSON.parse(r.request().postData()) : null;
+    const atual = seg.reduce((o, k) => (o && typeof o === 'object' ? o[k] : undefined), banco) ?? null;
+    if (seg[0] === 'usuarios' && metodo === 'PUT' && atual && atual.uid !== 'uidPorta_2') return r.fulfill({ status: 401, json: { error: 'Permission denied' } });
+    const poe = (caminho, v) => { let o = banco; for (const k of caminho.slice(0, -1)) o = o[k] = o[k] && typeof o[k] === 'object' ? o[k] : {}; if (v === null) delete o[caminho.at(-1)]; else o[caminho.at(-1)] = v; };
+    if (metodo === 'PUT') poe(seg, corpo);
+    if (metodo === 'DELETE') poe(seg, null);
+    if (metodo === 'PATCH') for (const [k, v] of Object.entries(corpo)) poe([...seg, ...k.split('/')], v);
+    return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(metodo === 'GET' ? atual : corpo) });
+  });
   await page.addInitScript(() => {
+    window.__FIREBASE_DB_URL = 'https://teste.firebaseio.com';
+    window.EventSource = class { constructor() {} addEventListener() {} close() {} };
     window.__GOOGLE_CLIENT_ID = 'e2e.apps.googleusercontent.com';
     window.__FIREBASE_API_KEY = 'chave-e2e';
     const ok = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } });
@@ -5284,20 +5317,29 @@ test('e2e · G-275 porta de entrada: criar a conta pede o nome na mesa (vazio av
   await page.click('#porta-email'); await page.waitForSelector('#conta-email-campo');
   await page.click('#conta-email-modo [data-modo="criar"]'); await page.fill('#conta-email-campo', 'mesa@exemplo.com'); await page.fill('#conta-senha', 'senha-certa-1');
   await page.click('#conta-email-confirmar');
-  // 1 · o passo do nome: título, campo com foco, Seguir primário e Pular
+  // 1 · o passo do @: título, campo com foco, Seguir primário e Pular; a regra (uma troca a cada 30 dias) dita na frase
   await page.waitForSelector('#porta-passo-nome'); assert.equal(await page.innerText('#porta-titulo'), 'Conta criada');
+  assert.match(await page.innerText('#porta-frase'), /Escolha seu @[\s\S]*30 dias/);
   assert.equal(await page.evaluate(() => document.activeElement && document.activeElement.id), 'porta-nome');
   for (const id of ['#porta-nome-seguir', '#porta-nome-pular']) assert.ok((await page.locator(id).boundingBox()).height >= 44, id);
-  await page.waitForTimeout(500); await auditaTela(page, 'porta · nome na mesa');
+  await page.waitForTimeout(500); await auditaTela(page, 'porta · escolher o @');
   await page.click('#porta-nome-seguir'); await page.waitForSelector('#porta-nome-erro .ds-note');
-  await page.fill('#porta-nome', 'Gui'); await page.press('#porta-nome', 'Enter');
-  await page.waitForSelector('#home'); assert.equal(await page.innerText('#home-titulo'), 'Olá, Gui');
-  // 2 · Sair (Perfil) volta à porta, com o aviso; o nome fica no aparelho
-  await page.goto(base + '#/perfil'); await page.waitForSelector('#conta-sair'); await page.click('#conta-sair');
+  await page.fill('#porta-nome', 'joão'); assert.match(await page.innerText('#porta-nome-dica'), /sem acento/);
+  await page.fill('#porta-nome', 'Ocupado'); assert.match(await page.innerText('#porta-nome-dica'), /Fica @ocupado/);
+  await page.press('#porta-nome', 'Enter'); await page.waitForFunction(() => /já é de outra conta/.test((document.querySelector('#porta-nome-erro') || {}).textContent || ''));
+  assert.equal(banco.usuarios.ocupado.uid, 'outraConta');
+  await page.fill('#porta-nome', '@Gui'); await page.press('#porta-nome', 'Enter');
+  await page.waitForSelector('#home'); await page.waitForFunction(() => (document.querySelector('#home-titulo') || {}).textContent === 'Olá, gui');
+  assert.equal(banco.usuarios.gui.uid, 'uidPorta_2'); assert.equal(banco.perfis.uidPorta_2.usuario.nome, 'gui');
+  // o Perfil mostra o @ no topo, com Trocar
+  await page.goto(base + '#/perfil'); await page.waitForFunction(() => (document.querySelector('#perfil-arroba') || {}).textContent === '@gui');
+  assert.equal(await page.locator('#perfil-nome').count(), 0, 'sem nome solto para digitar');
+  // 2 · Sair (Perfil) volta à porta, com o aviso; o nome sai do aparelho (sem conta, "Você")
+  await page.waitForSelector('#conta-sair'); await page.click('#conta-sair');
   await page.waitForSelector('#porta'); assert.equal(await page.evaluate(() => location.hash), '#/entrar');
   await page.waitForFunction(() => /Conta desconectada/.test((document.querySelector('#ds-toast') || {}).textContent || ''));
-  // 3 · sem conta, a porta leva ao início e não volta ao reabrir
-  await page.click('#porta-pular'); await page.waitForSelector('#home'); assert.equal(await page.innerText('#home-titulo'), 'Olá, Gui');
+  // 3 · sem conta, a porta leva ao início (sem nome) e não volta ao reabrir
+  await page.click('#porta-pular'); await page.waitForSelector('#home'); await page.waitForFunction(() => (document.querySelector('#home-titulo') || {}).textContent === 'Estante');
   await page.reload(); await page.waitForSelector('#home'); assert.equal(await page.locator('#porta').count(), 0);
   assert.deepEqual(errors, []);
 });
@@ -6886,8 +6928,7 @@ test('e2e · D3 início que lembra de você: "Olá, Nome", cartão Continuar (pa
   // leva 139 passa a ser de 30 px sem perfil e 55 px com perfil (antes 50 e 75)
   assert.ok(semPerfil <= antes - 30, `Jogar subiu ≥ 30 px sem perfil (${antes} → ${semPerfil})`);
   // com perfil: "Olá, Nome", a frase sai e o atalho sobe mais
-  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-nome');
-  await page.fill('#perfil-nome', 'Gui'); await page.click('#perfil-salvar'); await page.waitForSelector('#ds-toast[data-open="true"]');
+  await poeNomeNoAparelho(page, 'Gui'); // G-279 · o nome é o @ da conta; aqui o aparelho recebe um nome direto
   await page.goto(base + '#/'); await page.waitForSelector('#home-atalhos');
   await page.waitForFunction(() => (document.querySelector('#home-titulo') || {}).textContent === 'Olá, Gui');
   assert.equal(await page.locator('#home-frase').isVisible(), false);
@@ -7108,8 +7149,7 @@ test('e2e · leva 149 Jogar: não existe "Todos"; sempre há um formato escolhid
 test('e2e · leva 149 perfil: enquadrar a foto arrastando e aproximando; sem o texto "Na mesa"', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.setViewportSize({ width: 360, height: 780 });
-  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-nome');
-  await page.fill('#perfil-nome', 'Guilherme');
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-arroba');
   assert.doesNotMatch(await page.innerText('main, body'), /Na mesa:/, 'o texto "Na mesa: nome" saiu');
   // foto 64×48 (paisagem): metade esquerda vermelha, metade direita azul, feita na hora
   const png = await page.evaluate(() => { const c = document.createElement('canvas'); c.width = 64; c.height = 48; const x = c.getContext('2d'); x.fillStyle = '#c00'; x.fillRect(0, 0, 32, 48); x.fillStyle = '#00c'; x.fillRect(32, 0, 32, 48); return c.toDataURL('image/png').split(',')[1]; });
@@ -7334,7 +7374,10 @@ test('e2e · D8 avisos no lugar: a lista sem rede tem uma linha de estado (≤ 4
   await page.waitForSelector('#deck-copy-missing:not([data-confirmado])', { timeout: 3000 });
   assert.equal(await page.innerText('#deck-copy-missing .ds-btn__rotulo'), 'Copiar sem script');
   // Perfil: Salvar vira "Salvo" por um instante
-  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-nome'); await page.fill('#perfil-nome', 'Gui'); await page.click('#perfil-salvar');
+  // G-279 · o Perfil salva só a foto: Salvar liga quando a foto muda
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-arroba');
+  await page.setInputFiles('#perfil-foto-arquivo', { name: 'eu.png', mimeType: 'image/png', buffer: Buffer.from(await page.evaluate(() => { const c = document.createElement('canvas'); c.width = 48; c.height = 48; c.getContext('2d').fillRect(0, 0, 48, 48); return c.toDataURL('image/png').split(',')[1]; }), 'base64') });
+  await page.click('#perfil-foto-usar'); await page.waitForSelector('.perfil-avatar[data-tipo="foto"]'); await page.click('#perfil-salvar');
   await page.waitForSelector('#perfil-salvar[data-confirmado="true"]'); assert.equal(await page.innerText('#perfil-salvar .ds-btn__rotulo'), 'Salvo');
   assert.deepEqual(errors, []);
 });
@@ -14359,10 +14402,10 @@ test('e2e · G-276 relato #27: entrar e sair cobrem a troca de tela com a transi
   await page.evaluate(() => { window.__transicoes = []; new MutationObserver(ms => { for (const m of ms) for (const n of m.addedNodes) if (n.id === 'transicao-conta') window.__transicoes.push([n.textContent.trim(), n.getAttribute('role'), n.dataset.aberta]); }).observe(document.body, { childList: true }); });
   await page.click('#porta-email'); await page.waitForSelector('#conta-email-campo');
   await page.click('#conta-email-modo [data-modo="criar"]'); await page.fill('#conta-email-campo', 'sair@exemplo.com'); await page.fill('#conta-senha', 'senha-certa-1');
-  await page.click('#conta-email-confirmar'); await page.waitForSelector('#porta-passo-nome');
   // 1 · entrar: a transição "Entrando…" cobre a troca da porta pelo Início e fica ao menos 450 ms
+  // (G-280 · sem o banco ligado não há passo do @: criar a conta já entra)
   const t0 = Date.now();
-  await page.click('#porta-nome-pular');
+  await page.click('#conta-email-confirmar');
   await page.waitForSelector('#transicao-conta[data-aberta="true"]'); assert.equal(await page.innerText('#transicao-conta'), 'Entrando…');
   await page.waitForSelector('#home');
   await page.waitForFunction(() => document.getElementById('transicao-conta') === null); assert.ok(Date.now() - t0 >= 450, 'ficou ao menos 450 ms');
