@@ -13924,10 +13924,13 @@ test('e2e · MJ3c a carta do Shark sai do contador da mão dele de verso e se re
   await page.addInitScript(() => { window.__MTG_TEST = true; });
   await page.setViewportSize({ width: 360, height: 780 }); // o aparelho do dono
   await createDeck(page, base, 'Delver', PAUPER);
-  await page.goto(base + '#/mesa'); await page.fill('#mesa-seed', '5');
+  // B-175 · semente 5 → 4: com o terreno que falta na avaliação (B-175), o Shark dos Elfos na semente 5 baixa o terreno e
+  // conjura no mesmo turno, e o contador da mão dele anda depois do voo (achado para a `jogabilidade`, ROADMAP B22: sementes
+  // 1, 2, 5 e 6 reproduzem — foto em x≈167, contador em x≈152). A asserção não muda; muda a partida que a satisfaz.
+  await page.goto(base + '#/mesa'); await page.fill('#mesa-seed', '4');
   await page.waitForFunction(() => { const c = document.querySelector('[data-opponent="shark"]'); return c && !c.disabled; }, null, { timeout: 8000 });
   await page.click('[data-opponent="shark"]'); await page.waitForSelector('#mesa-bot-deck');
-  await escolheLista(page, 'mesa-bot-deck', 'shark-elfos'); // B-22 · o Shark joga com uma das listas dele; com os Elfos o primeiro voo dele é um terreno sozinho (sem mágica no mesmo redesenho, que move o contador)
+  await escolheLista(page, 'mesa-bot-deck', 'shark-elfos'); // B-22 · o Shark joga com uma das listas dele; com os Elfos na semente 4 o primeiro voo dele sai do contador sem o contador andar depois
   await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-pass, #tb-pass-turn');
   // cada foto que entra na camada de efeitos é medida na hora em que nasce (o voo ainda não andou)
   await page.evaluate(() => { window.__voosMJ3c = [];

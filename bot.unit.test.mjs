@@ -513,7 +513,9 @@ test('Leva 115 · mana que ia sobrar: na segunda fase principal o v3 conjura a c
   s = J(s); const a = s.turn.active, z = s.zones[a];
   for (const oid of [...z.hand]) { z.hand.splice(z.hand.indexOf(oid), 1); z.library.push(oid); s.objects[oid].zone = 'library'; }
   const tira = (nome, para) => { const oid = z.library.find(o => s.objects[o].name === nome); z.library.splice(z.library.indexOf(oid), 1); z[para].push(oid); Object.assign(s.objects[oid], { zone: para, sick: false, tapped: false }); return oid; };
-  tira('Floresta', 'battlefield'); tira('Floresta', 'battlefield'); const x = tira('Troca', 'hand');
+  // B-175 · com quatro terrenos: a compra que troca uma carta por outra não muda a nota, e entra só pela mana que ia sobrar.
+  // Com menos de quatro (caso abaixo), a compra pode achar o terreno que falta (avaliaV5) e o Shark a conjura na primeira chance.
+  for (let i = 0; i < 4; i++) tira('Floresta', 'battlefield'); const x = tira('Troca', 'hand');
   s.turn.step = 'main2'; s.turn.priority = a; s.players[a].landPlayed = true;
   const v3 = B.criaBot({ nivel: 'shark' }).jogada(s, a), v2 = B.criaBot({ nivel: 'shark-v2' }).jogada(s, a);
   assert.equal(v2.acao.t, 'pass', 'v2: comprar uma carta gastando uma carta não melhora a nota, então passava');
@@ -522,6 +524,11 @@ test('Leva 115 · mana que ia sobrar: na segunda fase principal o v3 conjura a c
   // na primeira fase principal ele ainda espera (pode precisar da mana no combate)
   const cedo = J(s); cedo.turn.step = 'main1';
   assert.equal(B.criaBot({ nivel: 'shark' }).jogada(cedo, a).acao.t, 'pass');
+  // B-175 · preso em dois terrenos, a compra vale pelo terreno que pode achar: conjura já na primeira fase principal
+  const curto = J(cedo); for (const oid of curto.zones[a].battlefield.slice(2)) { curto.zones[a].battlefield.splice(curto.zones[a].battlefield.indexOf(oid), 1); curto.zones[a].library.push(oid); curto.objects[oid].zone = 'library'; }
+  const jc = B.criaBot({ nivel: 'shark' }).jogada(curto, a);
+  assert.deepEqual([jc.acao.t, jc.acao.oid], ['cast', x], 'com dois terrenos, compra já');
+  assert.equal(B.criaBot({ nivel: 'shark-v10' }).jogada(curto, a).acao.t, 'pass', 'o v10 esperava a segunda fase');
 });
 
 test('Leva 115 · carta com escolha (Winding Way): o v3 enxerga o que ela rende e conjura; o v2 via só a carta saindo da mão', async () => {
@@ -898,7 +905,8 @@ test('B9 · perfil: o Shark reconhece o Walls Combo pela própria lista; as outr
   const walls = await monta(4, 3, {});
   assert.equal(B.perfilDe(walls.s, 0).id, 'walls-combo');
   assert.equal(B.perfilDe(walls.s, 1), null, 'Boros Bully');
-  for (const pf of B.PERFIS) assert.ok(pf.exige.length && pf.combo.motor && pf.combo.desvira && pf.combo.finalizadores.length);
+  // B-175 · um perfil tem plano de combo (motor, desvira, finalizadores) ou plano de cemitério (tipos, enquanto); nunca nenhum dos dois
+  for (const pf of B.PERFIS) assert.ok(pf.exige.length && ((pf.combo && pf.combo.motor && pf.combo.desvira && pf.combo.finalizadores.length) || (pf.cemiterio && pf.cemiterio.tipos.length && pf.cemiterio.enquanto.length)), pf.id);
 });
 
 test('B9 · terreno na mão vale menos que terreno em campo: a Quirion Ranger não devolve a Floresta à toa', async () => {
@@ -1077,4 +1085,64 @@ test('B-22 · cada lista do Shark joga uma partida Shark × Shark sem jogada ile
     assert.equal(g.ilegal, null, `${L[i].id} × ${L[(i + 1) % L.length].id}: ${g.ilegal}`);
     assert.ok(g.acoes > 20, `${L[i].id}: a partida andou (${g.acoes} ações)`);
   }
+});
+
+/* ---- B-175 · perfil do Mono Blue Terror e o terreno que falta (B22 fatia 3) ---- */
+/** Posição com duas listas do Shark (índices em `listasDoShark()`), no molde de `monta`; `cemiterio` também é aceito. */
+async function montaShark(a, b, { ativo = 0, vez = 0, passo = 'main1', p0 = {}, p1 = {}, seed = 9 }) {
+  const { listasDoShark } = await import('./torneio.listas.mjs');
+  const L = listasDoShark(), d0 = L[a], d1 = L[b];
+  const cards = {}; for (const e of [...d0.entries, ...d1.entries]) if (d0.cartas[e.name]) cards[e.name] = d0.cartas[e.name];
+  let s = E.createGame({ format: 'pauper', seed, mode: 'full', manaCheck: true, cards, players: [{ name: 'P0', deck: d0.entries }, { name: 'P1', deck: d1.entries }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  s = J(s); const ids = [{}, {}];
+  [p0, p1].forEach((cfg, p) => {
+    const z = s.zones[p];
+    for (const oid of [...z.hand]) { z.hand.splice(z.hand.indexOf(oid), 1); z.library.push(oid); s.objects[oid].zone = 'library'; }
+    const tira = (nome, para) => { const oid = z.library.find(o => s.objects[o].name === nome); assert.ok(oid, 'a lista tem ' + nome);
+      z.library.splice(z.library.indexOf(oid), 1); z[para].push(oid); Object.assign(s.objects[oid], { zone: para, sick: false, tapped: false }); return oid; };
+    for (const n of cfg.campo || []) ids[p][n] = tira(n, 'battlefield');
+    for (const n of cfg.mao || []) ids[p][n] = tira(n, 'hand');
+    for (const n of cfg.cemiterio || []) ids[p][n] = tira(n, 'graveyard');
+    s.players[p].landPlayed = p === ativo;
+  });
+  Object.assign(s.turn, { active: ativo, priority: vez, step: passo });
+  s.stack = []; s.pending = null;
+  return { s, ids };
+}
+const TERROR = 3, MADNESS = 0; // índices em LISTAS_DO_SHARK
+
+test('B-175 · avaliaV5: cada terreno que falta para quatro, contando campo e mão, custa 3; devolver um terreno do campo à mão não muda a parcela', async () => {
+  const semTerreno = await montaShark(TERROR, MADNESS, { p0: { campo: ['Island', 'Island'], mao: ['Lórien Revealed', 'Counterspell'] } });
+  assert.equal(B.avaliaV5(semTerreno.s, 0).parcelas.falta, -6);
+  assert.equal(B.avaliaV5(semTerreno.s, 0).nota, B.avaliaV4(semTerreno.s, 0).nota - 6);
+  const comTerreno = await montaShark(TERROR, MADNESS, { p0: { campo: ['Island', 'Island'], mao: ['Lórien Revealed', 'Island'] } });
+  assert.equal(B.avaliaV5(comTerreno.s, 0).parcelas.falta, -3, 'a Ilha na mão conta: falta uma');
+  const devolvida = await montaShark(TERROR, MADNESS, { p0: { campo: ['Island'], mao: ['Lórien Revealed', 'Island'] } });
+  assert.equal(B.avaliaV5(devolvida.s, 0).parcelas.falta, B.avaliaV5(semTerreno.s, 0).parcelas.falta, 'uma Ilha a menos no campo e uma a mais na mão: a mesma falta (o Quirion Ranger não "acha" terreno)');
+  const quatro = await montaShark(TERROR, MADNESS, { p0: { campo: ILHAS(4), mao: ['Counterspell'] } });
+  assert.equal(B.avaliaV5(quatro.s, 0).parcelas.falta, 0);
+  const cinco = await montaShark(TERROR, MADNESS, { p0: { campo: ILHAS(5), mao: ['Counterspell'] } });
+  assert.equal(B.avaliaV5(cinco.s, 0).parcelas.falta, 0, 'acima de quatro não há prêmio');
+  const fim = J(semTerreno.s); fim.players[1].lost = true; fim.status = 'over'; fim.winner = 0;
+  assert.equal(B.avaliaV5(fim, 0).nota, B.avaliaV4(fim, 0).nota, 'partida acabada: a parcela não entra');
+});
+
+test('B-175 · preso em duas Ilhas com a Lórien Revealed na mão, no fim do turno do oponente o Shark a recicla por uma Ilha; o v10 passava', async () => {
+  const { s, ids } = await montaShark(TERROR, MADNESS, { ativo: 1, vez: 0, passo: 'end', p0: { campo: ['Island', 'Island'], mao: ['Lórien Revealed', 'Counterspell', 'Tolarian Terror'] }, p1: { campo: ['Mountain', 'Mountain'] } });
+  const dez = shark('shark-v10').jogada(s, 0), novo = shark('shark').jogada(s, 0);
+  assert.equal(dez.acao.t, 'pass', 'v10: ' + dez.motivo);
+  assert.equal(novo.acao.t, 'cycle', 'novo: ' + novo.motivo); assert.equal(novo.acao.oid, ids[0]['Lórien Revealed']);
+});
+
+test('B-175 · perfil do Terror: cada instantânea ou feitiço no cemitério vale enquanto o Terror está na mão (até seis); sem o Terror na mão, nada; o Walls Combo continua com o seu passo', async () => {
+  const { s } = await montaShark(TERROR, MADNESS, { p0: { campo: ILHAS(3), mao: ['Tolarian Terror'], cemiterio: ['Ponder', 'Brainstorm', 'Counterspell'] } });
+  const perfil = B.perfilDe(s, 0); assert.equal(perfil && perfil.id, 'terror');
+  const av = B.avaliadorDoPlano(B.avaliaV5, perfil, 0);
+  assert.equal(av(s, 0).parcelas.plano, 3 * 1.2, 'três instantâneas/feitiços no cemitério, Terror na mão');
+  const semTerror = J(s); const t = s.zones[0].hand.find(o => s.objects[o].name === 'Tolarian Terror'); semTerror.zones[0].hand = []; semTerror.zones[0].library.push(t); semTerror.objects[t].zone = 'library';
+  assert.equal(av(semTerror, 0).parcelas.plano, 0, 'sem o Terror na mão, o cemitério não vale');
+  assert.equal(B.passoDoCombo(s, 0, perfil), null, 'perfil sem combo não tem passo');
+  assert.equal(B.perfilDe((await montaShark(MADNESS, TERROR, {})).s, 0), null, 'a lista Madness ainda não tem perfil');
 });

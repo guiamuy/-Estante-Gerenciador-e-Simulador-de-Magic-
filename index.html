@@ -33109,6 +33109,11 @@ const __m25 = (function () {
    'shark-v9' é o Shark da leva 159, congelado. A opção `segura` existe só para o torneio (não pagou).
    AS LISTAS DO SHARK (B-22, leva B-173): o Shark joga só com `LISTAS_DO_SHARK` (cinco listas Pauper de torneio, dado
    deste módulo); a tela de preparação monta o deck dele a partir daí. Perfil por lista vem nas fatias seguintes da B-22.
+   O TERRENO QUE FALTA E O PLANO DE CEMITÉRIO (B-22, leva B-175): a avaliação (avaliaV5) cobra o terreno que não vem
+   (menos de quatro em campo e nenhum na mão) — é o que faz reciclar a Lórien Revealed e comprar com o cantrip em vez de
+   ficar preso; e o perfil `terror` (PERFIS) dá valor às instantâneas e feitiços no próprio cemitério enquanto um Tolarian
+   Terror ou uma Cryptic Serpent espera na mão. 'shark-v10' é o Shark da B-174, congelado. Medido pareado por piloto
+   contra o v10: dentro da margem (ver B22 no ROADMAP) — fica ligado pelo comportamento corrigido na partida narrada.
    LIMITES DE HOJE: um lance à frente + resposta do oponente + combate; sem plano
    de vários turnos, sem blefe, sem jogar em volta de anulação ou truque; mulligan
    não olha cores; não troca reserva na melhor de três; esquece o que a vidência
@@ -34228,6 +34233,18 @@ function avaliaV4(s, p) {
   const parcelas = { ...base.parcelas, presas: -3 * presas, sobra: -2 * sobra };
   return { nota: base.nota + parcelas.presas + parcelas.sobra, parcelas };
 }
+/** B-175 · avaliaV4 + o terreno que falta: cada terreno que falta para quatro, contando campo e mão, custa 3. É o que faz o
+    Shark reciclar a Lórien Revealed por uma Ilha e comprar com o cantrip quando está preso em dois terrenos — o v10, sem esta
+    parcela, ficava seis turnos em duas Ilhas com a Lórien na mão (Terror × Elfos, semente 21). Conta campo e mão juntos para
+    que devolver um terreno à mão (Quirion Ranger) não "ache" terreno nenhum: só comprar, buscar ou reciclar muda a parcela. */
+function avaliaV5(s, p) {
+  const base = avaliaV4(s, p);
+  if (base.parcelas.vitoria) return base;
+  const emCampo = s.zones[p].battlefield.filter(x => ehTerreno(s, s.objects[x])).length;
+  const naMao = s.zones[p].hand.filter(oid => ((s.facts[s.objects[oid].name] || {}).types || []).includes('land')).length;
+  const falta = Math.max(0, 4 - emCampo - naMao) * -3 || 0; // `|| 0` evita o -0
+  return { nota: base.nota + falta, parcelas: { ...base.parcelas, falta } };
+}
 const manaNaReserva = (s, p) => Object.values(s.players[p].pool || {}).reduce((a, b) => a + b, 0);
 /** Plano "abro mana com habilidades → faço uma jogada que antes não dava". Busca curta (até 3 habilidades de mana
     em sequência, 40 simulações) sobre um mundo possível. Devolve { nota, caminho: [ações] } ou null. */
@@ -34270,7 +34287,14 @@ function planoDeMana(w, p, opts) {
    Texto das cartas: .listas/oficiais.json (conferido em 03/10/2026). */
 const PERFIS = [
   { id: 'walls-combo', nome: 'Walls Combo', exige: ['Axebane Guardian', 'Freed from the Real'],
-    combo: { motor: 'Axebane Guardian', desvira: 'Freed from the Real', indice: 1, cor: 'U', finalizadores: ['Valakut Invoker', 'Bloodrite Invoker'], custo: 8 } }
+    combo: { motor: 'Axebane Guardian', desvira: 'Freed from the Real', indice: 1, cor: 'U', finalizadores: ['Valakut Invoker', 'Bloodrite Invoker'], custo: 8 } },
+  // B-175 · Mono Blue Terror (lista do Shark `shark-terror`): o plano é encher o cemitério de instantâneas e feitiços para
+  // baixar o Tolarian Terror e a Cryptic Serpent cedo ("This spell costs {1} less to cast for each instant and sorcery card
+  // in your graveyard", texto da Scryfall em .listas/oficiais-revisadas.json, 23/10/2026). Cada instantânea ou feitiço no
+  // próprio cemitério vale `valorPorCarta`, até `teto` cartas, enquanto houver uma das `enquanto` na mão — é o que faz o Shark
+  // conjurar os cantrips cedo (inclusive no fim do turno do oponente) em vez de guardá-los.
+  { id: 'terror', nome: 'Mono Blue Terror', exige: ['Tolarian Terror', 'Cryptic Serpent'],
+    cemiterio: { tipos: ['instant', 'sorcery'], valorPorCarta: 1.2, teto: 6, enquanto: ['Tolarian Terror', 'Cryptic Serpent'] } }
 ];
 /** Perfil do baralho de `p`, pelas cartas que ele tem na partida (todas as zonas: é a lista dele). */
 function perfilDe(s, p) {
@@ -34286,7 +34310,15 @@ function avaliadorDoPlano(de, perfil, eu) {
     if (base.parcelas.vitoria) return base;
     let extra = 0;
     for (const oid of s.zones[p].hand) if (ehTerreno(s, s.objects[oid])) extra -= 2.5;
-    if (perfil && p === eu) {
+    if (perfil && perfil.cemiterio && p === eu) {
+      // B-175 · plano de cemitério: instantâneas e feitiços no próprio cemitério valem enquanto a carta que eles barateiam está na mão
+      const c = perfil.cemiterio, mao = meusEm(s, p, 'hand');
+      if (mao.some(o => c.enquanto.includes(o.name))) {
+        let n = 0; for (const o of meusEm(s, p, 'graveyard')) { const t = (s.facts[o.name] || {}).types || []; if (c.tipos.some(x => t.includes(x))) n++; }
+        extra += c.valorPorCarta * Math.min(c.teto, n);
+      }
+    }
+    if (perfil && perfil.combo && p === eu) {
       const c = perfil.combo, campo = meusEm(s, p, 'battlefield'), tenho = new Set([...campo, ...meusEm(s, p, 'hand')].map(o => o.name));
       extra += 15 * ((tenho.has(c.motor) ? 1 : 0) + (tenho.has(c.desvira) ? 1 : 0) + (c.finalizadores.some(n => tenho.has(n)) ? 1 : 0));
       if (campo.some(o => o.name === c.desvira && o.attachedTo && s.objects[o.attachedTo] && s.objects[o.attachedTo].name === c.motor && s.objects[o.attachedTo].controller === p)) extra += 40;
@@ -34298,7 +34330,7 @@ function avaliadorDoPlano(de, perfil, eu) {
     finaliza no oponente quando a reserva paga (sobrando uma mana para desvirar), vira o motor para a cor que desvira,
     desvira o motor, e deixa a própria habilidade resolver. Não usa nada que a mesa não mostre. */
 function passoDoCombo(s, p, perfil) {
-  if (!perfil || s.status !== 'playing' || s.pending || s.turn.active !== p || s.turn.priority !== p) return null;
+  if (!perfil || !perfil.combo || s.status !== 'playing' || s.pending || s.turn.active !== p || s.turn.priority !== p) return null; // B-175 · perfil sem combo não tem passo
   if (s.turn.step !== 'main1' && s.turn.step !== 'main2') return null;
   const c = perfil.combo, d = oponenteDe(s, p), campo = meusEm(s, p, 'battlefield');
   const aura = campo.find(o => o.name === c.desvira && o.attachedTo && s.objects[o.attachedTo] && s.objects[o.attachedTo].name === c.motor && s.objects[o.attachedTo].controller === p);
@@ -34347,15 +34379,16 @@ const PESOS_ATUAIS = {}; // multiplicadores promovidos por torneio (leva 126)
 const NOVO7 = { ...NOVO6, av4: true, ordena: true, manaPlano: true }; // leva 143, congelado como 'shark-v7'
 const NOVO8 = { ...NOVO7, plano: true }; // B9 · plano do baralho (leva 147), congelado como 'shark-v8'
 const NOVO9 = { ...NOVO8, truque: true }; // B16 · truque próprio no ataque (leva 159), congelado como 'shark-v9'
-const NOVO = { ...NOVO9, aceita: true }; // B10b · `segura` (segurar a mana da anulação) foi medido e fica desligado: 36% contra 41% pilotando Faeries
+const NOVO10 = { ...NOVO9, aceita: true }; // B10b · `segura` (segurar a mana da anulação) foi medido e fica desligado: 36% contra 41% pilotando Faeries; congelado como 'shark-v10' (B-174)
+const NOVO = { ...NOVO10, av5: true }; // B-175 · o terreno que falta (avaliaV5) e os perfis de plano (PERFIS, pelo dado)
 function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date.now(), mundos: mundosN = 0, extra: extraOpts = null, pesos = null } = {}) {
   // Leva 117 · 'profissional' e 'shark' são o Shark atual (v4: o v3 com informação justa). 'shark-v3', 'shark-v2'
   // e 'shark-v1' são as versões anteriores, congeladas, só para o torneio — elas simulam sobre o estado real.
-  const v1 = nivel === 'shark-v1', v2 = nivel === 'shark-v2', v3 = nivel === 'shark-v3', v4 = nivel === 'shark-v4', v5 = nivel === 'shark-v5', v6 = nivel === 'shark-v6', v7 = nivel === 'shark-v7', v8 = nivel === 'shark-v8', v9 = nivel === 'shark-v9';
-  const atual = nivel === 'profissional' || nivel === 'shark' || v4 || v5 || v6 || v7 || v8 || v9 || !!extraOpts || !!pesos;
-  const ligadas = { ...(v4 ? {} : v5 ? NOVO5 : v6 ? NOVO6 : v7 ? NOVO7 : v8 ? NOVO8 : v9 ? NOVO9 : NOVO), ...(extraOpts || {}) };
+  const v1 = nivel === 'shark-v1', v2 = nivel === 'shark-v2', v3 = nivel === 'shark-v3', v4 = nivel === 'shark-v4', v5 = nivel === 'shark-v5', v6 = nivel === 'shark-v6', v7 = nivel === 'shark-v7', v8 = nivel === 'shark-v8', v9 = nivel === 'shark-v9', v10 = nivel === 'shark-v10';
+  const atual = nivel === 'profissional' || nivel === 'shark' || v4 || v5 || v6 || v7 || v8 || v9 || v10 || !!extraOpts || !!pesos;
+  const ligadas = { ...(v4 ? {} : v5 ? NOVO5 : v6 ? NOVO6 : v7 ? NOVO7 : v8 ? NOVO8 : v9 ? NOVO9 : v10 ? NOVO10 : NOVO), ...(extraOpts || {}) };
   let perfil, avPlano = null, passosCombo = 0, turnoCombo = -1; // B9 · perfil do meu baralho, lido na primeira jogada
-  const avAtual = ligadas.av4 || pesos ? avaliadorCom({ ...PESOS_ATUAIS, ...(pesos || {}) }, ligadas.av4 ? avaliaV4 : avaliaV3) : null;
+  const avAtual = ligadas.av4 || ligadas.av5 || pesos ? avaliadorCom({ ...PESOS_ATUAIS, ...(pesos || {}) }, ligadas.av5 ? avaliaV5 : ligadas.av4 ? avaliaV4 : avaliaV3) : null;
   let plano = []; // leva 143 · ações que faltam do plano de mana em curso
   const profissional = v1 || v2 || v3 || atual;
   const extra = v1 ? {} : v2 ? { av: avaliaV2, bloqueioForte: true, duplo: true }
@@ -34398,7 +34431,7 @@ function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date
 
 return { PESOS, LIMIAR_RESPOSTA, avalia, avaliaV2, avaliaV3, projetaCombate, riscoDeVolta, decideMulligan, simula, escolhe, chaveAcao, fontesDeMana,
   jogadaAmador, jogadaProfissional, decideAtaque, decideAtaqueProfissional, decideBloqueio, decideBloqueioProfissional,
-  notaComResposta, notaDoAtaque, resumoDoTurno, dicas, visaoDe, sementePublica, atualizaMemoria, MUNDOS, avaliadorCom, PESOS_ATUAIS, politicaRapida, rola, avaliaV4, planoDeMana, PERFIS, perfilDe, passoDoCombo, avaliadorDoPlano, notaDoAtaqueComTruque, custoDaResposta, criaBot, NOME_DO_BOT, nivelDaMesa, LISTAS_DO_SHARK };
+  notaComResposta, notaDoAtaque, resumoDoTurno, dicas, visaoDe, sementePublica, atualizaMemoria, MUNDOS, avaliadorCom, PESOS_ATUAIS, politicaRapida, rola, avaliaV4, planoDeMana, PERFIS, perfilDe, passoDoCombo, avaliadorDoPlano, avaliaV5, notaDoAtaqueComTruque, custoDaResposta, criaBot, NOME_DO_BOT, nivelDaMesa, LISTAS_DO_SHARK };
 })();
 
 /* ==== src/ui/table-components.js ==== */

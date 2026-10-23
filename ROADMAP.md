@@ -400,7 +400,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-z10 🟡 | Shark: truque próprio no ataque (conta com a habilidade usada depois dos bloqueios e espera os bloqueios); Elves medido por piloto: sem ganho demonstrado (leva 159) | B16 | 1 | bloqueio com truque, truque do oponente |
 | 16º-z9 🟡 | Shark: plano do baralho — Walls Combo fecha a mana infinita; vitórias pilotando a lista 18% → 33% (leva 147) | B9 | 1 | Elves e os outros perfis |
 | 16º-z2 ✅ | Shark usa todas as mecânicas, inclusive as dos terrenos: estoura o terreno que busca básico, abre mana com habilidades, ordena antes do corte do relógio; auditoria de uso (leva 143) | B21 | 1 | — |
-| 16º-sa 🟡 | B22 Shark profissional com cinco listas: fatia 1 ✅ (B-173) listas de torneio embutidas e seletor do Shark só com elas; fatia 2 ✅ (B-174) linha de base: Madness 75% · Elves 63% · Faeries 50% · Control 38% · Terror 25% contra o campo; fatias 3–9 (um perfil por lista, do mais fraco ao mais forte; jogar em volta; fechamento) | B22 | 9 | 16º-z2 |
+| 16º-sa 🟡 | B22 Shark profissional com cinco listas: fatia 1 ✅ (B-173) listas de torneio embutidas e seletor do Shark só com elas; fatia 2 ✅ (B-174) linha de base: Madness 75% · Elves 63% · Faeries 50% · Control 38% · Terror 25% contra o campo; fatia 3 ✅ (B-175) perfil do Terror + o terreno que falta (pareado 50% × 38% em 32 pares: dentro da margem); fatias 4–9 (um perfil por lista; jogar em volta; fechamento) | B22 | 9 | 16º-z2 |
 | 16º-y ✅ | Shark: olhar o turno seguinte (simulação até o próximo turno) — medido, não pagou, fica desligado; achado: a força está no plano de cada baralho (leva 131) | B15 | 1 | — |
 | 16º-w ✅ | Shark: pesos da avaliação postos à prova por torneio — nenhum paga; achado: o limite é a profundidade, não o peso (leva 126) | B20 | 1 | — |
 | 16º-j3 🟡 | Scanner de referência (E52): X14 resposta imediata (leva 127) | E52 | 2 de 6 a 7 | teste no aparelho: "até aceitar" no diagnóstico |
@@ -7370,7 +7370,7 @@ Wildfire × Rakdos Madness) mostrou este como o erro mais caro.
   Caretaker, em duas chamadas; o dano que fecha a partida achado com relógio curto, com o v6 errando).
 - **Depende de:** B17.
 
-**B22 · Shark profissional com cinco listas** 🟡 (pedido do dono de 23/10/2026; fatia 1 na leva B-173)
+**B22 · Shark profissional com cinco listas** 🟡 (pedido do dono de 23/10/2026; fatias 1–3 nas levas B-173…B-175)
 - **Valor:** o Shark joga a nível competitivo com cinco listas Pauper de torneio, e o usuário só escolhe uma dessas
   cinco para ele; cada lista ganha um perfil medido por piloto.
 - **As cinco listas (escolha de 23/10/2026, dado em `LISTAS_DO_SHARK`, módulo do bot):** do catálogo de torneios do app
@@ -7392,7 +7392,7 @@ Wildfire × Rakdos Madness) mostrou este como o erro mais caro.
   - cada lista tem dado oficial para toda carta, cobertura 100% no motor e joga Shark × Shark sem jogada ilegal ✅ (B-173);
   - linha de base medida com as cinco (torneio por piloto) e registrada aqui (fatia 2);
   - um perfil por lista (plano, mulligan, sequência, ameaças, respostas), cada um medido por piloto: novo ≥ antigo, zero
-    ilegais, p95 ≤ 400 ms (fatias 3–7); jogar em volta do que a lista do oponente tem (fatia 8);
+    ilegais, p95 ≤ 400 ms (fatias 3–7; Terror ✅ B-175, dentro da margem); jogar em volta do que a lista do oponente tem (fatia 8);
   - fechamento: nenhuma das cinco abaixo de 45% contra o campo das outras; p95 ≤ 400 ms no orçamento do celular (fatia 9).
 - **Linha de base (B-174, 23/10/2026; `LISTAS=shark MODO=confrontos ORC=100 node torneio.listas.mjs shark shark 4 7`,
   em duas fatias):** o Shark de hoje nos dois assentos, todos contra todos, 4 sementes × 2 assentos por confronto = 80
@@ -7406,12 +7406,36 @@ Wildfire × Rakdos Madness) mostrou este como o erro mais caro.
   nem joga em volta — é onde os perfis valem mais. **Ordem das fatias de perfil revista pelo dado:** Terror → Control →
   Faeries → Elves → Madness. Esta tabela é a régua: cada perfil é medido pareado por piloto (`PILOTO=i`, mesma semente
   e mesmo oponente) contra o Shark congelado sem o perfil, e a tabela inteira é refeita no fechamento.
-- **Fatias:** 1 listas embutidas + seletor restrito (B-173 ✅) · 2 linha de base (B-174 ✅) · 3 Terror · 4 Control ·
-  5 Faeries · 6 Elves · 7 Madness · 8 jogar em volta · 9 fechamento.
+- **Fatia 3 · perfil do Mono Blue Terror (B-175, 23/10/2026):** o Shark ganhou duas coisas, cada uma atrás de opção
+  (`av5` e o perfil `terror` em `PERFIS`, dado): a avaliação `avaliaV5` cobra cada terreno que falta para quatro, contando
+  campo e mão juntos (−3 por terreno; contar a mão impede que devolver um terreno ao campo "ache" terreno — a Quirion
+  Ranger da B9 segue em casa), e o perfil dá valor às instantâneas e feitiços no próprio cemitério (1,2 por carta, até 6)
+  enquanto um Tolarian Terror ou uma Cryptic Serpent espera na mão (texto da Scryfall, 23/10/2026). Erro de jogo
+  eliminado (posição na bateria do `bot.unit`): preso em duas Ilhas com a Lórien Revealed na mão, o v10 ficava seis
+  turnos sem reciclar; agora recicla por uma Ilha e compra com o cantrip (Terror × Elfos, semente 21: o v10 perdia, o
+  novo vence com 18 de vida). **Medição pareada por piloto** (`PILOTO=3 ORC=100`, mesma semente e mesmo oponente para
+  os dois, `shark` × `shark-v10` congelado): com a parcela entregue (campo + mão), 32 pares da base 7: **novo 16 de 32
+  (50%) · v10 12 de 32 (38%) · só o novo ganhou 5 · só o antigo 1**; a versão anterior da parcela (só "nenhum na mão"),
+  96 pares em três rodadas: novo 55 de 96 (57%) · v10 51 de 96 (53%) · só o novo 10 · só o antigo 6. Tendência positiva
+  nas duas, **sempre dentro da margem (±17 com 32 pares, ±10 com 96): ganho não demonstrado.** Zero jogadas ilegais;
+  pior decisão 1,1 s com orçamento de 100 ms (o p95 segue para o fechamento). Fica ligado no `shark`
+  pela posição de teste e pela tendência não negativa, não pela medição; `shark-v10` é o Shark da B-174, congelado, e a
+  ablação continua possível por `av5`. Divergência declarada com a regra "técnica que não se paga sai": aqui a técnica
+  elimina um erro visível ao jogador e a régua de 96 pares não distingue 4 pontos. Lição da rodada: o piloto do Terror
+  variou de 44% a 66% entre bases de semente com 32 pares cada — a tabela de força da B-174 (32 partidas por lista) é
+  retrato, e o fechamento precisa de 200+ decididas por lista. Erro mais caro visto nas narrações, para a fatia do
+  Madness: manteve mão de cinco cartas com um terreno só.
+- **Fatias:** 1 listas embutidas + seletor restrito (B-173 ✅) · 2 linha de base (B-174 ✅) · 3 Terror (B-175 ✅, dentro
+  da margem) · 4 Control · 5 Faeries · 6 Elves · 7 Madness · 8 jogar em volta · 9 fechamento.
 - **Decisão registrada (divergência dita antes de executar):** o Shark deixa de jogar com qualquer lista da estante,
   inclusive fora do Pauper (Commander e livre ficam sem Shark). É o pedido do dono; se um dia quiser o Shark com
   lista própria de novo, é um chip "lista da estante" no seletor, uma leva.
-- **Testes:** `bot.unit` (B-22: dado são, cobertura 100%, uma partida Shark × Shark por lista com orçamento curto);
+- **Expectativas que mudaram com a fatia 3 (declarado):** o teste B9 "perfil" aceita perfil de combo ou de cemitério; o
+  teste da leva 115 ("a mana ia sobrar") passou a montar quatro terrenos — com menos de quatro, a compra que troca uma carta
+  por outra vale pelo terreno que pode achar e o Shark a conjura já na primeira fase principal (o v10 esperava a segunda);
+  com quatro, tudo como antes.
+- **Testes:** `bot.unit` (B-22: dado são, cobertura 100%, uma partida Shark × Shark por lista com orçamento curto; B-175:
+  parcela `falta`, Lórien reciclada no fim do turno do oponente, perfil do Terror e o valor do cemitério);
   `e2e` "B-173" (seletor com as cinco e a origem, partida com a escolhida, "A dois" com a estante, Commander sem Shark).
   A Scryfall falsa do `e2e` passou a ter as cartas das cinco listas com o texto oficial de `.listas/oficiais*.json`
   (carta que o DB do teste já tinha ficou como estava).
@@ -7421,6 +7445,12 @@ Wildfire × Rakdos Madness) mostrou este como o erro mais caro.
   Elfos). **Achado para a `jogabilidade` (não corrigido aqui):** o voo da carta do oponente nasce ~15 px fora do centro do
   contador da mão dele quando, no mesmo redesenho, aparece um chip novo no lado dele (cemitério) e o contador se move —
   `medeVoo` mede o contador antes do redesenho. Reproduz no MJ3c com a lista Mono Blue Terror do Shark e semente 5.
+  A J-18 passou a medir o contador de novo no `voa` (corrige o chip novo no mesmo redesenho), mas **sobra um caso**
+  (B-175, 23/10): quando a cena do Shark tem mais de uma jogada (terreno e mágica, ou terreno e criatura), o contador
+  anda depois do voo — a foto nasce em x≈167 e o contador está em x≈152 (MJ3c com os Elfos, sementes 1, 2, 5 e 6, depois
+  da B-175). A B-175 recusou na fila por isso (o Shark novo conjura no turno do primeiro terreno); o MJ3c passou à semente
+  4 (a mesma asserção; a partida volta a satisfazer a pré-condição escrita no teste). Pedido à `jogabilidade`: medir a
+  origem do voo do oponente no último redesenho da cena, ou refazer a medida no primeiro quadro do voo.
 - **Depende de:** B21; a reaprovação da M-575 para refrescar as listas Dimir.
 - **Fora:** sideboard real na melhor de três (a reserva das listas vem junto, mas a troca fica para depois da B22);
   outras listas; formatos além do Pauper.
