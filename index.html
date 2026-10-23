@@ -408,14 +408,20 @@ a { color: var(--accent); }
    (o mesmo do visor), no formato dela. Some sozinho quando a primeira imagem carrega (`data-carregada`), e a carta em
    texto continua sendo a saída de quem não tem imagem (`onFalha`). Vale em toda tela que usa `ImagemCarta`: folha da
    carta na mesa, visor, galeria e linha da coleção, impressões, trocas, artes das fichas. */
-.ds-carta-img:not([data-carregada="true"]) { background: var(--bg-elev-2) linear-gradient(100deg, transparent 30%, color-mix(in srgb, var(--fg) 8%, transparent) 50%, transparent 70%) 0 0 / 200% 100%;
-  border-radius: var(--radius-card); animation: ds-brilho var(--dur-brilho) linear infinite; }
-@media (prefers-reduced-motion: reduce) { .ds-carta-img:not([data-carregada="true"]) { animation: none; } }
-:root[data-movimento="reduzido"] .ds-carta-img:not([data-carregada="true"]) { animation: none !important; }
+.ds-carta-img:not([data-carregada="true"]) { background: var(--bg-elev-2); border-radius: var(--radius-card); }
+/* G-284 · o brilho que atravessa a carta anda por `transform` num pseudo-elemento da espera (composição), não por
+   `background-position` na própria imagem (repintura por quadro): medido em 360×780 com CPU 4×, 120 cartas sem imagem
+   caíam a 30 fps (p50 33 ms) e voltam a 60 fps (p50 16,7 ms). No visor a moldura já tem o brilho dela (D10): sem dobrar. */
+.ds-carta-espera::before { content: ''; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 30%, color-mix(in srgb, var(--fg) 8%, transparent) 50%, transparent 70%);
+  transform: translateX(-100%); animation: ds-brilho-carta var(--dur-brilho) linear infinite; }
+@keyframes ds-brilho-carta { to { transform: translateX(100%); } }
+.ds-visor__moldura .ds-carta-espera::before { display: none; }
+@media (prefers-reduced-motion: reduce) { .ds-carta-espera::before { animation: none; transform: none; opacity: 0; } }
+:root[data-movimento="reduzido"] .ds-carta-espera::before { animation: none !important; transform: none; opacity: 0; }
 /* G-282 · por cima do brilho, a espera do DS (a prateleira arrumando as cartas, a mesma das artes das fichas) na carta da
    galeria e no visor; some quando a primeira imagem chega. Na folha da carta da mesa, o giro do DS pelo próprio quadro. */
-.ds-carta-espera { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
-.ds-card[data-carregada="true"] .ds-carta-espera, .ds-visor__moldura[data-carregando="false"] .ds-carta-espera { display: none; }
+.ds-carta-espera { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; overflow: hidden; border-radius: var(--radius-card); }
+.ds-carta-img[data-carregada="true"] + .ds-carta-espera, .ds-card__fallback + .ds-carta-espera, .ds-visor__moldura[data-carregando="false"] .ds-carta-espera { display: none; }
 .ds-card .ds-carta-espera .ds-carregando__arte { width: 48px; height: 36px; }
 .tb-sheet__foto { position: relative; }
 .tb-sheet__foto:has(> .ds-carta-img:not([data-carregada="true"]))::after { content: ''; position: absolute; top: calc(50% - 16px); left: calc(50% - 16px); width: 32px; height: 32px; box-sizing: border-box;
@@ -3770,8 +3776,10 @@ function CardFace(card, opts = {}) {
     class: 'ds-card', type: botao ? 'button' : null,
     'aria-label': card?.name || 'carta', onClick: opts.onClick, dataset: opts.dataset
   }, img || fallback(), img ? EsperaDaCarta() : null);
-  // G-282 · a espera some quando a primeira imagem chega (ou quando a carta vira texto)
-  if (img) { const chegou = () => { el.dataset.carregada = 'true'; }; img.addEventListener('load', chegou, { once: true }); img.addEventListener('error', () => { if (!el.querySelector('img')) chegou(); }); }
+  // G-282 · a espera some quando a primeira imagem chega (`data-carregada` na própria imagem, como a `ImagemCarta` já
+  // marca) ou quando a carta vira texto (irmão `.ds-card__fallback`). G-284: nada é escrito no `.ds-card` — um atributo
+  // que muda depois da pintura mudava a identidade do bloco para quem o compara antes e depois de um toque (e2e J1).
+  if (img) img.addEventListener('load', () => { img.dataset.carregada = 'true'; }, { once: true });
   return el;
 }
 const CardGrid = (...kids) => h('div', { class: 'ds-cardgrid' }, ...kids.flat(9).filter(Boolean));

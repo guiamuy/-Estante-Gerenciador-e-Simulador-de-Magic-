@@ -861,6 +861,9 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
   await page.click('[data-visao="galeria"]');
   await page.waitForSelector('.col-card[data-name="Sol Ring"] img');
   await page.waitForFunction(() => { const i = document.querySelector('.col-card[data-name="Sol Ring"] img'); return i && i.dataset.carregada === 'true'; }, null, { timeout: 8000 });
+  // G-284 · espera explícita: logo depois da primeira carga a `ImagemCarta` liga o `srcset` (G-277) e o navegador reescolhe a
+  // candidata — nesse instante `currentSrc` fica vazio; sob carga (fatias do CI) a leitura caía nessa janela (1 em ~4)
+  await page.waitForFunction(() => { const i = document.querySelector('.col-card[data-name="Sol Ring"] img'); return i && /\/(normal|small)\/front\/x\/sol\.jpg$/.test(i.currentSrc); }, null, { timeout: 8000 });
   // leva 102 · expectativa mudou: a galeria pede o tamanho nítido pela densidade da tela (srcset), começando pela "normal"
   assert.match(await page.$eval('.col-card[data-name="Sol Ring"] img', i => i.currentSrc), /\/(normal|small)\/front\/x\/sol\.jpg$/, 'a galeria mostra uma imagem guardada');
   await page.waitForSelector('.col-card[data-name="Sol Ring"] img[srcset]'); // G-277 · o srcset entra depois da primeira carga
@@ -3420,14 +3423,15 @@ test('e2e · G-282 carta com a espera desenhada: enquanto a imagem não chega, a
   // as imagens demoram 1,2 s a chegar (rede do celular): o que a tela mostra nesse meio-tempo é o que o teste mede
   let demora = 1200; const presas = [];
   await page.route('https://**.scryfall.io/**', async r => { if (demora) await new Promise(ok => setTimeout(ok, demora)); return r.fulfill({ status: 200, contentType: 'image/png', body: PNG }); });
-  const estado = (sel) => page.$eval(sel, i => ({ carregada: i.dataset.carregada || null, animacao: getComputedStyle(i).animationName, raio: getComputedStyle(i).borderRadius }));
+  // G-284 · o brilho anda por `transform` no ::before da espera (composição), não na imagem; `brilho` lê o ::before da espera ao lado da imagem
+  const estado = (sel) => page.$eval(sel, i => { const e = i.parentElement && i.parentElement.querySelector(':scope > .ds-carta-espera'); const b = e ? getComputedStyle(e, '::before') : null; return { carregada: i.dataset.carregada || null, animacao: getComputedStyle(i).animationName, raio: getComputedStyle(i).borderRadius, brilho: b ? b.animationName : null, brilhoPor: b ? b.transform !== 'none' || b.animationName !== 'none' : null }; });
   await page.goto(base + '#/colecao'); await page.waitForSelector('#col-import');
   await page.click('#col-import'); await page.fill('#col-import-text', '2 Sol Ring');
   await page.click('#col-import-check'); await page.waitForSelector('#col-import-run'); await page.click('#col-import-run');
   // 1 · galeria: a carta aparece com o brilho e sem a imagem; 1,2 s depois a imagem chega e o brilho some
   await page.click('[data-visao="galeria"]'); await page.waitForSelector('.col-card[data-name="Sol Ring"] img.ds-carta-img');
   const antes = await estado('.col-card[data-name="Sol Ring"] img.ds-carta-img');
-  assert.equal(antes.carregada, null); assert.equal(antes.animacao, 'ds-brilho', 'o brilho do DS enquanto espera'); assert.notEqual(antes.raio, '0px', 'no formato da carta');
+  assert.equal(antes.carregada, null); assert.equal(antes.brilho, 'ds-brilho-carta', 'o brilho do DS enquanto espera, por transform na espera'); assert.equal(antes.animacao, 'none', 'G-284: a imagem não repinta por background-position'); assert.notEqual(antes.raio, '0px', 'no formato da carta');
   // a prateleira do DS por cima da carta, centrada e sem toque
   const prat = await page.$eval('.col-card[data-name="Sol Ring"] .ds-card .ds-carta-espera', e => { const r = e.getBoundingClientRect(), c = e.closest('.ds-card').getBoundingClientRect(); return { visivel: getComputedStyle(e).display !== 'none', arte: !!e.querySelector('.ds-carregando__arte'), dentro: r.left >= c.left - 1 && r.right <= c.right + 1, toque: getComputedStyle(e).pointerEvents }; });
   assert.deepEqual(prat, { visivel: true, arte: true, dentro: true, toque: 'none' });
@@ -3437,7 +3441,7 @@ test('e2e · G-282 carta com a espera desenhada: enquanto a imagem não chega, a
   assert.equal(await page.$eval('.col-card[data-name="Sol Ring"] .ds-carta-espera', e => getComputedStyle(e).display), 'none', 'carregou: a prateleira some');
   // 2 · visor: a mesma espera na carta grande, por baixo do brilho da moldura (os dois somem juntos)
   await page.click('.col-card[data-name="Sol Ring"] .ds-card'); await page.waitForSelector('#card-viewer .ds-visor__moldura img.ds-carta-img');
-  const visor = await estado('#card-viewer .ds-visor__moldura img.ds-carta-img'); assert.equal(visor.animacao, 'ds-brilho');
+  const visor = await estado('#card-viewer .ds-visor__moldura img.ds-carta-img'); assert.equal(visor.animacao, 'none'); assert.equal(await page.$eval('#card-viewer .ds-visor__moldura .ds-carta-espera', e => getComputedStyle(e, '::before').display), 'none', 'no visor o brilho é o da moldura (D10), não dobra');
   assert.equal(await page.$eval('#card-viewer .ds-visor__moldura .ds-carta-espera', e => getComputedStyle(e).display), 'flex', 'a prateleira no visor');
   await page.waitForSelector('#card-viewer img.ds-carta-img[data-carregada="true"]', { timeout: 8000 });
   await page.waitForSelector('#card-viewer .ds-visor__moldura[data-carregando="false"]');
@@ -3458,7 +3462,7 @@ test('e2e · G-282 carta com a espera desenhada: enquanto a imagem não chega, a
   await page.click('#col-import'); await page.fill('#col-import-text', '1 Delver of Secrets'); await page.click('#col-import-check'); await page.waitForSelector('#col-import-run'); await page.click('#col-import-run');
   await page.waitForSelector('.col-card[data-name="Delver of Secrets"] img.ds-carta-img');
   const parada = await estado('.col-card[data-name="Delver of Secrets"] img.ds-carta-img');
-  assert.equal(parada.carregada, null); assert.equal(parada.animacao, 'none', 'movimento reduzido: sem animação');
+  assert.equal(parada.carregada, null); assert.equal(parada.animacao, 'none'); assert.equal(parada.brilho, 'none', 'movimento reduzido: sem animação no brilho');
   assert.deepEqual(errors, []);
 });
 
@@ -8405,6 +8409,12 @@ test('e2e · H7 imagens da partida: a que falha ou chega cortada volta sozinha e
   const { page, errors, base } = await open(t);
   await page.addInitScript(() => { window.__MTG_TEST = true; });
   await page.setViewportSize({ width: 360, height: 780 });
+  // G-284 · o guardião não vai à rede neste teste (é a memória da mesa que se prova): a lista salva dispara `guardarLista` em
+  // segundo plano e, dependendo do ritmo da sessão, a busca dela caía dentro da sequência ruim e gastava a falha e a cortada no
+  // lugar da mesa (1 em ~3 com a G-278, que mudou o ritmo da fila da Scryfall). O gancho é anulado assim que o app o expõe.
+  await page.addInitScript(() => { Object.defineProperty(window, '__estanteKeeper', { configurable: true, set(k) {
+    if (k) { k.guardarLista = async () => ({ fixadas: [], faltando: [], imagens: 0 }); k.prepararPartida = async () => ({ total: 0, prontas: 0, baixadas: 0, completa: true, motivo: null }); }
+    Object.defineProperty(window, '__estanteKeeper', { value: k, writable: true, configurable: true }); } }); });
   await createDeck(page, base, 'Com imagem', '24 Mountain\n36 Delver of Secrets', 'livre');   // as duas cartas têm imagem nos dados de teste
   const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAEAAAAAwCAIAAAAuKetIAAAAVUlEQVR4nO3PAQnAQAzAwBYm5uVMzuRPxvGQIway33t25t6e2blaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oD2g+i4AIciMsj+gAAAABJRU5ErkJggg==', 'base64');
   // sinal ruim: o 1º pedido de cada imagem cai, o 2º chega cortado pela metade, do 3º em diante vem inteira
@@ -8421,7 +8431,8 @@ test('e2e · H7 imagens da partida: a que falha ou chega cortada volta sozinha e
   // `fetch`: quando ele pedia antes da mesa, gastava a falha e a cortada e a mesa acertava de primeira ("houve nova
   // tentativa" caía; 11/10/2026, 1 em ~15 rodadas, sob carga). Este teste é da memória da mesa; o guardião diante de
   // imagem cortada tem prova própria (offline.unit H7). Aqui ele não vai à rede.
-  await page.evaluate(() => { const k = window.__estanteKeeper; if (k) k.guardarLista = async () => ({ fixadas: [], faltando: [], imagens: 0 }); });
+  // G-283 · idem para a preparação das imagens antes de entrar (ela também gastaria a falha e a cortada antes da mesa)
+  await page.evaluate(() => { const k = window.__estanteKeeper; if (k) { k.guardarLista = async () => ({ fixadas: [], faltando: [], imagens: 0 }); k.prepararPartida = async () => ({ total: 0, prontas: 0, baixadas: 0, completa: true, motivo: null }); } });
   await page.goto(base + '#/mesa'); await page.fill('#mesa-seed', '4'); await page.click('#mesa-start');
   await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-pass');
   assert.ok(await page.locator('.tb-hand .tb-card img').count() >= 6, 'mão com imagens');
