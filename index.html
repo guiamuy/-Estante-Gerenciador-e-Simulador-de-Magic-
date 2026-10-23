@@ -4166,6 +4166,7 @@ const BASE = 'https://api.scryfall.com';
 const ACCEPT = 'application/json;q=0.9,*/*;q=0.8';
 const BATCH_SIZE = 75;
 const MIN_INTERVAL_MS = 100;
+const TIMEOUT_MS = 20000; // G-278 · limite de espera por resposta da Scryfall
 
 class ScryfallError extends Error {
   constructor(kind, message, status) { super(message); this.kind = kind; this.status = status; }
@@ -4222,20 +4223,38 @@ function createScryfall(opts = {}) {
   const now = opts.now || (() => Date.now());
   const minInterval = opts.minInterval ?? MIN_INTERVAL_MS;
   const maxRetries = opts.maxRetries ?? 3;
-  let last = 0, chain = Promise.resolve();
+  // G-278 · relatos #29 e #30 · pedido sem resposta não fica para sempre: no celular uma conexão travada prendia a fila
+  // inteira (tudo que viesse depois esperava até recarregar o app). Passado o limite, é falha de rede, sem retentativa.
+  const timeoutMs = opts.timeoutMs ?? TIMEOUT_MS;
+  const Aborta = opts.AbortController || (typeof AbortController !== 'undefined' ? AbortController : null);
+  let last = 0, rodando = false;
   const stats = { requests: 0, retries: 0, notFound: 0, failures: 0 };
 
-  /** Serializa as chamadas e garante o intervalo mínimo entre elas. */
-  function schedule(fn) {
-    const run = async () => {
-      const wait = minInterval - (now() - last);
-      if (wait > 0) await sleep(wait);
-      last = now();
-      return fn();
-    };
-    chain = chain.then(run, run);
-    return chain;
+  /* G-278 · relatos #29 e #30 · uma fila com duas faixas. As chamadas continuam uma por vez, com o intervalo mínimo
+     entre elas (política de uso da Scryfall), mas o que a pessoa acabou de tocar (as artes da ficha aberta) passa na
+     frente do que roda por trás (as cartas de todas as listas, as fichas que elas criam). Sem `prioridade`, a ordem é
+     a de chegada, como sempre foi. */
+  const faixas = { alta: [], normal: [] };
+  async function bomba() {
+    if (rodando) return;
+    rodando = true;
+    try {
+      for (;;) {
+        const proxima = faixas.alta.shift() || faixas.normal.shift();
+        if (!proxima) break;
+        const wait = minInterval - (now() - last);
+        if (wait > 0) await sleep(wait);
+        last = now();
+        try { proxima.ok(await proxima.fn()); } catch (e) { proxima.erro(e); }
+      }
+    } finally { rodando = false; }
   }
+  /** Serializa as chamadas e garante o intervalo mínimo entre elas. `prioridade: 'alta'` entra na frente da fila. */
+  function schedule(fn, { prioridade = 'normal' } = {}) {
+    return new Promise((ok, erro) => { (prioridade === 'alta' ? faixas.alta : faixas.normal).push({ fn, ok, erro }); bomba(); });
+  }
+  /** Quantas chamadas esperam a vez (para medir e testar). */
+  const esperando = () => faixas.alta.length + faixas.normal.length;
 
   async function request(path, init) {
     if (!doFetch) throw new ScryfallError('offline', 'sem implementação de fetch');
@@ -4244,17 +4263,20 @@ function createScryfall(opts = {}) {
       stats.requests++;
       const opts = Object.assign({}, init);
       opts.headers = Object.assign({ Accept: ACCEPT }, init && init.headers);
-      let res;
+      const controle = Aborta && timeoutMs > 0 ? new Aborta() : null;
+      if (controle) opts.signal = controle.signal;
+      let res, relogio = null, estourou = false;
       try {
-        res = await doFetch(BASE + path, opts);
+        res = await Promise.race([doFetch(BASE + path, opts), new Promise((_, rej) => { if (timeoutMs > 0) relogio = setTimeout(() => { estourou = true; if (controle) controle.abort(); rej(new Error('timeout')); }, timeoutMs); })]);
       } catch (e) {
         stats.failures++;
+        if (estourou) throw new ScryfallError('network', 'a Scryfall não respondeu a tempo');
         // fetch só rejeita por rede ausente ou por bloqueio de origem (CORS).
         throw new ScryfallError(originBlocked() ? 'origin' : 'network',
           originBlocked()
             ? 'a página está aberta como arquivo local, e a Scryfall exige uma origem http válida'
             : 'falha de rede ao falar com a Scryfall');
-      }
+      } finally { if (relogio) clearTimeout(relogio); }
       // Q10 · o service worker responde 503 marcado quando está sem rede e sem cópia: é falha de rede, sem retentativa
       if (res.status === 503 && res.headers && typeof res.headers.get === 'function' && res.headers.get('X-Estante-Offline')) {
         stats.failures++;
@@ -4278,9 +4300,9 @@ function createScryfall(opts = {}) {
   }
 
   return {
-    stats,
+    stats, esperando,
     /** Busca por nomes, em lotes. Devolve {found:[], missing:[]}. */
-    async collection(names, onProgress) {
+    async collection(names, onProgress, { prioridade = 'normal' } = {}) {
       const uniq = [...new Map(names.map(n => [String(n).toLowerCase(), n])).values()];
       const found = [], missing = [];
       for (let i = 0; i < uniq.length; i += BATCH_SIZE) {
@@ -4289,7 +4311,7 @@ function createScryfall(opts = {}) {
         const data = await schedule(() => request('/cards/collection', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ identifiers: batch.map(n => ({ name: n })) })
-        }));
+        }), { prioridade });
         if (data.notFound) { batch.forEach(n => missing.push(n)); continue; }
         (data.data || []).forEach(c => found.push(normalizeCard(c)));
         (data.not_found || []).forEach(x => missing.push(x.name || ''));
@@ -4297,11 +4319,11 @@ function createScryfall(opts = {}) {
       return { found, missing };
     },
     /** G-244 · cartas pelo id da Scryfall, em lotes (as fichas que as cartas citam). Devolve {found:[], missing:[]}. */
-    async porIds(ids) {
+    async porIds(ids, { prioridade = 'normal' } = {}) {
       const uniq = [...new Set(ids)].filter(Boolean), found = [], missing = [];
       for (let i = 0; i < uniq.length; i += BATCH_SIZE) {
         const batch = uniq.slice(i, i + BATCH_SIZE);
-        const data = await schedule(() => request('/cards/collection', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ identifiers: batch.map(id => ({ id })) }) }));
+        const data = await schedule(() => request('/cards/collection', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ identifiers: batch.map(id => ({ id })) }) }), { prioridade });
         if (data.notFound) { missing.push(...batch); continue; }
         (data.data || []).forEach(c => found.push(normalizeCard(c)));
         (data.not_found || []).forEach(x => missing.push(x.id || ''));
@@ -4309,12 +4331,12 @@ function createScryfall(opts = {}) {
       return { found, missing };
     },
     /** Consulta de busca. `pages` limita o número de páginas lidas. */
-    async search(query, { order = 'name', unique = 'cards', pages = 1, onProgress } = {}) {
+    async search(query, { order = 'name', unique = 'cards', pages = 1, onProgress, prioridade = 'normal' } = {}) {
       const out = []; let more = true;
       for (let page = 1; page <= pages && more; page++) {
         onProgress && onProgress(page, pages);
         const qs = `?q=${encodeURIComponent(query)}&order=${order}&unique=${unique}&page=${page}`;
-        const data = await schedule(() => request('/cards/search' + qs));
+        const data = await schedule(() => request('/cards/search' + qs), { prioridade });
         if (data.notFound) break;
         (data.data || []).forEach(c => out.push(normalizeCard(c)));
         more = !!data.has_more;
@@ -4343,7 +4365,7 @@ function createScryfall(opts = {}) {
     }
   };
 }
-return { ScryfallError, normalizeCard, originBlocked, createScryfall, BATCH_SIZE, MIN_INTERVAL_MS };
+return { ScryfallError, normalizeCard, originBlocked, createScryfall, BATCH_SIZE, MIN_INTERVAL_MS, TIMEOUT_MS };
 })();
 
 /* ==== src/data/cards.js ==== */
@@ -14560,6 +14582,7 @@ function criaGaleria({ store, images = null, temRede, ESCOLHAS: K_ESCOLHAS, OPCO
   const le = async (k) => { try { return filtra(k, (await store.get(k)) || {}); } catch (e) { return {}; } };
   const aquece = async (urls, opcoes) => { if (images && images.available) { try { await images.warm(urls.filter(Boolean), opcoes); } catch (e) { /* imagem é conforto */ } } };
   const fila = new Map(), restam = new Map(); // candidatas por item e quantas ainda não foram baixadas
+  const buscando = new Map(); // G-278 · a busca de candidatas em curso por item: quem pedir no meio espera a mesma (a troca de rota abria a mesma busca duas vezes)
   const CAMPOS = ['id', 'name', 'type_line', 'oracle_text', 'power', 'toughness', 'colors', 'color_identity', 'keywords', 'layout', 'set', 'set_name', 'collector_number', 'images', 'faces', 'mana_cost', 'cmc'];
   const enxuta = o => Object.fromEntries(CAMPOS.filter(k => o[k] !== undefined).map(k => [k, o[k]]));
   const api = {
@@ -14574,9 +14597,12 @@ function criaGaleria({ store, images = null, temRede, ESCOLHAS: K_ESCOLHAS, OPCO
       if (!temRede()) throw new Error('sem-rede');
       const k = chave(def);
       if (!fila.has(k)) {
-        const guardadas = await le(K_FILA);
-        if (Array.isArray(guardadas[k]) && guardadas[k].length) fila.set(k, guardadas[k]);
-        else { const novas = (await candidatas(def)).slice(0, teto).map(enxuta); fila.set(k, novas); guardadas[k] = novas; try { await store.set(K_FILA, guardadas); } catch (e) { /* sem espaço: busca de novo na próxima */ } }
+        if (!buscando.has(k)) buscando.set(k, (async () => {
+          const guardadas = await le(K_FILA);
+          if (Array.isArray(guardadas[k]) && guardadas[k].length) fila.set(k, guardadas[k]);
+          else { const novas = (await candidatas(def)).slice(0, teto).map(enxuta); fila.set(k, novas); guardadas[k] = novas; try { await store.set(K_FILA, guardadas); } catch (e) { /* sem espaço: busca de novo na próxima */ } }
+        })().finally(() => buscando.delete(k)));
+        await buscando.get(k);
       }
       const todas = await le(K_OPCOES), tinha = todas[k] || [];
       const { novas, restam: r } = proximoLote(tinha, fila.get(k), { teto });
@@ -14608,8 +14634,9 @@ const PARTES = 'fichas.partes'; // G-244 · id da ficha na Scryfall → a ficha 
 function createFichas({ store, scryfall, images = null, temRede = temRedePadrao }) {
   const galeria = criaGaleria({ store, images, temRede, ESCOLHAS, OPCOES, chave: chaveDaFicha, teto: OPCOES_MAX,
     async candidatas(def) {
-      let cartas = await scryfall.search(consultaDaFicha(def), { pages: 2, unique: 'prints' });
-      if (!cartas.length && (def.colors || []).length) cartas = await scryfall.search(consultaDaFicha(def, { comCor: false }), { pages: 2, unique: 'prints' });
+      // G-278 · relatos #29 e #30: a ficha que a pessoa abriu passa na frente do que roda por trás (as cartas das listas)
+      let cartas = await scryfall.search(consultaDaFicha(def), { pages: 2, unique: 'prints', prioridade: 'alta' });
+      if (!cartas.length && (def.colors || []).length) cartas = await scryfall.search(consultaDaFicha(def, { comCor: false }), { pages: 2, unique: 'prints', prioridade: 'alta' });
       return opcoesDeArte(cartas, OPCOES_MAX, def);
     }, aceita: o => !String((o && o.name) || '').includes(' // ') }); // G-257 · opção e escolha de duas faces guardadas antes somem
   /** G-244 · relato #10: as fichas que as cartas destas listas criam, pela Scryfall. Sem `rede`, só o que está guardado
@@ -17459,6 +17486,7 @@ function createPartidasScreen({ partidas }) {
 /* I4 + I6 · a mesma tela serve às fichas e aos terrenos: lista de itens (ícone, nome, cores) e, dentro de cada um, as artes
    em lotes de 6. `C` traz os textos, a rota e o prefixo dos ids; `itens()` devolve a lista. */
 const LOTE_DE_ARTES = 40; // G-242 · o catálogo de fichas desenhado em lotes
+const ESPERA_DA_ARTE_MS = 20000; // G-278 · quanto uma arte pode demorar antes de a grade seguir sem ela
 function telaDeArtes({ galeria: fichas, itens, atualiza = null, C, catalogo = null }) {
   const F = __m34;
   const root = Stack(pad(), __m3.Carregando(C.abrindo, { tamanho: 'tela' }));
@@ -17553,6 +17581,8 @@ function telaDeArtes({ galeria: fichas, itens, atualiza = null, C, catalogo = nu
           g.addEventListener('load', () => { if (quadro.isConnected || telhas.has(k)) quadro.insertBefore(g, img.nextSibling); }); g.src = im.normal; }
       });
       img.addEventListener('error', () => { if (im.normal && im.normal !== primeira && img.dataset.tentou !== 'true') { img.dataset.tentou = 'true'; img.dataset.nitida = 'true'; img.src = im.normal; return; } img.replaceWith(semImg()); chegou(); });
+      // G-278 · relato #29: imagem que não chega nem falha (conexão travada) não segura a grade nem o "Mais artes" para sempre
+      setTimeout(() => { if (quadro.dataset.carregando === 'true' && !img.complete) { img.replaceWith(semImg()); chegou(); } }, ESPERA_DA_ARTE_MS);
       esperando.add(k); quadro.append(img, arteDeEspera());
     } else { quadro.dataset.carregando = 'false'; quadro.append(semImg()); }
     const el = h('button', { class: 'ficha-opcao', type: 'button', 'aria-pressed': 'false', dataset: { opcao: o.id }, onClick: () => escolhe(it, o) }, quadro, h('span', { class: 'ficha-opcao__rotulo' }, F.rotuloDaOpcao(o)));

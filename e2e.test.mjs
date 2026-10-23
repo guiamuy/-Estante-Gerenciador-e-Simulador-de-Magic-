@@ -10549,6 +10549,51 @@ test('e2e · G-242 Perfil › Fichas com o catálogo: todas as fichas do jogo nu
 });
 
 /* ---------------- V5 · a impressão da lista vale na mesa ---------------- */
+/* G-278 · relatos #29 e #30 · Perfil › Fichas: a ficha aberta não espera as cartas das listas */
+test('e2e · G-278 Perfil › Fichas com muitas listas nunca abertas: as artes da ficha tocada chegam antes dos lotes de cartas das listas (prioridade na fila da Scryfall), com a espera desenhada; a lista continua a buscar as cartas por trás', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAEAAAAAwCAIAAAAuKetIAAAAVUlEQVR4nO3PAQnAQAzAwBYm5uVMzuRPxvGQIway33t25t6e2blaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oD2g+i4AIciMsj+gAAAABJRU5ErkJggg==', 'base64');
+  await page.route('https://**.scryfall.io/**', r => r.fulfill({ status: 200, contentType: 'image/png', body: PNG, headers: { 'access-control-allow-origin': '*' } }));
+  // a Plant 0/1 vem do catálogo de fichas (como no relato: ela não é de nenhuma carta do app)
+  await page.route('https://raw.githubusercontent.com/**', r => r.request().url().endsWith('/catalogo/fichas.json')
+    ? r.fulfill({ json: { versao: 1, geradoEm: '2026-10-10T00:00:00.000Z', fonte: 'scryfall', total: 1, fichas: [{ name: 'Plant', types: ['creature'], subtypes: ['Plant'], colors: ['G'], power: '0', toughness: '1' }] }, headers: { 'access-control-allow-origin': '*' } })
+    : r.abort('internetdisconnected'));
+  const imgs = id => Object.fromEntries(['small', 'normal', 'large', 'art_crop'].map(k => [k, `https://cards.scryfall.io/${k}/front/x/${id}.png`]));
+  const PLANT = { object: 'card', id: 'tok-p', name: 'Plant', type_line: 'Token Creature — Plant', layout: 'token', colors: ['G'], power: '0', toughness: '1', set: 'c21', set_name: 'Commander 2021', collector_number: '7', image_uris: imgs('tok-p') };
+  // cada pedido à rede demora 150 ms (o celular do dono): a ordem em que chegam é o que o teste mede
+  const chegaram = []; const demora = () => new Promise(r => setTimeout(r, 150));
+  await page.route('https://api.scryfall.com/cards/collection', async r => { const ids = JSON.parse(r.request().postData()).identifiers; chegaram.push('lote:' + ids.length); await demora();
+    return r.fulfill({ json: { data: ids.map(i => (i.name && DB[i.name.toLowerCase()]) || null).filter(Boolean), not_found: ids.filter(i => !(i.name && DB[i.name.toLowerCase()])) } }); });
+  await page.route('https://api.scryfall.com/cards/search**', async r => { const q = decodeURIComponent(new URL(r.request().url()).searchParams.get('q') || ''); chegaram.push('busca:' + q.split(' ')[0]); await demora();
+    return r.fulfill({ json: { object: 'list', has_more: false, data: /^!"Plant" t:token/.test(q) ? [PLANT] : [] } }); });
+  // 1 · oito listas importadas e nunca abertas (600 cartas que o aparelho não tem): entram direto no armazenamento, como
+  // as listas prontas chegam do catálogo
+  await page.goto(base + '#/'); await page.waitForSelector('#home');
+  await page.evaluate(async () => {
+    const db = await new Promise((ok, erro) => { const q = indexedDB.open('mtg', 1); q.onsuccess = () => ok(q.result); q.onerror = () => erro(q.error); });
+    const put = (k, v) => new Promise((ok, erro) => { const tx = db.transaction('kv', 'readwrite'); tx.objectStore('kv').put(v, k); tx.oncomplete = ok; tx.onerror = () => erro(tx.error); });
+    const ids = [];
+    for (let l = 0; l < 8; l++) { const id = 'g278-' + l; ids.push(id);
+      await put('deck.' + id, { id, name: 'Lista ' + l, format: 'livre', entries: Array.from({ length: 75 }, (_, i) => ({ name: `Carta ${l}-${i}`, qty: 1, zone: 'main' })), created: 1, updated: 1 + l }); }
+    await put('deck.__ids', ids);
+  });
+  // 2 · a ficha Plant (do catálogo do app) aberta pelo endereço, como no relato
+  await page.goto(base + '#/perfil/fichas?f=' + encodeURIComponent('ficha:plant 0/1')); await page.waitForSelector('#ficha-buscando', { timeout: 15000 });
+  assert.equal(await page.locator('#ficha-buscando .ds-carregando__texto, #ficha-buscando').count() > 0, true, 'a espera aparece enquanto a busca não chega');
+  await page.waitForSelector('.ficha-opcao[data-opcao="tok-p"]', { timeout: 15000 });
+  const quandoChegou = chegaram.indexOf('busca:!"Plant"');
+  assert.ok(quandoChegou >= 0 && quandoChegou <= 1, 'a busca da ficha sai antes dos lotes que ainda esperavam: ' + JSON.stringify(chegaram));
+  assert.ok(chegaram.filter(x => x.startsWith('lote:')).length < 8, 'a ficha não esperou os oito lotes: ' + JSON.stringify(chegaram));
+  assert.equal(await page.locator('#ficha-buscando').count(), 0);
+  await auditaTela(page, 'fichas · Plant com listas por trás');
+  // 3 · as cartas das listas continuam a chegar por trás, sem travar a tela
+  await page.waitForFunction(() => true); await page.waitForTimeout(1800);
+  assert.ok(chegaram.filter(x => x.startsWith('lote:')).length >= 8, 'os oito lotes chegam depois: ' + JSON.stringify(chegaram));
+  assert.deepEqual(errors, []);
+});
+
+
 test('e2e · V5 impressão da lista na mesa: a Forest escolhida na lista (V1) sai na mesa na impressão dela, acima da arte geral do Perfil; o Shark, com a mesma lista, joga com a arte padrão', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.addInitScript(() => { window.__MTG_TEST = true; window.__SEM_CENA = true; });
