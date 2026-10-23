@@ -6599,6 +6599,7 @@ function effectErrors(effects, label, opcional) {
     if (e.do === 'descarta_e_compra' && e.descarta != null && !(Number.isInteger(e.descarta) && e.descarta >= 1)) errs.push(`${label} ${i + 1}: "descarta" é quantas cartas se descartam (inteiro, 1 ou mais)`); // M-373
     if (e.do === 'morde' && !(i > 0 && effects[i - 1] && effects[i - 1].do === 'mordedor')) errs.push(`${label} ${i + 1}: "morde" vem logo depois de "mordedor" (a criatura que causa o dano)`); // M-407
     if (e.do === 'mordedor' && !(effects[i + 1] && effects[i + 1].do === 'morde')) errs.push(`${label} ${i + 1}: "mordedor" precisa de "morde" logo depois`); // M-407
+    if (e.do === 'descarta_e_compra' && e.fundo != null && !(e.fundo === true && !e.obrigatorio && (e.descarta || 1) === 1)) errs.push(`${label} ${i + 1}: "fundo" é true (pôr uma carta da mão no fundo do grimório, opcional)`); // M-569
     if (e.do === 'descarta_e_compra' && e.obrigatorio != null && !(e.obrigatorio === true && (e.descarta || 1) === 1)) errs.push(`${label} ${i + 1}: "obrigatorio" é true e só vale para descartar uma carta`); // M-406
     if (['search', 'look'].includes(e.do)) {
       if (e.to && !PICK_DESTS.includes(e.to)) errs.push(`${label} ${i + 1}: destino "${e.to}" desconhecido`);
@@ -10620,6 +10621,11 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Drown in Sorrow': { texto: '1lkpg2e', leva: 'M-568' },
   'Rewind': { texto: 'wa1e4c', leva: 'M-568' },
   'Mechanized Ninja Cavalry': { texto: 'dek2oa', leva: 'M-568' },
+  // M-569 · revisão por lote CCIV (frases de mágica do Pauper: Ultimate Alliance, Volcanic Spite, Wither and Bloom, Accumulated Knowledge), textos da Scryfall de 23/10/2026 UTC, revisor independente
+  'Ultimate Alliance': { texto: '1ao1i0o', leva: 'M-569' },
+  'Volcanic Spite': { texto: '10adlnb', leva: 'M-569' },
+  'Wither and Bloom': { texto: '1ig0hep', leva: 'M-569' },
+  'Accumulated Knowledge': { texto: '1w5oodc', leva: 'M-569' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -19063,6 +19069,7 @@ const __m42 = (function () {
     if (k === 'target nonland permanent') return { target: 'permanent', targetNotLand: true }; // LT13
     if (k === 'target nonbasic land') return { target: 'land', targetNotBasic: true }; // M-335 · Wasteland
     if (k === 'target creature or planeswalker') return { target: { tipos: ['creature', 'planeswalker'] } }; // M-337 · seletor (Erode, Sear)
+    if (k === 'target creature, planeswalker, or battle') return { target: { tipos: ['creature', 'planeswalker', 'battle'] } }; // M-569 · Volcanic Spite (310.5)
     if (k === 'target nonland permanent an opponent controls') return { target: { de: 'opponent' }, targetNotLand: true }; // M-341 · Banishing Light, Cast Out
     if (k === 'target creature, enchantment, or planeswalker') return { target: { tipos: ['creature', 'enchantment', 'planeswalker'] } }; // M-341 · Get Lost
     if (k === 'target player or planeswalker') return { target: { tipos: ['planeswalker'], jogadores: 'any' } }; // M-343 · Lava Axe (seletor)
@@ -19151,6 +19158,9 @@ const __m42 = (function () {
     [/^you win the game$/i, () => [{ do: 'vence' }]], // M-325 · CR2h.6 · 104.2a
     [/^(target player|target opponent) loses the game$/i, m => [com({ do: 'perde' }, alvo(m[1]))]], // M-325 · 104.3e
     [/^put X ([a-z]+) counters on (this [a-z]+|~)$/i, m => [{ do: 'counters', tipo: m[1].toLowerCase(), amount: { per: 'x' }, target: 'self-source' }]], // M-325 · Helix Pinnacle (o X da habilidade, CR2c.7)
+    [/^~ deals damage equal to the number of creatures you control to (any target|target creature|target player|target creature or planeswalker)$/i, m => { const a = alvo(m[1]); return a ? [{ do: 'damage', amount: { per: 'creatures-you-control' }, ...a }] : null; }], // M-569 · Ultimate Alliance (contado na resolução, 608.2h)
+    [/^(?:then )?draw cards equal to the number of cards named ~ in all graveyards$/i, () => [{ do: 'draw', amount: { per: 'mesmo-nome-nos-cemiterios' } }]], // M-569 · Accumulated Knowledge (a que está na pilha não conta)
+    [/^you may put a card from your hand on the bottom of your library to draw a card$/i, () => [{ do: 'descarta_e_compra', amount: 1, fundo: true }]], // M-569 · Volcanic Spite: pôr no fundo não é descartar (701.8)
     [/^~ deals damage equal to its power to (each opponent|any target|target creature|target player|target opponent)$/i, m => [com({ do: 'damage', amount: { per: 'power-of-source' } }, alvo(m[1]))]], // M-323 · CR2b.10 (608.2h: o poder como era no campo, se ela saiu)
     [/^target player gains X life$/i, () => [{ do: 'gain', amount: { per: 'x' }, target: 'player' }]], // M-529 · Alabaster Potion
     [/^prevent the next X damage that would be dealt to any target this turn$/i, () => [{ do: 'prevenir', quantidade: { per: 'x' }, target: 'any' }]], // M-529 · Alabaster Potion (615.7)
@@ -19676,6 +19686,7 @@ const __m42 = (function () {
     texto = texto.replace(/^(target player|target opponent) reveals cards from the top of their library until they reveal a land card, then puts those cards into their graveyard/i, 'revela_ate_terreno_cemiterio $1'); // M-377 · Balustrade Spy
     texto = texto.replace(/^(you may )?(?:sacrifice an? (artifact|land) or discard a card|discard a card or sacrifice an? (artifact|land))\. if you do, draw (\w+) cards?/i, (m0, pode, t1, t2, n) => `${pode ? '' : 'must_'}descarta_ou_sacrifica ${t1 || t2} ${n}`); // M-411 · Vision of Love, K'un-Lun Warrior (Highway Robbery: o "or" ao contrário); "you may" faz parte do efeito: escolher nada é recusar
     texto = texto.replace(/(?:^|(?<=\. ))(?:then )?(you may )?discard (a card|two cards|three cards)\. if you do, draw (\w+) cards?/i, (m0, pode, q, n) => `${pode ? 'you may' : 'must'} discard ${q} to draw ${n} cards`); // M-406 · sem "you may" o descarte é obrigatório (antes virava opcional) // M-373 · "Then you may discard two cards. If you do, draw three cards" (Thrilling Discovery)
+    texto = texto.replace(/(?:^|(?<=\. ))you may put a card from your hand on the bottom of your library\. if you do, draw a card/i, 'you may put a card from your hand on the bottom of your library to draw a card'); // M-569 · Volcanic Spite (uma frase só: o "if you do" depende da escolha)
     texto = texto.replace(/(?:^|(?<=\. ))you may sacrifice a permanent\. if you do, draw (\w+) cards?/i, (m0, n) => `you may sacrifice a permanent to draw ${n} cards`); // M-549 · Witherbloom Charm
     texto = texto.replace(/^exile (target (?:creature|permanent)(?: you control)?), then return (?:it|that card) to the battlefield under its owner's control/i, 'pisca $1'); // M-349 · Ephemerate
     texto = texto.replace(/^exile two target (artifacts, creatures, and\/or lands you control), then return those cards to the battlefield under your control/i, 'pisca_dois $1');
@@ -19765,6 +19776,7 @@ const __m42 = (function () {
       if (magica && /^teamwork \d+$/i.test(linha.replace(/\.$/, ''))) { frases.push({ texto: linha, lida: true, palavras: true }); continue; } // M-379 · 702.194 (K-70): o N vem do texto da carta (fatos.equipeK)
       if (!magica && /^sunburst$/i.test(linha.replace(/\.$/, ''))) { topo.sunburst = true; frases.push({ texto: linha, lida: true }); continue; } // M-451 · 702.44a: o motor guarda as cores gastas ao conjurar
       if (!magica && /^ward \{\d+\}$/i.test(linha.replace(/\.$/, ''))) { frases.push({ texto: linha, lida: true, palavras: true }); continue; } // M-333 · 702.21: o motor lê "Ward {N}" impresso da carta (K-2)
+      if (magica && /^(?:\{[^}]+\})+, Exile (?:~|this card) from your graveyard: /i.test(linha)) { const a = leAtivada(linha.replace(/\.$/, ''), nome, frases); if (a) (topo.abilities = topo.abilities || []).push(a); continue; } // M-569 · Wither and Bloom (113.6: funciona do cemitério)
       if (magica && /^harmonize (?:\{[0-9WUBRGC]+\})+$/i.test(linha.replace(/\.$/, ''))) { frases.push({ texto: linha, lida: true, palavras: true }); continue; } // M-413 · 702.180: o motor lê "Harmonize {custo}" impresso da carta (K-55, harmonizarK)
       { const rf = linha.replace(/\.$/, '').match(/^reinforce (\d+)\s*[—-]\s*(\{[^}]+\}(?:\{[^}]+\})*)$/i); // M-410 · 702.77a: "[custo], descarte esta carta: ponha N marcadores +1/+1 na criatura alvo" — ativada que funciona da mão (113.6), a qualquer momento com prioridade
         if (rf) { (topo.abilities = topo.abilities || []).push({ kind: 'activated', label: `Reforçar ${rf[1]}`, cost: { mana: rf[2], discardSelf: true, fromHand: true }, effects: [{ do: 'counters', amount: +rf[1], target: 'creature' }] }); frases.push({ texto: linha, lida: true }); continue; } }
@@ -23407,7 +23419,7 @@ function applyEffectM449(s, src, eff, tgt, events) {
     case 'descarta_e_compra': { // M-348 · "You may discard a card. If you do, draw N cards": o jogador escolhe a carta (ou nenhuma)
       const mao = s.zones[ctrl].hand.slice(), nd = eff.descarta || 1; // M-373 · "you may discard two cards. If you do, draw three cards" (Thrilling Discovery): todas ou nenhuma
       if (mao.length < nd) { note({ amount: 0 }); break; } // M-373 · sem cartas bastantes para descartar todas, não há o que oferecer (declarado)
-      startPick(s, { p: ctrl, from: mao, min: eff.obrigatorio ? nd : 0 /* M-406 · "Discard a card. If you do…": obrigatório com carta na mão */, max: nd, to: 'graveyard', rest: 'stay', discard: true, label: 'escolher o descarte', source: src.name, depois: { draw: amountOf(s, src, eff.amount) }, ...(nd > 1 ? { tudoOuNada: true } : {}) }, events);
+      startPick(s, { p: ctrl, from: mao, min: eff.obrigatorio ? nd : 0 /* M-406 · "Discard a card. If you do…": obrigatório com carta na mão */, max: nd, to: eff.fundo ? 'library-bottom' : 'graveyard', rest: 'stay', ...(eff.fundo ? {} : { discard: true }), label: eff.fundo ? 'pôr uma carta no fundo do grimório' : 'escolher o descarte', ...(eff.fundo ? { tituloM: 'Pôr uma carta no fundo?', dicaM: 'Se puser, compra uma carta.' } : {}), source: src.name, depois: { draw: amountOf(s, src, eff.amount) }, /* M-569 · fundo: não é descarte */ ...(nd > 1 ? { tudoOuNada: true } : {}) }, events);
       note({ pending: true }); break;
     }
     case 'sacrifice_it': { // M-222 · "Target permanent's controller sacrifices it"
@@ -35663,7 +35675,7 @@ function descreveEfeito(e) {
     case 'compra_quem_controla_nome': return 'cada jogador que controla uma permanente com este nome compra uma carta';
     case 'sacrifica_e_compra': return `pode sacrificar uma permanente sua; se sacrificar, compra ${plural(n, 'carta', 'cartas')}`; // M-549
     case 'descarta_dois_ou_tipo': return `descarta duas cartas, a menos que descarte uma carta de ${TIPO_PT[e.tipo] || e.tipo}`; // M-551
-    case 'descarta_e_compra': return `${e.obrigatorio ? 'descarta' : 'pode descartar'} ${(e.descarta || 1) > 1 ? `${e.descarta} cartas` : 'uma carta'}; se fizer, compra ${plural(n, 'carta', 'cartas')}`; // M-373 · M-406
+    case 'descarta_e_compra': if (e.fundo) return 'pode pôr uma carta da mão no fundo do grimório; se puser, compra uma carta'; /* M-569 */ return `${e.obrigatorio ? 'descarta' : 'pode descartar'} ${(e.descarta || 1) > 1 ? `${e.descarta} cartas` : 'uma carta'}; se fizer, compra ${plural(n, 'carta', 'cartas')}`; // M-373 · M-406
     case 'topo_do_dono': return 'põe esta permanente no topo do grimório do dono'; // M-345
     case 'sacrifice_it': return e.target === 'self-source' ? 'sacrifica esta permanente' : 'o controlador sacrifica a permanente alvo'; // M-342
     case 'reanimate_all': return `devolve ao campo todas as ${(e.types || []).map(x => ({ creature: 'criaturas', planeswalker: 'planeswalkers' }[x] || x)).join(' e ')}${e.mvMax != null ? ` de valor de mana ${qtd(e.mvMax)} ou menos` : ''} do seu cemitério`; // CR2c.5
