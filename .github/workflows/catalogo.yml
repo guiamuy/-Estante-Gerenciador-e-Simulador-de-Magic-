@@ -41,6 +41,13 @@ jobs:
         env:
           TOPDECK_KEY: ${{ secrets.TOPDECK_KEY }}
         run: node catalogo.mjs --saida saida
+      - name: Sentinela de cobertura do Pauper
+        # H-15 · I-299 · mede as listas Pauper com o texto da Scryfall, como o app, e grava cobertura/pauper.json no ramo catalogo
+        # (a fila de cartas pendentes que a tarefa "Sentinela do Pauper" do Claude lê). Nunca derruba a coleta.
+        if: always() && steps.coleta.conclusion != 'skipped'
+        continue-on-error: true
+        timeout-minutes: 10
+        run: node cobertura.mjs --catalogo saida --formato pauper
       - name: Publicar no ramo catalogo
         if: always() && steps.coleta.conclusion != 'skipped'
         run: |
