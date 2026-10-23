@@ -37282,7 +37282,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
     paintSerie();
 
     async function start() {
-      if (state.busy) return;
+      if (state.busy) { if (state.preparandoImagens) state.pularImagens = true; return; } // Q10-5 · segundo toque enquanto as imagens descem: entra agora
       const comBot = ehBot();
       const mine = byId(state.mine), theirs = deckDoOponente(); // B-22 · com o Shark, a lista é uma das cinco dele
       if (comBot && !theirs) return;
@@ -37309,6 +37309,17 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
         }
         // as cartas já vieram da rede agora: guarda para a próxima partida, mesmo sem internet
         // Q10 · e as imagens do jogo também (pequena do campo, grande da mão), em segundo plano
+        // Q10-5 · G-283 · relato #28 · antes de entrar, as imagens do jogo das duas listas descem com progresso no
+        // próprio botão (teto de 25 s; um segundo toque entra agora); sem rede ou faltando alguma, entra com o que tem e avisa
+        if (keeper && keeper.prepararPartida) {
+          const rotulo = startBtn.querySelector('.ds-btn__rotulo');
+          state.preparandoImagens = true; state.pularImagens = false; startBtn.disabled = false; startBtn.dataset.preparando = 'true';
+          startBtn.setAttribute('title', 'Toque de novo para entrar sem esperar');
+          const r = await keeper.prepararPartida([mine, theirs].filter(Boolean), { cards, parar: () => state.pularImagens,
+            onProgresso: ({ total, prontas }) => { if (total) rotulo.textContent = `Preparando imagens · ${prontas}/${total}`; } });
+          state.preparandoImagens = false; delete startBtn.dataset.preparando; startBtn.removeAttribute('title'); startBtn.disabled = true;
+          if (r && !r.completa && r.total) toast(r.motivo === 'sem-rede' ? 'Sem internet: as imagens que faltam chegam quando a rede voltar' : `Faltam ${r.total - r.prontas} imagem(ns): elas chegam durante a partida`, 3600);
+        }
         if (keeper && keeper.guardarLista) { for (const d of [mine, theirs].filter(Boolean)) keeper.guardarLista(d).catch(() => {}); }
         else cardRepo.pin(names).catch(() => {});
         // T-130 · CR 201.4 · catálogo do "nomeie uma carta": todas as listas da estante (não saem do aparelho) e as prontas do app, com o tipo de quem tem dado
@@ -41557,7 +41568,49 @@ function createOfflineKeeper({ cardRepo, decks, collection, images, names, ocr, 
     return { ...r, imagens };
   }
 
+  /** Q10-5 · G-283 · relato #28 · as imagens do jogo das listas da partida (pequena do campo, grande da mão,
+      impressões escolhidas) conferidas no aparelho antes de entrar: as que faltam descem agora, quatro por vez,
+      com progresso a cada imagem; `teto` em ms e `parar()` encerram sem esperar o resto (a partida entra com o
+      que tem; o que faltou chega pela mesa). `cards` é o mapa nome → carta que a tela já buscou (evita outra ida). */
+  async function prepararPartida(listas, { cards = null, onProgresso = () => {}, teto = 25000, parar = () => false, paralelo = 4 } = {}) {
+    const nomes = [...new Set((listas || []).flatMap(nomesDaLista))];
+    const vazio = { total: 0, prontas: 0, baixadas: 0, completa: true, motivo: null };
+    if (!images || !images.available || !images.has || !nomes.length) return vazio;
+    let mapa = new Map();
+    if (cards) for (const n of nomes) { const c = cards[n] || cards[norm(n)]; if (c) mapa.set(norm(n), c); }
+    const faltamDados = nomes.filter(n => !mapa.has(norm(n)));
+    if (faltamDados.length && cardRepo.emCache) { const m = await semFalha(() => cardRepo.emCache(faltamDados.map(norm)), new Map()); for (const [k, c] of m) if (c) mapa.set(k, c); }
+    const escolhidas = __m14 && __m14.impressoesDaLista ? (listas || []).flatMap(d => semFalhaSinc(() => __m14.impressoesDaLista(d), [])) : [];
+    const urls = [...new Set([...mapa.values(), ...escolhidas].filter(Boolean).flatMap(c => [...urlsDeImagem(c, 'small'), ...urlsDeImagem(c, 'normal')]))];
+    if (!urls.length) return vazio;
+    const faltam = [];
+    for (const u of urls) { if (await semFalha(() => images.has(u), false)) continue; faltam.push(u); }
+    const rel = { total: urls.length, prontas: urls.length - faltam.length, baixadas: 0, completa: !faltam.length, motivo: null };
+    onProgresso({ ...rel });
+    if (!faltam.length) return rel;
+    if (!online()) { rel.motivo = 'sem-rede'; return rel; }
+    const inicio = agora();
+    const fila = [...faltam];
+    const trabalhador = async () => {
+      for (;;) {
+        if (parar()) { rel.motivo = rel.motivo || 'pulou'; return; }
+        if (agora() - inicio > teto) { rel.motivo = rel.motivo || 'tempo'; return; }
+        const u = fila.shift();
+        if (!u) return;
+        const n = await semFalha(() => images.warm([u], { ja: true }), 0);
+        if (n) { rel.baixadas++; rel.prontas++; }
+        onProgresso({ ...rel });
+      }
+    };
+    await Promise.all(Array.from({ length: Math.max(1, Math.min(paralelo, fila.length)) }, trabalhador));
+    rel.completa = rel.prontas >= rel.total;
+    if (!rel.completa && !rel.motivo) rel.motivo = 'falha';
+    return rel;
+  }
+  const semFalhaSinc = (fn, padrao) => { try { return fn(); } catch (e) { return padrao; } };
+
   const api = {
+    prepararPartida,
     /** Lista salva: dados de todas as cartas + imagens do jogo. U12: a pequena (campo da mesa) e a
         grande (mão e zoom). Antes só a grande: sem rede, o campo da mesa aparecia sem imagem. */
     /** V1 · a impressão escolhida para uma carta da lista também fica guardada (frente e verso). */

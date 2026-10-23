@@ -388,3 +388,47 @@ test('V1 · a impressão escolhida numa carta da lista também é baixada (peque
   for (const u of ['https://img/p2/s.jpg', 'https://img/p2/n.jpg', 'https://img/p2/v.jpg', 'https://img/Delver of Secrets/n.jpg']) assert.ok(m.images.aquecidas.includes(u), 'aquecida: ' + u);
   assert.equal(m.images.aquecidas.filter(u => u === 'https://img/p2/n.jpg').length, 1, 'uma vez por impressão');
 });
+
+/* Q10-5 · G-283 · relato #28 · as imagens do jogo descem antes de entrar na partida, com progresso, teto e pulo. */
+function imagensComCache(ja = []) {
+  const cache = new Set(ja), aquecidas = [];
+  return { available: true, aquecidas, cache, async has(u) { return cache.has(u); }, async warm(urls, opts) { aquecidas.push(...urls); for (const u of urls) if (!/quebrada/i.test(u)) cache.add(u); return urls.filter(u => !/quebrada/i.test(u)).length; } };
+}
+test('G-283 · prepararPartida: conta o que já está no aparelho, baixa só o que falta (as duas listas, pequena e grande), com progresso a cada imagem; segunda chamada não baixa nada', async () => {
+  const m = await mundo();
+  const images = imagensComCache(['https://img/Island/s.jpg', 'https://img/Island/n.jpg']);
+  const keeper = O.createOfflineKeeper({ cardRepo: m.cardRepo, decks: m.decks, collection: m.collection, images, names: m.names, ocr: {}, store: m.store, online: () => true });
+  const cards = { Island: CARD('Island'), 'Delver of Secrets': CARD('Delver of Secrets'), Forest: CARD('Forest') };
+  const progresso = [];
+  const r = await keeper.prepararPartida([{ entries: [{ name: 'Island', qty: 20 }, { name: 'Delver of Secrets', qty: 4 }] }, { entries: [{ name: 'Forest', qty: 20 }] }],
+    { cards, onProgresso: p => progresso.push(`${p.prontas}/${p.total}`) });
+  assert.deepEqual({ total: r.total, prontas: r.prontas, baixadas: r.baixadas, completa: r.completa, motivo: r.motivo }, { total: 6, prontas: 6, baixadas: 4, completa: true, motivo: null });
+  assert.equal(progresso[0], '2/6', 'a primeira chamada diz o que já estava guardado');
+  assert.equal(progresso[progresso.length - 1], '6/6');
+  assert.equal(progresso.length, 5, 'uma chamada por imagem baixada, mais a inicial');
+  assert.ok(!images.aquecidas.includes('https://img/Island/s.jpg'), 'o que já estava no aparelho não desce de novo');
+  const r2 = await keeper.prepararPartida([{ entries: [{ name: 'Island', qty: 20 }, { name: 'Delver of Secrets', qty: 4 }] }], { cards });
+  assert.deepEqual([r2.baixadas, r2.completa], [0, true]);
+});
+test('G-283 · prepararPartida: sem rede não espera (motivo sem-rede); imagem que falha deixa a partida incompleta (motivo falha); pular encerra na hora; o teto encerra pelo relógio', async () => {
+  const m = await mundo();
+  const cards = { Island: CARD('Island'), Forest: CARD('Forest'), Quebrada: CARD('Quebrada') };
+  const lista = [{ entries: [{ name: 'Island', qty: 1 }, { name: 'Forest', qty: 1 }, { name: 'Quebrada', qty: 1 }] }];
+  const semRede = O.createOfflineKeeper({ cardRepo: m.cardRepo, decks: m.decks, collection: m.collection, images: imagensComCache(), names: m.names, ocr: {}, store: m.store, online: () => false });
+  const r0 = await semRede.prepararPartida(lista, { cards });
+  assert.deepEqual([r0.total, r0.prontas, r0.completa, r0.motivo], [6, 0, false, 'sem-rede']);
+  const imgs = imagensComCache();
+  const comRede = O.createOfflineKeeper({ cardRepo: m.cardRepo, decks: m.decks, collection: m.collection, images: imgs, names: m.names, ocr: {}, store: m.store, online: () => true });
+  const r1 = await comRede.prepararPartida(lista, { cards });
+  assert.deepEqual([r1.total, r1.prontas, r1.completa, r1.motivo], [6, 4, false, 'falha'], 'a quebrada não conta como pronta');
+  const imgs2 = imagensComCache(); let chamadas = 0;
+  const pula = O.createOfflineKeeper({ cardRepo: m.cardRepo, decks: m.decks, collection: m.collection, images: imgs2, names: m.names, ocr: {}, store: m.store, online: () => true });
+  const r2 = await pula.prepararPartida(lista, { cards, paralelo: 1, parar: () => chamadas++ >= 2 });
+  assert.deepEqual([r2.baixadas, r2.completa, r2.motivo], [2, false, 'pulou']);
+  let t = 0; const imgs3 = imagensComCache();
+  const teto = O.createOfflineKeeper({ cardRepo: m.cardRepo, decks: m.decks, collection: m.collection, images: imgs3, names: m.names, ocr: {}, store: m.store, online: () => true, agora: () => (t += 10) });
+  const r3 = await teto.prepararPartida(lista, { cards, paralelo: 1, teto: 25 });
+  assert.equal(r3.motivo, 'tempo'); assert.ok(r3.baixadas < 6 && r3.baixadas >= 1, 'parou pelo relógio: ' + r3.baixadas);
+  const nada = await teto.prepararPartida([], { cards });
+  assert.deepEqual([nada.total, nada.completa], [0, true]);
+});

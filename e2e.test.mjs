@@ -572,6 +572,56 @@ test('e2e · U12 imagens do jogo baixam sozinhas: ao salvar a lista e quando a i
   assert.deepEqual(errors, []);
 });
 
+/* Q10-5 · G-283 · relato #28 · ao começar a partida, as imagens do jogo descem antes de entrar, com progresso no botão */
+test('e2e · G-283 começar partida prepara as imagens: o botão conta "Preparando imagens · n/N" enquanto descem, a partida entra com todas no aparelho; sem o CDN entra mesmo assim e avisa quantas faltam; sem internet avisa e não espera', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+  let cdn = 'lento';
+  await page.route('https://**.scryfall.io/**', async r => {
+    if (cdn === 'fora') return r.abort('internetdisconnected');
+    if (cdn === 'lento') await new Promise(ok => setTimeout(ok, 350));
+    return r.fulfill({ status: 200, contentType: 'image/png', body: PNG, headers: { 'access-control-allow-origin': '*' } });
+  });
+  const noCache = () => page.evaluate(async () => { const c = await caches.open('estante-img-v1'); return (await c.keys()).filter(k => /scryfall\.io/.test(k.url)).length; });
+  await createDeck(page, base, 'Delver', '4 Delver of Secrets\n16 Island');
+  // o guardião da lista salva já desce as imagens: limpa para a partida ter o que preparar
+  await page.waitForTimeout(400);
+  await page.evaluate(() => caches.delete('estante-img-v1'));
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start');
+  await page.fill('#mesa-seed', '3');
+  await page.click('#mesa-start');
+  // enquanto as imagens descem, o botão mostra o progresso e segue tocável (segundo toque entra agora)
+  const vistos = new Set(); let total = 0;
+  for (let i = 0; i < 60 && !(await page.$('#tb-keep')); i++) {
+    const b = await page.$('#mesa-start');
+    if (b) { const r = await b.evaluate(el => ({ t: (el.querySelector('.ds-btn__rotulo') || el).textContent, prep: el.dataset.preparando, dis: el.disabled })); if (r.prep === 'true') { const m = /(\d+)\/(\d+)$/.exec(r.t); if (m) total = +m[2]; vistos.add(r.t.replace(/\d+\/\d+/, 'n/N')); assert.equal(r.dis, false, 'o botão fica tocável para pular a espera'); } }
+    await page.waitForTimeout(50);
+  }
+  await page.waitForSelector('#tb-keep');
+  assert.ok(vistos.has('Preparando imagens · n/N'), 'o botão contou o progresso: ' + [...vistos].join(' | '));
+  assert.ok(total >= 2, 'a lista de teste tem ao menos duas imagens do jogo: ' + total);
+  assert.equal(await noCache(), total, 'todas as imagens do jogo das cartas da lista estão no aparelho antes da partida');
+  assert.doesNotMatch(await page.innerText('body'), /Faltam \d+ imagem|Sem internet: as imagens/, 'completa: nenhum aviso de imagem');
+  // CDN fora do ar: entra mesmo assim e diz quantas faltam
+  await page.evaluate(() => caches.delete('estante-img-v1'));
+  cdn = 'fora';
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start');
+  await page.fill('#mesa-seed', '3'); await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep');
+  await page.waitForFunction(n => new RegExp('Faltam ' + n + ' imagem\\(ns\\)').test(document.body.innerText), total, { timeout: 5000 });
+  // sem internet: não espera nada e avisa
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start');
+  await page.context().setOffline(true);
+  await page.fill('#mesa-seed', '3');
+  const t0 = Date.now(); await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep');
+  assert.ok(Date.now() - t0 < 4000, 'sem rede a partida entra sem esperar o teto');
+  await page.waitForFunction(() => /Sem internet: as imagens que faltam chegam/.test(document.body.innerText), null, { timeout: 5000 });
+  await page.context().setOffline(false);
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, coleção, busca e scanner offline', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.addInitScript(FAKE_DEVICE(false));          // câmera e OCR falsos: o scanner não precisa do CDN
