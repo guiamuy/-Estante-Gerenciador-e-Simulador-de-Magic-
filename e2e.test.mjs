@@ -14420,3 +14420,100 @@ test('e2e · G-276 relato #27: entrar e sair cobrem a troca de tela com a transi
   if (process.env.SHOTS) { await page.screenshot({ path: process.env.SHOTS + '/g276-inicio.png', fullPage: true }); }
   assert.deepEqual(errors, []);
 });
+
+// MJ7 (leva J-17, trilha jogabilidade) · material: a carta tem espessura e, levantada (segurada, escolhida, mirando), a sombra
+// cresce por baixo dela; o feltro tem luz (claridade no centro, penumbra nas bordas, só na partida); o latão tem fio de luz e
+// lábio; a dupla face que transforma vira em 3D curto (a face velha gira até ficar de lado, a nova vem de lado). Nada ocupa
+// layout; com menos movimento nada gira nem cresce.
+test('e2e · MJ7 material: sombra que cresce ao segurar, luz do feltro só na partida, latão com fio de luz, dupla face virando em 3D; zero pixel de campo; menos movimento não gira', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 }); // o aparelho do dono
+  // fora da partida o fundo não tem a luz do feltro (a vinheta é só da mesa)
+  await page.goto(base + '#/ds'); await page.waitForSelector('#ds-material');
+  const temLuz = () => page.evaluate(() => /radial-gradient\([^)]*\)/.test(getComputedStyle(document.body).backgroundImage) && getComputedStyle(document.body).backgroundImage.split('radial-gradient').length >= 3);
+  assert.equal(await temLuz(), false, 'no catálogo o fundo é o móvel de sempre');
+  // o palco do material no /ds: repouso, escolhida, segurada e a dupla face que vira (nos dois temas, sem sobreposição)
+  const sombra = (sel, pseudo = '::before') => page.evaluate(([sel, pseudo]) => { const el = document.querySelector(sel); const cs = getComputedStyle(el, pseudo); return { opacity: cs.opacity, shadow: cs.boxShadow, face: getComputedStyle(el.querySelector('.tb-card__face')).boxShadow }; }, [sel, pseudo]);
+  const tok = nome => page.evaluate(n => getComputedStyle(document.documentElement).getPropertyValue(n).trim(), nome);
+  const repouso = await sombra('#ds-material .tb-card'), escolhida = await sombra('#ds-material .tb-card[data-selected="true"]'), segurada = await sombra('#ds-material .tb-card[data-segurando="true"]');
+  assert.equal(repouso.opacity, '0', 'em repouso a sombra alta está apagada'); assert.notEqual(repouso.face, 'none', 'a face tem espessura');
+  assert.equal(escolhida.opacity, '1', 'escolhida: a sombra alta acende'); assert.equal(segurada.opacity, '1', 'segurada: a sombra alta acende');
+  assert.ok(escolhida.shadow.includes('px') && escolhida.shadow !== repouso.face, 'a sombra alta é outra, maior, que a espessura ' + escolhida.shadow);
+  for (const tema of ['dark', 'light']) { await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await auditaTela(page, `MJ7 · material no /ds ${tema}`); if (process.env.SHOTS) { await page.waitForTimeout(2200); await page.$eval('#ds-material', el => el.scrollIntoView({ block: 'center' })); await page.screenshot({ path: process.env.SHOTS + `/mj7-ds-${tema}.png` }); } }
+  // a dupla face vira: a foto da face velha gira na camada de efeitos e a nova vem de lado; com menos movimento, troca na hora
+  const dupla = () => page.evaluate(() => ({ nome: document.querySelector('#ds-dupla .tb-card').getAttribute('aria-label'), vira: document.querySelector('#ds-dupla .tb-card').classList.contains('tb-card--vira'), foto: document.querySelectorAll('#ds-fx .tb-voo--vira').length, anims: document.querySelector('#ds-dupla .tb-card').getAnimations().length }));
+  assert.match((await dupla()).nome, /^Delver of Secrets/);
+  await page.click('#ds-virar'); await page.waitForTimeout(40);
+  const meio = await dupla();
+  assert.deepEqual([meio.nome.replace(/,.*/, ''), meio.vira, meio.foto, meio.anims], ['Insectile Aberration', true, 1, 1], 'no meio da virada: a carta já é o verso, de lado, com a foto da frente girando ' + JSON.stringify(meio));
+  await page.waitForTimeout(500);
+  const fim = await dupla(); assert.deepEqual([fim.vira, fim.foto, fim.anims], [false, 0, 0], 'a virada termina sozinha e a foto some');
+  await page.evaluate(() => document.documentElement.setAttribute('data-movimento', 'reduzido'));
+  await page.click('#ds-virar'); await page.waitForTimeout(40);
+  const parado = await dupla(); assert.deepEqual([parado.nome.replace(/,.*/, ''), parado.vira, parado.foto], ['Delver of Secrets', false, 0], 'menos movimento: a face troca na hora, nada gira');
+  await page.evaluate(() => { document.documentElement.removeAttribute('data-movimento'); document.documentElement.setAttribute('data-theme', 'dark'); });
+
+  // na partida: luz do feltro, latão e a carta segurada
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start');
+  await page.fill('#mesa-seed', '4'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  await page.waitForSelector('#tb-pass');
+  const toca = () => page.evaluate(() => document.querySelector('#tb').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
+  assert.equal(await temLuz(), true, 'na partida o fundo tem a luz e a penumbra do feltro');
+  assert.equal(await page.$eval('.tb-side--opp', el => getComputedStyle(el).backgroundColor), 'rgba(0, 0, 0, 0)', 'o lado do outro deixa o feltro aparecer');
+  const latao = await page.$eval('#tb-vez', el => ({ shadow: getComputedStyle(el).boxShadow, img: getComputedStyle(el).backgroundImage }));
+  assert.ok(/inset/.test(latao.shadow) && /linear-gradient/.test(latao.img), 'a faixa de vez é latão com fio de luz e lábio ' + JSON.stringify(latao));
+  // mesa assistida: Ilhas e um Delver no campo, uma Counterspell no topo do grimório (o gatilho do Delver vai transformá-lo)
+  const c = await page.evaluate(() => { const M = window.__estanteMesa, s = M.estado(), p = s.turn.active;
+    const pega = (nm, n) => Object.values(s.objects).filter(o => o.owner === p && o.name === nm && o.zone === 'library').slice(0, n).map(o => o.oid);
+    for (const oid of pega('Island', 3)) M.act({ t: 'move', p, oid, to: 'battlefield' });
+    const [delver] = pega('Delver of Secrets', 1); M.act({ t: 'move', p, oid: delver, to: 'battlefield' });
+    return { p, delver }; });
+  await toca(); await page.waitForTimeout(400);
+  if ((await page.getAttribute('#tb-hand-toggle', 'aria-expanded')) === 'true') { await page.click('#tb-hand-toggle'); await page.waitForTimeout(450); } // a mão aberta cobre o seu campo
+  const noCampo = `.tb-side .tb-card[data-oid="${c.delver}"]`;
+  await page.$eval(noCampo, el => el.scrollIntoView({ block: 'nearest', inline: 'center' }));
+  const medidaCampo = () => page.evaluate(sel => { const r = document.querySelector(sel).closest('.tb-row').getBoundingClientRect(), l = document.querySelector('.tb-side--me').getBoundingClientRect(); return [Math.round(r.height), Math.round(l.top), Math.round(l.height)]; }, noCampo);
+  const antes = await medidaCampo();
+  // segurar levanta: a sombra alta acende por baixo da carta e a carta sobe; a fileira e o lado não mudam de tamanho (zero pixel de campo)
+  const box = await page.$eval(noCampo, el => { const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+  await page.mouse.move(box.x, box.y); await page.mouse.down(); await page.waitForTimeout(650);
+  const segurando = await page.evaluate(sel => { const el = document.querySelector(sel); return { seg: el.dataset.segurando, op: getComputedStyle(el, '::before').opacity, transform: getComputedStyle(el).transform, peek: !!document.querySelector('.tb-peek, [data-peek]') }; }, noCampo);
+  assert.equal(segurando.seg, 'true', 'segurando: a carta sabe que está levantada'); assert.equal(segurando.op, '1', 'a sombra alta acendeu');
+  assert.notEqual(segurando.transform, 'none', 'a carta sobe');
+  assert.deepEqual(await medidaCampo(), antes, 'levantar não muda a fileira nem o lado: zero pixel de campo');
+  await page.mouse.up(); await page.waitForTimeout(300);
+  const solto = await page.evaluate(sel => { const el = document.querySelector(sel); return { seg: el.dataset.segurando || null, op: getComputedStyle(el, '::before').opacity }; }, noCampo);
+  assert.deepEqual(solto, { seg: null, op: '0' }, 'soltou: a carta desce e a sombra apaga');
+  for (const tema of ['dark', 'light']) { await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await auditaTela(page, `MJ7 · mesa 360 ${tema}`); if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + `/mj7-mesa-${tema}.png` }); }
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  // a virada: na sua manutenção o Delver olha o topo (Counterspell) e transforma; a mesa vira a carta em 3D no lugar
+  await page.evaluate(([p]) => { const M = window.__estanteMesa, s = M.estado(); const k = Object.values(s.objects).find(o => o.owner === p && o.name === 'Counterspell' && o.zone === 'library'); M.act({ t: 'move', p, oid: k.oid, to: 'library' }); }, [c.p]);
+  await toca(); await page.waitForTimeout(200);
+  const turno0 = await page.evaluate(() => window.__estanteMesa.estado().turn.number);
+  for (let i = 0; i < 80; i++) {
+    const e = await estado121(page);
+    if (e.turno > turno0 && e.pend === 'may_pay') break;
+    if (e.pend === 'discard') { await page.locator('#tb-hand .tb-card').first().click(); await page.waitForTimeout(60); continue; }
+    for (const id of ['#tb-no-block', '#tb-no-attack', '#tb-pass-turn', '#tb-pass']) if (await page.locator(id).count()) { await page.click(id).catch(() => {}); break; }
+    await page.waitForTimeout(60);
+  }
+  await page.waitForSelector('#tb-pay');
+  assert.match(await page.innerText('.tb-banner, .tb-dock, #tb-dock').catch(() => ''), /Delver of Secrets/, 'o gatilho do Delver pergunta');
+  // a jogada que vira (aplicar + redesenhar + fotografar + animar), medida como nas MJ3: a mesa continua respondendo na hora
+  const ms = await page.evaluate(p => { const M = window.__estanteMesa, t0 = performance.now(); M.act({ t: 'pay', p }); return Math.round((performance.now() - t0) * 10) / 10; }, c.p);
+  await page.waitForTimeout(40);
+  const virando = await page.evaluate(oid => { const el = document.querySelector(`.tb-side .tb-card[data-oid="${oid}"]`); const tb = document.querySelector('#tb');
+    return { nome: el && el.getAttribute('aria-label'), vira: !!el && el.classList.contains('tb-card--vira'), anims: el ? el.getAnimations().filter(a => a.effect && JSON.stringify(a.effect.getKeyframes()).includes('rotateY')).length : -1, outras: el ? el.getAnimations().length : -1, foto: document.querySelectorAll('#tb-fx .tb-voo--vira[data-vira]').length, marca: (tb.dataset.voos || '').split(' ').filter(m => m.startsWith('vira:')) }; }, c.delver);
+  assert.match(virando.nome, /^Insectile Aberration/, 'a carta já é o verso ' + JSON.stringify(virando));
+  assert.deepEqual([virando.vira, virando.anims, virando.foto, virando.marca], [true, 1, 1, [`vira:verso:${c.delver}`]], 'no meio da virada: a nova vem de lado, a foto da frente gira na camada de efeitos');
+  await page.waitForTimeout(500);
+  const virou = await page.evaluate(oid => { const el = document.querySelector(`.tb-side .tb-card[data-oid="${oid}"]`); return { vira: el.classList.contains('tb-card--vira'), anims: el.getAnimations().filter(a => a.effect && JSON.stringify(a.effect.getKeyframes()).includes('rotateY')).length, foto: document.querySelectorAll('#tb-fx .tb-voo--vira').length, op: getComputedStyle(el).opacity }; }, c.delver);
+  assert.deepEqual(virou, { vira: false, anims: 0, foto: 0, op: '1' }, 'a virada termina sozinha; a carta de verdade fica, de frente');
+  console.log(`# medida · MJ7 · jogada que vira a dupla face (aplicar, redesenhar, foto e animação) ${ms} ms`);
+  assert.ok(ms < 400, 'a jogada com a virada não trava a mesa: ' + ms);
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/mj7-virou.png' });
+  await auditaTela(page, 'MJ7 · depois da virada');
+  assert.deepEqual(errors, []);
+});

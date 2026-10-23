@@ -399,3 +399,14 @@ test('MJ6b · origens da mira: suas permanentes com habilidade ativada de um alv
   assert.deepEqual([...S.origensDaMira(s, 0, { abilidadesDe: o => o.oid === 5 ? [ab('activated', [{ do: 'damage', target: 'any', n: 1 }])] : [] })], ['5'], 'quem conhece as habilidades concedidas pode dizer de onde elas vêm');
   assert.deepEqual([...S.origensDaMira(null, 0)], []);
 });
+
+test('MJ7 · viradas de face: a dupla face que transformou (e a que voltou), a carta que ficou para cima; quem entrou, saiu ou só mudou de nome não vira', () => {
+  const antes = st([ob(1, 'battlefield', { name: 'Delver of Secrets' }), ob(2, 'battlefield', { name: 'Insectile Aberration', frontName: 'Delver of Secrets' }), ob(3, 'battlefield', { faceDown: true, name: 'Morph' }),
+    ob(4, 'battlefield', { name: 'Urso' }), ob(5, 'hand', { name: 'Delver of Secrets' }), ob(6, 'battlefield', { name: 'Incubator', frontName: 'Incubator', duplaFace: {} }), ob(7, 'battlefield', { name: 'Fica' })]);
+  const depois = st([ob(1, 'battlefield', { name: 'Insectile Aberration', frontName: 'Delver of Secrets' }), ob(2, 'battlefield', { name: 'Delver of Secrets' }), ob(3, 'battlefield', { name: 'Bicho Grande' }),
+    ob(4, 'graveyard', { name: 'Urso' }), ob(5, 'battlefield', { name: 'Insectile Aberration', frontName: 'Delver of Secrets' }), ob(6, 'battlefield', { name: 'Phyrexian', frontName: 'Incubator', duplaFace: {} }), ob(7, 'battlefield', { name: 'Fica, copiando' }),
+    ob(8, 'battlefield', { faceDown: true, name: 'Outro' })]);
+  assert.deepEqual(J(S.virasDeFace(antes, depois)), [{ oid: '1', para: 'verso' }, { oid: '2', para: 'frente' }, { oid: '3', para: 'cima' }, { oid: '6', para: 'verso' }],
+    'frente → verso vira para a direita, verso → frente para a esquerda, para baixo → para cima; a que entrou transformada (5), a que saiu (4), a que só mudou de nome (7) e a que entrou virada (8) não giram');
+  assert.equal(S.virasDeFace(null, depois).length, 0); assert.equal(S.virasDeFace(antes, antes).length, 0);
+});

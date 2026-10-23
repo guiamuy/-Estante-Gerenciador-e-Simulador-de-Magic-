@@ -305,3 +305,38 @@ test('T3 · Jogar com volume: relevo em tokens nos três blocos, texto AA até n
   assert.match(componentCss, /\.inicio-jogar--brilho::after \{ animation: jogar-brilho var\(--dur-4\)/);
   assert.match(componentCss, /@media \(prefers-reduced-motion: reduce\) \{ \.inicio-jogar\.ds-btn:active:not\(\[disabled\]\)[^}]*transform: none; \} \.inicio-jogar--brilho::after \{ animation: none; \} \}/);
 });
+
+/* ---------------- MJ7 (J-17) · material da mesa ---------------- */
+test('MJ7 · material: os tokens de sombra da carta, luz do feltro e latão existem nos três blocos; a sombra que cresce só anima opacidade e transform; a luz do feltro é fundo parado só na partida; o texto continua AA no lábio do latão', () => {
+  const novos = ['--sombra-carta', '--sombra-carta-alta', '--mesa-luz', '--mesa-penumbra', '--latao-luz', '--latao-labio'];
+  for (const [nome, t] of [['escuro', DARK], ['claro', LIGHT], ['claro automático', { ...DARK, ...AUTO_LIGHT }]])
+    for (const k of novos) assert.ok(t[k], `${k} no tema ${nome}`);
+  for (const k of novos) assert.equal(AUTO_LIGHT[k], LIGHT[k], `${k}: claro automático idêntico ao escolhido`);
+  // a carta em repouso tem espessura; levantada, a sombra alta vem de um ::after que só muda opacidade e transform (compositor)
+  assert.match(css, /\.tb-card__face \{[^}]*box-shadow: var\(--sombra-carta\)/);
+  const after = css.match(/\.tb-card::before \{([^}]*)\}/); assert.ok(after, '.tb-card::before');
+  assert.match(after[1], /box-shadow: var\(--sombra-carta-alta\)/); assert.match(after[1], /opacity: 0/);
+  assert.match(after[1], /transition: opacity var\(--dur-2\) var\(--ease-out\), transform var\(--dur-2\) var\(--ease-out\);/, 'só opacidade e transform transicionam');
+  for (const sel of ['.tb-card[data-selected="true"]::before', '.tb-card[data-segurando="true"]::before', '.tb-fx-camada > .tb-mira__carta::before']) assert.ok(css.includes(sel), sel + ' levanta a sombra');
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{ \.tb-card::before \{ transition: none; \} \}/);
+  // a luz do feltro: gradientes parados, só na partida, com os veios por cima; nada em @keyframes
+  const luz = css.match(/body\[data-tela="partida"\] \{\n  background-image:([^}]*)\}/); assert.ok(luz, 'vinheta da partida');
+  assert.match(luz[1], /var\(--mesa-luz\)/); assert.match(luz[1], /var\(--mesa-penumbra\)/); assert.match(luz[1], /var\(--grain-1\)/);
+  assert.doesNotMatch(css, /@keyframes[^{]*\{[^}]*--mesa-luz/);
+  // o latão: fio de luz e lábio na faixa de vez (não na mão inicial nem no fim, que são papel) e no marcador de vida de quem joga
+  assert.match(css, /\.tb-top > \.tb-vez:not\(\[data-papel="mulligan"\]\):not\(\[data-papel="fim"\]\)[^{]*\{[^}]*inset 0 1px 0 var\(--latao-luz\), inset 0 -1px 0 var\(--latao-labio\)/);
+  assert.match(css, /\.tb-life\[data-active="true"\] \{ background-image: linear-gradient\(180deg, var\(--latao-luz\)/);
+  // o texto sobre o latão continua AA no ponto mais claro (o fio de luz a toda força, no topo da faixa); o lábio é uma linha
+  // de 1 px na borda de baixo, fora do texto (inset 0 -1px), e por isso não entra na conta
+  const rgba = v => v.match(/rgba\((\d+),\s*(\d+),\s*(\d+),\s*([.\d]+)\)/).slice(1).map(Number);
+  const hex = h => h.replace('#', '').match(/../g).map(x => parseInt(x, 16));
+  const toHex = c => '#' + c.map(x => Math.round(x).toString(16).padStart(2, '0')).join('');
+  for (const [nome, t] of [['escuro', DARK], ['claro', LIGHT]]) {
+    const [r, g, b, a] = rgba(t['--latao-luz']), base = hex(t['--accent']);
+    const ponto = toHex(base.map((c, i) => c * (1 - a) + [r, g, b][i] * a));
+    assert.ok(ratio(t['--accent-fg'], ponto) >= 4.5, `texto sobre o latão no fio de luz (${nome}): ${ratio(t['--accent-fg'], ponto).toFixed(2)}`);
+    assert.match(t['--latao-labio'], /^rgba\(/, 'lábio em token');
+  }
+  // o palco do material no catálogo
+  assert.ok(HTML.includes("id: 'ds-material'") && HTML.includes("id: 'ds-virar'"), 'o /ds mostra repouso, escolhida, segurada e a dupla face que vira');
+});

@@ -149,6 +149,14 @@
   --relevo-escuro: rgba(28, 16, 2, .55);
   --relevo-claro: rgba(255, 250, 235, .42);
   --relevo-sombra: 0 16px 24px -14px rgba(0, 0, 0, .78);
+  /* MJ7 (J-17) · material da mesa: a carta tem espessura (sombra curta e firme) e, levantada, uma sombra que cresce;
+     o feltro tem luz (claridade no centro, penumbra nas bordas); o latão tem fio de luz no topo e lábio escuro embaixo */
+  --sombra-carta: 0 1px 1px rgba(0, 0, 0, .5), 0 2px 4px -1px rgba(0, 0, 0, .45);
+  --sombra-carta-alta: 0 14px 22px -8px rgba(0, 0, 0, .72), 0 4px 8px rgba(0, 0, 0, .35);
+  --mesa-luz: rgba(255, 246, 220, .07);
+  --mesa-penumbra: rgba(0, 0, 0, .34);
+  --latao-luz: rgba(255, 250, 235, .3);
+  --latao-labio: rgba(28, 16, 2, .4);
   --focus-ring: 0 0 0 3px var(--accent-soft);
   color-scheme: dark;
 }
@@ -194,6 +202,12 @@
   --relevo-escuro: rgba(34, 20, 4, .5);
   --relevo-claro: rgba(255, 248, 228, .34);
   --relevo-sombra: 0 14px 22px -14px rgba(64, 42, 10, .55);
+  --sombra-carta: 0 1px 1px rgba(74, 56, 26, .24), 0 2px 4px -1px rgba(74, 56, 26, .2);
+  --sombra-carta-alta: 0 14px 22px -8px rgba(74, 56, 26, .34), 0 4px 8px rgba(74, 56, 26, .16);
+  --mesa-luz: rgba(255, 253, 245, .42);
+  --mesa-penumbra: rgba(74, 56, 26, .16);
+  --latao-luz: rgba(255, 250, 235, .1); /* no claro o latão é escuro e o texto é claro: o fio de luz fica discreto para o texto seguir AA até no topo */
+  --latao-labio: rgba(34, 20, 4, .3);
   color-scheme: light;
 }
 
@@ -238,6 +252,12 @@
     --relevo-escuro: rgba(34, 20, 4, .5);
     --relevo-claro: rgba(255, 248, 228, .34);
     --relevo-sombra: 0 14px 22px -14px rgba(64, 42, 10, .55);
+    --sombra-carta: 0 1px 1px rgba(74, 56, 26, .24), 0 2px 4px -1px rgba(74, 56, 26, .2);
+    --sombra-carta-alta: 0 14px 22px -8px rgba(74, 56, 26, .34), 0 4px 8px rgba(74, 56, 26, .16);
+    --mesa-luz: rgba(255, 253, 245, .42);
+    --mesa-penumbra: rgba(74, 56, 26, .16);
+    --latao-luz: rgba(255, 250, 235, .1);
+    --latao-labio: rgba(34, 20, 4, .3);
     color-scheme: light;
   }
 }

@@ -154,6 +154,14 @@
   --relevo-escuro: rgba(28, 16, 2, .55);
   --relevo-claro: rgba(255, 250, 235, .42);
   --relevo-sombra: 0 16px 24px -14px rgba(0, 0, 0, .78);
+  /* MJ7 (J-17) · material da mesa: a carta tem espessura (sombra curta e firme) e, levantada, uma sombra que cresce;
+     o feltro tem luz (claridade no centro, penumbra nas bordas); o latão tem fio de luz no topo e lábio escuro embaixo */
+  --sombra-carta: 0 1px 1px rgba(0, 0, 0, .5), 0 2px 4px -1px rgba(0, 0, 0, .45);
+  --sombra-carta-alta: 0 14px 22px -8px rgba(0, 0, 0, .72), 0 4px 8px rgba(0, 0, 0, .35);
+  --mesa-luz: rgba(255, 246, 220, .07);
+  --mesa-penumbra: rgba(0, 0, 0, .34);
+  --latao-luz: rgba(255, 250, 235, .3);
+  --latao-labio: rgba(28, 16, 2, .4);
   --focus-ring: 0 0 0 3px var(--accent-soft);
   color-scheme: dark;
 }
@@ -199,6 +207,12 @@
   --relevo-escuro: rgba(34, 20, 4, .5);
   --relevo-claro: rgba(255, 248, 228, .34);
   --relevo-sombra: 0 14px 22px -14px rgba(64, 42, 10, .55);
+  --sombra-carta: 0 1px 1px rgba(74, 56, 26, .24), 0 2px 4px -1px rgba(74, 56, 26, .2);
+  --sombra-carta-alta: 0 14px 22px -8px rgba(74, 56, 26, .34), 0 4px 8px rgba(74, 56, 26, .16);
+  --mesa-luz: rgba(255, 253, 245, .42);
+  --mesa-penumbra: rgba(74, 56, 26, .16);
+  --latao-luz: rgba(255, 250, 235, .1); /* no claro o latão é escuro e o texto é claro: o fio de luz fica discreto para o texto seguir AA até no topo */
+  --latao-labio: rgba(34, 20, 4, .3);
   color-scheme: light;
 }
 
@@ -243,6 +257,12 @@
     --relevo-escuro: rgba(34, 20, 4, .5);
     --relevo-claro: rgba(255, 248, 228, .34);
     --relevo-sombra: 0 14px 22px -14px rgba(64, 42, 10, .55);
+    --sombra-carta: 0 1px 1px rgba(74, 56, 26, .24), 0 2px 4px -1px rgba(74, 56, 26, .2);
+    --sombra-carta-alta: 0 14px 22px -8px rgba(74, 56, 26, .34), 0 4px 8px rgba(74, 56, 26, .16);
+    --mesa-luz: rgba(255, 253, 245, .42);
+    --mesa-penumbra: rgba(74, 56, 26, .16);
+    --latao-luz: rgba(255, 250, 235, .1);
+    --latao-labio: rgba(34, 20, 4, .3);
     color-scheme: light;
   }
 }
@@ -875,6 +895,10 @@ body[data-tela="entrar"] .ds-appbar { display: none; }
 :root[data-verso="trama"] .ds-verso:not([data-desenho]), .ds-verso[data-desenho="trama"] { background-image: repeating-linear-gradient(60deg, var(--accent-soft) 0 3px, transparent 3px 9px), repeating-linear-gradient(-60deg, var(--accent-soft) 0 3px, transparent 3px 9px); }
 .aparencia__verso { width: 18px; height: 25px; border-radius: var(--radius-0); overflow: hidden; flex: none; border: 1px solid var(--border-strong); }
 .ds-versos { display: flex; gap: var(--space-3); } .ds-versos .ds-card { width: 72px; }
+/* MJ7 (J-17) · palco do material no catálogo: carta em repouso, escolhida, segurada e a dupla face que vira */
+.ds-material { align-items: flex-end; gap: var(--space-4); padding-top: var(--space-3); }
+.ds-material__item { display: inline-flex; flex-direction: column; align-items: center; gap: var(--space-2); }
+.ds-material__dupla { display: inline-block; }
 .aparencia__verso .ds-verso { box-shadow: none; }
 .tb-card__face--verso { display: block; }
 .tb-card__face--verso .ds-verso { position: absolute; inset: 0; }
@@ -1371,6 +1395,15 @@ body {
     radial-gradient(1200px 520px at 50% -12%, var(--bg-elev-1) 0%, transparent 62%);
   background-attachment: fixed;
 }
+/* MJ7 (J-17) · luz no feltro: na partida a mesa recebe uma claridade suave no centro e penumbra nas bordas (vinheta),
+   por baixo do veio; é fundo parado (nada anima), e o lado do oponente deixa o feltro aparecer em vez de cobri-lo */
+body[data-tela="partida"] {
+  background-image:
+    repeating-linear-gradient(94deg, var(--grain-1) 0 2px, transparent 2px 7px),
+    repeating-linear-gradient(88deg, var(--grain-2) 0 1px, transparent 1px 23px),
+    radial-gradient(110% 70% at 50% 42%, var(--mesa-luz) 0%, transparent 58%),
+    radial-gradient(130% 100% at 50% 50%, transparent 52%, var(--mesa-penumbra) 100%);
+}
 .ds-surface { border: 1px solid var(--border); }
 .ds-surface--shelf {
   background-image: repeating-linear-gradient(91deg, var(--grain-1) 0 2px, transparent 2px 9px);
@@ -1839,13 +1872,17 @@ body[data-mesa-cheia="true"] .tb-steps__list li { padding: 0 0 1px; border-botto
   background: var(--bg-elev-1); border: 1px solid var(--border); border-radius: var(--radius-2);
   border-bottom: 3px solid var(--shelf-edge);
 }
-.tb-side--opp { background: var(--bg); }
+.tb-side--opp { background: transparent; } /* MJ7 · o feltro (veio e luz) aparece no lado do outro; a borda e o ombro continuam separando o lado */
 /* U7 · o lado de quem tem o turno acende na cor do jogador (a sua é o acento; a do outro, azul) */
 .tb-side { transition: border-color var(--dur-3) var(--ease-out), box-shadow var(--dur-3) var(--ease-out); }
 .tb-side[data-ativo="true"] { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft), 0 0 20px var(--accent-soft); }
 .tb-side--opp[data-ativo="true"] { border-color: var(--player-opp); box-shadow: 0 0 0 2px var(--player-opp-soft), 0 0 20px var(--player-opp-soft); }
 .tb-vez { flex: 1 1 100%; display: flex; align-items: stretch; min-height: var(--tap-min);
   border-radius: var(--radius-full); background: var(--accent); color: var(--accent-fg); font-weight: var(--weight-bold); box-shadow: var(--shadow-1); }
+/* MJ7 (J-17) · latão com brilho leve: fio de luz no topo e lábio escuro embaixo na faixa de vez, no marcador de vida de
+   quem joga e nos selos de latão da carta (nada de brilho que corra: é luz parada num objeto de metal) */
+.tb-life[data-active="true"] { background-image: linear-gradient(180deg, var(--latao-luz) 0, transparent 45%); }
+.tb-pill:not(.tb-pill--icone):not(.tb-pill--perdeu) { box-shadow: inset 0 1px 0 var(--latao-luz), inset 0 -1px 0 var(--latao-labio); }
 .tb-vez__btn { flex: 1 1 auto; display: flex; align-items: center; gap: var(--space-2); min-height: var(--tap-min); padding: var(--space-1) var(--space-4) var(--space-1) var(--space-1);
   border: 0; border-radius: inherit; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .tb-vez__btn:disabled { cursor: default; }
@@ -1864,6 +1901,9 @@ body[data-mesa-cheia="true"] .tb-steps__list li { padding: 0 0 1px; border-botto
 @media (prefers-reduced-motion: reduce) { .tb-vez-pop { animation: none; } .tb-vez__btn:active:not(:disabled) { transform: none; } }
 .tb-vez[data-papel="oponente"] { background: var(--player-opp); color: var(--player-opp-fg); }
 .tb-vez[data-papel="mulligan"], .tb-vez[data-papel="fim"] { background: var(--bg-elev-2); color: var(--fg); border: 1px solid var(--border); }
+/* MJ7 · a faixa de vez e o selo da Conversa são metal (latão ou a cor do outro): fio de luz no topo, lábio embaixo; mão inicial e fim são papel */
+.tb-top > .tb-vez:not([data-papel="mulligan"]):not([data-papel="fim"]), .tb-top > .tb-vez-selo:not([data-papel="mulligan"]):not([data-papel="fim"]) {
+  background-image: linear-gradient(180deg, var(--latao-luz) 0, transparent 55%); box-shadow: inset 0 1px 0 var(--latao-luz), inset 0 -1px 0 var(--latao-labio), var(--shadow-1); }
 .tb-vez__avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: var(--radius-full); display: block; }   /* leva 128 · foto do perfil */
 .tb-vez__avatar { flex: none; width: 34px; height: 34px; border-radius: var(--radius-full); display: grid; place-items: center; overflow: hidden;
   background: var(--bg-elev-1); color: var(--fg); font-family: var(--font-display); font-size: var(--text-md); }
@@ -1922,7 +1962,22 @@ body[data-mesa-cheia="true"] .tb-steps__list li { padding: 0 0 1px; border-botto
   -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;   /* H10 · segurar não abre o menu da imagem no iPhone */
   position: relative; flex: none; width: var(--carta-campo); aspect-ratio: 488 / 680; padding: 0; border: none; background: none;
   scroll-snap-align: start; transition: transform var(--dur-2) var(--ease-out);
+  isolation: isolate; /* MJ7 · a sombra alta (::before, atrás da face) fica dentro da carta, sem cair atrás do lado */
 }
+/* MJ7 (J-17) · peso e material: a carta em repouso tem espessura (--sombra-carta, na face); levantada — escolhida para a
+   decisão, segurada para espiar, pressionada, no topo da pilha ou mirando — a sombra cresce por baixo dela (::before com
+   --sombra-carta-alta, só opacidade: o compositor pinta sozinho) e a carta sobe um pouco. Com menos movimento, estado final na hora. */
+.tb-card::before { content: ''; position: absolute; inset: 0; z-index: -1; border-radius: var(--radius-card); box-shadow: var(--sombra-carta-alta); opacity: 0; pointer-events: none;
+  transition: opacity var(--dur-2) var(--ease-out), transform var(--dur-2) var(--ease-out); }
+.tb-card[data-tapped="true"]::before { transform: rotate(90deg) scale(.78); }
+.tb-card[data-selected="true"]::before { opacity: 1; transform: translateY(calc(var(--space-2) * -1)); }
+.tb-card[data-segurando="true"]::before, .tb-card:active::before, .tb-stack__item[data-top="true"] .tb-stack__card > .tb-card::before { opacity: 1; }
+.tb-card[data-segurando="true"] { transform: translateY(calc(var(--space-1) * -1)) scale(1.04); z-index: 2; }
+.tb-card:active:not([data-segurando="true"]):not([data-selected="true"]) { transform: translateY(-2px); }
+@media (prefers-reduced-motion: reduce) { .tb-card::before { transition: none; } }
+/* a carta de duas faces vira em 3D curto: a face velha vai de 0° a 90° (foto na camada de efeitos), a nova vem de −90° a 0°; eixo vertical, perspectiva curta */
+.tb-fx-camada > .tb-voo--vira { box-shadow: var(--sombra-carta-alta); backface-visibility: hidden; }
+.tb-card--vira { backface-visibility: hidden; }
 .tb-card--sm { width: var(--carta-pilha); }
 .tb-card--hand { width: var(--carta-mao); }
 /* A13 · nome e P/T sempre legíveis por cima da arte; anel diz o estado sem toque */
@@ -1949,7 +2004,7 @@ body[data-mesa-cheia="true"] .tb-steps__list li { padding: 0 0 1px; border-botto
 @media (prefers-reduced-motion: reduce) { .tb-card--entrou { animation: none; } .tb-card, .tb-card__face { transition: none; } }
 .tb-card__face {
   position: absolute; inset: 0; overflow: hidden; border-radius: var(--radius-card);
-  background: var(--bg-elev-3); border: 1px solid var(--border); box-shadow: var(--shadow-1);
+  background: var(--bg-elev-3); border: 1px solid var(--border); box-shadow: var(--sombra-carta); /* MJ7 · espessura */
   transition: transform var(--dur-2) var(--ease-out);
 }
 .tb-card__face img { width: 100%; height: 100%; object-fit: cover; }
@@ -1961,7 +2016,7 @@ body[data-mesa-cheia="true"] .tb-steps__list li { padding: 0 0 1px; border-botto
 .tb-leque { --passo: 14px; position: relative; flex: none; display: inline-block; padding-right: calc(var(--atras) * var(--passo)); scroll-snap-align: start; }
 .tb-leque > .tb-card { z-index: 5; }
 .tb-leque__camada { position: absolute; top: 0; left: calc(var(--i) * var(--passo)); width: var(--carta-campo); aspect-ratio: 488 / 680; overflow: hidden; pointer-events: none;
-  border-radius: var(--radius-card); background: var(--bg-elev-3); border: 1px solid var(--border); box-shadow: var(--shadow-1); filter: brightness(.82); }
+  border-radius: var(--radius-card); background: var(--bg-elev-3); border: 1px solid var(--border); box-shadow: var(--sombra-carta); filter: brightness(.82); }
 .tb-leque__camada img { width: 100%; height: 100%; object-fit: cover; -webkit-touch-callout: none; }
 .tb-leque[data-tapped="true"] { margin: 0 calc(var(--carta-campo) * .2); }
 .tb-leque[data-tapped="true"] > .tb-card { margin: 0; }
@@ -2021,7 +2076,7 @@ body[data-mesa-cheia="true"] .tb-steps__list li { padding: 0 0 1px; border-botto
 @keyframes tb-pilha-sobe { from { transform: none; box-shadow: var(--shadow-1); } }
 @media (prefers-reduced-motion: reduce) { .tb-stack__monte--sobe > .tb-stack__mini[data-topo="true"] { animation: none; } }
 /* no detalhe aberto, o cartão que resolve a seguir também fica levantado */
-.tb-stack__item[data-top="true"] .tb-stack__card > .tb-card { transform: translateY(calc(var(--space-1) * -0.5)); box-shadow: var(--shadow-2); }
+.tb-stack__item[data-top="true"] .tb-stack__card > .tb-card { transform: translateY(calc(var(--space-1) * -0.5)); } /* MJ7 · a sombra alta vem do ::before de toda carta levantada */
 /* a foto da mágica que desce da pilha até a zona */
 .tb-voo--pilha { overflow: hidden; border-radius: var(--radius-1); box-shadow: var(--shadow-2); }
 .tb-voo--pilha img, .tb-voo--pilha .ds-verso { display: block; width: 100%; height: 100%; object-fit: cover; }
@@ -2029,7 +2084,8 @@ body[data-mesa-cheia="true"] .tb-steps__list li { padding: 0 0 1px; border-botto
 /* MJ6a · mirar por arrasto: a carta levantada da mão, a seta tracejada (tracejado é alvo) e os alvos legais acesos */
 #tb-hand .tb-card, .tb-side .tb-card[data-mira-origem="true"] { touch-action: pan-x; } /* arrastar de lado rola a fileira; para cima é com a mesa */
 #tb[data-mira] .tb-hand__body { grid-template-rows: 0fr; } /* a mão recolhe enquanto mira: o campo inteiro fica à vista */
-.tb-fx-camada > .tb-mira__carta { position: fixed; margin: 0; pointer-events: none; transform: translateY(calc(var(--space-2) * -1)); box-shadow: var(--shadow-3); }
+.tb-fx-camada > .tb-mira__carta { position: fixed; margin: 0; pointer-events: none; transform: translateY(calc(var(--space-2) * -1)); }
+.tb-fx-camada > .tb-mira__carta::before { opacity: 1; } /* MJ7 · a carta que mira está levantada: a sombra cresce com ela (a mesma de toda carta levantada) */
 .tb-mira { z-index: 1; }
 .tb-seta--mira { color: var(--accent); }
 .tb-seta--mira .tb-seta__traco { stroke-dasharray: 9 6; }
@@ -4095,7 +4151,31 @@ function renderDS() {
         M.StackStrip([demo('Lightning Bolt', { who: 'Bot' }), demo('Counterspell', { who: 'Você' })]),
         M.PriorityBanner({ title: 'Pilha: Counterspell', hint: 'Responda ou passe. Se todos passarem, o topo resolve.', actions: [Button('Passar', { variant: 'primary' })] }),
         M.AdjudicationPanel({ name: 'Preordain', oracle: 'Scry 2. Then draw a card.', controls: [Button('Comprar 1')], onDone: () => toast('Efeito aplicado') }),
-        Text('Carta com enjoo, carta virada com marcador, dano, pilha, momento de prioridade e adjudicação.', { size: 'sm', tone: 'muted' })
+        Text('Carta com enjoo, carta virada com marcador, dano, pilha, momento de prioridade e adjudicação.', { size: 'sm', tone: 'muted' }),
+        // MJ7 (J-17) · material: espessura em repouso, sombra que cresce ao levantar (escolhida, segurada), e a dupla face virando em 3D curto
+        Text('Material', { size: 'sm', caps: true, as: 'h3' }),
+        (() => {
+          const levantada = M.TableCard(demo('Sol Ring'), { selected: true }), segurada = M.TableCard(demo('Counterspell')); segurada.dataset.segurando = 'true';
+          const faces = ['Delver of Secrets', 'Insectile Aberration']; let lado = 0;
+          const quadro = h('span', { class: 'ds-material__dupla', id: 'ds-dupla' }, M.TableCard(demo(faces[0])));
+          const vira = () => {
+            const velha = quadro.firstElementChild, nova = M.TableCard(demo(faces[lado = 1 - lado])), r = velha.getBoundingClientRect();
+            const parado = document.documentElement.getAttribute('data-movimento') === 'reduzido' || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+            quadro.replaceChildren(nova);
+            if (parado || !r.width) return;
+            let camada = document.getElementById('ds-fx'); if (!camada) { camada = h('div', { id: 'ds-fx', class: 'tb-fx-camada', 'aria-hidden': 'true' }); document.body.appendChild(camada); }
+            const foto = velha; foto.disabled = true; foto.tabIndex = -1; foto.classList.add('tb-voo'); Object.assign(foto.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` }); camada.appendChild(foto);
+            const dur = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--dur-3')) || 280;
+            const as = M.animaVirada(nova, foto, { duracao: dur, sentido: lado ? 1 : -1 });
+            as[0].onfinish = () => { foto.remove(); if (!camada.childElementCount) camada.remove(); };
+          };
+          return h('div', { class: 'ds-row ds-row--wrap ds-material', id: 'ds-material' },
+            h('span', { class: 'ds-material__item' }, M.TableCard(demo('Lightning Bolt')), Text('repouso', { size: 'xs', tone: 'muted' })),
+            h('span', { class: 'ds-material__item' }, levantada, Text('escolhida', { size: 'xs', tone: 'muted' })),
+            h('span', { class: 'ds-material__item' }, segurada, Text('segurada', { size: 'xs', tone: 'muted' })),
+            h('span', { class: 'ds-material__item' }, quadro, Button('Virar', { icone: 'virar', id: 'ds-virar', onClick: vira })));
+        })(),
+        Text('Tokens: --sombra-carta (espessura) · --sombra-carta-alta (levantada) · --mesa-luz e --mesa-penumbra (luz do feltro, só na partida) · --latao-luz e --latao-labio (fio de luz e lábio do latão: faixa de vez, vida de quem joga, selos).', { size: 'xs', tone: 'muted', attrs: { id: 'ds-material-tokens' } })
       ];
     })()),
 
@@ -34205,7 +34285,8 @@ function TableCard(card, opts = {}) {
   pills.length ? h('span', { class: 'tb-card__pills' }, ...pills) : null,
   sick ? h('span', { class: 'tb-card__sick', title: 'enjoo de invocação' }, 'enjoo') : null);
   // A15 · segurar espia a carta; soltar fecha (quem monta a tela passa start/end)
-  if (opts.onPeek) __m20.onLongPress(el, { start: () => opts.onPeek(true), end: () => opts.onPeek(false) });
+  // MJ7 · enquanto segura, a carta se levanta (data-segurando: a sombra cresce por baixo dela)
+  if (opts.onPeek) __m20.onLongPress(el, { start: () => { el.dataset.segurando = 'true'; opts.onPeek(true); }, end: () => { delete el.dataset.segurando; opts.onPeek(false); } });
   // U5 · cópias iguais em leque: até 3 cartas atrás aparecem deslocadas; o toque é da carta da frente
   const atras = opts.pilha ? Math.min(LEQUE_MAX, opts.pilha.total - 1) : 0;
   if (atras <= 0) return el;
@@ -34214,6 +34295,20 @@ function TableCard(card, opts = {}) {
   return h('span', { class: 'tb-leque', dataset: { leque: String(opts.pilha.total), tapped: String(tapped) }, style: { '--atras': String(atras) } }, el, ...camadas);
 }
 const LEQUE_MAX = 3;
+/** MJ7 (J-17) · a carta de duas faces vira em 3D curto. `novo` é a carta já com a face nova; `foto` (opcional) é a cópia
+    da face velha, já posta na camada de efeitos sobre a mesma caixa. Metade do tempo a face velha gira até ficar de
+    lado (0° → ±90°), a outra metade a nova vem de lado até de frente (∓90° → 0°); `sentido` 1 vira para a direita (frente →
+    verso), −1 para a esquerda (verso → frente). Devolve as animações (quem chama as conclui no próximo toque). */
+function animaVirada(novo, foto, { duracao = 280, sentido = 1, easeIn = 'ease-in', easeOut = 'ease-out' } = {}) {
+  const meia = Math.max(1, duracao / 2), persp = 'perspective(480px) ';
+  const out = [];
+  if (foto) { foto.classList.add('tb-voo--vira'); out.push(foto.animate([{ transform: persp + 'rotateY(0deg)' }, { transform: `${persp}rotateY(${90 * sentido}deg)` }], { duration: meia, easing: easeIn, fill: 'forwards' })); }
+  novo.classList.add('tb-card--vira');
+  const a = novo.animate([{ transform: `${persp}rotateY(${-90 * sentido}deg)` }, { transform: persp + 'rotateY(0deg)' }], { duration: meia, delay: foto ? meia : 0, easing: easeOut, fill: 'backwards' });
+  const limpa = () => novo.classList.remove('tb-card--vira'); a.addEventListener('finish', limpa); a.addEventListener('cancel', limpa); // (ouvintes: quem chama pode pôr o próprio onfinish)
+  out.push(a);
+  return out;
+}
 
 /** U6b · decide o que um arrasto vertical na borda de cima da bandeja faz. Puro, para testar.
     dy > 0 é para baixo. Recolhe com arrasto para baixo, abre com arrasto para cima; um arrasto
@@ -34436,7 +34531,7 @@ function AdjudicationPanel({ name, image, oracle, controls, onDone }) {
     h('div', { class: 'tb-adj__actions' }, ...(controls || []), Button('Efeito aplicado', { variant: 'primary', id: 'tb-adj-done', onClick: onDone })));
 }
 
-return { QuadroDeBloqueios, retemImagem, retemImagemDaCarta, imagensRetidas, fonteParaLargura, TableCard, ZoneRow, LifeCounter, ZoneChip, StepBar, StackStrip, StackPanel, CardPeek, PriorityBanner, AdjudicationPanel, Icone, IconButton, gestoDeBandeja, ligaGestoDeBandeja };
+return { QuadroDeBloqueios, retemImagem, retemImagemDaCarta, imagensRetidas, fonteParaLargura, animaVirada, TableCard, ZoneRow, LifeCounter, ZoneChip, StepBar, StackStrip, StackPanel, CardPeek, PriorityBanner, AdjudicationPanel, Icone, IconButton, gestoDeBandeja, ligaGestoDeBandeja };
 })();
 
 
@@ -36366,6 +36461,23 @@ function saidasDaPilha(antes = [], s) {
   const agora = new Set((s.stack || []).map(String));
   return antes.map(String).filter(k => { const o = s.objects[k]; return !agora.has(k) && !!o && !o.ability && ['graveyard', 'exile', 'library', 'hand', 'command'].includes(o.zone); });
 }
+/* ---------------- MJ7 (J-17) · material: a carta que virou a face ----------------
+   Compara dois estados e diz que permanentes continuaram no campo com outra face para cima: a dupla face que
+   transformou (frente → verso, `frontName` passa a existir; verso → frente, deixa de existir — 701.27) ou a carta virada
+   para baixo que ficou para cima (708). `para` diz o lado da virada: 'verso' e 'baixo' giram para a direita, 'frente' e
+   'cima' para a esquerda. Quem desenha anima a virada (metade a face velha, metade a nova); sem movimento, nada gira. Puro. */
+function virasDeFace(antes, s) {
+  if (!antes || !antes.objects || !s || !s.objects) return [];
+  const out = [];
+  for (const [k, o] of Object.entries(s.objects)) {
+    const a = antes.objects[k];
+    if (!a || o.zone !== 'battlefield' || a.zone !== 'battlefield') continue;
+    if (!!a.faceDown !== !!o.faceDown) { out.push({ oid: String(k), para: o.faceDown ? 'baixo' : 'cima' }); continue; }
+    if (!!a.frontName !== !!o.frontName) out.push({ oid: String(k), para: o.frontName ? 'verso' : 'frente' });
+    else if (a.frontName && o.frontName && a.name !== o.name) out.push({ oid: String(k), para: 'verso' }); // ficha de dupla face que troca entre dois versos
+  }
+  return out;
+}
 /* ---------------- MJ6a/MJ6b · mirar por arrasto ----------------
    Arrastar para cima uma carta até o alvo age nele: a mágica da mão é conjurada (MJ6a); a permanente do campo ativa a
    habilidade (MJ6b); a fonte de um gatilho que espera alvo escolhe o alvo (MJ6b). `alvosDoArrasto` lê as ações legais
@@ -36564,7 +36676,7 @@ function createSom({ store = null, criaContexto = null } = {}) {
     get tocados() { return tocados.slice(); }
   };
 }
-return { eventosSensoriais, planoDeSom, planoDeEfeitos, planoDeVoo, ondePousa, planoDeSaida, monteDaPilha, saidasDaPilha, alvosDoArrasto, origensDaMira, gestoDeMira, setasDoCombate, curvaDaSeta, marcasDaPrevia, roteiroDaJogada, createSom, limpaPrefs, duracaoDe, RECEITAS, NOMES, ORDEM, SOM_DO_TIPO, CHAVE, GLOBAL_A_PARTIR_DE };
+return { eventosSensoriais, planoDeSom, planoDeEfeitos, planoDeVoo, ondePousa, planoDeSaida, monteDaPilha, saidasDaPilha, virasDeFace, alvosDoArrasto, origensDaMira, gestoDeMira, setasDoCombate, curvaDaSeta, marcasDaPrevia, roteiroDaJogada, createSom, limpaPrefs, duracaoDe, RECEITAS, NOMES, ORDEM, SOM_DO_TIPO, CHAVE, GLOBAL_A_PARTIR_DE };
 })();
 
 /* ==== src/app/table.js ==== */
@@ -37066,7 +37178,28 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       if (caixas[k] || !c.w || !c.h) continue;
       caixas[k] = c; if (descem.has(k)) fotos[k] = el.cloneNode(true);
     }
-    return { antes, pilha: faixa ? { caixa: caixaDe(faixa), caixas, fotos, oids: oidsDaPilha } : null, oponente, campo: new Set([...vistos].map(String)) };
+    // MJ7 · a carta do campo que virou a face: a foto da face velha gira até ficar de lado antes de a nova aparecer
+    const viras = __m33.virasDeFace(estadoOuvido, table.state).map(x => { const el = root.querySelector(`.tb-side .tb-card[data-oid="${x.oid}"]`); const c = el && caixaDe(el);
+      return c && c.w && c.h ? { ...x, caixa: c, foto: el.cloneNode(true) } : x; });
+    return { antes, pilha: faixa ? { caixa: caixaDe(faixa), caixas, fotos, oids: oidsDaPilha } : null, oponente, campo: new Set([...vistos].map(String)), viras };
+  }
+  /* MJ7 (J-17) · a carta que virou a face gira em 3D curto no lugar (--dur-3, metade cada face). A face velha é a foto
+     tirada antes do redesenho, na camada de efeitos; a nova é a carta de verdade, que começa de lado. Marca `vira:<para>:<oid>`. */
+  function viraFaces(m, marcas) {
+    if (!m || !m.viras || !m.viras.length) return;
+    const dur = durFx('--dur-3'), cs = getComputedStyle(document.documentElement), easeIn = cs.getPropertyValue('--ease-in-out').trim() || 'ease-in', easeOut = cs.getPropertyValue('--ease-out').trim() || 'ease-out';
+    for (const x of m.viras) {
+      const novo = root.querySelector(`.tb-side .tb-card[data-oid="${x.oid}"]`); if (!novo) continue;
+      let foto = null;
+      if (x.foto) {
+        foto = x.foto; foto.removeAttribute('id'); foto.disabled = true; foto.tabIndex = -1; foto.classList.remove('tb-card--entrou'); foto.classList.add('tb-voo'); foto.dataset.vira = x.oid;
+        Object.assign(foto.style, { left: `${x.caixa.x}px`, top: `${x.caixa.y}px`, width: `${x.caixa.w}px`, height: `${x.caixa.h}px` });
+        camadaFx().appendChild(foto);
+      }
+      const as = __m17.animaVirada(novo, foto, { duracao: dur, sentido: x.para === 'verso' || x.para === 'baixo' ? 1 : -1, easeIn, easeOut });
+      for (const a of as) { voos.push(a); const fim = () => { const i = voos.indexOf(a); if (i >= 0) voos.splice(i, 1); if (foto && a.effect && a.effect.target === foto) { foto.remove(); const camada = document.getElementById('tb-fx'); if (camada && !camada.childElementCount) camada.remove(); } }; a.onfinish = fim; a.oncancel = fim; }
+      marcas.push(`vira:${x.para}:${x.oid}`);
+    }
   }
   /* MJ3b/MJ3c · onde pousa a carta que mudou de zona: o contador da zona do dono, a faixa da pilha ou a carta na sua mão */
   function alvoNaMesa(s, v, oid) {
@@ -37241,6 +37374,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const marcas = plano.map(p => `${p.origem}:${p.oid}`);
     voaDeVerso(m, s, v, marcas);
     desceDaPilha(m, s, v, marcas); // MJ5
+    viraFaces(m, marcas); // MJ7
     root.dataset.voos = marcas.join(' ');
     if (!plano.length) return;
     const dur = durFx('--dur-3'), ease = getComputedStyle(document.documentElement).getPropertyValue('--ease-out').trim() || 'ease-out';

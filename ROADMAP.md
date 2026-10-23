@@ -604,7 +604,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-je ✅ | MJ4 combate desenhado: setas de ataque e bloqueio com a prévia junto da seta | MJ | 2 | 16º-jd |
 | 16º-jf ✅ | MJ5 pilha com profundidade: cartões empilhados, topo levantado, resolução descendo ao destino | MJ | 1 | 16º-jb, 16º-jd |
 | 16º-jg ✅ | MJ6 mirar por arrasto com linha curva (tocar continua valendo) — MJ6a (J-15), MJ6b (J-16) | MJ | 2 | 16º-je |
-| 16º-jh | MJ7 material: sombra que cresce ao levantar, luz do feltro, latão, dupla face virando | MJ | 1 | 16º-jb; tokens pelo `/ds` |
+| 16º-jh ✅ | MJ7 material: sombra que cresce ao levantar, luz do feltro, latão, dupla face virando (J-17) | MJ | 1 | 16º-jb; tokens pelo `/ds` |
 | 16º-ji | MJ8 ritmo do turno: transições de fase e de vez, cena do oponente com continuidade | MJ | 1–2 | 16º-jd |
 | 16º-jj | MJ9 fim de partida com peso: placar, série, últimas jogadas | MJ | 1 | — |
 | 16º-jk | MJ10 espiar de patamar: carta grande com profundidade e brilho opcional | MJ | 1 | 16º-jh |
@@ -10807,8 +10807,31 @@ retorno imediato; limiar de distância, cancelar ao voltar; tocar continua valen
     alvo que é a própria carta (pelo toque ou pela bandeja); habilidade ativada de carta na mão ou no cemitério (ciclar
     com alvo, canalizar) continua pela folha; leque de cartas iguais: soltar nele escolhe a primeira (são iguais).
 
-**MJ7 · Material** ○ (1 leva) — sombra que cresce ao levantar a carta, luz suave no feltro, latão com brilho leve, carta
+**MJ7 · Material** ✅ (J-17, 23/10/2026) — sombra que cresce ao levantar a carta, luz suave no feltro, latão com brilho leve, carta
 de duas faces virando em 3D curto; tokens novos pelo `/ds` nos dois temas.
+  - **Entregue (J-17):** a carta tem espessura (`--sombra-carta`, na face, no lugar da `--shadow-1`) e, levantada — escolhida
+    para a decisão (`data-selected`), segurada para espiar (`data-segurando`, novo no `TableCard`), pressionada (`:active`), no
+    topo da pilha aberta ou mirando (`.tb-mira__carta`) — a sombra cresce por baixo dela (`.tb-card::before` com
+    `--sombra-carta-alta`, só opacidade e transform: o compositor pinta sozinho; `isolation: isolate` na carta) e a carta sobe
+    um pouco. O feltro tem luz: na partida o fundo ganha claridade no centro e penumbra nas bordas (`--mesa-luz`,
+    `--mesa-penumbra`, gradientes parados por baixo do veio) e o lado do oponente deixa o feltro aparecer (fundo transparente;
+    borda e ombro continuam). O latão tem fio de luz no topo e lábio escuro embaixo (`--latao-luz`, `--latao-labio`): faixa de
+    vez e selo da Conversa (mão inicial e fim são papel), marcador de vida de quem joga, selos da carta. A dupla face que
+    transforma (e a carta que fica para cima) vira em 3D curto no lugar (`--dur-3`, metade cada face): a face velha é a foto
+    tirada antes do redesenho, na camada `#tb-fx` (`.tb-voo--vira[data-vira]`), gira até ficar de lado; a nova (`.tb-card--vira`)
+    vem de lado; `#tb[data-voos]` marca `vira:<verso|frente|cima|baixo>:<oid>`; o próximo toque conclui. Puro:
+    `__m33.virasDeFace(antes, s)`; `__m17.animaVirada(novo, foto, { duracao, sentido })` serve a mesa e o palco do `/ds`
+    (seção Mesa › Material: repouso, escolhida, segurada e a dupla face com o botão Virar). Com menos movimento nada
+    cresce nem gira (estado final na hora). **Medidas:** zero pixel de campo (sombra e foto fora do layout; o e2e mede a
+    fileira e o lado antes e durante o levantar); a jogada que vira a dupla face custa 17,8 ms (aplicar, redesenhar, foto e
+    animação; as MJ3 mediam 12,8–15,8 ms sem virada); +3,6 KB gzip. **Testes:** `sentidos.unit` (viradas de face);
+    `contract.visual` (tokens nos três blocos e idênticos no claro automático, `::before` só opacidade e transform, vinheta
+    só na partida, latão com fio e lábio, texto AA sobre o fio de luz a toda força — por isso o fio é discreto no claro);
+    e2e "MJ7" (palco do `/ds` nos dois temas com `auditaTela`, virada e menos movimento no palco; na partida: luz só lá,
+    lado do outro transparente, latão, segurar levanta e a sombra acende sem mudar fileira nem lado, o Delver transforma
+    na manutenção e vira em 3D com foto e marca, termina sozinho). **Fora:** brilho de foil e paralaxe ao espiar (MJ10);
+    sombra que segue a direção da luz; virada da carta na mão ou na pilha (só o campo); a carta que vira dentro de um
+    leque de cópias iguais faz só a metade nova da virada (não tem nó próprio para fotografar a face velha).
 
 **MJ8 · Ritmo do turno** ○ (1–2 levas) — o trilho de fases acende em sequência, a faixa de vez desliza, a cena do
 oponente (H5) passa a mover as cartas (MJ3) em vez de redesenhar.
