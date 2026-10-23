@@ -54,7 +54,7 @@
           }
         },
         "usuario": {
-          ".validate": "newData.hasChildren(['nome', 'em']) && root.child('usuarios/' + newData.child('nome').val() + '/uid').val() === $uid",
+          ".validate": "newData.hasChildren(['nome', 'em']) && root.child('usuarios/' + newData.child('nome').val() + '/uid').val() === $uid && (!data.exists() || data.child('nome').val() === newData.child('nome').val() || now >= data.child('em').val() + 2592000000)",
           "nome": {
             ".validate": "newData.isString()"
           },
