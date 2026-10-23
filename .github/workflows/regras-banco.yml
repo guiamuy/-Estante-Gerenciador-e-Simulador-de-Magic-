@@ -1,0 +1,42 @@
+# I-298 · S4 da triagem de pendências do dono (19/10/2026; "sim" em 23/10). As regras do banco (`database.rules.json`
+# do main) vão para o Realtime Database pelo REST, com a conta de serviço do Firebase (segredo FIREBASE_SERVICE_ACCOUNT,
+# só no passo que publica). O script lê as regras publicadas, compara e só envia quando são diferentes; depois lê de novo
+# e confere. Guarda antes de enviar: JSON válido, raiz fechada, tamanho. Disparado pela fila a cada avanço do main (o push
+# da fila não dispara fluxos), uma vez por dia e à mão (com "conferir" só compara). Nada é gravado no repositório.
+# Trilha: infra.
+name: Regras do banco
+
+on:
+  schedule:
+    - cron: '41 4 * * *'
+  workflow_dispatch:
+    inputs:
+      conferir:
+        description: 'Só comparar com o que está publicado, sem enviar'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: regras-banco
+  cancel-in-progress: false
+
+jobs:
+  publica:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09   # v5 (fixada por SHA; roda em Node 24)
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444   # v5 (fixada por SHA; roda em Node 24)
+        with:
+          node-version: 22
+      - name: Publicar as regras do main no banco (só se mudaram)
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          CONFERIR: ${{ inputs.conferir && '--conferir' || '' }}
+        run: node regras-banco.mjs $CONFERIR

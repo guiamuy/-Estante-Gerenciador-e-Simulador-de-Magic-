@@ -176,6 +176,8 @@ jobs:
           gh workflow run relatos-fila.yml --repo "$GITHUB_REPOSITORY" --ref main || echo "::warning::não consegui disparar relatos-fila.yml"
           # I-293 · a contagem diária de Pessoas também corre a cada avanço (o agendamento do GitHub atrasa horas)
           gh workflow run pessoas.yml --repo "$GITHUB_REPOSITORY" --ref main || echo "::warning::não consegui disparar pessoas.yml"
+          # I-298 · as regras do banco do main vão para o Firebase (só quando mudaram; o push da fila não dispara fluxos)
+          gh workflow run regras-banco.yml --repo "$GITHUB_REPOSITORY" --ref main || echo "::warning::não consegui disparar regras-banco.yml"
       # I-292 · telemetria da rodada: levas somadas, resultado do portão, sha publicado e o resumo do portão (testes, instáveis,
       # telas, duração) vão para o ramo `telemetria`, como as levas (BI2-6). Só agregados, tudo pelo ambiente (nada interpolado
       # no shell); o código é o telemetria.mjs do main. O token fica no git do runner, nunca na URL. Falhar não derruba a rodada.
