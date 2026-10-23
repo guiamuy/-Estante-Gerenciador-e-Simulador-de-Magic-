@@ -5487,6 +5487,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** a tabela tem só o nome que aparece hoje no catálogo; nome do MTGO numa lista colada pelo usuário no app ainda não é traduzido (pedido à trilha `armazem`: o mesmo apelido na busca de cartas do app).
 - **Teste:** `catalogo.nomes.unit` (3 testes; falham antes da M-573).
 
+**M-574 · LT232 · o custo "Exile <nome da carta> from your graveyard" de uma mágica é o mesmo que "Exile this card"** ✅ (leva M-574, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** sétima leva do plano "Pauper 100%". Achado da prova de partida do Pauper: no Oracle do Forge, Wither and Bloom escreve "{1}{B}, Exile Wither and Bloom from your graveyard: …", onde a Scryfall (23/10/2026) diz "Exile this card from your graveyard". A assinatura da revisão já trata as duas como o mesmo texto (o nome vira ~, M-326), então a carta contava como aprovada; o leitor, porém, só reconhecia "this card" e perdia a habilidade do cemitério.
+- **Regra:** a linha de mágica ativada do cemitério (M-569) passa pelo `til` (o nome da carta vira ~) antes de ser reconhecida; nome de outra carta no custo continua não lido como exilar a si mesma.
+- **Fora (declarado):** o Elven Farsight do Forge guarda a redação anterior à errata ("If it's a creature card, draw a card"); não é a revisada e continua "em revisão" com esse texto — no app (texto da Scryfall) a carta joga desde a M-570; a prova passa a usar o texto da Scryfall (H-14).
+- **Revisão independente:** sem divergências: as duas redações dão o mesmo script (exilar a si mesma do cemitério, só como feitiço); nome de outra carta, sufixo ("Bloom"), prefixo ("Witherbloom") e caracteres especiais no nome não viram "exilar a si mesma"; as 1.289 cartas revisadas e as 138 do Pauper original leem igual antes e depois (0 diferenças).
+- **Teste:** `lt255.unit` (3 testes; o do Wither and Bloom falha no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
