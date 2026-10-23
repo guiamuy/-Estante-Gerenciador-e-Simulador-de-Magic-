@@ -31,7 +31,9 @@ test('LT1 · concordância (piso M-325: 157): toda carta lida por inteiro dá o 
   const lidas = [], divergentes = [];
   for (const c of CARTAS) {
     const r = L.ler(c); if (!r.completa) continue;
-    const h = S.SCRIPTS[c.name];
+    let h = S.SCRIPTS[c.name];
+    // M-572 · salvaguarda de mana à mão igual à impressa ("Ward {3}"): o motor lê a impressa do texto (K-2, wardImpressoK); não é divergência do leitor (Mirrorshell Crab, lida por inteiro desde o canalizar)
+    if (h && h.self && typeof h.self.ward === 'string' && new RegExp('^Ward ' + h.self.ward.replace(/[{}]/g, m => '\\' + m) + '(?: |$)', 'm').test(c.oracle_text || '')) { const { ward, ...resto } = h.self; h = { ...h, self: Object.keys(resto).length ? resto : undefined }; if (!h.self) delete h.self; }
     lidas.push(c.name);
     if (!h && !r.script) continue; // permanente que o motor joga pelos dados da carta (palavras-chave, mana): nada a comparar
     // só mana e palavras-chave impressas: o motor lê da carta e a cobertura nem consulta o leitor (SC.leitura devolve null) — Sol Ring, "{T}: Add {C}{C}"

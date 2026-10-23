@@ -5749,6 +5749,7 @@ const EFFECTS = {
   // V-17 · 701.40 manifestar: a carta do topo do seu grimório entra virada para baixo como criatura 2/2 (uma de cada vez; `amount` opcional, padrão 1; `marcadores`: "then put N +1/+1 counters on it")
   manifest: { fields: [], targets: ['self'] },
   discard_random: { fields: ['amount'], targets: ['self', 'player', 'opponent'] }, // V-14 · 701.9b descartar ao acaso: as cartas saem pela semente do jogo, ninguém escolhe
+  atrai_no_turno: { fields: [], targets: ['creature'] }, // M-572 · "All creatures able to block target creature this turn do so" (canalizar do Shinen of Life's Roar, 509.1c)
   bloqueia_se_puder: { fields: [], targets: ['creature'] }, // M-567 · 509.1c "target creature blocks this turn if able" (Academic Dispute)
   learn: { fields: [], targets: ['self'] }, // V-13 · 701.48 aprender: "You may discard a card. If you do, draw a card." (a Lição de fora do jogo não existe no app: parcial declarada)
   // V-12 · 701.60 suspeitar: a criatura fica suspeita (ameaçar e "não pode bloquear") até sair do campo ou até um efeito dizer que deixa de ser; `unsuspect` é o "is no longer suspected"
@@ -6872,6 +6873,7 @@ function effectErrors(effects, label, opcional) {
       if (e.mais != null && !Number.isInteger(e.mais) && !(e.mais && typeof e.mais === 'object' && e.mais.per)) errs.push(`${label} ${i + 1} (dado): "mais" é um número ou uma contagem`);
     }
     const antes = effects.slice(0, i).some(x => x.do === 'dado');
+    if (e.dadoAteSubtipoM != null && (typeof e.dadoAteSubtipoM !== 'string' || !effects.slice(0, i).some(x => x.do === 'dado'))) errs.push(`${label} ${i + 1}: "dadoAteSubtipoM" é o subtipo contado e precisa de um dado antes`); // M-572
     if (e.faixaDoDado != null) {
       const f = e.faixaDoDado;
       if (!Array.isArray(f) || f.length !== 2 || !Number.isInteger(f[0]) || !(f[1] === null || (Number.isInteger(f[1]) && f[1] >= f[0]))) errs.push(`${label} ${i + 1}: a faixa do dado ("faixaDoDado") é [de, ate], de ≤ ate (ate null = "de ou mais")`);
@@ -10635,6 +10637,9 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   // M-571 · revisão por lote CCVI (Pauper: Oliphaunt, Magitek Infantry), textos da Scryfall de 23/10/2026 UTC, revisor independente
   'Oliphaunt': { texto: '1guv44m', leva: 'M-571' },
   'Magitek Infantry': { texto: '17kh2b2', leva: 'M-571' },
+  // M-572 · revisão por lote CCVII (Pauper: Clowning Around, Shinen of Life's Roar), textos da Scryfall de 23/10/2026 UTC, revisor independente
+  'Clowning Around': { texto: 'ziw725', leva: 'M-572' },
+  'Shinen of Life\'s Roar': { texto: '1vve0ah', leva: 'M-572' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -19247,6 +19252,9 @@ const __m42 = (function () {
     [new RegExp(`^its controller creates ${N} (treasure|food|blood|map|clue|lander) tokens?$`, 'i'), m => fichaPredefinida(m[1], m[2]).map(e => ({ ...e, target: 'target-controller' }))], // LT11 · "its controller": o controlador do alvo
     [new RegExp(`^~ deals ${N} damage to each non-([A-Z][a-z]+) creature$`), m => [{ do: 'damage', amount: num(m[1]), target: 'each-creature', exceptSubtype: m[2] }]], // LT11
     [/^each player sacrifices a nontoken creature of their choice$/i, () => [{ do: 'sacrifice_each', types: ['creature'], nontoken: true }]], // LT11 · 701.21
+    [/^(?:then )?roll a six-sided die$/i, () => [{ do: 'dado', lados: 6 }]], // M-572 · Clowning Around (706)
+    [/^if the result is equal to or less than the number of ([a-z]+)s you control, (.+)$/i, m => { const e = leFrase(m[2]); return e && e.length === 1 ? [{ ...e[0], dadoAteSubtipoM: m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase() }] : null; }], // M-572 · conferido na resolução, depois das fichas criadas antes
+    [/^all creatures able to block target creature this turn do so$/i, () => [{ do: 'atrai_no_turno', target: 'creature' }]], // M-572 · canalizar do Shinen of Life's Roar
     [/^target creature you control fights target creature you don't control$/i, () => [{ do: 'lutador', target: 'creature-you-control' }, { do: 'fight', quem: 'primeiro-alvo', target: 'creature-opponent-controls' }]], // M-570 · Bushwhack (701.14; o mesmo par da Prey Upon)
     [/^search your library for an? ([A-Za-z-]+) creature card, reveal it, put it into your hand$/i, m => [{ do: 'search', amount: 1, filter: { types: ['creature'], subtypes: [m[1].replace(/(^|-)([a-z])/g, (x, a, b) => a + b.toUpperCase())] }, to: 'hand', revela: true }]], // M-570 · Self-Assembler (subtipo de criatura)
     [/^you may reveal the top card of your library to draw a card if it is a creature card$/i, () => [{ do: 'revela_topo_compra', tipos: ['creature'] }]], // M-570 · Elven Farsight
@@ -19532,6 +19540,7 @@ const __m42 = (function () {
       else if (/^sacrifice a creature$/i.test(parte)) cost.sacrificeOther = { types: ['creature'], ...(/\bcreature\b/i.test(tipoAtual) ? { includeSelf: true } : {}) }; // LT13 · Phyrexian Tower · M-327: a criatura com esse custo pode se sacrificar (Viscera Seer)
       else if (/^sacrifice another creature$/i.test(parte)) cost.sacrificeOther = { types: ['creature'], outra: true };
       else if (/^discard a card$/i.test(parte)) cost.discard = 1;
+      else if (/^discard (?:~|this card)$/i.test(parte)) { cost.discardSelf = true; cost.fromHand = true; } // M-572 · canalizar (Shinen of Life's Roar): habilidade da mão (113.6)
       else if (/^exile (two|three|four|five) cards from your graveyard$/i.test(parte)) cost.exileFromGraveyard = { amount: { two: 2, three: 3, four: 4, five: 5 }[parte.match(/^exile (\w+)/i)[1].toLowerCase()] }; // M-538 · Psychic Frog
       else if (/^discard your hand$/i.test(parte)) cost.discardHand = true; // M-342 · Lion's Eye Diamond (602.1: o custo descarta a mão inteira)
       else if (/^exile (?:~|this card) from your graveyard$/i.test(parte)) { cost.exileSelf = true; cost.fromGraveyard = true; } // M-352 · M-568: "this card" (Rubblebelt Maverick) · Bramble Wurm (113.6: habilidade que funciona do cemitério)
@@ -19546,7 +19555,7 @@ const __m42 = (function () {
   }
   /** Uma linha de habilidade ativada ("custo: efeito. Activate only as a sorcery.") → { ab, frases } ou null. */
   function leAtivada(linha, nome, frases) {
-    const m = linha.match(/^((?:(?:\{[^}]+\})+|Sacrifice [^:,]+|Discard a card|Discard your hand|Exile ~ from your hand|Exile (?:two|three|four|five) cards from your graveyard|Pay \d+ life|Remove an? [a-z]+ counter from ~|Put an? [+-]\d\/[+-]\d counter on ~)(?:,\s*(?:(?:\{[^}]+\})+|Sacrifice [^:,]+|Discard a card|Discard your hand|Pay \d+ life|Remove an? [a-z]+ counter from ~|Exile (?:~|this card) from your graveyard|Exile ~))*): (.+)$/i); // M-352 · "Exile ~ from your graveyard" (Bramble Wurm) // M-348 · remover marcador, exilar ~ // M-342 · também "Exile ~ from your hand" e "Discard your hand" // M-329 · também "Pay N life" // LT9 · {2}{U} seguidos
+    const m = linha.match(/^((?:(?:\{[^}]+\})+|Sacrifice [^:,]+|Discard a card|Discard (?:~|this card)|Discard your hand|Exile ~ from your hand|Exile (?:two|three|four|five) cards from your graveyard|Pay \d+ life|Remove an? [a-z]+ counter from ~|Put an? [+-]\d\/[+-]\d counter on ~)(?:,\s*(?:(?:\{[^}]+\})+|Sacrifice [^:,]+|Discard a card|Discard (?:~|this card)|Discard your hand|Pay \d+ life|Remove an? [a-z]+ counter from ~|Exile (?:~|this card) from your graveyard|Exile ~))*): (.+)$/i); // M-352 · "Exile ~ from your graveyard" (Bramble Wurm) // M-348 · remover marcador, exilar ~ // M-342 · também "Exile ~ from your hand" e "Discard your hand" // M-329 · também "Pay N life" // LT9 · {2}{U} seguidos
     if (!m) { frases.push({ texto: linha, lida: false, motivo: 'habilidade ativada sem padrão conhecido' }); return null; }
     const cost = leCusto(til(m[1], nome)); /* M-394 */ if (!cost) { frases.push({ texto: linha, lida: false, motivo: 'custo de ativação sem padrão conhecido' }); return null; }
     let corpo = m[2].replace(/\.$/, ''); const extra = {};
@@ -19766,7 +19775,7 @@ const __m42 = (function () {
   function ler(card) {
     const nome = (card && card.name) || ''; nomeAtual = nome; const tipo = String((card && card.type_line) || ''); tipoAtual = tipo;
     const texto = card && card.verso ? [card.oracle_text, '//', card.verso.oracle_text].join('\n') : card && card.oracle_text; // M-322 · a Aventura guardada à parte (.listas): mesma forma do app ("frente\n//\nverso")
-    const linhas = semLembrete(texto).split('\n').map(x => x.trim().replace(/^(?:undergrowth|threshold|delirium|revolt|morbid|raid|hellbent|landfall|ferocious|coven|alliance|magecraft|imprint) — (?=(?:when|whenever|at|as long as|if|that creature also)\b)/i, '')
+    const linhas = semLembrete(texto).split('\n').map(x => x.trim().replace(/^(?:undergrowth|threshold|delirium|revolt|morbid|raid|hellbent|landfall|ferocious|coven|alliance|magecraft|imprint) — (?=(?:when|whenever|at|as long as|if|that creature also)\b)/i, '').replace(/^channel — (?=\{)/i, '') /* M-572 · palavra de habilidade (207.2c) */
       .replace(/^(?!(?:Max speed|Solved|To solve|Visit|Prize|[IVX]+(?:, [IVX]+)*) — )[A-Z][A-Za-z'’-]*(?: [A-Za-z'’-]+){0,3} — (?=(?:When|Whenever|At the beginning)\b)/, '')).filter(Boolean); // M-354 · 207.2c: palavra de habilidade não tem efeito de regra (Lotleth Giant) · M-513 · 207.2d: nem a palavra de sabor ("Natural Recovery —", Circle of the Land Druid); ficam de fora os prefixos com regra (velocidade máxima, caso resolvido e condição do caso, visita e prêmio de atração, capítulo)
     const frases = [], efeitos = [], topo = {};
     const magica = /\b(Instant|Sorcery)\b/.test(tipo.split(' // ')[0]); // M-531 · Aventura e preparação: a linha de tipo do app junta as faces ("Creature — … // Instant — Adventure"); vale a da frente
@@ -19880,6 +19889,7 @@ const __m42 = (function () {
         if (/^~ can't block$/i.test(lp)) { topo.self = { ...(topo.self || {}), naoBloqueia: true }; frases.push({ texto: linha, lida: true }); continue; } // M-340 · 509.1a
         if (/^(?:~|this (?:artifact|creature|land|permanent)) doesn't untap during your untap step$/i.test(lp)) { topo.self = { ...(topo.self || {}), naoDesvira: true }; frases.push({ texto: linha, lida: true }); continue; } // M-558 · 502.3 (Grim Monolith, Mana Vault)
         if (/^your opponents can't cast spells during your turn$/i.test(lp)) { topo.self = { ...(topo.self || {}), oponentesNaoConjuramNoSeuTurnoM: true }; frases.push({ texto: linha, lida: true }); continue; } // M-560 · Voice of Victory (101.2)
+        if (/^all creatures able to block ~ do so$/i.test(lp)) { topo.self = { ...(topo.self || {}), atrai: true }; frases.push({ texto: linha, lida: true }); continue; } // M-572 · 509.1c (Shinen of Life's Roar)
         if (/^~ attacks each combat if able$/i.test(lp)) { topo.self = { ...(topo.self || {}), atacaSePuder: true }; frases.push({ texto: linha, lida: true }); continue; } // M-430 · 508.1d: exigência de atacar (Monstrous Carabid, Ulamog's Crusher)
         const hz = lp.match(/^\{T\}, Pay (\d+) life: Add (?:(\{[WUBRG]\})(?: or (\{[WUBRG]\}))?|(one mana of any color))$/); // M-342 · 106.12 / 119.4: Horizon lands, Starting Town
         if (hz && !topo.manaRule) { const cs = hz[4] ? ['W', 'U', 'B', 'R', 'G'] : [hz[2], hz[3]].filter(Boolean).map(x => x[1]); topo.produces = [...(topo.produces || []), ...cs.map(c => [c])]; topo.manaRule = { colors: cs.join(''), life: +hz[1] }; coresVida.push(...cs); frases.push({ texto: linha, lida: true }); continue; }
@@ -19918,7 +19928,7 @@ const __m42 = (function () {
           if (gmd && GATILHOS.some(([re]) => re.test(gmd[1].split(', ')[0]))) { const g = leGatilho(`${gmd[1]}, draw a card`, nome, []);
             if (g && Array.isArray(g.effects) && g.effects.length === 1 && g.effects[0].do === 'draw') { delete g.effects; g.modes = []; (topo.abilities = topo.abilities || []).push(g); gatModos = g; frases.push({ texto: linha, lida: true }); continue; } } }
         if (GATILHOS.some(([re]) => re.test(lp.split(', ')[0]))) { const g = leGatilho(lp, nome, frases); if (g) (topo.abilities = topo.abilities || []).push(g); continue; } // gatilho (as frases do corpo já ficaram anotadas)
-        if (/^(\{[^}]+\}|Sacrifice |Discard a card|Discard your hand|Exile ~ from your hand|Exile (?:two|three|four|five) cards from your graveyard|Remove an? [a-z]+ counter from ~|Put an? [+-]\d\/[+-]\d counter on ~)/.test(lp) && lp.includes(': ')) { const a = leAtivada(lp, nome, frases); if (a) (topo.abilities = topo.abilities || []).push(a); continue; } // LT4 · ativada
+        if (/^(\{[^}]+\}|Sacrifice |Discard a card|Discard (?:~|this card)|Discard your hand|Exile ~ from your hand|Exile (?:two|three|four|five) cards from your graveyard|Remove an? [a-z]+ counter from ~|Put an? [+-]\d\/[+-]\d counter on ~)/.test(lp) && lp.includes(': ')) { const a = leAtivada(lp, nome, frases); if (a) (topo.abilities = topo.abilities || []).push(a); continue; } // LT4 · ativada
         const qg = lp.match(/^(?:enchanted|equipped) creature (?:gets ([+-]\d+)\/([+-]\d+) and )?has "(.+?)\.?"$/i); // M-519 · "Enchanted creature gets +2/+0 and has 'When this creature dies, draw a card.'" (Infernal Scarring)
         if (qg) { const sub = [], g = leGatilho(qg[3], nome, sub), txt = JSON.stringify(g || {});
           // só os gatilhos que a criatura concedida dispara por si (morrer, atacar, dano de combate a jogador) e sem efeito que fale de "it"/"~" (a fonte seria ambígua: a criatura ou a Aura)
@@ -20874,7 +20884,7 @@ function moveObject(s, oid, to, { top = true, controller } = {}) {
   }
   o.tapped = false; o.damage = 0; o.counters = {}; o.controller = to === 'battlefield' && controller != null ? controller : o.owner; delete o.controles; delete o.controladorBase; // CR2d.6 · 400.7 · CR2b.5 · 603.3a: entra já sob quem a pôs no campo
   delete o.exilaSeMorrerNoTurno; delete o.semRegenerarNoTurnoM; // M-384 · M-529 · 400.7
-  delete o.atacaComDefensorM; delete o.naoBloqueiaM; delete o.bloqueiaSePuderM; // M-458 · M-460 · M-567 · 400.7
+  delete o.atacaComDefensorM; delete o.naoBloqueiaM; delete o.bloqueiaSePuderM; delete o.atraiTurnoM; // M-458 · M-460 · M-567 · M-572 · 400.7
   delete o.tempToxico; delete o.tempResguardoCor; delete o.tempSemAlvoDe; delete o.tempNaoBloqueadaPor; delete o.tempImbloqueavel; delete o.tempImbloqueavelExceto; delete o.tempHabilidades; delete o.permissaoUsada; if (fromZone !== to) delete o.desenterrada; // M-255/M-256/M-257 · 400.7
   delete o.attacking; delete o.atacandoPw; delete o.exigeAtacarPw; delete o.blocking; delete o.blockedBy; delete o.blocked; delete o.deathtouched; delete o.struck; delete o.pump; delete o.pumpNext; delete o.goaded; delete o.keywordsNext; delete o.cantAttackNext; delete o.targets; delete o.attachedTo; delete o.tempKeywords; delete o.tempTs; delete o.anexadaEm; delete o.anexadaZ; delete o.mutavel; delete o.vira; delete o.prevenirDano; delete o.regenerar; delete o.temporarios; delete o.tempProtection; delete o.paired; // S39 · o vínculo de alma se desfaz ao sair do campo
   if (fromZone !== 'stack') { delete o.chosenColor; delete o.chosenType; delete o.damagePrevented; delete o.preventGainTo; delete o.devolvidas; } // CR2a.9 · 400.7 / 608.2n: a marca da resolução fica onde a carta caiu; ao sair de lá, o objeto é novo
@@ -22139,18 +22149,27 @@ const minimoDeBloqueadoresM = (s, a) => evasionOf(s, s.objects[a]) === 'three-or
 const podeCumprirM = (s, p, b, a) => canBlock(s, b, a) && eligibleBlockers(s, p).filter(c => c !== b && canBlock(s, c, a)).length >= minimoDeBloqueadoresM(s, a) - 1;
 /** M-567 · 509.1c · "Target creature blocks this turn if able" (Academic Dispute): as criaturas de p marcadas neste turno que podem bloquear algum atacante
     (contra ameaça, com uma companheira). Virada, impedida de bloquear ou sem atacante que possa bloquear, não precisa (ruling de 16/04/2021). */
-function bloqueiosObrigatoriosM(s, p) {
+/** M-572 · "All creatures able to block this creature do so" (impressa, Shinen of Life's Roar) ou dada no turno (canalizar). */
+const atraiM = (s, a) => { const o = s.objects[a]; if (!o) return false; if (o.atraiTurnoM === s.turn.number) return true; if (o.faceDown || semImpressas(s, o)) return false; return !!((((s.facts[o.name] || {}).script || {}).self || {}).atrai); };
+/** M-572 · 509.1c · as exigências de bloqueio de p: cada criatura obrigada e os atacantes que cumprem. Quem pode bloquear um atacante que atrai precisa
+    bloquear um deles (isso também cumpre o "blocks this turn if able"); a marcada pela M-567, sem atacante que atrai ao alcance, bloqueia qualquer um. */
+function exigenciasDeBloqueioM(s, p) {
   const atk = ((s.combat || {}).attackers || []).filter(x => s.objects[x] && s.objects[x].zone === 'battlefield');
   if (!atk.length) return [];
-  return eligibleBlockers(s, p).filter(b => s.objects[b].bloqueiaSePuderM === s.turn.number && atk.some(a => podeCumprirM(s, p, b, a)));
+  const atrai = atk.filter(a => atraiM(s, a)), out = [];
+  for (const b of eligibleBlockers(s, p)) {
+    const l = atrai.filter(a => podeCumprirM(s, p, b, a)); if (l.length) { out.push({ b, atks: l, atrai: true }); continue; }
+    if (s.objects[b].bloqueiaSePuderM === s.turn.number) { const q = atk.filter(a => podeCumprirM(s, p, b, a)); if (q.length) out.push({ b, atks: q }); }
+  }
+  return out;
 }
+function bloqueiosObrigatoriosM(s, p) { return exigenciasDeBloqueioM(s, p).map(r => r.b); }
 /** M-567 · completa uma declaração com as obrigatórias que faltam, cada uma no primeiro atacante que ela bloqueia sozinha (bot e goldfish; na mesa, o jogador escolhe). */
 function completaBloqueiosM(s, p, blocks) {
-  const out = (blocks || []).slice(), usados = new Set(out.map(([b]) => b));
-  const atk = ((s.combat || {}).attackers || []).filter(x => s.objects[x] && s.objects[x].zone === 'battlefield');
-  const req = bloqueiosObrigatoriosM(s, p);
-  for (const b of req) if (!usados.has(b)) {
-    const a = atk.find(x => sozinhoBloqueiaM(s, b, x)) || atk.find(x => podeCumprirM(s, p, b, x)); if (a == null) continue;
+  const reqs = exigenciasDeBloqueioM(s, p), req = reqs.map(r => r.b); // M-572 · a obrigada num atacante que não cumpre muda para um que cumpre
+  const out = (blocks || []).filter(([b, a]) => { const r = reqs.find(x => x.b === b); return !r || r.atks.includes(a); }), usados = new Set(out.map(([b]) => b));
+  for (const r of reqs) if (!usados.has(r.b)) {
+    const b = r.b, a = r.atks.find(x => sozinhoBloqueiaM(s, b, x)) || r.atks[0]; if (a == null) continue;
     out.push([b, a]); usados.add(b);
     let falta = minimoDeBloqueadoresM(s, a) - out.filter(([, y]) => y === a).length; // ameaça: a companheira (de preferência outra obrigatória)
     const livres = eligibleBlockers(s, p).filter(c => !usados.has(c) && canBlock(s, c, a)).sort((x, y) => (req.includes(y) ? 1 : 0) - (req.includes(x) ? 1 : 0));
@@ -22160,10 +22179,10 @@ function completaBloqueiosM(s, p, blocks) {
 }
 /** M-567 · ofertas com a exigência: a declaração mínima, cada obrigatória em outro atacante, e mais um bloqueador comum. */
 function ofertasDeBloqueioObrigatorioM(s, p, out) {
-  const req = bloqueiosObrigatoriosM(s, p), base = completaBloqueiosM(s, p, []);
+  const reqs = exigenciasDeBloqueioM(s, p), base = completaBloqueiosM(s, p, []);
   const atk = s.combat.attackers.filter(x => s.objects[x] && s.objects[x].zone === 'battlefield');
   out.push({ t: 'block', p, blocks: base });
-  for (const b of req) for (const a of atk) if (sozinhoBloqueiaM(s, b, a) && !base.some(([x, y]) => x === b && y === a) && base.filter(([x, y]) => x !== b && y === base.find(([z]) => z === b)[1]).length === 0) out.push({ t: 'block', p, blocks: base.map(([x, y]) => x === b ? [x, a] : [x, y]) });
+  for (const { b, atks } of reqs) for (const a of atks) if (sozinhoBloqueiaM(s, b, a) && !base.some(([x, y]) => x === b && y === a) && base.filter(([x, y]) => x !== b && y === base.find(([z]) => z === b)[1]).length === 0) out.push({ t: 'block', p, blocks: base.map(([x, y]) => x === b ? [x, a] : [x, y]) });
   for (const b of eligibleBlockers(s, p)) if (!base.some(([x]) => x === b)) for (const a of atk) if (sozinhoBloqueiaM(s, b, a)) out.push({ t: 'block', p, blocks: base.concat([[b, a]]) });
 }
 function mustAttack(s, p) {
@@ -22866,6 +22885,7 @@ function condicaoDoEfeito(s, fonte, k) {
   return false;
 }
 function effectAllowed(s, fonte, eff) {
+  if (eff.dadoAteSubtipoM && !(fonte && fonte.dadoT && fonte.dadoT.resultado <= battlefield(s).filter(o => o.controller === fonte.controller && matchesFilter(s, o, { subtypes: [eff.dadoAteSubtipoM] })).length)) return false; // M-572 · Clowning Around
   if (eff.faixaDoDado && !dadoNaFaixaT(fonte, eff.faixaDoDado)) return false; // T-66 · CR 706.3a · a linha da tabela de resultados (Toca ponto comum: effectAllowed)
   if (!eff.onlyIf) return true;
   // Leva 107 · "unless it entered this turn": vale a última informação, mesmo com a fonte fora do campo (Moon-Circuit Hacker)
@@ -23850,6 +23870,7 @@ function applyEffectM449(s, src, eff, tgt, events) {
       if (obj) { obj.damagePrevented = true; obj.preventGainTo = ctrl; note({}); }
       break;
     }
+    case 'atrai_no_turno': { if (!obj || obj.zone !== 'battlefield') { note({ failed: true }); break; } obj.atraiTurnoM = s.turn.number; note({ target: obj.name }); break; } // M-572 · marca do turno; objeto novo não herda (400.7)
     case 'bloqueia_se_puder': { if (!obj || obj.zone !== 'battlefield') { note({ failed: true }); break; } obj.bloqueiaSePuderM = s.turn.number; note({ target: obj.name }); break; } // M-567 · marca do turno; objeto novo não herda (400.7)
     case 'nao_bloqueia_no_turno': { if (!obj || obj.zone !== 'battlefield') { note({ failed: true }); break; } obj.naoBloqueiaM = s.turn.number; note({}); break; } // M-460 · marca do turno; objeto novo não herda (400.7)
     case 'ataca_com_defensor': { // M-458 · 702.3b: neste turno, o defensor não a impede de atacar (marca do turno; objeto novo não herda, 400.7)
@@ -26402,7 +26423,8 @@ const HANDLERS = {
       { const motivo = porQueNaoBloqueia(s, b, atk); if (motivo) throw new RuleError('bloqueio', `não pode bloquear essa criatura (${motivo})`); }
       used.add(b);
     }
-    { const falta = bloqueiosObrigatoriosM(s, a.p).filter(b => !used.has(b)); if (falta.length) throw new RuleError('bloqueio', `${falta.map(b => s.objects[b].name).join(', ')} precisa bloquear neste turno, se puder`); } // M-567 · 509.1c
+    { const viol = exigenciasDeBloqueioM(s, a.p).filter(r => !blocks.some(([b, x]) => b === r.b && r.atks.includes(x))); // M-567 · M-572 · 509.1c
+      if (viol.length) { const r = viol[0], n = s.objects[r.b].name; throw new RuleError('bloqueio', r.atrai ? `${n} precisa bloquear ${r.atks.map(x => s.objects[x].name).join(' ou ')}, se puder` : `${viol.map(v => s.objects[v.b].name).join(', ')} precisa bloquear neste turno, se puder`); } }
     const per = {}; blocks.forEach(([, atk]) => { per[atk] = (per[atk] || 0) + 1; });
     for (const [atk, n] of Object.entries(per)) if (n === 1 && has(s, s.objects[atk], 'menace')) throw new RuleError('bloqueio', 'ameaça: precisa de dois ou mais bloqueadores');
     for (const [atk, n] of Object.entries(per)) if (n < 3 && evasionOf(s, s.objects[atk]) === 'three-or-more') throw new RuleError('bloqueio', 'só pode ser bloqueada por três ou mais criaturas'); // M-349 · Troll of Khazad-dûm
@@ -34417,6 +34439,7 @@ function effectLine(ev) {
     case 'desvira_atacantes': return `${ev.name} desvirou ${n} criatura(s) que atacaram neste turno`;
     case 'animate': return `${t} virou criatura até o fim do turno`; // CR2d.2
     case 'anexa_a_ficha': return ev.failed ? `${ev.name}: nada a anexar` : ev.pending ? `${ev.name}: anexar à ficha?` : `${ev.name} foi anexada a ${ev.target}`; // M-526
+    case 'atrai_no_turno': return ev.failed ? `${ev.name}: a criatura não estava mais no campo` : `todas as criaturas que puderem bloquear ${ev.target} neste turno o fazem`; // M-572
     case 'bloqueia_se_puder': return ev.failed ? `${ev.name}: a criatura não estava mais no campo` : `${ev.target} bloqueia neste turno, se puder`; // M-567
     case 'nao_bloqueia_no_turno': return ev.failed ? `${ev.name}: a criatura não estava mais no campo` : `${ev.target} não pode bloquear neste turno`; // M-460
     case 'ataca_com_defensor': return ev.failed ? `${ev.name}: a criatura não estava mais no campo` : `${ev.target || ev.name} pode atacar neste turno mesmo com defensor`; // M-458
@@ -35565,7 +35588,7 @@ function descreveEfeito(e) {
     case 'energia': return `você ganha ${e.amount === 1 ? 'um marcador' : (e.amount || 1) + ' marcadores'} de energia`; // M-367
     case 'mana_combinada': return e.amount === 1 ? 'adiciona uma mana da cor que você escolher' : `adiciona ${(e.amount || 2) + ' manas'} das cores que você escolher (pode misturar)`; // M-553 · uma mana só não "mistura" // M-357 · 106.1a
     case 'add_mana': if (e.symbols && !e.identity && !e.opponentLands) return `adiciona ${e.symbols.map(c => `{${c}}`).join('')}${e.porContagem ? ` para cada ${({ 'creature-cards-in-your-graveyard': 'carta de criatura no seu cemitério' })[e.porContagem] /* M-428 · "para cada cartas" */ || X_PT[e.porContagem] || 'um'}` : ''}`; /* M-423 · a mana dita (achado da revisão da M-409: "adiciona mana") */ return e.identity ? 'adiciona mana de uma cor da identidade do seu comandante' : e.opponentLands ? 'adiciona mana de uma cor que um terreno de um oponente poderia produzir' : e.anyColor ? 'adiciona mana de qualquer cor' : 'adiciona mana';
-    case 'search': return `procura ${plural(n, 'carta', 'cartas')}${e.filter && e.filter.types && e.filter.types.includes('creature') && e.filter.cores ? ` de criatura ${e.filter.cores.map(c => ({ W: 'branca', U: 'azul', B: 'preta', R: 'vermelha', G: 'verde' })[c]).join(' e ')}` : ''}${e.filter && e.filter.mvMax != null ? ` de valor de mana ${typeof e.filter.mvMax === 'object' ? 'X' : e.filter.mvMax} ou menos` : ''} no grimório${e.to === 'battlefield' && !e.reparte ? ' e põe no campo de batalha' : ''}${e.compartilhaTipoM ? ' com um tipo de terreno em comum' : ''}${e.reparte ? ' (a primeira entra virada, a segunda vai para a mão)' : ''}${e.desviraSeTerrenos ? ` (desvira a terra achada se você tiver ${e.desviraSeTerrenos} terrenos ou mais)` : ''}`; // M-343
+    case 'search': return `procura ${plural(n, 'carta', 'cartas')}${e.filter && e.filter.types && e.filter.types.includes('creature') && e.filter.cores ? ` de criatura ${e.filter.cores.map(c => ({ W: 'branca', U: 'azul', B: 'preta', R: 'vermelha', G: 'verde' })[c]).join(' e ')}` : ''}${e.filter && e.filter.mvMax != null ? ` de valor de mana ${typeof e.filter.mvMax === 'object' ? 'X' : e.filter.mvMax} ou menos` : ''} ${e.filter && e.filter.name ? `chamada ${e.filter.name} ` : ''}no grimório${e.to === 'battlefield' && !e.reparte ? ' e põe no campo de batalha' : ''}${e.to === 'battlefield-tapped' && !e.reparte ? ' e põe no campo de batalha virada' : ''}${e.compartilhaTipoM ? ' com um tipo de terreno em comum' : ''}${e.reparte ? ' (a primeira entra virada, a segunda vai para a mão)' : ''}${e.desviraSeTerrenos ? ` (desvira a terra achada se você tiver ${e.desviraSeTerrenos} terrenos ou mais)` : ''}`; // M-343
     case 'scry': return `vidência ${n}: olha ${plural(n, 'carta', 'cartas')} de cima e decide o que fica no topo`;
     case 'surveil': return `vigia ${n}`;
     case 'look': { // M-354 · achado da revisão do lote XXVI: dizia "olha as 1 cartas" (contava o que vai para a mão, não o que se olha)
@@ -35667,6 +35690,7 @@ function descreveEfeito(e) {
     case 'resistencia_cor': return `${alvo || 'a criatura'} ganha resistência a magia da cor escolhida até o fim do turno`; // M-255
     case 'anexa_a_ficha': return 'você pode anexar este Equipamento à ficha criada'; // M-526
     case 'bloqueia_se_puder': return `${alvo || 'a criatura'} bloqueia neste turno, se puder`; // M-567
+    case 'atrai_no_turno': return `todas as criaturas que puderem bloquear ${alvo || 'a criatura'} neste turno o fazem`; // M-572
     case 'nao_bloqueia_no_turno': return `${alvo || 'a criatura'} não pode bloquear neste turno`; // M-460
     case 'ataca_com_defensor': return 'pode atacar neste turno mesmo com defensor'; // M-458
     case 'imbloqueavel': return `${alvo || 'a criatura'} não pode ser ${/^o /.test(alvo || '') ? 'bloqueado' : 'bloqueada'} neste turno${e.exceto ? ', exceto por criaturas com ' + (PALAVRA_PT[e.exceto] || e.exceto) : ''}`; // M-336 · M-370
@@ -35747,7 +35771,7 @@ const faixaPT_T = (e, f) => jogadorEncantadoPT_T(e, faixaDoDadoPT_T(e, f)); // T
 const jogadorEncantadoPT_T = (e, f) => !f || !e || e.target !== 'enchanted-player' || /encantad/.test(f) ? f : `${f} (o jogador encantado)`;
 Object.assign(X_PT, { 'maldicoes-no-jogador': 'o número de Maldições no jogador encantado' }); // T-94
 Object.assign(EFEITO_PT_T, { exile_chosen: e => `${e.target === 'enchanted-player' ? 'o jogador encantado' : 'o alvo'} exila ${typeof e.amount === 'number' && e.amount > 1 ? e.amount + ' cartas' : 'uma carta'} do próprio cemitério` }); // T-94 · com a quantidade (antes dizia sempre "uma carta")
-const faixaDoDadoPT_T = (e, f) => !f || !e || !e.faixaDoDado ? f : `${f} (${e.faixaDoDado[1] == null ? `se o dado der ${e.faixaDoDado[0]} ou mais` : e.faixaDoDado[0] === e.faixaDoDado[1] ? `se o dado der ${e.faixaDoDado[0]}` : `se o dado der de ${e.faixaDoDado[0]} a ${e.faixaDoDado[1]}`})`; // T-66 · CR 706.3a
+const faixaDoDadoPT_T = (e, f) => f && e && e.dadoAteSubtipoM ? `${f} (se o dado der até o número de ${e.dadoAteSubtipoM === 'Robot' ? 'Robôs' : e.dadoAteSubtipoM} que você controla)` /* M-572 */ : !f || !e || !e.faixaDoDado ? f : `${f} (${e.faixaDoDado[1] == null ? `se o dado der ${e.faixaDoDado[0]} ou mais` : e.faixaDoDado[0] === e.faixaDoDado[1] ? `se o dado der ${e.faixaDoDado[0]}` : `se o dado der de ${e.faixaDoDado[0]} a ${e.faixaDoDado[1]}`})`; // T-66 · CR 706.3a
 Object.assign(CONDICAO_PT, { 'dado-duplos': 'se os dois dados derem o mesmo número' }); // T-66 · CR 706.5
 Object.assign(CONDICAO_PT, { tinhaMarcadores: 'se ela tinha marcadores' }); // T-120
 Object.assign(CONDICAO_PT, { encantadaSubtipo: 'se a criatura encantada é do subtipo pedido' }); // T-114
