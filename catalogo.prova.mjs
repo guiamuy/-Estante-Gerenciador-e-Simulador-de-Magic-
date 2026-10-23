@@ -7,6 +7,9 @@
 // Os dados das cartas (tipo, custo, P/T, texto, palavras-chave, faces) vêm do Oracle do Forge, convertidos para a forma da
 // Scryfall e passados pela MESMA normalização do app (`normalizeCard`). Diferença conhecida: a Scryfall também põe ações
 // de palavra-chave (Scry, Mill…) em `keywords`; aqui só entram as palavras-chave que o texto da carta escreve.
+// H-14 · o app lê o texto da Scryfall, e o Forge às vezes guarda uma redação anterior (Elven Farsight: "If it's a creature card", antes da errata "If a
+// creature card is revealed this way"). Onde `.listas/oficiais-revisadas.json` tem o texto consultado na Scryfall (o mesmo que a revisão por lote aprovou),
+// ele vence o do Forge — só em carta de uma face; o resto (tipo, custo, P/T, palavras-chave) continua do Forge. O placar diz quantas trocaram.
 //
 // Uso:
 //   git fetch origin catalogo:refs/remotes/origin/catalogo           (uma vez; o catálogo vem do ramo `catalogo`)
@@ -127,6 +130,26 @@ export function cartasDoForge(pasta, nomes) {
   return out;
 }
 
+/** H-14 · textos da Scryfall já consultados pela revisão por lote: Map(norm(nome) → texto). Só os de fonte Scryfall e de uma face. */
+export function textosDaScryfall(arquivo = join(ROOT, '.listas', 'oficiais-revisadas.json')) {
+  const m = new Map();
+  if (!existsSync(arquivo)) return m;
+  for (const c of (JSON.parse(readFileSync(arquivo, 'utf8')).cartas || []))
+    if (c && c.oracle_text && /^https?:\/\/(?:[\w-]+\.)*scryfall\.com\//i.test(String(c.fonte || '')) && !String(c.name).includes('//')) m.set(norm(c.name), c.oracle_text);
+  return m;
+}
+/** H-14 · troca o texto do Forge pelo da Scryfall onde houver e for diferente (carta de uma face). Muda o Map recebido; devolve os nomes trocados. */
+export function aplicaTextosDaScryfall(cartas, textos) {
+  const trocadas = [];
+  for (const [k, c] of cartas) {
+    const t = textos.get(k);
+    if (!t || !c || c.oracle_text === t || String(c.name).includes('//') || (Array.isArray(c.faces) && c.faces.length)) continue;
+    cartas.set(k, { ...c, oracle_text: t });
+    if (!trocadas.includes(c.name)) trocadas.push(c.name);
+  }
+  return trocadas;
+}
+
 /* ---------- catálogo ---------- */
 function doRamo(caminho) {
   try { return execFileSync('git', ['-C', ROOT, 'show', `origin/catalogo:${caminho}`], { encoding: 'utf8', maxBuffer: 64 << 20 }); }
@@ -242,6 +265,7 @@ function main() {
   const listas = listasDoCatalogo();
   const nomes = new Set(listas.flatMap(l => (l.entradas || []).map(e => e.name)));
   const cartas = cartasDoForge(ARGS.forge, nomes);
+  const textoDaScryfall = aplicaTextosDaScryfall(cartas, textosDaScryfall()); // H-14
   for (const [k, v] of Object.entries(BASIC)) if (!cartas.has(k)) cartas.set(k, v);
   const resultado = [], nivelDe = new Map(); // carta pendente → nível de cobertura e motivo (lida = o leitor leu, falta a revisão do motor)
   for (const l of listas) {
@@ -310,6 +334,7 @@ function main() {
   }
   console.log(`Prova de partida · ${FORMATO} · motor v${placar.motor} · ${placar.listas} listas · ${PARTIDAS} partida(s) por lista, até ${MAX_ACOES} ações · ${placar.segundos} s`);
   console.log(`  joga de verdade: ${placar.joga} · falha na partida: ${placar.falha} · cobertura incompleta: ${placar.coberturaIncompleta} · sem dados da carta: ${placar.semDados}`);
+  console.log(`  texto da Scryfall no lugar do Forge (H-14): ${textoDaScryfall.length} carta(s)`);
   if (ARGS.shark) { const sh = resultado.flatMap(x => x.shark || []); console.log(`  Shark × Shark: ${sh.length} partidas · ${sh.filter(x => x.fim).length} até o fim · ${sh.filter(x => x.erro).length} com falha · pior jogada ${Math.max(0, ...sh.map(x => x.piorMs || 0))} ms`); }
   if (ofertaQueSome.length) console.log(`  oferta que some (podia pagar na fase principal e nunca foi oferecida; pista a conferir): ${ofertaQueSome.slice(0, 15).map(x => `${x.carta} (${x.podia})`).join(' · ')}`);
   if (placar.estresse) console.log(`  estresse (--todas, listas que não jogam no app): ${placar.estresse.listas} listas · ${placar.estresse.falhas} com falha · ${placar.estresse.falhasDoMotor} com falha só de cartas cobertas`);

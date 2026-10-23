@@ -12106,6 +12106,13 @@ O que a cobertura não mede: se a lista que **pode** jogar no modo completo **jo
 - **Toca ponto comum (motor):** `sources` (a reserva aceita uma lista), `reservadasDoCusto` (nova, ao lado de `semAFonte`), o pagamento da mana em `HANDLERS.activate` e o filtro das formas de pagar na oferta de ativadas do campo. Uma linha cada; cast e cemitério sem mudança.
 - **Testes:** `homologacao.custo.unit` (2; os dois falham sem a correção: a oferta aceita com uma Ilha para a mana; sem outra fonte, nenhuma oferta). Suítes com `tapOther`, estação e Portões e goldens intactos.
 - **Placar da prova (14/10 11h, `main` com M-404/M-405, T-91…T-97, v112): Pauper 314 de 355 listas jogam**; a única falha era esta.
+
+**H-14 · a prova de partida lê o texto da Scryfall onde a revisão por lote já o consultou** ✅ (leva H-14, feita pela conversa do `motor` com a trilha `homologacao` pausada e liberada; não toca o app)
+- **Valor:** o placar da prova mede o que o app joga: o app lê o texto da Scryfall, e o Forge às vezes guarda uma redação anterior. Caso que motivou: Elven Farsight ("If it's a creature card" no Forge; "If a creature card is revealed this way" na Scryfall de 23/10/2026), que joga no app e aparecia na prova como "cobertura incompleta" em 2 listas.
+- **Regra (ferramenta):** `textosDaScryfall` lê `.listas/oficiais-revisadas.json` (só fonte Scryfall, só carta de uma face) e `aplicaTextosDaScryfall` troca o `oracle_text` do Forge por esse texto quando difere; tipo, custo, P/T e palavras-chave continuam do Forge. O placar imprime quantas cartas trocaram.
+- **Placar:** prova do Pauper de 23/10/2026 sobre o `main` com M-569…M-573 + M-574 + H-14 e o catálogo com a migração da M-573 aplicada localmente (a coleta do catálogo publicado faz a mesma troca na próxima passada): **493 de 493 listas jogam, 0 falhas, 0 cobertura incompleta, 0 sem dados** (era 479 de 493 de manhã); 33 cartas do Pauper trocaram o texto do Forge pelo da Scryfall.
+- **Revisão independente:** sem divergências: só as 653 fontes da Scryfall entram (o filtro ficou preso ao domínio por ressalva da revisão); nenhuma carta de duas faces troca; 305 cartas trocam e em todas só o texto muda (tipo, custo, P/T, cores e palavras-chave iguais); 12 sobem para completa e nenhuma piora.
+- **Teste:** `catalogo.prova.textos.unit` (2 testes; falham antes da H-14).
 ## Trilha radar · Painel Estante (BI)
 
 Visão de gestão do próprio projeto, para o dono: o que foi entregue, o que está em curso e o que está planejado, com cada número ligado à fonte, à fórmula e ao carimbo de hora. Detalhe (fatias, dicionário de KPIs, contrato da telemetria, manual do dono) em `claude/BI-painel-epicos.md` (Projeto). Pedido de 13/10/2026, refinado pela `prompt-architect`; dona: `mtg-bi-specialist`.
