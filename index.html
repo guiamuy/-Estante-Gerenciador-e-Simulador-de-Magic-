@@ -10909,6 +10909,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Barbed Batterfist': { texto: 's38nww', leva: 'M-576' },
   // M-577 · LT235 · revisão por lote CCXI (Commander, textos da Scryfall de 24/10/2026): conjurar de graça controlando um comandante (CR 903.3d)
   'Fierce Guardianship': { texto: '5fuvo9', leva: 'M-577' },
+  // M-578 · sentinela do Pauper (cobertura/pauper.json de 24/10/2026), texto da Scryfall de 24/10/2026 UTC, revisor independente
+  'Demand Answers': { texto: '158j0rb', leva: 'M-578' },
   'Flawless Maneuver': { texto: '1dbabfl', leva: 'M-577' },
   'Deadly Rollick': { texto: 'mi4hfd', leva: 'M-577' },
 };
@@ -19878,6 +19880,7 @@ const __m42 = (function () {
     [new RegExp(`^escape—(\\{[^}]+\\}(?:\\{[^}]+\\})*), exile ${N} other cards from your graveyard$`, 'i'), m => ({ escape: { mana: m[1], exileGraveyard: num(m[2]) } })], // LT10 · 702.138
     [/^as an additional cost to cast this spell, discard a card or pay (\d+) life$/i, m => ({ additional: [{ discard: 1 }, { pagarVida: +m[1] }] })],
     [/^as an additional cost to cast this spell, discard a card or pay \{(\d+)\}$/i, m => ({ additional: [{ discard: 1 }, { generico: +m[1] }] })], // M-441 · Lightning Axe (601.2b: um ou outro; o {5} entra no custo total, 601.2f) // M-346 · Bitter Triumph (601.2b: um ou outro)
+    [/^as an additional cost to cast this spell, sacrifice an? (artifact|creature) or discard a card$/i, m => ({ additional: [{ sacrificeOther: { types: [m[1].toLowerCase()] } }, { discard: 1 }] })], // M-578 · Demand Answers (601.2b: um ou outro, escolhido ao conjurar)
     [/^as an additional cost to cast this spell, sacrifice an artifact or creature$/i, () => ({ additional: { sacrificeOther: { types: ['artifact', 'creature'] } } })], // LT10 · 601.2b
     [/^as an additional cost to cast this spell, sacrifice an? (land|creature|artifact|enchantment)$/i, m => ({ additional: { sacrificeOther: { types: [m[1].toLowerCase()] } } })],
     [/^as an additional cost to cast this spell, sacrifice an? (white|blue|black|red|green) permanent$/i, m => ({ additional: { sacrificeOther: { types: ['artifact', 'creature', 'enchantment', 'land', 'planeswalker', 'battle'], color: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[1].toLowerCase()] } } })], // M-576 · Abjure (601.2b) // M-334 · LT18 · 601.2b (Crop Rotation)

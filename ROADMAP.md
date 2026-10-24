@@ -5528,6 +5528,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Revisão independente:** sem divergências (comandante na zona de comando, morto, no cemitério, do oponente, virado para baixo; formato livre; custo normal e aumento de custo ainda oferecidos; Fierce Guardianship não mira mágica de criatura; Flawless Maneuver só nas criaturas do campo na resolução, 611.2c, e só até o fim do turno).
 - **Teste:** `lt258.unit` (4 testes; falham no motor anterior).
 
+**M-578 · LT236 · Sentinela do Pauper: Demand Answers (a última das 532 listas)** ✅ (leva M-578, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** a sentinela do Pauper (`cobertura/pauper.json` de 24/10/2026) mostrava 531 de 532 listas a 100% no app; a única pendente era **Demand Answers** (1 lista). Com ela, 532 de 532 na próxima coleta. Texto da API da Scryfall de 24/10/2026 (campo `texto` do relatório).
+- **Regra:** CR 601.2b — "sacrifice an artifact or discard a card" é um ou outro, escolhido ao conjurar; sem artefato e sem outra carta na mão a mágica não é conjurável; conjurar sem pagar a mana ainda cobra o custo adicional (118.9d). Um padrão novo no leitor `__m42` (`sacrifice an? (artifact|creature) or discard a card`, lista de formas em `additional`), sem mudança no núcleo.
+- **Revisão independente:** aprova (a própria carta não serve de descarte; criatura artefato e artefato não criatura servem de sacrifício, não artefato não; custo pago na conjuração; `cast_free` também cobra). Achado do revisor no teste, corrigido antes de publicar: o grimório do teste não tinha o Ornithopter.
+- **Fora:** Bone Shards ("sacrifice a creature or discard a card") passa a ser lida pelo mesmo padrão, mas não foi revisada nesta leva (fica `lida`, não joga até a revisão).
+- **Teste:** `lt259.unit` (5 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
