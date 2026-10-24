@@ -12047,11 +12047,31 @@ prevista no fim para medir quadros no Galaxy S e corrigir o que o portão pegar.
 | Fase | Fatia | Entrega em uma frase | Mede |
 |---|---|---|---|
 | F0.1 ✅ G-287 | tokens, receitas, contenção | tokens `--bg-elev-0`, `--accent-hi`, `--accent-lo`, `--sheen`, `--ease-spring`, `--dur-abertura`, `--escalona` nos três blocos e por acento; seção **Receitas de animação** no `/ds` (dez receitas com plano · luz · curva · etapas · reduzido; sete são contrato da `jogabilidade`); guarda de **contenção de texto** no `auditaTela`; selo, chip, aba e botão sem quebra por CSS | contrato visual DS-K (AA dos pares novos, trio por acento, receitas completas, keyframes usados); e2e "DS-K" e `auditaTela` em todas as telas |
-| F0.2 | fontes self-hosted | Cormorant Garamond 600 e Figtree 400/600 em `woff2` ao lado do `index.html`, cache no `sw.js` (região `armazem`, com a `mtg-data-architect`), `font-display: swap`, pilha de sistema como reserva | peso ≤ 120 KB; sem rede o texto aparece; contrato visual: `--font-display`/`--font-ui` apontam para as novas |
+| F0.2 ✅ G-288 | fontes self-hosted | Cormorant Garamond 600 e Figtree 400/600 em `woff2` ao lado do `index.html`, cache no `sw.js` (região `armazem`, com a `mtg-data-architect`), `font-display: swap`, pilha de sistema como reserva | peso ≤ 120 KB; sem rede o texto aparece; contrato visual: `--font-display`/`--font-ui` apontam para as novas |
 | F1 | componentes | primário e Jogar em latão metálico com varredura ao confirmar; cartão de destaque em ébano; marca em latão; folha, diálogo e aviso pelas receitas; estados completos (repouso, pressionado, selecionado, carregando, desabilitado) iguais entre botão, chip, aba, linha e selo | `/ds` nos dois temas; contrato visual por componente; e2e com `auditaTela` |
 | F2 | telas de gestão | Início com abertura (receita) e cartão Continuar em ébano; Lista, Coleção, Scanner com a hierarquia da direção K; grade 360 = 16 + 328 + 16 e cabeçalho 44 · 1fr · 44 | capturas antes e depois (360×780, 390×844, dois temas); `auditaTela`; pixels medidos |
 | F3 | mesa como layout | barra e bandeja em ébano; tokens novos disponíveis para a `jogabilidade` desenhar as receitas da mesa em `#tb-fx` | pixels de campo em 360×780 (não perde); contrato visual |
 | FA | leva de ajuste | medir quadros no aparelho (CPU 4×) nas receitas e na mesa cheia; remedir AA do que a F1/F2 tocou; corrigir o que o portão e o aparelho mostrarem | teste de orçamento; capturas |
+
+**F0.2 · Fontes self-hosted** ✅ (leva G-288, 24/10/2026)
+- **Valor:** o app inteiro passa a falar na voz da direção K — títulos em Cormorant Garamond 600, interface em Figtree —
+  igual em todo aparelho (antes cada Android escolhia a sua fonte de sistema) e também sem internet.
+- **Entregue:** `fonte-cormorant-garamond-600.woff2` (23,4 KB), `fonte-figtree-400.woff2` (11,4 KB) e
+  `fonte-figtree-600.woff2` (11,5 KB), subconjunto latino (português inteiro), licença OFL-1.1 ao lado
+  (`fonte-*-LICENSE.txt`); `@font-face` com `font-display: swap` e faixa de peso (a Cormorant 600 serve 400–700: o
+  título sai no 600 da direção sem negrito sintético; `size-adjust: 112%` compensa o olho pequeno dela); `--font-display`
+  e `--font-ui` com a pilha antiga de reserva; o `sw.js` guarda as três no `PRECACHE` (mesmo `estante-shell-v1`: mudar
+  os bytes do `sw.js` já reinstala o worker). Os testes de tela passam a medir com as fontes do app (antes, com a fonte
+  de sistema de cada máquina: a diferença entre a sessão e o CI deixa de existir).
+- **Correção no caminho:** com menos movimento, os palcos das receitas ficavam vazios (a regra global corta a animação e
+  o estado final só existia no fim dela); cada palco declara agora o seu fim parado, e o teste confere.
+- **Custo:** +46,3 KB uma vez por aparelho (cache depois); `index.html` +1 KB. Nenhum serviço de terceiros (CSP
+  `font-src 'self'` intacta).
+- **Testes:** `offline.unit` +2 (o `install` do `sw.js` real guarda as fontes no shell; todo arquivo do `PRECACHE`
+  existe e é woff2 leve — o `addAll` é atômico); contrato visual +1 (três faces locais, `swap`, faixa de peso, reserva);
+  e2e "DS-K" confere o fim parado com menos movimento.
+- **Aviso a todas as trilhas:** a fonte da interface mudou em todas as telas. Teste de tela que mede largura de rótulo
+  passa a medir Figtree; o truque da J-7 (`--font-ui: "DejaVu Sans" !important`) continua valendo onde for preciso.
 
 **F0.1 · Tokens, receitas e contenção** ✅ (leva G-287, 24/10/2026)
 - **Valor:** o design system ganha a base da direção K sem mudar nenhuma tela: quem abrir o `/ds` vê a superfície profunda,
@@ -12063,7 +12083,10 @@ prevista no fim para medir quadros no Galaxy S e corrigir o que o portão pegar.
   os cinco campos e a dona; palco com `perspective` para as oito que têm demonstração; **guarda de contenção** no
   `auditaTela` (`transbordos`): botão, chip, selo, aba, pílula e chip da mesa não vazam a caixa nem quebram linha
   (quebra declarada só por `data-quebra` ou `text-wrap: balance`); `.ds-btn`, `.ds-chip`, `.ds-badge`, `.ds-tab` com
-  `white-space: nowrap`; título de diálogo e de estado vazio com `text-wrap: balance`.
+  `white-space: nowrap`; título de diálogo e de estado vazio com `text-wrap: balance`. **Opção em bloco**
+  (`.ds-btn--block`: folha da carta, escolhas) é a exceção declarada: a descrição de regra não encolhe, então quebra de
+  forma simétrica (`text-wrap: balance`, centralizada) e a caixa cresce com o texto — a fase de tela achou sete folhas
+  (Sangue, Cast into the Fire, ninjutsu, Hydroblast, Salt Road Packbeast, lampejo, esgueirar-se) com o rótulo vazando.
 - **Regra de contraste da superfície profunda:** `--fg`, `--fg-muted`, `--fg-subtle`, `--player-opp`, `--positive` e
   `--negative` em AA sobre `--bg-elev-0`; o acento sobre ela só em **texto grande (≥ 20 px) ou borda** (3:1 medido).
 - **Para as outras trilhas:** `jogabilidade` — as sete receitas da mesa são o contrato: implementar em `#tb-fx` com os

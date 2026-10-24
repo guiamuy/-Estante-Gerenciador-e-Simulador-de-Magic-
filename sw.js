@@ -88,7 +88,11 @@ async function fetchImagem(request, plan) {
 }
 
 /** Arquivos que precisam existir antes do primeiro uso offline. */
-const PRECACHE = ['./', './index.html', './manifest.webmanifest', './icon-512.png', './icon.svg'];
+// DS-K (G-288) · as fontes do app entram no mesmo cache do shell: o texto tem a tipografia certa já na primeira abertura sem
+// internet. Acrescentar aqui muda os bytes deste arquivo, o navegador reinstala o worker e o addAll guarda as novas (o nome do
+// cache não muda). Todo arquivo desta lista precisa existir no repositório: o addAll é atômico (offline.unit confere).
+const PRECACHE = ['./', './index.html', './manifest.webmanifest', './icon-512.png', './icon.svg',
+  './fonte-cormorant-garamond-600.woff2', './fonte-figtree-400.woff2', './fonte-figtree-600.woff2'];
 
 
 self.addEventListener('install', e => {

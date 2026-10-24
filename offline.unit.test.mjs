@@ -333,7 +333,7 @@ test('H7 · aquecer imagens: resposta cortada é pedida de novo sem o cache do n
 });
 
 import vm from 'node:vm';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 const ROOT = dirname(fileURLToPath(import.meta.url));
@@ -431,4 +431,28 @@ test('G-283 · prepararPartida: sem rede não espera (motivo sem-rede); imagem q
   assert.equal(r3.motivo, 'tempo'); assert.ok(r3.baixadas < 6 && r3.baixadas >= 1, 'parou pelo relógio: ' + r3.baixadas);
   const nada = await teto.prepararPartida([], { cards });
   assert.deepEqual([nada.total, nada.completa], [0, true]);
+});
+
+/* ---------------- DS-K (G-288) · fontes do app guardadas para a primeira abertura sem internet ---------------- */
+test('DS-K · o install do service worker de verdade guarda as três fontes no cache do shell, junto do app', async () => {
+  const ouvintes = {}; const guardados = []; const nomes = [];
+  const cache = { addAll: async lista => { guardados.push(...lista); }, match: async () => undefined, put: async () => {}, keys: async () => [] };
+  const ctx = vm.createContext({ self: { location: { origin: 'https://guiamuy.github.io' }, addEventListener: (t, f) => { ouvintes[t] = f; }, skipWaiting() {}, clients: { claim() {} } },
+    URL, Request, Response, Headers, Uint8Array, caches: { open: async n => { nomes.push(n); return cache; }, keys: async () => [], delete: async () => true }, fetch: async () => new Response('') });
+  vm.runInContext(readFileSync(join(ROOT, 'sw.js'), 'utf8'), ctx);
+  const esperas = []; ouvintes.install({ waitUntil: p => esperas.push(p) }); await Promise.all(esperas);
+  assert.deepEqual(nomes, ['estante-shell-v1'], 'mesmo cache do shell: o nome não muda');
+  for (const f of ['./fonte-cormorant-garamond-600.woff2', './fonte-figtree-400.woff2', './fonte-figtree-600.woff2']) assert.ok(guardados.includes(f), f);
+  assert.ok(guardados.includes('./index.html'), 'o app continua guardado');
+});
+
+test('DS-K · todo arquivo do PRECACHE existe no repositório (o addAll é atômico: um arquivo que falta impede o service worker novo de instalar)', () => {
+  const sw = readFileSync(join(ROOT, 'sw.js'), 'utf8');
+  const lista = sw.match(/const PRECACHE = \[([\s\S]*?)\];/)[1].match(/'([^']+)'/g).map(x => x.slice(1, -1));
+  const faltam = lista.filter(f => f !== './' && !existsSync(join(ROOT, f.replace(/^\.\//, ''))));
+  assert.deepEqual(faltam, []);
+  for (const f of lista.filter(x => x.endsWith('.woff2'))) {
+    const b = readFileSync(join(ROOT, f.slice(2))); assert.equal(b.subarray(0, 4).toString('latin1'), 'wOF2', f + ' é woff2 de verdade');
+    assert.ok(b.length < 40000, f + ' leve (subconjunto latino)');
+  }
 });

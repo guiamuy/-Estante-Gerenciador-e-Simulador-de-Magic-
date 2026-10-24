@@ -19,6 +19,14 @@
    Scryfall (tipografia de dado, densidade sem ruído),
    Moxfield (densidade de lista).
    ===================================================================== */
+/* DS-K (G-288) · fontes da direção K, servidas pelo próprio app e guardadas pelo service worker (funcionam sem internet):
+   Cormorant Garamond 600 nos títulos (um arquivo serve 400–700: o título sai no 600 da direção, sem negrito sintético;
+   size-adjust compensa o olho pequeno da Cormorant) e Figtree 400/600 na interface. Subconjunto latino (português
+   inteiro). swap: o texto aparece na hora com a pilha de reserva e troca quando a fonte chega. Licença OFL-1.1
+   (fonte-*-LICENSE.txt ao lado). */
+@font-face { font-family: "Cormorant Garamond Estante"; src: url("fonte-cormorant-garamond-600.woff2") format("woff2"); font-weight: 400 700; font-style: normal; font-display: swap; size-adjust: 112%; }
+@font-face { font-family: "Figtree Estante"; src: url("fonte-figtree-400.woff2") format("woff2"); font-weight: 300 500; font-style: normal; font-display: swap; }
+@font-face { font-family: "Figtree Estante"; src: url("fonte-figtree-600.woff2") format("woff2"); font-weight: 600 800; font-style: normal; font-display: swap; }
 :root {
   /* ---- espaço: escala de 4px ---- */
   --space-0: 0;
@@ -43,8 +51,8 @@
   --radius-card: 4.75%;
 
   /* ---- tipografia ---- */
-  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
-  --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-display: "Cormorant Garamond Estante", "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --font-ui: "Figtree Estante", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   /* D1 · escala de texto (Ajustes › Aparência): pequena .92, média 1, grande 1.12. Multiplica todos os tamanhos. */
   --escala-texto: 1;

@@ -24,6 +24,14 @@
    Scryfall (tipografia de dado, densidade sem ruído),
    Moxfield (densidade de lista).
    ===================================================================== */
+/* DS-K (G-288) · fontes da direção K, servidas pelo próprio app e guardadas pelo service worker (funcionam sem internet):
+   Cormorant Garamond 600 nos títulos (um arquivo serve 400–700: o título sai no 600 da direção, sem negrito sintético;
+   size-adjust compensa o olho pequeno da Cormorant) e Figtree 400/600 na interface. Subconjunto latino (português
+   inteiro). swap: o texto aparece na hora com a pilha de reserva e troca quando a fonte chega. Licença OFL-1.1
+   (fonte-*-LICENSE.txt ao lado). */
+@font-face { font-family: "Cormorant Garamond Estante"; src: url("fonte-cormorant-garamond-600.woff2") format("woff2"); font-weight: 400 700; font-style: normal; font-display: swap; size-adjust: 112%; }
+@font-face { font-family: "Figtree Estante"; src: url("fonte-figtree-400.woff2") format("woff2"); font-weight: 300 500; font-style: normal; font-display: swap; }
+@font-face { font-family: "Figtree Estante"; src: url("fonte-figtree-600.woff2") format("woff2"); font-weight: 600 800; font-style: normal; font-display: swap; }
 :root {
   /* ---- espaço: escala de 4px ---- */
   --space-0: 0;
@@ -48,8 +56,8 @@
   --radius-card: 4.75%;
 
   /* ---- tipografia ---- */
-  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
-  --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-display: "Cormorant Garamond Estante", "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --font-ui: "Figtree Estante", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   /* D1 · escala de texto (Ajustes › Aparência): pequena .92, média 1, grande 1.12. Multiplica todos os tamanhos. */
   --escala-texto: 1;
@@ -907,6 +915,16 @@ body[data-tela="entrar"] .ds-appbar { display: none; }
 .ds-palco__vida span i { font-style: normal; transition: transform var(--dur-4) var(--ease-spring); }
 .ds-palco[data-on="vida"] .ds-palco__vida span[data-rola] i { transform: translateY(-60px); }
 .ds-receita__campos--mesa dt { color: var(--player-opp); }
+/* DS-K (G-288) · menos movimento é estado final em um quadro: a regra global corta a animação, então cada palco declara o
+   seu fim parado (marca desenhada, nome à vista, cartas pousadas, folha aberta, faixa e véu no lugar). */
+@media (prefers-reduced-motion: reduce) { .ds-palco[data-on] * { animation: none !important; } }
+:root[data-movimento="reduzido"] .ds-palco[data-on] * { animation: none !important; }
+@media (prefers-reduced-motion: reduce) { .ds-palco[data-on="abertura"] .ds-palco__luz, .ds-palco[data-on="abertura"] .ds-palco__nome, .ds-palco[data-on="vez"] .ds-palco__faixa, .ds-palco[data-on="vez"] .ds-palco__veu, .ds-palco[data-on="folha"] .ds-palco__veu, .ds-palco[data-on="pousar"] .ds-palco__carta, .ds-palco[data-on="pousar"] .ds-palco__carta::after, .ds-palco[data-on="dano"] .ds-palco__numero { opacity: 1; clip-path: none; letter-spacing: 0; } .ds-palco[data-on="abertura"] .ds-palco__marca { opacity: 1; transform: none; } .ds-palco[data-on="abertura"] .ds-palco__marca path { stroke-dashoffset: 0; } .ds-palco[data-on="pousar"] .ds-palco__carta { transform: translate3d(var(--x), 0, 0); } .ds-palco[data-on="pousar"] .ds-palco__carta::after { transform: none; } .ds-palco[data-on="pousar"] .ds-palco__prateleira, .ds-palco[data-on="folha"] .ds-palco__folha { transform: none; } }
+:root[data-movimento="reduzido"] .ds-palco[data-on="abertura"] .ds-palco__luz, :root[data-movimento="reduzido"] .ds-palco[data-on="abertura"] .ds-palco__nome, :root[data-movimento="reduzido"] .ds-palco[data-on="vez"] .ds-palco__faixa, :root[data-movimento="reduzido"] .ds-palco[data-on="vez"] .ds-palco__veu, :root[data-movimento="reduzido"] .ds-palco[data-on="folha"] .ds-palco__veu, :root[data-movimento="reduzido"] .ds-palco[data-on="pousar"] .ds-palco__carta, :root[data-movimento="reduzido"] .ds-palco[data-on="pousar"] .ds-palco__carta::after, :root[data-movimento="reduzido"] .ds-palco[data-on="dano"] .ds-palco__numero { opacity: 1; clip-path: none; letter-spacing: 0; }
+:root[data-movimento="reduzido"] .ds-palco[data-on="abertura"] .ds-palco__marca { opacity: 1; transform: none; }
+:root[data-movimento="reduzido"] .ds-palco[data-on="abertura"] .ds-palco__marca path { stroke-dashoffset: 0; }
+:root[data-movimento="reduzido"] .ds-palco[data-on="pousar"] .ds-palco__carta { transform: translate3d(var(--x), 0, 0); }
+:root[data-movimento="reduzido"] .ds-palco[data-on="pousar"] .ds-palco__carta::after, :root[data-movimento="reduzido"] .ds-palco[data-on="pousar"] .ds-palco__prateleira, :root[data-movimento="reduzido"] .ds-palco[data-on="folha"] .ds-palco__folha { transform: none; }
 @keyframes ds-acende { to { opacity: 1; } }
 @keyframes ds-ladrilho { to { transform: rotateY(0) translateZ(0); opacity: 1; } }
 @keyframes ds-traco { to { stroke-dashoffset: 0; } }

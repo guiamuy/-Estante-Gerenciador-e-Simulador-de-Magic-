@@ -441,3 +441,17 @@ test('DS-K · a opção em bloco (folha da carta, escolhas) quebra de forma sim�
   assert.match(regra[1], /text-wrap: balance/); assert.match(regra[1], /text-align: center/); assert.match(regra[1], /padding-block: var\(--space-2\)/);
   assert.match(componentCss, /\.ds-btn \{[^}]*white-space: nowrap/);
 });
+
+/* ---------------- DS-K (G-288) · fontes do app ---------------- */
+test('DS-K · as fontes da direção K vêm do próprio app (sem rede de terceiros), com swap, faixa de peso que evita negrito sintético e a pilha antiga de reserva', () => {
+  const faces = [...css.matchAll(/@font-face \{([^}]*)\}/g)].map(m => m[1]);
+  assert.equal(faces.length, 3, 'três faces: Cormorant 600 e Figtree 400/600');
+  for (const f of faces) {
+    assert.match(f, /src: url\("fonte-[a-z-]+-\d00\.woff2"\) format\("woff2"\)/, 'arquivo local woff2');
+    assert.match(f, /font-display: swap/); assert.match(f, /font-weight: \d00 \d00/, 'faixa de peso');
+    assert.doesNotMatch(f, /https?:/, 'nada de fonte de terceiros (CSP font-src self)');
+  }
+  assert.match(DARK['--font-display'], /^"Cormorant Garamond Estante", "Iowan Old Style"/);
+  assert.match(DARK['--font-ui'], /^"Figtree Estante", system-ui/);
+  assert.match(HTML.slice(0, 2000), /font-src 'self'/);
+});

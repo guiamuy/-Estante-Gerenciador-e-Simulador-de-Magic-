@@ -17,7 +17,7 @@ let pw = null;
 try { pw = await import('playwright'); } catch (e) { if (process.env.CI) throw new Error('Playwright ausente no CI'); }
 const skip = pw ? false : 'Playwright não instalado (npm i -D playwright && npx playwright install chromium)';
 
-const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.svg': 'image/svg+xml' };
+const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.svg': 'image/svg+xml', '.woff2': 'font/woff2' };
 function serve() {
   const srv = createServer((req, res) => {
     const p = join(ROOT, decodeURIComponent(req.url.split('?')[0]).replace(/^\/$/, '/index.html'));
@@ -15356,6 +15356,12 @@ test('e2e · DS-K · o /ds mostra os tokens de ébano e latão, as dez receitas 
   await page.click('#ds-receita-ver-abertura');
   const red = await page.evaluate(() => [...document.querySelector('#ds-palco-abertura').getAnimations({ subtree: true })].filter(a => a.effect.getTiming().duration > 1).length);
   assert.equal(red, 0, 'com menos movimento nada dura mais que um quadro');
+  // G-288 · e o fim aparece parado: marca desenhada, nome à vista (antes o palco ficava vazio com menos movimento)
+  const fim = await page.evaluate(() => { const p = document.querySelector('#ds-palco-abertura'); const cs = el => getComputedStyle(el);
+    return { marca: cs(p.querySelector('.ds-palco__marca')).opacity, traco: cs(p.querySelector('.ds-palco__marca path')).strokeDashoffset, nome: cs(p.querySelector('.ds-palco__nome')).opacity }; });
+  assert.deepEqual(fim, { marca: '1', traco: '0px', nome: '1' }, 'menos movimento mostra o estado final');
+  await page.click('#ds-receita-ver-pousar');
+  assert.ok(await page.evaluate(() => [...document.querySelectorAll('#ds-palco-pousar .ds-palco__carta')].every(c => getComputedStyle(c).opacity === '1')), 'as cartas pousadas à vista');
   await page.evaluate(() => document.documentElement.removeAttribute('data-movimento'));
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/ds-k-receitas.png', fullPage: false });
   assert.deepEqual(errors, []);
