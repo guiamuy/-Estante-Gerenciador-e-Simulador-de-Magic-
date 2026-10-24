@@ -501,3 +501,14 @@ test('DS-K · F1.3 o cartão de destaque é ébano (--bg-elev-0) com filete de l
   assert.match(HTML, /Surface\(\{ class: 'home-continuar ds-destaque', id: 'home-continuar'/, 'o Continuar é o destaque');
   assert.match(componentCss, /\.home-continuar__item\[data-tipo="partida"\] \.home-continuar__icone\.ds-destaque__icone-latao \{ background-image: linear-gradient\(160deg, var\(--accent-hi\), var\(--accent\) 55%, var\(--accent-lo\)\); \}/);
 });
+
+/* ---------------- DS-K (G-292) · F1.4 folha, diálogo e aviso pela receita ---------------- */
+test('DS-K · F1.4 diálogo e aviso seguem a receita "folha": véu com vinheta, a folha sobe com mola e a sombra assenta (só por token); o aviso sobe com mola e sai reto', () => {
+  assert.match(componentCss, /\.ds-overlay \{ background-image: radial-gradient\(ellipse 120% 90% at 50% 42%, transparent 38%, var\(--overlay\)\); \}/, 'véu com vinheta');
+  assert.match(componentCss, /\.ds-dialog \{ animation: ds-folha-sobe var\(--dur-3\) var\(--ease-spring\) both;/, 'a folha sobe com mola');
+  const k = componentCss.match(/@keyframes ds-folha-sobe \{([^\n]*)\}/); assert.ok(k, 'keyframes da folha');
+  assert.match(k[1], /from \{ opacity: 0; transform: translateY\(24px\) scale\(\.97\); box-shadow: var\(--shadow-1\)/, 'sombra curta no começo');
+  assert.match(k[1], /to \{ opacity: 1; transform: none; box-shadow: var\(--shadow-3\)/, 'sombra longa no fim');
+  assert.match(componentCss, /\.ds-toast\[data-open="true"\] \{ transform: translateX\(-50%\) translateY\(0\); transition: opacity var\(--dur-2\) var\(--ease-out\), transform var\(--dur-3\) var\(--ease-spring\); \}/, 'aviso entra com mola');
+  assert.match(componentCss, /\.ds-toast \{ transform: translateX\(-50%\) translateY\(14px\); \}/, 'sem encolher: fechado, o botão do aviso segue com 44 px');
+});

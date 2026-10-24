@@ -12048,7 +12048,7 @@ prevista no fim para medir quadros no Galaxy S e corrigir o que o portão pegar.
 |---|---|---|---|
 | F0.1 ✅ G-287 | tokens, receitas, contenção | tokens `--bg-elev-0`, `--accent-hi`, `--accent-lo`, `--sheen`, `--ease-spring`, `--dur-abertura`, `--escalona` nos três blocos e por acento; seção **Receitas de animação** no `/ds` (dez receitas com plano · luz · curva · etapas · reduzido; sete são contrato da `jogabilidade`); guarda de **contenção de texto** no `auditaTela`; selo, chip, aba e botão sem quebra por CSS | contrato visual DS-K (AA dos pares novos, trio por acento, receitas completas, keyframes usados); e2e "DS-K" e `auditaTela` em todas as telas |
 | F0.2 ✅ G-288 | fontes self-hosted | Cormorant Garamond 600 e Figtree 400/600 em `woff2` ao lado do `index.html`, cache no `sw.js` (região `armazem`, com a `mtg-data-architect`), `font-display: swap`, pilha de sistema como reserva | peso ≤ 120 KB; sem rede o texto aparece; contrato visual: `--font-display`/`--font-ui` apontam para as novas |
-| F1 (F1.1 ✅ G-289 · F1.2 ✅ G-290 · F1.3 ✅ G-291) | componentes | primário e Jogar em latão metálico com varredura ao confirmar; cartão de destaque em ébano; marca em latão; folha, diálogo e aviso pelas receitas; estados completos (repouso, pressionado, selecionado, carregando, desabilitado) iguais entre botão, chip, aba, linha e selo | `/ds` nos dois temas; contrato visual por componente; e2e com `auditaTela` |
+| F1 ✅ (F1.1 G-289 · F1.2 G-290 · F1.3 G-291 · F1.4 G-292) | componentes | primário e Jogar em latão metálico com varredura ao confirmar; cartão de destaque em ébano; marca em latão; folha, diálogo e aviso pelas receitas; estados completos (repouso, pressionado, selecionado, carregando, desabilitado) iguais entre botão, chip, aba, linha e selo | `/ds` nos dois temas; contrato visual por componente; e2e com `auditaTela` |
 | F2 | telas de gestão | Início com abertura (receita) e cartão Continuar em ébano; Lista, Coleção, Scanner com a hierarquia da direção K; grade 360 = 16 + 328 + 16 e cabeçalho 44 · 1fr · 44 | capturas antes e depois (360×780, 390×844, dois temas); `auditaTela`; pixels medidos |
 | F3 | mesa como layout | barra e bandeja em ébano; tokens novos disponíveis para a `jogabilidade` desenhar as receitas da mesa em `#tb-fx` | pixels de campo em 360×780 (não perde); contrato visual |
 | FA | leva de ajuste | medir quadros no aparelho (CPU 4×) nas receitas e na mesa cheia; remedir AA do que a F1/F2 tocou; corrigir o que o portão e o aparelho mostrarem | teste de orçamento; capturas |
@@ -12060,7 +12060,23 @@ prevista no fim para medir quadros no Galaxy S e corrigir o que o portão pegar.
 | F1.1 | Jogar, Salvar e todo botão principal ganham o latão e a varredura de luz depois do toque | primário em latão nos dois temas e quatro acentos; varredura uma vez, atrás do rótulo; parada com menos movimento | ✅ G-289 |
 | F1.2 | selecionar chip, aba ou linha responde igual a apertar um botão | repouso, pressionado, selecionado, carregando e desabilitado pelos mesmos tokens em botão, chip, aba, linha e selo; grade de estados no `/ds` | ✅ G-290 |
 | F1.3 | o cartão Continuar e a marca do topo ganham profundidade | `.ds-destaque` em ébano (`--bg-elev-0`, filete de latão) e marca em latão, no `/ds` e no Início | ✅ G-291 |
-| F1.4 | abrir folha ou receber aviso tem massa e sombra | folha, diálogo e aviso pela receita "folha" (véu + mola), fim parado com menos movimento | a fazer |
+| F1.4 | abrir folha ou receber aviso tem massa e sombra | folha, diálogo e aviso pela receita "folha" (véu + mola), fim parado com menos movimento | ✅ G-292 |
+
+**F1.4 · Folha, diálogo e aviso pela receita** ✅ (leva G-292, 24/10/2026)
+- **Valor:** abrir um diálogo ou uma folha de carta tem peso: o fundo escurece com vinheta, a folha sobe com uma mola
+  curta e a sombra cresce até assentar; o aviso sobe, passa um pouco do lugar e assenta.
+- **Entregue:** `.ds-overlay` com vinheta (`radial-gradient` até `--overlay`) por cima do véu que já escurecia
+  (`ds-fade`, `--dur-2`); `.ds-dialog` com `ds-folha-sobe` (`--dur-3`, `--ease-spring`: de 24 px abaixo e 97 % para o
+  lugar, sombra de `--shadow-1` a `--shadow-3`) e fio de luz no alto; `.ds-toast` entra com `--ease-spring` (`--dur-3`)
+  e sai reto (`--dur-2`, `--ease-out`), sem encolher (fechado, o botão do aviso segue com 44 px).
+- **Declarado:** fechar continua no lugar (sem animação de saída do diálogo): a receita pede "fechar mais curto que
+  abrir e segue o dedo", o que exige atrasar o `closeDialog` — fica para a FA, com os testes que esperam o fechamento
+  imediato revistos junto.
+- **Portão:** o `auditaTela` passou a esperar o fim das animações finitas (teto de 1,5 s) além dos 350 ms: medir no
+  meio da entrada dava 43 px num botão de 44 (J-9, P-12). P-12 continua caindo nesta sessão com a página de fundo
+  congelada (a do anfitrião fica oculta e o relógio de animação para no primeiro quadro); no CI passa.
+- **Testes:** contrato visual +1 (vinheta, mola, sombra que assenta, aviso com mola, sem encolher); e2e "DS-K F1.4"
+  (animação e duração, vinheta, sombra final, aviso com `--ease-spring`, aparece no lugar com menos movimento).
 
 **F1.3 · Destaque em ébano** ✅ (leva G-291, 24/10/2026)
 - **Valor:** o cartão Continuar do Início vira a peça mais funda da tela — ébano, com um filete de latão no alto e a

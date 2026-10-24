@@ -2375,6 +2375,9 @@ test('e2e · A12 listas prontas: sem listas próprias da Estante; a lista na est
 async function auditaTela(page, nome) {
   console.log(`# auditaTela · ${nome}`);   // R-21 · o portão conta as telas auditadas por esta linha (resumo em .tmp/portao.json)
   await page.waitForTimeout(350);   // deixa terminar a animação de entrada de diálogos e cartas
+  // DS-K F1.4 (G-292) · e espera de verdade o fim das animações finitas (folha com mola, aviso): medir no meio da entrada
+  // dava 43 px num botão de 44 (J-9, P-12). As infinitas (giro, brilho da espera) não contam; teto de 1,5 s.
+  await page.waitForFunction(() => document.getAnimations().every(a => a.playState !== 'running' || a.effect.getTiming().iterations === Infinity), null, { timeout: 1500 }).catch(() => {});
   const r = await page.evaluate(() => {
     const vis = el => { const b = el.getBoundingClientRect(); const st = getComputedStyle(el); return b.width > 0 && b.height > 0 && st.visibility !== 'hidden' && st.display !== 'none'; };
     // N4 (leva G-213) · link esticado: o `::after` do link cobre o cartão inteiro (inset 0 sobre o ancestral posicionado),
@@ -15458,5 +15461,32 @@ test('e2e · DS-K F1.3 · o cartão de destaque é ébano com filete de latão n
     await auditaTela(page, `DS-K F1.3 · destaque (${tema})`);
     if (process.env.SHOTS) { await page.waitForTimeout(1500); await page.locator('#ds-destaque-amostra').screenshot({ path: process.env.SHOTS + `/ds-k-f13-destaque-${tema}.png` }); }
   }
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · DS-K F1.4 · o diálogo abre pela receita "folha" (véu com vinheta, sobe com mola, sombra que assenta) e o aviso sobe com mola; com menos movimento os dois aparecem no lugar', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(FAKE_DEVICE(false));
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base + '#/ds'); await page.waitForSelector('#ds-open-dialog');
+  await page.click('#ds-open-dialog'); await page.waitForSelector('.ds-dialog');
+  const abre = await page.evaluate(() => { const d = document.querySelector('.ds-dialog'), o = document.querySelector('#ds-overlay');
+    const a = d.getAnimations().find(x => x.animationName === 'ds-folha-sobe'); return { nome: a && a.animationName, dur: a && a.effect.getTiming().duration, veu: getComputedStyle(o).backgroundImage, veuAnim: o.getAnimations().map(x => x.animationName) }; });
+  assert.equal(abre.nome, 'ds-folha-sobe', 'a folha sobe pela receita'); assert.equal(abre.dur, 280, '--dur-3');
+  assert.match(abre.veu, /radial-gradient/, 'véu com vinheta'); assert.ok(abre.veuAnim.includes('ds-fade'), 'o véu escurece junto');
+  await auditaTela(page, 'DS-K F1.4 · diálogo');
+  const fim = await page.evaluate(() => getComputedStyle(document.querySelector('.ds-dialog')).boxShadow);
+  assert.match(fim, /12px 34px/, 'a sombra assentou longa (--shadow-3): ' + fim);
+  await page.keyboard.press('Escape'); await page.waitForSelector('#ds-overlay[data-open="false"]', { state: 'attached' });
+  // o aviso: transição de entrada com a mola
+  await page.locator('.ds-btn--primary', { hasText: 'Primário' }).first().click();
+  await page.waitForSelector('.ds-toast[data-open="true"]');
+  assert.match(await page.$eval('.ds-toast', el => getComputedStyle(el).transitionTimingFunction), /cubic-bezier\(0\.34, 1\.3, 0\.64, 1\)/, 'aviso com --ease-spring');
+  // menos movimento: nada dura mais que um quadro
+  await page.evaluate(() => document.documentElement.setAttribute('data-movimento', 'reduzido'));
+  await page.click('#ds-open-dialog'); await page.waitForSelector('#ds-overlay[data-open="true"] .ds-dialog');
+  const red = await page.evaluate(() => document.querySelector('.ds-dialog').getAnimations().filter(a => a.effect.getTiming().duration > 1).length);
+  assert.equal(red, 0, 'com menos movimento a folha aparece no lugar');
+  assert.equal(await page.$eval('.ds-dialog', el => getComputedStyle(el).opacity), '1');
   assert.deepEqual(errors, []);
 });

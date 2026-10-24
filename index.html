@@ -1271,6 +1271,12 @@ body[data-tela="entrar"] .ds-appbar { display: none; }
   box-shadow: var(--shadow-3); padding: var(--space-5);
   animation: ds-rise var(--dur-2) var(--ease-out);
 }
+/* DS-K F1.4 (G-292) · receita "folha" no diálogo: três planos — o véu escurece com vinheta (fundo, --dur-2), a folha
+   sobe com mola e cresce até o tamanho (objeto, --dur-3, --ease-spring) e a sombra nasce curta e assenta longa
+   (sombra) — os três começam juntos; um fio de luz no alto da folha. Menos movimento: tudo aparece no lugar. */
+.ds-overlay { background-image: radial-gradient(ellipse 120% 90% at 50% 42%, transparent 38%, var(--overlay)); }
+.ds-dialog { animation: ds-folha-sobe var(--dur-3) var(--ease-spring) both; box-shadow: var(--shadow-3), inset 0 1px 0 var(--latao-luz); }
+@keyframes ds-folha-sobe { from { opacity: 0; transform: translateY(24px) scale(.97); box-shadow: var(--shadow-1), inset 0 1px 0 var(--latao-luz); } to { opacity: 1; transform: none; box-shadow: var(--shadow-3), inset 0 1px 0 var(--latao-luz); } }
 .ds-dialog__head { position: sticky; top: calc(-1 * var(--space-5)); z-index: 1; display: flex; align-items: flex-start; gap: var(--space-2);
   margin: calc(-1 * var(--space-5)) calc(-1 * var(--space-5)) var(--space-3); padding: var(--space-4) var(--space-3) var(--space-2) var(--space-5);
   background: var(--bg-elev-1); border-bottom: 1px solid transparent; }
@@ -1301,6 +1307,11 @@ body[data-tela="entrar"] .ds-appbar { display: none; }
   transition: opacity var(--dur-2) var(--ease-out), transform var(--dur-2) var(--ease-out);
 }
 .ds-toast[data-open="true"] { opacity: 1; transform: translateX(-50%) translateY(0); }
+/* DS-K F1.4 (G-292) · o aviso chega como uma folha pequena: sobe com mola, passa um pouco do lugar e assenta (objeto,
+   --dur-3, --ease-spring) e sai mais curto e reto (--dur-2, --ease-out). Sem encolher: fechado, o botão do aviso mantém
+   os 44 px. Menos movimento: aparece e some no lugar. */
+.ds-toast { transform: translateX(-50%) translateY(14px); }
+.ds-toast[data-open="true"] { transform: translateX(-50%) translateY(0); transition: opacity var(--dur-2) var(--ease-out), transform var(--dur-3) var(--ease-spring); }
 /* leva 123 · aviso com ação ("Nova versão pronta · Atualizar"): o botão herda a cor invertida do aviso */
 .ds-toast[data-acao="true"] { display: flex; align-items: center; gap: var(--space-3); pointer-events: auto; padding-right: var(--space-2); width: max-content; }
 .ds-toast__texto { flex: 1 1 auto; }
