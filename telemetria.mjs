@@ -20,7 +20,7 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const RAMO = 'telemetria';
-export const ARQUIVOS = { levas: 'levas.jsonl', trilhas: 'trilhas.json', rotinas: 'rotinas.json', placares: 'placares.jsonl', skills: 'skills.json', rodadas: 'rodadas.jsonl', pessoas: 'pessoas.jsonl', retrato: 'retrato.json' };
+export const ARQUIVOS = { levas: 'levas.jsonl', trilhas: 'trilhas.json', rotinas: 'rotinas.json', placares: 'placares.jsonl', skills: 'skills.json', rodadas: 'rodadas.jsonl', pessoas: 'pessoas.jsonl', retrato: 'retrato.json', uso: 'uso.jsonl' };
 export const SITUACOES = ['editando', 'na-fila', 'recusada', 'publicada', 'parada', 'abandonada'];
 export const PORTOES = ['verde', 'recusada-conflito', 'recusada-guarda', 'recusada-conferencia', 'vermelho', 'instavel'];
 
@@ -133,6 +133,14 @@ const ESQUEMA_PESSOAS = {
   contas: { ok: inteiroOuNulo }, contas_novas: { ok: inteiroOuNulo }, perfis: { ok: inteiro },
   salas_criadas: { obrigatorio: true, ok: inteiro }, salas_total: { obrigatorio: true, ok: inteiro }, obs: { ok: v => texto(v, 120) }
 };
+/** I-301 · BI2-2b · uso agregado opt-in (fatia 2): o fluxo Pessoas soma, por dia UTC, o que os aparelhos com a chave ligada
+ *  mandaram para `uso/<uid>/<dia>` — SÓ TOTAIS: quantos aparelhos mandaram, somas de listas, cartas, cópias e leituras do
+ *  scanner, e as medianas por aparelho. Nenhum uid; regravado por dia. */
+const ESQUEMA_USO = {
+  dia: { obrigatorio: true, ok: v => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) }, em: { ok: v => typeof v === 'string' && ISO.test(v) },
+  aparelhos: { obrigatorio: true, ok: inteiro }, listas: { obrigatorio: true, ok: inteiro }, cartas: { obrigatorio: true, ok: inteiro }, copias: { obrigatorio: true, ok: inteiro }, scanner: { obrigatorio: true, ok: inteiro },
+  listas_mediana: { ok: numero }, cartas_mediana: { ok: numero }, copias_mediana: { ok: numero }, scanner_mediana: { ok: numero }, obs: { ok: v => texto(v, 120) }
+};
 /** I-296 · S3 · retrato do GitHub gravado pelo fluxo Retrato (retrato.mjs): arquivo inteiro regravado a cada rodada. Só o que o
  *  painel lê de cada resposta da API (ramos, rodadas, jobs, execuções, fluxos, commits, tamanhos), já sem e-mail. Teto de tamanho. */
 const CHAVE_RESPOSTA = /^(ramos|rodadas|pages|fluxos|commits|tamanhos|ramo\.[0-9a-f]{40}|jobs\.[0-9]{1,20})$/;
@@ -142,7 +150,7 @@ const ESQUEMA_RETRATO = {
   cobertura: { obrigatorio: true, ok: v => v && typeof v === 'object' && !Array.isArray(v) && inteiro(v.commits) && inteiro(v.ramos) && inteiro(v.rodadas) && (v.commitsDesde == null || ISO.test(String(v.commitsDesde))) && (v.dias == null || (Array.isArray(v.dias) && v.dias.length <= 400 && v.dias.every(d => /^\d{4}-\d{2}-\d{2}$/.test(d)))) },
   respostas: { obrigatorio: true, ok: v => v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).every(k => CHAVE_RESPOSTA.test(k)) && Array.isArray(v.ramos) && Array.isArray(v.commits) && v.tamanhos && typeof v.tamanhos === 'object' && JSON.stringify(v).length <= 600000 }
 };
-const ESQUEMAS = { leva: ESQUEMA_LEVA, trilha: ESQUEMA_TRILHA, rotina: ESQUEMA_ROTINA, placar: ESQUEMA_PLACAR, rodada: ESQUEMA_RODADA, pessoas: ESQUEMA_PESSOAS, retrato: ESQUEMA_RETRATO };
+const ESQUEMAS = { leva: ESQUEMA_LEVA, trilha: ESQUEMA_TRILHA, rotina: ESQUEMA_ROTINA, placar: ESQUEMA_PLACAR, rodada: ESQUEMA_RODADA, pessoas: ESQUEMA_PESSOAS, retrato: ESQUEMA_RETRATO, uso: ESQUEMA_USO };
 
 /** Valida contra o esquema: chave desconhecida, obrigatória ausente, valor fora da forma e privacidade. Devolve [] quando ok. */
 /** R-17 · BI2-1 · O registro de placar a partir do JSON que `catalogo.prova.mjs` grava ({ placar, culpadas, listas }):
@@ -170,8 +178,8 @@ export function placarDaProva(detalhe, { trilha = 'homologacao', conversa = null
 export function valida(tipo, obj) {
   const esquema = ESQUEMAS[tipo];
   if (!esquema) return [`tipo desconhecido: ${tipo}`];
-  if (tipo === 'pessoas' && Array.isArray(obj)) {   // I-293 · o fluxo grava vários dias de uma vez
-    if (!obj.length || obj.length > 400) return ['pessoas: lista vazia ou com mais de 400 dias'];
+  if ((tipo === 'pessoas' || tipo === 'uso') && Array.isArray(obj)) {   // I-293 · o fluxo grava vários dias de uma vez · I-301 · o uso também
+    if (!obj.length || obj.length > 400) return [`${tipo}: lista vazia ou com mais de 400 dias`];
     return obj.flatMap((d, i) => valida(tipo, d).map(e => `[${i}] ${e}`));
   }
   if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return ['o registro precisa ser um objeto JSON'];
@@ -199,7 +207,7 @@ export function upsert(linhas, nova, chave) {
 export function aplicar(tipo, atual, registro, agora = new Date().toISOString()) {
   const r = { ...registro };
   if (tipo === 'leva' || tipo === 'rodada') { r.em = r.em || agora; return escreverJsonl(upsert(lerJsonl(atual), r, 'id')); }
-  if (tipo === 'pessoas') {   // I-293 · lista de dias ou um dia só; cada dia regravado no lugar; ordem por dia
+  if (tipo === 'pessoas' || tipo === 'uso') {   // I-293 · lista de dias ou um dia só; cada dia regravado no lugar; ordem por dia · I-301 · o uso igual
     let linhas = lerJsonl(atual);
     for (const d of (Array.isArray(registro) ? registro : [registro])) linhas = upsert(linhas, { ...d, em: d.em || agora }, 'dia');
     return escreverJsonl(linhas.sort((a, b) => String(a.dia).localeCompare(String(b.dia))));
@@ -320,7 +328,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       const registro = rodadaDoResumo({ id: env.GITHUB_RUN_ID, resumo: json('FILA_RESUMO'), plano: json('FILA_PLANO'), portao: env.FILA_PORTAO || '', publicado: env.FILA_PUBLICADO || '' });
       const r = gravar({ tipo: 'rodada', registro, remoto, pasta, semPush });
       console.log(`✓ rodada ${registro.id} (${registro.levas.length} leva(s), portão ${registro.portao}) gravada em ${RAMO}/${r.arquivo}${r.enviado ? ' (enviado)' : ' (só na pasta)'}`);
-    } else if (['leva', 'trilha', 'rotina', 'placar', 'rodada', 'pessoas'].includes(comando)) {
+    } else if (['leva', 'trilha', 'rotina', 'placar', 'rodada', 'pessoas', 'uso'].includes(comando)) {
       const bruto = args.slice(1).find(a => a.startsWith('{') || a.startsWith('[')); if (!bruto) throw new Error('faltou o registro JSON entre aspas simples');
       let registro = JSON.parse(bruto);
       const arquivoPortao = join(raiz, '.tmp', 'portao.json');
@@ -335,7 +343,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       const r = gravar({ tipo: 'skills', registro: {}, remoto, pasta, semPush });
       console.log(`✓ skills.json regravado em ${RAMO}${r.enviado ? ' (enviado)' : ''}`);
     } else {
-      console.log('uso: node telemetria.mjs leva|trilha|rotina|placar|rodada|pessoas \'{…}\' [--portao] · skills · ler levas|trilhas|rotinas|placares|skills|rodadas|pessoas|retrato [--remoto url] [--pasta dir] [--sem-push]');
+      console.log('uso: node telemetria.mjs leva|trilha|rotina|placar|rodada|pessoas|uso \'{…}\' [--portao] · skills · ler levas|trilhas|rotinas|placares|skills|rodadas|pessoas|retrato|uso [--remoto url] [--pasta dir] [--sem-push]');
       process.exit(comando ? 1 : 0);
     }
   } catch (e) { console.error('✗ ' + e.message); process.exit(1); }

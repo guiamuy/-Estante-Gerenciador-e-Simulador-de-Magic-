@@ -5,8 +5,11 @@ import { readFileSync } from 'node:fs';
 import { generateKeyPairSync } from 'node:crypto';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { contagens, rodada, carimbosDasContas, doBanco, diaDe, DIA_MS, ESCOPOS, semSegredo } from './pessoas.mjs';
-import { valida, aplicar, lerJsonl, privacidade } from './telemetria.mjs';
+import { contagens, rodada, carimbosDasContas, doBanco, diaDe, DIA_MS, ESCOPOS, semSegredo, somaUso, registrosDeUso } from './pessoas.mjs';
+import { valida, aplicar, lerJsonl, privacidade, gravar, ARQUIVOS, RAMO } from './telemetria.mjs';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
 
 const RAIZ = dirname(fileURLToPath(import.meta.url));
 const AGORA = Date.parse('2026-10-21T15:00:00Z');
@@ -59,20 +62,29 @@ test('I-293 · rodada com rede de mentira: token com os três escopos (banco + c
     }
     if (url.endsWith('/salas.json?shallow=false')) { if (banco500) return { ok: false, status: 500, json: async () => ({}) }; return ok({ 'ESTA-AAAA': { criadaEm: AGORA - 100, anfitriao: { uid: 'u1' } }, 'ESTA-BBBB': { criadaEm: d(1) + 5 } }); }
     if (url.endsWith('/perfis.json?shallow=true')) return ok({ u1: true, u3: true });
+    // I-301 · uso opt-in: dois aparelhos mandaram ontem e hoje, um só hoje; nada disso pode sair com uid
+    if (url.endsWith('/uso.json?shallow=false')) return ok({ u1: { '2026-10-20': { kind: 'estante.uso', version: 1, em: 1, listas: 3, cartas: 10, copias: 25, scanner: 4 }, '2026-10-21': { kind: 'estante.uso', version: 1, em: 2, listas: 4, cartas: 12, copias: 30, scanner: 6, app: '2026-10-21' } }, u3: { '2026-10-21': { kind: 'estante.uso', version: 1, em: 3, listas: 1, cartas: 0, copias: 0, scanner: 0 }, 'hoje': { listas: 99 } }, u9: 'lixo' });
     throw new Error('pedido inesperado: ' + url);
   };
-  const linhas = await rodada({ conta, banco: 'https://estante-teste-default-rtdb.firebaseio.com', busca, agora: AGORA, dias: 2 });
+  const { pessoas: linhas, uso } = await rodada({ conta, banco: 'https://estante-teste-default-rtdb.firebaseio.com', busca, agora: AGORA, dias: 2 });
+  assert.deepEqual(uso.map(l => [l.dia, l.aparelhos, l.listas, l.cartas, l.copias, l.scanner, l.listas_mediana, l.cartas_mediana]), [['2026-10-20', 1, 3, 10, 25, 4, 3, 10], ['2026-10-21', 2, 5, 12, 30, 6, 2.5, 6]], 'só totais e medianas por dia; dia fora do formato e nó que não é objeto ignorados');
+  assert.equal(JSON.stringify(uso).includes('u1') || JSON.stringify(uso).includes('u3') || JSON.stringify(uso).includes('aparelho":'), false, 'nenhum uid nem índice de aparelho sai');
+  assert.deepEqual(valida('uso', uso), []);
   assert.deepEqual(linhas.map(l => [l.dia, l.contas, l.contas_novas, l.salas_criadas, l.salas_total, l.perfis, l.obs]), [['2026-10-20', 2, 1, 1, 1, undefined, undefined], ['2026-10-21', 3, 1, 1, 2, 2, undefined]]);
   assert.equal(pedidos.filter(p => p.url.includes('identitytoolkit')).length, 2, 'duas páginas');
   assert.equal(JSON.stringify(linhas).includes('u1'), false); assert.equal(JSON.stringify(linhas).includes('a@b.c'), false); assert.equal(JSON.stringify(linhas).includes('ESTA-'), false);
   auth403 = true;
-  const semContas = await rodada({ conta, banco: 'https://x.firebaseio.com', busca, agora: AGORA, dias: 1 });
+  const { pessoas: semContas } = await rodada({ conta, banco: 'https://x.firebaseio.com', busca, agora: AGORA, dias: 1 });
   assert.deepEqual([semContas[0].contas, semContas[0].contas_novas, semContas[0].salas_total], [null, null, 2]); assert.match(semContas[0].obs, /contas indisponíveis: contas: HTTP 403/);
   assert.deepEqual(valida('pessoas', semContas), []);
   banco500 = true;
   await assert.rejects(() => rodada({ conta, banco: 'https://x.firebaseio.com', busca, agora: AGORA }), /salas: HTTP 500/);
   assert.deepEqual(await carimbosDasContas({ projeto: 'p', token: 't', busca: async () => ({ ok: true, json: async () => ({ users: [] }) }) }), []);
-  assert.deepEqual(await doBanco({ banco: 'https://x', token: 't', busca: async (u) => ({ ok: true, json: async () => (u.includes('salas') ? null : null) }) }), { salas: [], perfis: 0 });
+  assert.deepEqual(await doBanco({ banco: 'https://x', token: 't', busca: async (u) => ({ ok: true, json: async () => (u.includes('salas') ? null : null) }) }), { salas: [], perfis: 0, uso: [] });
+  // sem ninguém com a chave ligada: dias com zeros, válidos
+  const vazio = somaUso([], { agora: AGORA, dias: 2 });
+  assert.deepEqual(vazio.map(l => [l.dia, l.aparelhos, l.listas, l.listas_mediana]), [['2026-10-20', 0, 0, 0], ['2026-10-21', 0, 0, 0]]); assert.deepEqual(valida('uso', vazio), []);
+  assert.deepEqual(registrosDeUso(null), []); assert.deepEqual(registrosDeUso({ a: { '2026-01-01': { listas: '2', cartas: -1 } } }), [{ aparelho: 1, dia: '2026-01-01', listas: 2, cartas: 0, copias: 0, scanner: 0 }]);
 });
 
 test('I-293 · o fluxo Pessoas: agendado + à mão, só escrita em conteúdo, ações fixadas por SHA, segredo só no passo que grava, token do git pelo cabeçalho (nunca na URL do remoto), sem npm, sem push no main; a fila dispara o fluxo a cada avanço, sem derrubar a rodada', () => {
@@ -99,4 +111,21 @@ test('I-294 · anotação sem segredo: token do Google, JWT e credencial em URL 
   assert.equal(semSegredo('jwt eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJ4In0.assinatura'), 'jwt [oculto]');
   assert.equal(semSegredo('fatal: https://x-access-token:ghp_abc@github.com/a/b.git'), 'fatal: https[oculto]github.com/a/b.git');
   assert.equal(semSegredo('x'.repeat(500)).length, 300); assert.equal(semSegredo(null), '');
+});
+
+test('I-301 · esquema `uso` e gravar(uso) de ponta a ponta num remoto local: arquivo uso.jsonl, um dia regravado no lugar, ordem por dia; uid, e-mail e chave desconhecida recusam', t => {
+  const base = mkdtempSync(join(tmpdir(), 'uso-')); const bare = join(base, 'remoto.git'); execFileSync('git', ['init', '-q', '--bare', '-b', 'main', bare]);
+  t.after(() => rmSync(base, { recursive: true, force: true }));
+  const pasta = join(base, 'pasta');
+  const dias = somaUso([{ aparelho: 1, dia: '2026-10-20', listas: 2, cartas: 5, copias: 9, scanner: 1 }, { aparelho: 2, dia: '2026-10-21', listas: 4, cartas: 0, copias: 0, scanner: 0 }], { agora: Date.parse('2026-10-21T12:00:00Z'), dias: 2 });
+  const g = gravar({ tipo: 'uso', registro: dias, remoto: bare, pasta, agora: () => '2026-10-21T12:00:00Z' });
+  assert.equal(g.arquivo, 'uso.jsonl'); assert.equal(ARQUIVOS.uso, 'uso.jsonl');
+  const le = () => lerJsonl(execFileSync('git', ['-C', bare, 'show', `${RAMO}:uso.jsonl`], { encoding: 'utf8' }));
+  assert.deepEqual(le().map(l => [l.dia, l.aparelhos, l.listas, l.cartas_mediana]), [['2026-10-20', 1, 2, 5], ['2026-10-21', 1, 4, 0]]);
+  gravar({ tipo: 'uso', registro: { dia: '2026-10-21', aparelhos: 3, listas: 9, cartas: 9, copias: 9, scanner: 9 }, remoto: bare, pasta, agora: () => '2026-10-21T13:00:00Z' });
+  assert.deepEqual(le().map(l => [l.dia, l.aparelhos, l.em]), [['2026-10-20', 1, '2026-10-21T12:00:00.000Z'], ['2026-10-21', 3, '2026-10-21T13:00:00Z']], 'o dia foi regravado no lugar (o em de somaUso vem do relógio; o do upsert, de quem gravou)');
+  assert.ok(valida('uso', [{ dia: '2026-10-21', aparelhos: 1, listas: 0, cartas: 0, copias: 0, scanner: 0, uid: 'x' }]).length, 'uid recusado');
+  assert.ok(valida('uso', [{ dia: '2026-10-21', aparelhos: 1, listas: 0, cartas: 0, copias: 0, scanner: 0, obs: 'x@y.com' }]).length, 'e-mail recusado');
+  assert.ok(valida('uso', [{ dia: '2026-10-21', aparelhos: 1, listas: 0, cartas: 0, copias: 0 }]).length, 'falta scanner');
+  assert.ok(valida('uso', [{ dia: '2026-10-21', aparelhos: 1, listas: 0, cartas: 0, copias: 0, scanner: 0, aparelho: 1 }]).length, 'índice de aparelho não entra');
 });

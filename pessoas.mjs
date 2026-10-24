@@ -70,14 +70,45 @@ export async function carimbosDasContas({ projeto, token, busca = globalThis.fet
   }
   return carimbos;
 }
-/** Lê `salas/` (só `criadaEm` de cada uma fica) e a contagem de `perfis/` (shallow: só as chaves, descartadas). */
+/** Lê `salas/` (só `criadaEm` de cada uma fica), a contagem de `perfis/` (shallow: só as chaves, descartadas) e, pela
+    I-301, `uso/` (BI2-2b, opt-in): a árvore `uid → dia → números` vira uma lista de { dia, listas, cartas, copias, scanner }
+    sem o uid — cada aparelho é só um número a mais no dia (o uid é trocado por um índice e descartado). */
 export async function doBanco({ banco, token, busca = globalThis.fetch }) {
   const cab = { headers: { Authorization: `Bearer ${token}` } };
   const rs = await busca(`${banco}/salas.json?shallow=false`, cab); if (!rs.ok) throw new Error(`salas: HTTP ${rs.status}`);
   const salas = Object.values((await rs.json()) || {}).map(s => ({ criadaEm: s && typeof s === 'object' ? s.criadaEm : null }));
   const rp = await busca(`${banco}/perfis.json?shallow=true`, cab); if (!rp.ok) throw new Error(`perfis: HTTP ${rp.status}`);
   const perfis = Object.keys((await rp.json()) || {}).length;
-  return { salas, perfis };
+  const ru = await busca(`${banco}/uso.json?shallow=false`, cab); if (!ru.ok) throw new Error(`uso: HTTP ${ru.status}`);
+  const uso = registrosDeUso((await ru.json()) || {});
+  return { salas, perfis, uso };
+}
+/** Puro. `uso/` como veio do banco → lista sem uid: [{ aparelho: índice, dia, listas, cartas, copias, scanner }]. Só o que
+    é número entra; dia fora do formato ou registro que não é objeto é ignorado. */
+export function registrosDeUso(arvore) {
+  const n = v => { const x = Number(v); return Number.isFinite(x) && x >= 0 ? Math.floor(x) : 0; };
+  const saida = []; let i = 0;
+  for (const dias of Object.values(arvore && typeof arvore === 'object' ? arvore : {})) {
+    i++; if (!dias || typeof dias !== 'object') continue;
+    for (const [dia, r] of Object.entries(dias)) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dia) || !r || typeof r !== 'object') continue;
+      saida.push({ aparelho: i, dia, listas: n(r.listas), cartas: n(r.cartas), copias: n(r.copias), scanner: n(r.scanner) });
+    }
+  }
+  return saida;
+}
+const mediana = xs => { if (!xs.length) return 0; const o = xs.slice().sort((a, b) => a - b), m = o.length >> 1; return o.length % 2 ? o[m] : (o[m - 1] + o[m]) / 2; };
+/** Puro. Uma linha por dia dos últimos `dias` (o de `agora` incluso), só totais: aparelhos que mandaram naquele dia, somas e
+    medianas por aparelho. Dia sem envio fica com zeros (o painel sabe que o dia existiu). */
+export function somaUso(registros, { agora = Date.now(), dias = 30 } = {}) {
+  const hoje = Date.parse(diaDe(agora) + 'T00:00:00Z'), linhas = [];
+  for (let i = dias - 1; i >= 0; i--) {
+    const dia = diaDe(hoje - i * DIA_MS), doDia = (registros || []).filter(r => r && r.dia === dia);
+    const soma = k => doDia.reduce((s, r) => s + (r[k] || 0), 0), med = k => mediana(doDia.map(r => r[k] || 0));
+    linhas.push({ dia, em: new Date(agora).toISOString(), aparelhos: doDia.length, listas: soma('listas'), cartas: soma('cartas'), copias: soma('copias'), scanner: soma('scanner'),
+      listas_mediana: med('listas'), cartas_mediana: med('cartas'), copias_mediana: med('copias'), scanner_mediana: med('scanner') });
+  }
+  return linhas;
 }
 /** Uma rodada: token → contas (ou null com o motivo em `obs`) → banco → linhas por dia. Puro fora das buscas. */
 export async function rodada({ conta, banco, busca = globalThis.fetch, agora = Date.now(), dias = 30, log = () => {} }) {
@@ -85,8 +116,8 @@ export async function rodada({ conta, banco, busca = globalThis.fetch, agora = D
   let contas = null, obs = null;
   try { contas = await carimbosDasContas({ projeto: conta.project_id, token, busca }); }
   catch (e) { obs = 'contas indisponíveis: ' + String(e.message || e).slice(0, 60); log(obs); }
-  const { salas, perfis } = await doBanco({ banco, token, busca });
-  return contagens({ contas, salas, perfis, agora, dias, obs });
+  const { salas, perfis, uso } = await doBanco({ banco, token, busca });
+  return { pessoas: contagens({ contas, salas, perfis, agora, dias, obs }), uso: somaUso(uso, { agora, dias }) };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
@@ -99,11 +130,16 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   // sempre sem token, e-mail ou uid (as mensagens de erro deste arquivo só trazem o nome da etapa e o código HTTP).
   let etapa = 'token';
   try {
-    const linhas = await rodada({ conta, banco, dias: Number(opt('--dias')) || 30, log: m => { console.log(m); console.log('::warning::pessoas: ' + semSegredo(m)); } });
+    const { pessoas: linhas, uso } = await rodada({ conta, banco, dias: Number(opt('--dias')) || 30, log: m => { console.log(m); console.log('::warning::pessoas: ' + semSegredo(m)); } });
     etapa = 'gravar';
     const { gravar, RAMO, remotoDoClone } = await import('./telemetria.mjs');
     const { resolve } = await import('node:path');
-    const r = gravar({ tipo: 'pessoas', registro: linhas, remoto: opt('--remoto') || remotoDoClone(process.cwd()), pasta: resolve(opt('--pasta') || '.tmp/telemetria'), semPush: args.includes('--sem-push') });
+    const remoto = opt('--remoto') || remotoDoClone(process.cwd()), pasta = resolve(opt('--pasta') || '.tmp/telemetria'), semPush = args.includes('--sem-push');
+    const r = gravar({ tipo: 'pessoas', registro: linhas, remoto, pasta, semPush });
+    // I-301 · BI2-2b · os totais do uso opt-in vão no arquivo próprio (uso.jsonl), no mesmo ramo, logo depois
+    const ru = gravar({ tipo: 'uso', registro: uso, remoto, pasta, semPush });
+    const hojeUso = uso[uso.length - 1];
+    console.log(`✓ uso: ${uso.length} dia(s) gravado(s) em ${RAMO}/${ru.arquivo}${ru.enviado ? ' (enviado)' : ' (só na pasta)'} · hoje: ${hojeUso.aparelhos} aparelho(s)`);
     const u = linhas[linhas.length - 1];
     const resumo = `pessoas: ${linhas.length} dia(s) gravado(s) em ${RAMO}/${r.arquivo}${r.enviado ? ' (enviado)' : ' (só na pasta)'} · hoje: contas ${u.contas ?? '?'} (+${u.contas_novas ?? '?'}), perfis ${u.perfis ?? '?'}, salas ${u.salas_total} (+${u.salas_criadas})`;
     console.log('✓ ' + resumo); if (process.env.GITHUB_ACTIONS) console.log('::notice::' + resumo);
