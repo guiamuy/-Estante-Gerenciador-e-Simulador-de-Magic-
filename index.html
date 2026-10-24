@@ -1300,6 +1300,15 @@ body[data-tela="entrar"] .ds-appbar { display: none; }
    (sombra) — os três começam juntos; um fio de luz no alto da folha. Menos movimento: tudo aparece no lugar. */
 .ds-overlay { background-image: radial-gradient(ellipse 120% 90% at 50% 42%, transparent 38%, var(--overlay)); }
 .ds-dialog { animation: ds-folha-sobe var(--dur-3) var(--ease-spring) both; box-shadow: var(--shadow-3), inset 0 1px 0 var(--latao-luz); }
+/* DS-K FA.2 (G-299) · saída: a silhueta da folha desce e some, o véu clareia junto; nada recebe toque */
+.ds-veu-sai { position: fixed; inset: 0; z-index: var(--z-modal); pointer-events: none; background-color: var(--overlay); box-shadow: 0 0 0 100vmax var(--overlay); animation: ds-veu-some var(--dur-2) var(--ease-out) both; } /* I7 · a sangria de 100vmax: sem faixa do app quando a barra do navegador recolhe */
+.ds-folha-sai { position: fixed; z-index: var(--z-modal); pointer-events: none; background: var(--bg-elev-1); border-radius: var(--radius-3); box-shadow: var(--shadow-3); animation: ds-folha-desce var(--dur-2) var(--ease-out) both; }
+/* com menos movimento a folha nasce no estado final, sem animação nenhuma (com 0,01 ms e "both", antes do primeiro
+   quadro valia o estado inicial — opacidade 0 por um instante; achado do instável da F1.4) */
+:root[data-movimento="reduzido"] .ds-dialog { animation: none; }
+@media (prefers-reduced-motion: reduce) { .ds-dialog { animation: none; } }
+@keyframes ds-veu-some { from { opacity: 1; } to { opacity: 0; } }
+@keyframes ds-folha-desce { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(18px) scale(.98); } }
 @keyframes ds-folha-sobe { from { opacity: 0; transform: translateY(24px) scale(.97); box-shadow: var(--shadow-1), inset 0 1px 0 var(--latao-luz); } to { opacity: 1; transform: none; box-shadow: var(--shadow-3), inset 0 1px 0 var(--latao-luz); } }
 .ds-dialog__head { position: sticky; top: calc(-1 * var(--space-5)); z-index: 1; display: flex; align-items: flex-start; gap: var(--space-2);
   margin: calc(-1 * var(--space-5)) calc(-1 * var(--space-5)) var(--space-3); padding: var(--space-4) var(--space-3) var(--space-2) var(--space-5);
@@ -4194,8 +4203,22 @@ function Dialog({ title, body, actions }) {
 }
 /** D1 · ao trocar de tela, o aviso da tela anterior some; aviso com ação (ex.: nova versão) fica. */
 function fechaToast({ tudo = false } = {}) { if (toastEl && toastEl.dataset.open === 'true' && (tudo || toastEl.dataset.acao !== 'true')) { toastEl.dataset.open = 'false'; clearTimeout(toastTimer); } }
+/** DS-K FA.2 (G-299) · a saída da folha pela receita: o fechamento lógico é imediato (o app por baixo já responde e quem
+    espera o diálogo sumir não espera nada); o que anima é uma silhueta da folha — sem texto, sem ids, sem toque — que
+    desce e some, com o véu clareando junto, mais curto que a entrada (--dur-2, --ease-out). Menos movimento: nada. */
+function saidaDaFolha(dlg) {
+  if (typeof document === 'undefined' || !dlg) return;
+  const reduzido = document.documentElement.getAttribute('data-movimento') === 'reduzido' || (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const r = dlg.getBoundingClientRect(); if (reduzido || !r.width || !r.height) return;
+  const veu = h('div', { class: 'ds-veu-sai', 'aria-hidden': 'true' });
+  const folha = h('div', { class: 'ds-folha-sai', 'aria-hidden': 'true', style: { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` } });
+  document.body.append(veu, folha);
+  const tira = () => { veu.remove(); folha.remove(); };
+  folha.addEventListener('animationend', tira, { once: true }); setTimeout(tira, 600); // teto: some mesmo sem o evento
+}
 function closeDialog() {
   if (!overlayEl || overlayEl.dataset.open !== 'true') return;
+  saidaDaFolha(overlayEl.querySelector('.ds-dialog'));
   overlayEl.dataset.open = 'false'; clear(overlayEl);
   // leva 123 · o foco volta para quem abriu, se ainda estiver na tela
   const de = abriuDe; abriuDe = null;
