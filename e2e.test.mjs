@@ -15839,6 +15839,37 @@ test('e2e · DS-K F2.4 · o Painel da Coleção é o cartão de ébano (aberto e
   assert.deepEqual(errors, []);
 });
 
+test('e2e · DS-K F2.5 · a doca do Scanner é a bandeja de ébano: filete de latão, Ler agora em latão, texto em AA, o aviso acima dela; em 360 e 390 e nos dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(FAKE_DEVICE(false));
+  for (const [w, hh] of [[360, 780], [390, 844]]) {
+    await page.setViewportSize({ width: w, height: hh });
+    await page.goto(base + '#/scanner'); await page.waitForSelector('.scan-dock-wrap');
+    for (const tema of ['dark', 'light']) {
+      await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(450);
+      const m = await page.evaluate(() => {
+        const cv = document.createElement('canvas'); cv.width = cv.height = 1; const cx = cv.getContext('2d');
+        const rgb = c => { cx.clearRect(0, 0, 1, 1); cx.fillStyle = c; cx.fillRect(0, 0, 1, 1); return [...cx.getImageData(0, 0, 1, 1).data].slice(0, 3); };
+        const lum = c => rgb(c).map(x => x / 255).map(x => x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4).reduce((a, x, i) => a + x * [0.2126, 0.7152, 0.0722][i], 0);
+        const r = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+        const fundoDe = el => { for (let p = el; p; p = p.parentElement) { const b = getComputedStyle(p).backgroundColor; if (b && b !== 'rgba(0, 0, 0, 0)' && b !== 'transparent') return b; } return 'white'; };
+        const d = document.querySelector('.scan-dock-wrap'), cs = getComputedStyle(d);
+        const probe = document.createElement('span'); probe.style.color = getComputedStyle(document.documentElement).getPropertyValue('--bg-elev-0'); document.body.appendChild(probe); const funda = getComputedStyle(probe).color; probe.remove();
+        const ruins = []; const wk = document.createTreeWalker(d, NodeFilter.SHOW_TEXT);
+        while (wk.nextNode()) { const el = wk.currentNode.parentElement; if (!wk.currentNode.textContent.trim() || el.getBoundingClientRect().width <= 1 || el.closest('[disabled]')) continue; const k = r(getComputedStyle(el).color, fundoDe(el)); if (k < 4.5) ruins.push(`${wk.currentNode.textContent.trim().slice(0, 20)} ${k.toFixed(2)}`); }
+        const ler = document.querySelector('#scan-read'), b = d.getBoundingClientRect();
+        return { ebano: cs.backgroundColor === funda, filete: /linear-gradient\(90deg/.test(cs.backgroundImage), ler: getComputedStyle(ler).backgroundImage, ruins, gutter: [Math.round(b.left), Math.round(innerWidth - b.right)] };
+      });
+      assert.equal(m.ebano, true, `doca em ébano (${w} ${tema})`); assert.equal(m.filete, true, `filete (${w} ${tema})`);
+      assert.match(m.ler, /linear-gradient\(160deg/, 'Ler agora em latão'); assert.deepEqual(m.ruins, [], `texto em AA na doca (${w} ${tema})`);
+      assert.deepEqual(m.gutter, [16, 16], `a bandeja respeita o gutter (${w})`);
+      await auditaTela(page, `DS-K F2.5 · Scanner ${w} ${tema}`);
+      if (process.env.SHOTS && w === 360) await page.screenshot({ path: process.env.SHOTS + `/ds-k-f25-scanner-${tema}.png` });
+    }
+  }
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · DS-K F2.1 · a abertura monta o ícone em três planos (luz acende, ladrilho gira em 3D com mola, sombra assenta), passa a varredura e revela o nome; com menos movimento tudo já no lugar', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.setViewportSize({ width: 360, height: 780 });

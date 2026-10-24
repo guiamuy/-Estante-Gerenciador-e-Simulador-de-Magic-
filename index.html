@@ -2850,6 +2850,10 @@ button.col-dash__bar:active, .col-dash__bar--on { background: var(--accent-soft)
 .scan-status:empty { display: none; }
 .scan-suggest { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .scan-dock-wrap { padding: var(--space-1) 0 calc(var(--space-2) + env(safe-area-inset-bottom, 0px)); }
+/* DS-K F2.5 (G-297) · a doca do scanner é a bandeja de ébano da tela (o destaque dela): filete de latão no alto, "Ler
+   agora" em latão, Pilha e Desfazer em placas um degrau acima; respiro igual dos quatro lados */
+.scan-dock-wrap.ds-destaque { padding: var(--space-3) var(--space-3) calc(var(--space-3) + env(safe-area-inset-bottom, 0px)); }
+.ds-destaque .scan-dock .ds-btn:not(.ds-btn--primary):not(.ds-btn--ghost) { background-color: var(--bg-elev-1); }
 .scan-dock { display: flex; flex-direction: column; gap: var(--space-2); }
 .scan-dock__row { display: flex; gap: var(--space-2); align-items: stretch; }
 .scan-dock__row > .ds-btn:not(.ds-btn--icone) { flex: 1 1 auto; }
@@ -42709,7 +42713,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
   mount(root,
     // DS-K F2.2 · cabeçalho 44 · 1fr · 44: "Coleção" vira botão de ícone de 44 px (nome falado "Coleção", mesmo id)
     __m3.Cabecalho('Scanner', { classe: 'scan-head', direita: IconButton('colecao', 'Coleção', { id: 'scan-colecao', onClick: () => go('/colecao') }) }),
-    status, stage, result, reservaDoca(h('div', { class: 'scan-dock-wrap' }, dock))); // leva 123 · o aviso não cobre os botões
+    status, stage, result, reservaDoca(h('div', { class: 'scan-dock-wrap ds-surface ds-destaque' }, dock))); // leva 123 · o aviso não cobre os botões; DS-K F2.5 · a doca é a bandeja de ébano do scanner
   return root;
 }
 

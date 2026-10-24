@@ -526,6 +526,13 @@ test('DS-K · F2.4 o Painel da Coleção é o destaque em ébano: Expansivel ace
   assert.match(componentCss, /\.ds-destaque \.ds-valor--destaque \.ds-valor__principal \{ color: var\(--accent-lo\); \}/, 'valor em destaque legível sobre o ébano');
 });
 
+/* ---------------- DS-K (G-297) · F2.5 doca do Scanner em ébano ---------------- */
+test('DS-K · F2.5 a doca do Scanner é a bandeja de ébano (destaque), com respiro igual e os botões secundários um degrau acima', () => {
+  assert.match(HTML, /reservaDoca\(h\('div', \{ class: 'scan-dock-wrap ds-surface ds-destaque' \}, dock\)\)/);
+  assert.match(componentCss, /\.scan-dock-wrap\.ds-destaque \{ padding: var\(--space-3\) var\(--space-3\) calc\(var\(--space-3\) \+ env\(safe-area-inset-bottom, 0px\)\); \}/);
+  assert.match(componentCss, /\.ds-destaque \.scan-dock \.ds-btn:not\(\.ds-btn--primary\):not\(\.ds-btn--ghost\) \{ background-color: var\(--bg-elev-1\); \}/);
+});
+
 /* ---------------- DS-K (G-292) · F1.4 folha, diálogo e aviso pela receita ---------------- */
 test('DS-K · F1.4 diálogo e aviso seguem a receita "folha": véu com vinheta, a folha sobe com mola e a sombra assenta (só por token); o aviso sobe com mola e sai reto', () => {
   assert.match(componentCss, /\.ds-overlay \{ background-image: radial-gradient\(ellipse 120% 90% at 50% 42%, transparent 38%, var\(--overlay\)\); \}/, 'véu com vinheta');
