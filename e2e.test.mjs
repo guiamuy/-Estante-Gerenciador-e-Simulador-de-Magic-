@@ -10397,7 +10397,8 @@ test('e2e · J5 abertura: ao abrir o app o ícone se monta (ladrilho, estante, t
   assert.ok(ab.lado >= 195 && ab.lado <= 210, 'o ícone ocupa pouco mais da metade da largura em 360 px: ' + ab.lado);
   assert.match(ab.html, /filterUnits="userSpaceOnUse"/, 'a sombra tem região fixa: não treme enquanto as cartas caem');
   // 2 · o que ela monta: o ícone do app, parte por parte, a de latão por último
-  assert.deepEqual(ab.anima.sort(), ['ab-cai', 'ab-cai', 'ab-cai', 'ab-estende', 'ab-pousa', 'ab-surge']);
+  // DS-K F2.1 (G-293) · o ladrilho gira em 3D com mola (ab-gira) no lugar de só pousar (ab-pousa): receita "abertura"
+  assert.deepEqual(ab.anima.sort(), ['ab-cai', 'ab-cai', 'ab-cai', 'ab-estende', 'ab-gira', 'ab-surge']);
   assert.ok(ab.atrasos[0] < ab.atrasos[1] && ab.atrasos[1] < ab.atrasos[2], 'as cartas caem uma depois da outra: ' + ab.atrasos);
   assert.ok(ab.atrasos[2] * 1000 + 520 <= 2000, 'a última carta pousa antes de a abertura sair');
   assert.notEqual(ab.sangra, 'none', 'o fundo se estende além da caixa: sem faixa do app embaixo');
@@ -15488,5 +15489,27 @@ test('e2e · DS-K F1.4 · o diálogo abre pela receita "folha" (véu com vinheta
   const red = await page.evaluate(() => document.querySelector('.ds-dialog').getAnimations().filter(a => a.effect.getTiming().duration > 1).length);
   assert.equal(red, 0, 'com menos movimento a folha aparece no lugar');
   assert.equal(await page.$eval('.ds-dialog', el => getComputedStyle(el).opacity), '1');
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · DS-K F2.1 · a abertura monta o ícone em três planos (luz acende, ladrilho gira em 3D com mola, sombra assenta), passa a varredura e revela o nome; com menos movimento tudo já no lugar', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base + '#/'); await page.waitForSelector('#abertura');
+  const a = await page.evaluate(() => { const r = document.querySelector('#abertura'), an = sel => { const el = r.querySelector(sel); return el ? el.getAnimations().map(x => x.animationName) : null; };
+    const lad = r.querySelector('.abertura__ladrilho');
+    return { luz: an('.abertura__luz'), sombra: an('.abertura__sombra'), ladrilho: an('.abertura__ladrilho'), varre: getComputedStyle(lad, '::after').animationName,
+      nome: r.querySelector('.abertura__nome') && r.querySelector('.abertura__nome').textContent, persp: getComputedStyle(r).perspective, nomeAnim: an('.abertura__nome') }; });
+  assert.deepEqual(a.luz, ['ab-acende'], 'fundo: a luz acende'); assert.deepEqual(a.sombra, ['ab-assenta'], 'sombra: nasce e assenta');
+  assert.deepEqual(a.ladrilho, ['ab-gira'], 'objeto: o ladrilho gira'); assert.equal(a.varre, 'ab-varre', 'luz: a varredura passa');
+  assert.equal(a.nome, 'Estante'); assert.deepEqual(a.nomeAnim, ['ab-nome']); assert.notEqual(a.persp, 'none', 'o palco tem profundidade');
+  if (process.env.SHOTS) for (const ms of [150, 350, 600, 900, 1350]) { await page.waitForTimeout(ms === 150 ? 0 : 250); await page.screenshot({ path: process.env.SHOTS + `/ds-k-f21-abertura-${ms}.png` }); }
+  await page.waitForFunction(() => !document.querySelector('#abertura'), null, { timeout: 5000 });
+  // menos movimento: tudo parado e já no estado final
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.evaluate(() => sessionStorage.clear()); await page.reload(); await page.waitForSelector('#abertura');
+  const r = await page.evaluate(() => { const el = document.querySelector('#abertura'), cs = s => getComputedStyle(el.querySelector(s));
+    return { parada: el.dataset.parada, anim: el.getAnimations({ subtree: true }).filter(x => x.effect.getTiming().duration > 1).length, nome: cs('.abertura__nome').opacity, luz: cs('.abertura__luz').opacity, lad: cs('.abertura__ladrilho').transform }; });
+  assert.deepEqual(r, { parada: 'true', anim: 0, nome: '1', luz: '1', lad: 'none' }, 'com menos movimento: ícone, luz e nome no lugar');
   assert.deepEqual(errors, []);
 });

@@ -12049,9 +12049,32 @@ prevista no fim para medir quadros no Galaxy S e corrigir o que o portão pegar.
 | F0.1 ✅ G-287 | tokens, receitas, contenção | tokens `--bg-elev-0`, `--accent-hi`, `--accent-lo`, `--sheen`, `--ease-spring`, `--dur-abertura`, `--escalona` nos três blocos e por acento; seção **Receitas de animação** no `/ds` (dez receitas com plano · luz · curva · etapas · reduzido; sete são contrato da `jogabilidade`); guarda de **contenção de texto** no `auditaTela`; selo, chip, aba e botão sem quebra por CSS | contrato visual DS-K (AA dos pares novos, trio por acento, receitas completas, keyframes usados); e2e "DS-K" e `auditaTela` em todas as telas |
 | F0.2 ✅ G-288 | fontes self-hosted | Cormorant Garamond 600 e Figtree 400/600 em `woff2` ao lado do `index.html`, cache no `sw.js` (região `armazem`, com a `mtg-data-architect`), `font-display: swap`, pilha de sistema como reserva | peso ≤ 120 KB; sem rede o texto aparece; contrato visual: `--font-display`/`--font-ui` apontam para as novas |
 | F1 ✅ (F1.1 G-289 · F1.2 G-290 · F1.3 G-291 · F1.4 G-292) | componentes | primário e Jogar em latão metálico com varredura ao confirmar; cartão de destaque em ébano; marca em latão; folha, diálogo e aviso pelas receitas; estados completos (repouso, pressionado, selecionado, carregando, desabilitado) iguais entre botão, chip, aba, linha e selo | `/ds` nos dois temas; contrato visual por componente; e2e com `auditaTela` |
-| F2 | telas de gestão | Início com abertura (receita) e cartão Continuar em ébano; Lista, Coleção, Scanner com a hierarquia da direção K; grade 360 = 16 + 328 + 16 e cabeçalho 44 · 1fr · 44 | capturas antes e depois (360×780, 390×844, dois temas); `auditaTela`; pixels medidos |
+| F2 (F2.1 ✅ G-293) | telas de gestão | Início com abertura (receita) e cartão Continuar em ébano; Lista, Coleção, Scanner com a hierarquia da direção K; grade 360 = 16 + 328 + 16 e cabeçalho 44 · 1fr · 44 | capturas antes e depois (360×780, 390×844, dois temas); `auditaTela`; pixels medidos |
 | F3 | mesa como layout | barra e bandeja em ébano; tokens novos disponíveis para a `jogabilidade` desenhar as receitas da mesa em `#tb-fx` | pixels de campo em 360×780 (não perde); contrato visual |
 | FA | leva de ajuste | medir quadros no aparelho (CPU 4×) nas receitas e na mesa cheia; remedir AA do que a F1/F2 tocou; corrigir o que o portão e o aparelho mostrarem | teste de orçamento; capturas |
+
+**F2 · Telas de gestão — fatias** (fatiamento de 24/10/2026)
+
+| Fatia | Valor para o usuário | Termina quando | Situação |
+|---|---|---|---|
+| F2.1 | ao abrir o app, o ícone se monta em três planos, com luz e mola | a abertura segue a receita "abertura"; parada com menos movimento | ✅ G-293 |
+| F2.2 | todas as telas de gestão alinham nas mesmas margens e o título fica no centro | cabeçalho 44 · 1fr · 44 e gutter de 16 px em Listas, Lista, Coleção e Scanner, medidos em 360 e 390 | a fazer |
+| F2.3 | o topo da lista vira cartão de ébano, nome em Cormorant e contagens em latão | resumo da lista em destaque; `auditaTela` nos dois temas | a fazer |
+| F2.4 | o painel de valor e os filtros da coleção ganham a mesma hierarquia | painel em destaque; chips com os estados da F1.2 | a fazer |
+| F2.5 | a pilha conferida e o botão de foto do scanner ficam no padrão K | doca de latão, pilha em ébano; vazio, carregando e erro | a fazer |
+
+**F2.1 · Abertura pela receita** ✅ (leva G-293, 24/10/2026)
+- **Valor:** a abertura deixa de ser chapada (relato do dono de 24/10: "quadrada, bidimensional, zero sofisticada"):
+  a luz acende ao fundo, o ladrilho gira de −90° em Y com mola até o lugar enquanto a sombra nasce estreita e difusa e
+  assenta larga e firme, as peças se montam, uma varredura de luz atravessa o ladrilho e o nome sobe com o espaçamento
+  se fechando. O último quadro continua sendo exatamente o ícone do app (o teste J5 confere).
+- **Entregue:** palco com `perspective`; `.abertura__luz` (`ab-acende`), `.abertura__sombra` (`ab-assenta`, mola),
+  `.abertura__ladrilho` (`ab-gira`, mola, no lugar de `ab-pousa`) com `::after` de varredura (`ab-varre`, `--sheen`),
+  `.abertura__nome` (`ab-nome`, Cormorant); tudo em frações de `--dur-abertura`; mesma duração (2 s) e mesmo
+  comportamento (não segura o app, toque dispensa, uma vez por sessão).
+- **Reduzido:** o estado sem animação é o final: luz, ícone, sombra e nome parados no lugar.
+- **Testes:** e2e J5 (passa a esperar `ab-gira`) e e2e novo "DS-K F2.1" (os três planos, a varredura, o nome, a
+  perspectiva; com menos movimento tudo no lugar).
 
 **F1 · Componentes — fatias** (fatiamento de 24/10/2026; cada fatia é uma leva que vai sozinha para o `main`)
 

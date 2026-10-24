@@ -1433,6 +1433,32 @@ body[data-mesa-cheia="true"] .ds-toast[data-inteiro="true"] { padding-top: var(-
 /* movimento reduzido: o logo parado, que só esmaece */
 .abertura[data-parada="true"] .abertura__ladrilho, .abertura[data-parada="true"] .ab-moldura, .abertura[data-parada="true"] .ab-tabua, .abertura[data-parada="true"] .ab-carta { animation: none !important; }
 @media (prefers-reduced-motion: reduce) { .abertura__ladrilho, .ab-moldura, .ab-tabua, .ab-carta { animation: none; } }
+/* DS-K F2.1 (G-293) · a abertura pela receita "abertura", em três planos (o último quadro continua sendo o ícone do app):
+   fundo — a luz acende atrás do ladrilho (ab-acende); objeto — o ladrilho gira de −90° em Y com mola até o lugar
+   (ab-gira, perspectiva no palco) e as peças se montam sobre ele; sombra — nasce estreita e difusa e assenta larga e
+   firme quando o ladrilho chega (ab-assenta); luz — uma varredura atravessa o ladrilho depois da última carta
+   (ab-varre); por fim o nome sobe com o espaçamento se fechando (ab-nome). Tudo em frações de --dur-abertura.
+   Menos movimento: luz, ícone, sombra e nome já no lugar, parados (o estado sem animação é o estado final). */
+.abertura { perspective: 900px; flex-direction: column; gap: var(--space-5); }
+.abertura__palco { position: relative; display: grid; place-items: center; transform-style: preserve-3d; }
+.abertura__luz { position: absolute; inset: -45%; border-radius: 50%; background: radial-gradient(closest-side, var(--accent-soft), transparent); pointer-events: none;
+  animation: ab-acende calc(var(--dur-abertura) * .32) var(--ease-out) both; }
+.abertura__sombra { position: absolute; left: 12%; right: 12%; bottom: -9%; height: 14%; border-radius: 50%; background: radial-gradient(closest-side, var(--overlay), transparent); pointer-events: none;
+  animation: ab-assenta calc(var(--dur-abertura) * .32) var(--ease-spring) calc(var(--dur-abertura) * .14) both; }
+.abertura__ladrilho { position: relative; overflow: hidden; transform-origin: 50% 50%; backface-visibility: hidden;
+  animation: ab-gira calc(var(--dur-abertura) * .32) var(--ease-spring) calc(var(--dur-abertura) * .14) both; }
+.abertura__ladrilho::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0;
+  background: linear-gradient(105deg, transparent 30%, var(--sheen) 50%, transparent 70%) no-repeat; background-size: 220% 100%; background-position: 160% 0;
+  animation: ab-varre calc(var(--dur-abertura) * .3) var(--ease-out) calc(var(--dur-abertura) * .78) both; }
+.abertura__nome { font-family: var(--font-display); font-size: var(--text-2xl); line-height: 1; letter-spacing: .14em; color: var(--fg); padding-left: .14em;
+  animation: ab-nome calc(var(--dur-abertura) * .34) var(--ease-out) calc(var(--dur-abertura) * .66) both; }
+@keyframes ab-acende { from { opacity: 0; transform: scale(.7); } to { opacity: 1; transform: none; } }
+@keyframes ab-gira { from { opacity: 0; transform: rotateY(-90deg) translateZ(60px); } 30% { opacity: 1; } to { opacity: 1; transform: none; } }
+@keyframes ab-assenta { from { opacity: 0; transform: scaleX(.35); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes ab-varre { 0% { opacity: 1; background-position: 160% 0; } 100% { opacity: 1; background-position: -60% 0; } }
+@keyframes ab-nome { from { opacity: 0; transform: translateY(10px); letter-spacing: .5em; clip-path: inset(0 0 100% 0); } to { opacity: 1; transform: none; letter-spacing: .14em; clip-path: inset(0); } }
+.abertura[data-parada="true"] :is(.abertura__luz, .abertura__sombra, .abertura__ladrilho, .abertura__nome), .abertura[data-parada="true"] .abertura__ladrilho::after { animation: none !important; }
+@media (prefers-reduced-motion: reduce) { :is(.abertura__luz, .abertura__sombra, .abertura__nome), .abertura__ladrilho::after { animation: none; } }
 /* J6 · botão de ação: a ação principal da tela ao alcance do polegar, no canto inferior direito. Uma ação: toca e faz.
    Várias: abre para cima uma lista curta de ícone + rótulo. É o primário da tela (usa o desenho do botão primário).
    Fica acima do conteúdo e abaixo de diálogos e avisos; a página ganha respiro no fim para ele não cobrir a última linha. */
@@ -4267,7 +4293,8 @@ function mostraAbertura(win = typeof window !== 'undefined' ? window : null) {
   const reduzido = doc.documentElement.getAttribute('data-movimento') === 'reduzido' || !!(win.matchMedia && win.matchMedia('(prefers-reduced-motion: reduce)').matches);
   const el = doc.createElement('div');
   el.id = 'abertura'; el.className = 'abertura'; el.setAttribute('aria-hidden', 'true'); el.dataset.parada = String(reduzido);
-  el.innerHTML = `<span class="abertura__ladrilho">${iconeDoApp({ tamanho: 240, animado: true })}</span>`;
+  // DS-K F2.1 · três planos: luz atrás, sombra embaixo, o ladrilho no meio; o nome por último
+  el.innerHTML = `<span class="abertura__palco"><span class="abertura__luz"></span><span class="abertura__sombra"></span><span class="abertura__ladrilho">${iconeDoApp({ tamanho: 240, animado: true })}</span></span><span class="abertura__nome">Estante</span>`;
   doc.body.appendChild(el);
   const EVENTOS = ['pointerdown', 'keydown'];
   let acabou = false, relogio = null;
