@@ -3340,8 +3340,11 @@ test('e2e · sem sobreposição: todas as listas prontas na estante, listas e pr
   const contas = await page.$$eval('#decks-list .deck-item', els => els.map(e => [e.querySelector('.deck-item__main'), e.querySelector('.deck-item__reserva')].map(x => x && x.getAttribute('aria-label')).join(' + ')).filter(x => /reserva/.test(x)));
   assert.deepEqual(contas, Array(7).fill('60 cartas no deck + 15 na reserva'));
   // só o nome em palavras: o resto da linha é símbolo, selo do formato e número
-  const palavras = await page.$$eval('#decks-list .deck-item__meta', els => els.map(e => [...e.children].filter(x => !x.matches('.ds-pips')).map(x => x.innerText.trim()).join(' ')));
+  // G-301 · relato #32 · o selo do motor é selo, como o do formato (palavra curta + número); fica de fora desta conta e tem a sua
+  const palavras = await page.$$eval('#decks-list .deck-item__meta', els => els.map(e => [...e.children].filter(x => !x.matches('.ds-pips, .deck-item__motor')).map(x => x.innerText.trim()).join(' ')));
   assert.ok(palavras.every(x => /^(PAUPER|COMMANDER) \d+( \d+)?$/.test(x)), 'meta sem frase: ' + JSON.stringify(palavras));
+  await page.waitForFunction(() => [...document.querySelectorAll('#decks-list .deck-item__motor')].every(m => m.dataset.motor !== 'calculando'), null, { timeout: 15000 });
+  assert.ok((await page.$$eval('#decks-list .deck-item__motor', ms => ms.map(m => m.textContent))).every(t => /^Motor\d{1,3}%$/.test(t)), 'cada lista com o selo do motor');
   assert.deepEqual(errors, []);
 });
 
@@ -4088,8 +4091,11 @@ test('e2e · leva 110 lista em símbolos: cores, formato, principal e reserva co
   const linha = await page.evaluate(() => { const it = document.querySelector('#decks-list .deck-item');
     return { cores: it.querySelector('.ds-pips') && it.querySelector('.ds-pips').getAttribute('aria-label'), formato: it.querySelector('.deck-item__formato').innerText,
       main: it.querySelector('.deck-item__main').getAttribute('aria-label'), side: it.querySelector('.deck-item__reserva').getAttribute('aria-label'),
-      nome: it.querySelector('.deck-item__nome').innerText, meta: [...it.querySelector('.deck-item__meta').children].filter(x => !x.matches('.ds-pips')).map(x => x.innerText.trim()).join(' ') }; });
+      nome: it.querySelector('.deck-item__nome').innerText, meta: [...it.querySelector('.deck-item__meta').children].filter(x => !x.matches('.ds-pips, .deck-item__motor')).map(x => x.innerText.trim()).join(' ') }; });
   assert.deepEqual(linha, { cores: 'identidade: azul e vermelho', formato: 'PAUPER', main: '28 cartas no deck', side: '2 na reserva', nome: 'Izzet Teste', meta: 'PAUPER 28 2' });
+  // G-301 · relato #32 · expectativa ampliada com motivo: a linha ganhou o selo do motor (última peça da linha de símbolos)
+  await page.waitForSelector('#decks-list .deck-item__motor[data-motor="completo"]');
+  assert.equal(await page.$eval('#decks-list .deck-item__meta', m => m.lastElementChild.className), 'deck-item__motor');
   await auditaTela(page, 'listas em símbolos');
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/listas.png' });
   // preparar partida: a lista escolhida aparece como a linha da estante, e trocar abre a folha com todas
@@ -8805,6 +8811,44 @@ test('e2e · G-285 tela Jogar: a lista do oponente (a dois e Shark) mostra o lad
   await page.waitForSelector('#mesa-estado-dele');
   await page.waitForFunction(() => /^Lista do Shark: Motor \d+%/.test(document.querySelector('#mesa-estado-dele').getAttribute('aria-label') || ''), null, { timeout: 8000 });
   await auditaTela(page, 'Jogar com a lista do oponente medida');
+  assert.deepEqual(errors, []);
+});
+
+/* G-301 · relato #32 · toda listagem de listas diz quanto da lista roda no motor */
+test('e2e · G-301 selo do motor em toda listagem: Minhas listas e as escolhas de lista do Jogar (sua, oponente, Shark) mostram "Motor 100%" em verde ou "Motor n%" em aviso, com a fala inteira; a conta é a mesma do ladrilho do Jogar', { skip }, async t => {
+  const { page, errors, base } = await open(t, { dev: false });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'Coberta', '30 Island\n30 Counterspell', 'pauper');
+  await createDeck(page, base, 'Furada', '30 Island\n10 Carta Inexistente\n20 Counterspell', 'pauper');
+  // 1 · Minhas listas
+  await page.goto(base + '#/listas'); await page.waitForSelector('.deck-item');
+  await page.waitForFunction(() => document.querySelectorAll('.deck-item__motor:not([data-motor="calculando"])').length >= 2, null, { timeout: 8000 });
+  const linhas = await page.$$eval('.deck-linha', ls => ls.map(l => { const m = l.querySelector('.deck-item__motor'); return [l.querySelector('.deck-item__nome').textContent, m && m.dataset.motor, m && m.textContent, m && m.getAttribute('aria-label')]; }));
+  const porNome = Object.fromEntries(linhas.map(([n, ...r]) => [n, r]));
+  assert.deepEqual(porNome.Coberta, ['completo', 'Motor100%', 'Motor: roda a lista inteira (100%)']);
+  assert.equal(porNome.Furada[0], 'incompleto'); assert.match(porNome.Furada[1], /^Motor\d{1,2}%$/); assert.match(porNome.Furada[2], /^Motor: roda \d{1,2}% da lista; 1 carta\(s\) ainda não jogam/);
+  const cor = await page.$$eval('.deck-item__motor', ms => ms.map(m => [m.dataset.motor, getComputedStyle(m).color, getComputedStyle(m).borderTopColor]));
+  const tokens = await page.evaluate(() => { const d = document.createElement('span'); document.body.append(d); const ler = v => { d.style.color = `var(${v})`; return getComputedStyle(d).color; }; const r = { positive: ler('--positive'), warning: ler('--warning') }; d.remove(); return r; });
+  for (const [tom, c, b] of cor) assert.deepEqual([c, b], tom === 'completo' ? [tokens.positive, tokens.positive] : [tokens.warning, tokens.warning], 'tom do selo pelo token: ' + tom);
+  await auditaTela(page, 'Minhas listas com o selo do motor');
+  // 2 · a mesma conta do ladrilho do Jogar
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-estado');
+  await escolheLista(page, 'mesa-mine', /^Furada$/);
+  await page.waitForFunction(() => /Motor \d+%/.test(document.querySelector('#mesa-estado').getAttribute('aria-label') || ''));
+  const ladrilho = (await page.getAttribute('#mesa-estado', 'aria-label')).match(/Motor (\d+)%/)[1];
+  assert.equal(porNome.Furada[1], `Motor${ladrilho}%`, 'a linha e o ladrilho do Jogar dizem o mesmo número');
+  // 3 · as escolhas de lista do Jogar: a linha escolhida e cada linha da folha têm o selo
+  await page.waitForSelector('#mesa-mine .deck-item__motor[data-motor="incompleto"]');
+  await page.click('#mesa-mine'); await page.waitForSelector('.deck-picker__lista');
+  await page.waitForFunction(() => { const ms = [...document.querySelectorAll('.deck-picker__lista .deck-item__motor')]; return ms.length >= 2 && ms.every(m => m.dataset.motor !== 'calculando'); }, null, { timeout: 8000 });
+  await auditaTela(page, 'escolha da sua lista com o selo do motor');
+  await page.keyboard.press('Escape'); await page.waitForSelector('.deck-picker__lista', { state: 'detached' });
+  await page.click('[data-table-format="pauper"]').catch(() => {});
+  await page.waitForFunction(() => { const c = document.querySelector('[data-opponent="shark"]'); return c && !c.disabled; }, null, { timeout: 8000 });
+  await page.click('[data-opponent="shark"]'); await page.waitForSelector('#mesa-bot-deck');
+  await page.click('#mesa-bot-deck'); await page.waitForSelector('.deck-picker__lista');
+  await page.waitForFunction(() => { const ms = [...document.querySelectorAll('.deck-picker__lista .deck-item__motor')]; return ms.length === 5 && ms.every(m => m.dataset.motor !== 'calculando'); }, null, { timeout: 12000 });
+  assert.equal(await page.locator('.deck-picker__lista .deck-item__motor').count(), 5, 'as cinco listas do Shark com o selo');
   assert.deepEqual(errors, []);
 });
 

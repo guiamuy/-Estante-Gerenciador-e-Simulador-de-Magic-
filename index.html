@@ -2001,6 +2001,13 @@ body:has(#outlet .ds-fab[data-acoes="1"]) #outlet { padding-bottom: calc(56px + 
 .deck-item__formato { font-size: var(--text-xs); line-height: 1; letter-spacing: .08em; text-transform: uppercase; font-weight: var(--weight-bold); color: var(--accent);
   padding: 4px 7px; border: 1px solid var(--accent); border-radius: var(--radius-full); white-space: nowrap; }
 .deck-item__conta { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; font-size: var(--text-sm); }
+/* G-301 · relato #32 · o selo do motor na linha da lista: verde quando roda inteira, aviso quando não, neutro enquanto confere */
+.deck-item__motor { display: inline-flex; align-items: center; gap: var(--space-1); padding: var(--space-1) var(--space-2); border: 1px solid var(--border-strong); border-radius: var(--radius-full); font-size: var(--text-xs); line-height: 1; white-space: nowrap; color: var(--fg-muted); }
+.deck-item__motor-rotulo { letter-spacing: .06em; text-transform: uppercase; }
+.deck-item__motor b { font-variant-numeric: tabular-nums; font-weight: var(--weight-bold); }
+.deck-item__motor[data-motor="completo"] { color: var(--positive); border-color: var(--positive); }
+.deck-item__motor[data-motor="incompleto"] { color: var(--warning); border-color: var(--warning); }
+.deck-item__motor[data-motor="calculando"] b { color: var(--fg-subtle); }
 .deck-item__conta b { font-variant-numeric: tabular-nums; color: var(--fg); font-weight: var(--weight-bold); }
 .deck-item__reserva .ds-icon { opacity: .8; }
 .deck-item__posse { display: block; height: 3px; border-radius: var(--radius-full); background: var(--border); overflow: hidden; }
@@ -17238,7 +17245,55 @@ const FORMAT_OPTS = Object.entries(FORMATS).map(([value, label]) => ({ value, la
    Só o nome em palavras. O resto é desenho: cores em símbolos de mana, selo do formato,
    deck principal e reserva em ícone com número, e a posse como uma barra fina. O nome
    falado de cada peça diz tudo por extenso. */
-function DeckLinha({ nome, formato, cores, main, side, posse, fim, onClick, dataset, tag = 'div', attrs = {}, etiquetas = null, valor = null }) {
+/* ---------------- G-301 · relato #32 · quanto da lista roda no motor ----------------
+   Toda listagem de listas diz, na própria linha, quanto da lista o motor resolve: "Motor 100%" em verde, "Motor 83%" em
+   aviso, "Motor …" só enquanto a conta não chegou. A conta é a mesma da
+   tela Jogar (cobertura por carta, só o principal; carta sem dado no aparelho conta como "não joga", como lá — a lista salva
+   guarda os dados de todas as cartas), feita fora do caminho do toque: uma lista por tarefa ociosa, guardada. */
+/** Puro. `cards`: Map(norm(nome) → carta guardada). `memo`: cobertura por carta, compartilhada entre listas. */
+function motorDaLista(entries, cards, memo = new Map()) {
+  let total = 0, completo = 0, semDados = 0; const faltam = new Set();
+  for (const e of entries || []) {
+    if (!e || e.zone === 'side' || !(e.qty > 0)) continue;
+    const k = norm(e.name), c = (cards && cards.get && (cards.get(k) || cards.get(e.name))) || null, basico = __m7.BASIC_CARDS[k] || null;
+    let cv = memo.get(k);
+    if (!cv) { cv = coverage(c || basico || { name: e.name }, undefined, e.name); memo.set(k, cv); }
+    total += e.qty;
+    if (cv.level === 'completo') completo += e.qty;
+    else { faltam.add(e.name); if (!c && !basico && cv.reason === 'carta desconhecida') semDados += e.qty; }
+  }
+  const pct = total ? Math.floor(completo / total * 100) : 0; // floor: 99,6 % não pode virar "100%"
+  return { estado: !total ? 'vazia' : completo === total ? 'completo' : 'incompleto', pct: completo === total && total ? 100 : Math.min(pct, 99), total, semDados, faltam: [...faltam] };
+}
+/** O selo da linha. `m` = resultado de `motorDaLista`, ou null enquanto a conta não chegou. */
+function SeloMotor(m) {
+  const tom = !m ? 'calculando' : m.estado === 'completo' ? 'completo' : m.estado === 'incompleto' ? 'incompleto' : 'conferir';
+  const valor = !m ? '…' : m.estado === 'completo' || m.estado === 'incompleto' ? `${m.pct}%` : '—';
+  const fala = !m ? 'Motor: conferindo a lista' : m.estado === 'completo' ? 'Motor: roda a lista inteira (100%)'
+    : m.estado === 'incompleto' ? `Motor: roda ${m.pct}% da lista; ${m.faltam.length} carta(s) ainda não jogam${m.semDados ? ` (${m.semDados} cópia(s) sem os dados da carta no aparelho)` : ''}`
+    : 'Motor: lista sem cartas no deck';
+  return h('span', { class: 'deck-item__motor', role: 'img', 'aria-label': fala, title: fala, dataset: { motor: tom } },
+    Icone(tom === 'completo' ? 'marcar' : tom === 'incompleto' ? 'alerta' : 'conferir', { tamanho: 14 }), h('span', { class: 'deck-item__motor-rotulo' }, 'Motor'), h('b', {}, valor));
+}
+const CONTAS_DO_MOTOR = new Map(); // chave da lista (id, cartas guardadas, entradas) → resultado
+const MEMO_DO_MOTOR = new WeakMap(); // mapa de cartas guardadas → cobertura por carta
+const chaveDoMotor = (d, cards) => `${d.id}|${cards && cards.size || 0}|${(d.entries || []).map(e => `${e.zone}:${e.qty}:${e.name}`).join(';')}`;
+const contaDoMotor = (d, cards) => CONTAS_DO_MOTOR.get(chaveDoMotor(d, cards)) || null;
+function contaMotor(d, cards) {
+  const k = chaveDoMotor(d, cards); if (CONTAS_DO_MOTOR.has(k)) return CONTAS_DO_MOTOR.get(k);
+  if (!MEMO_DO_MOTOR.has(cards)) MEMO_DO_MOTOR.set(cards, new Map());
+  if (CONTAS_DO_MOTOR.size > 500) CONTAS_DO_MOTOR.clear();
+  const r = motorDaLista(d.entries, cards, MEMO_DO_MOTOR.get(cards)); CONTAS_DO_MOTOR.set(k, r); return r;
+}
+const naOciosa = fn => (typeof requestIdleCallback === 'function' ? requestIdleCallback(fn, { timeout: 200 }) : setTimeout(fn, 16));
+/** O selo já com a conta, ou um "conferindo" que se troca sozinho numa tarefa ociosa (a linha aparece na hora). */
+function SeloMotorDa(d, cards) {
+  const pronto = contaDoMotor(d, cards); if (pronto) return SeloMotor(pronto);
+  const el = SeloMotor(null);
+  naOciosa(() => { const novo = SeloMotor(contaMotor(d, cards)); if (el.parentNode) el.replaceWith(novo); });
+  return el;
+}
+function DeckLinha({ nome, formato, cores, main, side, posse, fim, onClick, dataset, tag = 'div', attrs = {}, etiquetas = null, valor = null, motor = null }) {
   const conta = (icone, n, fala, classe) => h('span', { class: 'deck-item__conta ' + classe, role: 'img', 'aria-label': fala, title: fala }, Icone(icone, { tamanho: 16 }), h('b', {}, String(n)));
   const corpo = [
     h('span', { class: 'deck-item__nome' }, nome),
@@ -17248,7 +17303,8 @@ function DeckLinha({ nome, formato, cores, main, side, posse, fim, onClick, data
       conta('baralho', main, `${main} cartas no deck`, 'deck-item__main'),
       side ? conta('reserva', side, `${side} na reserva`, 'deck-item__reserva') : null,
       __m32.Pontos(etiquetas), // G2
-      valor ? h('span', { class: 'deck-item__valor', role: 'img', 'aria-label': valor.fala, title: valor.fala }, valor.texto) : null), // G3
+      valor ? h('span', { class: 'deck-item__valor', role: 'img', 'aria-label': valor.fala, title: valor.fala }, valor.texto) : null, // G3
+      motor ? SeloMotorDa(motor.lista, motor.cards) : null), // G-301 · relato #32
     posse ? h('span', { class: 'deck-item__posse', role: 'meter', 'aria-valuemin': '0', 'aria-valuemax': String(posse.need), 'aria-valuenow': String(posse.have),
       'aria-label': `tenho ${posse.have} de ${posse.need}`, title: `tenho ${posse.have} de ${posse.need}`, dataset: { completa: String(posse.have === posse.need) } },
       h('span', { class: 'deck-item__posse-barra', style: { width: `${posse.need ? Math.round(posse.have / posse.need * 100) : 0}%` } })) : null
@@ -17377,7 +17433,7 @@ function createDecksHome({ decks, collection, files, cardRepo, backup = null, et
       // G-272 · relato #21: a lixeira mora ao lado da linha (não dentro dela: botão dentro de botão não existe)
       return h('div', { class: 'deck-linha', dataset: { deckLinha: d.id } },
         DeckLinha({ nome: d.name, formato: d.format, cores: coresDaLista(d.entries, guardadas), main: need - reserva, side: reserva,
-          posse: { have, need }, onClick: () => go('/lista?id=' + d.id), dataset: { deck: d.id }, etiquetas: __m32.de(etq, 'listas', d.id),
+          posse: { have, need }, onClick: () => go('/lista?id=' + d.id), dataset: { deck: d.id }, etiquetas: __m32.de(etq, 'listas', d.id), motor: { lista: d, cards: guardadas },
           valor: (v => v.comPreco ? { texto: __m31.principal(v), fala: `valor estimado ${__m31.principal(v)}` + (v.semPreco ? `, ${v.semPreco} carta(s) sem preço` : '') } : null)(valores.get(d.id)) }),
         IconButton('lixeira', 'Excluir ' + d.name, { variant: 'ghost', classe: 'ds-btn--perigo deck-linha__excluir', dataset: { excluir: d.id }, onClick: () => confirmaExcluir(d) }));
     })));
@@ -19885,7 +19941,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
 }
 
 
-return { createPortaDeEntrada, dialogoEntrarComEmail, PainelEstatisticas, createDecksHome, createStarterDecks, createDeckEditor, createDeckScreen, createCollectionScreen, createPerfilScreen, createFichasScreen, createTerrenosScreen, createPartidasScreen, DeckLinha };
+return { createPortaDeEntrada, dialogoEntrarComEmail, PainelEstatisticas, createDecksHome, createStarterDecks, createDeckEditor, createDeckScreen, createCollectionScreen, createPerfilScreen, createFichasScreen, createTerrenosScreen, createPartidasScreen, DeckLinha, motorDaLista, SeloMotor, contaMotor };
 })();
 
 
@@ -37772,7 +37828,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
     // Leva 110 · escolher a lista: a linha da estante (cores, formato, principal e reserva), não um <select> de texto
     let guardadas = new Map();
     try { if (cardRepo && cardRepo.cached) guardadas = await cardRepo.cached([...all, ...doShark].flatMap(d => d.entries.map(e => e.name))); } catch (e) { /* sem cache: sem cores */ }
-    const linhaDe = (d, extra) => { const c = contaDeck(d); return __m15.DeckLinha({ nome: d.name, formato: d.format, cores: coresDaLista(d.entries, guardadas), main: c.main, side: c.side, ...extra }); };
+    const linhaDe = (d, extra) => { const c = contaDeck(d); return __m15.DeckLinha({ nome: d.name, formato: d.format, cores: coresDaLista(d.entries, guardadas), main: c.main, side: c.side, motor: { lista: d, cards: guardadas }, ...extra }); }; // G-301 · relato #32: o selo do motor em toda escolha de lista
     // B-22 · a linha de uma lista do Shark diz de onde ela veio (torneio, colocação, jogador, data)
     const origemDoShark = l => `${l.origem} · ${l.jogador} · ${l.data.split('-').reverse().join('/')}`;
     const linhaDoShark = (d, extra) => { const el = linhaDe(d, extra); el.querySelector('.deck-item__corpo').append(h('span', { class: 'deck-item__origem ds-text ds-text--sm ds-text--muted' }, origemDoShark(d.shark))); return el; };
