@@ -15171,3 +15171,76 @@ test('e2e · MJ9 fim de partida com peso: desfecho com selo, motivo, placar, tur
   for (const tema of ['dark', 'light']) { await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await auditaTela(page, `MJ9 · palco do desfecho 360 ${tema}`); }
   assert.deepEqual(errors, []);
 });
+
+// MJ10 (leva J-22, trilha jogabilidade) · espiar de patamar: segurar uma carta da mesa abre a carta grande saindo da carta
+// segurada (--dur-2, só transform e opacidade) com sombra de carta levantada; arrastar o dedo enquanto segura inclina a arte
+// até 6° e um brilho de latão corre por ela (uma escrita por quadro); soltar fecha; menos movimento: abre parado, sem inclinar
+// nem brilhar. Quadros do gesto medidos com CPU 4× em 360×780. E o pedido da `geral` (G-282): a folha da carta mostra a
+// EsperaDaCarta enquanto a imagem não chega (o giro saiu).
+test('e2e · MJ10 espiar de patamar: a carta grande sai da carta segurada, inclina com o dedo e brilha; quadros com CPU 4×; menos movimento parado; folha com a EsperaDaCarta', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  const { PNG } = await import('pngjs'); const png = new PNG({ width: 488, height: 680 }); png.data.fill(120);
+  const carta = PNG.sync.write(png);
+  await page.route(/^https:\/\/cards\.scryfall\.io\//, r => r.fulfill({ status: 200, contentType: 'image/png', body: carta, headers: { 'access-control-allow-origin': '*' } }));
+  await comOficiais(page, ['Highway Robbery', 'Mountain', 'Lightning Bolt'], { imagens: true });
+  await page.setViewportSize({ width: 360, height: 780 }); // o aparelho do dono
+  await createDeck(page, base, 'Robbery', '24 Mountain\n16 Highway Robbery\n20 Lightning Bolt');
+  await page.goto(base + '#/mesa'); await page.fill('#mesa-seed', '9');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForTimeout(300);
+  await meuPrincipal121(page); await jogaTerreno121(page, 'Mountain');
+  await page.evaluate(() => document.querySelector('#tb').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))); await page.waitForTimeout(400);
+  if (await page.locator('#tb-hand-toggle[aria-expanded="true"]').count()) { await page.click('#tb-hand-toggle'); await page.waitForTimeout(250); }
+  const monte = page.locator('.tb-side--me .tb-card[aria-label^="Mountain"]').first();
+  const b = await monte.boundingBox(), cx = b.x + b.width / 2, cy = b.y + b.height / 2;
+  // 1 · segurar: a arte sai da carta segurada (o primeiro quadro da entrada está sobre ela), em --dur-2, só transform —
+  // medido no instante em que o espiar entra na página (a entrada dura 180 ms; ler depois chegaria tarde)
+  await page.evaluate(() => { window.__mj10 = null; new MutationObserver((ms, ob) => { for (const m of ms) for (const el of m.addedNodes) if (el.id === 'tb-peek') {
+    const arte = el.querySelector('.tb-peek__arte'), r = arte.getBoundingClientRect(), a = arte.getAnimations().find(x => (x.effect.getKeyframes()[0] || {}).transform), k0 = a ? a.effect.getKeyframes()[0].transform : '';
+    const mm = /translate\((-?[\d.]+)px, (-?[\d.]+)px\) scale\(([\d.]+)\)/.exec(k0) || [];
+    window.__mj10 = { entra: el.dataset.entra, dur: a ? a.effect.getTiming().duration : null, durTok: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--dur-2')),
+      deX: r.left + r.width / 2, deY: r.top + r.height / 2, escala: Number(mm[3]), sombra: getComputedStyle(arte).boxShadow !== 'none', // no instante da entrada a arte já está no primeiro quadro: sobre a carta
+      props: [...new Set(arte.getAnimations().concat(el.getAnimations()).flatMap(x => x.effect.getKeyframes().flatMap(f => Object.keys(f).filter(k => !['offset', 'easing', 'composite', 'computedOffset'].includes(k)))))].sort() };
+    ob.disconnect(); } }).observe(document.body, { childList: true }); });
+  await page.mouse.move(cx, cy); await page.mouse.down(); await page.waitForSelector('#tb-peek .tb-peek__arte');
+  const entrada = await page.evaluate(() => window.__mj10);
+  assert.equal(entrada.entra, 'true', JSON.stringify(entrada)); assert.equal(entrada.dur, entrada.durTok, 'entra em --dur-2');
+  assert.ok(Math.hypot(entrada.deX - cx, entrada.deY - cy) <= 6, 'o primeiro quadro está sobre a carta segurada (a carta segurada já levantou um pouco) ' + JSON.stringify(entrada));
+  assert.ok(entrada.escala > 0 && entrada.escala < 1, 'sai do tamanho da carta'); assert.ok(entrada.sombra, 'sombra de carta levantada');
+  assert.deepEqual(entrada.props, ['opacity', 'transform'], 'só transform e opacidade');
+  await page.waitForFunction(() => !document.querySelector('#tb-peek').dataset.entra, null, { timeout: 2000 });
+  // 2 · arrastar o dedo inclina a arte e acende o brilho; quadros e tarefas longas medidos com CPU 4×
+  const cdp = await page.context().newCDPSession(page); await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
+  await page.evaluate(() => { window.__q10 = { quadros: 0, longas: [] }; const conta = () => { if (!window.__q10.fim) { window.__q10.quadros++; requestAnimationFrame(conta); } }; requestAnimationFrame(conta);
+    try { new PerformanceObserver(l => { for (const e of l.getEntries()) window.__q10.longas.push(Math.round(e.duration)); }).observe({ type: 'longtask', buffered: false }); } catch (e) { /* sem longtask */ } window.__q10.t0 = performance.now(); });
+  for (let i = 0; i < 3; i++) { await page.mouse.move(cx + 30, cy - 20, { steps: 12 }); await page.mouse.move(cx - 30, cy + 20, { steps: 12 }); }
+  await page.mouse.move(cx + 24, cy - 16, { steps: 6 }); await page.waitForTimeout(80);
+  const q = await page.evaluate(() => { window.__q10.fim = true; const s = (performance.now() - window.__q10.t0) / 1000; const arte = document.querySelector('#tb-peek .tb-peek__arte'), brilho = document.querySelector('#tb-peek .tb-peek__brilho');
+    return { fps: Math.round(window.__q10.quadros / s), longas: window.__q10.longas, inclina: document.querySelector('#tb-peek').dataset.inclina, tf: arte.style.transform, brilho: Number(getComputedStyle(brilho).opacity), faixa: brilho.firstChild.style.transform }; });
+  await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
+  t.diagnostic(`MJ10 · gesto com CPU 4×: ${q.fps} quadros/s, tarefas longas ${JSON.stringify(q.longas)}`);
+  assert.equal(q.inclina, 'true'); assert.match(q.tf, /^perspective\(700px\) rotateY\(3(\.0+)?deg\) rotateX\(2(\.0+)?deg\)$/, 'inclina pelo dedo, até 6° ' + q.tf);
+  assert.ok(q.brilho > 0.5, 'o brilho acende com a inclinação ' + q.brilho); assert.match(q.faixa, /^translateX\(12\.5%\)$/, 'a faixa de latão corre com o dedo');
+  assert.ok(q.fps >= 45, 'quadros durante o gesto (CPU 4×): ' + q.fps); assert.deepEqual(q.longas.filter(x => x > 50), [], 'sem tarefa longa no gesto');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/mj10-espiar.png' });
+  // 3 · soltar fecha; mexer depois não faz nada
+  await page.mouse.up(); await page.waitForTimeout(100);
+  assert.equal(await page.locator('#tb-peek').count(), 0, 'soltou, fechou'); await page.mouse.move(cx + 5, cy + 5, { steps: 3 });
+  // 4 · menos movimento: abre parado, sem inclinar nem brilhar
+  await page.evaluate(() => document.documentElement.setAttribute('data-movimento', 'reduzido'));
+  await page.mouse.move(cx, cy); await page.mouse.down(); await page.waitForSelector('#tb-peek .tb-peek__arte');
+  await page.mouse.move(cx + 30, cy - 20, { steps: 8 }); await page.waitForTimeout(80);
+  const parado = await page.evaluate(() => { const el = document.querySelector('#tb-peek'), arte = el.querySelector('.tb-peek__arte');
+    return { entra: el.dataset.entra || null, inclina: el.dataset.inclina || null, anim: arte.getAnimations().length + el.getAnimations().length, tf: getComputedStyle(arte).transform, brilho: getComputedStyle(el.querySelector('.tb-peek__brilho')).display }; });
+  assert.deepEqual(parado, { entra: null, inclina: null, anim: 0, tf: 'none', brilho: 'none' }, 'menos movimento: parado');
+  await page.mouse.up(); await page.evaluate(() => document.documentElement.removeAttribute('data-movimento'));
+  // 5 · a folha da carta: a EsperaDaCarta ao lado da imagem (some quando ela chega), no tamanho da carta, sem o giro antigo
+  if (await page.locator('#tb-hand-toggle[aria-expanded="false"]').count()) { await page.click('#tb-hand-toggle'); await page.waitForTimeout(250); }
+  await page.locator('#tb-hand .tb-card').first().click(); await page.waitForSelector('.ds-dialog .tb-sheet__img');
+  await page.waitForFunction(() => { const i = document.querySelector('.ds-dialog .tb-sheet__img'); return i && i.dataset.carregada === 'true'; });
+  const folha = await page.evaluate(() => { const f = document.querySelector('.ds-dialog .tb-sheet__foto'), e = f.querySelector(':scope > .ds-carta-espera');
+    return { espera: !!e, junto: !!(e && e.previousElementSibling && e.previousElementSibling.matches('.tb-sheet__img')), oculta: e ? getComputedStyle(e).display : null, giro: getComputedStyle(f, '::after').content, largura: Math.round(f.getBoundingClientRect().width) }; });
+  assert.deepEqual([folha.espera, folha.junto, folha.oculta, folha.giro], [true, true, 'none', 'none'], 'espera do DS ao lado da imagem, some ao carregar; sem giro ' + JSON.stringify(folha));
+  assert.ok(folha.largura <= 240, 'a foto mede a carta');
+  assert.deepEqual(errors, []);
+});

@@ -423,10 +423,7 @@ a { color: var(--accent); }
 .ds-carta-espera { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; overflow: hidden; border-radius: var(--radius-card); }
 .ds-carta-img[data-carregada="true"] + .ds-carta-espera, .ds-card__fallback + .ds-carta-espera, .ds-visor__moldura[data-carregando="false"] .ds-carta-espera { display: none; }
 .ds-card .ds-carta-espera .ds-carregando__arte { width: 48px; height: 36px; }
-.tb-sheet__foto { position: relative; }
-.tb-sheet__foto:has(> .ds-carta-img:not([data-carregada="true"]))::after { content: ''; position: absolute; top: calc(50% - 16px); left: calc(50% - 16px); width: 32px; height: 32px; box-sizing: border-box;
-  border-radius: var(--radius-full); border: 3px solid var(--border); border-top-color: var(--accent); animation: ds-spin var(--dur-giro) linear infinite; }
-@media (prefers-reduced-motion: reduce) { .tb-sheet__foto:has(> .ds-carta-img:not([data-carregada="true"]))::after { animation: none; } }
+.tb-sheet__foto { position: relative; width: min(100%, 240px); margin: 0 auto; } /* MJ10 (J-22) · a foto mede a carta: a EsperaDaCarta cobre só ela */
 .ds-visor__moldura { position: relative; width: min(100%, 380px); aspect-ratio: 488 / 680; margin: 0 auto var(--space-4); border-radius: 4.75% / 3.5%; overflow: hidden;
   background: var(--bg-elev-2); box-shadow: var(--shadow-3); }
 .ds-visor__moldura[data-carregando="true"]::after { content: ''; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 30%, color-mix(in srgb, var(--fg) 8%, transparent) 50%, transparent 70%) 0 0 / 200% 100%; animation: ds-brilho var(--dur-brilho) linear infinite; }
@@ -2337,6 +2334,16 @@ body[data-mesa-cheia="true"] .tb-steps__list li { padding: 0 0 1px; border-botto
 .tb-peek { position: fixed; inset: 0; z-index: var(--z-modal); display: flex; align-items: center; justify-content: center; padding: var(--space-4); background: var(--overlay); box-shadow: 0 0 0 100vmax var(--overlay); pointer-events: none; }
 .tb-peek__card { display: grid; grid-template-columns: minmax(120px, 42%) 1fr; gap: var(--space-3); width: min(100%, 560px); max-height: 92vh; overflow: hidden; padding: var(--space-3); background: var(--bg-elev-1); border: 1px solid var(--border); border-radius: var(--radius-2); box-shadow: var(--shadow-1); }
 .tb-peek__img { width: 100%; border-radius: var(--radius-card); display: block; }
+/* MJ10 (J-22) · a arte do espiar é um objeto: sombra de carta levantada, inclina pelo transform do embrulho (perspectiva curta,
+   até 6°), e o brilho de latão é uma faixa que corre com o dedo (transform) e acende com a inclinação (opacidade); na
+   entrada o cartão deixa a arte sair dele (overflow visível só enquanto entra); menos movimento: sem brilho e sem inclinar */
+.tb-peek__arte { position: relative; align-self: start; border-radius: var(--radius-card); box-shadow: var(--sombra-carta-alta); transform-origin: 50% 50%; }
+.tb-peek__brilho { position: absolute; inset: 0; border-radius: var(--radius-card); overflow: hidden; pointer-events: none; opacity: 0; }
+.tb-peek__brilho i { position: absolute; top: 0; bottom: 0; left: -50%; width: 200%; background: linear-gradient(105deg, transparent 38%, var(--latao-luz) 50%, transparent 62%); }
+.tb-peek[data-entra="true"] .tb-peek__card { overflow: visible; }
+@media (prefers-reduced-motion: reduce) { .tb-peek__brilho { display: none; } .tb-peek__arte { transform: none !important; } }
+:root[data-movimento="reduzido"] .tb-peek__brilho { display: none; }
+:root[data-movimento="reduzido"] .tb-peek__arte { transform: none !important; }
 .tb-peek__semimagem { display: grid; place-items: center; aspect-ratio: 63 / 88; background: var(--bg-elev-3); border-radius: var(--radius-card); padding: var(--space-2); text-align: center; }
 .tb-peek__body { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; overflow: hidden; }
 .tb-peek__body .tb-adj__oracle { overflow-y: auto; max-height: 40vh; }
@@ -34839,7 +34846,7 @@ function TableCard(card, opts = {}) {
   sick ? h('span', { class: 'tb-card__sick', title: 'enjoo de invocação' }, 'enjoo') : null);
   // A15 · segurar espia a carta; soltar fecha (quem monta a tela passa start/end)
   // MJ7 · enquanto segura, a carta se levanta (data-segurando: a sombra cresce por baixo dela)
-  if (opts.onPeek) __m20.onLongPress(el, { start: () => { el.dataset.segurando = 'true'; opts.onPeek(true); }, end: () => { delete el.dataset.segurando; opts.onPeek(false); } });
+  if (opts.onPeek) __m20.onLongPress(el, { start: e => { el.dataset.segurando = 'true'; if (e && e.pointerId != null) { try { el.setPointerCapture(e.pointerId); } catch (x) { /* ponteiro já solto */ } } opts.onPeek(true, { el, x: e ? e.clientX : null, y: e ? e.clientY : null }); }, end: () => { delete el.dataset.segurando; opts.onPeek(false); } }); // MJ10 · a carta e o dedo: o espiar sai dela e inclina com o dedo; a carta segura o ponteiro enquanto espia (o dedo pode sair dela sem fechar)
   // U5 · cópias iguais em leque: até 3 cartas atrás aparecem deslocadas; o toque é da carta da frente
   const atras = opts.pilha ? Math.min(LEQUE_MAX, opts.pilha.total - 1) : 0;
   if (atras <= 0) return el;
@@ -35022,7 +35029,7 @@ function CardPeek({ name, image, tipo, pt, custo, marcas = [], oracle, acoes = [
       ...mod.perdidas.map(k => h('span', { class: 'tb-pill tb-pill--perdeu', dataset: { palavra: k }, 'aria-label': 'Perdeu ' + ((mod.nomes || {})[k] || k) }, (mod.nomes || {})[k] || k)))) : null;
   return h('div', { class: 'tb-peek', id: 'tb-peek', role: 'dialog', 'aria-label': `${name}: ${oracle || 'sem texto'}` },
     h('div', { class: 'tb-peek__card' },
-      image ? h('img', { src: image, alt: '', class: 'tb-peek__img', onError: e => { const el = e.target; if (el.parentNode) el.parentNode.replaceChild(h('div', { class: 'tb-peek__semimagem' }, Text(name, { size: 'xl', display: true })), el); } }) // Q10 · sem imagem no aparelho: o nome, não um retângulo vazio
+      image ? h('div', { class: 'tb-peek__arte' }, h('img', { src: image, alt: '', class: 'tb-peek__img', onError: e => { const el = e.target; if (el.parentNode) el.parentNode.replaceChild(h('div', { class: 'tb-peek__semimagem' }, Text(name, { size: 'xl', display: true })), el); } }), h('span', { class: 'tb-peek__brilho', 'aria-hidden': 'true' }, h('i', {}))) // Q10 · sem imagem no aparelho: o nome, não um retângulo vazio · MJ10 · a arte num embrulho com profundidade e brilho
         : h('div', { class: 'tb-peek__semimagem' }, Text(name, { size: 'xl', display: true })),
       h('div', { class: 'tb-peek__body' },
         Row({ class: 'ds-row--wrap' }, Text(name, { size: 'lg', display: true }), h('div', { class: 'ds-grow' }),
@@ -38763,7 +38770,10 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       const f = faces.length ? faces[face] : null;
       const ims = f ? f.images : imagensOf(deQuem(name)), nome = f ? f.name : name, regras = f ? (f.oracle_text || '') : oracleOf(name);
       // Q10 · sem imagem: a folha fica só com o texto
-      mount(foto, __m3.ImagemCarta(ims, { alt: nome, sizes: '240px', lazy: false, classe: 'tb-sheet__img', onFalha: el => el.remove() }));
+      // MJ10 (J-22) · pedido da `geral` (G-282): enquanto a imagem não chega, a espera do DS no formato da carta (o giro saiu)
+      const espera = __m3.EsperaDaCarta();
+      const img = __m3.ImagemCarta(ims, { alt: nome, sizes: '240px', lazy: false, classe: 'tb-sheet__img', onFalha: el => { el.remove(); espera.remove(); } });
+      mount(foto, img, img ? espera : null);
       foto.dataset.face = String(face);
       mount(texto, f && f.name !== name ? Text(f.name, { size: 'sm', tone: 'muted', attrs: { lang: 'en', id: 'tb-sheet-face' } }) : null, regras ? simbolizar(h('p', { class: 'tb-adj__oracle' }, regras)) : null);
     };
@@ -39214,24 +39224,54 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   }
 
   /* ---- A15 · espiar: segurar mostra a carta grande com texto e ações; soltar fecha ---- */
-  let peekEl = null;
+  let peekEl = null, soltaEspiar = null;
+  const fechaEspiar = () => { if (soltaEspiar) { soltaEspiar(); soltaEspiar = null; } if (peekEl) { peekEl.remove(); peekEl = null; } };
   // H10 · se a tela mudar com o dedo ainda na carta (gesto de voltar), o espiar não fica preso na página
-  window.addEventListener('hashchange', () => { if (peekEl) { peekEl.remove(); peekEl = null; } });
-  function peek(oid, aberto) {
-    if (!aberto) { if (peekEl) { peekEl.remove(); peekEl = null; } return; }
+  window.addEventListener('hashchange', fechaEspiar);
+  /* MJ10 (J-22) · espiar de patamar: a carta grande sai da carta segurada (FLIP em --dur-2, só transform e opacidade) e,
+     com o dedo ainda na tela, arrastar inclina a arte até 6° (perspectiva curta) e um brilho de latão corre por ela; uma
+     escrita por quadro (requestAnimationFrame), nada de layout no caminho. Menos movimento: abre parada, sem inclinar. */
+  const INCLINA_MAX = 6, INCLINA_PX = 48;
+  function animaEspiar(el, info) {
+    const arte = el.querySelector('.tb-peek__arte'), brilho = el.querySelector('.tb-peek__brilho'); if (!arte) return null;
+    const de = info.el && info.el.isConnected ? info.el.getBoundingClientRect() : null, para = arte.getBoundingClientRect();
+    const dur = durFx('--dur-2'), ease = getComputedStyle(document.documentElement).getPropertyValue('--ease-out').trim() || 'ease-out';
+    if (de && de.width && para.width) {
+      const dx = (de.left + de.width / 2) - (para.left + para.width / 2), dy = (de.top + de.height / 2) - (para.top + para.height / 2), k = de.width / para.width;
+      el.dataset.entra = 'true';
+      const a = arte.animate([{ transform: `translate(${Math.round(dx)}px, ${Math.round(dy)}px) scale(${Math.round(k * 1000) / 1000})` }, { transform: 'none' }], { duration: dur, easing: ease });
+      el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: dur, easing: ease });
+      const fim = () => { delete el.dataset.entra; }; a.onfinish = fim; a.oncancel = fim;
+    }
+    if (info.x == null || info.y == null) return null;
+    let pedido = 0, ult = null;
+    const desenha = () => {
+      pedido = 0; if (!ult) return;
+      const nx = Math.max(-1, Math.min(1, (ult.clientX - info.x) / INCLINA_PX)), ny = Math.max(-1, Math.min(1, (ult.clientY - info.y) / INCLINA_PX));
+      arte.style.transform = `perspective(700px) rotateY(${(nx * INCLINA_MAX).toFixed(2)}deg) rotateX(${(-ny * INCLINA_MAX).toFixed(2)}deg)`;
+      if (brilho) { brilho.style.opacity = Math.min(1, Math.hypot(nx, ny)).toFixed(2); brilho.firstChild.style.transform = `translateX(${(nx * 25).toFixed(1)}%)`; }
+      el.dataset.inclina = 'true';
+    };
+    const move = e => { ult = e; if (!pedido) pedido = requestAnimationFrame(desenha); };
+    document.addEventListener('pointermove', move, { passive: true });
+    return () => { document.removeEventListener('pointermove', move); if (pedido) cancelAnimationFrame(pedido); };
+  }
+  function peek(oid, aberto, info = null) {
+    if (!aberto) { fechaEspiar(); return; }
     const d = acoesDe(oid); if (!d) return;
     const s = table.state, o = d.o;
     const est = T.estadoDaCarta(s, o, plan);
-    if (peekEl) peekEl.remove();
+    fechaEspiar();
     const oculta = ocultaDe(s, o); // D7 · espiar a carta virada do outro mostra só o que é público (2/2, virada para baixo)
     peekEl = CardPeek({ name: oculta ? VERSO_NOME : o.name, image: oculta ? null : imgOf(o, 'normal'), tipo: oculta ? 'Criatura' : est.tipo, pt: est.pt, custo: oculta ? null : (d.costTxt || null), zona: T.ZONE_PT[o.zone] || null,
       marcas: [...(est.tapped ? ['virada'] : []), ...(est.sick ? ['enjoo'] : []), ...est.marcas.filter(m => m.k !== 'ganhou' && m.k !== 'perdeu').map(m => m.rotulo || m.texto)], oracle: oculta ? null : oracleOf(o.name),
       acoes: d.acoes.filter(a => !a.disabled), mod: est.mod });
     simbolizar(peekEl); // U3
     document.body.appendChild(peekEl);
+    if (info && !menosMovimento()) soltaEspiar = animaEspiar(peekEl, info); // MJ10
     __m0.haptics.evento('toque');
   }
-  const comPeek = oid => ({ onPeek: aberto => peek(oid, aberto) });
+  const comPeek = oid => ({ onPeek: (aberto, info) => peek(oid, aberto, info) });
 
   function openZone(p, zone, label) {
     const s = table.state;

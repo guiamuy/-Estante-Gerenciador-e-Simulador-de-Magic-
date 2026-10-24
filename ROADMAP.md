@@ -617,7 +617,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-jh ✅ | MJ7 material: sombra que cresce ao levantar, luz do feltro, latão, dupla face virando (J-17) | MJ | 1 | 16º-jb; tokens pelo `/ds` |
 | 16º-ji ✅ | MJ8 ritmo do turno: transições de fase e de vez, cena do oponente com continuidade (J-18) | MJ | 1 | 16º-jd |
 | 16º-jj ✅ | MJ9 fim de partida com peso: placar, série, últimas jogadas (J-21) | MJ | 1 | — |
-| 16º-jk | MJ10 espiar de patamar: carta grande com profundidade e brilho opcional | MJ | 1 | 16º-jh |
+| 16º-jk ✅ | MJ10 espiar de patamar: carta grande com profundidade e brilho opcional (J-22) | MJ | 1 | 16º-jh |
 | 16º-jl | MJ11 orçamento da mesa: passar a prioridade sem tarefa longa acima de 50 ms; quadros medidos no portão | MJ | 1–2 | `mtg-scale-architect`; redesenho por `oid` (MJ3) |
 | 16º-jm | MJ12 partículas por cor de mana (só se não custar quadros) | MJ | 1 | 16º-jl |
 | 16º-jn ✅ | MJ8b bloqueadoras obrigatórias (pedido do `motor`, M-567/M-572): já escolhidas e marcadas, "Sem bloqueio" some, a folha só oferece os atacantes que cumprem (J-19) | MJ | 1 | M-572 publicada |
@@ -11051,8 +11051,25 @@ desfecho com presença.
     se move). **Fora:** replay animado das últimas jogadas (o registro e o "Ver jogadas" já contam); revanche com a mesma lista
     e o mesmo oponente num toque (Nova partida volta à escolha, que lembra a última); confete ou partícula.
 
-**MJ10 · Espiar de patamar** ○ (1 leva) — carta grande com leve profundidade e brilho opcional, desligados com menos
-movimento.
+**MJ10 · Espiar de patamar** ✅ (J-22, 24/10/2026; coube em uma leva) — carta grande com leve profundidade e brilho opcional,
+desligados com menos movimento.
+  - **Entregue (J-22):** segurar uma carta da mesa abre a carta grande **saindo da carta segurada** (a arte começa do tamanho e
+    no lugar dela e vai ao lugar do espiar em `--dur-2`, com o fundo aparecendo junto; só transform e opacidade) com a sombra
+    de carta levantada (`--sombra-carta-alta`); com o dedo ainda na tela, **arrastar inclina a arte** até 6° (perspectiva curta,
+    48 px de dedo para o máximo) e uma faixa de latão (`--latao-luz`) corre por ela e acende com a inclinação; uma escrita por
+    quadro (`requestAnimationFrame`), nada de layout no caminho; soltar fecha. A carta segura o ponteiro enquanto espia (o dedo
+    pode sair dela sem fechar o espiar; antes, no mouse, sair da carta fechava). Menos movimento: abre parado, sem inclinar e
+    sem brilho. **Pedido da `geral` (G-282, aviso 4):** a folha da carta da mesa troca o giro pela `EsperaDaCarta` do DS (a
+    prateleira no formato da carta enquanto a imagem não chega; some quando ela chega; se a imagem falha, sai junto); a foto
+    da folha passa a medir a carta (até 240 px). **Medidas:** zero pixel de campo (o espiar já era camada por cima); gesto de
+    inclinar em 360×780 com CPU 4×: 61 quadros/s, nenhuma tarefa longa (ressalva de escala da J-17: medido em headless com
+    CPU 4×; a medida no aparelho fica com o dono). **Testes:** e2e "MJ10" (o primeiro quadro da entrada está sobre a carta
+    segurada, em `--dur-2`, só transform e opacidade, sombra; a inclinação segue o dedo — 24 px e 16 px dão 3° e 2° — e a faixa
+    corre 12,5%; quadros e tarefas longas com CPU 4×; soltar fecha; menos movimento parado; folha com a `EsperaDaCarta` ao lado
+    da imagem, escondida ao carregar, sem o giro, no tamanho da carta); A15 e MJ7 seguem verdes. **Fora:** palco do espiar no
+    `/ds` (o `CardPeek` abre por cima da tela inteira; fica para o épico de design); brilho de foil real (a mesa não sabe se a
+    carta é foil); inclinar pelo giroscópio; espiar da pilha (a faixa da pilha abre o espiar sem a carta de origem: abre parado,
+    como antes).
 
 **MJ11 · Orçamento da mesa** ○ (1–2 levas, com a `mtg-scale-architect`) — passar a prioridade sem tarefa longa acima de
 50 ms e quadros medidos no portão (teste de orçamento que falha ao estourar). **Medida da J-2 (360×780, 140 jogadas da partida da crítica, três
