@@ -1,6 +1,7 @@
 // Camada 4 · integração em navegador headless: fluxos do usuário ponta a
 // ponta, com a Scryfall simulada. Pula localmente se o Playwright não estiver
 // instalado; no CI a ausência é falha.
+import zlib from 'node:zlib';
 import { test as testeDoNode } from 'node:test';
 import { fatiar } from './portao.mjs';
 // Q19 · o portão pode rodar este arquivo em fatias (E2E_FATIA=i/n, um Chromium por fatia): cada teste roda numa fatia só.
@@ -10978,9 +10979,11 @@ test('e2e · N2 Notícias: entra pela Início; linha do tempo com destaque, capa
   assert.equal(await page.$eval('[data-noticia="n1"] .nt-titulo', e => e.lang), 'pt-BR'); assert.equal(await page.locator('[data-noticia="n2"] .nt-titulo b').count(), 0, 'título é texto: HTML não vira elemento');
   assert.match(await page.innerText('[data-noticia="n2"] .nt-titulo'), /<b>sem<\/b> HTML/);
   assert.ok(await page.$$eval('.nt-cartao', cs => cs.every(c => c.getBoundingClientRect().height >= 44)), 'cada notícia é um alvo de 44 px ou mais');
-  assert.equal(await page.locator('[data-noticia="n5"] .nt-capa').count(), 0, 'linha sem capa é só texto'); assert.equal(await page.locator('[data-noticia="n1"] .nt-capa img').count(), 1);
-  await page.waitForFunction(() => document.querySelector('[data-noticia="n6"] .nt-capa--traco'), null, { timeout: 5000 }); // capa que falha vira capa em traço, no mesmo espaço
-  assert.equal(await page.locator('[data-noticia="n6"] .nt-capa img').count(), 0); assert.equal(await page.locator('[data-noticia="n6"] .nt-capa svg').count(), 1);
+  // G-300 · relato #33 · expectativa mudou com motivo: toda notícia tem capa (a linha sem foto ganhou a capa da fonte, em vez
+  // de virar só texto) e a capa que falha ou chega pequena demais (o PNG 1×1 deste teste) vira a capa da fonte, não o traço
+  await page.waitForFunction(() => ['n1', 'n5', 'n6'].every(id => document.querySelector(`[data-noticia="${id}"] .nt-capa[data-capa="fonte"]`)), null, { timeout: 5000 });
+  assert.deepEqual(await page.$$eval('[data-noticia="n1"], [data-noticia="n5"], [data-noticia="n6"]', cs => cs.map(c => [c.dataset.noticia, c.querySelector('.nt-capa').dataset.motivo, c.querySelectorAll('.nt-capa img').length, !!c.querySelector('.nt-capa__mono')])),
+    [['n1', 'baixa', 0, true], ['n5', 'sem', 0, true], ['n6', 'erro', 0, true]]);
   // seletor de idioma: dois botões de 44 px com a bandeira desenhada (sem emoji) e o nome do idioma; os dois ligados; cada notícia leva a bandeira
   const chips = await page.$$eval('#noticias-idiomas button', bs => bs.map(b => ({ id: b.id, texto: b.textContent.trim(), ligado: b.getAttribute('aria-pressed'), fala: b.getAttribute('aria-label'), h: Math.round(b.getBoundingClientRect().height), bandeira: (b.querySelector('.ds-bandeira') || { dataset: {} }).dataset.bandeira, svg: !!b.querySelector('.ds-bandeira svg') })));
   assert.deepEqual(chips, [{ id: 'noticias-idioma-pt', texto: 'Português', ligado: 'true', fala: 'Notícias em português', h: 44, bandeira: 'br', svg: true }, { id: 'noticias-idioma-en', texto: 'English', ligado: 'true', fala: 'Notícias em inglês', h: 44, bandeira: 'us', svg: true }]);
@@ -11052,6 +11055,67 @@ test('e2e · N2 Notícias: entra pela Início; linha do tempo com destaque, capa
 });
 
 /* ---------------- N3 · ler do seu jeito ---------------- */
+/* G-300 · relato #33 · nenhuma capa borrada nem buraco: a foto só entra nítida para a tela; o resto é a capa da fonte */
+function pngG294(w, h) {
+  const tab = []; for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; tab[n] = c >>> 0; }
+  const crc = b => { let x = 0xffffffff; for (const v of b) x = tab[(x ^ v) & 0xff] ^ (x >>> 8); return (x ^ 0xffffffff) >>> 0; };
+  const parte = (tipo, dados) => { const l = Buffer.alloc(4); l.writeUInt32BE(dados.length); const td = Buffer.concat([Buffer.from(tipo), dados]); const c = Buffer.alloc(4); c.writeUInt32BE(crc(td)); return Buffer.concat([l, td, c]); };
+  const ih = Buffer.alloc(13); ih.writeUInt32BE(w, 0); ih.writeUInt32BE(h, 4); ih[8] = 8; ih[9] = 2;
+  const cru = Buffer.alloc((w * 3 + 1) * h); for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const o = y * (w * 3 + 1) + 1 + x * 3; cru[o] = 60; cru[o + 1] = (x * 200 / w) | 0; cru[o + 2] = 120; }
+  return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), parte('IHDR', ih), parte('IDAT', zlib.deflateSync(cru)), parte('IEND', Buffer.alloc(0))]);
+}
+test('e2e · G-300 capa das notícias sempre digna: em tela 3× a miniatura (150×150, 100×56) e a foto que falha viram a capa da fonte (monograma em latão, moldura); a foto grande entra; a notícia sem foto também tem capa, no destaque e na linha; nos dois temas sem sobreposição', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  const cdp = await page.context().newCDPSession(page); await cdp.send('Emulation.setDeviceMetricsOverride', { width: 360, height: 780, deviceScaleFactor: 3, mobile: true });
+  const agora = Date.now();
+  const fontes = [['ed', 'EDHREC'], ['gf', 'MTGGoldfish'], ['ck', 'Card Kingdom'], ['sc', 'Star City Games'], ['cr', 'Cards Realm'], ['hp', 'Hipsters of the Coast']];
+  const capas = ['', 'grande', 'mini150', 'mini100', 'quebrada', '', 'grande', 'mini150'];
+  const itens = capas.map((c, i) => ({ id: 'g' + i, titulo: 'Notícia de teste número ' + i, resumo: 'Resumo curto.', url: 'https://fonte.test/m/' + i, fonte: fontes[i % 6][0], autor: '',
+    data: new Date(agora - i * 3600e3).toISOString(), imagem: c ? `https://img.test/${c}-${i}.png` : '', idioma: 'en', temas: [] }));
+  const pg = { versao: 1, pagina: 1, paginas: 1, itens };
+  const arquivos = { 'indice.json': { versao: 1, coletadoEm: new Date(agora).toISOString(), total: itens.length, paginas: 1, porPagina: 20, dias: 30, temas: [], idiomas: { en: { total: itens.length, paginas: 1 } },
+    fontes: fontes.map(([id, nome]) => ({ id, nome, idioma: 'en', ok: true })) }, 'pagina-1.json': pg, 'en-pagina-1.json': pg, 'pt-pagina-1.json': { ...pg, itens: [] } };
+  await page.route('https://raw.githubusercontent.com/**', r => { const nome = r.request().url().split('/').pop(); return nome in arquivos ? r.fulfill({ json: arquivos[nome], headers: { 'access-control-allow-origin': '*' } }) : r.abort('failed'); });
+  await page.route('https://img.test/**', async r => { const u = r.request().url(); await new Promise(ok => setTimeout(ok, 250));
+    if (u.includes('quebrada')) return r.abort('failed');
+    const [w, h] = u.includes('mini150') ? [150, 150] : u.includes('mini100') ? [100, 56] : [1200, 675];
+    return r.fulfill({ body: pngG294(w, h), contentType: 'image/png' }); });
+  await page.goto(base + '#/'); await page.waitForSelector('#noticias-lista .nt-cartao');
+  // 1 · desde o primeiro quadro toda notícia tem capa (a da fonte por baixo): nada de quadro vazio enquanto a foto desce
+  assert.equal(await page.locator('#noticias-lista .nt-cartao:not(:has(.nt-capa))').count(), 0, 'toda notícia tem capa');
+  assert.equal(await page.locator('#noticias-lista .nt-capa .nt-capa__fonte').count(), itens.length, 'a capa da fonte está desenhada em todas, desde o começo');
+  // 2 · cada capa termina no estado certo
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  await page.waitForFunction(n => [...document.querySelectorAll('#noticias-lista .nt-capa')].filter(c => c.dataset.capa !== 'esperando').length === n, itens.length, { timeout: 10000 });
+  await page.waitForFunction(() => [...document.querySelectorAll('#noticias-lista .nt-capa[data-capa="foto"] img')].every(i => getComputedStyle(i).opacity === '1'), null, { timeout: 5000 }); // a foto termina de entrar
+  const estado = await page.$$eval('#noticias-lista .nt-cartao', cs => cs.map(c => { const k = c.querySelector('.nt-capa'), i = k.querySelector('img'), m = k.querySelector('.nt-capa__mono');
+    return [c.dataset.noticia, c.dataset.forma, k.dataset.capa, k.dataset.motivo || '', i ? getComputedStyle(i).opacity : null, m ? m.textContent : ''] }));
+  assert.deepEqual(estado, [
+    ['g0', 'destaque', 'fonte', 'sem', null, 'EDHREC'], ['g1', 'linha', 'foto', '', '1', 'MTGG'], ['g2', 'linha', 'fonte', 'baixa', null, 'CK'], ['g3', 'linha', 'fonte', 'baixa', null, 'SCG'],
+    ['g4', 'linha', 'fonte', 'erro', null, 'CR'], ['g5', 'linha', 'fonte', 'sem', null, 'HC'], ['g6', 'cheio', 'foto', '', '1', 'EDHREC'], ['g7', 'linha', 'fonte', 'baixa', null, 'MTGG']]);
+  // 3 · guarda que mede: nenhuma foto visível pede mais que 1/0,75 de escala nesta tela 3×
+  const esticadas = await page.$$eval('#noticias-lista .nt-capa[data-capa="foto"] img', is => is.filter(i => { const r = i.getBoundingClientRect(); return Math.max(r.width / i.naturalWidth, r.height / i.naturalHeight) * devicePixelRatio > 1 / 0.75; }).length);
+  assert.equal(esticadas, 0);
+  // 4 · a capa da fonte: monograma inteiro dentro da moldura (sem vazar), em serifada e latão; o nome só nas grandes, e não repete a sigla
+  const caixa = await page.$$eval('#noticias-lista .nt-capa[data-capa="fonte"]', ks => ks.map(k => { const m = k.querySelector('.nt-capa__mono').getBoundingClientRect(), r = k.getBoundingClientRect();
+    return { dentro: m.left >= r.left + 4 && m.right <= r.right - 4 && m.top >= r.top && m.bottom <= r.bottom, nome: !!k.querySelector('.nt-capa__nome') }; }));
+  assert.ok(caixa.every(c => c.dentro), 'monograma dentro da capa: ' + JSON.stringify(caixa));
+  assert.equal(await page.locator('[data-noticia="g0"] .nt-capa__nome').count(), 0, 'EDHREC já é o nome: não repete');
+  assert.equal(await page.$eval('[data-noticia="g0"] .nt-capa__mono', e => getComputedStyle(e).fontFamily === getComputedStyle(document.querySelector('.nt-titulo')).fontFamily), true, 'serifada dos títulos');
+  // 5 · a luz passa uma vez na capa da fonte; com movimento reduzido, nada anda
+  assert.equal(await page.$eval('[data-noticia="g2"] .nt-capa__fonte', e => getComputedStyle(e, '::after').animationName), 'ds-varre');
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  assert.equal(await page.$eval('[data-noticia="g2"] .nt-capa__fonte', e => getComputedStyle(e, '::after').animationName), 'none');
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await auditaTela(page, 'notícias com capas da fonte · escuro');
+  const temaAntes = await page.evaluate(() => document.documentElement.dataset.theme); await page.click('#theme-toggle');
+  await page.waitForFunction(t => document.documentElement.dataset.theme !== t, temaAntes);
+  await auditaTela(page, 'notícias com capas da fonte · outro tema');
+  await cdp.send('Emulation.clearDeviceMetricsOverride'); await cdp.detach();
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · N3 Notícias do seu jeito: filtros por palavra e fonte (guardados, com saída quando nada passa), marca de novas e contador na Início, atualizar pelo botão e puxando, e a volta à tela no mesmo ponto com aviso de novas', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.setViewportSize({ width: 360, height: 780 });

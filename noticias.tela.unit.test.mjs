@@ -178,3 +178,22 @@ test('N5 · serviço: busca as coleções na Scryfall uma vez, guarda por um dia
   assert.deepEqual(lista(await N.createNoticias({ store: null }).lancamentos()), []);
   assert.deepEqual(lista(await N.createNoticias({ store: null, scryfall: { sets: async () => { throw new Error('fora do ar'); } } }).lancamentos()), []);
 });
+
+// G-300 · relato #33 · a foto só entra nítida; sem ela, a capa da fonte (monograma) toma o lugar
+test('G-300 · guarda de qualidade da capa: com cover, escala × densidade acima de 1/0,75 é "baixa"; imagem vazia é "baixa"; caixa sem medida deixa passar', () => {
+  assert.equal(N.qualidadeDaCapa({ largura: 96, altura: 72, naturalWidth: 150, naturalHeight: 150, dpr: 3 }), 'baixa', 'miniatura WordPress 150×150 numa capa de linha em tela 3×');
+  assert.equal(N.qualidadeDaCapa({ largura: 96, altura: 72, naturalWidth: 100, naturalHeight: 56, dpr: 3 }), 'baixa');
+  assert.equal(N.qualidadeDaCapa({ largura: 328, altura: 184.5, naturalWidth: 1200, naturalHeight: 675, dpr: 3 }), 'boa', 'og:image 1200×675 no destaque');
+  assert.equal(N.qualidadeDaCapa({ largura: 328, altura: 184.5, naturalWidth: 768, naturalHeight: 1024, dpr: 3 }), 'boa', 'retrato grande cobre o 16:9');
+  assert.equal(N.qualidadeDaCapa({ largura: 328, altura: 184.5, naturalWidth: 600, naturalHeight: 338, dpr: 3 }), 'baixa', 'metade do necessário borra');
+  assert.equal(N.qualidadeDaCapa({ largura: 96, altura: 72, naturalWidth: 100, naturalHeight: 56, dpr: 1 }), 'boa', 'em tela 1× a mesma imagem serve');
+  assert.equal(N.qualidadeDaCapa({ largura: 96, altura: 72, naturalWidth: 0, naturalHeight: 0, dpr: 3 }), 'baixa');
+  assert.equal(N.qualidadeDaCapa({ largura: 0, altura: 0, naturalWidth: 400, naturalHeight: 300, dpr: 3 }), 'boa');
+  assert.equal(N.FOLGA_DA_CAPA, 0.75);
+});
+test('G-300 · monograma da fonte: siglas inteiras (até 6), iniciais das palavras que contam (até 4), sigla do começo + inicial; nunca vazio para nome válido', () => {
+  const casos = { EDHREC: 'EDHREC', MTGGoldfish: 'MTGG', 'Star City Games': 'SCG', 'Card Kingdom': 'CK', 'Hipsters of the Coast': 'HC', 'MTG Arena Zone': 'MAZ', 'Cards Realm': 'CR', 'O Vício': 'OV', Exemplo: 'EX', MTGO: 'MTGO', '': '' };
+  for (const [nome, mono] of Object.entries(casos)) assert.equal(N.monogramaDaFonte(nome), mono, nome);
+  assert.equal(N.monogramaDaFonte('<b>Fonte</b> Nova'), 'BFBN', 'marcação vira separador: nada de HTML no monograma');
+  assert.match(N.monogramaDaFonte('<script>x</script>'), /^[\p{L}\p{N}]*$/u);
+});

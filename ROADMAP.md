@@ -552,6 +552,8 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-fe ✅ | Q10-5 imagens das duas listas prontas ao entrar na partida, com progresso no botão Começar; sem rede entra com o que tem (relato #28, fatia 2; leva G-283, 23/10/2026) | G | 1 | — |
 | 16º-ff ✅ | Q10-4b o brilho da carta sem imagem anda por `transform` no pseudo-elemento da espera, não por `background-position` na imagem: 120 cartas sem cache em 360×780 com CPU 4× voltam de 30 para 60 fps (dívida de escala da Q10-4 quitada; leva G-284, 23/10/2026) | G | 1 | 16º-fd |
 | 16º-fg ✅ | Q10-6 a lista do oponente (a dois ou Shark) também mostra quanto roda no motor, com o mesmo ladrilho da sua lista (relato #31; leva G-285, 23/10/2026) | G | 1 | — |
+| 16º-fh ✅ | N6 capa das notícias sempre digna (relato #33, fatia 1): a foto só entra nítida para a tela; sem foto, foto que falha ou miniatura pequena demais, a capa da fonte em ébano e latão (leva G-300, 24/10/2026) | G | 1 | — |
+| 16º-fi | N6b coletor de notícias traz a foto grande: tira o sufixo de miniatura do WordPress, busca a imagem de divulgação nas fontes sem mídia, descarta imagem repetida (relato #33, fatia 2) | G | 1 | 16º-fh |
 | 16º-ee ✅ | T6e-2 Enviar relato sem sair do app: com a conta conectada e a fila ligada, o relato vai para a fila do Firebase e o cartão mostra "Na fila" até o número do registro (relato #13, leva G-255) | T | 1 | — |
 | 16º-eh ✅ | T6e-2 prazo honesto do relato pela fila: o GitHub atrasa o agendamento em horas, a tela diz "de minutos a algumas horas" e a conversa que lê relatos roda a fila antes (relato #13, leva G-256) | T | 1 | 16º-ee |
 | 16º-ah ✅ | D7 mesa do seu jeito: superfície (nogueira, feltro, pedra, linho), cor do oponente (azul, rubi, ametista), verso de carta (estante, selo, trama); carta virada do outro mostra o verso (leva 151) | D | 1 | capturas do aparelho |
@@ -10565,6 +10567,13 @@ Acrescentar fonte é uma linha em `FONTES` (`noticias.mjs`).
   da linha, tocar e buscar `e:<código>`, selo que se tira, Início com uma; `auditaTela` nas quatro larguras e dois
   temas).
 - **Depende de:** N2.
+
+**N6 · Capa das notícias sempre digna (relato #33, fatia 1)** ✅ (leva G-300, trilha `geral`, 24/10/2026; `16º-fh`)
+- **Pedido (texto do relato, dado):** "Imagens de baixa qualidade ou falta de imagens estão sendo exibidas na timeline de notícias. Isso não pode acontecer nunca… e caso não tenha como exibir, mecânicas visuais adaptadas e sofisticadas que não façam parecer que não conseguimos puxar a informação."
+- **Medida (ramo `noticias`, 24/10):** de 265 notícias, EDHREC (72) e Card Kingdom (22) vêm com a miniatura do WordPress (150×150, 100×56), MTGGoldfish (60), MTG Arena Zone (20) e Hipsters (5) sem imagem; numa tela 3× a capa de 96×72 pede 288×216.
+- **Como:** `qualidadeDaCapa` (pura): com `object-fit: cover`, a escala que a imagem precisa para cobrir a capa vezes a densidade da tela não passa de 1/0,75 (`FOLGA_DA_CAPA`). Toda notícia tem capa (a linha sem foto deixou de ser só texto): a **capa da fonte** (`CapaDaFonte`, DS-K Ébano e Ouro — `--bg-elev-0` com veio e vinheta, moldura com filete `--accent-lo`, `monogramaDaFonte` em serifada `--accent-hi`, nome da fonte com filete nas capas grandes quando não é a própria sigla) fica desenhada por baixo desde o primeiro quadro; a foto entra por cima (opacidade e 3 % de escala, `--dur-3`/`--dur-4`) só se a guarda aprovar; foto pequena, que falha ou ausente deixa a capa da fonte, e a luz `--sheen` passa uma vez (`ds-varre`, P2). Movimento reduzido: sem transição nem varredura.
+- **Testes:** `noticias.tela.unit` (+2: guarda com miniatura, foto grande, retrato, metade do necessário, tela 1×, imagem vazia; monograma das fontes reais e de nome com marcação); e2e "G-300" depois do "N2" (tela 3× por CDP: 150×150, 100×56 e falha viram capa da fonte, 1200×675 entra; nenhuma foto esticada além do limite; monograma dentro da capa; nome não repete sigla; varredura e movimento reduzido; `auditaTela` nos dois temas); e2e "N2" com expectativa ajustada e justificada (linha sem foto tem capa; falha vira capa da fonte, não o traço).
+- **Fora:** o coletor (`16º-fi`, fatia 2: a foto grande de verdade nas fontes que hoje mandam miniatura ou nada); nome da fonte cortado com reticências na linha do cartão (região do redesenho das telas do DS-K, F2).
 
 **Fora do épico (escopo negativo mantido):** ranking de metagame e listas de torneio como dado do app (a notícia
 pode falar disso; o app não monta ranking); comentários, curtidas e conta em rede social; notificação por push

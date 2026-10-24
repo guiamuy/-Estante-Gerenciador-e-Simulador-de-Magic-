@@ -1510,10 +1510,29 @@ body[data-mesa-cheia="true"] .ds-toast[data-inteiro="true"] { padding-top: var(-
 .nt-guardada .ds-icon svg { fill: currentColor; }
 .nt-cartao--destaque, .nt-cartao--cheio { flex-direction: column; gap: 0; padding: 0; overflow: hidden; }
 .nt-cartao--destaque .nt-corpo, .nt-cartao--cheio .nt-corpo { padding: var(--space-3) var(--space-4) var(--space-4); }
-.nt-capa { position: relative; flex: none; display: grid; place-items: center; overflow: hidden; background: var(--bg-elev-3); color: var(--fg-subtle); }
+.nt-capa { position: relative; flex: none; display: grid; place-items: center; overflow: hidden; background: var(--bg-elev-0); color: var(--accent-hi); isolation: isolate; }
 .nt-cartao--destaque .nt-capa, .nt-cartao--cheio .nt-capa { width: 100%; aspect-ratio: 16 / 9; }
 .nt-cartao--linha .nt-capa { order: 2; width: 96px; height: 72px; border-radius: var(--radius-2); }
-.nt-capa img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+/* G-300 · relato #33 · a foto entra por cima da capa da fonte só quando a guarda a aprova (nítida para esta tela): até lá
+   ela fica invisível e a capa desenhada ocupa o lugar. Entrada: a foto sobe do fundo (opacidade e 3 % de escala). */
+.nt-capa img { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; object-fit: cover; opacity: 0; transform: scale(1.03); }
+.nt-capa[data-capa="foto"] img { opacity: 1; transform: none; transition: opacity var(--dur-3) var(--ease-out), transform var(--dur-4) var(--ease-out); }
+/* G-300 · capa da fonte (ébano e latão): veio e vinheta no fundo, filete de latão por dentro, monograma em serifada */
+.nt-capa__fonte { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1); overflow: hidden;
+  background: radial-gradient(120% 95% at 50% 38%, transparent 42%, var(--grain-2) 100%), repeating-linear-gradient(112deg, var(--grain-1) 0 1px, transparent 1px 5px), var(--bg-elev-0); }
+.nt-capa__fonte::before { content: ''; position: absolute; inset: var(--space-2); border: 1px solid var(--accent-lo); border-radius: var(--radius-1); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--accent-hi) 35%, transparent); pointer-events: none; }
+.nt-capa__fonte[data-forma="linha"]::before { inset: var(--space-1); }
+.nt-capa__fonte::after { content: ''; position: absolute; top: -30%; bottom: -30%; left: 0; width: 34%; background: linear-gradient(100deg, transparent, var(--sheen), transparent); mix-blend-mode: screen; transform: translateX(-200%) skewX(-18deg); pointer-events: none; }
+.nt-capa[data-capa="fonte"] .nt-capa__fonte::after { animation: ds-varre var(--dur-4) var(--ease-out) var(--dur-1) 1 both; }
+.nt-capa__mono { position: relative; font-family: var(--font-display); font-size: var(--text-3xl); line-height: 1; font-weight: var(--weight-bold); letter-spacing: .04em; color: var(--accent-hi); white-space: nowrap; }
+.nt-capa__fonte[data-forma="linha"] .nt-capa__mono { font-size: var(--text-lg); }
+.nt-capa__fonte[data-forma="linha"] .nt-capa__mono[data-letras="5"], .nt-capa__fonte[data-forma="linha"] .nt-capa__mono[data-letras="6"] { font-size: var(--text-md); letter-spacing: .02em; }
+.nt-capa__mono[data-letras="5"], .nt-capa__mono[data-letras="6"] { font-size: var(--text-2xl); }
+.nt-capa__nome::before { content: ''; display: block; width: var(--space-6); height: 1px; margin: 0 auto var(--space-2); background: var(--accent-lo); }
+.nt-capa__nome { position: relative; max-width: calc(100% - 2 * var(--space-5)); font-size: var(--text-xs); line-height: var(--lh-xs); letter-spacing: .14em; text-transform: uppercase; color: var(--fg-muted); text-align: center; text-wrap: balance; }
+@media (prefers-reduced-motion: reduce) { .nt-capa[data-capa="foto"] img { transition: none; } .nt-capa[data-capa="fonte"] .nt-capa__fonte::after { animation: none; } }
+:root[data-movimento="reduzido"] .nt-capa[data-capa="foto"] img { transition: none; }
+:root[data-movimento="reduzido"] .nt-capa[data-capa="fonte"] .nt-capa__fonte::after { animation: none; }
 .nt-corpo { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: var(--space-2); }
 .nt-meta { display: flex; align-items: center; gap: var(--space-2); min-width: 0; font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--fg-muted); }
 .nt-fonte { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--accent); font-weight: var(--weight-bold); text-transform: uppercase; letter-spacing: .05em; }
@@ -15553,15 +15572,58 @@ const temRede = () => typeof navigator === 'undefined' || navigator.onLine !== f
 /** O cartão de uma notícia. O título é um link de verdade (abre a matéria no site da fonte, em outra aba) esticado
     sobre o cartão inteiro; "Mais ações" (N4) é um botão à parte, por cima, para guardar e compartilhar.
     `guardada` põe o marcador ao lado da fonte; `aoMais(it, cartao)` liga o botão. */
+/** G-300 · relato #33 · a foto só entra se for nítida na tela: com `object-fit: cover`, a escala que a imagem precisa para
+    cobrir a capa, vezes a densidade da tela, não pode passar de 1/0,75 (mais que isso o aparelho estica a imagem e ela
+    borra — a miniatura de 150 px do WordPress numa capa de 96 px numa tela 3× precisa de 1,92). Puro. */
+const FOLGA_DA_CAPA = 0.75;
+function qualidadeDaCapa({ largura, altura, naturalWidth, naturalHeight, dpr = 1 } = {}) {
+  if (!(naturalWidth > 0) || !(naturalHeight > 0)) return 'baixa';
+  if (!(largura > 0) || !(altura > 0)) return 'boa';
+  const escala = Math.max(largura / naturalWidth, altura / naturalHeight) * Math.max(1, Math.min(Number(dpr) || 1, 4));
+  return escala <= 1 / FOLGA_DA_CAPA ? 'boa' : 'baixa';
+}
+const PALAVRAS_LEVES = new Set(['of', 'the', 'and', 'a', 'o', 'os', 'as', 'de', 'da', 'do', 'das', 'dos', 'e']);
+/** G-300 · o monograma da fonte na capa desenhada. Nome de várias palavras: as iniciais das que contam ("Star City Games"
+    → "SCG", "Hipsters of the Coast" → "HC", "MTG Arena Zone" → "MAZ"). Uma palavra só: a sigla inteira ("EDHREC", até 6),
+    a sigla do começo mais a inicial do resto ("MTGGoldfish" → "MTGG") ou as duas primeiras letras. Puro. */
+function monogramaDaFonte(nome) {
+  const palavras = String(nome || '').normalize('NFC').split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+  if (!palavras.length) return '';
+  if (palavras.length > 1) {
+    const contam = palavras.filter((p, i) => i === 0 || !PALAVRAS_LEVES.has(p.toLowerCase()));
+    return contam.map(p => p[0].toUpperCase()).join('').slice(0, 4);
+  }
+  const p = palavras[0];
+  if (/^[\p{Lu}\p{N}]{2,6}$/u.test(p)) return p;
+  const m = p.match(/^(\p{Lu}{2,4})(\p{Lu})\p{Ll}/u);
+  if (m) return m[1] + m[2];
+  return p.slice(0, 2).toUpperCase();
+}
+/** G-300 · capa da fonte (ébano e latão, DS-K): o que a notícia mostra quando não há foto nítida — sem foto, foto que
+    falhou ou foto pequena demais para a tela. Moldura com filete de latão, monograma da fonte e, nas capas grandes, o nome. */
+function CapaDaFonte(fonte, forma) {
+  const mono = monogramaDaFonte(fonte);
+  return h('span', { class: 'nt-capa__fonte', dataset: { forma } },
+    mono ? h('span', { class: 'nt-capa__mono', dataset: { letras: String(mono.length) } }, mono) : Icone('jornal', { tamanho: forma === 'linha' ? 24 : 40 }),
+    forma !== 'linha' && fonte && fonte.toUpperCase() !== mono ? h('span', { class: 'nt-capa__nome' }, fonte) : null); // a sigla que já é o nome não se repete
+}
 function CartaoNoticia(it, { forma = 'linha', fonte = '', agora = Date.now(), bandeira = false, nova = false, guardada = false, aoMais = null } = {}) {
   const quando = tempoRelativo(it.data, agora);
+  // G-300 · relato #33 · toda notícia tem capa: a capa da fonte já está desenhada por baixo desde o começo (nada de quadro
+  // vazio enquanto a foto desce); a foto só aparece por cima quando chega nítida para esta tela. Sem foto, foto que falha
+  // ou foto pequena demais: fica a capa da fonte, com a luz passando uma vez (fim da espera).
   const capa = (() => {
-    if (!it.imagem && forma === 'linha') return null; // linha sem capa é só texto: mais notícia por tela
-    const el = h('span', { class: 'nt-capa', 'aria-hidden': 'true' });
-    const traco = () => { el.classList.add('nt-capa--traco'); el.replaceChildren(Icone('jornal', { tamanho: forma === 'linha' ? 24 : 40 })); };
-    if (!it.imagem) { traco(); return el; }
+    const el = h('span', { class: 'nt-capa', 'aria-hidden': 'true', dataset: { capa: 'esperando' } }, CapaDaFonte(fonte, forma));
+    const fica = motivo => { el.dataset.capa = 'fonte'; el.dataset.motivo = motivo; const img = el.querySelector('img'); if (img) img.remove(); };
+    if (!it.imagem) { fica('sem'); return el; }
     const img = h('img', { src: it.imagem, alt: '', loading: 'lazy', decoding: 'async', referrerpolicy: 'no-referrer' });
-    img.addEventListener('error', traco, { once: true });
+    img.addEventListener('error', () => fica('erro'), { once: true });
+    img.addEventListener('load', () => {
+      const r = el.getBoundingClientRect();
+      const q = qualidadeDaCapa({ largura: r.width || el.clientWidth, altura: r.height || el.clientHeight, naturalWidth: img.naturalWidth, naturalHeight: img.naturalHeight,
+        dpr: typeof window !== 'undefined' ? window.devicePixelRatio : 1 });
+      if (q === 'boa') el.dataset.capa = 'foto'; else fica('baixa');
+    }, { once: true });
     el.appendChild(img); return el;
   })();
   const cartao = h('article', { class: 'nt-cartao nt-cartao--' + forma, dataset: { noticia: it.id, idioma: it.idioma, forma, ...(nova ? { nova: 'true' } : {}) } },
@@ -15900,7 +15962,7 @@ function createGuardadasScreen({ noticias, share = null }) {
   return root;
 }
 
-return { PALAVRAS_MAX, PALAVRA_MAX, normPalavra, temPalavra, comPalavra, alternaPalavra, semPalavra, TIPOS_DE_COLECAO, lancamentosDe, mesclaLancamentos, quandoDaColecao, CartaoColecao, CHAVE_GUARDADAS, GUARDADAS_MAX, guardadasValidas, comGuardada, semGuardada, createGuardadasScreen, marcaGuardada, TEMAS, CHAVE_FILTRO, CHAVE_VISTA, filtroValido, filtroVazio, contaFiltro, passa, contaNovas, maisNova, rotuloNovas, BASE, IDIOMAS, CHAVE_IDIOMAS, idiomasValidos, alternaIdioma, planoDeLeitura, tempoRelativo, limpaItem, junta, formaDe, createNoticias, CartaoNoticia, createNoticiasScreen };
+return { FOLGA_DA_CAPA, qualidadeDaCapa, monogramaDaFonte, CapaDaFonte, PALAVRAS_MAX, PALAVRA_MAX, normPalavra, temPalavra, comPalavra, alternaPalavra, semPalavra, TIPOS_DE_COLECAO, lancamentosDe, mesclaLancamentos, quandoDaColecao, CartaoColecao, CHAVE_GUARDADAS, GUARDADAS_MAX, guardadasValidas, comGuardada, semGuardada, createGuardadasScreen, marcaGuardada, TEMAS, CHAVE_FILTRO, CHAVE_VISTA, filtroValido, filtroVazio, contaFiltro, passa, contaNovas, maisNova, rotuloNovas, BASE, IDIOMAS, CHAVE_IDIOMAS, idiomasValidos, alternaIdioma, planoDeLeitura, tempoRelativo, limpaItem, junta, formaDe, createNoticias, CartaoNoticia, createNoticiasScreen };
 })();
 
 /* ==== src/app/saida.js ==== */
