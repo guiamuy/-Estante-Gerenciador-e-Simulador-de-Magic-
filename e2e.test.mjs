@@ -14965,3 +14965,48 @@ test('e2e · J-19 bloqueadora obrigatória: já escolhida e marcada, sem "Sem bl
   assert.notEqual(fim.pend, 'blockers', 'a declaração foi aceita');
   assert.deepEqual(errors, []);
 });
+
+// J-20 (trilha jogabilidade) · pedido da `bot` (B-175, aviso 6): na cena do Shark com terreno e mágica, a foto da carta dele nascia 15 px
+// fora do contador da mão e pousava 15 px fora da carta. Causa: a carta que entra virada leva no campo `margin: 0 calc(--carta-campo * .2)`
+// e a foto copiada para a camada de efeitos levava a margem junto (era a margem, não o contador andando). Elfos, semente 1: o Shark baixa
+// um terreno, vira para pagar e conjura no mesmo turno — a partida que reproduzia (o MJ3c continua na semente 4).
+test('e2e · J-20 a carta virada do Shark voa do centro do contador da mão dele e pousa na carta: foto sem margem na camada de efeitos', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 }); // o aparelho do dono
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/mesa'); await page.fill('#mesa-seed', '1');
+  await page.waitForFunction(() => { const c = document.querySelector('[data-opponent="shark"]'); return c && !c.disabled; }, null, { timeout: 8000 });
+  await page.click('[data-opponent="shark"]'); await page.waitForSelector('#mesa-bot-deck');
+  await escolheLista(page, 'mesa-bot-deck', 'shark-elfos');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-pass, #tb-pass-turn');
+  // cada foto que entra na camada é medida na hora em que nasce: centro (com o transform inicial), margem, se é carta virada
+  await page.evaluate(() => { window.__voosJ20 = [];
+    const caixa = el => { const r = el.getBoundingClientRect(); return { cx: r.left + r.width / 2, cy: r.top + r.height / 2 }; };
+    new MutationObserver(ms => { for (const m of ms) for (const n of m.addedNodes) for (const el of n.nodeType === 1 ? [n, ...n.querySelectorAll('.tb-voo, .tb-fx-fantasma')] : []) {
+      if (!el.matches('.tb-voo, .tb-fx-fantasma')) continue;
+      const chip = document.querySelector('.tb-side--opp .tb-chip[data-zona="hand"]'), cs = getComputedStyle(el);
+      window.__voosJ20.push({ oid: el.dataset.voo || el.dataset.verso || '', virada: el.dataset.tapped === 'true', margem: [cs.marginLeft, cs.marginRight, cs.marginTop].join(' '),
+        foto: caixa(el), chip: chip ? caixa(chip) : null, voos: (document.querySelector('#tb') || {}).dataset ? document.querySelector('#tb').dataset.voos || '' : '' });
+    } }).observe(document.body, { childList: true, subtree: true }); });
+  const anda = async (ate, max = 80) => { for (let i = 0; i < max; i++) {
+    if (await page.evaluate(ate)) return true;
+    const pend = await page.evaluate(() => { const s = window.__estanteMesa.estado(); return s.pending && s.pending.p === window.__estanteMesa.quemVe() ? s.pending.kind : null; });
+    if (pend === 'discard') { await page.locator('#tb-hand .tb-card').first().click(); continue; }
+    let foi = false; for (const id of ['#tb-no-attack', '#tb-pass-turn', '#tb-pass']) if (await page.locator(id).count()) { await page.click(id).catch(() => {}); foi = true; break; }
+    if (!foi) await page.evaluate(() => document.querySelector('#tb').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
+    await page.waitForTimeout(120); } return false; };
+  // anda até o Shark ter voado uma carta virada da mão dele para o campo (o terreno que pagou a mágica no mesmo turno)
+  const daMao = () => window.__voosJ20.filter(x => x.oid && new RegExp(`(^| )oponente:${x.oid}( |$)`).test(x.voos));
+  const viu = await anda(`(${daMao})().some(x => x.virada)`);
+  const todos = await page.evaluate(() => window.__voosJ20);
+  assert.ok(viu, 'o Shark baixou da mão uma carta que chegou virada ' + JSON.stringify(todos.filter(x => /oponente:/.test(x.voos))));
+  // 1 · toda foto que sai da mão dele (de frente ou de verso) nasce no centro do contador, inclusive a virada
+  const daMaoDele = todos.filter(x => x.chip && x.oid && (new RegExp(`(^| )oponente:${x.oid}( |$)`).test(x.voos) || new RegExp(`(^| )verso:[a-z]+:${x.oid}( |$)`).test(x.voos)));
+  assert.ok(daMaoDele.length >= 2, 'mais de uma carta saiu da mão dele ' + JSON.stringify(daMaoDele));
+  for (const v of daMaoDele) assert.ok(Math.hypot(v.foto.cx - v.chip.cx, v.foto.cy - v.chip.cy) <= 6, 'nasce no centro do contador da mão dele ' + JSON.stringify(v));
+  // 2 · nenhuma foto da camada leva margem: ela é posta pela caixa medida, então pousa onde a carta está
+  assert.deepEqual(todos.filter(x => x.margem !== '0px 0px 0px'), [], 'foto sem margem na camada de efeitos');
+  t.diagnostic(`J-20 · fotos vistas: ${todos.length}; da mão do Shark: ${daMaoDele.length}; viradas: ${todos.filter(x => x.virada).length}`);
+  assert.deepEqual(errors, []);
+});

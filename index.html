@@ -526,7 +526,7 @@ a { color: var(--accent); }
 .tb-voo { position: fixed; margin: 0; pointer-events: none; z-index: 1; transform-origin: center; will-change: transform; }
 /* MJ3b · a foto é uma .tb-card (position: relative, declarada depois): sem esta regra, a segunda foto ao mesmo tempo
    ficava no fluxo da camada, deslocada pela primeira (remoção global, dois voos juntos) */
-.tb-fx-camada > .tb-fx-fantasma, .tb-fx-camada > .tb-voo { position: fixed; }
+.tb-fx-camada > .tb-fx-fantasma, .tb-fx-camada > .tb-voo { position: fixed; margin: 0; }
 /* MJ4a · setas do combate: vermelho ataca, dourado bloqueia (as cores fixas da mesa); a sombra larga separa a seta da arte */
 .tb-setas { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; z-index: calc(var(--z-sticky) + 1); } /* acima do resumo e da faixa da pilha (que passam por cima do campo), abaixo de aviso, folha e carta grande */
 .tb-seta--ataque { color: var(--negative); }
@@ -2056,6 +2056,7 @@ body[data-mesa-cheia="true"] .tb-steps__list li { padding: 0 0 1px; border-botto
 .tb-card img, .tb-stack__card img { -webkit-touch-callout: none; pointer-events: none; }   /* H10 · o toque é da carta, não da imagem */
 .tb-card__name { position: absolute; inset: 0; display: grid; place-items: center; padding: var(--space-1); text-align: center; font-family: var(--font-display); font-size: var(--text-xs); color: var(--fg); }
 .tb-card[data-tapped="true"] { margin: 0 calc(var(--carta-campo) * .2); }
+.tb-fx-camada > .tb-card[data-tapped="true"] { margin: 0; } /* J-20 · a foto da camada de efeitos é posta pela caixa medida (sem margem): a carta virada levava a margem do campo junto e a foto nascia e pousava 15 px fora (achado da B-175) */
 /* U5 · leque de cópias iguais: a carta da frente é o botão; as de trás mostram só a borda */
 .tb-leque { --passo: 14px; position: relative; flex: none; display: inline-block; padding-right: calc(var(--atras) * var(--passo)); scroll-snap-align: start; }
 .tb-leque > .tb-card { z-index: 5; }

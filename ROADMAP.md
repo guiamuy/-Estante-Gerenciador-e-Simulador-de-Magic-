@@ -619,6 +619,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-jl | MJ11 orçamento da mesa: passar a prioridade sem tarefa longa acima de 50 ms; quadros medidos no portão | MJ | 1–2 | `mtg-scale-architect`; redesenho por `oid` (MJ3) |
 | 16º-jm | MJ12 partículas por cor de mana (só se não custar quadros) | MJ | 1 | 16º-jl |
 | 16º-jn ✅ | MJ8b bloqueadoras obrigatórias (pedido do `motor`, M-567/M-572): já escolhidas e marcadas, "Sem bloqueio" some, a folha só oferece os atacantes que cumprem (J-19) | MJ | 1 | M-572 publicada |
+| 16º-jo ✅ | MJ3d a carta virada voa do lugar certo (pedido da `bot`, B-175): a foto da camada de efeitos sem a margem da carta virada (J-20) | MJ | 1 | 16º-jd |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -10982,6 +10983,16 @@ abre cumprindo a exigência e diz por quê.
     "Bloquear apagado" não tem e2e (a mesa já abre cumprindo e a folha da obrigada não deixa tirá-la; só apareceria se o
     preenchimento do motor não cobrisse a exigência): a regra continua garantida pelo motor, que recusa a declaração;
     atacante que atrai bloqueio (Shinen, Clowning Around) usa o mesmo caminho, sem e2e próprio.
+
+**MJ3d · A carta virada voa do lugar certo** ✅ (J-20, 24/10/2026; pedido da `bot`, B-175 aviso 6; `16º-jo`) — na cena do Shark com
+terreno e mágica, a foto da carta dele nascia 15 px fora do contador da mão e pousava 15 px fora da carta.
+  - **Causa:** não era o contador andando depois do voo. A carta que entra virada tem no campo `margin: 0 calc(--carta-campo * .2)`
+    (15,2 px na faixa estreita) e a foto copiada para a camada de efeitos levava a margem junto; a foto é posta pela caixa medida
+    (sem margem), então nascia e pousava deslocada. Vale para toda carta virada que voa (chega, sai, vira a face), sua ou dele.
+  - **Entregue (J-20):** `.tb-fx-camada > .tb-card[data-tapped="true"] { margin: 0 }` e `margin: 0` em toda foto e fantasma da
+    camada. **Medidas:** zero pixel de campo; poucos bytes de CSS. **Testes:** e2e "J-20" (Elfos, semente 1: o Shark baixa o terreno, vira
+    e conjura no mesmo turno; as quatro fotos da mão dele nascem a ≤ 6 px do centro do contador, inclusive as duas viradas; nenhuma
+    foto da camada leva margem) — falha sem a correção. O MJ3c continua na semente 4, intacto. **Fora:** nada.
 
 **MJ9 · Fim de partida com peso** ○ (1 leva) — placar, série, as últimas jogadas e "Jogar de novo" num desfecho com
 presença.
