@@ -615,7 +615,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-jg ✅ | MJ6 mirar por arrasto com linha curva (tocar continua valendo) — MJ6a (J-15), MJ6b (J-16) | MJ | 2 | 16º-je |
 | 16º-jh ✅ | MJ7 material: sombra que cresce ao levantar, luz do feltro, latão, dupla face virando (J-17) | MJ | 1 | 16º-jb; tokens pelo `/ds` |
 | 16º-ji ✅ | MJ8 ritmo do turno: transições de fase e de vez, cena do oponente com continuidade (J-18) | MJ | 1 | 16º-jd |
-| 16º-jj | MJ9 fim de partida com peso: placar, série, últimas jogadas | MJ | 1 | — |
+| 16º-jj ✅ | MJ9 fim de partida com peso: placar, série, últimas jogadas (J-21) | MJ | 1 | — |
 | 16º-jk | MJ10 espiar de patamar: carta grande com profundidade e brilho opcional | MJ | 1 | 16º-jh |
 | 16º-jl | MJ11 orçamento da mesa: passar a prioridade sem tarefa longa acima de 50 ms; quadros medidos no portão | MJ | 1–2 | `mtg-scale-architect`; redesenho por `oid` (MJ3) |
 | 16º-jm | MJ12 partículas por cor de mana (só se não custar quadros) | MJ | 1 | 16º-jl |
@@ -11004,6 +11004,28 @@ terreno e mágica, a foto da carta dele nascia 15 px fora do contador da mão e 
 
 **MJ9 · Fim de partida com peso** ○ (1 leva) — placar, série, as últimas jogadas e "Jogar de novo" num desfecho com
 presença.
+**MJ9 · Fim de partida com peso** ✅ (J-21, 24/10/2026; coube em uma leva) — placar, série, as últimas jogadas e "Jogar de novo" num
+desfecho com presença.
+  - **Entregue (J-21):** no fim da partida, um cartão de desfecho na bandeja, acima da linha de ações (Nova partida, Próxima
+    partida na série, Registro, sem mudança): selo do resultado (troféu de latão na vitória, neutro na derrota e no empate), o
+    título (Vitória · Derrota · Empate; a dois, "Ana venceu"), o porquê em palavras ("Goldfish ficou sem vida", "desistiu",
+    "comprou de um grimório vazio", "chegou a 10 marcadores de veneno", "levou 21 de dano de um comandante"; motivo
+    desconhecido sai como o motor diz), o placar de vida com o vencedor sublinhado em latão, os turnos, a série em pontos
+    (vitórias de cada lado, melhor de 3 ou 5) com o título dela, e as três últimas linhas do registro com o ícone e o filete
+    do registro. A mão recolhe no fim (o puxador ainda abre) e o campo final fica à vista. Entrada só na pintura em que a
+    partida acaba (a mesma porta dos sentidos: retomar, desfazer e repintar não repetem): sobe e aparece em `--dur-2`, o
+    selo assenta, e na vitória um brilho de latão passa uma vez pelo selo (`--dur-fx`, depois de `--dur-2`); só transform e
+    opacidade; a marca de entrada sai com a última animação; com menos movimento, tudo parado. O som e a vibração de
+    vitória e derrota já existiam (G4). Puro: `T.desfechoDaPartida(s, v, { serie, entradas, aDois })`; componente
+    `__m17.Desfecho` (no `/ds`, Mesa › Desfecho, com vitória, derrota numa série e empate, e "Rever" para tocar a entrada).
+    **Medidas:** zero pixel de campo durante a partida (o cartão só existe no fim; na bandeja, que no fim recolhe a mão).
+    **Testes:** `table.unit` (resultado de quem olha, motivo em palavras para cada derrota conhecida e para a desconhecida,
+    placar, turnos, série em disputa e decidida, últimas três sem a linha de turno, nada antes do fim); e2e "MJ9" (goldfish
+    a zero: desfecho com selo, motivo, placar com o vencedor marcado, turnos, últimas jogadas, nome falado, as três animações,
+    mão recolhida, acima da linha de ações; a marca de entrada sai sozinha e abrir o registro não repete; `auditaTela` nos
+    dois temas; palco do `/ds` com os três resultados, os pontos da série, "Rever" toca a entrada e com menos movimento nada
+    se move). **Fora:** replay animado das últimas jogadas (o registro e o "Ver jogadas" já contam); revanche com a mesma lista
+    e o mesmo oponente num toque (Nova partida volta à escolha, que lembra a última); confete ou partícula.
 
 **MJ10 · Espiar de patamar** ○ (1 leva) — carta grande com leve profundidade e brilho opcional, desligados com menos
 movimento.

@@ -761,3 +761,30 @@ test('J-19 · M-567/M-572 · a criatura obrigada a bloquear ganha o selo "precis
   assert.equal(T.estadoDaCarta(s, s.objects.o0, { attack: new Set(), blocks: new Map() }).marcas.some(m => m.k === 'obrigada'), false, 'plano sem `obrigadas` (contrato antigo): igual a antes');
   assert.equal(T.estadoDaCarta(s, s.objects.o0).marcas.some(m => m.k === 'obrigada'), false, 'sem plano: igual a antes');
 });
+
+test('MJ9 · J-21 · desfechoDaPartida: resultado de quem olha, motivo em palavras, placar, turnos, série e as últimas jogadas; nada antes do fim', () => {
+  const t = goldfish(11); t.act({ t: 'keep', p: 0, bottom: [] });
+  assert.equal(T.desfechoDaPartida(t.state, 0), null, 'partida em curso não tem desfecho');
+  const fim = J(t.state); fim.status = 'over'; fim.winner = 0; fim.players[1].lost = true; fim.players[1].lossReason = 'vida'; fim.players[1].life = 0; fim.players[0].life = 14; fim.turn.number = 7;
+  const entradas = [{ texto: '— Turno 7' }, { texto: 'Você conjurou Lightning Bolt' }, { texto: 'Goldfish perdeu 3 de vida' }, { texto: 'Você atacou com Delver of Secrets' }, { texto: 'Goldfish perdeu a partida' }];
+  const d = T.desfechoDaPartida(fim, 0, { entradas });
+  assert.equal(d.resultado, 'vitoria'); assert.equal(d.titulo, 'Vitória'); assert.equal(d.motivo, 'Goldfish ficou sem vida');
+  assert.deepEqual(J(d.placar), [{ nome: 'Você', vida: 14, eu: true, venceu: true }, { nome: 'Goldfish', vida: 0, eu: false, venceu: false }]);
+  assert.equal(d.turnos, 7); assert.equal(d.serie, null);
+  assert.deepEqual(J(d.ultimas), ['Goldfish perdeu 3 de vida', 'Você atacou com Delver of Secrets', 'Goldfish perdeu a partida'], 'as três últimas, sem a linha de turno');
+  // do outro lado é derrota; a dois, o título diz quem venceu
+  assert.equal(T.desfechoDaPartida(fim, 1).resultado, 'derrota'); assert.equal(T.desfechoDaPartida(fim, 1).titulo, 'Derrota');
+  assert.equal(T.desfechoDaPartida(fim, 1, { aDois: true }).titulo, 'Você venceu');
+  // desistência, grimório vazio e veneno em palavras; motivo desconhecido não some
+  for (const [r, frase] of [['desistência', 'Goldfish desistiu'], ['grimório vazio', 'Goldfish comprou de um grimório vazio'], ['veneno', 'Goldfish chegou a 10 marcadores de veneno'], ['outra coisa', 'Goldfish: outra coisa']]) {
+    const x = J(fim); x.players[1].lossReason = r; assert.equal(T.desfechoDaPartida(x, 0).motivo, frase);
+  }
+  // empate
+  const e = J(fim); e.winner = null; e.players[0].lost = true; e.players[0].lossReason = 'vida';
+  assert.deepEqual([T.desfechoDaPartida(e, 0).resultado, T.desfechoDaPartida(e, 0).titulo], ['empate', 'Empate']);
+  // série: em disputa e decidida
+  let serie = T.novaSerie({ melhorDe: 3, formato: 'pauper', assentos: [{ name: 'Você' }, { name: 'Goldfish' }] }); serie = T.registraJogo(serie, 0);
+  assert.deepEqual(J(T.desfechoDaPartida(fim, 0, { serie }).serie), { melhorDe: 3, jogo: 1, vitorias: [1, 0], fim: null, texto: '1–0 · melhor de 3', titulo: 'Partida 1 de até 3' });
+  serie = T.registraJogo({ ...serie, jogo: 2 }, 0);
+  assert.equal(T.desfechoDaPartida(fim, 0, { serie }).serie.titulo, 'Você venceu a série');
+});

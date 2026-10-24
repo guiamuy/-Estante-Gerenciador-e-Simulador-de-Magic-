@@ -922,6 +922,7 @@ body[data-tela="entrar"] .ds-appbar { display: none; }
 .ds-versos { display: flex; gap: var(--space-3); } .ds-versos .ds-card { width: 72px; }
 /* MJ7 (J-17) · palco do material no catálogo: carta em repouso, escolhida, segurada e a dupla face que vira */
 .ds-material { align-items: flex-end; gap: var(--space-4); padding-top: var(--space-3); }
+.ds-desfechos { display: grid; gap: var(--space-3); margin-bottom: var(--space-3); } /* MJ9 (J-21) · palco do desfecho no /ds */
 .ds-material__item { display: inline-flex; flex-direction: column; align-items: center; gap: var(--space-2); }
 .ds-material__dupla { display: inline-block; }
 .aparencia__verso .ds-verso { box-shadow: none; }
@@ -2222,6 +2223,45 @@ body[data-mesa-cheia="true"] .tb-steps__list li { padding: 0 0 1px; border-botto
 .tb-decisao { display: flex; flex-direction: column; gap: 2px; padding: 0 var(--space-1) var(--space-2); min-width: 0; }
 .tb-decisao strong { font-family: var(--font-display); font-weight: var(--weight-regular); font-size: var(--text-lg); line-height: var(--lh-lg); color: var(--warning); overflow-wrap: anywhere; }
 .tb-decisao span { font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--fg); overflow-wrap: anywhere; }
+/* MJ9 (J-21) · desfecho da partida com peso: um cartão na bandeja, acima da linha de ações (o campo final continua à vista em
+   cima). Selo de latão na vitória, neutro na derrota e no empate; placar de vida, turnos, série em pontos e as últimas jogadas.
+   Entrada uma vez por partida (data-entra): sobe e aparece em --dur-2, o selo assenta, e na vitória um brilho de latão passa
+   uma vez pelo selo; só transform e opacidade; com menos movimento, tudo parado. */
+.tb-desfecho { display: grid; gap: var(--space-2); margin: 0 var(--space-1) var(--space-2); padding: var(--space-3); border-radius: var(--radius-3);
+  background: var(--bg-elev-2); border: 1px solid var(--border); box-shadow: var(--shadow-1); min-width: 0; }
+.tb-desfecho[data-resultado="vitoria"] { border-color: var(--accent); box-shadow: inset 0 1px 0 var(--latao-luz), var(--shadow-1); }
+.tb-desfecho__cab { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
+.tb-desfecho__selo { position: relative; flex: none; width: 44px; height: 44px; border-radius: var(--radius-full); display: grid; place-items: center; overflow: hidden;
+  background: var(--bg-elev-3); color: var(--fg-muted); border: 1px solid var(--border-strong); }
+.tb-desfecho[data-resultado="vitoria"] .tb-desfecho__selo { background: var(--accent); color: var(--accent-fg); border-color: var(--accent);
+  background-image: linear-gradient(180deg, var(--latao-luz) 0, transparent 55%); box-shadow: inset 0 1px 0 var(--latao-luz), inset 0 -1px 0 var(--latao-labio); }
+.tb-desfecho__selo::after { content: ""; position: absolute; inset: 0; background: linear-gradient(105deg, transparent 30%, var(--latao-luz) 50%, transparent 70%); opacity: 0; pointer-events: none; }
+.tb-desfecho__titulos { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tb-desfecho__titulo { font-family: var(--font-display); font-weight: var(--weight-regular); font-size: var(--text-xl); line-height: var(--lh-xl); color: var(--fg); overflow-wrap: anywhere; }
+.tb-desfecho__motivo { font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--fg-muted); overflow-wrap: anywhere; }
+.tb-desfecho__placar { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2) var(--space-4); min-width: 0; }
+.tb-desfecho__vida { display: inline-flex; align-items: baseline; gap: var(--space-1); min-width: 0; color: var(--fg-muted); font-size: var(--text-sm); }
+.tb-desfecho__vida b { font-family: var(--font-display); font-weight: var(--weight-regular); font-size: var(--text-xl); line-height: 1; color: var(--fg); font-variant-numeric: tabular-nums; }
+.tb-desfecho__vida span { overflow-wrap: anywhere; }
+.tb-desfecho__vida[data-venceu="true"] b { text-decoration: underline; text-decoration-color: var(--accent); text-decoration-thickness: 2px; text-underline-offset: 4px; }
+.tb-desfecho__turnos { display: inline-flex; align-items: center; gap: var(--space-1); margin-left: auto; font-size: var(--text-sm); color: var(--fg-muted); }
+.tb-desfecho__serie { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--fg); min-width: 0; }
+.tb-desfecho__pontos { display: inline-flex; align-items: center; gap: var(--space-1); flex: none; }
+.tb-desfecho__pontos i { width: 10px; height: 10px; border-radius: var(--radius-full); border: 1px solid var(--border-strong); }
+.tb-desfecho__pontos i[data-cheio="true"][data-p="0"] { background: var(--accent); border-color: var(--accent); }
+.tb-desfecho__pontos i[data-cheio="true"][data-p="1"] { background: var(--player-opp); border-color: var(--player-opp); }
+.tb-desfecho__x { color: var(--fg-muted); }
+.tb-desfecho__ultimas { display: grid; gap: var(--space-1); min-width: 0; }
+.tb-desfecho__rotulo { font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--fg-muted); text-transform: uppercase; letter-spacing: .06em; }
+.tb-desfecho__ultimas .tb-fatos { margin: 0; padding: 0; }
+@keyframes tb-desfecho-entra { from { opacity: 0; transform: translateY(var(--space-2)); } to { opacity: 1; transform: none; } }
+@keyframes tb-desfecho-selo { from { transform: scale(.6); } 70% { transform: scale(1.06); } to { transform: none; } }
+@keyframes tb-desfecho-brilho { from { opacity: 1; transform: translateX(-120%); } to { opacity: 1; transform: translateX(120%); } }
+.tb-desfecho[data-entra="true"] { animation: tb-desfecho-entra var(--dur-2) var(--ease-out); }
+.tb-desfecho[data-entra="true"] .tb-desfecho__selo { animation: tb-desfecho-selo var(--dur-2) var(--ease-out); }
+.tb-desfecho[data-entra="true"][data-resultado="vitoria"] .tb-desfecho__selo::after { animation: tb-desfecho-brilho var(--dur-fx) var(--ease-out) var(--dur-2) 1 both; }
+@media (prefers-reduced-motion: reduce) { .tb-desfecho[data-entra="true"], .tb-desfecho[data-entra="true"] .tb-desfecho__selo, .tb-desfecho[data-entra="true"] .tb-desfecho__selo::after { animation: none; } }
+:root[data-movimento="reduzido"] .tb-desfecho[data-entra="true"], :root[data-movimento="reduzido"] .tb-desfecho[data-entra="true"] .tb-desfecho__selo, :root[data-movimento="reduzido"] .tb-desfecho[data-entra="true"] .tb-desfecho__selo::after { animation: none !important; }
 .tb-dock[data-decisao="true"] > .tb-banner { padding: 0 var(--space-1); justify-content: flex-end; }
 .tb-dock[data-decisao="true"] > .tb-banner:not(:has(.tb-banner__actions > *)) { display: none; }
 /* com a pergunta escrita em cima, a palavra do momento ("Insanidade", "Alvo") e o balão dela são repetição: saem, e as ações cabem numa linha */
@@ -4228,7 +4268,20 @@ function renderDS() {
             h('span', { class: 'ds-material__item' }, segurada, Text('segurada', { size: 'xs', tone: 'muted' })),
             h('span', { class: 'ds-material__item' }, quadro, Button('Virar', { icone: 'virar', id: 'ds-virar', onClick: vira })));
         })(),
-        Text('Tokens: --sombra-carta (espessura) · --sombra-carta-alta (levantada) · --mesa-luz e --mesa-penumbra (luz do feltro, só na partida) · --latao-luz e --latao-labio (fio de luz e lábio do latão: faixa de vez, vida de quem joga, selos).', { size: 'xs', tone: 'muted', attrs: { id: 'ds-material-tokens' } })
+        Text('Tokens: --sombra-carta (espessura) · --sombra-carta-alta (levantada) · --mesa-luz e --mesa-penumbra (luz do feltro, só na partida) · --latao-luz e --latao-labio (fio de luz e lábio do latão: faixa de vez, vida de quem joga, selos).', { size: 'xs', tone: 'muted', attrs: { id: 'ds-material-tokens' } }),
+        // MJ9 (J-21) · o desfecho da partida: vitória (selo de latão com brilho uma vez), derrota numa série e empate; "Rever" toca a entrada de novo
+        Text('Desfecho', { size: 'sm', caps: true, as: 'h3' }),
+        (() => {
+          const ultimas = ['Você conjurou Lightning Bolt', 'Goldfish perdeu 3 de vida', 'Goldfish perdeu a partida'];
+          const ex = [
+            { resultado: 'vitoria', titulo: 'Vitória', motivo: 'Goldfish ficou sem vida', placar: [{ nome: 'Você', vida: 14, eu: true, venceu: true }, { nome: 'Goldfish', vida: 0, eu: false, venceu: false }], turnos: 7, serie: null, ultimas },
+            { resultado: 'derrota', titulo: 'Derrota', motivo: 'Você comprou de um grimório vazio', placar: [{ nome: 'Você', vida: 6, eu: true, venceu: false }, { nome: 'Shark', vida: 11, eu: false, venceu: true }], turnos: 12,
+              serie: { melhorDe: 3, jogo: 2, vitorias: [1, 1], fim: null, texto: '1–1 · melhor de 3', titulo: 'Partida 2 de até 3' }, ultimas: [] },
+            { resultado: 'empate', titulo: 'Empate', motivo: 'Ana ficou sem vida · Bia ficou sem vida', placar: [{ nome: 'Ana', vida: 0, eu: true, venceu: false }, { nome: 'Bia', vida: -2, eu: false, venceu: false }], turnos: 9, serie: null, ultimas: [] }];
+          const caixa = h('div', { class: 'ds-stack ds-desfechos', id: 'ds-desfecho' }, ...ex.map(d => M.Desfecho(d)));
+          const rever = () => caixa.replaceChildren(...ex.map(d => M.Desfecho(d, { entra: true })));
+          return h('div', {}, caixa, Button('Rever', { icone: 'seguir', id: 'ds-desfecho-rever', onClick: rever }));
+        })()
       ];
     })()),
 
@@ -34931,6 +34984,29 @@ function QuadroDeBloqueios({ linhas, dica }) {
         : h('span', { class: 'tb-pares__lado tb-pares__lado--livre' }, 'livre')))),
     dica ? h('p', { class: 'tb-pares__dica' }, dica) : null);
 }
+/** MJ9 (J-21) · o desfecho da partida, com peso: selo do resultado (troféu de latão, derrota, empate), por quê, placar de vida
+ *  com quem venceu marcado, turnos, série (pontos por vitória) e as últimas jogadas. `linha(texto)` desenha uma linha do
+ *  registro (o mesmo ícone e filete do registro); sem ela, texto simples. `entra`: a entrada anima (uma vez por partida). */
+function Desfecho(d, { linha = null, entra = false } = {}) {
+  if (!d) return null;
+  const ICONE = { vitoria: 'trofeu', derrota: 'fechar', empate: 'menos' };
+  const pontos = d.serie ? h('span', { class: 'tb-desfecho__pontos', 'aria-hidden': 'true' },
+    ...d.serie.vitorias.flatMap((n, i) => [i ? h('span', { class: 'tb-desfecho__x' }, '–') : null, ...Array.from({ length: Math.ceil(d.serie.melhorDe / 2) }, (_, k) => h('i', { dataset: { cheio: String(k < n), p: String(i) } }))]).filter(Boolean)) : null;
+  const ultima = d.resultado === 'vitoria' ? 'tb-desfecho-brilho' : 'tb-desfecho-entra';
+  const el = h('section', { class: 'tb-desfecho', id: 'tb-desfecho', role: 'status', 'aria-live': 'polite', dataset: { resultado: d.resultado, ...(entra ? { entra: 'true' } : {}) },
+    'aria-label': [d.titulo, d.motivo, d.placar.map(x => `${x.nome} ${x.vida} de vida`).join(', '), `${d.turnos} ${d.turnos === 1 ? 'turno' : 'turnos'}`, d.serie ? `${d.serie.titulo}, ${d.serie.texto}` : ''].filter(Boolean).join('. ') },
+    h('div', { class: 'tb-desfecho__cab', 'aria-hidden': 'true' },
+      h('span', { class: 'tb-desfecho__selo' }, Icone(ICONE[d.resultado] || 'menos', { tamanho: 22 })),
+      h('div', { class: 'tb-desfecho__titulos' }, h('strong', { class: 'tb-desfecho__titulo' }, d.titulo), d.motivo ? h('span', { class: 'tb-desfecho__motivo' }, d.motivo) : null)),
+    h('div', { class: 'tb-desfecho__placar', 'aria-hidden': 'true' },
+      ...d.placar.map(x => h('span', { class: 'tb-desfecho__vida', dataset: { venceu: String(x.venceu), eu: String(x.eu) } }, h('b', {}, String(x.vida)), h('span', {}, x.nome))),
+      h('span', { class: 'tb-desfecho__turnos' }, Icone('historico', { tamanho: 14 }), `${d.turnos} ${d.turnos === 1 ? 'turno' : 'turnos'}`)),
+    d.serie ? h('div', { class: 'tb-desfecho__serie', 'aria-hidden': 'true' }, pontos, h('span', {}, `${d.serie.titulo} · ${d.serie.texto}`)) : null,
+    d.ultimas.length ? h('div', { class: 'tb-desfecho__ultimas' }, h('span', { class: 'tb-desfecho__rotulo' }, 'Últimas jogadas'),
+      h('ul', { class: 'tb-fatos' }, ...d.ultimas.map(t => linha ? linha(t) : h('li', { class: 'tb-fatos__linha' }, h('span', {}, t))))) : null);
+  if (entra) el.addEventListener('animationend', e => { if (e.animationName === ultima) delete el.dataset.entra; });
+  return el;
+}
 function PriorityBanner({ title, hint, actions, tone, momento, corpo = null }) {
   // Leva 110 · com `momento`, a bandeja mostra só o ícone e a palavra do momento, sempre inteiros; título e dica
   // ficam no texto falado e no balão (um toque). Sem `momento`, o comportamento antigo (texto cortado vira balão).
@@ -34968,7 +35044,7 @@ function AdjudicationPanel({ name, image, oracle, controls, onDone }) {
     h('div', { class: 'tb-adj__actions' }, ...(controls || []), Button('Efeito aplicado', { variant: 'primary', id: 'tb-adj-done', onClick: onDone })));
 }
 
-return { QuadroDeBloqueios, retemImagem, retemImagemDaCarta, imagensRetidas, fonteParaLargura, animaVirada, faseDoPasso, TableCard, ZoneRow, LifeCounter, ZoneChip, StepBar, StackStrip, StackPanel, CardPeek, PriorityBanner, AdjudicationPanel, Icone, IconButton, gestoDeBandeja, ligaGestoDeBandeja };
+return { QuadroDeBloqueios, retemImagem, retemImagemDaCarta, imagensRetidas, fonteParaLargura, animaVirada, faseDoPasso, TableCard, ZoneRow, LifeCounter, ZoneChip, StepBar, StackStrip, StackPanel, CardPeek, PriorityBanner, Desfecho, AdjudicationPanel, Icone, IconButton, gestoDeBandeja, ligaGestoDeBandeja };
 })();
 
 
@@ -35740,6 +35816,27 @@ function registraJogo(serie, winner) {
   if (winner == null) empates++; else vitorias[winner]++;
   const perdedor = winner == null ? null : serie.assentos.findIndex((_, i) => i !== winner);
   return { ...serie, vitorias, empates, registrado: serie.jogo, ultimoPerdedor: perdedor };
+}
+/** MJ9 (J-21) · o desfecho da partida contado para quem olha (`v`): resultado, por quê, placar de vida, turnos, série e as
+ *  últimas jogadas do registro. Puro. `aDois`: a mesma tela serve aos dois jogadores (o título diz quem venceu, não "Vitória"). */
+const MOTIVO_DA_DERROTA = { vida: n => `${n} ficou sem vida`, 'grimório vazio': n => `${n} comprou de um grimório vazio`, 'desistência': n => `${n} desistiu`,
+  veneno: n => `${n} chegou a 10 marcadores de veneno`, 'dano de comandante': n => `${n} levou 21 de dano de um comandante`,
+  'o oponente venceu o jogo': n => `${n} perdeu: o oponente venceu por efeito de carta`, 'perdeu o jogo por efeito de carta': n => `${n} perdeu por efeito de carta` };
+function desfechoDaPartida(s, v, { serie = null, entradas = [], aDois = false, max = 3 } = {}) {
+  if (!s || s.status !== 'over') return null;
+  const nome = i => (s.players[i] || {}).name || `Jogador ${i + 1}`, w = s.winner == null ? null : s.winner;
+  const resultado = w == null ? 'empate' : aDois || v == null ? 'vitoria' : w === v ? 'vitoria' : 'derrota';
+  const titulo = w == null ? 'Empate' : aDois || v == null ? `${nome(w)} venceu` : w === v ? 'Vitória' : 'Derrota';
+  const motivos = s.players.map((p, i) => p.lost ? (MOTIVO_DA_DERROTA[p.lossReason] ? MOTIVO_DA_DERROTA[p.lossReason](nome(i)) : `${nome(i)}: ${p.lossReason || 'perdeu'}`) : null).filter(Boolean);
+  const placar = s.players.map((p, i) => ({ nome: nome(i), vida: p.life, eu: i === v, venceu: i === w }));
+  let emSerie = null;
+  if (serie && serie.melhorDe > 1) {
+    const fim = resultadoDaSerie(serie);
+    emSerie = { melhorDe: serie.melhorDe, jogo: serie.jogo, vitorias: serie.vitorias.slice(), fim, texto: `${serie.vitorias.join('–')} · melhor de ${serie.melhorDe}`,
+      titulo: fim == null ? `Partida ${serie.jogo} de até ${serie.melhorDe}` : fim === 'empate' ? 'Série empatada' : `${nome(fim)} venceu a série` };
+  }
+  const ultimas = entradas.map(e => typeof e === 'string' ? e : e && e.texto).filter(t => t && !/^— Turno/.test(t)).slice(-max);
+  return { resultado, titulo, motivo: motivos.join(' · '), placar, turnos: s.turn.number || 0, serie: emSerie, ultimas };
 }
 /** Passa uma cópia de `nome` do deck para a reserva (de: 'main') ou de volta (de: 'side'). Não muta. */
 function moveNaTroca(entries, nome, de) {
@@ -36680,7 +36777,7 @@ function toquesDaContagem(grupos, conta) {
   for (const g of grupos) { let i = 0; (conta[g.chave] || []).forEach((n, k) => { for (let j = 0; j < n && i < g.oids.length; j++) out.push({ oid: g.oids[i++], option: k }); }); }
   return out;
 }
-return { textoDoCustoOpcionalM, rotulosDeCiclar, nomesDeCatalogo, LIMITE_COMANDANTE, danoDeComandante, textoDoDanoDeComandante, GRUPOS_DE_PARADA, PARADAS_PADRAO, paradasValidas, grupoDoPasso, usaParadas, paradasAtuais, iconeDaLinhaDoRegistro, donoDaLinha, iconeDaFase, trocaLegitima, cartaDaMesa, fontesDeMana, conferePagamento, planoDePagamento, gruposDeFontes, contagemDosToques, toquesDaContagem, sinaisDoResumo, iconeDaLinhaDoResumo, repeticaoDoCombo, chaveDaRepeticao, linhasDoCampo, rotulosDeAlvos, alvoSemEfeito, enxugaAlvos, LIMITE_DE_ALVOS, SAVE_KEY, SERIE_KEY, novaSerie, resultadoDaSerie, registraJogo, moveNaTroca, validaTroca, diffDaTroca, limitesDaTroca, proximoJogo, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, modificacoesDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveContinuo, descreveDano, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
+return { textoDoCustoOpcionalM, rotulosDeCiclar, nomesDeCatalogo, LIMITE_COMANDANTE, danoDeComandante, textoDoDanoDeComandante, GRUPOS_DE_PARADA, PARADAS_PADRAO, paradasValidas, grupoDoPasso, usaParadas, paradasAtuais, iconeDaLinhaDoRegistro, donoDaLinha, iconeDaFase, trocaLegitima, cartaDaMesa, fontesDeMana, conferePagamento, planoDePagamento, gruposDeFontes, contagemDosToques, toquesDaContagem, sinaisDoResumo, iconeDaLinhaDoResumo, repeticaoDoCombo, chaveDaRepeticao, linhasDoCampo, rotulosDeAlvos, alvoSemEfeito, enxugaAlvos, LIMITE_DE_ALVOS, SAVE_KEY, SERIE_KEY, novaSerie, resultadoDaSerie, registraJogo, desfechoDaPartida, MOTIVO_DA_DERROTA, moveNaTroca, validaTroca, diffDaTroca, limitesDaTroca, proximoJogo, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, modificacoesDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveContinuo, descreveDano, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
 })();
 
 
@@ -38504,6 +38601,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const p = __m35.daMesa({ s, eu, setup: table.setup, options: table.options || {}, serie, cores, primeiro, desistiu: !!(ult && ult.t === 'concede') });
     noHistorico = p.id; partidas.registra(p).catch(() => {});
   }
+  let fimNestaPintura = false; // MJ9 · a partida acabou nesta pintura (evento sensorial `fim`): o desfecho entra animado
   /** Leva 114 · fim de partida numa série: registra uma vez e guarda. */
   let serie = null;
   function fechaJogoDaSerie(s) {
@@ -39191,7 +39289,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     // o texto inteiro, porque ali a instrução é a tela toda
     const compacto = !(s.pending && s.pending.kind === 'pick' && s.pending.p === v);
     const PriorityBanner = o => __m17.PriorityBanner({ ...(compacto ? { momento: T.momentoDaBandeja(s, v) } : {}), ...o });
-    let banner;
+    let banner, desfecho = null;
     historicoDaPartida(s, v); // I5
     if (s.status === 'over') {
       // Leva 114 · numa série, o fim da partida leva às trocas com a reserva; a série fecha com duas vitórias
@@ -39204,6 +39302,10 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
         hint: emSerie ? `Série melhor de ${serie.melhorDe}: ${s.players[0].name} ${placar()} ${s.players[1].name}.${motivo ? ' ' + motivo : ''}` : motivo, tone: 'accent',
         ...(emSerie ? { momento: { icone: 'fim', curto: `Série ${placar()}`, tom: 'normal' } } : {}),
         actions: [emSerie && fim == null ? Button('Próxima partida', { variant: 'primary', id: 'tb-serie-next', icone: 'seguir', onClick: () => go('/serie') }) : null, emSerie && fim == null ? null : nova, Button('Registro', { onClick: openLog })] });
+      // MJ9 (J-21) · o desfecho com peso, acima da linha de ações: resultado, por quê, placar, turnos, série e as últimas jogadas;
+      // a entrada anima só na pintura em que a partida acaba (a mesma porta dos sentidos: retomar, desfazer e repintar não repetem)
+      const o = table.options || {}, aDois = !o.online && !o.bot && !((table.setup.players || [])[1 - v] || {}).dummy;
+      desfecho = __m17.Desfecho(T.desfechoDaPartida(s, v, { serie: emSerie ? serie : null, entradas: table.entradas || [], aDois }), { linha: l => linhaDoRegistro(l), entra: fimNestaPintura });
     } else if (s.status === 'mulligan') {
       const need = pl.mulligans;
       banner = need && bottomPick.size <= need ? PriorityBanner({ title: `Escolha ${need} carta(s) para o fundo`, hint: `${bottomPick.size} de ${need} escolhida(s). Toque nas cartas da mão.`,
@@ -39636,7 +39738,8 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const barra = h('div', { class: 'tb-dock__bar' }, puxador, banner);
     bandeja.append(h('div', { class: 'tb-hand__body', id: 'tb-hand-body' },
       h('div', { class: 'tb-hand__inner' }, hand.length ? h('div', { class: 'tb-row' }, ...hand) : h('span', { class: 'tb-zone__empty' }, 'mão vazia'))));
-    doca.append(...[grip, decisao, barra, decisao ? null : aviso, bandeja].filter(Boolean));
+    doca.append(...[grip, desfecho, decisao, barra, decisao ? null : aviso, bandeja].filter(Boolean));
+    if (desfecho) { doca.dataset.desfecho = 'true'; if (!band.forcada) aplica(false); } // MJ9 · no fim a mão recolhe (o puxador ainda abre): o campo final fica à vista
     __m3.reservaDoca(doca); // o aviso flutuante (toast) sobe para ficar acima da bandeja, em vez de cobri-la
     // MJ1f (J-6) · a página reserva só a bandeja recolhida (a doca sem o corpo da mão): a mão aberta fica por cima do campo
     if (typeof ResizeObserver !== 'undefined') {
@@ -39716,6 +39819,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     if (miraAtiva) miraAtiva(); // MJ6a · a mesa mudou no meio da mira: cancela
     concluiVoos(); const voo = medeVoo(); // MJ3a · antes de ouvir (que troca o estado anterior) e de redesenhar
     const sentidos = ouve(s, v); // G4
+    fimNestaPintura = sentidos.some(e => e.tipo === 'fim'); // MJ9
     const cena = sentidos.length ? preparaEfeitos(sentidos, v, s) : null; // G5 · antes de redesenhar
     // A9 · hot-seat: quem recebe o aparelho confirma antes de ver a mão
     if (table.humans().length > 1 && v !== shownViewer && s.status !== 'over') { handoff = true; shownViewer = v; }

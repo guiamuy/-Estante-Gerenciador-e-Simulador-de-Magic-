@@ -15080,3 +15080,50 @@ test('e2e · J-20 a carta virada do Shark voa do centro do contador da mão dele
   t.diagnostic(`J-20 · fotos vistas: ${todos.length}; da mão do Shark: ${daMaoDele.length}; viradas: ${todos.filter(x => x.virada).length}`);
   assert.deepEqual(errors, []);
 });
+
+// MJ9 (leva J-21, trilha jogabilidade) · fim de partida com peso: um desfecho na bandeja, acima da linha de ações — selo do
+// resultado (latão na vitória), por quê em palavras, placar de vida com o vencedor marcado, turnos e as últimas jogadas; a
+// entrada anima uma vez por partida (sobe e aparece, o selo assenta, um brilho de latão passa na vitória); a mão recolhe e o
+// campo final fica à vista; com menos movimento, tudo parado. O palco do /ds mostra vitória, derrota numa série e empate.
+test('e2e · MJ9 fim de partida com peso: desfecho com selo, motivo, placar, turnos e últimas jogadas; entra uma vez; menos movimento parado; palco no /ds', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 }); // o aparelho do dono
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start');
+  await page.click('[data-opponent="goldfish"]'); await page.fill('#mesa-seed', '4'); await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-pass, #tb-pass-turn');
+  // a partida acaba: a vida do goldfish vai a zero (mesa assistida), o motor encerra
+  await page.evaluate(() => { const M = window.__estanteMesa, s = M.estado(); M.act({ t: 'life', p: s.turn.priority, target: 1, delta: -s.players[1].life }); });
+  await page.waitForSelector('#tb-desfecho');
+  const d = await page.evaluate(() => { const el = document.querySelector('#tb-desfecho'), doca = document.querySelector('#tb-dock');
+    const anim = [...el.getAnimations({ subtree: true })].map(a => a.animationName).sort();
+    return { resultado: el.dataset.resultado, entra: el.dataset.entra, titulo: el.querySelector('.tb-desfecho__titulo').textContent, motivo: el.querySelector('.tb-desfecho__motivo').textContent,
+      vidas: [...el.querySelectorAll('.tb-desfecho__vida')].map(x => [x.querySelector('b').textContent, x.dataset.venceu]), turnos: el.querySelector('.tb-desfecho__turnos').textContent,
+      ultimas: el.querySelectorAll('.tb-desfecho__ultimas li').length, fala: el.getAttribute('aria-label'), anim, recolhida: doca.dataset.recolhida, novo: !!document.querySelector('#tb-new'),
+      acima: el.getBoundingClientRect().bottom <= document.querySelector('.tb-dock__bar').getBoundingClientRect().top + 1 }; });
+  assert.equal(d.resultado, 'vitoria'); assert.equal(d.titulo, 'Vitória'); assert.match(d.motivo, /ficou sem vida$/);
+  assert.deepEqual(d.vidas.map(x => x[1]), ['true', 'false'], 'o vencedor marcado'); assert.equal(d.vidas[1][0], '0');
+  assert.match(d.turnos, /^\d+ turnos?$/); assert.ok(d.ultimas >= 1 && d.ultimas <= 3, 'as últimas jogadas do registro ' + d.ultimas);
+  assert.match(d.fala, /^Vitória\. .*ficou sem vida\. .* de vida/); assert.equal(d.entra, 'true');
+  assert.deepEqual(d.anim, ['tb-desfecho-brilho', 'tb-desfecho-entra', 'tb-desfecho-selo'], 'sobe, o selo assenta e o latão brilha uma vez');
+  assert.equal(d.recolhida, 'true', 'a mão recolhe: o campo final à vista'); assert.ok(d.novo, 'Nova partida continua'); assert.ok(d.acima, 'o desfecho fica acima da linha de ações');
+  for (const tema of ['dark', 'light']) { await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(700); await auditaTela(page, `MJ9 · desfecho 360 ${tema}`); }
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/mj9-desfecho.png' });
+  // a entrada termina sozinha (a marca sai com a última animação) e abrir o registro não a repete
+  await page.waitForFunction(() => { const el = document.querySelector('#tb-desfecho'); return el && !el.dataset.entra; }, null, { timeout: 3000 });
+  await page.click('.tb-banner__actions >> text=Registro'); await page.waitForSelector('.ds-dialog'); await page.keyboard.press('Escape'); await page.waitForTimeout(150);
+  assert.equal(await page.evaluate(() => { const el = document.querySelector('#tb-desfecho'); return el ? el.dataset.entra || 'não' : 'sumiu'; }), 'não', 'entra uma vez por partida');
+  // menos movimento: no palco do /ds, "Rever" põe a entrada e nada se move
+  await page.goto(base + '#/ds'); await page.waitForSelector('#ds-desfecho');
+  assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll('#ds-desfecho .tb-desfecho')].map(x => x.dataset.resultado)), ['vitoria', 'derrota', 'empate']);
+  assert.equal(await page.evaluate(() => document.querySelectorAll('#ds-desfecho .tb-desfecho__pontos i').length), 4, 'série melhor de 3 em pontos (2 por lado)');
+  await page.click('#ds-desfecho-rever');
+  assert.ok(await page.evaluate(() => document.querySelector('#ds-desfecho .tb-desfecho').getAnimations({ subtree: true }).length >= 3), 'o palco toca a entrada');
+  await page.evaluate(() => document.documentElement.setAttribute('data-movimento', 'reduzido'));
+  await page.click('#ds-desfecho-rever');
+  assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll('#ds-desfecho .tb-desfecho')].flatMap(x => x.getAnimations({ subtree: true })).filter(a => /tb-desfecho/.test(a.animationName) && a.effect.getTiming().duration > 1).map(a => a.animationName)), [], 'menos movimento: parado');
+  for (const tema of ['dark', 'light']) { await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await auditaTela(page, `MJ9 · palco do desfecho 360 ${tema}`); }
+  assert.deepEqual(errors, []);
+});
