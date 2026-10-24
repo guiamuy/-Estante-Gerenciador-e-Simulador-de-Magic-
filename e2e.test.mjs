@@ -15432,3 +15432,31 @@ test('e2e · DS-K F1.2 · a grade do /ds mostra os cinco estados em botão, chip
   if (process.env.SHOTS) for (const tema of ['dark', 'light']) { await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(1500); await page.locator('#ds-estados').screenshot({ path: process.env.SHOTS + `/ds-k-f12-estados-${tema}.png` }); }
   assert.deepEqual(errors, []);
 });
+
+test('e2e · DS-K F1.3 · o cartão de destaque é ébano com filete de latão nos dois temas, o item da partida em latão, o texto em AA sobre o ébano e nada fora da caixa', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(FAKE_DEVICE(false));
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base + '#/ds'); await page.waitForSelector('#ds-destaque-amostra');
+  await page.locator('#ds-destaque-amostra').scrollIntoViewIfNeeded();
+  for (const tema of ['dark', 'light']) {
+    await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema);
+    const d = await page.evaluate(() => {
+      const el = document.querySelector('#ds-destaque-amostra'), cs = getComputedStyle(el);
+      const probe = v => { const s = document.createElement('span'); s.style.color = getComputedStyle(document.documentElement).getPropertyValue(v); document.body.appendChild(s); const c = getComputedStyle(s).color; s.remove(); return c; };
+      const rgb = c => c.match(/\d+(\.\d+)?/g).slice(0, 3).map(Number);
+      const lum = c => rgb(c).map(x => x / 255).map(x => x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4).reduce((a, x, i) => a + x * [0.2126, 0.7152, 0.0722][i], 0);
+      const r = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); };
+      const titulo = getComputedStyle(el.querySelector('.home-continuar__texto strong')).color, detalhe = getComputedStyle(el.querySelector('.home-continuar__texto span')).color;
+      return { fundo: cs.backgroundColor, funda: probe('--bg-elev-0'), img: cs.backgroundImage, icone: getComputedStyle(el.querySelector('[data-tipo="partida"] .home-continuar__icone')).backgroundImage,
+        aa: [r(titulo, cs.backgroundColor), r(detalhe, cs.backgroundColor)] };
+    });
+    assert.equal(d.fundo, d.funda, `o destaque é a superfície funda (${tema})`);
+    assert.match(d.img, /linear-gradient\(90deg/, `filete de latão (${tema})`);
+    assert.match(d.icone, /linear-gradient\(160deg/, `partida em latão (${tema})`);
+    assert.ok(d.aa.every(x => x >= 4.5), `texto AA sobre o ébano (${tema}): ${d.aa.map(x => x.toFixed(2)).join(' / ')}`);
+    await auditaTela(page, `DS-K F1.3 · destaque (${tema})`);
+    if (process.env.SHOTS) { await page.waitForTimeout(1500); await page.locator('#ds-destaque-amostra').screenshot({ path: process.env.SHOTS + `/ds-k-f13-destaque-${tema}.png` }); }
+  }
+  assert.deepEqual(errors, []);
+});

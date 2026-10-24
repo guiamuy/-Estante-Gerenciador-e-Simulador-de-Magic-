@@ -491,3 +491,13 @@ test('DS-K · F1.2 os cinco estados saem da mesma linguagem em botão, chip, aba
   assert.match(componentCss, /:is\(\.ds-chip, \.ds-tab, \.ds-list__item, \.ds-badge\):is\(\[disabled\], \[aria-disabled="true"\]\) \{ opacity: \.45;/, 'desabilitado a 45 % como o botão');
   assert.match(componentCss, /\.ds-btn\[disabled\] \{ opacity: \.45;/);
 });
+
+/* ---------------- DS-K (G-291) · F1.3 destaque em ébano ---------------- */
+test('DS-K · F1.3 o cartão de destaque é ébano (--bg-elev-0) com filete de latão no alto e borda tingida; o Continuar do Início usa ele e a partida em andamento é latão', () => {
+  const r = componentCss.match(/\.ds-surface\.ds-destaque \{([^}]*)\}/); assert.ok(r, 'regra do destaque');
+  assert.match(r[1], /background-color: var\(--bg-elev-0\)/);
+  assert.match(r[1], /linear-gradient\(90deg, transparent, var\(--accent-lo\) 18%, var\(--accent-hi\) 50%, var\(--accent-lo\) 82%, transparent\)/, 'filete de latão');
+  assert.match(r[1], /background-size: 100% 1px/); assert.match(r[1], /color-mix\(in srgb, var\(--accent-lo\) 40%, var\(--border\)\)/);
+  assert.match(HTML, /Surface\(\{ class: 'home-continuar ds-destaque', id: 'home-continuar'/, 'o Continuar é o destaque');
+  assert.match(componentCss, /\.home-continuar__item\[data-tipo="partida"\] \.home-continuar__icone\.ds-destaque__icone-latao \{ background-image: linear-gradient\(160deg, var\(--accent-hi\), var\(--accent\) 55%, var\(--accent-lo\)\); \}/);
+});

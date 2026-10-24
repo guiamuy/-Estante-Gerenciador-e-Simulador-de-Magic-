@@ -387,6 +387,15 @@ a { color: var(--accent); }
 .ds-surface { background: var(--bg-elev-1); border-radius: var(--radius-2); box-shadow: var(--shadow-1); }
 .ds-surface--flat { box-shadow: none; border: 1px solid var(--border); }
 .ds-surface--raised { background: var(--bg-elev-2); box-shadow: var(--shadow-2); }
+/* DS-K F1.3 (G-291) · cartão de destaque em ébano: a superfície mais funda do app (--bg-elev-0), um filete de latão no
+   alto (claro no meio, some nas pontas) e a borda tingida de latão. Um por tela, para o que é "o próximo passo"
+   (o Continuar do Início). O texto segue AA sobre --bg-elev-0 (G-287); acento sobre ele só em texto grande ou desenho. */
+.ds-surface.ds-destaque { position: relative; background-color: var(--bg-elev-0);
+  background-image: linear-gradient(90deg, transparent, var(--accent-lo) 18%, var(--accent-hi) 50%, var(--accent-lo) 82%, transparent);
+  background-size: 100% 1px; background-position: top; background-repeat: no-repeat;
+  border: 1px solid color-mix(in srgb, var(--accent-lo) 40%, var(--border)); box-shadow: var(--shadow-2), inset 0 -1px 0 var(--latao-labio); }
+.ds-destaque__icone-latao { background-color: var(--accent); background-image: linear-gradient(160deg, var(--accent-hi), var(--accent) 55%, var(--accent-lo)); color: var(--accent-fg);
+  box-shadow: inset 0 1px 0 var(--latao-luz), inset 0 -1px 0 var(--latao-labio); }
 .ds-surface--pad { padding: var(--space-4); }
 
 .ds-text { margin: 0; }
@@ -844,9 +853,11 @@ body[data-tela="entrar"] .ds-appbar { display: none; }
   transition: background-color var(--dur-1) var(--ease-out); }
 .home-continuar__item + .home-continuar__item { border-top: 1px solid var(--border); }
 .home-continuar__item:active { background: var(--bg-elev-2); }
+.ds-destaque .home-continuar__item:active { background: var(--bg-elev-1); box-shadow: var(--btn-pressed); } /* DS-K F1.3 · sobre ébano, afunda para a superfície 1 */
 .home-continuar__item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .home-continuar__icone { flex: none; width: 40px; height: 40px; border-radius: var(--radius-full); display: grid; place-items: center; background: var(--bg-elev-2); color: var(--accent); }
 .home-continuar__item[data-tipo="partida"] .home-continuar__icone { background: var(--accent); color: var(--accent-fg); }
+.home-continuar__item[data-tipo="partida"] .home-continuar__icone.ds-destaque__icone-latao { background-image: linear-gradient(160deg, var(--accent-hi), var(--accent) 55%, var(--accent-lo)); } /* DS-K F1.3 · a partida em andamento é latão */
 .home-continuar__texto { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .home-continuar__texto strong { font-family: var(--font-display); font-weight: var(--weight-regular); font-size: var(--text-lg); line-height: var(--lh-lg); color: var(--fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .home-continuar__texto span { font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--fg-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -4453,6 +4464,20 @@ function renderDS() {
       Row({ class: 'ds-row--wrap' }, ...Object.keys(__m0.EVENTOS_HAPTICOS).map(k => Button(k, { icone: 'raio', onClick: () => { const ok = __m0.haptics.evento(k); toast(ok ? `vibrou: ${k}` : 'sem vibração neste aparelho ou desligada'); } })))),
 
     // DS-K (G-287) · receitas de animação: o padrão em três planos, com luz, mola e etapas; o palco demonstra, a dona implementa
+    // DS-K F1.3 (G-291) · cartão de destaque em ébano (um por tela: o próximo passo)
+    Section('Destaque',
+      Surface({ class: 'home-continuar ds-destaque', id: 'ds-destaque-amostra' },
+        (() => { const r = Text('Continuar', { caps: true, as: 'p' }); r.classList.add('home-continuar__rotulo'); return r; })(),
+        h('button', { type: 'button', class: 'home-continuar__item', dataset: { tipo: 'partida' }, onClick: () => toast('Destaque') },
+          h('span', { class: 'home-continuar__icone ds-destaque__icone-latao' }, Icone('jogar', { tamanho: 22 })),
+          h('span', { class: 'home-continuar__texto' }, h('strong', {}, 'Continuar a partida'), h('span', {}, 'Turno 4 · você 18 × 12')),
+          h('span', { class: 'home-continuar__seta' }, Icone('seguir', { tamanho: 18 }))),
+        h('button', { type: 'button', class: 'home-continuar__item', dataset: { tipo: 'lista' }, onClick: () => toast('Destaque') },
+          h('span', { class: 'home-continuar__icone' }, Icone('listas', { tamanho: 22 })),
+          h('span', { class: 'home-continuar__texto' }, h('strong', {}, 'Mono Red Madness'), h('span', {}, 'Última lista aberta')),
+          h('span', { class: 'home-continuar__seta' }, Icone('seguir', { tamanho: 18 })))),
+      Text('Superfície mais funda (--bg-elev-0), filete de latão no alto e borda tingida; o item da partida em latão.', { size: 'xs', tone: 'subtle' })),
+
     Section('Receitas de animação',
       Text('Padrão da Estante (claude/DIRETRIZ-animacao.md): fundo, objeto e sombra em planos separados; luz que varre ao chegar ou confirmar; curvas com mola por token; etapas sobrepostas; material de madeira, papel e latão. Toda receita declara os cinco campos; sem um deles, não entra aqui. As da mesa são contrato para a trilha jogabilidade, que as desenha em #tb-fx.', { size: 'sm', tone: 'muted' }),
       h('div', { class: 'ds-row ds-row--wrap', id: 'ds-latao-amostra', style: { alignItems: 'center' } },
@@ -42893,10 +42918,10 @@ async function painelContinuar() {
   if (Array.isArray(pilha) && pilha.length) itens.push({ tipo: 'scanner', icone: 'scanner', titulo: 'Pilha do scanner', detalhe: pilha.length === 1 ? '1 carta esperando conferência' : `${pilha.length} cartas esperando conferência`, rota: '#/scanner' });
   if (!itens.length) return null;
   const rotulo = Text('Continuar', { caps: true, as: 'p' }); rotulo.classList.add('home-continuar__rotulo');
-  return Surface({ class: 'home-continuar', id: 'home-continuar', dataset: { itens: String(itens.length) } },
+  return Surface({ class: 'home-continuar ds-destaque', id: 'home-continuar', dataset: { itens: String(itens.length) } }, // DS-K F1.3 · destaque em ébano
     rotulo,
     ...itens.map(it => h('button', { type: 'button', class: 'home-continuar__item', dataset: { tipo: it.tipo }, 'aria-label': `${it.titulo} · ${it.detalhe}`, onClick: () => { location.hash = it.rota; } },
-      h('span', { class: 'home-continuar__icone' }, Icone(it.icone, { tamanho: 22 })),
+      h('span', { class: 'home-continuar__icone' + (it.tipo === 'partida' ? ' ds-destaque__icone-latao' : '') }, Icone(it.icone, { tamanho: 22 })),
       h('span', { class: 'home-continuar__texto' }, h('strong', {}, it.titulo), h('span', {}, it.detalhe)),
       h('span', { class: 'home-continuar__seta' }, Icone('seguir', { tamanho: 18 })))));
 }

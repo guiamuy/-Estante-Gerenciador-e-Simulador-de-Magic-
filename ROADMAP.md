@@ -12048,7 +12048,7 @@ prevista no fim para medir quadros no Galaxy S e corrigir o que o portão pegar.
 |---|---|---|---|
 | F0.1 ✅ G-287 | tokens, receitas, contenção | tokens `--bg-elev-0`, `--accent-hi`, `--accent-lo`, `--sheen`, `--ease-spring`, `--dur-abertura`, `--escalona` nos três blocos e por acento; seção **Receitas de animação** no `/ds` (dez receitas com plano · luz · curva · etapas · reduzido; sete são contrato da `jogabilidade`); guarda de **contenção de texto** no `auditaTela`; selo, chip, aba e botão sem quebra por CSS | contrato visual DS-K (AA dos pares novos, trio por acento, receitas completas, keyframes usados); e2e "DS-K" e `auditaTela` em todas as telas |
 | F0.2 ✅ G-288 | fontes self-hosted | Cormorant Garamond 600 e Figtree 400/600 em `woff2` ao lado do `index.html`, cache no `sw.js` (região `armazem`, com a `mtg-data-architect`), `font-display: swap`, pilha de sistema como reserva | peso ≤ 120 KB; sem rede o texto aparece; contrato visual: `--font-display`/`--font-ui` apontam para as novas |
-| F1 (F1.1 ✅ G-289 · F1.2 ✅ G-290) | componentes | primário e Jogar em latão metálico com varredura ao confirmar; cartão de destaque em ébano; marca em latão; folha, diálogo e aviso pelas receitas; estados completos (repouso, pressionado, selecionado, carregando, desabilitado) iguais entre botão, chip, aba, linha e selo | `/ds` nos dois temas; contrato visual por componente; e2e com `auditaTela` |
+| F1 (F1.1 ✅ G-289 · F1.2 ✅ G-290 · F1.3 ✅ G-291) | componentes | primário e Jogar em latão metálico com varredura ao confirmar; cartão de destaque em ébano; marca em latão; folha, diálogo e aviso pelas receitas; estados completos (repouso, pressionado, selecionado, carregando, desabilitado) iguais entre botão, chip, aba, linha e selo | `/ds` nos dois temas; contrato visual por componente; e2e com `auditaTela` |
 | F2 | telas de gestão | Início com abertura (receita) e cartão Continuar em ébano; Lista, Coleção, Scanner com a hierarquia da direção K; grade 360 = 16 + 328 + 16 e cabeçalho 44 · 1fr · 44 | capturas antes e depois (360×780, 390×844, dois temas); `auditaTela`; pixels medidos |
 | F3 | mesa como layout | barra e bandeja em ébano; tokens novos disponíveis para a `jogabilidade` desenhar as receitas da mesa em `#tb-fx` | pixels de campo em 360×780 (não perde); contrato visual |
 | FA | leva de ajuste | medir quadros no aparelho (CPU 4×) nas receitas e na mesa cheia; remedir AA do que a F1/F2 tocou; corrigir o que o portão e o aparelho mostrarem | teste de orçamento; capturas |
@@ -12059,8 +12059,21 @@ prevista no fim para medir quadros no Galaxy S e corrigir o que o portão pegar.
 |---|---|---|---|
 | F1.1 | Jogar, Salvar e todo botão principal ganham o latão e a varredura de luz depois do toque | primário em latão nos dois temas e quatro acentos; varredura uma vez, atrás do rótulo; parada com menos movimento | ✅ G-289 |
 | F1.2 | selecionar chip, aba ou linha responde igual a apertar um botão | repouso, pressionado, selecionado, carregando e desabilitado pelos mesmos tokens em botão, chip, aba, linha e selo; grade de estados no `/ds` | ✅ G-290 |
-| F1.3 | o cartão Continuar e a marca do topo ganham profundidade | `.ds-destaque` em ébano (`--bg-elev-0`, filete de latão) e marca em latão, no `/ds` e no Início | a fazer |
+| F1.3 | o cartão Continuar e a marca do topo ganham profundidade | `.ds-destaque` em ébano (`--bg-elev-0`, filete de latão) e marca em latão, no `/ds` e no Início | ✅ G-291 |
 | F1.4 | abrir folha ou receber aviso tem massa e sombra | folha, diálogo e aviso pela receita "folha" (véu + mola), fim parado com menos movimento | a fazer |
+
+**F1.3 · Destaque em ébano** ✅ (leva G-291, 24/10/2026)
+- **Valor:** o cartão Continuar do Início vira a peça mais funda da tela — ébano, com um filete de latão no alto e a
+  partida em andamento num medalhão de latão — e é o primeiro lugar para onde o olho vai.
+- **Entregue:** `.ds-surface.ds-destaque` (`--bg-elev-0`, filete de latão claro no meio e sumindo nas pontas, borda
+  tingida de latão, lábio embaixo); `.ds-destaque__icone-latao` no medalhão da partida; o item tocado afunda para a
+  superfície 1 com sombra interna; amostra no `/ds` (seção Destaque).
+- **Marca em latão:** já era — o ícone da barra (E50) tem a carta de latão com relevo; o símbolo chapado do catálogo
+  (`logoSvg`) fica como está (só aparece no `/ds`).
+- **Regra:** um destaque por tela, para o próximo passo; o texto segue AA sobre `--bg-elev-0` (conferido no e2e nos
+  dois temas); acento sobre o ébano só em desenho ou texto grande.
+- **Testes:** contrato visual +1 (ébano, filete, borda, Continuar usa o destaque, partida em latão); e2e "DS-K F1.3"
+  (superfície funda, filete, medalhão, AA do título e do detalhe, `auditaTela`, nos dois temas); D3 segue verde.
 
 **F1.2 · Cinco estados iguais** ✅ (leva G-290, 24/10/2026)
 - **Valor:** tocar, marcar, esperar e não poder usar têm o mesmo retorno em todo controle: o chip, a aba e a linha
