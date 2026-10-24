@@ -12048,10 +12048,37 @@ prevista no fim para medir quadros no Galaxy S e corrigir o que o portão pegar.
 |---|---|---|---|
 | F0.1 ✅ G-287 | tokens, receitas, contenção | tokens `--bg-elev-0`, `--accent-hi`, `--accent-lo`, `--sheen`, `--ease-spring`, `--dur-abertura`, `--escalona` nos três blocos e por acento; seção **Receitas de animação** no `/ds` (dez receitas com plano · luz · curva · etapas · reduzido; sete são contrato da `jogabilidade`); guarda de **contenção de texto** no `auditaTela`; selo, chip, aba e botão sem quebra por CSS | contrato visual DS-K (AA dos pares novos, trio por acento, receitas completas, keyframes usados); e2e "DS-K" e `auditaTela` em todas as telas |
 | F0.2 ✅ G-288 | fontes self-hosted | Cormorant Garamond 600 e Figtree 400/600 em `woff2` ao lado do `index.html`, cache no `sw.js` (região `armazem`, com a `mtg-data-architect`), `font-display: swap`, pilha de sistema como reserva | peso ≤ 120 KB; sem rede o texto aparece; contrato visual: `--font-display`/`--font-ui` apontam para as novas |
-| F1 | componentes | primário e Jogar em latão metálico com varredura ao confirmar; cartão de destaque em ébano; marca em latão; folha, diálogo e aviso pelas receitas; estados completos (repouso, pressionado, selecionado, carregando, desabilitado) iguais entre botão, chip, aba, linha e selo | `/ds` nos dois temas; contrato visual por componente; e2e com `auditaTela` |
+| F1 (F1.1 ✅ G-289) | componentes | primário e Jogar em latão metálico com varredura ao confirmar; cartão de destaque em ébano; marca em latão; folha, diálogo e aviso pelas receitas; estados completos (repouso, pressionado, selecionado, carregando, desabilitado) iguais entre botão, chip, aba, linha e selo | `/ds` nos dois temas; contrato visual por componente; e2e com `auditaTela` |
 | F2 | telas de gestão | Início com abertura (receita) e cartão Continuar em ébano; Lista, Coleção, Scanner com a hierarquia da direção K; grade 360 = 16 + 328 + 16 e cabeçalho 44 · 1fr · 44 | capturas antes e depois (360×780, 390×844, dois temas); `auditaTela`; pixels medidos |
 | F3 | mesa como layout | barra e bandeja em ébano; tokens novos disponíveis para a `jogabilidade` desenhar as receitas da mesa em `#tb-fx` | pixels de campo em 360×780 (não perde); contrato visual |
 | FA | leva de ajuste | medir quadros no aparelho (CPU 4×) nas receitas e na mesa cheia; remedir AA do que a F1/F2 tocou; corrigir o que o portão e o aparelho mostrarem | teste de orçamento; capturas |
+
+**F1 · Componentes — fatias** (fatiamento de 24/10/2026; cada fatia é uma leva que vai sozinha para o `main`)
+
+| Fatia | Valor para o usuário | Termina quando | Situação |
+|---|---|---|---|
+| F1.1 | Jogar, Salvar e todo botão principal ganham o latão e a varredura de luz depois do toque | primário em latão nos dois temas e quatro acentos; varredura uma vez, atrás do rótulo; parada com menos movimento | ✅ G-289 |
+| F1.2 | selecionar chip, aba ou linha responde igual a apertar um botão | repouso, pressionado, selecionado, carregando e desabilitado pelos mesmos tokens em botão, chip, aba, linha e selo; grade de estados no `/ds` | a fazer |
+| F1.3 | o cartão Continuar e a marca do topo ganham profundidade | `.ds-destaque` em ébano (`--bg-elev-0`, filete de latão) e marca em latão, no `/ds` e no Início | a fazer |
+| F1.4 | abrir folha ou receber aviso tem massa e sombra | folha, diálogo e aviso pela receita "folha" (véu + mola), fim parado com menos movimento | a fazer |
+
+**F1.1 · Primário em latão** ✅ (leva G-289, 24/10/2026)
+- **Valor:** todo botão principal do app (Salvar, Importar, Passar, Ver prontas…) e a placa do Jogar passam a ser do
+  mesmo latão da marca, e depois de cada toque uma faixa de luz atravessa o metal uma vez (receita "confirmar").
+- **Entregue:** `.ds-btn--primary` com o gradiente do trio do acento (`--accent-hi` → `--accent` → `--accent-lo`), fio de
+  luz e lábio (`--latao-luz`, `--latao-labio`); a faixa de luz é o `::after` com `z-index: -1` dentro de `isolation:
+  isolate` e do tamanho exato do botão (a luz corre pelo fundo dela, `ds-varre-latao`: nada sai da caixa), então passa **atrás** do rótulo (o texto não perde contraste nem no meio da varredura; o texto já era AA
+  nos dois extremos do latão em cada acento, G-287); um ouvinte só no documento marca `data-varre` no toque e tira no
+  fim da animação; o Jogar ganha a camada de latão por baixo do relevo da T3 e o brilho dele passa a usar `--sheen`.
+  Pairar (aparelho com mouse) clareia 6 %; pressionar mantém o afundar da U2.
+- **Reduzido:** a regra global corta a animação; a faixa termina fora da caixa (`overflow: hidden`): só o afundar.
+- **Testes:** contrato visual +1 (latão pelo trio, luz atrás do rótulo, uma vez, só por token, Jogar em latão, um
+  ouvinte); e2e "DS-K F1.1" (latão nos dois temas, `auditaTela`, varredura uma vez e some, parada com menos movimento,
+  Jogar com a camada de latão).
+- **Correção no caminho:** a primeira versão da faixa saía da caixa (`top/bottom -30%`, `translateX`) e inflava a área
+  rolável do botão; a guarda de contenção reprovou seis telas (Conjurar, Entrando…, Salvar…). A borda do primário passa
+  a ser `--accent-lo` (o D2 confere a troca de acento por ela).
+- **Fora:** o painel (`painel.html`) continua com o primário antigo (espelho só do que ele já tinha).
 
 **F0.2 · Fontes self-hosted** ✅ (leva G-288, 24/10/2026)
 - **Valor:** o app inteiro passa a falar na voz da direção K — títulos em Cormorant Garamond 600, interface em Figtree —

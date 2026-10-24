@@ -455,3 +455,23 @@ test('DS-K · as fontes da direção K vêm do próprio app (sem rede de terceir
   assert.match(DARK['--font-ui'], /^"Figtree Estante", system-ui/);
   assert.match(HTML.slice(0, 2000), /font-src 'self'/);
 });
+
+/* ---------------- DS-K (G-289) · F1.1 primário em latão ---------------- */
+test('DS-K · F1.1 o primário é de latão (gradiente dos tokens do acento, fio de luz e lábio) e a varredura da receita "confirmar" passa atrás do rótulo, uma vez, só por token', () => {
+  const regras = [...componentCss.matchAll(/\.ds-btn--primary \{([^}]*)\}/g)].map(m => m[1]).join(';');
+  assert.match(regras, /linear-gradient\(160deg, var\(--accent-hi\), var\(--accent\) 55%, var\(--accent-lo\)\)/, 'latão pelo trio do acento');
+  assert.match(regras, /inset 0 1px 0 var\(--latao-luz\)/); assert.match(regras, /inset 0 -1px 0 var\(--latao-labio\)/);
+  assert.match(regras, /isolation: isolate/, 'a luz fica atrás do rótulo');
+  assert.match(regras, /overflow: hidden/, 'a varredura não sai da caixa');
+  const luz = componentCss.match(/\.ds-btn--primary:not\(\.inicio-jogar\)::after \{([^}]*)\}/);
+  assert.ok(luz, 'faixa de luz do primário');
+  assert.match(luz[1], /z-index: -1/); assert.match(luz[1], /var\(--sheen\)/); assert.match(luz[1], /pointer-events: none/);
+  assert.match(luz[1], /inset: 0/, 'a camada de luz tem o tamanho do botão: nada sai da caixa');
+  const anda = componentCss.match(/\.ds-btn--primary\[data-varre\]:not\(\.inicio-jogar\)::after \{([^}]*)\}/);
+  assert.ok(anda, 'a varredura só anda com data-varre');
+  assert.match(anda[1], /animation: ds-varre-latao var\(--dur-4\) var\(--ease-out\) both/, 'uma vez (sem infinite), curva e duração por token');
+  assert.match(componentCss, /@keyframes ds-varre-latao \{ 0% \{ opacity: 1; background-position: 160% 0; \} 100% \{ opacity: 1; background-position: -60% 0; \} \}/);
+  assert.match(componentCss, /\.inicio-jogar\.ds-btn--primary \{[^}]*linear-gradient\(160deg, var\(--accent-hi\), var\(--accent\) 55%, var\(--accent-lo\)\)/, 'o Jogar é placa de latão');
+  assert.match(componentCss, /\.inicio-jogar::after \{[^}]*var\(--sheen\)/, 'o brilho do Jogar é a mesma luz');
+  assert.match(HTML, /document\.addEventListener\('click', e => \{\s*const b = e\.target && e\.target\.closest \? e\.target\.closest\('\.ds-btn--primary'\)/, 'um ouvinte só para todo primário');
+});

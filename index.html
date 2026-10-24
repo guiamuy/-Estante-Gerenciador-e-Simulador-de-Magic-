@@ -423,6 +423,19 @@ a { color: var(--accent); }
 .ds-btn[disabled] { opacity: .45; cursor: not-allowed; transform: none; box-shadow: none; }
 .ds-btn--primary { background-color: var(--accent); background-image: linear-gradient(180deg, var(--btn-shine-accent), transparent 70%); color: var(--accent-fg); border-color: var(--accent); }
 @media (hover: hover) { .ds-btn--primary:hover { background-color: var(--accent-hover); border-color: var(--accent-hover); color: var(--accent-fg); } }
+/* DS-K F1.1 (G-289) · primário em latão: o mesmo metal da marca (claro no alto, escuro embaixo, fio de luz e lábio). Depois
+   de cada toque uma varredura de luz atravessa o metal uma vez (receita "confirmar"); a luz fica atrás do rótulo
+   (isolation + z-index -1), então o texto não perde contraste nem durante a varredura. Menos movimento: sem varredura. */
+.ds-btn--primary { position: relative; overflow: hidden; isolation: isolate; border-color: var(--accent-lo);
+  background-image: linear-gradient(160deg, var(--accent-hi), var(--accent) 55%, var(--accent-lo));
+  box-shadow: var(--btn-rest), inset 0 1px 0 var(--latao-luz), inset 0 -1px 0 var(--latao-labio); }
+@media (hover: hover) { .ds-btn--primary:hover { background-color: var(--accent); border-color: var(--accent-lo); filter: brightness(1.06); } }
+.ds-btn--primary:active:not([disabled]) { box-shadow: var(--btn-pressed); filter: none; }
+.ds-btn--primary:not(.inicio-jogar)::after { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: 0;
+  background: linear-gradient(105deg, transparent 30%, var(--sheen) 50%, transparent 70%) no-repeat; background-size: 220% 100%; background-position: 160% 0; }
+/* a luz corre pelo fundo da camada, que tem o tamanho exato do botão: nada sai da caixa (a guarda de contenção mede a área rolável) */
+.ds-btn--primary[data-varre]:not(.inicio-jogar)::after { animation: ds-varre-latao var(--dur-4) var(--ease-out) both; }
+@keyframes ds-varre-latao { 0% { opacity: 1; background-position: 160% 0; } 100% { opacity: 1; background-position: -60% 0; } }
 .ds-btn--ghost { background-color: transparent; background-image: none; border-color: transparent; color: var(--fg-muted); box-shadow: none; }
 @media (hover: hover) { .ds-btn--ghost:hover { background-color: var(--bg-elev-2); color: var(--fg); border-color: transparent; } }
 .ds-btn--ghost:active:not([disabled]) { background-color: var(--bg-elev-2); color: var(--fg); box-shadow: none; }
@@ -803,7 +816,7 @@ body[data-tela="entrar"] .ds-appbar { display: none; }
   box-shadow: 0 4px 0 var(--jogar-lab), var(--relevo-sombra);
   transition: transform var(--dur-2) var(--ease-mola), box-shadow var(--dur-2) var(--ease-mola), background-color var(--dur-1) var(--ease-out); }
 .inicio-jogar.ds-btn--primary { --jogar-lab: color-mix(in srgb, var(--accent) 58%, var(--relevo-escuro)); border-color: color-mix(in srgb, var(--accent) 80%, var(--relevo-claro));
-  background-image: linear-gradient(180deg, var(--relevo-claro) 0, transparent 2px), linear-gradient(180deg, var(--btn-shine-accent), transparent 52%), linear-gradient(0deg, color-mix(in srgb, var(--relevo-escuro) 34%, transparent), transparent 62%); }
+  background-image: linear-gradient(180deg, var(--relevo-claro) 0, transparent 2px), linear-gradient(180deg, var(--btn-shine-accent), transparent 52%), linear-gradient(0deg, color-mix(in srgb, var(--relevo-escuro) 34%, transparent), transparent 62%), linear-gradient(160deg, var(--accent-hi), var(--accent) 55%, var(--accent-lo)); } /* DS-K F1.1 · a placa é de latão */
 .inicio-jogar.ds-btn:active:not([disabled]) { transform: translateY(3px) scale(.99); box-shadow: 0 1px 0 var(--jogar-lab), 0 4px 10px -8px var(--relevo-escuro), inset 0 2px 4px var(--relevo-escuro); transition-duration: var(--dur-1); transition-timing-function: var(--ease-out); }
 .inicio-jogar .ds-atalho__icone { flex: none; display: grid; place-items: center; width: 52px; height: 52px; border-radius: var(--radius-full);
   background: color-mix(in srgb, var(--relevo-escuro) 22%, transparent); box-shadow: inset 0 2px 4px var(--relevo-escuro), inset 0 -1px 0 var(--relevo-claro), 0 1px 0 var(--relevo-claro);
@@ -814,7 +827,7 @@ body[data-tela="entrar"] .ds-appbar { display: none; }
 .inicio-jogar__seta { flex: none; margin-left: auto; display: grid; place-items: center; opacity: .72; transition: transform var(--dur-2) var(--ease-mola); }
 .inicio-jogar.ds-btn:active .inicio-jogar__seta { transform: translateX(3px); }
 .inicio-jogar::after { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: 0;
-  background: linear-gradient(105deg, transparent 30%, var(--relevo-claro) 50%, transparent 70%) no-repeat; background-size: 220% 100%; background-position: 160% 0; }
+  background: linear-gradient(105deg, transparent 30%, var(--sheen) 50%, transparent 70%) no-repeat; /* DS-K F1.1 · a mesma luz da varredura do latão */ background-size: 220% 100%; background-position: 160% 0; }
 .inicio-jogar--brilho::after { animation: jogar-brilho var(--dur-4) var(--ease-out); }
 @keyframes jogar-brilho { 0% { opacity: 1; background-position: 160% 0; } 100% { opacity: 1; background-position: -60% 0; } }
 @media (prefers-reduced-motion: reduce) { .inicio-jogar.ds-btn:active:not([disabled]), .inicio-jogar.ds-btn:active .ds-atalho__icone, .inicio-jogar.ds-btn:active .inicio-jogar__seta { transform: none; } .inicio-jogar--brilho::after { animation: none; } }
@@ -3781,6 +3794,16 @@ function LinhaEstado(itens, { id, titulo = 'Estado', ladrilhos = false } = {}) {
 const escapa = x => String(x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 /** D8 · retorno no lugar da ação: o botão mostra ✓ e um rótulo curto por 1,2 s e volta ao que era. O aviso flutuante
     continua para o detalhe; este é o primeiro retorno, perto do dedo. */
+/* DS-K F1.1 (G-289) · receita "confirmar": depois de cada toque num primário, a varredura de luz atravessa o latão uma vez.
+   Um ouvinte só, no documento (vale para todo primário, inclusive os que nascem depois); o Jogar tem o brilho próprio. */
+if (typeof document !== 'undefined' && document.addEventListener) {
+  document.addEventListener('click', e => {
+    const b = e.target && e.target.closest ? e.target.closest('.ds-btn--primary') : null;
+    if (!b || b.disabled || b.classList.contains('inicio-jogar')) return;
+    b.removeAttribute('data-varre'); void b.offsetWidth; b.setAttribute('data-varre', '');
+  }, true);
+  document.addEventListener('animationend', e => { if (e.animationName === 'ds-varre-latao' && e.target && e.target.hasAttribute && e.target.hasAttribute('data-varre')) e.target.removeAttribute('data-varre'); }, true);
+}
 function confirmaBotao(btn, { texto = 'Feito', ms = 1200 } = {}) {
   if (!btn || btn.dataset.confirmado === 'true') return;
   const filhos = [...btn.childNodes], rotuloAntes = btn.getAttribute('aria-label');

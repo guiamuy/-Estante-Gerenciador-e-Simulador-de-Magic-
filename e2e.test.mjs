@@ -7079,7 +7079,8 @@ test('e2e · D2 aparência: tema, cor de destaque, texto, densidade, movimento e
   const jade = await accent(); assert.notEqual(jade, latao);
   await page.waitForTimeout(150);
   const corDoPrimario = await page.evaluate(() => getComputedStyle(document.querySelector('#perfil-salvar')).borderTopColor);
-  const corDoAcento = await page.evaluate(() => { const s = document.createElement('span'); s.style.color = getComputedStyle(document.documentElement).getPropertyValue('--accent'); document.body.appendChild(s); const c = getComputedStyle(s).color; s.remove(); return c; });
+  // DS-K F1.1 (G-289) · o primário é de latão: a borda é o lábio escuro do metal (--accent-lo), que muda com o acento junto
+  const corDoAcento = await page.evaluate(() => { const s = document.createElement('span'); s.style.color = getComputedStyle(document.documentElement).getPropertyValue('--accent-lo'); document.body.appendChild(s); const c = getComputedStyle(s).color; s.remove(); return c; });
   assert.equal(corDoPrimario, corDoAcento, 'o primário usa o acento novo');
   assert.equal(await page.getAttribute('#aparencia-acento [data-acento="jade"]', 'aria-pressed'), 'true');
   // texto maior, compacta, menos movimento, vibração desligada
@@ -15364,5 +15365,42 @@ test('e2e · DS-K · o /ds mostra os tokens de ébano e latão, as dez receitas 
   assert.ok(await page.evaluate(() => [...document.querySelectorAll('#ds-palco-pousar .ds-palco__carta')].every(c => getComputedStyle(c).opacity === '1')), 'as cartas pousadas à vista');
   await page.evaluate(() => document.documentElement.removeAttribute('data-movimento'));
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/ds-k-receitas.png', fullPage: false });
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · DS-K F1.1 · o primário é de latão nos dois temas e uma varredura de luz atravessa o metal depois do toque, uma vez, atrás do rótulo; com menos movimento não há varredura; o Jogar do Início é placa de latão', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(FAKE_DEVICE(false));
+  await page.goto(base + '#/ds'); await page.waitForSelector('#ds-receitas');
+  const prim = page.locator('.ds-btn--primary', { hasText: 'Primário' }).first();
+  await prim.scrollIntoViewIfNeeded();
+  for (const tema of ['dark', 'light']) {
+    await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema);
+    const v = await prim.evaluate(b => { const cs = getComputedStyle(b), luz = getComputedStyle(b, '::after');
+      return { img: cs.backgroundImage, iso: cs.isolation, of: cs.overflow, z: luz.zIndex, luz: luz.backgroundImage }; });
+    assert.match(v.img, /linear-gradient\(160deg/, `latão no tema ${tema}: ${v.img}`);
+    assert.equal(v.iso, 'isolate'); assert.equal(v.of, 'hidden'); assert.equal(v.z, '-1', 'a luz passa atrás do rótulo');
+    assert.match(v.luz, /linear-gradient/);
+    await auditaTela(page, `DS-K F1.1 · primário (${tema})`);
+  }
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  // toque: a varredura começa uma vez e some ao terminar
+  await prim.click();
+  const toca = await prim.evaluate(b => ({ marca: b.hasAttribute('data-varre'), anim: b.getAnimations({ subtree: true }).map(a => [a.animationName, a.effect.getTiming().iterations]) }));
+  assert.ok(toca.marca, 'o toque marca a varredura');
+  assert.ok(toca.anim.some(([n, it]) => n === 'ds-varre-latao' && it === 1), 'ds-varre-latao uma vez: ' + JSON.stringify(toca.anim));
+  await page.waitForFunction(() => ![...document.querySelectorAll('.ds-btn--primary')].some(b => b.hasAttribute('data-varre')), null, { timeout: 3000 });
+  // menos movimento: nada dura mais que um quadro
+  await page.evaluate(() => document.documentElement.setAttribute('data-movimento', 'reduzido'));
+  await prim.click();
+  const red = await prim.evaluate(b => b.getAnimations({ subtree: true }).filter(a => a.animationName === 'ds-varre-latao' && a.effect.getTiming().duration > 1).length);
+  assert.equal(red, 0, 'com menos movimento a varredura não anda');
+  await page.evaluate(() => document.documentElement.removeAttribute('data-movimento'));
+  // o Jogar do Início: placa de latão (o gradiente do metal é a última camada)
+  await page.goto(base + '#/'); await page.waitForSelector('.inicio-jogar');
+  const jogar = await page.evaluate(() => getComputedStyle(document.querySelector('.inicio-jogar')).backgroundImage);
+  assert.ok(jogar.lastIndexOf('linear-gradient(160deg') > jogar.lastIndexOf('linear-gradient(0deg'), 'Jogar termina na camada de latão: ' + jogar);
+  await auditaTela(page, 'DS-K F1.1 · Início');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/ds-k-f11-inicio.png', fullPage: false });
   assert.deepEqual(errors, []);
 });
