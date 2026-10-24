@@ -242,6 +242,9 @@ async function escolheLista(page, id, qual) {
   const alvo = typeof qual === 'string' ? page.locator(`.deck-picker__lista [data-deck-id="${qual}"]`) : page.locator('.deck-picker__lista .deck-item', { has: page.locator('.deck-item__nome', { hasText: qual }) });
   await alvo.first().click(); await page.waitForSelector('.deck-picker__lista', { state: 'detached' });
 }
+/** MJ11 (J-23) · contra o Shark, o toque volta antes de ele decidir: a faixa diz "Shark pensa" e a mesa não aceita toque até ele
+    terminar. Teste que toca a mesa logo depois de passar a prioridade espera isto (como espera o fim da cena). */
+const semPensar = (page, timeout = 60000) => page.waitForFunction(() => !document.querySelector('#tb[data-pensando]'), null, { timeout });
 const tapHand = async (page, name) => { await page.locator('.tb-hand .tb-card', { hasText: name }).first().click(); };
 const handCardByImgless = name => `.tb-hand .tb-card[aria-label^="${name}"]`;
 
@@ -268,6 +271,7 @@ test('e2e · B4/U10 jogar contra o Shark: três oponentes, um bot só, e a jogad
   assert.equal(await page.locator('#tb-dicas').count(), 0);
   assert.doesNotMatch(await page.innerText('.tb-dock'), /O que eu poderia fazer/);
   for (let i = 0; i < 12; i++) {                           // alguns turnos correndo
+    await semPensar(page);
     const passar = await page.$('#tb-pass');
     if (!passar) break;
     await passar.click();
@@ -727,7 +731,7 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
   await page.click('#mesa-start');
   await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
   await page.waitForSelector('#tb-pass');
-  for (let i = 0; i < 8; i++) { const p = await page.$('#tb-pass'); if (!p) break; await p.click(); await page.waitForTimeout(60); }
+  for (let i = 0; i < 8; i++) { await semPensar(page); const p = await page.$('#tb-pass'); if (!p) break; await p.click(); await page.waitForTimeout(60); }
   assert.match(await page.innerText('.tb'), /Shark/, 'o Shark joga sem internet');
 
   // E36 · M13 · Commander sem rede: o comandante que sai do campo volta para a zona de comando
@@ -2665,6 +2669,7 @@ test('e2e · HOMOLOGAÇÃO 5 · partida inteira contra o Shark até o fim, sem t
   await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
   let turnoMax = 0;
   for (let i = 0; i < 900; i++) {
+    await semPensar(page);                                                          // MJ11 · o Shark decide fora do toque
     if (await page.locator('#tb-new').count()) break;                              // partida acabou
     const b = await page.innerText('.tb-banner').catch(() => '');
     const m = (await page.innerText('.tb-steps__head').catch(() => '')).match(/Turno (\d+)/); if (m) turnoMax = Math.max(turnoMax, +m[1]);
@@ -8313,7 +8318,7 @@ test('e2e · H5 ver o oponente jogar: o turno do Shark passa quadro a quadro com
   await page.click('[data-opponent="shark"]'); await page.waitForSelector('#mesa-bot-deck');
   await page.waitForFunction(() => { const c = document.querySelector('[data-mode="full"]'); return c && !c.disabled; }, null, { timeout: 8000 });
   await page.click('[data-mode="full"]'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
-  const fimDaCena = () => page.waitForFunction(() => !document.querySelector('#tb').dataset.cena, null, { timeout: 20000 });
+  const fimDaCena = () => page.waitForFunction(() => !document.querySelector('#tb').dataset.cena && !document.querySelector('#tb').dataset.pensando, null, { timeout: 20000 });
   await fimDaCena(); await page.waitForSelector('#tb-pass');
   const M = () => page.evaluate(() => { const m = window.__estanteMesa; return { cena: m.cena(), narrado: m.narrado(), turno: m.estado().turn.number, final: m.estadoFinal().turn.number }; });
   // chega à minha vez e passa o turno: o Shark joga o turno dele
@@ -8321,7 +8326,7 @@ test('e2e · H5 ver o oponente jogar: o turno do Shark passa quadro a quadro com
     if (e.meu && await page.locator('#tb-pass-turn').count()) return; if (e.pend === 'discard') { await page.locator('#tb-hand .tb-card').first().click(); continue; }
     for (const id of ['#tb-no-block', '#tb-no-attack', '#tb-pass']) if (await page.locator(id).count()) { await page.click(id).catch(() => {}); break; } await page.waitForTimeout(80); } };
   /** Passa o turno até o Shark fazer alguma coisa. Com a mão cheia, a limpeza pede descarte antes: é o descarte que entrega o turno a ele. */
-  const passaAteCena = async () => { for (let i = 0; i < 8; i++) { await minhaVez(); await page.click('#tb-pass-turn'); await page.waitForTimeout(150);
+  const passaAteCena = async () => { for (let i = 0; i < 8; i++) { await minhaVez(); await page.click('#tb-pass-turn'); await semPensar(page); await page.waitForTimeout(150);
     if (await page.evaluate(() => { const s = window.__estanteMesa.estado(); return !!(s.pending && s.pending.kind === 'discard'); }) && !(await M()).cena) await page.locator('#tb-hand .tb-card').first().click();
     try { await page.waitForSelector('#tb[data-cena="true"] #tb-cena', { timeout: 2000 }); return; } catch (e) { /* turno sem jogada do oponente: tenta o próximo */ } } assert.fail('o Shark não jogou em oito turnos'); };
   await minhaVez();
@@ -9265,7 +9270,7 @@ test('e2e · Y2 relatar na partida: aba discreta na borda (44 px de toque, 28 à
   await page.click('[data-opponent="shark"]'); await page.waitForSelector('#mesa-bot-deck');
   await page.waitForFunction(() => { const c = document.querySelector('[data-mode="full"]'); return c && !c.disabled; }, null, { timeout: 8000 });
   await page.click('[data-mode="full"]'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
-  await page.waitForFunction(() => !document.querySelector('#tb').dataset.cena, null, { timeout: 20000 }); await page.waitForSelector('#tb-pass');
+  await page.waitForFunction(() => !document.querySelector('#tb').dataset.cena && !document.querySelector('#tb').dataset.pensando, null, { timeout: 20000 }); await page.waitForSelector('#tb-pass');
   // 1 · a aba: colada na borda direita, 44 × 56 de toque, 28 px à vista; o botão discreto das outras telas não aparece
   const geo = () => page.evaluate(() => { const b = document.querySelector('#tb-relatar').getBoundingClientRect(), a = document.querySelector('#tb-relatar .tb-relatar__aba').getBoundingClientRect();
     return { w: Math.round(b.width), h: Math.round(b.height), direita: Math.round(innerWidth - b.right), centro: Math.round(b.top + b.height / 2), visivel: Math.round(a.width) }; });
@@ -9286,7 +9291,7 @@ test('e2e · Y2 relatar na partida: aba discreta na borda (44 px de toque, 28 à
   await page.mouse.move(350, c1); await page.mouse.down(); await page.mouse.move(350, 5, { steps: 8 }); await page.mouse.up(); await page.waitForTimeout(200);
   assert.equal((await geo()).centro, Math.round(780 * 0.12), 'não sobe além do limite (a faixa do topo fica livre)');
   await page.mouse.move(350, Math.round(780 * 0.12)); await page.mouse.down(); await page.mouse.move(350, c1, { steps: 8 }); await page.mouse.up(); await page.waitForTimeout(200);
-  await page.reload(); await page.waitForSelector('#tb-relatar'); await page.waitForFunction(() => !document.querySelector('#tb').dataset.cena, null, { timeout: 20000 }); await page.waitForTimeout(300);
+  await page.reload(); await page.waitForSelector('#tb-relatar'); await page.waitForFunction(() => !document.querySelector('#tb').dataset.cena && !document.querySelector('#tb').dataset.pensando, null, { timeout: 20000 }); await page.waitForTimeout(300);
   assert.ok(Math.abs((await geo()).centro - c1) <= 2, 'posição lembrada depois de recarregar');
   // 3 · tocar abre o formulário da mesa: carimbo "Mesa", o que vai junto e a chave de anexar a partida (ligada)
   await page.click('#tb-relatar'); await page.waitForSelector('#relato-form');
@@ -15124,7 +15129,7 @@ test('e2e · MJ8 ritmo do turno: trilho acende em sequência, faixa de vez desli
   await page.click('[data-opponent="shark"]'); await page.waitForSelector('#mesa-bot-deck');
   await page.waitForFunction(() => { const c = document.querySelector('[data-mode="full"]'); return c && !c.disabled; }, null, { timeout: 8000 });
   await page.click('[data-mode="full"]'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
-  const fimDaCena = () => page.waitForFunction(() => !document.querySelector('#tb').dataset.cena, null, { timeout: 20000 });
+  const fimDaCena = () => page.waitForFunction(() => !document.querySelector('#tb').dataset.cena && !document.querySelector('#tb').dataset.pensando, null, { timeout: 20000 });
   await fimDaCena(); await page.waitForSelector('#tb-pass');
   const trilho = () => page.evaluate(() => [...document.querySelectorAll('.tb-steps__list li')].map((li, i) => ({ i, atual: li.dataset.current === 'true', acende: li.dataset.acende || null, k: li.style.getPropertyValue('--i') || null,
     fio: getComputedStyle(li, '::after').animationName, op: getComputedStyle(li, '::after').opacity, li: getComputedStyle(li).animationName })));
@@ -15425,6 +15430,62 @@ test('e2e · MJ10 espiar de patamar: a carta grande sai da carta segurada, incli
     return { espera: !!e, junto: !!(e && e.previousElementSibling && e.previousElementSibling.matches('.tb-sheet__img')), oculta: e ? getComputedStyle(e).display : null, giro: getComputedStyle(f, '::after').content, largura: Math.round(f.getBoundingClientRect().width) }; });
   assert.deepEqual([folha.espera, folha.junto, folha.oculta, folha.giro], [true, true, 'none', 'none'], 'espera do DS ao lado da imagem, some ao carregar; sem giro ' + JSON.stringify(folha));
   assert.ok(folha.largura <= 240, 'a foto mede a carta');
+  assert.deepEqual(errors, []);
+});
+
+// MJ11 (leva J-23, trilha jogabilidade) · orçamento da mesa, fatia 1: o toque que passa a prioridade contra o Shark
+// responde na hora. Antes, o turno inteiro do Shark rodava dentro do toque (J-2: ~250 ms no percentil 90, ~880 ms no pior
+// caso): a tela congelava até ele terminar. Agora o toque só aplica a sua jogada, a faixa de vez diz que o Shark está
+// pensando e cada decisão dele roda numa tarefa própria, depois do quadro seguinte. Mede, em 360×780: o tempo de
+// processamento do toque (Event Timing) e o tempo do toque até o primeiro quadro desenhado depois dele.
+test('e2e · MJ11 passar a prioridade contra o Shark responde no quadro seguinte: o toque leva menos de 50 ms, a faixa diz "Shark pensa" e a vez volta para você', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 }); // o aparelho do dono
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/mesa'); await page.fill('#mesa-seed', '1');
+  await page.waitForFunction(() => { const c = document.querySelector('[data-opponent="shark"]'); return c && !c.disabled; }, null, { timeout: 8000 });
+  await page.click('[data-opponent="shark"]'); await page.waitForSelector('#mesa-bot-deck');
+  await escolheLista(page, 'mesa-bot-deck', 'shark-elfos');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-pass, #tb-pass-turn');
+  await page.evaluate(() => {
+    const m = window.__mj11 = { toques: [], pensou: [], ev: [] };
+    // o toque: começo no capture da janela, o primeiro quadro desenhado depois dele (rAF + o fim da tarefa do quadro)
+    window.addEventListener('click', e => { const alvo = e.target.closest && e.target.closest('#tb-pass, #tb-pass-turn, #tb-no-attack, #tb-no-block');
+      if (!alvo) return; const t0 = performance.now(), reg = { id: alvo.id, t0, quadro: null };
+      m.toques.push(reg); requestAnimationFrame(() => setTimeout(() => { reg.quadro = performance.now() - t0; }, 0)); }, true);
+    new PerformanceObserver(l => { for (const e of l.getEntries()) if (e.name === 'click') m.ev.push({ t: e.startTime, proc: e.processingEnd - e.processingStart }); }).observe({ type: 'event', durationThreshold: 16 });
+    new MutationObserver(() => { const v = document.querySelector('#tb-vez'), r = v && v.querySelector('.tb-vez__rotulo');
+      if (v && v.dataset.pensando === 'true') { const txt = `${r.textContent}|${r.scrollWidth <= r.clientWidth + 1 ? 'inteiro' : 'cortado'}|${v.querySelector('.tb-vez__avatar svg') ? 'icone' : 'sem-icone'}`; if (!m.pensou.includes(txt)) m.pensou.push(txt); }
+      if (v && v.dataset.pensando === 'true') m.travada = m.travada || getComputedStyle(document.querySelector('#tb-dock')).pointerEvents; })
+      .observe(document.body, { attributes: true, subtree: true, attributeFilter: ['data-pensando'] });
+  });
+  let feitos = 0;
+  for (let i = 0; i < 60 && feitos < 14; i++) {
+    const s = await page.evaluate(() => { const M = window.__estanteMesa; if (M.cena()) M.pulaCena(); const st = M.estado();
+      return { over: st.status === 'over', turno: st.turn.number, minha: !document.querySelector('#tb-vez[data-pensando="true"]') && !M.cena() && (st.pending ? st.pending.p : st.turn.priority) === M.quemVe() && M.quemVe() === 0,
+        pend: st.pending && st.pending.p === 0 ? st.pending.kind : null }; });
+    if (s.over) break;
+    if (!s.minha) { await page.waitForTimeout(60); continue; }
+    if (s.pend === 'discard') { await page.locator('#tb-hand .tb-card').first().click(); continue; }
+    const id = await page.evaluate(() => ['#tb-no-block', '#tb-no-attack', '#tb-pass-turn', '#tb-pass'].find(x => { const b = document.querySelector(x); return b && !b.disabled; }) || null);
+    if (!id) { await page.waitForTimeout(60); continue; }
+    await page.click(id); feitos++;
+    if (process.env.SHOTS && id === '#tb-pass-turn' && feitos > 4 && !t.tirou) { t.tirou = true; await page.screenshot({ path: process.env.SHOTS + '/mj11-pensando.png' }); }
+    await page.waitForFunction(() => { const M = window.__estanteMesa, st = M.estado();
+      return st.status === 'over' || (!document.querySelector('#tb-vez[data-pensando="true"]') && (st.pending ? st.pending.p : st.turn.priority) === 0); }, null, { timeout: 20000 });
+  }
+  await page.waitForTimeout(150);
+  const m = await page.evaluate(() => ({ ...window.__mj11, turno: window.__estanteMesa.estado().turn.number }));
+  const procs = m.ev.map(e => Math.round(e.proc)), quadros = m.toques.map(x => x.quadro == null ? null : Math.round(x.quadro)), ids = m.toques.map(x => x.id.replace('tb-', ''));
+  t.diagnostic(`MJ11 · ${m.toques.length} toques até o turno ${m.turno}; processamento (ms): ${procs.join(' ')}; toque → quadro (ms): ${quadros.join(' ')}; botões: ${ids.join(' ')}; pensando: ${m.pensou.join(' | ')}`);
+  assert.ok(m.toques.length >= 8, 'a partida andou: ' + m.toques.length + ' toques');
+  assert.ok(m.turno >= 3, 'o Shark jogou os turnos dele: turno ' + m.turno);
+  assert.ok(Math.max(...procs, 0) <= 50, 'nenhum toque que passa a prioridade passa de 50 ms de processamento: ' + procs.join(' '));
+  assert.ok(quadros.every(q => q != null && q <= 100), 'o quadro seguinte ao toque sai em até 100 ms (antes: o turno inteiro do Shark): ' + quadros.join(' '));
+  assert.ok(m.pensou.length >= 1, 'a faixa de vez mostrou o Shark pensando');
+  assert.deepEqual([...new Set(m.pensou)], ['Shark pensa|inteiro|icone'], 'a faixa diz "Shark pensa", inteiro em 360 px, com o ícone dele');
+  assert.equal(m.travada, 'none', 'enquanto o Shark pensa, a bandeja não aceita toque');
   assert.deepEqual(errors, []);
 });
 

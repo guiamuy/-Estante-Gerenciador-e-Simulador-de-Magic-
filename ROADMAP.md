@@ -624,8 +624,8 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ji ✅ | MJ8 ritmo do turno: transições de fase e de vez, cena do oponente com continuidade (J-18) | MJ | 1 | 16º-jd |
 | 16º-jj ✅ | MJ9 fim de partida com peso: placar, série, últimas jogadas (J-21) | MJ | 1 | — |
 | 16º-jk ✅ | MJ10 espiar de patamar: carta grande com profundidade e brilho opcional (J-22) | MJ | 1 | 16º-jh |
-| 16º-jl | MJ11 orçamento da mesa: passar a prioridade sem tarefa longa acima de 50 ms; quadros medidos no portão | MJ | 1–2 | `mtg-scale-architect`; redesenho por `oid` (MJ3) |
-| 16º-jm | MJ12 partículas por cor de mana (só se não custar quadros) | MJ | 1 | 16º-jl |
+| 16º-jl | MJ11 orçamento da mesa: passar a prioridade sem tarefa longa acima de 50 ms; quadros medidos no portão — **MJ11a ✅ (J-23)**: o turno do Shark sai de dentro do toque; MJ11b (quadros da jogada mais pesada) a fazer | MJ | 1–2 | `mtg-scale-architect`; redesenho por `oid` (MJ3) |
+| 16º-jm | MJ12 luz da cor da mana (decisão do dono de 24/10: no lugar das partículas, que contrariam o P5 da diretriz de animação; só se não custar quadros) | MJ | 1 | 16º-jl |
 | 16º-jn ✅ | MJ8b bloqueadoras obrigatórias (pedido do `motor`, M-567/M-572): já escolhidas e marcadas, "Sem bloqueio" some, a folha só oferece os atacantes que cumprem (J-19) | MJ | 1 | M-572 publicada |
 | 16º-jo ✅ | MJ3d a carta virada voa do lugar certo (pedido da `bot`, B-175): a foto da camada de efeitos sem a margem da carta virada (J-20) | MJ | 1 | 16º-jd |
 
@@ -11111,7 +11111,26 @@ desligados com menos movimento.
 amostras):** cada toque leva 37–39 ms na mediana, ~250 ms no percentil 90 e ~880 ms no pior caso, porque o turno do
 Shark roda dentro do toque que passa a prioridade; antes e depois da MJ1a os números são iguais (soma 14,9–15,6 s).
 
-**MJ12 · Partículas por cor de mana** ○ (1 leva) — só depois da MJ11 e só se não custar quadros.
+**MJ11a · O toque responde na hora** ✅ (leva J-23, 24/10/2026) — contra o Shark, o toque que passa a prioridade (Passar,
+Passar o turno, Sem ataque, Sem bloqueio) só aplica a sua jogada e anda até a vez dele; cada decisão do Shark roda numa tarefa
+própria, depois de um quadro desenhado. Enquanto ele decide, a faixa de vez troca para o ícone dele e "Shark pensa" (o
+ícone respira devagar; com menos movimento, parado) e a mesa não aceita toque, como na cena do turno dele; no fim, a mesa
+desenha a sua jogada e as dele como antes (a cena da H5 não mudou). **Modelo da mesa:** `act(acao, { piloto: false })` e
+`pilota({ antesDoBot, umBot })` (acréscimo; `act(acao)` sem opção continua igual para o motor, o bot, o torneio e os testes;
+o gancho de teste `__estanteMesa.act` continua síncrono). **Medidas (360×780, Elfos do Shark, semente 1, 14 toques até o
+turno 12):** processamento do toque **91–1.920 ms → 1–8 ms**; do toque ao quadro seguinte **107–1.932 ms → 9–17 ms**; com a
+CPU 4×, 1–17 ms e 28–86 ms. A mesma semente chega ao mesmo turno: a partida não mudou. **Testes:** `table.unit` "MJ11" (o piloto
+em passos dá o mesmo registro e as mesmas linhas que o direto em 40 jogadas, com o relógio do Shark parado; no máximo uma
+decisão do Shark por fatia); e2e "MJ11" (processamento ≤ 50 ms e quadro ≤ 100 ms em todo toque; faixa "Shark pensa" inteira
+em 360 px com o ícone; a bandeja sem toque enquanto ele pensa). **Fora / declarado:** a decisão do Shark continua sendo uma
+tarefa longa (até 0,9 do orçamento de 400 ms, B-178) — agora fora do toque e com a mesa avisando; tirar a decisão da linha
+principal (trabalhador) é pedido à `bot`/`escala`, não desta fatia. Online e hot-seat não mudam (não há bot). A mesa não
+desenha a jogada do Shark enquanto ele pensa (o ritmo jogada a jogada continua sendo a cena da H5).
+
+**MJ11b · Quadros da jogada mais pesada** ○ (1 leva) — combate com vários atacantes e remoção global sem tarefa longa acima
+de 50 ms no desenho da mesa, medido no portão com a CPU 4× (linha de base antes das receitas do DS-K em três planos).
+
+**MJ12 · Luz da cor da mana** ○ (1 leva; decisão do dono de 24/10/2026: troca as partículas — que contrariam o P5 da diretriz de animação, "nada de partícula gratuita" — por uma varredura de luz tingida pela cor da mana, uma por evento) — só depois da MJ11 e só se não custar quadros.
 
 **Regras que valem para todo o épico:** só `transform`, `opacity` e `filter` leve em movimento; toda animação tem a
 variante de menos movimento; o próximo toque nunca espera efeito; nenhuma regra de jogo na tela (o que o motor não

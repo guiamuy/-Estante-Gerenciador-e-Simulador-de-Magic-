@@ -525,6 +525,13 @@ a { color: var(--accent); }
 .tb-cena > .ds-btn { flex: none; }
 #tb[data-cena="true"] .tb-board, #tb[data-cena="true"] .tb-top__actions, #tb[data-cena="true"] .tb-dock { pointer-events: none; }
 #tb[data-cena="true"] .tb-dock { filter: saturate(.5); }
+/* MJ11 (J-23) · o Shark pensa fora do toque: a mesa não aceita jogada até ele decidir (como na cena), a faixa diz "Shark pensa"
+   com o ícone dele, que respira devagar; com menos movimento, a faixa só diz */
+#tb[data-pensando="true"] .tb-board, #tb[data-pensando="true"] .tb-top__actions, #tb[data-pensando="true"] .tb-dock { pointer-events: none; }
+#tb[data-pensando="true"] .tb-dock { filter: saturate(.5); }
+@keyframes tb-pensa { from { opacity: 1; } to { opacity: .45; } }
+.tb-vez[data-pensando="true"] .tb-vez__avatar { animation: tb-pensa var(--dur-4) var(--ease-in-out) infinite alternate; }
+@media (prefers-reduced-motion: reduce) { .tb-vez[data-pensando="true"] .tb-vez__avatar { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .tb-cena { animation: none; } }
 /* G5 · efeitos visuais da partida. Só transform, opacity e filter (não mexem no layout); duração e curva por token.
    Com "menos movimento" as animações já são anuladas pelas regras gerais: sobra a parte parada (anel de cor e número). */
@@ -35997,9 +36004,23 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
 
   /** Goldfish mantém a mão e passa sempre. Humanos passam sozinhos onde
       não há decisão a tomar (política de paradas estilo Arena). */
-  function autopilot() {
-    const events = [];
-    for (let guard = 0; guard < 2000; guard++) {
+  /* MJ11 (J-23) · o piloto em passos: a tela pode parar antes da vez do bot (antesDoBot) e depois rodar uma decisão dele por
+     tarefa (umBot), para o toque que passa a prioridade não carregar o turno inteiro do Shark. Sem opção, roda até a vez de
+     uma pessoa, como sempre: `act(acao)` continua igual para o motor, o bot, o torneio e os testes. */
+  let guardaDoPiloto = 0, pilotoPendente = false;
+  function vezDoBot() {
+    const s = match.state;
+    if (s.status === 'over' || !robo || !options.bot || s.players[options.bot.seat].lost) return false;
+    const b = options.bot.seat;
+    return s.status === 'mulligan' ? !s.players[b].kept : s.pending ? s.pending.p === b : s.turn.priority === b;
+  }
+  function autopilot() { guardaDoPiloto = 0; return pilota().events; }
+  function pilota({ antesDoBot = false, umBot = false, ateMs = 0, agora = () => Date.now() } = {}) {
+    const events = [], t0 = ateMs > 0 ? agora() : 0;
+    let bots = 0;
+    for (; guardaDoPiloto < 2000; guardaDoPiloto++) {
+      // umBot: uma decisão do bot por chamada; com ateMs, as seguintes também entram enquanto a fatia não passa desse tempo
+      if ((antesDoBot || umBot) && vezDoBot()) { if (antesDoBot || (bots >= 1 && (ateMs <= 0 || agora() - t0 >= ateMs))) { pilotoPendente = true; return { events, fim: false }; } bots++; }
       const s = match.state;
       if (s.status === 'over') { fechaResumoDoBot(); break; }
       if (turnoDoBot != null && s.turn.number !== turnoDoBot) fechaResumoDoBot();
@@ -36075,19 +36096,21 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
       if (options.autoPass && s.status === 'playing' && !s.pending && (!shouldStop(s, s.turn.priority, paradasFixas || paradasDoAparelho) || cedidas.has(chaveDaRepeticao(s)))) { events.push(...record({ t: 'pass', p: s.turn.priority })); continue; }
       break;
     }
-    return events;
+    pilotoPendente = false;
+    return { events, fim: true };
   }
 
-  function act(action) {
+  function act(action, { piloto = true } = {}) {
     humanMarks.push(match.log.length);
     // passou a prioridade com uma habilidade do outro lado na pilha: a mesma habilidade, repetida neste turno, não para de novo
     if (action.t === 'pass' && match.state.status === 'playing') { const k = chaveDaRepeticao(match.state), topo = k && match.state.objects[match.state.stack[match.state.stack.length - 1]]; if (k && topo.controller !== action.p) cedidas.add(k); }
     const events = record(action);
+    if (!piloto) { guardaDoPiloto = 0; pilotoPendente = true; return events; } // MJ11 · a tela roda o piloto depois, com pilota()
     return events.concat(autopilot());
   }
 
   function rebuild(prefix) {
-    reset();
+    reset(); pilotoPendente = false;
     turnoDoLog = []; // H2
     if (robo && robo.esquece) robo.esquece(); // H2 · o bot não leva para o passado o que viu no futuro desfeito
     const keep = new Set(marks || []);
@@ -36106,6 +36129,11 @@ function createTable(setup, { log = [], marks = null, options: opts = {} } = {})
     get resumos() { return resumos.map(r => ({ ...r, linhas: r.linhas.slice() })); },
     setup,
     act,
+    /** MJ11 · roda o piloto parado por `act(acao, { piloto: false })`: até a vez do bot (antesDoBot) ou uma decisão do bot por
+        chamada (umBot); sem opção, até a vez de uma pessoa. Devolve os eventos e se acabou (`fim`). */
+    pilota,
+    /** MJ11 · o piloto ainda tem passos a dar (a tela não aceita jogada enquanto isso). */
+    get pilotando() { return pilotoPendente; },
     /** Quem está com o aparelho agora (perspectiva da tela). */
     viewer() {
       const s = match.state;
@@ -38891,7 +38919,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   // A14 · ação recusada: o motivo fica na mesa, numa frase, até a próxima ação
   let recusa = null;
   // gancho de teste: o portão precisa provocar uma recusa que a folha de ações nunca oferece
-  if (typeof window !== 'undefined' && window.__MTG_TEST) window.__estanteMesa = { act: a => act(a), estado: () => table && table.state, som, sentidos: () => sentidosAgora.slice(), efeitos: () => fxLog.slice(),
+  if (typeof window !== 'undefined' && window.__MTG_TEST) window.__estanteMesa = { act: a => act(a, { sincrono: true }), pensando: () => !!pensando, estado: () => table && table.state, som, sentidos: () => sentidosAgora.slice(), efeitos: () => fxLog.slice(),
     // H5 · a cena em curso (ou null), o que já foi narrado, ligar/desligar e pular
     manaManual: sim => { manaManual = !!sim; }, imagens: () => __m17.imagensRetidas(), gravado: () => gravando, cena: () => (cena ? { quadro: cena.i, total: cena.quadros.length } : null), narrado: () => cenaLog.slice(), verJogadas: sim => { verJogadas = !!sim; }, pulaCena: () => fimDaCena(), estadoFinal: () => (mesaReal || table).state,
     // Leva 121 · sonda de alcance: o que a folha de cada carta oferece, para conferir contra legalActions
@@ -39042,29 +39070,98 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     Dialog({ title: alvo ? `Pagar · ${alvo.name}` : 'Pagar', body: corpo,
       actions: [Button('Automático', { variant: 'ghost', icone: 'raio', id: 'tb-pagar-auto', title: 'O motor escolhe as fontes, como antes', onClick: () => { closeDialog(); act(action, { pago: true }); } }), pagar] });
   }
-  function act(action, { pago = false, rotulo = '' } = {}) {
-    if (cena) return false; // a mesa não aceita jogada enquanto mostra a do oponente
+  function act(action, { pago = false, rotulo = '', sincrono = false } = {}) {
+    if (cena || pensando) return false; // a mesa não aceita jogada enquanto mostra a do oponente ou enquanto ele decide
     if (!pago && manaManual && action && action.p === table.viewer()) {
       let plano = null; try { plano = T.planoDePagamento(table.state, action); } catch (e) { plano = null; }
       if (plano && plano.precisa) { abrePagamento(action, plano, rotulo); return true; }
     }
     try {
       const eu = table.viewer();
-      const events = table.act(action);
-      eventosDaJogada = events; // G4 · os efeitos da jogada ajudam a nomear o que se ouve (anulação, destruição)
-      const res = events.filter(e => e.kind === 'resolved' && e.adjudicate).pop();
-      if (res) adjudicating = { name: res.name, oid: res.oid };
-      recusa = null;
-      save(); desenhaDepoisDe(eu);
-      // Leva 136 · carta que revela e resolve sem pergunta (Winding Way): a mesa diz o que foi revelado; antes só o registro dizia
-      const rev = events.filter(e => e.kind === 'effect' && e.do === 'reveal').pop();
-      if (rev) toast(`${rev.name} revelou: ${rev.target}`, 6000);
+      // MJ11 (J-23) · contra o Shark, o toque só aplica a sua jogada e anda até a vez dele: cada decisão do Shark roda numa
+      // tarefa própria, depois do quadro seguinte (`pensa`). Antes o turno inteiro dele rodava dentro do toque (até ~2 s).
+      const emPassos = !sincrono && emPassosAgora();
+      if (emPassos) { jogaEmPassos(action, eu, evs => depoisDaJogada(eu, evs)); return true; }
+      depoisDaJogada(eu, table.act(action));
       return true;
     } catch (e) {
       recusa = T.explicaRecusa(e, action, table.state);
       toast(recusa.frase, 3600); paint();
       return false;
     }
+  }
+  function depoisDaJogada(eu, events) {
+    eventosDaJogada = events; // G4 · os efeitos da jogada ajudam a nomear o que se ouve (anulação, destruição)
+    const res = events.filter(e => e.kind === 'resolved' && e.adjudicate).pop();
+    if (res) adjudicating = { name: res.name, oid: res.oid };
+    recusa = null;
+    save(); desenhaDepoisDe(eu);
+    // Leva 136 · carta que revela e resolve sem pergunta (Winding Way): a mesa diz o que foi revelado; antes só o registro dizia
+    const rev = events.filter(e => e.kind === 'effect' && e.do === 'reveal').pop();
+    if (rev) toast(`${rev.name} revelou: ${rev.target}`, 6000);
+  }
+  /* MJ11 (J-23) · o Shark pensa fora do toque. A mesa fica como estava (a cena do turno dele continua mostrando a sua jogada
+     e as dele no fim, como antes); só a faixa de vez muda para "<nome> pensa" e a mesa deixa de aceitar toque. Cada
+     decisão do Shark roda numa tarefa própria, depois de um quadro desenhado: o toque responde no quadro seguinte e a tela
+     nunca fica presa no meio de uma decisão dele. Desfeita a jogada no meio (o piloto parou), a mesa só redesenha. */
+  let pensando = null;
+  const depoisDoQuadro = fn => { let foi = false; const vai = () => { if (foi) return; foi = true; clearTimeout(reserva); setTimeout(fn, 0); };
+    const reserva = setTimeout(vai, 80); requestAnimationFrame(vai); }; // aba escondida não desenha quadro: o relógio segue
+  const emPassosAgora = () => !sinc && typeof table.pilota === 'function' && table.options && table.options.bot;
+  /** Aplica a sua jogada e anda até a vez do Shark; se ele tiver de decidir, pensa fora do toque e chama `aoAcabar` no fim. */
+  function jogaEmPassos(action, eu, aoAcabar, antes = []) {
+    let events = antes.concat(table.act(action, { piloto: false }));
+    const r = table.pilota({ antesDoBot: true }); events = events.concat(r.events);
+    if (!r.fim) return pensa(eu, events, aoAcabar);
+    aoAcabar(events);
+  }
+  /** "Passar o turno" contra o Shark: as mesmas paradas do `passUntil` do modelo, passe a passe, cada turno dele fora do toque. */
+  function passaOTurno(v, para) {
+    let guarda = 0;
+    const acaba = events => {
+      const res = events.filter(e => e.kind === 'resolved' && e.adjudicate).pop(); if (res) adjudicating = { name: res.name, oid: res.oid };
+      save(); desenhaDepoisDe(v); // H5 · passar o turno é o caso em que o oponente mais joga
+    };
+    const um = events => {
+      const s = table.state;
+      if (guarda++ >= 400 || s.status !== 'playing' || s.pending || s.turn.priority !== v) return acaba(events);
+      const pilhaAntes = s.stack.length;
+      jogaEmPassos({ t: 'pass', p: v }, v, evs => {
+        const n = table.state;
+        if (n.stack.length > pilhaAntes || n.pending || n.status !== 'playing' || n.stack.length || (para && para(n))) return acaba(evs);
+        um(evs);
+      }, events);
+    };
+    try { um([]); } catch (e) { toast(e.message); save(); paint(); }
+  }
+  function pensa(eu, events, aoAcabar) {
+    save();
+    const bot = table.options.bot.seat, nome = ((table.state.players || [])[bot] || {}).name || 'Oponente';
+    pensando = { eu, events, mesa: table, aoAcabar };
+    root.dataset.pensando = 'true';
+    if (vezEl) { // a faixa troca de dono: o ícone do Shark e "Shark pensa" (o mesmo comprimento de "Turno Shark": cabe inteiro em 360 px)
+      vezEl.dataset.pensando = 'true'; vezEl.setAttribute('aria-busy', 'true');
+      const r = vezEl.querySelector('.tb-vez__rotulo'), av = vezEl.querySelector('.tb-vez__avatar');
+      if (r) r.textContent = `${nome} pensa`;
+      if (av) { av.dataset.foto = 'false'; av.replaceChildren(Icone('tubarao', { tamanho: 20 })); }
+    }
+    depoisDoQuadro(continuaPensando);
+  }
+  function fimDoPensar() {
+    pensando = null; delete root.dataset.pensando;
+    if (vezEl) { delete vezEl.dataset.pensando; vezEl.removeAttribute('aria-busy'); delete vezEl.dataset.assinatura; } // a faixa se refaz no próximo desenho
+  }
+  function continuaPensando() {
+    const p = pensando;
+    if (!p) return;
+    if (!root.isConnected || p.mesa !== table || !table.pilotando) { fimDoPensar(); if (root.isConnected) paint(); return; }
+    let r;
+    try { r = table.pilota({ umBot: true, ateMs: 12, agora: () => performance.now() }); } // decisões rápidas juntas; a lenta, sozinha
+    catch (e) { fimDoPensar(); toast('O oponente não conseguiu jogar. A partida segue com você.', 3600); save(); paint(); return; }
+    p.events = p.events.concat(r.events);
+    if (!r.fim) return depoisDoQuadro(continuaPensando);
+    fimDoPensar();
+    p.aoAcabar(p.events);
   }
 
   (async () => {
@@ -40145,6 +40242,8 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
           // U6b · "O que eu poderia fazer?" saiu da bandeja a pedido do usuário (espaço para a mesa)
           top ? null : IconButton('pular', 'Passar o turno', { id: 'tb-pass-turn', onClick: () => {
             const start = s.turn.number;
+            if (cena || pensando) return;
+            if (emPassosAgora()) return passaOTurno(v, n => n.turn.number !== start && n.turn.active === v && n.turn.step === 'main1'); // MJ11
             try { const ev = table.passUntil(v, n => n.turn.number !== start && n.turn.active === v && n.turn.step === 'main1');
               const res = ev.filter(e => e.kind === 'resolved' && e.adjudicate).pop(); if (res) adjudicating = { name: res.name, oid: res.oid };
             } catch (e) { toast(e.message); }
@@ -40365,6 +40464,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     abaRelatar.hidden = root.dataset.cena === 'true' || handoff;
   }
   function paint() {
+    if (pensando) return; // MJ11 · o desenho espera o Shark decidir: a mesa mostra a sua jogada e as dele juntas, no fim
     const s = table.state;
     const v = table.viewer();
     const fileiras = guardaFileiras();

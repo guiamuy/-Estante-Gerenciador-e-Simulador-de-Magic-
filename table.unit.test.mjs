@@ -788,3 +788,37 @@ test('MJ9 · J-21 · desfechoDaPartida: resultado de quem olha, motivo em palavr
   serie = T.registraJogo({ ...serie, jogo: 2 }, 0);
   assert.equal(T.desfechoDaPartida(fim, 0, { serie }).serie.titulo, 'Você venceu a série');
 });
+
+test('MJ11 · o piloto em passos dá a mesma partida: parado antes da vez do Shark e uma decisão dele por chamada', () => {
+  // o relógio do Shark parado: a decisão não depende de quanto a máquina demora, e as duas mesas decidem igual
+  const G = T.createTable.constructor('return this')(), agora = G.Date.now;
+  G.Date.now = () => 1e12;
+  try {
+    const setup = () => T.buildSetup({ format: 'livre', seed: 7, cards: CARDS, seats: [{ name: 'Você', deck }, { name: 'Shark', deck }], mode: 'full' });
+    const direto = T.createTable(setup(), { options: { autoPass: true, bot: { nivel: 'shark', seat: 1 } } });
+    const passo = T.createTable(setup(), { options: { autoPass: true, bot: { nivel: 'shark', seat: 1 } } });
+    const minha = t => { const s = t.state; if (s.status === 'mulligan') return { t: 'keep', p: 0, bottom: [] };
+      if (s.pending && s.pending.p === 0) return E.legalActions(s, 0)[0]; return { t: 'pass', p: 0 }; };
+    let parou = 0, fatias = 0;
+    for (let i = 0; i < 40 && direto.state.status !== 'over'; i++) {
+      const a = minha(direto);
+      assert.deepEqual(J(minha(passo)), J(a), 'as duas mesas pedem a mesma decisão sua');
+      direto.act(a);
+      passo.act(a, { piloto: false });
+      assert.equal(passo.pilotando, true, 'sem piloto, a jogada fica com passos a dar');
+      let r = passo.pilota({ antesDoBot: true });
+      if (!r.fim) parou++;
+      while (!r.fim) {
+        const antes = passo.log.length;
+        r = passo.pilota({ umBot: true }); fatias++;
+        assert.ok(passo.log.slice(antes).filter(x => x.p === 1).length <= 1, 'no máximo uma decisão do Shark por fatia');
+      }
+      assert.equal(passo.pilotando, false);
+      assert.deepEqual(J(passo.log), J(direto.log), `mesma partida depois da jogada ${i}`);
+    }
+    assert.deepEqual(passo.lines, direto.lines, 'o registro também é o mesmo');
+    assert.ok(parou >= 10 && fatias >= parou, `parou antes do Shark ${parou} vezes, ${fatias} fatias`);
+    // sem opção, nada muda: act roda tudo e não deixa passo pendente
+    assert.equal(direto.pilotando, false);
+  } finally { G.Date.now = agora; }
+});
