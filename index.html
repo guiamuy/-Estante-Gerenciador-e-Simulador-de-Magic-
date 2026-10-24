@@ -12828,6 +12828,7 @@ const REGISTRO = [
   ['offline.', 'aparelho', false], ['ocr.ready', 'aparelho', false], ['noticias.vista', 'aparelho', false],
   ['ui.ultimaLista', 'aparelho', false], ['collection.pending', 'aparelho', false], ['match.', 'aparelho', false],
   ['ui.entrada', 'aparelho', false], // G-274 · a porta de entrada já foi atravessada neste aparelho (com conta ou sem)
+  ['uso.compartilhar', 'aparelho', false], ['uso.envio', 'aparelho', false], ['uso.scanner', 'aparelho', false], // G-286 · uso agregado opt-in: consentimento deste aparelho, último envio e leituras do scanner
   // derivado
   ['card.', 'derivado', false], ['rulings.', 'derivado', false], ['cambio.usd', 'derivado', false], ['names.catalog', 'derivado', false],
   ['catalogo.indice', 'derivado', false], ['catalogo.lista.', 'derivado', false], ['catalogo.fichas', 'derivado', false],
@@ -14335,6 +14336,85 @@ return { createNomeDeUsuario, normalizaNomeDeUsuario, erroDoNome, MOTIVO_NOME, N
   caminhos, codifica, decodifica, paraRemoto, doRemoto, oQueSobe, createPerfilRemoto, createFilaDeRelatos, createSincronia, relatoDaFila, REMOTO_KIND, REMOTO_VERSION, RELATO_KIND, RELATO_VERSION, VALOR_MAX, RELATO_MAX };
 })();
 
+/* ==== src/data/uso.js ==== */
+const __m43 = (function () {
+/* =====================================================================
+   G-286 · BI2-2b · USO AGREGADO OPT-IN (decisão do dono, 24/10/2026: "C · uso opt-in")
+   Quem quiser compartilha NÚMEROS de uso para o painel do dono: quantas listas, quantas cartas (distintas) e cópias
+   na coleção e quantas cartas o scanner já leu neste aparelho. Nada com nome de carta, de lista ou de pessoa.
+   · Desligado por padrão; a chave fica em Perfil › Dados › O que sai do aparelho e é deste aparelho (classe
+     aparelho: fora do backup e do perfil sincronizado).
+   · Só sai com a conta da Estante conectada: `uso/<uid>/<dia UTC>` = { kind: 'estante.uso', version: 1, em, listas,
+     cartas, copias, scanner, app }, uma vez por dia (regravado se mudar no mesmo dia). O fluxo Pessoas (I-299) soma
+     tudo em totais por dia; o painel nunca vê um uid.
+   · Desligar apaga `uso/<uid>` no banco (lido de volta para conferir: só a própria conta lê os próprios números; ninguém
+     mais lê pelo app); Apagar tudo com nuvem e Excluir a conta também apagam.
+   Tudo recebe o transporte e o relógio por parâmetro (memória nos testes, Firebase por REST no aparelho).
+   ===================================================================== */
+const USO_KIND = 'estante.uso', USO_VERSION = 1;
+const CHAVE_OPT = 'uso.compartilhar', CHAVE_ENVIO = 'uso.envio', CHAVE_SCANNER = 'uso.scanner';
+const UID_OK = /^[A-Za-z0-9_-]{1,128}$/;
+const diaDe = ms => new Date(ms).toISOString().slice(0, 10);
+const inteiro = v => { const n = Math.floor(Number(v)); return Number.isFinite(n) && n >= 0 ? n : 0; };
+/** Puro. Conta o que o aparelho tem, a partir das chaves que as telas já usam. `lidas` é o contador do scanner. */
+function contaUso({ ids = [], items = [], lidas = 0 } = {}) {
+  const listas = Array.isArray(ids) ? ids.length : 0;
+  const vivos = Array.isArray(items) ? items.filter(it => it && Number(it.qty) > 0) : [];
+  return { listas, cartas: vivos.length, copias: vivos.reduce((s, it) => s + inteiro(it.qty), 0), scanner: inteiro(lidas) };
+}
+/** Puro. O registro que vai para o banco: só os campos da regra, inteiros e sem nada de texto além do carimbo do app. */
+function registroDeUso(conta, { agora = Date.now(), app = '' } = {}) {
+  const r = { kind: USO_KIND, version: USO_VERSION, em: agora, listas: inteiro(conta.listas), cartas: inteiro(conta.cartas), copias: inteiro(conta.copias), scanner: inteiro(conta.scanner) };
+  const a = String(app || '').slice(0, 40); if (a) r.app = a;
+  return r;
+}
+const mesmoUso = (a, b) => !!a && !!b && ['listas', 'cartas', 'copias', 'scanner'].every(k => a[k] === b[k]);
+/** O que o app liga: `store` (chaves acima), `remotoDe()` → { transporte, uid } ou null (sem conta ou sem banco),
+    `le()` → { ids, items } (listas e coleção, lidos na hora), `app()` → carimbo da versão publicada. */
+function createUso({ store, remotoDe = () => null, le = async () => ({}), agora = () => Date.now(), app = () => '' }) {
+  let enviando = null;
+  const ligado = async () => { try { const v = await store.get(CHAVE_OPT); return !!(v && v.ligado); } catch (e) { return false; } };
+  const ultimo = async () => { try { return (await store.get(CHAVE_ENVIO)) || null; } catch (e) { return null; } };
+  const lidas = async () => { try { return inteiro(await store.get(CHAVE_SCANNER)); } catch (e) { return 0; } };
+  async function monta() { const d = await le(); return contaUso({ ...d, lidas: await lidas() }); }
+  /** Envia se a chave está ligada, há conta e (o dia mudou ou os números mudaram). Devolve o que fez. */
+  async function enviaSePrecisa({ forcar = false } = {}) {
+    if (enviando) return enviando;
+    enviando = (async () => {
+      if (!(await ligado())) return { feito: 'desligado' };
+      const r = remotoDe(); if (!r || !UID_OK.test(String(r.uid || ''))) return { feito: 'sem-conta' };
+      const conta = await monta(), hoje = diaDe(agora()), ant = await ultimo();
+      if (!forcar && ant && ant.dia === hoje && mesmoUso(ant, conta)) return { feito: 'ja-enviado', dia: hoje };
+      const reg = registroDeUso(conta, { agora: agora(), app: app() });
+      try { await r.transporte.escrever(`uso/${r.uid}/${hoje}`, reg); } catch (e) { return { feito: 'falhou', motivo: e && e.message || 'erro' }; }
+      try { await store.set(CHAVE_ENVIO, { dia: hoje, em: reg.em, ...conta }); } catch (e) { /* sem disco: envia de novo na próxima */ }
+      return { feito: 'enviado', dia: hoje, registro: reg };
+    })();
+    try { return await enviando; } finally { enviando = null; }
+  }
+  /** Apaga tudo o que esta conta mandou (`uso/<uid>`). Devolve true se não sobrou nada. */
+  async function apagarDaNuvem() {
+    const r = remotoDe(); if (!r || !UID_OK.test(String(r.uid || ''))) return true;
+    try { await r.transporte.escrever(`uso/${r.uid}`, null); } catch (e) { return false; }
+    try { return (await r.transporte.ler(`uso/${r.uid}`)) === null; } catch (e) { return false; }
+  }
+  return {
+    CHAVE_OPT, CHAVE_ENVIO, CHAVE_SCANNER,
+    ligado, ultimo, monta, enviaSePrecisa, apagarDaNuvem,
+    /** Liga ou desliga a chave. Ligar envia agora; desligar apaga o que já foi e esquece o último envio. */
+    async liga(v) {
+      await store.set(CHAVE_OPT, { ligado: !!v, em: agora() });
+      if (v) return enviaSePrecisa({ forcar: true });
+      const apagou = await apagarDaNuvem(); try { await store.remove(CHAVE_ENVIO); } catch (e) { /* sem disco */ }
+      return { feito: apagou ? 'apagado' : 'desligado-sem-apagar' };
+    },
+    /** O scanner leu (e registrou) `n` cartas a mais. */
+    async contaLeitura(n = 1) { try { await store.set(CHAVE_SCANNER, (await lidas()) + inteiro(n)); } catch (e) { /* sem disco */ } }
+  };
+}
+return { USO_KIND, USO_VERSION, CHAVE_OPT, CHAVE_ENVIO, CHAVE_SCANNER, contaUso, registroDeUso, createUso, diaDe };
+})();
+
 /* ==== src/data/etiquetas.js ==== */
 const __m32 = (function () {
 /* =====================================================================
@@ -15449,7 +15529,7 @@ const __m41 = (function () {
    (meta Content-Security-Policy no <head>) libera: o contrato `seguranca.saida.unit` confere as duas — serviço novo
    entra aqui E na política, na mesma leva. Texto fixo do código; a tela é estática e funciona sem internet.
    ===================================================================== */
-const { h, Stack, Row, Surface, Text, Badge, Icone, IconButton } = __m3;
+const { h, Stack, Row, Surface, Text, Badge, Icone, IconButton, Chave, toast } = __m3;
 const go = to => { location.hash = '#' + to; };
 /** `liga`: diz se o serviço está em uso neste app (configuração vazia = desligado). */
 const DESTINOS = [
@@ -15490,7 +15570,35 @@ const LINKS = [
 ];
 const ORIGENS = [...DESTINOS, ...LINKS].flatMap(d => d.origens);
 
-function createSaidaScreen({ config = {} } = {}) {
+/** G-286 · BI2-2b · o cartão do uso agregado opt-in: a chave (desligada por padrão), o que vai, quando e como evitar,
+    e o último envio. `uso` é o `createUso` do app; `conectada()` diz se a conta da Estante está no ar. */
+const TEXTO_USO = {
+  vai: 'Só números: quantas listas você tem, quantas cartas e cópias na coleção e quantas cartas o scanner já leu neste aparelho. Nenhum nome de carta, de lista ou de pessoa. No painel do dono eles aparecem somados entre todos, nunca por pessoa.',
+  quando: 'Uma vez por dia, ao abrir o app com a conta da Estante conectada, enquanto a chave estiver ligada.',
+  evitar: 'Deixe a chave desligada (é o padrão). Desligar apaga o que já foi; Apagar tudo com "Apagar também da nuvem" e Excluir a conta também apagam.'
+};
+function cartaoDeUso({ uso, conectada }) {
+  const estado = h('p', { class: 'saida-linha', id: 'saida-uso-estado' }, 'Lendo…');
+  const quando = ms => { const d = new Date(ms); const hoje = new Date(); const mesmoDia = d.toDateString() === hoje.toDateString(); return (mesmoDia ? 'hoje às ' : d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) + ' às ') + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }); };
+  const pinta = async () => {
+    const lig = await uso.ligado(), ult = await uso.ultimo(), con = conectada();
+    chave.setAttribute('aria-checked', String(lig)); chave.disabled = !con && !lig; chave.dataset.conta = con ? 'sim' : 'nao';
+    estado.textContent = !con ? 'Precisa da conta da Estante conectada (Perfil › Conta).' : !lig ? 'Desligado: nada sai.' : ult && ult.em ? `Último envio: ${quando(ult.em)} · ${ult.listas} listas · ${ult.cartas} cartas (${ult.copias} cópias) · ${ult.scanner} lidas pelo scanner.` : 'Ligado: o primeiro envio vai na próxima abertura com internet.';
+  };
+  const chave = Chave('Compartilhar números de uso', { id: 'saida-uso-chave', detalhe: 'Desligado por padrão. Só com a conta da Estante.', onMuda: async nova => {
+    chave.disabled = true;
+    try { const r = await uso.liga(nova); if (nova) toast(r.feito === 'enviado' ? 'Números de uso enviados' : r.feito === 'falhou' ? 'Ligado; o envio vai na próxima vez com internet' : 'Ligado'); else toast(r.feito === 'apagado' ? 'Desligado; o que já foi saiu do banco' : 'Desligado; sem internet para apagar agora'); }
+    catch (e) { toast('Não deu para mudar agora'); }
+    await pinta();
+  } });
+  const linha = (rotulo, texto) => h('p', { class: 'saida-linha' }, h('b', {}, rotulo + ' '), texto);
+  const el = Surface({ class: 'ds-surface--pad saida-item', id: 'saida-uso', dataset: { destino: 'uso' } }, Stack({ style: { gap: 'var(--space-2)' } },
+    h('div', { class: 'saida-item__cabeca' }, h('span', { class: 'saida-item__selo' }, Icone('painel', { tamanho: 20 })), h('h2', { class: 'saida-item__nome' }, 'Números de uso (opcional)')),
+    chave, estado, linha('Vai:', TEXTO_USO.vai), linha('Quando:', TEXTO_USO.quando), linha('Para evitar:', TEXTO_USO.evitar)));
+  pinta().catch(() => { estado.textContent = 'Não deu para ler a chave agora.'; });
+  return el;
+}
+function createSaidaScreen({ config = {}, uso = null, conectada = () => false } = {}) {
   const ligado = d => !d.liga || !!config[d.liga];
   const linha = (rotulo, texto) => h('p', { class: 'saida-linha' }, h('b', {}, rotulo + ' '), texto);
   const cartao = (d, link) => Surface({ class: 'ds-surface--pad saida-item', id: 'saida-' + d.id, dataset: { destino: d.id, estado: link ? 'link' : (ligado(d) ? 'ligado' : 'desligado') } }, Stack({ style: { gap: 'var(--space-2)' } },
@@ -15505,6 +15613,8 @@ function createSaidaScreen({ config = {} } = {}) {
     Row({ class: 'ds-row--wrap' }, IconButton('voltar', 'Voltar ao perfil', { id: 'saida-voltar', variant: 'ghost', onClick: () => go('/perfil') }), Text('O que sai do aparelho', { size: '2xl', display: true, as: 'h1' })),
     Text('Suas listas, coleção, perfil e partidas ficam neste aparelho. Estes são os únicos serviços com que o app conversa, o que vai para cada um, quando, e como evitar.', { size: 'sm', tone: 'muted' }),
     h('div', { class: 'saida-lista', id: 'saida-destinos' }, ...DESTINOS.map(d => cartao(d, false))),
+    uso && config.firebase ? Text('Você escolhe', { size: 'lg', display: true, as: 'h2' }) : null,
+    uso && config.firebase ? h('div', { class: 'saida-lista', id: 'saida-opcionais' }, cartaoDeUso({ uso, conectada })) : null,
     Text('Links que o app só abre', { size: 'lg', display: true, as: 'h2' }),
     h('div', { class: 'saida-lista', id: 'saida-links' }, ...LINKS.map(d => cartao(d, true))));
 }
@@ -15652,7 +15762,7 @@ function createApoioScreen({ dados = APOIO, regiao = regiaoDoAparelho(), copiar 
     h('div', { class: 'apoio-lista', id: 'apoio-outras' }, ...outras.map(f => cartao(f, false))),
     Text('O app não guarda nem envia nada sobre a sua doação: o pagamento acontece no seu banco ou no site da plataforma.', { size: 'xs', tone: 'muted', attrs: { id: 'apoio-privacidade' } }));
 }
-return { DESTINOS, LINKS, ORIGENS, createSaidaScreen, apagaTudoDoAparelho, apagaTudoComNuvem, APOIO, regiaoProvavel, ordemDoApoio, crc16, pixCopiaECola, apoioPronto, acaoDaForma, origensDoApoio, createApoioScreen };
+return { DESTINOS, LINKS, ORIGENS, TEXTO_USO, createSaidaScreen, apagaTudoDoAparelho, apagaTudoComNuvem, APOIO, regiaoProvavel, ordemDoApoio, crc16, pixCopiaECola, apoioPronto, acaoDaForma, origensDoApoio, createApoioScreen };
 })();
 
 /* ==== src/app/relatos.js ==== */
@@ -40160,7 +40270,10 @@ function createLot({ store }) {
       } : {};
       if (cur) Object.assign(cur, extra, { qty: cur.qty + qty });
       else items.push({ key, name, qty, ...extra, ...(printing && printing.set ? { set: printing.set, number: printing.number || '', set_name: printing.set_name || '', id: printing.id || '', verified: !!printing.verified } : {}) });
-      history.push(key); await persist(); return key;
+      history.push(key); await persist();
+      // G-286 · uso agregado opt-in: o aparelho conta quantas cartas o scanner registrou (só o número; só sai com a chave ligada)
+      store.get('uso.scanner').then(n => store.set('uso.scanner', (Number(n) || 0) + Math.max(1, qty | 0))).catch(() => {});
+      return key;
     },
     /** Leva 109 · edição e miniatura chegam depois do aceite, em segundo plano: atualiza o item sem mexer
      * em quantidade, confiança nem marca de conferência; com edição, a chave muda (e funde com igual). */
@@ -42048,13 +42161,20 @@ const sincronia = __m40.createSincronia({
   aoDescer: async r => { await theme.init(); etiquetas.recarrega(); await som.init(); if (r.pessoaDesceu) document.dispatchEvent(new CustomEvent('estante:perfil')); }
 });
 conta.sincronia = sincronia;
-// G-269 · T6f-5b · excluir a conta: o que a conta tem na nuvem sai antes (perfil, foto, bloqueados, nome de usuário)
+/* G-286 · BI2-2b · uso agregado opt-in: com a chave ligada (Perfil › Dados › O que sai do aparelho) e a conta da Estante
+   conectada, o aparelho envia uma vez por dia só contagens (listas, cartas, cópias, leituras do scanner). */
+const uso = __m43.createUso({ store: platform.store,
+  remotoDe: () => { if (online.modo !== 'firebase' || conta.estante().estado !== 'conectada') return null; const uid = conta.sessao.uid(); return uid ? { transporte: online.transporte, uid } : null; },
+  le: async () => { const [ids, items] = await Promise.all([platform.store.get('deck.__ids').catch(() => []), platform.store.get('collection.items').catch(() => [])]); return { ids: ids || [], items: items || [] }; },
+  app: () => { try { const d = new Date(document.lastModified); return isNaN(d) ? '' : d.toISOString().slice(0, 10); } catch (e) { return ''; } } });
+conta.uso = uso;
+// G-269 · T6f-5b · excluir a conta: o que a conta tem na nuvem sai antes (perfil, foto, bloqueados, nome de usuário, números de uso)
 conta.limpaNuvem = async () => {
   try { sincronia.para(); } catch (e) { /* sem sincronia */ }
   if (online.modo !== 'firebase') return true; // sem banco ligado, a conta não guardou nada nele
   const uid = conta.sessao.uid(); if (!uid) return false;
   const nu = __m40.createNomeDeUsuario({ transporte: online.transporte, uid });
-  return !!(await nu.liberar() && await __m40.createPerfilRemoto({ transporte: online.transporte, uid }).apagarTudo() && await online.bloqueios.apagarDaNuvem());
+  return !!(await nu.liberar() && await __m40.createPerfilRemoto({ transporte: online.transporte, uid }).apagarTudo() && await online.bloqueios.apagarDaNuvem() && await uso.apagarDaNuvem());
 };
 // G-266 · T6f-3 · nome de usuário único: com a conta da Estante conectada e o banco ligado
 conta.nomeDeUsuario = () => { if (online.modo !== 'firebase' || conta.estante().estado !== 'conectada') return null; const uid = conta.sessao.uid(); return uid ? __m40.createNomeDeUsuario({ transporte: online.transporte, uid }) : null; };
@@ -42083,11 +42203,11 @@ aoPreferencia = () => sincronia.mudou();
   for (const nome of ['criarComEmail', 'entrarComEmail']) { const fn = conta[nome].bind(conta); conta[nome] = async (...a) => { const r = await fn(...a); if (conta.estante().estado === 'conectada') { await conta.espelhaNome(); sincronia.agora(); } return r; }; }
   conta.sair = async (...a) => { sincronia.para(); const r = await sair(...a); await conta.espelhaNome(); return r; };
 }
-conta.pronta.then(async () => { await conta.espelhaNome(); await sincronia.agora(); await conta.espelhaNome(); }); // G-281 · o @ antes e depois do encontro
+conta.pronta.then(async () => { await conta.espelhaNome(); await sincronia.agora(); await conta.espelhaNome(); uso.enviaSePrecisa().catch(() => {}); }); // G-281 · o @ antes e depois do encontro · G-286 · os números de uso, se a chave está ligada
 if (typeof window !== 'undefined' && window.addEventListener) {
-  window.addEventListener('online', () => sincronia.agora());
+  window.addEventListener('online', () => { sincronia.agora(); uso.enviaSePrecisa().catch(() => {}); });
   let ultimaVolta = Date.now();
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState !== 'visible' || Date.now() - ultimaVolta < 60000) return; ultimaVolta = Date.now(); sincronia.agora(); });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState !== 'visible' || Date.now() - ultimaVolta < 60000) return; ultimaVolta = Date.now(); sincronia.agora(); uso.enviaSePrecisa().catch(() => {}); });
 }
 // leva 163 · cotação do dólar: guardada no aparelho, buscada com a rede do navegador
 __m31.padrao.configura({ store: platform.store, fetch: typeof fetch !== 'undefined' ? fetch.bind(globalThis) : null });
@@ -42123,7 +42243,7 @@ const ROUTES = [
   { path: '/noticias/guardadas', title: 'Guardadas', render: () => __m37.createGuardadasScreen({ noticias, share: platform.share }) }, // N4
   { path: '/perfil/partidas', title: 'Partidas', render: () => createPartidasScreen({ partidas }) }, // I5
   { path: '/perfil/apoiar', title: 'Apoiar a Estante', render: () => __m41.createApoioScreen() }, // P-20 · MON1 (com dados de exemplo: só por este endereço, como prévia)
-  { path: '/perfil/saida', title: 'O que sai do aparelho', render: () => __m41.createSaidaScreen({ config: { google: !!((typeof window !== 'undefined' && window.__GOOGLE_CLIENT_ID) || GOOGLE_CLIENT_ID), firebase: !!((typeof window !== 'undefined' && window.__FIREBASE_DB_URL) || FIREBASE_DB_URL) } }) }, // P-6 · SEG5
+  { path: '/perfil/saida', title: 'O que sai do aparelho', render: () => __m41.createSaidaScreen({ config: { google: !!((typeof window !== 'undefined' && window.__GOOGLE_CLIENT_ID) || GOOGLE_CLIENT_ID), firebase: !!((typeof window !== 'undefined' && window.__FIREBASE_DB_URL) || FIREBASE_DB_URL) }, uso, conectada: () => { try { return online.modo === 'firebase' && conta.estante().estado === 'conectada' && !!conta.sessao.uid(); } catch (e) { return false; } } }) }, // P-6 · SEG5 · G-286 · a chave do uso opt-in
   { path: '/perfil/relatos', title: 'Relatos', render: () => __m38.createRelatosScreen({ relatos, share: platform.share, files: platform.files, fila: envioPelaFila, // T6e-2
     // Y3 · abrir a partida anexada: entra no lugar da salva (sem a parte online) e a série em curso sai
     partidas: { temSalva: async () => { try { const d = await platform.store.get(__m18.SAVE_KEY); return !!(d && d.kind === 'estante.match'); } catch (e) { return false; } },
@@ -42131,7 +42251,7 @@ const ROUTES = [
   { path: '/perfil', title: 'Perfil', render: () => createPerfilScreen({ perfil, backup, conta, bloqueios: online.bloqueios, nuvemConectada: () => { try { return online.modo === 'firebase' && conta.estante().estado === 'conectada' && !!conta.sessao.uid(); } catch (e) { return false; } }, aoSair: () => voltaAPorta(),
     apagar: (o = {}) => __m41.apagaTudoComNuvem({ nuvem: o.nuvem ? async () => { // P-13 · nuvem primeiro, com a conta ainda conectada; falhou: a sincronia volta
       try { sincronia.para(); } catch (e) { /* sem sincronia */ }
-      let ok = false; try { const uid = conta.sessao.uid(); ok = !!uid && await __m40.createPerfilRemoto({ transporte: online.transporte, uid }).apagarTudo() && await online.bloqueios.apagarDaNuvem(); /* P-15 · a lista de bloqueados sai junto */ } catch (e) { ok = false; }
+      let ok = false; try { const uid = conta.sessao.uid(); ok = !!uid && await __m40.createPerfilRemoto({ transporte: online.transporte, uid }).apagarTudo() && await online.bloqueios.apagarDaNuvem() && await uso.apagarDaNuvem(); /* P-15 · a lista de bloqueados sai junto · G-286 · os números de uso também */ } catch (e) { ok = false; }
       if (!ok) { try { sincronia.agora(); } catch (e) { /* sem sincronia */ } }
       return ok; } : null, antes: async () => { try { sincronia.para(); } catch (e) { /* sem sincronia */ } await Promise.race([conta.sair().catch(() => {}), new Promise(r => setTimeout(r, 2000))]); }, store: platform.store, caches: typeof caches !== 'undefined' ? caches : null, sessao: (() => { try { return sessionStorage; } catch (e) { return null; } })(), local: (() => { try { return localStorage; } catch (e) { return null; } })() }), haptics: platform.haptics, theme, som, fichas, partidas, terrenos, relatos, apresentacao: () => mostraApresentacao(),
     // D5 · Dados: base local de cartas (antes na tela Cartas), espaço e proteção (o mesmo do painel da tela inicial)

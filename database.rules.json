@@ -255,6 +255,42 @@
           ".validate": false
         }
       }
+    },
+    "uso": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid",
+        "$dia": {
+          ".validate": "$dia.matches(/^20[0-9][0-9]-[0-1][0-9]-[0-3][0-9]$/) && newData.hasChildren(['kind', 'version', 'em', 'listas', 'cartas', 'copias', 'scanner']) && newData.child('kind').val() === 'estante.uso' && newData.child('version').val() === 1",
+          "kind": {
+            ".validate": "newData.isString()"
+          },
+          "version": {
+            ".validate": "newData.isNumber()"
+          },
+          "em": {
+            ".validate": "newData.isNumber() && newData.val() >= 0"
+          },
+          "listas": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000"
+          },
+          "cartas": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000"
+          },
+          "copias": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000"
+          },
+          "scanner": {
+            ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 10000000"
+          },
+          "app": {
+            ".validate": "newData.isString() && newData.val().length <= 40"
+          },
+          "$outro": {
+            ".validate": false
+          }
+        }
+      }
     }
   }
 }

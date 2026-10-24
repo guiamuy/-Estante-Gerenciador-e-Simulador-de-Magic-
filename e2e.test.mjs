@@ -4243,6 +4243,76 @@ test('e2e · P-6 O que sai do aparelho: do Perfil (Dados) abre a lista dos servi
   assert.deepEqual(errors, []);
 });
 
+test('e2e · G-286 números de uso opt-in: sem banco o cartão não existe; com a conta conectada a chave nasce desligada, ligar envia só contagens com o token, reabrir não reenvia no mesmo dia, desligar apaga no banco; sem conta a chave fica desligada', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  // sem banco ligado (o padrão dos testes): a tela não oferece a chave
+  await page.goto(base + '#/perfil/saida'); await page.waitForSelector('#saida-destinos');
+  assert.equal(await page.locator('#saida-uso').count(), 0, 'sem banco, sem chave');
+  // banco falso (com o token conferido) e conta da Estante por e-mail, como no A-263
+  const banco = {}; const pedidos = [];
+  await page.route('https://teste.firebaseio.com/**', async r => {
+    const u = new URL(r.request().url()), seg = u.pathname.replace(/\.json$/, '').split('/').filter(Boolean), metodo = r.request().method();
+    const corpo = r.request().postData() ? JSON.parse(r.request().postData()) : null;
+    pedidos.push({ metodo, caminho: '/' + seg.join('/'), token: u.searchParams.get('auth'), corpo });
+    if (u.searchParams.get('auth') !== 'id-e2e') return r.fulfill({ status: 401, json: { error: 'Permission denied' } });
+    const desce = () => seg.reduce((o, k) => (o && typeof o === 'object' ? o[k] : undefined), banco);
+    const poe = (caminho, v) => { let o = banco; for (const k of caminho.slice(0, -1)) o = o[k] = o[k] && typeof o[k] === 'object' ? o[k] : {}; if (v === null) delete o[caminho.at(-1)]; else o[caminho.at(-1)] = v; };
+    if (metodo === 'PUT') poe(seg, corpo);
+    if (metodo === 'PATCH') for (const [k, v] of Object.entries(corpo)) poe([...seg, ...k.split('/')], v);
+    if (metodo === 'DELETE') poe(seg, null);
+    return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(metodo === 'GET' ? (desce() ?? null) : corpo) });
+  });
+  await page.addInitScript(() => {
+    window.__FIREBASE_DB_URL = 'https://teste.firebaseio.com'; window.__GOOGLE_CLIENT_ID = 'e2e.apps.googleusercontent.com'; window.__FIREBASE_API_KEY = 'chave-e2e';
+    const ok = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } });
+    window.__FIREBASE_FETCH = async (url, init) => {
+      const corpo = url.includes('securetoken') ? init.body : JSON.parse(init.body);
+      if (url.includes('securetoken')) return ok({ id_token: 'id-e2e', refresh_token: 'ref-uso-e2e', expires_in: '3600', user_id: 'uidUso_1' });
+      if (url.includes('accounts:signUp')) return ok({ localId: 'uidUso_1', email: corpo.email, idToken: 'id-e2e', refreshToken: 'ref-uso-e2e', expiresIn: '3600' });
+      return ok({ error: { message: 'NOT_FOUND' } }, 404);
+    };
+    window.EventSource = class { constructor() {} addEventListener() {} close() {} };
+  });
+  // duas listas e uma coleção com cópias, para os números não serem zero
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-saida');
+  await page.evaluate(() => new Promise((res, rej) => { const r = indexedDB.open('mtg', 1); r.onsuccess = () => { const tx = r.result.transaction('kv', 'readwrite'); const kv = tx.objectStore('kv');
+    kv.put(['l1', 'l2'], 'deck.__ids'); kv.put([{ key: 'a', name: 'Sol Ring', qty: 3 }, { key: 'b', name: 'Counterspell', qty: 1 }], 'collection.items'); tx.oncomplete = () => { r.result.close(); res(); }; tx.onerror = rej; }; r.onerror = rej; }));
+  // 1 · sem conta: o cartão existe, a chave nasce desligada e sem conta não liga
+  await page.goto(base + '#/perfil/saida'); await page.reload(); await page.waitForSelector('#saida-uso-estado:not(:empty)');
+  await page.waitForFunction(() => /Precisa da conta/.test(document.querySelector('#saida-uso-estado').textContent));
+  assert.equal(await page.getAttribute('#saida-uso-chave', 'aria-checked'), 'false', 'desligada por padrão');
+  assert.equal(await page.getAttribute('#saida-uso-chave', 'disabled'), '', 'sem conta a chave não liga');
+  assert.match(await page.innerText('#saida-uso'), /Só números[\s\S]*Nenhum nome de carta[\s\S]*Uma vez por dia[\s\S]*Desligar apaga o que já foi/);
+  assert.ok((await page.locator('#saida-uso-chave').boundingBox()).height >= 44, 'chave com 44 px');
+  // 2 · com a conta da Estante conectada (e-mail): a chave liga, o envio vai com o token e só com contagens
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#conta-email-abrir:not([disabled])');
+  await page.click('#conta-email-abrir'); await page.waitForSelector('#conta-email-campo');
+  await page.click('#conta-email-modo [data-modo="criar"]'); await page.fill('#conta-email-campo', 'uso@exemplo.com'); await page.fill('#conta-senha', 'senha-certa-1');
+  await page.click('#conta-email-confirmar'); await page.waitForSelector('#conta-sair', { timeout: 10000 });
+  assert.equal(pedidos.filter(p => p.caminho.startsWith('/uso/')).length, 0, 'com a chave desligada, nada de uso sai ao conectar');
+  await page.goto(base + '#/perfil/saida'); await page.waitForSelector('#saida-uso-chave:not([disabled])');
+  await page.waitForFunction(() => /Desligado: nada sai/.test(document.querySelector('#saida-uso-estado').textContent));
+  await page.click('#saida-uso-chave');
+  await page.waitForFunction(() => /Último envio: hoje às \d\d:\d\d · 2 listas · 2 cartas \(4 cópias\)/.test(document.querySelector('#saida-uso-estado').textContent));
+  assert.equal(await page.getAttribute('#saida-uso-chave', 'aria-checked'), 'true');
+  const envios = pedidos.filter(p => p.metodo === 'PUT' && /^\/uso\/uidUso_1\/\d{4}-\d{2}-\d{2}$/.test(p.caminho));
+  assert.equal(envios.length, 1, 'um envio: ' + JSON.stringify(pedidos.filter(p => p.caminho.startsWith('/uso/'))));
+  assert.equal(envios[0].token, 'id-e2e', 'com o token da conta');
+  assert.deepEqual(Object.keys(envios[0].corpo).sort(), ['app', 'cartas', 'copias', 'em', 'kind', 'listas', 'scanner', 'version'], 'só os campos da regra');
+  assert.deepEqual([envios[0].corpo.listas, envios[0].corpo.cartas, envios[0].corpo.copias, envios[0].corpo.scanner], [2, 2, 4, 0]);
+  assert.ok(!JSON.stringify(envios[0].corpo).includes('Sol Ring') && !JSON.stringify(envios[0].corpo).includes('exemplo.com'), 'nada de nome ou e-mail');
+  await emTodasAsMedidas(page, 'o que sai do aparelho · números de uso');
+  // 3 · reabrir no mesmo dia com os mesmos números não reenvia
+  const antes = pedidos.length; await page.reload(); await page.waitForSelector('#saida-uso-chave[aria-checked="true"]'); await page.waitForTimeout(800);
+  assert.equal(pedidos.slice(antes).filter(p => p.metodo === 'PUT' && p.caminho.startsWith('/uso/')).length, 0, 'mesmo dia: nada reenviado');
+  // 4 · desligar apaga o que a conta mandou e volta a "nada sai"
+  await page.click('#saida-uso-chave'); await page.waitForFunction(() => /Desligado: nada sai/.test(document.querySelector('#saida-uso-estado').textContent));
+  assert.equal(banco.uso && banco.uso.uidUso_1 ? Object.keys(banco.uso.uidUso_1).length : 0, 0, 'apagado no banco: ' + JSON.stringify(banco.uso || null));
+  assert.ok(pedidos.some(p => (p.metodo === 'PUT' && p.caminho === '/uso/uidUso_1' && p.corpo === null) || (p.metodo === 'DELETE' && p.caminho === '/uso/uidUso_1')), 'o nó inteiro da conta foi apagado');
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · leva 113 modo único: lista 100% joga no motor completo; lista com carta sem regra não joga e a tela diz qual; cores só do deck principal', { skip }, async t => {
   const { page, errors, base } = await open(t, { dev: false });
   await createDeck(page, base, 'Coberta', '30 Island\n30 Counterspell\n\nSideboard\n4 Lightning Bolt', 'livre');

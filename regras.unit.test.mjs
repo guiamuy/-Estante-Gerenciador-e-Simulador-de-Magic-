@@ -11,7 +11,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadModules, ROOT } from './_load.mjs';
 
-const { remoto: R, perfil: PF, online: O } = loadModules();
+const { remoto: R, perfil: PF, online: O, uso: U } = loadModules();
 const TEXTO = readFileSync(join(ROOT, 'database.rules.json'), 'utf8');
 const REGRAS = JSON.parse(TEXTO).rules;
 
@@ -125,7 +125,7 @@ const docLocal = (preferencias, { nome = 'Ana', avatar = null, em = 10 } = {}) =
 /* ---------- o arquivo ---------- */
 test('P-4 · regras: JSON válido, raiz fechada, só caminhos conhecidos no primeiro nível', () => {
   assert.equal(REGRAS['.read'], false); assert.equal(REGRAS['.write'], false);
-  assert.deepEqual(Object.keys(REGRAS).filter(k => !k.startsWith('.')).sort(), ['bloqueios', 'painel', 'perfis', 'relatos', 'salas', 'usuarios']); // G-266 · usuarios: a reserva do nome de usuário · R-13 · painel: o campo do plano do Painel Estante (só o dono)
+  assert.deepEqual(Object.keys(REGRAS).filter(k => !k.startsWith('.')).sort(), ['bloqueios', 'painel', 'perfis', 'relatos', 'salas', 'uso', 'usuarios']); // G-266 · usuarios: a reserva do nome de usuário · R-13 · painel: o campo do plano do Painel Estante (só o dono)
 });
 
 test('P-4 · regras: expressões regulares só no subconjunto que o Firebase aceita (sem chaves, âncora só nas pontas)', () => {
@@ -456,4 +456,35 @@ test('G-269 · excluir a conta: soltar o nome de usuário sob as regras (a reser
   assert.equal(await daAna.liberar(), true);
   assert.equal(b.dados(), null, 'o banco ficou vazio');
   assert.deepEqual({ ...(await R.createNomeDeUsuario({ transporte: transporte(b, BETO), uid: BETO.uid }).reservar('ana')) }, { nome: 'ana', mudou: true });
+});
+
+test('G-286 · uso opt-in: só a própria conta escreve e lê os números do dia, forma e tetos conferidos; desligar apaga tudo o que a conta mandou', async () => {
+  const b = bancoComRegras();
+  const store = new Map(); const st = { get: async k => store.has(k) ? store.get(k) : null, set: async (k, v) => { store.set(k, v); }, remove: async k => { store.delete(k); } };
+  const le = async () => ({ ids: ['a', 'b'], items: [{ qty: 4 }, { qty: 0 }, { qty: 1 }] });
+  const daAna = U.createUso({ store: st, remotoDe: () => ({ transporte: transporte(b, ANA), uid: ANA.uid }), le, agora: () => Date.parse('2026-10-24T10:00:00Z'), app: () => '2026-10-24' });
+  assert.equal((await daAna.enviaSePrecisa()).feito, 'desligado', 'desligado por padrão: nada sai');
+  await daAna.contaLeitura(3);
+  const r = await daAna.liga(true);
+  assert.equal(r.feito, 'enviado'); assert.equal(r.dia, '2026-10-24');
+  assert.equal(JSON.stringify(b.dados().uso[ANA.uid]['2026-10-24']), JSON.stringify({ kind: 'estante.uso', version: 1, em: Date.parse('2026-10-24T10:00:00Z'), listas: 2, cartas: 2, copias: 5, scanner: 3, app: '2026-10-24' }), 'só contagens no banco');
+  assert.equal(JSON.stringify(await daAna.enviaSePrecisa()), JSON.stringify({ feito: 'ja-enviado', dia: '2026-10-24' }), 'mesmo dia e mesmos números: não reenvia');
+  await daAna.contaLeitura(1); assert.equal((await daAna.enviaSePrecisa()).feito, 'enviado', 'mudou o número: regrava o dia');
+  assert.equal(b.dados().uso[ANA.uid]['2026-10-24'].scanner, 4);
+  await recusa(transporte(b, BETO).ler(`uso/${ANA.uid}/2026-10-24`), 'outra conta lendo'); await recusa(transporte(b, null).ler(`uso/${ANA.uid}`), 'sem conta lendo'); assert.equal((await transporte(b, ANA).ler(`uso/${ANA.uid}/2026-10-24`)).listas, 2, 'a própria conta lê os próprios números (é como o envio confere)');
+  await recusa(transporte(b, BETO).escrever(`uso/${ANA.uid}/2026-10-24`, { kind: 'estante.uso', version: 1, em: 1, listas: 0, cartas: 0, copias: 0, scanner: 0 }), 'outra conta escrevendo');
+  await recusa(transporte(b, null).escrever(`uso/${ANA.uid}/2026-10-24`, { kind: 'estante.uso', version: 1, em: 1, listas: 0, cartas: 0, copias: 0, scanner: 0 }), 'sem conta');
+  const tA = transporte(b, ANA), base = { kind: 'estante.uso', version: 1, em: 1, listas: 0, cartas: 0, copias: 0, scanner: 0 };
+  await recusa(tA.escrever(`uso/${ANA.uid}/hoje`, base), 'dia fora do formato');
+  await recusa(tA.escrever(`uso/${ANA.uid}/2026-10-24`, { ...base, nome: 'x' }), 'campo a mais (texto)');
+  await recusa(tA.escrever(`uso/${ANA.uid}/2026-10-24`, { ...base, listas: -1 }), 'número negativo');
+  await recusa(tA.escrever(`uso/${ANA.uid}/2026-10-24`, { ...base, listas: 'muitas' }), 'texto onde vai número');
+  await recusa(tA.escrever(`uso/${ANA.uid}/2026-10-24`, { ...base, app: 'x'.repeat(41) }), 'carimbo do app acima de 40');
+  await recusa(tA.escrever(`uso/${ANA.uid}/2026-10-24`, { ...base, kind: 'outro' }), 'kind errado');
+  assert.equal((await daAna.liga(false)).feito, 'apagado', 'desligar apaga o que a conta mandou');
+  assert.equal(b.dados(), null, 'o banco ficou vazio'); assert.equal(await daAna.ultimo(), null);
+  // sem conta: a chave ligada não manda nada e desligar não falha
+  const semConta = U.createUso({ store: st, remotoDe: () => null, le });
+  await semConta.liga(true); assert.equal((await semConta.enviaSePrecisa()).feito, 'sem-conta');
+  assert.equal((await semConta.liga(false)).feito, 'apagado');
 });
