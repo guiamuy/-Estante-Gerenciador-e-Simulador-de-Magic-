@@ -12243,7 +12243,7 @@ prevista no fim para medir quadros no Galaxy S e corrigir o que o portão pegar.
 | F0.1 ✅ G-287 | tokens, receitas, contenção | tokens `--bg-elev-0`, `--accent-hi`, `--accent-lo`, `--sheen`, `--ease-spring`, `--dur-abertura`, `--escalona` nos três blocos e por acento; seção **Receitas de animação** no `/ds` (dez receitas com plano · luz · curva · etapas · reduzido; sete são contrato da `jogabilidade`); guarda de **contenção de texto** no `auditaTela`; selo, chip, aba e botão sem quebra por CSS | contrato visual DS-K (AA dos pares novos, trio por acento, receitas completas, keyframes usados); e2e "DS-K" e `auditaTela` em todas as telas |
 | F0.2 ✅ G-288 | fontes self-hosted | Cormorant Garamond 600 e Figtree 400/600 em `woff2` ao lado do `index.html`, cache no `sw.js` (região `armazem`, com a `mtg-data-architect`), `font-display: swap`, pilha de sistema como reserva | peso ≤ 120 KB; sem rede o texto aparece; contrato visual: `--font-display`/`--font-ui` apontam para as novas |
 | F1 ✅ (F1.1 G-289 · F1.2 G-290 · F1.3 G-291 · F1.4 G-292) | componentes | primário e Jogar em latão metálico com varredura ao confirmar; cartão de destaque em ébano; marca em latão; folha, diálogo e aviso pelas receitas; estados completos (repouso, pressionado, selecionado, carregando, desabilitado) iguais entre botão, chip, aba, linha e selo | `/ds` nos dois temas; contrato visual por componente; e2e com `auditaTela` |
-| F2 (F2.1 ✅ G-293 · F2.2 ✅ G-294 · F2.3 ✅ G-295) | telas de gestão | Início com abertura (receita) e cartão Continuar em ébano; Lista, Coleção, Scanner com a hierarquia da direção K; grade 360 = 16 + 328 + 16 e cabeçalho 44 · 1fr · 44 | capturas antes e depois (360×780, 390×844, dois temas); `auditaTela`; pixels medidos |
+| F2 (F2.1 ✅ G-293 · F2.2 ✅ G-294 · F2.3 ✅ G-295 · F2.4 ✅ G-296) | telas de gestão | Início com abertura (receita) e cartão Continuar em ébano; Lista, Coleção, Scanner com a hierarquia da direção K; grade 360 = 16 + 328 + 16 e cabeçalho 44 · 1fr · 44 | capturas antes e depois (360×780, 390×844, dois temas); `auditaTela`; pixels medidos |
 | F3 | mesa como layout | barra e bandeja em ébano; tokens novos disponíveis para a `jogabilidade` desenhar as receitas da mesa em `#tb-fx` | pixels de campo em 360×780 (não perde); contrato visual |
 | FA | leva de ajuste | medir quadros no aparelho (CPU 4×) nas receitas e na mesa cheia; remedir AA do que a F1/F2 tocou; corrigir o que o portão e o aparelho mostrarem | teste de orçamento; capturas |
 
@@ -12254,8 +12254,18 @@ prevista no fim para medir quadros no Galaxy S e corrigir o que o portão pegar.
 | F2.1 | ao abrir o app, o ícone se monta em três planos, com luz e mola | a abertura segue a receita "abertura"; parada com menos movimento | ✅ G-293 |
 | F2.2 | todas as telas de gestão alinham nas mesmas margens e o título fica no centro | cabeçalho 44 · 1fr · 44 e gutter de 16 px em Listas, Lista, Coleção e Scanner, medidos em 360 e 390 | ✅ G-294 |
 | F2.3 | o topo da lista vira cartão de ébano, nome em Cormorant e contagens em latão | resumo da lista em destaque; `auditaTela` nos dois temas | ✅ G-295 |
-| F2.4 | o painel de valor e os filtros da coleção ganham a mesma hierarquia | painel em destaque; chips com os estados da F1.2 | a fazer |
+| F2.4 | o painel de valor e os filtros da coleção ganham a mesma hierarquia | painel em destaque; chips com os estados da F1.2 | ✅ G-296 |
 | F2.5 | a pilha conferida e o botão de foto do scanner ficam no padrão K | doca de latão, pilha em ébano; vazio, carregando e erro | a fazer |
+
+**F2.4 · Painel da Coleção em ébano** ✅ (leva G-296, 24/10/2026)
+- **Valor:** o Painel da Coleção (contagens, valor, distribuições) vira a peça funda da tela — ébano com filete de
+  latão, selo do bloco em latão, as três contagens em placas um degrau acima — aberto ou fechado.
+- **Entregue:** `Expansivel` aceita `classe` (sem mudar o resto); `#col-dash-bloco` com `ds-destaque`;
+  `.ds-destaque .ds-expansivel__selo` em latão; `.ds-destaque .col-dash__tile` em `--bg-elev-1`; o valor em destaque
+  (22 px, não é texto grande) usa `--accent-lo` sobre o ébano (o `--accent` dava 4,29:1 no claro — o teste pegou).
+  Os chips de filtro já seguem os estados da F1.2.
+- **Testes:** contrato visual +1; e2e "DS-K F2.4" (ébano e filete aberto e fechado, selo em latão, varredura de AA em
+  todo texto do Painel contra o fundo real, `auditaTela`, dois temas); G3 e leva 160 seguem verdes.
 
 **F2.3 · Topo da Lista em ébano** ✅ (leva G-295, 24/10/2026)
 - **Valor:** ao abrir uma lista, o topo é a peça funda da tela: nome em Cormorant, formato num selo de latão, contagens

@@ -15801,6 +15801,44 @@ test('e2e · DS-K F2.3 · o topo da Lista é o cartão de ébano: nome em Cormor
   assert.deepEqual(errors, []);
 });
 
+test('e2e · DS-K F2.4 · o Painel da Coleção é o cartão de ébano (aberto e fechado), com o selo em latão, as contagens em placas e todo texto em AA, nos dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.route('https://api.scryfall.com/cards/collection', r => { const ids = JSON.parse(r.request().postData()).identifiers;
+    return r.fulfill({ json: { data: ids.map(i => DB[i.name.toLowerCase()]).filter(Boolean), not_found: [] } }); });
+  await page.goto(base + '#/colecao'); await page.waitForSelector('#col-vazio');
+  await page.click('#col-import'); await page.waitForSelector('#col-import-text'); await page.fill('#col-import-text', '3 Island\n2 Counterspell\n1 Sol Ring');
+  await page.click('#col-import-check'); await page.waitForSelector('#col-import-run'); await page.click('#col-import-run'); await page.waitForSelector('.col-row[data-name="Sol Ring"]');
+  await page.waitForSelector('#col-dash-bloco');
+  const mede = () => page.evaluate(() => {
+    const cv = document.createElement('canvas'); cv.width = cv.height = 1; const cx = cv.getContext('2d');
+    const rgb = c => { cx.clearRect(0, 0, 1, 1); cx.fillStyle = c; cx.fillRect(0, 0, 1, 1); return [...cx.getImageData(0, 0, 1, 1).data].slice(0, 3); };
+    const lum = c => rgb(c).map(x => x / 255).map(x => x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4).reduce((a, x, i) => a + x * [0.2126, 0.7152, 0.0722][i], 0);
+    const r = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+    const fundoDe = el => { for (let p = el; p; p = p.parentElement) { const b = getComputedStyle(p).backgroundColor; if (b && b !== 'rgba(0, 0, 0, 0)' && b !== 'transparent') return b; } return 'white'; };
+    const bloco = document.querySelector('#col-dash-bloco'), cs = getComputedStyle(bloco);
+    const ruins = []; const w = document.createTreeWalker(bloco, NodeFilter.SHOW_TEXT);
+    while (w.nextNode()) { const el = w.currentNode.parentElement; if (!w.currentNode.textContent.trim() || el.closest('svg') || el.getBoundingClientRect().width <= 1) continue; const k = r(getComputedStyle(el).color, fundoDe(el)); if (k < 4.5) ruins.push(`${w.currentNode.textContent.trim().slice(0, 20)} ${k.toFixed(2)}`); }
+    const probe = document.createElement('span'); probe.style.color = getComputedStyle(document.documentElement).getPropertyValue('--bg-elev-0'); document.body.appendChild(probe); const funda = getComputedStyle(probe).color; probe.remove();
+    return { ebano: cs.backgroundColor === funda, filete: /linear-gradient\(90deg/.test(cs.backgroundImage), selo: getComputedStyle(bloco.querySelector('.ds-expansivel__selo')).backgroundImage, ruins };
+  });
+  for (const tema of ['dark', 'light']) {
+    await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(450);
+    for (const estado of ['fechado', 'aberto']) {
+      const aberto = await page.getAttribute('#col-dash-toggle', 'aria-expanded') === 'true';
+      if ((estado === 'aberto') !== aberto) { await page.click('#col-dash-toggle'); await page.waitForTimeout(300); }
+      const m = await mede();
+      assert.equal(m.ebano, true, `Painel em ébano (${tema}, ${estado})`); assert.equal(m.filete, true, `filete (${tema}, ${estado})`);
+      assert.match(m.selo, /linear-gradient\(160deg/, `selo em latão (${tema})`);
+      assert.deepEqual(m.ruins, [], `texto em AA no Painel (${tema}, ${estado})`);
+      await auditaTela(page, `DS-K F2.4 · Painel ${estado} (${tema})`);
+      if (process.env.SHOTS && estado === 'aberto') await page.locator('#col-dash-bloco').screenshot({ path: process.env.SHOTS + `/ds-k-f24-painel-${tema}.png` });
+    }
+  }
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · DS-K F2.1 · a abertura monta o ícone em três planos (luz acende, ladrilho gira em 3D com mola, sombra assenta), passa a varredura e revela o nome; com menos movimento tudo já no lugar', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.setViewportSize({ width: 360, height: 780 });

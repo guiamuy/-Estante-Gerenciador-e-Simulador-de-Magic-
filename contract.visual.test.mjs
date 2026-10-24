@@ -517,6 +517,15 @@ test('DS-K · F2.3 o topo da Lista é o destaque em ébano (nome, formato em lat
   for (const [nome, t] of [['escuro', DARK], ['claro', LIGHT]]) assert.ok(ratio(t['--accent-lo'], t['--bg-elev-0']) >= 4.5, `--accent-lo sobre --bg-elev-0 (${nome}): ${ratio(t['--accent-lo'], t['--bg-elev-0']).toFixed(2)}`);
 });
 
+/* ---------------- DS-K (G-296) · F2.4 Painel da Coleção em ébano ---------------- */
+test('DS-K · F2.4 o Painel da Coleção é o destaque em ébano: Expansivel aceita classe, o selo do bloco é latão e as placas ficam um degrau acima do ébano', () => {
+  assert.match(HTML, /function Expansivel\(\{ titulo, icone, aberto = true, onToggle, id, toggleId, resumo = '', classe = '' \}/);
+  assert.match(HTML, /id: 'col-dash-bloco', toggleId: 'col-dash-toggle', classe: 'ds-destaque'/);
+  assert.match(componentCss, /\.ds-destaque \.ds-expansivel__selo \{[^}]*linear-gradient\(160deg, var\(--accent-hi\), var\(--accent\) 55%, var\(--accent-lo\)\)/);
+  assert.match(componentCss, /\.ds-destaque \.col-dash__tile \{ background: var\(--bg-elev-1\);/);
+  assert.match(componentCss, /\.ds-destaque \.ds-valor--destaque \.ds-valor__principal \{ color: var\(--accent-lo\); \}/, 'valor em destaque legível sobre o ébano');
+});
+
 /* ---------------- DS-K (G-292) · F1.4 folha, diálogo e aviso pela receita ---------------- */
 test('DS-K · F1.4 diálogo e aviso seguem a receita "folha": véu com vinheta, a folha sobe com mola e a sombra assenta (só por token); o aviso sobe com mola e sai reto', () => {
   assert.match(componentCss, /\.ds-overlay \{ background-image: radial-gradient\(ellipse 120% 90% at 50% 42%, transparent 38%, var\(--overlay\)\); \}/, 'véu com vinheta');
