@@ -2088,6 +2088,7 @@ body[data-mesa-cheia="true"] .tb-steps__list li { padding: 0 0 1px; border-botto
 .tb-pill--icone[data-marca="ataca"] { color: var(--negative); border-color: var(--negative); }
 .tb-pill--icone[data-marca="bloqueia"] { color: var(--accent); border-color: var(--accent); }
 .tb-pill--icone[data-marca="alvo"] { color: var(--warning); border-color: var(--warning); }
+.tb-pill--icone[data-marca="obrigada"] { color: var(--accent); border-color: var(--accent); } /* J-19 · dourado bloqueia: a criatura que precisa bloquear */
 .tb-pill--icone[data-marca="anexo"], .tb-pill--icone[data-marca="encantada"] { color: var(--accent); }
 .tb-card__sick { position: absolute; top: 2px; left: 50%; transform: translateX(-50%); font-size: var(--text-xs); line-height: 1.2; padding: 0 var(--space-1); border-radius: var(--radius-full); background: var(--bg-elev-3); color: var(--fg-muted); border: 1px solid var(--border); }
 
@@ -35552,6 +35553,8 @@ function estadoDaCarta(s, o, plano = null) {
   const anexos = s.zones.flatMap(z => z.battlefield).filter(x => s.objects[x].attachedTo === o.oid);
   if (anexos.length) marcas.push({ k: 'encantada', texto: anexos.length === 1 ? `com ${s.objects[anexos[0]].name.split(',')[0]}` : `+${anexos.length} anexadas`, icone: 'anexo', qtd: anexos.length, rotulo: `Com ${nomes(anexos)}` });
   if (plano && plano.blocks && plano.blocks.has(o.oid)) { const alvo = s.objects[plano.blocks.get(o.oid)]; marcas.push({ k: 'bloqueia', texto: `→ ${alvo ? alvo.name.split(',')[0] : '?'}`, icone: 'escudo', rotulo: alvo ? `Bloqueia ${alvo.name}` : 'Bloqueando' }); anel = 'bloqueia'; }
+  // J-19 · M-567/M-572 · 509.1c: um efeito obriga esta criatura a bloquear (a mesa a escolhe de antemão; a folha só oferece quem cumpre)
+  if (plano && plano.obrigadas && plano.obrigadas.has(o.oid)) marcas.push({ k: 'obrigada', texto: 'precisa bloquear', icone: 'alerta', rotulo: 'Precisa bloquear: um efeito obriga' });
   if (plano && plano.attack && plano.attack.has(o.oid)) anel = 'ataca';
   for (const [k, v] of Object.entries(o.counters || {})) { if (!v) continue; marcas.push({ k: 'marcador', texto: k === 'p1p1' ? `+${v}/+${v}` : k === 'm1m1' ? `−${v}/−${v}` : k === 'loyalty' ? `lealdade ${v}` : k === 'age' ? `idade ${v}` : `${k} ${v}` }); }
   if ((o.counters || {}).lore) { const m = marcas.find(x => x.k === 'marcador' && x.texto === `lore ${o.counters.lore}`); if (m) { m.texto = 'capítulo ' + (['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'][o.counters.lore] || o.counters.lore); m.rotulo = `${o.counters.lore} marcador(es) de saga`; } } // T-1 · CR 714 · a Saga diz em que capítulo está
@@ -38396,14 +38399,22 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   };
 
   /* ---- A6 · declaração de ataque e bloqueio ---- */
-  const plan = { attack: new Set(), blocks: new Map(), eligible: new Set(), alvoPw: null };
-  function resetPlan() { plan.attack = new Set(); plan.blocks = new Map(); plan.eligible = new Set(); plan.alvoPw = null; } // M-228 · alvoPw: planeswalker que os atacantes escolhidos vão atacar
+  const plan = { attack: new Set(), blocks: new Map(), eligible: new Set(), alvoPw: null, obrigadas: new Set(), preenchido: null };
+  function resetPlan() { plan.attack = new Set(); plan.blocks = new Map(); plan.eligible = new Set(); plan.alvoPw = null; plan.obrigadas = new Set(); plan.preenchido = null; } // M-228 · alvoPw: planeswalker que os atacantes escolhidos vão atacar · J-19 · obrigadas a bloquear
   function syncPlan(s, v) {
     const k = s.pending && s.pending.p === v ? s.pending.kind : null;
     if (k === 'attackers') plan.eligible = new Set(E.eligibleAttackers(s, v));
-    else if (k === 'blockers') plan.eligible = new Set(E.eligibleBlockers(s, v));
-    else resetPlan();
+    else if (k === 'blockers') {
+      plan.eligible = new Set(E.eligibleBlockers(s, v));
+      // J-19 · M-567/M-572 · 509.1c: quem um efeito obriga a bloquear entra na declaração já escolhida (como a provocada no ataque), no
+      // atacante que o motor sugere; a pessoa pode trocar o atacante, nunca tirá-la. Uma vez por declaração.
+      plan.obrigadas = new Set((E.bloqueiosObrigatoriosM ? E.bloqueiosObrigatoriosM(s, v) : []).map(String));
+      const chave = `${s.turn.number}:${((s.combat || {}).attackers || []).join(',')}`;
+      if (plan.obrigadas.size && plan.preenchido !== chave) { plan.preenchido = chave; if (!plan.blocks.size) for (const [b, a] of E.completaBloqueiosM(s, v, [])) plan.blocks.set(String(b), a); }
+    } else resetPlan();
   }
+  /** J-19 · a declaração cumpre a exigência: cada obrigada bloqueia um atacante que o motor aceita para ela (o mesmo critério do handler `block`). */
+  const cumpreObrigadas = (s, v, blocks) => [...plan.obrigadas].every(b => { const par = blocks.find(([x]) => String(x) === b); return !!par && E.completaBloqueiosM(s, v, [par]).some(([x, y]) => String(x) === b && y === par[1]); });
   /** Durante a declaração, tocar numa criatura escolhe em vez de abrir a folha. */
   function onBoardTap(oid) {
     const s = table.state, v = table.viewer();
@@ -38422,10 +38433,13 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     }
     if (!plan.eligible.has(oid)) return false;
     if (s.pending.kind === 'attackers') { plan.attack.has(oid) ? plan.attack.delete(oid) : plan.attack.add(oid); paint(); return true; }
-    const attackers = s.combat.attackers.filter(a => s.objects[a].zone === 'battlefield' && E.canBlock(s, oid, a));
+    // J-19 · a obrigada só vê os atacantes que cumprem a exigência e não tem "Não bloquear"
+    const obrigada = plan.obrigadas.has(String(oid));
+    const attackers = s.combat.attackers.filter(a => s.objects[a].zone === 'battlefield' && E.canBlock(s, oid, a) && (!obrigada || E.completaBloqueiosM(s, v, [[oid, a]]).some(([x, y]) => x === oid && y === a)));
     Dialog({ title: `Bloquear com ${s.objects[oid].name}`, body: attackers.length ? h('div', { class: 'tb-sheet__actions' },
+      obrigada ? Text('Um efeito obriga esta criatura a bloquear: escolha qual atacante.', { size: 'sm', tone: 'muted', attrs: { id: 'tb-obrigada-nota' } }) : null,
       ...attackers.map(a => Button(`Bloquear ${s.objects[a].name}`, { block: true, onClick: () => { plan.blocks.set(oid, a); closeDialog(); paint(); } })),
-      plan.blocks.has(oid) ? Button('Não bloquear', { block: true, variant: 'ghost', onClick: () => { plan.blocks.delete(oid); closeDialog(); paint(); } }) : null)
+      plan.blocks.has(oid) && !obrigada ? Button('Não bloquear', { block: true, variant: 'ghost', onClick: () => { plan.blocks.delete(oid); closeDialog(); paint(); } }) : null)
       : Text('Não pode bloquear nenhum atacante (voar).', { tone: 'muted' }), actions: [Button('Fechar', { onClick: closeDialog })] });
     return true;
   }
@@ -39082,9 +39096,13 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       const dp = T.descrevePrevia(s, pv, v);
       // A16 · a mesma prévia do ataque, agora com os bloqueios escolhidos, vida resultante e mortos dos dois lados
       const hint = dp ? `Prévia: ${dp.texto}.${pv.life[v] < 0 && s.players[v].life + pv.life[v] <= 0 ? ' Você morre assim.' : ''}` : 'Bloqueio inválido (ameaça pede dois bloqueadores).';
-      banner = PriorityBanner({ title: 'Declarar bloqueadores', hint: 'Toque nas suas criaturas para escolher quem bloqueiam. ' + hint, tone: 'warning',
-        actions: [Button(blocks.length ? `Bloquear (${blocks.length})` : 'Confirmar', { variant: 'primary', id: 'tb-block', disabled: !blocks.length || !pv, onClick: () => { resetPlan(); act({ t: 'block', p: v, blocks }); } }),
-          Button('Sem bloqueio', { id: 'tb-no-block', onClick: () => { resetPlan(); act({ t: 'block', p: v, blocks: [] }); } })] });
+      // J-19 · M-567/M-572 · 509.1c: com exigência, "Sem bloqueio" sai, a dica diz quem precisa bloquear e Bloquear espera a exigência cumprida
+      const obrigadas = [...plan.obrigadas], cumpre = !obrigadas.length || cumpreObrigadas(s, v, blocks);
+      const quem = obrigadas.map(oid => nameOf(s, oid)).join(', '), plural = obrigadas.length > 1;
+      const exige = !obrigadas.length ? '' : cumpre ? `${quem} ${plural ? 'precisam' : 'precisa'} bloquear (um efeito obriga). ` : `${quem} ${plural ? 'precisam' : 'precisa'} bloquear um atacante que ${plural ? 'possam' : 'possa'}: toque ${plural ? 'nelas' : 'nela'} e escolha. `;
+      banner = PriorityBanner({ title: 'Declarar bloqueadores', hint: exige + 'Toque nas suas criaturas para escolher quem bloqueiam. ' + hint, tone: 'warning',
+        actions: [Button(blocks.length ? `Bloquear (${blocks.length})` : 'Confirmar', { variant: 'primary', id: 'tb-block', disabled: !blocks.length || !pv || !cumpre, onClick: () => { resetPlan(); act({ t: 'block', p: v, blocks }); } }),
+          obrigadas.length ? null : Button('Sem bloqueio', { id: 'tb-no-block', onClick: () => { resetPlan(); act({ t: 'block', p: v, blocks: [] }); } })].filter(Boolean) });
     } else if (s.pending && s.pending.kind === 'madness' && s.pending.p === v) {
       const carta = s.objects[s.pending.oid];
       const opts = E.legalActions(s, v).filter(x => x.t === 'cast_madness');

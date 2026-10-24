@@ -751,3 +751,13 @@ test('T4 · Aura que torna 1/1 e tira as habilidades: P/T abaixo e voar perdida 
   assert.deepEqual(J([est.mod.p, est.mod.t, est.mod.perdidas, est.mod.ganhas]), ['menos', null, ['flying'], []]);
   assert.deepEqual(J(est.marcas.filter(x => x.k === 'perdeu')), [{ k: 'perdeu', texto: 'voar', rotulo: 'Perdeu voar' }]);
 });
+
+test('J-19 · M-567/M-572 · a criatura obrigada a bloquear ganha o selo "precisa bloquear" (ícone do DS, rótulo falado); sem o campo no plano, nada muda', () => {
+  const s = mesa([{ name: 'Wall Guard' }, { name: 'Sky Pike' }]);
+  const plano = { attack: new Set(), blocks: new Map(), obrigadas: new Set(['o0']) };
+  const muro = T.estadoDaCarta(s, s.objects.o0, plano), sel = muro.marcas.find(m => m.k === 'obrigada');
+  assert.ok(sel, 'selo da obrigada'); assert.equal(sel.icone, 'alerta'); assert.match(sel.rotulo, /Precisa bloquear/);
+  assert.equal(T.estadoDaCarta(s, s.objects.o1, plano).marcas.some(m => m.k === 'obrigada'), false, 'a outra não');
+  assert.equal(T.estadoDaCarta(s, s.objects.o0, { attack: new Set(), blocks: new Map() }).marcas.some(m => m.k === 'obrigada'), false, 'plano sem `obrigadas` (contrato antigo): igual a antes');
+  assert.equal(T.estadoDaCarta(s, s.objects.o0).marcas.some(m => m.k === 'obrigada'), false, 'sem plano: igual a antes');
+});

@@ -14884,3 +14884,84 @@ test('e2e · MJ8 ritmo do turno: trilho acende em sequência, faixa de vez desli
   const dur = await page.$eval('#tb-vez', el => getComputedStyle(el).animationDuration); assert.ok(/^0(\.0+)?1?ms|0s|0\.00001s/.test(dur) || parseFloat(dur) < 0.01, 'menos movimento: a faixa não desliza (' + dur + ')');
   assert.deepEqual(errors, []);
 });
+
+// J-19 (trilha jogabilidade) · pedido do motor (M-567/M-572, 509.1c): quando um efeito obriga uma criatura sua a bloquear, a declaração
+// abre com ela já escolhida e marcada ("precisa bloquear"), "Sem bloqueio" some, a folha dela só oferece os atacantes que cumprem
+// (sem "Não bloquear"), e o motor aceita a declaração. Academic Dispute com o texto da Scryfall (.listas/oficiais-revisadas.json, 22/10/2026).
+test('e2e · J-19 bloqueadora obrigatória: já escolhida e marcada, sem "Sem bloqueio", folha só com atacantes que cumprem, motor aceita', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  const AD = JSON.parse(readFileSync(join(ROOT, '.listas/oficiais-revisadas.json'), 'utf8')).cartas.find(x => x.name === 'Academic Dispute');
+  await comOficiais(page, ['Academic Dispute'], { extras: [AD] });
+  await page.setViewportSize({ width: 360, height: 780 }); // o aparelho do dono
+  await createDeck(page, base, 'Disputa', '20 Mountain\n10 Grizzly Bear\n10 Wall Guard\n4 Academic Dispute', 'livre');
+  await page.goto(base + '#/mesa');
+  await page.click('[data-opponent="hotseat"]');
+  await page.fill('#mesa-me', 'Ana'); await page.fill('#mesa-them', 'Bia'); await page.fill('#mesa-seed', '4');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep');
+  await page.click('#tb-keep'); await reveal(page); await page.click('#tb-keep'); await reveal(page);
+  // mesa assistida: dois ursos para quem joga, dois muros para o outro; dois turnos depois, na principal 1, a Disputa obriga o primeiro muro
+  const c = await page.evaluate(() => {
+    const M = window.__estanteMesa; const s = M.estado(), p = s.turn.active, d = 1 - p;
+    const pega = (dono, nm, n) => Object.values(s.objects).filter(o => o.owner === dono && o.name === nm && o.zone !== 'battlefield').slice(0, n).map(o => o.oid);
+    const ursos = pega(p, 'Grizzly Bear', 2), muros = pega(d, 'Wall Guard', 2), [ad] = pega(p, 'Academic Dispute', 1);
+    for (const oid of ursos) M.act({ t: 'move', p, oid, to: 'battlefield' });
+    for (const oid of muros) M.act({ t: 'move', p, oid, to: 'battlefield' }); // a mesa assistida move pelo dono da prioridade (holder)
+    M.act({ t: 'move', p, oid: ad, to: 'hand' });
+    const t0 = M.estado().turn.number, anda = fim => { for (let i = 0; i < 120; i++) { const e = M.estado(), pd = e.pending; if (fim(e)) return true;
+      if (pd && pd.kind === 'attackers') M.act({ t: 'attack', p: pd.p, attackers: [] });
+      else if (pd && pd.kind === 'blockers') M.act({ t: 'block', p: pd.p, blocks: [] });
+      else if (pd && pd.kind === 'discard') M.act({ t: 'discard', p: pd.p, oid: e.zones[pd.p].hand.find(o => o !== ad) || e.zones[pd.p].hand[0] });
+      else if (pd && pd.kind === 'may_pay') M.act({ t: 'decline', p: pd.p });
+      else if (pd) M.act(M.legais()[0]);
+      else M.act({ t: 'pass', p: e.turn.priority }); } return false; };
+    const chegou = anda(e => e.turn.active === p && e.turn.number >= t0 + 2 && e.turn.step === 'main1' && !e.pending && !e.stack.length && e.turn.priority === p);
+    M.act({ t: 'cast', p, oid: ad, targets: [{ oid: muros[0] }], free: true });
+    anda(e => !e.stack.length && !e.pending);
+    const marcado = M.estado().objects[muros[0]].bloqueiaSePuderM === M.estado().turn.number;
+    anda(e => e.pending && e.pending.kind === 'attackers' && e.pending.p === p);
+    return { p, d, ursos: ursos.map(String), muros: muros.map(String), ad: String(ad), marcado, zonaAd: M.estado().objects[ad].zone, chegou, campoD: M.estado().zones[d].battlefield.length };
+  });
+  assert.equal(c.marcado, true, 'a Disputa resolveu e marcou o muro ' + JSON.stringify(c)); assert.equal(c.zonaAd, 'graveyard');
+  await reveal(page); await page.waitForSelector('#tb-attack');
+  for (const u of c.ursos) { await page.click(`.tb-side--me .tb-card[data-oid="${u}"]`); await page.waitForTimeout(450); }
+  await page.click('#tb-attack'); await reveal(page); await page.waitForSelector('#tb-block');
+  // 1 · a declaração abre com o muro obrigado já escolhido e marcado; "Sem bloqueio" não existe; Bloquear já vale
+  const d1 = await page.evaluate(([m0, m1]) => { const carta = oid => document.querySelector(`.tb-side--me .tb-card[data-oid="${oid}"]`);
+    const b = document.querySelector('#tb-block');
+    return { semBloqueio: !!document.querySelector('#tb-no-block'), selo0: !!carta(m0).querySelector('.tb-pill--icone[data-marca="obrigada"]'), selo1: !!carta(m1).querySelector('.tb-pill--icone[data-marca="obrigada"]'),
+      fala: carta(m0).getAttribute('aria-label'), escolhido: carta(m0).dataset.selected, botao: b.textContent.trim(), apagado: b.disabled,
+      dica: (document.querySelector('.tb-dock') || document.body).innerText, cor: getComputedStyle(carta(m0).querySelector('.tb-pill--icone[data-marca="obrigada"]')).color }; }, c.muros);
+  assert.equal(d1.semBloqueio, false, '"Sem bloqueio" some com a exigência');
+  assert.deepEqual([d1.selo0, d1.selo1], [true, false], 'só o muro obrigado tem o selo');
+  assert.match(d1.fala, /Precisa bloquear/, 'o selo tem nome falado'); assert.equal(d1.escolhido, 'true', 'o muro já vem escolhido');
+  assert.deepEqual([d1.botao, d1.apagado], ['Bloquear (1)', false]); assert.match(d1.dica, /Wall Guard precisa bloquear/);
+  const acento = await page.evaluate(() => { const el = document.createElement('i'); el.style.color = 'var(--accent)'; document.body.appendChild(el); const x = getComputedStyle(el).color; el.remove(); return x; });
+  assert.equal(d1.cor, acento, 'dourado bloqueia');
+  for (const tema of ['dark', 'light']) { await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await auditaTela(page, `J-19 · declaração com obrigada 360 ${tema}`); }
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/j19-obrigada.png' });
+  // 2 · a folha do muro obrigado: escolhe entre os dois ursos, sem "Não bloquear"; trocar de urso continua valendo
+  await page.click(`.tb-side--me .tb-card[data-oid="${c.muros[0]}"]`); await page.waitForSelector('.ds-dialog');
+  const folha = await page.evaluate(() => { const dl = document.querySelector('.ds-dialog'); return { botoes: [...dl.querySelectorAll('button')].map(b => b.textContent.trim()).filter(x => /bloquear/i.test(x)), nota: !!dl.querySelector('#tb-obrigada-nota') }; });
+  assert.deepEqual(folha.botoes, ['Bloquear Grizzly Bear', 'Bloquear Grizzly Bear'], 'só os atacantes que cumprem, sem "Não bloquear": ' + JSON.stringify(folha));
+  assert.equal(folha.nota, true);
+  await page.locator('.ds-dialog >> text=Bloquear Grizzly Bear').nth(1).click(); await page.waitForTimeout(150);
+  assert.equal(await page.isDisabled('#tb-block'), false, 'trocar de atacante continua cumprindo');
+  // 3 · a folha do muro livre continua como antes ("Não bloquear" aparece depois de escolhido)
+  await page.waitForTimeout(450);
+  await page.click(`.tb-side--me .tb-card[data-oid="${c.muros[1]}"]`); await page.waitForSelector('.ds-dialog');
+  await page.locator('.ds-dialog >> text=Bloquear Grizzly Bear').first().click(); await page.waitForTimeout(450);
+  await page.click(`.tb-side--me .tb-card[data-oid="${c.muros[1]}"]`); await page.waitForSelector('.ds-dialog');
+  assert.equal(await page.locator('.ds-dialog >> text=Não bloquear').count(), 1, 'a livre pode sair do bloqueio');
+  await page.click('.ds-dialog >> text=Não bloquear'); await page.waitForTimeout(150);
+  // 4 · o motor aceita a declaração (a exigência é dele: 509.1c): o urso bloqueado não causa dano ao jogador, o outro causa 2
+  const vida0 = await page.evaluate(d => window.__estanteMesa.estado().players[d].life, c.d);
+  await page.click('#tb-block'); await reveal(page);
+  await page.evaluate(() => { const M = window.__estanteMesa; for (let i = 0; i < 20; i++) { const e = M.estado(); if (!String(e.turn.step).startsWith('combat') || e.pending) break; M.act({ t: 'pass', p: e.turn.priority }); } });
+  const fim = await page.evaluate(d => { const s = window.__estanteMesa.estado(); return { vida: s.players[d].life, pend: s.pending && s.pending.kind, passo: s.turn.step,
+    log: (s.log || []).filter(l => /bloque/i.test(typeof l === 'string' ? l : JSON.stringify(l))).slice(-3) }; }, c.d);
+  assert.equal(vida0 - fim.vida, 2, 'um urso bloqueado pelo muro, o outro passou ' + JSON.stringify(fim));
+  assert.notEqual(fim.pend, 'blockers', 'a declaração foi aceita');
+  assert.deepEqual(errors, []);
+});

@@ -618,6 +618,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-jk | MJ10 espiar de patamar: carta grande com profundidade e brilho opcional | MJ | 1 | 16º-jh |
 | 16º-jl | MJ11 orçamento da mesa: passar a prioridade sem tarefa longa acima de 50 ms; quadros medidos no portão | MJ | 1–2 | `mtg-scale-architect`; redesenho por `oid` (MJ3) |
 | 16º-jm | MJ12 partículas por cor de mana (só se não custar quadros) | MJ | 1 | 16º-jl |
+| 16º-jn ✅ | MJ8b bloqueadoras obrigatórias (pedido do `motor`, M-567/M-572): já escolhidas e marcadas, "Sem bloqueio" some, a folha só oferece os atacantes que cumprem (J-19) | MJ | 1 | M-572 publicada |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -10944,8 +10945,28 @@ oponente (H5) passa a mover as cartas (MJ3) em vez de redesenhar.
     some sozinha; na cena do Shark a faixa desce, as cartas dele voam a partir do contador de agora, o trilho acende
     quadro a quadro; de volta a você a faixa sobe; menos movimento: nada pisca nem desliza; `auditaTela` nos dois temas).
     **Fora:** ritmo do turno do bot jogada a jogada com pausa (já é a cena H5: um quadro por jogada); velocidade da cena;
-    destacar bloqueadoras obrigatórias e esconder "Sem bloqueio" com exigência (pedido do `motor`, M-567/M-572): leva
-    própria a seguir.
+    destacar bloqueadoras obrigatórias e esconder "Sem bloqueio" com exigência (pedido do `motor`, M-567/M-572): entregue
+    na MJ8b (J-19).
+
+**MJ8b · Bloqueadoras obrigatórias** ✅ (J-19, 23/10/2026; pedido do `motor`, M-567/M-572, 509.1c; `16º-jn`) — quando um
+efeito obriga uma criatura sua a bloquear (Academic Dispute, Clowning Around, Shinen of Life's Roar), a declaração já
+abre cumprindo a exigência e diz por quê.
+  - **Entregue (J-19):** ao abrir a declaração de bloqueio, as criaturas obrigadas já vêm escolhidas (a mesa preenche com
+    `completaBloqueiosM` do motor, uma vez por declaração; você troca o atacante, nunca a tira do bloqueio) e ganham o selo
+    "precisa bloquear" (ícone de alerta, dourado de bloqueio; nome falado "Precisa bloquear: um efeito obriga"); "Sem
+    bloqueio" some enquanto houver exigência; a folha da obrigada só oferece os atacantes que cumprem
+    (`completaBloqueiosM` mantém o par), com a nota "Um efeito obriga esta criatura a bloquear: escolha qual atacante." e
+    sem "Não bloquear"; Bloquear fica apagado, com a frase do que falta, enquanto a declaração não cumpre
+    (`bloqueiosObrigatoriosM`). A regra continua do motor: a mesa só lê `bloqueiosObrigatoriosM`/`completaBloqueiosM` e
+    o motor recusa a declaração que não cumpre (M-567). Puro: `estadoDaCarta` marca `obrigada` quando o plano a traz.
+    **Medidas:** zero pixel de campo (selo na fileira de selos que já existe). **Testes:** `table.unit` (selo com ícone e
+    nome falado só com o plano); e2e "J-19" (Academic Dispute com o texto da Scryfall de 22/10/2026 num Wall Guard, dois
+    Grizzly Bear atacam: sem "Sem bloqueio", o muro obrigado com selo e já escolhido, o outro sem selo, "Bloquear (1)"
+    aceso e a frase do motivo; a folha só com os dois ursos e a nota, sem "Não bloquear"; a folha do muro livre continua
+    com "Não bloquear"; o motor aceita e só um urso causa dano; `auditaTela` nos dois temas). **Fora:** o caminho
+    "Bloquear apagado" não tem e2e (a mesa já abre cumprindo e a folha da obrigada não deixa tirá-la; só apareceria se o
+    preenchimento do motor não cobrisse a exigência): a regra continua garantida pelo motor, que recusa a declaração;
+    atacante que atrai bloqueio (Shinen, Clowning Around) usa o mesmo caminho, sem e2e próprio.
 
 **MJ9 · Fim de partida com peso** ○ (1 leva) — placar, série, as últimas jogadas e "Jogar de novo" num desfecho com
 presença.
