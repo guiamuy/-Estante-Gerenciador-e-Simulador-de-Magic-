@@ -5521,6 +5521,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Revisão independente:** sem divergências: Abjure só se conjura com permanente azul sua (artefato, encantamento, criatura multicolor e ficha azuis servem; terreno, incolor, vermelha e a do oponente não), o sacrifício é custo e já está feito quando ela entra na pilha, e sem mágica na pilha não se conjura; Batterfist cria a ficha Rebelde e se anexa (3/1), fica no campo se a ficha morre, equipar só como feitiço; 18 partidas entre bots com as duas cartas terminaram sem erro.
 - **Teste:** `lt257.unit` (3 testes; falham no motor anterior).
 
+**M-577 · LT235 · Commander, núcleo cEDH: conjurar de graça controlando um comandante** ✅ (leva M-577, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** primeira leva da cobertura do Commander (pedido do dono de 24/10; ordem gulosa da I-300). "If you control a commander, you may cast this spell without paying its mana cost" pelo leitor: **Fierce Guardianship** (137 das 423 listas Commander), **Flawless Maneuver** e **Deadly Rollick** passam a jogar. Textos da API da Scryfall de 24/10/2026.
+- **Regra:** CR 903.3d — controlar um comandante é controlar uma permanente no campo que é um comandante (na zona de comando, no cemitério ou controlado pelo oponente não conta; virado para baixo conta); CR 118.9 — conjurar sem pagar é custo alternativo (aumentos e custos adicionais continuam cobrados). `alt.when.controlaComandante`, conferido em `condicaoDoAlt`.
+- **Parciais:** Deflecting Swat ("You may choose new targets for target spell or ability") e Obscuring Haze ("Prevent all damage that would be dealt this turn by creatures your opponents control") leem a primeira frase, falta a segunda — seguem fora até a leva delas.
+- **Revisão independente:** sem divergências (comandante na zona de comando, morto, no cemitério, do oponente, virado para baixo; formato livre; custo normal e aumento de custo ainda oferecidos; Fierce Guardianship não mira mágica de criatura; Flawless Maneuver só nas criaturas do campo na resolução, 611.2c, e só até o fim do turno).
+- **Teste:** `lt258.unit` (4 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

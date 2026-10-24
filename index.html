@@ -6575,7 +6575,7 @@ function validateScript(sc) {
     if (!parts.length) errs.push(`custo alternativo ${i + 1}: sem custo`);
     for (const k of parts) if (!ALT_COST_PARTS.includes(k)) errs.push(`custo alternativo ${i + 1}: parte "${k}" desconhecida`);
     if (alt.effects) errs.push(...effectErrors(alt.effects, `custo alternativo ${i + 1}`)); // Q11 · sobrecarga tem efeitos próprios
-    if (alt.when && !Object.keys(alt.when).every(k => ['opponentControlsSubtype', 'youControlSubtype', 'naoSeuTurno', 'semTerrenoNaMao'].includes(k))) errs.push(`custo alternativo ${i + 1}: condição desconhecida`); // M-351 · semTerrenoNaMao (Land Grant)
+    if (alt.when && !Object.keys(alt.when).every(k => ['opponentControlsSubtype', 'youControlSubtype', 'naoSeuTurno', 'semTerrenoNaMao', 'controlaComandante'].includes(k))) errs.push(`custo alternativo ${i + 1}: condição desconhecida`); // M-351 · semTerrenoNaMao (Land Grant)
     if (alt.cost && alt.cost.discardSubtype && !alt.cost.discard) errs.push(`custo alternativo ${i + 1}: "descartar uma <subtipo>" precisa do número de descartes`);
     if (alt.cost && alt.cost.exileHandColor && !'WUBRG'.includes(alt.cost.exileHandColor)) errs.push(`custo alternativo ${i + 1}: exilar da mão precisa de uma cor WUBRG`);
     if (alt.cost && alt.cost.exileGraveyardTopo != null) { const t = alt.cost.exileGraveyardTopo; if (!(t && Number.isInteger(t.n) && t.n > 0 && (t.cor == null || ['W', 'U', 'B', 'R', 'G'].includes(t.cor)))) errs.push(`custo alternativo ${i + 1}: exilar do topo do cemitério precisa de uma quantidade inteira e, se houver, uma cor WUBRG`); } // M-362
@@ -10854,6 +10854,10 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   // M-576 · LT234 · revisão por lote CCX (textos da Scryfall de 23/10/2026): Abjure, Barbed Batterfist
   'Abjure': { texto: '5g13ex', leva: 'M-576' },
   'Barbed Batterfist': { texto: 's38nww', leva: 'M-576' },
+  // M-577 · LT235 · revisão por lote CCXI (Commander, textos da Scryfall de 24/10/2026): conjurar de graça controlando um comandante (CR 903.3d)
+  'Fierce Guardianship': { texto: '5fuvo9', leva: 'M-577' },
+  'Flawless Maneuver': { texto: '1dbabfl', leva: 'M-577' },
+  'Deadly Rollick': { texto: 'mi4hfd', leva: 'M-577' },
 };
 /** O que o leitor diz da carta: null (não lê por inteiro ou não monta script), ou { script, aprovada }. */
 function leitura(card) {
@@ -19804,6 +19808,7 @@ const __m42 = (function () {
     [/^as an additional cost to cast this spell, discard a card$/i, () => ({ additional: { discard: 1 } })], // M-348
     [/^as an additional cost to cast this spell, you may collect evidence (\d+)$/i, m => ({ evidence: +m[1] })], // M-351 · 701.59 · Extract a Confession (o motor oferece conjurar com ou sem provas)
     [new RegExp(`^you may exile the top ${N} (white|blue|black|red|green) cards of your graveyard rather than pay this spell's mana cost$`, 'i'), m => { const n = num(m[1]), cor = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[2].toLowerCase()]; return { alt: [{ label: `Exilar as ${n} cartas ${{ W: 'brancas', U: 'azuis', B: 'pretas', R: 'vermelhas', G: 'verdes' }[cor]} de cima do cemitério em vez de pagar o custo`, cost: { exileGraveyardTopo: { n, cor } } }] }; }], // M-362 · Spinning Darkness (118.9)
+    [/^if you control a commander, you may cast this spell without paying its mana cost$/i, () => ({ alt: [{ label: 'De graça: você controla um comandante', cost: { free: true }, when: { controlaComandante: true } }] })], // M-577 · CR 903.3d + 118.9 · Fierce Guardianship, Deflecting Swat, Flawless Maneuver, Obscuring Haze, Deadly Rollick (Commander)
     [/^if you have no land cards in hand, you may reveal your hand rather than pay this spell's mana cost$/i, () => ({ alt: [{ label: 'Revelar a mão (sem terrenos) em vez de pagar o custo', cost: { free: true, revealHand: true }, when: { semTerrenoNaMao: true } }] })], // M-351 · Land Grant (118.9)
     [/^if you control an? (Plains|Island|Swamp|Mountain|Forest), you may tap an untapped creature you control rather than pay this spell's mana cost$/i, m => ({ alt: [{ label: `Virar uma criatura sua desvirada em vez de pagar o custo (você controla ${{ Plains: 'uma Planície', Island: 'uma Ilha', Swamp: 'um Pântano', Mountain: 'uma Montanha', Forest: 'uma Floresta' }[m[1]]})`, cost: { tapOther: { types: ['creature'], amount: 1 } }, when: { youControlSubtype: m[1] } }] })], // M-351 · Ramosian Rally (118.9) · Big Score, Sazacap's Brew (601.2b)
     [/^madness (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ madness: { mana: m[1] } })],
@@ -22258,6 +22263,7 @@ function condicaoDoAlt(s, p, when, selfOid) { // M-351 · selfOid: a própria m�
   if (when.opponentControlsSubtype && !battlefield(s).some(o => o.controller !== p && !s.players[o.controller].lost && terreno(o, when.opponentControlsSubtype))) return false;
   if (when.youControlSubtype && !battlefield(s).some(o => o.controller === p && terreno(o, when.youControlSubtype))) return false;
   if (when.semTerrenoNaMao && s.zones[p].hand.some(x => x !== selfOid && (s.facts[s.objects[x].name] || { types: [] }).types.includes('land'))) return false; // M-351 · "If you have no land cards in hand" (Land Grant)
+  if (when.controlaComandante && !battlefield(s).some(o => o.controller === p && o.commander)) return false; // M-577 · CR 903.3d: "controlar um comandante" é controlar uma permanente no campo que é um comandante (na zona de comando não conta)
   if (when.naoSeuTurno && s.turn.active === p) return false; // M-338 · "If it's not your turn, you may … rather than pay" (Force of Negation)
   if (!condicaoDoAltK(s, p, when)) return false; // K-32 · espetáculo e surto (Toca ponto comum: condicaoDoAlt)
   return true;
