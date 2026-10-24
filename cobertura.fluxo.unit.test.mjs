@@ -24,3 +24,13 @@ test('I-300 · catalogo.yml: passo da sentinela do Commander depois da do Pauper
   assert.match(passo, /run: node cobertura\.mjs --catalogo saida --formato commander --textos 300/);
   assert.doesNotMatch(passo, /secrets\./);
 });
+
+// Q10-7c · relato #32, fatia 3: todos os formatos do catálogo têm o selo do motor. Falha antes (o passo não existia).
+test('Q10-7c · catalogo.yml: passo dos demais formatos depois do Commander e antes de publicar, sem texto do dia, sem segredo', () => {
+  const c = wf.indexOf('- name: Sentinela de cobertura do Commander'), d = wf.indexOf('- name: Sentinela de cobertura dos demais formatos'), k = wf.indexOf('- name: Publicar no ramo catalogo');
+  assert.ok(c >= 0 && d > c && k > d, 'ordem: Commander → demais → publicar');
+  const passo = wf.slice(d, k);
+  assert.match(passo, /continue-on-error: true/); assert.match(passo, /if: always\(\) && steps\.coleta\.conclusion != 'skipped'/);
+  assert.match(passo, /run: node cobertura\.mjs --catalogo saida --formato todos --exceto pauper,commander --textos 0/);
+  assert.doesNotMatch(passo, /secrets\./);
+});

@@ -127,3 +127,21 @@ test('Q10-7b · executa grava cobertura/motor.json: soma os formatos, troca só 
     assert.equal((await le()).formatos.pauper.geradoEm, 'T3'); assert.ok(!('p9' in (await le()).pct));
   } finally { await rm(pasta, { recursive: true, force: true }); }
 });
+
+test('Q10-7c · formatosDoCatalogo e executaVarios: os demais formatos do índice, cada um no seu relatório e todos no motor.json; um que falha não para os outros', async () => {
+  const pasta = await mkdtemp(join(tmpdir(), 'cobertura-q107c-'));
+  try {
+    await mkdir(join(pasta, 'listas'), { recursive: true });
+    const ls = [['m1', 'modern', [['Lightning Bolt', 4]]], ['m2', 'modern', [['Carta Nova', 4]]], ['l1', 'legacy', [['Carta Lida', 4]]], ['p1', 'pauper', [['Lightning Bolt', 4]]], ['x1', '../mau', []]];
+    await writeFile(join(pasta, 'indice.json'), JSON.stringify({ listas: ls.map(([id, formato]) => ({ id, formato })) }));
+    for (const [id, , nomes] of ls) await writeFile(join(pasta, 'listas', `${id}.json`), JSON.stringify(L(id, nomes)));
+    assert.deepEqual(C.formatosDoCatalogo(pasta, ['pauper', 'commander']), ['modern', 'legacy']);
+    let n = 0; const umaFalha = async (url, o) => (++n === 1 ? (() => { throw new Error('rede caiu'); })() : scryfall(TABELA)(url, o));
+    const log = []; const feitos = await C.executaVarios({ pasta, formatos: ['modern', 'legacy'], busca: umaFalha, pausa: 0, log: x => log.push(x), agora: 'T1' });
+    assert.deepEqual(feitos, [['modern', false], ['legacy', true]]); assert.ok(log.some(x => /✗ a Scryfall não respondeu/.test(x)), JSON.stringify(log));
+    const m = JSON.parse(await readFile(join(pasta, 'cobertura', 'motor.json'), 'utf8'));
+    assert.deepEqual(m.pct, { l1: [83, 1] }); assert.deepEqual(Object.keys(m.formatos), ['legacy']);
+    await C.executaVarios({ pasta, formatos: ['modern'], busca: scryfall(TABELA), pausa: 0, log: () => {}, agora: 'T2' });
+    assert.deepEqual(JSON.parse(await readFile(join(pasta, 'cobertura', 'motor.json'), 'utf8')).pct, { l1: [83, 1], m1: [100, 0], m2: [83, 1] });
+  } finally { await rm(pasta, { recursive: true, force: true }); }
+});

@@ -185,6 +185,20 @@ export function listasDoCatalogo(pasta, formato = 'pauper') {
   }).filter(Boolean);
 }
 
+/** Q10-7c · os formatos que o catálogo tem hoje (na ordem do índice), menos os de `exceto`. */
+export function formatosDoCatalogo(pasta, exceto = []) {
+  const idx = JSON.parse(readFileSync(join(pasta, 'indice.json'), 'utf8')), fora = new Set(exceto);
+  return [...new Set((idx.listas || []).map(r => r.formato).filter(f => typeof f === 'string' && /^[a-z0-9-]{1,30}$/.test(f) && !fora.has(f)))];
+}
+/** Q10-7c · mede vários formatos, um depois do outro; a falha de um não impede os outros. */
+export async function executaVarios({ pasta, formatos, log = console.log, ...resto } = {}) {
+  const feitos = [];
+  for (const formato of formatos) {
+    try { const r = await executa({ pasta, formato, log, ...resto }); feitos.push([formato, !!r.gravado]); }
+    catch (e) { log(`✗ sentinela ${formato}: ${e && e.message}`); feitos.push([formato, false]); }
+  }
+  return feitos;
+}
 export async function executa({ pasta, formato = 'pauper', busca = globalThis.fetch, pausa = 120, log = console.log, agora, textos = Infinity } = {}) {
   const listas = listasDoCatalogo(pasta, formato);
   const nomes = [...new Set(listas.flatMap(l => (l.entradas || []).filter(e => e.zone !== 'side' && e.zone !== 'maybe').map(e => e.name)))];
@@ -215,5 +229,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   for (let i = 0; i < a.length; i++) if (a[i].startsWith('--')) o[a[i].slice(2)] = a[i + 1] && !a[i + 1].startsWith('--') ? a[++i] : true;
   if (!o.catalogo) { console.error('Informe --catalogo <pasta do ramo catalogo>'); process.exit(2); }
   const textos = Number.parseInt(o.textos, 10);
-  executa({ pasta: o.catalogo, formato: o.formato || 'pauper', textos: textos >= 0 ? textos : Infinity }).catch(e => { console.error('✗ sentinela:', e && e.message); }).finally(() => process.exit(0));
+  const opc = { pasta: o.catalogo, textos: textos >= 0 ? textos : Infinity };
+  // Q10-7c · `--formato todos --exceto pauper,commander`: os demais formatos do catálogo, cada um no seu relatório
+  const vai = o.formato === 'todos' ? executaVarios({ ...opc, formatos: formatosDoCatalogo(o.catalogo, String(o.exceto || '').split(',').filter(Boolean)) })
+    : executa({ ...opc, formato: o.formato || 'pauper' });
+  vai.catch(e => { console.error('✗ sentinela:', e && e.message); }).finally(() => process.exit(0));
 }

@@ -55,6 +55,13 @@ jobs:
         continue-on-error: true
         timeout-minutes: 15
         run: node cobertura.mjs --catalogo saida --formato commander --textos 300
+      - name: Sentinela de cobertura dos demais formatos
+        # Q10-7c · relato #32: Modern, Legacy, Standard, Pioneer, Vintage, Brawl, Iniciante e Construído medidos como o app (sem o
+        # texto do dia: só a porcentagem de cada lista, em cobertura/motor.json, e o relatório de cada formato). Nunca derruba a coleta.
+        if: always() && steps.coleta.conclusion != 'skipped'
+        continue-on-error: true
+        timeout-minutes: 20
+        run: node cobertura.mjs --catalogo saida --formato todos --exceto pauper,commander --textos 0
       - name: Publicar no ramo catalogo
         if: always() && steps.coleta.conclusion != 'skipped'
         run: |
