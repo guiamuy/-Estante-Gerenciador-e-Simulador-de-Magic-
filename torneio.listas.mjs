@@ -2,7 +2,7 @@
 // Uso: node torneio.listas.mjs <forte> <fraco> <rodadas> <semente>   ex.: node torneio.listas.mjs shark shark-v2 4 20000
 // Cada confronto entre as sete listas é jogado nos dois lados e nos dois assentos. Os dados das cartas vêm de
 // .listas/oficiais.json (texto oficial); cor, valor de mana e palavras-chave são derivados do texto.
-// Níveis: 'shark' (atual; 'shark:N' muda o número de mundos), 'shark-v5' e 'shark-v4' (congelados), 'shark-v3', 'shark-v2', 'shark-v1', 'amador', ou 'x:mull,av3,projeta,corrida,sub,valor,desdobra' para ligar peças do v3 uma a uma.
+// Níveis: 'shark' (atual; 'shark:N' muda o número de mundos), 'shark-v5' e 'shark-v4' (congelados), 'shark-v3', 'shark-v2', 'shark-v1', 'amador', ou 'x:mull,av3,projeta,corrida,sub,valor,desdobra' para ligar peças do v3 uma a uma; 'z:ameacas' é o Shark atual com a peça a mais (B-176).
 import { readFileSync, readdirSync } from 'node:fs';
 import { loadModules } from './_load.mjs';
 const { engine: E, bot: B, starter: ST, decks: D } = loadModules();
@@ -58,6 +58,7 @@ const cria = nivel => {
   if (['shark', 'shark-v10', 'shark-v9', 'shark-v8', 'shark-v7', 'shark-v6', 'shark-v5', 'shark-v4'].includes(nivel)) return B.criaBot({ nivel, orcamentoMs: ORC, mundos: MUNDOSN });
   if (/^shark:\d+$/.test(nivel)) return B.criaBot({ nivel: 'shark', orcamentoMs: 250, mundos: +nivel.split(':')[1] }); // leva 117 · 'shark:5' = Shark com 5 mundos
   // leva 132 · 'y:rolaAtaque,rolaJogada' = Shark v6 com as peças novas ligadas uma a uma
+  if (nivel.startsWith('z:')) return B.criaBot({ nivel: 'shark', orcamentoMs: ORC, mundos: MUNDOSN, extra: Object.fromEntries(nivel.slice(2).split(',').filter(Boolean).map(k => k.startsWith('!') ? [k.slice(1), false] : [k, true])) }); // B-176 · o Shark atual com peças a mais ('z:ameacas') ou a menos ('z:!av5')
   if (nivel.startsWith('y:')) return B.criaBot({ nivel: 'shark-v9', orcamentoMs: ORC, mundos: MUNDOSN, extra: Object.fromEntries(nivel.slice(2).split(',').filter(Boolean).map(k => k.startsWith('!') ? [k.slice(1), false] : [k, true])) }); // '!peça' desliga
   if (!nivel.startsWith('x:')) return B.criaBot({ nivel, orcamentoMs: 250 });
   const f = new Set(nivel.slice(2).split(',').filter(Boolean));

@@ -33115,6 +33115,10 @@ const __m25 = (function () {
    ficar preso; e o perfil `terror` (PERFIS) dá valor às instantâneas e feitiços no próprio cemitério enquanto um Tolarian
    Terror ou uma Cryptic Serpent espera na mão. 'shark-v10' é o Shark da B-174, congelado. Medido pareado por piloto
    contra o v10: dentro da margem (ver B22 no ROADMAP) — fica ligado pelo comportamento corrigido na partida narrada.
+   AMEAÇAS DO CAMPO (B-22, leva B-176): `AMEACAS_DO_CAMPO` (dado: as permanentes das cinco listas cujo efeito cresce com a
+   mesa ou bate a cada mágica) e o perfil `controle` do Dimir Control: com a opção `ameacas`, cada uma em campo do lado do
+   oponente custa 6 e a remoção vai nela antes do corpo maior (Timberwatch Elf antes do Masked Vandal). Medida pareada
+   pilotando o Control: sem ganho (26 × 27 em 64) — fica DESLIGADA, só como opção de torneio (`z:ameacas`).
    LIMITES DE HOJE: um lance à frente + resposta do oponente + combate; sem plano
    de vários turnos, sem blefe, sem jogar em volta de anulação ou truque; mulligan
    não olha cores; não troca reserva na melhor de três; esquece o que a vidência
@@ -34286,6 +34290,14 @@ function planoDeMana(w, p, opts) {
    o plano. Perfil é dado, não código por carta: quem reconhece o baralho (cartas exigidas), o motor de mana, a carta
    que o desvira e os finalizadores. O código abaixo é genérico para "mana infinita: fonte de várias manas + desvirar".
    Texto das cartas: .listas/oficiais.json (conferido em 03/10/2026). */
+/** B-176 · ameaças do campo do Shark: permanentes das cinco listas cujo efeito cresce com a mesa ou bate a cada mágica — o
+    que a avaliação genérica (poder, resistência, corpo) não enxerga. Texto da Scryfall (.listas/oficiais*.json, 23/10/2026):
+    Timberwatch Elf ("+X/+X … where X is the number of Elves on the battlefield"), Priest of Titania ("Add {G} for each Elf
+    on the battlefield"), Guttersnipe ("Whenever you cast an instant or sorcery spell, … deals 2 damage to each opponent"),
+    Kessig Flamebreather ("Whenever you cast a noncreature spell, … deals 1 damage to each opponent"), Ninja of the Deep
+    Hours ("Whenever … deals combat damage to a player, you may draw a card"), Murmuring Mystic ("Whenever you cast an
+    instant or sorcery spell, create a 1/1 … Bird Illusion"). Dado, não código por carta: lista nova do Shark, nomes novos. */
+const AMEACAS_DO_CAMPO = ['Timberwatch Elf', 'Priest of Titania', 'Guttersnipe', 'Kessig Flamebreather', 'Ninja of the Deep Hours', 'Murmuring Mystic'];
 const PERFIS = [
   { id: 'walls-combo', nome: 'Walls Combo', exige: ['Axebane Guardian', 'Freed from the Real'],
     combo: { motor: 'Axebane Guardian', desvira: 'Freed from the Real', indice: 1, cor: 'U', finalizadores: ['Valakut Invoker', 'Bloodrite Invoker'], custo: 8 } },
@@ -34295,7 +34307,11 @@ const PERFIS = [
   // próprio cemitério vale `valorPorCarta`, até `teto` cartas, enquanto houver uma das `enquanto` na mão — é o que faz o Shark
   // conjurar os cantrips cedo (inclusive no fim do turno do oponente) em vez de guardá-los.
   { id: 'terror', nome: 'Mono Blue Terror', exige: ['Tolarian Terror', 'Cryptic Serpent'],
-    cemiterio: { tipos: ['instant', 'sorcery'], valorPorCarta: 1.2, teto: 6, enquanto: ['Tolarian Terror', 'Cryptic Serpent'] } }
+    cemiterio: { tipos: ['instant', 'sorcery'], valorPorCarta: 1.2, teto: 6, enquanto: ['Tolarian Terror', 'Cryptic Serpent'] } },
+  // B-176 · Dimir Control (lista do Shark `shark-controle`): plano de remoção, anulação e vantagem de cartas; com a opção
+  // `ameacas` (desligada: medida sem ganho), a remoção vai primeiro nas ameaças do campo, não no corpo maior.
+  { id: 'controle', nome: 'Dimir Control', exige: ['Murmuring Mystic', 'Thorn of the Black Rose'],
+    ameacas: { nomes: AMEACAS_DO_CAMPO, peso: 6 } }
 ];
 /** Perfil do baralho de `p`, pelas cartas que ele tem na partida (todas as zonas: é a lista dele). */
 function perfilDe(s, p) {
@@ -34305,7 +34321,7 @@ function perfilDe(s, p) {
 const meusEm = (s, p, zona) => s.zones[p][zona].map(oid => s.objects[oid]);
 /** A avaliação com o plano: terreno na mão vale menos que terreno em campo (devolver a Floresta para a mão não é
     ganho), cada peça do plano que tenho (mão ou campo) conta, e o motor já com a carta que o desvira conta muito. */
-function avaliadorDoPlano(de, perfil, eu) {
+function avaliadorDoPlano(de, perfil, eu, { ameacas = false } = {}) {
   return (s, p) => {
     const base = de(s, p);
     if (base.parcelas.vitoria) return base;
@@ -34318,6 +34334,11 @@ function avaliadorDoPlano(de, perfil, eu) {
         let n = 0; for (const o of meusEm(s, p, 'graveyard')) { const t = (s.facts[o.name] || {}).types || []; if (c.tipos.some(x => t.includes(x))) n++; }
         extra += c.valorPorCarta * Math.min(c.teto, n);
       }
+    }
+    if (ameacas && perfil && perfil.ameacas && p === eu) {
+      // B-176 · cada ameaça do campo que o oponente controla pesa contra mim: a remoção e a anulação vão nela primeiro
+      const a = perfil.ameacas, d = oponenteDe(s, p);
+      for (const o of meusEm(s, d, 'battlefield')) if (o.controller === d && a.nomes.includes(o.name)) extra -= a.peso;
     }
     if (perfil && perfil.combo && p === eu) {
       const c = perfil.combo, campo = meusEm(s, p, 'battlefield'), tenho = new Set([...campo, ...meusEm(s, p, 'hand')].map(o => o.name));
@@ -34382,6 +34403,7 @@ const NOVO8 = { ...NOVO7, plano: true }; // B9 · plano do baralho (leva 147), c
 const NOVO9 = { ...NOVO8, truque: true }; // B16 · truque próprio no ataque (leva 159), congelado como 'shark-v9'
 const NOVO10 = { ...NOVO9, aceita: true }; // B10b · `segura` (segurar a mana da anulação) foi medido e fica desligado: 36% contra 41% pilotando Faeries; congelado como 'shark-v10' (B-174)
 const NOVO = { ...NOVO10, av5: true }; // B-175 · o terreno que falta (avaliaV5) e os perfis de plano (PERFIS, pelo dado)
+// B-176 · `ameacas` (ameaças do campo no perfil do Dimir Control) foi medida e fica desligada: 26 de 64 contra 27 de 64 pilotando o Control
 function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date.now(), mundos: mundosN = 0, extra: extraOpts = null, pesos = null } = {}) {
   // Leva 117 · 'profissional' e 'shark' são o Shark atual (v4: o v3 com informação justa). 'shark-v3', 'shark-v2'
   // e 'shark-v1' são as versões anteriores, congeladas, só para o torneio — elas simulam sobre o estado real.
@@ -34417,7 +34439,7 @@ function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date
       // passe forçado com 19 criaturas na mesa, medido na prova do catálogo, Elfos de Pauper).
       const unica = E.legalActions(s, p); if (unica.length === 1) return { acao: unica[0], motivo: motivoDe(s, p, unica[0]) };
       if (ligadas.plano) {
-        if (perfil === undefined) { perfil = perfilDe(s, p); avPlano = avaliadorDoPlano(avAtual || avaliaV3, perfil, p); }
+        if (perfil === undefined) { perfil = perfilDe(s, p); avPlano = avaliadorDoPlano(avAtual || avaliaV3, perfil, p, { ameacas: !!ligadas.ameacas }); }
         if (s.turn.number !== turnoCombo) { turnoCombo = s.turn.number; passosCombo = 0; }
         const passo = passosCombo < 400 ? passoDoCombo(s, p, perfil) : null;
         if (passo) { passosCombo++; return passo; }
@@ -34432,7 +34454,7 @@ function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date
 
 return { PESOS, LIMIAR_RESPOSTA, avalia, avaliaV2, avaliaV3, projetaCombate, riscoDeVolta, decideMulligan, simula, escolhe, chaveAcao, fontesDeMana,
   jogadaAmador, jogadaProfissional, decideAtaque, decideAtaqueProfissional, decideBloqueio, decideBloqueioProfissional,
-  notaComResposta, notaDoAtaque, resumoDoTurno, dicas, visaoDe, sementePublica, atualizaMemoria, MUNDOS, avaliadorCom, PESOS_ATUAIS, politicaRapida, rola, avaliaV4, planoDeMana, PERFIS, perfilDe, passoDoCombo, avaliadorDoPlano, avaliaV5, notaDoAtaqueComTruque, custoDaResposta, criaBot, NOME_DO_BOT, nivelDaMesa, LISTAS_DO_SHARK };
+  notaComResposta, notaDoAtaque, resumoDoTurno, dicas, visaoDe, sementePublica, atualizaMemoria, MUNDOS, avaliadorCom, PESOS_ATUAIS, politicaRapida, rola, avaliaV4, planoDeMana, PERFIS, AMEACAS_DO_CAMPO, perfilDe, passoDoCombo, avaliadorDoPlano, avaliaV5, notaDoAtaqueComTruque, custoDaResposta, criaBot, NOME_DO_BOT, nivelDaMesa, LISTAS_DO_SHARK };
 })();
 
 /* ==== src/ui/table-components.js ==== */

@@ -400,7 +400,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-z10 🟡 | Shark: truque próprio no ataque (conta com a habilidade usada depois dos bloqueios e espera os bloqueios); Elves medido por piloto: sem ganho demonstrado (leva 159) | B16 | 1 | bloqueio com truque, truque do oponente |
 | 16º-z9 🟡 | Shark: plano do baralho — Walls Combo fecha a mana infinita; vitórias pilotando a lista 18% → 33% (leva 147) | B9 | 1 | Elves e os outros perfis |
 | 16º-z2 ✅ | Shark usa todas as mecânicas, inclusive as dos terrenos: estoura o terreno que busca básico, abre mana com habilidades, ordena antes do corte do relógio; auditoria de uso (leva 143) | B21 | 1 | — |
-| 16º-sa 🟡 | B22 Shark profissional com cinco listas: fatia 1 ✅ (B-173) listas de torneio embutidas e seletor do Shark só com elas; fatia 2 ✅ (B-174) linha de base: Madness 75% · Elves 63% · Faeries 50% · Control 38% · Terror 25% contra o campo; fatia 3 ✅ (B-175) perfil do Terror + o terreno que falta (pareado 50% × 38% em 32 pares: dentro da margem); fatias 4–9 (um perfil por lista; jogar em volta; fechamento) | B22 | 9 | 16º-z2 |
+| 16º-sa 🟡 | B22 Shark profissional com cinco listas: fatia 1 ✅ (B-173) listas de torneio embutidas e seletor do Shark só com elas; fatia 2 ✅ (B-174) linha de base: Madness 75% · Elves 63% · Faeries 50% · Control 38% · Terror 25% contra o campo; fatia 3 ✅ (B-175) perfil do Terror + o terreno que falta (pareado 50% × 38% em 32 pares: dentro da margem); fatia 4 (B-176) ameaças do campo no Control: sem ganho (41% × 42% em 64 pares), desligada; fatias 5–9 (um perfil por lista; jogar em volta; fechamento) | B22 | 9 | 16º-z2 |
 | 16º-y ✅ | Shark: olhar o turno seguinte (simulação até o próximo turno) — medido, não pagou, fica desligado; achado: a força está no plano de cada baralho (leva 131) | B15 | 1 | — |
 | 16º-w ✅ | Shark: pesos da avaliação postos à prova por torneio — nenhum paga; achado: o limite é a profundidade, não o peso (leva 126) | B20 | 1 | — |
 | 16º-j3 🟡 | Scanner de referência (E52): X14 resposta imediata (leva 127) | E52 | 2 de 6 a 7 | teste no aparelho: "até aceitar" no diagnóstico |
@@ -7372,7 +7372,7 @@ Wildfire × Rakdos Madness) mostrou este como o erro mais caro.
   Caretaker, em duas chamadas; o dano que fecha a partida achado com relógio curto, com o v6 errando).
 - **Depende de:** B17.
 
-**B22 · Shark profissional com cinco listas** 🟡 (pedido do dono de 23/10/2026; fatias 1–3 nas levas B-173…B-175)
+**B22 · Shark profissional com cinco listas** 🟡 (pedido do dono de 23/10/2026; fatias 1–4 nas levas B-173…B-176)
 - **Valor:** o Shark joga a nível competitivo com cinco listas Pauper de torneio, e o usuário só escolhe uma dessas
   cinco para ele; cada lista ganha um perfil medido por piloto.
 - **As cinco listas (escolha de 23/10/2026, dado em `LISTAS_DO_SHARK`, módulo do bot):** do catálogo de torneios do app
@@ -7394,7 +7394,7 @@ Wildfire × Rakdos Madness) mostrou este como o erro mais caro.
   - cada lista tem dado oficial para toda carta, cobertura 100% no motor e joga Shark × Shark sem jogada ilegal ✅ (B-173);
   - linha de base medida com as cinco (torneio por piloto) e registrada aqui (fatia 2);
   - um perfil por lista (plano, mulligan, sequência, ameaças, respostas), cada um medido por piloto: novo ≥ antigo, zero
-    ilegais, p95 ≤ 400 ms (fatias 3–7; Terror ✅ B-175, dentro da margem); jogar em volta do que a lista do oponente tem (fatia 8);
+    ilegais, p95 ≤ 400 ms (fatias 3–7; Terror ✅ B-175, dentro da margem; Control B-176 sem ganho, desligado); jogar em volta do que a lista do oponente tem (fatia 8);
   - fechamento: nenhuma das cinco abaixo de 45% contra o campo das outras; p95 ≤ 400 ms no orçamento do celular (fatia 9).
 - **Linha de base (B-174, 23/10/2026; `LISTAS=shark MODO=confrontos ORC=100 node torneio.listas.mjs shark shark 4 7`,
   em duas fatias):** o Shark de hoje nos dois assentos, todos contra todos, 4 sementes × 2 assentos por confronto = 80
@@ -7427,8 +7427,23 @@ Wildfire × Rakdos Madness) mostrou este como o erro mais caro.
   variou de 44% a 66% entre bases de semente com 32 pares cada — a tabela de força da B-174 (32 partidas por lista) é
   retrato, e o fechamento precisa de 200+ decididas por lista. Erro mais caro visto nas narrações, para a fatia do
   Madness: manteve mão de cinco cartas com um terreno só.
+- **Fatia 4 · Dimir Control (B-176, 23/10/2026) — resultado negativo, o Shark não mudou de jogo.** Partida narrada
+  (Control × Elfos, semente 11, o Control perde de 5 para −2): três remoções em dois Masked Vandal e um Cast Down num
+  Elvish Mystic, e nenhuma no Timberwatch Elf, que dá +X/+X por elfo e decidiu a partida. **Tentado:** `AMEACAS_DO_CAMPO`
+  (dado: as permanentes das cinco listas cujo efeito cresce com a mesa ou bate a cada mágica, pelo texto da Scryfall de
+  23/10 — Timberwatch Elf, Priest of Titania, Guttersnipe, Kessig Flamebreather, Ninja of the Deep Hours, Murmuring
+  Mystic) no perfil `controle`; com a opção `ameacas`, cada uma em campo do oponente custa 6 e a remoção vai nela antes
+  do corpo maior (posição no `bot.unit`: o Cast Down mata o Timberwatch, não o Masked Vandal). **Medição pareada por
+  piloto** (`PILOTO=1 ORC=100`, base 7, 64 pares, contra o Shark sem a opção): **26 de 64 (41%) × 27 de 64 (42%), só o
+  novo ganhou 3, só o antigo 4 — sem ganho.** A opção fica **desligada** (regra: técnica que não se paga sai), como
+  opção de torneio (`z:ameacas`); o perfil e a lista ficam como dado. Zero ilegais; pior decisão 2,1 s (100 ms de
+  orçamento; o Control tem as partidas mais longas — 47 min para 64 pares). Leitura: a remoção no alvo certo muda o
+  resultado em poucas partidas (7 de 64 diferem); o que mais pesa no Control parece ser outra coisa — candidatas para a
+  fatia 8: quando anular (hoje anula o que aparecer) e não ficar sem bloqueador contra o Elfos. `segura` (segurar a mana
+  da anulação) não foi repetida: medida negativa no Faeries (B10b) pelo mesmo motivo provável.
 - **Fatias:** 1 listas embutidas + seletor restrito (B-173 ✅) · 2 linha de base (B-174 ✅) · 3 Terror (B-175 ✅, dentro
-  da margem) · 4 Control · 5 Faeries · 6 Elves · 7 Madness · 8 jogar em volta · 9 fechamento.
+  da margem) · 4 Control (B-176, sem ganho: desligada) · 5 Faeries · 6 Elves · 7 Madness · 8 jogar em volta ·
+  9 fechamento.
 - **Decisão registrada (divergência dita antes de executar):** o Shark deixa de jogar com qualquer lista da estante,
   inclusive fora do Pauper (Commander e livre ficam sem Shark). É o pedido do dono; se um dia quiser o Shark com
   lista própria de novo, é um chip "lista da estante" no seletor, uma leva.

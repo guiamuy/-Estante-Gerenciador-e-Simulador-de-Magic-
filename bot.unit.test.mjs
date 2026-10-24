@@ -905,8 +905,9 @@ test('B9 · perfil: o Shark reconhece o Walls Combo pela própria lista; as outr
   const walls = await monta(4, 3, {});
   assert.equal(B.perfilDe(walls.s, 0).id, 'walls-combo');
   assert.equal(B.perfilDe(walls.s, 1), null, 'Boros Bully');
-  // B-175 · um perfil tem plano de combo (motor, desvira, finalizadores) ou plano de cemitério (tipos, enquanto); nunca nenhum dos dois
-  for (const pf of B.PERFIS) assert.ok(pf.exige.length && ((pf.combo && pf.combo.motor && pf.combo.desvira && pf.combo.finalizadores.length) || (pf.cemiterio && pf.cemiterio.tipos.length && pf.cemiterio.enquanto.length)), pf.id);
+  // B-175/B-176 · um perfil tem plano de combo (motor, desvira, finalizadores), de cemitério (tipos, enquanto) ou de
+  // ameaças a responder (nomes, peso); nunca nenhum dos três
+  for (const pf of B.PERFIS) assert.ok(pf.exige.length && ((pf.combo && pf.combo.motor && pf.combo.desvira && pf.combo.finalizadores.length) || (pf.cemiterio && pf.cemiterio.tipos.length && pf.cemiterio.enquanto.length) || (pf.ameacas && pf.ameacas.nomes.length && pf.ameacas.peso > 0)), pf.id);
 });
 
 test('B9 · terreno na mão vale menos que terreno em campo: a Quirion Ranger não devolve a Floresta à toa', async () => {
@@ -1145,4 +1146,29 @@ test('B-175 · perfil do Terror: cada instantânea ou feitiço no cemitério val
   assert.equal(av(semTerror, 0).parcelas.plano, 0, 'sem o Terror na mão, o cemitério não vale');
   assert.equal(B.passoDoCombo(s, 0, perfil), null, 'perfil sem combo não tem passo');
   assert.equal(B.perfilDe((await montaShark(MADNESS, TERROR, {})).s, 0), null, 'a lista Madness ainda não tem perfil');
+});
+
+// B-176 · fatia 4 da B22: o Dimir Control remove primeiro a ameaça do campo (a que cresce com a mesa), não o corpo maior.
+const CONTROLE = 1, ELFOS = 4;
+test('B-176 · ameaças do campo: AMEACAS_DO_CAMPO são cartas das cinco listas do Shark; o perfil do Dimir Control as usa', async () => {
+  const { s } = await montaShark(CONTROLE, ELFOS, { p0: {} });
+  const p = B.perfilDe(s, 0); assert.equal(p && p.id, 'controle');
+  assert.deepEqual(J(p.ameacas.nomes), J(B.AMEACAS_DO_CAMPO));
+  const todas = new Set(Object.values(s.objects).map(o => o.name));
+  const { s: s2 } = await montaShark(MADNESS, TERROR, { p0: {} }); for (const o of Object.values(s2.objects)) todas.add(o.name);
+  const { s: s3 } = await montaShark(2, ELFOS, { p0: {} }); for (const o of Object.values(s3.objects)) todas.add(o.name);
+  for (const n of B.AMEACAS_DO_CAMPO) assert.ok(todas.has(n), n + ' está numa das listas do Shark');
+  assert.notEqual((B.perfilDe(s3, 0) || {}).id, 'controle', 'o Faeries tem Thorn mas não Murmuring Mystic: não é o Control');
+});
+
+test('B-176 · com a opção ameacas, na manutenção dos Elfos, com um Cast Down e Masked Vandal e Timberwatch Elf do outro lado, o Dimir Control mata o Timberwatch Elf; o Shark publicado (opção desligada: medida sem ganho) mata o Masked Vandal', async () => {
+  const { s, ids } = await montaShark(CONTROLE, ELFOS, { ativo: 1, vez: 0, passo: 'upkeep',
+    p0: { campo: ['Island', 'Swamp'], mao: ['Cast Down'] }, p1: { campo: ['Forest', 'Forest', 'Masked Vandal', 'Timberwatch Elf'] } });
+  const novo = B.criaBot({ nivel: 'shark', agora: relogioParado, extra: { ameacas: true } }).jogada(s, 0), velho = shark('shark').jogada(s, 0);
+  assert.deepEqual([novo.acao.t, novo.acao.oid, (novo.acao.targets || [])[0] && novo.acao.targets[0].oid], ['cast', ids[0]['Cast Down'], ids[1]['Timberwatch Elf']], 'novo: ' + novo.motivo);
+  assert.deepEqual([velho.acao.t, velho.acao.targets && velho.acao.targets[0].oid], ['cast', ids[1]['Masked Vandal']], 'sem a opção, o corpo maior: ' + velho.motivo);
+  // a parcela só existe do lado do Control, e só com a ameaça em campo
+  const av = B.avaliadorDoPlano(B.avaliaV5, B.perfilDe(s, 0), 0, { ameacas: true }), sem = B.avaliadorDoPlano(B.avaliaV5, B.perfilDe(s, 0), 0);
+  assert.equal(av(s, 0).nota - sem(s, 0).nota, -6, 'uma ameaça em campo (Timberwatch Elf): −6');
+  assert.equal(av(s, 1).nota, sem(s, 1).nota, 'do lado dos Elfos, nada muda');
 });
