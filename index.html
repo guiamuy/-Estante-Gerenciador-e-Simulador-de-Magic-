@@ -33289,9 +33289,12 @@ const __m25 = (function () {
    mesa ou bate a cada mágica) e o perfil `controle` do Dimir Control: com a opção `ameacas`, cada uma em campo do lado do
    oponente custa 6 e a remoção vai nela antes do corpo maior (Timberwatch Elf antes do Masked Vandal). Medida pareada
    pilotando o Control: sem ganho (26 × 27 em 64) — fica DESLIGADA, só como opção de torneio (`z:ameacas`).
+   MULLIGAN 2 (B-22, leva B-177): `decideMulligan2` conta fontes (terreno ou carta que vira terreno: ciclagem de terreno,
+   mágica barata que busca básico), olha a cor das mágicas, manda embora mão de uma fonte a partir de 5 cartas e guarda a
+   cor no fundo. Neutro em força (79 × 81 em 160 pares pareados, os cinco pilotos), ligado porque o de antes dava
+   mulligan em 9 de 10 partidas dos Elfos. 'shark-v11' é o Shark da B-176, congelado.
    LIMITES DE HOJE: um lance à frente + resposta do oponente + combate; sem plano
-   de vários turnos, sem blefe, sem jogar em volta de anulação ou truque; mulligan
-   não olha cores; não troca reserva na melhor de três; esquece o que a vidência
+   de vários turnos, sem blefe, sem jogar em volta de anulação ou truque; não troca reserva na melhor de três; esquece o que a vidência
    mostrou do próprio topo.
    A diferença entre os níveis é profundidade e critério.
    ===================================================================== */
@@ -34163,6 +34166,68 @@ function decideMulligan(s, p) {
   return manter(`mantive: ${terrenos} terreno(s) e ${magicas} mágica(s)` + (m ? `, ${m} para o fundo` : ''));
 }
 
+/* ---------------- B-177 · mulligan 2: fontes, cores e o fundo pela cor ----------------
+   O mulligan de antes contava só terrenos e ignorava cor: dava mulligan na mão dos Elfos com dois Land Grant e um
+   Generous Ent ("um terreno só") e mantinha cinco cartas com um terreno. Aqui:
+   - FONTE é terreno ou carta que vira terreno — ciclagem de terreno (`islandcycling`, `forestcycling`…, palavra-chave
+     do dado) ou mágica de até 2 de valor que busca terreno básico (o efeito `search` do script, como o Land Grant);
+   - COR: as cores que as fontes da mão dão; uma mágica "cabe na mão" quando cada cor que ela pede está entre elas;
+   - uma fonte só manda embora mão de 5 cartas ou mais (antes, só de 6 ou 7); mão de 6 ou 7 sem nenhuma mágica que
+     caiba na cor também;
+   - o FUNDO guarda a cor: sai primeiro o terreno cuja cor outro já dá, e a mágica que não cabe na cor antes da cara.
+   Só a própria mão (informação justa). */
+const BASICOS_COR = { plains: 'W', island: 'U', swamp: 'B', mountain: 'R', forest: 'G' };
+/** Cores do terreno que a carta traz, ['*'] para "qualquer terreno", ou null quando ela não vira terreno. */
+function viraTerreno(s, o) {
+  const f = s.facts[o.name] || {};
+  for (const k of f.kw || []) { const m = /^(plains|island|swamp|mountain|forest|basicland|land)cycling$/.exec(k); if (m) return BASICOS_COR[m[1]] ? [BASICOS_COR[m[1]]] : ['*']; }
+  if ((f.cmc || 0) > 2 || !f.script) return null;
+  const busca = (f.script.effects || []).find(e => e.do === 'search' && e.filter && ((e.filter.subtypes || []).some(t => BASICOS_COR[String(t).toLowerCase()]) || (e.filter.types || []).includes('land')));
+  if (!busca) return null;
+  const cores = (busca.filter.subtypes || []).map(t => BASICOS_COR[String(t).toLowerCase()]).filter(Boolean);
+  return cores.length ? cores : ['*'];
+}
+function decideMulligan2(s, p) {
+  const pl = s.players[p], m = pl.mulligans || 0;
+  const mao = s.zones[p].hand.map(oid => s.objects[oid]);
+  const terreno = o => ehTerreno(s, o), vira = o => !terreno(o) && !!viraTerreno(s, o);
+  const custo = o => { const c = s.facts[o.name].cost || {}; return (c.generic || 0) + Object.values(c.colored || {}).reduce((a, b) => a + b, 0) + (c.hybrid || []).length; };
+  const coresDe = o => terreno(o) ? (s.facts[o.name].produces || []).flat() : vira(o) ? viraTerreno(s, o) : [];
+  const coresDaMao = cartas => { const c = new Set(); for (const o of cartas) for (const x of coresDe(o)) c.add(x); return c; };
+  const cabe = (o, cores) => cores.has('*') || Object.keys((s.facts[o.name].cost || {}).colored || {}).every(x => cores.has(x));
+  const fica = Math.max(0, mao.length - m);
+  const ideal = fica >= 5 ? 3 : 2;
+  const resto = mao.slice(); const fundo = [];
+  for (let i = 0; i < m; i++) {
+    const terrenos = resto.filter(terreno), magicas = resto.filter(o => !terreno(o));
+    let sai;
+    if (terrenos.length > ideal || !magicas.length) {
+      // o terreno cuja cor os outros já dão (o último entre os iguais)
+      const redundante = t => { const outros = coresDaMao(resto.filter(o => o !== t)); return coresDe(t).every(x => outros.has(x)) ? 1 : 0; };
+      sai = terrenos.slice().sort((a, b) => redundante(b) - redundante(a) || (a.oid < b.oid ? 1 : -1))[0];
+    } else {
+      const cores = coresDaMao(resto);
+      sai = magicas.slice().sort((a, b) => (cabe(a, cores) ? 1 : 0) - (cabe(b, cores) ? 1 : 0) || custo(b) - custo(a) || (a.oid < b.oid ? -1 : 1))[0];
+    }
+    fundo.push(sai.oid); resto.splice(resto.indexOf(sai), 1);
+  }
+  const terrenos = resto.filter(terreno).length, viram = resto.filter(vira).length, fontes = terrenos + viram;
+  const magicas = resto.filter(o => !terreno(o)), cores = coresDaMao(resto);
+  const naCor = magicas.filter(o => !vira(o) && cabe(o, cores));
+  const baratas = naCor.filter(o => custo(o) <= 2).length;
+  const manter = motivo => ({ acao: { t: 'keep', p, bottom: fundo }, motivo });
+  if (m >= 3) return manter(`mantive com ${resto.length}: outro mulligan custa mais do que a mão ruim`);
+  const mull = motivo => ({ acao: { t: 'mulligan', p }, motivo });
+  if (fontes === 0) return mull('mulligan: mão sem terreno');
+  if (!magicas.length) return mull('mulligan: mão só de terreno');
+  if (fontes === 1 && resto.length >= 5) return mull('mulligan: um terreno só');
+  if (terrenos >= 6) return mull(`mulligan: ${terrenos} terrenos e quase nada para jogar`);
+  if (terrenos === 5 && resto.length === 7 && baratas === 0) return mull('mulligan: cinco terrenos e nada barato para jogar');
+  if (fontes === 2 && resto.length === 7 && baratas === 0) return mull('mulligan: dois terrenos e nada que eles paguem');
+  if (resto.length >= 6 && !naCor.length && magicas.some(o => !vira(o))) return mull('mulligan: nenhuma mágica na cor dos terrenos');
+  return manter(`mantive: ${fontes} fonte(s) de mana e ${magicas.length - viram} mágica(s)` + (m ? `, ${m} para o fundo` : ''));
+}
+
 /* ---------------- Leva 117 · informação justa ----------------
    O que o Shark sabe: as duas listas, a própria mão, tudo que está em zona pública e o que a partida mostrou.
    O que ele não sabe: quais cartas estão na mão do oponente e a ordem dos dois grimórios.
@@ -34572,14 +34637,15 @@ const NOVO7 = { ...NOVO6, av4: true, ordena: true, manaPlano: true }; // leva 14
 const NOVO8 = { ...NOVO7, plano: true }; // B9 · plano do baralho (leva 147), congelado como 'shark-v8'
 const NOVO9 = { ...NOVO8, truque: true }; // B16 · truque próprio no ataque (leva 159), congelado como 'shark-v9'
 const NOVO10 = { ...NOVO9, aceita: true }; // B10b · `segura` (segurar a mana da anulação) foi medido e fica desligado: 36% contra 41% pilotando Faeries; congelado como 'shark-v10' (B-174)
-const NOVO = { ...NOVO10, av5: true }; // B-175 · o terreno que falta (avaliaV5) e os perfis de plano (PERFIS, pelo dado)
+const NOVO11 = { ...NOVO10, av5: true }; // B-175 · o terreno que falta (avaliaV5) e os perfis de plano (PERFIS, pelo dado); congelado como 'shark-v11' (B-177)
+const NOVO = { ...NOVO11, mull2: true }; // B-177 · mulligan por fontes e cores (decideMulligan2): neutro em força (79 × 81 em 160 pares), ligado porque tira o mulligan em 9 de 10 partidas dos Elfos
 // B-176 · `ameacas` (ameaças do campo no perfil do Dimir Control) foi medida e fica desligada: 26 de 64 contra 27 de 64 pilotando o Control
 function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date.now(), mundos: mundosN = 0, extra: extraOpts = null, pesos = null } = {}) {
   // Leva 117 · 'profissional' e 'shark' são o Shark atual (v4: o v3 com informação justa). 'shark-v3', 'shark-v2'
   // e 'shark-v1' são as versões anteriores, congeladas, só para o torneio — elas simulam sobre o estado real.
-  const v1 = nivel === 'shark-v1', v2 = nivel === 'shark-v2', v3 = nivel === 'shark-v3', v4 = nivel === 'shark-v4', v5 = nivel === 'shark-v5', v6 = nivel === 'shark-v6', v7 = nivel === 'shark-v7', v8 = nivel === 'shark-v8', v9 = nivel === 'shark-v9', v10 = nivel === 'shark-v10';
-  const atual = nivel === 'profissional' || nivel === 'shark' || v4 || v5 || v6 || v7 || v8 || v9 || v10 || !!extraOpts || !!pesos;
-  const ligadas = { ...(v4 ? {} : v5 ? NOVO5 : v6 ? NOVO6 : v7 ? NOVO7 : v8 ? NOVO8 : v9 ? NOVO9 : v10 ? NOVO10 : NOVO), ...(extraOpts || {}) };
+  const v1 = nivel === 'shark-v1', v2 = nivel === 'shark-v2', v3 = nivel === 'shark-v3', v4 = nivel === 'shark-v4', v5 = nivel === 'shark-v5', v6 = nivel === 'shark-v6', v7 = nivel === 'shark-v7', v8 = nivel === 'shark-v8', v9 = nivel === 'shark-v9', v10 = nivel === 'shark-v10', v11 = nivel === 'shark-v11';
+  const atual = nivel === 'profissional' || nivel === 'shark' || v4 || v5 || v6 || v7 || v8 || v9 || v10 || v11 || !!extraOpts || !!pesos;
+  const ligadas = { ...(v4 ? {} : v5 ? NOVO5 : v6 ? NOVO6 : v7 ? NOVO7 : v8 ? NOVO8 : v9 ? NOVO9 : v10 ? NOVO10 : v11 ? NOVO11 : NOVO), ...(extraOpts || {}) };
   let perfil, avPlano = null, passosCombo = 0, turnoCombo = -1; // B9 · perfil do meu baralho, lido na primeira jogada
   const avAtual = ligadas.av4 || ligadas.av5 || pesos ? avaliadorCom({ ...PESOS_ATUAIS, ...(pesos || {}) }, ligadas.av5 ? avaliaV5 : ligadas.av4 ? avaliaV4 : avaliaV3) : null;
   let plano = []; // leva 143 · ações que faltam do plano de mana em curso
@@ -34593,7 +34659,7 @@ function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date
         que está à vista, como acontece quando a partida é reaberta. Sem isto, voltar uma jogada deixaria o bot sabendo a carta desfeita. */
     esquece() { vistas.clear(); plano = []; avPlano = null; passosCombo = 0; turnoCombo = -1; },
     /** Mão inicial: do v3 em diante o bot decide; os anteriores mantêm sempre (como antes). */
-    mulligan(s, p) { return v3 || atual ? decideMulligan(s, p) : { acao: { t: 'keep', p, bottom: s.zones[p].hand.slice(0, s.players[p].mulligans || 0) }, motivo: 'mantive' }; },
+    mulligan(s, p) { return v3 || atual ? (ligadas.mull2 ? decideMulligan2 : decideMulligan)(s, p) : { acao: { t: 'keep', p, bottom: s.zones[p].hand.slice(0, s.players[p].mulligans || 0) }, motivo: 'mantive' }; },
     jogada(s, p) {
       if (!profissional) return jogadaAmador(s, p, { orcamentoMs, agora });
       if (!atual || s.status !== 'playing') return jogadaProfissional(s, p, { orcamentoMs, agora, ...extra });
@@ -34622,7 +34688,7 @@ function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date
   };
 }
 
-return { PESOS, LIMIAR_RESPOSTA, avalia, avaliaV2, avaliaV3, projetaCombate, riscoDeVolta, decideMulligan, simula, escolhe, chaveAcao, fontesDeMana,
+return { PESOS, LIMIAR_RESPOSTA, avalia, avaliaV2, avaliaV3, projetaCombate, riscoDeVolta, decideMulligan, decideMulligan2, viraTerreno, simula, escolhe, chaveAcao, fontesDeMana,
   jogadaAmador, jogadaProfissional, decideAtaque, decideAtaqueProfissional, decideBloqueio, decideBloqueioProfissional,
   notaComResposta, notaDoAtaque, resumoDoTurno, dicas, visaoDe, sementePublica, atualizaMemoria, MUNDOS, avaliadorCom, PESOS_ATUAIS, politicaRapida, rola, avaliaV4, planoDeMana, PERFIS, AMEACAS_DO_CAMPO, perfilDe, passoDoCombo, avaliadorDoPlano, avaliaV5, notaDoAtaqueComTruque, custoDaResposta, criaBot, NOME_DO_BOT, nivelDaMesa, LISTAS_DO_SHARK };
 })();

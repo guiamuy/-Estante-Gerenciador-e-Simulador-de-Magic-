@@ -1172,3 +1172,56 @@ test('B-176 · com a opção ameacas, na manutenção dos Elfos, com um Cast Dow
   assert.equal(av(s, 0).nota - sem(s, 0).nota, -6, 'uma ameaça em campo (Timberwatch Elf): −6');
   assert.equal(av(s, 1).nota, sem(s, 1).nota, 'do lado dos Elfos, nada muda');
 });
+
+/* ---- B-177 · mulligan 2: fontes de mana (terreno ou carta que vira terreno), cores e o fundo pela cor ---- */
+/** Mão inicial com as cartas dadas (7, na ordem dada) para a lista `a` do Shark, depois de `m` mulligans. */
+async function maoDoShark(a, nomes, m = 0) {
+  const { listasDoShark } = await import('./torneio.listas.mjs');
+  const L = listasDoShark(), d0 = L[a], d1 = L[(a + 1) % L.length];
+  const cards = {}; for (const x of [d0, d1]) for (const e of x.entries) cards[e.name] = x.cartas[e.name];
+  const s = J(E.createGame({ format: 'pauper', seed: 3, mode: 'full', manaCheck: true, cards, players: [{ name: 'P0', deck: d0.entries }, { name: 'P1', deck: d1.entries }] }));
+  const z = s.zones[0];
+  for (const oid of [...z.hand]) { z.hand.splice(z.hand.indexOf(oid), 1); z.library.push(oid); s.objects[oid].zone = 'library'; }
+  const ids = [];
+  for (const n of nomes) { const oid = z.library.find(o => s.objects[o].name === n); assert.ok(oid, 'a lista tem ' + n); z.library.splice(z.library.indexOf(oid), 1); z.hand.push(oid); s.objects[oid].zone = 'hand'; ids.push(oid); }
+  s.players[0].mulligans = m;
+  return { s, ids };
+}
+test('B-177 · viraTerreno: ciclagem de terreno e mágica barata que busca básico viram fonte, com a cor do básico; o resto não', async () => {
+  const { s, ids } = await maoDoShark(4, ['Generous Ent', 'Land Grant', 'Forest', 'Llanowar Elves', 'Timberwatch Elf', 'Elvish Mystic', 'Priest of Titania']);
+  const v = i => B.viraTerreno(s, s.objects[ids[i]]);
+  assert.deepEqual(J(v(0)), ['G'], 'Generous Ent: forestcycling'); assert.deepEqual(J(v(1)), ['G'], 'Land Grant: busca Floresta');
+  assert.equal(v(3), null, 'Llanowar Elves faz mana mas não é terreno');
+  const t = await maoDoShark(3, ['Lórien Revealed', 'Island', 'Island', 'Counterspell', 'Tolarian Terror', 'Brainstorm', 'Ponder']);
+  assert.deepEqual(J(B.viraTerreno(t.s, t.s.objects[t.ids[0]])), ['U'], 'Lórien Revealed: islandcycling');
+  assert.equal(B.viraTerreno(t.s, t.s.objects[t.ids[3]]), null, 'Counterspell não vira terreno');
+});
+test('B-177 · Elfos com um Forest, dois Land Grant e dois Generous Ent: o mulligan novo mantém (cinco fontes); o antigo dava mulligan ("um terreno só")', async () => {
+  const { s } = await maoDoShark(4, ['Forest', 'Priest of Titania', 'Land Grant', 'Land Grant', 'Generous Ent', 'Elvish Mystic', 'Generous Ent']);
+  assert.equal(B.decideMulligan(s, 0).acao.t, 'mulligan');
+  const j = B.decideMulligan2(s, 0); assert.equal(j.acao.t, 'keep', j.motivo); assert.match(j.motivo, /5 fonte/);
+});
+test('B-177 · cinco cartas com uma fonte só: o mulligan novo vai a quatro; o antigo mantinha', async () => {
+  const { s } = await maoDoShark(1, ['Island', 'Counterspell', 'Preordain', 'Cast Down', 'Baleful Strix', 'Snuff Out', 'Murmuring Mystic'], 2);
+  const velho = B.decideMulligan(s, 0), novo = B.decideMulligan2(s, 0);
+  assert.equal(velho.acao.t, 'keep', velho.motivo); assert.equal(novo.acao.t, 'mulligan', novo.motivo); assert.match(novo.motivo, /um terreno só/);
+});
+test('B-177 · Dimir Control com três Ilhas e só mágicas pretas: o mulligan novo descarta (nenhuma mágica na cor); com um Swamp no lugar de uma Ilha, mantém', async () => {
+  const semPreto = await maoDoShark(1, ['Island', 'Island', 'Island', 'Cast Down', 'Cast Down', 'Cut Down', 'Snuff Out']);
+  assert.equal(B.decideMulligan(semPreto.s, 0).acao.t, 'keep');
+  const j = B.decideMulligan2(semPreto.s, 0); assert.equal(j.acao.t, 'mulligan'); assert.match(j.motivo, /na cor dos terrenos/);
+  const comPreto = await maoDoShark(1, ['Island', 'Island', 'Swamp', 'Cast Down', 'Cast Down', 'Cut Down', 'Snuff Out']);
+  assert.equal(B.decideMulligan2(comPreto.s, 0).acao.t, 'keep');
+});
+test('B-177 · o fundo guarda a cor: com Ilha, Ilha, Ilha, Swamp e um mulligan, vai uma Ilha para o fundo (o antigo mandava o Swamp)', async () => {
+  const { s, ids } = await maoDoShark(1, ['Island', 'Island', 'Island', 'Swamp', 'Cast Down', 'Counterspell', 'Preordain'], 1);
+  const swamp = ids[3], velho = B.decideMulligan(s, 0), novo = B.decideMulligan2(s, 0);
+  assert.deepEqual(J(velho.acao.bottom), [swamp], 'o antigo: o último terreno');
+  assert.equal(novo.acao.t, 'keep'); assert.equal(novo.acao.bottom.length, 1);
+  assert.equal(s.objects[novo.acao.bottom[0]].name, 'Island');
+});
+test('B-177 · o Shark publicado usa o mulligan 2 (mantém a mão dos Elfos com Land Grant e Generous Ent); o shark-v11 congelado usa o antigo', async () => {
+  const { s } = await maoDoShark(4, ['Forest', 'Priest of Titania', 'Land Grant', 'Land Grant', 'Generous Ent', 'Elvish Mystic', 'Generous Ent']);
+  assert.equal(shark('shark').mulligan(s, 0).acao.t, 'keep');
+  assert.equal(shark('shark-v11').mulligan(s, 0).acao.t, 'mulligan');
+});

@@ -55,7 +55,7 @@ export { cartasReais, oficiaisTodos, listas, partida, listasDoShark };
 const ORC = +(process.env.ORC || 250), MUNDOSN = +(process.env.MUNDOS || 0);
 const cria = nivel => {
   if (nivel.startsWith('p:')) return B.criaBot({ nivel: 'shark', orcamentoMs: ORC, mundos: MUNDOSN, pesos: Object.fromEntries(nivel.slice(2).split(',').filter(Boolean).map(x => { const [k, v] = x.split('='); return [k, +v]; })) });
-  if (['shark', 'shark-v10', 'shark-v9', 'shark-v8', 'shark-v7', 'shark-v6', 'shark-v5', 'shark-v4'].includes(nivel)) return B.criaBot({ nivel, orcamentoMs: ORC, mundos: MUNDOSN });
+  if (['shark', 'shark-v11', 'shark-v10', 'shark-v9', 'shark-v8', 'shark-v7', 'shark-v6', 'shark-v5', 'shark-v4'].includes(nivel)) return B.criaBot({ nivel, orcamentoMs: ORC, mundos: MUNDOSN });
   if (/^shark:\d+$/.test(nivel)) return B.criaBot({ nivel: 'shark', orcamentoMs: 250, mundos: +nivel.split(':')[1] }); // leva 117 · 'shark:5' = Shark com 5 mundos
   // leva 132 · 'y:rolaAtaque,rolaJogada' = Shark v6 com as peças novas ligadas uma a uma
   if (nivel.startsWith('z:')) return B.criaBot({ nivel: 'shark', orcamentoMs: ORC, mundos: MUNDOSN, extra: Object.fromEntries(nivel.slice(2).split(',').filter(Boolean).map(k => k.startsWith('!') ? [k.slice(1), false] : [k, true])) }); // B-176 · o Shark atual com peças a mais ('z:ameacas') ou a menos ('z:!av5')
