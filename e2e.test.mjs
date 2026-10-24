@@ -2391,10 +2391,30 @@ async function auditaTela(page, nome) {
     const larguraDoc = document.documentElement.scrollWidth, larguraTela = window.innerWidth;
     const vazou = [...document.querySelectorAll('body *')].filter(el => { if (!vis(el)) return false; const b = el.getBoundingClientRect(); if (b.right <= larguraTela + 1) return false; let p = el.parentElement; while (p) { const o = getComputedStyle(p).overflowX; if (o === 'auto' || o === 'scroll' || o === 'hidden') return false; p = p.parentElement; } return true; })
       .slice(0, 5).map(el => el.tagName + '.' + String(el.className).split(' ')[0] + ' → ' + Math.round(el.getBoundingClientRect().right));
-    return { pequenos, larguraDoc, larguraTela, vazou };
+    // DS-K (G-287) · contenção de texto (decisão do dono de 24/10): o texto de um controle fica inteiro dentro da caixa
+    // dele — nada vaza (scrollWidth/scrollHeight maior que a caixa) e nada quebra em duas linhas, salvo quebra declarada
+    // (`data-quebra`, ou `text-wrap: balance`, que é a quebra simétrica permitida) ou atalho de ícone + rótulo (duas
+    // linhas por desenho). Carta da mesa, camada de efeitos e o que já é intencional de sobreposição ficam de fora.
+    const CONTIDOS = '.ds-btn, .ds-chip, .ds-badge, .ds-tab, .tb-pill, .tb-chip';
+    // texto visualmente oculto (1 px, só para o leitor de tela) não conta: basta um ancestral até o controle com 1 px
+    const soLeitor = (t, el) => { for (let p = t.parentElement; p && p !== el.parentElement; p = p.parentElement) { const cx = p.getBoundingClientRect(); if (cx.width <= 1 || cx.height <= 1) return true; } return false; };
+    // linhas = faixas verticais que não se sobrepõem: rótulo e contador de tamanhos diferentes na mesma linha contam uma vez
+    const linhasDe = el => { const faixas = []; const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT); while (w.nextNode()) { const t = w.currentNode; if (!t.textContent.trim() || soLeitor(t, el)) continue; const rg = document.createRange(); rg.selectNodeContents(t); for (const rc of rg.getClientRects()) if (rc.height > 1 && rc.width > 1) faixas.push([rc.top, rc.bottom]); }
+      faixas.sort((x, y) => x[0] - y[0]); let n = 0, fim = -Infinity; for (const [topo, base] of faixas) { if (topo >= fim - 1) { n++; fim = base; } else fim = Math.max(fim, base); } return n; };
+    const transbordos = [...document.querySelectorAll(CONTIDOS)]
+      .filter(el => vis(el) && !el.closest('.tb-card, #tb-fx, .tb-peek, [data-sobrepoe], .ds-atalho') && !el.hasAttribute('data-quebra') && el.tagName !== 'SELECT')
+      .flatMap(el => {
+        const rotulo = (el.id ? '#' + el.id : '') + '.' + String(el.className).split(' ')[0] + ' «' + (el.textContent || '').trim().slice(0, 28) + '»';
+        const ruins = [];
+        if (el.scrollWidth > el.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1) ruins.push(rotulo + ' vaza ' + (el.scrollWidth - el.clientWidth) + '×' + (el.scrollHeight - el.clientHeight) + 'px');
+        if (getComputedStyle(el).textWrap !== 'balance' && linhasDe(el) > 1) ruins.push(rotulo + ' quebra em ' + linhasDe(el) + ' linhas');
+        return ruins;
+      }).slice(0, 12);
+    return { pequenos, larguraDoc, larguraTela, vazou, transbordos };
   });
   assert.ok(r.larguraDoc <= r.larguraTela, `${nome}: rolagem lateral (${r.larguraDoc} > ${r.larguraTela}): ${r.vazou.join(' | ')}`);
   assert.deepEqual(r.pequenos, [], `${nome}: alvos de toque abaixo de 44px`);
+  assert.deepEqual(r.transbordos, [], `${nome}: texto fora da caixa ou quebrado em controle (DS-K)`);
   assert.deepEqual(await sobreposicoes(page), [], `${nome}: texto por cima de texto ou de selo/botão`);
 }
 
@@ -7701,7 +7721,7 @@ test('e2e · D12 guia visual vivo: /ds mostra os tokens que estão valendo (muda
   await page.addInitScript(() => { window.__MTG_TEST = true; });
   await page.setViewportSize({ width: 360, height: 780 });
   await page.goto(base + '#/ds'); await page.waitForSelector('#ds-tokens-cor');
-  assert.equal(await page.locator('#ds-tokens-cor .ds-token').count(), 21, 'vinte e um tokens de cor');
+  assert.equal(await page.locator('#ds-tokens-cor .ds-token').count(), 25, 'vinte e cinco tokens de cor (DS-K G-287: + --bg-elev-0, --accent-hi, --accent-lo e --sheen)');
   const lido = await page.innerText('#ds-tokens-cor [data-token="--accent"]');
   const valendo = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--accent').trim());
   assert.ok(lido.includes(valendo), `o catálogo mostra o valor que está valendo (${valendo})`);
@@ -15292,5 +15312,51 @@ test('e2e · MJ10 espiar de patamar: a carta grande sai da carta segurada, incli
     return { espera: !!e, junto: !!(e && e.previousElementSibling && e.previousElementSibling.matches('.tb-sheet__img')), oculta: e ? getComputedStyle(e).display : null, giro: getComputedStyle(f, '::after').content, largura: Math.round(f.getBoundingClientRect().width) }; });
   assert.deepEqual([folha.espera, folha.junto, folha.oculta, folha.giro], [true, true, 'none', 'none'], 'espera do DS ao lado da imagem, some ao carregar; sem giro ' + JSON.stringify(folha));
   assert.ok(folha.largura <= 240, 'a foto mede a carta');
+  assert.deepEqual(errors, []);
+});
+
+/* ---------------- DS-K (G-287) · Ébano e Ouro, F0.1: tokens, receitas de animação e contenção de texto ---------------- */
+test('e2e · DS-K · o /ds mostra os tokens de ébano e latão, as dez receitas com os cinco campos, o palco toca em três planos e para com menos movimento; latão AA nos dois temas; nenhum controle com texto fora da caixa', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(FAKE_DEVICE(false));
+  await page.goto(base + '#/ds'); await page.waitForSelector('#ds-receitas');
+  // os tokens novos estão valendo nos dois temas e o catálogo os mostra
+  for (const tema of ['dark', 'light']) {
+    await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema);
+    const v = await page.evaluate(() => { const cs = getComputedStyle(document.documentElement); return Object.fromEntries(['--bg-elev-0', '--accent-hi', '--accent-lo', '--sheen', '--ease-spring', '--dur-abertura'].map(k => [k, cs.getPropertyValue(k).trim()])); });
+    for (const k of Object.keys(v)) assert.ok(v[k], `${k} vale no tema ${tema}`);
+    assert.equal(v['--dur-abertura'], '1300ms'); assert.match(v['--ease-spring'], /^cubic-bezier/);
+    assert.ok(await page.evaluate(() => [...document.querySelectorAll('#ds-tokens-cor .ds-token, #ds-tokens-cor *')].some(x => /--bg-elev-0/.test(x.textContent))), 'o catálogo lista --bg-elev-0');
+    // a amostra de latão: o texto fica legível sobre o fio de luz e sobre o lábio (os extremos do gradiente)
+    const aa = await page.evaluate(() => {
+      const cs = getComputedStyle(document.documentElement);
+      const lum = h => { const n = h.replace('#', ''); return [0, 2, 4].map(i => parseInt(n.slice(i, i + 2), 16) / 255).map(c => c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4).reduce((a, c, i) => a + c * [0.2126, 0.7152, 0.0722][i], 0); };
+      const r = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); };
+      const fg = cs.getPropertyValue('--accent-fg').trim();
+      return [r(fg, cs.getPropertyValue('--accent-hi').trim()), r(fg, cs.getPropertyValue('--accent-lo').trim())];
+    });
+    assert.ok(aa.every(x => x >= 4.5), `latão ${tema}: ${aa.map(x => x.toFixed(2)).join(' / ')}`);
+    await auditaTela(page, `DS-K · receitas (${tema})`);
+  }
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  // dez receitas, cada uma com os cinco campos e a dona; as da mesa marcadas como contrato da jogabilidade
+  const rec = await page.evaluate(() => [...document.querySelectorAll('#ds-receitas .ds-receita')].map(a => ({ id: a.id, dona: a.dataset.dona, campos: [...a.querySelectorAll('dt')].map(d => d.textContent), vazio: [...a.querySelectorAll('dd')].some(d => !d.textContent.trim()) })));
+  assert.equal(rec.length, 10); assert.equal(rec.filter(x => x.dona === 'jogabilidade').length, 7);
+  for (const x of rec) { assert.deepEqual(x.campos, ['plano', 'luz', 'curva', 'etapas', 'reduzido'], x.id); assert.equal(x.vazio, false, x.id + ' tem campo vazio'); }
+  // o palco da abertura toca em três planos (luz, ladrilho em 3D e nome) e o de pousar escalona as três cartas
+  await page.click('#ds-receita-ver-abertura');
+  const ab = await page.evaluate(() => { const p = document.querySelector('#ds-palco-abertura'); return { on: p.dataset.on, anim: [...p.getAnimations({ subtree: true })].map(a => a.animationName).sort(), persp: getComputedStyle(p).perspective }; });
+  assert.equal(ab.on, 'abertura'); assert.notEqual(ab.persp, 'none', 'o palco tem profundidade');
+  for (const n of ['ds-acende', 'ds-ladrilho', 'ds-traco', 'ds-varre', 'ds-revela']) assert.ok(ab.anim.includes(n), 'abertura toca ' + n + ': ' + ab.anim.join(','));
+  await page.click('#ds-receita-ver-pousar');
+  const po = await page.evaluate(() => { const p = document.querySelector('#ds-palco-pousar'); return [...p.querySelectorAll('.ds-palco__carta')].map(c => c.getAnimations()[0]).filter(Boolean).map(a => a.effect.getTiming().delay); });
+  assert.deepEqual(po, [0, 130, 260], 'as três cartas entram escalonadas em 130 ms');
+  // menos movimento: a receita mostra o estado final em um quadro (a regra global zera as animações)
+  await page.evaluate(() => document.documentElement.setAttribute('data-movimento', 'reduzido'));
+  await page.click('#ds-receita-ver-abertura');
+  const red = await page.evaluate(() => [...document.querySelector('#ds-palco-abertura').getAnimations({ subtree: true })].filter(a => a.effect.getTiming().duration > 1).length);
+  assert.equal(red, 0, 'com menos movimento nada dura mais que um quadro');
+  await page.evaluate(() => document.documentElement.removeAttribute('data-movimento'));
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/ds-k-receitas.png', fullPage: false });
   assert.deepEqual(errors, []);
 });

@@ -3,6 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { HTML } from './_load.mjs';
+import { readFileSync } from 'node:fs';
 
 const css = HTML.slice(HTML.indexOf('<style>') + 7, HTML.indexOf('</style>'));
 const TOKENS_END = css.indexOf('F5 · BASE + COMPONENTES');
@@ -281,7 +282,7 @@ test('D12 · todo componente visual exportado pelo DS aparece no catálogo /ds, 
   const nomes = exportacao[0].replace(/^return \{|\};$/g, '').split(',').map(x => x.trim()).filter(Boolean);
   // o que não é visual (utilitários, símbolos de mana parseados, fechamento) fica fora da exigência
   const NAO_VISUAL = new Set(['h', 'seguro', /* P-1 · monta HTML seguro, não desenha */ 'usaRelatar', /* Y1 · liga o item Relatar, não desenha */ 'clear', 'mount', 'closeDialog', 'fechaToast', 'reservaDoca', 'analisaSimbolos', 'SIMBOLO_RX', 'nomeDoSimbolo', 'simbolizar', 'srcsetDaCarta', 'ICONES', 'ImagemCarta',
-    'deveAncorar', 'instalaAncora', 'levaAte', 'levaSeEscondido', 'oQueEsconde']); // J1 · comportamento de rolagem, sem desenho próprio
+    'deveAncorar', 'instalaAncora', 'levaAte', 'levaSeEscondido', 'oQueEsconde', 'RECEITAS_DE_ANIMACAO' /* DS-K · dados das receitas; o catálogo as desenha em ds-receitas */]); // J1 · comportamento de rolagem, sem desenho próprio
   const i = html.indexOf('const Section = (title, ...kids)'); const j = html.indexOf('\n}\n', html.indexOf('function renderDS()')); const catalogo = html.slice(i, j); // o módulo do catálogo inteiro (Section usa Surface)
   const faltam = nomes.filter(n => !NAO_VISUAL.has(n)).filter(n => !new RegExp(`\\b${n}\\(`).test(catalogo) && !catalogo.includes(`${n}(`));
   assert.deepEqual(faltam, [], 'componentes do DS fora do catálogo');
@@ -355,4 +356,88 @@ test('MJ8 · ritmo do turno: o trilho acende em sequência por um fio só de opa
     const kf = css.match(new RegExp(`@keyframes ${nome} \\{([^}]*\\}[^}]*)\\}`)); assert.ok(kf, nome); assert.doesNotMatch(kf[1], /width|height|left|top|margin/, nome + ' só transform e opacidade');
   }
   assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{ \.tb-vez--troca\[data-papel\], \.tb-vez-selo--troca\[data-papel\] \{ animation: none; \} \}/);
+});
+
+/* ---------------- DS-K (G-287) · Ébano e Ouro, F0.1: tokens, latão por acento, receitas e contenção de texto ---------------- */
+test('DS-K · os tokens de ébano e latão existem nos três blocos; a superfície profunda segura o texto, o texto apagado, o sutil e o oponente em AA e o acento em texto grande (3:1); o texto do botão segue AA nos dois extremos do latão em cada acento', () => {
+  const novos = ['--bg-elev-0', '--accent-hi', '--accent-lo', '--sheen'];
+  for (const [nome, t] of [['escuro', DARK], ['claro', LIGHT], ['claro automático', { ...DARK, ...AUTO_LIGHT }]])
+    for (const k of novos) assert.ok(t[k], `${k} no tema ${nome}`);
+  for (const k of novos) assert.equal(AUTO_LIGHT[k], LIGHT[k], `${k}: claro automático idêntico ao escolhido`);
+  for (const k of ['--ease-spring', '--dur-abertura', '--escalona']) assert.ok(DARK[k], k);
+  assert.match(DARK['--escalona'], /^\d+ms$/);
+  assert.match(DARK['--dur-abertura'], /^\d+ms$/); assert.match(DARK['--ease-spring'], /^cubic-bezier\(/);
+  for (const [nome, t] of [['escuro', DARK], ['claro', LIGHT]]) {
+    for (const f of ['--fg', '--fg-muted', '--fg-subtle', '--player-opp', '--positive', '--negative'])
+      assert.ok(ratio(t[f], t['--bg-elev-0']) >= 4.5, `${f} sobre --bg-elev-0 (${nome}): ${ratio(t[f], t['--bg-elev-0']).toFixed(2)}`);
+    assert.ok(ratio(t['--accent'], t['--bg-elev-0']) >= 3, `acento (texto grande) sobre --bg-elev-0 (${nome}): ${ratio(t['--accent'], t['--bg-elev-0']).toFixed(2)}`);
+    // a superfície profunda se separa do fundo e da superfície 1 (senão não é "profunda")
+    assert.ok(ratio(t['--bg-elev-0'], t['--bg']) >= 1.03 && ratio(t['--bg-elev-0'], t['--bg-elev-1']) >= 1.12, `--bg-elev-0 se distingue (${nome}): ${ratio(t['--bg-elev-0'], t['--bg']).toFixed(2)} / ${ratio(t['--bg-elev-0'], t['--bg-elev-1']).toFixed(2)}`); // no escuro a razão comprime: a separação visível vem da superfície 1
+  }
+  // o trio de latão por acento: hi e lo definidos para cobre, prata e jade nos dois temas, e o texto do botão AA sobre os dois
+  const acento = (sel) => vars(block(sel));
+  const trios = [['escuro', DARK, ['', ':root[data-acento="cobre"]', ':root[data-acento="prata"]', ':root[data-acento="jade"]']],
+    ['claro', LIGHT, ['', ':root[data-theme="light"][data-acento="cobre"]', ':root[data-theme="light"][data-acento="prata"]', ':root[data-theme="light"][data-acento="jade"]']]];
+  for (const [nome, base, sels] of trios) for (const sel of sels) {
+    // o bloco do acento aparece duas vezes (D2 e DS-K): junta os dois
+    const partes = sel ? [...tokenCss.matchAll(new RegExp(sel.replace(/[[\]()*+?.\\^$|]/g, '\\$&') + ' \\{([^}]*)\\}', 'g'))].map(m => vars(m[1])) : [{}];
+    const t = Object.assign({}, base, ...partes);
+    assert.ok(t['--accent-hi'] && t['--accent-lo'], `${sel || 'latão'} (${nome}) tem --accent-hi e --accent-lo`);
+    for (const k of ['--accent-hi', '--accent-lo']) assert.ok(ratio(t['--accent-fg'], t[k]) >= 4.5, `texto do botão sobre ${k} em ${sel || 'latão'} (${nome}): ${ratio(t['--accent-fg'], t[k]).toFixed(2)}`);
+  }
+  // a varredura é translúcida (nunca uma cor sólida) e o latão metálico só usa os tokens do trio
+  for (const t of [DARK, LIGHT]) assert.match(t['--sheen'], /^rgba\(/);
+  assert.match(componentCss, /\.ds-latao \{[^}]*linear-gradient\(160deg, var\(--accent-hi\), var\(--accent\) 55%, var\(--accent-lo\)\)/);
+  assert.match(componentCss, /\.ds-latao::after \{[^}]*var\(--sheen\)/);
+});
+
+test('DS-K · as receitas de animação declaram os cinco campos (plano, luz, curva, etapas, reduzido) e a dona; curvas e durações só por token; o palco tem profundidade e cada receita com palco tem @keyframes próprios usados', () => {
+  const inicio = HTML.indexOf('const RECEITAS_DE_ANIMACAO = Object.freeze(['); assert.ok(inicio > 0, 'RECEITAS_DE_ANIMACAO no módulo de componentes');
+  const bloco = HTML.slice(inicio, HTML.indexOf(']);', inicio));
+  const receitas = [...bloco.matchAll(/\{ id: '([a-z]+)'[^\n]*\}/g)].map(m => m[0]);
+  assert.equal(receitas.length, 10, 'dez receitas');
+  for (const r of receitas) {
+    for (const campo of ['nome', 'evento', 'dona', 'plano', 'luz', 'curva', 'etapas', 'reduzido']) assert.match(r, new RegExp(`\\b${campo}: '[^']+'`), `${r.slice(0, 24)}: campo ${campo}`);
+    assert.match(r, /dona: '(design|jogabilidade)'/);
+    // nenhuma duração ou curva literal na receita: só tokens --dur-* e --ease-*
+    assert.doesNotMatch(r, /\d+\s?ms\b/, 'duração literal na receita');
+    assert.doesNotMatch(r, /cubic-bezier/, 'curva literal na receita');
+    assert.match(r, /--dur-|--ease-/);
+  }
+  assert.match(HTML, /id: 'ds-receitas'/); assert.match(HTML, /Section\('Receitas de animação'/);
+  assert.match(componentCss, /\.ds-palco \{[^}]*perspective: \d+px/);
+  for (const n of ['ds-acende', 'ds-ladrilho', 'ds-traco', 'ds-varre', 'ds-revela', 'ds-pousa', 'ds-sombra-pousa', 'ds-estende', 'ds-afunda', 'ds-sobe', 'ds-aperta', 'ds-investe', 'ds-sombra-sobe', 'ds-golpe', 'ds-treme', 'ds-salta'])
+    assert.ok(componentCss.includes(`@keyframes ${n} `) && componentCss.includes(`animation: ${n} `), n);
+  // três planos: luz (fundo), objeto e sombra animados em regras separadas; o 3D só por transform
+  assert.match(componentCss, /\.ds-palco\[data-on="pousar"\] \.ds-palco__carta \{ animation: ds-pousa/);
+  assert.match(componentCss, /\.ds-palco\[data-on="pousar"\] \.ds-palco__carta::after \{ animation: ds-sombra-pousa/);
+  assert.match(componentCss, /\.ds-palco\[data-on="abertura"\] \.ds-palco__luz \{ animation: ds-acende/);
+});
+
+test('DS-K · contenção de texto: os controles do design system não deixam o texto vazar nem quebrar — selo e chip sem quebra por CSS, botão com rótulo numa linha; a quebra permitida é simétrica (text-wrap: balance)', () => {
+  assert.match(componentCss, /\.ds-badge \{[^}]*white-space: nowrap/);
+  assert.match(componentCss, /\.ds-chip \{[^}]*white-space: nowrap/);
+  assert.match(componentCss, /\.ds-btn \{[^}]*white-space: nowrap/);
+  assert.match(componentCss, /\.ds-btn \{[^}]*flex-shrink: 0/, 'o botão não encolhe abaixo do rótulo');
+  assert.doesNotMatch(componentCss.slice(componentCss.indexOf('.ds-btn {'), componentCss.indexOf('}', componentCss.indexOf('.ds-btn {'))), /min-width: 0/, 'min-width: 0 deixaria o rótulo vazar');
+  assert.match(componentCss, /\.ds-tab \{[^}]*white-space: nowrap/);
+  // texto corrido que pode quebrar (títulos de diálogo, estado vazio, receitas) quebra de forma equilibrada
+  for (const sel of ['.ds-dialog__title', '.ds-empty__titulo', '.ds-receita__campos dd']) {
+    const i = componentCss.indexOf(sel + ' {'); assert.ok(i >= 0, sel);
+    assert.match(componentCss.slice(i, componentCss.indexOf('}', i)), /text-wrap: (balance|pretty)/, sel + ' quebra simétrica');
+  }
+  // o guarda-corpo de tela existe e mede caixa e linhas de todo controle
+  const e2e = readFileSync(new URL('./e2e.test.mjs', import.meta.url), 'utf8');
+  assert.match(e2e, /const CONTIDOS = '\.ds-btn, \.ds-chip, \.ds-badge, \.ds-tab, \.tb-pill, \.tb-chip';/);
+  assert.match(e2e, /transbordos, \[\], `\$\{nome\}: texto fora da caixa ou quebrado em controle \(DS-K\)`/);
+});
+
+test('DS-K · as escolhas da faixa de decisão não passam da largura dela e quebram de forma simétrica quando não cabem (achado da fila: divisão de dano na fonte do CI)', () => {
+  assert.match(componentCss, /\.tb-banner__actions \{[^}]*max-width: 100%/);
+  assert.match(componentCss, /\.tb-banner__actions \.ds-btn \{[^}]*max-width: 100%;[^}]*white-space: normal;[^}]*text-wrap: balance;[^}]*text-align: center/);
+});
+test('DS-K · a opção em bloco (folha da carta, escolhas) quebra de forma simétrica e cresce para o texto ficar dentro; o botão comum segue numa linha', () => {
+  const regra = componentCss.match(/\.ds-btn--block \{ white-space: normal;([^}]*)\}/); assert.ok(regra, '.ds-btn--block com quebra declarada');
+  assert.match(regra[1], /text-wrap: balance/); assert.match(regra[1], /text-align: center/); assert.match(regra[1], /padding-block: var\(--space-2\)/);
+  assert.match(componentCss, /\.ds-btn \{[^}]*white-space: nowrap/);
 });

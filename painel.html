@@ -158,6 +158,16 @@
   --latao-luz: rgba(255, 250, 235, .3);
   --latao-labio: rgba(28, 16, 2, .4);
   --focus-ring: 0 0 0 3px var(--accent-soft);
+  /* DS-K (G-287) · Ébano e Ouro: superfície profunda (o cartão de destaque, a barra da mesa), trio de latão (fio de
+     luz, base, lábio) para o primário e a marca lerem como metal, varredura de luz, mola e abertura. O acento sobre a
+     superfície profunda é só para texto grande (≥ 20 px) ou borda; texto pequeno usa --fg/--fg-muted (contrato visual). */
+  --bg-elev-0: #0b0804;
+  --accent-hi: #e6c477;
+  --accent-lo: #b08a3c;
+  --sheen: rgba(255, 240, 205, .42);
+  --ease-spring: cubic-bezier(.34, 1.3, .64, 1);
+  --dur-abertura: 1300ms;
+  --escalona: 130ms; /* irmãos entram escalonados: a etapa seguinte começa antes de a anterior terminar (P4) */
   color-scheme: dark;
 }
 
@@ -208,6 +218,10 @@
   --mesa-penumbra: rgba(74, 56, 26, .16);
   --latao-luz: rgba(255, 250, 235, .1); /* no claro o latão é escuro e o texto é claro: o fio de luz fica discreto para o texto seguir AA até no topo */
   --latao-labio: rgba(34, 20, 4, .3);
+  --bg-elev-0: #ddd0b0;
+  --accent-hi: #8c681e;
+  --accent-lo: #5e440f;
+  --sheen: rgba(255, 252, 240, .6);
   color-scheme: light;
 }
 
@@ -258,6 +272,10 @@
     --mesa-penumbra: rgba(74, 56, 26, .16);
     --latao-luz: rgba(255, 250, 235, .1);
     --latao-labio: rgba(34, 20, 4, .3);
+    --bg-elev-0: #ddd0b0;
+    --accent-hi: #8c681e;
+    --accent-lo: #5e440f;
+    --sheen: rgba(255, 252, 240, .6);
     color-scheme: light;
   }
 }
@@ -278,6 +296,13 @@
 :root[data-theme="light"][data-acento="cobre"] { --accent: #7f441c; --accent-hover: #6b3917; --accent-fg: #fdf8ea; --accent-soft: rgba(127, 68, 28, .15); }
 :root[data-theme="light"][data-acento="prata"] { --accent: #555a61; --accent-hover: #474b52; --accent-fg: #fdf8ea; --accent-soft: rgba(85, 90, 97, .15); }
 :root[data-theme="light"][data-acento="jade"] { --accent: #1b6547; --accent-hover: #175539; --accent-fg: #fdf8ea; --accent-soft: rgba(27, 101, 71, .15); }
+/* DS-K (G-287) · fio de luz e lábio de cada acento, nos dois temas (o texto do botão segue AA sobre os dois extremos) */
+:root[data-acento="cobre"] { --accent-hi: #e8a977; --accent-lo: #b8744a; }
+:root[data-acento="prata"] { --accent-hi: #dcdcd4; --accent-lo: #aaaaa3; }
+:root[data-acento="jade"] { --accent-hi: #9adcbb; --accent-lo: #5fa884; }
+:root[data-theme="light"][data-acento="cobre"] { --accent-hi: #9a5a2a; --accent-lo: #633314; }
+:root[data-theme="light"][data-acento="prata"] { --accent-hi: #6a7079; --accent-lo: #40444a; }
+:root[data-theme="light"][data-acento="jade"] { --accent-hi: #247a56; --accent-lo: #124a33; }
 /* D7 · superfície da mesa: só a tela da partida troca o fundo (body[data-tela="partida"]); nogueira é o móvel de sempre */
 :root { --mesa-bg: var(--bg); --mesa-veio-1: var(--grain-1); --mesa-veio-2: var(--grain-2); }
 /* K2 · feltros do escuro com presença: o verde antigo (#15302a) quase não se separava das zonas (1,24:1 contra
@@ -305,8 +330,7 @@ body[data-tela="partida"] { --bg: var(--mesa-bg); --grain-1: var(--mesa-veio-1);
 :root[data-movimento="reduzido"] *, :root[data-movimento="reduzido"] *::before, :root[data-movimento="reduzido"] *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 
 /* =====================================================================
-   
-/* ==== ds:componentes · espelho de index.html (cada bloco existe, idêntico, no index.html) ==== */
+   /* ==== ds:componentes · espelho de index.html (cada bloco existe, idêntico, no index.html) ==== */
 
 *, *::before, *::after { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; height: 100%; }
@@ -356,7 +380,7 @@ a { color: var(--accent); }
 .ds-text--caps { text-transform: uppercase; letter-spacing: .09em; font-size: var(--text-xs); color: var(--fg-muted); }
 .ds-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
-  min-height: var(--tap-min); padding: 0 var(--space-4);
+  min-height: var(--tap-min); padding: 0 var(--space-4); white-space: nowrap; flex-shrink: 0; /* DS-K · o rótulo fica inteiro numa linha e o botão não encolhe abaixo dele */
   border: 1px solid var(--border); border-radius: var(--radius-1);
   background-color: var(--bg-elev-2); background-image: linear-gradient(180deg, var(--btn-shine), transparent 70%); color: var(--fg);
   box-shadow: var(--btn-rest);
@@ -372,6 +396,10 @@ a { color: var(--accent); }
 .ds-btn--ghost { background-color: transparent; background-image: none; border-color: transparent; color: var(--fg-muted); box-shadow: none; }
 .ds-btn--ghost:active:not([disabled]) { background-color: var(--bg-elev-2); color: var(--fg); box-shadow: none; }
 .ds-btn--block { width: 100%; }
+/* DS-K (G-287) · o botão em bloco é uma opção de largura cheia (folha da carta, escolhas): o rótulo é a descrição de regra e não
+   encolhe. Quando não cabe numa linha, quebra de forma simétrica (text-wrap: balance, centralizado) e a caixa cresce para o
+   texto ficar inteiro dentro dela; o botão comum continua numa linha só. */
+.ds-btn--block { white-space: normal; text-wrap: balance; text-align: center; line-height: var(--lh-sm); padding-block: var(--space-2); flex-shrink: 1; }
 .ds-btn--icon, .ds-btn--icone { width: var(--tap-min); padding: 0; flex: none; }
 .ds-btn .ds-icon { flex: none; }
 .ds-btn__rotulo { min-width: 0; }
@@ -389,7 +417,7 @@ a { color: var(--accent); }
 .ds-empty__icone { width: 72px; height: 72px; border-radius: var(--radius-full); display: grid; place-items: center; background: var(--bg-elev-2); color: var(--fg-subtle); }
 .ds-empty.ds-empty--hero { border: 0; background: var(--bg-elev-1); box-shadow: var(--shadow-1); padding: var(--space-7) var(--space-4) var(--space-5); gap: var(--space-3); }
 .ds-empty--hero .ds-empty__icone { width: 88px; height: 88px; color: var(--accent); background: var(--accent-soft); }
-.ds-empty__titulo { color: var(--fg); margin: 0; }
+.ds-empty__titulo { color: var(--fg); margin: 0; text-wrap: balance; }
 .ds-empty--hero .ds-text--muted { max-width: 30ch; }
 .ds-empty__acoes { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); width: 100%; margin-top: var(--space-2); }
 .ds-empty__acoes .ds-row { justify-content: center; }
@@ -439,7 +467,7 @@ a { color: var(--accent); }
 .ds-chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: var(--weight-medium); }
 .ds-tabs { display: flex; gap: var(--space-1); border-bottom: 1px solid var(--border); }
 .ds-tab {
-  min-height: var(--tap-min); padding: 0 var(--space-4);
+  min-height: var(--tap-min); padding: 0 var(--space-4); white-space: nowrap;
   color: var(--fg-muted); font-size: var(--text-md);
   border-bottom: 2px solid transparent;
   transition: color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out);

@@ -401,6 +401,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-z9 🟡 | Shark: plano do baralho — Walls Combo fecha a mana infinita; vitórias pilotando a lista 18% → 33% (leva 147) | B9 | 1 | Elves e os outros perfis |
 | 16º-z2 ✅ | Shark usa todas as mecânicas, inclusive as dos terrenos: estoura o terreno que busca básico, abre mana com habilidades, ordena antes do corte do relógio; auditoria de uso (leva 143) | B21 | 1 | — |
 | 16º-sa 🟡 | B22 Shark profissional com cinco listas: fatia 1 ✅ (B-173) listas de torneio embutidas e seletor do Shark só com elas; fatia 2 ✅ (B-174) linha de base: Madness 75% · Elves 63% · Faeries 50% · Control 38% · Terror 25% contra o campo; fatia 3 ✅ (B-175) perfil do Terror + o terreno que falta (pareado 50% × 38% em 32 pares: dentro da margem); fatia 4 (B-176) ameaças do campo no Control: sem ganho (41% × 42% em 64 pares), desligada; fatia 5 (B-177) mulligan por fontes e cores: neutro em força (79 × 81 em 160 pares), ligado pelo comportamento; fatia 6 (B-178) prazo da decisão: p95 430 → 366 ms, pior 4,3 → 0,8 s, força 48 × 47; fatias 7–9 (um perfil por lista; jogar em volta; fechamento) | B22 | 9 | 16º-z2 |
+| 16º-sc 🟡 | DS-K · Ébano e Ouro, design system de patamar (direção K do volume 3, decisão do dono de 24/10): F0.1 ✅ (G-287) tokens de ébano e latão nos três blocos, receitas de animação no `/ds` como contrato da jogabilidade, guarda de contenção de texto no portão; F0.2 fontes self-hosted (sw.js, `armazem`); F1 componentes; F2 telas de gestão; F3 mesa como layout; FA leva de ajuste no aparelho | DS-K | 1 de 11 a 13 | — |
 | 16º-y ✅ | Shark: olhar o turno seguinte (simulação até o próximo turno) — medido, não pagou, fica desligado; achado: a força está no plano de cada baralho (leva 131) | B15 | 1 | — |
 | 16º-w ✅ | Shark: pesos da avaliação postos à prova por torneio — nenhum paga; achado: o limite é a profundidade, não o peso (leva 126) | B20 | 1 | — |
 | 16º-j3 🟡 | Scanner de referência (E52): X14 resposta imediata (leva 127) | E52 | 2 de 6 a 7 | teste no aparelho: "até aceitar" no diagnóstico |
@@ -12028,6 +12029,60 @@ segredo do repositório. O `main` não recebe commit do coletor.
   vigia: sem alerta. Testes: U `catalogo.unit` +3 (lixo da fonte e limpeza do publicado; sete alertas e os avisos; saúde no
   `coleta.json` e saída com erro como último passo). Fora: segundo horário de coleta (o agendamento é da trilha infra) e
   diagnóstico do Pioneer na TopDeck.gg (precisa da chave).
+
+### DS-K · Ébano e Ouro — design system de patamar (trilha `geral`, decisão do dono de 24/10/2026)
+
+**Pedido (24/10/2026):** o dono escolheu a direção **K · Ébano e Ouro** (volume 3 dos documentos de design, índice em
+`claude/DESIGN-direcoes-2026-10-24.md`) como base do novo design system, com o **padrão de animação** da Estante
+(`claude/DIRETRIZ-animacao.md`: três planos, luz que varre, massa e mola, etapas sobrepostas, material, contenção) valendo
+para o app inteiro, e mais uma regra permanente: **o texto de todo objeto fica inteiro dentro dele**; quebra de linha só
+onde é inevitável e, quando acontece, simétrica (`text-wrap: balance`); em controle não há quebra.
+
+**Risco técnico médio, declarado:** dois tokens de cor novos (remedidos em AA nos dois temas e nos quatro acentos), até
+duas fontes self-hosted (≤ 120 KB), 3D CSS com `perspective`, varredura com `mix-blend-mode`, uma leva de ajuste (FA)
+prevista no fim para medir quadros no Galaxy S e corrigir o que o portão pegar. A paleta base não muda.
+
+**Fases e levas (estimativa 11–13, uma leva por fatia, deploy a cada fatia):**
+
+| Fase | Fatia | Entrega em uma frase | Mede |
+|---|---|---|---|
+| F0.1 ✅ G-287 | tokens, receitas, contenção | tokens `--bg-elev-0`, `--accent-hi`, `--accent-lo`, `--sheen`, `--ease-spring`, `--dur-abertura`, `--escalona` nos três blocos e por acento; seção **Receitas de animação** no `/ds` (dez receitas com plano · luz · curva · etapas · reduzido; sete são contrato da `jogabilidade`); guarda de **contenção de texto** no `auditaTela`; selo, chip, aba e botão sem quebra por CSS | contrato visual DS-K (AA dos pares novos, trio por acento, receitas completas, keyframes usados); e2e "DS-K" e `auditaTela` em todas as telas |
+| F0.2 | fontes self-hosted | Cormorant Garamond 600 e Figtree 400/600 em `woff2` ao lado do `index.html`, cache no `sw.js` (região `armazem`, com a `mtg-data-architect`), `font-display: swap`, pilha de sistema como reserva | peso ≤ 120 KB; sem rede o texto aparece; contrato visual: `--font-display`/`--font-ui` apontam para as novas |
+| F1 | componentes | primário e Jogar em latão metálico com varredura ao confirmar; cartão de destaque em ébano; marca em latão; folha, diálogo e aviso pelas receitas; estados completos (repouso, pressionado, selecionado, carregando, desabilitado) iguais entre botão, chip, aba, linha e selo | `/ds` nos dois temas; contrato visual por componente; e2e com `auditaTela` |
+| F2 | telas de gestão | Início com abertura (receita) e cartão Continuar em ébano; Lista, Coleção, Scanner com a hierarquia da direção K; grade 360 = 16 + 328 + 16 e cabeçalho 44 · 1fr · 44 | capturas antes e depois (360×780, 390×844, dois temas); `auditaTela`; pixels medidos |
+| F3 | mesa como layout | barra e bandeja em ébano; tokens novos disponíveis para a `jogabilidade` desenhar as receitas da mesa em `#tb-fx` | pixels de campo em 360×780 (não perde); contrato visual |
+| FA | leva de ajuste | medir quadros no aparelho (CPU 4×) nas receitas e na mesa cheia; remedir AA do que a F1/F2 tocou; corrigir o que o portão e o aparelho mostrarem | teste de orçamento; capturas |
+
+**F0.1 · Tokens, receitas e contenção** ✅ (leva G-287, 24/10/2026)
+- **Valor:** o design system ganha a base da direção K sem mudar nenhuma tela: quem abrir o `/ds` vê a superfície profunda,
+  o latão metálico (fio de luz, base, lábio) e as dez receitas de animação tocando em três planos; e nenhum controle do
+  app passa a aceitar texto fora da caixa.
+- **Entregue:** tokens `--bg-elev-0` (#0b0804 / #ddd0b0), `--accent-hi`/`--accent-lo` por acento (latão, cobre, prata,
+  jade) nos dois temas, `--sheen`, `--ease-spring`, `--dur-abertura`, `--escalona`; **Receitas de animação** no `/ds`
+  (`#ds-receitas`): abertura, pousar, confirmar, folha, troca de vez, atacar, mirar, dano, comprar, vida — cada uma com
+  os cinco campos e a dona; palco com `perspective` para as oito que têm demonstração; **guarda de contenção** no
+  `auditaTela` (`transbordos`): botão, chip, selo, aba, pílula e chip da mesa não vazam a caixa nem quebram linha
+  (quebra declarada só por `data-quebra` ou `text-wrap: balance`); `.ds-btn`, `.ds-chip`, `.ds-badge`, `.ds-tab` com
+  `white-space: nowrap`; título de diálogo e de estado vazio com `text-wrap: balance`.
+- **Regra de contraste da superfície profunda:** `--fg`, `--fg-muted`, `--fg-subtle`, `--player-opp`, `--positive` e
+  `--negative` em AA sobre `--bg-elev-0`; o acento sobre ela só em **texto grande (≥ 20 px) ou borda** (3:1 medido).
+- **Para as outras trilhas:** `jogabilidade` — as sete receitas da mesa são o contrato: implementar em `#tb-fx` com os
+  tokens (`--ease-spring`, `--sheen`, `--escalona`) sem renegociar plano, luz, curva, etapas e variante reduzida; `radar` —
+  o bloco de tokens do `painel.html` foi copiado de novo (R-2); todas — o `auditaTela` passou a reprovar texto fora da
+  caixa ou quebrado em controle (`data-quebra` declara a exceção).
+- **Fora:** fontes (F0.2), aplicação do latão ao primário real (F1), telas (F2), mesa (F3), efeitos de partida (trilha
+  `jogabilidade`).
+- **Testes:** contrato visual "DS-K" (3 testes); e2e "DS-K" no fim do arquivo; `auditaTela` em todas as telas da
+  HOMOLOGAÇÃO com a guarda nova; `painel.unit` R-2 (espelho).
+- **O que a guarda achou no app (corrigido na mesma leva):** o contador dos botões de ícone (filtros e guardadas das
+  Notícias, filtros da coleção e das listas) vazava 3 px da caixa de 44 px — vira selo no canto, dentro dela; o
+  `.ds-btn` com `min-width: 0` deixava o rótulo vazar — trocado por `flex-shrink: 0`. A guarda conta linha por faixa
+  vertical (rótulo e contador de tamanhos diferentes na mesma linha contam uma vez) e ignora texto só para leitor de
+  tela; o D12 passa a contar 25 tokens de cor no catálogo (os quatro novos). A fase rápida pegou a marca do palco da
+  abertura desenhada por `innerHTML` (contrato P-5 de pontos de HTML): passou a ser montada pelo DOM, só com constantes.
+  A fila recusou a primeira versão: na fonte do CI o botão "3 em Masked Vandal · 2 em Valakut Invoker" (divisão de dano,
+  M-285) não cabia numa linha e vazava da faixa; as escolhas da faixa de decisão ganharam a mesma exceção da opção em
+  bloco (largura máxima da faixa e quebra simétrica só quando não cabe).
 
 ### SEG · Segurança e privacidade (trilha `protecao`, auditoria de 09/10/2026)
 

@@ -163,6 +163,16 @@
   --latao-luz: rgba(255, 250, 235, .3);
   --latao-labio: rgba(28, 16, 2, .4);
   --focus-ring: 0 0 0 3px var(--accent-soft);
+  /* DS-K (G-287) · Ébano e Ouro: superfície profunda (o cartão de destaque, a barra da mesa), trio de latão (fio de
+     luz, base, lábio) para o primário e a marca lerem como metal, varredura de luz, mola e abertura. O acento sobre a
+     superfície profunda é só para texto grande (≥ 20 px) ou borda; texto pequeno usa --fg/--fg-muted (contrato visual). */
+  --bg-elev-0: #0b0804;
+  --accent-hi: #e6c477;
+  --accent-lo: #b08a3c;
+  --sheen: rgba(255, 240, 205, .42);
+  --ease-spring: cubic-bezier(.34, 1.3, .64, 1);
+  --dur-abertura: 1300ms;
+  --escalona: 130ms; /* irmãos entram escalonados: a etapa seguinte começa antes de a anterior terminar (P4) */
   color-scheme: dark;
 }
 
@@ -213,6 +223,10 @@
   --mesa-penumbra: rgba(74, 56, 26, .16);
   --latao-luz: rgba(255, 250, 235, .1); /* no claro o latão é escuro e o texto é claro: o fio de luz fica discreto para o texto seguir AA até no topo */
   --latao-labio: rgba(34, 20, 4, .3);
+  --bg-elev-0: #ddd0b0;
+  --accent-hi: #8c681e;
+  --accent-lo: #5e440f;
+  --sheen: rgba(255, 252, 240, .6);
   color-scheme: light;
 }
 
@@ -263,6 +277,10 @@
     --mesa-penumbra: rgba(74, 56, 26, .16);
     --latao-luz: rgba(255, 250, 235, .1);
     --latao-labio: rgba(34, 20, 4, .3);
+    --bg-elev-0: #ddd0b0;
+    --accent-hi: #8c681e;
+    --accent-lo: #5e440f;
+    --sheen: rgba(255, 252, 240, .6);
     color-scheme: light;
   }
 }
@@ -283,6 +301,13 @@
 :root[data-theme="light"][data-acento="cobre"] { --accent: #7f441c; --accent-hover: #6b3917; --accent-fg: #fdf8ea; --accent-soft: rgba(127, 68, 28, .15); }
 :root[data-theme="light"][data-acento="prata"] { --accent: #555a61; --accent-hover: #474b52; --accent-fg: #fdf8ea; --accent-soft: rgba(85, 90, 97, .15); }
 :root[data-theme="light"][data-acento="jade"] { --accent: #1b6547; --accent-hover: #175539; --accent-fg: #fdf8ea; --accent-soft: rgba(27, 101, 71, .15); }
+/* DS-K (G-287) · fio de luz e lábio de cada acento, nos dois temas (o texto do botão segue AA sobre os dois extremos) */
+:root[data-acento="cobre"] { --accent-hi: #e8a977; --accent-lo: #b8744a; }
+:root[data-acento="prata"] { --accent-hi: #dcdcd4; --accent-lo: #aaaaa3; }
+:root[data-acento="jade"] { --accent-hi: #9adcbb; --accent-lo: #5fa884; }
+:root[data-theme="light"][data-acento="cobre"] { --accent-hi: #9a5a2a; --accent-lo: #633314; }
+:root[data-theme="light"][data-acento="prata"] { --accent-hi: #6a7079; --accent-lo: #40444a; }
+:root[data-theme="light"][data-acento="jade"] { --accent-hi: #247a56; --accent-lo: #124a33; }
 /* D7 · superfície da mesa: só a tela da partida troca o fundo (body[data-tela="partida"]); nogueira é o móvel de sempre */
 :root { --mesa-bg: var(--bg); --mesa-veio-1: var(--grain-1); --mesa-veio-2: var(--grain-2); }
 /* K2 · feltros do escuro com presença: o verde antigo (#15302a) quase não se separava das zonas (1,24:1 contra
@@ -374,7 +399,7 @@ a { color: var(--accent); }
 /* ---------------- botão ---------------- */
 .ds-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
-  min-height: var(--tap-min); padding: 0 var(--space-4);
+  min-height: var(--tap-min); padding: 0 var(--space-4); white-space: nowrap; flex-shrink: 0; /* DS-K · o rótulo fica inteiro numa linha e o botão não encolhe abaixo dele */
   border: 1px solid var(--border); border-radius: var(--radius-1);
   background-color: var(--bg-elev-2); background-image: linear-gradient(180deg, var(--btn-shine), transparent 70%); color: var(--fg);
   box-shadow: var(--btn-rest);
@@ -396,6 +421,10 @@ a { color: var(--accent); }
 .ds-btn--danger { color: var(--negative); border-color: var(--border); }
 @media (hover: hover) { .ds-btn--danger:hover { background: var(--negative); color: var(--negative-fg); border-color: var(--negative); } }
 .ds-btn--block { width: 100%; }
+/* DS-K (G-287) · o botão em bloco é uma opção de largura cheia (folha da carta, escolhas): o rótulo é a descrição de regra e não
+   encolhe. Quando não cabe numa linha, quebra de forma simétrica (text-wrap: balance, centralizado) e a caixa cresce para o
+   texto ficar inteiro dentro dela; o botão comum continua numa linha só. */
+.ds-btn--block { white-space: normal; text-wrap: balance; text-align: center; line-height: var(--lh-sm); padding-block: var(--space-2); flex-shrink: 1; }
 .ds-btn--icon, .ds-btn--icone { width: var(--tap-min); padding: 0; flex: none; }   /* leva 123 · duas grafias, uma regra */
 .ds-btn .ds-icon { flex: none; }
 .ds-btn__rotulo { min-width: 0; }
@@ -656,7 +685,7 @@ a { color: var(--accent); }
 /* D4 · estado vazio de primeiro uso: ícone grande no acento, título, uma frase, um primário e um secundário; o resto em "Mais" */
 .ds-empty.ds-empty--hero { border: 0; background: var(--bg-elev-1); box-shadow: var(--shadow-1); padding: var(--space-7) var(--space-4) var(--space-5); gap: var(--space-3); }
 .ds-empty--hero .ds-empty__icone { width: 88px; height: 88px; color: var(--accent); background: var(--accent-soft); }
-.ds-empty__titulo { color: var(--fg); margin: 0; }
+.ds-empty__titulo { color: var(--fg); margin: 0; text-wrap: balance; }
 .ds-empty--hero .ds-text--muted { max-width: 30ch; }
 .ds-empty__acoes { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); width: 100%; margin-top: var(--space-2); }
 .ds-empty__acoes .ds-row { justify-content: center; }
@@ -819,6 +848,81 @@ body[data-tela="entrar"] .ds-appbar { display: none; }
 .ds-movimento__demo.is-on { animation: ds-demo var(--demo, var(--dur-2)) var(--ease-out); }
 @keyframes ds-demo { 0% { transform: translateX(0); background: var(--accent); } 100% { transform: translateX(12px); background: var(--accent-soft); } }
 .ds-movimento code { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--fg); }
+/* DS-K (G-287) · receitas de animação: o padrão da Estante (claude/DIRETRIZ-animacao.md) em três planos — fundo, objeto e
+   sombra —, luz que varre, massa (mola) e etapas sobrepostas. Cada receita declara plano · luz · curva · etapas · reduzido;
+   o palco demonstra; a jogabilidade implementa as da mesa em #tb-fx sem renegociar. Só transform, opacity e filter curto. */
+.ds-receitas { display: grid; grid-template-columns: 1fr; gap: var(--space-3); }
+.ds-receita { display: grid; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-2); background: var(--bg-elev-1); }
+.ds-receita__cab { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: var(--space-2); }
+.ds-receita__nome { font-family: var(--font-display); font-size: var(--text-lg); line-height: var(--lh-lg); color: var(--fg); }
+.ds-receita__campos { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-1) var(--space-3); font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--fg-muted); }
+.ds-receita__campos dt { font-family: var(--font-mono); color: var(--accent); font-size: var(--text-xs); line-height: var(--lh-sm); padding-top: 1px; }
+.ds-receita__campos dd { margin: 0; min-width: 0; text-wrap: pretty; }
+.ds-palco { position: relative; height: 140px; border-radius: var(--radius-2); border: 1px solid var(--border); background: var(--bg-elev-0); overflow: hidden; isolation: isolate; perspective: 900px; perspective-origin: 50% 38%; }
+.ds-palco[data-mesa="true"] { background: var(--mesa-bg); background-image: radial-gradient(ellipse at 50% 45%, var(--mesa-luz), transparent 70%); }
+.ds-palco__luz { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 70%, var(--accent-soft), transparent 62%); opacity: 0; }
+.ds-palco[data-on="abertura"] .ds-palco__luz { animation: ds-acende var(--dur-4) var(--ease-out) forwards; }
+.ds-latao { position: relative; overflow: hidden; background-color: var(--accent); background-image: linear-gradient(160deg, var(--accent-hi), var(--accent) 55%, var(--accent-lo)); color: var(--accent-fg); border: 1px solid var(--accent-lo); box-shadow: var(--shadow-2), inset 0 1px 0 var(--latao-luz), inset 0 -1px 0 var(--latao-labio); }
+.ds-latao::after { content: ""; position: absolute; top: -30%; bottom: -30%; left: 0; width: 34%; background: linear-gradient(100deg, transparent, var(--sheen), transparent); transform: translateX(-200%) skewX(-18deg); pointer-events: none; }
+.ds-palco__marca { position: absolute; left: 50%; top: 40%; width: 56px; height: 56px; margin: -28px 0 0 -28px; border-radius: var(--radius-tile); display: grid; place-items: center; transform: rotateY(-90deg) translateZ(40px); opacity: 0; }
+.ds-palco__marca svg { width: 32px; height: 32px; }
+.ds-palco__marca path { stroke-dasharray: 160; stroke-dashoffset: 160; }
+.ds-palco[data-on="abertura"] .ds-palco__marca { animation: ds-ladrilho var(--dur-4) var(--ease-spring) forwards; }
+.ds-palco[data-on="abertura"] .ds-palco__marca path { animation: ds-traco var(--dur-4) var(--ease-out) var(--dur-3) forwards; }
+.ds-palco[data-on="abertura"] .ds-palco__marca::after { animation: ds-varre var(--dur-4) var(--ease-out) var(--dur-4) forwards; }
+.ds-palco__nome { position: absolute; left: 0; right: 0; bottom: var(--space-3); text-align: center; font-family: var(--font-display); font-size: var(--text-xl); line-height: var(--lh-xl); letter-spacing: .32em; color: var(--fg); opacity: 0; clip-path: inset(0 0 100% 0); }
+.ds-palco[data-on="abertura"] .ds-palco__nome { animation: ds-revela var(--dur-4) var(--ease-out) var(--dur-4) forwards; }
+.ds-palco__cartas { position: absolute; left: 50%; bottom: var(--space-4); width: 0; height: 0; transform-style: preserve-3d; }
+.ds-palco__carta { position: absolute; bottom: 0; left: -20px; width: 40px; aspect-ratio: 63 / 88; border-radius: var(--radius-card); background: var(--bg-elev-2); border: 1px solid var(--border-strong); box-shadow: var(--sombra-carta); transform-style: preserve-3d; opacity: 0; transform: translate3d(0, -60px, -280px) rotateX(45deg) rotateY(var(--ry, 0deg)); }
+.ds-palco__carta::after { content: ""; position: absolute; left: 6%; right: 6%; bottom: -7px; height: 8px; border-radius: 50%; background: var(--mesa-penumbra); filter: blur(4px); opacity: 0; transform: scale(2.2, 1.6); z-index: -1; }
+.ds-palco[data-on="pousar"] .ds-palco__carta { animation: ds-pousa var(--dur-abertura) var(--ease-spring) var(--d) forwards; }
+.ds-palco[data-on="pousar"] .ds-palco__carta::after { animation: ds-sombra-pousa var(--dur-abertura) var(--ease-out) var(--d) forwards; }
+.ds-palco__prateleira { position: absolute; left: 50%; bottom: calc(var(--space-4) - 6px); width: 160px; height: 5px; margin-left: -80px; border-radius: var(--radius-0); transform: scaleX(0); }
+.ds-palco[data-on="pousar"] .ds-palco__prateleira { animation: ds-estende var(--dur-3) var(--ease-out) var(--dur-2) forwards; }
+.ds-palco__botao { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); min-height: var(--tap-min); padding: 0 var(--space-5); border-radius: var(--radius-1); display: inline-flex; align-items: center; font-weight: var(--weight-medium); white-space: nowrap; }
+.ds-palco[data-on="confirmar"] .ds-palco__botao { animation: ds-afunda var(--dur-1) var(--ease-out); }
+.ds-palco[data-on="confirmar"] .ds-palco__botao::after { animation: ds-varre var(--dur-4) var(--ease-out) var(--dur-1) forwards; }
+.ds-palco__folha { position: absolute; left: 0; right: 0; bottom: 0; height: 64px; border-radius: var(--radius-3) var(--radius-3) 0 0; background: var(--bg-elev-2); border-top: 1px solid var(--border); box-shadow: var(--shadow-up); transform: translateY(112%); display: grid; justify-items: center; align-content: start; padding-top: var(--space-2); gap: var(--space-2); }
+.ds-palco__folha::before { content: ""; width: 36px; height: 4px; border-radius: var(--radius-0); background: var(--border-strong); }
+.ds-palco__veu { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 45%, var(--overlay), var(--scrim)); opacity: 0; }
+.ds-palco[data-on="folha"] .ds-palco__folha { animation: ds-sobe var(--dur-3) var(--ease-spring) forwards; }
+.ds-palco[data-on="folha"] .ds-palco__veu, .ds-palco[data-on="vez"] .ds-palco__veu { animation: ds-acende var(--dur-2) var(--ease-out) forwards; }
+.ds-palco__faixa { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: var(--space-2) var(--space-5); border-radius: var(--radius-full); background: var(--bg-elev-3); border: 1px solid var(--accent); color: var(--accent); font-family: var(--font-display); font-size: var(--text-lg); letter-spacing: .3em; white-space: nowrap; opacity: 0; overflow: hidden; }
+.ds-palco__faixa::after { content: ""; position: absolute; top: -30%; bottom: -30%; left: 0; width: 30%; background: linear-gradient(100deg, transparent, var(--sheen), transparent); transform: translateX(-200%) skewX(-18deg); }
+.ds-palco[data-on="vez"] .ds-palco__faixa { animation: ds-aperta var(--dur-4) var(--ease-out) forwards; }
+.ds-palco[data-on="vez"] .ds-palco__faixa::after { animation: ds-varre var(--dur-4) var(--ease-out) var(--dur-3) forwards; }
+.ds-palco__criatura { position: absolute; width: 52px; aspect-ratio: 63 / 88; border-radius: var(--radius-card); background: var(--bg-elev-2); border: 1px solid var(--border-strong); box-shadow: var(--sombra-carta); transform-style: preserve-3d; }
+.ds-palco__criatura[data-lado="eu"] { left: 28%; top: 20px; }
+.ds-palco__criatura[data-lado="ele"] { left: 56%; top: 20px; }
+.ds-palco__criatura::before { content: ""; position: absolute; left: 8%; right: 8%; bottom: -8px; height: 9px; border-radius: 50%; background: var(--mesa-penumbra); filter: blur(5px); z-index: -1; }
+.ds-palco__criatura::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: var(--sheen); opacity: 0; }
+.ds-palco[data-on="atacar"] .ds-palco__criatura[data-lado="eu"] { animation: ds-investe var(--dur-fx) var(--ease-out); }
+.ds-palco[data-on="atacar"] .ds-palco__criatura[data-lado="eu"]::before { animation: ds-sombra-sobe var(--dur-fx) var(--ease-out); }
+.ds-palco[data-on="atacar"] .ds-palco__criatura[data-lado="ele"]::after { animation: ds-golpe var(--dur-fx-curto) var(--ease-out) var(--dur-2); }
+.ds-palco[data-on="dano"] .ds-palco__criatura[data-lado="ele"] { animation: ds-treme var(--dur-fx-curto) var(--ease-out); }
+.ds-palco__numero { position: absolute; left: 66%; top: 14px; font-family: var(--font-mono); font-size: var(--text-xl); font-weight: var(--weight-bold); color: var(--negative); opacity: 0; }
+.ds-palco[data-on="dano"] .ds-palco__numero { animation: ds-salta var(--dur-fx-longo) var(--ease-out) forwards; }
+.ds-palco__vida { position: absolute; right: var(--space-3); bottom: var(--space-3); height: 36px; padding: 0 var(--space-3); border-radius: var(--radius-full); border: 1px solid var(--accent); background: var(--accent-soft); color: var(--accent); display: inline-flex; align-items: center; gap: 2px; font-family: var(--font-mono); font-size: var(--text-lg); font-weight: var(--weight-medium); font-variant-numeric: tabular-nums; }
+.ds-palco__vida span { display: grid; height: 20px; overflow: hidden; line-height: 20px; }
+.ds-palco__vida span i { font-style: normal; transition: transform var(--dur-4) var(--ease-spring); }
+.ds-palco[data-on="vida"] .ds-palco__vida span[data-rola] i { transform: translateY(-60px); }
+.ds-receita__campos--mesa dt { color: var(--player-opp); }
+@keyframes ds-acende { to { opacity: 1; } }
+@keyframes ds-ladrilho { to { transform: rotateY(0) translateZ(0); opacity: 1; } }
+@keyframes ds-traco { to { stroke-dashoffset: 0; } }
+@keyframes ds-varre { to { transform: translateX(420%) skewX(-18deg); } }
+@keyframes ds-revela { to { opacity: 1; clip-path: inset(0 0 -12% 0); letter-spacing: 0; } }
+@keyframes ds-pousa { 0% { opacity: 0; transform: translate3d(0, -60px, -280px) rotateX(45deg) rotateY(var(--ry, 0deg)); } 40% { opacity: 1; transform: translate3d(var(--x, 0px), -16px, 70px) rotateX(-8deg) rotateY(calc(var(--ry, 0deg) * .35)); } 72% { transform: translate3d(var(--x, 0px), 3px, 0) rotateX(3deg); } 100% { opacity: 1; transform: translate3d(var(--x, 0px), 0, 0); } }
+@keyframes ds-sombra-pousa { 0% { opacity: 0; transform: scale(2.2, 1.6); } 50% { opacity: .3; transform: scale(1.5, 1.2); } 100% { opacity: 1; transform: scale(1, 1); } }
+@keyframes ds-estende { to { transform: scaleX(1); } }
+@keyframes ds-afunda { 50% { transform: translate(-50%, -50%) translateY(1px) scale(.97); } }
+@keyframes ds-sobe { to { transform: none; } }
+@keyframes ds-aperta { to { opacity: 1; letter-spacing: .02em; } }
+@keyframes ds-investe { 0% { transform: none; } 18% { transform: translateY(6px) rotateX(-4deg); } 48% { transform: translateY(-30px) translateZ(30px) rotateX(10deg) scale(1.03); } 62% { transform: translateY(-24px) translateZ(20px); } 100% { transform: none; } }
+@keyframes ds-sombra-sobe { 48% { transform: translateY(30px) scale(1.4, 1.3); opacity: .3; } }
+@keyframes ds-golpe { 20% { opacity: .6; } 100% { opacity: 0; } }
+@keyframes ds-treme { 0%, 100% { transform: none; } 20% { transform: translateX(-5px) rotate(-1.5deg); } 45% { transform: translateX(5px) rotate(1.5deg); } 70% { transform: translateX(-2px); } }
+@keyframes ds-salta { 0% { opacity: 0; transform: scale(.6) translateY(6px); } 18% { opacity: 1; transform: scale(1.35) translateY(0); } 35% { transform: scale(1); } 100% { opacity: 0; transform: scale(.9) translateY(-40px); } }
 .ds-icones { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: var(--space-2); }
 .ds-icones__item { margin: 0; display: flex; flex-direction: column; align-items: center; gap: var(--space-1); padding: var(--space-2) 0; color: var(--fg); }
 .ds-icones__item figcaption { font-size: var(--text-xs); color: var(--fg-muted); font-family: var(--font-mono); }
@@ -1031,6 +1135,10 @@ body[data-tela="entrar"] .ds-appbar { display: none; }
 .ds-btn__conta { min-width: 20px; height: 20px; padding: 0 6px; border-radius: var(--radius-full); background: var(--accent); color: var(--accent-fg);
   font-size: var(--text-xs); font-weight: var(--weight-bold); line-height: 20px; text-align: center; font-variant-numeric: tabular-nums; }
 .ds-btn__conta[hidden] { display: none; }
+/* DS-K (G-287) · no botão de ícone (44 px) o contador não cabe ao lado do desenho e vazava 3 px da caixa (a guarda de
+   contenção pegou nos filtros e nas guardadas das Notícias): vira selo no canto, dentro da caixa, como o da Conversa. */
+.ds-btn--icon:has(> .ds-btn__conta), .ds-btn--icone:has(> .ds-btn__conta) { position: relative; }
+.ds-btn--icon > .ds-btn__conta, .ds-btn--icone > .ds-btn__conta { position: absolute; top: 2px; right: 2px; min-width: 18px; height: 18px; line-height: 18px; padding: 0 5px; }
 .ds-btn[hidden] { display: none; } /* T-130 · a busca da folha de nomes esconde botões com `hidden`; sem esta linha o `display: inline-flex` do .ds-btn vencia o [hidden] do navegador (achado da T-130; a busca da T-77 nunca escondeu nada) */
 .ds-btn--perigo { color: var(--negative); }
 @media (hover: hover) { .ds-btn--perigo:hover { color: var(--negative); background-color: var(--bg-elev-2); } }
@@ -1074,7 +1182,7 @@ body[data-tela="entrar"] .ds-appbar { display: none; }
 /* ---------------- tabs ---------------- */
 .ds-tabs { display: flex; gap: var(--space-1); border-bottom: 1px solid var(--border); }
 .ds-tab {
-  min-height: var(--tap-min); padding: 0 var(--space-4);
+  min-height: var(--tap-min); padding: 0 var(--space-4); white-space: nowrap;
   color: var(--fg-muted); font-size: var(--text-md);
   border-bottom: 2px solid transparent;
   transition: color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out);
@@ -1120,7 +1228,7 @@ body[data-tela="entrar"] .ds-appbar { display: none; }
   margin: calc(-1 * var(--space-5)) calc(-1 * var(--space-5)) var(--space-3); padding: var(--space-4) var(--space-3) var(--space-2) var(--space-5);
   background: var(--bg-elev-1); border-bottom: 1px solid transparent; }
 .ds-dialog__head[data-rolou="true"] { border-bottom-color: var(--border); box-shadow: var(--shadow-1); }
-.ds-dialog__title { font-family: var(--font-display); font-size: var(--text-xl); margin: 0; flex: 1 1 auto; min-width: 0; padding-top: 6px; }
+.ds-dialog__title { font-family: var(--font-display); font-size: var(--text-xl); margin: 0; flex: 1 1 auto; min-width: 0; padding-top: 6px; text-wrap: balance; }
 .ds-dialog__fechar { flex: none; margin-top: -2px; }
 .ds-dialog__actions { display: flex; gap: var(--space-2); justify-content: flex-end; flex-wrap: wrap; margin-top: var(--space-4); }
 /* D4b · apresentação de primeira abertura: um passo por vez, ícone grande, pontos de progresso, sempre dá para pular */
@@ -2178,7 +2286,11 @@ body[data-mesa-cheia="true"] .tb-steps__list li { padding: 0 0 1px; border-botto
 .tb-banner__text strong { font-family: var(--font-display); font-weight: var(--weight-regular); font-size: var(--text-lg); color: var(--accent); }
 .tb-banner[data-tone="warning"] .tb-banner__text strong { color: var(--warning); }
 .tb-banner__text span { font-size: var(--text-sm); color: var(--fg-muted); }
-.tb-banner__actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.tb-banner__actions { display: flex; gap: var(--space-2); flex-wrap: wrap; max-width: 100%; }
+/* DS-K (G-287) · as escolhas da faixa de decisão descrevem regra ("3 em Masked Vandal · 2 em Valakut Invoker"): o botão
+   nunca passa da largura da faixa; se o rótulo não cabe numa linha, quebra de forma simétrica e a caixa cresce com ele
+   (a mesma exceção declarada da opção em bloco). Rótulo que cabe continua numa linha. */
+.tb-banner__actions .ds-btn { max-width: 100%; white-space: normal; text-wrap: balance; text-align: center; line-height: var(--lh-sm); padding-block: var(--space-2); flex-shrink: 1; }
 .tb-hand .tb-row { padding-top: var(--space-2); }
 /* U6b · bandeja em camadas, no desenho de folha inferior (bottom sheet):
    puxador na borda de cima · uma linha com a mão, o momento e as ações · as cartas.
@@ -3942,8 +4054,24 @@ function toast(message, ms = 2400, { acao = null } = {}) {
   });
 }
 let toastVez = 0;
+/* DS-K (G-287) · receitas de animação: o contrato do padrão da Estante (claude/DIRETRIZ-animacao.md). Cada receita declara
+   os cinco campos que o portão cobra — plano (fundo · objeto · sombra), luz (varredura: quando), curva (tokens), etapas
+   (ordem e sobreposição) e reduzido (o que a pessoa vê com menos movimento). `dona` diz quem implementa: o design
+   (fora da partida) ou a jogabilidade (na mesa, em #tb-fx). Durações e curvas são tokens, nunca literais. */
+const RECEITAS_DE_ANIMACAO = Object.freeze([
+  { id: 'abertura', nome: 'Abertura', evento: 'o app abre', dona: 'design', plano: 'fundo: luz acende · objeto: ladrilho de latão gira de −90° em Y e o traço se desenha · sombra: a do ladrilho nasce com ele', luz: 'varredura no ladrilho ao pousar', curva: '--ease-spring (ladrilho) · --ease-out (traço, varredura, nome)', etapas: 'luz (--dur-4) → ladrilho (--dur-4, começa a --dur-2) → traço (--dur-4, a --dur-3) → varredura (--dur-4, a --dur-4) → nome revela de baixo com o espaçamento se fechando; total --dur-abertura, pulável no toque', reduzido: 'marca, nome e luz já no lugar em um quadro' },
+  { id: 'pousar', nome: 'Pousar', evento: 'carta chega ao campo ou à prateleira', dona: 'jogabilidade', plano: 'fundo: prateleira ou feltro · objeto: a carta vem de trás (Z −280, inclinada 45°) e assenta · sombra: própria, encolhe e escurece ao pousar', luz: 'não', curva: '--ease-spring (carta) · --ease-out (sombra)', etapas: 'irmãs escalonadas por --escalona, a seguinte começa antes de a anterior pousar; a prateleira cresce do centro (--dur-3) enquanto a primeira carta desce', reduzido: 'carta e sombra no lugar em um quadro' },
+  { id: 'confirmar', nome: 'Confirmar', evento: 'toque no primário', dona: 'design', plano: 'objeto: o botão afunda 1 px e 3 % · sombra: vira interna (--btn-pressed)', luz: 'uma varredura atravessa o latão logo depois do toque', curva: '--ease-out', etapas: 'afunda (--dur-1) → varredura (--dur-4) sobreposta à ação; nunca em laço', reduzido: 'só a cor de pressionado' },
+  { id: 'folha', nome: 'Folha', evento: 'folha inferior abre', dona: 'design', plano: 'fundo: véu com vinheta · objeto: a folha sobe · sombra: --shadow-up', luz: 'não', curva: '--ease-spring (sobe) · --ease-out (véu)', etapas: 'véu (--dur-2) e folha (--dur-3) começam juntos; fechar é mais curto que abrir e segue o dedo', reduzido: 'folha e véu aparecem no lugar' },
+  { id: 'vez', nome: 'Troca de vez', evento: 'o turno passa', dona: 'jogabilidade', plano: 'fundo: véu escurece · objeto: faixa com o nome de quem joga · sombra: --shadow-2', luz: 'varredura atravessa a faixa', curva: '--ease-out', etapas: 'véu (--dur-2) → faixa aparece com espaçamento largo que se fecha (--dur-4) → varredura (--dur-4, a --dur-3); a faixa de vez desliza do lado de quem recebe (MJ8)', reduzido: 'faixa parada, sem véu' },
+  { id: 'atacar', nome: 'Atacar', evento: 'criatura declarada atacante investe', dona: 'jogabilidade', plano: 'objeto: recua, investe para cima e para a frente em Z, pousa · sombra: desce e clareia enquanto a carta sobe · alvo: clarão de impacto', luz: 'clarão curto no alvo (--dur-fx-curto)', curva: '--ease-out', etapas: 'antecipação 6 px (--dur-1) → investida 30 px e Z 30 (--dur-fx) → pouso; o clarão do alvo começa a --dur-2', reduzido: 'anel vermelho de ataque, sem movimento' },
+  { id: 'mirar', nome: 'Mirar', evento: 'escolha de alvo', dona: 'jogabilidade', plano: 'fundo: linha curva da origem ao alvo · objeto: ponta da seta · alvo: tracejado', luz: 'não', curva: '--ease-out', etapas: 'a linha se desenha (--dur-3) → ponta aparece (--dur-1) → tracejado marcha (--dur-pulso) até a escolha; cor do oponente, nunca a de ataque ou bloqueio', reduzido: 'linha e tracejado parados' },
+  { id: 'dano', nome: 'Dano', evento: 'criatura ou jogador leva dano', dona: 'jogabilidade', plano: 'objeto: tremor com 1,5° de giro · número: salta a 135 % e sobe', luz: 'não', curva: '--ease-out', etapas: 'tremor (--dur-fx-curto) e número (--dur-fx-longo) começam juntos; o número some ao subir 40 px', reduzido: 'número parado por --dur-fx-longo' },
+  { id: 'comprar', nome: 'Comprar', evento: 'carta sai do grimório para a mão', dona: 'jogabilidade', plano: 'objeto: vira do verso para a face em 3D enquanto voa e cresce 35 % · sombra: cresce no meio do voo', luz: 'não', curva: '--ease-out', etapas: 'uma etapa (--dur-4); a compra do oponente voa de verso, sem virar (informação oculta)', reduzido: 'a carta aparece na mão' },
+  { id: 'vida', nome: 'Vida', evento: 'o marcador de vida muda', dona: 'jogabilidade', plano: 'objeto: odômetro — dezena e unidade rolam separadas, na cor do dono', luz: 'não', curva: '--ease-spring', etapas: 'uma etapa (--dur-4); dano e cura usam o mesmo rolo, só o sentido muda', reduzido: 'o número troca' }
+]);
 return { h, seguro, Text, Button, Field, Select, Chip, ManaPips, Tabs, CardFace, EsperaDaCarta, Dialog, closeDialog, toast, fechaToast, reservaDoca, Avatar, clear, mount, Stack, Row, Surface, Input, Textarea, Badge, List, ListItem, ListGroup, Empty, Note, Spinner, CardGrid,
-  analisaSimbolos, SIMBOLO_RX, nomeDoSimbolo, Simbolo, ComSimbolos, simbolizar, srcsetDaCarta, ImagemCarta, ICONES, Icone, IconButton, Atalho, NavBotao, AvisoRede, AnelProgresso, Expansivel, Range, LinhaEstado, confirmaBotao, Dica, rotuloDeCampo, deveAncorar, instalaAncora, levaAte, levaSeEscondido, oQueEsconde, Carregando, Esqueleto, ArteDeEspera, Transicao, BotaoDeAcao, usaRelatar, Bandeira, Chave };
+  analisaSimbolos, SIMBOLO_RX, nomeDoSimbolo, Simbolo, ComSimbolos, simbolizar, srcsetDaCarta, ImagemCarta, ICONES, Icone, IconButton, Atalho, NavBotao, AvisoRede, AnelProgresso, Expansivel, Range, LinhaEstado, confirmaBotao, Dica, rotuloDeCampo, deveAncorar, instalaAncora, levaAte, levaSeEscondido, oQueEsconde, Carregando, Esqueleto, ArteDeEspera, Transicao, BotaoDeAcao, usaRelatar, Bandeira, Chave, RECEITAS_DE_ANIMACAO };
 })();
 
 /* ==== src/ui/brand.js ==== */
@@ -4071,7 +4199,8 @@ const Section = (title, ...kids) => Surface({ class: 'ds-surface--pad', dataset:
 /* D12 · tokens lidos do próprio documento: o catálogo nunca descreve uma cor que não é a que está valendo */
 const TOKENS_COR = [['--bg', 'fundo'], ['--bg-elev-1', 'superfície'], ['--bg-elev-2', 'elevada 2'], ['--bg-elev-3', 'elevada 3'], ['--border', 'borda'], ['--border-strong', 'borda forte'],
   ['--fg', 'texto'], ['--fg-muted', 'texto apagado'], ['--fg-subtle', 'texto sutil'], ['--fg-grupo', 'grupo de lista'], ['--accent', 'acento'], ['--accent-hover', 'acento ao toque'], ['--accent-fg', 'texto sobre acento'], ['--accent-soft', 'acento suave'],
-  ['--positive', 'positivo'], ['--warning', 'atenção'], ['--negative', 'negativo'], ['--player-opp', 'oponente'], ['--player-opp-fg', 'texto sobre oponente'], ['--mesa-bg', 'superfície da mesa'], ['--shelf-edge', 'ombro da prateleira']];
+  ['--positive', 'positivo'], ['--warning', 'atenção'], ['--negative', 'negativo'], ['--player-opp', 'oponente'], ['--player-opp-fg', 'texto sobre oponente'], ['--mesa-bg', 'superfície da mesa'], ['--shelf-edge', 'ombro da prateleira'],
+  ['--bg-elev-0', 'superfície profunda (DS-K)'], ['--accent-hi', 'latão · fio de luz (DS-K)'], ['--accent-lo', 'latão · lábio (DS-K)'], ['--sheen', 'varredura de luz (DS-K)']];
 const TOKENS_ESPACO = ['--space-1', '--space-2', '--space-3', '--space-4', '--space-5', '--space-6', '--space-7', '--space-8'];
 const TOKENS_TEXTO = ['--text-3xs', '--text-2xs', '--text-xs', '--text-sm', '--text-md', '--text-lg', '--text-xl', '--text-2xl', '--text-3xl'];
 const TOKENS_RAIO = ['--radius-0', '--radius-1', '--radius-2', '--radius-card', '--radius-full'];
@@ -4233,6 +4362,41 @@ function renderDS() {
         h('div', { class: 'ds-movimento' }, h('button', { class: 'ds-movimento__demo', type: 'button', 'aria-label': `demonstrar ${tok}`, style: { '--demo': `var(${tok})` }, onClick: e => { const el = e.currentTarget; el.classList.remove('is-on'); void el.offsetWidth; el.classList.add('is-on'); } }),
           h('code', {}, tok), Text(uso, { size: 'xs', tone: 'muted' })))),
       Row({ class: 'ds-row--wrap' }, ...Object.keys(__m0.EVENTOS_HAPTICOS).map(k => Button(k, { icone: 'raio', onClick: () => { const ok = __m0.haptics.evento(k); toast(ok ? `vibrou: ${k}` : 'sem vibração neste aparelho ou desligada'); } })))),
+
+    // DS-K (G-287) · receitas de animação: o padrão em três planos, com luz, mola e etapas; o palco demonstra, a dona implementa
+    Section('Receitas de animação',
+      Text('Padrão da Estante (claude/DIRETRIZ-animacao.md): fundo, objeto e sombra em planos separados; luz que varre ao chegar ou confirmar; curvas com mola por token; etapas sobrepostas; material de madeira, papel e latão. Toda receita declara os cinco campos; sem um deles, não entra aqui. As da mesa são contrato para a trilha jogabilidade, que as desenha em #tb-fx.', { size: 'sm', tone: 'muted' }),
+      h('div', { class: 'ds-row ds-row--wrap', id: 'ds-latao-amostra', style: { alignItems: 'center' } },
+        h('span', { class: 'ds-latao ds-palco__botao', style: { position: 'static', transform: 'none' } }, 'Jogar'),
+        Text('Latão metálico: --accent-hi (fio de luz) → --accent → --accent-lo (lábio); o texto segue AA nos dois extremos e nos quatro acentos. Sobre --bg-elev-0 o acento é só texto grande ou borda.', { size: 'xs', tone: 'muted' })),
+      h('div', { class: 'ds-receitas', id: 'ds-receitas' }, ...__m3.RECEITAS_DE_ANIMACAO.map(r => {
+        const palco = h('div', { class: 'ds-palco', id: 'ds-palco-' + r.id, dataset: { mesa: String(r.dona === 'jogabilidade'), receita: r.id }, 'aria-hidden': 'true' });
+        const marcaSvg = () => { // P-5 · desenho montado pelo DOM (sem innerHTML): só constantes
+          const NS = 'http://www.w3.org/2000/svg', svg = document.createElementNS(NS, 'svg');
+          for (const [k, x] of Object.entries({ viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.75', 'stroke-linecap': 'round', 'stroke-linejoin': 'round', 'aria-hidden': 'true' })) svg.setAttribute(k, x);
+          for (const d of ['M4 3v18M20 3v18', 'M4 7h16M4 13h16M4 19h16', 'M8 7v6M13 7v6M10 13v6M16 13v6']) { const p = document.createElementNS(NS, 'path'); p.setAttribute('d', d); svg.appendChild(p); }
+          const e = h('span', { class: 'ds-latao ds-palco__marca' }); e.appendChild(svg); return e; };
+        const cena = {
+          abertura: () => [h('span', { class: 'ds-palco__luz' }), marcaSvg(), h('span', { class: 'ds-palco__nome' }, 'Estante')],
+          pousar: () => [h('span', { class: 'ds-latao ds-palco__prateleira' }), h('span', { class: 'ds-palco__cartas' }, ...[['-48px', '-55deg', 0], ['0px', '0deg', 1], ['48px', '55deg', 2]].map(([x, ry, k]) => h('span', { class: 'ds-palco__carta', style: { '--x': x, '--ry': ry, '--d': `calc(var(--escalona) * ${k})` } })))],
+          confirmar: () => [h('span', { class: 'ds-latao ds-palco__botao' }, 'Guardar')],
+          folha: () => [h('span', { class: 'ds-palco__veu' }), h('span', { class: 'ds-palco__folha' }, Text('Folha', { size: 'sm' }))],
+          vez: () => [h('span', { class: 'ds-palco__veu' }), h('span', { class: 'ds-palco__faixa' }, 'Seu turno')],
+          atacar: () => [h('span', { class: 'ds-palco__criatura', dataset: { lado: 'eu' } }), h('span', { class: 'ds-palco__criatura', dataset: { lado: 'ele' } })],
+          dano: () => [h('span', { class: 'ds-palco__criatura', dataset: { lado: 'ele' } }), h('span', { class: 'ds-palco__numero' }, '−3')],
+          vida: () => [h('span', { class: 'ds-palco__vida' }, h('span', {}, h('i', {}, '1')), h('span', { dataset: { rola: 'true' } }, h('i', {}, '4'), h('i', {}, '3'), h('i', {}, '2'), h('i', {}, '1')))]
+        };
+        const temPalco = !!cena[r.id];
+        if (temPalco) palco.append(...cena[r.id]());
+        const toca = () => { palco.dataset.on = ''; void palco.offsetWidth; palco.dataset.on = r.id; };
+        return h('article', { class: 'ds-receita', id: 'ds-receita-' + r.id, dataset: { dona: r.dona } },
+          h('div', { class: 'ds-receita__cab' }, h('span', { class: 'ds-receita__nome' }, r.nome), Badge(r.dona === 'jogabilidade' ? 'mesa · jogabilidade' : 'design', { tone: r.dona === 'jogabilidade' ? 'accent' : undefined })),
+          Text(r.evento, { size: 'sm', tone: 'muted' }),
+          temPalco ? palco : null,
+          temPalco ? Button('Ver', { icone: 'seguir', id: 'ds-receita-ver-' + r.id, variant: 'ghost', onClick: toca }) : null,
+          h('dl', { class: 'ds-receita__campos' + (r.dona === 'jogabilidade' ? ' ds-receita__campos--mesa' : '') },
+            h('dt', {}, 'plano'), h('dd', {}, r.plano), h('dt', {}, 'luz'), h('dd', {}, r.luz), h('dt', {}, 'curva'), h('dd', {}, r.curva), h('dt', {}, 'etapas'), h('dd', {}, r.etapas), h('dt', {}, 'reduzido'), h('dd', {}, r.reduzido)));
+      }))),
 
     Section('Mesa', ...(() => {
       const M = __m17;
