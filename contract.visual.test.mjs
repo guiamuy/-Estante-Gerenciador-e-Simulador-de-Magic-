@@ -533,6 +533,15 @@ test('DS-K · F2.5 a doca do Scanner é a bandeja de ébano (destaque), com resp
   assert.match(componentCss, /\.ds-destaque \.scan-dock \.ds-btn:not\(\.ds-btn--primary\):not\(\.ds-btn--ghost\) \{ background-color: var\(--bg-elev-1\); \}/);
 });
 
+/* ---------------- DS-K (G-298) · FA.1 orçamento da abertura ---------------- */
+test('DS-K · FA.1 a abertura anima só transform e opacity (roda no compositor e não trava enquanto o app inicia por baixo)', () => {
+  for (const nome of ['ab-acende', 'ab-gira', 'ab-assenta', 'ab-varre', 'ab-nome']) {
+    const k = componentCss.match(new RegExp(`@keyframes ${nome} \\{(.*)\\}\\s*$`, 'm')); assert.ok(k, nome);
+    const props = [...k[1].matchAll(/([a-z-]+):/g)].map(m => m[1]);
+    assert.deepEqual([...new Set(props)].filter(p => !['transform', 'opacity'].includes(p)), [], `${nome} anima só transform e opacity: ${props}`);
+  }
+});
+
 /* ---------------- DS-K (G-292) · F1.4 folha, diálogo e aviso pela receita ---------------- */
 test('DS-K · F1.4 diálogo e aviso seguem a receita "folha": véu com vinheta, a folha sobe com mola e a sombra assenta (só por token); o aviso sobe com mola e sai reto', () => {
   assert.match(componentCss, /\.ds-overlay \{ background-image: radial-gradient\(ellipse 120% 90% at 50% 42%, transparent 38%, var\(--overlay\)\); \}/, 'véu com vinheta');

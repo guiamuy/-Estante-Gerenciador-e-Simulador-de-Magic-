@@ -12245,7 +12245,28 @@ prevista no fim para medir quadros no Galaxy S e corrigir o que o portão pegar.
 | F1 ✅ (F1.1 G-289 · F1.2 G-290 · F1.3 G-291 · F1.4 G-292) | componentes | primário e Jogar em latão metálico com varredura ao confirmar; cartão de destaque em ébano; marca em latão; folha, diálogo e aviso pelas receitas; estados completos (repouso, pressionado, selecionado, carregando, desabilitado) iguais entre botão, chip, aba, linha e selo | `/ds` nos dois temas; contrato visual por componente; e2e com `auditaTela` |
 | F2 ✅ (F2.1 G-293 · F2.2 G-294 · F2.3 G-295 · F2.4 G-296 · F2.5 G-297) | telas de gestão | Início com abertura (receita) e cartão Continuar em ébano; Lista, Coleção, Scanner com a hierarquia da direção K; grade 360 = 16 + 328 + 16 e cabeçalho 44 · 1fr · 44 | capturas antes e depois (360×780, 390×844, dois temas); `auditaTela`; pixels medidos |
 | F3 | mesa como layout | barra e bandeja em ébano; tokens novos disponíveis para a `jogabilidade` desenhar as receitas da mesa em `#tb-fx` | pixels de campo em 360×780 (não perde); contrato visual |
-| FA | leva de ajuste | medir quadros no aparelho (CPU 4×) nas receitas e na mesa cheia; remedir AA do que a F1/F2 tocou; corrigir o que o portão e o aparelho mostrarem | teste de orçamento; capturas |
+| FA (FA.1 ✅ G-298) | leva de ajuste | medir quadros no aparelho (CPU 4×) nas receitas e na mesa cheia; remedir AA do que a F1/F2 tocou; corrigir o que o portão e o aparelho mostrarem | teste de orçamento; capturas |
+
+**FA · Ajuste — fatias**
+
+| Fatia | Valor para o usuário | Termina quando | Situação |
+|---|---|---|---|
+| FA.1 | as animações da geral seguem fluidas em celular fraco | quadros com CPU 4× medidos no portão (folha, varredura ≥ 45/s, sem tarefa longa); abertura só no compositor | ✅ G-298 |
+| FA.2 | fechar um diálogo também tem movimento, mais curto que abrir | saída da folha pela receita sem atrasar o fechamento lógico | a fazer |
+
+**FA.1 · Orçamento das receitas com CPU 4×** ✅ (leva G-298, 24/10/2026)
+- **Medido (Chromium, CPU 4×, 360×780):** folha (diálogo) 53–57 quadros/s, sem tarefa longa; varredura do primário
+  55–56 quadros/s, sem tarefa longa. A primeira abertura de diálogo logo depois de navegar custou 37 quadros/s com uma
+  tarefa de 67 ms (JavaScript frio e o `/ds` montando); com a página assentada, a receita não pesa — medido sem sombra
+  animada, sem desfoque e sem vinheta: 54–59 quadros/s nas cinco variantes. O orçamento mede a folha aquecida.
+- **Abertura:** 39–46 quadros/s na thread principal, com tarefas longas de 53–313 ms — é o app inicializando por baixo
+  (o arquivo único sendo analisado, ADR-02; dívida da trilha `escala`). Correção: a abertura passou a animar **só
+  transform e opacity** (o nome deixou de animar espaçamento e recorte, a sombra deixou o desfoque, a varredura deixou a
+  posição de fundo), então anda no compositor mesmo com a thread principal ocupada. O contador de quadros fica como
+  diagnóstico para a abertura (ele mede a thread principal, não o compositor) — expectativa corrigida com essa
+  justificativa; o contrato exige só transform e opacity nas cinco etapas.
+- **Testes:** e2e "DS-K FA.1" (folha e varredura ≥ 45 quadros/s e sem tarefa > 50 ms com CPU 4×; abertura anotada);
+  contrato visual +1 (abertura só transform e opacity); J5 e F2.1 seguem verdes.
 
 **F2 · Telas de gestão — fatias** (fatiamento de 24/10/2026)
 

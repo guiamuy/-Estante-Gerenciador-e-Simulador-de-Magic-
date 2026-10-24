@@ -1471,16 +1471,19 @@ body[data-mesa-cheia="true"] .ds-toast[data-inteiro="true"] { padding-top: var(-
   animation: ab-assenta calc(var(--dur-abertura) * .32) var(--ease-spring) calc(var(--dur-abertura) * .14) both; }
 .abertura__ladrilho { position: relative; overflow: hidden; transform-origin: 50% 50%; backface-visibility: hidden;
   animation: ab-gira calc(var(--dur-abertura) * .32) var(--ease-spring) calc(var(--dur-abertura) * .14) both; }
-.abertura__ladrilho::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0;
-  background: linear-gradient(105deg, transparent 30%, var(--sheen) 50%, transparent 70%) no-repeat; background-size: 220% 100%; background-position: 160% 0;
+.abertura__ladrilho::after { content: ""; position: absolute; top: -20%; bottom: -20%; left: 0; width: 38%; pointer-events: none;
+  background: linear-gradient(100deg, transparent, var(--sheen), transparent); transform: translateX(-160%) skewX(-16deg);
   animation: ab-varre calc(var(--dur-abertura) * .3) var(--ease-out) calc(var(--dur-abertura) * .78) both; }
-.abertura__nome { font-family: var(--font-display); font-size: var(--text-2xl); line-height: 1; letter-spacing: .14em; color: var(--fg); padding-left: .14em;
+.abertura__nome { font-family: var(--font-display); font-size: var(--text-2xl); line-height: 1; letter-spacing: .14em; color: var(--fg); padding-left: .14em; transform-origin: 50% 50%;
   animation: ab-nome calc(var(--dur-abertura) * .34) var(--ease-out) calc(var(--dur-abertura) * .66) both; }
 @keyframes ab-acende { from { opacity: 0; transform: scale(.7); } to { opacity: 1; transform: none; } }
 @keyframes ab-gira { from { opacity: 0; transform: rotateY(-90deg) translateZ(60px); } 30% { opacity: 1; } to { opacity: 1; transform: none; } }
-@keyframes ab-assenta { from { opacity: 0; transform: scaleX(.35); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
-@keyframes ab-varre { 0% { opacity: 1; background-position: 160% 0; } 100% { opacity: 1; background-position: -60% 0; } }
-@keyframes ab-nome { from { opacity: 0; transform: translateY(10px); letter-spacing: .5em; clip-path: inset(0 0 100% 0); } to { opacity: 1; transform: none; letter-spacing: .14em; clip-path: inset(0); } }
+/* DS-K FA.1 (G-298) · só transform e opacity: a abertura roda no compositor e não trava quando o app, por baixo, ocupa
+   a thread principal ao iniciar (tarefas longas medidas com CPU 4×); o "espaçamento se fechando" do nome vira escala
+   horizontal, a sombra difusa vira escala com opacidade e a varredura anda por transform */
+@keyframes ab-assenta { from { opacity: 0; transform: scale(.35, .6); } to { opacity: 1; transform: none; } }
+@keyframes ab-varre { from { transform: translateX(-160%) skewX(-16deg); } to { transform: translateX(320%) skewX(-16deg); } }
+@keyframes ab-nome { from { opacity: 0; transform: translateY(10px) scaleX(1.35); } to { opacity: 1; transform: none; } }
 .abertura[data-parada="true"] :is(.abertura__luz, .abertura__sombra, .abertura__ladrilho, .abertura__nome), .abertura[data-parada="true"] .abertura__ladrilho::after { animation: none !important; }
 @media (prefers-reduced-motion: reduce) { :is(.abertura__luz, .abertura__sombra, .abertura__nome), .abertura__ladrilho::after { animation: none; } }
 /* J6 · botão de ação: a ação principal da tela ao alcance do polegar, no canto inferior direito. Uma ação: toca e faz.
