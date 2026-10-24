@@ -15772,6 +15772,35 @@ test('e2e · DS-K F2.2 · Listas, Coleção e Scanner têm o cabeçalho 44 · 1f
   assert.deepEqual(errors, []);
 });
 
+test('e2e · DS-K F2.3 · o topo da Lista é o cartão de ébano: nome em Cormorant, formato em latão legível, contagens e etiquetas, o excluir no canto; AA e nada fora da caixa nos dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(FAKE_DEVICE(false));
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base + '#/listas/editar');
+  await page.fill('#deck-name', 'Mono Red Madness'); await page.fill('#deck-text', '4 Lightning Bolt\n20 Mountain'); await page.click('#deck-save');
+  await page.waitForSelector('#deck-topo');
+  for (const tema of ['dark', 'light']) {
+    await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema);
+    await page.waitForTimeout(450); // a troca de tema tem transição de cor: mede depois dela
+    const m = await page.evaluate(() => { const topo = document.querySelector('#deck-topo'), cs = getComputedStyle(topo);
+      const probe = v => { const s = document.createElement('span'); s.style.color = getComputedStyle(document.documentElement).getPropertyValue(v); document.body.appendChild(s); const c = getComputedStyle(s).color; s.remove(); return c; };
+      // a cor computada pode vir como color(srgb …) (color-mix): o canvas devolve o pixel em 0–255
+      const cv = document.createElement('canvas'); cv.width = cv.height = 1; const cx = cv.getContext('2d');
+      const rgb = c => { cx.clearRect(0, 0, 1, 1); cx.fillStyle = c; cx.fillRect(0, 0, 1, 1); return [...cx.getImageData(0, 0, 1, 1).data].slice(0, 3); };
+      const lum = c => rgb(c).map(x => x / 255).map(x => x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4).reduce((a, x, i) => a + x * [0.2126, 0.7152, 0.0722][i], 0);
+      const r = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+      const h1 = topo.querySelector('h1'), selo = topo.querySelector('.ds-badge--accent'), conta = topo.querySelector('#deck-counts');
+      return { fundo: cs.backgroundColor === probe('--bg-elev-0'), filete: /linear-gradient\(90deg/.test(cs.backgroundImage), fonte: getComputedStyle(h1).fontFamily, nome: h1.textContent,
+        aa: [r(getComputedStyle(h1).color, cs.backgroundColor), r(getComputedStyle(selo).color, cs.backgroundColor), r(getComputedStyle(conta).color, cs.backgroundColor)], excluir: !!topo.querySelector('#deck-delete'), canto: (() => { const x = topo.querySelector('#deck-delete').getBoundingClientRect(), t = topo.getBoundingClientRect(), n = h1.getBoundingClientRect(); return Math.abs(x.top - n.top) <= 12 && t.right - x.right <= 24; })() }; });
+    assert.equal(m.fundo, true, `ébano (${tema})`); assert.equal(m.filete, true, `filete de latão (${tema})`);
+    assert.match(m.fonte, /Cormorant/, 'nome em Cormorant'); assert.equal(m.nome, 'Mono Red Madness'); assert.equal(m.excluir, true, 'o excluir segue no topo'); assert.equal(m.canto, true, 'o excluir fica no canto de cima, na linha do nome');
+    assert.ok(m.aa.every(x => x >= 4.5), `nome, formato e contagens em AA sobre o ébano (${tema}): ${m.aa.map(x => x.toFixed(2)).join(' / ')}`);
+    await auditaTela(page, `DS-K F2.3 · topo da lista (${tema})`);
+    if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + `/ds-k-f23-lista-${tema}.png`, clip: { x: 0, y: 0, width: 360, height: 420 } });
+  }
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · DS-K F2.1 · a abertura monta o ícone em três planos (luz acende, ladrilho gira em 3D com mola, sombra assenta), passa a varredura e revela o nome; com menos movimento tudo já no lugar', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.setViewportSize({ width: 360, height: 780 });

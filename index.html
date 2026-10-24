@@ -394,6 +394,13 @@ a { color: var(--accent); }
   background-image: linear-gradient(90deg, transparent, var(--accent-lo) 18%, var(--accent-hi) 50%, var(--accent-lo) 82%, transparent);
   background-size: 100% 1px; background-position: top; background-repeat: no-repeat;
   border: 1px solid color-mix(in srgb, var(--accent-lo) 40%, var(--border)); box-shadow: var(--shadow-2), inset 0 -1px 0 var(--latao-labio); }
+/* DS-K F2.3 · no topo da lista o nome ocupa a largura e o excluir fica no canto de cima (sem cair sozinho numa linha);
+   nome longo quebra de forma equilibrada */
+.deck-topo > .ds-row { flex-wrap: nowrap; align-items: flex-start; }
+.deck-topo > .ds-row > .ds-stack { flex: 1 1 auto; min-width: 0; }
+.deck-topo > .ds-row > .ds-grow { display: none; }
+.deck-topo h1 { text-wrap: balance; }
+.ds-destaque .ds-badge--accent { color: var(--accent-lo); border-color: var(--accent-lo); } /* DS-K F2.3 · latão em texto pequeno sobre o ébano: --accent-lo segura AA nos dois temas (o --accent no claro dá 4,16:1) */
 .ds-destaque__icone-latao { background-color: var(--accent); background-image: linear-gradient(160deg, var(--accent-hi), var(--accent) 55%, var(--accent-lo)); color: var(--accent-fg);
   box-shadow: inset 0 1px 0 var(--latao-luz), inset 0 -1px 0 var(--latao-labio); }
 .ds-surface--pad { padding: var(--space-4); }
@@ -19112,7 +19119,8 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files, s
     ajustarChip.title = 'Somar, tirar e adicionar cartas sem colar a lista de novo';
 
     mount(root,
-      Row({ class: 'ds-row--wrap' },
+      // DS-K F2.3 (G-295) · o topo da lista é o destaque em ébano da tela: nome em Cormorant, formato em latão, contagens
+      Surface({ class: 'ds-destaque ds-surface--pad deck-topo', id: 'deck-topo' }, Row({ class: 'ds-row--wrap' },
         Stack({ style: { gap: 'var(--space-1)' } },
           Text(d.name, { size: '2xl', display: true, as: 'h1' }),
           Row({ class: 'ds-row--wrap' }, Badge(FORMATS[d.format] || d.format, { tone: 'accent' }), identity ? ManaPips(identity) : null,
@@ -19125,7 +19133,7 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files, s
         Row({ class: 'ds-row--wrap' },
           // J7 · Editar e Exportar moram no botão de ação (com Jogar); no topo fica só o excluir, discreto e com confirmação
           IconButton('lixeira', 'Excluir lista', { id: 'deck-delete', variant: 'ghost', classe: 'ds-btn--perigo', onClick: () => Dialog({ title: 'Excluir lista?', body: Text(`"${d.name}" some deste aparelho. A coleção não é afetada.`, { tone: 'muted' }),
-            actions: [Button('Cancelar', { onClick: closeDialog }), Button('Excluir', { variant: 'danger', onClick: async () => { closeDialog(); await decks.remove(d.id); if (etiquetas) await etiquetas.esquece('listas', d.id); toast('Lista excluída'); go('/listas'); } })] }) }))),
+            actions: [Button('Cancelar', { onClick: closeDialog }), Button('Excluir', { variant: 'danger', onClick: async () => { closeDialog(); await decks.remove(d.id); if (etiquetas) await etiquetas.esquece('listas', d.id); toast('Lista excluída'); go('/listas'); } })] }) })))),
       // D8 · estado da lista numa linha: sem rede, avisos e erros de validação (ou "válida"); o toque abre a folha com tudo
       LinhaEstado([
         state.degraded ? { icone: 'semRede', tom: 'warning', rotulo: 'Sem internet', detalhe: 'Sem conexão com a Scryfall: mostrando as cartas guardadas no aparelho.' } : null,

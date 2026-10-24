@@ -510,6 +510,13 @@ test('DS-K · F2.2 o cabeçalho de tela é a grade 44 · 1fr · 44 com o título
   assert.match(HTML, /Cabecalho\('Scanner', \{ classe: 'scan-head', direita: IconButton\('colecao', 'Coleção', \{ id: 'scan-colecao'/, 'Coleção vira ícone com o mesmo id e nome falado');
 });
 
+/* ---------------- DS-K (G-295) · F2.3 topo da Lista em ébano ---------------- */
+test('DS-K · F2.3 o topo da Lista é o destaque em ébano (nome, formato em latão, contagens) e o latão em texto pequeno sobre o ébano usa --accent-lo', () => {
+  assert.match(HTML, /Surface\(\{ class: 'ds-destaque ds-surface--pad deck-topo', id: 'deck-topo' \}/);
+  assert.match(componentCss, /\.ds-destaque \.ds-badge--accent \{ color: var\(--accent-lo\); border-color: var\(--accent-lo\); \}/);
+  for (const [nome, t] of [['escuro', DARK], ['claro', LIGHT]]) assert.ok(ratio(t['--accent-lo'], t['--bg-elev-0']) >= 4.5, `--accent-lo sobre --bg-elev-0 (${nome}): ${ratio(t['--accent-lo'], t['--bg-elev-0']).toFixed(2)}`);
+});
+
 /* ---------------- DS-K (G-292) · F1.4 folha, diálogo e aviso pela receita ---------------- */
 test('DS-K · F1.4 diálogo e aviso seguem a receita "folha": véu com vinheta, a folha sobe com mola e a sombra assenta (só por token); o aviso sobe com mola e sai reto', () => {
   assert.match(componentCss, /\.ds-overlay \{ background-image: radial-gradient\(ellipse 120% 90% at 50% 42%, transparent 38%, var\(--overlay\)\); \}/, 'véu com vinheta');
