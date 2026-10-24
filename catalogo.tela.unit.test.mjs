@@ -236,3 +236,30 @@ test('G-273 · relato #24 · filtros das listas prontas: cor nos três modos (in
   assert.equal(Object.keys(K.NOME_DO_CONJUNTO).length, 21);
   assert.ok(Object.keys(K.NOME_DO_CONJUNTO).every(k => k === K.coresDaLista({ cores: k }).join('')), 'chaves em WUBRG');
 });
+
+// Q10-7b · relato #32, fatia 2: Listas prontas dizem quanto roda no motor, pelo arquivo da sentinela (cobertura/motor.json).
+test('Q10-7b · leMotorDoCatalogo e medidaDoMotor: só a forma certa entra; medida vira completo/incompleto com a data; lista sem medida diz isso', () => {
+  const dados = { versao: 1, geradoEm: '2026-10-24T05:00:00Z', formatos: { pauper: { geradoEm: '2026-10-24T05:00:00Z' }, xadrez: { geradoEm: 'x' } },
+    pct: { 'topdeck-a-1': [100, 0], 'topdeck-b-2': [87, 3], 'mtgjson-c': [101, 0], '../x': [50, 1], 'mtgo-d': ['9', 1], 'mtgo-e': [12.5, 1] } };
+  const m = K.leMotorDoCatalogo(dados);
+  assert.deepEqual([...m.pct.keys()], ['topdeck-a-1', 'topdeck-b-2']); assert.deepEqual(Object.keys(m.formatos), ['pauper']);
+  assert.equal(K.leMotorDoCatalogo({ versao: 2, pct: {} }), null); assert.equal(K.leMotorDoCatalogo(null), null);
+  const a = K.medidaDoMotor(m, { id: 'topdeck-a-1', formato: 'pauper' }), b = K.medidaDoMotor(m, { id: 'topdeck-b-2', formato: 'pauper' });
+  assert.deepEqual([a.estado, a.pct, b.estado, b.pct, b.faltam.length], ['completo', 100, 'incompleto', 87, 3]);
+  assert.equal(a.medidoEm, new Date('2026-10-24T05:00:00Z').toLocaleDateString('pt-BR'));
+  assert.equal(K.medidaDoMotor(m, { id: 'topdeck-z-9', formato: 'modern' }).estado, 'sem-medida');
+  assert.equal(K.medidaDoMotor(null, { id: 'topdeck-a-1' }), null);
+});
+
+test('Q10-7b · serviço: o arquivo do motor é guardado por uma hora; sem rede, o guardado; ausente ou ilegível, sem selo (null)', async () => {
+  let agora = 1000, falha = false, corpo = { versao: 1, formatos: {}, pct: { 'topdeck-a-1': [90, 2] } }; const pedidos = [];
+  const busca = async url => { pedidos.push(url.replace(K.BASE, '')); if (falha) throw new TypeError('Failed to fetch'); if (corpo === 404) return { ok: false, status: 404 };
+    return { ok: true, status: 200, json: async () => corpo }; };
+  const store = P.memoryStore(), C = K.createCatalogo({ store, busca, agora: () => agora });
+  const r1 = await C.motor(); assert.equal(r1.origem, 'rede'); assert.deepEqual(r1.pct.get('topdeck-a-1'), [90, 2]); assert.deepEqual(pedidos, ['cobertura/motor.json']);
+  agora += 60e3; assert.equal((await C.motor()).origem, 'guardado'); assert.equal(pedidos.length, 1);
+  agora += K.PRAZO_MS; falha = true; const r3 = await C.motor(); assert.equal(r3.origem, 'guardado'); assert.equal(r3.velho, true);
+  falha = false; corpo = { versao: 7 }; assert.equal((await C.motor()).velho, true, 'arquivo ilegível não apaga o guardado');
+  const vazio = K.createCatalogo({ store: P.memoryStore(), busca, agora: () => agora }); corpo = 404;
+  assert.equal(await vazio.motor(), null); falha = true; assert.equal(await vazio.motor(), null);
+});

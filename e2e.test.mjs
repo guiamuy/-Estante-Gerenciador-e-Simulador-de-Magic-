@@ -9620,13 +9620,15 @@ const CATALOGO_Z2 = (() => {
     { id: 'mtgo-standard-league-2026-10-0511129-3', nome: '5-0 · Standard League', formato: 'standard', tipo: 'Liga · 5-0', data: '2026-10-05', codigo: '', fonte: 'mtgo', cores: 'R', destaque: 'Monastery Swiftspear', destaqueId: id(94), comandante: [], cartas: 60, reserva: 15, jogador: 'beltrano <img src=x onerror="window.__xss=1">', posicao: 3, jogadores: null, torneio: 'Standard League', campanha: '5-0' }]; // (sonda: nome de jogador de terceiro é texto)
   return { versao: 1, geradoEm: '2026-10-09T00:00:00.000Z', fontes: [{ id: 'mtgjson', nome: 'MTGJSON', licenca: 'MIT' }], formatos: [], total: 40, pendentes: 0, listas: [...cmd, ...outros] };
 })();
-async function rotaCatalogo(page, { falha = () => false } = {}) {
+async function rotaCatalogo(page, { falha = () => false, motor = null } = {}) {
   const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAEAAAAAwCAIAAAAuKetIAAAAVUlEQVR4nO3PAQnAQAzAwBYm5uVMzuRPxvGQIway33t25t6e2blaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oD2g+i4AIciMsj+gAAAABJRU5ErkJggg==', 'base64');
   await page.route('https://**.scryfall.io/**', r => r.fulfill({ status: 200, contentType: 'image/png', body: PNG }));
   const pedidos = [];
   await page.route(/^https:\/\/raw\.githubusercontent\.com\/.*\/catalogo\//, r => { const u = r.request().url(); pedidos.push(u.split('/catalogo/')[1]);
     if (falha(u)) return r.abort('failed');
     if (u.endsWith('indice.json')) return r.fulfill({ json: CATALOGO_Z2, headers: { 'access-control-allow-origin': '*' } });
+    // Q10-7b · o arquivo do selo do motor: ilegível (sem selo) a não ser que o teste mande um
+    if (u.includes('/catalogo/cobertura/')) return r.fulfill({ json: motor || {}, headers: { 'access-control-allow-origin': '*' } });
     const id = u.split('/listas/')[1].replace('.json', ''); const l = CATALOGO_Z2.listas.find(x => x.id === id);
     return r.fulfill({ json: { ...l, entradas: [{ name: 'Giada, Font of Hope', qty: 1, zone: 'commander' }, { name: 'Sol Ring', qty: 1, zone: 'main' }, { name: 'Plains', qty: 98, zone: 'main' }] }, headers: { 'access-control-allow-origin': '*' } }); });
   return pedidos;
@@ -9703,6 +9705,44 @@ test('e2e · Z2 catálogo de listas oficiais em Listas prontas: seis formatos em
   await page.goto(base + '#/listas/prontas'); await page.waitForSelector('#catalogo-lista');
   assert.equal(await page.locator('#catalogo-lista .cat-item[data-id="mtgjson-cmd-1"] [aria-label="Já na sua estante"]').count(), 1);
   await page.context().setOffline(false);
+  assert.deepEqual(errors, []);
+});
+
+// G-303 · Q10-7b · relato #32, fatia 2: Listas prontas também dizem quanto roda no motor, pelo arquivo da sentinela.
+test('e2e · G-303 Listas prontas com o selo do motor: medida 100% e 87% com a data, "ainda não medida" no resto, por último na linha, sem sobreposição nos dois temas; arquivo ilegível, sem selo', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  const motor = { versao: 1, geradoEm: '2026-10-24T05:00:00Z', formatos: { commander: { geradoEm: '2026-10-24T05:00:00Z', motor: 'x', listas: 34, medidas: 2 } },
+    pct: { 'mtgjson-cmd-1': [100, 0], 'mtgjson-cmd-2': [87, 3], 'mtgjson-nao-existe': [50, 1] } };
+  const pedidos = await rotaCatalogo(page, { motor });
+  await page.goto(base + '#/listas/prontas'); await page.waitForSelector('#catalogo-lista .cat-item .deck-item__motor');
+  assert.ok(pedidos.includes('cobertura/motor.json'), JSON.stringify(pedidos));
+  const selo = id => page.$eval(`.cat-item[data-id="${id}"]`, el => { const s = el.querySelector('.deck-item__motor'), meta = el.querySelector('.cat-item__meta');
+    const r = s.getBoundingClientRect(), c = el.getBoundingClientRect();
+    return { tom: s.dataset.motor, texto: s.textContent.replace(/\s+/g, ''), fala: s.getAttribute('aria-label'), ultimo: meta.lastElementChild === s, dentro: r.left >= c.left - 0.5 && r.right <= c.right + 0.5, alto: Math.round(r.height) }; });
+  const a = await selo('mtgjson-cmd-1'), b = await selo('mtgjson-cmd-2'), c = await selo('mtgjson-cmd-3');
+  const dia = new Date('2026-10-24T05:00:00Z').toLocaleDateString('pt-BR');
+  assert.deepEqual([a.tom, a.texto, b.tom, b.texto, c.tom, c.texto], ['completo', 'Motor100%', 'incompleto', 'Motor87%', 'conferir', 'Motor—']);
+  assert.equal(a.fala, `Motor: roda a lista inteira (100%) (medido em ${dia})`);
+  assert.equal(b.fala, `Motor: roda 87% da lista; 3 carta(s) ainda não jogam (medido em ${dia})`);
+  assert.equal(c.fala, 'Motor: lista ainda não medida');
+  for (const x of [a, b, c]) { assert.ok(x.ultimo, 'o selo é a última peça da linha'); assert.ok(x.dentro, 'o selo fica dentro do cartão'); }
+  await auditaTela(page, 'Listas prontas com o selo do motor');
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark'));
+  await auditaTela(page, 'Listas prontas com o selo do motor (outro tema)');
+  // a lista do formato que a sentinela ainda não mede também diz que não foi medida
+  await page.click('[data-starter-format="brawl"]'); await page.waitForSelector('.cat-item[data-id="mtgjson-brawl-1"] .deck-item__motor');
+  assert.equal((await selo('mtgjson-brawl-1')).tom, 'conferir');
+  // arquivo ilegível: a lista aparece igual, sem selo, sem erro
+  const p2 = await page.context().newPage(); const e2 = []; p2.on('pageerror', e => e2.push(String(e)));
+  await rotaCatalogo(p2); await p2.setViewportSize({ width: 360, height: 780 });
+  await p2.goto(base + '#/listas/prontas'); await p2.waitForSelector('#catalogo-lista .cat-item'); await p2.waitForTimeout(400);
+  // o aparelho guardou o arquivo da primeira visita: ainda vale (uma hora), então o selo continua
+  assert.equal(await p2.locator('.cat-item[data-id="mtgjson-cmd-1"] .deck-item__motor').count(), 1, 'guardado no aparelho');
+  await p2.evaluate(async () => { const r = indexedDB.open('mtg'); await new Promise(ok => { r.onsuccess = ok; }); const tx = r.result.transaction('kv', 'readwrite'); tx.objectStore('kv').delete('catalogo.motor'); await new Promise(ok => { tx.oncomplete = ok; }); });
+  await p2.reload(); await p2.waitForSelector('#catalogo-lista .cat-item'); await p2.waitForTimeout(400);
+  assert.equal(await p2.locator('.cat-item .deck-item__motor').count(), 0, 'arquivo ilegível e nada guardado: sem selo');
+  assert.deepEqual(e2, []); await p2.close();
   assert.deepEqual(errors, []);
 });
 
@@ -9855,6 +9895,7 @@ test('e2e · G-248 catálogo: o título é o nome da lista, o evento vem embaixo
   await page.route('https://**.scryfall.io/**', r => r.fulfill({ status: 200, contentType: 'image/png', body: PNG }));
   await page.route(/^https:\/\/raw\.githubusercontent\.com\/.*\/catalogo\//, r => { const u = r.request().url();
     if (u.endsWith('indice.json')) return r.fulfill({ json: INDICE, headers: { 'access-control-allow-origin': '*' } });
+    if (u.includes('/catalogo/cobertura/')) return r.fulfill({ json: {}, headers: { 'access-control-allow-origin': '*' } }); // G-303 · selo do motor: sem medida aqui
     const l = LISTAS.find(x => x.id === u.split('/listas/')[1].replace('.json', '')); if (!l) return r.fulfill({ status: 404, body: '' });
     return r.fulfill({ json: { ...l, descricao: '1º lugar entre 29 jogadores no Modern Challenge 16 do Magic Online, em 10/10/2026. Lista de Venom01.', entradas: ENTRADAS }, headers: { 'access-control-allow-origin': '*' } }); });
   await page.route('https://api.scryfall.com/cards/collection', r => { const ids = JSON.parse(r.request().postData()).identifiers;

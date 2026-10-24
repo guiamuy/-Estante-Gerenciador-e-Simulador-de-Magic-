@@ -157,6 +157,26 @@ export function mede(listas, cartas, { formato = 'pauper', agora = new Date().to
   };
 }
 
+/** Q10-7b (relato #32) · a porcentagem de cada lista que roda no motor, pela mesma conta do selo do app
+    (`motorDaLista`: cópias do deck principal e do comandante; 100 só com tudo coberto). { id → [pct, cartas que faltam] };
+    lista sem carta no deck fica fora. */
+export function porcentagens(listas, cartas) {
+  const mapa = new Map([...cartas].map(([k, c]) => [k, SF.normalizeCard(c)])), memo = new Map(), out = {};
+  for (const l of listas) {
+    const m = M.listas.motorDaLista((l.entradas || []).filter(e => e.zone !== 'maybe'), mapa, memo);
+    if (m.total > 0) out[l.id] = [m.pct, m.faltam.length];
+  }
+  return out;
+}
+export const ARQ_MOTOR = 'motor.json'; // cobertura/motor.json: o que o app lê (pequeno; os relatórios por formato não)
+/** Junta a medida de um formato ao arquivo que o app lê: as listas desse formato são trocadas pelas de agora, as dos
+    outros formatos ficam, e lista que saiu do catálogo sai. */
+export function juntaMotor(anterior, { formato, pct, idsDoCatalogo, idsDoFormato, agora, motor }) {
+  const base = anterior && anterior.versao === 1 && anterior.pct && typeof anterior.pct === 'object' ? anterior : { pct: {}, formatos: {} };
+  const fica = Object.entries(base.pct).filter(([id]) => idsDoCatalogo.has(id) && !idsDoFormato.has(id));
+  const formatos = { ...(base.formatos || {}), [formato]: { geradoEm: agora, motor, listas: idsDoFormato.size, medidas: Object.keys(pct).length } };
+  return { versao: 1, geradoEm: agora, formatos, pct: Object.fromEntries([...fica, ...Object.entries(pct)].sort((a, b) => (a[0] < b[0] ? -1 : 1))) };
+}
 /** Lê as listas de um formato na pasta do ramo catalogo (indice.json + listas/<id>.json). */
 export function listasDoCatalogo(pasta, formato = 'pauper') {
   const idx = JSON.parse(readFileSync(join(pasta, 'indice.json'), 'utf8'));
@@ -175,6 +195,14 @@ export async function executa({ pasta, formato = 'pauper', busca = globalThis.fe
   const rel = mede(listas, cartas, { formato, agora, falhas, anterior, textos });
   mkdirSync(join(pasta, 'cobertura'), { recursive: true });
   writeFileSync(arq, JSON.stringify(rel, null, 1) + '\n');
+  if (!rel.parcial) { // medida pela metade não vai para o selo do app: fica a anterior
+    const arqM = join(pasta, 'cobertura', ARQ_MOTOR);
+    const antM = existsSync(arqM) ? (() => { try { return JSON.parse(readFileSync(arqM, 'utf8')); } catch { return null; } })() : null;
+    const idx = JSON.parse(readFileSync(join(pasta, 'indice.json'), 'utf8')), todas = idx.listas || [];
+    const junto = juntaMotor(antM, { formato, pct: porcentagens(listas, cartas), agora: rel.geradoEm, motor: rel.motor,
+      idsDoCatalogo: new Set(todas.map(r => r.id)), idsDoFormato: new Set(todas.filter(r => r.formato === formato).map(r => r.id)) });
+    writeFileSync(arqM, JSON.stringify(junto) + '\n');
+  }
   log(`Cobertura ${formato} (texto da Scryfall, motor v${rel.motor}): ${rel.listas100} de ${rel.listas} listas a 100% · ${rel.cartasPendentes} carta(s) pendente(s) ${JSON.stringify(rel.porClasse)}${rel.parcial ? ` · ${falhas} lote(s) sem resposta` : ''}`);
   if (rel.curva.length) log(`  ordem gulosa (listas a 100% → cartas a cobrir): ${rel.curva.map(c => `${c.listas}→${c.cartas}`).join(' · ')}`);
   if (rel.novasDesdeAnterior.length) log(`  novas desde a coleta anterior: ${rel.novasDesdeAnterior.join(', ')}`);
