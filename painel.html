@@ -377,6 +377,8 @@ a { color: var(--accent); }
 .ds-btn__rotulo { min-width: 0; }
 .ds-btn:has(> .ds-icon + .ds-btn__rotulo) { padding-left: var(--space-3); }
 @media (prefers-reduced-motion: reduce) { .ds-btn:active:not([disabled]) { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .ds-carta-espera::before { animation: none; transform: none; opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .tb-sheet__foto:has(> .ds-carta-img:not([data-carregada="true"]))::after { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .ds-visor__moldura[data-carregando="true"]::after { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .tb-cena { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .tb-seta--nova { animation: none; } }
@@ -397,6 +399,7 @@ a { color: var(--accent); }
 @media (prefers-reduced-motion: reduce) { .nt-topo.ds-btn { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .cat-topo.ds-btn { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .porta__item { animation: none; } .porta[data-saida="true"] { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .ds-transicao { animation: none; transition: none; } }
 @media (prefers-reduced-motion: reduce) { .inicio-jogar.ds-btn:active:not([disabled]), .inicio-jogar.ds-btn:active .ds-atalho__icone, .inicio-jogar.ds-btn:active .inicio-jogar__seta { transform: none; } .inicio-jogar--brilho::after { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .ds-nav:active { transform: none; } }
 @media (prefers-reduced-motion: reduce) { .ds-expansivel__seta { transition: none; } .ds-expansivel__corpo { animation: none; } }
@@ -495,8 +498,11 @@ body {
 @media (prefers-reduced-motion: reduce) { .tb-relatar__aba { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .troca-carta.is-chegou { animation: none; } .troca-carta { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .tb-vez-selo--troca { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .tb-steps__list li[data-acende]::after, .tb-steps__list li[data-acende="fica"] { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .tb-vez-pop { animation: none; } .tb-vez__btn:active:not(:disabled) { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .tb-vez--troca[data-papel], .tb-vez-selo--troca[data-papel] { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .tb-vez--troca { animation: none; } .tb-side { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .tb-card::before { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .tb-card--entrou { animation: none; } .tb-card, .tb-card__face { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .tb-stack__monte--sobe > .tb-stack__mini[data-topo="true"] { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .tb-stack__painel { animation: none; } .tb-stack__faixa > .tb-stack__seta { transition: none; } }
@@ -889,7 +895,7 @@ const __p2 = (function () {
     { id: 'skills', rotulo: 'Skills', titulo: 'Skills e rotinas', leva: 'R-10', pronta: true, traz: 'o catálogo de skills, uso por leva e em uso agora; fluxos do GitHub e rotinas do Claude com última e próxima execução' },
     { id: 'modelos', rotulo: 'Modelos', titulo: 'Modelos', leva: 'R-11', pronta: true, traz: 'levas, tempo e portão por modelo, e o consumo estimado do plano' },
     { id: 'custo', rotulo: 'Custo', titulo: 'Custo e escala', leva: 'R-19', pronta: true, traz: 'minutos de Actions por rodada, dia e mês, e o tamanho do index.html por leva' },
-    { id: 'acervo', rotulo: 'Acervo', titulo: 'Acervo de listas', leva: 'R-20', pronta: true, traz: 'listas do catálogo por formato e por fonte, saúde e frescor das fontes (MTGJSON, Magic Online, TopDeck.gg), fichas pendentes e a medida do scanner' },
+    { id: 'acervo', rotulo: 'Acervo', titulo: 'Acervo de listas', leva: 'R-20', pronta: true, traz: 'listas do catálogo por formato e por fonte, saúde e frescor das fontes (MTGJSON, Magic Online, TopDeck.gg), fichas pendentes, a medida do scanner e o uso agregado opt-in (quem compartilha números: listas, coleção, scanner)' },
     { id: 'experiencia', rotulo: 'Experiência', titulo: 'Experiência de desenvolvimento', leva: 'R-21', pronta: true, traz: 'o que o portão mediu em cada leva: testes instáveis por semana e por nome, quedas de orçamento, telas auditadas e a duração do portão local' },
     { id: 'pessoas', rotulo: 'Pessoas', titulo: 'Pessoas', leva: 'R-27', pronta: true, traz: 'quantas contas existem e quantas nasceram por dia, perfis sincronizados, salas por dia e relatos por conta — só totais, ninguém identificado (decisão D13)' }
   ];
@@ -1388,6 +1394,22 @@ const __p2 = (function () {
   Object.assign(LIMIARES, { retratoFrescor: { verde: 30, amarelo: 120, unidade: 'min', texto: 'idade do retrato do CI (telemetria/retrato.json): ≤ 30 min responde no lugar da API · ≤ 2 h · mais (o fluxo Retrato parou; a API entra)' } });
   // R-25 · o portão da fila tem 45 min de teto no CI (timeout-minutes do job portao): verde até 30, amarelo até 40, acima disso está perto de cair por tempo
   Object.assign(LIMIARES, { portaoCI: { verde: 30, amarelo: 40, unidade: 'min', texto: 'duração do portão da fila no CI (rápida + tela, mediana): ≤ 30 min · ≤ 40 min · mais (o job cai aos 45)' }, vermelhasCI: { verde: 0, amarelo: 1, unidade: 'rodadas', texto: 'rodadas da fila com portão vermelho no recorte: 0 · 1 · mais' } });
+  /* ---------- R-30 · BI2-2b · uso agregado opt-in (puro): telemetria/uso.jsonl, gravado pelo fluxo Pessoas (I-301) — só totais por dia ---------- */
+  /** Uma linha por dia (UTC): aparelhos que mandaram naquele dia, somas e medianas por aparelho; linha sem dia válido sai. */
+  function linhasDoUso(linhas) {
+    const n = v => (Number.isFinite(Number(v)) && Number(v) >= 0 ? Number(v) : 0);
+    return (linhas || []).filter(l => l && /^\d{4}-\d{2}-\d{2}$/.test(l.dia)).map(l => ({ dia: l.dia, data: Date.parse(l.dia + 'T12:00:00Z'), em: Date.parse(l.em || '') || null,
+      aparelhos: n(l.aparelhos), listas: n(l.listas), cartas: n(l.cartas), copias: n(l.copias), scanner: n(l.scanner),
+      listasMediana: n(l.listas_mediana), cartasMediana: n(l.cartas_mediana), copiasMediana: n(l.copias_mediana), scannerMediana: n(l.scanner_mediana) }));
+  }
+  /** Resumo: a última linha diz a idade do arquivo; a última com envio dá os números do dia (medianas por aparelho e somas);
+      `pico` é o maior número de aparelhos num dia do recorte; `diasComEnvio` conta os dias em que alguém mandou. */
+  function resumoDoUso(linhas) {
+    const dias = (linhas || []).slice().sort((a, b) => a.dia.localeCompare(b.dia));
+    const ultima = dias.length ? dias[dias.length - 1] : null;
+    const comEnvio = dias.filter(l => l.aparelhos > 0), ultimaComEnvio = comEnvio.length ? comEnvio[comEnvio.length - 1] : null;
+    return { dias, ultima, ultimaComEnvio, diasComEnvio: comEnvio.length, pico: dias.reduce((m, l) => Math.max(m, l.aparelhos), 0), em: ultima ? ultima.em : null };
+  }
   /* ---------- R-24 · BI2-2 · scanner (puro): a última leva com medidas.scanner da telemetria ---------- */
   /** Leva mais recente (por data) com `medidas.scanner` (o teste X11 imprime, o portão recolhe, `--portao` carrega). */
   function medidaDoScanner(linhas) {
@@ -1421,12 +1443,13 @@ const __p2 = (function () {
     pages: 'API GitHub · actions/runs (fluxo "pages build and deployment")',
     levas: 'ramo telemetria · levas.jsonl (escrito pelas sessões)',
     rodadasCI: 'ramo telemetria · rodadas.jsonl (uma linha por rodada da fila, gravada pelo job avanca do CI com o resumo do portão)',
+    uso: 'ramo telemetria · uso.jsonl (uma linha por dia UTC, só totais, gravada pelo fluxo Pessoas: o que os aparelhos com a chave "Compartilhar números de uso" ligada mandaram para uso/<conta>/<dia>; nenhuma conta identificada)',
     pessoas: 'ramo telemetria · pessoas.jsonl (uma linha por dia, só totais, gravada pelo fluxo Pessoas com a conta de serviço: contas pelo Firebase Authentication, perfis e salas pelo banco)',
     retrato: 'ramo telemetria · retrato.json e commits/<dia>.json (gravados pelo fluxo Retrato a cada mudança da fila, rodada e a cada 30 min: ramos, rodadas, jobs, execuções, fluxos, commits do main e tamanho por leva — o painel lê isto antes da API)',
     coleta: 'raw · catalogo/coleta.json (saúde e contagens da última coleta; gravado pelo fluxo Catálogo)',
     indice: 'raw · catalogo/indice.json (só o cabeçalho: fontes, formatos, total, pendentes; lido uma vez por coleta e guardado por carimbo)'
   };
-  return { SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, linhasDosCommits, levasPorRodada, compactaCommits, MAIN_URL, intervalos, diasDoPeriodo, porSemana, parseRoadmap, resumoDoMapa, linhasDosPlacares, sharkPorVersao, minutosDasRodadas, serieDeTamanho, kb, cabecalhoDoIndice, resumoDoCatalogo, experienciaDasLevas, linhasDasRodadasCI, experienciaDasRodadas, instaveisPorNome, linhasDasPessoas, resumoDasPessoas, medidaDoScanner, linhasDosRelatos, linhasDasTrilhas, resumoDoFluxo, fraseDoCron, linhasDosFluxos, linhasDasRotinas, porModelo, SECOES_CR, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
+  return { SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, linhasDosCommits, levasPorRodada, compactaCommits, MAIN_URL, intervalos, diasDoPeriodo, porSemana, parseRoadmap, resumoDoMapa, linhasDosPlacares, sharkPorVersao, minutosDasRodadas, serieDeTamanho, kb, cabecalhoDoIndice, resumoDoCatalogo, experienciaDasLevas, linhasDasRodadasCI, experienciaDasRodadas, instaveisPorNome, linhasDasPessoas, resumoDasPessoas, linhasDoUso, resumoDoUso, medidaDoScanner, linhasDosRelatos, linhasDasTrilhas, resumoDoFluxo, fraseDoCron, linhasDosFluxos, linhasDasRotinas, porModelo, SECOES_CR, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
 })();
 
 /* ==== src/painel/ui.js ==== */
@@ -1793,7 +1816,9 @@ const __p4 = (function () {
         try { const r = await fonte.raw('catalogo', 'indice.json', { nome: 'catalogo.indice.' + carimbo, ttl: carimbo === 'sem-coleta' ? 60 * 60000 : Infinity, forcar: false, transforma: M.cabecalhoDoIndice }); indice = r.dado; } catch (e) { avisos.push('índice indisponível: contagens só das fontes da coleta (MTGO e TopDeck)'); }
         let levas = [];   // R-24 · a medida do scanner vem da telemetria das levas (cache compartilhado com as outras sub-abas)
         try { levas = lerJsonl((await fonte.raw('telemetria', 'levas.jsonl', { ttl: 2 * 60000, forcar })).dado); } catch (e) { avisos.push('telemetria indisponível (levas.jsonl): sem a medida do scanner'); }
-        return { em, coleta, indice, levas, avisos, sem: {} };
+        let uso = [];   // R-30 · BI2-2b · os totais do uso opt-in (uso.jsonl, gravado pelo fluxo Pessoas)
+        try { uso = lerJsonl((await fonte.raw('telemetria', 'uso.jsonl', { ttl: 10 * 60000, forcar })).dado); } catch (e) { avisos.push('telemetria indisponível (uso.jsonl): sem o uso opt-in'); }
+        return { em, coleta, indice, levas, uso, avisos, sem: {} };
       },
       desenha(d, filtros, api) {
         const r = M.resumoDoCatalogo({ coleta: d.coleta, indice: d.indice });
@@ -1816,7 +1841,17 @@ const __p4 = (function () {
         const scanner = h('div', { class: 'pn-cartoes', id: 'pn-scanner' },
           Cartao({ id: 'pn-k-scanner-detector', rotulo: 'Scanner · detector', valor: sc && sc.detector_ms != null ? sc.detector_ms : '—', unidade: sc && sc.detector_ms != null ? `ms por quadro · ${sc.leva}` : '', farol: sc && sc.detector_ms != null ? farol(sc.detector_ms, LIMIARES.scannerDetector) : 'cinza', limiar: LIMIARES.scannerDetector, fonte: FONTES.levas, formula: 'medidas.scanner.detector_ms da última leva medida (teste X11 na fase de tela, navegador de teste — não é o celular)', em: sc ? sc.data : null, semDados: !(sc && sc.detector_ms != null) }),
           Cartao({ id: 'pn-k-scanner-confirmacao', rotulo: 'Scanner · confirmação', valor: sc && sc.confirmacao_ms != null ? sc.confirmacao_ms : '—', unidade: sc && sc.confirmacao_ms != null ? `ms · ${sc.leituras_s != null ? sc.leituras_s + ' leituras/s em repouso' : ''}` : '', farol: sc && sc.confirmacao_ms != null ? farol(sc.confirmacao_ms, LIMIARES.scannerConfirmacao) : 'cinza', limiar: LIMIARES.scannerConfirmacao, fonte: FONTES.levas, formula: 'medidas.scanner.confirmacao_ms e leituras_s da última leva medida (X11)', em: sc ? sc.data : null, semDados: !(sc && sc.confirmacao_ms != null) }));
+        // R-30 · BI2-2b · uso agregado opt-in: só totais por dia; sem ninguém compartilhando, os cartões dizem isso
+        const u = M.resumoDoUso(M.linhasDoUso(d.uso || []));
+        const ue = u.ultimaComEnvio, fmt = v => v.toLocaleString('pt-BR');
+        const usoCartoes = h('div', { class: 'pn-cartoes', id: 'pn-uso' },
+          Cartao({ id: 'pn-k-uso-aparelhos', rotulo: 'Aparelhos que compartilham', valor: ue ? fmt(ue.aparelhos) : u.ultima ? 0 : '—', unidade: ue ? `em ${ue.dia} · pico ${fmt(u.pico)} · ${u.diasComEnvio} dia(s) com envio` : u.ultima ? 'ninguém ligou a chave ainda' : '', farol: u.em ? farol((Date.now() - u.em) / 86400000, LIMIARES.pessoasFrescor) : 'cinza', limiar: LIMIARES.pessoasFrescor, fonte: FONTES.uso, formula: 'aparelhos que mandaram no último dia com envio', em: u.em, semDados: !u.ultima }),
+          Cartao({ id: 'pn-k-uso-listas', rotulo: 'Listas por aparelho', valor: ue ? fmt(ue.listasMediana) : '—', unidade: ue ? `mediana · ${fmt(ue.listas)} no total` : '', fonte: FONTES.uso, formula: 'mediana das listas por aparelho no último dia com envio · soma', em: u.em, semDados: !ue }),
+          Cartao({ id: 'pn-k-uso-colecao', rotulo: 'Coleção por aparelho', valor: ue ? fmt(ue.cartasMediana) : '—', unidade: ue ? `cartas (mediana) · ${fmt(ue.copias)} cópias no total` : '', fonte: FONTES.uso, formula: 'mediana das cartas distintas por aparelho · soma das cópias', em: u.em, semDados: !ue }),
+          Cartao({ id: 'pn-k-uso-scanner', rotulo: 'Lidas pelo scanner', valor: ue ? fmt(ue.scanner) : '—', unidade: ue ? `no total · ${fmt(ue.scannerMediana)} por aparelho (mediana)` : '', fonte: FONTES.uso, formula: 'soma das leituras do scanner contadas em cada aparelho (desde que a chave foi ligada)', em: u.em, semDados: !ue }));
+        const usoPorDia = u.dias.slice(-14).map(l => ({ chave: l.dia, rotulo: l.dia.slice(5), valor: l.aparelhos, dica: `${l.aparelhos} aparelho(s) · ${l.listas} listas · ${l.cartas} cartas · ${l.scanner} lidas` }));
         const notas = [];
+        notas.push(u.ultima ? (ue ? 'uso opt-in: só quem ligou "Compartilhar números de uso" em Perfil › Dados entra; números por dia e somados entre todos, nunca por pessoa' : 'uso opt-in: o fluxo já grava, mas ninguém ligou a chave "Compartilhar números de uso" ainda') : 'uso opt-in: o fluxo Pessoas ainda não gravou uso.jsonl (roda uma vez por dia e a cada avanço do main)');
         if (r.saude) for (const a of r.saude.alertas) notas.push('alerta da coleta: ' + a);
         if (r.saude) for (const a of r.saude.avisos) notas.push('aviso da coleta: ' + a);
         notas.push('MTGJSON não entra na coleta diária (listas oficiais, lidas do índice): por formato, é o que sobra do índice depois de MTGO e TopDeck');
@@ -1826,7 +1861,9 @@ const __p4 = (function () {
         return [
           cartoes,
           scanner,
+          usoCartoes,
           h('div', { class: 'pn-graficos' },
+            Barras({ id: 'pn-g-uso-dias', titulo: 'Aparelhos que compartilharam por dia · últimos 14 dias (uso opt-in)', itens: usoPorDia, vazio: 'ninguém compartilhou ainda' }),
             Barras({ id: 'pn-g-formatos', titulo: `Listas por formato · ${recorteTxt} (toque filtra)`, itens: porFormato, onBarra: v => api.filtra('formato', v), ativo: filtros.formato || null, vazio: 'sem formato neste recorte' }),
             Barras({ id: 'pn-g-fontes', titulo: `Listas por fonte · ${recorteTxt} (toque filtra)`, itens: porFonte, onBarra: v => api.filtra('fonte', v), ativo: filtros.fonte || null, vazio: 'sem fonte neste recorte' }),
             Barras({ id: 'pn-g-eventos', titulo: `Eventos lidos por fonte e formato · ${recorteTxt}`, itens: eventos, vazio: 'sem eventos neste recorte (MTGJSON não tem eventos)' })),

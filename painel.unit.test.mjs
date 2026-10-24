@@ -711,14 +711,14 @@ test('R-20/R-24 · orçamento do Acervo: coleta.json e levas.jsonl a cada atuali
   const fetch = async url => { chamadas.push(url); const corpo = /coleta\.json/.test(url) ? JSON.stringify(coleta) : /indice\.json/.test(url) ? JSON.stringify(INDICE_R20) : ''; return { ok: true, status: 200, headers: { get: () => null }, json: async () => JSON.parse(corpo), text: async () => corpo }; };
   const fonte = base.createFonte({ fetch, guarda });
   const d1 = await app.VISOES.acervo.carrega(fonte, false);
-  assert.equal(fonte.pedidos, 0, 'nada vai à API'); assert.equal(fonte.brutos, 3, 'coleta, índice e levas (R-24: a medida do scanner)'); assert.equal(d1.indice.total, 2764); assert.deepEqual(d1.avisos, []);
+  assert.equal(fonte.pedidos, 0, 'nada vai à API'); assert.equal(fonte.brutos, 4, 'coleta, índice, levas (R-24: a medida do scanner) e uso (R-30: o uso opt-in)'); assert.equal(d1.indice.total, 2764); assert.deepEqual(d1.avisos, []);
   assert.ok(!JSON.stringify(guarda.ler('painel.cache.catalogo.indice.2026-10-16T11:40:34.193Z')).includes('nunca-entra'), 'o cache guarda só o cabeçalho');
   fonte.zerar(); chamadas.length = 0;
   await app.VISOES.acervo.carrega(fonte, true);
-  assert.deepEqual(chamadas.map(u => u.split('/').pop()), ['coleta.json', 'levas.jsonl'], 'atualizar relê a coleta e as levas; o índice vem do cache enquanto o carimbo é o mesmo');
+  assert.deepEqual(chamadas.map(u => u.split('/').pop()), ['coleta.json', 'levas.jsonl', 'uso.jsonl'], 'atualizar relê a coleta, as levas e o uso; o índice vem do cache enquanto o carimbo é o mesmo');
   coleta = { ...COLETA_R20, em: '2026-10-17T11:40:00.000Z' }; chamadas.length = 0;
   await app.VISOES.acervo.carrega(fonte, true);
-  assert.deepEqual(chamadas.map(u => u.split('/').pop()), ['coleta.json', 'indice.json', 'levas.jsonl'], 'carimbo novo: o índice é lido de novo, uma vez');
+  assert.deepEqual(chamadas.map(u => u.split('/').pop()), ['coleta.json', 'indice.json', 'levas.jsonl', 'uso.jsonl'], 'carimbo novo: o índice é lido de novo, uma vez');
   // coleta fora do ar: o índice ainda é lido (chave da hora) e a visão avisa
   const fonte2 = base.createFonte({ fetch: async url => { if (/coleta/.test(url)) throw new TypeError('sem rede'); return fetch(url); }, guarda: base.createGuarda(null) });
   const d2 = await app.VISOES.acervo.carrega(fonte2, false);
@@ -792,7 +792,7 @@ test('R-24 · medidaDoScanner: a leva mais recente com medidas.scanner (data), c
   const fetch = async url => { const corpo = /coleta\.json/.test(url) ? '{"em":"2026-10-16T11:40:34.193Z","saude":{"ok":true,"alertas":[],"avisos":[],"fontes":{}},"topdeck":[],"mtgo":[]}' : /indice\.json/.test(url) ? '{"versao":1,"total":1,"formatos":[],"fontes":[]}' : /levas\.jsonl/.test(url) ? JSON.stringify({ id: 'R-23', trilha: 'radar', conversa: 'c', situacao: 'publicada', fim: '2026-10-17T06:00:00Z', medidas: { scanner: { detector_ms: 88 } } }) : ''; return { ok: true, status: 200, headers: { get: () => null }, json: async () => JSON.parse(corpo), text: async () => corpo }; };
   const fonte = base.createFonte({ fetch, guarda });
   const d = await app.VISOES.acervo.carrega(fonte, false);
-  assert.equal(fonte.pedidos, 0); assert.equal(fonte.brutos, 3); assert.equal(modelo.medidaDoScanner(modelo.linhasDasLevas(d.levas)).detector_ms, 88);
+  assert.equal(fonte.pedidos, 0); assert.equal(fonte.brutos, 4); assert.equal(modelo.medidaDoScanner(modelo.linhasDasLevas(d.levas)).detector_ms, 88);
 });
 
 test('R-25 · rodadas da fila (CI): linhasDasRodadasCI normaliza (data pelo em, trilhas pelas letras das levas, minutos = rápida + tela, listas vazias); experienciaDasRodadas soma por semana, por nome, verdes × vermelhas, durações; instaveisPorNome junta leva local e rodada; recorte por trilha casa qualquer leva da rodada; limiares do CI abaixo do teto de 45 min', () => {
@@ -841,6 +841,29 @@ test('R-27 · pessoas: linhasDasPessoas normaliza (dia válido, data ao meio-dia
 });
 
 /* ---------- R-28 · BI2-7 · o retrato do CI no lugar da API ---------- */
+
+test('R-30 · uso opt-in: linhasDoUso normaliza (dia válido, números ≥ 0, medianas) e resumoDoUso acha o último dia com envio, o pico e os dias com envio; o Acervo lê uso.jsonl pelo raw, fora da cota', async () => {
+  const { modelo, base, app } = loadPainel();
+  const linhas = modelo.linhasDoUso([
+    { dia: '2026-10-22', em: '2026-10-22T05:00:00Z', aparelhos: 0, listas: 0, cartas: 0, copias: 0, scanner: 0, listas_mediana: 0, cartas_mediana: 0, copias_mediana: 0, scanner_mediana: 0 },
+    { dia: '2026-10-23', em: '2026-10-24T05:00:00Z', aparelhos: 2, listas: 5, cartas: 12, copias: 30, scanner: 6, listas_mediana: 2.5, cartas_mediana: 6, copias_mediana: 15, scanner_mediana: 3 },
+    { dia: '2026-10-24', em: '2026-10-24T05:00:00Z', aparelhos: 0, listas: -1, cartas: 'x', copias: 0, scanner: 0 },
+    { dia: 'ontem', aparelhos: 9 }
+  ]);
+  assert.deepEqual(linhas.map(l => [l.dia, l.aparelhos, l.listas, l.cartas, l.listasMediana]), [['2026-10-22', 0, 0, 0, 0], ['2026-10-23', 2, 5, 12, 2.5], ['2026-10-24', 0, 0, 0, 0]]);
+  const r = modelo.resumoDoUso(linhas);
+  assert.deepEqual([r.ultima.dia, r.ultimaComEnvio.dia, r.diasComEnvio, r.pico, r.em], ['2026-10-24', '2026-10-23', 1, 2, Date.parse('2026-10-24T05:00:00Z')]);
+  const vazio = modelo.resumoDoUso([]); assert.deepEqual([vazio.ultima, vazio.ultimaComEnvio, vazio.pico], [null, null, 0]);
+  // o Acervo desenha os cartões: com envio, os números do último dia com envio; sem o arquivo, cartões sem dados e a nota diz que o fluxo não gravou
+  const usoTxt = linhas.slice(0, 2).map(l => JSON.stringify({ dia: l.dia, em: new Date(l.em).toISOString(), aparelhos: l.aparelhos, listas: l.listas, cartas: l.cartas, copias: l.copias, scanner: l.scanner, listas_mediana: l.listasMediana, cartas_mediana: l.cartasMediana, copias_mediana: l.copiasMediana, scanner_mediana: l.scannerMediana })).join('\n') + '\n';
+  const fetchCom = async url => { const corpo = /uso\.jsonl/.test(url) ? usoTxt : /coleta\.json/.test(url) ? '{"em":"2026-10-16T11:40:34.193Z","saude":{"ok":true,"alertas":[],"avisos":[],"fontes":{}},"topdeck":[],"mtgo":[]}' : ''; return { ok: true, status: 200, headers: { get: () => null }, json: async () => JSON.parse(corpo || 'null'), text: async () => corpo }; };
+  const fonte = base.createFonte({ fetch: fetchCom, guarda: base.createGuarda(null) });
+  const d = await app.VISOES.acervo.carrega(fonte, false);
+  assert.equal(fonte.pedidos, 0, 'nada vai à API'); assert.equal(d.uso.length, 2); assert.deepEqual(modelo.resumoDoUso(modelo.linhasDoUso(d.uso)).ultimaComEnvio.dia, '2026-10-23');
+  const d2 = await app.VISOES.acervo.carrega(base.createFonte({ fetch: async url => { const corpo = /coleta\.json/.test(url) ? '{"em":"2026-10-16T11:40:34.193Z","saude":{"ok":true,"alertas":[],"avisos":[],"fontes":{}},"topdeck":[],"mtgo":[]}' : ''; return { ok: true, status: 200, headers: { get: () => null }, json: async () => JSON.parse(corpo || 'null'), text: async () => corpo }; }, guarda: base.createGuarda(null) }), false);
+  assert.deepEqual(d2.uso, [], 'sem o arquivo, lista vazia (os cartões ficam sem dados; o desenho está no e2e R-30)');
+});
+
 test('R-28 · respostaDoRetrato (puro): fresco responde ramos, rodadas, pages, fluxos, jobs.<id> e main (= commits); detalhe de ramo e tamanho por sha respondem mesmo velho; o resto não; diasDoRetrato exige todos os dias UTC do intervalo (dia depois do retrato conta como vazio); commitsDoRetrato filtra pela data do committer', () => {
   const { base } = loadPainel();
   const SHA = n => String(n).padStart(40, 'a');

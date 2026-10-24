@@ -13205,8 +13205,52 @@ test('e2e · R-20 Painel · Acervo: listas no acervo, saúde da coleta, lista ma
   brutos.length = 0; await page.click('#pn-atualizar');
   for (let i = 0; i < 50 && !brutos.length; i++) await page.waitForTimeout(100);
   await page.waitForFunction(() => !document.querySelector('#pn-atualizar').disabled);
-  assert.deepEqual(brutos.filter(b => b !== 'retrato.json'), ['coleta.json', 'levas.jsonl'], 'R-24: as levas (medida do scanner) também são relidas; o índice não (R-28: o retrato do CI é relido a cada Atualizar, fora desta conta)');
+  assert.deepEqual(brutos.filter(b => b !== 'retrato.json'), ['coleta.json', 'levas.jsonl', 'uso.jsonl'], 'R-24: as levas (medida do scanner) e, R-30, o uso opt-in também são relidos; o índice não (R-28: o retrato do CI é relido a cada Atualizar, fora desta conta)');
   if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.screenshot({ path: process.env.SHOTS + '/r20-acervo.png', fullPage: true }); }
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · R-30 Painel · Acervo · uso opt-in: sem uso.jsonl os cartões ficam sem dados e a nota diz que o fluxo não gravou; com o arquivo, os cartões mostram o último dia com envio (aparelhos, medianas, somas) e as barras por dia; nada identifica ninguém', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  const painel = base.replace('index.html', 'painel.html');
+  await page.setViewportSize({ width: 360, height: 780 });
+  const json = (r, corpo) => r.fulfill({ json: corpo, headers: { 'content-type': 'application/json', 'x-ratelimit-remaining': '50', 'x-ratelimit-limit': '60', 'access-control-expose-headers': 'etag, x-ratelimit-remaining, x-ratelimit-limit' } });
+  await page.route('https://api.github.com/**', r => json(r, []));
+  const coleta = { em: '2026-10-16T11:40:34.193Z', saude: { ok: true, alertas: [], avisos: [], fontes: {} }, topdeck: [], mtgo: [] };
+  const hoje = new Date().toISOString().slice(0, 10), ontem = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  let comUso = false;
+  const uso = [
+    { dia: ontem, em: new Date().toISOString(), aparelhos: 3, listas: 9, cartas: 120, copias: 300, scanner: 42, listas_mediana: 3, cartas_mediana: 40, copias_mediana: 100, scanner_mediana: 10 },
+    { dia: hoje, em: new Date().toISOString(), aparelhos: 0, listas: 0, cartas: 0, copias: 0, scanner: 0, listas_mediana: 0, cartas_mediana: 0, copias_mediana: 0, scanner_mediana: 0 }
+  ].map(l => JSON.stringify(l)).join('\n') + '\n';
+  await page.route('https://raw.githubusercontent.com/**', r => {
+    const u = r.request().url();
+    const corpo = /catalogo\/coleta\.json/.test(u) ? JSON.stringify(coleta) : /telemetria\/uso\.jsonl/.test(u) && comUso ? uso : '';
+    return r.fulfill({ body: corpo, headers: { 'content-type': 'text/plain', 'access-control-allow-origin': '*' } });
+  });
+  await page.addInitScript(() => {
+    const jwt = email => 'h.' + btoa(JSON.stringify({ email })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') + '.s';
+    window.__PAINEL_FETCH = async (url) => new Response(JSON.stringify(url.includes('securetoken') ? { user_id: 'uidE2E', id_token: jwt('gui.amuy@gmail.com'), refresh_token: 'ref-e2e', expires_in: '3600' } : { localId: 'uidE2E', idToken: jwt('gui.amuy@gmail.com'), refreshToken: 'ref-e2e', expiresIn: '3600' }), { headers: { 'content-type': 'application/json' } });
+    window.__PAINEL_GOOGLE = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }), revoke: (tk, cb) => cb && cb() } } };
+  });
+  await page.goto(painel + '#acervo'); await page.waitForSelector('#pn-entrar'); await page.click('#pn-entrar');
+  await page.waitForSelector('#pn-uso');
+  // 1 · sem o arquivo: cartões sem dados e a nota explica
+  assert.match(await page.innerText('#pn-k-uso-aparelhos'), /sem dados neste recorte/); assert.match(await page.innerText('#pn-k-uso-scanner'), /sem dados neste recorte/);
+  assert.match(await page.innerText('#pn-notas'), /uso opt-in: o fluxo Pessoas ainda não gravou uso\.jsonl/);
+  assert.match(await page.innerText('#pn-g-uso-dias'), /ninguém compartilhou ainda/);
+  // 2 · com o arquivo (Atualizar relê o uso): o último dia com envio manda nos cartões; hoje sem envio aparece nas barras com 0
+  comUso = true; await page.click('#pn-atualizar'); await page.waitForFunction(() => /em \d{4}-\d{2}-\d{2}/.test((document.querySelector('#pn-k-uso-aparelhos') || {}).textContent || ''));
+  assert.match(await page.innerText('#pn-k-uso-aparelhos'), new RegExp('3[\\s\\S]*em ' + ontem + ' · pico 3 · 1 dia\\(s\\) com envio'));
+  assert.equal(await page.getAttribute('#pn-k-uso-aparelhos .pn-farol', 'data-farol'), 'verde', 'arquivo de hoje: fluxo vivo');
+  assert.match(await page.innerText('#pn-k-uso-listas'), /3[\s\S]*mediana · 9 no total/);
+  assert.match(await page.innerText('#pn-k-uso-colecao'), /40[\s\S]*cartas \(mediana\) · 300 cópias no total/);
+  assert.match(await page.innerText('#pn-k-uso-scanner'), /42[\s\S]*no total · 10 por aparelho \(mediana\)/);
+  assert.match(await page.innerText('#pn-g-uso-dias'), new RegExp(ontem.slice(5) + '[\\s\\S]*3[\\s\\S]*' + hoje.slice(5)));
+  assert.match(await page.innerText('#pn-notas'), /nunca por pessoa/);
+  const tudo = await page.innerText('#pn-visao-acervo'); assert.ok(!/uid|@|exemplo\.com/.test(tudo), 'nada identifica ninguém');
+  await auditaTela(page, 'acervo · uso opt-in');
+  if (process.env.SHOTS) { await page.screenshot({ path: process.env.SHOTS + '/r30-uso.png', fullPage: true }); }
   assert.deepEqual(errors, []);
 });
 
