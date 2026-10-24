@@ -1225,3 +1225,30 @@ test('B-177 · o Shark publicado usa o mulligan 2 (mantém a mão dos Elfos com 
   assert.equal(shark('shark').mulligan(s, 0).acao.t, 'keep');
   assert.equal(shark('shark-v11').mulligan(s, 0).acao.t, 'mulligan');
 });
+
+/* ---- B-178 · prazo: a decisão inteira cabe no orçamento ---- */
+test('B-178 · escolhe com prazo para no limite da decisão inteira (depois de ao menos uma candidata); sem prazo, só o orçamento dela conta', () => {
+  let t = 0; const agora = () => t;
+  const nota = a => { t += 30; return a.v; };
+  const cands = [1, 2, 3, 4, 5].map(v => ({ t: 'pass', p: 0, v, oid: 'o' + v }));
+  const com = B.escolhe(cands, nota, { orcamentoMs: 400, agora, prazo: true, limite: 50 });
+  assert.equal(com.vistas, 2, 'passou do limite (50) depois da 2ª: para'); assert.ok(com.cortou);
+  t = 0; const sem = B.escolhe(cands, nota, { orcamentoMs: 400, agora, limite: 50 });
+  assert.equal(sem.vistas, 5, 'sem prazo, o limite não corta o laço (só o orçamento de 400)');
+  t = 0; const zero = B.escolhe(cands, nota, { orcamentoMs: 400, agora: () => 1e9, prazo: true, limite: 1 });
+  assert.equal(zero.vistas, 1, 'prazo já vencido: ainda avalia uma, nunca devolve nada');
+});
+test('B-178 · com o prazo vencido logo na primeira leitura, o Shark ainda devolve jogada legal (turno cheio dos Elfos, ataque, bloqueio, resposta)', async () => {
+  // relógio que pula: tudo depois da primeira consulta já passou do prazo
+  const pula = () => { let n = 0; return () => (n++ ? 1e9 : 0); };
+  const posicoes = [
+    await montaShark(ELFOS, CONTROLE, { ativo: 0, vez: 0, passo: 'main1', p0: { campo: ['Forest', 'Forest', 'Forest', 'Llanowar Elves', 'Elvish Mystic', 'Timberwatch Elf'], mao: ['Priest of Titania', 'Quirion Ranger', 'Land Grant'] } }),
+    await montaShark(CONTROLE, ELFOS, { ativo: 1, vez: 0, passo: 'upkeep', p0: { campo: ['Island', 'Swamp'], mao: ['Cast Down', 'Counterspell'] }, p1: { campo: ['Forest', 'Masked Vandal', 'Timberwatch Elf'] } }),
+  ];
+  for (const { s } of posicoes) {
+    const bot = B.criaBot({ nivel: 'shark', agora: pula() }); // o Shark publicado já tem o prazo (B-178)
+    const j = bot.jogada(s, 0);
+    assert.ok(j && j.acao, 'devolveu uma ação');
+    assert.doesNotThrow(() => E.apply(s, j.acao), 'a ação é legal: ' + JSON.stringify(j.acao));
+  }
+});

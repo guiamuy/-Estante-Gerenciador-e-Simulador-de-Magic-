@@ -33303,6 +33303,10 @@ const __m25 = (function () {
    mágica barata que busca básico), olha a cor das mágicas, manda embora mão de uma fonte a partir de 5 cartas e guarda a
    cor no fundo. Neutro em força (79 × 81 em 160 pares pareados, os cinco pilotos), ligado porque o de antes dava
    mulligan em 9 de 10 partidas dos Elfos. 'shark-v11' é o Shark da B-176, congelado.
+   PRAZO (B-22, leva B-178): a decisão inteira cabe em 0,9 do orçamento — a média dos mundos possíveis, a leitura das
+   respostas do oponente e o laço de escolha param no prazo, sempre com ao menos uma nota completa; o plano de mana, o
+   olhar à frente e "a mana ia sobrar" respeitam o mesmo limite. Antes o relógio só era olhado entre candidatas e a
+   cauda ia a 4,3 s com 400 ms de orçamento. 'shark-v12' é o Shark da B-177, congelado.
    LIMITES DE HOJE: um lance à frente + resposta do oponente + combate; sem plano
    de vários turnos, sem blefe, sem jogar em volta de anulação ou truque; não troca reserva na melhor de três; esquece o que a vidência
    mostrou do próprio topo.
@@ -33419,12 +33423,12 @@ const chaveAcao = a => [a.t, a.oid || '', a.index != null ? a.index : '', a.p,
 /** B2 · escolhe a melhor candidata com orçamento de tempo.
     `nota(acao)` devolve um número; empate fica com a primeira em ordem estável.
     O relógio entra por parâmetro para o teste não depender da máquina. */
-function escolhe(candidatas, nota, { orcamentoMs = 400, agora = () => Date.now(), jaOrdenadas = false } = {}) {
+function escolhe(candidatas, nota, { orcamentoMs = 400, agora = () => Date.now(), jaOrdenadas = false, prazo = false, limite = 0 } = {}) {
   const lista = jaOrdenadas ? [...candidatas] : [...candidatas].sort((a, b) => chaveAcao(a) < chaveAcao(b) ? -1 : chaveAcao(a) > chaveAcao(b) ? 1 : 0);
   const inicio = agora();
   let melhor = null, melhorNota = -Infinity, vistas = 0, cortou = false;
   for (const a of lista) {
-    if (vistas > 0 && agora() - inicio >= orcamentoMs) { cortou = true; break; }
+    if (vistas > 0 && (agora() - inicio >= orcamentoMs || (prazo && limite && agora() > limite))) { cortou = true; break; } // B-178 · com `prazo`, o limite da decisão inteira também corta
     const n = nota(a);
     vistas++;
     if (n > melhorNota) { melhorNota = n; melhor = a; }
@@ -33609,7 +33613,7 @@ function notaComResposta(s, p, opts = {}) {
   const barato = [];
   for (const a of delas) {
     // Leva 119 · mesa grande: a leitura das respostas também respeita o relógio (antes só as candidatas respeitavam)
-    if (opts.limite && barato.length >= 6 && opts.agora() > opts.limite) break;
+    if (opts.limite && barato.length >= (opts.prazo ? 2 : 6) && opts.agora() > opts.limite) break; // B-178 · com `prazo`, duas respostas lidas bastam
     const r = simula(s, a);
     if (!r) continue;
     barato.push({ a, n: av(r.estado, p).nota, r });
@@ -33617,7 +33621,10 @@ function notaComResposta(s, p, opts = {}) {
   if (!barato.length) return medir(s);
   barato.sort((x, y) => x.n - y.n || (chaveAcao(x.a) < chaveAcao(y.a) ? -1 : 1)); // pior para mim primeiro
   let pior = medir(s);
+  let lidas = 0;
   for (const { a, r } of barato.slice(0, opts.projeta ? 6 : RESPOSTAS_CONSIDERADAS)) {
+    if (opts.prazo && opts.limite && lidas > 0 && opts.agora() > opts.limite) break; // B-178 · fica a pior entre as já lidas
+    lidas++;
     const depois = RESOLVE.includes(a.t) ? resolveSimulado(r.estado, 8, opts.desdobra ? d : null, av) : r.estado;
     const n = medir(depois);
     if (n < pior) pior = n; // o oponente escolhe o que é pior para mim
@@ -33890,6 +33897,8 @@ function valorNaMao(s, p, oid) {
 /** B4 · jogada do profissional. */
 function jogadaProfissional(s, p, opts = {}) {
   if (s.status !== 'playing' || s.players[p].lost) return null;
+  // B-178 · `prazo`: a decisão inteira cabe em 0,9 do orçamento (antes, 2× e só a leitura das respostas olhava)
+  if (opts.prazo && opts.agora && !opts.limite) opts = { ...opts, limite: opts.agora() + (opts.orcamentoMs || 400) * 0.9 };
   if (opts.relogio && opts.agora && !opts.limite) opts = { ...opts, limite: opts.agora() + (opts.orcamentoMs || 400) * 2 };
   const pend = s.pending;
   const minhaDecisao = !!(pend && pend.p === p);
@@ -33902,7 +33911,7 @@ function jogadaProfissional(s, p, opts = {}) {
   // grimórios sorteados do que não foi visto) e a nota é a média entre eles. Sem `mundos` (versões congeladas), roda
   // sobre o estado real, como antes.
   const W = opts.mundos && opts.mundos.length ? opts.mundos : [s];
-  const media = f => { let soma = 0, n = 0; for (const w of W) { const v = f(w); if (v == null) continue; soma += v; n++; } return n ? soma / n : -Infinity; };
+  const media = f => { let soma = 0, n = 0; for (const w of W) { if (opts.prazo && n > 0 && opts.limite && opts.agora() > opts.limite) break; const v = f(w); if (v == null) continue; soma += v; n++; } return n ? soma / n : -Infinity; }; // B-178 · no prazo, a média dos mundos já lidos
   // Leva 118 · sequência do turno: no meu turno, antes da fase principal, não gasto mana por conta própria — ainda
   // vou comprar e baixar terreno, e o que dá para fazer na manutenção dá para fazer depois, sabendo mais.
   if (opts.tempo && !minhaDecisao && s.turn.active === p && !s.stack.length && ['untap', 'upkeep', 'draw'].includes(s.turn.step))
@@ -34648,14 +34657,15 @@ const NOVO8 = { ...NOVO7, plano: true }; // B9 · plano do baralho (leva 147), c
 const NOVO9 = { ...NOVO8, truque: true }; // B16 · truque próprio no ataque (leva 159), congelado como 'shark-v9'
 const NOVO10 = { ...NOVO9, aceita: true }; // B10b · `segura` (segurar a mana da anulação) foi medido e fica desligado: 36% contra 41% pilotando Faeries; congelado como 'shark-v10' (B-174)
 const NOVO11 = { ...NOVO10, av5: true }; // B-175 · o terreno que falta (avaliaV5) e os perfis de plano (PERFIS, pelo dado); congelado como 'shark-v11' (B-177)
-const NOVO = { ...NOVO11, mull2: true }; // B-177 · mulligan por fontes e cores (decideMulligan2): neutro em força (79 × 81 em 160 pares), ligado porque tira o mulligan em 9 de 10 partidas dos Elfos
+const NOVO12 = { ...NOVO11, mull2: true }; // congelado como 'shark-v12' (B-178) · B-177 · mulligan por fontes e cores (decideMulligan2): neutro em força (79 × 81 em 160 pares), ligado porque tira o mulligan em 9 de 10 partidas dos Elfos
+const NOVO = { ...NOVO12, prazo: true }; // B-178 · a decisão inteira cabe em 0,9 do orçamento: p95 430 → 366 ms, pior 4,3 → 0,8 s (400 ms); 48 × 47 em 80 pares
 // B-176 · `ameacas` (ameaças do campo no perfil do Dimir Control) foi medida e fica desligada: 26 de 64 contra 27 de 64 pilotando o Control
 function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date.now(), mundos: mundosN = 0, extra: extraOpts = null, pesos = null } = {}) {
   // Leva 117 · 'profissional' e 'shark' são o Shark atual (v4: o v3 com informação justa). 'shark-v3', 'shark-v2'
   // e 'shark-v1' são as versões anteriores, congeladas, só para o torneio — elas simulam sobre o estado real.
-  const v1 = nivel === 'shark-v1', v2 = nivel === 'shark-v2', v3 = nivel === 'shark-v3', v4 = nivel === 'shark-v4', v5 = nivel === 'shark-v5', v6 = nivel === 'shark-v6', v7 = nivel === 'shark-v7', v8 = nivel === 'shark-v8', v9 = nivel === 'shark-v9', v10 = nivel === 'shark-v10', v11 = nivel === 'shark-v11';
-  const atual = nivel === 'profissional' || nivel === 'shark' || v4 || v5 || v6 || v7 || v8 || v9 || v10 || v11 || !!extraOpts || !!pesos;
-  const ligadas = { ...(v4 ? {} : v5 ? NOVO5 : v6 ? NOVO6 : v7 ? NOVO7 : v8 ? NOVO8 : v9 ? NOVO9 : v10 ? NOVO10 : v11 ? NOVO11 : NOVO), ...(extraOpts || {}) };
+  const v1 = nivel === 'shark-v1', v2 = nivel === 'shark-v2', v3 = nivel === 'shark-v3', v4 = nivel === 'shark-v4', v5 = nivel === 'shark-v5', v6 = nivel === 'shark-v6', v7 = nivel === 'shark-v7', v8 = nivel === 'shark-v8', v9 = nivel === 'shark-v9', v10 = nivel === 'shark-v10', v11 = nivel === 'shark-v11', v12 = nivel === 'shark-v12';
+  const atual = nivel === 'profissional' || nivel === 'shark' || v4 || v5 || v6 || v7 || v8 || v9 || v10 || v11 || v12 || !!extraOpts || !!pesos;
+  const ligadas = { ...(v4 ? {} : v5 ? NOVO5 : v6 ? NOVO6 : v7 ? NOVO7 : v8 ? NOVO8 : v9 ? NOVO9 : v10 ? NOVO10 : v11 ? NOVO11 : v12 ? NOVO12 : NOVO), ...(extraOpts || {}) };
   let perfil, avPlano = null, passosCombo = 0, turnoCombo = -1; // B9 · perfil do meu baralho, lido na primeira jogada
   const avAtual = ligadas.av4 || ligadas.av5 || pesos ? avaliadorCom({ ...PESOS_ATUAIS, ...(pesos || {}) }, ligadas.av5 ? avaliaV5 : ligadas.av4 ? avaliaV4 : avaliaV3) : null;
   let plano = []; // leva 143 · ações que faltam do plano de mana em curso
