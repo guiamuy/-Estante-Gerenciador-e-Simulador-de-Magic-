@@ -475,3 +475,19 @@ test('DS-K · F1.1 o primário é de latão (gradiente dos tokens do acento, fio
   assert.match(componentCss, /\.inicio-jogar::after \{[^}]*var\(--sheen\)/, 'o brilho do Jogar é a mesma luz');
   assert.match(HTML, /document\.addEventListener\('click', e => \{\s*const b = e\.target && e\.target\.closest \? e\.target\.closest\('\.ds-btn--primary'\)/, 'um ouvinte só para todo primário');
 });
+
+/* ---------------- DS-K (G-290) · F1.2 cinco estados iguais ---------------- */
+test('DS-K · F1.2 os cinco estados saem da mesma linguagem em botão, chip, aba, linha e selo: afunda com --btn-pressed, selecionado em latão, carregando com o giro, desabilitado a 45 %', () => {
+  const LATAO = 'linear-gradient\\(160deg, var\\(--accent-hi\\), var\\(--accent\\) 55%, var\\(--accent-lo\\)\\)';
+  assert.match(componentCss, new RegExp(`\\.ds-chip\\[aria-pressed="true"\\] \\{ background-image: ${LATAO}`), 'chip marcado em latão');
+  assert.match(componentCss, new RegExp(`\\.ds-btn:where\\(\\[aria-pressed="true"\\][^{]*\\{[^}]*background-image: ${LATAO}`), 'botão de alternar em latão');
+  assert.match(componentCss, new RegExp(`\\.ds-badge--solid \\{ background-image: ${LATAO}`), 'selo cheio em latão');
+  assert.match(componentCss, /\.ds-tab\[aria-selected="true"\] \{ border-bottom-color: transparent; background: linear-gradient\(90deg, var\(--accent-lo\), var\(--accent-hi\) 50%, var\(--accent-lo\)\) bottom \/ 100% 2px no-repeat; \}/, 'aba com o fio de latão');
+  assert.match(componentCss, /\.ds-list__item:is\(\[aria-selected="true"\], \[aria-current="true"\], \[aria-current="page"\]\) \{ background-color: var\(--accent-soft\); box-shadow: inset 3px 0 0 var\(--accent\); \}/, 'linha escolhida com a borda de latão');
+  for (const sel of ['.ds-chip:active', '.ds-tab:active', '.ds-list__item:is(button, a, [role="button"], [role="option"]):active']) assert.ok(componentCss.includes(sel), 'pressionado em ' + sel);
+  assert.match(componentCss, /\.ds-chip:active:not\(\[disabled\]\):not\(\[aria-disabled="true"\]\) \{ transform: translateY\(1px\) scale\(\.97\); box-shadow: var\(--btn-pressed\); \}/, 'o chip afunda como o botão');
+  assert.match(componentCss, /\.ds-btn\[data-estado="pressionado"\] \{ background-color: var\(--bg-elev-2\); box-shadow: var\(--btn-pressed\); \}/);
+  assert.match(componentCss, /:is\(\.ds-chip, \.ds-tab, \.ds-list__item, \.ds-badge\)\[aria-busy="true"\]::before \{[^}]*animation: ds-spin var\(--dur-giro\) linear infinite/, 'o mesmo giro do botão');
+  assert.match(componentCss, /:is\(\.ds-chip, \.ds-tab, \.ds-list__item, \.ds-badge\):is\(\[disabled\], \[aria-disabled="true"\]\) \{ opacity: \.45;/, 'desabilitado a 45 % como o botão');
+  assert.match(componentCss, /\.ds-btn\[disabled\] \{ opacity: \.45;/);
+});

@@ -1145,6 +1145,9 @@ body[data-tela="entrar"] .ds-appbar { display: none; }
 }
 @media (hover: hover) { .ds-chip:hover { border-color: var(--border-strong); color: var(--fg); } }
 .ds-chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: var(--weight-medium); }
+/* DS-K F1.2 (G-290) · selecionado é latão em todo componente: o chip marcado ganha o mesmo metal do primário */
+.ds-chip[aria-pressed="true"] { background-image: linear-gradient(160deg, var(--accent-hi), var(--accent) 55%, var(--accent-lo)); border-color: var(--accent-lo);
+  box-shadow: inset 0 1px 0 var(--latao-luz), inset 0 -1px 0 var(--latao-labio); }
 /* U3 · chip de cor: só o símbolo, redondo, com anel quando marcado */
 .ds-chip--simbolo { width: var(--tap-min); padding: 0; justify-content: center; font-size: var(--simbolo-xl); border-radius: var(--radius-full); }
 .ds-chip--simbolo[aria-pressed="true"] { background: var(--bg-elev-2); box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent); }
@@ -1220,6 +1223,8 @@ body[data-tela="entrar"] .ds-appbar { display: none; }
 }
 @media (hover: hover) { .ds-tab:hover { color: var(--fg); } }
 .ds-tab[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); font-weight: var(--weight-medium); }
+/* DS-K F1.2 (G-290) · a aba escolhida tem o fio de latão (claro no meio, escuro nas pontas) no lugar da borda lisa */
+.ds-tab[aria-selected="true"] { border-bottom-color: transparent; background: linear-gradient(90deg, var(--accent-lo), var(--accent-hi) 50%, var(--accent-lo)) bottom / 100% 2px no-repeat; }
 
 /* ---------------- lista ---------------- */
 .ds-list { border: 1px solid var(--border); border-radius: var(--radius-2); overflow: hidden; background: var(--bg-elev-1); }
@@ -1355,6 +1360,33 @@ body[data-mesa-cheia="true"] .ds-toast[data-inteiro="true"] { padding-top: var(-
 /* G-270 · botão ocupado (aria-busy): o ícone dá lugar ao giro do carregando, na cor do botão — retorno na hora do toque */
 .ds-btn[aria-busy="true"] > .ds-icon { display: none; }
 .ds-btn[aria-busy="true"]::before { content: ''; flex: none; width: 18px; height: 18px; border-radius: var(--radius-full); border: 2px solid currentColor; border-right-color: transparent; animation: ds-spin var(--dur-giro) linear infinite; }
+/* DS-K F1.2 (G-290) · os cinco estados iguais em botão, chip, aba, linha e selo (grade no /ds, #ds-estados):
+   pressionado — o controle afunda e a sombra vira interna (--btn-pressed); compactos (chip, como o botão) também encolhem 3 % no toque;
+   selecionado — latão (botão de alternar, chip e selo cheios; aba com o fio; linha com a borda de latão e o fundo suave);
+   carregando — o mesmo giro do botão, na cor do texto, no lugar do ícone; desabilitado — 45 % e sem resposta ao toque.
+   `data-estado` só existe na grade do /ds, para mostrar o estado parado. */
+.ds-chip:active:not([disabled]):not([aria-disabled="true"]) { transform: translateY(1px) scale(.97); box-shadow: var(--btn-pressed); }
+.ds-chip[data-estado="pressionado"] { transform: translateY(1px); box-shadow: var(--btn-pressed); } /* na grade, sem encolher: o alvo segue com 44 px */
+.ds-chip { transition: background-color var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out), transform var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out); }
+.ds-tab:active:not([disabled]):not([aria-disabled="true"]), .ds-tab[data-estado="pressionado"],
+.ds-list__item:is(button, a, [role="button"], [role="option"]):active:not([disabled]):not([aria-disabled="true"]), .ds-list__item[data-estado="pressionado"],
+.ds-btn[data-estado="pressionado"] { background-color: var(--bg-elev-2); box-shadow: var(--btn-pressed); }
+.ds-btn[data-estado="pressionado"] { transform: translateY(1px); }
+.ds-btn:where([aria-pressed="true"]:not(.ds-btn--ghost, .ds-btn--icon, .ds-btn--icone)) { /* botão de alternar com rótulo; o de ícone troca o desenho e o fantasma fica discreto */ border-color: var(--accent-lo); color: var(--accent-fg); background-color: var(--accent);
+  background-image: linear-gradient(160deg, var(--accent-hi), var(--accent) 55%, var(--accent-lo)); }
+.ds-list__item:is([aria-selected="true"], [aria-current="true"], [aria-current="page"]) { background-color: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+.ds-badge--solid { background-image: linear-gradient(160deg, var(--accent-hi), var(--accent) 55%, var(--accent-lo)); border-color: var(--accent-lo); }
+:is(.ds-chip, .ds-tab, .ds-list__item, .ds-badge)[aria-busy="true"] > .ds-icon { display: none; }
+:is(.ds-chip, .ds-tab, .ds-list__item, .ds-badge)[aria-busy="true"]::before { content: ''; flex: none; display: inline-block; vertical-align: -2px; width: 14px; height: 14px; border-radius: var(--radius-full); border: 2px solid currentColor; border-right-color: transparent; animation: ds-spin var(--dur-giro) linear infinite; }
+.ds-tab[aria-busy="true"]::before { margin-inline-end: 6px; }
+:is(.ds-chip, .ds-tab, .ds-list__item, .ds-badge):is([disabled], [aria-disabled="true"]) { opacity: .45; cursor: not-allowed; transform: none; box-shadow: none; }
+.ds-estados { display: grid; gap: var(--space-3); }
+.ds-estados__linha { display: grid; gap: var(--space-2); }
+.ds-estados__nome { font-size: var(--text-xs); color: var(--fg-subtle); letter-spacing: .04em; text-transform: uppercase; }
+.ds-estados__celulas { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: var(--space-2); }
+.ds-estados__celula { display: grid; justify-items: center; align-content: start; gap: var(--space-1); min-width: 0; }
+.ds-estados__celula > .ds-list__item { min-height: var(--tap-min); justify-content: center; border: 1px solid var(--border); border-radius: var(--radius-1); }
+.ds-estados__legenda { font-size: var(--text-xs); color: var(--fg-muted); white-space: nowrap; }
 /* J5 · abertura: ao abrir o app, o ícone se monta — o ladrilho pousa, a moldura e a tábua da estante aparecem e as três
    cartas caem no lugar, a de latão por último, inclinada. O último quadro é exatamente o ícone do app. A camada não
    recebe toque (o app por baixo já funciona); qualquer toque ou tecla a dispensa. */
@@ -4356,7 +4388,23 @@ function renderDS() {
         Button('Confirmar', { icone: 'marcar', id: 'ds-confirma', onClick: e => confirmaBotao(e.currentTarget, { texto: 'Feito' }) }),
         Chip('Ligado', { icone: 'marcar', pressed: true }), Chip('Desligado', { icone: 'caixa', pressed: false }),
         NavBotao('Destino', { icone: 'listas' })),
-      h('div', { class: 'ds-atalhos' }, Atalho('Atalho', { icone: 'colecao', detalhe: 'Detalhe curto' }), Atalho('Principal', { icone: 'jogar', variant: 'primary' }))),
+      h('div', { class: 'ds-atalhos' }, Atalho('Atalho', { icone: 'colecao', detalhe: 'Detalhe curto' }), Atalho('Principal', { icone: 'jogar', variant: 'primary' })),
+      // DS-K F1.2 (G-290) · os cinco estados lado a lado em cada componente: a mesma linguagem (afunda, latão, giro, 45 %)
+      (() => {
+        const ESTADOS = [['repouso', 'Repouso'], ['pressionado', 'Pressionado'], ['selecionado', 'Selecionado'], ['carregando', 'Carregando'], ['desabilitado', 'Desabilitado']];
+        const attrs = (est, sel) => ({ dataset: { estado: est }, ...(est === 'selecionado' ? sel : {}), ...(est === 'carregando' ? { 'aria-busy': 'true' } : {}), ...(est === 'desabilitado' ? { disabled: true, 'aria-disabled': 'true' } : {}) });
+        const COMPS = [
+          ['botao', 'Botão', est => h('button', { class: 'ds-btn', type: 'button', ...attrs(est, { 'aria-pressed': 'true' }) }, Icone('marcar'), h('span', { class: 'ds-btn__rotulo' }, 'Salvar'))],
+          ['chip', 'Chip', est => h('button', { class: 'ds-chip', type: 'button', 'aria-pressed': est === 'selecionado' ? 'true' : 'false', ...attrs(est, {}) }, Icone('caixa', { tamanho: 16 }), 'Pauper')],
+          ['aba', 'Aba', est => h('div', { class: 'ds-estados__abas', role: 'tablist', 'aria-label': 'Aba ' + est }, h('button', { class: 'ds-tab', type: 'button', role: 'tab', 'aria-selected': est === 'selecionado' ? 'true' : 'false', ...attrs(est, {}) }, 'Deck'))], // a aba vive num tablist (axe: aria-required-parent)
+          ['linha', 'Linha', est => h('button', { class: 'ds-list__item', type: 'button', ...attrs(est, { 'aria-current': 'true' }) }, Icone('listas', { tamanho: 16 }), 'Island')],
+          ['selo', 'Selo', est => est === 'pressionado' ? h('span', { class: 'ds-estados__legenda' }, 'não se toca') : h('span', { class: 'ds-badge' + (est === 'selecionado' ? ' ds-badge--solid' : ''), ...attrs(est, {}), ...(est === 'desabilitado' ? { disabled: null } : {}) }, Icone('marcar', { tamanho: 12 }), 'Novo')],
+        ];
+        return h('div', { class: 'ds-estados', id: 'ds-estados', role: 'group', 'aria-label': 'Estados dos componentes' },
+          ...COMPS.map(([id, nome, faz]) => h('div', { class: 'ds-estados__linha', dataset: { comp: id } },
+            h('span', { class: 'ds-estados__nome' }, nome),
+            h('div', { class: 'ds-estados__celulas' }, ...ESTADOS.map(([est, rotulo]) => h('div', { class: 'ds-estados__celula', dataset: { estado: est } }, faz(est), h('span', { class: 'ds-estados__legenda' }, rotulo)))))));
+      })()),
 
     Section('Perfil e progresso',
       Row({ class: 'ds-row--wrap' }, Avatar(null, { tamanho: 44 }), Avatar({ nome: 'Guilherme', avatar: null }, { tamanho: 44 }),

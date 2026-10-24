@@ -15404,3 +15404,31 @@ test('e2e · DS-K F1.1 · o primário é de latão nos dois temas e uma varredur
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/ds-k-f11-inicio.png', fullPage: false });
   assert.deepEqual(errors, []);
 });
+
+test('e2e · DS-K F1.2 · a grade do /ds mostra os cinco estados em botão, chip, aba, linha e selo com a mesma linguagem (afunda, latão, giro, 45 %) nos dois temas, sem texto fora da caixa', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(FAKE_DEVICE(false));
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base + '#/ds'); await page.waitForSelector('#ds-estados');
+  await page.locator('#ds-estados').scrollIntoViewIfNeeded();
+  for (const tema of ['dark', 'light']) {
+    await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema);
+    const g = await page.evaluate(() => Object.fromEntries([...document.querySelectorAll('#ds-estados .ds-estados__linha')].map(l => [l.dataset.comp,
+      Object.fromEntries([...l.querySelectorAll('.ds-estados__celula')].map(c => { const el0 = c.firstElementChild, el = el0.matches('[role="tablist"]') ? el0.firstElementChild : el0, cs = getComputedStyle(el), antes = getComputedStyle(el, '::before');
+        return [c.dataset.estado, { cls: el.className, img: cs.backgroundImage, sombra: cs.boxShadow, op: cs.opacity, giro: antes.animationName }]; }))])));
+    assert.deepEqual(Object.keys(g), ['botao', 'chip', 'aba', 'linha', 'selo'], 'cinco componentes');
+    for (const [comp, e] of Object.entries(g)) {
+      assert.deepEqual(Object.keys(e), ['repouso', 'pressionado', 'selecionado', 'carregando', 'desabilitado'], comp + ': cinco estados');
+      assert.equal(e.desabilitado.op, '0.45', `${comp} desabilitado a 45 % (${tema})`);
+      assert.equal(e.carregando.giro, 'ds-spin', `${comp} carregando gira (${tema})`);
+      if (comp !== 'selo') assert.match(e.pressionado.sombra, /inset/, `${comp} pressionado afunda (${tema})`);
+    }
+    for (const comp of ['botao', 'chip', 'selo']) assert.match(g[comp].selecionado.img, /linear-gradient\(160deg/, `${comp} selecionado em latão (${tema})`);
+    assert.match(g.aba.selecionado.img, /linear-gradient\(90deg/, `aba com o fio de latão (${tema})`);
+    assert.match(g.linha.selecionado.sombra, /3px 0px 0px 0px inset/, `linha com a borda de latão (${tema})`);
+    assert.equal(g.selo.pressionado.cls, 'ds-estados__legenda', 'o selo não se toca: a grade diz isso');
+    await auditaTela(page, `DS-K F1.2 · estados (${tema})`);
+  }
+  if (process.env.SHOTS) for (const tema of ['dark', 'light']) { await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(1500); await page.locator('#ds-estados').screenshot({ path: process.env.SHOTS + `/ds-k-f12-estados-${tema}.png` }); }
+  assert.deepEqual(errors, []);
+});
