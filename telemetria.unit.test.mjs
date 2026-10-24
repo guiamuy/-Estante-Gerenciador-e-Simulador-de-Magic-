@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { mkdtempSync, rmSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { valida, privacidade, aplicar, lerJsonl, upsert, gravar, preparaPasta, skillsJson, levaComPortao, rodadaDoResumo, SKILLS, ARQUIVOS, RAMO, SITUACOES } from './telemetria.mjs';
+import { valida, privacidade, aplicar, lerJsonl, upsert, gravar, preparaPasta, skillsJson, levaComPortao, rodadaDoResumo, padroesDeGravacao, SKILLS, ARQUIVOS, RAMO, SITUACOES } from './telemetria.mjs';
 
 const RAIZ_TEL = dirname(fileURLToPath(import.meta.url));
 const ISO_RX = /^\d{4}-\d{2}-\d{2}T/;
@@ -181,4 +181,27 @@ test('I-295 · gravar `pessoas` (lista de dias) chega ao ramo como pessoas.jsonl
   const r2 = gravar({ tipo: 'pessoas', registro: { dia: '2026-10-22', salas_criadas: 2, salas_total: 5, contas: 7, contas_novas: 2 }, remoto: bare, pasta: join(base, 'p'), agora: () => '2026-10-23T03:00:00Z' });
   assert.equal(r2.tentativa, 1); assert.deepEqual(lerJsonl(conteudo(bare, ARQUIVOS.pessoas)).map(l => [l.dia, l.contas]), [['2026-10-21', 5], ['2026-10-22', 7]]);
   for (const tipo of ['leva', 'trilha', 'rotina', 'placar', 'rodada', 'pessoas']) assert.ok(ARQUIVOS[tipo] || ARQUIVOS[tipo + (tipo === 'placar' ? 'es' : 's')], 'todo tipo tem arquivo: ' + tipo);
+});
+
+test('R-31 · forca: esquema (listas só com lista/vitorias/derrotas/pct, nada de pessoa), histórico como o placar e arquivo forca.jsonl no ramo', { timeout: 60000 }, t => {
+  const reg = { trilha: 'radar', nivel: 'shark', motor: 112, rodadas: 2, semente: 100, partidas: 40, decididas: 36, pior_jogada_ms: 812, ilegais: 0, segundos: 300,
+    listas: [{ lista: 'Mono Green Elves', vitorias: 10, derrotas: 6, pct: 62.5 }, { lista: 'Grixis Madness', vitorias: 12, derrotas: 4, pct: 75 }] };
+  assert.deepEqual(valida('forca', reg), []);
+  assert.ok(valida('forca', { ...reg, listas: [] }).some(e => /listas/.test(e)), 'sem listas não vale');
+  assert.ok(valida('forca', { ...reg, listas: [{ lista: 'X', vitorias: 1, derrotas: 0, uid: 'abc' }] }).some(e => /listas/.test(e)), 'chave estranha dentro da lista é recusada');
+  assert.ok(valida('forca', { ...reg, listas: [{ lista: 'fulano@exemplo.com', vitorias: 1, derrotas: 0 }] }).some(e => /e-mail/.test(e)), 'e-mail no nome da lista é recusado');
+  assert.ok(valida('forca', { trilha: 'radar', nivel: 'shark', listas: reg.listas }).some(e => /falta motor|falta partidas/.test(e)), 'motor e partidas obrigatórios');
+  const duas = lerJsonl(aplicar('forca', aplicar('forca', '', reg, '2026-10-24T17:00:00Z'), { ...reg, motor: 113 }, '2026-10-25T17:00:00Z'));
+  assert.deepEqual(duas.map(l => [l.motor, l.em]), [[112, '2026-10-24T17:00:00Z'], [113, '2026-10-25T17:00:00Z']], 'força é histórico: nunca substitui');
+  const { base, bare } = remotoLocal(); t.after(() => rmSync(base, { recursive: true, force: true }));
+  const r = gravar({ tipo: 'forca', registro: reg, remoto: bare, pasta: join(base, 'f'), agora: () => '2026-10-24T17:00:00Z' });
+  assert.equal(r.arquivo, 'forca.jsonl'); assert.equal(ARQUIVOS.forca, 'forca.jsonl'); assert.equal(r.enviado, true);
+  assert.deepEqual(lerJsonl(conteudo(bare, ARQUIVOS.forca)).map(l => [l.nivel, l.listas.length]), [['shark', 2]]);
+});
+
+test('R-31 · padroesDeGravacao: sem `remoto`/`pasta`, o clone deste arquivo (.tmp/telemetria e o origin) — o catalogo.prova.mjs chamava `gravar` só com tipo e registro desde a R-17 e caía em "path undefined" dentro do try', () => {
+  const p = padroesDeGravacao({ raiz: '/x/clone', origem: r => 'git@' + r });
+  assert.deepEqual(p, { remoto: 'git@/x/clone', pasta: join('/x/clone', '.tmp', 'telemetria') });
+  assert.deepEqual(padroesDeGravacao({ remoto: 'r', pasta: 'p', origem: () => { throw new Error('não devia consultar o git'); } }), { remoto: 'r', pasta: 'p' });
+  assert.equal(padroesDeGravacao({ origem: () => 'o' }).pasta, join(RAIZ_TEL, '.tmp', 'telemetria'), 'o padrão é a pasta ao lado do telemetria.mjs');
 });

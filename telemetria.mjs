@@ -11,16 +11,17 @@
      node telemetria.mjs rotina '{"id":"trig_…","nome":"...","quando":"2026-10-13T21:51:00Z","status":"agendada"}'
      node telemetria.mjs placar '{"trilha":"homologacao","motor":112,"formato":"pauper","listas_total":341,"listas_jogam":272,"falhas":0}'
      node telemetria.mjs skills                      # regrava skills.json a partir do registro abaixo
-     node telemetria.mjs ler levas|trilhas|rotinas|placares|skills
+     node telemetria.mjs forca '{"trilha":"radar","nivel":"shark","motor":112,"partidas":40,"listas":[{"lista":"Mono Green Elves","vitorias":10,"derrotas":6,"pct":62.5}]}'   # R-31 · forca.mjs grava sozinho
+     node telemetria.mjs ler levas|trilhas|rotinas|placares|skills|rodadas|pessoas|retrato|uso|forca
    Opções: --remoto <url> (padrão: origin do clone) · --pasta <dir> (padrão: .tmp/telemetria) · --sem-push (só grava na pasta).
    Privacidade: linha com e-mail, uid, token ou texto de relato de usuário é recusada antes de gravar. */
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const RAMO = 'telemetria';
-export const ARQUIVOS = { levas: 'levas.jsonl', trilhas: 'trilhas.json', rotinas: 'rotinas.json', placares: 'placares.jsonl', skills: 'skills.json', rodadas: 'rodadas.jsonl', pessoas: 'pessoas.jsonl', retrato: 'retrato.json', uso: 'uso.jsonl' };
+export const ARQUIVOS = { levas: 'levas.jsonl', trilhas: 'trilhas.json', rotinas: 'rotinas.json', placares: 'placares.jsonl', skills: 'skills.json', rodadas: 'rodadas.jsonl', pessoas: 'pessoas.jsonl', retrato: 'retrato.json', uso: 'uso.jsonl', forca: 'forca.jsonl' };
 export const SITUACOES = ['editando', 'na-fila', 'recusada', 'publicada', 'parada', 'abandonada'];
 export const PORTOES = ['verde', 'recusada-conflito', 'recusada-guarda', 'recusada-conferencia', 'vermelho', 'instavel'];
 
@@ -150,7 +151,17 @@ const ESQUEMA_RETRATO = {
   cobertura: { obrigatorio: true, ok: v => v && typeof v === 'object' && !Array.isArray(v) && inteiro(v.commits) && inteiro(v.ramos) && inteiro(v.rodadas) && (v.commitsDesde == null || ISO.test(String(v.commitsDesde))) && (v.dias == null || (Array.isArray(v.dias) && v.dias.length <= 400 && v.dias.every(d => /^\d{4}-\d{2}-\d{2}$/.test(d)))) },
   respostas: { obrigatorio: true, ok: v => v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).every(k => CHAVE_RESPOSTA.test(k)) && Array.isArray(v.ramos) && Array.isArray(v.commits) && v.tamanhos && typeof v.tamanhos === 'object' && JSON.stringify(v).length <= 600000 }
 };
-const ESQUEMAS = { leva: ESQUEMA_LEVA, trilha: ESQUEMA_TRILHA, rotina: ESQUEMA_ROTINA, placar: ESQUEMA_PLACAR, rodada: ESQUEMA_RODADA, pessoas: ESQUEMA_PESSOAS, retrato: ESQUEMA_RETRATO, uso: ESQUEMA_USO };
+/** R-31 · F · força do Shark por lista (forca.mjs, método `MODO=confrontos` da trilha bot, B-174): uma linha por medida, histórico como o placar.
+ *  Só o nível do bot, a versão do motor, as contagens e o nome de arquétipo das listas do Shark: nada de pessoa. */
+const ESQUEMA_FORCA = {
+  trilha: { obrigatorio: true, ok: v => typeof v === 'string' && /^[a-z]{2,20}$/.test(v) }, conversa: { ok: v => texto(v, 80) },
+  nivel: { obrigatorio: true, ok: v => texto(v, 40) }, motor: { obrigatorio: true, ok: inteiro }, sha: { ok: v => typeof v === 'string' && /^[0-9a-f]{7,40}$/.test(v) },
+  rodadas: { ok: inteiro }, semente: { ok: inteiro }, partidas: { obrigatorio: true, ok: inteiro }, decididas: { ok: inteiro },
+  pior_jogada_ms: { ok: inteiro }, ilegais: { ok: inteiro }, segundos: { ok: inteiro },
+  listas: { obrigatorio: true, ok: v => Array.isArray(v) && v.length >= 1 && v.length <= 12 && v.every(l => l && typeof l === 'object' && texto(l.lista, 60) && inteiro(l.vitorias) && inteiro(l.derrotas) && (l.pct == null || numero(l.pct)) && Object.keys(l).every(k => ['lista', 'vitorias', 'derrotas', 'pct'].includes(k))) },
+  nota: { ok: v => texto(v, 200) }, em: { ok: v => typeof v === 'string' && ISO.test(v) }
+};
+const ESQUEMAS = { leva: ESQUEMA_LEVA, trilha: ESQUEMA_TRILHA, rotina: ESQUEMA_ROTINA, placar: ESQUEMA_PLACAR, rodada: ESQUEMA_RODADA, pessoas: ESQUEMA_PESSOAS, retrato: ESQUEMA_RETRATO, uso: ESQUEMA_USO, forca: ESQUEMA_FORCA };
 
 /** Valida contra o esquema: chave desconhecida, obrigatória ausente, valor fora da forma e privacidade. Devolve [] quando ok. */
 /** R-17 · BI2-1 · O registro de placar a partir do JSON que `catalogo.prova.mjs` grava ({ placar, culpadas, listas }):
@@ -213,7 +224,7 @@ export function aplicar(tipo, atual, registro, agora = new Date().toISOString())
     return escreverJsonl(linhas.sort((a, b) => String(a.dia).localeCompare(String(b.dia))));
   }
   if (tipo === 'retrato') return JSON.stringify(registro) + '\n';   // I-296 · arquivo inteiro, uma linha (o git guarda a diferença)
-  if (tipo === 'placar') { r.em = r.em || agora; return escreverJsonl([...lerJsonl(atual), r]); }
+  if (tipo === 'placar' || tipo === 'forca') { r.em = r.em || agora; return escreverJsonl([...lerJsonl(atual), r]); }   // R-31 · a força também é histórico
   if (tipo === 'trilha' || tipo === 'rotina') {
     r.atualizado = r.atualizado || agora;
     const lista = atual ? JSON.parse(atual) : [];
@@ -281,7 +292,13 @@ export function rodadaDoResumo({ id, resumo = null, plano = null, portao = '', p
 }
 const ARQUIVO_EXTRA = /^[a-z0-9_-]+(\/[a-z0-9_-]+)*\/[0-9a-z_-]+\.json$/;
 /** I-296 · `extras`: arquivos JSON a mais no mesmo commit (ex.: `commits/2026-10-22.json` do retrato), cada um validado pela privacidade. */
+/** R-31 · sem `remoto`/`pasta`, grava a partir do clone onde este arquivo mora (`.tmp/telemetria` e o origin). O catalogo.prova.mjs
+ *  chamava `gravar` só com tipo e registro desde a R-17 e caía em "path undefined" dentro do try: a prova nunca gravou o placar sozinha. */
+export function padroesDeGravacao({ remoto, pasta, raiz = dirname(fileURLToPath(import.meta.url)), origem = remotoDoClone } = {}) {
+  return { remoto: remoto || origem(raiz), pasta: pasta || join(raiz, '.tmp', 'telemetria') };
+}
 export function gravar({ tipo, registro, remoto, pasta, semPush = false, agora = () => new Date().toISOString(), autor = 'Telemetria Estante <noreply@anthropic.com>', extras = {} }) {
+  ({ remoto, pasta } = padroesDeGravacao({ remoto, pasta }));
   const erros = tipo === 'skills' ? [] : valida(tipo, registro);
   for (const [nome, conteudo] of Object.entries(extras || {})) {
     if (!ARQUIVO_EXTRA.test(nome)) erros.push(`arquivo extra fora da forma: ${nome}`);
@@ -328,7 +345,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       const registro = rodadaDoResumo({ id: env.GITHUB_RUN_ID, resumo: json('FILA_RESUMO'), plano: json('FILA_PLANO'), portao: env.FILA_PORTAO || '', publicado: env.FILA_PUBLICADO || '' });
       const r = gravar({ tipo: 'rodada', registro, remoto, pasta, semPush });
       console.log(`✓ rodada ${registro.id} (${registro.levas.length} leva(s), portão ${registro.portao}) gravada em ${RAMO}/${r.arquivo}${r.enviado ? ' (enviado)' : ' (só na pasta)'}`);
-    } else if (['leva', 'trilha', 'rotina', 'placar', 'rodada', 'pessoas', 'uso'].includes(comando)) {
+    } else if (['leva', 'trilha', 'rotina', 'placar', 'rodada', 'pessoas', 'uso', 'forca'].includes(comando)) {
       const bruto = args.slice(1).find(a => a.startsWith('{') || a.startsWith('[')); if (!bruto) throw new Error('faltou o registro JSON entre aspas simples');
       let registro = JSON.parse(bruto);
       const arquivoPortao = join(raiz, '.tmp', 'portao.json');
@@ -343,7 +360,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
       const r = gravar({ tipo: 'skills', registro: {}, remoto, pasta, semPush });
       console.log(`✓ skills.json regravado em ${RAMO}${r.enviado ? ' (enviado)' : ''}`);
     } else {
-      console.log('uso: node telemetria.mjs leva|trilha|rotina|placar|rodada|pessoas|uso \'{…}\' [--portao] · skills · ler levas|trilhas|rotinas|placares|skills|rodadas|pessoas|retrato|uso [--remoto url] [--pasta dir] [--sem-push]');
+      console.log('uso: node telemetria.mjs leva|trilha|rotina|placar|rodada|pessoas|uso|forca \'{…}\' [--portao] · skills · ler levas|trilhas|rotinas|placares|skills|rodadas|pessoas|retrato|uso|forca [--remoto url] [--pasta dir] [--sem-push]');
       process.exit(comando ? 1 : 0);
     }
   } catch (e) { console.error('✗ ' + e.message); process.exit(1); }
