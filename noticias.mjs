@@ -23,12 +23,14 @@ export const HORAS_SEM_MUDANCA = 6; // sem notícia nova, o índice só é regra
     Fora, por não terem feed público localizável nessa data: Wizards of the Coast (o endereço antigo de RSS dá 404),
     Cards Realm e LigaMagic (português). `temas` fixos são os que valem para tudo o que a fonte publica. */
 export const FONTES = [
-  { id: 'mtggoldfish', nome: 'MTGGoldfish', site: 'https://www.mtggoldfish.com', feed: 'https://www.mtggoldfish.com/feed', idioma: 'en', temas: [] },
+  // N6b (relato #33, medido no ramo em 24/10/2026): MTGGoldfish, MTG Arena Zone e Hipsters mandam o feed sem nenhuma
+  // imagem; a capa vem da página da matéria (og:image), como no Cards Realm.
+  { id: 'mtggoldfish', nome: 'MTGGoldfish', site: 'https://www.mtggoldfish.com', feed: 'https://www.mtggoldfish.com/feed', idioma: 'en', temas: [], capaDaPagina: true },
   { id: 'edhrec', nome: 'EDHREC', site: 'https://edhrec.com', feed: 'https://edhrec.com/articles/feed', idioma: 'en', temas: ['commander'] },
   { id: 'scg', nome: 'Star City Games', site: 'https://articles.starcitygames.com', feed: 'https://articles.starcitygames.com/magic-the-gathering/feed/', idioma: 'en', temas: [] },
   { id: 'cardkingdom', nome: 'Card Kingdom', site: 'https://blog.cardkingdom.com', feed: 'https://blog.cardkingdom.com/feed/', idioma: 'en', temas: [] },
-  { id: 'hipsters', nome: 'Hipsters of the Coast', site: 'https://www.hipstersofthecoast.com', feed: 'https://www.hipstersofthecoast.com/feed/', idioma: 'en', temas: [] },
-  { id: 'mtgazone', nome: 'MTG Arena Zone', site: 'https://mtgazone.com', feed: 'https://mtgazone.com/feed/', idioma: 'en', temas: ['arena'] },
+  { id: 'hipsters', nome: 'Hipsters of the Coast', site: 'https://www.hipstersofthecoast.com', feed: 'https://www.hipstersofthecoast.com/feed/', idioma: 'en', temas: [], capaDaPagina: true },
+  { id: 'mtgazone', nome: 'MTG Arena Zone', site: 'https://mtgazone.com', feed: 'https://mtgazone.com/feed/', idioma: 'en', temas: ['arena'], capaDaPagina: true },
   // N2 · português (pesquisa de 07/10/2026: só estas duas têm feed público, vivo e de Magic). O feed do Cards Realm não
   // manda capa: `capaDaPagina` busca a imagem de divulgação (og:image) na página da matéria, uma vez por notícia.
   { id: 'cardsrealm', nome: 'Cards Realm', site: 'https://mtg.cardsrealm.com/pt-br/', feed: 'https://mtg.cardsrealm.com/pt-br/pt/feed.rss', idioma: 'pt', temas: [], capaDaPagina: true },
@@ -222,6 +224,7 @@ export function mudou(antes, depois, idsAntes, idsDepois, { horas = HORAS_SEM_MU
 
 /* ---------------- rede e disco ---------------- */
 const TETO_BYTES = 3 * 1024 * 1024;
+const ARQ_GENERICAS = 'capas-genericas.json'; // memória do coletor; o app não lê
 const AGENTE = 'EstanteNoticias/1 (+https://github.com/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-)';
 /** Busca os feeds em paralelo; cada um tem 20 s e 3 MB. Nunca lança: a falha de uma fonte vira `{ erro }`. */
 export async function coleta(fontes = FONTES, { busca = globalThis.fetch, prazo = 20000 } = {}) {
@@ -264,6 +267,34 @@ export async function completaCapas(itens, fontes = FONTES, { busca = globalThis
   }));
   return fila.length;
 }
+/* ---------------- capa grande (N6b, relato #33) ---------------- */
+export const MINIATURA_ATE = 1024; // sufixo -LxA com largura abaixo disto é miniatura: a original vem no lugar
+export const VEZES_GENERICA = 3;   // a mesma imagem em 3 notícias ou mais é de patrocínio, logo ou "sem imagem" da fonte
+export const GENERICAS_MAX = 40;   // memória das imagens genéricas já vistas (arquivo do ramo que o app não lê)
+/** Miniatura do WordPress (`foto-150x150.jpg`, `capa-1200x675-px-100x56.jpg`) → a imagem original, que o WordPress
+    guarda no mesmo endereço sem o sufixo. Só o último sufixo, só antes da extensão de imagem, só abaixo de
+    `MINIATURA_ATE` de largura; o resto do endereço (consulta incluída) fica igual. Endereço que não casa volta igual. */
+export function semMiniatura(url) {
+  let u; try { u = new URL(String(url || '')); } catch (e) { return String(url || ''); }
+  const m = /^(.*\/[^/]+?)-(\d{2,4})x(\d{2,4})\.(jpe?g|png|webp|gif|avif)$/i.exec(u.pathname);
+  if (!m || Number(m[2]) >= MINIATURA_ATE) return String(url);
+  u.pathname = `${m[1]}.${m[4]}`; return u.href;
+}
+/** Passa a limpo as capas da linha do tempo (muda os itens no lugar): a miniatura vira a original; a imagem que se
+    repete em `VEZES_GENERICA` notícias ou mais, ou que já foi vista assim antes (`genericas`), sai, e a notícia fica
+    `semCapa` (o app mostra a capa da fonte e a página da matéria não é aberta de novo). Devolve a memória atualizada,
+    das descobertas agora para as mais antigas, até `GENERICAS_MAX`. */
+export function afinaCapas(itens, genericas = []) {
+  for (const it of itens) if (it.imagem) it.imagem = semMiniatura(it.imagem);
+  const vezes = new Map();
+  for (const it of itens) if (it.imagem) vezes.set(it.imagem, (vezes.get(it.imagem) || 0) + 1);
+  const novas = [...vezes].filter(([, n]) => n >= VEZES_GENERICA).map(([u]) => u);
+  const antigas = (Array.isArray(genericas) ? genericas : []).map(u => enderecoSeguro(u, { soHttps: true })).filter(Boolean);
+  const memoria = [...new Set([...novas, ...antigas])].slice(0, GENERICAS_MAX);
+  const fora = new Set(memoria);
+  for (const it of itens) if (it.imagem && fora.has(it.imagem)) { it.imagem = ''; it.semCapa = true; }
+  return memoria;
+}
 async function leJson(caminho) { try { return JSON.parse(await readFile(caminho, 'utf8')); } catch (e) { return null; } }
 /** Lê o que está publicado em `pasta`, coleta, monta e grava. Devolve o que fez (para o fluxo decidir se publica). */
 export async function publica(pasta, { fontes = FONTES, busca = globalThis.fetch, agora = Date.now() } = {}) {
@@ -271,15 +302,20 @@ export async function publica(pasta, { fontes = FONTES, busca = globalThis.fetch
   const antes = await leJson(join(pasta, 'indice.json'));
   const anteriores = [];
   for (let i = 1; antes && i <= (antes.paginas || 0); i++) { const p = await leJson(join(pasta, `pagina-${i}.json`)); if (p && Array.isArray(p.itens)) anteriores.push(...p.itens); }
-  const marca = lista => lista.map(it => it.id + (it.imagem ? '+' : '') + (it.semCapa ? '-' : ''));
+  // a marca olha o endereço da capa, não só se há capa: a troca da miniatura pela original precisa ser publicada
+  const marca = lista => lista.map(it => it.id + '|' + (it.imagem || '') + (it.semCapa ? '|-' : ''));
   const marcaDeAntes = marca(anteriores); // antes de completar as capas: os itens publicados são mudados no lugar
   const { indice, paginas, porIdioma, itens } = monta({ fontes, feeds: await coleta(fontes, { busca }), anteriores, agora });
   await completaCapas(itens, fontes, { busca }); // os itens das páginas são estes mesmos objetos
+  const memoriaAntes = await leJson(join(pasta, ARQ_GENERICAS));
+  const genericasAntes = (memoriaAntes || {}).capas;
+  const genericas = afinaCapas(itens, genericasAntes); // depois de completar: a og:image genérica também sai
   if (!mudou(antes, indice, marcaDeAntes, marca(itens))) return { gravou: false, indice: antes };
   const series = [['', paginas], ...Object.entries(porIdioma).map(([l, ps]) => [l + '-', ps])];
   for (const [prefixo, ps] of series) for (const p of ps) await writeFile(join(pasta, `${prefixo}pagina-${p.pagina}.json`), JSON.stringify(p) + '\n');
   const quantas = Object.fromEntries(series.map(([prefixo, ps]) => [prefixo, ps.length]));
   for (const nome of await readdir(pasta)) { const m = /^([a-z]{2}-)?pagina-(\d+)\.json$/.exec(nome); if (m && Number(m[2]) > (quantas[m[1] || ''] || 0)) await rm(join(pasta, nome)); }
+  if (genericas.length || memoriaAntes) await writeFile(join(pasta, ARQ_GENERICAS), JSON.stringify({ versao: 1, capas: genericas }, null, 1) + '\n');
   await writeFile(join(pasta, 'indice.json'), JSON.stringify(indice, null, 1) + '\n');
   return { gravou: true, indice };
 }

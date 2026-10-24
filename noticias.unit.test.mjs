@@ -1,7 +1,7 @@
 // N1 · coletor de notícias: tudo aqui roda sem rede, sobre feeds de exemplo guardados em `.noticias/`.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile, mkdtemp, readdir, rm } from 'node:fs/promises';
+import { readFile, writeFile, mkdtemp, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import * as N from './noticias.mjs';
@@ -188,4 +188,77 @@ test('N2 · capa pela página: og:image (ou twitter:image) em https; publica com
   // teto por coleta
   const muitos = Array.from({ length: 40 }, (_, i) => item(i + 300, 1, { fonte: 'p', idioma: 'pt' })); let n = 0;
   assert.equal(await N.completaCapas(muitos, [PT], { busca: async () => { n++; return { ok: true, text: async () => '' }; } }), N.CAPAS_POR_COLETA); assert.equal(n, N.CAPAS_POR_COLETA);
+});
+
+// N6b · relato #33, fatia 2: o coletor traz a foto grande. Medido no ramo em 24/10/2026: EDHREC e Card Kingdom só com
+// miniatura do WordPress (150×150, 100×56), MTGGoldfish, MTG Arena Zone e Hipsters sem imagem nenhuma, e a Star City
+// Games com a mesma arte de patrocínio repetida em várias notícias.
+test('N6b · miniatura do WordPress vira a original: só o último sufixo -LxA antes da extensão e abaixo de 1024 de largura; o resto fica igual', () => {
+  const casos = [
+    ['https://cloudflare.edhrec.com/articles/wp-content/uploads/2026/10/afc-16-minn-150x150.jpg', 'https://cloudflare.edhrec.com/articles/wp-content/uploads/2026/10/afc-16-minn.jpg'],
+    ['https://blog.cardkingdom.com/wp-content/uploads/2026/10/Top-20_Header-1200x675-px-100x56.jpg', 'https://blog.cardkingdom.com/wp-content/uploads/2026/10/Top-20_Header-1200x675-px.jpg'],
+    ['https://scg.test/articles/2026/10/3aee2008-hvlbk4-768x1024.JPG', 'https://scg.test/articles/2026/10/3aee2008-hvlbk4.JPG'],
+    ['https://x.test/capa-150x150.webp?v=2', 'https://x.test/capa.webp?v=2'],
+    ['https://x.test/capa-1200x675.jpg', 'https://x.test/capa-1200x675.jpg'], // já é grande: fica
+    ['https://x.test/150x150/capa.jpg', 'https://x.test/150x150/capa.jpg'], // o tamanho está na pasta, não no nome
+    ['https://x.test/capa-150x150.svg', 'https://x.test/capa-150x150.svg'],
+    ['https://x.test/capa.jpg', 'https://x.test/capa.jpg'], ['', ''], ['não é endereço', 'não é endereço'],
+  ];
+  for (const [de, para] of casos) assert.equal(N.semMiniatura(de), para, de);
+});
+
+test('N6b · as fontes que mandam o feed sem imagem pedem a capa pela página da matéria', () => {
+  const pela = new Set(N.FONTES.filter(f => f.capaDaPagina).map(f => f.id));
+  for (const id of ['mtggoldfish', 'mtgazone', 'hipsters', 'cardsrealm']) assert.ok(pela.has(id), id);
+  for (const id of ['edhrec', 'cardkingdom', 'scg']) assert.ok(!pela.has(id), id + ' manda a imagem no feed');
+});
+
+test('N6b · imagem repetida em 3 notícias ou mais sai (a notícia fica sem capa e não volta a ser buscada); a memória vale para a notícia seguinte', () => {
+  const PAT = 'https://cdn.test/sponsored-article-graphic.png?t=1';
+  const its = [item(1, 0, { imagem: PAT }), item(2, 0, { imagem: PAT }), item(3, 1, { imagem: PAT }), item(4, 1, { imagem: 'https://cdn.test/a-150x150.jpg' }),
+    item(5, 1, { imagem: 'https://cdn.test/b.jpg' }), item(6, 2, { imagem: 'https://cdn.test/b.jpg' }), item(7, 2)];
+  const mem = N.afinaCapas(its);
+  assert.deepEqual(mem, [PAT]);
+  assert.deepEqual(its.map(i => [i.imagem, !!i.semCapa]), [['', true], ['', true], ['', true], ['https://cdn.test/a.jpg', false], ['https://cdn.test/b.jpg', false], ['https://cdn.test/b.jpg', false], ['', false]]);
+  // a notícia nova com a mesma arte, sozinha, sai pela memória
+  const nova = [item(8, 0, { imagem: PAT }), item(9, 0, { imagem: 'https://cdn.test/c.jpg' })];
+  assert.deepEqual(N.afinaCapas(nova, mem), [PAT]); assert.deepEqual(nova.map(i => [i.imagem, !!i.semCapa]), [['', true], ['https://cdn.test/c.jpg', false]]);
+  // a miniatura e a original contam como a mesma imagem; a memória só guarda https e tem teto
+  const tam = [item(10, 0, { imagem: 'https://cdn.test/logo-150x150.png' }), item(11, 0, { imagem: 'https://cdn.test/logo-300x300.png' }), item(12, 0, { imagem: 'https://cdn.test/logo.png' })];
+  const velha = Array.from({ length: N.GENERICAS_MAX + 5 }, (_, i) => `https://cdn.test/g${i}.png`);
+  const m2 = N.afinaCapas(tam, ['javascript:alert(1)', 'http://cdn.test/inseguro.png', ...velha]);
+  assert.ok(tam.every(i => i.imagem === '' && i.semCapa)); assert.equal(m2[0], 'https://cdn.test/logo.png'); assert.equal(m2.length, N.GENERICAS_MAX);
+  assert.ok(m2.every(u => u.startsWith('https://')));
+});
+
+test('N6b · publica: a notícia já publicada com miniatura é regravada com a original; a arte repetida sai e a memória fica no ramo para a coleta seguinte', async t => {
+  const pasta = await mkdtemp(join(tmpdir(), 'noticias-capa-')); t.after(() => rm(pasta, { recursive: true, force: true }));
+  const F = { id: 'w', nome: 'Fonte WP', site: 'https://wp.test', feed: 'https://wp.test/feed/', idioma: 'en', temas: [] };
+  const PAT = 'https://wp.test/sponsored.png';
+  const rss = itens => `<?xml version="1.0"?><rss version="2.0"><channel>${itens.map(([n, img, dia]) => `<item><title>Artigo ${n}</title><link>https://wp.test/a${n}</link><pubDate>${new Date(AGORA - dia * 86400e3 - n * 60e3).toUTCString()}</pubDate><description>Texto ${n}.</description><enclosure url="${img}" type="image/jpeg"/></item>`).join('')}</channel></rss>`;
+  const rede = { [F.feed]: rss([[1, 'https://wp.test/up/um-150x150.jpg', 0]]) };
+  const busca = async url => (rede[url] == null ? { ok: false, status: 404, text: async () => '' } : { ok: true, status: 200, text: async () => rede[url] });
+  const le = async nome => JSON.parse(await readFile(join(pasta, nome), 'utf8'));
+  // o que o coletor de antes desta leva publicou dez minutos atrás: a mesma notícia, com a miniatura
+  const antigo = N.monta({ fontes: [F], feeds: { w: { xml: rede[F.feed] } }, agora: AGORA - 600e3 });
+  await writeFile(join(pasta, 'pagina-1.json'), JSON.stringify(antigo.paginas[0])); await writeFile(join(pasta, 'en-pagina-1.json'), JSON.stringify(antigo.porIdioma.en[0]));
+  await writeFile(join(pasta, 'indice.json'), JSON.stringify(antigo.indice));
+  assert.equal(antigo.itens[0].imagem, 'https://wp.test/up/um-150x150.jpg');
+  const r0 = await N.publica(pasta, { fontes: [F], busca, agora: AGORA });
+  assert.equal(r0.gravou, true, 'só a capa mudou de endereço, e mesmo assim é regravado');
+  assert.equal((await le('pagina-1.json')).itens[0].imagem, 'https://wp.test/up/um.jpg');
+  assert.deepEqual(await readdir(pasta).then(l => l.sort()), ['en-pagina-1.json', 'indice.json', 'pagina-1.json'], 'sem genérica, sem arquivo de memória');
+  rede[F.feed] = rss([[1, 'https://wp.test/up/um-150x150.jpg', 0], [2, PAT, 0], [3, PAT, 1], [4, PAT, 1]]);
+  const r1 = await N.publica(pasta, { fontes: [F], busca, agora: AGORA + 60e3 });
+  assert.equal(r1.gravou, true);
+  assert.deepEqual((await le('pagina-1.json')).itens.map(i => [i.titulo, i.imagem, !!i.semCapa]).sort(),
+    [['Artigo 1', 'https://wp.test/up/um.jpg', false], ['Artigo 2', '', true], ['Artigo 3', '', true], ['Artigo 4', '', true]]);
+  assert.deepEqual((await le('capas-genericas.json')).capas, [PAT]);
+  // coleta seguinte, uma hora depois: a mesma lista, nada muda e nada é regravado
+  assert.equal((await N.publica(pasta, { fontes: [F], busca, agora: AGORA + 3600e3 })).gravou, false);
+  // chega uma notícia nova, sozinha, com a mesma arte de patrocínio: sai pela memória
+  rede[F.feed] = rss([[5, PAT, -0.01], [1, 'https://wp.test/up/um-150x150.jpg', 0]]);
+  const r3 = await N.publica(pasta, { fontes: [F], busca, agora: AGORA + 2 * 3600e3 });
+  assert.equal(r3.gravou, true);
+  const p = (await le('pagina-1.json')).itens; assert.deepEqual(p.filter(i => /Artigo [15]$/.test(i.titulo)).map(i => [i.titulo, i.imagem, !!i.semCapa]).sort(), [['Artigo 1', 'https://wp.test/up/um.jpg', false], ['Artigo 5', '', true]]);
 });
