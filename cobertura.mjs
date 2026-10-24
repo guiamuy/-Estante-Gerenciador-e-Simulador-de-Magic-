@@ -12,7 +12,12 @@
 //   sem-dados   · a Scryfall não devolveu a carta (nome diferente ou falha da rede): repetir na próxima coleta
 // Não é teste do portão e nunca derruba a coleta: falha da Scryfall vira "parcial" no relatório (ou mantém o anterior).
 //
-// Uso: node cobertura.mjs --catalogo <pasta do ramo catalogo> [--formato pauper]
+// I-300 · também mede o Commander (pedido do dono de 24/10). Cada carta pendente traz `gulosa`: a ordem em que ela é preciso para fechar
+// as listas pela ordem gulosa (a lista com menos cartas faltando primeiro, contando como resolvidas as cartas das listas anteriores);
+// `curva` diz quantas cartas fecham 1, 5, 10, 25… listas. `--textos N` guarda o texto da Scryfall só nas N primeiras cartas dessa ordem
+// (o Commander tem milhares de cartas pendentes; o texto do dia vai para as que o motor cobre primeiro).
+//
+// Uso: node cobertura.mjs --catalogo <pasta do ramo catalogo> [--formato pauper] [--textos N]
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadModules } from './_load.mjs';
@@ -60,7 +65,20 @@ const textoDe = c => !c ? null : {
   ...(Array.isArray(c.card_faces) ? { card_faces: c.card_faces.map(f => ({ name: f.name, mana_cost: f.mana_cost || '', type_line: f.type_line || '', oracle_text: f.oracle_text || '', ...(f.power != null ? { power: f.power, toughness: f.toughness } : {}) })) } : {}) };
 
 /** Mede as listas (forma do ramo catalogo: { id, nome, entradas: [{ name, qty, zone }] }) com as cartas da Scryfall. */
-export function mede(listas, cartas, { formato = 'pauper', agora = new Date().toISOString(), falhas = 0, anterior = null } = {}) {
+/** I-300 · ordem gulosa: fecha primeiro a lista com menos cartas ainda não resolvidas. Devolve { ordem: Map(nome → passo), curva }. */
+export const MARCOS = [1, 5, 10, 25, 50, 100, 200, 500, 1000];
+export function gulosa(incompletas, base = 0) {
+  const resto = incompletas.map(l => [...new Set(l.faltam)]), feito = new Array(resto.length).fill(false), ordem = new Map(), curva = [];
+  for (let passo = 1; passo <= resto.length; passo++) {
+    let bi = -1, bn = Infinity;
+    for (let i = 0; i < resto.length; i++) if (!feito[i]) { let n = 0; for (const c of resto[i]) if (!ordem.has(c)) n++; if (n < bn) { bn = n; bi = i; } }
+    feito[bi] = true; for (const c of resto[bi]) if (!ordem.has(c)) ordem.set(c, passo);
+    if (MARCOS.includes(passo) || passo === resto.length) curva.push({ listas: base + passo, cartas: ordem.size });
+  }
+  return { ordem, curva };
+}
+
+export function mede(listas, cartas, { formato = 'pauper', agora = new Date().toISOString(), falhas = 0, anterior = null, textos = Infinity } = {}) {
   const porNome = new Map(); let ok = 0; const incompletas = [];
   const mapa = new Map([...cartas].map(([k, c]) => [k, SF.normalizeCard(c)]));
   for (const l of listas) {
@@ -71,9 +89,11 @@ export function mede(listas, cartas, { formato = 'pauper', agora = new Date().to
     incompletas.push({ id: l.id, nome: l.nome || l.id, faltam });
     for (const n of faltam) porNome.set(n, (porNome.get(n) || 0) + 1);
   }
+  const { ordem, curva } = gulosa(incompletas, ok);
+  const comTexto = new Set([...porNome.keys()].sort((a, b) => ordem.get(a) - ordem.get(b) || porNome.get(b) - porNome.get(a) || a.localeCompare(b)).slice(0, textos));
   const pendentes = [...porNome].map(([name, nListas]) => {
     const crua = cartas.get(norm(name)) || null; const k = classifica(name, crua) || { classe: 'nova', nivel: 'manual', motivo: 'sem cobertura' };
-    return { name, ...k, listas: nListas, texto: textoDe(crua) };
+    return { name, ...k, listas: nListas, gulosa: ordem.get(name), texto: comTexto.has(name) ? textoDe(crua) : null };
   }).sort((a, b) => b.listas - a.listas || a.name.localeCompare(b.name));
   const antes = new Set(((anterior && anterior.pendentes) || []).map(p => p.name)), agoraSet = new Set(pendentes.map(p => p.name));
   return {
@@ -82,7 +102,7 @@ export function mede(listas, cartas, { formato = 'pauper', agora = new Date().to
     porClasse: Object.fromEntries(CLASSES.map(c => [c, pendentes.filter(p => p.classe === c).length])),
     novasDesdeAnterior: anterior ? pendentes.filter(p => !antes.has(p.name)).map(p => p.name) : [],
     resolvidasDesdeAnterior: anterior ? [...antes].filter(n => !agoraSet.has(n)) : [],
-    pendentes, listasIncompletas: incompletas,
+    curva, textos: Number.isFinite(textos) ? textos : null, pendentes, listasIncompletas: incompletas,
   };
 }
 
@@ -94,17 +114,18 @@ export function listasDoCatalogo(pasta, formato = 'pauper') {
   }).filter(Boolean);
 }
 
-export async function executa({ pasta, formato = 'pauper', busca = globalThis.fetch, pausa = 120, log = console.log, agora } = {}) {
+export async function executa({ pasta, formato = 'pauper', busca = globalThis.fetch, pausa = 120, log = console.log, agora, textos = Infinity } = {}) {
   const listas = listasDoCatalogo(pasta, formato);
   const nomes = [...new Set(listas.flatMap(l => (l.entradas || []).filter(e => e.zone !== 'side' && e.zone !== 'maybe').map(e => e.name)))];
   const { cartas, falhas } = await cartasDaScryfall(nomes, { busca, pausa, log });
   const arq = join(pasta, 'cobertura', `${formato}.json`);
   const anterior = existsSync(arq) ? (() => { try { return JSON.parse(readFileSync(arq, 'utf8')); } catch { return null; } })() : null;
   if (!cartas.size && nomes.length) { log('✗ a Scryfall não respondeu: o relatório anterior fica como está'); return { gravado: false, anterior }; }
-  const rel = mede(listas, cartas, { formato, agora, falhas, anterior });
+  const rel = mede(listas, cartas, { formato, agora, falhas, anterior, textos });
   mkdirSync(join(pasta, 'cobertura'), { recursive: true });
   writeFileSync(arq, JSON.stringify(rel, null, 1) + '\n');
   log(`Cobertura ${formato} (texto da Scryfall, motor v${rel.motor}): ${rel.listas100} de ${rel.listas} listas a 100% · ${rel.cartasPendentes} carta(s) pendente(s) ${JSON.stringify(rel.porClasse)}${rel.parcial ? ` · ${falhas} lote(s) sem resposta` : ''}`);
+  if (rel.curva.length) log(`  ordem gulosa (listas a 100% → cartas a cobrir): ${rel.curva.map(c => `${c.listas}→${c.cartas}`).join(' · ')}`);
   if (rel.novasDesdeAnterior.length) log(`  novas desde a coleta anterior: ${rel.novasDesdeAnterior.join(', ')}`);
   return { gravado: true, relatorio: rel };
 }
@@ -113,5 +134,6 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const a = process.argv.slice(2), o = {};
   for (let i = 0; i < a.length; i++) if (a[i].startsWith('--')) o[a[i].slice(2)] = a[i + 1] && !a[i + 1].startsWith('--') ? a[++i] : true;
   if (!o.catalogo) { console.error('Informe --catalogo <pasta do ramo catalogo>'); process.exit(2); }
-  executa({ pasta: o.catalogo, formato: o.formato || 'pauper' }).catch(e => { console.error('✗ sentinela:', e && e.message); }).finally(() => process.exit(0));
+  const textos = Number.parseInt(o.textos, 10);
+  executa({ pasta: o.catalogo, formato: o.formato || 'pauper', textos: textos >= 0 ? textos : Infinity }).catch(e => { console.error('✗ sentinela:', e && e.message); }).finally(() => process.exit(0));
 }

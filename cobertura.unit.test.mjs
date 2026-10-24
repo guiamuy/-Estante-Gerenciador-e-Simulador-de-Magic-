@@ -70,3 +70,19 @@ test('H-15 · executa: grava cobertura/pauper.json no ramo, diz o que é novo de
     assert.equal(JSON.parse(await readFile(join(pasta, 'cobertura', 'pauper.json'), 'utf8')).geradoEm, 'T2', 'o relatório anterior fica');
   } finally { await rm(pasta, { recursive: true, force: true }); }
 });
+
+// I-300 · Commander na sentinela: a ordem gulosa diz que cartas fecham mais listas primeiro, e `textos` limita o texto do dia às
+// primeiras cartas dessa ordem (o Commander tem milhares de pendentes). Falha antes da I-300 (sem `gulosa`, `curva` nem `textos`).
+test('I-300 · mede: ordem gulosa (lista com menos cartas faltando primeiro), curva de marcos e texto só nas N primeiras', async () => {
+  const T = { ...TABELA, 'Carta Nova B': { ...TABELA['Carta Nova'], name: 'Carta Nova B' }, 'Carta Nova C': { ...TABELA['Carta Nova'], name: 'Carta Nova C' } };
+  const { cartas } = await C.cartasDaScryfall(Object.keys(T), { busca: scryfall(T), pausa: 0 });
+  const listas = [L('a', [['Lightning Bolt', 4]]), L('b', [['Carta Nova B', 1], ['Carta Nova C', 1], ['Carta Lida', 1]]), L('c', [['Carta Nova', 1]]), L('d', [['Carta Nova', 1], ['Carta Nova C', 1]])];
+  const rel = C.mede(listas, cartas, { formato: 'commander', agora: 'T', textos: 2 });
+  const g = Object.fromEntries(rel.pendentes.map(p => [p.name, p.gulosa]));
+  assert.deepEqual(g, { 'Carta Nova': 1, 'Carta Nova C': 2, 'Carta Nova B': 3, 'Carta Lida': 3 }, 'c (1 carta) → d (+1) → b (+2)');
+  assert.equal(JSON.stringify(rel.curva), JSON.stringify([{ listas: 2, cartas: 1 }, { listas: 4, cartas: 4 }]), 'marco 1 e o fim, contando a lista já a 100%');
+  assert.deepEqual(rel.pendentes.filter(p => p.texto).map(p => p.name).sort(), ['Carta Nova', 'Carta Nova C']);
+  assert.equal(rel.textos, 2);
+  const tudo = C.mede(listas, cartas, { agora: 'T' });
+  assert.ok(tudo.pendentes.every(p => p.texto), 'sem --textos, todo pendente leva o texto (Pauper como antes)'); assert.equal(tudo.textos, null);
+});

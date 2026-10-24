@@ -14,3 +14,13 @@ test('I-299 · catalogo.yml: passo da sentinela entre "Coletar" e "Publicar no r
   assert.doesNotMatch(passo, /secrets\./, 'a sentinela não usa segredo');
   assert.match(wf, /permissions:\n  contents: write\n/, 'nenhuma permissão nova');
 });
+
+// I-300 · o Commander ganha passo próprio (falha de um não apaga o relatório do outro). Falha antes da I-300.
+test('I-300 · catalogo.yml: passo da sentinela do Commander depois da do Pauper e antes de publicar, com --textos 300', () => {
+  const j = wf.indexOf('- name: Sentinela de cobertura do Pauper'), c = wf.indexOf('- name: Sentinela de cobertura do Commander'), k = wf.indexOf('- name: Publicar no ramo catalogo');
+  assert.ok(j >= 0 && c > j && k > c, 'ordem: Pauper → Commander → publicar');
+  const passo = wf.slice(c, k);
+  assert.match(passo, /continue-on-error: true/); assert.match(passo, /if: always\(\) && steps\.coleta\.conclusion != 'skipped'/);
+  assert.match(passo, /run: node cobertura\.mjs --catalogo saida --formato commander --textos 300/);
+  assert.doesNotMatch(passo, /secrets\./);
+});
