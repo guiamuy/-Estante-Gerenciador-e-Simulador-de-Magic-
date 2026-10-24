@@ -15616,13 +15616,10 @@ test('e2e · DS-K · o /ds mostra os tokens de ébano e latão, as dez receitas 
   const red = await page.evaluate(() => [...document.querySelector('#ds-palco-abertura').getAnimations({ subtree: true })].filter(a => a.effect.getTiming().duration > 1).length);
   assert.equal(red, 0, 'com menos movimento nada dura mais que um quadro');
   // G-288 · e o fim aparece parado: marca desenhada, nome à vista (antes o palco ficava vazio com menos movimento)
-  // G-304 · espera explícita de um quadro (instável no CI com duas fatias): o "nada dura mais que um quadro" acima continua valendo
-  await page.waitForFunction(() => { const p = document.querySelector('#ds-palco-abertura'), n = p && p.querySelector('.ds-palco__nome'); return n && getComputedStyle(n).opacity === '1' && getComputedStyle(p.querySelector('.ds-palco__marca')).opacity === '1'; }, null, { timeout: 1000 });
   const fim = await page.evaluate(() => { const p = document.querySelector('#ds-palco-abertura'); const cs = el => getComputedStyle(el);
     return { marca: cs(p.querySelector('.ds-palco__marca')).opacity, traco: cs(p.querySelector('.ds-palco__marca path')).strokeDashoffset, nome: cs(p.querySelector('.ds-palco__nome')).opacity }; });
   assert.deepEqual(fim, { marca: '1', traco: '0px', nome: '1' }, 'menos movimento mostra o estado final');
   await page.click('#ds-receita-ver-pousar');
-  await page.waitForFunction(() => [...document.querySelectorAll('#ds-palco-pousar .ds-palco__carta')].every(c => getComputedStyle(c).opacity === '1'), null, { timeout: 1000 }); // G-304 · um quadro
   assert.ok(await page.evaluate(() => [...document.querySelectorAll('#ds-palco-pousar .ds-palco__carta')].every(c => getComputedStyle(c).opacity === '1')), 'as cartas pousadas à vista');
   await page.evaluate(() => document.documentElement.removeAttribute('data-movimento'));
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/ds-k-receitas.png', fullPage: false });
@@ -15747,6 +15744,31 @@ test('e2e · DS-K F1.4 · o diálogo abre pela receita "folha" (véu com vinheta
   assert.equal(red, 0, 'com menos movimento a folha aparece no lugar');
   await page.waitForFunction(() => getComputedStyle(document.querySelector('.ds-dialog')).opacity === '1', null, { timeout: 1000 }); // G-304 · um quadro (instável no CI)
   assert.equal(await page.$eval('.ds-dialog', el => getComputedStyle(el).opacity), '1');
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · DS-K F2.2 · Listas, Coleção e Scanner têm o cabeçalho 44 · 1fr · 44: título no centro exato da tela, lados de 44 px, gutter de 16 px, em 360 e 390 e nos dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(FAKE_DEVICE(false));
+  for (const [w, hgt] of [[360, 780], [390, 844]]) {
+    await page.setViewportSize({ width: w, height: hgt });
+    for (const [rota, titulo] of [['#/listas', 'Listas'], ['#/colecao', 'Coleção'], ['#/scanner', 'Scanner']]) {
+      await page.goto(base + rota); await page.waitForSelector('#outlet .ds-cabecalho');
+      for (const tema of ['dark', 'light']) {
+        await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema);
+        const m = await page.evaluate(() => { const c = document.querySelector('#outlet .ds-cabecalho'), t = c.querySelector('.ds-cabecalho__titulo'), lados = [...c.querySelectorAll('.ds-cabecalho__lado')].map(l => l.getBoundingClientRect());
+          const r = c.getBoundingClientRect(), tr = document.createRange(); tr.selectNodeContents(t); const tx = tr.getBoundingClientRect();
+          return { titulo: t.textContent, centro: tx.left + tx.width / 2, esq: Math.round(r.left), dir: Math.round(innerWidth - r.right), lados: lados.map(l => Math.round(l.width)), linhas: Math.round(t.getBoundingClientRect().height / parseFloat(getComputedStyle(t).lineHeight)), largura: innerWidth }; });
+        assert.equal(m.titulo, titulo);
+        assert.ok(Math.abs(m.centro - m.largura / 2) <= 1, `${titulo} ${w} ${tema}: título no centro (${m.centro.toFixed(1)} de ${m.largura})`);
+        assert.deepEqual(m.lados, [44, 44], `${titulo} ${w}: lados de 44 px`); assert.deepEqual([m.esq, m.dir], [16, 16], `${titulo} ${w}: gutter de 16 px`);
+        assert.equal(m.linhas, 1, `${titulo} ${w}: título numa linha`);
+        await auditaTela(page, `DS-K F2.2 · ${titulo} ${w} ${tema}`);
+        if (process.env.SHOTS && w === 360) await page.locator('#outlet .ds-cabecalho').screenshot({ path: process.env.SHOTS + `/ds-k-f22-${titulo}-${tema}.png` });
+      }
+    }
+  }
+  assert.equal(await page.getAttribute('#scan-colecao', 'aria-label'), 'Coleção', 'o atalho para a coleção segue com o nome falado');
   assert.deepEqual(errors, []);
 });
 

@@ -502,6 +502,14 @@ test('DS-K · F1.3 o cartão de destaque é ébano (--bg-elev-0) com filete de l
   assert.match(componentCss, /\.home-continuar__item\[data-tipo="partida"\] \.home-continuar__icone\.ds-destaque__icone-latao \{ background-image: linear-gradient\(160deg, var\(--accent-hi\), var\(--accent\) 55%, var\(--accent-lo\)\); \}/);
 });
 
+/* ---------------- DS-K (G-294) · F2.2 cabeçalho 44 · 1fr · 44 ---------------- */
+test('DS-K · F2.2 o cabeçalho de tela é a grade 44 · 1fr · 44 com o título no centro e os lados do mesmo tamanho; Listas, Coleção e Scanner usam ele', () => {
+  assert.match(componentCss, /\.ds-cabecalho \{ display: grid; grid-template-columns: var\(--tap-min\) minmax\(0, 1fr\) var\(--tap-min\);/);
+  assert.match(componentCss, /\.ds-cabecalho__titulo \{[^}]*text-align: center;[^}]*text-wrap: balance;/);
+  for (const t of ["Cabecalho('Coleção'", "Cabecalho('Listas'", "Cabecalho('Scanner'"]) assert.ok(HTML.includes(t), t);
+  assert.match(HTML, /Cabecalho\('Scanner', \{ classe: 'scan-head', direita: IconButton\('colecao', 'Coleção', \{ id: 'scan-colecao'/, 'Coleção vira ícone com o mesmo id e nome falado');
+});
+
 /* ---------------- DS-K (G-292) · F1.4 folha, diálogo e aviso pela receita ---------------- */
 test('DS-K · F1.4 diálogo e aviso seguem a receita "folha": véu com vinheta, a folha sobe com mola e a sombra assenta (só por token); o aviso sobe com mola e sai reto', () => {
   assert.match(componentCss, /\.ds-overlay \{ background-image: radial-gradient\(ellipse 120% 90% at 50% 42%, transparent 38%, var\(--overlay\)\); \}/, 'véu com vinheta');

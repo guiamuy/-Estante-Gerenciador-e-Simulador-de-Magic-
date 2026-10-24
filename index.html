@@ -406,6 +406,12 @@ a { color: var(--accent); }
 .ds-text--lg { font-size: var(--text-lg); line-height: var(--lh-lg); }
 .ds-text--xl { font-size: var(--text-xl); line-height: var(--lh-xl); }
 .ds-text--2xl { font-size: var(--text-2xl); line-height: var(--lh-2xl); }
+/* DS-K F2.2 (G-294) · cabeçalho de tela: grade 44 · 1fr · 44, título no centro exato da tela (os lados têm a mesma
+   largura), Cormorant 2xl, inteiro e sem quebra feia (balance); os lados seguram um botão de 44 px ou ficam vazios. */
+.ds-cabecalho { display: grid; grid-template-columns: var(--tap-min) minmax(0, 1fr) var(--tap-min); align-items: center; gap: var(--space-2); min-height: var(--tap-min); }
+.ds-cabecalho__lado { display: flex; align-items: center; justify-content: flex-start; min-width: 0; }
+.ds-cabecalho__lado--fim { justify-content: flex-end; }
+.ds-cabecalho__titulo { margin: 0; text-align: center; font-size: var(--text-2xl); line-height: var(--lh-2xl); text-wrap: balance; min-width: 0; }
 .ds-text--3xl { font-size: var(--text-3xl); line-height: var(--lh-3xl); }
 .ds-text--muted { color: var(--fg-muted); }
 .ds-text--subtle { color: var(--fg-subtle); }
@@ -3673,6 +3679,14 @@ function Icone(nome, { tamanho = 20, classe = '' } = {}) {
   return el;
 }
 /** Botão só de ícone: o rótulo vira nome acessível e dica; `rotulo: true` mostra o texto ao lado. */
+/** DS-K F2.2 (G-294) · cabeçalho de tela na grade da direção K: 44 · 1fr · 44 — um lado para voltar, o título no
+    centro exato, um lado para a ação (só ícone, 44 px). Lado vazio guarda o lugar, para o título nunca sair do centro. */
+function Cabecalho(titulo, { esquerda = null, direita = null, id, classe = '', nivel = 'h1' } = {}) {
+  return h('header', { class: ('ds-cabecalho ' + classe).trim(), id },
+    h('div', { class: 'ds-cabecalho__lado' }, esquerda),
+    h(nivel === 'h2' ? 'h2' : 'h1', { class: 'ds-text ds-text--display ds-cabecalho__titulo' }, titulo),
+    h('div', { class: 'ds-cabecalho__lado ds-cabecalho__lado--fim' }, direita));
+}
 function IconButton(icone, rotulo, { id, variant, onClick, rotulo: mostra = false, classe = '', disabled = false, dataset } = {}) {
   return h('button', { class: ['ds-btn', 'ds-btn--icone', classe, variant ? `ds-btn--${variant}` : ''].filter(Boolean).join(' '), type: 'button', id, 'aria-label': rotulo, title: rotulo, onClick, disabled, ...(dataset ? { dataset } : {}) },
     Icone(icone), mostra ? h('span', { class: 'ds-btn__rotulo ' + (classe ? classe + '__rotulo' : '') }, rotulo) : null);
@@ -4225,7 +4239,7 @@ const RECEITAS_DE_ANIMACAO = Object.freeze([
   { id: 'vida', nome: 'Vida', evento: 'o marcador de vida muda', dona: 'jogabilidade', plano: 'objeto: odômetro — dezena e unidade rolam separadas, na cor do dono', luz: 'não', curva: '--ease-spring', etapas: 'uma etapa (--dur-4); dano e cura usam o mesmo rolo, só o sentido muda', reduzido: 'o número troca' }
 ]);
 return { h, seguro, Text, Button, Field, Select, Chip, ManaPips, Tabs, CardFace, EsperaDaCarta, Dialog, closeDialog, toast, fechaToast, reservaDoca, Avatar, clear, mount, Stack, Row, Surface, Input, Textarea, Badge, List, ListItem, ListGroup, Empty, Note, Spinner, CardGrid,
-  analisaSimbolos, SIMBOLO_RX, nomeDoSimbolo, Simbolo, ComSimbolos, simbolizar, srcsetDaCarta, ImagemCarta, ICONES, Icone, IconButton, Atalho, NavBotao, AvisoRede, AnelProgresso, Expansivel, Range, LinhaEstado, confirmaBotao, Dica, rotuloDeCampo, deveAncorar, instalaAncora, levaAte, levaSeEscondido, oQueEsconde, Carregando, Esqueleto, ArteDeEspera, Transicao, BotaoDeAcao, usaRelatar, Bandeira, Chave, RECEITAS_DE_ANIMACAO };
+  analisaSimbolos, SIMBOLO_RX, nomeDoSimbolo, Simbolo, ComSimbolos, simbolizar, srcsetDaCarta, ImagemCarta, ICONES, Icone, IconButton, Atalho, NavBotao, AvisoRede, AnelProgresso, Expansivel, Range, LinhaEstado, confirmaBotao, Dica, rotuloDeCampo, deveAncorar, instalaAncora, levaAte, levaSeEscondido, oQueEsconde, Carregando, Esqueleto, ArteDeEspera, Transicao, BotaoDeAcao, usaRelatar, Bandeira, Chave, RECEITAS_DE_ANIMACAO, Cabecalho };
 })();
 
 /* ==== src/ui/brand.js ==== */
@@ -4535,6 +4549,12 @@ function renderDS() {
       Row({ class: 'ds-row--wrap' }, ...Object.keys(__m0.EVENTOS_HAPTICOS).map(k => Button(k, { icone: 'raio', onClick: () => { const ok = __m0.haptics.evento(k); toast(ok ? `vibrou: ${k}` : 'sem vibração neste aparelho ou desligada'); } })))),
 
     // DS-K (G-287) · receitas de animação: o padrão em três planos, com luz, mola e etapas; o palco demonstra, a dona implementa
+    // DS-K F2.2 (G-294) · cabeçalho de tela 44 · 1fr · 44 (aqui em h2: o título da página é o do catálogo)
+    Section('Cabeçalho',
+      __m3.Cabecalho('Coleção', { id: 'ds-cabecalho-amostra', nivel: 'h2', esquerda: IconButton('voltar', 'Voltar', { onClick: () => toast('Voltar') }), direita: IconButton('buscar', 'Buscar cartas', { onClick: () => toast('Buscar') }) }),
+      __m3.Cabecalho('Listas', { nivel: 'h2' }),
+      Text('Os lados têm 44 px mesmo vazios: o título fica no centro exato da tela.', { size: 'xs', tone: 'subtle' })),
+
     // DS-K F1.3 (G-291) · cartão de destaque em ébano (um por tela: o próximo passo)
     Section('Destaque',
       Surface({ class: 'home-continuar ds-destaque', id: 'ds-destaque-amostra' },
@@ -17507,7 +17527,7 @@ function createDecksHome({ decks, collection, files, cardRepo, backup = null, et
   }
   const root = Stack({ ...pad(), class: 'ds-wrap decks-home' },
     // J6 · "Nova" e "Prontas" saíram do topo: moram no botão de ação (canto inferior direito), que é o primário da tela
-    Row({ class: 'ds-row--wrap' }, Text('Listas', { size: '2xl', display: true, as: 'h1' })),
+    __m3.Cabecalho('Listas', { classe: 'decks-topo' }), // DS-K F2.2 · cabeçalho 44 · 1fr · 44 (os lados guardam o centro)
     filtroRow, etqRow, contagemRow, valorRow,
     list, acaoDaTela,
     // D5 · o backup saiu daqui para Perfil › Dados; a estante vazia oferece "Restaurar backup" em "Mais" (D4a)
@@ -19974,9 +19994,8 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
   }
   load();
   root = Stack({ ...pad(), class: 'ds-wrap col-root' },
-    Row({ class: 'col-topo' }, Text('Coleção', { size: '2xl', display: true, as: 'h1' }), h('div', { class: 'ds-grow' }),
-      // J6 · "Adicionar" e "Escanear" saíram do topo: moram no botão de ação, que é o primário da tela; a busca fica
-      IconButton('buscar', 'Buscar cartas', { id: 'col-search', onClick: () => go('/cartas') })),
+    // DS-K F2.2 · cabeçalho 44 · 1fr · 44; J6 · "Adicionar" e "Escanear" moram no botão de ação; a busca fica à direita
+    __m3.Cabecalho('Coleção', { classe: 'col-topo', direita: IconButton('buscar', 'Buscar cartas', { id: 'col-search', onClick: () => go('/cartas') }) }),
     // Leva 149 · ordem pedida: painel, adicionar carta, depois filtro e visões da coleção; ações da lista e backup no fim
     dashboard,
     secaoAdicionar,
@@ -42675,7 +42694,8 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
 
   paintResult(); boot();
   mount(root,
-    Row({ class: 'scan-head' }, Text('Scanner', { size: 'xl', display: true, as: 'h1' }), h('div', { class: 'ds-grow' }), Button('Coleção', { icone: 'colecao', id: 'scan-colecao', onClick: () => go('/colecao') })),
+    // DS-K F2.2 · cabeçalho 44 · 1fr · 44: "Coleção" vira botão de ícone de 44 px (nome falado "Coleção", mesmo id)
+    __m3.Cabecalho('Scanner', { classe: 'scan-head', direita: IconButton('colecao', 'Coleção', { id: 'scan-colecao', onClick: () => go('/colecao') }) }),
     status, stage, result, reservaDoca(h('div', { class: 'scan-dock-wrap' }, dock))); // leva 123 · o aviso não cobre os botões
   return root;
 }
