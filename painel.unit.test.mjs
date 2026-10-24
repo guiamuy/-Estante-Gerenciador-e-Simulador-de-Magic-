@@ -948,3 +948,28 @@ test('R-28 · fonte com o retrato do CI: Pipeline, Eficiência e Custo abrem com
   await app.VISOES.pipeline.carrega(fonte2, true);
   assert.equal(chamadas.filter(u => /retrato\.json/.test(u)).length, 1); assert.equal(fonte2.pedidos, 0, 'fresco de novo: zero à API'); assert.equal(fonte2.retrato.fresco, true);
 });
+
+test('R-32 · força do Shark por lista: linhasDaForca normaliza (%, ordem do mais forte ao mais fraco, medida sem lista sai), resumoDaForca conta as listas no alvo de 45 %, acha a mais fraca e a série; o Jogo lê forca.jsonl pelo raw, fora da cota', async () => {
+  const { modelo, base, app } = loadPainel();
+  const linhas = modelo.linhasDaForca([
+    { trilha: 'radar', nivel: 'shark', motor: 112, rodadas: 2, semente: 100, partidas: 40, decididas: 40, pior_jogada_ms: 2349, ilegais: 0, em: '2026-10-24T18:00:00Z', nota: 'nuvem',
+      listas: [{ lista: 'Dimir Control', vitorias: 1, derrotas: 15, pct: 6.3 }, { lista: 'Grixis Madness', vitorias: 14, derrotas: 2 }, { lista: 'Mono Green Elves', vitorias: 9, derrotas: 7 }, { lista: 'Sem jogo', vitorias: 0, derrotas: 0 }] },
+    { trilha: 'bot', nivel: 'shark', motor: 112, partidas: 4, em: '2026-10-23T18:00:00Z', listas: [{ lista: 'Grixis Madness', vitorias: 1, derrotas: 1 }, { lista: 'Dimir Control', vitorias: 1, derrotas: 1 }] },
+    { nivel: 'x', motor: 1, partidas: 0, listas: [] }, null
+  ]);
+  assert.equal(linhas.length, 2, 'medida sem lista sai'); assert.equal(linhas[0].data, Date.parse('2026-10-23T18:00:00Z'), 'ordem pela data');
+  assert.deepEqual(linhas[1].listas.map(l => [l.lista, l.pct]), [['Grixis Madness', 87.5], ['Mono Green Elves', 56.3], ['Dimir Control', 6.3], ['Sem jogo', null]], 'a % vem das contagens, não do campo pct; sem jogo fica sem %, no fim');
+  const r = modelo.resumoDaForca(linhas);
+  assert.deepEqual([r.ultima.motor, r.listas, r.noAlvo, r.fraca.lista, r.fraca.pct, r.em], [112, 3, 2, 'Dimir Control', 6.3, Date.parse('2026-10-24T18:00:00Z')]);
+  assert.deepEqual(r.serie.map(m => [m.listas, m.noAlvo, m.fraca && m.fraca.lista]), [[2, 2, 'Dimir Control'], [3, 2, 'Dimir Control']]);
+  const vazio = modelo.resumoDaForca([]); assert.deepEqual([vazio.ultima, vazio.noAlvo, vazio.fraca, vazio.serie], [null, 0, null, []]);
+  assert.deepEqual(modelo.LIMIARES.forcaLista, { verde: 45, amarelo: 35, unidade: '% contra o campo', texto: 'força da lista mais fraca do Shark contra o campo (aceite da B-22): ≥ 45 % · ≥ 35 % · menos' });
+  assert.equal(modelo.farol(6.3, modelo.LIMIARES.forcaLista), 'vermelho'); assert.equal(modelo.farol(45, modelo.LIMIARES.forcaLista), 'verde'); assert.equal(modelo.farol(40, modelo.LIMIARES.forcaLista), 'amarelo');
+  // o Jogo lê placares e força pelo raw; sem o arquivo de força, lista vazia (o desenho está no e2e R-32)
+  const txt = JSON.stringify({ trilha: 'radar', nivel: 'shark', motor: 112, partidas: 40, em: '2026-10-24T18:00:00Z', listas: [{ lista: 'Grixis Madness', vitorias: 14, derrotas: 2 }] }) + '\n';
+  const fonte = base.createFonte({ fetch: async url => ({ ok: true, status: 200, headers: { get: () => null }, text: async () => (/forca\.jsonl/.test(url) ? txt : ''), json: async () => ({}) }), guarda: base.createGuarda(null) });
+  const d = await app.VISOES.jogo.carrega(fonte, false);
+  assert.equal(fonte.pedidos, 0, 'nada vai à API'); assert.equal(d.forca.length, 1); assert.deepEqual(d.placares, []);
+  const d2 = await app.VISOES.jogo.carrega(base.createFonte({ fetch: async () => ({ ok: false, status: 404, headers: { get: () => null }, text: async () => '', json: async () => ({}) }), guarda: base.createGuarda(null) }), false);
+  assert.deepEqual(d2.forca, [], 'sem o arquivo, lista vazia');
+});

@@ -13102,7 +13102,8 @@ test('e2e · R-18 Painel · Jogo: sem placar fica "pendente de telemetria"; com 
   assert.match(await page.innerText('#pn-k-pior'), /3,3[\s\S]*s · média 6\.8 ms por jogada/); assert.equal(await page.getAttribute('#pn-k-pior .pn-farol', 'data-farol'), 'vermelho');
   assert.match(await page.innerText('#pn-g-culpadas'), /Darval, Whose Web Protects[\s\S]*3[\s\S]*Skyward Spider[\s\S]*2/);
   assert.match(await page.innerText('#pn-g-shark-versao'), /v110 · 50 partidas[\s\S]*80%[\s\S]*v112 · 300 partidas[\s\S]*99%/);
-  assert.match(await page.innerText('#pn-notas'), /torneio do bot[\s\S]*pendente/);
+  assert.match(await page.innerText('#pn-notas'), /força das listas do Shark: nenhuma medida ainda/);   // R-32 · a lacuna "torneio do bot: pendente" ganhou fonte (forca.jsonl); sem o arquivo, a nota diz como gerar
+  assert.match(await page.innerText('#pn-k-forca-alvo'), /—/);
   await auditaTela(page, 'jogo 360');
   // toque na série filtra o formato: o último placar passa a ser o do pauper
   await page.click('#pn-g-jogam button[data-valor="pauper"], #pn-g-jogam li[data-valor="pauper"] button');
@@ -13111,6 +13112,55 @@ test('e2e · R-18 Painel · Jogo: sem placar fica "pendente de telemetria"; com 
   assert.equal(await page.getAttribute('#pn-k-falhas-prova .pn-farol', 'data-farol'), 'verde');
   await emTodasAsMedidas(page, 'jogo filtrado');
   if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.screenshot({ path: process.env.SHOTS + '/r18-jogo.png', fullPage: true }); }
+  assert.deepEqual(errors, []);
+});
+
+/* ---------- R-32 · BI2-1b · força do Shark por lista na sub-aba Jogo ---------- */
+test('e2e · R-32 Painel · Jogo: força do Shark por lista (forca.jsonl do forca.mjs): sem placar e com força a sub-aba abre (não fica "pendente"); cartões "no alvo" (≥ 45 %), "mais fraca" com farol e "última medida"; barra por lista do mais forte ao mais fraco em %; série de listas no alvo por medida; nota da fonte; nada identifica ninguém; sem sobreposição nas quatro medidas e nos dois temas', { timeout: 120000 }, async t => {
+  const { page, errors, base } = await open(t);
+  const painel = base.replace('index.html', 'painel.html');
+  await page.setViewportSize({ width: 360, height: 780 });
+  const json = (r, corpo) => r.fulfill({ json: corpo, headers: { 'content-type': 'application/json', 'x-ratelimit-remaining': '50', 'x-ratelimit-limit': '60', 'access-control-expose-headers': 'etag, x-ratelimit-remaining, x-ratelimit-limit' } });
+  await page.route('https://api.github.com/**', r => json(r, /commits\?sha=main/.test(r.request().url()) ? [{ sha: 'abc1234def0', commit: { message: 'Leva R-31 · x', committer: { date: new Date().toISOString() } } }] : []));
+  const h = n => new Date(Date.now() - n * 3600000).toISOString();
+  const forca = [
+    `{"trilha":"bot","nivel":"shark","motor":112,"rodadas":2,"semente":100,"partidas":40,"decididas":38,"pior_jogada_ms":1900,"ilegais":1,"em":"${h(30)}","listas":[{"lista":"Grixis Madness","vitorias":12,"derrotas":4},{"lista":"Dimir Control","vitorias":6,"derrotas":10},{"lista":"Dimir Faeries","vitorias":8,"derrotas":8},{"lista":"Mono Blue Terror","vitorias":4,"derrotas":12},{"lista":"Mono Green Elves","vitorias":8,"derrotas":4}]}`,
+    `{"trilha":"radar","nivel":"shark","motor":112,"rodadas":2,"semente":100,"partidas":40,"decididas":40,"pior_jogada_ms":2349,"ilegais":0,"segundos":993,"em":"${h(2)}","nota":"R-31 · medida na sessão de nuvem","listas":[{"lista":"Grixis Madness","vitorias":14,"derrotas":2,"pct":87.5},{"lista":"Dimir Control","vitorias":1,"derrotas":15,"pct":6.3},{"lista":"Dimir Faeries","vitorias":5,"derrotas":11,"pct":31.3},{"lista":"Mono Blue Terror","vitorias":11,"derrotas":5,"pct":68.8},{"lista":"Mono Green Elves","vitorias":9,"derrotas":7,"pct":56.3}]}`].join('\n') + '\n';
+  const placares = `{"trilha":"homologacao","motor":112,"formato":"pauper","listas_total":493,"listas_jogam":493,"falhas":0,"em":"${h(5)}"}\n`;
+  let comForca = true, comPlacar = false;
+  await page.route('https://raw.githubusercontent.com/**', r => r.fulfill({ body: /forca\.jsonl/.test(r.request().url()) ? (comForca ? forca : '') : /placares\.jsonl/.test(r.request().url()) ? (comPlacar ? placares : '') : '', headers: { 'content-type': 'text/plain', 'access-control-allow-origin': '*' } }));
+  await page.addInitScript(() => {
+    const jwt = email => 'h.' + btoa(JSON.stringify({ email })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') + '.s';
+    window.__PAINEL_FETCH = async (url) => new Response(JSON.stringify(url.includes('securetoken') ? { user_id: 'uidE2E', id_token: jwt('gui.amuy@gmail.com'), refresh_token: 'ref-e2e', expires_in: '3600' } : { localId: 'uidE2E', idToken: jwt('gui.amuy@gmail.com'), refreshToken: 'ref-e2e', expiresIn: '3600', email: 'gui.amuy@gmail.com' }), { status: 200, headers: { 'content-type': 'application/json' } });
+    window.__PAINEL_GOOGLE = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }), revoke: (tk, cb) => cb && cb() } } };
+  });
+  // só força, sem placar: a sub-aba abre com a força (a prova pode ainda não ter rodado)
+  await page.goto(painel + '#jogo'); await page.waitForSelector('#pn-entrar'); await page.click('#pn-entrar');
+  await page.waitForSelector('#pn-forca');
+  assert.equal(await page.$('#pn-jogo-pendente'), null, 'com força a sub-aba não fica pendente');
+  assert.match(await page.innerText('#pn-k-forca-alvo'), /3[\s\S]*de 5 · ≥ 45 % contra o campo/); assert.equal(await page.getAttribute('#pn-k-forca-alvo .pn-farol', 'data-farol'), 'vermelho');
+  assert.match(await page.innerText('#pn-k-forca-fraca'), /6,3[\s\S]*% · Dimir Control · 1–15/); assert.equal(await page.getAttribute('#pn-k-forca-fraca .pn-farol', 'data-farol'), 'vermelho');
+  assert.match(await page.innerText('#pn-k-forca-medida'), /shark · motor v112 · 40 de 40 partidas · 0 ilegal/); assert.equal(await page.getAttribute('#pn-k-forca-medida .pn-farol', 'data-farol'), 'verde');
+  const barras = await page.innerText('#pn-g-forca-listas');
+  assert.match(barras, /Grixis Madness[\s\S]*87,5%[\s\S]*Mono Blue Terror[\s\S]*68,8%[\s\S]*Mono Green Elves[\s\S]*56,3%[\s\S]*Dimir Faeries[\s\S]*31,3%[\s\S]*Dimir Control[\s\S]*6,3%/, 'do mais forte ao mais fraco, pela conta de vitórias ÷ decididas');
+  assert.equal(await page.getAttribute('#pn-g-forca-listas li[data-valor="Dimir Control"] .pn-barras__barra', 'data-tom'), 'negative');
+  assert.equal(await page.getAttribute('#pn-g-forca-listas li[data-valor="Grixis Madness"] .pn-barras__barra', 'data-tom'), 'positive');
+  assert.match(await page.innerText('#pn-g-forca-serie'), /shark v112[\s\S]*3[\s\S]*shark v112[\s\S]*3/, 'duas medidas na série (a de ontem: Madness, Faeries e Elves no alvo)');
+  assert.match(await page.innerText('#pn-notas'), /2 medida\(s\) pelo forca\.mjs[\s\S]*processador[\s\S]*R-31 · medida na sessão de nuvem/);
+  const texto = await page.innerText('#pn-conteudo'); assert.doesNotMatch(texto, /@|uid/i, 'nada identifica ninguém');
+  await auditaTela(page, 'jogo força 360');
+  // com placar também: os cartões da prova e os da força convivem; Atualizar relê os dois arquivos
+  comPlacar = true;
+  await page.click('#pn-atualizar'); await page.waitForFunction(() => /493/.test(document.querySelector('#pn-k-jogam') ? document.querySelector('#pn-k-jogam').textContent : ''));   // o cartão já existia (sem dados): esperar o repinte
+  assert.match(await page.innerText('#pn-k-jogam'), /493[\s\S]*de 493 · pauper · v112/);
+  assert.match(await page.innerText('#pn-k-forca-alvo'), /3[\s\S]*de 5/);
+  await emTodasAsMedidas(page, 'jogo força');
+  // sem força (arquivo vazio) e com placar: cartões sem dados e a nota diz como gerar
+  comForca = false;
+  await page.click('#pn-atualizar'); await page.waitForFunction(() => /nenhuma medida ainda/.test(document.querySelector('#pn-notas') ? document.querySelector('#pn-notas').textContent : ''));
+  assert.match(await page.innerText('#pn-k-forca-fraca'), /—/); assert.equal(await page.getAttribute('#pn-k-forca-fraca .pn-farol', 'data-farol'), 'cinza');
+  assert.match(await page.innerText('#pn-g-forca-listas'), /sem medida de força ainda/);
+  if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); comForca = true; await page.click('#pn-atualizar'); await page.waitForSelector('#pn-forca'); await page.screenshot({ path: process.env.SHOTS + '/r32-jogo.png', fullPage: true }); }
   assert.deepEqual(errors, []);
 });
 
