@@ -16220,7 +16220,7 @@ function createNoticiasScreen({ noticias, share = null, gesto = null, ancora = f
 function createGuardadasScreen({ noticias, share = null }) {
   const corpo = h('div', { id: 'guardadas-corpo' }, Esqueleto({ linhas: 3, fala: 'Abrindo as guardadas…' }));
   const root = Stack({ ...pad(), id: 'guardadas' },
-    Row({ class: 'ds-row--wrap' }, IconButton('voltar', 'Voltar às notícias', { id: 'guardadas-voltar', variant: 'ghost', onClick: () => { location.hash = '#/noticias'; } }), Text('Guardadas', { size: '2xl', display: true, as: 'h1' })),
+    __m3.Cabecalho('Guardadas', { esquerda: IconButton('voltar', 'Voltar às notícias', { id: 'guardadas-voltar', onClick: () => { location.hash = '#/noticias'; } }) }) /* DS-K F4.2 · cabeçalho 44 · 1fr · 44 */,
     corpo);
   let lista = [];
   function pinta() {
@@ -16338,7 +16338,7 @@ function createSaidaScreen({ config = {}, uso = null, conectada = () => false } 
     d.evitar ? linha('Para evitar:', d.evitar) : null,
     h('p', { class: 'saida-item__origens', lang: 'en' }, [...new Set(d.origens.map(o => o.replace(/^(https|wss):\/\//, '')))].join(' · '))));
   return Stack({ class: 'ds-wrap', style: { paddingTop: 'var(--space-5)', paddingBottom: 'var(--space-8)' } },
-    Row({ class: 'ds-row--wrap' }, IconButton('voltar', 'Voltar ao perfil', { id: 'saida-voltar', variant: 'ghost', onClick: () => go('/perfil') }), Text('O que sai do aparelho', { size: '2xl', display: true, as: 'h1' })),
+    __m3.Cabecalho('O que sai do aparelho', { esquerda: IconButton('voltar', 'Voltar ao perfil', { id: 'saida-voltar', onClick: () => go('/perfil') }) }) /* DS-K F4.2 · cabeçalho 44 · 1fr · 44 */,
     Text('Suas listas, coleção, perfil e partidas ficam neste aparelho. Estes são os únicos serviços com que o app conversa, o que vai para cada um, quando, e como evitar.', { size: 'sm', tone: 'muted' }),
     h('div', { class: 'saida-lista', id: 'saida-destinos' }, ...DESTINOS.map(d => cartao(d, false))),
     uso && config.firebase ? Text('Você escolhe', { size: 'lg', display: true, as: 'h2' }) : null,
@@ -16499,7 +16499,7 @@ function createApoioScreen({ dados = APOIO, regiao = regiaoDoAparelho(), copiar 
     Row({ class: 'ds-row--wrap apoio-item__acoes' }, ...botoes(f, primario))));
   const [primeira, ...outras] = formas;
   return Stack({ class: 'ds-wrap', id: 'apoio', dataset: { regiao, exemplo: String(!!dados.exemplo) }, style: { paddingTop: 'var(--space-5)', paddingBottom: 'var(--space-8)' } },
-    Row({ class: 'ds-row--wrap' }, IconButton('voltar', 'Voltar ao perfil', { id: 'apoio-voltar', variant: 'ghost', onClick: () => go('/perfil') }), Text('Apoiar a Estante', { size: '2xl', display: true, as: 'h1' })),
+    __m3.Cabecalho('Apoiar a Estante', { esquerda: IconButton('voltar', 'Voltar ao perfil', { id: 'apoio-voltar', onClick: () => go('/perfil') }) }) /* DS-K F4.2 · cabeçalho 44 · 1fr · 44 */,
     Text('A Estante é feita por uma pessoa só, sem anúncio e sem rastreio. Se ela te ajuda, apoie do jeito mais fácil para você.', { size: 'sm', tone: 'muted' }),
     dados.exemplo ? h('div', { id: 'apoio-previa' }, Note('Prévia com dados de exemplo: as formas de apoio passam a funcionar quando as contas estiverem prontas.', 'warning')) : null,
     online() ? null : h('div', { id: 'apoio-sem-rede' }, Note('Sem internet: o Pix funciona agora; os outros abrem quando a conexão voltar.')),
@@ -16974,8 +16974,7 @@ function createRelatosScreen({ relatos, share, files = null, partidas = null, fi
         h('div', { class: 'relatos-filtros__area' }, Field('Área', Select(opcoes(areas.map(a => [a, a]), 'Todas'), { id: 'relatos-filtro-area', value: filtroAtual.area, onChange: e => muda({ area: e.target.value }) })))),
       n ? Row({}, Button('Limpar', { variant: 'ghost', icone: 'fechar', id: 'relatos-filtros-limpar', onClick: () => muda({ tipo: '', urgencia: '', area: '' }) })) : null) : null;
     mount(root,
-      Row({ class: 'ds-row--wrap' }, IconButton('voltar', 'Voltar ao perfil', { variant: 'ghost', id: 'relatos-voltar', onClick: () => { location.hash = '#/perfil'; } }),
-        Text('Relatos', { size: '2xl', display: true, as: 'h1' })),
+      __m3.Cabecalho('Relatos', { esquerda: IconButton('voltar', 'Voltar ao perfil', { id: 'relatos-voltar', onClick: () => { location.hash = '#/perfil'; } }) }) /* DS-K F4.2 · cabeçalho 44 · 1fr · 44 */,
       Text(!lista.length ? 'Ficam neste aparelho e vão no backup.' : recorte.length === lista.length ? `${lista.length} ${lista.length === 1 ? 'relato' : 'relatos'} · ${abertos} ${abertos === 1 ? 'aberto' : 'abertos'}. Ficam neste aparelho e vão no backup.`
         : `${recorte.length} de ${lista.length} relatos · ${abertosDoRecorte.length} ${abertosDoRecorte.length === 1 ? 'aberto' : 'abertos'} no recorte.`, { size: 'sm', tone: 'muted', attrs: { id: 'relatos-resumo' } }),
       lista.length ? h('div', { class: 'ds-segmentado', role: 'group', 'aria-label': 'Situação', id: 'relatos-situacao' },
@@ -18450,12 +18449,12 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
         title: u.nome ? 'Trocar o nome de usuário' : 'Escolher um nome de usuário', onClick: () => abreNomeDeUsuario(nu, u.nome, u.em) }));
   }
   function paint() {
-    if (st.erro) return mount(root, Text('Perfil', { size: '2xl', display: true, as: 'h1' }), Note('Não foi possível ler o perfil guardado neste aparelho.', 'negative'));
+    if (st.erro) return mount(root, __m3.Cabecalho('Perfil'), Note('Não foi possível ler o perfil guardado neste aparelho.', 'negative'));
     const previa = { nome: st.nome, avatar: st.avatar };
     mount(root,
-      Text('Perfil', { size: '2xl', display: true, as: 'h1' }),
+      __m3.Cabecalho('Perfil'), // DS-K F4.2 · cabeçalho 44 · 1fr · 44
       Text('Como você aparece na mesa e, mais adiante, para quem joga com você.', { tone: 'muted' }),
-      Surface({ class: 'ds-surface--pad' }, Stack({},
+      Surface({ class: 'ds-surface--pad ds-destaque perfil-topo' }, Stack({}, // DS-K F4.2 · o destaque em ébano do Perfil
         h('div', { class: 'perfil-cabeca' },
           h('div', { class: 'perfil-foto' },
             Avatar(previa, { tamanho: 96, classe: 'perfil-avatar' }),
@@ -18572,7 +18571,7 @@ function createPartidasScreen({ partidas }) {
   }
   function pinta() {
     const e = P.estatisticas(st.lista, { tipo: st.tipo, agora: partidas.agora() });
-    const cab = Row({ class: 'ds-row--wrap' }, IconButton('voltar', 'Voltar ao perfil', { id: 'partidas-voltar', variant: 'ghost', onClick: () => go('/perfil') }), Text('Partidas', { size: '2xl', display: true, as: 'h1' }));
+    const cab = __m3.Cabecalho('Partidas', { esquerda: IconButton('voltar', 'Voltar ao perfil', { id: 'partidas-voltar', onClick: () => go('/perfil') }) }) /* DS-K F4.2 · cabeçalho 44 · 1fr · 44 */;
     if (!e.todas) return mount(root, cab, Empty('As partidas que você terminar aparecem aqui, com as estatísticas.', Button('Jogar', { variant: 'primary', icone: 'jogar', id: 'partidas-jogar', onClick: () => go('/mesa') }), { icone: 'trofeu', titulo: 'Nenhuma partida ainda', hero: true, id: 'partidas-vazio' }));
     const filtros = h('div', { class: 'ds-segmentado pt-filtros', role: 'group', 'aria-label': 'Oponente', id: 'partidas-filtro' },
       Chip('Todas', { pressed: !st.tipo, dataset: { tipo: '' }, onClick: () => { st.tipo = ''; st.limite = 30; pinta(); } }),
@@ -18689,7 +18688,7 @@ function telaDeArtes({ galeria: fichas, itens, atualiza = null, C, catalogo = nu
     const recorte = catalogo ? F.filtraFichas(st.lista, st.texto) : st.lista;
     const minhas = recorte.filter(x => x.suaLista), outras = recorte.filter(x => !x.suaLista);
     mount(root,
-      Row({ class: 'ds-row--wrap' }, IconButton('voltar', 'Voltar ao perfil', { id: C.id + 's-voltar', variant: 'ghost', onClick: () => go('/perfil') }), Text(C.titulo, { size: '2xl', display: true, as: 'h1' })),
+      __m3.Cabecalho(C.titulo, { esquerda: IconButton('voltar', 'Voltar ao perfil', { id: C.id + 's-voltar', onClick: () => go('/perfil') }) }) /* DS-K F4.2 · cabeçalho 44 · 1fr · 44 */,
       // I6 · a regra fica dita mesmo com internet: buscar artes pede conexão; o que foi baixado fica no aparelho
       online() ? Text('Buscar artes novas pede internet. As que você baixar ficam no aparelho.', { size: 'sm', tone: 'muted', attrs: { id: C.id + 's-nota' } })
         : AvisoRede('Sem internet: dá para trocar entre as artes já baixadas. Para ver outras, conecte-se.', { id: C.id + 's-sem-rede' }),

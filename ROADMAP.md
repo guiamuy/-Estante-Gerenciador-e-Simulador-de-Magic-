@@ -12389,16 +12389,16 @@ prevista no fim para medir quadros no Galaxy S e corrigir o que o portão pegar.
 | F2 ✅ (F2.1 G-293 · F2.2 G-294 · F2.3 G-295 · F2.4 G-296 · F2.5 G-297) | telas de gestão | Início com abertura (receita) e cartão Continuar em ébano; Lista, Coleção, Scanner com a hierarquia da direção K; grade 360 = 16 + 328 + 16 e cabeçalho 44 · 1fr · 44 | capturas antes e depois (360×780, 390×844, dois temas); `auditaTela`; pixels medidos |
 | F3 | mesa como layout | barra e bandeja em ébano; tokens novos disponíveis para a `jogabilidade` desenhar as receitas da mesa em `#tb-fx` | pixels de campo em 360×780 (não perde); contrato visual |
 | FA (FA.1 ✅ G-298 · FA.2 ✅ G-299) | leva de ajuste | medir quadros no aparelho (CPU 4×) nas receitas e na mesa cheia; remedir AA do que a F1/F2 tocou; corrigir o que o portão e o aparelho mostrarem | teste de orçamento; capturas |
-| F4 (F4.1 ✅ G-307) | telas restantes | Listas prontas e Lista oficial, Perfil e subtelas, Cartas, Notícias guardadas e Série no cabeçalho 44 · 1fr · 44 com um destaque de ébano por tela; "segue o dedo" na folha | e2e por tela (centro, lados, gutter, AA no ébano, `auditaTela`, 360 e 390, dois temas) |
+| F4 (F4.1 ✅ G-307 · F4.2 ✅ G-308) | telas restantes | Listas prontas e Lista oficial, Perfil e subtelas, Cartas, Notícias guardadas e Série no cabeçalho 44 · 1fr · 44 com um destaque de ébano por tela; "segue o dedo" na folha | e2e por tela (centro, lados, gutter, AA no ébano, `auditaTela`, 360 e 390, dois temas) |
 
 **F4 · Telas restantes — fatias** (pedido do dono de 25/10: "evoluir com o roadmap de design system")
 
 | Fatia | Valor para o usuário | Termina quando | Situação |
 |---|---|---|---|
 | F4.1 | Listas prontas e a Lista oficial alinham com as outras telas | cabeçalho 44 · 1fr · 44 com o voltar à esquerda; topo da lista oficial em ébano | ✅ G-307 |
-| F4.2 | Perfil e as subtelas dele no mesmo padrão | cabeçalho com voltar nas subtelas; um destaque por tela | a fazer |
+| F4.2 | Perfil e as subtelas dele no mesmo padrão (e Notícias guardadas, que usava o mesmo desenho) | cabeçalho com voltar nas subtelas; um destaque por tela | ✅ G-308 |
 | F4.3 | a busca de Cartas no padrão | cabeçalho; resultado em destaque | a fazer |
-| F4.4 | Notícias guardadas e Série no padrão | cabeçalho com voltar | a fazer |
+| F4.4 | Série no padrão (Guardadas foi junto na F4.2) | cabeçalho com voltar | a fazer |
 | F4.5 | arrastar a folha para baixo fecha o diálogo ("segue o dedo") | gesto na folha, com volta se soltar cedo; parado com menos movimento | a fazer |
 
 **F4.1 · Listas prontas e Lista oficial** ✅ (leva G-307, 25/10/2026)
@@ -12412,6 +12412,19 @@ prevista no fim para medir quadros no Galaxy S e corrigir o que o portão pegar.
 - **Testes:** e2e "DS-K F4.1" (Listas prontas em 360 e 390 e nos dois temas: centro, lados de 44 px, gutter, voltar;
   lista oficial do catálogo de teste: centro, ébano, AA de todo texto do topo, `auditaTela`, voltar funciona); Z3 e
   Q10-7b verdes.
+
+**F4.2 · Perfil, subtelas e Guardadas** ✅ (leva G-308, 25/10/2026)
+- **Valor:** o Perfil e as sete telas que se abrem dele ou de Notícias (Partidas, Fichas, Terrenos, Relatos, O que sai
+  do aparelho, Apoiar a Estante, Guardadas) ficam com a seta de voltar no lado esquerdo e o título no centro exato, como
+  Listas, Coleção e Scanner; o topo do Perfil (foto, nome, salvar) vira o destaque em ébano da tela.
+- **Entregue:** a linha "voltar fantasma + título" dessas telas vira `Cabecalho(título, { esquerda: voltar })`, com os
+  mesmos ids e nomes falados (`#partidas-voltar`, `#fichas-voltar`, `#terrenos-voltar`, `#relatos-voltar`,
+  `#saida-voltar`, `#apoio-voltar`, `#guardadas-voltar`); o Perfil ganha `Cabecalho('Perfil')` (também no estado de
+  erro) e o primeiro bloco `ds-destaque perfil-topo`.
+- **Testes:** e2e "DS-K F4.2" (as oito telas em 360 nos dois temas e em 390 no escuro: título e nível, lados de 44 px,
+  gutter de 16, voltar à esquerda, `auditaTela`; topo do Perfil em ébano, um destaque só e AA de todo texto; o voltar
+  da Saída volta ao Perfil); contrato "DS-K · F4.2"; e2e anteriores que clicam nesses voltar continuam verdes.
+- **Fora:** os blocos de baixo do Perfil (Aparência, Dados, atalhos) seguem como superfície comum — um destaque por tela.
 
 **FA · Ajuste — fatias**
 

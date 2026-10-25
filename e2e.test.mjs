@@ -16398,6 +16398,53 @@ test('e2e · DS-K F4.1 · Listas prontas e Lista oficial: cabeçalho 44 · 1fr �
   assert.deepEqual(errors, []);
 });
 
+test('e2e · DS-K F4.2 · Perfil e subtelas (Partidas, Fichas, Terrenos, Relatos, O que sai do aparelho, Apoiar) e Notícias guardadas: cabeçalho 44 · 1fr · 44 com o voltar à esquerda e o título no centro; o topo do Perfil é o destaque em ébano com texto em AA; 360 e 390, dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(FAKE_DEVICE(false));
+  const mede = () => page.evaluate(() => {
+    const c = document.querySelector('#outlet .ds-cabecalho'), tt = c.querySelector('.ds-cabecalho__titulo'), r = document.createRange(); r.selectNodeContents(tt); const x = r.getBoundingClientRect();
+    const lados = [...c.querySelectorAll('.ds-cabecalho__lado')].map(l => Math.round(l.getBoundingClientRect().width)), b = c.getBoundingClientRect();
+    return { titulo: tt.textContent, nivel: tt.tagName, centro: x.left + x.width / 2, largura: innerWidth, lados, gutter: [Math.round(b.left), Math.round(innerWidth - b.right)], voltar: c.querySelector('.ds-cabecalho__lado:first-child [aria-label^="Voltar"]')?.id || null }; });
+  const telas = [['/perfil', 'Perfil', null], ['/perfil/partidas', 'Partidas', 'partidas-voltar'], ['/perfil/fichas', 'Fichas', 'fichas-voltar'], ['/perfil/terrenos', 'Terrenos', 'terrenos-voltar'],
+    ['/perfil/relatos', 'Relatos', 'relatos-voltar'], ['/perfil/saida', 'O que sai do aparelho', 'saida-voltar'], ['/perfil/apoiar', 'Apoiar a Estante', 'apoio-voltar'], ['/noticias/guardadas', 'Guardadas', 'guardadas-voltar']];
+  for (const [w, hh] of [[360, 780], [390, 844]]) {
+    await page.setViewportSize({ width: w, height: hh });
+    for (const [rota, titulo, voltar] of telas) {
+      await page.goto(base + '#' + rota); await page.waitForSelector('#outlet .ds-cabecalho');
+      for (const tema of (w === 360 ? ['dark', 'light'] : ['dark'])) {
+        await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(450);
+        const m = await mede();
+        assert.ok(Math.abs(m.centro - m.largura / 2) <= 1, `${titulo} ${w} ${tema}: título no centro (${m.centro.toFixed(1)})`);
+        assert.deepEqual([m.titulo, m.nivel, m.lados, m.gutter, m.voltar], [titulo, 'H1', [44, 44], [16, 16], voltar], `${titulo} ${w}: título, lados, gutter e voltar à esquerda`);
+        await auditaTela(page, `DS-K F4.2 · ${titulo} ${w} ${tema}`);
+      }
+    }
+  }
+  // o topo do Perfil: ébano, texto em AA nos dois temas
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base + '#/perfil'); await page.waitForSelector('.perfil-topo');
+  for (const tema of ['dark', 'light']) {
+    await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(450);
+    const d = await page.evaluate(() => {
+      const cv = document.createElement('canvas'); cv.width = cv.height = 1; const cx = cv.getContext('2d');
+      const rgb = c => { cx.clearRect(0, 0, 1, 1); cx.fillStyle = c; cx.fillRect(0, 0, 1, 1); return [...cx.getImageData(0, 0, 1, 1).data].slice(0, 3); };
+      const lum = c => rgb(c).map(x => x / 255).map(x => x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4).reduce((a, x, i) => a + x * [0.2126, 0.7152, 0.0722][i], 0);
+      const r = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+      const fundoDe = el => { for (let p = el; p; p = p.parentElement) { const b = getComputedStyle(p).backgroundColor; if (b && b !== 'rgba(0, 0, 0, 0)' && b !== 'transparent') return b; } return 'white'; };
+      const topo = document.querySelector('.perfil-topo');
+      const probe = document.createElement('span'); probe.style.color = getComputedStyle(document.documentElement).getPropertyValue('--bg-elev-0'); document.body.appendChild(probe); const funda = getComputedStyle(probe).color; probe.remove();
+      const ruins = []; const wk = document.createTreeWalker(topo, NodeFilter.SHOW_TEXT);
+      while (wk.nextNode()) { const el = wk.currentNode.parentElement; if (!wk.currentNode.textContent.trim() || el.getBoundingClientRect().width <= 1) continue; const k = r(getComputedStyle(el).color, fundoDe(el)); if (k < 4.5) ruins.push(`${wk.currentNode.textContent.trim().slice(0, 20)} ${k.toFixed(2)}`); }
+      return { ebano: getComputedStyle(topo).backgroundColor === funda, destaques: document.querySelectorAll('#outlet .ds-destaque').length, ruins };
+    });
+    assert.deepEqual([d.ebano, d.destaques, d.ruins], [true, 1, []], `topo do Perfil em ébano, um destaque só, texto em AA (${tema})`);
+    if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + `/ds-k-f42-perfil-${tema}.png`, clip: { x: 0, y: 0, width: 360, height: 520 } });
+  }
+  await page.goto(base + '#/perfil/saida'); await page.waitForSelector('#saida-voltar');
+  await page.click('#saida-voltar'); await page.waitForSelector('.perfil-topo');
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · DS-K F2.1 · a abertura monta o ícone em três planos (luz acende, a cena da estante se monta em 3D e o ladrilho esmaece por cima sem girar — G-306, relato #35 —, sombra assenta), passa a varredura e revela o nome; com menos movimento tudo já no lugar', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.setViewportSize({ width: 360, height: 780 });

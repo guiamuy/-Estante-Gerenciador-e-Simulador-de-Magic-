@@ -510,6 +510,14 @@ test('DS-K · F2.2 o cabeçalho de tela é a grade 44 · 1fr · 44 com o título
   assert.match(HTML, /Cabecalho\('Scanner', \{ classe: 'scan-head', direita: IconButton\('colecao', 'Coleção', \{ id: 'scan-colecao'/, 'Coleção vira ícone com o mesmo id e nome falado');
 });
 
+/* ---------------- DS-K (G-308) · F4.2 Perfil e subtelas ---------------- */
+test('DS-K · F4.2 Perfil e as subtelas usam o cabeçalho 44 · 1fr · 44 (o voltar sai da linha do título e vai para o lado esquerdo); o topo do Perfil é o destaque', () => {
+  for (const t of ["Cabecalho('Perfil')", "Cabecalho('Partidas'", "Cabecalho(C.titulo", "Cabecalho('Relatos'", "Cabecalho('O que sai do aparelho'", "Cabecalho('Apoiar a Estante'", "Cabecalho('Guardadas'"]) assert.ok(HTML.includes(t), t);
+  for (const id of ['partidas-voltar', 'relatos-voltar', 'saida-voltar', 'apoio-voltar', 'guardadas-voltar']) assert.ok(new RegExp(`esquerda: IconButton\\('voltar', '[^']+', \\{ id: '${id}'`).test(HTML), `${id} no lado esquerdo do cabeçalho`);
+  assert.ok(!/IconButton\('voltar', 'Voltar ao perfil', \{[^}]*variant: 'ghost'/.test(HTML), 'nenhum voltar ao perfil ficou na linha antiga');
+  assert.match(HTML, /Surface\(\{ class: 'ds-surface--pad ds-destaque perfil-topo' \}/);
+});
+
 /* ---------------- DS-K (G-295) · F2.3 topo da Lista em ébano ---------------- */
 test('DS-K · F2.3 o topo da Lista é o destaque em ébano (nome, formato em latão, contagens) e o latão em texto pequeno sobre o ébano usa --accent-lo', () => {
   assert.match(HTML, /Surface\(\{ class: 'ds-destaque ds-surface--pad deck-topo', id: 'deck-topo' \}/);
