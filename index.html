@@ -7021,7 +7021,7 @@ const PER_COUNTS = ['metade-grimorio' /* M-553 · "half the number of cards in y
 /** M-333 · 601.2f · "This spell costs {N} less to cast for each …": o que a redução conta (chave `reduzPor: { generic, per }` no topo do script). */
 const REDUZ_POR = ['maior-mv-elemental-seu' /* M-545 · Sunderflock */, 'inst-feit-aventura-no-cemiterio' /* M-534 · Hearth Elemental */, 'instants-sorceries-in-your-graveyard', 'creature-cards-in-your-graveyard', 'land-cards-in-your-graveyard', 'creatures-on-battlefield',
   'creatures-opponents-control', 'basic-land-types-you-control', 'attacking-creatures', 'attacking-creatures-you-control', 'cards-drawn-this-turn',
-  'creatures-attacked-this-turn', 'creatures-you-attacked-with-this-turn', 'morbid' /* M-440 · "if a creature died this turn": 1 ou 0 (Bone Picker) */];
+  'creatures-attacked-this-turn', 'creatures-you-attacked-with-this-turn', 'morbid' /* M-440 · "if a creature died this turn": 1 ou 0 (Bone Picker) */, 'legendary-creatures-you-control' /* K-83 · canalizar das terras de Kamigawa */];
 /** S19 · um valor pode ser um número ou uma contagem do campo. */
 const isCount = v => v && typeof v === 'object' && (typeof v.per === 'string' || typeof v.subtype === 'string');
 const valueErrors = (v, label) => isCount(v) && v.per === 'soma' ? (Array.isArray(v.partes) && v.partes.length >= 2 && v.partes.every(x => isCount(x) && x.per !== 'soma') ? v.partes.flatMap((x, i) => valueErrors(x, `${label} (parte ${i + 1})`)) : [`${label}: "soma" precisa de duas ou mais contagens em "partes"`]) // M-358
@@ -7058,6 +7058,7 @@ function validateScript(sc) {
       if (cost.mana != null && typeof cost.mana !== 'string') errs.push(`${tag}: custo de mana inválido`);
       if (cost.xCor != null && !(typeof cost.xCor === 'string' && cost.xCor.length === 1 && 'WUBRG'.includes(cost.xCor) && /\{X\}/i.test(cost.mana || ''))) errs.push(`${tag}: "gaste só mana de uma cor em X" precisa de uma cor WUBRG e de {X} no custo`); // CR2c.7
       if (cost.crew != null && !(Number.isInteger(cost.crew) && cost.crew >= 0)) errs.push(`${tag}: tripular precisa de um número`); // CR2d.3
+      if (cost.reduzPorK != null && !(cost.reduzPorK && Number.isInteger(cost.reduzPorK.generic) && cost.reduzPorK.generic > 0 && REDUZ_POR.includes(cost.reduzPorK.per) && /\{\d+\}/.test(cost.mana || ''))) errs.push(`${tag}: a redução do custo de ativar precisa de valor, de uma contagem conhecida e de mana genérica no custo`); // K-83 · 602.2b
       if (cost.fromGraveyard != null && !(cost.fromGraveyard === true && (cost.exileSelf || cost.devolveSelf) && !cost.fromHand && !cost.tap)) errs.push(`${tag}: habilidade do cemitério precisa exilar a própria carta como custo ou devolvê-la ao campo (e não usa {T})`); // M-352 · 113.6 · M-398: "Return ~ from your graveyard to the battlefield" (Cauldron Familiar)
       if (cost.crew == null && !cost.mana && !cost.tap && !cost.untapT /* T-119 · {Q} (Toca ponto comum) */ && !cost.sacrifice && !cost.sacrificeOther && !cost.tapOther && !cost.life && !cost.discard && !cost.returnLand && !cost.revealColor && !cost.discardSelf && !cost.exileSelf && !cost.discardHand && !cost.removeCounters && !cost.poeMarcador && !cost.energia && !cost.exileFromGraveyard /* M-538 */) errs.push(`${tag}: habilidade ativada sem custo`);
       if (cost.exileFromGraveyard && cost.exileFromGraveyard.amount != null && !(Number.isInteger(cost.exileFromGraveyard.amount) && cost.exileFromGraveyard.amount >= 1)) errs.push(`${tag}: exileFromGraveyard.amount precisa ser inteiro ≥ 1`); // M-538
@@ -20749,6 +20750,7 @@ const __m42 = (function () {
     const fraseSo = so && /\{X\}/.test(cost.mana || '') ? { texto: so[0].replace(/^\.\s*/, ''), lida: true } : null;
     if (fraseSo) { corpo = corpo.slice(0, so.index); cost.xCor = CORES[so[1].toLowerCase()]; }
     if (/\.\s*Activate only as a sorcery$/i.test(corpo)) { corpo = corpo.replace(/\.\s*Activate only as a sorcery$/i, ''); extra.sorceryOnly = true; }
+    { const rk = corpo.match(/\.\s*This ability costs \{(\d+)\} less to activate for each legendary creature you control$/i); if (rk && /\{\d+\}/.test(cost.mana || '')) { corpo = corpo.slice(0, rk.index); cost.reduzPorK = { generic: +rk[1], per: 'legendary-creatures-you-control' }; frases.push({ texto: rk[0].replace(/^\.\s*/, ''), lida: true }); } } // K-83 · 602.2b / 601.2f (canalizar de Kamigawa)
     { const su = corpo.match(/\.\s*Activate only during your upkeep$/i); if (su) { corpo = corpo.slice(0, su.index); extra.onlyInStep = ['upkeep']; extra.soNoSeuTurno = true; frases.push({ texto: 'Activate only during your upkeep', lida: true }); } } // M-457 · 602.5b (Llanowar Augur): a sua manutenção
     { const st = corpo.match(/\.\s*Activate only (during the end of combat step|during combat)$/i); if (st) { corpo = corpo.slice(0, st.index); extra.onlyInStep = /end of combat/i.test(st[1]) ? ['combat_end'] : ['combat_begin', 'combat_attackers', 'combat_blockers', 'combat_damage', 'combat_end']; frases.push({ texto: `Activate only ${st[1]}`, lida: true }); } } // M-377 · 602.5b (Desert)
     if (/^return (?:~|this card) from your graveyard to your hand$/i.test(til(corpo, nome))) { frases.push({ texto: linha, lida: false, motivo: 'ativada do cemitério para a mão: ainda sem leitura' }); return null; } // M-460 · ativada do cemitério para a mão (Firewing Phoenix): ainda sem leitura — a frase nova do gatilho não vale aqui
@@ -23005,6 +23007,7 @@ function contaParaReducao(s, p, per) {
   const cem = (s.zones[p].graveyard || []).map(oid => s.objects[oid]).filter(Boolean), tipos = x => (s.facts[x.name] || {}).types || [];
   const atacando = () => ((s.combat && s.combat.attackers) || []).map(oid => s.objects[oid]).filter(x => x && x.zone === 'battlefield' && !x.phasedOut);
   switch (per) {
+    case 'legendary-creatures-you-control': return battlefield(s).filter(x => x.controller === p && !x.phasedOut && isCreature(s, x) && /\bLegendary\b/.test(linhaDeTipo(s, x))).length; // K-83
     case 'instants-sorceries-in-your-graveyard': return cem.filter(x => tipos(x).some(t => t === 'instant' || t === 'sorcery')).length;
     case 'inst-feit-aventura-no-cemiterio': return cem.filter(x => tipos(x).some(t => t === 'instant' || t === 'sorcery') || !!((((s.facts[x.name] || {}).script || {}).self || {}).aventura)).length; // M-534 · 715.4 "has an Adventure" (carta de Aventura no cemitério; conta uma vez)
     case 'maior-mv-elemental-seu': return battlefield(s).filter(x => x.controller === p && !x.phasedOut && (isChangeling(s, x, 'Elemental') || /\bElemental\b/.test(linhaDeTipo(s, x)))).reduce((m, x) => Math.max(m, manaValueT(s, x)), 0); // M-545 · Sunderflock (o maior valor de mana, não a soma)
@@ -26983,10 +26986,10 @@ const canPayExtra = (s, p, cost, selfOid) =>
 /** CR2c.7 · 107.3k · X no custo de habilidade ativada: quantos X a habilidade tem ({X} no custo de mana ou a lealdade [−X]) e o custo de mana
  * com o X escolhido já somado — no genérico, ou na cor de "Spend only <cor> mana on X" (`cost.xCor`). */
 const xDaHabilidade = ab => ab.loyalty === '-X' ? 1 : (((ab.cost || {}).mana && parseCost(ab.cost.mana).x) || 0);
-function custoAtivadaComX(cost, x) {
-  const c = parseCost(cost.mana); if (!c.x) return c;
-  const n = (x || 0) * c.x; c.x = 0;
-  if (cost.xCor) c.colored[cost.xCor] = (c.colored[cost.xCor] || 0) + n; else c.generic += n;
+function custoAtivadaComX(cost, x, s, p) {
+  const c = parseCost(cost.mana);
+  if (c.x) { const n = (x || 0) * c.x; c.x = 0; if (cost.xCor) c.colored[cost.xCor] = (c.colored[cost.xCor] || 0) + n; else c.generic += n; }
+  if (cost.reduzPorK && s) { const n = Math.min(c.generic || 0, cost.reduzPorK.generic * contaParaReducao(s, p, cost.reduzPorK.per)); c.generic = (c.generic || 0) - n; } // K-83 · 601.2f / 602.2b: "This ability costs {1} less to activate for each …", depois do X e só no genérico
   return c;
 }
 function payAbilityCost(s, p, source, ab) {
@@ -27008,7 +27011,7 @@ function payAbilityCost(s, p, source, ab) {
     if (isCreature(s, source) && enjoado(s, source) && !has(s, source, 'haste')) throw new RuleError('custo', 'criatura com enjoo não pode usar {T}');
   }
   if (cost.mana && s.manaCheck) semAFonte(reservadasDoCusto(cost, source.oid, ab.pay), () => { // CR2c.6 · a fonte do {T} não paga a própria mana · H-13 · nem a escolhida para virar como custo
-    const c = custoAtivadaComX(cost, ab.x); // CR2c.7 · o X escolhido entra no custo
+    const c = custoAtivadaComX(cost, ab.x, s, p); // CR2c.7 · o X escolhido entra no custo · K-83 · com a redução
     if (ab.vida != null) { // M-255 · phyrexiano: quem ativa escolhe quantos símbolos paga com vida
       if (!(Number.isInteger(ab.vida) && ab.vida >= 0 && ab.vida <= nPhyrexianos(c))) throw new RuleError('custo', 'escolha quantos símbolos phyrexianos pagar com vida');
       if (s.players[p].life < 2 * ab.vida) throw new RuleError('custo', 'vida insuficiente para pagar o phyrexiano');
@@ -27075,7 +27078,7 @@ const canPayAbility = (s, p, source, ab) => {
   if (ab.onlyIfGraveyardAtLeast != null && s.zones[p].graveyard.length < ab.onlyIfGraveyardAtLeast) return false; // M-249 · limiar (702.25 Threshold)
   if (cost.life && s.players[p].life < cost.life) return false;
   if (cost.energia && (s.players[p].energia || 0) < cost.energia) return false; // M-367
-  return !(cost.mana && s.manaCheck) || semAFonte(cost.tap ? source.oid : null, () => comVidaDepois(cost.life || 0, () => canPay(s, p, custoAtivadaComX(cost, 0)))); // M-355 · 601.2h // CR2c.6 · CR2c.7: com X, basta X = 0
+  return !(cost.mana && s.manaCheck) || semAFonte(cost.tap ? source.oid : null, () => comVidaDepois(cost.life || 0, () => canPay(s, p, custoAtivadaComX(cost, 0, s, p)))); // K-83 · M-355 · 601.2h // CR2c.6 · CR2c.7: com X, basta X = 0
 };
 
 /* ---------------- M4 · prioridade e pilha ---------------- */
@@ -28816,7 +28819,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
     const o = s.objects[oid];
     abilitiesOf(s, o).filter(x => x.kind === 'activated').forEach((ab, index) => { if (!(ab.cost || {}).fromHand) return; // M-264 · o índice é entre todas as ativadas (como no motor): a carta com mana e canalizar mirava a habilidade errada
       // Leva 136 · a habilidade da mão era oferecida sem conferir a mana (Mirrorshell Crab sem {U}): a mesa mostrava o botão e o motor recusava
-      if (s.manaCheck && (ab.cost || {}).mana && !canPay(s, p, parseCost(ab.cost.mana))) return;
+      if (s.manaCheck && (ab.cost || {}).mana && !canPay(s, p, custoAtivadaComX(ab.cost, 0, s, p)) /* K-83 · com a redução */) return;
       const need = (ab.effects || []).filter(SC.isTargeted);
       if (!need.length) return out.push({ t: 'activate', p, oid, index, fromHand: true });
       // S45 · a habilidade da mão pode pedir mais de um alvo, e o último pode ficar de fora
@@ -28854,13 +28857,13 @@ function legalActions(s, p, { adjudication = false } = {}) {
       if (!canPayAbility(s, p, o, ab)) return;
       const cost = ab.cost || {};
       // Leva 104 · uma ação por forma de pagar (qual criatura vira, qual permanente é sacrificada, qual terreno volta)
-      const pays = pagamentosDe(s, p, cost, o.oid).filter(pay => !(cost.mana && s.manaCheck && cost.tapOther && pay && pay.tapOther) || semAFonte(reservadasDoCusto(cost, o.oid, pay), () => canPay(s, p, custoAtivadaComX(cost, 0)))); // H-13 · a virada como custo não paga a mana
+      const pays = pagamentosDe(s, p, cost, o.oid).filter(pay => !(cost.mana && s.manaCheck && cost.tapOther && pay && pay.tapOther) || semAFonte(reservadasDoCusto(cost, o.oid, pay), () => canPay(s, p, custoAtivadaComX(cost, 0, s, p)))); // K-83 · H-13 · a virada como custo não paga a mana
       ab = { ...ab, effects: expandeAlvos(s, o, ab.effects || []) }; // M-264 · "any number of target players": uma instância por alvo possível
       // M-255 · 107.4f/601.2f · phyrexiano no custo da habilidade: uma oferta por quantidade de símbolos pagos com 2 de vida
-      const vidasDe = x => { const c = cost.mana ? custoAtivadaComX(cost, x || 0) : null, k = c ? nPhyrexianos(c) : 0; if (!k || !s.manaCheck) return [null];
+      const vidasDe = x => { const c = cost.mana ? custoAtivadaComX(cost, x || 0, s, p) : null, k = c ? nPhyrexianos(c) : 0; if (!k || !s.manaCheck) return [null];
         const ok = []; for (let v = 0; v <= k; v++) if (s.players[p].life >= 2 * v && comVidaDepois(2 * v, () => canPay(s, p, custoPhyrexiano(c, v)))) ok.push(v); return ok; }; // M-355 · 601.2h
       // CR2c.7 · 107.3k · X no custo: uma ação por valor pagável (0..máximo, teto LIMITE_X); [−X] vai até a lealdade atual
-      const xs = xDaHabilidade(ab) ? valoresDeX(s, 1, x => ab.loyalty === '-X' ? x <= (o.counters.loyalty || 0) : (!(cost.mana && s.manaCheck) || semAFonte(cost.tap ? o.oid : null, () => canPay(s, p, custoAtivadaComX(cost, x))))) : [null];
+      const xs = xDaHabilidade(ab) ? valoresDeX(s, 1, x => ab.loyalty === '-X' ? x <= (o.counters.loyalty || 0) : (!(cost.mana && s.manaCheck) || semAFonte(cost.tap ? o.oid : null, () => canPay(s, p, custoAtivadaComX(cost, x, s, p))))) : [null];
       const comXA = x => (x != null ? { x } : {});
       const need = (ab.effects || []).filter(SC.isTargeted);
       if (ab.adapt != null && !(ab.effects || []).length) { if (canPayAbility(s, p, o, ab)) out.push({ t: 'activate', p, oid: o.oid, index }); return; }
