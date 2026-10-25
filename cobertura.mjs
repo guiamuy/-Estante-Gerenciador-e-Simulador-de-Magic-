@@ -17,8 +17,14 @@
 // `curva` diz quantas cartas fecham 1, 5, 10, 25… listas. `--textos N` guarda o texto da Scryfall só nas N primeiras cartas dessa ordem
 // (o Commander tem milhares de cartas pendentes; o texto do dia vai para as que o motor cobre primeiro).
 //
+// H-16 · fila de revisão e competitivos (plano do dono de 24/10, "competitivos primeiro"): toda carta `lida` ou `texto-mudou` leva o
+// texto da Scryfall do dia, além das N primeiras da ordem gulosa (é a fila de quem revisa e aprova; sem o texto, a revisão teria de
+// buscar de novo); `cartasDaScryfall` aceita um cache para não pedir de novo o que já veio; e cada execução regrava
+// `cobertura/resumo.json`: uma linha por formato e a ordem gulosa somada dos competitivos de 60 cartas (Modern, Standard, Pioneer,
+// Legacy, Vintage) — a ordem de trabalho do motor.
+//
 // Uso: node cobertura.mjs --catalogo <pasta do ramo catalogo> [--formato pauper] [--textos N]
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadModules } from './_load.mjs';
 
@@ -26,11 +32,16 @@ const M = loadModules();
 const S = M.scripts, SF = M.scryfall, norm = M.cards.norm, BASIC = M.cards.BASIC_CARDS;
 export const UA = 'estante-catalogo (+https://github.com/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-)';
 export const CLASSES = ['texto-mudou', 'lida', 'nova', 'parcial', 'sem-dados'];
+export const REVISAO = new Set(['texto-mudou', 'lida']); // H-16 · classes que esperam só a revisão: o texto do dia vai sempre
+export const COMPETITIVOS = ['modern', 'standard', 'pioneer', 'legacy', 'vintage']; // H-16 · competitivos de 60 cartas
 
 /** Cartas da Scryfall por nome (lotes de 75, o limite da /cards/collection). Devolve { cartas: Map(norm(nome) → carta crua), falhas }. */
-export async function cartasDaScryfall(nomes, { busca = globalThis.fetch, pausa = 120, log = () => {} } = {}) {
+/** H-16 · cache entre chamadas: `pedidos` = nomes já respondidos por um lote que deu certo (achados ou não). */
+export const novoCache = () => ({ cartas: new Map(), pedidos: new Set() });
+export async function cartasDaScryfall(nomes, { busca = globalThis.fetch, pausa = 120, log = () => {}, cache = null } = {}) {
   const cartas = new Map(); let falhas = 0;
-  const lista = [...new Set(nomes)].filter(n => !BASIC[norm(n)]);
+  const todos = [...new Set(nomes)].filter(n => !BASIC[norm(n)]);
+  const lista = cache ? todos.filter(n => !cache.pedidos.has(norm(n))) : todos;
   for (let i = 0; i < lista.length; i += 75) {
     const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 30000);
     try {
@@ -39,9 +50,14 @@ export async function cartasDaScryfall(nomes, { busca = globalThis.fetch, pausa 
       if (!r.ok) throw new Error('HTTP ' + r.status);
       const j = await r.json();
       for (const c of (j && j.data) || []) { cartas.set(norm(c.name), c); if (String(c.name).includes(' // ')) cartas.set(norm(c.name.split(' // ')[0]), c); }
+      if (cache) for (const n of lista.slice(i, i + 75)) cache.pedidos.add(norm(n));
     } catch (e) { falhas++; log(`✗ Scryfall (lote ${i / 75 + 1}): ${e.message}`); }
     finally { clearTimeout(t); }
     if (pausa && i + 75 < lista.length) await new Promise(r => setTimeout(r, pausa));
+  }
+  if (cache) {
+    for (const [k, c] of cartas) cache.cartas.set(k, c);
+    for (const n of todos) { const k = norm(n), c = cache.cartas.get(k) || cache.cartas.get(norm(String(n).split(' // ')[0])); if (c && !cartas.has(k)) cartas.set(k, c); }
   }
   return { cartas, falhas };
 }
@@ -78,6 +94,40 @@ export function gulosa(incompletas, base = 0) {
   return { ordem, curva };
 }
 
+/** H-16 · resumo dos relatórios de `cobertura/`: uma linha por formato e a ordem gulosa somada dos competitivos de 60 cartas
+    (as listas incompletas dos cinco formatos juntas, contando as já a 100%), com as `top` primeiras cartas dessa ordem. Puro. */
+export function resumo(relatorios, { agora = new Date().toISOString(), competitivos = COMPETITIVOS, top = 300 } = {}) {
+  const rels = relatorios.filter(r => r && r.versao === 1 && typeof r.formato === 'string' && Array.isArray(r.pendentes));
+  const formatos = rels.map(r => ({ formato: r.formato, geradoEm: r.geradoEm, motor: r.motor, listas: r.listas, listas100: r.listas100,
+    cartasPendentes: r.cartasPendentes, porClasse: r.porClasse, parcial: !!r.parcial })).sort((a, b) => a.formato.localeCompare(b.formato));
+  const comp = rels.filter(r => competitivos.includes(r.formato));
+  const info = new Map();
+  for (const r of comp) for (const p of r.pendentes) {
+    const i = info.get(p.name) || { classe: p.classe, listas: 0, formatos: [], texto: false };
+    i.listas += p.listas || 0; i.formatos.push(r.formato); i.texto = i.texto || !!p.texto; info.set(p.name, i);
+  }
+  const base = comp.reduce((n, r) => n + (r.listas100 || 0), 0);
+  const { ordem, curva } = gulosa(comp.flatMap(r => r.listasIncompletas || []), base);
+  const lista = [...ordem].sort((a, b) => a[1] - b[1] || (info.get(b[0])?.listas || 0) - (info.get(a[0])?.listas || 0) || a[0].localeCompare(b[0]))
+    .slice(0, top).map(([name, g]) => ({ name, gulosa: g, ...(info.get(name) || { classe: 'nova', listas: 0, formatos: [], texto: false }) }));
+  return { versao: 1, geradoEm: agora, formatos,
+    competitivos: { formatos: comp.map(r => r.formato).sort(), listas: comp.reduce((n, r) => n + (r.listas || 0), 0), listas100: base,
+      cartasPendentes: info.size, porClasse: Object.fromEntries(CLASSES.map(c => [c, [...info.values()].filter(i => i.classe === c).length])), curva, ordem: lista } };
+}
+const FORA_DO_RESUMO = new Set(['motor.json', 'resumo.json']); // H-16 · motor.json é o selo do app (Q10-7b), não um relatório
+/** H-16 · lê os relatórios gravados em `<pasta>/cobertura` e grava `cobertura/resumo.json`. Nunca lança. */
+export function gravaResumo(pasta, { agora, log = console.log } = {}) {
+  try {
+    const dir = join(pasta, 'cobertura'); if (!existsSync(dir)) return null;
+    const rels = readdirSync(dir).filter(f => f.endsWith('.json') && !FORA_DO_RESUMO.has(f))
+      .map(f => { try { return JSON.parse(readFileSync(join(dir, f), 'utf8')); } catch { return null; } });
+    const r = resumo(rels, { agora }); writeFileSync(join(dir, 'resumo.json'), JSON.stringify(r, null, 1) + '\n');
+    const c = r.competitivos;
+    log(`Resumo: ${r.formatos.map(f => `${f.formato} ${f.listas100}/${f.listas}`).join(' · ')} · competitivos ${c.listas100}/${c.listas}, ${c.cartasPendentes} carta(s) pendente(s)${c.curva.length ? `, curva ${c.curva.map(x => `${x.listas}→${x.cartas}`).join(' · ')}` : ''}`);
+    return r;
+  } catch (e) { log(`✗ resumo: ${e && e.message}`); return null; }
+}
+
 export function mede(listas, cartas, { formato = 'pauper', agora = new Date().toISOString(), falhas = 0, anterior = null, textos = Infinity } = {}) {
   const porNome = new Map(); let ok = 0; const incompletas = [];
   const mapa = new Map([...cartas].map(([k, c]) => [k, SF.normalizeCard(c)]));
@@ -95,6 +145,7 @@ export function mede(listas, cartas, { formato = 'pauper', agora = new Date().to
     const crua = cartas.get(norm(name)) || null; const k = classifica(name, crua) || { classe: 'nova', nivel: 'manual', motivo: 'sem cobertura' };
     return { name, ...k, listas: nListas, gulosa: ordem.get(name), texto: comTexto.has(name) ? textoDe(crua) : null };
   }).sort((a, b) => b.listas - a.listas || a.name.localeCompare(b.name));
+  for (const p of pendentes) if (!p.texto && REVISAO.has(p.classe)) p.texto = textoDe(cartas.get(norm(p.name)) || null); // H-16 · a fila de revisão sempre leva o texto do dia
   const antes = new Set(((anterior && anterior.pendentes) || []).map(p => p.name)), agoraSet = new Set(pendentes.map(p => p.name));
   return {
     versao: 1, formato, geradoEm: agora, motor: M.engine.ENGINE_VERSION, fonte: 'api.scryfall.com/cards/collection',
@@ -127,6 +178,7 @@ export async function executa({ pasta, formato = 'pauper', busca = globalThis.fe
   log(`Cobertura ${formato} (texto da Scryfall, motor v${rel.motor}): ${rel.listas100} de ${rel.listas} listas a 100% · ${rel.cartasPendentes} carta(s) pendente(s) ${JSON.stringify(rel.porClasse)}${rel.parcial ? ` · ${falhas} lote(s) sem resposta` : ''}`);
   if (rel.curva.length) log(`  ordem gulosa (listas a 100% → cartas a cobrir): ${rel.curva.map(c => `${c.listas}→${c.cartas}`).join(' · ')}`);
   if (rel.novasDesdeAnterior.length) log(`  novas desde a coleta anterior: ${rel.novasDesdeAnterior.join(', ')}`);
+  gravaResumo(pasta, { agora: rel.geradoEm, log }); // H-16
   return { gravado: true, relatorio: rel };
 }
 
