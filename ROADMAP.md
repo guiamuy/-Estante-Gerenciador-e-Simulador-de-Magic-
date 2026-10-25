@@ -5554,6 +5554,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Bloqueio desta leva:** sem fonte de texto da Scryfall na sessão (créditos do Firecrawl acabaram; WebFetch pede permissão por endereço). Caminho: as frases foram escolhidas pela medida e testadas com cartas de teste; o texto oficial de cada carta entra na aprovação, pela sentinela.
 - **Teste:** `lt260.unit` (4 testes; falham no motor anterior).
 
+**M-581 · LT239 · leitor, competitivos: castelos ("enters tapped unless you control a(n) <tipo básico>") e "Tap up to one target creature"** ✅ (leva M-581, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** passam a ser **lidas por inteiro** 5 cartas do catálogo: Vibrant Outburst (17 listas), Castle Embereth (13), Castle Ardenvale (7), Castle Vantress (6), High-Speed Hoverbike (2). Jogam no app depois da aprovação com o texto da Scryfall (homologacao).
+- **Regra:** 305.7 — terreno que entra virado a menos que você controle um terreno de um tipo básico (`entersTappedUnless.controlsSubtype` com um tipo; antes só os "check lands" de dois tipos); 115.3/601.2c — "up to one target" aceita zero alvos e pode ser o segundo alvo da mágica (a mesa oferece com e sem ele).
+- **Simplificação declarada:** a oferta não inclui o mesmo objeto nos dois alvos (601.2c permite: dano no Urso e virar o Urso); o resultado de jogo dessa escolha é o mesmo de causar dano só.
+- **Fonte de texto:** sem fonte confiável da Scryfall nesta sessão (Firecrawl sem créditos; o Tavily embaralha o JSON da API). Frases escolhidas pela medida e testadas com cartas de teste.
+- **Teste:** `lt262.unit` (3 testes; falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
