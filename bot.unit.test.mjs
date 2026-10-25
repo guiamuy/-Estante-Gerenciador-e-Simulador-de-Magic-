@@ -1359,3 +1359,28 @@ test('B-182 · Faithless Looting com Sneaky Snacker e Mountain sobrando: descart
   assert.ok(feitas.includes('discard Sneaky Snacker'), 'descartou o Snacker: ' + feitas.join(' · '));
   assert.ok(!feitas.includes('discard Lightning Bolt'), 'guardou o Bolt: ' + feitas.join(' · '));
 });
+
+/* ---- B-183 · a decisão do outro na resolução (Deem Inferior, Lose Focus) ---- */
+test('B-183 · Deem Inferior na Baleful Strix do oponente: com `decideOOutro`, a simulação deixa o dono escolher topo ou fundo e o Shark conjura; sem, a simulação parava na escolha e ele passava', async () => {
+  const { s } = await montaShark(TERROR, FAERIES, { ativo: 0, vez: 0, passo: 'main1', p0: { campo: ILHAS(4), mao: ['Deem Inferior'] }, p1: { campo: ['Island', 'Island', 'Baleful Strix'] } });
+  const deem = j => j.acao.t === 'cast' && s.objects[j.acao.oid].name === 'Deem Inferior';
+  const sem = B.criaBot({ nivel: 'shark', agora: relogioParado, extra: { decideOOutro: false } }).jogada(s, 0);
+  const com = B.criaBot({ nivel: 'shark', agora: relogioParado, extra: { decideOOutro: true } }).jogada(s, 0);
+  assert.ok(!deem(sem), 'sem a opção: ' + sem.motivo);
+  assert.ok(deem(com), 'com a opção: ' + com.motivo);
+});
+test('B-183 · Lose Focus contra a mágica do oponente: sem mana para pagar {2}, o Shark anula; com o oponente podendo pagar, não gasta', async () => {
+  const semMana = await comMagicaDoOponente(CONTROLE, FAERIES, 'Spellstutter Sprite', { p0: { campo: ['Island', 'Island', 'Swamp'], mao: ['Lose Focus'] }, p1: { campo: ['Island', 'Island'] } });
+  const comMana = await comMagicaDoOponente(CONTROLE, FAERIES, 'Spellstutter Sprite', { p0: { campo: ['Island', 'Island', 'Swamp'], mao: ['Lose Focus'] }, p1: { campo: ['Island', 'Island', 'Island', 'Island'] } });
+  const foco = (s, j, alvo) => j.acao.t === 'cast' && s.objects[j.acao.oid].name === 'Lose Focus' && (j.acao.targets || []).some(t => t.oid === alvo);
+  const bot = extra => B.criaBot({ nivel: 'shark', agora: relogioParado, extra });
+  const a = bot({ decideOOutro: true }).jogada(semMana.s, 0), b = bot({ decideOOutro: true }).jogada(comMana.s, 0);
+  assert.ok(foco(semMana.s, a, semMana.alvo), 'oponente sem mana: anula · ' + a.motivo);
+  assert.ok(!foco(comMana.s, b, comMana.alvo), 'oponente paga: não gasta · ' + b.motivo);
+});
+test('B-183 · o Shark publicado conjura o Deem Inferior na Baleful Strix do oponente; o shark-v15 congelado passa', async () => {
+  const { s } = await montaShark(TERROR, FAERIES, { ativo: 0, vez: 0, passo: 'main1', p0: { campo: ILHAS(4), mao: ['Deem Inferior'] }, p1: { campo: ['Island', 'Island', 'Baleful Strix'] } });
+  const deem = j => j.acao.t === 'cast' && s.objects[j.acao.oid].name === 'Deem Inferior';
+  const novo = shark('shark').jogada(s, 0), v15 = shark('shark-v15').jogada(s, 0);
+  assert.ok(deem(novo), 'publicado: ' + novo.motivo); assert.ok(!deem(v15), 'v15: ' + v15.motivo);
+});

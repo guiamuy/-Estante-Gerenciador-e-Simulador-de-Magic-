@@ -34035,6 +34035,11 @@ const __m25 = (function () {
    pareada com os cinco pilotos (400 ms, 80 pares): 47 × 48 — neutro; ligado porque tira os erros da auditoria da B-180
    (Sleep of the Dead no próprio Delver, Dispel na própria Counterspell, Agony Warp e Lava Dart na própria criatura).
    'shark-v14' é o Shark da B-179, congelado.
+   A DECISÃO DO OUTRO NA RESOLUÇÃO (B-23, leva B-183): na simulação, quando a minha mágica pede uma escolha ao outro
+   jogador (o dono escolhe topo ou fundo no Deem Inferior, "a menos que pague" no Lose Focus), ela é tomada pelo outro do
+   jeito pior para mim (`decideOOutro`). Antes a simulação parava ali, com a carta já fora da mão e o efeito sem acontecer:
+   o Deem Inferior saía em 1 de 13 cópias. Medida pareada com os cinco pilotos (400 ms, 80 pares): 49 × 47.
+   'shark-v15' é o Shark da B-181, congelado.
    LIMITES DE HOJE: um lance à frente + resposta do oponente + combate; sem plano
    de vários turnos, sem blefe, sem jogar em volta de anulação ou truque; não troca reserva na melhor de três; esquece o que a vidência
    mostrou do próprio topo.
@@ -34174,6 +34179,12 @@ function escolhe(candidatas, nota, { orcamentoMs = 400, agora = () => Date.now()
 // tirar uma ameaça de verdade (3/3 para cima). Abaixo disso, ele espera.
 const LIMIAR_RESPOSTA = 12;
 
+/** B-183 · `decideOOutro` (opção do Shark, ligada por `criaBot` só durante a jogada): na simulação, a decisão que a resolução
+    pede ao OUTRO jogador (o dono escolhe topo ou fundo no Deem Inferior, o "a menos que pague {2}" do Lose Focus, o descarte
+    que ele escolhe) é tomada por ele do jeito pior para quem simula. Antes a simulação parava ali: a carta já tinha saído da
+    mão e o efeito não acontecia, e a mágica parecia só gastar uma carta (Deem Inferior saiu em 1 de 13 cópias na auditoria
+    da B-181). Decide só com o que a decisão oferece; nos mundos possíveis a mão do outro é sorteada (informação justa). */
+let decideOOutro = false;
 /** Passa a prioridade no estado simulado até a pilha esvaziar ou aparecer uma decisão. */
 function resolveSimulado(s, max = 8, quem = null, av = null) {
   let cur = s;
@@ -34183,6 +34194,16 @@ function resolveSimulado(s, max = 8, quem = null, av = null) {
   if (quem != null) max = 14;
   for (let i = 0; i < max && cur.status === 'playing'; i++) {
     if (cur.pending) {
+      if (quem != null && decideOOutro && cur.pending.p !== quem && cur.pending.kind !== 'attackers' && cur.pending.kind !== 'blockers') {
+        let pior = null, nota = Infinity; // B-183 · o outro escolhe o pior para mim
+        for (const a of E.legalActions(cur, cur.pending.p).filter(x => x.t !== 'concede').slice(0, 14)) {
+          const r = simula(cur, a); if (!r) continue;
+          const n = (av || avalia)(r.estado, quem).nota;
+          if (n < nota) { nota = n; pior = r.estado; }
+        }
+        if (!pior) break;
+        cur = pior; continue;
+      }
       if (quem == null || cur.pending.p !== quem || cur.pending.kind === 'attackers' || cur.pending.kind === 'blockers') break;
       let melhor = null, nota = -Infinity;
       for (const a of E.legalActions(cur, quem).filter(x => x.t !== 'concede').slice(0, 14)) {
@@ -35459,14 +35480,15 @@ const NOVO11 = { ...NOVO10, av5: true }; // B-175 · o terreno que falta (avalia
 const NOVO12 = { ...NOVO11, mull2: true }; // congelado como 'shark-v12' (B-178) · B-177 · mulligan por fontes e cores (decideMulligan2): neutro em força (79 × 81 em 160 pares), ligado porque tira o mulligan em 9 de 10 partidas dos Elfos
 const NOVO13 = { ...NOVO12, prazo: true }; // congelado como 'shark-v13' (B-179) · B-178 · a decisão inteira cabe em 0,9 do orçamento: p95 430 → 366 ms, pior 4,3 → 0,8 s (400 ms); 48 × 47 em 80 pares
 const NOVO14 = { ...NOVO13, respondePrimeiro: true, reserva: true }; // congelado como 'shark-v14' (B-181) · B-179 · quando anular: a resposta à mágica do oponente é lida primeiro e a anulação guardada vale pela mágica que ainda pode pegar; neutro em força (38 × 39 em 96 pares, Control, Faeries e Terror), ligado porque tira dois erros que o jogador vê
-const NOVO = { ...NOVO14, alvoProprio: true, av6: true }; // B-181 · alvo no próprio lado: efeito nocivo no meu lado custa 3 por alvo (anular a própria mágica, 30) e vai para o fim da fila; avaliaV6 lê a mesa sem os pumps; neutro em força (47 × 48 em 80 pares, os cinco pilotos), ligado porque tira cinco erros que o jogador vê
+const NOVO15 = { ...NOVO14, alvoProprio: true, av6: true }; // congelado como 'shark-v15' (B-183) · B-181 · alvo no próprio lado: efeito nocivo no meu lado custa 3 por alvo (anular a própria mágica, 30) e vai para o fim da fila; avaliaV6 lê a mesa sem os pumps; neutro em força (47 × 48 em 80 pares, os cinco pilotos), ligado porque tira cinco erros que o jogador vê
+const NOVO = { ...NOVO15, decideOOutro: true }; // B-183 · na simulação, a decisão que a resolução pede ao outro jogador é tomada por ele do jeito pior para quem simula (Deem Inferior, Lose Focus); 49 × 47 em 80 pares, os cinco pilotos
 // B-176 · `ameacas` (ameaças do campo no perfil do Dimir Control) foi medida e fica desligada: 26 de 64 contra 27 de 64 pilotando o Control
 function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date.now(), mundos: mundosN = 0, extra: extraOpts = null, pesos = null } = {}) {
   // Leva 117 · 'profissional' e 'shark' são o Shark atual (v4: o v3 com informação justa). 'shark-v3', 'shark-v2'
   // e 'shark-v1' são as versões anteriores, congeladas, só para o torneio — elas simulam sobre o estado real.
-  const v1 = nivel === 'shark-v1', v2 = nivel === 'shark-v2', v3 = nivel === 'shark-v3', v4 = nivel === 'shark-v4', v5 = nivel === 'shark-v5', v6 = nivel === 'shark-v6', v7 = nivel === 'shark-v7', v8 = nivel === 'shark-v8', v9 = nivel === 'shark-v9', v10 = nivel === 'shark-v10', v11 = nivel === 'shark-v11', v12 = nivel === 'shark-v12', v13 = nivel === 'shark-v13', v14 = nivel === 'shark-v14';
-  const atual = nivel === 'profissional' || nivel === 'shark' || v4 || v5 || v6 || v7 || v8 || v9 || v10 || v11 || v12 || v13 || v14 || !!extraOpts || !!pesos;
-  const ligadas = { ...(v4 ? {} : v5 ? NOVO5 : v6 ? NOVO6 : v7 ? NOVO7 : v8 ? NOVO8 : v9 ? NOVO9 : v10 ? NOVO10 : v11 ? NOVO11 : v12 ? NOVO12 : v13 ? NOVO13 : v14 ? NOVO14 : NOVO), ...(extraOpts || {}) };
+  const v1 = nivel === 'shark-v1', v2 = nivel === 'shark-v2', v3 = nivel === 'shark-v3', v4 = nivel === 'shark-v4', v5 = nivel === 'shark-v5', v6 = nivel === 'shark-v6', v7 = nivel === 'shark-v7', v8 = nivel === 'shark-v8', v9 = nivel === 'shark-v9', v10 = nivel === 'shark-v10', v11 = nivel === 'shark-v11', v12 = nivel === 'shark-v12', v13 = nivel === 'shark-v13', v14 = nivel === 'shark-v14', v15 = nivel === 'shark-v15';
+  const atual = nivel === 'profissional' || nivel === 'shark' || v4 || v5 || v6 || v7 || v8 || v9 || v10 || v11 || v12 || v13 || v14 || v15 || !!extraOpts || !!pesos;
+  const ligadas = { ...(v4 ? {} : v5 ? NOVO5 : v6 ? NOVO6 : v7 ? NOVO7 : v8 ? NOVO8 : v9 ? NOVO9 : v10 ? NOVO10 : v11 ? NOVO11 : v12 ? NOVO12 : v13 ? NOVO13 : v14 ? NOVO14 : v15 ? NOVO15 : NOVO), ...(extraOpts || {}) };
   let perfil, avPlano = null, passosCombo = 0, turnoCombo = -1; // B9 · perfil do meu baralho, lido na primeira jogada
   const avAtual = ligadas.av4 || ligadas.av5 || ligadas.av6 || pesos ? avaliadorCom({ ...PESOS_ATUAIS, ...(pesos || {}) }, ligadas.av6 ? avaliaV6 : ligadas.av5 ? avaliaV5 : ligadas.av4 ? avaliaV4 : avaliaV3) : null;
   let plano = []; // leva 143 · ações que faltam do plano de mana em curso
@@ -35502,7 +35524,8 @@ function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date
         if (passo) { passosCombo++; return passo; }
       }
       const mundos = []; for (let k = 0; k < (mundosN || MUNDOS); k++) mundos.push(visaoDe(s, p, k, sei));
-      const j = jogadaProfissional(s, p, { orcamentoMs, agora, ...extra, ...ligadas, ...(avPlano ? { av: avPlano } : avAtual ? { av: avAtual } : {}), mundos });
+      const antesOOutro = decideOOutro; decideOOutro = !!ligadas.decideOOutro; // B-183
+      let j; try { j = jogadaProfissional(s, p, { orcamentoMs, agora, ...extra, ...ligadas, ...(avPlano ? { av: avPlano } : avAtual ? { av: avAtual } : {}), mundos }); } finally { decideOOutro = antesOOutro; }
       if (j && j.plano) plano = j.plano.slice();
       return j;
     }
