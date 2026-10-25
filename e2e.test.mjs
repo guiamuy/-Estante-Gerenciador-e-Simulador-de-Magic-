@@ -15572,10 +15572,13 @@ test('e2e · DS-K · o /ds mostra os tokens de ébano e latão, as dez receitas 
   const red = await page.evaluate(() => [...document.querySelector('#ds-palco-abertura').getAnimations({ subtree: true })].filter(a => a.effect.getTiming().duration > 1).length);
   assert.equal(red, 0, 'com menos movimento nada dura mais que um quadro');
   // G-288 · e o fim aparece parado: marca desenhada, nome à vista (antes o palco ficava vazio com menos movimento)
+  // G-304 · espera explícita de um quadro (instável no CI com duas fatias): o "nada dura mais que um quadro" acima continua valendo
+  await page.waitForFunction(() => { const p = document.querySelector('#ds-palco-abertura'), n = p && p.querySelector('.ds-palco__nome'); return n && getComputedStyle(n).opacity === '1' && getComputedStyle(p.querySelector('.ds-palco__marca')).opacity === '1'; }, null, { timeout: 1000 });
   const fim = await page.evaluate(() => { const p = document.querySelector('#ds-palco-abertura'); const cs = el => getComputedStyle(el);
     return { marca: cs(p.querySelector('.ds-palco__marca')).opacity, traco: cs(p.querySelector('.ds-palco__marca path')).strokeDashoffset, nome: cs(p.querySelector('.ds-palco__nome')).opacity }; });
   assert.deepEqual(fim, { marca: '1', traco: '0px', nome: '1' }, 'menos movimento mostra o estado final');
   await page.click('#ds-receita-ver-pousar');
+  await page.waitForFunction(() => [...document.querySelectorAll('#ds-palco-pousar .ds-palco__carta')].every(c => getComputedStyle(c).opacity === '1'), null, { timeout: 1000 }); // G-304 · um quadro
   assert.ok(await page.evaluate(() => [...document.querySelectorAll('#ds-palco-pousar .ds-palco__carta')].every(c => getComputedStyle(c).opacity === '1')), 'as cartas pousadas à vista');
   await page.evaluate(() => document.documentElement.removeAttribute('data-movimento'));
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/ds-k-receitas.png', fullPage: false });
@@ -15698,6 +15701,7 @@ test('e2e · DS-K F1.4 · o diálogo abre pela receita "folha" (véu com vinheta
   await page.click('#ds-open-dialog'); await page.waitForSelector('#ds-overlay[data-open="true"] .ds-dialog');
   const red = await page.evaluate(() => document.querySelector('.ds-dialog').getAnimations().filter(a => a.effect.getTiming().duration > 1).length);
   assert.equal(red, 0, 'com menos movimento a folha aparece no lugar');
+  await page.waitForFunction(() => getComputedStyle(document.querySelector('.ds-dialog')).opacity === '1', null, { timeout: 1000 }); // G-304 · um quadro (instável no CI)
   assert.equal(await page.$eval('.ds-dialog', el => getComputedStyle(el).opacity), '1');
   assert.deepEqual(errors, []);
 });

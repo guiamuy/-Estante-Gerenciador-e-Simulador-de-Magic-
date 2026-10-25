@@ -11895,6 +11895,11 @@ regras** (`database.rules.json`) no console; até lá a tela diz "Nomes de usuá
 - **Testes:** `cobertura.fluxo.unit` (+1: ordem dos passos, comando, sem segredo); `cobertura.unit` (+1: formatos do índice sem os excluídos e sem nome estranho; um formato que falha não para o outro; o `motor.json` soma os dois).
 - **Fora:** medir na hora em que a lista entra no catálogo (a medida é diária, junto da coleta).
 
+**G-304 · Dois testes de tela do DS-K deixam de cair no CI** ✅ (leva G-304, trilha `geral`, 25/10/2026; dívida de instável, `CLAUDE.md`)
+- **Causa:** "DS-K · o /ds mostra…" e "DS-K F1.4 · o diálogo abre pela receita folha…" liam a opacidade do estado final logo depois de ligar "menos movimento", sem esperar o quadro em que a animação de 0,01 ms termina. Com os testes novos das G-300/G-301 a divisão em duas fatias do CI mudou (a fatia é pela ordem do teste no arquivo) e os dois passaram a rodar ao lado de outra carga: caíram duas vezes e recusaram a G-297 e a I-302 sozinhas sobre o `main` (`36a3cbd`). Aqui, sem carga, o F1.4 já caía 1 vez em 4 antes das G-300 a G-302 (`ba79a89`).
+- **Correção:** espera explícita de até 1 s pelo estado final antes de cada leitura (quatro linhas acrescentadas; nenhuma asserção mudou; o "nada dura mais que um quadro" continua medido antes).
+- **Testes:** os dois, 3 vezes sozinhos e 2 vezes com outra fatia rodando ao lado, verdes.
+
 **Q10-6 · A lista do oponente diz quanto roda no motor (relato #31)** ✅ (leva G-285, trilha `geral`, 23/10/2026; `16º-fg`)
 - **Pedido (texto do relato, dado):** ao escolher a lista do Shark ou do outro jogador no 1x1 no mesmo aparelho, mostrar quantos por cento dela roda no motor, e não só da minha lista.
 - **Antes:** a cobertura da lista do oponente já era calculada (leva 113), mas só aparecia como aviso quando ficava abaixo de 100%; a 100% a tela não dizia nada, e a dúvida "a dele joga?" não tinha resposta.
