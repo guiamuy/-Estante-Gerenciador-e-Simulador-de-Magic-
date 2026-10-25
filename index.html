@@ -5992,10 +5992,10 @@ function createCardsScreen({ repo, images, local, env, files, collection }) {
 
   // D5 · a base local de cartas saiu daqui para Perfil › Dados (`painelBaseLocal`); a tela abre direto na busca
   const root = Stack({ class: 'ds-wrap', id: 'cards-screen', style: { paddingTop: 'var(--space-5)', paddingBottom: 'var(--space-8)' } },
-    Text('Cartas', { size: '2xl', display: true, as: 'h1' }),
+    __m3.Cabecalho('Cartas'), // DS-K F4.3 · cabeçalho 44 · 1fr · 44 (sem voltar: a busca abre do Início, da Coleção e de Notícias; a barra de cima leva de volta)
     envWarning,
     colecaoBox,
-    Surface({ class: 'ds-surface--pad ds-surface--shelf' },
+    Surface({ class: 'ds-surface--pad ds-destaque cards-busca' }, // DS-K F4.3 · a busca é o destaque em ébano da tela
       Stack({},
         Field('Nome', input, { hint: 'Enter para buscar.' }),
         colorChips,

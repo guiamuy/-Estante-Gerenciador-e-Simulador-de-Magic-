@@ -518,6 +518,13 @@ test('DS-K · F4.2 Perfil e as subtelas usam o cabeçalho 44 · 1fr · 44 (o vol
   assert.match(HTML, /Surface\(\{ class: 'ds-surface--pad ds-destaque perfil-topo' \}/);
 });
 
+/* ---------------- DS-K (G-309) · F4.3 Cartas ---------------- */
+test('DS-K · F4.3 Cartas usa o cabeçalho 44 · 1fr · 44 e a caixa de busca é o destaque em ébano', () => {
+  assert.ok(HTML.includes("__m3.Cabecalho('Cartas')"), 'cabeçalho da busca de cartas');
+  assert.match(HTML, /Surface\(\{ class: 'ds-surface--pad ds-destaque cards-busca' \}/);
+  assert.ok(!HTML.includes("Text('Cartas', { size: '2xl', display: true, as: 'h1' })"), 'o título solto saiu');
+});
+
 /* ---------------- DS-K (G-295) · F2.3 topo da Lista em ébano ---------------- */
 test('DS-K · F2.3 o topo da Lista é o destaque em ébano (nome, formato em latão, contagens) e o latão em texto pequeno sobre o ébano usa --accent-lo', () => {
   assert.match(HTML, /Surface\(\{ class: 'ds-destaque ds-surface--pad deck-topo', id: 'deck-topo' \}/);

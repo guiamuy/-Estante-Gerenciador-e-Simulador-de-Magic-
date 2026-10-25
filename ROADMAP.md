@@ -12389,7 +12389,7 @@ prevista no fim para medir quadros no Galaxy S e corrigir o que o portão pegar.
 | F2 ✅ (F2.1 G-293 · F2.2 G-294 · F2.3 G-295 · F2.4 G-296 · F2.5 G-297) | telas de gestão | Início com abertura (receita) e cartão Continuar em ébano; Lista, Coleção, Scanner com a hierarquia da direção K; grade 360 = 16 + 328 + 16 e cabeçalho 44 · 1fr · 44 | capturas antes e depois (360×780, 390×844, dois temas); `auditaTela`; pixels medidos |
 | F3 | mesa como layout | barra e bandeja em ébano; tokens novos disponíveis para a `jogabilidade` desenhar as receitas da mesa em `#tb-fx` | pixels de campo em 360×780 (não perde); contrato visual |
 | FA (FA.1 ✅ G-298 · FA.2 ✅ G-299) | leva de ajuste | medir quadros no aparelho (CPU 4×) nas receitas e na mesa cheia; remedir AA do que a F1/F2 tocou; corrigir o que o portão e o aparelho mostrarem | teste de orçamento; capturas |
-| F4 (F4.1 ✅ G-307 · F4.2 ✅ G-308) | telas restantes | Listas prontas e Lista oficial, Perfil e subtelas, Cartas, Notícias guardadas e Série no cabeçalho 44 · 1fr · 44 com um destaque de ébano por tela; "segue o dedo" na folha | e2e por tela (centro, lados, gutter, AA no ébano, `auditaTela`, 360 e 390, dois temas) |
+| F4 (F4.1 ✅ G-307 · F4.2 ✅ G-308 · F4.3 ✅ G-309) | telas restantes | Listas prontas e Lista oficial, Perfil e subtelas, Cartas, Notícias guardadas e Série no cabeçalho 44 · 1fr · 44 com um destaque de ébano por tela; "segue o dedo" na folha | e2e por tela (centro, lados, gutter, AA no ébano, `auditaTela`, 360 e 390, dois temas) |
 
 **F4 · Telas restantes — fatias** (pedido do dono de 25/10: "evoluir com o roadmap de design system")
 
@@ -12397,8 +12397,8 @@ prevista no fim para medir quadros no Galaxy S e corrigir o que o portão pegar.
 |---|---|---|---|
 | F4.1 | Listas prontas e a Lista oficial alinham com as outras telas | cabeçalho 44 · 1fr · 44 com o voltar à esquerda; topo da lista oficial em ébano | ✅ G-307 |
 | F4.2 | Perfil e as subtelas dele no mesmo padrão (e Notícias guardadas, que usava o mesmo desenho) | cabeçalho com voltar nas subtelas; um destaque por tela | ✅ G-308 |
-| F4.3 | a busca de Cartas no padrão | cabeçalho; resultado em destaque | a fazer |
-| F4.4 | Série no padrão (Guardadas foi junto na F4.2) | cabeçalho com voltar | a fazer |
+| F4.3 | a busca de Cartas no padrão | cabeçalho; a caixa de busca em destaque | ✅ G-309 |
+| F4.4 | Série no padrão (Guardadas foi junto na F4.2) | cabeçalho com voltar | com a trilha `jogabilidade`: a tela mora em `src/app/table.js` (entre partidas de uma série), região dela |
 | F4.5 | arrastar a folha para baixo fecha o diálogo ("segue o dedo") | gesto na folha, com volta se soltar cedo; parado com menos movimento | a fazer |
 
 **F4.1 · Listas prontas e Lista oficial** ✅ (leva G-307, 25/10/2026)
@@ -12425,6 +12425,17 @@ prevista no fim para medir quadros no Galaxy S e corrigir o que o portão pegar.
   gutter de 16, voltar à esquerda, `auditaTela`; topo do Perfil em ébano, um destaque só e AA de todo texto; o voltar
   da Saída volta ao Perfil); contrato "DS-K · F4.2"; e2e anteriores que clicam nesses voltar continuam verdes.
 - **Fora:** os blocos de baixo do Perfil (Aparência, Dados, atalhos) seguem como superfície comum — um destaque por tela.
+
+**F4.3 · Cartas** ✅ (leva G-309, 25/10/2026)
+- **Valor:** a busca de cartas fica igual às outras telas principais: título no centro exato no cabeçalho, e a caixa
+  de busca (nome, cores, tipo, raridade, formato, Buscar) vira o destaque em ébano da tela.
+- **Entregue:** `Cabecalho('Cartas')` sem voltar — a busca abre do Início, da Coleção e de Notícias, e um voltar fixo
+  levaria ao lugar errado em dois desses caminhos; a barra de cima continua sendo a volta. A caixa troca a
+  `ds-surface--shelf` por `ds-destaque cards-busca`.
+- **Testes:** e2e "DS-K F4.3" (360 e 390, dois temas: centro, lados de 44 px, gutter, ébano, um destaque só, AA de
+  todo texto da caixa, `auditaTela`, filtro de cor ligado); contrato "DS-K · F4.3"; e2e da busca (C7, N5, O1, U2, U3,
+  preço) verdes.
+- **Fora:** a lista de resultados segue como está (um destaque por tela); Série fica com a trilha `jogabilidade` (F4.4).
 
 **FA · Ajuste — fatias**
 
