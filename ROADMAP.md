@@ -6362,6 +6362,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Cartas lidas, para a homologação revisar** (Scryfall, pelo ramo `catalogo` de 25/10/2026): Snapcaster Mage, Stingcaster Mage, Flashback.
 - **Toca ponto comum:** `flashbackOf` (uma linha) e `moveObject` (a marca some, 400.7) em __m16; efeito novo `concede_flashback_k` abaixo das âncoras K; um padrão no `PRE_PARAGRAFO` do leitor (a frase de conceder lampejo, 702.34).
 - **Testes:** `keywords.k80.unit` (3; os 3 falham sem a leva); os 47 arquivos com lampejo ou com o vocabulário de efeitos, `leitor.revisao` e `leitor.concordancia` verdes. Goldens idênticos; motor v112 sem mudança de versão (a marca só existe com a carta na partida).
+**K-81 · Fuga: "sacrifice it unless it escaped" e "escapes with" (702.138)** ✅ (leva K-81)
+- **Valor:** os Titãs de fuga jogam como na carta: conjurados da mão, entram e são sacrificados (os outros gatilhos de entrada ainda resolvem); conjurados pela fuga, ficam. "Escapes with a +1/+1 counter" passa a ser lido. Phlage (22 listas competitivas) e Uro (2) tinham só essa frase pendente; Ox of Agonas também.
+- **Aceite:** Phlage na mão com quatro terras: conjurada, ela entra, causa 3 no oponente e vai para o cemitério. Com cinco outras cartas no cemitério, a mesa oferece a fuga ({R}{R}{W}{W} e exilar cinco); conjurada assim, fica no campo.
+- **Regra:** a marca `escapouT` (da conjuração, some em qualquer outra mudança de zona) agora vale para toda conjuração pela fuga (antes, só para a que trazia marcadores, T-123); o efeito novo `sacrifica_sem_fuga_k` lê a marca na resolução e não faz nada se a permanente saiu e voltou (400.7).
+- **Cartas lidas, para a homologação revisar** (Scryfall, pelo ramo `catalogo` de 25/10/2026): Phlage, Titan of Fire's Fury; Uro, Titan of Nature's Wrath; Ox of Agonas.
+- **Toca ponto comum:** `HANDLERS.cast` (uma linha: a marca da fuga sempre); efeito novo abaixo das âncoras K; um padrão no `PRE_PARAGRAFO` e um nas linhas de permanente do leitor (as frases da fuga, 702.138).
+- **Testes:** `keywords.k81.unit` (2; os 2 falham sem a leva); os 14 arquivos com fuga ou com o vocabulário de efeitos, `leitor.revisao` e `leitor.concordancia` verdes. Goldens idênticos; motor v112 sem mudança de versão.
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.
