@@ -557,7 +557,13 @@ a { color: var(--accent); }
 @keyframes tb-fx-tremor { 0%, 100% { transform: translateX(0); } 20% { transform: translateX(-5px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(2px); } }
 @keyframes tb-fx-pulso { 0%, 100% { transform: scale(1); } 40% { transform: scale(1.09); } }
 @keyframes tb-fx-murcha { 0%, 100% { transform: scale(1); } 45% { transform: scale(.9); } }
-@keyframes tb-fx-investe { 0%, 100% { transform: translateY(0) scale(1); } 35% { transform: translateY(calc(var(--fx-dir, -1) * 18px)) scale(1.07); } }
+/* J-26 · receita de atacar do DS (as etapas do palco ds-investe, com a perspectiva na própria carta e o sentido pelo lado
+   de quem ataca): antecipação de 6 px, investida de 30 px e Z 30, pouso; a sombra própria desce e clareia na investida */
+@keyframes tb-fx-investe { 0%, 100% { transform: perspective(700px) translate3d(0, 0, 0) rotateX(0deg) scale(1); } 18% { transform: perspective(700px) translate3d(0, calc(var(--fx-dir, -1) * -6px), 0) rotateX(calc(var(--fx-dir, -1) * 4deg)) scale(1); } 48% { transform: perspective(700px) translate3d(0, calc(var(--fx-dir, -1) * 30px), 30px) rotateX(calc(var(--fx-dir, -1) * -10deg)) scale(1.03); } 62% { transform: perspective(700px) translate3d(0, calc(var(--fx-dir, -1) * 24px), 20px) rotateX(0deg) scale(1); } }
+@keyframes tb-fx-sombra-sobe { 0%, 100% { opacity: 0; transform: none; } 48% { opacity: .3; transform: translateY(calc(var(--fx-dir, -1) * -30px)) scale(1.4, 1.3); } }
+@keyframes tb-fx-impacto { 0% { opacity: 0; } 20% { opacity: .6; } 100% { opacity: 0; } }
+/* J-26 · receita de dano do DS: tremor com 1,5° de giro (o tb-fx-tremor antigo fica para quem o usa fora da mesa) */
+@keyframes tb-treme { 0%, 100% { transform: none; } 20% { transform: translateX(-5px) rotate(-1.5deg); } 45% { transform: translateX(5px) rotate(1.5deg); } 70% { transform: translateX(-2px); } }
 @keyframes tb-fx-firma { 0%, 100% { transform: scale(1); } 30% { transform: scale(.94); } 60% { transform: scale(1.04); } }
 /* J-25 · as mesmas etapas do palco do DS (ds-pousa, ds-sombra-pousa), com a perspectiva na própria carta (a mesa não tem palco)
    e a sombra terminando apagada: a carta pousada volta à sombra baixa dela. */
@@ -567,7 +573,8 @@ a { color: var(--accent); }
 @keyframes tb-fx-clarao { from { opacity: .6; } to { opacity: 0; } }
 @keyframes tb-fx-anel { from { opacity: .95; transform: scale(.92); } to { opacity: 0; transform: scale(1.28); } }
 @keyframes tb-fx-abalo { 0%, 100% { transform: translate(0, 0); } 15% { transform: translate(-7px, 3px); } 30% { transform: translate(6px, -4px); } 45% { transform: translate(-5px, -2px); } 60% { transform: translate(4px, 3px); } 80% { transform: translate(-2px, 1px); } }
-@keyframes tb-fx-sobe { 0% { opacity: 0; transform: translate(-50%, -30%) scale(.8); } 15% { opacity: 1; transform: translate(-50%, -70%) scale(1.2); } 70% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -190%) scale(1); } }
+/* J-26 · o número do dano salta a 135 % e some ao subir 40 px (ds-salta), a partir do ponto em que a mesa o põe */
+@keyframes tb-fx-salta { 0% { opacity: 0; transform: translate(-50%, -150%) translateY(6px) scale(.6); } 18% { opacity: 1; transform: translate(-50%, -150%) translateY(0) scale(1.35); } 35% { opacity: 1; transform: translate(-50%, -150%) translateY(0) scale(1); } 100% { opacity: 0; transform: translate(-50%, -150%) translateY(-40px) scale(.9); } }
 @keyframes tb-fx-morre { 0% { opacity: 1; transform: none; filter: none; } 35% { opacity: 1; filter: grayscale(1) brightness(.7); } 100% { opacity: 0; transform: translateY(20px) scale(.84) rotate(-5deg); filter: grayscale(1) brightness(.5); } }
 @keyframes tb-fx-exila { 0% { opacity: 1; transform: none; filter: none; } 100% { opacity: 0; transform: scale(1.2); filter: brightness(2.4) blur(2px); } }
 @keyframes tb-fx-devolve { 0% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateY(calc(var(--fx-dir, 1) * 96px)) scale(.8); } }
@@ -575,17 +582,23 @@ a { color: var(--accent); }
 @keyframes tb-fx-quebra { 0% { opacity: 1; transform: translate(-50%, -50%) scale(1.25) rotate(0deg); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(.2) rotate(120deg); } }
 @keyframes tb-fx-brilho { 0%, 100% { box-shadow: 0 0 0 0 var(--accent-soft); } 45% { box-shadow: 0 0 0 8px var(--accent-soft); } }
 /* marcador de vida: dano treme e fica vermelho; cura pulsa e fica verde */
-.tb-fx--dano { animation: tb-fx-tremor var(--dur-fx-curto) var(--ease-out) var(--fx-atraso, 0s); border-color: var(--negative); box-shadow: 0 0 0 2px var(--negative); }
+.tb-fx--dano { animation: tb-treme var(--dur-fx-curto) var(--ease-out) var(--fx-atraso, 0s); border-color: var(--negative); box-shadow: 0 0 0 2px var(--negative); }
 .tb-fx--cura { animation: tb-fx-pulso var(--dur-fx) var(--ease-out) var(--fx-atraso, 0s); border-color: var(--positive); box-shadow: 0 0 0 2px var(--positive); }
 /* cartas: o efeito de cor mora numa camada por cima da carta (::after), o de movimento na própria carta */
 .tb-card.tb-fx::after { content: ''; position: absolute; inset: 0; z-index: 3; border-radius: var(--radius-card); pointer-events: none; opacity: 0; animation-delay: var(--fx-atraso, 0s); }
-.tb-fx--golpe { animation: tb-fx-tremor var(--dur-fx-curto) var(--ease-out) var(--fx-atraso, 0s); }
+.tb-fx--golpe { animation: tb-treme var(--dur-fx-curto) var(--ease-out) var(--fx-atraso, 0s); }
 .tb-card.tb-fx--golpe::after { background: var(--negative); animation: tb-fx-clarao var(--dur-fx) var(--ease-out) var(--fx-atraso, 0s); }
 .tb-fx--aprimora { animation: tb-fx-pulso var(--dur-fx) var(--ease-out) var(--fx-atraso, 0s); }
 .tb-card.tb-fx--aprimora::after { border: 2px solid var(--accent); animation: tb-fx-anel var(--dur-fx) var(--ease-out) var(--fx-atraso, 0s); }
 .tb-fx--enfraquece { animation: tb-fx-murcha var(--dur-fx) var(--ease-out) var(--fx-atraso, 0s); }
 .tb-card.tb-fx--enfraquece::after { background: var(--scrim); animation: tb-fx-clarao var(--dur-fx) var(--ease-out) var(--fx-atraso, 0s); }
 .tb-fx--ataque { animation: tb-fx-investe var(--dur-fx) var(--ease-out) var(--fx-atraso, 0s); z-index: 4; }
+.tb-card.tb-fx--ataque::before { animation: tb-fx-sombra-sobe var(--dur-fx) var(--ease-out) var(--fx-atraso, 0s); }
+.tb-fx-impacto { position: fixed; background: var(--negative); opacity: 0; pointer-events: none; animation: tb-fx-impacto var(--dur-fx-curto) var(--ease-out) var(--fx-atraso, 0s) both; }
+/* J-26 · odômetro da vida: uma janela de uma linha por coluna; a fita de dois números rola dentro dela */
+.tb-rolo { display: inline-block; height: 1em; overflow: hidden; vertical-align: top; }
+.tb-rolo__fita { display: flex; flex-direction: column; }
+.tb-rolo__fita > span { display: block; height: 1em; line-height: 1; }
 .tb-fx--bloqueio { animation: tb-fx-firma var(--dur-fx-curto) var(--ease-out) var(--fx-atraso, 0s); }
 .tb-card.tb-fx--bloqueio::after { border: 2px solid var(--fg); animation: tb-fx-anel var(--dur-fx) var(--ease-out) var(--fx-atraso, 0s); }
 /* J-25 · receita de pousar do DS-K, em três planos: a carta que chega sem voar (do grimório, ficha, efeito) vem de trás
@@ -600,7 +613,7 @@ a { color: var(--accent); }
 .tb-fx--abalo { animation: tb-fx-abalo var(--dur-fx) var(--ease-out) var(--fx-atraso, 0s); }
 /* o número que sobe do marcador (ou da criatura) */
 .tb-fx-num { position: fixed; transform: translate(-50%, -150%); font-family: var(--font-display); font-size: var(--text-2xl); line-height: 1; font-weight: var(--weight-medium); color: var(--fg); padding: var(--space-1) var(--space-2); border-radius: var(--radius-2); background: var(--scrim);
-  animation: tb-fx-sobe var(--dur-fx-longo) var(--ease-out) var(--fx-atraso, 0s) both; white-space: nowrap; }
+  animation: tb-fx-salta var(--dur-fx-longo) var(--ease-out) var(--fx-atraso, 0s) both; white-space: nowrap; }
 .tb-fx-num--parado { animation: none !important; opacity: 1; } /* menos movimento: o número aparece parado e sai sozinho */
 .tb-fx-num[data-tom="neg"] { color: var(--negative); }
 .tb-fx-num[data-tom="pos"] { color: var(--positive); }
@@ -37672,6 +37685,15 @@ function eventosSensoriais(antes, depois, { eventos = [], stats = null, tipos = 
   }
   for (const [p, oids] of compras) out.push({ tipo: 'compra', jogador: p, n: oids.length, oids });
   for (const [p, oids] of descartes) out.push({ tipo: 'descarte', jogador: p, n: oids.length, oids });
+  // J-26 · o combate inteiro dentro de uma jogada (ninguém bloqueia e o dano sai junto): no estado de depois ninguém está
+  // mais atacando, mas o motor guarda quem atacou neste turno (atacaramNoTurno, CR 508.1). Quem ainda está no campo, como
+  // o mesmo objeto, também investe — sem isso, contra o Shark e na mesa assistida o ataque não aparecia, só o dano
+  const mesmoTurno = (antes.turn && antes.turn.number) === (depois.turn && depois.turn.number);
+  const atacouAntes = mesmoTurno ? (antes.atacaramNoTurno || []).length : 0;
+  for (const x of (depois.atacaramNoTurno || []).slice(atacouAntes)) {
+    const o = depois.objects[x.oid];
+    if (o && o.zone === 'battlefield' && (o.zc || 0) === (x.z || 0) && !atacam.includes(o.oid)) atacam.push(o.oid);
+  }
   if (atacam.length) out.push({ tipo: 'ataque', oids: atacam, jogador: depois.turn.active });
   if (bloqueiam.length) out.push({ tipo: 'bloqueio', oids: bloqueiam });
   if (efeito('counter')) out.push({ tipo: 'anula' });
@@ -37742,6 +37764,13 @@ function planoDeSom(eventos, { espectador = null, max = 4, passo = 0.14 } = {}) 
    uma. As cinco primeiras são efeitos deste plano; a de vez é a faixa de vez (MJ8) e a de mirar, o gesto de mirar (MJ6).
    O contrato confere que toda receita da mesa tem implementação aqui, e a tela marca cada efeito com a receita dele. */
 const RECEITAS_DA_MESA = Object.freeze({ pousar: ['terreno', 'entra'], vez: ['vez'], atacar: ['ataque'], mirar: ['mira'], dano: ['golpe', 'dano'], comprar: ['compra'], vida: ['dano', 'cura'] });
+/** J-26 · receita de vida do DS: o odômetro do marcador. Uma coluna por caractere (sinal, centena, dezena, unidade),
+    alinhada à direita; só rola a coluna que muda, e o sentido diz se a vida desceu (dano) ou subiu (cura). Puro. */
+function rolosDaVida(antes, depois) {
+  const a = String(antes), d = String(depois), n = Math.max(a.length, d.length), A = a.padStart(n, ' '), D = d.padStart(n, ' ');
+  const sentido = Number(depois) < Number(antes) ? 'desce' : Number(depois) > Number(antes) ? 'sobe' : null;
+  return { sentido, colunas: [...D].map((c, i) => ({ de: A[i].trim(), para: c.trim(), rola: A[i] !== c })) };
+}
 /** A receita do DS que um item do plano de efeitos implementa (o dano no marcador de vida é a receita de vida). Puro. */
 const receitaDoEfeito = p => !p ? null : p.vida != null ? 'vida' : p.fx === 'golpe' ? 'dano' : p.fx === 'ataque' ? 'atacar' : p.fx === 'compra' ? 'comprar' : p.fx === 'terreno' || p.fx === 'entra' ? 'pousar' : null;
 function planoDeEfeitos(eventos, { espectador = null, max = 16, passo = 60, escalona = 130 } = {}) {
@@ -38061,7 +38090,7 @@ function createSom({ store = null, criaContexto = null } = {}) {
     get tocados() { return tocados.slice(); }
   };
 }
-return { eventosSensoriais, planoDeSom, planoDeEfeitos, RECEITAS_DA_MESA, receitaDoEfeito, planoDeVoo, ondePousa, planoDeSaida, monteDaPilha, saidasDaPilha, virasDeFace, fasesQueAcendem, alvosDoArrasto, origensDaMira, gestoDeMira, setasDoCombate, curvaDaSeta, marcasDaPrevia, roteiroDaJogada, createSom, limpaPrefs, duracaoDe, RECEITAS, NOMES, ORDEM, SOM_DO_TIPO, CHAVE, GLOBAL_A_PARTIR_DE };
+return { eventosSensoriais, planoDeSom, planoDeEfeitos, RECEITAS_DA_MESA, receitaDoEfeito, rolosDaVida, planoDeVoo, ondePousa, planoDeSaida, monteDaPilha, saidasDaPilha, virasDeFace, fasesQueAcendem, alvosDoArrasto, origensDaMira, gestoDeMira, setasDoCombate, curvaDaSeta, marcasDaPrevia, roteiroDaJogada, createSom, limpaPrefs, duracaoDe, RECEITAS, NOMES, ORDEM, SOM_DO_TIPO, CHAVE, GLOBAL_A_PARTIR_DE };
 })();
 
 /* ==== src/app/table.js ==== */
@@ -38910,6 +38939,40 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const meu = oid => s.objects[oid] && s.objects[oid].controller === v;
     const alvoDe = p => p.oid != null ? root.querySelector(`.tb-card[data-oid="${p.oid}"]`) : p.vida != null ? root.querySelector(p.vida === v ? '#tb-life-me' : '#tb-life-opp') : p.mesa ? root.querySelector('.tb-board') : p.pilha ? root.querySelector('#tb-stack') : null;
     const naCamada = (el, p, ms) => { el.style.setProperty('--fx-atraso', p.atraso + 'ms'); camadaFx().appendChild(el); some(el, ms + p.atraso + 80); };
+    // J-26 · receita de atacar do DS: o alvo do ataque (o jogador ou o planeswalker) recebe um clarão de impacto que começa
+    // a --dur-2 da investida; o alvo vem das setas do combate (MJ4a) e, passado o combate, é o outro jogador
+    const impacto = p => {
+      const o = s.objects[p.oid], seta = __m33.setasDoCombate(s).find(x => x.tipo === 'ataque' && x.de === String(p.oid));
+      const para = seta ? seta.para : o && (s.players || []).length === 2 ? { jogador: 1 - o.controller } : null;
+      const alvo = !para ? null : para.oid != null ? root.querySelector(`.tb-card[data-oid="${para.oid}"]`) : root.querySelector(para.jogador === v ? '#tb-life-me' : '#tb-life-opp');
+      if (!alvo) return false;
+      const r = alvo.getBoundingClientRect(), x = h('div', { class: 'tb-fx-impacto', dataset: { receita: 'atacar' } });
+      Object.assign(x.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px`, borderRadius: getComputedStyle(alvo).borderRadius });
+      naCamada(x, { ...p, atraso: p.atraso + durFx('--dur-2') }, curto); return true;
+    };
+    // J-26 · receita de vida do DS: o marcador vira um odômetro enquanto o número muda — dezena e unidade rolam separadas,
+    // com a mola, descendo no dano e subindo na cura; no fim volta a ser o número. O toque seguinte conclui o rolo.
+    const rolaVida = (el, p) => {
+      const num = el.querySelector('.tb-life__n'), depois = Number(num && num.textContent), delta = Number(String(p.texto || '').replace('−', '-'));
+      if (!num || !Number.isFinite(depois) || !Number.isFinite(delta) || !delta) return false;
+      const { sentido, colunas } = __m33.rolosDaVida(depois - delta, depois); if (!sentido) return false;
+      const cs = getComputedStyle(document.documentElement), mola = cs.getPropertyValue('--ease-spring').trim() || 'ease-out', dur = durFx('--dur-4'), vazio = '\u2007';
+      const de = sentido === 'desce' ? 'translateY(-50%)' : 'translateY(0)', ate = sentido === 'desce' ? 'translateY(0)' : 'translateY(-50%)', rolos = [];
+      num.replaceChildren(...colunas.map(c => {
+        const fita = h('span', { class: 'tb-rolo__fita' }, ...(c.rola ? (sentido === 'desce' ? [c.para, c.de] : [c.de, c.para]) : [c.para]).map(x => h('span', {}, x || vazio)));
+        if (c.rola) rolos.push(fita);
+        return h('span', { class: 'tb-rolo', dataset: c.rola ? { rola: sentido } : {} }, fita);
+      }));
+      num.dataset.receita = 'vida';
+      let faltam = rolos.length;
+      for (const fita of rolos) {
+        const a = fita.animate([{ transform: de }, { transform: ate }], { duration: dur, delay: p.atraso, easing: mola, fill: 'backwards' });
+        voos.push(a);
+        const fim = () => { const i = voos.indexOf(a); if (i >= 0) voos.splice(i, 1); if (--faltam === 0 && num.isConnected) { num.textContent = String(depois); delete num.dataset.receita; } };
+        a.onfinish = fim; a.oncancel = fim;
+      }
+      return true;
+    };
     for (const p of plano) {
       if (p.fx === 'fantasma') continue;
       if (p.fx === 'vinheta') { if (!parado) { naCamada(h('div', { class: 'tb-fx-vinheta', dataset: { tom: p.tom } }), p, medio); feitos.push('vinheta'); } continue; }
@@ -38924,9 +38987,11 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       if (p.oid != null) el.style.setProperty('--fx-dir', meu(p.oid) ? '-1' : '1'); // quem ataca avança para o outro lado da mesa
       setTimeout(() => { el.classList.remove('tb-fx', 'tb-fx--' + p.fx); if (receita && el.dataset.receita === receita) delete el.dataset.receita; if (receita === 'pousar') delete el.dataset.voou; }, longo + p.atraso);
       feitos.push(p.fx);
+      if (p.fx === 'ataque' && !parado && impacto(p)) feitos.push('impacto');
+      if (p.vida != null && (p.fx === 'dano' || p.fx === 'cura') && !parado && rolaVida(el, p)) feitos.push('rolo');
       if (p.texto) {
         const r = el.getBoundingClientRect();
-        const n = h('span', { class: 'tb-fx-num' + (parado ? ' tb-fx-num--parado' : ''), dataset: { tom: p.tom } }, p.texto); n.style.left = `${r.left + r.width / 2}px`; n.style.top = `${r.top + r.height / 2}px`;
+        const n = h('span', { class: 'tb-fx-num' + (parado ? ' tb-fx-num--parado' : ''), dataset: { tom: p.tom, receita: 'dano' } }, p.texto); n.style.left = `${r.left + r.width / 2}px`; n.style.top = `${r.top + r.height / 2}px`;
         naCamada(n, p, longo); feitos.push('num:' + p.texto);
       }
     }

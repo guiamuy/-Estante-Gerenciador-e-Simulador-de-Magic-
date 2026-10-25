@@ -15700,6 +15700,80 @@ test('e2e · J-25 pousar do DS-K: a troca de vez marca a receita; sem voo a cart
   assert.deepEqual(errors, []);
 });
 
+// J-26 (trilha jogabilidade) · combate no DS-K: a investida do atacante com as etapas do palco (antecipação, Z 30, pouso,
+// sombra que desce e clareia), o clarão de impacto no alvo a --dur-2, o tremor com giro e o número que salta, e o odômetro
+// do marcador de vida (dezena e unidade rolam com a mola); o toque seguinte conclui o rolo; menos movimento parado.
+test('e2e · J-26 combate do DS-K: a criatura investe em Z e o alvo recebe o clarão; a vida rola como odômetro e volta a ser número; o toque conclui; menos movimento parado', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start');
+  await page.fill('#mesa-seed', '4'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  await page.waitForSelector('#tb-pass'); await page.setViewportSize({ width: 360, height: 780 }); await page.waitForTimeout(300);
+  const mola = await page.evaluate(() => { const d = document.createElement('div'); d.style.transitionTimingFunction = getComputedStyle(document.documentElement).getPropertyValue('--ease-spring').trim(); document.body.appendChild(d); const v = getComputedStyle(d).transitionTimingFunction; d.remove(); return v; });
+  // uma criatura no campo e o motor avança até ela poder atacar; o ataque e o dano saem na mesma leitura
+  const oid = await page.evaluate(() => { const M = window.__estanteMesa, s = M.estado(), p = s.turn.active;
+    const o = Object.values(s.objects).find(x => x.owner === p && x.name === 'Delver of Secrets' && x.zone === 'library'); M.act({ t: 'move', p, oid: o.oid, to: 'battlefield' });
+    // o outro lado com uma criatura: o combate para na escolha de bloqueio dele, e o ataque aparece antes do dano
+    const d = Object.values(M.estado().objects).find(x => x.owner === 1 - p && x.zone === 'library' && x.name === 'Delver of Secrets'); if (d) M.act({ t: 'move', p: 1 - p, oid: d.oid, to: 'battlefield' });
+    return o.oid; });
+  const ataca = () => page.evaluate(oid => {
+    const M = window.__estanteMesa, eu = M.estado().objects[oid].controller, t0 = M.estado().turn.number;
+    for (let i = 0; i < 120; i++) {
+      const s = M.estado(), pd = s.pending;
+      if (pd && pd.kind === 'attackers' && s.turn.active === eu && s.turn.number > t0) break;
+      if (pd && pd.kind === 'attackers') M.act({ t: 'attack', p: pd.p, attackers: [] });
+      else if (pd && pd.kind === 'blockers') M.act({ t: 'block', p: pd.p, blocks: [] });
+      else if (pd && pd.kind === 'discard') M.act({ t: 'discard', p: pd.p, oid: s.zones[pd.p].hand[0] });
+      else M.act({ t: 'pass', p: s.turn.priority });
+    }
+    const vida = () => M.estado().players[1 - eu].life, antes = vida();
+    M.act({ t: 'attack', p: eu, attackers: [oid] });
+    const card = document.querySelector(`.tb-side .tb-card[data-oid="${oid}"]`), cs = card && getComputedStyle(card), sombra = card && getComputedStyle(card, '::before');
+    const imp = document.querySelector('#tb-fx .tb-fx-impacto'), ataque = { classes: card ? card.className : '', receita: card && card.dataset.receita, nome: cs && cs.animationName, curva: cs && cs.animationTimingFunction,
+      sombra: sombra && sombra.animationName, impacto: imp && { receita: imp.dataset.receita, atraso: imp.style.getPropertyValue('--fx-atraso'), nome: getComputedStyle(imp).animationName } };
+    for (let i = 0; i < 20 && vida() === antes; i++) { const s = M.estado(), pd = s.pending; if (pd && pd.kind === 'blockers') M.act({ t: 'block', p: pd.p, blocks: [] }); else M.act({ t: 'pass', p: s.turn.priority }); }
+    const n = document.querySelector('#tb-life-opp .tb-life__n'), num = document.querySelector('#tb-fx .tb-fx-num'), alvo = document.querySelector('#tb-life-opp');
+    return { ataque, antes, depois: vida(), vidaFx: alvo && { classes: alvo.className, tremor: getComputedStyle(alvo).animationName },
+      numero: num && { receita: num.dataset.receita, nome: getComputedStyle(num).animationName, texto: num.textContent },
+      rolos: n ? [...n.querySelectorAll('.tb-rolo')].map(r => ({ rola: r.dataset.rola || null, fita: [...r.querySelectorAll('.tb-rolo__fita > span')].map(x => x.textContent), curva: (r.querySelector('.tb-rolo__fita').getAnimations()[0] || { effect: { getTiming: () => ({}) } }).effect.getTiming().easing || null })) : null,
+      marca: n && n.dataset.receita, texto: n && n.textContent };
+  }, oid);
+  const a = await ataca();
+  t.diagnostic('J-26 · ' + JSON.stringify(a));
+  assert.match(a.ataque.classes, /tb-fx--ataque/); assert.equal(a.ataque.receita, 'atacar');
+  assert.equal(a.ataque.nome, 'tb-fx-investe', 'a criatura investe com as etapas do palco');
+  assert.equal(a.ataque.sombra, 'tb-fx-sombra-sobe', 'a sombra própria desce e clareia');
+  assert.ok(a.ataque.impacto, 'o alvo recebe o clarão de impacto ' + JSON.stringify(a.ataque));
+  assert.equal(a.ataque.impacto.receita, 'atacar'); assert.equal(a.ataque.impacto.nome, 'tb-fx-impacto');
+  assert.equal(parseFloat(a.ataque.impacto.atraso), 180, 'o clarão começa a --dur-2 da investida');
+  assert.equal(a.depois, a.antes - 1, 'o Delver bate 1');
+  assert.equal(a.vidaFx.tremor, 'tb-treme', 'o marcador treme com giro');
+  assert.deepEqual([a.numero.receita, a.numero.nome, a.numero.texto], ['dano', 'tb-fx-salta', '−1'], 'o número salta e sobe');
+  assert.equal(a.marca, 'vida');
+  const esperado = J => J.map(([de, para]) => de === para ? { rola: null, fita: [para], curva: null } : { rola: 'desce', fita: [para, de], curva: mola });
+  const A = String(a.antes).padStart(2), D = String(a.depois).padStart(2);
+  assert.deepEqual(a.rolos, esperado([...D].map((c, i) => [A[i].trim() || ' ', c.trim() || ' '])), 'só rola a coluna que muda, de cima para baixo, com a mola');
+  // o odômetro volta a ser o número sozinho; e o toque seguinte conclui o rolo na hora
+  await page.waitForFunction(v => document.querySelector('#tb-life-opp .tb-life__n').textContent === String(v) && !document.querySelector('#tb-life-opp .tb-rolo'), a.depois, { timeout: 3000 });
+  assert.equal(await page.getAttribute('#tb-life-opp', 'aria-label').then(x => /\d+ de vida/.test(x)), true, 'o nome falado continua dizendo a vida');
+  await auditaTela(page, 'J-26 · combate 360×780');
+  const b = await ataca();
+  assert.ok(b.rolos && b.rolos.length, 'segundo ataque: rolo de novo');
+  await page.evaluate(() => document.querySelector('#tb').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
+  await page.waitForTimeout(60);
+  assert.deepEqual(await page.evaluate(() => { const n = document.querySelector('#tb-life-opp .tb-life__n'); return { rolos: n.querySelectorAll('.tb-rolo').length, texto: n.textContent }; }), { rolos: 0, texto: String(b.depois) }, 'o toque conclui o rolo antes dos 420 ms');
+  // menos movimento: nada investe, nada de clarão nem rolo; o número troca e fica parado
+  await page.waitForFunction(() => !document.querySelector('#tb-fx'), null, { timeout: 4000 }); // os efeitos do ataque anterior saíram
+  await page.evaluate(() => window.__estanteTema.setAparencia({ movimento: 'reduzido' }));
+  const r = await ataca();
+  assert.equal(r.ataque.impacto, null, 'menos movimento: sem clarão');
+  assert.equal(r.rolos.length, 0, 'menos movimento: o número só troca'); assert.equal(r.texto, String(r.depois));
+  assert.equal(r.numero.nome, 'none', 'o número do dano parado');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/j26-combate.png' });
+  assert.deepEqual(errors, []);
+});
+
 /* ---------------- DS-K (G-287) · Ébano e Ouro, F0.1: tokens, receitas de animação e contenção de texto ---------------- */
 test('e2e · DS-K · o /ds mostra os tokens de ébano e latão, as dez receitas com os cinco campos, o palco toca em três planos e para com menos movimento; latão AA nos dois temas; nenhum controle com texto fora da caixa', { skip }, async t => {
   const { page, errors, base } = await open(t);

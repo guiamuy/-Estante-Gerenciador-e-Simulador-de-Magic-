@@ -461,3 +461,43 @@ test('J-25 · ponte com o DS-K: toda receita de animação da jogabilidade tem i
   assert.deepEqual(misto.filter(x => x.fx === 'ataque').map(x => x.atraso), [0, 60], 'a fila dos atacantes não muda com um pouso junto');
   assert.deepEqual(misto.filter(x => x.fx === 'entra').map(x => x.atraso), [0], 'um pouso sozinho começa na hora');
 });
+
+test('J-26 · combate no DS-K: o odômetro da vida rola só as colunas que mudam, no sentido do dano ou da cura; investida, tremor e número com as etapas do palco do /ds', async () => {
+  const R = (a, d) => J(S.rolosDaVida(a, d));
+  assert.deepEqual(R(20, 17), { sentido: 'desce', colunas: [{ de: '2', para: '1', rola: true }, { de: '0', para: '7', rola: true }] }, 'dezena e unidade rolam separadas');
+  assert.deepEqual(R(17, 15), { sentido: 'desce', colunas: [{ de: '1', para: '1', rola: false }, { de: '7', para: '5', rola: true }] }, 'a dezena que não muda fica parada');
+  assert.deepEqual(R(9, 13).sentido, 'sobe', 'cura sobe');
+  assert.deepEqual(R(9, 13).colunas, [{ de: '', para: '1', rola: true }, { de: '9', para: '3', rola: true }], 'a coluna que nasce rola do vazio');
+  assert.deepEqual(R(10, 9).colunas, [{ de: '1', para: '', rola: true }, { de: '0', para: '9', rola: true }], 'a coluna que some rola para o vazio');
+  assert.deepEqual(R(2, -1).colunas, [{ de: '', para: '-', rola: true }, { de: '2', para: '1', rola: true }], 'vida negativa: o sinal é uma coluna');
+  assert.equal(R(5, 5).sentido, null, 'sem mudança, sem rolo');
+  const { readFileSync } = await import('node:fs');
+  const HTML = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
+  const kf = n => (HTML.match(new RegExp(`@keyframes ${n} \\{[^\\n]*`)) || [''])[0];
+  assert.match(kf('tb-fx-investe'), /18% \{[^}]*-6px[^}]*4deg/, 'antecipação de 6 px');
+  assert.match(kf('tb-fx-investe'), /48% \{[^}]*30px\), 30px\)[^}]*scale\(1\.03\)/, 'investida de 30 px e Z 30');
+  assert.match(kf('tb-fx-investe'), /perspective\(700px\)/);
+  assert.match(kf('tb-fx-sombra-sobe'), /48% \{ opacity: \.3;/, 'a sombra clareia na investida');
+  assert.match(kf('tb-treme'), /rotate\(-1\.5deg\)[^}]*\}[^}]*rotate\(1\.5deg\)/, 'tremor com 1,5° de giro');
+  assert.match(kf('tb-fx-salta'), /18% \{[^}]*scale\(1\.35\)/, 'o número salta a 135 %');
+  assert.match(kf('tb-fx-salta'), /100% \{ opacity: 0;[^}]*translateY\(-40px\)/, 'e some ao subir 40 px');
+  assert.match(HTML, /\.tb-fx--dano \{ animation: tb-treme /); assert.match(HTML, /\.tb-fx--golpe \{ animation: tb-treme /);
+  assert.match(HTML, /\.tb-card\.tb-fx--ataque::before \{ animation: tb-fx-sombra-sobe var\(--dur-fx\) var\(--ease-out\)/);
+  assert.match(HTML, /\.tb-fx-num \{[^}]*animation: tb-fx-salta var\(--dur-fx-longo\) var\(--ease-out\)/);
+  assert.match(kf('tb-fx-tremor'), /translateX\(-5px\); \}/, 'o tremor de fora da mesa (erro do e-mail) não mudou');
+});
+
+test('J-26 · o ataque aparece também quando o combate inteiro cabe numa jogada: quem atacou neste turno e continua no campo investe; quem morreu ou trocou de objeto, não; de um turno para o outro, só os novos', () => {
+  const a = st([ob(5, 'battlefield', { name: 'Bicho' }), ob(6, 'battlefield', { name: 'Bicho' }), ob(7, 'battlefield', { name: 'Bicho' })]);
+  const d = { ...J(a), atacaramNoTurno: [{ oid: 5, z: 0 }, { oid: 6, z: 0 }, { oid: 7, z: 0 }] };
+  d.objects[6].zone = 'graveyard'; d.objects[7].zc = 1; // a 6 morreu no bloqueio; a 7 saiu e voltou (outro objeto)
+  const ataque = ev(a, d).filter(e => e.tipo === 'ataque');
+  assert.deepEqual(ataque, [{ tipo: 'ataque', oids: [5], jogador: 0 }]);
+  const segundo = { ...J(d), atacaramNoTurno: [...d.atacaramNoTurno, { oid: 5, z: 0 }] }; segundo.objects[6].zone = 'graveyard'; segundo.objects[7].zc = 1;
+  assert.deepEqual(ev(d, segundo).filter(e => e.tipo === 'ataque'), [{ tipo: 'ataque', oids: [5], jogador: 0 }], 'combate extra: só a declaração nova');
+  assert.deepEqual(ev(d, J(d)).filter(e => e.tipo === 'ataque'), [], 'nada novo, nada de ataque');
+  const turnoNovo = { ...J(d), turn: { number: 4, active: 0, step: 'main1' }, atacaramNoTurno: [{ oid: 5, z: 0 }] }; turnoNovo.objects[6].zone = 'graveyard'; turnoNovo.objects[7].zc = 1;
+  assert.deepEqual(ev(d, turnoNovo).filter(e => e.tipo === 'ataque'), [{ tipo: 'ataque', oids: [5], jogador: 0 }], 'turno novo: a lista recomeça');
+  const declarado = J(a); declarado.objects[5].attacking = 1; declarado.atacaramNoTurno = [{ oid: 5, z: 0 }];
+  assert.deepEqual(ev(a, declarado).filter(e => e.tipo === 'ataque'), [{ tipo: 'ataque', oids: [5], jogador: 0 }], 'declarado e ainda atacando: uma vez só');
+});
