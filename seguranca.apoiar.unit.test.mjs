@@ -26,37 +26,68 @@ test('P-20 · região provável pelo fuso e pelo idioma (sem rede)', () => {
   assert.equal(r(undefined, undefined), 'outro');
 });
 
-test('P-20 · ordem por região: todas as formas sempre aparecem; muda só a primeira e a sequência', () => {
+// P-21: a prévia (`exemplo`) mostra todas; com dados reais, só as formas que têm ação — PayPal e GitHub Sponsors sem
+// link saem da tela em vez de mostrar um botão que não faz nada.
+const PREVIA = { exemplo: true, formas: S.APOIO.formas };
+test('P-20 · ordem por região: na prévia todas as formas aparecem; muda só a primeira e a sequência', () => {
   const todas = S.APOIO.formas.map(f => f.id).sort();
   for (const reg of ['br', 'latam', 'us', 'eu', 'outro']) {
-    const o = S.ordemDoApoio(reg).map(f => f.id);
+    const o = S.ordemDoApoio(reg, PREVIA).map(f => f.id);
     assert.equal(js([...o].sort()), js(todas), 'nenhuma forma some em ' + reg);
   }
-  assert.equal(S.ordemDoApoio('br')[0].id, 'pix');
-  assert.equal(S.ordemDoApoio('latam')[0].id, 'paypal');
-  assert.equal(S.ordemDoApoio('us')[0].id, 'kofi');
-  assert.equal(S.ordemDoApoio('eu')[0].id, 'kofi');
-  assert.equal(S.ordemDoApoio('latam').at(-1).id, 'pix', 'fora do Brasil o Pix vai para o fim');
+  assert.equal(S.ordemDoApoio('br', PREVIA)[0].id, 'pix');
+  assert.equal(S.ordemDoApoio('latam', PREVIA)[0].id, 'paypal');
+  assert.equal(S.ordemDoApoio('us', PREVIA)[0].id, 'kofi');
+  assert.equal(S.ordemDoApoio('eu', PREVIA)[0].id, 'kofi');
+  assert.equal(S.ordemDoApoio('latam', PREVIA).at(-1).id, 'pix', 'fora do Brasil o Pix vai para o fim');
+});
+
+test('P-21 · com os dados reais: só Pix e Ko-fi na tela (as formas sem link somem), na ordem da região', () => {
+  assert.equal(js(S.ordemDoApoio('br').map(f => f.id)), js(['pix', 'kofi']));
+  assert.equal(js(S.ordemDoApoio('us').map(f => f.id)), js(['kofi', 'pix']));
+  assert.equal(js(S.ordemDoApoio('latam').map(f => f.id)), js(['kofi', 'pix']), 'sem PayPal, a América Latina começa pelo Ko-fi');
+  assert.equal(js(S.ordemDoApoio('eu').map(f => f.id)), js(['kofi', 'pix']));
 });
 
 test('P-20 · Pix copia e cola: o exemplo do manual do BR Code (Banco Central) sai igual, com o CRC certo', () => {
   const p = S.pixCopiaECola({ chave: '123e4567-e12b-12d1-a456-426655440000', nome: 'Fulano de Tal', cidade: 'BRASILIA' });
   assert.equal(p, '00020126580014br.gov.bcb.pix0136123e4567-e12b-12d1-a456-4266554400005204000053039865802BR5913Fulano de Tal6008BRASILIA62070503***63041D3D');
-  // acento sai, tamanhos máximos do padrão (nome 25, cidade 15) e o CRC confere em qualquer texto
+  // acento sai, tamanhos máximos do padrão (nome 25, cidade 15) e o CRC confere em qualquer texto.
+  // P-21 (expectativa mudada com motivo): antes o texto era cortado seco ("Jose da Conceicao Ribeiro", "Sao Jose dos Ca");
+  // agora cabe sem cortar palavra ao meio — tira "de/da/do/dos" do meio e vira inicial as palavras do meio
   const q = S.pixCopiaECola({ chave: 'apoio@exemplo.com', nome: 'José da Conceição Ribeiro Neto', cidade: 'São José dos Campos' });
-  assert.match(q, /5925Jose da Conceicao Ribeiro6015/); assert.match(q, /6015Sao Jose dos Ca62/);
+  assert.match(q, /5919Jose C Ribeiro Neto6015Sao Jose Campos62/);
   assert.equal(q.slice(-4), S.crc16(q.slice(0, -4)));
+  assert.equal(S.cabeNoBr('Fulano de Tal', 25), 'Fulano de Tal', 'o que já cabe não muda (partícula fica)');
+  assert.equal(S.cabeNoBr('Guilherme de Aguiar Schmidt Amuy', 25), 'Guilherme A Schmidt Amuy');
+  assert.equal(S.cabeNoBr('São José do Rio Preto', 15), 'Sao J Rio Preto');
+  assert.equal(S.cabeNoBr('Pindamonhangabainha', 15), 'Pindamonhangaba', 'uma palavra só e longa: corte seco, último recurso');
+  for (const [t, m] of [['Maria das Graças Xavier de Souza Lima Albuquerque', 25], ['Santa Rita do Passa Quatro', 15], ['  a  ', 25]]) {
+    const r = S.cabeNoBr(t, m); assert.ok(r.length <= m, t + ' cabe em ' + m); assert.doesNotMatch(r, /^\s|\s$|\s\s/, 'sem espaço sobrando');
+  }
   assert.equal(S.pixCopiaECola({ chave: '', nome: 'A', cidade: 'B' }), null, 'sem chave, sem código');
 });
 
 test('P-20 · trava dos dados de exemplo: com `exemplo`, nada copia nem abre e o Perfil não mostra a entrada', () => {
-  assert.equal(S.APOIO.exemplo, true, 'esta leva publica só a prévia; os dados reais entram numa leva própria');
-  assert.equal(S.apoioPronto(), false);
-  for (const f of S.APOIO.formas) {
-    assert.equal(S.acaoDaForma(f), null, 'forma de exemplo sem ação: ' + f.id);
-    if (f.url) assert.fail('dado de exemplo não leva endereço: ' + f.id);
-  }
-  assert.ok(!/@|^\d{11}$/.test(S.APOIO.formas.find(f => f.id === 'pix').chave), 'a chave de exemplo não tem forma de chave Pix (e-mail, CPF): ninguém paga para ela por engano');
+  assert.equal(S.apoioPronto(PREVIA), false);
+  for (const f of PREVIA.formas) assert.equal(S.acaoDaForma(f, PREVIA), null, 'forma de prévia sem ação: ' + f.id);
+});
+
+test('P-21 · dados reais fixados: chave e link só mudam com leva (o portão confere o valor, não só a forma)', () => {
+  assert.equal(S.APOIO.exemplo, false); assert.equal(S.apoioPronto(), true);
+  const pix = S.APOIO.formas.find(f => f.id === 'pix'), kofi = S.APOIO.formas.find(f => f.id === 'kofi');
+  // decisão D9 do dono (25/10/2026): chave aleatória (nunca CPF, telefone ou e-mail, que ficariam públicos)
+  assert.equal(pix.chave, '918fb776-df41-4cfd-bbcc-07a03db58f87');
+  assert.match(pix.chave, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/, 'forma de chave aleatória (EVP)');
+  assert.equal(pix.titular, 'Guilherme de Aguiar Schmidt Amuy'); assert.equal(pix.cidade, 'São José do Rio Preto');
+  assert.equal(kofi.url, 'https://ko-fi.com/theshelf'); assert.equal(kofi.endereco, 'ko-fi.com/theshelf');
+  const a = S.acaoDaForma(pix);
+  assert.equal(a.tipo, 'copiar'); assert.equal(a.chave, pix.chave);
+  assert.equal(a.codigo, '00020126580014br.gov.bcb.pix0136918fb776-df41-4cfd-bbcc-07a03db58f8752040000530398658' +
+    '02BR5924Guilherme A Schmidt Amuy6015Sao J Rio Preto62070503***6304' + S.crc16(a.codigo.slice(0, -4)));
+  assert.equal(a.codigo.length, 4 + a.codigo.slice(0, -4).length);
+  assert.equal(js(S.acaoDaForma(kofi)), js({ tipo: 'abrir', url: 'https://ko-fi.com/theshelf' }));
+  for (const id of ['paypal', 'github']) assert.equal(S.acaoDaForma(S.APOIO.formas.find(f => f.id === id)), null, id + ' sem link não age');
 });
 
 test('P-20 · com dados reais: o link abre fora e a origem dele está em LINKS (o que sai do aparelho e a política)', () => {
@@ -69,7 +100,8 @@ test('P-20 · com dados reais: o link abre fora e a origem dele está em LINKS (
   assert.equal(S.acaoDaForma({ id: 'x', tipo: 'link', url: 'javascript:alert(1)' }, real), null, 'só https');
   // o contrato que a leva dos dados reais precisa cumprir: toda origem de link de apoio em LINKS
   assert.equal(js(S.origensDoApoio(real)), js(['https://ko-fi.com']));
-  assert.equal(js(S.origensDoApoio(S.APOIO)), js([]), 'a prévia não cita origem nenhuma');
+  assert.equal(js(S.origensDoApoio(PREVIA)), js([]), 'a prévia não cita origem nenhuma');
+  assert.equal(js(S.origensDoApoio(S.APOIO)), js(['https://ko-fi.com']), 'P-21: os dados reais abrem só o Ko-fi');
   const faltam = S.origensDoApoio(S.APOIO).filter(o => !S.ORIGENS.includes(o));
   assert.equal(js(faltam), '[]', 'origem de apoio fora de LINKS: acrescente em LINKS (src/app/saida.js) na mesma leva');
 });

@@ -528,7 +528,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ed ✅ | SEG10 relato só de quem tem acesso ao repositório: registro de outra conta não ganha etiqueta nem entra na tabela, a não ser que o dono o aceite com `relato-aceito` (leva P-17) | SEG | ½ | — |
 | 16º-ef ✅ | SEG11 licença: `LICENSE` com todos os direitos reservados ao autor (Guilherme de Aguiar Schmidt Amuy), separando o que é de terceiros (Wizards, Scryfall, MTGJSON, Tesseract) (leva P-18) | SEG | ½ | nome do dono |
 | 16º-eg ✅ | SEG9b sala nova sempre com 6 símbolos: o recuo para 4 ao criar saiu depois que o dono publicou as regras da P-16 no console; banco que recusa vira erro, nunca código curto (leva P-19) | SEG | ½ | regras publicadas (dono, 12/10) |
-| 16º-ei ✅ | MON1 Apoiar a Estante: Pix (chave e copia e cola), Ko-fi, PayPal e GitHub Sponsors numa tela, a forma da região primeiro; prévia com dados de exemplo travada (leva P-20) | SEG | 1 | dados reais do dono |
+| 16º-ei ✅ | MON1 Apoiar a Estante: Pix (chave e copia e cola), Ko-fi, PayPal e GitHub Sponsors numa tela, a forma da região primeiro; prévia com dados de exemplo travada (leva P-20); **dados reais do dono (D9) na P-21**: Pix e Ko-fi no ar, entrada no Perfil; PayPal e GitHub Sponsors fora da tela até ter link | SEG | 2 | — |
 | 16º-ej ✅ | I4c a ficha com a arte dela: ficha de duas faces da Scryfall ("Dinosaur // Treasure") só vale pela face com o nome da ficha; arte errada já guardada deixa de valer (relato #20, leva G-257) | I | 1 | teste no aparelho |
 | 16º-ek ✅ | M13b dano de comandante à vista: "Comandante N de 21" no selo de vida e detalhe por comandante no motor completo; o motor já contava e tirava o jogador com 21 (relato #20, leva G-259) | M | 1 | teste no aparelho |
 | 16º-el ✅ | N3b filtrar notícias pelas suas palavras: criar, ligar, desligar e apagar; com várias ligadas, só as que têm todas; fontes continuam (relato #19, leva G-260) | N | 1 | teste no aparelho |
@@ -12872,7 +12872,7 @@ prevista no fim para medir quadros no Galaxy S e corrigir o que o portão pegar.
   listas do Magic Online): fica como recomendação para a trilha de design. Isto não é parecer jurídico; registro no INPI
   continua opcional antes de monetizar.
 
-**MON1 · Apoiar a Estante** 🟡 prévia (leva P-20, 12/10/2026) — decisão D7 do dono (doações; anúncios fora); ameaças em
+**MON1 · Apoiar a Estante** ✅ (prévia na leva P-20, 12/10/2026; dados reais na P-21, 25/10/2026) — decisão D7 do dono (doações; anúncios fora); ameaças em
 `claude/PLANO-monetizacao-seguranca.md`, plataformas em `claude/DOACOES-plataformas.md` (Projeto).
 - **Valor:** quem gosta da Estante apoia do jeito mais fácil de onde estiver: Pix no Brasil, PayPal na América Latina,
   Ko-fi nos EUA e na Europa, GitHub Sponsors para quem programa — todas na tela, a da região primeiro.
@@ -12893,6 +12893,19 @@ prevista no fim para medir quadros no Galaxy S e corrigir o que o portão pegar.
   se quiser, do GitHub Sponsors. Uma leva troca o `APOIO`, põe as origens em LINKS e libera a entrada no Perfil.
 - **Fora:** QR do Pix (para quem abre no computador; o celular copia e cola), valor sugerido, patrocínio próprio (MON2) e
   rede de anúncios (MON3).
+- **P-21 · dados reais** ✅ (leva P-21, 25/10/2026; decisão D9 do dono: Pix + Ko-fi, "D: A" para a BI2-4) — `APOIO.exemplo`
+  `false`; Pix com a chave aleatória do dono e "Em nome de <titular>" sob a chave; Ko-fi `https://ko-fi.com/theshelf`, com
+  a origem em `LINKS` ("O que sai do aparelho" ganha "Apoiar a Estante (Ko-fi)"); a entrada "Apoiar a Estante" aparece
+  no Perfil. **Forma sem link some da tela** (`ordemDoApoio` filtra quem não tem ação; na prévia todas aparecem): PayPal e
+  GitHub Sponsors voltam quando o dono mandar o endereço. **BR Code sem cortar palavra** (`cabeNoBr`): se o nome ou a
+  cidade não cabem (25 e 15), tira "de/da/do/das/dos/e" do meio e vira inicial as palavras do meio
+  ("Guilherme A Schmidt Amuy", "Sao J Rio Preto"); o corte seco ficou como último recurso. Quem recebe não muda: o
+  banco de quem doa mostra o nome registrado da chave. Código decodificado campo a campo e CRC16 conferido por fora.
+  **Testes:** `seguranca.apoiar.unit` (+2: só Pix e Ko-fi na ordem da região; **valores fixados** — chave, titular,
+  cidade, link e o copia e cola inteiro só mudam com leva; expectativa do corte seco trocada pela abreviação, com o
+  motivo no teste); e2e "P-21" (substitui o "P-20": do Perfil, copia chave e código reais, abre o Ko-fi, sem rede o
+  link espera) e "P-6" (`#saida-links` com `apoio`). **Dado público declarado:** a chave, o nome do titular e a cidade
+  ficam no app e no repositório, que é público (o dono foi avisado no guia de 25/10).
 
 ### P · Plataforma
 

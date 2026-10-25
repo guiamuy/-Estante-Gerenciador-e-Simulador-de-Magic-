@@ -16290,7 +16290,10 @@ const LINKS = [
   { id: 'relatos', nome: 'Relatos no GitHub', icone: 'relato', origens: ['https://github.com'],
     vai: 'Ao tocar em Enviar: o texto do relato, a tela, a versão do app e o tamanho da tela abrem numa página do GitHub; nada é publicado sem você confirmar lá.' },
   { id: 'sites', nome: 'Sites das cartas e das listas', icone: 'externo', origens: ['https://scryfall.com', 'https://topdeck.gg', 'https://www.mtgo.com', 'https://guiamuy.github.io'],
-    vai: 'Ao tocar em um link: o site abre noutra aba.' }
+    vai: 'Ao tocar em um link: o site abre noutra aba.' },
+  // P-21 · MON1 · a página de doação abre fora do app; nada da Estante vai junto (nem lista, nem conta)
+  { id: 'apoio', nome: 'Apoiar a Estante (Ko-fi)', icone: 'vida', origens: ['https://ko-fi.com'],
+    vai: 'Ao tocar em Doar: a página da Estante no Ko-fi abre noutra aba. O pagamento acontece lá; o app não envia nada.' }
 ];
 const ORIGENS = [...DESTINOS, ...LINKS].flatMap(d => d.origens);
 
@@ -16396,11 +16399,13 @@ async function apagaTudoComNuvem({ nuvem = null, ...resto }) {
    LINKS acima (o teste `seguranca.apoiar.unit` cobra).
    ===================================================================== */
 const APOIO = {
-  exemplo: true,
+  // P-21 · dados reais do dono (D9, 25/10/2026): chave Pix aleatória e página do Ko-fi, públicos por decisão dele.
+  // PayPal e GitHub Sponsors sem link ficam fora da tela (`ordemDoApoio`) até o dono mandar o endereço.
+  exemplo: false,
   formas: [
-    { id: 'pix', tipo: 'pix', nome: 'Pix', icone: 'raio', chave: 'chave-de-exemplo', titular: 'Nome de exemplo', cidade: 'Cidade',
+    { id: 'pix', tipo: 'pix', nome: 'Pix', icone: 'raio', chave: '918fb776-df41-4cfd-bbcc-07a03db58f87', titular: 'Guilherme de Aguiar Schmidt Amuy', cidade: 'São José do Rio Preto',
       resumo: 'Na hora, sem taxa, direto do app do seu banco.', regiao: 'Para quem tem conta no Brasil' },
-    { id: 'kofi', tipo: 'link', nome: 'Ko-fi', icone: 'vida', endereco: 'ko-fi.com/…', url: null,
+    { id: 'kofi', tipo: 'link', nome: 'Ko-fi', icone: 'vida', endereco: 'ko-fi.com/theshelf', url: 'https://ko-fi.com/theshelf',
       resumo: 'Cartão, Apple Pay ou Google Pay. Uma vez ou todo mês.', regiao: 'Melhor nos EUA, na Europa e no resto do mundo' },
     { id: 'paypal', tipo: 'link', nome: 'PayPal', icone: 'globo', endereco: 'paypal.me/…', url: null,
       resumo: 'Saldo PayPal ou cartão, em qualquer moeda.', regiao: 'Melhor na América Latina' },
@@ -16427,17 +16432,32 @@ function regiaoProvavel({ fuso = '', idioma = '' } = {}) {
   return 'outro';
 }
 const regiaoDoAparelho = () => { let fuso = '', idioma = ''; try { fuso = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) { /* sem Intl */ } try { idioma = navigator.language || ''; } catch (e) { /* sem navigator */ } return regiaoProvavel({ fuso, idioma }); };
-function ordemDoApoio(regiao, dados = APOIO) { const o = ORDEM_APOIO[regiao] || ORDEM_APOIO.outro; return [...dados.formas].sort((a, b) => o.indexOf(a.id) - o.indexOf(b.id)); }
+/** As formas na ordem da região. Com dados reais, só as que têm ação (chave ou link https): forma sem endereço some da
+    tela em vez de mostrar um botão que não faz nada. Na prévia (`exemplo`), todas aparecem. */
+function ordemDoApoio(regiao, dados = APOIO) { const o = ORDEM_APOIO[regiao] || ORDEM_APOIO.outro; return dados.formas.filter(f => dados.exemplo || acaoDaForma(f, dados)).sort((a, b) => o.indexOf(a.id) - o.indexOf(b.id)); }
 /** CRC16-CCITT (polinômio 0x1021, início 0xFFFF), como pede o BR Code. */
 function crc16(txt) { let c = 0xFFFF; for (const b of new TextEncoder().encode(txt)) { c ^= b << 8; for (let i = 0; i < 8; i++) c = c & 0x8000 ? ((c << 1) ^ 0x1021) & 0xFFFF : (c << 1) & 0xFFFF; } return c.toString(16).toUpperCase().padStart(4, '0'); }
 const semAcento = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\x20-\x7E]/g, '');
+/** Cabe no campo do BR Code (nome 25, cidade 15) sem cortar palavra ao meio (P-21): tira acento; se não couber, tira
+    "de/da/do/das/dos/e" do meio e vira inicial as palavras do meio, da segunda em diante; o corte seco é o último recurso.
+    "Guilherme de Aguiar Schmidt Amuy" → "Guilherme A Schmidt Amuy"; "São José do Rio Preto" → "Sao J Rio Preto".
+    Quem recebe não muda: o app do banco de quem doa mostra o nome registrado da chave. */
+const PARTICULAS_BR = /^(de|da|do|das|dos|e)$/i;
+function cabeNoBr(texto, max) {
+  let p = semAcento(texto).trim().split(/\s+/).filter(Boolean);
+  const junta = () => p.join(' ');
+  if (junta().length <= max) return junta();
+  p = p.filter((w, i) => i === 0 || i === p.length - 1 || !PARTICULAS_BR.test(w));
+  for (let i = 1; i < p.length - 1 && junta().length > max; i++) p[i] = p[i][0];
+  return junta().length <= max ? junta() : junta().slice(0, max).trimEnd();
+}
 /** "Pix copia e cola" (BR Code estático, sem valor: quem doa escolhe o valor no banco). */
 function pixCopiaECola({ chave, nome, cidade }) {
   const k = String(chave || '').trim(); if (!k) return null;
   const campo = (id, v) => id + String(v.length).padStart(2, '0') + v;
   const conta = campo('00', 'br.gov.bcb.pix') + campo('01', k);
   const corpo = campo('00', '01') + campo('26', conta) + campo('52', '0000') + campo('53', '986') + campo('58', 'BR') +
-    campo('59', semAcento(nome).slice(0, 25) || 'N') + campo('60', semAcento(cidade).slice(0, 15) || 'C') + campo('62', campo('05', '***')) + '6304';
+    campo('59', cabeNoBr(nome, 25) || 'N') + campo('60', cabeNoBr(cidade, 15) || 'C') + campo('62', campo('05', '***')) + '6304';
   return corpo + crc16(corpo);
 }
 const apoioPronto = (dados = APOIO) => !dados.exemplo;
@@ -16474,6 +16494,7 @@ function createApoioScreen({ dados = APOIO, regiao = regiaoDoAparelho(), copiar 
     h('p', { class: 'apoio-item__regiao' }, primario && NOME_REGIAO[regiao] ? 'Para quem está ' + NOME_REGIAO[regiao] : f.regiao),
     f.tipo === 'pix' ? h('p', { class: 'apoio-item__chave', lang: 'en' }, h('span', { class: 'apoio-item__rotulo' }, 'Chave '), f.chave)
       : h('p', { class: 'apoio-item__chave', lang: 'en' }, f.endereco || ''),
+    f.tipo === 'pix' && !dados.exemplo && f.titular ? h('p', { class: 'apoio-item__regiao', id: 'apoio-pix-titular' }, 'Em nome de ' + f.titular) : null,
     Row({ class: 'ds-row--wrap apoio-item__acoes' }, ...botoes(f, primario))));
   const [primeira, ...outras] = formas;
   return Stack({ class: 'ds-wrap', id: 'apoio', dataset: { regiao, exemplo: String(!!dados.exemplo) }, style: { paddingTop: 'var(--space-5)', paddingBottom: 'var(--space-8)' } },
@@ -16486,7 +16507,7 @@ function createApoioScreen({ dados = APOIO, regiao = regiaoDoAparelho(), copiar 
     h('div', { class: 'apoio-lista', id: 'apoio-outras' }, ...outras.map(f => cartao(f, false))),
     Text('O app não guarda nem envia nada sobre a sua doação: o pagamento acontece no seu banco ou no site da plataforma.', { size: 'xs', tone: 'muted', attrs: { id: 'apoio-privacidade' } }));
 }
-return { DESTINOS, LINKS, ORIGENS, TEXTO_USO, createSaidaScreen, apagaTudoDoAparelho, apagaTudoComNuvem, APOIO, regiaoProvavel, ordemDoApoio, crc16, pixCopiaECola, apoioPronto, acaoDaForma, origensDoApoio, createApoioScreen };
+return { DESTINOS, LINKS, ORIGENS, TEXTO_USO, createSaidaScreen, apagaTudoDoAparelho, apagaTudoComNuvem, APOIO, regiaoProvavel, ordemDoApoio, crc16, cabeNoBr, pixCopiaECola, apoioPronto, acaoDaForma, origensDoApoio, createApoioScreen };
 })();
 
 /* ==== src/app/relatos.js ==== */

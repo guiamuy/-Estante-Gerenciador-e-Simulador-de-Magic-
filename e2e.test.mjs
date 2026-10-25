@@ -4307,7 +4307,7 @@ test('e2e · P-6 O que sai do aparelho: do Perfil (Dados) abre a lista dos servi
   await page.click('#perfil-saida'); await page.waitForSelector('#saida-destinos');
   assert.equal(await page.locator('h1').innerText(), 'O que sai do aparelho');
   assert.deepEqual(await page.$$eval('#saida-destinos .saida-item', es => es.map(e => e.dataset.destino)), ['scryfall', 'github', 'cambio', 'leitor', 'google', 'firebase']);
-  assert.deepEqual(await page.$$eval('#saida-links .saida-item', es => es.map(e => e.dataset.destino)), ['relatos', 'sites']);
+  assert.deepEqual(await page.$$eval('#saida-links .saida-item', es => es.map(e => e.dataset.destino)), ['relatos', 'sites', 'apoio']);
   // sem Client ID e sem banco (o publicado hoje): conta e online desligados, o resto em uso
   assert.equal(await page.getAttribute('#saida-google', 'data-estado'), 'desligado');
   assert.equal(await page.getAttribute('#saida-firebase', 'data-estado'), 'desligado');
@@ -12401,33 +12401,45 @@ test('e2e · T-130 · CR 201.4 · escolher um nome de carta: a folha lista o cat
   assert.deepEqual(M.errors, []);
 });
 
-/* ---------------- P-20 · MON1 · Apoiar a Estante (prévia com dados de exemplo) ---------------- */
-test('e2e · P-20 Apoiar a Estante: todas as formas na tela, a da região primeiro (Brasil: Pix); prévia não copia nem abre; Perfil sem a entrada; sem rede o Pix segue; sem sobreposição nas quatro medidas e dois temas; volta ao Perfil', { skip }, async t => {
+/* ---------------- P-20/P-21 · MON1 · Apoiar a Estante (dados reais do dono desde a P-21) ---------------- */
+// P-21 (expectativa mudada com motivo): a P-20 publicou a prévia travada; com os dados reais (D9, 25/10/2026) a tela
+// mostra só Pix e Ko-fi, copia a chave e o copia e cola de verdade, abre o Ko-fi e o Perfil ganha a entrada. A trava da
+// prévia segue coberta em `seguranca.apoiar.unit` (acaoDaForma com `exemplo`).
+test('e2e · P-21 Apoiar a Estante: do Perfil abre a tela; Brasil: Pix primeiro, depois Ko-fi (sem PayPal nem GitHub sem link); copia a chave e o copia e cola reais; Doar abre o Ko-fi; sem rede o Pix segue e o link espera; sem sobreposição nas quatro medidas e dois temas; volta ao Perfil', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.setViewportSize({ width: 360, height: 780 });
   // fuso do Brasil (o app só lê o fuso e o idioma do aparelho; nada sai)
   await page.addInitScript(() => { const r = Intl.DateTimeFormat.prototype.resolvedOptions; Intl.DateTimeFormat.prototype.resolvedOptions = function () { return { ...r.call(this), timeZone: 'America/Sao_Paulo' }; }; window.__copias = []; navigator.clipboard.writeText = async t => { window.__copias.push(t); }; window.open = u => { window.__abertos = (window.__abertos || []).concat(u); return null; }; });
-  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-saida');
-  assert.equal(await page.locator('#perfil-apoiar').count(), 0, 'com dados de exemplo o Perfil não mostra a entrada');
-  await page.goto(base + '#/perfil/apoiar'); await page.waitForSelector('#apoio');
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-apoiar');
+  assert.match(await page.innerText('#perfil-apoiar'), /Apoiar a Estante/);
+  await page.click('#perfil-apoiar'); await page.waitForSelector('#apoio');
   assert.equal(await page.locator('h1').innerText(), 'Apoiar a Estante');
   assert.equal(await page.getAttribute('#apoio', 'data-regiao'), 'br');
-  assert.match(await page.innerText('#apoio-previa'), /Prévia com dados de exemplo/);
+  assert.equal(await page.getAttribute('#apoio', 'data-exemplo'), 'false');
+  assert.equal(await page.locator('#apoio-previa').count(), 0, 'sem o aviso de prévia');
   const ordem = await page.$$eval('.apoio-item', es => es.map(e => e.dataset.forma));
-  assert.deepEqual(ordem, ['pix', 'kofi', 'paypal', 'github'], 'todas as formas, a do Brasil primeiro');
-  assert.match(await page.innerText('#apoio-forma-pix'), /Recomendado[\s\S]*Para quem está no Brasil/);
+  assert.deepEqual(ordem, ['pix', 'kofi'], 'só as formas com link; a do Brasil primeiro');
+  assert.match(await page.innerText('#apoio-forma-pix'), /Recomendado[\s\S]*Para quem está no Brasil[\s\S]*918fb776-df41-4cfd-bbcc-07a03db58f87/);
+  assert.equal(await page.innerText('#apoio-pix-titular'), 'Em nome de Guilherme de Aguiar Schmidt Amuy');
+  assert.match(await page.innerText('#apoio-forma-kofi'), /ko-fi\.com\/theshelf/);
   assert.equal(await page.locator('.ds-btn--primary:visible').count(), 1, 'um primário: o do cartão em destaque');
-  for (const id of ['#apoio-pix-chave', '#apoio-pix-codigo', '#apoio-kofi', '#apoio-paypal', '#apoio-github']) assert.ok((await page.locator(id).boundingBox()).height >= 44, id + ' com 44 px');
-  // prévia: nada copia nem abre, e o app diz por quê
-  await page.click('#apoio-pix-chave'); await page.waitForSelector('#ds-toast'); assert.match(await page.innerText('#ds-toast'), /Prévia/);
+  for (const id of ['#apoio-pix-chave', '#apoio-pix-codigo', '#apoio-kofi']) assert.ok((await page.locator(id).boundingBox()).height >= 44, id + ' com 44 px');
+  await page.click('#apoio-pix-chave'); await page.waitForFunction(() => document.querySelector('#ds-toast')?.innerText.includes('Chave Pix copiada'));
+  await page.click('#apoio-pix-codigo'); await page.waitForFunction(() => window.__copias.length === 2);
+  const [chave, codigo] = await page.evaluate(() => window.__copias);
+  assert.equal(chave, '918fb776-df41-4cfd-bbcc-07a03db58f87');
+  assert.match(codigo, /^000201265800\d{2}br\.gov\.bcb\.pix0136918fb776-df41-4cfd-bbcc-07a03db58f87[\s\S]*5924Guilherme A Schmidt Amuy6015Sao J Rio Preto62070503\*\*\*6304[0-9A-F]{4}$/);
   await page.click('#apoio-kofi');
-  assert.deepEqual(await page.evaluate(() => [window.__copias.length, (window.__abertos || []).length]), [0, 0]);
+  assert.deepEqual(await page.evaluate(() => window.__abertos), ['https://ko-fi.com/theshelf']);
   await emTodasAsMedidas(page, 'apoiar a estante');
-  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/p20-apoiar.png', fullPage: true });
-  // sem rede: o aviso aparece e diz que o Pix funciona
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/p21-apoiar.png', fullPage: true });
+  // sem rede: o aviso aparece; o Pix copia, o Ko-fi espera a conexão (não abre)
   await page.context().setOffline(true);
   await page.goto(base + '#/perfil'); await page.goto(base + '#/perfil/apoiar'); await page.waitForSelector('#apoio-sem-rede');
   assert.match(await page.innerText('#apoio-sem-rede'), /o Pix funciona/);
+  await page.evaluate(() => { window.__abertos = []; });
+  await page.click('#apoio-kofi'); await page.waitForFunction(() => document.querySelector('#ds-toast')?.innerText.includes('Sem internet'));
+  assert.equal(await page.evaluate(() => (window.__abertos || []).length), 0, 'sem rede o link não abre');
   await page.context().setOffline(false);
   await page.click('#apoio-voltar'); await page.waitForSelector('#perfil-saida');
   assert.deepEqual(errors, []);
