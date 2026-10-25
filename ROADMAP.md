@@ -6388,6 +6388,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Cartas lidas, para a homologação revisar** (Scryfall, pelo ramo `catalogo` de 25/10/2026): Phlage, Titan of Fire's Fury; Uro, Titan of Nature's Wrath; Ox of Agonas.
 - **Toca ponto comum:** `HANDLERS.cast` (uma linha: a marca da fuga sempre); efeito novo abaixo das âncoras K; um padrão no `PRE_PARAGRAFO` e um nas linhas de permanente do leitor (as frases da fuga, 702.138).
 - **Testes:** `keywords.k81.unit` (2; os 2 falham sem a leva); os 14 arquivos com fuga ou com o vocabulário de efeitos, `leitor.revisao` e `leitor.concordancia` verdes. Goldens idênticos; motor v112 sem mudança de versão.
+**K-82 · "Exile this card from your hand" no custo (113.6)** ✅ (leva K-82)
+- **Valor:** Simian Spirit Guide e Elvish Spirit Guide (29 listas competitivas) voltam a jogar com o texto que a Scryfall entrega hoje ("Exile this card from your hand: Add {R}."): o leitor só conhecia "Exile ~ from your hand" e as duas caíam para manual no catálogo ("texto-mudou").
+- **Aceite:** Simian Spirit Guide na mão: a mesa oferece exilá-la para gerar {R}, sem pilha.
+- **Aprovação:** nenhuma linha de APROVADAS mudou. A revisão da M-342 continua valendo porque a assinatura da revisão já trata "this card" como "~": as duas voltam a "completo" sem nova aprovação (a homologação pode conferir).
+- **Toca:** só o leitor (__m42): a alternativa "this card" no custo "Exile … from your hand" (três lugares do mesmo padrão).
+- **Testes:** `keywords.k82.unit` (2; os 2 falham sem a leva); `lt25`, `leitor.revisao` e `leitor.concordancia` verdes. Goldens idênticos; motor v112.
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.
