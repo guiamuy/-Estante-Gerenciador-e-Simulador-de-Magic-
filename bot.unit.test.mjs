@@ -1384,3 +1384,50 @@ test('B-183 · o Shark publicado conjura o Deem Inferior na Baleful Strix do opo
   const novo = shark('shark').jogada(s, 0), v15 = shark('shark-v15').jogada(s, 0);
   assert.ok(deem(novo), 'publicado: ' + novo.motivo); assert.ok(!deem(v15), 'v15: ' + v15.motivo);
 });
+
+/* ---- B-184 · jogar em volta: a resposta do outro com a mágica do Shark na pilha ---- */
+/** Deixa no grimório do jogador `p` só as cartas `nomes` (o resto vai para o exílio, que é aberto): todo mundo possível dá a ele essas cartas na mão. */
+function soNoGrimorio(s, p, nomes) {
+  const z = s.zones[p]; z.exile = z.exile || [];
+  for (const oid of [...z.library]) if (!nomes.includes(s.objects[oid].name)) { z.library.splice(z.library.indexOf(oid), 1); z.exile.push(oid); s.objects[oid].zone = 'exile'; }
+}
+test('B-184 · Murmuring Mystic contra duas Ilhas abertas e a anulação certa: com `respostaNaPilha` o Shark segura; com as Ilhas viradas, conjura; sem a opção, conjura para dentro da anulação', async () => {
+  const pos = async viradas => {
+    const { s } = await montaShark(TERROR, CONTROLE, { p0: { campo: ILHAS(4), mao: ['Murmuring Mystic'] }, p1: { campo: ['Island', 'Island'], mao: ['Counterspell'] } });
+    soNoGrimorio(s, 1, ['Counterspell']);
+    if (viradas) for (const o of s.zones[1].battlefield) s.objects[o].tapped = true;
+    return s;
+  };
+  const mystic = (s, j) => j.acao.t === 'cast' && s.objects[j.acao.oid].name === 'Murmuring Mystic';
+  const bot = op => B.criaBot({ nivel: 'shark', agora: relogioParado, extra: { respostaNaPilha: op } });
+  const aberta = await pos(false), virada = await pos(true);
+  assert.ok(mystic(aberta, bot(false).jogada(aberta, 0)), 'sem a opção conjura');
+  const j = bot(true).jogada(aberta, 0);
+  assert.ok(!mystic(aberta, j), 'com a opção segura: ' + j.motivo);
+  assert.ok(mystic(virada, bot(true).jogada(virada, 0)), 'oponente virado: conjura');
+});
+test('B-184 · `respostaNaPilha` não lê a mão real: com o grimório do oponente sorteável, trocar a carta da mão dele não muda a jogada', async () => {
+  const jogadas = [];
+  for (const carta of ['Counterspell', 'Island']) {
+    const { s } = await montaShark(TERROR, CONTROLE, { p0: { campo: ILHAS(4), mao: ['Murmuring Mystic', 'Delver of Secrets'] }, p1: { campo: ['Island', 'Island'], mao: [carta] } });
+    const j = B.criaBot({ nivel: 'shark', agora: relogioParado, extra: { respostaNaPilha: true } }).jogada(s, 0);
+    jogadas.push(B.chaveAcao(j.acao).replace(/o\d+/g, x => s.objects[x] ? s.objects[x].name : x));
+  }
+  assert.equal(jogadas[0], jogadas[1]);
+});
+test('B-184 · isca: Delver of Secrets e Murmuring Mystic contra a anulação certa — com `isca`, a Delver vai primeiro (anulada, o Mystic passa); só com `respostaNaPilha`, segura as duas; sem nada, o Mystic vai para dentro da anulação', async () => {
+  const { s } = await montaShark(TERROR, CONTROLE, { p0: { campo: ILHAS(5), mao: ['Delver of Secrets', 'Murmuring Mystic'] }, p1: { campo: ['Island', 'Island'], mao: ['Counterspell'] } });
+  soNoGrimorio(s, 1, ['Counterspell']);
+  const nome = j => j.acao.t === 'cast' ? s.objects[j.acao.oid].name : j.acao.t;
+  const bot = extra => B.criaBot({ nivel: 'shark', agora: relogioParado, extra });
+  assert.equal(nome(bot({ respostaNaPilha: false, isca: false }).jogada(s, 0)), 'Murmuring Mystic');
+  assert.equal(nome(bot({ respostaNaPilha: true, isca: false }).jogada(s, 0)), 'pass');
+  assert.equal(nome(bot({ respostaNaPilha: true, isca: true }).jogada(s, 0)), 'Delver of Secrets');
+});
+test('B-184 · o Shark publicado segura o Murmuring Mystic contra a anulação certa; o shark-v16 congelado conjura', async () => {
+  const { s } = await montaShark(TERROR, CONTROLE, { p0: { campo: ILHAS(4), mao: ['Murmuring Mystic'] }, p1: { campo: ['Island', 'Island'], mao: ['Counterspell'] } });
+  soNoGrimorio(s, 1, ['Counterspell']);
+  const mystic = j => j.acao.t === 'cast' && s.objects[j.acao.oid].name === 'Murmuring Mystic';
+  const novo = shark('shark').jogada(s, 0), v16 = shark('shark-v16').jogada(s, 0);
+  assert.ok(!mystic(novo), 'publicado: ' + novo.motivo); assert.ok(mystic(v16), 'v16: ' + v16.motivo);
+});

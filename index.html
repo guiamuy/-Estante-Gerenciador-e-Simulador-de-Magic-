@@ -34160,8 +34160,15 @@ const __m25 = (function () {
    jeito pior para mim (`decideOOutro`). Antes a simulação parava ali, com a carta já fora da mão e o efeito sem acontecer:
    o Deem Inferior saía em 1 de 13 cópias. Medida pareada com os cinco pilotos (400 ms, 80 pares): 49 × 47.
    'shark-v15' é o Shark da B-181, congelado.
-   LIMITES DE HOJE: um lance à frente + resposta do oponente + combate; sem plano
-   de vários turnos, sem blefe, sem jogar em volta de anulação ou truque; não troca reserva na melhor de três; esquece o que a vidência
+   JOGAR EM VOLTA (B-23, leva B-184): com a minha mágica ou habilidade no topo da pilha, passo a prioridade e o outro
+   responde no mundo possível — anula (Counterspell, a Spellstutter Sprite que anula ao entrar) ou tira o alvo dela — do
+   jeito pior para mim, entre deixar resolver e até seis respostas (`respostaNaPilha`). Antes a pilha resolvia como se ele
+   sempre passasse. A mão dele é a sorteada em cada mundo: a média pesa a chance de ele ter a resposta. Medida pareada com
+   os cinco pilotos (400 ms, 80 pares): 51 × 47. `isca` (vale também a melhor mágica seguinte no mesmo turno, sujeita à
+   resposta: a Delver vai antes do Mystic) mediu 49 × 48 e fica desligada. 'shark-v16' é o Shark da B-183, congelado.
+   LIMITES DE HOJE: um lance à frente + resposta do oponente (na pilha e depois dela) + combate; sem plano
+   de vários turnos, sem blefe; não joga em volta do truque de combate nem da varredura; na pilha não responde à resposta
+   dele (guerra de anulação); não troca reserva na melhor de três; esquece o que a vidência
    mostrou do próprio topo.
    A diferença entre os níveis é profundidade e critério.
    ===================================================================== */
@@ -34828,13 +34835,56 @@ function jogadaProfissional(s, p, opts = {}) {
     // v3: escolha em andamento (pegar cartas, modo, tipo) também é levada até o fim antes de dar a nota
     const emEscolha = opts.desdobra && sim.estado.pending && sim.estado.pending.p === p;
     const pilha = opts.semToque && sim.estado.stack.length > 0; // toda jogada é medida depois da pilha, como o passar
-    const depois = RESOLVE.includes(a.t) || emEscolha || pilha ? resolveSimulado(sim.estado, 8, opts.desdobra ? p : null, opts.av) : sim.estado;
+    const resolvido = RESOLVE.includes(a.t) || emEscolha || pilha ? resolveSimulado(sim.estado, 8, opts.desdobra ? p : null, opts.av) : sim.estado;
+    const depois = opts.respostaNaPilha && RESOLVE.includes(a.t) ? respostaNaPilha(sim.estado, resolvido) : resolvido; // B-184
     // Leva 119 · descarte: entre cartas que dão a mesma mesa, vai embora a que menos faz falta
     const custoDescarte = opts.recursos && a.t === 'discard' && a.oid ? valorNaMao(s, p, a.oid) * 0.5 : 0;
     // B10b · efeito opcional de graça ("você pode comprar"): em empate, aceita. Antes o empate caía em "não fazer".
     const aceite = opts.aceita && minhaDecisao && pend.kind === 'may_pay' && !pend.cost && !pend.extra && a.t === 'pay' ? 1 : 0;
     return notaComResposta(depois, p, opts) - custoDescarte + aceite - gastaAResposta(w, a, depois) - reservaDaAnulacao(a) - alvoProprio(a);
   };
+  // B-184 · `respostaNaPilha` (jogar em volta): com a minha mágica ou habilidade no topo da pilha, passo a prioridade e o outro
+  // responde no mundo possível — anula (Counterspell, a Spellstutter Sprite que anula ao entrar) ou tira o alvo dela (o Bolt na
+  // criatura que eu ia fortalecer). Ele escolhe, entre deixar resolver e até seis respostas, a pior para mim. Antes a pilha
+  // resolvia como se o outro sempre passasse: o Shark conjurava a ameaça para dentro de duas Ilhas abertas como se a anulação
+  // não existisse. A mão dele é a sorteada em cada mundo (informação justa): a média entre os mundos pesa a chance de ele ter.
+  // `isca` (B-184, medida à parte): em cada ramo, se ainda é a minha fase principal com a pilha vazia, vale também a melhor
+  // mágica seguinte que eu conjuro (até quatro, uma por nome), ela também sujeita à resposta dele. É o que vê que a Delver
+  // anulada deixa o Murmuring Mystic passar: busca de dois lances no meu turno, com o outro respondendo nos dois.
+  function respostaNaPilha(est, depois, nivel = 0) {
+    const av = opts.av || avalia;
+    const semTempo = () => opts.prazo && opts.limite && opts.agora() > opts.limite; // sem tempo: fica o que já foi lido (B-178)
+    if (semTempo()) return depois;
+    const comSeguinte = fim => { // a nota do ramo e o estado que a dá (com a mágica seguinte, se ela melhora)
+      let n = av(fim, p).nota, st = fim;
+      if (!opts.isca || nivel > 0 || fim.status !== 'playing' || fim.pending || fim.stack.length || fim.turn.active !== p || fim.turn.priority !== p || !/^main/.test(fim.turn.step)) return { n, st };
+      const nomes = new Set();
+      for (const b of E.legalActions(fim, p)) {
+        if (b.t !== 'cast' || nomes.size >= 4 || (nomes.size && semTempo())) continue;
+        const nome = (fim.objects[b.oid] || {}).name; if (nomes.has(nome)) continue; nomes.add(nome);
+        const r = simula(fim, b); if (!r) continue;
+        const st2 = respostaNaPilha(r.estado, resolveSimulado(r.estado, 8, opts.desdobra ? p : null, opts.av), 1), m = av(st2, p).nota;
+        if (m > n) { n = m; st = st2; }
+      }
+      return { n, st };
+    };
+    const ramos = [depois]; // deixar resolver e, abaixo, cada resposta dele
+    const topo = est.stack.length ? est.objects[est.stack[est.stack.length - 1]] : null;
+    const passou = topo && topo.controller === p ? simula(est, { t: 'pass', p }) : null;
+    const e1 = passou && passou.estado, d = oponenteDe(est, p);
+    if (e1 && e1.status === 'playing' && !e1.pending && e1.turn.priority === d && e1.stack.includes(topo.oid)) {
+      const alvos = new Set([topo.oid, ...(topo.targets || []).map(t => t.oid).filter(Boolean)]);
+      const anula = x => x.t === 'cast' && /"do":"counter"/.test(JSON.stringify(((e1.facts[(e1.objects[x.oid] || {}).name] || {}).script) || {}));
+      for (const x of E.legalActions(e1, d).filter(x => RESOLVE.includes(x.t) && ((x.targets || []).some(t => alvos.has(t.oid)) || anula(x))).slice(0, 6)) {
+        if (ramos.length > 1 && semTempo()) break;
+        const r = simula(e1, x); if (r) ramos.push(resolveSimulado(r.estado, 8, opts.desdobra ? p : null, opts.av));
+      }
+    }
+    if (ramos.length === 1 && !opts.isca) return depois;
+    let pior = null, nota = Infinity;
+    for (const fim of ramos) { const { n, st } = comSeguinte(fim); if (n < nota) { nota = n; pior = st; } }
+    return pior;
+  }
   // B-181 · `alvoProprio`: efeito nocivo (dano, destruir, anular, virar, não desvirar, exilar, mandar ao grimório, −X/−X) com
   // alvo no meu lado custa 3 por alvo, e anular a minha própria mágica custa 30. A avaliação não via o custo em vários casos
   // (o −0/−3 que não mata, a criatura virada que "não desvira" no próximo turno) e o empate caía na ordem das chaves:
@@ -35601,14 +35651,15 @@ const NOVO12 = { ...NOVO11, mull2: true }; // congelado como 'shark-v12' (B-178)
 const NOVO13 = { ...NOVO12, prazo: true }; // congelado como 'shark-v13' (B-179) · B-178 · a decisão inteira cabe em 0,9 do orçamento: p95 430 → 366 ms, pior 4,3 → 0,8 s (400 ms); 48 × 47 em 80 pares
 const NOVO14 = { ...NOVO13, respondePrimeiro: true, reserva: true }; // congelado como 'shark-v14' (B-181) · B-179 · quando anular: a resposta à mágica do oponente é lida primeiro e a anulação guardada vale pela mágica que ainda pode pegar; neutro em força (38 × 39 em 96 pares, Control, Faeries e Terror), ligado porque tira dois erros que o jogador vê
 const NOVO15 = { ...NOVO14, alvoProprio: true, av6: true }; // congelado como 'shark-v15' (B-183) · B-181 · alvo no próprio lado: efeito nocivo no meu lado custa 3 por alvo (anular a própria mágica, 30) e vai para o fim da fila; avaliaV6 lê a mesa sem os pumps; neutro em força (47 × 48 em 80 pares, os cinco pilotos), ligado porque tira cinco erros que o jogador vê
-const NOVO = { ...NOVO15, decideOOutro: true }; // B-183 · na simulação, a decisão que a resolução pede ao outro jogador é tomada por ele do jeito pior para quem simula (Deem Inferior, Lose Focus); 49 × 47 em 80 pares, os cinco pilotos
+const NOVO16 = { ...NOVO15, decideOOutro: true }; // congelado como 'shark-v16' (B-184) · B-183 · na simulação, a decisão que a resolução pede ao outro jogador é tomada por ele do jeito pior para quem simula (Deem Inferior, Lose Focus); 49 × 47 em 80 pares, os cinco pilotos
+const NOVO = { ...NOVO16, respostaNaPilha: true }; // B-184 · jogar em volta: com a minha mágica na pilha, o outro responde no mundo possível (anula, tira o alvo) do jeito pior para mim; 51 × 47 em 80 pares (7 pares só do novo, 3 só do antigo), os cinco pilotos. `isca` (a mágica seguinte no mesmo turno) mediu 49 × 48 e fica desligada
 // B-176 · `ameacas` (ameaças do campo no perfil do Dimir Control) foi medida e fica desligada: 26 de 64 contra 27 de 64 pilotando o Control
 function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date.now(), mundos: mundosN = 0, extra: extraOpts = null, pesos = null } = {}) {
   // Leva 117 · 'profissional' e 'shark' são o Shark atual (v4: o v3 com informação justa). 'shark-v3', 'shark-v2'
   // e 'shark-v1' são as versões anteriores, congeladas, só para o torneio — elas simulam sobre o estado real.
-  const v1 = nivel === 'shark-v1', v2 = nivel === 'shark-v2', v3 = nivel === 'shark-v3', v4 = nivel === 'shark-v4', v5 = nivel === 'shark-v5', v6 = nivel === 'shark-v6', v7 = nivel === 'shark-v7', v8 = nivel === 'shark-v8', v9 = nivel === 'shark-v9', v10 = nivel === 'shark-v10', v11 = nivel === 'shark-v11', v12 = nivel === 'shark-v12', v13 = nivel === 'shark-v13', v14 = nivel === 'shark-v14', v15 = nivel === 'shark-v15';
-  const atual = nivel === 'profissional' || nivel === 'shark' || v4 || v5 || v6 || v7 || v8 || v9 || v10 || v11 || v12 || v13 || v14 || v15 || !!extraOpts || !!pesos;
-  const ligadas = { ...(v4 ? {} : v5 ? NOVO5 : v6 ? NOVO6 : v7 ? NOVO7 : v8 ? NOVO8 : v9 ? NOVO9 : v10 ? NOVO10 : v11 ? NOVO11 : v12 ? NOVO12 : v13 ? NOVO13 : v14 ? NOVO14 : v15 ? NOVO15 : NOVO), ...(extraOpts || {}) };
+  const v1 = nivel === 'shark-v1', v2 = nivel === 'shark-v2', v3 = nivel === 'shark-v3', v4 = nivel === 'shark-v4', v5 = nivel === 'shark-v5', v6 = nivel === 'shark-v6', v7 = nivel === 'shark-v7', v8 = nivel === 'shark-v8', v9 = nivel === 'shark-v9', v10 = nivel === 'shark-v10', v11 = nivel === 'shark-v11', v12 = nivel === 'shark-v12', v13 = nivel === 'shark-v13', v14 = nivel === 'shark-v14', v15 = nivel === 'shark-v15', v16 = nivel === 'shark-v16';
+  const atual = nivel === 'profissional' || nivel === 'shark' || v4 || v5 || v6 || v7 || v8 || v9 || v10 || v11 || v12 || v13 || v14 || v15 || v16 || !!extraOpts || !!pesos;
+  const ligadas = { ...(v4 ? {} : v5 ? NOVO5 : v6 ? NOVO6 : v7 ? NOVO7 : v8 ? NOVO8 : v9 ? NOVO9 : v10 ? NOVO10 : v11 ? NOVO11 : v12 ? NOVO12 : v13 ? NOVO13 : v14 ? NOVO14 : v15 ? NOVO15 : v16 ? NOVO16 : NOVO), ...(extraOpts || {}) };
   let perfil, avPlano = null, passosCombo = 0, turnoCombo = -1; // B9 · perfil do meu baralho, lido na primeira jogada
   const avAtual = ligadas.av4 || ligadas.av5 || ligadas.av6 || pesos ? avaliadorCom({ ...PESOS_ATUAIS, ...(pesos || {}) }, ligadas.av6 ? avaliaV6 : ligadas.av5 ? avaliaV5 : ligadas.av4 ? avaliaV4 : avaliaV3) : null;
   let plano = []; // leva 143 · ações que faltam do plano de mana em curso

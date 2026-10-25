@@ -15308,6 +15308,7 @@ test('e2e · MJ8 ritmo do turno: trilho acende em sequência, faixa de vez desli
   // 4 · menos movimento: avançar a fase não acende nada e a faixa não desliza
   await page.evaluate(() => document.documentElement.setAttribute('data-movimento', 'reduzido'));
   const p4 = await passo(); if (p4.passo === 'main1') { await page.click('#tb-pass'); await page.waitForTimeout(40); }
+  await fimDaCena(); // B-184 · espera o Shark responder e a mesa redesenhar: 40 ms bastavam enquanto ele passava sem pensar (com a resposta na pilha ele lê mais)
   assert.deepEqual((await trilho()).map(x => x.acende), [null, null, null, null, null], 'menos movimento: nada pisca');
   const dur = await page.$eval('#tb-vez', el => getComputedStyle(el).animationDuration); assert.ok(/^0(\.0+)?1?ms|0s|0\.00001s/.test(dur) || parseFloat(dur) < 0.01, 'menos movimento: a faixa não desliza (' + dur + ')');
   assert.deepEqual(errors, []);
