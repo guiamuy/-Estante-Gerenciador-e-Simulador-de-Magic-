@@ -85,3 +85,30 @@ test('H-16 · executa regrava cobertura/resumo.json com todos os relatórios da 
     assert.match(log.join('\n'), /Resumo: modern 1\/2 · pauper 0\/1 · competitivos 1\/2/);
   } finally { await rm(pasta, { recursive: true, force: true }); }
 });
+
+// H-17 · depois da Q10-7c (I-302): a rodada da linha de comando mede vários formatos no mesmo processo. Falham antes da H-17.
+test('H-17 · rodada: com o cache da rodada, executaVarios pede cada nome uma vez; textosCompetitivos dá o texto às N primeiras só nos competitivos', async () => {
+  const pasta = await pastaCom([['m1', 'modern', [['Lightning Bolt', 4], ['Carta Nova', 4]]], ['l1', 'legacy', [['Lightning Bolt', 4], ['Carta Nova', 4]]], ['i1', 'iniciante', [['Carta Nova', 4]]]]);
+  try {
+    C.rodada.cache = C.novoCache(); C.rodada.textosCompetitivos = 5;
+    const ch = [];
+    await C.executaVarios({ pasta, formatos: ['modern', 'legacy', 'iniciante'], busca: scryfall(TABELA, { chamadas: ch }), pausa: 0, log: () => {}, agora: 'T', textos: 0 });
+    assert.deepEqual(ch, [['Lightning Bolt', 'Carta Nova']], 'legacy e iniciante não pedem nada: tudo veio no modern');
+    const le = async f => JSON.parse(await readFile(join(pasta, 'cobertura', `${f}.json`), 'utf8'));
+    const m = await le('modern'), i = await le('iniciante');
+    assert.equal(m.textosCompetitivos, 5); assert.ok(m.pendentes[0].texto, 'competitivo: a Carta Nova (1ª da ordem) com o texto do dia');
+    assert.equal(i.textosCompetitivos, undefined); assert.equal(i.pendentes[0].texto, null, 'iniciante segue o --textos 0');
+    const r = JSON.parse(await readFile(join(pasta, 'cobertura', 'resumo.json'), 'utf8'));
+    assert.deepEqual(r.competitivos.ordem.map(x => [x.name, x.formatos.join('+'), x.texto]), [['Carta Nova', 'legacy+modern', true]], 'formatos na ordem dos relatórios da pasta');
+  } finally { C.rodada.cache = null; C.rodada.textosCompetitivos = null; await rm(pasta, { recursive: true, force: true }); }
+});
+
+test('H-17 · textosDosCompetitivos: só nas N primeiras da ordem gulosa; formato não competitivo ou N vazio não muda nada', () => {
+  const crua = n => ({ name: n, mana_cost: '{G}', type_line: 'Sorcery', oracle_text: 'x', keywords: [], layout: 'normal' });
+  const cartas = new Map(['A', 'B', 'C'].map(n => [n.toLowerCase(), crua(n)]));
+  const rel = f => ({ formato: f, pendentes: [{ name: 'C', gulosa: 3, listas: 9, texto: null }, { name: 'A', gulosa: 1, listas: 1, texto: null }, { name: 'B', gulosa: 2, listas: 1, texto: null }] });
+  const m = C.textosDosCompetitivos(rel('pioneer'), cartas, 2);
+  assert.deepEqual(m.pendentes.map(p => [p.name, !!p.texto]), [['C', false], ['A', true], ['B', true]]);
+  assert.ok(C.textosDosCompetitivos(rel('brawl'), cartas, 2).pendentes.every(p => !p.texto));
+  assert.ok(C.textosDosCompetitivos(rel('modern'), cartas, null).pendentes.every(p => !p.texto));
+});

@@ -23,7 +23,9 @@
 // `cobertura/resumo.json`: uma linha por formato e a ordem gulosa somada dos competitivos de 60 cartas (Modern, Standard, Pioneer,
 // Legacy, Vintage) — a ordem de trabalho do motor.
 //
-// Uso: node cobertura.mjs --catalogo <pasta do ramo catalogo> [--formato pauper] [--textos N]
+// H-17 · `rodada`: na linha de comando, um cache para todos os formatos do processo e `--textos-competitivos N`.
+//
+// Uso: node cobertura.mjs --catalogo <pasta do ramo catalogo> [--formato pauper|todos] [--exceto a,b] [--textos N] [--textos-competitivos N]
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadModules } from './_load.mjs';
@@ -199,14 +201,26 @@ export async function executaVarios({ pasta, formatos, log = console.log, ...res
   }
   return feitos;
 }
+/** H-17 · configuração da rodada pela linha de comando (fluxo Catálogo): um cache para todos os formatos do mesmo processo e o texto
+    do dia nas N primeiras cartas da ordem gulosa dos competitivos de 60 cartas. Fora da linha de comando fica desligada. */
+export const rodada = { cache: null, textosCompetitivos: null };
+/** H-17 · põe o texto do dia nas `n` primeiras pendentes da ordem gulosa de um relatório competitivo (as outras ficam como `mede` deixou). */
+export function textosDosCompetitivos(rel, cartas, n) {
+  if (n == null || !(n >= 0) || !COMPETITIVOS.includes(rel.formato)) return rel;
+  const primeiras = [...rel.pendentes].sort((a, b) => (a.gulosa ?? Infinity) - (b.gulosa ?? Infinity) || b.listas - a.listas || a.name.localeCompare(b.name)).slice(0, n);
+  for (const p of primeiras) if (!p.texto) p.texto = textoDe(cartas.get(norm(p.name)) || null);
+  rel.textosCompetitivos = n;
+  return rel;
+}
 export async function executa({ pasta, formato = 'pauper', busca = globalThis.fetch, pausa = 120, log = console.log, agora, textos = Infinity } = {}) {
   const listas = listasDoCatalogo(pasta, formato);
   const nomes = [...new Set(listas.flatMap(l => (l.entradas || []).filter(e => e.zone !== 'side' && e.zone !== 'maybe').map(e => e.name)))];
-  const { cartas, falhas } = await cartasDaScryfall(nomes, { busca, pausa, log });
+  const { cartas, falhas } = await cartasDaScryfall(nomes, { busca, pausa, log, cache: rodada.cache });
   const arq = join(pasta, 'cobertura', `${formato}.json`);
   const anterior = existsSync(arq) ? (() => { try { return JSON.parse(readFileSync(arq, 'utf8')); } catch { return null; } })() : null;
   if (!cartas.size && nomes.length) { log('✗ a Scryfall não respondeu: o relatório anterior fica como está'); return { gravado: false, anterior }; }
   const rel = mede(listas, cartas, { formato, agora, falhas, anterior, textos });
+  textosDosCompetitivos(rel, cartas, rodada.textosCompetitivos); // H-17
   mkdirSync(join(pasta, 'cobertura'), { recursive: true });
   writeFileSync(arq, JSON.stringify(rel, null, 1) + '\n');
   if (!rel.parcial) { // medida pela metade não vai para o selo do app: fica a anterior
@@ -230,6 +244,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   if (!o.catalogo) { console.error('Informe --catalogo <pasta do ramo catalogo>'); process.exit(2); }
   const textos = Number.parseInt(o.textos, 10);
   const opc = { pasta: o.catalogo, textos: textos >= 0 ? textos : Infinity };
+  // H-17 · a rodada (vários formatos no mesmo processo) busca cada nome uma vez; `--textos-competitivos N`: o texto do dia nas N primeiras dos competitivos
+  rodada.cache = novoCache(); { const tc = Number.parseInt(o['textos-competitivos'], 10); if (tc >= 0) rodada.textosCompetitivos = tc; }
   // Q10-7c · `--formato todos --exceto pauper,commander`: os demais formatos do catálogo, cada um no seu relatório
   const vai = o.formato === 'todos' ? executaVarios({ ...opc, formatos: formatosDoCatalogo(o.catalogo, String(o.exceto || '').split(',').filter(Boolean)) })
     : executa({ ...opc, formato: o.formato || 'pauper' });
