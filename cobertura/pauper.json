@@ -1,42 +1,154 @@
 {
  "versao": 1,
  "formato": "pauper",
- "geradoEm": "2026-10-24T11:26:21.030Z",
+ "geradoEm": "2026-10-25T06:29:12.347Z",
  "motor": 112,
  "fonte": "api.scryfall.com/cards/collection",
- "listas": 532,
- "listas100": 531,
- "cartasPendentes": 1,
+ "listas": 563,
+ "listas100": 559,
+ "cartasPendentes": 7,
  "parcial": false,
  "lotesComFalha": 0,
  "porClasse": {
   "texto-mudou": 0,
-  "lida": 0,
+  "lida": 6,
   "nova": 1,
   "parcial": 0,
   "sem-dados": 0
  },
- "novasDesdeAnterior": [],
- "resolvidasDesdeAnterior": [],
+ "novasDesdeAnterior": [
+  "Carrot Cake",
+  "Curious Farm Animals",
+  "Fields of Strife",
+  "Foot Headquarters",
+  "Hidden Grotto",
+  "Massive Might",
+  "Pilfer"
+ ],
+ "resolvidasDesdeAnterior": [
+  "Demand Answers"
+ ],
  "curva": [
   {
-   "listas": 532,
+   "listas": 560,
    "cartas": 1
+  },
+  {
+   "listas": 563,
+   "cartas": 7
   }
  ],
  "textos": null,
  "pendentes": [
   {
-   "name": "Demand Answers",
+   "name": "Carrot Cake",
+   "classe": "lida",
+   "nivel": "lida",
+   "motivo": "lida pelo motor, em revisão",
+   "listas": 1,
+   "gulosa": 4,
+   "texto": {
+    "mana_cost": "{1}{W}",
+    "type_line": "Artifact — Food",
+    "oracle_text": "When this artifact enters and when you sacrifice it, create a 1/1 white Rabbit creature token and scry 1. (Look at the top card of your library. You may put that card on the bottom.)\n{2}, {T}, Sacrifice this artifact: You gain 3 life.",
+    "keywords": [
+     "Scry"
+    ],
+    "layout": "normal"
+   }
+  },
+  {
+   "name": "Curious Farm Animals",
    "classe": "nova",
    "nivel": "manual",
-   "motivo": "mágica sem script",
+   "motivo": "texto que o motor não resolve",
+   "listas": 1,
+   "gulosa": 3,
+   "texto": {
+    "mana_cost": "{W}",
+    "type_line": "Creature — Boar Elk Bird Ox",
+    "oracle_text": "When this creature dies, you gain 3 life.\n{2}, Sacrifice this creature: Destroy up to one target artifact or enchantment.",
+    "keywords": [],
+    "layout": "normal",
+    "power": "1",
+    "toughness": "1"
+   }
+  },
+  {
+   "name": "Fields of Strife",
+   "classe": "lida",
+   "nivel": "lida",
+   "motivo": "lida pelo motor, em revisão",
+   "listas": 1,
+   "gulosa": 3,
+   "texto": {
+    "mana_cost": "",
+    "type_line": "Land",
+    "oracle_text": "This land enters tapped.\n{T}: Add {R} or {W}.\n{2}{R}{W}, {T}: Surveil 1. (Look at the top card of your library. You may put it into your graveyard.)",
+    "keywords": [
+     "Surveil"
+    ],
+    "layout": "normal"
+   }
+  },
+  {
+   "name": "Foot Headquarters",
+   "classe": "lida",
+   "nivel": "lida",
+   "motivo": "lida pelo motor, em revisão",
+   "listas": 1,
+   "gulosa": 4,
+   "texto": {
+    "mana_cost": "",
+    "type_line": "Land",
+    "oracle_text": "This land enters tapped.\nWhen this land enters, you gain 1 life.\n{T}: Add {W} or {B}.",
+    "keywords": [],
+    "layout": "normal"
+   }
+  },
+  {
+   "name": "Hidden Grotto",
+   "classe": "lida",
+   "nivel": "lida",
+   "motivo": "lida pelo motor, em revisão",
+   "listas": 1,
+   "gulosa": 2,
+   "texto": {
+    "mana_cost": "",
+    "type_line": "Land",
+    "oracle_text": "When this land enters, surveil 1. (Look at the top card of your library. You may put it into your graveyard.)\n{T}: Add {C}.\n{1}, {T}: Add one mana of any color.",
+    "keywords": [
+     "Surveil"
+    ],
+    "layout": "normal"
+   }
+  },
+  {
+   "name": "Massive Might",
+   "classe": "lida",
+   "nivel": "lida",
+   "motivo": "lida pelo motor, em revisão",
    "listas": 1,
    "gulosa": 1,
    "texto": {
-    "mana_cost": "{1}{R}",
+    "mana_cost": "{G}",
     "type_line": "Instant",
-    "oracle_text": "As an additional cost to cast this spell, sacrifice an artifact or discard a card.\nDraw two cards.",
+    "oracle_text": "Target creature gets +2/+2 and gains trample until end of turn.",
+    "keywords": [],
+    "layout": "normal"
+   }
+  },
+  {
+   "name": "Pilfer",
+   "classe": "lida",
+   "nivel": "lida",
+   "motivo": "lida pelo motor, em revisão",
+   "listas": 1,
+   "gulosa": 4,
+   "texto": {
+    "mana_cost": "{1}{B}",
+    "type_line": "Sorcery",
+    "oracle_text": "Target opponent reveals their hand. You choose a nonland card from it. That player discards that card.",
     "keywords": [],
     "layout": "normal"
    }
@@ -44,10 +156,34 @@
  ],
  "listasIncompletas": [
   {
-   "id": "mtgo-pauper-league-2026-10-2411153-7",
-   "nome": "Grixis Grab the Prize",
+   "id": "mtgo-pauper-league-2026-10-2511153-1",
+   "nome": "Jeskai Curious Farm Animals",
    "faltam": [
-    "Demand Answers"
+    "Curious Farm Animals",
+    "Fields of Strife"
+   ]
+  },
+  {
+   "id": "topdeck-lpl-autumn-2026-10a-tappa-5",
+   "nome": "Mono Green Vines of Vastwood",
+   "faltam": [
+    "Massive Might"
+   ]
+  },
+  {
+   "id": "topdeck-pauper-regional-qualifier-8",
+   "nome": "Orzhov Pilfer",
+   "faltam": [
+    "Carrot Cake",
+    "Foot Headquarters",
+    "Pilfer"
+   ]
+  },
+  {
+   "id": "topdeck-pauper-regional-qualifier-5",
+   "nome": "Temur Ancient Stirrings",
+   "faltam": [
+    "Hidden Grotto"
    ]
   }
  ]
