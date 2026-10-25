@@ -12939,6 +12939,11 @@ O que a cobertura não mede: se a lista que **pode** jogar no modo completo **jo
 - **Recusada (DIVERGE):** Professor of Symbology — "learn" no motor só oferece descartar e comprar; a Lição de fora do jogo não existe (o próprio efeito `aprender` é parcial declarado), mas o leitor marca a carta como lida por inteiro. Pedido ao `motor`: a leitura de "learn" deveria sair parcial, ou a carta fica `lida` sem aprovação.
 - **Conferido à parte:** recusar a busca opcional (Environmental Scientist, Fountainport Bell) não embaralha o grimório.
 - **Teste:** `homologacao.revisao.lote3.unit` (3: as 19 jogam com a assinatura do texto guardado e a Professor fica de fora; Hop to It e Corrupted Conviction em partida). Falham antes da H-20. `keywords.k77.unit` passa a esperar a Avengers Disassembled aprovada se e só se está em APROVADAS.
+
+**H-21 · revisão em lote 4 dos competitivos: 19 cartas lidas pelo leitor passam a jogar** 🟡 (leva H-21; motor v112 sem mudança)
+- **Cartas (texto da Scryfall de 25/10/2026, revisor independente com uma partida por carta, 19 de 20):** Nighthowl Pursuer, Overlord of the Boilerbilges, Promising Vein, Scorching Shot, Simulacrum Shaper, Akroan Crusader, Gretchen Titchwillow, Hammerhand, Inkmoth Nexus, Lessons from Life, Pinnacle Monk // Mystic Peak, Reckless Charge, Treetop Village, Zagoth Triome, Emergency Eject, Go for the Throat, Grim Flayer, Restless Bivouac, Tender Wildguide.
+- **Recusada (DIVERGE):** Gnarled Professor — "learn" sem a Lição de fora do jogo (mesmo achado da Professor of Symbology na H-20; pedido ao `motor`: a leitura de "learn" deveria sair parcial).
+- **Teste:** `homologacao.revisao.lote4.unit` (3: as 19 jogam com a assinatura do texto guardado e a Gnarled Professor fica de fora; Go for the Throat e Scorching Shot em partida). Falham antes da H-21.
 ## Trilha radar · Painel Estante (BI)
 
 Visão de gestão do próprio projeto, para o dono: o que foi entregue, o que está em curso e o que está planejado, com cada número ligado à fonte, à fórmula e ao carimbo de hora. Detalhe (fatias, dicionário de KPIs, contrato da telemetria, manual do dono) em `claude/BI-painel-epicos.md` (Projeto). Pedido de 13/10/2026, refinado pela `prompt-architect`; dona: `mtg-bi-specialist`.
