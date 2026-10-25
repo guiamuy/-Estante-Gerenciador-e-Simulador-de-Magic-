@@ -17,7 +17,8 @@ test('K-77 · 700.2d · Kolaghan\'s Command: "Choose two —" com quatro modos v
 });
 
 test('K-77 · 700.2d · Avengers Disassembled: "Choose one or both —" vira modeCount 2 e modeMin 1', () => {
-  const l = S.leitura(of('Avengers Disassembled')); assert.ok(l, 'leitura completa'); assert.equal(S.coverage(of('Avengers Disassembled')).level, 'lida');
+  // H-20 · a aprovação é da homologação: aprovada se e só se está em APROVADAS (lote 3 da revisão em lote dos competitivos)
+  const l = S.leitura(of('Avengers Disassembled')); assert.ok(l, 'leitura completa'); assert.equal(S.coverage(of('Avengers Disassembled')).level, S.APROVADAS['Avengers Disassembled'] ? 'completo' : 'lida');
   assert.deepEqual([l.script.modeCount, l.script.modeMin, l.script.modes.length], [2, 1, 2]);
 });
 
