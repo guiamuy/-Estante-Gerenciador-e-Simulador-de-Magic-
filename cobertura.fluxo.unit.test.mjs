@@ -34,3 +34,12 @@ test('Q10-7c · catalogo.yml: passo dos demais formatos depois do Commander e an
   assert.match(passo, /run: node cobertura\.mjs --catalogo saida --formato todos --exceto pauper,commander --textos 0/);
   assert.doesNotMatch(passo, /secrets\./);
 });
+
+// I-303 · plano do dono de 24/10 (competitivos primeiro): o passo dos demais formatos põe o texto do dia nas 150 primeiras cartas da
+// ordem gulosa dos competitivos (H-17); Iniciante, Brawl e Construído seguem sem o texto das `nova`. Falha antes da I-303.
+test('I-303 · catalogo.yml: o passo dos demais formatos passa --textos-competitivos 150, sem segredo nem permissão nova', () => {
+  const d = wf.indexOf('- name: Sentinela de cobertura dos demais formatos'), k = wf.indexOf('- name: Publicar no ramo catalogo');
+  const passo = wf.slice(d, k);
+  assert.match(passo, /run: node cobertura\.mjs --catalogo saida --formato todos --exceto pauper,commander --textos 0 --textos-competitivos 150\n/);
+  assert.doesNotMatch(passo, /secrets\./); assert.match(wf, /permissions:\n  contents: write\n/);
+});

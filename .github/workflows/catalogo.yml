@@ -61,7 +61,8 @@ jobs:
         if: always() && steps.coleta.conclusion != 'skipped'
         continue-on-error: true
         timeout-minutes: 20
-        run: node cobertura.mjs --catalogo saida --formato todos --exceto pauper,commander --textos 0
+        # I-303 · H-17: nos cinco competitivos de 60 cartas, o texto do dia nas 150 primeiras da ordem gulosa (fila de trabalho do motor)
+        run: node cobertura.mjs --catalogo saida --formato todos --exceto pauper,commander --textos 0 --textos-competitivos 150
       - name: Publicar no ramo catalogo
         if: always() && steps.coleta.conclusion != 'skipped'
         run: |
