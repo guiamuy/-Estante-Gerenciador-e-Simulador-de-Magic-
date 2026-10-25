@@ -1993,6 +1993,7 @@ body:has(#outlet .ds-fab[data-acoes="1"]) #outlet { padding-bottom: calc(56px + 
 .cat-item__abrir:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 /* Z3 · detalhe da lista do catálogo */
 .catd__cabeca { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: var(--space-4); align-items: center; }
+.catd__cabeca.ds-destaque { padding: var(--space-4); } /* DS-K F4.1 · respiro do destaque em ébano */
 .catd__arte { width: 96px; aspect-ratio: 488 / 680; border-radius: var(--radius-card); overflow: hidden; background: var(--bg-elev-2); display: flex; align-items: center; justify-content: center; color: var(--fg-subtle); box-shadow: var(--shadow-2); }
 .catd__arte img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .catd__titulo { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
@@ -17431,7 +17432,8 @@ function createCatalogoListaScreen({ catalogo, decks, cardRepo, store }) {
   const st = { l: null, cards: new Map(), visao: 'lista', minhas: [], stats: false, custo: null, ocupado: false, semRede: false, taxas: undefined };
   const temRede = () => typeof navigator === 'undefined' || navigator.onLine !== false;
   const go = r => { location.hash = '#' + r; };
-  const voltar = () => h('div', {}, Button('Listas prontas', { id: 'catd-voltar', icone: 'voltar', variant: 'ghost', classe: 'ds-btn--voltar', onClick: () => go('/listas/prontas') }));
+  // DS-K F4.1 (G-307) · cabeçalho 44 · 1fr · 44 com o voltar à esquerda; o nome da lista mora no destaque logo abaixo
+  const voltar = () => __m3.Cabecalho('Lista oficial', { classe: 'catd-topo', nivel: 'h2', esquerda: __m3.IconButton('voltar', 'Voltar para Listas prontas', { id: 'catd-voltar', onClick: () => go('/listas/prontas') }) });
   async function carrega() {
     try { st.visao = (await store.get('catalogo.visao')) || 'lista'; if (!VISOES.some(v => v[0] === st.visao)) st.visao = 'lista'; st.stats = (await store.get('catalogo.estatisticas')) === true; } catch (e) { /* padrão */ }
     try { st.l = await catalogo.lista(id); }
@@ -17524,7 +17526,7 @@ function createCatalogoListaScreen({ catalogo, decks, cardRepo, store }) {
       : h('div', { class: 'catd-grupos', id: 'catd-grupos' }, ...(st.visao === 'agregado' ? gruposPorCusto : gruposPorTipo)(l.entradas, st.cards).map(grupo));
     mount(root,
       voltar(),
-      h('header', { class: 'catd__cabeca' }, arte,
+      h('header', { class: 'catd__cabeca ds-surface ds-destaque' }, arte, // DS-K F4.1 · o topo da lista é o destaque em ébano
         h('div', { class: 'catd__titulo' },
           Text(l.nome, { size: 'xl', display: true, as: 'h1', attrs: { id: 'catd-nome' } }),
           h('span', { class: 'cat-item__meta catd__meta' }, l.cores ? ManaPips(l.cores) : null, h('span', { class: 'cat-item__formato' }, ROTULO_DO_FORMATO[l.formato]),
@@ -18865,9 +18867,8 @@ function createStarterDecks({ decks, catalogo = null }) {
       return c;
     }));
     mount(root,
-      // U2 · voltar fica acima do título, como em todo app de celular
-      h('div', {}, Button('Minhas listas', { id: 'starter-back', icone: 'voltar', variant: 'ghost', classe: 'ds-btn--voltar', onClick: () => go('/listas') })),
-      Text('Listas prontas', { size: '2xl', display: true, as: 'h1' }),
+      // DS-K F4.1 (G-307) · cabeçalho 44 · 1fr · 44: voltar à esquerda (o nome falado diz para onde), título no centro
+      __m3.Cabecalho('Listas prontas', { classe: 'starter-topo', esquerda: __m3.IconButton('voltar', 'Voltar para Minhas listas', { id: 'starter-back', onClick: () => go('/listas') }) }),
       Text('Listas de torneios oficiais para você jogar agora. Um toque põe a lista na sua estante, e de lá você joga, edita ou exporta como qualquer outra.', { tone: 'muted' }),
       chips,
       state.erro ? Note(state.erro, { tone: 'danger' }) : null,

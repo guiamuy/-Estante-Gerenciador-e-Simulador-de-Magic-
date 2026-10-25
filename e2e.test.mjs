@@ -2882,7 +2882,8 @@ test('e2e · U2 parte 2 listas e coleção: ícones, rótulos curtos, cabeçalho
   await temIcone('#decks-starter-empty'); await audita('listas vazia');
   // prontas: voltar acima do título
   await page.goto(base + '#/listas/prontas'); await page.waitForSelector('#starter-formatos');
-  assert.ok((await caixa('#starter-back')).y + 20 < (await caixa('main h1')).y, 'voltar acima do título');
+  // DS-K F4.1 (G-307) · o voltar passou para o lado esquerdo do cabeçalho 44 · 1fr · 44, na linha do título
+  { const v = await caixa('#starter-back'), t = await caixa('main h1'); assert.ok(Math.abs((v.y + v.height / 2) - (t.y + t.height / 2)) <= 4 && v.x < t.x, 'voltar à esquerda, na linha do título'); }
   await temIcone('#starter-back'); await audita('listas prontas');
   await adicionaPronta(page, base, 'Pauper Elves'); // G-262 · pelo texto (a Estante não oferece mais listas próprias)
   // listas: Prontas e Nova na linha do título, com ícone; item com seta
@@ -16266,6 +16267,62 @@ test('e2e · DS-K FA.2 · fechar o diálogo fecha na hora e uma silhueta da folh
   await page.evaluate(() => document.documentElement.setAttribute('data-movimento', 'reduzido'));
   await page.waitForTimeout(700); await page.click('#ds-open-dialog'); await page.waitForSelector('.ds-dialog'); await page.keyboard.press('Escape');
   assert.equal(await page.locator('.ds-folha-sai').count(), 0, 'com menos movimento não há silhueta');
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · DS-K F4.1 · Listas prontas e Lista oficial: cabeçalho 44 · 1fr · 44 com o voltar à esquerda e o título no centro; o topo da lista oficial é o destaque em ébano com texto em AA; 360 e 390, dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(FAKE_DEVICE(false));
+  await rotaCatalogo(page); // o mesmo catálogo de teste da Z3: a lista oficial abre sempre
+  await page.route(/^https:\/\/raw\.githubusercontent\.com\/.*\/catalogo\/listas\//, r => { const id = r.request().url().split('/listas/')[1].replace('.json', ''); const l = CATALOGO_Z2.listas.find(x => x.id === id);
+    if (!l) return r.fulfill({ status: 404, body: '' });
+    return r.fulfill({ json: { ...l, descricao: 'Lista de teste.', entradas: [{ name: 'Island', qty: 30, zone: 'main' }, { name: 'Counterspell', qty: 4, zone: 'main' }] }, headers: { 'access-control-allow-origin': '*' } }); });
+  const mede = () => page.evaluate(() => {
+    const c = document.querySelector('#outlet .ds-cabecalho'), tt = c.querySelector('.ds-cabecalho__titulo'), r = document.createRange(); r.selectNodeContents(tt); const x = r.getBoundingClientRect();
+    const lados = [...c.querySelectorAll('.ds-cabecalho__lado')].map(l => Math.round(l.getBoundingClientRect().width)), b = c.getBoundingClientRect();
+    return { centro: x.left + x.width / 2, largura: innerWidth, lados, gutter: [Math.round(b.left), Math.round(innerWidth - b.right)], voltar: !!c.querySelector('.ds-cabecalho__lado [aria-label^="Voltar"]') }; });
+  for (const [w, hh] of [[360, 780], [390, 844]]) {
+    await page.setViewportSize({ width: w, height: hh });
+    await page.goto(base + '#/listas/prontas'); await page.waitForSelector('#outlet .ds-cabecalho #starter-back');
+    for (const tema of ['dark', 'light']) {
+      await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(450);
+      const m = await mede();
+      assert.ok(Math.abs(m.centro - m.largura / 2) <= 1, `Listas prontas ${w} ${tema}: título no centro (${m.centro.toFixed(1)})`);
+      assert.deepEqual([m.lados, m.gutter, m.voltar], [[44, 44], [16, 16], true], `Listas prontas ${w}: lados, gutter e voltar`);
+      await auditaTela(page, `DS-K F4.1 · Listas prontas ${w} ${tema}`);
+    }
+  }
+  assert.equal(await page.getAttribute('#starter-back', 'aria-label'), 'Voltar para Minhas listas');
+  // a lista oficial: abre a primeira do catálogo
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base + '#/listas/prontas'); await page.waitForSelector('#catalogo-lista');
+  await page.click('.cat-item[data-id="mtgjson-cmd-1"] .cat-item__abrir'); await page.waitForSelector('#catd-voltar'); await page.waitForSelector('.catd__cabeca');
+  {
+    {
+      for (const tema of ['dark', 'light']) {
+        await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(450);
+        const m = await mede();
+        assert.ok(Math.abs(m.centro - m.largura / 2) <= 1, `Lista oficial ${tema}: título no centro`); assert.equal(m.voltar, true);
+        const d = await page.evaluate(() => {
+          const cv = document.createElement('canvas'); cv.width = cv.height = 1; const cx = cv.getContext('2d');
+          const rgb = c => { cx.clearRect(0, 0, 1, 1); cx.fillStyle = c; cx.fillRect(0, 0, 1, 1); return [...cx.getImageData(0, 0, 1, 1).data].slice(0, 3); };
+          const lum = c => rgb(c).map(x => x / 255).map(x => x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4).reduce((a, x, i) => a + x * [0.2126, 0.7152, 0.0722][i], 0);
+          const r = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+          const fundoDe = el => { for (let p = el; p; p = p.parentElement) { const b = getComputedStyle(p).backgroundColor; if (b && b !== 'rgba(0, 0, 0, 0)' && b !== 'transparent') return b; } return 'white'; };
+          const cab = document.querySelector('.catd__cabeca'), cs = getComputedStyle(cab);
+          const probe = document.createElement('span'); probe.style.color = getComputedStyle(document.documentElement).getPropertyValue('--bg-elev-0'); document.body.appendChild(probe); const funda = getComputedStyle(probe).color; probe.remove();
+          const ruins = []; const wk = document.createTreeWalker(cab, NodeFilter.SHOW_TEXT);
+          while (wk.nextNode()) { const el = wk.currentNode.parentElement; if (!wk.currentNode.textContent.trim() || el.getBoundingClientRect().width <= 1) continue; const k = r(getComputedStyle(el).color, fundoDe(el)); if (k < 4.5) ruins.push(`${wk.currentNode.textContent.trim().slice(0, 20)} ${k.toFixed(2)}`); }
+          return { ebano: cs.backgroundColor === funda, ruins };
+        });
+        assert.equal(d.ebano, true, `topo da lista oficial em ébano (${tema})`); assert.deepEqual(d.ruins, [], `texto em AA no topo da lista oficial (${tema})`);
+        await auditaTela(page, `DS-K F4.1 · Lista oficial ${tema}`);
+        if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + `/ds-k-f41-oficial-${tema}.png`, clip: { x: 0, y: 0, width: 360, height: 430 } });
+      }
+    }
+  }
+  assert.equal(await page.getAttribute('#catd-voltar', 'aria-label'), 'Voltar para Listas prontas');
+  await page.click('#catd-voltar'); await page.waitForSelector('#catalogo-lista');
   assert.deepEqual(errors, []);
 });
 
