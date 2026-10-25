@@ -12,7 +12,8 @@ const of = n => { const c = OF.find(x => x.name === n); assert.ok(c, 'sem texto 
 const sint = (oracle, tipo = 'Instant') => ({ name: 'Teste Modal', type_line: tipo, mana_cost: '{2}{R}', cmc: 3, keywords: [], oracle_text: oracle, colors: ['R'] });
 
 test('K-77 · 700.2d · Kolaghan\'s Command: "Choose two —" com quatro modos vira modeCount 2', () => {
-  const l = S.leitura(of("Kolaghan's Command")); assert.ok(l, 'leitura completa'); assert.equal(l.aprovada, false); assert.equal(S.coverage(of("Kolaghan's Command")).level, 'lida');
+  // H-22 · a aprovação é da homologação: aprovada se e só se está em APROVADAS (lote 5 da revisão em lote dos competitivos)
+  const l = S.leitura(of("Kolaghan's Command")), aprov = !!S.APROVADAS["Kolaghan's Command"]; assert.ok(l, 'leitura completa'); assert.equal(l.aprovada, aprov); assert.equal(S.coverage(of("Kolaghan's Command")).level, aprov ? 'completo' : 'lida');
   assert.equal(l.script.modeCount, 2); assert.equal(l.script.modeMin, undefined); assert.equal(l.script.modes.length, 4);
 });
 
