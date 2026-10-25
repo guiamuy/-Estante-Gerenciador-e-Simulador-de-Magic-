@@ -15833,6 +15833,45 @@ test('e2e · J-27 comprar e troca de vez do DS-K: a compra vira do verso com a s
   assert.deepEqual(errors, []);
 });
 
+// F3a (J-29, trilha jogabilidade; DS-K direção K, decisão D1 do dono) · a mesa como layout: a barra de cima e a bandeja em
+// ébano, com o filete de latão na borda que encosta no campo; a bandeja sólida, sem o vidro; o campo na superfície escolhida
+test('e2e · F3a barra e bandeja da mesa em ébano: --bg-elev-0 com o filete de latão, bandeja sem desfoque, campo na superfície; quatro medidas e dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start');
+  await page.fill('#mesa-seed', '4'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  await page.waitForSelector('#tb-pass');
+  await page.evaluate(() => { const M = window.__estanteMesa, s = M.estado(), p = s.turn.active; // um campo com terreno e criatura
+    for (const nm of ['Island', 'Island', 'Delver of Secrets']) { const o = Object.values(M.estado().objects).find(x => x.owner === p && x.name === nm && x.zone === 'library'); if (o) M.act({ t: 'move', p, oid: o.oid, to: 'battlefield' }); } });
+  await semAnimar(page);
+  const le = () => page.evaluate(() => {
+    const raiz = getComputedStyle(document.documentElement), tom = v => { const d = document.createElement('div'); d.style.color = v; document.body.appendChild(d); const c = getComputedStyle(d).color; d.remove(); return c; };
+    const ebano = tom(raiz.getPropertyValue('--bg-elev-0').trim()), top = getComputedStyle(document.querySelector('.tb > .tb-top')), doca = getComputedStyle(document.querySelector('.tb-dock')), campo = getComputedStyle(document.body);
+    return { ebano, barra: top.backgroundColor, filBarra: [top.backgroundImage.includes('linear-gradient'), top.backgroundPosition, top.backgroundSize],
+      bandeja: doca.backgroundColor, filBandeja: [doca.backgroundImage.includes('linear-gradient'), doca.backgroundPosition, doca.backgroundSize], vidro: doca.backdropFilter, sombra: doca.boxShadow !== 'none',
+      campo: campo.backgroundColor };
+  });
+  for (const tema of ['dark', 'light']) {
+    await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(500);
+    const m = await le();
+    t.diagnostic(`F3a · ${tema} ${JSON.stringify(m)}`);
+    assert.equal(m.barra, m.ebano, `${tema}: a barra de cima em ébano`);
+    assert.equal(m.bandeja, m.ebano, `${tema}: a bandeja em ébano`);
+    assert.deepEqual(m.filBarra, [true, '50% 100%', '100% 1px'], `${tema}: o filete de latão embaixo da barra`);
+    assert.deepEqual(m.filBandeja, [true, '50% 0%', '100% 1px'], `${tema}: o filete de latão em cima da bandeja`);
+    assert.equal(m.vidro, 'none', `${tema}: a bandeja sólida, sem desfoque`);
+    assert.ok(m.sombra, `${tema}: a bandeja com a sombra para cima`);
+    assert.notEqual(m.campo, m.ebano, `${tema}: o campo continua na superfície escolhida`);
+    for (const [w, hgt] of [[360, 780], [384, 832], [390, 844], [412, 891]]) {
+      await page.setViewportSize({ width: w, height: hgt }); await page.waitForTimeout(250);
+      await auditaTela(page, `F3a · ${tema} ${w}×${hgt}`);
+      if (process.env.SHOTS && (w === 360)) await page.screenshot({ path: `${process.env.SHOTS}/f3a-${tema}-${w}.png` });
+    }
+  }
+  assert.deepEqual(errors, []);
+});
+
 /* ---------------- DS-K (G-287) · Ébano e Ouro, F0.1: tokens, receitas de animação e contenção de texto ---------------- */
 test('e2e · DS-K · o /ds mostra os tokens de ébano e latão, as dez receitas com os cinco campos, o palco toca em três planos e para com menos movimento; latão AA nos dois temas; nenhum controle com texto fora da caixa', { skip }, async t => {
   const { page, errors, base } = await open(t);

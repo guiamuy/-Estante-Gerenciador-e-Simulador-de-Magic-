@@ -2474,11 +2474,19 @@ body[data-mesa-cheia="true"] .tb-steps__list li { padding: 0 0 1px; border-botto
 .tb-adj__oracle { margin: 0; white-space: pre-wrap; font-size: var(--text-sm); line-height: var(--lh-md); color: var(--fg); }
 .tb-adj__actions { display: flex; flex-wrap: wrap; gap: var(--space-2); justify-content: flex-end; }
 
+/* F3a (J-29) · mesa como layout no DS-K (direção K): a bandeja em ébano (--bg-elev-0), sólida, com o filete de latão do
+   destaque em ébano na borda que encosta no campo e a sombra para cima; deixa o vidro (backdrop-filter numa faixa da largura
+   da tela, repintado a cada quadro da mesa por baixo dela) */
 .tb-dock {
   position: sticky; bottom: 0; z-index: var(--z-sticky); margin-top: var(--space-3);
-  background: var(--scrim); backdrop-filter: blur(10px); border-top: 2px solid var(--shelf-edge);
+  background-color: var(--bg-elev-0); background-image: var(--filete-latao); background-size: 100% 1px; background-position: top; background-repeat: no-repeat;
+  box-shadow: var(--shadow-up);
   padding: var(--space-2) var(--space-3) calc(var(--space-2) + env(safe-area-inset-bottom, 0px));
 }
+/* F3a (J-29) · a barra de cima (Sair, faixa de vez, ferramentas e trilho das fases) em ébano, com o filete de latão embaixo;
+   o campo continua na superfície escolhida em Aparência */
+.tb > .tb-top { background-color: var(--bg-elev-0); background-image: var(--filete-latao); background-size: 100% 1px; background-position: bottom; background-repeat: no-repeat; padding-bottom: var(--space-2); }
+.tb { --filete-latao: linear-gradient(90deg, transparent, var(--accent-lo) 18%, var(--accent-hi) 50%, var(--accent-lo) 82%, transparent); }
 .tb-banner { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; padding-bottom: var(--space-2); }
 .tb-banner { position: relative; }
 .tb-banner__text { flex: 1 1 180px; display: flex; flex-direction: column; justify-content: center; min-width: 0; min-height: var(--tap-min); position: relative; padding: 0 var(--space-4) 0 0; border-radius: var(--radius-1); text-align: left; color: inherit; font: inherit; cursor: pointer; }
