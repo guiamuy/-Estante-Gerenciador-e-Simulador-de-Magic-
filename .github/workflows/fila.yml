@@ -55,24 +55,24 @@ jobs:
         run: |
           if [ -n "$FILA_SO" ]; then node fila.mjs monta --so "$FILA_SO"; else node fila.mjs monta; fi
 
-  portao:
+  # Q22 · main vermelho conhecido (aviso do mesmo main): só as quedas do aviso, sobre a soma, em minutos, num job próprio antes do portão.
+  # Ainda caem → os dois jobs do portão não rodam e as levas esperam (o avanca nunca publica com a pré-sonda "caem").
+  # Passam (ou o teste sumiu) → o portão inteiro decide, como sempre. Sem aviso, este job nem existe na rodada.
+  presonda:
     needs: monta
-    if: needs.monta.outputs.portao == 'sim'
+    if: needs.monta.outputs.portao == 'sim' && needs.monta.outputs.sonda != ''
     runs-on: ubuntu-24.04   # Q21 · versão fixa: a troca do ubuntu-latest não pode derrubar o portão sem aviso
-    timeout-minutes: 55     # Q22 · portão p90 32 min + preparo ~4 + reexecução das quedas no main (teto de 8 min)
+    timeout-minutes: 20
     permissions:
       contents: read
     outputs:
-      quedas: ${{ steps.quedas.outputs.quedas }}
-      resumo: ${{ steps.resumo.outputs.resumo }}
       presonda: ${{ steps.presonda.outputs.presonda }}
-      herdadas: ${{ steps.herdadas.outputs.herdadas }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09   # v5 (fixada por SHA; roda em Node 24)
         with:
           ref: main
           fetch-depth: 200
-          persist-credentials: false   # o portão roda código de leva e de dependência: sem credencial no disco
+          persist-credentials: false   # roda código de leva e de dependência: sem credencial no disco
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444   # v5 (fixada por SHA; roda em Node 24)
         with:
           node-version: 22
@@ -86,49 +86,72 @@ jobs:
           cd "$RUNNER_TEMP" && node fila.mjs aplica --cwd "$GITHUB_WORKSPACE"
       - run: npm ci --no-audit --no-fund
       - run: npx playwright install --with-deps chromium
-      # Q22 · main vermelho conhecido (aviso do mesmo main): só as quedas do aviso, sobre a soma, em minutos. Ainda caem → as fases
-      # não rodam e as levas esperam (o avanca nunca publica com a pré-sonda "caem"). Passam → o portão inteiro decide, como sempre.
       - name: Pré-sonda · as quedas do main vermelho ainda caem com estas levas?
         id: presonda
-        if: needs.monta.outputs.sonda != ''
         env:
           CI: 'true'
           FILA_SONDA: ${{ needs.monta.outputs.sonda }}
         run: cd "$RUNNER_TEMP" && node fila.mjs presonda --cwd "$GITHUB_WORKSPACE"
+
+  # Q23 · o portão em dois jobs paralelos, cada um no seu runner: a fase rápida aqui e a de tela no job `tela`. Antes as duas rodavam
+  # em sequência no mesmo runner (rápida 15,7 + tela 12,8 min, p50 de 18 a 25/10); agora a rodada dura a mais lenta das duas.
+  # A rápida não instala navegador. Nenhum dos dois tem escrita nem credencial.
+  portao:
+    needs: [monta, presonda]
+    # Q23 · roda junto com o outro job do portão; a pré-sonda (quando há aviso de main vermelho) vem antes e, se as quedas ainda caem, nenhum dos dois roda
+    if: always() && needs.monta.result == 'success' && needs.monta.outputs.portao == 'sim' && needs.presonda.outputs.presonda != 'caem'
+    runs-on: ubuntu-24.04   # Q21 · versão fixa: a troca do ubuntu-latest não pode derrubar o portão sem aviso
+    timeout-minutes: 40     # rápida p90 ~17 min + preparo ~2 + reexecução das quedas no main (teto de 8 min)
+    permissions:
+      contents: read
+    outputs:
+      quedas: ${{ steps.quedas.outputs.quedas }}
+      resumo: ${{ steps.resumo.outputs.resumo }}
+      herdadas: ${{ steps.herdadas.outputs.herdadas }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09   # v5 (fixada por SHA; roda em Node 24)
+        with:
+          ref: main
+          fetch-depth: 200
+          persist-credentials: false   # roda código de leva e de dependência: sem credencial no disco
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444   # v5 (fixada por SHA; roda em Node 24)
+        with:
+          node-version: 22
+      - name: Buscar os ramos da fila
+        run: git fetch --quiet --depth=200 origin '+refs/heads/fila/*:refs/remotes/origin/fila/*'
+      - name: Remontar a soma do plano (com o fila.mjs do main)
+        env:
+          FILA_PLANO: ${{ needs.monta.outputs.plano }}
+        run: |
+          cp fila.mjs agregacao.mjs "$RUNNER_TEMP/"
+          cd "$RUNNER_TEMP" && node fila.mjs aplica --cwd "$GITHUB_WORKSPACE"
+      - run: npm ci --no-audit --no-fund
       - name: Fase rápida · unidade, fuzz, golden e contrato visual
-        if: steps.presonda.outputs.presonda != 'caem'
         run: |
           set -o pipefail
           npm run -s test:rapido 2>&1 | tee portao.log
         env:
           CI: 'true'
           FUZZ_GAMES: '250'
-      - name: Fase de tela · navegador, sozinha
-        if: steps.presonda.outputs.presonda != 'caem'
-        run: |
-          set -o pipefail
-          npm run -s test:e2e 2>&1 | tee -a portao.log
-        env:
-          CI: 'true'
       - name: Testes que caíram (vão para o motivo da recusa)
         id: quedas
         if: failure()
         run: |
           test -f portao.log || exit 0
-          grep -E '^not ok [0-9]+ - ' portao.log | grep -v '\.test\.mjs$' | cut -c1-160 | head -12 | tr '\n' ';' | sed 's/^/quedas=/' >> "$GITHUB_OUTPUT"
+          cd "$RUNNER_TEMP" && node fila.mjs quedas --log "$GITHUB_WORKSPACE/portao.log"
       # Q22 · antes de culpar a soma: os testes que caíram rodam de novo, sozinhos, sobre o main sem leva nenhuma (o fila.mjs do main,
       # neste job sem credencial). Todos caem lá também → o vermelho é do main: ninguém é recusado e o avanca grava o aviso.
       - name: As quedas caem também no main sozinho?
         id: herdadas
-        if: failure() && steps.presonda.outputs.presonda != 'caem'
+        if: failure()
         env:
           CI: 'true'
           FILA_PLANO: ${{ needs.monta.outputs.plano }}
         run: |
           test -f portao.log || exit 0
           cd "$RUNNER_TEMP" && node fila.mjs herdadas --cwd "$GITHUB_WORKSPACE" --log "$GITHUB_WORKSPACE/portao.log"
-      # I-292 · o que o portão mediu sobre a soma (testes, instáveis, telas, duração, medidas) vai como saída do job, só agregados,
-      # para o `avanca` gravar a telemetria da rodada. O arquivo vem do código testado: o `avanca` valida antes de gravar.
+      # I-292 · o que a fase mediu sobre a soma (testes, instáveis, telas, duração, medidas) vai como saída do job, só agregados;
+      # o `avanca` junta as duas fases antes de gravar a telemetria da rodada. O arquivo vem do código testado: o `avanca` valida.
       - name: Resumo do portão para a telemetria da rodada
         id: resumo
         if: always()
@@ -143,13 +166,88 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f   # v6 (fixada por SHA; roda em Node 24)
         with:
-          name: portao-log
+          name: portao-log-rapida
+          path: portao.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  tela:
+    needs: [monta, presonda]
+    # Q23 · roda junto com o outro job do portão; a pré-sonda (quando há aviso de main vermelho) vem antes e, se as quedas ainda caem, nenhum dos dois roda
+    if: always() && needs.monta.result == 'success' && needs.monta.outputs.portao == 'sim' && needs.presonda.outputs.presonda != 'caem'
+    runs-on: ubuntu-24.04   # Q21 · versão fixa: a troca do ubuntu-latest não pode derrubar o portão sem aviso
+    timeout-minutes: 40     # tela p90 ~16 min + preparo ~3 + reexecução das quedas no main (teto de 8 min)
+    permissions:
+      contents: read
+    outputs:
+      quedas: ${{ steps.quedas.outputs.quedas }}
+      resumo: ${{ steps.resumo.outputs.resumo }}
+      herdadas: ${{ steps.herdadas.outputs.herdadas }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09   # v5 (fixada por SHA; roda em Node 24)
+        with:
+          ref: main
+          fetch-depth: 200
+          persist-credentials: false   # roda código de leva e de dependência: sem credencial no disco
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444   # v5 (fixada por SHA; roda em Node 24)
+        with:
+          node-version: 22
+      - name: Buscar os ramos da fila
+        run: git fetch --quiet --depth=200 origin '+refs/heads/fila/*:refs/remotes/origin/fila/*'
+      - name: Remontar a soma do plano (com o fila.mjs do main)
+        env:
+          FILA_PLANO: ${{ needs.monta.outputs.plano }}
+        run: |
+          cp fila.mjs agregacao.mjs "$RUNNER_TEMP/"
+          cd "$RUNNER_TEMP" && node fila.mjs aplica --cwd "$GITHUB_WORKSPACE"
+      - run: npm ci --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - name: Fase de tela · navegador, sozinha
+        run: |
+          set -o pipefail
+          npm run -s test:e2e 2>&1 | tee portao.log
+        env:
+          CI: 'true'
+      - name: Testes que caíram (vão para o motivo da recusa)
+        id: quedas
+        if: failure()
+        run: |
+          test -f portao.log || exit 0
+          cd "$RUNNER_TEMP" && node fila.mjs quedas --log "$GITHUB_WORKSPACE/portao.log"
+      # Q22 · antes de culpar a soma: os testes que caíram rodam de novo, sozinhos, sobre o main sem leva nenhuma (o fila.mjs do main,
+      # neste job sem credencial). Todos caem lá também → o vermelho é do main: ninguém é recusado e o avanca grava o aviso.
+      - name: As quedas caem também no main sozinho?
+        id: herdadas
+        if: failure()
+        env:
+          CI: 'true'
+          FILA_PLANO: ${{ needs.monta.outputs.plano }}
+        run: |
+          test -f portao.log || exit 0
+          cd "$RUNNER_TEMP" && node fila.mjs herdadas --cwd "$GITHUB_WORKSPACE" --log "$GITHUB_WORKSPACE/portao.log"
+      # I-292 · o que a fase mediu sobre a soma (testes, instáveis, telas, duração, medidas) vai como saída do job, só agregados;
+      # o `avanca` junta as duas fases antes de gravar a telemetria da rodada. O arquivo vem do código testado: o `avanca` valida.
+      - name: Resumo do portão para a telemetria da rodada
+        id: resumo
+        if: always()
+        run: |
+          test -f .tmp/portao.json || exit 0
+          node -e '
+            const r = JSON.parse(require("node:fs").readFileSync(".tmp/portao.json", "utf8"));
+            const f = x => x ? { passaram: x.passaram, minutos: x.minutos, quedasOrcamento: (x.quedasOrcamento || []).slice(0, 12), instaveis: (x.instaveis || []).slice(0, 10), telas: Array.isArray(x.telas) ? x.telas.length : 0, medidas: x.medidas || {} } : null;
+            console.log("resumo=" + JSON.stringify({ kind: r.kind, rapido: f(r.rapido), tela: f(r.tela) }));
+          ' >> "$GITHUB_OUTPUT"
+      - name: Guardar o log do portão
+        if: failure()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f   # v6 (fixada por SHA; roda em Node 24)
+        with:
+          name: portao-log-tela
           path: portao.log
           if-no-files-found: ignore
           retention-days: 7
 
   avanca:
-    needs: [monta, portao]
+    needs: [monta, presonda, portao, tela]
     if: always() && needs.monta.result == 'success'
     runs-on: ubuntu-24.04   # Q21 · versão fixa: a troca do ubuntu-latest não pode derrubar o portão sem aviso
     timeout-minutes: 10
@@ -173,14 +271,23 @@ jobs:
       - name: Guardar o telemetria.mjs do main
         run: cp telemetria.mjs "$RUNNER_TEMP/"
       # Nada da leva é instalado nem executado aqui: só git e o fila.mjs do main (copiado para fora da árvore antes de remontar).
+      # Q23 · o resultado do portão é o dos dois jobs juntos (o fila.mjs do main junta): verde só com os dois verdes. As quedas e a
+      # reexecução no main de cada job seguem pelo ambiente; o resumo das duas fases sai juntado para a telemetria da rodada.
       - name: Avançar o main, recusar ou isolar
         id: avanca
         env:
           FILA_PLANO: ${{ needs.monta.outputs.plano }}
-          FILA_PORTAO: ${{ needs.portao.result }}
+          # o mesmo resultado em expressão (independe da versão do fila.mjs: a rodada que testa uma leva que muda este fluxo usa o fila.mjs do main)
+          FILA_PORTAO: ${{ (needs.portao.result == 'success' && needs.tela.result == 'success') && 'success' || ((needs.portao.result == 'failure' || needs.tela.result == 'failure') && 'failure' || ((needs.portao.result == 'skipped' && needs.tela.result == 'skipped') && 'skipped' || 'cancelled')) }}
+          FILA_PORTAO_RAPIDA: ${{ needs.portao.result }}
+          FILA_PORTAO_TELA: ${{ needs.tela.result }}
           FILA_MOTIVO: ${{ needs.portao.outputs.quedas }}
-          FILA_PRESONDA: ${{ needs.portao.outputs.presonda }}
+          FILA_MOTIVO_TELA: ${{ needs.tela.outputs.quedas }}
+          FILA_PRESONDA: ${{ needs.presonda.outputs.presonda }}
           FILA_HERDADAS: ${{ needs.portao.outputs.herdadas }}
+          FILA_HERDADAS_TELA: ${{ needs.tela.outputs.herdadas }}
+          FILA_RESUMO_RAPIDA: ${{ needs.portao.outputs.resumo }}
+          FILA_RESUMO_TELA: ${{ needs.tela.outputs.resumo }}
         run: |
           cp fila.mjs agregacao.mjs "$RUNNER_TEMP/"
           cd "$RUNNER_TEMP" && node fila.mjs avanca --cwd "$GITHUB_WORKSPACE" --portao "$FILA_PORTAO"
@@ -210,12 +317,12 @@ jobs:
       # no shell); o código é o telemetria.mjs do main. O token fica no git do runner, nunca na URL. Falhar não derruba a rodada.
       # Q22 · rodada que parou na pré-sonda não rodou portão: não entra em rodadas.jsonl (o resumo do fluxo diz que esperou)
       - name: Telemetria da rodada
-        if: always() && needs.portao.result != 'skipped' && needs.portao.outputs.presonda != 'caem'
+        if: always() && !(needs.portao.result == 'skipped' && needs.tela.result == 'skipped') && needs.presonda.outputs.presonda != 'caem'
         env:
           GH_TOKEN: ${{ github.token }}
           FILA_PLANO: ${{ needs.monta.outputs.plano }}
-          FILA_PORTAO: ${{ needs.portao.result }}
-          FILA_RESUMO: ${{ needs.portao.outputs.resumo }}
+          FILA_PORTAO: ${{ (needs.portao.result == 'success' && needs.tela.result == 'success') && 'success' || ((needs.portao.result == 'failure' || needs.tela.result == 'failure') && 'failure' || ((needs.portao.result == 'skipped' && needs.tela.result == 'skipped') && 'skipped' || 'cancelled')) }}
+          FILA_RESUMO: ${{ steps.avanca.outputs.resumo }}
           FILA_PUBLICADO: ${{ steps.avanca.outputs.publicado }}
         run: |
           git config --global "http.${GITHUB_SERVER_URL}/.extraheader" "AUTHORIZATION: basic $(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
@@ -231,7 +338,7 @@ jobs:
       # terceira (ou mais) da corrente de disparos (limite do GitHub: três níveis); por isso cada rodada dispara o retrato ao
       # terminar, publicada ou não, depois de pedir a rodada seguinte (o retrato a vê na fila). Falhar não derruba a rodada.
       - name: Retrato do GitHub para o painel
-        if: always() && needs.portao.result != 'skipped'
+        if: always() && needs.portao.result != 'skipped'   # Q23 · os dois jobs do portão pulam juntos: olhar um basta (contrato do retrato.unit)
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh workflow run retrato.yml --repo "$GITHUB_REPOSITORY" --ref main || echo "::warning::não consegui disparar retrato.yml"

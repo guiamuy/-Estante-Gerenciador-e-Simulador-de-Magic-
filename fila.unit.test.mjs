@@ -8,7 +8,8 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { EPOCA } from './agregacao.mjs';
 import { chave, nomeDoRamo, ordemDaFila, decisao, limparMotivo, quedasDoLog, planoValido, NOME_VALIDO, montar, avancar, ramosDaFila, commitsDa, publicados, situacao, formatarQuedas, limparAvisos,
-  AVISO_MAIN, limparQueda, quedasComArquivo, reexecutar, mainVermelho, resultadoDaPresonda, sondaDoAviso, lerAvisoMain, herdadasNoMain } from './fila.mjs';
+  AVISO_MAIN, limparQueda, quedasComArquivo, reexecutar, mainVermelho, resultadoDaPresonda, sondaDoAviso, lerAvisoMain, herdadasNoMain,
+  resultadoDoPortao, juntarHerdadas, juntarResumos } from './fila.mjs';
 
 const RAIZ = dirname(fileURLToPath(import.meta.url));
 const DEPOIS = Math.floor(EPOCA / 1000) + 3600;
@@ -212,20 +213,27 @@ test('Q17 · o fluxo da fila: só o job que avança tem escrita e ele não execu
   assert.match(yml, /^concurrency:\n  group: \S+\n  cancel-in-progress: false$/m);
   assert.match(yml, /^permissions:\n  contents: read$/m, 'padrão do fluxo: só leitura');
   const job = (nome) => (yml.match(new RegExp(`\\n  ${nome}:\\n([\\s\\S]*?)(?=\\n  [a-z]+:\\n|$)`)) || [])[1] || '';
-  const monta = job('monta'), portao = job('portao'), avanca = job('avanca');
-  assert.ok(monta && portao && avanca, 'três jobs');
-  for (const [nome, j] of [['monta', monta], ['portao', portao]]) {
+  const monta = job('monta'), portao = job('portao'), tela = job('tela'), presonda = job('presonda'), avanca = job('avanca');
+  assert.ok(monta && portao && tela && presonda && avanca, 'cinco jobs (Q23: o portão em dois, rápida e tela, mais a pré-sonda da Q22)');
+  for (const [nome, j] of [['monta', monta], ['presonda', presonda], ['portao', portao], ['tela', tela]]) {
     assert.doesNotMatch(j, /write/, `${nome} não escreve em nada`);
     assert.match(j, /persist-credentials: false/, `${nome} não deixa credencial no disco`);
     assert.doesNotMatch(j, /github\.token|secrets\./, `${nome} não recebe token nem segredo`);
   }
-  assert.match(portao, /npm ci\b/); assert.match(portao, /npm run (-s )?test:rapido/); assert.match(portao, /npm run (-s )?test:e2e/);
-  assert.match(portao, /needs\.monta\.outputs\.portao == 'sim'/);
+  // Q23 · a fase rápida no job `portao`, a de tela no job `tela`, em paralelo; cada uma com o seu npm ci, só a de tela instala navegador
+  assert.match(portao, /npm ci\b/); assert.match(portao, /npm run (-s )?test:rapido/); assert.doesNotMatch(portao, /test:e2e|playwright install/);
+  assert.match(tela, /npm ci\b/); assert.match(tela, /npm run (-s )?test:e2e/); assert.match(tela, /playwright install/); assert.doesNotMatch(tela, /test:rapido/);
+  for (const j of [portao, tela]) {
+    assert.match(j, /needs: \[monta, presonda\]/);
+    assert.match(j, /if: always\(\) && needs\.monta\.result == 'success' && needs\.monta\.outputs\.portao == 'sim' && needs\.presonda\.outputs\.presonda != 'caem'/);
+  }
   assert.match(avanca, /contents: write/);
   assert.doesNotMatch(avanca, /npm (ci|install|run|test)|npx |playwright/, 'o job com escrita não instala nem roda nada da leva');
   assert.match(avanca, /cp fila\.mjs agregacao\.mjs "\$RUNNER_TEMP\/"/, 'o código que avança o main é copiado do main antes de a árvore mudar');
-  assert.match(avanca, /needs\.portao\.result/, 'quem diz se o portão passou é o resultado do job, não uma saída que o código testado escreve');
-  for (const j of [monta, portao, avanca]) assert.match(j, /ref: main/, 'todo job parte do main');
+  assert.match(avanca, /needs: \[monta, presonda, portao, tela\]/);
+  assert.match(avanca, /FILA_PORTAO_RAPIDA: \$\{\{ needs\.portao\.result \}\}/, 'quem diz se o portão passou é o resultado dos jobs, não uma saída que o código testado escreve');
+  assert.match(avanca, /FILA_PORTAO_TELA: \$\{\{ needs\.tela\.result \}\}/);
+  for (const j of [monta, presonda, portao, tela, avanca]) assert.match(j, /ref: main/, 'todo job parte do main');
   assert.doesNotMatch(yml, /--force(?!-)|push -f\b/, 'nenhum push forçado no fluxo');
 });
 
@@ -247,8 +255,11 @@ test('I-291 · a cada avanço do main, a fila dispara "Relatos pela fila" (o age
 test('I-292 · telemetria da rodada: o portão entrega só um resumo agregado como saída do job; o avanca grava a rodada com o telemetria.mjs do main, copiado antes de a árvore virar a soma, tudo pelo ambiente, sem permissão nova e sem derrubar a rodada', () => {
   const yml = readFileSync(join(RAIZ, '.github/workflows/fila.yml'), 'utf8');
   const job = (nome) => (yml.match(new RegExp(`\\n  ${nome}:\\n([\\s\\S]*?)(?=\\n  [a-z]+:\\n|$)`)) || [])[1] || '';
-  const portao = job('portao'), avanca = job('avanca');
-  assert.match(portao, /outputs:\n(?:      \w+: .*\n)*      resumo: \$\{\{ steps\.resumo\.outputs\.resumo \}\}/, 'o portão expõe o resumo como saída do job');
+  const portao = job('portao'), tela = job('tela'), avanca = job('avanca');
+  for (const j of [portao, tela]) {   // Q23 · cada job do portão entrega o resumo da sua fase
+    assert.match(j, /outputs:\n(?:      \w+: .*\n)*      resumo: \$\{\{ steps\.resumo\.outputs\.resumo \}\}/, 'o job expõe o resumo como saída');
+    assert.ok(j.split('\n      - ').some(p => /^name: Resumo do portão[\s\S]*if: always\(\)/.test(p)), 'resumo da fase, verde ou vermelha');
+  }
   const pResumo = portao.split('\n      - ').find(p => /^name: Resumo do portão/.test(p));
   assert.ok(pResumo, 'passo do resumo'); assert.match(pResumo, /if: always\(\)/, 'roda com o portão verde ou vermelho');
   assert.match(pResumo, /\.tmp\/portao\.json/); assert.doesNotMatch(pResumo, /upload-artifact|gh api|github\.token/, 'nenhum artefato, nenhuma chamada à API: só a saída do job');
@@ -261,8 +272,10 @@ test('I-292 · telemetria da rodada: o portão entrega só um resumo agregado co
   assert.match(passos[iGuarda], /cp telemetria\.mjs "\$RUNNER_TEMP\/"/);
   assert.ok(iTel > passos.findIndex(p => /Marcar o commit publicado/.test(p)), 'depois de marcar o commit publicado');
   const tel = passos[iTel];
-  assert.match(tel, /if: always\(\) && needs\.portao\.result != 'skipped'/, 'grava verde ou vermelho; sem portão (nada para testar) não há rodada');
-  for (const v of ['FILA_PLANO: ${{ needs.monta.outputs.plano }}', 'FILA_PORTAO: ${{ needs.portao.result }}', 'FILA_RESUMO: ${{ needs.portao.outputs.resumo }}', 'FILA_PUBLICADO: ${{ steps.avanca.outputs.publicado }}', 'GH_TOKEN: ${{ github.token }}']) assert.ok(tel.includes(v), `ambiente: ${v}`);
+  assert.match(tel, /if: always\(\) && !\(needs\.portao\.result == 'skipped' && needs\.tela\.result == 'skipped'\)/, 'grava verde ou vermelho; sem portão (nada para testar) não há rodada');
+  // Q23 · o resultado das duas fases em expressão do fluxo; o resumo chega juntado pelo passo que avança (o fila.mjs do main junta)
+  for (const v of ['FILA_PLANO: ${{ needs.monta.outputs.plano }}', "FILA_PORTAO: ${{ (needs.portao.result == 'success' && needs.tela.result == 'success')", 'FILA_RESUMO: ${{ steps.avanca.outputs.resumo }}', 'FILA_PUBLICADO: ${{ steps.avanca.outputs.publicado }}', 'GH_TOKEN: ${{ github.token }}']) assert.ok(tel.includes(v), `ambiente: ${v}`);
+  for (const v of ['FILA_RESUMO_RAPIDA: ${{ needs.portao.outputs.resumo }}', 'FILA_RESUMO_TELA: ${{ needs.tela.outputs.resumo }}']) assert.ok(passos[iAvanca].includes(v), `o passo que avança recebe ${v}`);
   assert.doesNotMatch(tel.split('run: |')[1] || '', /\$\{\{/, 'nada do plano ou do resumo interpolado no shell: tudo pelo ambiente');
   assert.match(tel, /cd "\$RUNNER_TEMP" && node telemetria\.mjs rodada --ci --remoto "\$\{GITHUB_SERVER_URL\}\/\$\{GITHUB_REPOSITORY\}\.git"/, 'roda a cópia do main, fora da árvore, e a URL do remoto não leva o token');
   assert.match(tel, /git config --global "http\.\$\{GITHUB_SERVER_URL\}\/\.extraheader"/, 'o token vai pelo cabeçalho do git do runner (como o checkout faz)');
@@ -477,24 +490,78 @@ test('Q22 · culpa da leva continua recusando: a queda que passa no main sozinho
   } finally { m.fim(); }
 });
 
-test('Q22 · o fluxo: pré-sonda antes das fases (que não rodam com "caem"), reexecução no main no job sem credencial, aviso lido no monta, nenhuma permissão nova', () => {
+test('Q22 · o fluxo: pré-sonda num job antes do portão (que não roda com "caem"), reexecução no main em cada job sem credencial, aviso lido no monta, nenhuma permissão nova', () => {
   const yml = readFileSync(join(RAIZ, '.github/workflows/fila.yml'), 'utf8');
   const job = (nome) => (yml.match(new RegExp(`\\n  ${nome}:\\n([\\s\\S]*?)(?=\\n  [a-z]+:\\n|$)`)) || [])[1] || '';
-  const monta = job('monta'), portao = job('portao'), avanca = job('avanca');
+  const monta = job('monta'), presonda = job('presonda'), portao = job('portao'), tela = job('tela'), avanca = job('avanca');
   assert.match(monta, /sonda: \$\{\{ steps\.monta\.outputs\.sonda \}\}/);
   assert.match(monta, /'\+refs\/heads\/aviso\/\*:refs\/remotes\/origin\/aviso\/\*'/, 'o monta busca o aviso');
-  const passos = portao.split('\n      - ');
-  const i = (rx) => passos.findIndex((x) => rx.test(x));
-  const iPre = i(/^name: Pré-sonda/), iRap = i(/^name: Fase rápida/), iTela = i(/^name: Fase de tela/), iHer = i(/^name: As quedas caem também no main/), iQue = i(/^name: Testes que caíram/);
-  assert.ok(iPre > 0 && iPre < iRap && iRap < iTela && iTela < iQue && iQue < iHer, 'ordem: pré-sonda, fases, quedas, reexecução no main');
-  assert.match(passos[iPre], /if: needs\.monta\.outputs\.sonda != ''/);
-  assert.match(passos[iPre], /FILA_SONDA: \$\{\{ needs\.monta\.outputs\.sonda \}\}/); assert.match(passos[iPre], /cd "\$RUNNER_TEMP" && node fila\.mjs presonda/, 'o fila.mjs do main');
-  for (const k of [iRap, iTela]) assert.match(passos[k], /if: steps\.presonda\.outputs\.presonda != 'caem'/);
-  assert.match(passos[iHer], /if: failure\(\) && steps\.presonda\.outputs\.presonda != 'caem'/);
-  assert.match(passos[iHer], /cd "\$RUNNER_TEMP" && node fila\.mjs herdadas --cwd "\$GITHUB_WORKSPACE" --log "\$GITHUB_WORKSPACE\/portao\.log"/);
-  for (const s of ['presonda: ${{ steps.presonda.outputs.presonda }}', 'herdadas: ${{ steps.herdadas.outputs.herdadas }}']) assert.ok(portao.includes(s), s);
-  for (const s of ['FILA_PRESONDA: ${{ needs.portao.outputs.presonda }}', 'FILA_HERDADAS: ${{ needs.portao.outputs.herdadas }}']) assert.ok(avanca.includes(s), `pelo ambiente: ${s}`);
-  assert.match(avanca, /name: Telemetria da rodada\n        if: always\(\) && needs\.portao\.result != 'skipped' && needs\.portao\.outputs\.presonda != 'caem'/, 'rodada que parou na pré-sonda não é portão');
-  assert.doesNotMatch(portao, /write|github\.token|secrets\./, 'o portão continua sem escrita e sem token');
+  assert.match(presonda, /if: needs\.monta\.outputs\.portao == 'sim' && needs\.monta\.outputs\.sonda != ''/, 'sem aviso, a pré-sonda nem roda');
+  assert.match(presonda, /FILA_SONDA: \$\{\{ needs\.monta\.outputs\.sonda \}\}/); assert.match(presonda, /cd "\$RUNNER_TEMP" && node fila\.mjs presonda/, 'o fila.mjs do main');
+  assert.match(presonda, /presonda: \$\{\{ steps\.presonda\.outputs\.presonda \}\}/);
+  for (const j of [portao, tela]) {
+    const passos = j.split('\n      - ');
+    const iFase = passos.findIndex((x) => /^name: Fase /.test(x)), iQue = passos.findIndex((x) => /^name: Testes que caíram/.test(x)), iHer = passos.findIndex((x) => /^name: As quedas caem também no main/.test(x));
+    assert.ok(iFase > 0 && iFase < iQue && iQue < iHer, 'ordem: fase, quedas, reexecução no main');
+    assert.match(passos[iQue], /node fila\.mjs quedas --log/, 'as quedas saem com o nome inteiro (lista), não cortadas por ";"');
+    assert.match(passos[iHer], /if: failure\(\)/);
+    assert.match(passos[iHer], /cd "\$RUNNER_TEMP" && node fila\.mjs herdadas --cwd "\$GITHUB_WORKSPACE" --log "\$GITHUB_WORKSPACE\/portao\.log"/);
+    assert.ok(j.includes('herdadas: ${{ steps.herdadas.outputs.herdadas }}'));
+    assert.doesNotMatch(j, /write|github\.token|secrets\./, 'o portão continua sem escrita e sem token');
+  }
+  for (const s of ['FILA_PRESONDA: ${{ needs.presonda.outputs.presonda }}', 'FILA_HERDADAS: ${{ needs.portao.outputs.herdadas }}', 'FILA_HERDADAS_TELA: ${{ needs.tela.outputs.herdadas }}', 'FILA_MOTIVO_TELA: ${{ needs.tela.outputs.quedas }}']) assert.ok(avanca.includes(s), `pelo ambiente: ${s}`);
+  assert.match(avanca, /name: Telemetria da rodada\n        if: always\(\) && !\(needs\.portao\.result == 'skipped' && needs\.tela\.result == 'skipped'\) && needs\.presonda\.outputs\.presonda != 'caem'/, 'rodada que parou na pré-sonda não é portão');
+  assert.doesNotMatch(presonda, /write|github\.token|secrets\./);
   assert.doesNotMatch(avanca, /npm (ci|install|run|test)|npx |playwright|--test/, 'o job com escrita continua sem rodar nada da leva (a reexecução é no portão)');
+});
+
+/* ---------- Q23 · portão em dois jobs paralelos ---------- */
+
+test('Q23 · os dois jobs do portão se juntam: verde só com os dois verdes; "culpa do main" só se todo job que caiu provou a dele; resumo e quedas das duas fases juntos', () => {
+  assert.equal(resultadoDoPortao('success', 'success'), 'success');
+  assert.equal(resultadoDoPortao('failure', 'success'), 'failure'); assert.equal(resultadoDoPortao('success', 'failure'), 'failure');
+  assert.equal(resultadoDoPortao('skipped', 'skipped'), 'skipped', 'nada a testar ou pré-sonda "caem"');
+  for (const [a, b] of [['success', 'cancelled'], ['success', 'skipped'], ['success', ''], ['', '']]) assert.equal(resultadoDoPortao(a, b), 'cancelled', `${a}/${b} não publica`);
+  const base = 'a'.repeat(40), q = (n) => ({ nome: n, arquivo: 'e2e.test.mjs', noMain: 'cai' });
+  const h1 = { base, total: 1, quedas: [q('x')] }, h2 = { base, total: 1, quedas: [q('y')] };
+  assert.equal(juntarHerdadas([{ resultado: 'success', herdadas: null }, { resultado: 'failure', herdadas: h2 }]).total, 1);
+  assert.deepEqual(juntarHerdadas([{ resultado: 'failure', herdadas: h1 }, { resultado: 'failure', herdadas: h2 }]).quedas.map((x) => x.nome), ['x', 'y']);
+  assert.equal(juntarHerdadas([{ resultado: 'failure', herdadas: null }, { resultado: 'failure', herdadas: h2 }]), null, 'job que caiu sem dizer por quê nunca vira culpa do main');
+  assert.equal(juntarHerdadas([{ resultado: 'failure', herdadas: h1 }, { resultado: 'failure', herdadas: { ...h2, base: 'b'.repeat(40) } }]), null);
+  assert.equal(juntarHerdadas([{ resultado: 'success', herdadas: null }, { resultado: 'success', herdadas: null }]), null);
+  assert.equal(mainVermelho(juntarHerdadas([{ resultado: 'failure', herdadas: h1 }, { resultado: 'failure', herdadas: { base, total: 1, quedas: [{ ...q('y'), noMain: 'passa' }] } }])), false, 'uma queda da soma num job derruba a culpa do main');
+  const r = JSON.parse(juntarResumos(JSON.stringify({ kind: 'estante.portao', rapido: { passaram: 4120 }, tela: null }), JSON.stringify({ kind: 'estante.portao', rapido: null, tela: { passaram: 315 } })));
+  assert.deepEqual([r.rapido.passaram, r.tela.passaram], [4120, 315]);
+  assert.equal(juntarResumos('', 'lixo'), '');
+  assert.equal(formatarQuedas(JSON.stringify(['e2e · MJ8 ritmo; com menos movimento', 'regra · x'])), 'Testes que caíram (2):\n- e2e · MJ8 ritmo; com menos movimento\n- regra · x', 'nome com ";" inteiro');
+  assert.match(formatarQuedas('not ok 3 - e2e · H7;not ok 1 - e2e · H7'), /\(1\):\n- e2e · H7/, 'a forma antiga continua aceita');
+});
+
+test('Q23 · o passo que avança, pela linha de comando, com os dois jobs: tela vermelha recusa a leva com o nome inteiro das quedas, e o resultado e o resumo juntados saem para a telemetria antes de tudo', () => {
+  const m = mundo();
+  try {
+    const a = m.clone('a');
+    a.enfileira('B-184', 'Leva B-184 · bot\n\nTrilha: bot', () => a.escreve('bot.js', ['const bot = shark.joga(estado);']));
+    const c = ci(m), p = plano(c);
+    const saida = join(m.raiz, 'saida.txt'); writeFileSync(saida, '');
+    const r = spawnSync(process.execPath, [join(RAIZ, 'fila.mjs'), 'avanca', '--cwd', c.dir], { encoding: 'utf8', env: { ...process.env, GITHUB_OUTPUT: saida, GITHUB_STEP_SUMMARY: '',
+      FILA_PLANO: JSON.stringify(p), FILA_PORTAO_RAPIDA: 'success', FILA_PORTAO_TELA: 'failure', FILA_MOTIVO: '', FILA_MOTIVO_TELA: JSON.stringify(['e2e · MJ8 ritmo do turno; com menos movimento parado']),
+      FILA_HERDADAS: '', FILA_HERDADAS_TELA: '', FILA_PRESONDA: '', FILA_RESUMO_RAPIDA: JSON.stringify({ kind: 'estante.portao', rapido: { passaram: 4120 }, tela: null }), FILA_RESUMO_TELA: JSON.stringify({ kind: 'estante.portao', rapido: null, tela: { passaram: 315 } }) } });
+    assert.equal(r.status, 0, r.stderr);
+    const out = readFileSync(saida, 'utf8');
+    assert.match(out, /^portao=failure$/m);
+    assert.deepEqual(JSON.parse(out.match(/^resumo=(.*)$/m)[1]).tela, { passaram: 315 });
+    assert.ok(out.indexOf('portao=') < out.indexOf('publicado='), 'o resultado juntado sai antes do avanço');
+    c.busca();
+    assert.match(c.git('log', '-1', '--format=%B', 'origin/recusada/B-184'), /Testes que caíram \(1\):\n- e2e · MJ8 ritmo do turno; com menos movimento parado/);
+  } finally { m.fim(); }
+});
+
+test('Q23 · a expressão do fluxo que junta os dois jobs dá o mesmo resultado que o fila.mjs, em todas as combinações (a rodada de transição usa o fila.mjs antigo do main)', () => {
+  const yml = readFileSync(join(RAIZ, '.github/workflows/fila.yml'), 'utf8');
+  const exprs = [...yml.matchAll(/FILA_PORTAO: \$\{\{ (.+) \}\}$/gm)].map((m) => m[1]);
+  assert.equal(exprs.length, 2, 'no passo que avança e na telemetria'); assert.equal(exprs[0], exprs[1], 'a mesma expressão nos dois lugares');
+  const avalia = (rapida, tela) => Function(`return (${exprs[0].replace(/needs\.portao\.result/g, JSON.stringify(rapida)).replace(/needs\.tela\.result/g, JSON.stringify(tela)).replace(/==/g, '===').replace(/'/g, '"')});`)();
+  const valores = ['success', 'failure', 'cancelled', 'skipped', ''];
+  for (const a of valores) for (const b of valores) assert.equal(avalia(a, b), resultadoDoPortao(a, b), `${a || '(vazio)'}/${b || '(vazio)'}`);
 });

@@ -140,6 +140,34 @@ export function resultadoDaPresonda(resultados) {
 /** Aviso que vale para esta rodada: o do mesmo `main` (se o `main` andou, o aviso é velho e o portão inteiro decide). */
 export const sondaDoAviso = (aviso, base) => (aviso && aviso.base === base && aviso.quedas.length ? aviso.quedas : []);
 
+/* ---------- Q23 · portão em dois jobs paralelos ---------- */
+
+/** Resultado do portão a partir dos dois jobs (rápida e tela): verde só com os dois verdes; qualquer queda é vermelho; os dois pulados
+    (nada a testar, ou pré-sonda "caem") é "skipped"; o resto (cancelado, um pulado e outro não, job que não existiu) não publica. */
+export function resultadoDoPortao(rapida, tela) {
+  if (rapida === 'success' && tela === 'success') return 'success';
+  if (rapida === 'failure' || tela === 'failure') return 'failure';
+  if (rapida === 'skipped' && tela === 'skipped') return 'skipped';
+  return 'cancelled';
+}
+
+/** Junta a reexecução no main dos jobs que caíram. Vale só se TODO job que caiu trouxe a sua (com quedas identificadas e o mesmo main);
+    senão devolve null e a fila decide como antes (um job que caiu sem dizer por quê nunca vira "culpa do main"). */
+export function juntarHerdadas(jobs) {
+  const caidos = jobs.filter((j) => j.resultado === 'failure');
+  if (!caidos.length) return null;
+  const hs = caidos.map((j) => j.herdadas);
+  if (hs.some((h) => !h || typeof h.total !== 'number' || h.total < 1 || !Array.isArray(h.quedas) || h.base !== hs[0].base)) return null;
+  return { base: hs[0].base, total: hs.reduce((t, h) => t + h.total, 0), quedas: hs.flatMap((h) => h.quedas) };
+}
+
+/** Junta o resumo das duas fases (cada job grava só a sua) no formato que a telemetria da rodada já lê. */
+export function juntarResumos(...textos) {
+  const rs = textos.map((t) => { try { const v = JSON.parse(String(t || '')); return v && typeof v === 'object' ? v : null; } catch (e) { return null; } }).filter(Boolean);
+  if (!rs.length) return '';
+  return JSON.stringify({ kind: (rs.find((r) => r.kind) || {}).kind || 'estante.portao', rapido: (rs.find((r) => r.rapido) || {}).rapido || null, tela: (rs.find((r) => r.tela) || {}).tela || null });
+}
+
 /** O que fazer depois do portão. `aceitos` são os ramos somados; `portao` é o resultado do job (success, failure, cancelled…);
     `presonda` e `herdadas` (Q22) dizem se o vermelho é do `main`. A pré-sonda vem antes do "success": quando ela acha as quedas
     do aviso, o job termina verde sem rodar as fases, e isso nunca publica. */
@@ -162,7 +190,11 @@ export function limparMotivo(texto, teto = 1800) {
 /** O fluxo entrega as quedas numa linha só, separadas por ";" e com a repetição do teste sozinho junto ("not ok 119 - X;not ok 1 - X").
     Aqui viram uma lista sem repetição, um teste por linha, para quem lê o motivo da recusa. */
 export function formatarQuedas(texto) {
-  const nomes = String(texto || '').split(/;|\n/).map((l) => l.replace(/^\s*not ok \d+ - /, '').trim()).filter(Boolean);
+  // Q23 · forma nova: lista JSON de nomes (vinda das quedas de cada job do portão); nome com ";" não se parte mais em pedaços
+  // ("meno", "menos" na recusa da B-184 de 25/10). A forma antiga (linhas "not ok" separadas por ";") continua aceita.
+  let lista = null;
+  try { const v = JSON.parse(String(texto || '')); if (Array.isArray(v)) lista = v.map(String); } catch (e) { lista = null; }
+  const nomes = (lista || String(texto || '').split(/;|\n/)).map((l) => l.replace(/^\s*not ok \d+ - /, '').trim()).filter(Boolean);
   const unicos = [...new Set(nomes)];
   return unicos.length ? `Testes que caíram (${unicos.length}):\n${unicos.map((n) => `- ${n}`).join('\n')}` : '';
 }
@@ -408,6 +440,12 @@ function principal(argv) {
     saidaDoFluxo({ plano: JSON.stringify(plano), portao: plano.aceitos.length ? 'sim' : 'nao', pendencias: plano.recusados.length + plano.vazios.length ? 'sim' : 'nao', sonda: sonda.length ? JSON.stringify(sonda) : '' });
     return;
   }
+  if (comando === 'quedas') {
+    let log = '';
+    try { log = readFileSync(opc('--log'), 'utf8'); } catch (e) { log = ''; }
+    saidaDoFluxo({ quedas: JSON.stringify(quedasComArquivo(log).map((q) => q.nome)) });
+    return;
+  }
   if (comando === 'presonda') {
     let quedas = [];
     try { quedas = JSON.parse(process.env.FILA_SONDA || '[]'); } catch (e) { quedas = []; }
@@ -437,10 +475,19 @@ function principal(argv) {
     return;
   }
   if (comando === 'avanca') {
-    let herdadas = null;
-    try { herdadas = JSON.parse(process.env.FILA_HERDADAS || 'null'); } catch (e) { herdadas = null; }
-    if (herdadas && (!Array.isArray(herdadas.quedas) || typeof herdadas.total !== 'number')) herdadas = null;
-    const r = avancar({ cwd, plano, portao: opc('--portao'), motivo: process.env.FILA_MOTIVO || opc('--motivo'), presonda: process.env.FILA_PRESONDA || '', herdadas });
+    const json = (v) => { try { return JSON.parse(v || 'null'); } catch (e) { return null; } };
+    const valida = (h) => (h && Array.isArray(h.quedas) && typeof h.total === 'number' ? h : null);
+    // Q23 · dois jobs de portão: o resultado e as quedas de cada um se juntam aqui (com o fila.mjs do main); a forma de um job só continua aceita
+    const doisJobs = process.env.FILA_PORTAO_RAPIDA !== undefined || process.env.FILA_PORTAO_TELA !== undefined;
+    const portao = doisJobs ? resultadoDoPortao(process.env.FILA_PORTAO_RAPIDA || '', process.env.FILA_PORTAO_TELA || '') : opc('--portao');
+    const herdadas = doisJobs
+      ? juntarHerdadas([{ resultado: process.env.FILA_PORTAO_RAPIDA, herdadas: valida(json(process.env.FILA_HERDADAS)) }, { resultado: process.env.FILA_PORTAO_TELA, herdadas: valida(json(process.env.FILA_HERDADAS_TELA)) }])
+      : valida(json(process.env.FILA_HERDADAS));
+    const lista = (v) => { const x = json(v); return Array.isArray(x) ? x : (v ? [v] : []); };
+    const motivo = doisJobs ? JSON.stringify([...lista(process.env.FILA_MOTIVO), ...lista(process.env.FILA_MOTIVO_TELA)]) : (process.env.FILA_MOTIVO || opc('--motivo'));
+    // o resultado juntado e o resumo saem antes de qualquer passo que possa falhar: a telemetria da rodada depende deles
+    saidaDoFluxo({ portao, resumo: doisJobs ? juntarResumos(process.env.FILA_RESUMO_RAPIDA, process.env.FILA_RESUMO_TELA) : (process.env.FILA_RESUMO || '') });
+    const r = avancar({ cwd, plano, portao, motivo, presonda: process.env.FILA_PRESONDA || '', herdadas });
     const velhos = tenta(gitEm(cwd), ['fetch', '--quiet', '--depth=200', 'origin', 'main']) === null ? [] : limparAvisos({ cwd });
     const nomes = plano.aceitos.map((a) => `\`${a.nome}\``).join(' + ');
     if (r.publicado) resumo(`### Fila · publicado ${r.publicado.slice(0, 7)} — ${nomes} com um portão`);
