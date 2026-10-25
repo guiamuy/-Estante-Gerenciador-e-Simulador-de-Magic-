@@ -36128,13 +36128,28 @@ const grupoDoPasso = step => (GRUPOS_DE_PARADA.find(g => g[2].includes(step)) ||
 let paradasDoAparelho = paradasValidas(null);
 const usaParadas = v => { paradasDoAparelho = paradasValidas(v); return paradasDoAparelho; };
 const paradasAtuais = () => paradasValidas(paradasDoAparelho);
+/* MJ11b (J-24) · "o que este jogador pode fazer neste estado", guardado por estado. O motor é puro e o estado não muda depois
+   de criado (ADR-04): a mesma pergunta tem a mesma resposta. O piloto pergunta isto para saber se para (shouldStop) e a tela
+   pergunta de novo, sobre o mesmo estado, ao desenhar (cemitério, exílio, folha, mira): com fontes que contam outras
+   permanentes (Priest of Titania) cada pergunta custava dezenas de ms. A lista é congelada: quem recebe não a altera. */
+const legaisPorEstado = new WeakMap();
+function legaisDe(s, p) {
+  let porJogador = legaisPorEstado.get(s);
+  if (!porJogador) legaisPorEstado.set(s, porJogador = new Map());
+  if (!porJogador.has(p)) { legaisDe.perguntas++; porJogador.set(p, Object.freeze(E.legalActions(s, p))); }
+  return porJogador.get(p);
+}
+legaisDe.perguntas = 0; // quantas vezes o motor foi de fato consultado (o portão confere que redesenhar não pergunta de novo)
+/** Só para o gancho de teste: teste que monta a mesa mexendo no objeto do estado (o app nunca faz isso, ADR-04) esquece o que
+    foi guardado sobre ele, para a próxima pergunta ver a mesa montada. */
+function esqueceEstado(s) { if (s) { legaisPorEstado.delete(s); modificacoesPorEstado.delete(s); } return s; }
 /** Onde um humano para: sempre que tem ação ou resposta possível (gerar mana sozinho não conta); sem nenhuma, só na
     etapa com "parar sempre" ligada, e nunca com a pilha cheia (passar ali é deixar resolver). */
 function shouldStop(s, i, paradas = paradasDoAparelho) {
   // o motor lista a instantânea mesmo sem mana para ela (o pagamento é conferido ao conjurar): só conta o que daria
   // para fazer de verdade agora — a ação é tentada numa cópia (o motor é puro) e a que o motor recusa não conta
   const possivel = a => { try { E.apply(s, a); return true; } catch (e) { return false; } };
-  const respond = E.legalActions(s, i).some(a => a.t !== 'pass' && a.t !== 'tap_mana' && a.t !== 'concede' && possivel(a));
+  const respond = legaisDe(s, i).some(a => a.t !== 'pass' && a.t !== 'tap_mana' && a.t !== 'concede' && possivel(a));
   if (respond) return true;
   if (s.stack.length) return false;
   const g = grupoDoPasso(s.turn.step);
@@ -36498,8 +36513,19 @@ function restoreTable(data) {
 /* ---- T4 · carta modificada (relato #2) ----
    O que mudou na carta, lido do motor e comparado com o impresso: P/T acima ou abaixo (a virada para baixo compara com
    2/2) e as palavras-chave ganhas e perdidas. Só no campo; a tela só pinta. Puro. */
+/* MJ11b (J-24) · a mesa redesenha o mesmo estado várias vezes (marcar atacantes e bloqueadores, abrir a mão, trocar o
+   tema), e cada redesenho perguntava ao motor, carta a carta, cada palavra-chave (um cálculo de efeitos contínuos por
+   pergunta): era a maior parte do redesenho com o campo cheio. Puro, então guardado por estado, carta e P/T. */
+const modificacoesPorEstado = new WeakMap();
 function modificacoesDaCarta(s, o, pt = null) {
   if (!o || o.zone !== 'battlefield') return null;
+  let porCarta = modificacoesPorEstado.get(s);
+  if (!porCarta) modificacoesPorEstado.set(s, porCarta = new Map());
+  const chave = `${o.oid}|${pt ? `${pt.p}/${pt.t}` : ''}|${o === (s.objects || {})[o.oid] ? '' : JSON.stringify(o)}`;
+  if (!porCarta.has(chave)) porCarta.set(chave, calculaModificacoes(s, o, pt));
+  return porCarta.get(chave);
+}
+function calculaModificacoes(s, o, pt) {
   const facts = (s.facts && s.facts[o.name]) || {};
   const base = o.faceDown ? [2, 2] : [facts.power, facts.toughness];
   const compara = (agora, imp) => (agora == null || imp == null || !Number.isFinite(imp) ? null : agora > imp ? 'mais' : agora < imp ? 'menos' : null);
@@ -37553,7 +37579,7 @@ function toquesDaContagem(grupos, conta) {
   for (const g of grupos) { let i = 0; (conta[g.chave] || []).forEach((n, k) => { for (let j = 0; j < n && i < g.oids.length; j++) out.push({ oid: g.oids[i++], option: k }); }); }
   return out;
 }
-return { textoDoCustoOpcionalM, rotulosDeCiclar, nomesDeCatalogo, LIMITE_COMANDANTE, danoDeComandante, textoDoDanoDeComandante, GRUPOS_DE_PARADA, PARADAS_PADRAO, paradasValidas, grupoDoPasso, usaParadas, paradasAtuais, iconeDaLinhaDoRegistro, donoDaLinha, iconeDaFase, trocaLegitima, cartaDaMesa, fontesDeMana, conferePagamento, planoDePagamento, gruposDeFontes, contagemDosToques, toquesDaContagem, sinaisDoResumo, iconeDaLinhaDoResumo, repeticaoDoCombo, chaveDaRepeticao, linhasDoCampo, rotulosDeAlvos, alvoSemEfeito, enxugaAlvos, LIMITE_DE_ALVOS, SAVE_KEY, SERIE_KEY, novaSerie, resultadoDaSerie, registraJogo, desfechoDaPartida, MOTIVO_DA_DERROTA, moveNaTroca, validaTroca, diffDaTroca, limitesDaTroca, proximoJogo, ZONE_PT, buildSetup, describe, revealed, shouldStop, createTable, restoreTable, estadoDaCarta, modificacoesDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveContinuo, descreveDano, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
+return { textoDoCustoOpcionalM, rotulosDeCiclar, nomesDeCatalogo, LIMITE_COMANDANTE, danoDeComandante, textoDoDanoDeComandante, GRUPOS_DE_PARADA, PARADAS_PADRAO, paradasValidas, grupoDoPasso, usaParadas, paradasAtuais, iconeDaLinhaDoRegistro, donoDaLinha, iconeDaFase, trocaLegitima, cartaDaMesa, fontesDeMana, conferePagamento, planoDePagamento, gruposDeFontes, contagemDosToques, toquesDaContagem, sinaisDoResumo, iconeDaLinhaDoResumo, repeticaoDoCombo, chaveDaRepeticao, linhasDoCampo, rotulosDeAlvos, alvoSemEfeito, enxugaAlvos, LIMITE_DE_ALVOS, SAVE_KEY, SERIE_KEY, novaSerie, resultadoDaSerie, registraJogo, desfechoDaPartida, MOTIVO_DA_DERROTA, moveNaTroca, validaTroca, diffDaTroca, limitesDaTroca, proximoJogo, ZONE_PT, buildSetup, describe, revealed, shouldStop, legaisDe, esqueceEstado, createTable, restoreTable, estadoDaCarta, modificacoesDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveContinuo, descreveDano, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
 })();
 
 
@@ -38015,6 +38041,9 @@ const __m19 = (function () {
    ===================================================================== */
 const E = __m16;
 const T = __m18;
+/* MJ11b (J-24) · "o que é jogável" vem da memória do modelo da mesa (T.legaisDe): o piloto já perguntou sobre este estado
+   para decidir se parava, e a pintura pergunta várias vezes (cemitério, exílio, folha, mira, bandeja). */
+const legaisDe = (s, v) => T.legaisDe(s, v);
 const { h, mount, Stack, Row, Surface, Text, Button, Field, Input, Select, Badge, Chip, Empty, Note, Spinner, Dialog, closeDialog, toast, simbolizar, Simbolo } = __m3;
 const { TableCard, ZoneRow, LifeCounter, ZoneChip, StepBar, StackStrip, StackPanel, CardPeek, PriorityBanner, AdjudicationPanel, Icone, IconButton, gestoDeBandeja, ligaGestoDeBandeja } = __m17;
 /** T-130 · CR 201.4 · as listas prontas do app em entries (dado público do próprio app), lidas uma vez: entram no catálogo de nomes do
@@ -38646,7 +38675,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       const s = table.state, v = table.viewer();
       if (!s || s.status !== 'playing' || handoff || document.querySelector('.tb-peek, .ds-dialog')) return false;
       const pending = s.pending && s.pending.p === v ? s.pending : null;
-      let legais = []; try { legais = E.legalActions(s, v); } catch (e) { return false; }
+      let legais = []; try { legais = legaisDe(s, v); } catch (e) { return false; }
       const alvos = __m33.alvosDoArrasto(legais, oid, { pending }); if (!alvos.length) return false;
       const de = caixaDe(el), carta = el.cloneNode(true);
       carta.removeAttribute('id'); carta.disabled = true; carta.tabIndex = -1; carta.className = 'tb-card tb-mira__carta'; carta.dataset.mira = 'origem'; carta.dataset.sobrepoe = 'true'; // a carta levantada passa por cima do campo de propósito
@@ -38979,7 +39008,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   /** Leva 125 · com a pergunta escrita no cabeçalho de decisão, o botão de texto do aviso (palavra do momento + balão) vira
    *  um trecho só de texto, fora da vista e fora do foco: o conteúdo continua no documento, sem alvo de toque invisível. */
   const semBotaoDeTexto = banner => { const tx = banner.querySelector('.tb-banner__text'); if (tx) { const sp = h('span', { class: 'tb-banner__text', 'aria-hidden': 'true' }); sp.append(...tx.childNodes); tx.replaceWith(sp); } return banner; };
-  const jogaveisEm = ids => { const st = table.state, quem = table.viewer(); const set = new Set(ids); return new Set(E.legalActions(st, quem).filter(a => a.oid != null && set.has(a.oid)).map(a => a.oid)).size; };
+  const jogaveisEm = ids => { const st = table.state, quem = table.viewer(); const set = new Set(ids); return new Set(legaisDe(st, quem).filter(a => a.oid != null && set.has(a.oid)).map(a => a.oid)).size; };
   let trocaPor = null; // Leva 121 · escolha em montagem de "descartar ou sacrificar": { chave, modo, oid }
   /* K1 · decisão que toma o lugar da mão (olhar o topo, vidência, vigiar, escolher modo…): um seletor de dois botões
      alterna entre a decisão e a mão, quantas vezes a pessoa quiser, e a decisão continua esperando. A escolha vale só
@@ -39148,9 +39177,9 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   // A14 · ação recusada: o motivo fica na mesa, numa frase, até a próxima ação
   let recusa = null;
   // gancho de teste: o portão precisa provocar uma recusa que a folha de ações nunca oferece
-  if (typeof window !== 'undefined' && window.__MTG_TEST) window.__estanteMesa = { act: a => act(a, { sincrono: true }), pensando: () => !!pensando, estado: () => table && table.state, som, sentidos: () => sentidosAgora.slice(), efeitos: () => fxLog.slice(),
+  if (typeof window !== 'undefined' && window.__MTG_TEST) window.__estanteMesa = { act: a => act(a, { sincrono: true }), pensando: () => !!pensando, pinturas: () => (pinturas || []).splice(0), perguntas: () => T.legaisDe.perguntas, repinta: () => paint(), estado: () => table && T.esqueceEstado(table.state), som, sentidos: () => sentidosAgora.slice(), efeitos: () => fxLog.slice(),
     // H5 · a cena em curso (ou null), o que já foi narrado, ligar/desligar e pular
-    manaManual: sim => { manaManual = !!sim; }, imagens: () => __m17.imagensRetidas(), gravado: () => gravando, cena: () => (cena ? { quadro: cena.i, total: cena.quadros.length } : null), narrado: () => cenaLog.slice(), verJogadas: sim => { verJogadas = !!sim; }, pulaCena: () => fimDaCena(), estadoFinal: () => (mesaReal || table).state,
+    manaManual: sim => { manaManual = !!sim; }, imagens: () => __m17.imagensRetidas(), gravado: () => gravando, cena: () => (cena ? { quadro: cena.i, total: cena.quadros.length } : null), narrado: () => cenaLog.slice(), verJogadas: sim => { verJogadas = !!sim; }, pulaCena: () => fimDaCena(), estadoFinal: () => T.esqueceEstado((mesaReal || table).state),
     // Leva 121 · sonda de alcance: o que a folha de cada carta oferece, para conferir contra legalActions
     acoesDe: oid => { const d = acoesDe(oid); return d ? d.acoes.filter(x => !x.disabled).flatMap(x => x.opcoes || (x.action ? [x.action] : [])) : []; }, legais: () => table ? E.legalActions(table.state, table.viewer()) : [], quemVe: () => table.viewer(), setup: () => table && table.setup };
   /** Leva 135 · estado do outro aparelho: ausente há mais de 45 s, ou sala encerrada por ele. */
@@ -39507,7 +39536,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     }
     if (s.pending && s.pending.kind === 'dividir_magia' && s.pending.p === v) { // M-376 · 601.2d · tocar na carta põe 1 de dano nela
       const index = (s.pending.options || []).findIndex(x => x.oid === oid);
-      if (index >= 0 && E.legalActions(s, v).some(a => a.t === 'dividir_ponto' && a.index === index)) { act({ t: 'dividir_ponto', p: v, index }); return true; }
+      if (index >= 0 && legaisDe(s, v).some(a => a.t === 'dividir_ponto' && a.index === index)) { act({ t: 'dividir_ponto', p: v, index }); return true; }
     }
     // Leva 131 · escolhendo o alvo de um gatilho, tocar na carta na mesa escolhe
     if (s.pending && s.pending.kind === 'pick_target' && s.pending.p === v) {
@@ -39841,13 +39870,13 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const simetrica = a => { const es = efeitosDe(a).map(e => JSON.stringify(e)); return es.length > 1 && es.every(x => x === es[0]); };
     // Leva 131 · alvos com o mesmo nome dizem de quem são (espelho) e se estão virados
     const chaveAlvo = x => (x.player != null ? 'p' + x.player : 'o' + x.oid);
-    const alvosDaCarta = [...new Map(E.legalActions(s, v).filter(a => a.oid === oid).flatMap(a => a.targets || []).map(x => [chaveAlvo(x), x])).values()];
+    const alvosDaCarta = [...new Map(legaisDe(s, v).filter(a => a.oid === oid).flatMap(a => a.targets || []).map(x => [chaveAlvo(x), x])).values()];
     const rotulos = T.rotulosDeAlvos(s, v, alvosDaCarta);
     const targetName = (_, x) => { const i = alvosDaCarta.findIndex(y => chaveAlvo(y) === chaveAlvo(x)); return i >= 0 ? rotulos[i] : (x.player != null ? s.players[x.player].name : s.objects[x.oid].name); };
     const vistas = new Set();
     const semRepetir = a => { if (a.t !== 'cast' || !(a.targets || []).length || !simetrica(a)) return true;
       const k = JSON.stringify({ ...a, targets: a.targets.map(x => JSON.stringify(x)).sort() }); if (vistas.has(k)) return false; vistas.add(k); return true; };
-    const legal = E.legalActions(s, v).filter(a => a.oid === oid).filter(semRepetir).map(a =>
+    const legal = legaisDe(s, v).filter(a => a.oid === oid).filter(semRepetir).map(a =>
       a.t === 'play_land' ? (a.revela != null ? doBtn(`Jogar desvirada, revelando ${s.objects[a.revela].name}`, a, { variant: 'primary' }) : doBtn('Jogar terreno', a, { variant: 'primary' })) // M-252 · Snarl
         // Leva 121 · ações que o motor oferecia e a folha não desenhava: tramar (plot), conjurar a tramada, metamorfose
         : a.t === 'plot' ? doBtn(`Tramar · ${(f.script.plot || {}).mana || ''}`, a)
@@ -39886,19 +39915,19 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
         if (acao.t === 'cast' && semCobrar()) return 'mana insuficiente';
         if (acao.t === 'cast' && /alvo/.test(String(e.code) + String(e.message))) return 'sem alvo válido agora';
         const m = T.explicaRecusa(e, acao, s).motivo; return m.charAt(0).toLowerCase() + m.slice(1); } };
-      const temCast = E.legalActions(s, v).some(a => a.oid === oid && a.t === 'cast');
+      const temCast = legaisDe(s, v).some(a => a.oid === oid && a.t === 'cast');
       if (o.zone === 'hand' && f.types.includes('land') && !legal.some(b => b.label === 'Jogar terreno')) { const m = tenta({ t: 'play_land', p: v, oid }); if (m) legal.unshift({ label: `Jogar terreno — ${m}`, disabled: true }); }
       else if (o.zone === 'hand' && !f.types.includes('land') && !temCast) { const m = tenta({ t: 'cast', p: v, oid }); if (m) legal.unshift({ label: `Conjurar${costTxt ? ' · ' + costPago : ''} — ${m}`, disabled: true }); }
       else if (o.zone === 'graveyard' && f.script && f.script.flashback && !temCast) { const m = tenta({ t: 'cast', p: v, oid, flashback: true }); if (m) legal.unshift({ label: `Lampejo do passado · ${custoDoLampejo(f.script.flashback)} — ${m}`, disabled: true }); }
     }
     // Leva 122 · fonte de "qualquer combinação de cores" (Axebane Guardian): um botão só, que abre a divisão por cor.
     // Antes eram cinco botões de uma cor só ("Gerar {G}{G}{G}{G}"), e misturar cores não era possível.
-    const comCombo = E.legalActions(s, v).find(a => a.t === 'tap_mana' && a.oid === oid && a.combo > 1);
+    const comCombo = legaisDe(s, v).find(a => a.t === 'tap_mana' && a.oid === oid && a.combo > 1);
     if (o.zone === 'battlefield' && comCombo) legal.push({ label: `Gerar ${comCombo.combo} manas`, variant: 'primary', abre: () => dividirMana(oid, comCombo.combo) });
-    else if (o.zone === 'battlefield' && E.legalActions(s, v).some(a => a.t === 'tap_mana' && a.oid === oid))
+    else if (o.zone === 'battlefield' && legaisDe(s, v).some(a => a.t === 'tap_mana' && a.oid === oid))
       E.productions(s, o).forEach((opt, k) => legal.push(doBtn(opt.length > 4 && opt.every(c => c === opt[0]) ? `Gerar ${opt.length} × {${opt[0]}}` : `Gerar ${opt.map(c => `{${c}}`).join('')}${custoDaMana(f, opt)}`, { t: 'tap_mana', p: v, oid, option: k }))); // Leva 136 · nove {G} em fila viram "9 × {G}"
     // S24: faces duplas
-    for (const x of E.legalActions(s, v).filter(y => y.t === 'cast' && y.oid === oid && (y.disturb || y.omen)))
+    for (const x of legaisDe(s, v).filter(y => y.t === 'cast' && y.oid === oid && (y.disturb || y.omen)))
       legal.push(doBtn(x.disturb ? `Perturbar · ${(f.script.disturb || {}).mana || ''}` : `Presságio · ${(f.script.omen || {}).mana || ''}`, x, { variant: 'primary' }));
     { const av = E.aventuraDe(s, oid); if (av) for (const b of legal) if (b.action && b.action.t === 'cast' && b.action.omen) b.label = `Aventura · ${av.nome} · ${av.mana}`; } // T-5 · CR 715.3 · a escolha "carta normal ou Aventura": o botão diz Aventura, o nome e o custo
     { const fv = E.faceDeTras(s, oid); if (fv) for (const b of legal) { const ac = b.action; if (!ac) continue; if (ac.face === 'verso') b.label = ac.t === 'play_land' ? `Jogar ${fv.nome}` : `Conjurar ${fv.nome} · ${fv.mana}`; else if (ac.t === 'play_land' && ac.revela == null) b.label = `Jogar ${o.name}`; } } // T-8 · CR 712.11b / 712.12 · dupla face modal: cada botão diz a face
@@ -39907,19 +39936,19 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     { const o = s.objects[oid], f = o && s.facts[o.name], pr = f && f.script && f.script.self && f.script.self.prototipo; if (pr) for (const b of legal) { const ac = b.action; if (ac && ac.t === 'cast' && ac.prototipo) b.label = `Conjurar como protótipo · ${pr.mana} · ${pr.power}/${pr.toughness}`; } } // T-36 · CR 718.3 · o botão do protótipo
     { const mq = E.maisQueOlhosDaCartaT(s, s.objects[oid]), sc0 = mq && (s.facts[s.objects[oid].name] || {}).script; if (mq && sc0 && sc0.back) for (const b of legal) { const ac = b.action; if (ac && ac.t === 'cast' && ac.face === 'convertida') b.label = `Conjurar convertida: ${sc0.back} · ${mq}`; } } // T-49 · CR 702.162a · o botão de "More Than Meets the Eye"
     // S34: conceder
-    for (const bw of E.legalActions(s, v).filter(x => x.t === 'cast' && x.oid === oid && x.bestow))
+    for (const bw of legaisDe(s, v).filter(x => x.t === 'cast' && x.oid === oid && x.bestow))
       legal.push(doBtn(`Conceder · ${(f.script.bestow || {}).mana || ''} → ${targetName(s, bw.targets[0])}`, bw, { variant: 'primary' }));
     // M-257: desenterrar
-    for (const un of E.legalActions(s, v).filter(x => x.t === 'unearth' && x.oid === oid))
+    for (const un of legaisDe(s, v).filter(x => x.t === 'unearth' && x.oid === oid))
       legal.push(doBtn(`Desenterrar · ${(f.script.unearth || {}).mana || ''}`, un, { variant: 'primary' }));
     // S29: transmutar
-    for (const tm of E.legalActions(s, v).filter(x => x.t === 'transmute' && x.oid === oid))
+    for (const tm of legaisDe(s, v).filter(x => x.t === 'transmute' && x.oid === oid))
       legal.push(doBtn(`Transmutar · ${(f.script.transmute || {}).mana || ''}`, tm));
     // S22: ciclar
-    { const ciclosM = E.legalActions(s, v).filter(x => x.t === 'cycle' && x.oid === oid), rotCyM = T.rotulosDeCiclar(s, v, ciclosM, (f.script || {}).cycling); // M-539 · dois terrenos de mesmo nome: o rótulo separa (achado da revisão)
+    { const ciclosM = legaisDe(s, v).filter(x => x.t === 'cycle' && x.oid === oid), rotCyM = T.rotulosDeCiclar(s, v, ciclosM, (f.script || {}).cycling); // M-539 · dois terrenos de mesmo nome: o rótulo separa (achado da revisão)
     ciclosM.forEach((cy, iCy) => legal.push(doBtn(rotCyM[iCy], cy))); } // M-341 · M-539
     // S18: ninjutsu, trocando um atacante sem bloqueio
-    for (const nj of E.legalActions(s, v).filter(x => x.t === 'ninjutsu' && x.oid === oid))
+    for (const nj of legaisDe(s, v).filter(x => x.t === 'ninjutsu' && x.oid === oid))
       legal.push(doBtn(`${nj.sneak ? 'Esgueirar-se' : 'Ninjutsu'} · ${((nj.sneak ? f.script.sneak : f.script.ninjutsu) || {}).mana || ''} → devolve ${s.objects[nj.attacker].name}`, nj, { variant: 'primary' })); // R6 · esgueirar-se (Leonardo) saía como "Ninjutsu · " sem custo // Leva 131 · diz o custo e o que acontece com o atacante
     // Leva 131 · ninjutsu que existe e não dá agora aparece apagado com o motivo (como tramar, leva 121)
     if (f.script && f.script.sneak && o.owner === v && o.zone === 'hand' && s.status === 'playing' && !legal.some(b => /^Esgueirar-se/.test(b.label)))
@@ -39929,7 +39958,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     // M9: habilidades ativadas, com o custo e o alvo no rótulo
     const allAbilities = [...((f.script && f.script.abilities) || []).filter(x => x.kind === 'activated'),
       ...((f.script && f.script.loyalty) || []).map(x => ({ loyalty: x.cost, label: x.label }))];
-    for (const act of E.legalActions(s, v).filter(x => x.t === 'activate' && x.oid === oid)) {
+    for (const act of legaisDe(s, v).filter(x => x.t === 'activate' && x.oid === oid)) {
       const ab = allAbilities[act.index || 0] || {};
       if (ab.loyalty != null) { legal.push(doBtn(ab.label || `${ab.loyalty > 0 ? '+' : ''}${ab.loyalty}`, act, { variant: 'primary' })); continue; }
       // Proteção contra a cor à escolha (Mother of Runes, Benevolent Bodyguard, Alseid): a cor vem na ação, como na mana de qualquer
@@ -39957,8 +39986,8 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     // (antes a folha ficava vazia e parecia que a ficha não tinha habilidade)
     if (o.zone === 'battlefield' && o.controller === v) (f.script && f.script.abilities || []).forEach((ab, index) => {
       if (ab.kind !== 'activated' || (ab.cost || {}).fromHand || (ab.cost || {}).fromGraveyard) return; // M-352
-      if (E.legalActions(s, v).some(x => x.t === 'activate' && x.oid === oid && (x.index || 0) === index)) return;
-      if ((ab.effects || []).some(e => e.do === 'add_mana') && E.legalActions(s, v).some(x => x.t === 'tap_mana' && x.oid === oid)) return;
+      if (legaisDe(s, v).some(x => x.t === 'activate' && x.oid === oid && (x.index || 0) === index)) return;
+      if ((ab.effects || []).some(e => e.do === 'add_mana') && legaisDe(s, v).some(x => x.t === 'tap_mana' && x.oid === oid)) return;
       let motivo = 'não dá agora';
       try { E.apply(s, { t: 'activate', p: v, oid, index, ...((ab.modes || []).length ? { mode: 0 } : {}) }); } catch (e) { motivo = T.explicaRecusa(e, { t: 'activate', oid }, s).motivo; } // T-106 · a ativada modal ensaia com o primeiro modo (o motivo era "escolha um modo")
       const cost = custoDaHabilidade(ab);
@@ -40225,7 +40254,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
           obrigadas.length ? null : Button('Sem bloqueio', { id: 'tb-no-block', onClick: () => { resetPlan(); act({ t: 'block', p: v, blocks: [] }); } })].filter(Boolean) });
     } else if (s.pending && s.pending.kind === 'madness' && s.pending.p === v) {
       const carta = s.objects[s.pending.oid];
-      const opts = E.legalActions(s, v).filter(x => x.t === 'cast_madness');
+      const opts = legaisDe(s, v).filter(x => x.t === 'cast_madness');
       // Leva 125 · a pergunta fica à vista (cabeçalho de decisão): qual carta, por quanto, e o que acontece se recusar.
       // Sem mana para a insanidade, "Conjurar" aparece apagado e a frase diz por quê (antes o botão só sumia).
       banner = PriorityBanner({ title: `${carta ? carta.name : 'Carta descartada'}: insanidade ${s.pending.cost}`, tone: 'warning',
@@ -40243,7 +40272,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
         : extra ? T.textoDoCustoOpcionalM(extra, s.pending.name).titulo // CR2b.3 · Angelic Renewal · V-26 · Call of the Ring · M-544 · Sackville (Toca ponto comum: pergunta do custo opcional)
         : s.pending.cost ? `${s.pending.name}: pagar ${s.pending.cost}?`
         : `${s.pending.name}: fazer o efeito?`;
-      const pagamentos = E.legalActions(s, v).filter(x => x.t === 'pay');
+      const pagamentos = legaisDe(s, v).filter(x => x.t === 'pay');
       // Leva 125 · a dica diz o que o efeito faz (antes: "o gatilho não faz nada", sem dizer o que se ganhava pagando)
       const oQueFaz = efeito ? T.descreveEfeitos((s.pending.then || {}).effects) : '';
       banner = PriorityBanner({ title: titulo, hint: pv ? `Pagando, você perde ${pv} de vida e ${s.pending.name} fica desvirado. Sem pagar, fica virado.` : efeito ? (oQueFaz ? `Se ${s.pending.cost ? 'pagar' : 'aceitar'}: ${oQueFaz}. Recusando, nada acontece.` : 'Se você recusar, o gatilho não faz nada.') : `${s.pending.name} está na pilha.`, tone: 'warning',
@@ -40269,7 +40298,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
           onClick: () => Dialog({ title: pq.name, body: h('div', { class: 'tb-sheet__actions' }, ...ns.map((n, i) => botao(n, i, { block: true, id: undefined }))), actions: [Button('Voltar', { onClick: closeDialog })] }) })] });
     } else if (s.pending && s.pending.kind === 'free_cast' && s.pending.p === v) {
       // S61 · Covil do Mago Louco: uma das cartas compradas pode ser conjurada sem pagar
-      const opts = E.legalActions(s, v).filter(x => x.t === 'cast_free');
+      const opts = legaisDe(s, v).filter(x => x.t === 'cast_free');
       const esc = !!s.pending.escondida, susp = !!s.pending.suspensa; // M-268 · esconderijo; M-269 · suspender
       banner = PriorityBanner({ title: s.pending.cercoT ? `${s.pending.name} foi derrotada: conjurar ${s.pending.cercoT} sem pagar?` /* T-14 · CR 310.12b */ : esc ? `${s.pending.name}: jogar a carta escondida sem pagar?` : susp ? `${s.pending.name}: saiu o último marcador de tempo. Conjurar sem pagar?` : `${s.pending.name}: conjurar uma sem pagar?`, tone: 'warning',
         hint: s.pending.cercoT ? (opts.length ? 'É a outra face da carta, conjurada transformada. Se não conjurar agora, ela continua exilada.' : 'Ela não pode ser conjurada agora e continua exilada.') /* T-14 · Toca ponto comum: table.js (aviso de conjurar sem pagar) */ : susp ? (opts.length ? 'Se não conjurar agora, ela continua exilada. Criatura conjurada assim tem ímpeto.' : 'Ela não pode ser conjurada agora e continua exilada.') : esc ? (opts.length ? 'Se não jogar agora, ela continua escondida.' : 'A carta escondida não pode ser jogada agora (terreno: só no seu turno, se ainda não jogou terreno).')
@@ -40368,7 +40397,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
           Button('Não emparelhar', { id: 'tb-choose-pair-no', onClick: () => act({ t: 'choose_pair', p: v, decline: true }) })] });
     } else if (s.pending && s.pending.kind === 'dividir_magia' && s.pending.igual && s.pending.p === v) { // M-408 · divisão igual (Fireball): marcar os alvos e fechar (os marcados saem dos botões e vão para o resumo)
       const pd = s.pending, rot = T.rotulosDeAlvos(s, v, pd.options), n = pd.partes.filter(x => x > 0).length, cada = n ? Math.floor(pd.total / n) : pd.total;
-      const leg = E.legalActions(s, v).filter(a => a.t === 'dividir_ponto'), pode = new Set(leg.filter(a => !a.fim).map(a => a.index)), fecha = leg.some(a => a.fim);
+      const leg = legaisDe(s, v).filter(a => a.t === 'dividir_ponto'), pode = new Set(leg.filter(a => !a.fim).map(a => a.index)), fecha = leg.some(a => a.fim);
       const botao = i => Button(`${pd.partes[i] ? '✓ ' : ''}${rot[i]}`, { variant: pd.partes[i] ? 'primary' : undefined, id: i === [...pode][0] ? 'tb-dividir-magia' : undefined, dataset: { alvo: String(i) }, onClick: () => act({ t: 'dividir_ponto', p: v, index: i }) });
       const idxs = pd.options.map((t, i) => i).filter(i => pode.has(i));
       banner = PriorityBanner({ title: `${pd.name}: escolha os alvos`, tone: 'warning',
@@ -40378,7 +40407,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
           ...(fecha ? [Button('Pronto', { id: 'tb-dividir-pronto', onClick: () => act({ t: 'dividir_ponto', p: v, fim: true }) })] : [])] });
     } else if (s.pending && s.pending.kind === 'dividir_magia' && s.pending.p === v) { // M-376 · 601.2d · dividir o dano da mágica, 1 por toque
       const pd = s.pending, rot = T.rotulosDeAlvos(s, v, pd.options), feito = pd.partes.reduce((x, y) => x + y, 0), faltam = pd.total - feito;
-      const pode = new Set(E.legalActions(s, v).filter(a => a.t === 'dividir_ponto').map(a => a.index));
+      const pode = new Set(legaisDe(s, v).filter(a => a.t === 'dividir_ponto').map(a => a.index));
       const resumo = pd.options.map((t, i) => pd.partes[i] ? `${pd.partes[i]} em ${rot[i]}` : '').filter(Boolean).join(' · ');
       const botao = i => Button(`${rot[i]}${pd.partes[i] ? ` · ${pd.partes[i]}` : ''}`, { id: i === [...pode][0] ? 'tb-dividir-magia' : undefined, dataset: { alvo: String(i) }, onClick: () => act({ t: 'dividir_ponto', p: v, index: i }) });
       const idxs = pd.options.map((t, i) => i).filter(i => pode.has(i));
@@ -40539,7 +40568,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       // R5 · carta que está entre as olhadas mas não pode ser pega (terreno em Lead the Stampede, mágica em Malevolent Rumble)
       // aparece apagada; antes parecia escolhível e o toque dava em recusa. Na busca de UMA carta do grimório, cópias
       // iguais viram uma carta só com ×N (nove Florestas e Planícies em fila na Sheltering Landscape).
-      const pegaveis = new Set([...E.legalActions(s, v).filter(a => a.t === 'pick').map(a => a.oid), ...pk.picked]);
+      const pegaveis = new Set([...legaisDe(s, v).filter(a => a.t === 'pick').map(a => a.oid), ...pk.picked]);
       const todas = pk.mostrar ? [...pk.from, ...pk.mostrar.filter(x => !pk.from.includes(x))] : pk.from;
       // R6 · e ao devolver UMA permanente (Boros Garrison, Kor Skyfisher): iguais no mesmo estado viram uma carta só
       const juntar = ['vasculhar', 'devolver para a mão'].includes(pk.label) && pk.max === 1;
@@ -40692,7 +40721,15 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     abaRelatar.style.setProperty('--tb-relatar-y', `${relatarY * 100}%`);
     abaRelatar.hidden = root.dataset.cena === 'true' || handoff;
   }
+  /* MJ11b (J-24) · o orçamento do desenho: em teste (__MTG_TEST) cada pintura da mesa mede quanto leva, para o portão cobrar
+     o teto na jogada mais pesada. Fora de teste, nada muda. */
+  const pinturas = typeof window !== 'undefined' && window.__MTG_TEST ? [] : null;
   function paint() {
+    if (!pinturas) return pintaMesa();
+    const t0 = performance.now();
+    try { return pintaMesa(); } finally { pinturas.push(Math.round((performance.now() - t0) * 10) / 10); if (pinturas.length > 400) pinturas.shift(); }
+  }
+  function pintaMesa() {
     if (pensando) return; // MJ11 · o desenho espera o Shark decidir: a mesa mostra a sua jogada e as dele juntas, no fim
     const s = table.state;
     const v = table.viewer();

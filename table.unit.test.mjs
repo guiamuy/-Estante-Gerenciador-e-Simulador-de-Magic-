@@ -822,3 +822,32 @@ test('MJ11 · o piloto em passos dá a mesma partida: parado antes da vez do Sha
     assert.equal(direto.pilotando, false);
   } finally { G.Date.now = agora; }
 });
+
+test('MJ11b · "o que é jogável" e as palavras-chave de cada carta ficam guardados por estado: a mesma pergunta não vai de novo ao motor', () => {
+  const t = goldfish(11);
+  t.act({ t: 'keep', p: 0, bottom: [] });
+  toMain(t);
+  const s = t.state, v = 0;
+  const q0 = T.legaisDe.perguntas;
+  const a = T.legaisDe(s, v), b = T.legaisDe(s, v);
+  assert.equal(a, b, 'mesmo estado, mesmo jogador: a mesma lista');
+  assert.ok(Object.isFrozen(a), 'a lista guardada não se altera');
+  assert.deepEqual(J(a), J(E.legalActions(s, v)), 'igual ao que o motor responde');
+  const q1 = T.legaisDe.perguntas;
+  assert.ok(q1 - q0 <= 1, 'o motor foi consultado no máximo uma vez (o piloto já pode ter perguntado ao parar aqui)');
+  T.shouldStop(s, v); T.legaisDe(s, v);
+  assert.equal(T.legaisDe.perguntas, q1, 'o piloto e a tela reaproveitam a mesma resposta');
+  const nova = { ...s };
+  T.legaisDe(nova, v);
+  assert.equal(T.legaisDe.perguntas, q1 + 1, 'outro estado: o motor é consultado');
+  t.act({ t: 'pass', p: t.state.turn.priority });
+  assert.notEqual(T.legaisDe(t.state, v), a, 'estado novo, pergunta nova');
+  // palavras-chave da carta: o mesmo objeto para o mesmo estado e P/T
+  const land = handOf(t, 'Island') || t.state.zones[0].hand[0];
+  if (land) t.act({ t: 'play_land', p: 0, oid: land });
+  const st = t.state, oid = st.zones[0].battlefield[0];
+  if (oid != null) {
+    const o = st.objects[oid];
+    assert.equal(T.modificacoesDaCarta(st, o, { p: 1, t: 1 }), T.modificacoesDaCarta(st, o, { p: 1, t: 1 }));
+  }
+});

@@ -15574,6 +15574,53 @@ test('e2e · MJ11 passar a prioridade contra o Shark responde no quadro seguinte
   assert.deepEqual(errors, []);
 });
 
+// MJ11b (leva J-24, trilha jogabilidade) · orçamento da mesa, fatia 2: quadros da jogada mais pesada. Campo cheio dos dois
+// lados (Elfos contra os Elfos do Shark, com a Priest of Titania, que conta elfos para gerar mana) em 360×780, no seu turno,
+// com a prioridade. Antes, a pintura perguntava ao motor "o que é jogável" várias vezes por desenho, e o piloto já tinha
+// perguntado o mesmo sobre o mesmo estado para decidir se parava: 37,8 ms por pintura (CPU 1×) e 125 ms (CPU 4×). Agora a
+// resposta fica guardada por estado no modelo da mesa (T.legaisDe): a jogada consulta o motor uma vez, redesenhar não
+// consulta, e as leituras de palavra-chave de cada carta ficam guardadas por estado (T.modificacoesDaCarta).
+test('e2e · MJ11b campo cheio dos dois lados: a pintura cabe no orçamento, a jogada consulta o motor uma vez e redesenhar não consulta', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 }); // o aparelho do dono
+  const ELFOS = '4 Elvish Mystic\n11 Forest\n1 Fyndhorn Elves\n4 Generous Ent\n4 Llanowar Elves\n4 Masked Vandal\n4 Nyxborn Hydra\n4 Priest of Titania\n4 Quirion Ranger\n2 Sagu Wildling\n3 Timberwatch Elf\n4 Lead the Stampede\n4 Winding Way\n2 Land Grant\n1 Gingerbread Cabin';
+  await createDeck(page, base, 'Elfos', ELFOS);
+  await page.goto(base + '#/mesa'); await page.fill('#mesa-seed', '1');
+  await page.waitForFunction(() => { const c = document.querySelector('[data-opponent="shark"]'); return c && !c.disabled; }, null, { timeout: 8000 });
+  await page.click('[data-opponent="shark"]'); await page.waitForSelector('#mesa-bot-deck');
+  await escolheLista(page, 'mesa-bot-deck', 'shark-elfos');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await semPensar(page); await page.waitForSelector('#tb-pass, #tb-pass-turn');
+  // campo cheio: nove criaturas de cada lado (a Priest of Titania entre as suas), e a partida anda até o seu terceiro turno
+  const campo0 = await page.evaluate(() => { const M = window.__estanteMesa; M.verJogadas(false); const s = M.estado(), cria = o => ((s.facts[o.name] || {}).types || []).includes('creature');
+    const pega = p => { const l = s.zones[p].library.map(x => s.objects[x]).filter(cria); const pri = l.filter(o => o.name === 'Priest of Titania').slice(0, 1); return [...pri, ...l.filter(o => !pri.includes(o))].slice(0, 9); };
+    for (const o of [...pega(0), ...pega(1)]) M.act({ t: 'move', p: M.estado().turn.priority, oid: o.oid, to: 'battlefield' });
+    return M.estado().zones[0].battlefield.map(x => M.estado().objects[x].name).includes('Priest of Titania'); });
+  assert.ok(campo0, 'a Priest of Titania está no seu campo');
+  for (let i = 0; i < 80; i++) { const st = await page.evaluate(() => { const s = window.__estanteMesa.estado(); return [s.turn.number, s.turn.active, s.turn.step, s.pending ? s.pending.p : s.turn.priority, s.status, !!s.pending]; });
+    if (st[4] !== 'playing' || (st[0] >= 3 && st[1] === 0 && st[2] === 'main1' && st[3] === 0 && !st[5])) break;
+    await page.evaluate(() => { const M = window.__estanteMesa, s = M.estado(), quem = s.pending ? s.pending.p : s.turn.priority, l = quem === 0 ? M.legais() : [];
+      M.act(s.pending ? (l.find(x => x.t === 'block') || l.find(x => x.t === 'discard') || l.find(x => x.t === 'attack') || l[0]) : { t: 'pass', p: quem }); }); }
+  const lugar = await page.evaluate(() => { const s = window.__estanteMesa.estado(); return { turno: s.turn.number, passo: s.turn.step, meu: s.turn.active === 0 && s.turn.priority === 0, campo: [s.zones[0].battlefield.length, s.zones[1].battlefield.length] }; });
+  assert.ok(lugar.meu && lugar.passo === 'main1' && lugar.campo[0] >= 9 && lugar.campo[1] >= 9, 'seu turno, com a prioridade e o campo cheio: ' + JSON.stringify(lugar));
+  // a jogada: estado novo, uma pintura; o motor é consultado uma vez (pelo piloto) e a pintura reaproveita
+  const mede = () => page.evaluate(() => { const M = window.__estanteMesa; M.pinturas(); const q0 = M.perguntas();
+    M.act({ t: 'life', p: 0, target: 1, delta: 0 }); const jogada = { pinturas: M.pinturas(), perguntas: M.perguntas() - q0 };
+    const q1 = M.perguntas(); M.repinta(); M.repinta(); return { ...jogada, repinta: M.pinturas(), perguntasAoRedesenhar: M.perguntas() - q1 }; });
+  const r1 = await mede();
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
+  const r4 = await mede();
+  await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
+  t.diagnostic(`MJ11b · ${JSON.stringify(lugar)} · CPU 1×: ${JSON.stringify(r1)} · CPU 4×: ${JSON.stringify(r4)}`);
+  assert.equal(r1.perguntas, 1, 'a jogada consulta o motor uma vez sobre o estado novo (o piloto); a pintura reaproveita');
+  assert.equal(r1.perguntasAoRedesenhar, 0, 'redesenhar o mesmo estado não consulta o motor');
+  assert.equal(r4.perguntasAoRedesenhar, 0);
+  assert.ok(Math.max(...r1.pinturas) <= 45, 'a pintura de um estado novo com o campo cheio cabe em 45 ms (CPU 1×; antes 37,8 ms): ' + JSON.stringify(r1));
+  assert.ok(Math.max(...r1.repinta) <= 25, 'redesenhar o mesmo estado (marcar atacante, abrir a mão) cabe em 25 ms (CPU 1×; antes ~20 ms, metade em perguntas ao motor): ' + JSON.stringify(r1));
+  assert.deepEqual(errors, []);
+});
+
 /* ---------------- DS-K (G-287) · Ébano e Ouro, F0.1: tokens, receitas de animação e contenção de texto ---------------- */
 test('e2e · DS-K · o /ds mostra os tokens de ébano e latão, as dez receitas com os cinco campos, o palco toca em três planos e para com menos movimento; latão AA nos dois temas; nenhum controle com texto fora da caixa', { skip }, async t => {
   const { page, errors, base } = await open(t);

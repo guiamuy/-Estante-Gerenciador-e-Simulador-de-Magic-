@@ -627,7 +627,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ji ✅ | MJ8 ritmo do turno: transições de fase e de vez, cena do oponente com continuidade (J-18) | MJ | 1 | 16º-jd |
 | 16º-jj ✅ | MJ9 fim de partida com peso: placar, série, últimas jogadas (J-21) | MJ | 1 | — |
 | 16º-jk ✅ | MJ10 espiar de patamar: carta grande com profundidade e brilho opcional (J-22) | MJ | 1 | 16º-jh |
-| 16º-jl | MJ11 orçamento da mesa: passar a prioridade sem tarefa longa acima de 50 ms; quadros medidos no portão — **MJ11a ✅ (J-23)**: o turno do Shark sai de dentro do toque; MJ11b (quadros da jogada mais pesada) a fazer | MJ | 1–2 | `mtg-scale-architect`; redesenho por `oid` (MJ3) |
+| 16º-jl ✅ | MJ11 orçamento da mesa: passar a prioridade sem tarefa longa acima de 50 ms; quadros medidos no portão — **MJ11a ✅ (J-23)**: o turno do Shark sai de dentro do toque; **MJ11b ✅ (J-24)**: a pintura com o campo cheio no orçamento (o que é jogável e as palavras-chave guardados por estado) | MJ | 1–2 | `mtg-scale-architect`; redesenho por `oid` (MJ3) |
 | 16º-jm | MJ12 luz da cor da mana (decisão do dono de 24/10: no lugar das partículas, que contrariam o P5 da diretriz de animação; só se não custar quadros) | MJ | 1 | 16º-jl |
 | 16º-jn ✅ | MJ8b bloqueadoras obrigatórias (pedido do `motor`, M-567/M-572): já escolhidas e marcadas, "Sem bloqueio" some, a folha só oferece os atacantes que cumprem (J-19) | MJ | 1 | M-572 publicada |
 | 16º-jo ✅ | MJ3d a carta virada voa do lugar certo (pedido da `bot`, B-175): a foto da camada de efeitos sem a margem da carta virada (J-20) | MJ | 1 | 16º-jd |
@@ -11232,7 +11232,7 @@ desligados com menos movimento.
     carta é foil); inclinar pelo giroscópio; espiar da pilha (a faixa da pilha abre o espiar sem a carta de origem: abre parado,
     como antes).
 
-**MJ11 · Orçamento da mesa** ○ (1–2 levas, com a `mtg-scale-architect`) — passar a prioridade sem tarefa longa acima de
+**MJ11 · Orçamento da mesa** ✅ (2 levas, J-23 e J-24, com a `mtg-scale-architect`) — passar a prioridade sem tarefa longa acima de
 50 ms e quadros medidos no portão (teste de orçamento que falha ao estourar). **Medida da J-2 (360×780, 140 jogadas da partida da crítica, três
 amostras):** cada toque leva 37–39 ms na mediana, ~250 ms no percentil 90 e ~880 ms no pior caso, porque o turno do
 Shark roda dentro do toque que passa a prioridade; antes e depois da MJ1a os números são iguais (soma 14,9–15,6 s).
@@ -11253,8 +11253,24 @@ tarefa longa (até 0,9 do orçamento de 400 ms, B-178) — agora fora do toque e
 principal (trabalhador) é pedido à `bot`/`escala`, não desta fatia. Online e hot-seat não mudam (não há bot). A mesa não
 desenha a jogada do Shark enquanto ele pensa (o ritmo jogada a jogada continua sendo a cena da H5).
 
-**MJ11b · Quadros da jogada mais pesada** ○ (1 leva) — combate com vários atacantes e remoção global sem tarefa longa acima
-de 50 ms no desenho da mesa, medido no portão com a CPU 4× (linha de base antes das receitas do DS-K em três planos).
+**MJ11b · Quadros da jogada mais pesada** ✅ (leva J-24, 25/10/2026) — com o campo cheio dos dois lados (Elfos contra os Elfos
+do Shark, nove ou mais permanentes de cada lado, com a Priest of Titania, que conta elfos para gerar mana), a pintura da mesa
+cabe no orçamento. **Causa medida (perfil de CPU):** 97% do tempo da pintura não era desenho — era a mesa perguntando ao motor
+"o que é jogável" várias vezes por desenho (cemitério, exílio, folha, mira), e o piloto já tinha perguntado o mesmo sobre o
+mesmo estado para decidir se parava; no redesenho do mesmo estado (marcar atacantes, abrir a mão), 43% era a leitura de cada
+palavra-chave de cada carta (um cálculo de efeitos contínuos por pergunta). **Correção (sem mudar regra):** o modelo da mesa
+guarda por estado a resposta do motor (`T.legaisDe`, congelada; o `shouldStop` e a tela usam a mesma) e as modificações de
+cada carta (`modificacoesDaCarta` por estado, carta e P/T) — o motor é puro e o estado não muda depois de criado (ADR-04).
+**Medidas (360×780, no seu turno com a prioridade):** pintura de estado novo 37,8 → 16,7 ms (CPU 1×) e 124,6 → 49,8 ms
+(CPU 4×); redesenho do mesmo estado ~20 → 8,4 ms (CPU 1×) e 28–31 ms (CPU 4×); desenho do combate com nove atacantes, CPU
+4×, 65–137 → 18–30 ms. **Testes:** `table.unit` "MJ11b" (mesma lista para o mesmo estado e jogador, congelada, igual à do
+motor; o piloto e a tela reaproveitam; estado novo pergunta de novo; modificações da carta reaproveitadas); e2e "MJ11b"
+(pintura de estado novo ≤ 45 ms e redesenho ≤ 25 ms na CPU 1×; a jogada consulta o motor uma vez; redesenhar não consulta;
+CPU 4× como diagnóstico). **Fora / pedido ao `motor`:** o que sobra é custo do motor por estado novo — `countFor`/`isElf`
+recontam os elfos a cada fonte e a cada valor de X na conta de mana (Priest of Titania), e `continuosQueAfetam` refaz os
+efeitos contínuos a cada palavra-chave perguntada; guardar isso por estado dentro do motor deixaria a jogada com o campo
+cheio abaixo de 50 ms também com a CPU 4× (hoje a tarefa inteira do toque nesse campo, com o motor, leva ~50 ms na CPU 1×).
+Remoção global não foi medida à parte (as listas de teste não têm uma); o desenho do combate cobre a saída de várias cartas.
 
 **MJ12 · Luz da cor da mana** ○ (1 leva; decisão do dono de 24/10/2026: troca as partículas — que contrariam o P5 da diretriz de animação, "nada de partícula gratuita" — por uma varredura de luz tingida pela cor da mana, uma por evento) — só depois da MJ11 e só se não custar quadros.
 
