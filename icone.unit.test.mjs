@@ -48,10 +48,24 @@ test('J5 · o ícone que a abertura monta é o mesmo ícone do app: só ganha um
   assert.ok(animado.indexOf('ab-carta--3') > animado.indexOf('rotate(11 42 29)'), 'a carta de latão cai já dentro da inclinação dela');
 });
 
+test('G-306 · a abertura monta a cena da estante (fundo, laterais, topo, tábua, base, três livros com corpo, faces e sombra) antes do ícone, que é o primeiro e único svg', () => {
+  const partes = [];
+  const win = { document: { body: { appendChild(el) { partes.push(el); } }, documentElement: { getAttribute: () => null }, createElement: () => { const el = { dataset: {}, setAttribute(k, v) { el[k] = v; }, remove() {} }; return el; } }, sessionStorage: { getItem: () => null, setItem() {} }, matchMedia: () => ({ matches: false }), addEventListener() {}, removeEventListener() {}, setTimeout: () => 1, clearTimeout() {} };
+  const r = B.mostraAbertura(win); assert.ok(r && r.el); const html = r.el.innerHTML;
+  assert.ok(html.indexOf('<span class="abertura__cena"') < html.indexOf('<span class="abertura__ladrilho"'), 'a cena vem antes do ladrilho (o ícone cobre a cena ao chegar)');
+  for (const c of ['ab-estante__fundo', 'ab-peca ab-estante__lado ab-estante__lado--esq', 'ab-peca ab-estante__lado ab-estante__lado--dir', 'ab-peca ab-estante__topo', 'ab-peca ab-estante__tabua', 'ab-peca ab-estante__base']) assert.equal(html.split(`class="${c}"`).length, 2, 'uma peça: ' + c);
+  for (const n of [1, 2, 3]) { assert.equal(html.split(`class="ab-livro ab-livro--${n}"`).length, 2, 'livro ' + n); }
+  assert.equal(html.split('class="ab-livro__corpo"').length, 4); assert.equal(html.split('class="ab-livro__sombra"').length, 4);
+  assert.ok((html.match(/class="ab-face /g) || []).length >= 12, 'faces de volume');
+  assert.equal((html.match(/<svg/g) || []).length, 1, 'a cena é feita de caixas e gradientes: o único svg é o ícone');
+  assert.equal(r.el.dataset.parada, 'false');
+});
+
 test('J5 · a abertura aparece uma vez por sessão e dura a animação inteira, ou meio segundo com movimento reduzido', () => {
   assert.equal(B.deveAbrir({}), true); assert.equal(B.deveAbrir({ jaAbriu: true }), false, 'recarregar não repete');
   assert.equal(B.deveAbrir({ desligada: true }), false); assert.equal(B.deveAbrir(), true);
-  // I7 (leva 206) · de 1,2 s para 2 s, a pedido: dá para ver a animação
-  assert.equal(B.duracaoDaAbertura(false), 2000); assert.equal(B.duracaoDaAbertura(true), 500); assert.equal(B.ABERTURA_MS, 2000);
+  // I7 (leva 206) · de 1,2 s para 2 s, a pedido; G-306 (relato #35) · 2,4 s: a estante se monta em 3D, pausa de leitura e vira o ícone
+  assert.equal(B.duracaoDaAbertura(false), 2400); assert.equal(B.duracaoDaAbertura(true), 500); assert.equal(B.ABERTURA_MS, 2400);
+  assert.equal(B.ABERTURA_MS, Math.round(1300 * 24 / 13), 'o mesmo valor que o CSS deriva de --dur-abertura (24/13)');
   assert.equal(B.mostraAbertura(null), null, 'sem janela (teste, servidor) não faz nada');
 });

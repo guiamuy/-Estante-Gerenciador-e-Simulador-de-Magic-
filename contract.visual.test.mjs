@@ -535,11 +535,26 @@ test('DS-K · F2.5 a doca do Scanner é a bandeja de ébano (destaque), com resp
 
 /* ---------------- DS-K (G-298) · FA.1 orçamento da abertura ---------------- */
 test('DS-K · FA.1 a abertura anima só transform e opacity (roda no compositor e não trava enquanto o app inicia por baixo)', () => {
-  for (const nome of ['ab-acende', 'ab-gira', 'ab-assenta', 'ab-varre', 'ab-nome']) {
+  // G-306 (relato #35) · a cena da estante entrou: fundo, laterais, tábuas, livros, sombras e câmera, todos no compositor
+  for (const nome of ['ab-acende', 'ab-assenta', 'ab-varre', 'ab-nome', 'ab-camera', 'ab-face-surge', 'ab-fundo-chega', 'ab-lado-esq', 'ab-lado-dir', 'ab-topo-pousa', 'ab-tabua-chega', 'ab-base-chega', 'ab-livro-desce', 'ab-sombra-assenta', 'ab-emerge']) {
     const k = componentCss.match(new RegExp(`@keyframes ${nome} \\{(.*)\\}\\s*$`, 'm')); assert.ok(k, nome);
     const props = [...k[1].matchAll(/([a-z-]+):/g)].map(m => m[1]);
     assert.deepEqual([...new Set(props)].filter(p => !['transform', 'opacity'].includes(p)), [], `${nome} anima só transform e opacity: ${props}`);
   }
+});
+
+/* ---------------- G-306 (relato #35) · a abertura monta a estante em 3D e vira o ícone, sem salto de raster ---------------- */
+test('G-306 · o ícone da abertura nunca muda de escala nem gira (o Chrome rasteriza a camada no tamanho do primeiro quadro: era a "imagem em baixa que vira alta"); a cena some com menos movimento; duração da cena só por token', () => {
+  const k = componentCss.match(/@keyframes ab-emerge \{(.*)\}\s*$/m); assert.ok(k, 'ab-emerge');
+  assert.doesNotMatch(k[1], /scale|rotate|perspective|matrix/, 'o ladrilho só esmaece (e desliza): nada que mude o tamanho projetado');
+  assert.match(componentCss, /\.abertura__ladrilho \{[^}]*animation: ab-emerge /, 'o ladrilho entra por ab-emerge');
+  assert.doesNotMatch(componentCss, /@keyframes ab-gira|@keyframes ab-pousa \{/, 'o giro de −90° e o pouso em escala saíram');
+  // a luz de fundo é a única peça que ainda nasce em escala: gradiente difuso, sem borda para desfocar
+  assert.match(componentCss, /\.abertura__cena \{[^}]*transform-style: preserve-3d;[^}]*animation: ab-camera var\(--ab-cena\)/, 'a câmera é um palco 3D que gira por token');
+  assert.match(componentCss, /--ab-cena: calc\(var\(--dur-abertura\) \* 24 \/ 13\);/, 'a duração da cena deriva do token --dur-abertura (2,4 s)');
+  for (const peca of ['.ab-estante__fundo', '.ab-estante__lado--esq', '.ab-estante__lado--dir', '.ab-estante__topo', '.ab-estante__tabua', '.ab-estante__base', '.ab-livro--1', '.ab-livro--2', '.ab-livro--3']) assert.match(componentCss, new RegExp(peca.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ' \\{[^}]*--d: calc\\(var\\(--ab-cena\\) \\* \\.\\d+\\)'), `${peca} entra em fração da cena`);
+  assert.match(componentCss, /\.abertura\[data-parada="true"\] \.abertura__cena, :root\[data-movimento="reduzido"\] \.abertura__cena \{ display: none; \}/, 'com menos movimento a cena não existe: só o ícone, parado');
+  assert.match(componentCss, /@media \(prefers-reduced-motion: reduce\) \{ \.abertura__cena \{ display: none; \}/);
 });
 
 /* ---------------- DS-K (G-299) · FA.2 saída da folha ---------------- */

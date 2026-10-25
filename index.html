@@ -1467,59 +1467,100 @@ body[data-mesa-cheia="true"] .ds-toast[data-inteiro="true"] { padding-top: var(-
 .ds-estados__celula { display: grid; justify-items: center; align-content: start; gap: var(--space-1); min-width: 0; }
 .ds-estados__celula > .ds-list__item { min-height: var(--tap-min); justify-content: center; border: 1px solid var(--border); border-radius: var(--radius-1); }
 .ds-estados__legenda { font-size: var(--text-xs); color: var(--fg-muted); white-space: nowrap; }
-/* J5 · abertura: ao abrir o app, o ícone se monta — o ladrilho pousa, a moldura e a tábua da estante aparecem e as três
-   cartas caem no lugar, a de latão por último, inclinada. O último quadro é exatamente o ícone do app. A camada não
-   recebe toque (o app por baixo já funciona); qualquer toque ou tecla a dispensa. */
-.abertura { position: fixed; inset: 0; z-index: var(--z-toast); display: flex; align-items: center; justify-content: center; background: var(--bg); pointer-events: none; opacity: 1; transition: opacity var(--dur-3) var(--ease-out);
+/* J5 · abertura → G-306 (relato #35) · ao abrir o app, a estante se monta em 3D e vira o ícone. A camada não recebe toque
+   (o app por baixo já funciona); qualquer toque ou tecla a dispensa. Cena em três planos (DIRETRIZ-animacao, P1–P6):
+   fundo — a luz acende atrás (ab-acende); objeto — num palco com perspectiva (ab-camera: a câmera começa de cima e de
+   lado e assenta de frente), o fundo da estante chega da profundidade (ab-fundo-chega), as laterais se fecham como
+   portas (ab-lado-esq/dir), o topo pousa de cima (ab-topo-pousa), a tábua e a base deslizam dos lados (ab-tabua-chega,
+   ab-base-chega) e três livros com corpo (lombada, topo e lado) descem um depois do outro com mola (ab-livro-desce);
+   sombra — a de cada livro nasce larga e difusa e assenta estreita e firme na tábua (ab-sombra-assenta). Pausa de
+   leitura; a câmera gira para a frente e o ícone do app esmaece para dentro por cima da cena (ab-emerge: só opacidade e
+   um deslize, nunca escala nem giro — o Chrome rasteriza a camada no tamanho do primeiro quadro e só refaz no fim, e era
+   isso a "imagem em baixa que vira alta" do relato), a sombra dele assenta (ab-assenta), a luz varre (ab-varre) e o nome
+   sobe (ab-nome). Tudo em frações de --ab-cena (24/13 de --dur-abertura = 2,4 s); só transform e opacity (FA.1).
+   Menos movimento: a cena não existe; ícone, luz, sombra e nome já no lugar, parados. */
+.abertura { --lado: min(56vw, 240px); --u: calc(var(--lado) / 64); --ab-cena: calc(var(--dur-abertura) * 24 / 13); position: fixed; inset: 0; z-index: var(--z-toast); display: flex; flex-direction: column; gap: var(--space-5); align-items: center; justify-content: center; background: var(--bg); pointer-events: none; opacity: 1; transition: opacity var(--dur-3) var(--ease-out); perspective: 900px;
   /* I7 · no celular a barra do navegador muda a altura visível e sobrava uma faixa do app embaixo da camada: a sombra sem
      desfoque estende o fundo para além da caixa, para todos os lados */
   box-shadow: 0 0 0 100vmax var(--bg); }
 .abertura[data-fim="true"] { opacity: 0; }
-/* I7 · maior: pouco mais da metade da largura da tela (202 px em 360), com teto para telas largas */
-.abertura__ladrilho { display: block; width: min(56vw, 240px); aspect-ratio: 1; border-radius: 23.5%; box-shadow: var(--shadow-3); animation: ab-pousa calc(var(--dur-abertura) * .16) var(--ease-out) both; }
-.abertura__ladrilho svg { display: block; width: 100%; height: 100%; border-radius: 23.5%; }
-.ab-moldura { animation: ab-surge calc(var(--dur-abertura) * .16) var(--ease-out) calc(var(--dur-abertura) * .12) both; }
-.ab-tabua { transform-box: fill-box; transform-origin: 50% 50%; animation: ab-estende calc(var(--dur-abertura) * .16) var(--ease-out) calc(var(--dur-abertura) * .18) both; }
-.ab-carta { transform-box: fill-box; transform-origin: 50% 100%; animation: ab-cai calc(var(--dur-abertura) * .26) var(--ease-out) both; }
-.ab-carta--1 { animation-delay: calc(var(--dur-abertura) * .30); }
-.ab-carta--2 { animation-delay: calc(var(--dur-abertura) * .44); }
-.ab-carta--3 { animation-delay: calc(var(--dur-abertura) * .58); }
-@keyframes ab-pousa { from { opacity: 0; transform: translateY(6px) scale(.9); } to { opacity: 1; transform: none; } }
-@keyframes ab-surge { from { opacity: 0; } to { opacity: 1; } }
-@keyframes ab-estende { from { opacity: 0; transform: scaleX(.2); } to { opacity: 1; transform: none; } }
-@keyframes ab-cai { 0% { opacity: 0; transform: translateY(-14px) rotate(-16deg); } 70% { opacity: 1; transform: translateY(.6px) rotate(3deg); } 100% { opacity: 1; transform: none; } }
-/* movimento reduzido: o logo parado, que só esmaece */
-.abertura[data-parada="true"] .abertura__ladrilho, .abertura[data-parada="true"] .ab-moldura, .abertura[data-parada="true"] .ab-tabua, .abertura[data-parada="true"] .ab-carta { animation: none !important; }
-@media (prefers-reduced-motion: reduce) { .abertura__ladrilho, .ab-moldura, .ab-tabua, .ab-carta { animation: none; } }
-/* DS-K F2.1 (G-293) · a abertura pela receita "abertura", em três planos (o último quadro continua sendo o ícone do app):
-   fundo — a luz acende atrás do ladrilho (ab-acende); objeto — o ladrilho gira de −90° em Y com mola até o lugar
-   (ab-gira, perspectiva no palco) e as peças se montam sobre ele; sombra — nasce estreita e difusa e assenta larga e
-   firme quando o ladrilho chega (ab-assenta); luz — uma varredura atravessa o ladrilho depois da última carta
-   (ab-varre); por fim o nome sobe com o espaçamento se fechando (ab-nome). Tudo em frações de --dur-abertura.
-   Menos movimento: luz, ícone, sombra e nome já no lugar, parados (o estado sem animação é o estado final). */
-.abertura { perspective: 900px; flex-direction: column; gap: var(--space-5); }
+/* I7 · maior: pouco mais da metade da largura da tela (202 px em 360), com teto para telas largas. --u é a unidade do
+   ícone (64 por lado): a cena é desenhada nas mesmas coordenadas da marca, para a morfose casar peça com peça */
 .abertura__palco { position: relative; display: grid; place-items: center; transform-style: preserve-3d; }
 .abertura__luz { position: absolute; inset: -45%; border-radius: 50%; background: radial-gradient(closest-side, var(--accent-soft), transparent); pointer-events: none;
-  animation: ab-acende calc(var(--dur-abertura) * .32) var(--ease-out) both; }
+  animation: ab-acende calc(var(--ab-cena) * .14) var(--ease-out) both; }
+/* a cena: um palco 3D do tamanho do ícone; a câmera é o próprio palco girando */
+.abertura__cena { position: absolute; inset: 0; transform-style: preserve-3d; pointer-events: none; animation: ab-camera var(--ab-cena) var(--ease-out) both; }
+.ab-estante { position: absolute; inset: 0; transform-style: preserve-3d; }
+.ab-estante__fundo { position: absolute; left: calc(var(--u) * 14); top: calc(var(--u) * 17.2); width: calc(var(--u) * 36); height: calc(var(--u) * 27.6); background: linear-gradient(var(--bg-elev-2), var(--bg-elev-0)); opacity: 0;
+  --d: calc(var(--ab-cena) * .04); --dd: calc(var(--ab-cena) * .22); animation: ab-fundo-chega var(--dd) var(--ease-out) var(--d) both; }
+/* peças com volume: uma caixa (preserve-3d) com faces; cada face só esmaece ao entrar e herda --d/--dd da peça */
+.ab-peca { position: absolute; transform-style: preserve-3d; }
+.ab-face { position: absolute; left: 0; top: 0; opacity: 0; animation: ab-face-surge calc(var(--dd) * .3) var(--ease-out) var(--d) both; }
+.ab-face--frente { background: color-mix(in srgb, var(--fg) 56%, var(--bg-elev-0)); }
+.ab-face--cima { background: color-mix(in srgb, var(--fg) 68%, var(--bg-elev-0)); transform-origin: 50% 0; transform: rotateX(-90deg); }
+.ab-face--prof { background: color-mix(in srgb, var(--fg) 42%, var(--bg-elev-0)); transform-origin: 0 50%; transform: rotateY(90deg); }
+.ab-estante__lado { top: calc(var(--u) * 14.8); width: calc(var(--u) * 2.4); height: calc(var(--u) * 32.4); }
+.ab-estante__lado .ab-face--frente { width: 100%; height: 100%; }
+.ab-estante__lado .ab-face--prof { width: calc(var(--u) * 14); height: 100%; }
+.ab-estante__lado--esq { left: calc(var(--u) * 12.8); transform-origin: 0 50%; --d: calc(var(--ab-cena) * .12); --dd: calc(var(--ab-cena) * .24); animation: ab-lado-esq var(--dd) var(--ease-spring) var(--d) both; }
+.ab-estante__lado--esq .ab-face--prof { left: 100%; }
+.ab-estante__lado--dir { left: calc(var(--u) * 48.8); transform-origin: 100% 50%; --d: calc(var(--ab-cena) * .12); --dd: calc(var(--ab-cena) * .24); animation: ab-lado-dir var(--dd) var(--ease-spring) var(--d) both; }
+.ab-estante__topo, .ab-estante__tabua, .ab-estante__base { left: calc(var(--u) * 12.8); width: calc(var(--u) * 38.4); }
+.ab-estante__topo { top: calc(var(--u) * 14.8); height: calc(var(--u) * 2.4); --d: calc(var(--ab-cena) * .18); --dd: calc(var(--ab-cena) * .22); animation: ab-topo-pousa var(--dd) var(--ease-spring) var(--d) both; }
+.ab-estante__tabua { left: calc(var(--u) * 15.2); width: calc(var(--u) * 33.6); top: calc(var(--u) * 38); height: calc(var(--u) * 4); --d: calc(var(--ab-cena) * .22); --dd: calc(var(--ab-cena) * .22); animation: ab-tabua-chega var(--dd) var(--ease-spring) var(--d) both; }
+.ab-estante__base { top: calc(var(--u) * 44.8); height: calc(var(--u) * 2.4); --d: calc(var(--ab-cena) * .26); --dd: calc(var(--ab-cena) * .22); animation: ab-base-chega var(--dd) var(--ease-spring) var(--d) both; }
+:is(.ab-estante__topo, .ab-estante__tabua, .ab-estante__base) .ab-face--frente { width: 100%; height: 100%; }
+:is(.ab-estante__topo, .ab-estante__tabua, .ab-estante__base) .ab-face--cima { width: 100%; height: calc(var(--u) * 14); }
+/* livros: a caixa (lombada, topo, lado) desce e pousa na tábua; a sombra fica deitada na tábua e assenta embaixo dela.
+   Posições e larguras são as das três cartas do ícone; o de latão já nasce inclinado como lá (11°) */
+.ab-livro { position: absolute; transform-style: preserve-3d; --prof: calc(var(--u) * 10); }
+.ab-livro--1 { left: calc(var(--u) * 19); top: calc(var(--u) * 21); width: calc(var(--u) * 7.5); height: calc(var(--u) * 17); --d: calc(var(--ab-cena) * .34); --dd: calc(var(--ab-cena) * .22); --tom: var(--fg); }
+.ab-livro--2 { left: calc(var(--u) * 28.5); top: calc(var(--u) * 21); width: calc(var(--u) * 7.5); height: calc(var(--u) * 17); --d: calc(var(--ab-cena) * .395); --dd: calc(var(--ab-cena) * .22); --tom: color-mix(in srgb, var(--fg) 78%, var(--fg-subtle)); }
+.ab-livro--3 { left: calc(var(--u) * 38); top: calc(var(--u) * 19); width: calc(var(--u) * 8); height: calc(var(--u) * 19); --d: calc(var(--ab-cena) * .45); --dd: calc(var(--ab-cena) * .22); transform-origin: 50% 53%; transform: rotate(11deg); }
+.ab-livro__corpo { position: absolute; inset: 0; transform-style: preserve-3d; animation: ab-livro-desce var(--dd) var(--ease-spring) var(--d) both; }
+.ab-livro__corpo .ab-face--frente { width: 100%; height: 100%; background: linear-gradient(90deg, color-mix(in srgb, var(--tom) 70%, var(--bg-elev-0)), var(--tom) 35%, var(--tom) 70%, color-mix(in srgb, var(--tom) 82%, var(--bg-elev-0))); }
+.ab-livro__corpo .ab-face--cima { width: 100%; height: var(--prof); background: color-mix(in srgb, var(--tom) 88%, var(--sheen)); }
+.ab-livro__corpo .ab-face--prof { left: 100%; width: var(--prof); height: 100%; background: color-mix(in srgb, var(--tom) 62%, var(--bg-elev-0)); }
+.ab-livro--3 { --tom: var(--accent); }
+.ab-livro--3 .ab-livro__corpo .ab-face--frente { background: linear-gradient(90deg, var(--accent-lo), var(--accent) 30%, var(--accent-hi) 55%, var(--accent) 80%, var(--accent-lo)); }
+.ab-livro--3 .ab-livro__corpo .ab-face--cima { background: var(--accent-hi); }
+.ab-livro--3 .ab-livro__corpo .ab-face--prof { background: var(--accent-lo); }
+.ab-livro__sombra { position: absolute; left: calc(var(--u) * -3); top: calc(100% - var(--u) * .15); width: calc(100% + var(--u) * 6); height: calc(var(--prof) + var(--u) * 6); transform-origin: 50% 0; background: radial-gradient(closest-side, var(--overlay), transparent); opacity: 0;
+  animation: ab-sombra-assenta var(--dd) var(--ease-out) var(--d) both; }
+/* o ícone, por cima da cena: a sombra assenta, o ladrilho esmaece para dentro, a luz varre, o nome sobe */
 .abertura__sombra { position: absolute; left: 12%; right: 12%; bottom: -9%; height: 14%; border-radius: 50%; background: radial-gradient(closest-side, var(--overlay), transparent); pointer-events: none;
-  animation: ab-assenta calc(var(--dur-abertura) * .32) var(--ease-spring) calc(var(--dur-abertura) * .14) both; }
-.abertura__ladrilho { position: relative; overflow: hidden; transform-origin: 50% 50%; backface-visibility: hidden;
-  animation: ab-gira calc(var(--dur-abertura) * .32) var(--ease-spring) calc(var(--dur-abertura) * .14) both; }
+  animation: ab-assenta calc(var(--ab-cena) * .14) var(--ease-spring) calc(var(--ab-cena) * .68) both; }
+.abertura__ladrilho { position: relative; display: block; width: var(--lado); aspect-ratio: 1; border-radius: 23.5%; box-shadow: var(--shadow-3); overflow: hidden; backface-visibility: hidden; animation: ab-emerge calc(var(--ab-cena) * .12) var(--ease-out) calc(var(--ab-cena) * .68) both; }
+.abertura__ladrilho svg { display: block; width: 100%; height: 100%; border-radius: 23.5%; }
 .abertura__ladrilho::after { content: ""; position: absolute; top: -20%; bottom: -20%; left: 0; width: 38%; pointer-events: none;
   background: linear-gradient(100deg, transparent, var(--sheen), transparent); transform: translateX(-160%) skewX(-16deg);
-  animation: ab-varre calc(var(--dur-abertura) * .3) var(--ease-out) calc(var(--dur-abertura) * .78) both; }
+  animation: ab-varre calc(var(--ab-cena) * .14) var(--ease-out) calc(var(--ab-cena) * .82) both; }
 .abertura__nome { font-family: var(--font-display); font-size: var(--text-2xl); line-height: 1; letter-spacing: .14em; color: var(--fg); padding-left: .14em; transform-origin: 50% 50%;
-  animation: ab-nome calc(var(--dur-abertura) * .34) var(--ease-out) calc(var(--dur-abertura) * .66) both; }
+  animation: ab-nome calc(var(--ab-cena) * .18) var(--ease-out) calc(var(--ab-cena) * .76) both; }
 @keyframes ab-acende { from { opacity: 0; transform: scale(.7); } to { opacity: 1; transform: none; } }
-@keyframes ab-gira { from { opacity: 0; transform: rotateY(-90deg) translateZ(60px); } 30% { opacity: 1; } to { opacity: 1; transform: none; } }
+@keyframes ab-camera { 0% { transform: translateZ(calc(var(--u) * -.25)) rotateX(-12deg) rotateY(-32deg); } 58% { transform: translateZ(calc(var(--u) * -.25)) rotateX(-7deg) rotateY(-17deg); } 66% { transform: translateZ(calc(var(--u) * -.25)) rotateX(-7deg) rotateY(-17deg); } 82% { transform: translateZ(calc(var(--u) * -.25)); } 100% { transform: translateZ(calc(var(--u) * -.25)); } }
+@keyframes ab-face-surge { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ab-fundo-chega { from { opacity: 0; transform: translateZ(calc(var(--u) * -44)); } to { opacity: 1; transform: translateZ(calc(var(--u) * -14)); } }
+@keyframes ab-lado-esq { from { transform: rotateY(-78deg); } to { transform: none; } }
+@keyframes ab-lado-dir { from { transform: rotateY(78deg); } to { transform: none; } }
+@keyframes ab-topo-pousa { from { transform: translateY(calc(var(--u) * -14)); } to { transform: none; } }
+@keyframes ab-tabua-chega { from { transform: translateX(calc(var(--u) * -22)) translateZ(calc(var(--u) * 10)); } to { transform: none; } }
+@keyframes ab-base-chega { from { transform: translateX(calc(var(--u) * 22)) translateZ(calc(var(--u) * 10)); } to { transform: none; } }
+@keyframes ab-livro-desce { from { transform: translateY(calc(var(--u) * -24)) translateZ(calc(var(--u) * 16)) rotateX(-22deg); } to { transform: none; } }
+@keyframes ab-sombra-assenta { from { opacity: 0; transform: rotateX(-90deg) scale(1.8, 1.6); } to { opacity: .9; transform: rotateX(-90deg); } }
+@keyframes ab-emerge { from { opacity: 0; transform: translateY(calc(var(--u) * .5)); } to { opacity: 1; transform: none; } }
 /* DS-K FA.1 (G-298) · só transform e opacity: a abertura roda no compositor e não trava quando o app, por baixo, ocupa
    a thread principal ao iniciar (tarefas longas medidas com CPU 4×); o "espaçamento se fechando" do nome vira escala
    horizontal, a sombra difusa vira escala com opacidade e a varredura anda por transform */
 @keyframes ab-assenta { from { opacity: 0; transform: scale(.35, .6); } to { opacity: 1; transform: none; } }
 @keyframes ab-varre { from { transform: translateX(-160%) skewX(-16deg); } to { transform: translateX(320%) skewX(-16deg); } }
 @keyframes ab-nome { from { opacity: 0; transform: translateY(10px) scaleX(1.35); } to { opacity: 1; transform: none; } }
+/* movimento reduzido: a cena não existe; o ícone parado, que só esmaece (o estado sem animação é o estado final) */
 .abertura[data-parada="true"] :is(.abertura__luz, .abertura__sombra, .abertura__ladrilho, .abertura__nome), .abertura[data-parada="true"] .abertura__ladrilho::after { animation: none !important; }
-@media (prefers-reduced-motion: reduce) { :is(.abertura__luz, .abertura__sombra, .abertura__nome), .abertura__ladrilho::after { animation: none; } }
+.abertura[data-parada="true"] .abertura__cena, :root[data-movimento="reduzido"] .abertura__cena { display: none; }
+@media (prefers-reduced-motion: reduce) { .abertura__ladrilho, .ab-moldura, .ab-tabua, .ab-carta { animation: none; } } /* linha espelhada no painel.html (R-2): fica como está */
+@media (prefers-reduced-motion: reduce) { .abertura__cena { display: none; } :is(.abertura__luz, .abertura__sombra, .abertura__ladrilho, .abertura__nome), .abertura__ladrilho::after { animation: none; } }
 /* J6 · botão de ação: a ação principal da tela ao alcance do polegar, no canto inferior direito. Uma ação: toca e faz.
    Várias: abre para cima uma lista curta de ícone + rótulo. É o primário da tela (usa o desenho do botão primário).
    Fica acima do conteúdo e abaixo de diálogos e avisos; a página ganha respiro no fim para ele não cobrir a última linha. */
@@ -4316,7 +4357,7 @@ let toastVez = 0;
    (ordem e sobreposição) e reduzido (o que a pessoa vê com menos movimento). `dona` diz quem implementa: o design
    (fora da partida) ou a jogabilidade (na mesa, em #tb-fx). Durações e curvas são tokens, nunca literais. */
 const RECEITAS_DE_ANIMACAO = Object.freeze([
-  { id: 'abertura', nome: 'Abertura', evento: 'o app abre', dona: 'design', plano: 'fundo: luz acende · objeto: ladrilho de latão gira de −90° em Y e o traço se desenha · sombra: a do ladrilho nasce com ele', luz: 'varredura no ladrilho ao pousar', curva: '--ease-spring (ladrilho) · --ease-out (traço, varredura, nome)', etapas: 'luz (--dur-4) → ladrilho (--dur-4, começa a --dur-2) → traço (--dur-4, a --dur-3) → varredura (--dur-4, a --dur-4) → nome revela de baixo com o espaçamento se fechando; total --dur-abertura, pulável no toque', reduzido: 'marca, nome e luz já no lugar em um quadro' },
+  { id: 'abertura', nome: 'Abertura', evento: 'o app abre', dona: 'design', plano: 'fundo: luz acende · objeto: num palco com perspectiva a estante se monta (fundo chega da profundidade, laterais se fecham como portas, topo pousa, tábua e base deslizam) e três livros com corpo descem um depois do outro; a câmera assenta de frente e o ícone esmaece por cima, sem escala nem giro · sombra: a de cada livro nasce larga e difusa e assenta estreita na tábua; a do ladrilho assenta com ele', luz: 'varredura no ladrilho depois de ele chegar', curva: '--ease-spring (laterais, topo, tábua, base, livros) · --ease-out (câmera, faces, luz, ícone, varredura, nome)', etapas: 'luz → fundo da estante → laterais → topo → tábua → base → livro 1, 2, 3 (escalonados, --escalona) → pausa → câmera de frente e ícone por cima → sombra → varredura → nome; total 24/13 de --dur-abertura, pulável no toque', reduzido: 'sem cena: ícone, luz, sombra e nome já no lugar em um quadro' },
   { id: 'pousar', nome: 'Pousar', evento: 'carta chega ao campo ou à prateleira', dona: 'jogabilidade', plano: 'fundo: prateleira ou feltro · objeto: a carta vem de trás (Z −280, inclinada 45°) e assenta · sombra: própria, encolhe e escurece ao pousar', luz: 'não', curva: '--ease-spring (carta) · --ease-out (sombra)', etapas: 'irmãs escalonadas por --escalona, a seguinte começa antes de a anterior pousar; a prateleira cresce do centro (--dur-3) enquanto a primeira carta desce', reduzido: 'carta e sombra no lugar em um quadro' },
   { id: 'confirmar', nome: 'Confirmar', evento: 'toque no primário', dona: 'design', plano: 'objeto: o botão afunda 1 px e 3 % · sombra: vira interna (--btn-pressed)', luz: 'uma varredura atravessa o latão logo depois do toque', curva: '--ease-out', etapas: 'afunda (--dur-1) → varredura (--dur-4) sobreposta à ação; nunca em laço', reduzido: 'só a cor de pressionado' },
   { id: 'folha', nome: 'Folha', evento: 'folha inferior abre', dona: 'design', plano: 'fundo: véu com vinheta · objeto: a folha sobe · sombra: --shadow-up', luz: 'não', curva: '--ease-spring (sobe) · --ease-out (véu)', etapas: 'véu (--dur-2) e folha (--dur-3) começam juntos; fechar é mais curto que abrir e segue o dedo', reduzido: 'folha e véu aparecem no lugar' },
@@ -4413,13 +4454,22 @@ function installFavicon(doc) {
   return link;
 }
 /* ---------------- J5 · abertura ---------------- */
-const ABERTURA_MS = 2000, ABERTURA_PARADA_MS = 500, ABERTURA_CHAVE = 'estante.abertura';
+/* G-306 (relato #35) · 2,4 s: a estante se monta em 3D, pausa de leitura e vira o ícone (o CSS deriva o mesmo valor de --dur-abertura × 24/13) */
+const ABERTURA_MS = 2400, ABERTURA_PARADA_MS = 500, ABERTURA_CHAVE = 'estante.abertura';
 /** A abertura aparece uma vez por sessão do app (abrir o app ou a aba), nunca ao recarregar nem ao trocar de tela. */
 const deveAbrir = ({ jaAbriu = false, desligada = false } = {}) => !jaAbriu && !desligada;
 /** Quanto tempo ela fica: a animação inteira, ou meio segundo de logo parado com movimento reduzido. */
 const duracaoDaAbertura = reduzido => (reduzido ? ABERTURA_PARADA_MS : ABERTURA_MS);
 /** Mostra a abertura por cima do app que carrega embaixo. Não segura nada: some sozinha no fim da animação, ou antes,
     no primeiro toque ou tecla. Devolve { el, fim } ou null quando não é o caso de abrir. */
+/** G-306 (relato #35) · a cena que se monta antes do ícone: a estante (fundo, laterais, topo, tábua, base) e três livros,
+    caixas com faces (frente, cima, lado) só de classes fixas; as cores vêm dos tokens no CSS. Nenhum dado de fora entra aqui. */
+function cenaDaAbertura() {
+  const face = (...tipos) => tipos.map(t => `<span class="ab-face ab-face--${t}"></span>`).join('');
+  const peca = (classe, ...faces) => `<span class="ab-peca ${classe}">${face(...faces)}</span>`;
+  const livro = n => `<span class="ab-livro ab-livro--${n}"><span class="ab-livro__sombra"></span><span class="ab-livro__corpo">${face('frente', 'cima', 'prof')}</span></span>`;
+  return `<span class="abertura__cena"><span class="ab-estante"><span class="ab-estante__fundo"></span>${peca('ab-estante__lado ab-estante__lado--esq', 'frente', 'prof')}${peca('ab-estante__lado ab-estante__lado--dir', 'frente', 'prof')}${peca('ab-estante__topo', 'frente', 'cima')}${peca('ab-estante__tabua', 'frente', 'cima')}${peca('ab-estante__base', 'frente', 'cima')}${livro(1)}${livro(2)}${livro(3)}</span></span>`;
+}
 function mostraAbertura(win = typeof window !== 'undefined' ? window : null) {
   if (!win || !win.document || !win.document.body) return null;
   const doc = win.document;
@@ -4429,8 +4479,10 @@ function mostraAbertura(win = typeof window !== 'undefined' ? window : null) {
   const reduzido = doc.documentElement.getAttribute('data-movimento') === 'reduzido' || !!(win.matchMedia && win.matchMedia('(prefers-reduced-motion: reduce)').matches);
   const el = doc.createElement('div');
   el.id = 'abertura'; el.className = 'abertura'; el.setAttribute('aria-hidden', 'true'); el.dataset.parada = String(reduzido);
-  // DS-K F2.1 · três planos: luz atrás, sombra embaixo, o ladrilho no meio; o nome por último
-  el.innerHTML = `<span class="abertura__palco"><span class="abertura__luz"></span><span class="abertura__sombra"></span><span class="abertura__ladrilho">${iconeDoApp({ tamanho: 240, animado: true })}</span></span><span class="abertura__nome">Estante</span>`;
+  // DS-K F2.1 · três planos: luz atrás, sombra embaixo, o ladrilho no meio; o nome por último.
+  // G-306 (relato #35) · entre a luz e o ladrilho, a cena da estante (cenaDaAbertura, só marcação fixa gerada pelo código)
+  const cena = cenaDaAbertura();
+  el.innerHTML = `<span class="abertura__palco"><span class="abertura__luz"></span>${cena}<span class="abertura__sombra"></span><span class="abertura__ladrilho">${iconeDoApp({ tamanho: 240, animado: true })}</span></span><span class="abertura__nome">Estante</span>`;
   doc.body.appendChild(el);
   const EVENTOS = ['pointerdown', 'keydown'];
   let acabou = false, relogio = null;

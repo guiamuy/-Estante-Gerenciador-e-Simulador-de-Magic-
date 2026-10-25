@@ -10511,14 +10511,20 @@ test('e2e · J4 carregamento com identidade: cartas que se arrumam na prateleira
 });
 
 /* ---------------- J5 · abertura ---------------- */
-test('e2e · J5 abertura: ao abrir o app o ícone se monta (ladrilho, estante, três cartas) e some sozinho em até 1,2 s; não segura o app, não recebe toque, um toque dispensa, não repete ao recarregar nem ao trocar de tela; parada com movimento reduzido', { skip }, async t => {
+test('e2e · J5 abertura (G-306, relato #35): ao abrir o app a estante se monta em 3D (fundo, laterais, tábuas, três livros com sombra) e só depois vira o ícone, que nunca muda de escala; some sozinha em 2,4 s + esmaecer; não segura o app, não recebe toque, um toque dispensa, não repete ao recarregar nem ao trocar de tela; parada com movimento reduzido', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.setViewportSize({ width: 360, height: 780 });
   // um observador anota a vida da abertura desde o primeiro instante da página
   await page.addInitScript(() => { window.__ab = { nasceu: 0, sumiu: 0, comApp: null, quadros: [] };
     const o = new MutationObserver(() => { const a = document.querySelector('#abertura');
       if (a && !window.__ab.nasceu) { window.__ab.nasceu = performance.now(); window.__ab.html = a.innerHTML; window.__ab.parada = a.dataset.parada; window.__ab.eventos = getComputedStyle(a).pointerEvents; window.__ab.cobre = a.getBoundingClientRect().width >= innerWidth && a.getBoundingClientRect().height >= innerHeight; window.__ab.lado = a.querySelector('.abertura__ladrilho').offsetWidth; window.__ab.sangra = getComputedStyle(a).boxShadow;
-        window.__ab.anima = [...a.querySelectorAll('.ab-carta, .ab-moldura, .ab-tabua, .abertura__ladrilho')].map(e => getComputedStyle(e).animationName); window.__ab.atrasos = [...a.querySelectorAll('.ab-carta')].map(e => parseFloat(getComputedStyle(e).animationDelay)); }
+        window.__ab.anima = [...a.querySelectorAll('.ab-carta, .ab-moldura, .ab-tabua, .abertura__ladrilho')].map(e => getComputedStyle(e).animationName); window.__ab.atrasos = [...a.querySelectorAll('.ab-carta')].map(e => parseFloat(getComputedStyle(e).animationDelay));
+        // G-306 · a cena: livros escalonados, morfose depois do último livro, ladrilho sem escala
+        const ms = v => parseFloat(v) * (/ms$/.test(v) ? 1 : 1000), cena = a.querySelector('.abertura__cena'), lad = getComputedStyle(a.querySelector('.abertura__ladrilho'));
+        window.__ab.cena = cena ? { visivel: getComputedStyle(cena).display !== 'none', persp: getComputedStyle(a).perspective, estilo3d: getComputedStyle(cena).transformStyle, camera: getComputedStyle(cena).animationName, pecas: cena.querySelectorAll('.ab-estante__fundo, .ab-estante__lado, .ab-estante__topo, .ab-estante__tabua, .ab-estante__base').length, faces: cena.querySelectorAll('.ab-face').length } : null;
+        window.__ab.livros = [...a.querySelectorAll('.ab-livro__corpo')].map(e => { const cs = getComputedStyle(e); return { atraso: ms(cs.animationDelay), dur: ms(cs.animationDuration), nome: cs.animationName }; });
+        window.__ab.sombras = [...a.querySelectorAll('.ab-livro__sombra')].map(e => getComputedStyle(e).animationName);
+        window.__ab.ladrilho = { atraso: ms(lad.animationDelay), dur: ms(lad.animationDuration), transform: lad.transform }; }
       if (a && window.__ab.comApp == null && document.querySelector('#home-atalhos')) window.__ab.comApp = true;
       if (!a && window.__ab.nasceu && !window.__ab.sumiu) window.__ab.sumiu = performance.now(); });
     document.addEventListener('DOMContentLoaded', () => o.observe(document.body, { childList: true, subtree: true })); });
@@ -10530,15 +10536,23 @@ test('e2e · J5 abertura: ao abrir o app o ícone se monta (ladrilho, estante, t
   const ab = await page.evaluate(() => window.__ab);
   assert.equal(ab.comApp, true, 'a tela inicial chegou com a abertura ainda visível');
   assert.equal(ab.eventos, 'none', 'a camada não recebe toque: o app por baixo responde'); assert.equal(ab.cobre, true); assert.equal(ab.parada, 'false');
-  // I7 (leva 206) · a abertura passou de 1,2 s para 2 s e de 112 px para pouco mais da metade da largura
-  const vida = ab.sumiu - ab.nasceu; assert.ok(vida >= 1900 && vida <= 2700, `dura a animação (2 s) mais o esmaecer: ${Math.round(vida)} ms`);
+  // I7 (leva 206) · de 1,2 s para 2 s; G-306 (relato #35) · 2,4 s: a estante se monta, pausa de leitura e vira o ícone
+  const vida = ab.sumiu - ab.nasceu; assert.ok(vida >= 2300 && vida <= 3100, `dura a cena (2,4 s) mais o esmaecer: ${Math.round(vida)} ms`);
   assert.ok(ab.lado >= 195 && ab.lado <= 210, 'o ícone ocupa pouco mais da metade da largura em 360 px: ' + ab.lado);
   assert.match(ab.html, /filterUnits="userSpaceOnUse"/, 'a sombra tem região fixa: não treme enquanto as cartas caem');
-  // 2 · o que ela monta: o ícone do app, parte por parte, a de latão por último
-  // DS-K F2.1 (G-293) · o ladrilho gira em 3D com mola (ab-gira) no lugar de só pousar (ab-pousa): receita "abertura"
-  assert.deepEqual(ab.anima.sort(), ['ab-cai', 'ab-cai', 'ab-cai', 'ab-estende', 'ab-gira', 'ab-surge']);
-  assert.ok(ab.atrasos[0] < ab.atrasos[1] && ab.atrasos[1] < ab.atrasos[2], 'as cartas caem uma depois da outra: ' + ab.atrasos);
-  assert.ok(ab.atrasos[2] * 1000 + 520 <= 2000, 'a última carta pousa antes de a abertura sair');
+  // 2 · o que ela monta (G-306, relato #35): a estante em 3D — fundo, duas laterais, topo, tábua e base com faces de volume —
+  // e três livros que descem um depois do outro, cada um com a sombra que assenta; só depois o ícone chega inteiro
+  assert.ok(ab.cena && ab.cena.visivel, 'a cena está na tela'); assert.notEqual(ab.cena.persp, 'none', 'a camada tem perspectiva'); assert.equal(ab.cena.estilo3d, 'preserve-3d'); assert.equal(ab.cena.camera, 'ab-camera', 'a câmera gira por ab-camera');
+  assert.equal(ab.cena.pecas, 6, 'fundo, duas laterais, topo, tábua e base'); assert.ok(ab.cena.faces >= 12, 'cada peça tem faces de volume: ' + ab.cena.faces);
+  assert.deepEqual(ab.livros.map(l => l.nome), ['ab-livro-desce', 'ab-livro-desce', 'ab-livro-desce']); assert.deepEqual(ab.sombras, ['ab-sombra-assenta', 'ab-sombra-assenta', 'ab-sombra-assenta']);
+  assert.ok(ab.livros[0].atraso < ab.livros[1].atraso && ab.livros[1].atraso < ab.livros[2].atraso, 'os livros descem um depois do outro: ' + ab.livros.map(l => l.atraso));
+  assert.ok(ab.livros[1].atraso - ab.livros[0].atraso >= 80 && ab.livros[1].atraso - ab.livros[0].atraso <= 200, 'escalonados entre 80 e 200 ms (P4): ' + (ab.livros[1].atraso - ab.livros[0].atraso));
+  const ultimoLivro = ab.livros[2].atraso + ab.livros[2].dur;
+  assert.ok(ab.ladrilho.atraso >= ultimoLivro, `o ícone só chega depois de o último livro pousar: ${ab.ladrilho.atraso} ≥ ${ultimoLivro}`);
+  assert.ok(ab.ladrilho.atraso + ab.ladrilho.dur <= 2400, 'o ícone está inteiro antes de a abertura sair');
+  // o ícone não muda de tamanho em nenhum quadro (era o salto de "baixa para alta" que o relato apontou): a parte do ícone já chega montada
+  assert.equal(ab.anima[0], 'ab-emerge', 'o ladrilho (primeiro na ordem do documento) só esmaece para dentro'); assert.ok(ab.anima.slice(1).every(a => a === 'none'), 'as peças do ícone não animam mais uma a uma: ' + ab.anima);
+  assert.match(ab.ladrilho.transform, /^(none|matrix\(1, 0, 0, 1, -?[\d.]+, -?[\d.]+\))$/, 'o ladrilho nasce no tamanho final (no máximo um deslize, nunca escala ou giro): ' + ab.ladrilho.transform);
   assert.notEqual(ab.sangra, 'none', 'o fundo se estende além da caixa: sem faixa do app embaixo');
   const iguais = await page.evaluate(html => { const limpa = h => h.replace(/<g class="ab-[^"]*">(<rect[^>]*>)(<\/rect>)?<\/g>/g, '$1$2').replace(/<filter[^>]*>/, '<filter>').replaceAll('estante-abertura', 'estante-icone').replace(/\s(width|height)="\d+"/g, ''); const t = document.createElement('div'); t.innerHTML = html;
     const meu = limpa(t.querySelector('svg').outerHTML), barra = limpa(document.querySelector('.ds-appbar .brand-tile svg').outerHTML); return meu === barra; }, ab.html);
@@ -10561,6 +10575,7 @@ test('e2e · J5 abertura: ao abrir o app o ícone se monta (ladrilho, estante, t
   await page.waitForFunction(() => window.__ab.sumiu > 0, null, { timeout: 4000 });
   const parada = await page.evaluate(() => window.__ab);
   assert.equal(parada.parada, 'true'); assert.ok(parada.anima.every(a => a === 'none'), 'nada se move: ' + parada.anima);
+  assert.equal(parada.cena && parada.cena.visivel, false, 'com menos movimento a cena não aparece: só o ícone, parado');
   assert.ok(parada.sumiu - parada.nasceu <= 1000, 'meio segundo de logo parado: ' + Math.round(parada.sumiu - parada.nasceu) + ' ms');
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   // 6 · sem internet também abre (nada vem da rede)
@@ -16242,16 +16257,17 @@ test('e2e · DS-K FA.2 · fechar o diálogo fecha na hora e uma silhueta da folh
   assert.deepEqual(errors, []);
 });
 
-test('e2e · DS-K F2.1 · a abertura monta o ícone em três planos (luz acende, ladrilho gira em 3D com mola, sombra assenta), passa a varredura e revela o nome; com menos movimento tudo já no lugar', { skip }, async t => {
+test('e2e · DS-K F2.1 · a abertura monta o ícone em três planos (luz acende, a cena da estante se monta em 3D e o ladrilho esmaece por cima sem girar — G-306, relato #35 —, sombra assenta), passa a varredura e revela o nome; com menos movimento tudo já no lugar', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.setViewportSize({ width: 360, height: 780 });
   await page.goto(base + '#/'); await page.waitForSelector('#abertura');
   const a = await page.evaluate(() => { const r = document.querySelector('#abertura'), an = sel => { const el = r.querySelector(sel); return el ? el.getAnimations().map(x => x.animationName) : null; };
     const lad = r.querySelector('.abertura__ladrilho');
-    return { luz: an('.abertura__luz'), sombra: an('.abertura__sombra'), ladrilho: an('.abertura__ladrilho'), varre: getComputedStyle(lad, '::after').animationName,
+    return { luz: an('.abertura__luz'), sombra: an('.abertura__sombra'), ladrilho: an('.abertura__ladrilho'), cena: an('.abertura__cena'), varre: getComputedStyle(lad, '::after').animationName,
       nome: r.querySelector('.abertura__nome') && r.querySelector('.abertura__nome').textContent, persp: getComputedStyle(r).perspective, nomeAnim: an('.abertura__nome') }; });
   assert.deepEqual(a.luz, ['ab-acende'], 'fundo: a luz acende'); assert.deepEqual(a.sombra, ['ab-assenta'], 'sombra: nasce e assenta');
-  assert.deepEqual(a.ladrilho, ['ab-gira'], 'objeto: o ladrilho gira'); assert.equal(a.varre, 'ab-varre', 'luz: a varredura passa');
+  // G-306 (relato #35) · o objeto que se monta em 3D é a cena da estante (ab-camera); o ladrilho só esmaece por cima (ab-emerge), sem giro nem escala
+  assert.deepEqual(a.ladrilho, ['ab-emerge'], 'objeto: o ladrilho esmaece por cima da cena'); assert.deepEqual(a.cena, ['ab-camera'], 'objeto: a cena gira no palco'); assert.equal(a.varre, 'ab-varre', 'luz: a varredura passa');
   assert.equal(a.nome, 'Estante'); assert.deepEqual(a.nomeAnim, ['ab-nome']); assert.notEqual(a.persp, 'none', 'o palco tem profundidade');
   if (process.env.SHOTS) for (const ms of [150, 350, 600, 900, 1350]) { await page.waitForTimeout(ms === 150 ? 0 : 250); await page.screenshot({ path: process.env.SHOTS + `/ds-k-f21-abertura-${ms}.png` }); }
   await page.waitForFunction(() => !document.querySelector('#abertura'), null, { timeout: 5000 });
