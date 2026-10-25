@@ -7,7 +7,8 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { EPOCA } from './agregacao.mjs';
-import { chave, nomeDoRamo, ordemDaFila, decisao, limparMotivo, quedasDoLog, planoValido, NOME_VALIDO, montar, avancar, ramosDaFila, commitsDa, publicados, situacao, formatarQuedas, limparAvisos } from './fila.mjs';
+import { chave, nomeDoRamo, ordemDaFila, decisao, limparMotivo, quedasDoLog, planoValido, NOME_VALIDO, montar, avancar, ramosDaFila, commitsDa, publicados, situacao, formatarQuedas, limparAvisos,
+  AVISO_MAIN, limparQueda, quedasComArquivo, reexecutar, mainVermelho, resultadoDaPresonda, sondaDoAviso, lerAvisoMain, herdadasNoMain } from './fila.mjs';
 
 const RAIZ = dirname(fileURLToPath(import.meta.url));
 const DEPOIS = Math.floor(EPOCA / 1000) + 3600;
@@ -360,4 +361,140 @@ test('Q17 · `publicar --esperar` só trata como recusa o aviso gravado por cima
   const pub = readFileSync(join(RAIZ, 'publicar.mjs'), 'utf8');
   assert.match(pub, /const enviado = git\('rev-parse', 'HEAD'\);/);
   assert.match(pub, /refExiste\(`origin\/\$\{PREFIXO_RECUSADA\}\$\{nome\}`\) && git\('rev-parse', `origin\/\$\{PREFIXO_RECUSADA\}\$\{nome\}\^`\) === enviado/);
+});
+
+/* ---------- Q22 · main vermelho não recusa inocente ---------- */
+
+const TESTE_QUE_CAI = (nome) => ["import { test } from 'node:test';", "test('Q22 · sempre verde', () => {});", `test(${JSON.stringify(nome)}, () => { throw new Error('caiu'); });`];
+const TESTE_QUE_PASSA = (nome) => ["import { test } from 'node:test';", "test('Q22 · sempre verde', () => {});", `test(${JSON.stringify(nome)}, () => {});`];
+/** Saída TAP como a do portão: a queda com a linha `location:` (caminho do runner) e a repetição da segunda chance. */
+const logDoPortao = (nome, arquivo) => [`not ok 7 - ${nome}`, '  ---', '  duration_ms: 12', `  location: '/home/runner/work/x/x/${arquivo}:3:1'`, "  failureType: 'testCodeFailure'", '  ...', `not ok 1 - ${nome}`, `  location: '/home/runner/work/x/x/${arquivo}:3:1'`, `not ok 9 - ${arquivo}`, '# fail 1'].join('\n');
+
+test('Q22 · parte pura: quedas com o arquivo lidas do TAP, sem repetição; main vermelho só com todas as quedas reproduzidas; pré-sonda "caem" nunca publica', () => {
+  const log = logDoPortao('e2e · MJ11b campo cheio', 'e2e.test.mjs') + '\nnot ok 12 - fila · sem arquivo\n# fail 2';
+  assert.deepEqual(quedasComArquivo(log), [{ nome: 'e2e · MJ11b campo cheio', arquivo: 'e2e.test.mjs' }, { nome: 'fila · sem arquivo', arquivo: '' }]);
+  assert.deepEqual(limparQueda({ nome: 'a\u0000b', arquivo: '../x.test.mjs' }), { nome: 'a b', arquivo: '' }, 'arquivo só com forma de teste da raiz');
+  assert.equal(limparQueda({ nome: 'x', arquivo: '--require=evil.test.mjs' }).arquivo, '', 'nada que pareça opção de linha de comando');
+  const q = (noMain) => ({ nome: 'x', arquivo: 'e2e.test.mjs', noMain });
+  assert.equal(mainVermelho({ total: 2, quedas: [q('cai'), q('cai')] }), true);
+  assert.equal(mainVermelho({ total: 2, quedas: [q('cai'), q('passa')] }), false, 'uma queda que não cai no main é da soma');
+  assert.equal(mainVermelho({ total: 3, quedas: [q('cai'), q('cai')] }), false, 'queda que não foi reexecutada não vira culpa do main');
+  assert.equal(mainVermelho({ total: 1, quedas: [q('?')] }), false); assert.equal(mainVermelho({ total: 0, quedas: [] }), false); assert.equal(mainVermelho(null), false);
+  assert.equal(resultadoDaPresonda([{ resultado: 'passa' }, { resultado: 'cai' }]), 'caem');
+  assert.equal(resultadoDaPresonda([{ resultado: 'passa' }]), 'passam');
+  assert.equal(resultadoDaPresonda([{ resultado: 'passa' }, { resultado: '?' }]), '?', 'teste renomeado pela correção: o portão inteiro decide');
+  assert.equal(resultadoDaPresonda([]), '?');
+  const um = [{ nome: 'H-19' }], dois = [{ nome: 'H-19' }, { nome: 'J-27' }], mv = { total: 1, quedas: [q('cai')] };
+  assert.equal(decisao({ aceitos: um, portao: 'success', presonda: 'caem' }).acao, 'esperar-main', 'job verde sem fases (pré-sonda "caem") nunca publica');
+  assert.equal(decisao({ aceitos: um, portao: 'success', presonda: 'passam' }).acao, 'publicar');
+  assert.equal(decisao({ aceitos: um, portao: 'failure', herdadas: mv }).acao, 'esperar-main', 'uma leva inocente não é recusada');
+  assert.equal(decisao({ aceitos: dois, portao: 'failure', herdadas: mv }).acao, 'esperar-main', 'nem isolada');
+  assert.equal(decisao({ aceitos: um, portao: 'failure', herdadas: { total: 1, quedas: [q('passa')] } }).acao, 'recusar', 'culpa da leva continua recusando');
+  assert.equal(decisao({ aceitos: dois, portao: 'failure' }).acao, 'isolar', 'sem reexecução, como antes');
+  const aviso = { base: 'a'.repeat(40), quedas: [{ nome: 'x', arquivo: 'e2e.test.mjs' }] };
+  assert.equal(sondaDoAviso(aviso, 'a'.repeat(40)).length, 1); assert.equal(sondaDoAviso(aviso, 'b'.repeat(40)).length, 0, 'aviso de outro main é velho'); assert.equal(sondaDoAviso(null, 'a'.repeat(40)).length, 0);
+});
+
+test('Q22 · reexecutar roda cada queda sozinha no arquivo dela: cai, passa ou "?" (nome que não existe, arquivo que sumiu)', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'estante-q22-'));
+  try {
+    writeFileSync(join(dir, 'a.test.mjs'), TESTE_QUE_CAI('Q22 · cai (com parênteses) e [colchetes]').join('\n') + '\n');
+    writeFileSync(join(dir, 'b.test.mjs'), TESTE_QUE_PASSA('Q22 · passa').join('\n') + '\n');
+    const r = reexecutar({ cwd: dir, quedas: [{ nome: 'Q22 · cai (com parênteses) e [colchetes]', arquivo: 'a.test.mjs' }, { nome: 'Q22 · passa', arquivo: 'b.test.mjs' }, { nome: 'Q22 · não existe', arquivo: 'b.test.mjs' }, { nome: 'Q22 · passa', arquivo: 'sumiu.test.mjs' }, { nome: 'sem arquivo', arquivo: '' }] });
+    assert.deepEqual(r.map((x) => x.resultado), ['cai', 'passa', '?', '?', '?']);
+    // orçamento da reexecução inteira (o job do portão tem teto de tempo): esgotado, o resto fica "?" e não vira culpa do main
+    let t = 0; const relogio = () => (t += 4 * 60000);
+    assert.deepEqual(reexecutar({ cwd: dir, quedas: [{ nome: 'Q22 · passa', arquivo: 'b.test.mjs' }, { nome: 'Q22 · passa', arquivo: 'b.test.mjs' }], orcamentoMs: 7 * 60000, agora: relogio }).map((x) => x.resultado), ['passa', '?']);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test('Q22 · main vermelho: a leva inocente fica na fila (sem recusada/), o aviso guarda as quedas, a pré-sonda segura o portão, e a leva que conserta publica tudo e apaga o aviso', () => {
+  const m = mundo();
+  try {
+    const NOME = 'e2e · MJ11b orçamento de tempo';
+    const dono = m.clone('dono');   // o main entra vermelho no CI (teste que mede relógio), por fora da fila
+    dono.git('fetch', '-q', 'origin'); dono.git('checkout', '-q', '-B', 't', 'origin/main'); dono.escreve('sonda.test.mjs', TESTE_QUE_CAI(NOME)); dono.commit('Leva J-24 · MJ11b\n\nTrilha: jogabilidade'); dono.git('push', '-q', 'origin', 'HEAD:main');
+    const base = m.cabeca('main');
+    const h = m.clone('h');
+    h.enfileira('H-19', 'Leva H-19 · aprova cartas\n\nTrilha: homologacao', () => h.escreve('aprovadas.json', ['["Lightning Bolt"]']));
+    const c = ci(m);
+    const p = plano(c);
+    assert.deepEqual(p.aceitos.map((x) => x.nome), ['H-19']);
+    // o portão caiu: as quedas rodam de novo sobre o main sozinho
+    const herdadas = herdadasNoMain({ cwd: c.dir, plano: p, log: logDoPortao(NOME, 'sonda.test.mjs') });
+    assert.deepEqual(herdadas.quedas.map((x) => x.noMain), ['cai']); assert.equal(herdadas.base, base);
+    const r = avancar({ cwd: c.dir, plano: p, portao: 'failure', motivo: `not ok 7 - ${NOME}`, herdadas });
+    assert.equal(r.acao, 'esperar-main'); assert.deepEqual(r.recusadas, []); assert.equal(m.cabeca('main'), base);
+    assert.ok(m.existe('refs/heads/fila/H-19'), 'a leva inocente continua na fila');
+    assert.equal(m.existe('refs/heads/recusada/H-19'), false, 'nenhuma recusa: nada para a conversa reenviar');
+    assert.ok(m.existe(`refs/heads/${AVISO_MAIN}`));
+    c.git('fetch', '-q', 'origin', `+refs/heads/aviso/*:refs/remotes/origin/aviso/*`);
+    const aviso = lerAvisoMain({ cwd: c.dir });
+    assert.equal(aviso.base, base); assert.deepEqual(aviso.quedas, [{ nome: NOME, arquivo: 'sonda.test.mjs' }]);
+    assert.match(c.git('log', '-1', '--format=%B', `origin/${AVISO_MAIN}`), /MAIN VERMELHO no CI[\s\S]*não recusa ninguém[\s\S]*MJ11b orçamento de tempo \(sonda\.test\.mjs\)/);
+    assert.equal(situacao({ cwd: c.dir }).mainVermelho.base, base, 'o publicar --situacao mostra o aviso');
+    // uma herança forjada de outro main não vale (o job do portão roda código de leva)
+    assert.equal(avancar({ cwd: c.dir, plano: p, portao: 'failure', herdadas: { ...herdadas, base: 'b'.repeat(40) } }).acao, 'recusar');
+    h.git('push', '-q', 'origin', 'HEAD:refs/heads/fila/H-19'); // a recusa do teste acima volta a leva para a fila
+    // rodada seguinte com outra leva inocente: a pré-sonda acha a queda e o portão inteiro não roda
+    const j = m.clone('j');
+    j.enfileira('B-183', 'Leva B-183 · bot\n\nTrilha: bot', () => j.escreve('bot.js', ['const bot = shark.joga(estado);']));
+    const p2 = plano(c);
+    assert.deepEqual(sondaDoAviso(lerAvisoMain({ cwd: c.dir }), p2.base), [{ nome: NOME, arquivo: 'sonda.test.mjs' }]);
+    const pre = resultadoDaPresonda(reexecutar({ cwd: c.dir, quedas: [{ nome: NOME, arquivo: 'sonda.test.mjs' }] }));
+    assert.equal(pre, 'caem');
+    const r2 = avancar({ cwd: c.dir, plano: p2, portao: 'success', presonda: pre });
+    assert.equal(r2.acao, 'esperar-main'); assert.equal(m.cabeca('main'), base); assert.ok(m.existe('refs/heads/fila/B-183') && m.existe('refs/heads/fila/H-19'));
+    // a trilha dona envia a correção: a pré-sonda passa, o portão inteiro passa, as três publicam juntas e o aviso some
+    const d2 = m.clone('d2');
+    d2.enfileira('J-28', 'Leva J-28 · MJ11b mede em proporção\n\nTrilha: jogabilidade', () => d2.escreve('sonda.test.mjs', TESTE_QUE_PASSA(NOME)));
+    const p3 = plano(c);
+    assert.equal(p3.aceitos.length, 3);
+    assert.equal(resultadoDaPresonda(reexecutar({ cwd: c.dir, quedas: [{ nome: NOME, arquivo: 'sonda.test.mjs' }] })), 'passam');
+    const r3 = avancar({ cwd: c.dir, plano: p3, portao: 'success', presonda: 'passam' });
+    assert.ok(r3.publicado); assert.equal(r3.avisoMainApagado, true); assert.equal(m.existe(`refs/heads/${AVISO_MAIN}`), false);
+    for (const l of ['H-19', 'B-183', 'J-28']) assert.match(m.logDoMain(), new RegExp(`Leva ${l}`));
+  } finally { m.fim(); }
+});
+
+test('Q22 · culpa da leva continua recusando: a queda que passa no main sozinho é da soma, e o motivo separa o que já caía no main', () => {
+  const m = mundo();
+  try {
+    const NOME = 'regra · placar soma', OUTRO = 'tela · antiga';
+    const dono = m.clone('dono');
+    dono.git('fetch', '-q', 'origin'); dono.git('checkout', '-q', '-B', 't', 'origin/main');
+    dono.escreve('regra.test.mjs', TESTE_QUE_PASSA(NOME)); dono.escreve('tela.test.mjs', TESTE_QUE_CAI(OUTRO)); dono.commit('Leva M-600 · regra\n\nTrilha: motor'); dono.git('push', '-q', 'origin', 'HEAD:main');
+    const a = m.clone('a');
+    a.enfileira('M-601', 'Leva M-601 · quebra a regra\n\nTrilha: motor', () => a.escreve('regra.test.mjs', TESTE_QUE_CAI(NOME)));
+    const c = ci(m), p = plano(c);
+    const log = logDoPortao(NOME, 'regra.test.mjs') + '\n' + logDoPortao(OUTRO, 'tela.test.mjs');
+    const herdadas = herdadasNoMain({ cwd: c.dir, plano: p, log });
+    assert.deepEqual(herdadas.quedas.map((x) => [x.nome, x.noMain]), [[NOME, 'passa'], [OUTRO, 'cai']]);
+    const r = avancar({ cwd: c.dir, plano: p, portao: 'failure', motivo: `not ok 7 - ${NOME};not ok 8 - ${OUTRO}`, herdadas });
+    assert.equal(r.acao, 'recusar'); assert.equal(m.existe(`refs/heads/${AVISO_MAIN}`), false);
+    c.busca();
+    assert.match(c.git('log', '-1', '--format=%B', 'origin/recusada/M-601'), /PORTÃO VERMELHO[\s\S]*Caem também no main sozinho \(não são desta leva\): tela · antiga\./);
+  } finally { m.fim(); }
+});
+
+test('Q22 · o fluxo: pré-sonda antes das fases (que não rodam com "caem"), reexecução no main no job sem credencial, aviso lido no monta, nenhuma permissão nova', () => {
+  const yml = readFileSync(join(RAIZ, '.github/workflows/fila.yml'), 'utf8');
+  const job = (nome) => (yml.match(new RegExp(`\\n  ${nome}:\\n([\\s\\S]*?)(?=\\n  [a-z]+:\\n|$)`)) || [])[1] || '';
+  const monta = job('monta'), portao = job('portao'), avanca = job('avanca');
+  assert.match(monta, /sonda: \$\{\{ steps\.monta\.outputs\.sonda \}\}/);
+  assert.match(monta, /'\+refs\/heads\/aviso\/\*:refs\/remotes\/origin\/aviso\/\*'/, 'o monta busca o aviso');
+  const passos = portao.split('\n      - ');
+  const i = (rx) => passos.findIndex((x) => rx.test(x));
+  const iPre = i(/^name: Pré-sonda/), iRap = i(/^name: Fase rápida/), iTela = i(/^name: Fase de tela/), iHer = i(/^name: As quedas caem também no main/), iQue = i(/^name: Testes que caíram/);
+  assert.ok(iPre > 0 && iPre < iRap && iRap < iTela && iTela < iQue && iQue < iHer, 'ordem: pré-sonda, fases, quedas, reexecução no main');
+  assert.match(passos[iPre], /if: needs\.monta\.outputs\.sonda != ''/);
+  assert.match(passos[iPre], /FILA_SONDA: \$\{\{ needs\.monta\.outputs\.sonda \}\}/); assert.match(passos[iPre], /cd "\$RUNNER_TEMP" && node fila\.mjs presonda/, 'o fila.mjs do main');
+  for (const k of [iRap, iTela]) assert.match(passos[k], /if: steps\.presonda\.outputs\.presonda != 'caem'/);
+  assert.match(passos[iHer], /if: failure\(\) && steps\.presonda\.outputs\.presonda != 'caem'/);
+  assert.match(passos[iHer], /cd "\$RUNNER_TEMP" && node fila\.mjs herdadas --cwd "\$GITHUB_WORKSPACE" --log "\$GITHUB_WORKSPACE\/portao\.log"/);
+  for (const s of ['presonda: ${{ steps.presonda.outputs.presonda }}', 'herdadas: ${{ steps.herdadas.outputs.herdadas }}']) assert.ok(portao.includes(s), s);
+  for (const s of ['FILA_PRESONDA: ${{ needs.portao.outputs.presonda }}', 'FILA_HERDADAS: ${{ needs.portao.outputs.herdadas }}']) assert.ok(avanca.includes(s), `pelo ambiente: ${s}`);
+  assert.match(avanca, /name: Telemetria da rodada\n        if: always\(\) && needs\.portao\.result != 'skipped' && needs\.portao\.outputs\.presonda != 'caem'/, 'rodada que parou na pré-sonda não é portão');
+  assert.doesNotMatch(portao, /write|github\.token|secrets\./, 'o portão continua sem escrita e sem token');
+  assert.doesNotMatch(avanca, /npm (ci|install|run|test)|npx |playwright|--test/, 'o job com escrita continua sem rodar nada da leva (a reexecução é no portão)');
 });

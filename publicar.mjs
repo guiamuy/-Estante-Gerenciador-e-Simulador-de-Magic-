@@ -51,7 +51,10 @@ function buscar() {
 }
 
 /* ---------- Q17 · fila ---------- */
-const REFS_DA_FILA = [`+refs/heads/${PREFIXO_FILA}*:refs/remotes/origin/${PREFIXO_FILA}*`, `+refs/heads/${PREFIXO_RECUSADA}*:refs/remotes/origin/${PREFIXO_RECUSADA}*`];
+// Q22 · o aviso de main vermelho (`aviso/main-vermelho`) vem junto: é ele que diz "a sua leva espera, não foi recusada"
+const REFS_DA_FILA = [`+refs/heads/${PREFIXO_FILA}*:refs/remotes/origin/${PREFIXO_FILA}*`, `+refs/heads/${PREFIXO_RECUSADA}*:refs/remotes/origin/${PREFIXO_RECUSADA}*`, '+refs/heads/aviso/*:refs/remotes/origin/aviso/*'];
+/** Q22 · texto do aviso de main vermelho para a conversa. */
+const textoMainVermelho = (a) => `\n⚠ MAIN VERMELHO NO CI desde ${new Date(a.desde * 1000).toISOString().slice(0, 16).replace('T', ' ')} UTC (main ${a.base.slice(0, 7)}). Caem no main sozinho:\n${a.quedas.map((q) => `      - ${q.nome}${q.arquivo ? ` (${q.arquivo})` : ''}`).join('\n')}\n  As levas da fila ESPERAM (não são recusadas; não reenvie). Cada rodada roda primeiro só estes testes; o portão inteiro volta quando a trilha dona do teste enviar a correção.`;
 const buscarFila = () => roda('git', ['fetch', '--quiet', '--prune', 'origin', ...REFS_DA_FILA]);
 const refExiste = (ref) => spawnSync('git', ['rev-parse', '--verify', '--quiet', ref], { stdio: 'ignore' }).status === 0;
 /** Commits locais que ainda não estão no main (pela identidade da leva: a fila regrava o sha, não a autoria nem a mensagem). */
@@ -71,6 +74,7 @@ function mostrarSituacao() {
   console.log(`\nFila de publicação (${s.fila.length} ramo(s), em ordem de chegada):`);
   for (const r of s.fila) console.log(`  ${PREFIXO_FILA}${r.nome}\n${levas(r.levas)}`);
   for (const r of s.recusadas) console.log(`\n  ✗ ${PREFIXO_RECUSADA}${r.nome}\n${levas(r.levas)}\n${r.motivo.split('\n').map((l) => '      ' + l).join('\n')}`);
+  if (s.mainVermelho) console.log(textoMainVermelho(s.mainVermelho));
   console.log(`\nNeste clone: ${s.locais.length ? '' : 'nada à frente do main.'}`);
   if (s.locais.length) console.log(levas(s.locais));
   return s;
@@ -163,12 +167,15 @@ async function enviarParaAFila() {
   console.log('  Pode seguir trabalhando neste clone. Para saber onde está: npm run publicar -- --situacao');
   if (!esperar) return;
   const inicio = Date.now(), TETO_MS = 120 * 60000;
+  let avisou = false;
   for (;;) {
     await new Promise((r) => setTimeout(r, 45000));
     if (!roda('git', ['fetch', '--quiet', 'origin', 'main']) || !buscarFila()) continue;
     // a recusa é deste envio só se o aviso foi gravado por cima do commit enviado (aviso velho de um envio anterior não conta:
     // as conversas de nuvem não conseguem apagá-lo, quem limpa é a fila)
     if (refExiste(`origin/${PREFIXO_RECUSADA}${nome}`) && git('rev-parse', `origin/${PREFIXO_RECUSADA}${nome}^`) === enviado) { console.error(`\n✗ Recusada pela fila:\n${git('log', '-1', '--format=%b', `origin/${PREFIXO_RECUSADA}${nome}`)}`); process.exit(1); }
+    const mv = situacao({ cwd: process.cwd() }).mainVermelho;
+    if (mv && !avisou) { console.log(textoMainVermelho(mv)); avisou = true; }
     if (!pendentes().length) {
       rebasear();
       console.log(`\n✓ Publicado pela fila: main em ${git('rev-parse', '--short', 'origin/main')} (${Math.round((Date.now() - inicio) / 60000)} min de espera). O clone foi alinhado ao main.`);

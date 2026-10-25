@@ -36,6 +36,7 @@ jobs:
     outputs:
       plano: ${{ steps.monta.outputs.plano }}
       portao: ${{ steps.monta.outputs.portao }}
+      sonda: ${{ steps.monta.outputs.sonda }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09   # v5 (fixada por SHA; roda em Node 24)
         with:
@@ -45,8 +46,8 @@ jobs:
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444   # v5 (fixada por SHA; roda em Node 24)
         with:
           node-version: 22
-      - name: Buscar os ramos da fila
-        run: git fetch --quiet --depth=200 origin '+refs/heads/fila/*:refs/remotes/origin/fila/*'
+      - name: Buscar os ramos da fila (e o aviso de main vermelho, Q22)
+        run: git fetch --quiet --depth=200 origin '+refs/heads/fila/*:refs/remotes/origin/fila/*' '+refs/heads/aviso/*:refs/remotes/origin/aviso/*'
       - name: Montar a soma (cada leva entra inteira ou fica de fora, com o motivo)
         id: monta
         env:
@@ -58,12 +59,14 @@ jobs:
     needs: monta
     if: needs.monta.outputs.portao == 'sim'
     runs-on: ubuntu-24.04   # Q21 · versão fixa: a troca do ubuntu-latest não pode derrubar o portão sem aviso
-    timeout-minutes: 45
+    timeout-minutes: 55     # Q22 · portão p90 32 min + preparo ~4 + reexecução das quedas no main (teto de 8 min)
     permissions:
       contents: read
     outputs:
       quedas: ${{ steps.quedas.outputs.quedas }}
       resumo: ${{ steps.resumo.outputs.resumo }}
+      presonda: ${{ steps.presonda.outputs.presonda }}
+      herdadas: ${{ steps.herdadas.outputs.herdadas }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09   # v5 (fixada por SHA; roda em Node 24)
         with:
@@ -83,7 +86,17 @@ jobs:
           cd "$RUNNER_TEMP" && node fila.mjs aplica --cwd "$GITHUB_WORKSPACE"
       - run: npm ci --no-audit --no-fund
       - run: npx playwright install --with-deps chromium
+      # Q22 · main vermelho conhecido (aviso do mesmo main): só as quedas do aviso, sobre a soma, em minutos. Ainda caem → as fases
+      # não rodam e as levas esperam (o avanca nunca publica com a pré-sonda "caem"). Passam → o portão inteiro decide, como sempre.
+      - name: Pré-sonda · as quedas do main vermelho ainda caem com estas levas?
+        id: presonda
+        if: needs.monta.outputs.sonda != ''
+        env:
+          CI: 'true'
+          FILA_SONDA: ${{ needs.monta.outputs.sonda }}
+        run: cd "$RUNNER_TEMP" && node fila.mjs presonda --cwd "$GITHUB_WORKSPACE"
       - name: Fase rápida · unidade, fuzz, golden e contrato visual
+        if: steps.presonda.outputs.presonda != 'caem'
         run: |
           set -o pipefail
           npm run -s test:rapido 2>&1 | tee portao.log
@@ -91,6 +104,7 @@ jobs:
           CI: 'true'
           FUZZ_GAMES: '250'
       - name: Fase de tela · navegador, sozinha
+        if: steps.presonda.outputs.presonda != 'caem'
         run: |
           set -o pipefail
           npm run -s test:e2e 2>&1 | tee -a portao.log
@@ -102,6 +116,17 @@ jobs:
         run: |
           test -f portao.log || exit 0
           grep -E '^not ok [0-9]+ - ' portao.log | grep -v '\.test\.mjs$' | cut -c1-160 | head -12 | tr '\n' ';' | sed 's/^/quedas=/' >> "$GITHUB_OUTPUT"
+      # Q22 · antes de culpar a soma: os testes que caíram rodam de novo, sozinhos, sobre o main sem leva nenhuma (o fila.mjs do main,
+      # neste job sem credencial). Todos caem lá também → o vermelho é do main: ninguém é recusado e o avanca grava o aviso.
+      - name: As quedas caem também no main sozinho?
+        id: herdadas
+        if: failure() && steps.presonda.outputs.presonda != 'caem'
+        env:
+          CI: 'true'
+          FILA_PLANO: ${{ needs.monta.outputs.plano }}
+        run: |
+          test -f portao.log || exit 0
+          cd "$RUNNER_TEMP" && node fila.mjs herdadas --cwd "$GITHUB_WORKSPACE" --log "$GITHUB_WORKSPACE/portao.log"
       # I-292 · o que o portão mediu sobre a soma (testes, instáveis, telas, duração, medidas) vai como saída do job, só agregados,
       # para o `avanca` gravar a telemetria da rodada. O arquivo vem do código testado: o `avanca` valida antes de gravar.
       - name: Resumo do portão para a telemetria da rodada
@@ -129,7 +154,7 @@ jobs:
     runs-on: ubuntu-24.04   # Q21 · versão fixa: a troca do ubuntu-latest não pode derrubar o portão sem aviso
     timeout-minutes: 10
     permissions:
-      contents: write    # avançar o main, apagar fila/<nome>, gravar recusada/<nome>
+      contents: write    # avançar o main, apagar fila/<nome>, gravar recusada/<nome> e aviso/main-vermelho (Q22)
       actions: write     # disparar a rodada seguinte quando sobra ramo na fila, e o fluxo "Relatos pela fila" (I-291)
       statuses: write    # marcar no commit publicado que o portão da fila passou
     steps:
@@ -154,6 +179,8 @@ jobs:
           FILA_PLANO: ${{ needs.monta.outputs.plano }}
           FILA_PORTAO: ${{ needs.portao.result }}
           FILA_MOTIVO: ${{ needs.portao.outputs.quedas }}
+          FILA_PRESONDA: ${{ needs.portao.outputs.presonda }}
+          FILA_HERDADAS: ${{ needs.portao.outputs.herdadas }}
         run: |
           cp fila.mjs agregacao.mjs "$RUNNER_TEMP/"
           cd "$RUNNER_TEMP" && node fila.mjs avanca --cwd "$GITHUB_WORKSPACE" --portao "$FILA_PORTAO"
@@ -181,8 +208,9 @@ jobs:
       # I-292 · telemetria da rodada: levas somadas, resultado do portão, sha publicado e o resumo do portão (testes, instáveis,
       # telas, duração) vão para o ramo `telemetria`, como as levas (BI2-6). Só agregados, tudo pelo ambiente (nada interpolado
       # no shell); o código é o telemetria.mjs do main. O token fica no git do runner, nunca na URL. Falhar não derruba a rodada.
+      # Q22 · rodada que parou na pré-sonda não rodou portão: não entra em rodadas.jsonl (o resumo do fluxo diz que esperou)
       - name: Telemetria da rodada
-        if: always() && needs.portao.result != 'skipped'
+        if: always() && needs.portao.result != 'skipped' && needs.portao.outputs.presonda != 'caem'
         env:
           GH_TOKEN: ${{ github.token }}
           FILA_PLANO: ${{ needs.monta.outputs.plano }}
