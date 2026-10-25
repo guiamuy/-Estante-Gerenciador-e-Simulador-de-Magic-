@@ -6324,6 +6324,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Cartas lidas, para a homologação revisar:** Kolaghan's Command (Scryfall, 25/10/2026), Avengers Disassembled (Oracle do Forge, 25/10/2026: a Scryfall não respondeu nesta sessão; conferir o texto na revisão). Nas listas competitivas pendentes, as outras modais de mais de um modo param em frase de efeito da trilha `motor`: Kozilek's Command (153 listas, X), Witherbloom Command, Prismari Command, Farewell ("Exile all …"), Ashling's Command; Kaya's Guile tem entrelaçar.
 - **Toca:** só `ler` (__m42: a linha "Choose … —" e a montagem do script modal).
 - **Testes:** `keywords.k77.unit` (4; os 4 falham sem a leva); `tipos.modais`, `scripts.unit`, `leitor.revisao`, `leitor.concordancia` e os lotes com modais verdes. Goldens idênticos; motor v112 sem mudança de versão.
+**K-78 · "Crew N" lido pelo leitor (702.122a)** ✅ (leva K-78)
+- **Valor:** o Veículo com "Crew N" deixa de parar nessa linha: o leitor monta a habilidade de tripular na forma canônica da T-4 (`{ crew: N }` e o efeito `tripulada`, que vira criatura artefato até o fim do turno e avisa "fica tripulado").
+- **Aceite:** Sky Skiff e um Urso no campo: a mesa oferece tripular; o Urso vira e o Sky Skiff é "Artifact Creature — Vehicle" 2/3 com voar até o fim do turno.
+- **Cartas lidas, para a homologação revisar:** Sky Skiff e Renegade Freighter (Oracle do Forge, 25/10/2026: a Scryfall não respondeu nesta sessão; conferir o texto na revisão). Nas listas competitivas pendentes, os Veículos param em frase de efeito da trilha `motor` (Parhelion II, Lumbering Worldwagon, Esika's Chariot, Thundering Broodwagon, Unidentified Hovership); com a K-78 a linha "Crew N" deixa de ser um dos bloqueios.
+- **Toca:** só `ler` (__m42, um padrão nas linhas de permanente).
+- **Testes:** `keywords.k78.unit` (2; os 2 falham sem a leva); `tipos.veiculos`, `tipos.selar`, `tipos.convertido`, `combat.audit`, `cr.conformidade`, `leitor.revisao` e `leitor.concordancia` verdes. Goldens idênticos; motor v112 sem mudança de versão.
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.
