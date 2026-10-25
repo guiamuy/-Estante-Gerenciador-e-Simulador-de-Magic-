@@ -11796,6 +11796,9 @@ function modalErros(sc) {
   if (!terreno && !(typeof b.mana === 'string' && /\{/.test(b.mana))) errs.push('dupla face modal: a face de trás que não é terreno precisa do custo (back.mana)');
   if (b.produces != null && !(Array.isArray(b.produces) && b.produces.every(x => Array.isArray(x) && x.length))) errs.push('dupla face modal: back.produces é uma lista de opções de mana, como [[\'G\']]');
   if (b.entersTapped != null && typeof b.entersTapped !== 'boolean') errs.push('dupla face modal: back.entersTapped precisa ser verdadeiro ou falso');
+  const eu = b.entersTappedUnless; // K-75 · 614.12: "As this land enters, you may pay N life. If you don't, it enters tapped." (o verso das modais de terreno)
+  if (eu != null && !(terreno && eu && typeof eu === 'object' && Object.keys(eu).length === 1 && Number.isInteger(eu.pagaVida) && eu.pagaVida > 0)) errs.push('dupla face modal: back.entersTappedUnless só vale no verso de terreno, como { pagaVida: N }');
+  if (eu != null && b.entersTapped) errs.push('dupla face modal: o verso entra virado sempre (entersTapped) ou a menos que pague vida (entersTappedUnless), não os dois');
   return errs;
 }
 Object.assign(EXPORTS_T_SC, { modalErros });
@@ -20710,6 +20713,15 @@ const __m42 = (function () {
             if (av) { topo.omen = { mana: vs.mana_cost }; topo.self = { ...(topo.self || {}), aventura: true }; } else topo.self = { ...(topo.self || {}), preparo: true };
             frases.push({ texto: linha, lida: true }, ...rv.frases.map(f => ({ ...f, texto: `${vs.name}: ${f.texto}` }))); break; }
           frases.push({ texto: linha, lida: false, motivo: `segunda face (${av ? 'Aventura' : 'preparação'}): ${vs.name} sem leitura completa` }, ...((rv && rv.frases) || []).filter(f => !f.lida).map(f => ({ ...f, texto: `${vs.name}: ${f.texto}` }))); break; }
+        if (vs && lay === 'modal_dfc' && /^(?:Legendary )?Land$/.test(tipoV.trim()) && !String(vs.mana_cost || '').trim()) { // K-75 · 712.3 / 712.8f / 712.12 · dupla face modal com terreno no verso: o verso é lido como terreno (entra virado, ou a menos que pague vida; a mana que gera) e mais nada
+          const n0 = nomeAtual, t0 = tipoAtual; let rv = null; try { rv = ler({ name: vs.name, type_line: tipoV, mana_cost: '', oracle_text: vs.oracle_text, keywords: [], colors: [] }); } finally { nomeAtual = n0; tipoAtual = t0; }
+          const sv = rv && rv.script, eu = sv && sv.entersTappedUnless, soTerra = !!(sv && Array.isArray(sv.produces) && sv.produces.length && Object.keys(sv).every(k => ['name', 'produces', 'entersTapped', 'entersTappedUnless'].includes(k))
+            && (eu == null || (Object.keys(eu).length === 1 && Number.isInteger(eu.pagaVida))));
+          if (rv && rv.completa && soTerra) {
+            topo.back = { name: vs.name, types: ['land'], ...(/^Legendary /.test(tipoV.trim()) ? { legendary: true } : {}), produces: sv.produces, ...(sv.entersTapped ? { entersTapped: true } : {}), ...(eu ? { entersTappedUnless: { pagaVida: eu.pagaVida } } : {}) };
+            topo.self = { ...(topo.self || {}), modal: true };
+            frases.push({ texto: linha, lida: true }, ...rv.frases.map(f => ({ ...f, texto: `${vs.name}: ${f.texto}` }))); break; }
+          frases.push({ texto: linha, lida: false, motivo: `segunda face (dupla face modal): ${vs.name} não é só terreno que o leitor lê` }, ...((rv && rv.frases) || []).filter(f => !f.lida).map(f => ({ ...f, texto: `${vs.name}: ${f.texto}` }))); break; }
         frases.push({ texto: linha, lida: false, motivo: 'segunda face (dupla face, dividida, X na Aventura): o leitor ainda não lê' }); break; } // M-322
       if (linhaDePalavras(linha)) { frases.push({ texto: linha, lida: true, palavras: true }); continue; }
       if (magica && /^teamwork \d+$/i.test(linha.replace(/\.$/, ''))) { frases.push({ texto: linha, lida: true, palavras: true }); continue; } // M-379 · 702.194 (K-70): o N vem do texto da carta (fatos.equipeK)
@@ -32673,13 +32685,14 @@ function fatosDeDuasPartesT(s, sc, setup) {
     if (!(b.colors || []).length) fb.colors = coresDoCustoT(fb.cost);
     if (b.produces) fb.produces = b.produces.map(x => x.slice());
     if (b.entersTapped) fb.script.entersTapped = true;
+    if (b.entersTappedUnless) fb.script.entersTappedUnless = { ...b.entersTappedUnless }; // K-75 · 614.12: o verso de terreno que entra virado a menos que pague vida
   }
   if (fb && sc.self && sc.self.duplaFace) { // T-7 · 712.8e: com o verso para cima, o valor de mana é o da frente
     const frente = Object.keys(setup.cards || {}).find(n => n === sc.name || n.split(' // ')[0] === sc.name);
     if (frente && s.facts[frente]) fb.cmc = s.facts[frente].cmc || 0;
   }
   for (const [n, card] of Object.entries(setup.cards || {})) {
-    if ((n !== sc.name && n.split(' // ')[0] !== sc.name) || sc.self.dividida) continue; // T-10 · a dividida tem o custo das duas metades (fatosDaDivididaT)
+    if ((n !== sc.name && n.split(' // ')[0] !== sc.name && !(sc.self.modal && n === String(sc.name).split(' // ')[0])) || sc.self.dividida) continue; // K-75 · o script lido da modal leva o nome inteiro ("Pinnacle Monk // Mystic Peak") e a lista, o da frente: sem isso a frente criatura ganhava o "{T}: Add {R}" do verso // T-10 · a dividida tem o custo das duas metades (fatosDaDivididaT)
     const mc = String((card && card.mana_cost) || '');
     if (s.facts[n] && mc.includes(' // ')) s.facts[n].cost = parseCost(mc.split(' // ')[0]);
     // T-8 · com as duas faces no dado (rede), a mana que a FRENTE gera sai só do texto da frente (o texto junto daria {W} e {B} à Brightclimb Pathway)

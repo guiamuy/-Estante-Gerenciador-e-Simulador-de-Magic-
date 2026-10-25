@@ -22,7 +22,7 @@ export function ficha(card) {
 }
 /** Cartas do acervo que a revisão destravaria: lidas por inteiro, com script, sem script à mão. */
 /** LT13 · só as que a cobertura de fato mostra como lidas (SC.leitura): script que só repete mana e palavras-chave impressas o motor já lê da carta (Sol Ring). */
-export function candidatas(acervo = ACERVO) { return acervo.filter(c => !S.SCRIPTS[c.name] && S.leitura(c) && !S.leitura(c).aprovada).map(ficha).filter(f => f.completa && f.script); }
+export function candidatas(acervo = ACERVO) { return acervo.filter(c => !S.SCRIPTS[c.name] && !S.SCRIPTS[String(c.name).split(' // ')[0]] /* K-75 · a dupla face com script à mão pelo nome da frente (Pathways): o script vence o lido */ && S.leitura(c) && !S.leitura(c).aprovada).map(ficha).filter(f => f.completa && f.script); }
 /** Conferência das aprovadas: texto igual ao revisado e leitura ainda inteira. Devolve a lista de problemas (vazia = tudo certo). */
 export function confere(acervo = ACERVO) {
   const nomes = Object.fromEntries(acervo.map(c => [c.name, c])); const problemas = [];
