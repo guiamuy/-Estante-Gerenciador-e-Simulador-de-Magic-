@@ -1293,3 +1293,38 @@ test('B-179 · o Shark publicado guarda a Counterspell diante do Llanowar Elves;
   assert.equal(novo.acao.t, 'pass', 'publicado: ' + novo.motivo);
   assert.ok(anulaEm(s, v13, alvo), 'v13: ' + v13.motivo);
 });
+
+/* ---- B-181 · alvo no próprio lado (auditoria da B-180) ---- */
+const miraMeu = (s, j, p = 0) => (j.acao.targets || []).some(t => t.player != null ? t.player === p : s.objects[t.oid] && s.objects[t.oid].controller === p);
+test('B-181 · na segunda fase principal, com mana sobrando e o oponente sem criaturas, o Shark não vira o próprio Delver com Sleep of the Dead; sem `alvoProprio`, vira ("a mana ia sobrar")', async () => {
+  const { s } = await montaShark(TERROR, ELFOS, { ativo: 0, vez: 0, passo: 'main2', p0: { campo: [...ILHAS(3), 'Delver of Secrets'], mao: ['Sleep of the Dead'] }, p1: { campo: ['Forest', 'Forest'] } });
+  assert.ok(E.legalActions(s, 0).some(a => a.t === 'cast' && s.objects[a.oid].name === 'Sleep of the Dead'), 'pré-condição: dá para conjurar');
+  const sem = B.criaBot({ nivel: 'shark', agora: relogioParado, extra: { alvoProprio: false } }).jogada(s, 0);
+  const com = B.criaBot({ nivel: 'shark', agora: relogioParado, extra: { alvoProprio: true } }).jogada(s, 0);
+  assert.ok(sem.acao.t === 'cast' && miraMeu(s, sem), 'sem a opção, vira o próprio Delver: ' + sem.motivo);
+  assert.ok(!(com.acao.t === 'cast' && miraMeu(s, com)), 'com a opção, não: ' + com.motivo);
+});
+test('B-181 · Agony Warp com uma criatura só do oponente: os dois efeitos vão nela; sem `alvoProprio` e a V6 juntas, o −3/−0 sobra numa criatura do Shark', async () => {
+  const { s } = await montaShark(FAERIES, CONTROLE, { ativo: 1, vez: 0, passo: 'main1', p0: { campo: ['Island', 'Swamp', 'Faerie Seer'], mao: ['Agony Warp'] }, p1: { campo: ['Island', 'Swamp', 'Baleful Strix'] } });
+  const warp = j => j.acao.t === 'cast' && s.objects[j.acao.oid].name === 'Agony Warp';
+  const sem = B.criaBot({ nivel: 'shark', agora: relogioParado, extra: { alvoProprio: false, av6: false } }).jogada(s, 0);
+  const com = B.criaBot({ nivel: 'shark', agora: relogioParado, extra: { alvoProprio: true, av6: true } }).jogada(s, 0);
+  const soAlvo = B.criaBot({ nivel: 'shark', agora: relogioParado, extra: { alvoProprio: true, av6: false } }).jogada(s, 0);
+  assert.ok(warp(sem) && miraMeu(s, sem), 'sem as opções: ' + sem.motivo);
+  assert.ok(warp(soAlvo) && miraMeu(s, soAlvo), 'só o custo do alvo (3) não basta: a V5 dava +4 ao −3/−0 na própria Faerie Seer: ' + soAlvo.motivo);
+  assert.ok(!miraMeu(s, com), 'com a opção, nada no próprio lado: ' + com.motivo);
+});
+test('B-181 · avaliaV6: o −3/−0 numa criatura própria de poder 1 não dá nota (a V5 dava +4); o +2/+2 temporário não conta nem na evasão', async () => {
+  const { s } = await montaShark(FAERIES, CONTROLE, { p0: { campo: ['Island', 'Faerie Seer'] }, p1: { campo: ['Island'] } });
+  const seer = s.zones[0].battlefield.find(o => s.objects[o].name === 'Faerie Seer');
+  const com = (pump) => { const x = J(s); x.objects[seer].pump = pump; return x; };
+  assert.equal(B.avaliaV6(com({ p: -3, t: 0 }), 0).nota, B.avaliaV6(s, 0).nota, 'V6: encolher a própria criatura não rende');
+  assert.equal(B.avaliaV5(com({ p: -3, t: 0 }), 0).nota - B.avaliaV5(s, 0).nota, 4, 'V5 (congelada): o +4 que a B-181 corrige');
+  assert.equal(B.avaliaV6(com({ p: 2, t: 2 }), 0).nota, B.avaliaV6(s, 0).nota, 'o temporário positivo também não conta');
+});
+test('B-181 · o Shark publicado não vira o próprio Delver com Sleep of the Dead na segunda fase principal; o shark-v14 congelado vira', async () => {
+  const { s } = await montaShark(TERROR, ELFOS, { ativo: 0, vez: 0, passo: 'main2', p0: { campo: [...ILHAS(3), 'Delver of Secrets'], mao: ['Sleep of the Dead'] }, p1: { campo: ['Forest', 'Forest'] } });
+  const novo = shark('shark').jogada(s, 0), v14 = shark('shark-v14').jogada(s, 0);
+  assert.ok(!(novo.acao.t === 'cast' && miraMeu(s, novo)), 'publicado: ' + novo.motivo);
+  assert.ok(v14.acao.t === 'cast' && miraMeu(s, v14), 'v14: ' + v14.motivo);
+});

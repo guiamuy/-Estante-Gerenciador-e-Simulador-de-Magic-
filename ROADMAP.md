@@ -402,7 +402,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-z2 ✅ | Shark usa todas as mecânicas, inclusive as dos terrenos: estoura o terreno que busca básico, abre mana com habilidades, ordena antes do corte do relógio; auditoria de uso (leva 143) | B21 | 1 | — |
 | 16º-sc 🟡 | DS-K · Ébano e Ouro, design system de patamar (direção K do volume 3, decisão do dono de 24/10): F0.1 ✅ (G-287) tokens de ébano e latão nos três blocos, receitas de animação no `/ds` como contrato da jogabilidade, guarda de contenção de texto no portão; F0.2 fontes self-hosted (sw.js, `armazem`); F1 componentes; F2 telas de gestão; F3 mesa como layout; FA leva de ajuste no aparelho | DS-K | 1 de 11 a 13 | — |
 | 16º-sa 🟡 | B22 Shark profissional com cinco listas: fatia 1 ✅ (B-173) listas de torneio embutidas e seletor do Shark só com elas; fatia 2 ✅ (B-174) linha de base: Madness 75% · Elves 63% · Faeries 50% · Control 38% · Terror 25% contra o campo; fatia 3 ✅ (B-175) perfil do Terror + o terreno que falta (pareado 50% × 38% em 32 pares: dentro da margem); fatia 4 (B-176) ameaças do campo no Control: sem ganho (41% × 42% em 64 pares), desligada; fatia 5 (B-177) mulligan por fontes e cores: neutro em força (79 × 81 em 160 pares), ligado pelo comportamento; fatia 6 (B-178) prazo da decisão: p95 430 → 366 ms, pior 4,3 → 0,8 s, força 48 × 47; fatia 7 (B-179) quando anular: a resposta é lida primeiro e a anulação guardada tem valor, neutro em força (38 × 39 em 96 pares), ligado pelo comportamento; fatias 8–9 (jogar em volta; fechamento) | B22 | 9 | 16º-z2 |
-| 16º-sd 🟡 | B23 o Shark usa bem cada carta das cinco listas: fatia 1 ✅ (B-180) auditoria carta a carta (`bot.cartas.mjs`, 76 cartas, 40 partidas): 6 cartas ficam na mão, 5 com alvo no próprio lado por erro; fatias 2–6 (alvo no próprio lado; loucura e descarte; cartas que ficam na mão; jogar em volta; fechamento) | B23 | 6 | 16º-sa |
+| 16º-sd 🟡 | B23 o Shark usa bem cada carta das cinco listas: fatia 1 ✅ (B-180) auditoria carta a carta (`bot.cartas.mjs`, 76 cartas, 40 partidas): 6 cartas ficam na mão, 5 com alvo no próprio lado por erro; fatia 2 ✅ (B-181) alvo no próprio lado + avaliaV6 (o −3/−0 na própria criatura dava +4), neutro em força (47 × 48), ligado; fatias 3–6 (alvo no próprio lado; loucura e descarte; cartas que ficam na mão; jogar em volta; fechamento) | B23 | 6 | 16º-sa |
 | 16º-y ✅ | Shark: olhar o turno seguinte (simulação até o próximo turno) — medido, não pagou, fica desligado; achado: a força está no plano de cada baralho (leva 131) | B15 | 1 | — |
 | 16º-w ✅ | Shark: pesos da avaliação postos à prova por torneio — nenhum paga; achado: o limite é a profundidade, não o peso (leva 126) | B20 | 1 | — |
 | 16º-j3 🟡 | Scanner de referência (E52): X14 resposta imediata (leva 127) | E52 | 2 de 6 a 7 | teste no aparelho: "até aceitar" no diagnóstico |
@@ -7554,7 +7554,7 @@ Wildfire × Rakdos Madness) mostrou este como o erro mais caro.
   outras listas; formatos além do Pauper.
 
 **B23 · O Shark usa bem cada carta das cinco listas** 🟡 (pedido do dono de 24/10/2026; absorve as fatias 8 e 9 da B22;
-fatia 1 na leva B-180)
+fatias 1–2 nas levas B-180…B-181)
 - **Valor:** o Shark joga cada carta das cinco listas do portfólio no momento, no alvo e no modo em que um jogador
   profissional jogaria, e não deixa na mão a carta que mudaria a partida.
 - **Aceite:** (1) inventário carta a carta medido em Shark × Shark (por cópia: quantas puderam sair e quantas saíram;
@@ -7576,7 +7576,23 @@ fatia 1 na leva B-180)
   Snuff Out 44/53 (27 pelo custo de 4 de vida), Fireblast 8/10 (todas sacrificando Montanhas, 6 no rosto), Lightning Bolt
   17/22 (12 no rosto), Brainstorm 42/48, Lórien Revealed 62/71 (22 recicladas), Counterspell e Spellstutter, criaturas e
   terrenos em geral.
-- **Fatias seguintes (plano de 24/10, ordem pelo erro mais caro):** 2 · alvo no próprio lado (B-181: anulação nunca na
+- **Fatia 2 · alvo no próprio lado (B-181, 25/10/2026).** `alvoProprio`: efeito nocivo (dano, destruir, anular, virar,
+  não desvirar, exilar, mandar ao grimório, −X/−X) com alvo no meu lado custa 3 por alvo e anular a minha própria mágica
+  custa 30; essas jogadas vão para o fim da fila de leitura e "a mana ia sobrar" nunca as escolhe. **Achado de avaliação:**
+  a V2 soma poder e resistência travados em zero, e a correção "temporário" da V3 descontava o pump inteiro — o −3/−0 numa
+  criatura minha de poder 1 dava **+4** (−3 de poder e −2 de evasão na V2, +9 na correção); por isso o Agony Warp ia com o
+  −3/−0 na própria Faerie Seer. `avaliaV6` lê a V5 sobre a mesa sem os pumps (o temporário some de verdade, evasão
+  inclusive; só copia os objetos quando há pump). Os dois juntos são necessários: só o custo de 3 não vence o +4; só a V6
+  deixa empate, que a ordem das chaves decidia. **Força, pareado a 400 ms** (`PILOTO=0..4`, base 7, 16 pares por piloto,
+  `z:alvoProprio,av6` × `shark`): **47 × 48, só o novo 2, só o antigo 3** (Madness 11×10 · Elfos 13×14 · Control 5×7 ·
+  Faeries 7×6 · Terror 11×11) — neutro; ligado por tirar os erros visíveis da auditoria (divergência declarada, como nas
+  fatias 5 e 7 da B22); `shark-v14` = Shark da B-179, congelado. Zero ilegais. Tempo (`bot.tempo.mjs`, 400 ms, 20 partidas): p95 367 ·
+  p99 381 · pior 795 ms · 41 de 10.253 acima do orçamento (0,4%). **Auditoria
+  de novo** (mesmas 40 partidas, Shark novo): Sleep of the Dead no próprio lado 9 → 0, Dispel na própria mágica 2 → 0,
+  Agony Warp com alvo próprio 3 → 1; **fica parcial:** Lava Dart ainda vai 3 vezes (de 27) numa criatura própria que
+  sobrevive ao dano (Guttersnipe, Kessig Flamebreather) — causa não achada nesta leva, volta na fatia 4 com a partida
+  narrada.
+- **Fatias seguintes (plano de 24/10, ordem pelo erro mais caro):** 2 · alvo no próprio lado (B-181 ✅: anulação nunca na
   própria mágica; dano, destruição e virar no próprio lado só quando a nota melhora, nunca por "a mana ia sobrar"; jogadas
   que miram o próprio lado com efeito nocivo vão para o fim da fila de leitura; Agony Warp com os dois alvos na mesma
   criatura do oponente — conferir se o motor oferece o mesmo alvo duas vezes; Thought Scour no próprio cemitério quando a
