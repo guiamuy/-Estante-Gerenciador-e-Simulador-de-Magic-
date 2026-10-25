@@ -247,6 +247,9 @@ async function escolheLista(page, id, qual) {
 /** MJ11 (J-23) · contra o Shark, o toque volta antes de ele decidir: a faixa diz "Shark pensa" e a mesa não aceita toque até ele
     terminar. Teste que toca a mesa logo depois de passar a prioridade espera isto (como espera o fim da cena). */
 const semPensar = (page, timeout = 60000) => page.waitForFunction(() => !document.querySelector('#tb[data-pensando]'), null, { timeout });
+// J-25 · espera as animações que acabam (o pouso da carta leva --dur-4 com a mola): medir a caixa no meio do pouso mede a
+// carta inclinada; as que não acabam (o ícone que respira) ficam de fora
+const semAnimar = page => page.evaluate(() => Promise.all(document.getAnimations().filter(a => a.effect && Number.isFinite(a.effect.getComputedTiming().endTime)).map(a => a.finished.catch(() => {}))));
 const tapHand = async (page, name) => { await page.locator('.tb-hand .tb-card', { hasText: name }).first().click(); };
 const handCardByImgless = name => `.tb-hand .tb-card[aria-label^="${name}"]`;
 
@@ -13956,7 +13959,7 @@ test('e2e · MJ1d terrenos compactos: a fileira dos terrenos usa a carta menor d
   for (const [w, hgt, campo, terreno] of [[360, 780, 76, 56], [384, 832, 84, 60], [390, 844, 84, 60], [412, 891, 92, 66]]) for (const tema of ['dark', 'light']) {
     await page.setViewportSize({ width: w, height: hgt });
     await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema);
-    await page.waitForTimeout(250);
+    await page.waitForTimeout(250); await semAnimar(page); // a criatura acabou de pousar (J-25): mede a carta assentada
     const m = await page.evaluate(() => {
       const q = s => document.querySelector(s), r = el => el.getBoundingClientRect();
       const terra = q('.tb-side--me [data-zone="lands"] .tb-card'), cria = q('.tb-side--me [data-zone="permanents"] .tb-card');
@@ -15618,6 +15621,82 @@ test('e2e · MJ11b campo cheio dos dois lados: a pintura cabe no orçamento, a j
   assert.equal(r4.perguntasAoRedesenhar, 0);
   assert.ok(Math.max(...r1.pinturas) <= 45, 'a pintura de um estado novo com o campo cheio cabe em 45 ms (CPU 1×; antes 37,8 ms): ' + JSON.stringify(r1));
   assert.ok(Math.max(...r1.repinta) <= 25, 'redesenhar o mesmo estado (marcar atacante, abrir a mão) cabe em 25 ms (CPU 1×; antes ~20 ms, metade em perguntas ao motor): ' + JSON.stringify(r1));
+  assert.deepEqual(errors, []);
+});
+
+// J-25 (trilha jogabilidade) · ponte com o DS-K e a receita "pousar" em três planos: a carta que chega sem voar vem de trás
+// e assenta com a mola do DS, a sombra própria encolhe e escurece; a que voa da mão pousa no voo com a mesma mola; com
+// menos movimento nada se move. Cada efeito leva a receita do DS que implementa (data-receita).
+test('e2e · J-25 pousar do DS-K: a troca de vez marca a receita; sem voo a carta vem de trás com a mola e a sombra; com voo a foto usa a mola e a carta não pousa duas vezes; menos movimento parado', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start');
+  await page.fill('#mesa-seed', '4'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  await page.waitForSelector('#tb-pass');
+  // 0 · a troca de vez é a receita de vez do DS: a faixa que acabou de trocar leva a marca, e um redesenho no mesmo turno a tira
+  const faixa = () => page.evaluate(() => { const el = document.getElementById('tb-vez'); return { troca: el.classList.contains('tb-vez--troca'), receita: el.dataset.receita || null }; });
+  assert.deepEqual(await faixa(), { troca: true, receita: 'vez' }, 'a mão inicial aceita: a vez passou a valer e a faixa troca com a receita');
+  await page.evaluate(() => window.__estanteMesa.repinta());
+  assert.deepEqual(await faixa(), { troca: false, receita: null }, 'redesenho no mesmo turno: sem troca, sem marca');
+  if ((await page.getAttribute('#tb-hand-toggle', 'aria-expanded')) !== 'true') await page.click('#tb-hand-toggle');
+  await page.waitForTimeout(450);
+  const mola = await page.evaluate(() => { const d = document.createElement('div'); d.style.transitionTimingFunction = getComputedStyle(document.documentElement).getPropertyValue('--ease-spring').trim(); document.body.appendChild(d); const v = getComputedStyle(d).transitionTimingFunction; d.remove(); return v; });
+  assert.match(mola, /^cubic-bezier\(/, 'o token --ease-spring do DS vale na mesa: ' + mola);
+  // leva uma carta ao campo e lê, no mesmo quadro, o que anima nela, na sombra dela e na foto que voa
+  const leva = (nm, de) => page.evaluate(([nm, de]) => {
+    const M = window.__estanteMesa, s = M.estado(), p = s.turn.active;
+    const o = Object.values(s.objects).find(x => x.owner === p && x.name === nm && x.zone === de); if (!o) return null;
+    M.act({ t: 'move', p, oid: o.oid, to: 'battlefield' });
+    const real = document.querySelector(`.tb-side .tb-card[data-oid="${o.oid}"], .tb-side .tb-card[data-oids~="${o.oid}"]`), foto = document.querySelector(`.tb-voo[data-voo="${o.oid}"]`);
+    const cs = real && getComputedStyle(real), sombra = real && getComputedStyle(real, '::before');
+    return { oid: o.oid, classes: real ? real.className : '', receita: real && real.dataset.receita, voou: real && real.dataset.voou,
+      anima: cs && { nome: cs.animationName, curva: cs.animationTimingFunction, dur: cs.animationDuration, atraso: real.style.getPropertyValue('--fx-atraso') },
+      sombra: sombra && { nome: sombra.animationName, curva: sombra.animationTimingFunction, dur: sombra.animationDuration },
+      foto: foto && { receita: foto.dataset.receita, voo: foto.getAnimations().map(a => a.effect.getTiming().easing), sombra: foto.getAnimations({ subtree: true }).filter(a => a.effect.pseudoElement === '::before').length } };
+  }, [nm, de]);
+  const segundos = x => parseFloat(x) * (/ms$/.test(x) ? 1 / 1000 : 1);
+  // 1 · sem origem na tela (do grimório direto ao campo): vem de trás, com a mola, e a sombra própria pousa junto; um
+  // terreno e uma criatura, cada um sozinho (quem chega a um leque já existente não ganha efeito próprio: limite da G5)
+  for (const [w, hgt, nome] of [[360, 780, 'Island'], [390, 844, 'Delver of Secrets']]) {
+    await page.setViewportSize({ width: w, height: hgt }); await page.waitForTimeout(450);
+    const m = await leva(nome, 'library');
+    t.diagnostic(`J-25 · sem voo ${w}: ${JSON.stringify(m)}`);
+    assert.ok(m && !m.foto, `${w}: do grimório não há foto voando ${JSON.stringify(m)}`);
+    assert.match(m.classes, nome === 'Island' ? /tb-fx--terreno/ : /tb-fx--entra/, `${w}: a carta ganha o efeito de chegada (G5)`);
+    assert.equal(m.receita, 'pousar', `${w}: o efeito diz a receita do DS`);
+    assert.equal(m.anima.nome, 'tb-pousa', `${w}: a carta pousa de trás ${JSON.stringify(m.anima)}`);
+    assert.equal(m.anima.curva, mola, `${w}: com a mola do DS`);
+    assert.ok(Math.abs(segundos(m.anima.dur) - 0.42) < 0.005, `${w}: em --dur-4 ${m.anima.dur}`);
+    assert.equal(m.sombra.nome, 'tb-pousa-sombra', `${w}: a sombra própria encolhe e escurece ${JSON.stringify(m.sombra)}`);
+    assert.notEqual(m.sombra.curva, mola, `${w}: a sombra com --ease-out, não com a mola`);
+    await page.waitForFunction(oid => { const el = document.querySelector(`.tb-side .tb-card[data-oid="${oid}"], .tb-side .tb-card[data-oids~="${oid}"]`); return el && !/tb-fx--/.test(el.className); }, m.oid, { timeout: 5000 });
+    assert.equal(await page.evaluate(oid => document.querySelector(`.tb-side .tb-card[data-oid="${oid}"], .tb-side .tb-card[data-oids~="${oid}"]`).dataset.receita || null, m.oid), null, `${w}: a marca sai junto com o efeito`);
+    await auditaTela(page, `J-25 · ${w}×${hgt}`);
+  }
+  // 2 · da mão: a foto voa com a mola e a própria sombra; a carta de verdade não pousa de trás uma segunda vez
+  const doce = await page.evaluate(() => { const M = window.__estanteMesa, s = M.estado(), p = s.turn.active;
+    const o = Object.values(s.objects).find(x => x.owner === p && x.name === 'Delver of Secrets' && x.zone === 'library'); if (o) M.act({ t: 'move', p, oid: o.oid, to: 'hand' }); return !!o; });
+  assert.ok(doce, 'uma criatura no grimório para trazer à mão'); await page.waitForTimeout(450);
+  const v = await leva('Delver of Secrets', 'hand');
+  t.diagnostic(`J-25 · com voo: ${JSON.stringify(v)}`);
+  assert.ok(v && v.foto, 'da mão a carta voa ' + JSON.stringify(v));
+  assert.equal(v.foto.receita, 'pousar');
+  assert.deepEqual(v.foto.voo, [mola], 'o voo usa a mola do DS (um voo só, como na MJ3a)');
+  assert.equal(v.foto.sombra, 1, 'a sombra própria da foto encolhe e escurece no voo');
+  assert.equal(v.voou, 'true'); assert.notEqual(v.anima.nome, 'tb-pousa', 'a carta de verdade não pousa de trás depois de voar');
+  // 3 · menos movimento: carta e sombra no lugar em um quadro
+  await page.waitForTimeout(700);
+  await page.evaluate(() => { const M = window.__estanteMesa, s = M.estado(), p = s.turn.active; // o terreno do passo 1 volta à mão: a Ilha nova chega sozinha
+    for (const o of Object.values(s.objects)) if (o.owner === p && o.name === 'Island' && o.zone === 'battlefield') M.act({ t: 'move', p, oid: o.oid, to: 'hand' }); });
+  await page.waitForTimeout(450);
+  await page.evaluate(() => document.documentElement.setAttribute('data-movimento', 'reduzido'));
+  const r = await leva('Island', 'library');
+  assert.ok(r && !r.foto, 'menos movimento: nada voa');
+  assert.match(r.classes, /tb-fx--terreno/, 'o efeito existe e só não se move ' + JSON.stringify(r));
+  assert.ok(segundos(r.anima.dur) < 0.001 && segundos(r.sombra.dur) < 0.001, 'menos movimento: carta e sombra no lugar ' + JSON.stringify(r));
+  await page.evaluate(() => document.documentElement.removeAttribute('data-movimento'));
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/j25-pousar.png' });
   assert.deepEqual(errors, []);
 });
 

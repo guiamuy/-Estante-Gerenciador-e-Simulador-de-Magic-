@@ -423,3 +423,41 @@ test('MJ8 · fases que acendem: as que ficaram entre a de antes e a de agora pas
   assert.equal(F(null, { fase: 1, turno: 1 }).length, 0); assert.equal(F({ fase: -1, turno: 1 }, { fase: 1, turno: 1 }).length, 0, 'fase desconhecida: nada');
   assert.equal(F({ fase: 1, turno: 1 }, { fase: 7, turno: 1 }).length, 0, 'fora do trilho: nada');
 });
+
+test('J-25 · ponte com o DS-K: toda receita de animação da jogabilidade tem implementação na mesa, cada efeito diz a receita dele, e as cartas que chegam juntas pousam escalonadas por --escalona', async () => {
+  const { readFileSync } = await import('node:fs');
+  const HTML = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
+  const inicio = HTML.indexOf('const RECEITAS_DE_ANIMACAO = Object.freeze([');
+  const bloco = HTML.slice(inicio, HTML.indexOf(']);', inicio));
+  const daMesa = [...bloco.matchAll(/\{ id: '([a-z]+)'[^\n]*dona: 'jogabilidade'/g)].map(m => m[1]).sort();
+  assert.deepEqual(daMesa, ['atacar', 'comprar', 'dano', 'mirar', 'pousar', 'vez', 'vida']);
+  assert.deepEqual(Object.keys(S.RECEITAS_DA_MESA).sort(), daMesa, 'a ponte cobre exatamente as receitas da jogabilidade');
+  assert.ok(Object.isFrozen(S.RECEITAS_DA_MESA));
+  // cada efeito do plano que a ponte cita existe de verdade no plano e volta à mesma receita
+  const amostra = {
+    terreno: [{ tipo: 'terreno', oid: 1 }], entra: [{ tipo: 'entra', oid: 2 }], ataque: [{ tipo: 'ataque', oids: [3], jogador: 0 }],
+    golpe: [{ tipo: 'danoCriatura', oid: 4, n: 2 }], dano: [{ tipo: 'dano', jogador: 1, n: 3 }], cura: [{ tipo: 'cura', jogador: 1, n: 2 }],
+    compra: [{ tipo: 'compra', jogador: 0, n: 1, oids: [5] }],
+  };
+  const daTela = { vez: 'faixa de vez (MJ8)', mira: 'gesto de mirar (MJ6)' };
+  for (const [receita, fxs] of Object.entries(S.RECEITAS_DA_MESA)) for (const fx of fxs) {
+    if (daTela[fx]) continue;
+    assert.ok(amostra[fx], `${receita}: o efeito ${fx} tem amostra`);
+    const item = S.planoDeEfeitos(amostra[fx], { espectador: 0 }).find(x => x.fx === fx);
+    assert.ok(item, `${receita}: o plano produz ${fx}`);
+    assert.equal(S.receitaDoEfeito(item), fx === 'dano' || fx === 'cura' ? 'vida' : receita, `${fx} volta à receita`);
+  }
+  assert.equal(S.receitaDoEfeito({ fx: 'golpe', oid: 4 }), 'dano', 'dano na criatura é a receita de dano');
+  assert.equal(S.receitaDoEfeito({ fx: 'vinheta' }), null, 'efeito sem receita do DS não ganha marca');
+  assert.equal(S.receitaDoEfeito(null), null);
+  // pousar: irmãs escalonadas por --escalona (130 ms no DS), sem mudar o atraso de mais ninguém
+  const pousos = S.planoDeEfeitos([{ tipo: 'terreno', oid: 1 }, { tipo: 'entra', oid: 2 }, { tipo: 'ficha', oid: 3 }], { espectador: 0 });
+  assert.deepEqual(J(pousos).map(x => [x.fx, x.oid, x.atraso]), [['terreno', 1, 0], ['entra', 2, 130], ['entra', 3, 260]]);
+  assert.deepEqual(J(S.planoDeEfeitos([{ tipo: 'entra', oid: 2 }, { tipo: 'entra', oid: 3 }], { espectador: 0, escalona: 50 })).map(x => x.atraso), [0, 50]);
+  assert.match(HTML, /--escalona: 130ms/, 'o padrão do plano é o token --escalona do DS');
+  assert.match(HTML, /id: 'tb-mira', class: 'tb-setas tb-mira'[^)]*'data-receita': 'mirar'/, 'a linha de mirar leva a receita de mirar');
+  assert.match(HTML, /if \(troca\) vezEl\.dataset\.receita = 'vez'/, 'a troca de vez leva a receita de vez');
+  const misto = J(S.planoDeEfeitos([{ tipo: 'ataque', oids: [1, 2], jogador: 0 }, { tipo: 'entra', oid: 9 }], { espectador: 0 }));
+  assert.deepEqual(misto.filter(x => x.fx === 'ataque').map(x => x.atraso), [0, 60], 'a fila dos atacantes não muda com um pouso junto');
+  assert.deepEqual(misto.filter(x => x.fx === 'entra').map(x => x.atraso), [0], 'um pouso sozinho começa na hora');
+});

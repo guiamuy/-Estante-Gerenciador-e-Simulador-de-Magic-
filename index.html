@@ -559,7 +559,10 @@ a { color: var(--accent); }
 @keyframes tb-fx-murcha { 0%, 100% { transform: scale(1); } 45% { transform: scale(.9); } }
 @keyframes tb-fx-investe { 0%, 100% { transform: translateY(0) scale(1); } 35% { transform: translateY(calc(var(--fx-dir, -1) * 18px)) scale(1.07); } }
 @keyframes tb-fx-firma { 0%, 100% { transform: scale(1); } 30% { transform: scale(.94); } 60% { transform: scale(1.04); } }
-@keyframes tb-fx-pousa { from { opacity: .3; transform: translateY(-12px) scale(1.08); } to { opacity: 1; transform: none; } }
+/* J-25 · as mesmas etapas do palco do DS (ds-pousa, ds-sombra-pousa), com a perspectiva na própria carta (a mesa não tem palco)
+   e a sombra terminando apagada: a carta pousada volta à sombra baixa dela. */
+@keyframes tb-pousa { 0% { opacity: 0; transform: perspective(700px) translate3d(0, -60px, -280px) rotateX(45deg); } 40% { opacity: 1; transform: perspective(700px) translate3d(0, -16px, 70px) rotateX(-8deg); } 72% { transform: perspective(700px) translate3d(0, 3px, 0) rotateX(3deg); } 100% { opacity: 1; transform: none; } }
+@keyframes tb-pousa-sombra { 0% { opacity: 0; transform: scale(2.2, 1.6); } 55% { opacity: 1; transform: scale(1.2, 1.1); } 100% { opacity: 0; transform: scale(1, 1); } }
 @keyframes tb-fx-chega { from { opacity: 0; transform: translate(36px, -14px) rotate(7deg); } to { opacity: 1; transform: none; } }
 @keyframes tb-fx-clarao { from { opacity: .6; } to { opacity: 0; } }
 @keyframes tb-fx-anel { from { opacity: .95; transform: scale(.92); } to { opacity: 0; transform: scale(1.28); } }
@@ -585,7 +588,12 @@ a { color: var(--accent); }
 .tb-fx--ataque { animation: tb-fx-investe var(--dur-fx) var(--ease-out) var(--fx-atraso, 0s); z-index: 4; }
 .tb-fx--bloqueio { animation: tb-fx-firma var(--dur-fx-curto) var(--ease-out) var(--fx-atraso, 0s); }
 .tb-card.tb-fx--bloqueio::after { border: 2px solid var(--fg); animation: tb-fx-anel var(--dur-fx) var(--ease-out) var(--fx-atraso, 0s); }
-.tb-fx--terreno { animation: tb-fx-pousa var(--dur-4) var(--ease-out) var(--fx-atraso, 0s) backwards; }
+/* J-25 · receita de pousar do DS-K, em três planos: a carta que chega sem voar (do grimório, ficha, efeito) vem de trás
+   (Z −280, inclinada 45°) e assenta com a mola; a sombra própria encolhe e escurece ao pousar; as que chegam juntas pousam
+   escalonadas (--escalona, pelo atraso do plano). A que voou da mão já pousou no voo (data-voou). Com menos movimento,
+   carta e sombra no lugar em um quadro (regra geral de menos movimento). */
+.tb-fx--terreno:not([data-voou]), .tb-fx--entra:not([data-voou]) { animation: tb-pousa var(--dur-4) var(--ease-spring) var(--fx-atraso, 0s) backwards; }
+.tb-card.tb-fx--terreno:not([data-voou])::before, .tb-card.tb-fx--entra:not([data-voou])::before { animation: tb-pousa-sombra var(--dur-4) var(--ease-out) var(--fx-atraso, 0s) backwards; }
 .tb-card.tb-fx--entra::after { border: 2px solid var(--accent); animation: tb-fx-anel var(--dur-fx) var(--ease-out) var(--fx-atraso, 0s); }
 .tb-fx--compra { animation: tb-fx-chega var(--dur-4) var(--ease-out) var(--fx-atraso, 0s) backwards; }
 .tb-fx--conjura { animation: tb-fx-brilho var(--dur-fx) var(--ease-out) var(--fx-atraso, 0s); }
@@ -37711,16 +37719,23 @@ function planoDeSom(eventos, { espectador = null, max = 4, passo = 0.14 } = {}) 
    Dos eventos de uma jogada, o que desenhar e onde. Cada item diz o efeito (`fx`) e o alvo: uma carta (`oid`), o marcador
    de vida de um jogador (`vida`), a pilha (`pilha`) ou a mesa (`mesa`). `fantasma` é a carta que saiu da tela: quem
    desenha fotografa a carta antes de redesenhar e anima a foto. `texto` é o número que sobe (−3, +2). Puro. */
-function planoDeEfeitos(eventos, { espectador = null, max = 16, passo = 60 } = {}) {
+/* J-25 · a ponte com as receitas do DS-K (RECEITAS_DE_ANIMACAO, dona: 'jogabilidade'): o que na mesa implementa cada
+   uma. As cinco primeiras são efeitos deste plano; a de vez é a faixa de vez (MJ8) e a de mirar, o gesto de mirar (MJ6).
+   O contrato confere que toda receita da mesa tem implementação aqui, e a tela marca cada efeito com a receita dele. */
+const RECEITAS_DA_MESA = Object.freeze({ pousar: ['terreno', 'entra'], vez: ['vez'], atacar: ['ataque'], mirar: ['mira'], dano: ['golpe', 'dano'], comprar: ['compra'], vida: ['dano', 'cura'] });
+/** A receita do DS que um item do plano de efeitos implementa (o dano no marcador de vida é a receita de vida). Puro. */
+const receitaDoEfeito = p => !p ? null : p.vida != null ? 'vida' : p.fx === 'golpe' ? 'dano' : p.fx === 'ataque' ? 'atacar' : p.fx === 'compra' ? 'comprar' : p.fx === 'terreno' || p.fx === 'entra' ? 'pousar' : null;
+function planoDeEfeitos(eventos, { espectador = null, max = 16, passo = 60, escalona = 130 } = {}) {
   const out = [];
+  let pousos = 0; // J-25 · receita de pousar: as cartas que chegam juntas pousam escalonadas por --escalona
   const poe = item => out.push({ atraso: 0, ...item });
   const emFila = (oids, item) => (oids || []).slice(0, 8).forEach((oid, k) => poe({ ...item, oid, atraso: k * passo }));
   for (const e of eventos.slice().sort((x, y) => ORDEM.indexOf(x.tipo) - ORDEM.indexOf(y.tipo))) {
     switch (e.tipo) {
       case 'compra': if (e.jogador === espectador) emFila(e.oids, { fx: 'compra' }); break; // a mão do oponente não aparece: nada a mover
       case 'descarte': emFila(e.oids, { fx: 'fantasma', como: 'descarte' }); break;
-      case 'terreno': poe({ fx: 'terreno', oid: e.oid }); break;
-      case 'entra': case 'ficha': poe({ fx: 'entra', oid: e.oid }); break;
+      case 'terreno': poe({ fx: 'terreno', oid: e.oid, atraso: pousos++ * escalona }); break;
+      case 'entra': case 'ficha': poe({ fx: 'entra', oid: e.oid, atraso: pousos++ * escalona }); break;
       case 'conjura': if (!out.some(x => x.fx === 'conjura')) poe({ fx: 'conjura', pilha: true }); break;
       case 'anula': poe({ fx: 'anula' }); break;
       case 'aprimora': poe({ fx: 'aprimora', oid: e.oid }); break;
@@ -38027,7 +38042,7 @@ function createSom({ store = null, criaContexto = null } = {}) {
     get tocados() { return tocados.slice(); }
   };
 }
-return { eventosSensoriais, planoDeSom, planoDeEfeitos, planoDeVoo, ondePousa, planoDeSaida, monteDaPilha, saidasDaPilha, virasDeFace, fasesQueAcendem, alvosDoArrasto, origensDaMira, gestoDeMira, setasDoCombate, curvaDaSeta, marcasDaPrevia, roteiroDaJogada, createSom, limpaPrefs, duracaoDe, RECEITAS, NOMES, ORDEM, SOM_DO_TIPO, CHAVE, GLOBAL_A_PARTIR_DE };
+return { eventosSensoriais, planoDeSom, planoDeEfeitos, RECEITAS_DA_MESA, receitaDoEfeito, planoDeVoo, ondePousa, planoDeSaida, monteDaPilha, saidasDaPilha, virasDeFace, fasesQueAcendem, alvosDoArrasto, origensDaMira, gestoDeMira, setasDoCombate, curvaDaSeta, marcasDaPrevia, roteiroDaJogada, createSom, limpaPrefs, duracaoDe, RECEITAS, NOMES, ORDEM, SOM_DO_TIPO, CHAVE, GLOBAL_A_PARTIR_DE };
 })();
 
 /* ==== src/app/table.js ==== */
@@ -38680,7 +38695,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       const de = caixaDe(el), carta = el.cloneNode(true);
       carta.removeAttribute('id'); carta.disabled = true; carta.tabIndex = -1; carta.className = 'tb-card tb-mira__carta'; carta.dataset.mira = 'origem'; carta.dataset.sobrepoe = 'true'; // a carta levantada passa por cima do campo de propósito
       Object.assign(carta.style, { left: `${de.x}px`, top: `${de.y}px`, width: `${de.w}px`, height: `${de.h}px` });
-      const svg = svgEl('svg', { id: 'tb-mira', class: 'tb-setas tb-mira', 'aria-hidden': 'true', focusable: 'false' }), g = svgEl('g', { class: 'tb-seta tb-seta--mira' });
+      const svg = svgEl('svg', { id: 'tb-mira', class: 'tb-setas tb-mira', 'aria-hidden': 'true', focusable: 'false', 'data-receita': 'mirar' }), g = svgEl('g', { class: 'tb-seta tb-seta--mira' });
       svg.appendChild(g); camadaFx().append(svg, carta);
       mira = { v, outro: s.players.findIndex((_, i) => i !== v), de, carta, svg, g, porChave: new Map(alvos.map(a => [a.chave, a])), sobEl: null, sob: null };
       for (const a of alvos) {
@@ -38776,11 +38791,15 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     viraFaces(m, marcas); // MJ7
     root.dataset.voos = marcas.join(' ');
     if (!plano.length) return;
-    const dur = durFx('--dur-3'), ease = getComputedStyle(document.documentElement).getPropertyValue('--ease-out').trim() || 'ease-out';
+    // J-25 · receita de pousar do DS: a carta voa e assenta com a mola (--ease-spring) e a sombra própria encolhe e
+    // escurece ao pousar (--ease-out). A carta de verdade marca que pousou voando: o pouso de trás é de quem chega sem voar.
+    const raiz = getComputedStyle(document.documentElement), dur = durFx('--dur-3'), easeSombra = raiz.getPropertyValue('--ease-out').trim() || 'ease-out',
+      ease = raiz.getPropertyValue('--ease-spring').trim() || easeSombra;
     for (const p of plano) {
       const alvo = chegaram.find(c => c.oid === p.oid), c = alvo.caixa, foto = alvo.el.cloneNode(true);
       foto.removeAttribute('id'); foto.disabled = true; foto.tabIndex = -1;
-      foto.classList.remove('tb-card--entrou'); foto.classList.add('tb-voo'); foto.dataset.voo = p.oid;
+      foto.classList.remove('tb-card--entrou'); foto.classList.add('tb-voo'); foto.dataset.voo = p.oid; foto.dataset.receita = 'pousar';
+      alvo.el.dataset.voou = 'true';
       for (const x of foto.querySelectorAll('.tb-pill--qtd')) x.remove(); // a foto é uma carta só, não o grupo
       Object.assign(foto.style, { left: `${c.x}px`, top: `${c.y}px`, width: `${c.w}px`, height: `${c.h}px` });
       camadaFx().appendChild(foto);
@@ -38788,6 +38807,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       if (p.verso) versoQueVira(foto, dur);
       const a = foto.animate([{ transform: `translate(${p.dx}px, ${p.dy}px) scale(${p.escala})` }, { transform: 'none' }], { duration: dur, easing: ease });
       voos.push(a);
+      try { foto.animate([{ opacity: 0, transform: 'scale(1.6, 1.4)' }, { opacity: 1, transform: 'scale(1.15, 1.08)', offset: .6 }, { opacity: 0, transform: 'none' }], { duration: dur, easing: easeSombra, pseudoElement: '::before' }); } catch (e) { /* sem animação de pseudo: a sombra fica parada */ } // some com a foto
       const fim = () => { const i = voos.indexOf(a); if (i >= 0) voos.splice(i, 1); foto.remove(); alvo.el.style.opacity = '';
         const camada = document.getElementById('tb-fx'); if (camada && !camada.childElementCount) camada.remove(); };
       a.onfinish = fim; a.oncancel = fim;
@@ -38881,8 +38901,9 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       }
       const el = alvoDe(p); if (!el) continue;
       el.classList.add('tb-fx', 'tb-fx--' + p.fx); el.style.setProperty('--fx-atraso', p.atraso + 'ms');
+      const receita = __m33.receitaDoEfeito(p); if (receita) el.dataset.receita = receita; // J-25 · a receita do DS que este efeito implementa
       if (p.oid != null) el.style.setProperty('--fx-dir', meu(p.oid) ? '-1' : '1'); // quem ataca avança para o outro lado da mesa
-      setTimeout(() => { el.classList.remove('tb-fx', 'tb-fx--' + p.fx); }, longo + p.atraso);
+      setTimeout(() => { el.classList.remove('tb-fx', 'tb-fx--' + p.fx); if (receita && el.dataset.receita === receita) delete el.dataset.receita; if (receita === 'pousar') delete el.dataset.voou; }, longo + p.atraso);
       feitos.push(p.fx);
       if (p.texto) {
         const r = el.getBoundingClientRect();
@@ -39052,6 +39073,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     if (!anima) return h('div', { class: 'tb-vez', id: 'tb-vez-cortina', role: 'status', dataset: { papel, turno: String(vz.turno) } }, h('span', { class: 'tb-vez__btn' }, ...miolo()));
     if (!vezEl) vezEl = h('div', { class: 'tb-vez', id: 'tb-vez', role: 'status', 'aria-live': 'polite' });
     vezEl.className = 'tb-vez' + (troca ? ' tb-vez--troca' : '');
+    if (troca) vezEl.dataset.receita = 'vez'; else delete vezEl.dataset.receita; // J-25 · a troca de vez é a receita de vez do DS
     if (troca && papel === 'eu') __m0.haptics.evento('turno'); // D10 · a vez chegou a você: padrão próprio de vibração
     vezEl.dataset.papel = papel; vezEl.dataset.turno = String(vz.turno);
     const assinatura = `${vz.icone || vz.inicial}|${vz.rotulo}|${temDetalhe}|${!!(meuAvatar && papel === 'eu')}`;
