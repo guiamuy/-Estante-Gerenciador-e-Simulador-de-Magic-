@@ -12,7 +12,8 @@ const OITO = ['Restless Reef', 'Restless Anchorage', 'Celestial Colonnade', 'Tre
 const viraDe = n => { const ab = S.leitura(of(n)).script.abilities.find(a => a.kind === 'activated'); return J(ab.effects); };
 
 test('K-76 · 205.1b · o leitor lê as oito: o contínuo na própria fonte, com tipo somado, subtipos, P/T, cores e palavras-chave', () => {
-  for (const n of OITO) { const l = S.leitura(of(n)); assert.ok(l, `${n}: leitura completa`); assert.equal(l.aprovada, false, n); assert.equal(S.coverage(of(n)).level, 'lida', n); }
+  // H-19 · a aprovação é da homologação: aprovada se e só se está em APROVADAS (lote 2 da revisão em lote dos competitivos)
+  for (const n of OITO) { const l = S.leitura(of(n)); assert.ok(l, `${n}: leitura completa`); const aprov = !!S.APROVADAS[n]; assert.equal(l.aprovada, aprov, n); assert.equal(S.coverage(of(n)).level, aprov ? 'completo' : 'lida', n); }
   assert.deepEqual(viraDe('Restless Reef'), [{ do: 'continuo', target: 'self-source', torna: { tipos: ['creature'], somaTipos: true, subtipos: ['Shark'], base: [4, 4] }, palavras: ['deathtouch'], cores: ['U', 'B'] }]);
   assert.deepEqual(viraDe('Celestial Colonnade'), [{ do: 'continuo', target: 'self-source', torna: { tipos: ['creature'], somaTipos: true, subtipos: ['Elemental'], base: [4, 4] }, palavras: ['flying', 'vigilance'], cores: ['W', 'U'] }]);
   assert.deepEqual(viraDe('Inkmoth Nexus'), [{ do: 'continuo', target: 'self-source', torna: { tipos: ['artifact', 'creature'], somaTipos: true, subtipos: ['Phyrexian', 'Blinkmoth'], base: [1, 1] }, palavras: ['flying', 'infect'] }]);

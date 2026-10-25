@@ -24,7 +24,9 @@ test('K-75 · 712.3 · o leitor lê as seis por inteiro: a frente pelas frases d
     'Boggart Trawler // Boggart Bog': { name: 'Boggart Bog', types: ['land'], produces: [['B']], entersTappedUnless: { pagaVida: 3 } } };
   for (const n of SEIS) {
     const l = S.leitura(of(n)); assert.ok(l, `${n}: leitura completa`);
-    assert.equal(l.aprovada, false, `${n}: a aprovação é da homologação`); assert.equal(S.coverage(of(n)).level, 'lida', n);
+    // H-19 · a aprovação é da homologação: aprovada se e só se está em APROVADAS (lote 2 da revisão em lote dos competitivos)
+    const aprov = !!(S.APROVADAS[n] || S.APROVADAS[String(n).split(' // ')[0]]);
+    assert.equal(l.aprovada, aprov, `${n}: a aprovação é da homologação`); assert.equal(S.coverage(of(n)).level, aprov ? 'completo' : 'lida', n);
     assert.equal(l.script.self.modal, true, n); assert.deepEqual(J(l.script.back), versos[n], n);
     assert.deepEqual(J(S.validateScript({ ...l.script, example: { action: 'etb', target: 'none', expect: { attached: false } } }).filter(e => /modal|face de trás/.test(e))), [], n);
   }
