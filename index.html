@@ -20321,6 +20321,8 @@ const __m42 = (function () {
     if (k === 'target instant or sorcery spell') return { target: 'spell', targetTypes: ['instant', 'sorcery'] }; // LT13
     if (k === 'target creature or enchantment spell') return { target: 'spell', targetTypes: ['creature', 'enchantment'] }; // M-539 · Get Out
     if (k === 'target activated or triggered ability') return { target: { zona: 'stack', habilidades: 'so' } }; // M-536 · Stifle (habilidade de mana não vai à pilha, 605.3b)
+    { const T = '(?:artifact|creature|enchantment|planeswalker|battle)', lt = k.match(new RegExp(`^target (${T}(?:, ${T})*,? or ${T})( an opponent controls| you control)?$`)); // M-582 · lista de tipos de carta: "target artifact, creature, enchantment, or planeswalker" (Otawara, Soaring City); terreno fica de fora (tem qualificadores próprios)
+      if (lt) { const tipos = [...new Set(lt[1].split(/,? or |, /))]; return { target: { tipos, ...(lt[2] ? { de: /opponent/.test(lt[2]) ? 'opponent' : 'you' } : {}) } }; } }
     { const u = k.match(/^up to one (target .+)$/); if (u) { const a = alvo(u[1]); if (a && a.target != null && a.upTo == null) return { ...a, upTo: true }; } } // M-536 · "up to one target …" (115.3: aceita zero alvos; Impractical Joke)
     return null;
   }
@@ -20434,7 +20436,7 @@ const __m42 = (function () {
     [/^counter (target spell with mana value \d+ or less)$/i, m => [com({ do: 'counter' }, alvo(m[1]))]], // M-535 · Mesmeric Glare
     [/^counter (target [a-z ']+)$/i, m => [com({ do: 'counter' }, alvo(m[1]))]],
     [/^return one or two target creatures and\/or enchantments you own to your hand$/i, () => [{ do: 'bounce', target: { tipos: ['creature', 'enchantment'], dono: 'you' } }, { do: 'bounce', target: { tipos: ['creature', 'enchantment'], dono: 'you' }, upTo: true }]], // M-539 · Get Out (o segundo alvo é opcional; 601.2c: diferentes)
-    [/^return (target [a-z ']+) to its owner's hand$/i, m => [com({ do: 'bounce' }, alvo(m[1]))]],
+    [/^return (target [a-z ,']+) to its owner's hand$/i, m => [com({ do: 'bounce' }, alvo(m[1]))]], // M-582 · vírgula: lista de tipos (Otawara)
     [/^(target creature|target creature you control|creatures you control|creatures your opponents control|all creatures) gets? ([+-]\d+)\/([+-]\d+) until end of turn$/i, m => [com({ do: 'pump', power: SINAL(m[2]), toughness: SINAL(m[3]) }, alvo(m[1]))]],
     [/^creatures (target player|target opponent) controls? get ([+-]\d+)\/([+-]\d+) until end of turn$/i, m => [{ do: 'pump', target: m[1] === 'target player' ? 'player' : 'opponent', cada: { tipos: ['creature'], de: 'alvo' }, power: SINAL(m[2]), toughness: SINAL(m[3]) }]], // M-351 · Arms of Hadar
     [/^pisca_dois (artifacts, creatures, and\/or lands you control)$/i, () => [{ do: 'pisca_exila', target: { tipos: ['artifact', 'creature', 'land'], de: 'you' } }, { do: 'pisca_exila', target: { tipos: ['artifact', 'creature', 'land'], de: 'you' } }, { do: 'pisca_volta', sob: 'voce' }]], // M-351 · Ghostly Flicker (frase juntada em leParagrafo; 601.2c: dois alvos diferentes)
@@ -20525,6 +20527,7 @@ const __m42 = (function () {
     [new RegExp(`^impulso ${N} ate o proximo final$`, 'i'), m => [{ do: 'exile_top_playable', amount: num(m[1]), ate: 'proximo-final' }]], // M-541 · Seek the Beast
     [new RegExp(`^impulso ${N} ate o proximo turno$`, 'i'), m => [{ do: 'exile_top_playable', amount: num(m[1]), ate: 'proximo-turno' }]], // M-349 · Wrenn's Resolve, Reckless Impulse, Clockwork Percussionist (frase juntada em leParagrafo)
     [/^return target instant or sorcery card from your graveyard to your hand$/i, () => [{ do: 'to_hand', target: { zona: 'graveyard', de: 'you', tipos: ['instant', 'sorcery'] } }]], // M-348 · Archaeomancer
+    [/^return up to (two|three) target land cards from your graveyard to your hand$/i, m => Array.from({ length: { two: 2, three: 3 }[m[1].toLowerCase()] }, () => ({ do: 'to_hand', target: { zona: 'graveyard', de: 'you', tipos: ['land'] }, upTo: true }))], // M-582 · Life from the Loam (115.3: aceita de zero a três; cada carta um alvo diferente, 601.2c)
     [/^return target land card from your graveyard to your hand$/i, () => [{ do: 'to_hand', target: { zona: 'graveyard', de: 'you', tipos: ['land'] } }]], // M-513 · Circle of the Land Druid
     [/^~ gains ([a-z ]+?)(?: and ([a-z ]+))? until end of turn$/i, m => { const ks = [m[1], m[2]].filter(Boolean).map(k => k.toLowerCase()); return ks.every(k => KW.has(k)) ? ks.map(k => ({ do: 'keyword', keyword: k, target: 'self-source' })) : null; }], // M-538 · Psychic Frog ("This creature gains flying until end of turn")
     [/^target creature gains ([a-z ]+?)(?: and ([a-z ]+))? until end of turn$/i, m => { const ks = [m[1], m[2]].filter(Boolean).map(k => k.toLowerCase()); return ks.every(k => KW.has(k)) ? ks.map((k, i) => ({ do: 'keyword', keyword: k, target: i ? 'first-target' : 'creature' })) : null; }], // M-348 · Toxin Analysis (601.2c: um alvo só)
@@ -20582,6 +20585,7 @@ const __m42 = (function () {
     [/^its controller gains life equal to its power$/i, () => [{ do: 'gain', amount: { per: 'power-of-target' }, target: 'target-controller' }]], // M-335 · Swords to Plowshares (608.2h: o poder como era no campo)
     [/^each attacking creature doesn't untap during its controller's next untap step$/i, () => [{ do: 'nao_desvira', cada: { tipos: ['creature'], atacando: true } }]], // M-361 · Tangle (502.3, 506.4)
     [/^put target creature on top of its owner's library$/i, () => [{ do: 'mover', para: 'library', posicao: 'topo', target: 'creature' }]], // M-516 · Time Ebb (a carta vai para o grimório do dono, 400.3)
+    [/^put target instant or sorcery card from your graveyard on top of your library$/i, () => [{ do: 'mover', para: 'library', posicao: 'topo', target: { zona: 'graveyard', de: 'you', tipos: ['instant', 'sorcery'] } }]], // M-582 · Mystic Sanctuary
     [/^put target creature card from your graveyard on top of your library$/i, () => [{ do: 'mover', para: 'library', posicao: 'topo', target: 'creature-in-your-graveyard' }]], // M-361 · Witch's Cottage, Mortuary Mire
     [/^if that (?:creature|creature or planeswalker|planeswalker) would die this turn, exile it instead$/i, () => [{ do: 'exila_se_morrer', target: 'first-target' }]], // M-384 · Suplex (614.1a) · M-415 · Fanged Flames: "that creature or planeswalker" (700.4: o planeswalker também morre)
     [/^until end of turn, target land you control becomes the basic land type of your choice in addition to its other types$/i, () => [{ do: 'tipo_basico', target: 'land-you-control' }]], // M-388 · Navigator's Compass (305.7)
