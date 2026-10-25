@@ -338,10 +338,15 @@ body[data-tela="partida"] { --bg: var(--mesa-bg); --grain-1: var(--mesa-veio-1);
 :root[data-movimento="reduzido"] *, :root[data-movimento="reduzido"] *::before, :root[data-movimento="reduzido"] *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 
 /* =====================================================================
-   /* ==== ds:componentes · espelho de index.html (cada bloco existe, idêntico, no index.html) ==== */
+   
+/* ==== ds:componentes · espelho de index.html (cada bloco existe, idêntico, no index.html) ==== */
 
+/* ---------------- reset e base ---------------- */
 *, *::before, *::after { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; height: 100%; }
+/* I7 · o toque só mostra a reação que o app desenhou. O navegador do celular pinta um retângulo azulado sobre o que foi
+   tocado (realce de toque) e, ao segurar, seleciona o rótulo ou abre o menu da imagem: nada disso vale em controle.
+   A propriedade é herdada, então vale para tudo; o foco de teclado (`:focus-visible`) continua desenhado. */
 html { -webkit-tap-highlight-color: transparent; }
 :focus:not(:focus-visible) { outline: none; }
 body {
@@ -363,6 +368,7 @@ a { color: var(--accent); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+/* ---------------- primitivas ---------------- */
 .ds-stack { display: flex; flex-direction: column; gap: var(--space-3); }
 .ds-row { display: flex; align-items: center; gap: var(--space-2); }
 .ds-row--wrap { flex-wrap: wrap; }
@@ -372,6 +378,13 @@ a { color: var(--accent); }
 .ds-surface { background: var(--bg-elev-1); border-radius: var(--radius-2); box-shadow: var(--shadow-1); }
 .ds-surface--flat { box-shadow: none; border: 1px solid var(--border); }
 .ds-surface--raised { background: var(--bg-elev-2); box-shadow: var(--shadow-2); }
+/* DS-K F1.3 (G-291) · cartão de destaque em ébano: a superfície mais funda do app (--bg-elev-0), um filete de latão no
+   alto (claro no meio, some nas pontas) e a borda tingida de latão. Um por tela, para o que é "o próximo passo"
+   (o Continuar do Início). O texto segue AA sobre --bg-elev-0 (G-287); acento sobre ele só em texto grande ou desenho. */
+.ds-surface.ds-destaque { position: relative; background-color: var(--bg-elev-0);
+  background-image: linear-gradient(90deg, transparent, var(--accent-lo) 18%, var(--accent-hi) 50%, var(--accent-lo) 82%, transparent);
+  background-size: 100% 1px; background-position: top; background-repeat: no-repeat;
+  border: 1px solid color-mix(in srgb, var(--accent-lo) 40%, var(--border)); box-shadow: var(--shadow-2), inset 0 -1px 0 var(--latao-labio); }
 .ds-surface--pad { padding: var(--space-4); }
 .ds-text { margin: 0; }
 .ds-text--display { font-family: var(--font-display); font-weight: var(--weight-regular); }
@@ -386,6 +399,7 @@ a { color: var(--accent); }
 .ds-text--accent { color: var(--accent); }
 .ds-text--mono { font-family: var(--font-mono); }
 .ds-text--caps { text-transform: uppercase; letter-spacing: .09em; font-size: var(--text-xs); color: var(--fg-muted); }
+/* ---------------- botão ---------------- */
 .ds-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
   min-height: var(--tap-min); padding: 0 var(--space-4); white-space: nowrap; flex-shrink: 0; /* DS-K · o rótulo fica inteiro numa linha e o botão não encolhe abaixo dele */
@@ -398,9 +412,22 @@ a { color: var(--accent); }
               color var(--dur-1) var(--ease-out), transform var(--dur-1) var(--ease-out),
               box-shadow var(--dur-1) var(--ease-out);
 }
+/* U2 · toque: o botão afunda (desce 1px, encolhe 3%, a sombra vira interna) — retorno imediato sem esperar a ação */
 .ds-btn:active:not([disabled]) { transform: translateY(1px) scale(.97); box-shadow: var(--btn-pressed); }
 .ds-btn[disabled] { opacity: .45; cursor: not-allowed; transform: none; box-shadow: none; }
 .ds-btn--primary { background-color: var(--accent); background-image: linear-gradient(180deg, var(--btn-shine-accent), transparent 70%); color: var(--accent-fg); border-color: var(--accent); }
+/* DS-K F1.1 (G-289) · primário em latão: o mesmo metal da marca (claro no alto, escuro embaixo, fio de luz e lábio). Depois
+   de cada toque uma varredura de luz atravessa o metal uma vez (receita "confirmar"); a luz fica atrás do rótulo
+   (isolation + z-index -1), então o texto não perde contraste nem durante a varredura. Menos movimento: sem varredura. */
+.ds-btn--primary { position: relative; overflow: hidden; isolation: isolate; border-color: var(--accent-lo);
+  background-image: linear-gradient(160deg, var(--accent-hi), var(--accent) 55%, var(--accent-lo));
+  box-shadow: var(--btn-rest), inset 0 1px 0 var(--latao-luz), inset 0 -1px 0 var(--latao-labio); }
+.ds-btn--primary:active:not([disabled]) { box-shadow: var(--btn-pressed); filter: none; }
+.ds-btn--primary:not(.inicio-jogar)::after { content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: 0;
+  background: linear-gradient(105deg, transparent 30%, var(--sheen) 50%, transparent 70%) no-repeat; background-size: 220% 100%; background-position: 160% 0; }
+/* a luz corre pelo fundo da camada, que tem o tamanho exato do botão: nada sai da caixa (a guarda de contenção mede a área rolável) */
+.ds-btn--primary[data-varre]:not(.inicio-jogar)::after { animation: ds-varre-latao var(--dur-4) var(--ease-out) both; }
+@keyframes ds-varre-latao { 0% { opacity: 1; background-position: 160% 0; } 100% { opacity: 1; background-position: -60% 0; } }
 .ds-btn--ghost { background-color: transparent; background-image: none; border-color: transparent; color: var(--fg-muted); box-shadow: none; }
 .ds-btn--ghost:active:not([disabled]) { background-color: var(--bg-elev-2); color: var(--fg); box-shadow: none; }
 .ds-btn--block { width: 100%; }
@@ -409,12 +436,14 @@ a { color: var(--accent); }
    texto ficar inteiro dentro dela; o botão comum continua numa linha só. */
 .ds-btn--block { white-space: normal; text-wrap: balance; text-align: center; line-height: var(--lh-sm); padding-block: var(--space-2); flex-shrink: 1; }
 .ds-btn--icon, .ds-btn--icone { width: var(--tap-min); padding: 0; flex: none; }
+/* leva 123 · duas grafias, uma regra */
 .ds-btn .ds-icon { flex: none; }
 .ds-btn__rotulo { min-width: 0; }
 .ds-btn:has(> .ds-icon + .ds-btn__rotulo) { padding-left: var(--space-3); }
 @media (prefers-reduced-motion: reduce) { .ds-btn:active:not([disabled]) { transform: none; } }
 @media (prefers-reduced-motion: reduce) { .ds-carta-espera::before { animation: none; transform: none; opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .ds-visor__moldura[data-carregando="true"]::after { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .tb-vez[data-pensando="true"] .tb-vez__avatar { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .tb-cena { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .tb-seta--nova { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .etq-linha[data-nova="true"] { animation: none; } }
@@ -423,6 +452,7 @@ a { color: var(--accent); }
 .ds-aviso-rede .ds-icon { flex: none; color: var(--warning); }
 .ds-empty--icone { display: flex; flex-direction: column; align-items: center; text-align: center; gap: var(--space-2); }
 .ds-empty__icone { width: 72px; height: 72px; border-radius: var(--radius-full); display: grid; place-items: center; background: var(--bg-elev-2); color: var(--fg-subtle); }
+/* D4 · estado vazio de primeiro uso: ícone grande no acento, título, uma frase, um primário e um secundário; o resto em "Mais" */
 .ds-empty.ds-empty--hero { border: 0; background: var(--bg-elev-1); box-shadow: var(--shadow-1); padding: var(--space-7) var(--space-4) var(--space-5); gap: var(--space-3); }
 .ds-empty--hero .ds-empty__icone { width: 88px; height: 88px; color: var(--accent); background: var(--accent-soft); }
 .ds-empty__titulo { color: var(--fg); margin: 0; text-wrap: balance; }
@@ -436,10 +466,16 @@ a { color: var(--accent); }
 @media (prefers-reduced-motion: reduce) { .porta__item { animation: none; } .porta[data-saida="true"] { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .ds-transicao { animation: none; transition: none; } }
 @media (prefers-reduced-motion: reduce) { .inicio-jogar.ds-btn:active:not([disabled]), .inicio-jogar.ds-btn:active .ds-atalho__icone, .inicio-jogar.ds-btn:active .inicio-jogar__seta { transform: none; } .inicio-jogar--brilho::after { animation: none; } }
+/* DS-K (G-288) · menos movimento é estado final em um quadro: a regra global corta a animação, então cada palco declara o
+   seu fim parado (marca desenhada, nome à vista, cartas pousadas, folha aberta, faixa e véu no lugar). */
+@media (prefers-reduced-motion: reduce) { .ds-palco[data-on] * { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { .ds-palco[data-on="abertura"] .ds-palco__luz, .ds-palco[data-on="abertura"] .ds-palco__nome, .ds-palco[data-on="vez"] .ds-palco__faixa, .ds-palco[data-on="vez"] .ds-palco__veu, .ds-palco[data-on="folha"] .ds-palco__veu, .ds-palco[data-on="pousar"] .ds-palco__carta, .ds-palco[data-on="pousar"] .ds-palco__carta::after, .ds-palco[data-on="dano"] .ds-palco__numero { opacity: 1; clip-path: none; letter-spacing: 0; } .ds-palco[data-on="abertura"] .ds-palco__marca { opacity: 1; transform: none; } .ds-palco[data-on="abertura"] .ds-palco__marca path { stroke-dashoffset: 0; } .ds-palco[data-on="pousar"] .ds-palco__carta { transform: translate3d(var(--x), 0, 0); } .ds-palco[data-on="pousar"] .ds-palco__carta::after { transform: none; } .ds-palco[data-on="pousar"] .ds-palco__prateleira, .ds-palco[data-on="folha"] .ds-palco__folha { transform: none; } }
 @media (prefers-reduced-motion: reduce) { .ds-nav:active { transform: none; } }
 @media (prefers-reduced-motion: reduce) { .ds-expansivel__seta { transition: none; } .ds-expansivel__corpo { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .tb-online[data-ligado="false"] { animation: none; opacity: .6; } }
+/* sem escala: o tamanho dos alvos não muda no meio */
 @media (prefers-reduced-motion: reduce) { .conta-email__erro > .ds-note, #perfil-conta[data-chegou="true"] { animation: none; } }
+/* ---------------- campos ---------------- */
 .ds-field { display: block; }
 .ds-field__label { display: block; font-size: var(--text-sm); color: var(--fg-muted); margin-bottom: var(--space-1); }
 .ds-field__hint { display: block; font-size: var(--text-xs); color: var(--fg-subtle); margin-top: var(--space-1); }
@@ -454,6 +490,7 @@ a { color: var(--accent); }
 .ds-input:focus, .ds-select:focus, .ds-textarea:focus {
   outline: none; border-color: var(--accent); box-shadow: var(--focus-ring);
 }
+/* ---------------- badge, chip ---------------- */
 .ds-badge {
   display: inline-flex; align-items: center; gap: var(--space-1);
   padding: 2px var(--space-2); border-radius: var(--radius-1);
@@ -464,6 +501,7 @@ a { color: var(--accent); }
 .ds-badge--negative { color: var(--negative); border-color: var(--negative); }
 .ds-badge--accent { color: var(--accent); border-color: var(--accent); }
 .ds-badge--warning { color: var(--warning); border-color: var(--warning); }
+/* leva 123 · tom que existia só na chamada */
 .ds-badge--solid { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: var(--weight-medium); }
 .ds-chip {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1);
@@ -473,6 +511,10 @@ a { color: var(--accent); }
   transition: background-color var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out);
 }
 .ds-chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); font-weight: var(--weight-medium); }
+/* DS-K F1.2 (G-290) · selecionado é latão em todo componente: o chip marcado ganha o mesmo metal do primário */
+.ds-chip[aria-pressed="true"] { background-image: linear-gradient(160deg, var(--accent-hi), var(--accent) 55%, var(--accent-lo)); border-color: var(--accent-lo);
+  box-shadow: inset 0 1px 0 var(--latao-luz), inset 0 -1px 0 var(--latao-labio); }
+/* ---------------- tabs ---------------- */
 .ds-tabs { display: flex; gap: var(--space-1); border-bottom: 1px solid var(--border); }
 .ds-tab {
   min-height: var(--tap-min); padding: 0 var(--space-4); white-space: nowrap;
@@ -481,6 +523,11 @@ a { color: var(--accent); }
   transition: color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out);
 }
 .ds-tab[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); font-weight: var(--weight-medium); }
+/* DS-K F1.2 (G-290) · a aba escolhida tem o fio de latão (claro no meio, escuro nas pontas) no lugar da borda lisa */
+.ds-tab[aria-selected="true"] { border-bottom-color: transparent; background: linear-gradient(90deg, var(--accent-lo), var(--accent-hi) 50%, var(--accent-lo)) bottom / 100% 2px no-repeat; }
+@media (prefers-reduced-motion: reduce) { .ds-dialog { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .tb-vez__aviso, .tb-vez__aviso[data-saindo="true"] { animation: none; } }
+/* ---------------- estados ---------------- */
 .ds-empty {
   border: 1px dashed var(--border); border-radius: var(--radius-2);
   padding: var(--space-6) var(--space-4); text-align: center; color: var(--fg-muted);
@@ -498,13 +545,21 @@ a { color: var(--accent); }
   animation: ds-spin var(--dur-giro) linear infinite;
 }
 @keyframes ds-spin { to { transform: rotate(360deg) } }
+/* na grade, sem encolher: o alvo segue com 44 px */
+.ds-chip { transition: background-color var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out), transform var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out); }
+.ds-badge--solid { background-image: linear-gradient(160deg, var(--accent-hi), var(--accent) 55%, var(--accent-lo)); border-color: var(--accent-lo); }
 @media (prefers-reduced-motion: reduce) { .abertura__ladrilho, .ab-moldura, .ab-tabua, .ab-carta { animation: none; } }
+/* linha espelhada no painel.html (R-2): fica como está */
+@media (prefers-reduced-motion: reduce) { .abertura__cena { display: none; } :is(.abertura__luz, .abertura__sombra, .abertura__ladrilho, .abertura__nome), .abertura__ladrilho::after { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .ds-fab__item.ds-btn { animation: none; } .ds-fab__principal .ds-icon { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .ds-chave__trilho, .ds-chave__botao { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .nt-capa[data-capa="foto"] img { transition: none; } .nt-capa[data-capa="fonte"] .nt-capa__fonte::after { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .nt-puxar, .nt-puxar .ds-icon { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .nt-cartao { transition: none; } .nt-cartao:has(.nt-link:active) { transform: none; } }
+/* movimento reduzido: o quadro parado, com as três cartas no lugar */
 @media (prefers-reduced-motion: reduce) { .ds-carregando__carta { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .ds-esqueleto__linha { animation: none; } }
+/* ---------------- barra de aplicação ---------------- */
 .ds-appbar {
   position: sticky; top: 0; z-index: calc(var(--z-sticky) + 1); padding-top: env(safe-area-inset-top, 0px);   /* leva 123 · recorte da câmera; G-242 · uma camada acima dos cabeçalhos grudados de grupo, que passam por baixo dela ao rolar */
   background: var(--scrim); backdrop-filter: blur(10px);
@@ -512,11 +567,15 @@ a { color: var(--accent); }
 }
 .ds-appbar__inner { display: flex; align-items: center; gap: var(--space-3); min-height: 56px; }
 .ds-appbar__brand { font-family: var(--font-display); font-size: var(--text-lg); line-height: 1.1; display: inline-flex; align-items: center; min-height: var(--tap-min); }
+/* homologação · o logotipo leva ao início: alvo de 44px */
 .ds-appbar__brand small { display: block; font-family: var(--font-ui); font-size: var(--text-xs); color: var(--fg-muted); }
 .ds-hidden { display: none !important; }
 .ds-sr-only { position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* D11 · só para o leitor de tela */
 .ds-nowrap { white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) { .ds-appbar__brand:active .brand-tile { transform: none; } }
+/* ===================== móvel: veio de madeira e ombro de prateleira =====================
+   Textura de contraste muito baixo, só atrás de superfície, nunca sob texto. */
 body {
   background-image:
     repeating-linear-gradient(94deg, var(--grain-1) 0 2px, transparent 2px 7px),
@@ -526,6 +585,7 @@ body {
 }
 .ds-surface { border: 1px solid var(--border); }
 .ds-appbar { border-bottom: 2px solid var(--shelf-edge); }
+/* ===================== L3 · galeria da lista ===================== */
 .ds-text--positive { color: var(--positive); }
 .ds-text--negative { color: var(--negative); }
 @media (prefers-reduced-motion: reduce) { .ficha-opcao__quadro > .ficha-opcao__img { transition: none; } }
@@ -544,6 +604,7 @@ body {
 @media (prefers-reduced-motion: reduce) { .tb-desfecho[data-entra="true"], .tb-desfecho[data-entra="true"] .tb-desfecho__selo, .tb-desfecho[data-entra="true"] .tb-desfecho__selo::after { animation: none; } }
 .ds-icon { display: inline-flex; line-height: 0; }
 @media (prefers-reduced-motion: reduce) { .tb-hand__body, .tb-hand__chevron, .tb-dock, .tb-hand__toggle { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .tb-peek__brilho { display: none; } .tb-peek__arte { transform: none !important; } }
 @media (prefers-reduced-motion: reduce) { .tb-resumo__painel { animation: none; } .tb-resumo__faixa > .tb-resumo__seta { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .tb-card, .tb-card__face { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .deck-slot.is-pulse .ds-card { animation: none; } }
@@ -569,6 +630,11 @@ body {
 /* tela de entrar: ocupa a altura toda, com o cartão centrado e o caminho de volta embaixo */
 .pn-entrar { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: var(--space-4); padding: var(--space-5) var(--space-4) calc(var(--space-5) + env(safe-area-inset-bottom, 0px)); max-width: 480px; width: 100%; margin: 0 auto; }
 .pn-entrar .ds-empty__acoes .ds-btn { min-width: 220px; }
+/* R-34 · DS-K · destaque de ébano: na tela de entrar, o herói vive dentro do cartão (sem fundo próprio); a faixa de situação é
+   o destaque das telas de dentro e continua de borda a borda (sem raio nem bordas laterais), só com o filete de latão no topo. */
+.pn-entrar__destaque { padding: 0; }
+.pn-entrar__destaque .ds-empty--hero { background: transparent; box-shadow: none; }
+.pn-faixa.ds-destaque { border-radius: 0; border-left: 0; border-right: 0; border-top: 0; box-shadow: inset 0 -1px 0 var(--latao-labio); }
 .pn-entrar__estado { display: flex; flex-direction: column; gap: var(--space-2); }
 .pn-entrar__volta { display: flex; justify-content: center; }
 /* rodapé: cota do GitHub e volta ao app */
@@ -2559,7 +2625,9 @@ const __p4 = (function () {
       else if (estado === 'erro') avisos.push(est.erro === 'sem-rede' ? AvisoRede(motivo('sem-rede'), { id: 'pn-erro' }) : Note(motivo(est.erro), 'warning', { id: 'pn-erro' }));
       else if (!online()) avisos.push(AvisoRede('Sem internet. Entrar precisa de rede.', { id: 'pn-sem-rede' }));
       return h('main', { class: 'pn-entrar', id: 'pn-tela-entrar' },
-        Empty('Só o dono entra. Use a conta Google da Estante.', acao, { icone: 'painel', titulo: 'Painel Estante', hero: true, id: 'pn-boas-vindas' }),
+        // R-34 · DS-K · o destaque de ébano desta tela é o cartão de entrar (um por tela; o primário em latão fica dentro dele)
+        h('section', { class: 'ds-surface ds-destaque pn-entrar__destaque' },
+          Empty('Só o dono entra. Use a conta Google da Estante.', acao, { icone: 'painel', titulo: 'Painel Estante', hero: true, id: 'pn-boas-vindas' })),
         avisos.length ? h('div', { class: 'pn-entrar__estado' }, ...avisos) : null,
         h('div', { class: 'pn-entrar__volta' }, LinkBotao('Voltar ao app', APP, { id: 'pn-voltar', icone: 'voltar' })));
     }
@@ -2568,7 +2636,7 @@ const __p4 = (function () {
       const itens = [h('span', { class: 'pn-faixa__item' }, Farol(farol(idade, LIMIARES.dadosHa), carimbo(est.em), { id: 'pn-carimbo' }))];
       if (est.main) itens.push(h('span', { class: 'pn-faixa__item ds-text ds-text--sm ds-text--muted', id: 'pn-main', title: LIMIARES.dadosHa.texto }, Icone('historico', { tamanho: 16 }), h('span', { class: 'pn-faixa__texto' }, `main: ${est.main.leva || est.main.sha} · ${haQuanto(est.main.em)}`)));
       if (est.atualizando) itens.push(h('span', { class: 'pn-faixa__item' }, Spinner()));
-      return h('div', { class: 'pn-faixa', id: 'pn-faixa' }, ...itens);
+      return h('div', { class: 'pn-faixa ds-surface ds-destaque', id: 'pn-faixa' }, ...itens);   // R-34 · DS-K · a faixa de situação é o destaque de ébano das telas de dentro
     }
     /** Barra de chips da sub-aba: período sempre; as outras dimensões com os valores presentes nos dados; "Mais" abre o resto. */
     function barraDeFiltros(v, d) {
@@ -2674,6 +2742,16 @@ const __p4 = (function () {
     return { estado: () => ({ ...est, filtros: { ...est.filtros } }), atualiza, entrar, sair, abre, filtra, limpaFiltros };
   }
   if (typeof window !== 'undefined' && !W.__PAINEL_NO_AUTOBOOT && typeof document !== 'undefined') {
+    // R-34 · DS-K F1.1 (G-289) · receita "confirmar": depois de cada toque num primário, a varredura de luz atravessa o latão uma vez
+    // (o mesmo ouvinte único do index.html; o CSS é espelho). Nada sai da caixa: a luz corre no ::after, dentro do botão.
+    if (typeof document !== 'undefined' && document.addEventListener) {
+      document.addEventListener('click', e => {
+        const b = e.target && e.target.closest ? e.target.closest('.ds-btn--primary') : null;
+        if (!b || b.disabled) return;
+        b.removeAttribute('data-varre'); void b.offsetWidth; b.setAttribute('data-varre', '');
+      }, true);
+      document.addEventListener('animationend', e => { if (e.animationName === 'ds-varre-latao' && e.target && e.target.hasAttribute && e.target.hasAttribute('data-varre')) e.target.removeAttribute('data-varre'); }, true);
+    }
     const inicia = () => { window.__painel = boot(document.getElementById('painel')); };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', inicia); else inicia();
   }

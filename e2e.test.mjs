@@ -13039,6 +13039,59 @@ test('e2e · R-2 Painel Estante: outro e-mail é recusado e desconectado; o dono
   assert.deepEqual(errors, []);
 });
 
+/* ---------- R-34 · painel no DS-K (Ébano e Ouro): espelho do index.html (feita como R-33; renumerada) ---------- */
+test('e2e · R-34 Painel · DS-K: as fontes do app (Cormorant/Figtree) carregam da mesma origem; o primário é latão metálico e varre a luz uma vez ao toque; a tela de entrar e a faixa de situação são o destaque de ébano (um por tela); nada depende de hover; sem sobreposição nos dois temas', { timeout: 120000 }, async t => {
+  const { page, errors, base } = await open(t);
+  const painel = base.replace('index.html', 'painel.html');
+  await page.setViewportSize({ width: 360, height: 780 });
+  const json = (r, corpo) => r.fulfill({ json: corpo, headers: { 'content-type': 'application/json', 'x-ratelimit-remaining': '50', 'x-ratelimit-limit': '60', 'access-control-expose-headers': 'etag, x-ratelimit-remaining, x-ratelimit-limit' } });
+  await page.route('https://api.github.com/**', r => json(r, /commits\?sha=main/.test(r.request().url()) ? [{ sha: 'abc1234def0', commit: { message: 'Leva R-33 · x', committer: { date: new Date().toISOString() } } }] : /\/runs/.test(r.request().url()) ? { workflow_runs: [], total_count: 0 } : []));
+  await page.route('https://raw.githubusercontent.com/**', r => r.fulfill({ body: '', headers: { 'content-type': 'text/plain', 'access-control-allow-origin': '*' } }));
+  await page.addInitScript(() => {
+    const jwt = email => 'h.' + btoa(JSON.stringify({ email })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') + '.s';
+    window.__PAINEL_FETCH = async (url) => new Response(JSON.stringify(url.includes('securetoken') ? { user_id: 'uidE2E', id_token: jwt('gui.amuy@gmail.com'), refresh_token: 'ref-e2e', expires_in: '3600' } : { localId: 'uidE2E', idToken: jwt('gui.amuy@gmail.com'), refreshToken: 'ref-e2e', expiresIn: '3600', email: 'gui.amuy@gmail.com' }), { status: 200, headers: { 'content-type': 'application/json' } });
+    window.__PAINEL_GOOGLE = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }), revoke: (tk, cb) => cb && cb() } } };
+  });
+  await page.goto(painel); await page.waitForSelector('#pn-entrar');
+  // fontes: as mesmas três do app, servidas da mesma origem, carregadas
+  const fontes = await page.evaluate(async () => { await document.fonts.ready; return [...document.fonts].filter(f => f.status === 'loaded').map(f => f.family + ' ' + f.weight).sort(); });
+  assert.ok(fontes.some(f => /Cormorant Garamond Estante/.test(f)) && fontes.filter(f => /Figtree Estante/.test(f)).length >= 2, 'fontes do DS-K carregadas (as famílias "… Estante" do @font-face do app): ' + fontes.join(', '));
+  const titulo = await page.locator('h2.ds-empty__titulo').evaluate(e => getComputedStyle(e).fontFamily);
+  assert.match(titulo, /Cormorant Garamond/, 'título em Cormorant');
+  // um destaque de ébano na tela de entrar, com o primário dentro
+  assert.equal(await page.locator('.ds-destaque:visible').count(), 1, 'um destaque de ébano por tela');
+  assert.equal(await page.locator('.ds-destaque .ds-btn--primary:visible').count(), 1, 'o primário vive dentro do destaque');
+  const prim = page.locator('#pn-entrar');
+  const latao = await prim.evaluate(b => getComputedStyle(b).backgroundImage);
+  assert.match(latao, /linear-gradient/, 'primário em latão metálico (gradiente), não cor chapada');
+  await auditaTela(page, 'painel entrar DS-K');
+  // varredura de luz uma vez ao toque (receita "confirmar" do DS-K), e a marca some sozinha
+  // o toque entra no painel (o botão some com a tela), então a leitura da varredura é feita no mesmo instante do toque
+  // (o botão sai da tela no mesmo toque, então a animação em si é conferida pelo contrato de CSS; o comportamento completo está no teste F1.1 do app)
+  const toca = await page.evaluate(() => {
+    const regras = [...document.styleSheets].flatMap(ss => { try { return [...ss.cssRules]; } catch (e) { return []; } });
+    const varre = regras.find(r => r.selectorText && /\.ds-btn--primary\[data-varre\]/.test(r.selectorText) && /::after/.test(r.selectorText));
+    const quadros = regras.some(r => r.type === CSSRule.KEYFRAMES_RULE && r.name === 'ds-varre-latao');
+    const b = document.querySelector('#pn-entrar'); b.click();
+    return { marca: b.hasAttribute('data-varre'), anim: varre ? varre.style.animationName || varre.style.animation : null, quadros };
+  });
+  assert.ok(toca.marca && toca.quadros && /ds-varre-latao/.test(toca.anim || ''), 'a marca entra no toque e o CSS do DS-K (regra + quadros da varredura) está no painel: ' + JSON.stringify(toca));
+  // dentro: a faixa de situação é o destaque de ébano (de borda a borda), nenhum outro
+  // a faixa é redesenhada quando a atualização termina: espera o fim (sem giro na faixa) e lê sempre o elemento vivo
+  await page.waitForFunction(() => { const f = document.querySelector('#pn-faixa'); return f && !f.querySelector('.ds-spinner') && document.querySelector('#pn-main'); });
+  assert.equal(await page.evaluate(() => document.querySelector('#pn-faixa').classList.contains('ds-destaque')), true, 'a faixa é o destaque');
+  assert.equal(await page.locator('.ds-destaque:visible').count(), 1, 'um destaque de ébano por tela (dentro)');
+  const faixa = await page.evaluate(() => { const e = document.querySelector('#pn-faixa'); const c = getComputedStyle(e); return { raio: c.borderTopLeftRadius, esq: c.borderLeftWidth, larg: e.getBoundingClientRect().width }; });
+  assert.equal(faixa.raio, '0px'); assert.equal(faixa.esq, '0px'); assert.ok(faixa.larg >= 360, 'de borda a borda: ' + faixa.larg);
+  // aba selecionada e chip de filtro ativo em latão (gradiente), nos dois temas
+  await page.click('#pn-abas [role="tab"][aria-selected="true"]');
+  const aba = await page.locator('#pn-abas [role="tab"][aria-selected="true"]').first().evaluate(e => getComputedStyle(e).backgroundImage);
+  assert.match(aba, /linear-gradient/, 'aba selecionada em latão');
+  await emTodasAsMedidas(page, 'painel DS-K');
+  if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.screenshot({ path: process.env.SHOTS + '/r33-dsk.png', fullPage: false }); }
+  assert.deepEqual(errors, []);
+});
+
 /* ---------- R-4 · BI1-2b · Pipeline + filtros em tudo (incremento 1) ---------- */
 test('e2e · R-4 Painel · Pipeline: fila agora com espera e recusas com motivo, rodada em curso, rodadas verdes e Pages; chips filtram tudo e vão para o endereço; toque numa barra filtra; recorte vazio diz "sem dados"; reabrir pelo endereço mantém o filtro; barra de filtros em até três linhas no 360; sem sobreposição nas quatro medidas e dois temas', { skip }, async t => {
   const { page, errors, base } = await open(t);
