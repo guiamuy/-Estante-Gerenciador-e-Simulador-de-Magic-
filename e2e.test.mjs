@@ -15610,6 +15610,9 @@ test('e2e · MJ11b campo cheio dos dois lados: a pintura cabe no orçamento, a j
     for (const o of [...pega(0), ...pega(1)]) M.act({ t: 'move', p: M.estado().turn.priority, oid: o.oid, to: 'battlefield' });
     return M.estado().zones[0].battlefield.map(x => M.estado().objects[x].name).includes('Priest of Titania'); });
   assert.ok(campo0, 'a Priest of Titania está no seu campo');
+  // a partida só precisa chegar ao seu terceiro turno com o campo cheio: com a vida alta, o ataque do Shark não a encerra
+  // antes (desde 25/10, com as levas do bot e do leitor, ele vence no turno 2 — o que este teste mede não depende disso)
+  await page.evaluate(() => window.__estanteMesa.act({ t: 'life', p: 0, target: 0, delta: 200 }));
   for (let i = 0; i < 80; i++) { const st = await page.evaluate(() => { const s = window.__estanteMesa.estado(); return [s.turn.number, s.turn.active, s.turn.step, s.pending ? s.pending.p : s.turn.priority, s.status, !!s.pending]; });
     if (st[4] !== 'playing' || (st[0] >= 3 && st[1] === 0 && st[2] === 'main1' && st[3] === 0 && !st[5])) break;
     await page.evaluate(() => { const M = window.__estanteMesa, s = M.estado(), quem = s.pending ? s.pending.p : s.turn.priority, l = quem === 0 ? M.legais() : [];
