@@ -68,3 +68,12 @@ test('B-180 · classifica por cópia: não usa (3+ cópias puderam sair, nenhuma
   const c = Object.fromEntries(classifica(acc, facts).map(l => [l.nome, l.classe]));
   assert.deepEqual(c, { A: 'não usa', B: 'a revisar', C: 'usa', D: 'a revisar', E: 'pouca evidência' });
 });
+
+test('B-182 · conjurar pela loucura conta como uso da carta exilada (a ação não traz o objeto: ele vem da decisão pendente)', () => {
+  const s = estado(); s.objects.o7 = { name: 'Fiery Temper', owner: 0, controller: 0, zone: 'exile' }; s.pending = { kind: 'madness', p: 0, oid: 'o7' };
+  const acc = novaAuditoria(), vistas = new Set(), usadas = new Set();
+  const acoes = [{ t: 'cast_madness', p: 0, targets: [{ player: 1 }] }, { t: 'decline_madness', p: 0 }];
+  registraDecisao(acc, s, 0, acoes, acoes[0], vistas, '', usadas);
+  assert.equal(acc.cartas['Fiery Temper'].podia, 1); assert.equal(acc.cartas['Fiery Temper'].usou, 1);
+  assert.deepEqual(acc.cartas['Fiery Temper'].tipos, { cast_madness: 1 }); assert.ok(usadas.has('o7'));
+});

@@ -1106,6 +1106,7 @@ async function montaShark(a, b, { ativo = 0, vez = 0, passo = 'main1', p0 = {}, 
     for (const n of cfg.campo || []) ids[p][n] = tira(n, 'battlefield');
     for (const n of cfg.mao || []) ids[p][n] = tira(n, 'hand');
     for (const n of cfg.cemiterio || []) ids[p][n] = tira(n, 'graveyard');
+    for (const n of [...(cfg.topo || [])].reverse()) { const oid = z.library.find(o => s.objects[o].name === n); assert.ok(oid, 'a lista tem ' + n); z.library.splice(z.library.indexOf(oid), 1); z.library.unshift(oid); } // B-182 · `topo`: as próximas compras, na ordem
     s.players[p].landPlayed = p === ativo;
   });
   Object.assign(s.turn, { active: ativo, priority: vez, step: passo });
@@ -1327,4 +1328,34 @@ test('B-181 · o Shark publicado não vira o próprio Delver com Sleep of the De
   const novo = shark('shark').jogada(s, 0), v14 = shark('shark-v14').jogada(s, 0);
   assert.ok(!(novo.acao.t === 'cast' && miraMeu(s, novo)), 'publicado: ' + novo.motivo);
   assert.ok(v14.acao.t === 'cast' && miraMeu(s, v14), 'v14: ' + v14.motivo);
+});
+
+/* ---- B-182 · loucura e descarte: o Madness descarta a carta certa e conjura pela loucura ---- */
+async function jogaAteOFimDaFase(s, p, bot, max = 30) {
+  const feitas = [];
+  for (let i = 0; i < max && s.status === 'playing'; i++) {
+    const q = s.pending ? s.pending.p : s.turn.priority;
+    if (q !== p) { s = act(s, { t: 'pass', p: q }); continue; }
+    if (s.turn.step !== 'main1' && !s.pending && !s.stack.length) break;
+    const j = bot.jogada(s, p); if (!j) break;
+    feitas.push(j.acao.t + (s.objects[j.acao.oid] ? ' ' + s.objects[j.acao.oid].name : ''));
+    s = act(s, j.acao);
+    if (j.acao.t === 'pass' && !s.stack.length && !s.pending && s.turn.step === 'main1') break;
+  }
+  return { s, feitas };
+}
+test('B-182 · Faithless Looting com Fiery Temper, Sneaky Snacker e Lightning Bolt na mão: descarta o Snacker e o Temper, conjura o Temper pela loucura no Timberwatch Elf e guarda o Bolt', async () => {
+  const { s } = await montaShark(MADNESS, ELFOS, { ativo: 0, vez: 0, passo: 'main1', p0: { campo: ['Mountain', 'Mountain', 'Mountain'], mao: ['Faithless Looting', 'Fiery Temper', 'Sneaky Snacker', 'Lightning Bolt'], topo: ['Mountain', 'Guttersnipe'] }, p1: { campo: ['Forest', 'Forest', 'Timberwatch Elf'] } });
+  const { s: fim, feitas } = await jogaAteOFimDaFase(s, 0, shark('shark'));
+  const nomes = z => fim.zones[0][z].map(o => fim.objects[o].name);
+  assert.ok(feitas.includes('discard Sneaky Snacker') && feitas.includes('discard Fiery Temper'), 'descartes: ' + feitas.join(' · '));
+  assert.ok(feitas.includes('cast_madness'), 'conjurou pela loucura: ' + feitas.join(' · '));
+  assert.ok(!fim.zones[1].battlefield.some(o => fim.objects[o].name === 'Timberwatch Elf'), 'o Timberwatch morreu');
+  assert.ok(nomes('hand').includes('Lightning Bolt'), 'o Bolt ficou na mão');
+});
+test('B-182 · Faithless Looting com Sneaky Snacker e Mountain sobrando: descarta o Snacker (que volta sozinho) e guarda o Bolt', async () => {
+  const { s } = await montaShark(MADNESS, ELFOS, { ativo: 0, vez: 0, passo: 'main1', p0: { campo: ['Mountain', 'Mountain', 'Mountain'], mao: ['Faithless Looting', 'Sneaky Snacker', 'Mountain', 'Lightning Bolt'], topo: ['Kessig Flamebreather', 'Mountain'] }, p1: { campo: ['Forest', 'Forest', 'Timberwatch Elf'] } });
+  const { s: fim, feitas } = await jogaAteOFimDaFase(s, 0, shark('shark'));
+  assert.ok(feitas.includes('discard Sneaky Snacker'), 'descartou o Snacker: ' + feitas.join(' · '));
+  assert.ok(!feitas.includes('discard Lightning Bolt'), 'guardou o Bolt: ' + feitas.join(' · '));
 });

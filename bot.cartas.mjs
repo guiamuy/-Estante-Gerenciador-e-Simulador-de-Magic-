@@ -3,7 +3,8 @@
 // legal da decisão sai dela), quantas vezes USOU, em que passo, em que alvo, e quantas vezes ela terminou a partida na mão
 // depois de ter podido sair. Fora do portão (não é teste; a contagem é testada em bot.cartas.unit.test.mjs).
 // Uso: node bot.cartas.mjs [orcamentoMs=400] [nivel=shark | shark-v13 | z:peça,…] [sementes=1] [saida.json]
-//      FATIA=i/n divide os confrontos entre processos (um por núcleo); `--junta a.json b.json …` soma e imprime.
+//      FATIA=i/n divide os confrontos entre processos (um por núcleo); LISTA=shark-madness só os confrontos dessa lista;
+//      `--junta a.json b.json …` soma e imprime.
 // Lê só o que a partida mostra a quem audita (as jogadas legais e a escolhida de cada jogador): não muda o bot.
 
 // Jogadas que não são "usar a carta": passar, desistir, virar terreno para mana, e as respostas a decisões pendentes
@@ -11,6 +12,9 @@
 const NAO_E_USO = new Set(['pass', 'concede', 'tap_mana', 'keep', 'mulligan']);
 const ESCOLHA = /^(discard|pick|choose|order|pay|may|answer|confirm|select|bottom|scry|surveil|name|mode|target|sacrifice|block|attack)/;
 const ehUso = a => !!a && !!a.oid && !NAO_E_USO.has(a.t) && !ESCOLHA.test(a.t);
+// B-182 · conjurar pela loucura é uso da carta exilada, mas a ação não traz o objeto (está em `pending.oid`); sem isto a
+// auditoria da B-180 não contava o Fiery Temper conjurado pela loucura.
+const comObjeto = (s, a) => a && !a.oid && a.t === 'cast_madness' && s.pending && s.pending.oid ? { ...a, oid: s.pending.oid } : a;
 
 /** Acumulador vazio. */
 export function novaAuditoria() { return { cartas: {}, partidas: 0, decisoes: 0 }; }
@@ -25,6 +29,7 @@ const alvoDe = (s, p, t) => t.player != null ? (t.player === p ? 'eu' : 'ele')
     escreve em `acc` e nos conjuntos. */
 export function registraDecisao(acc, s, p, acoes, escolhida, vistas = null, motivo = '', usadas = null) {
   acc.decisoes++;
+  acoes = acoes.map(a => comObjeto(s, a)); escolhida = comObjeto(s, escolhida);
   const nomeDe = oid => (s.objects[oid] || {}).name;
   const podiam = new Set();
   for (const a of acoes) if (ehUso(a) && s.objects[a.oid] && s.objects[a.oid].owner === p) { podiam.add(nomeDe(a.oid)); if (vistas) { vistas.add(a.oid); (acc.nomes || (acc.nomes = {}))[a.oid] = nomeDe(a.oid); } }
@@ -108,7 +113,7 @@ if (process.argv[1] && process.argv[1].endsWith('bot.cartas.mjs')) {
     const L = listasDoShark(); const acc = novaAuditoria(); const facts = {}; let ilegais = 0, k = 0;
     const cria = () => NIVEL.startsWith('z:') ? B.criaBot({ nivel: 'shark', orcamentoMs: ORC, extra: Object.fromEntries(NIVEL.slice(2).split(',').map(x => x.startsWith('!') ? [x.slice(1), false] : [x, true])) }) : B.criaBot({ nivel: NIVEL, orcamentoMs: ORC });
     for (let sem = 1; sem <= NS; sem++) for (let i = 0; i < L.length; i++) for (let j = 0; j < L.length; j++) {
-      if (i === j) continue; const kk = k++; if (FAT && kk % FAT[1] !== FAT[0]) continue;
+      if (i === j || (process.env.LISTA && L[i].id !== process.env.LISTA && L[j].id !== process.env.LISTA)) continue; const kk = k++; if (FAT && kk % FAT[1] !== FAT[0]) continue;
       const cards = {}; for (const x of [L[i], L[j]]) for (const e of x.entries) cards[e.name] = x.cartas[e.name];
       let s = E.createGame({ format: 'pauper', seed: 500 * sem + i * 7 + j, mode: 'full', manaCheck: true, cards, players: [{ name: 'A', deck: L[i].entries }, { name: 'B', deck: L[j].entries }] });
       Object.assign(facts, Object.fromEntries(Object.entries(s.facts).map(([n, f]) => [n, { script: f.script || null }])));
