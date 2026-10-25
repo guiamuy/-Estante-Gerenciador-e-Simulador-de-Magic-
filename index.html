@@ -20757,6 +20757,7 @@ const __m42 = (function () {
     const frases = [], efeitos = [], topo = {};
     const magica = /\b(Instant|Sorcery)\b/.test(tipo.split(' // ')[0]); // M-531 · Aventura e preparação: a linha de tipo do app junta as faces ("Creature — … // Instant — Adventure"); vale a da frente
     let modos = null; const coresVida = []; // M-342
+    let escolhaK = null; // K-77 · 700.2d: "Choose two —" / "Choose three —" / "Choose one or both —" / "Choose one or more —" (quantos modos e o mínimo)
     let gatModos = null; // M-527 · gatilho modal de permanente: o gatilho aberto e os modos lidos das linhas "•"
     for (const linha of linhas) {
       if (linha === '//') { // M-531 · Aventura (715.2: face de trás instantânea ou feitiço com o subtipo Adventure) e preparação (722.2: a mágica de preparação): o verso vem das faces da carta (app) ou do `verso` (.listas)
@@ -20928,6 +20929,8 @@ const __m42 = (function () {
       const kc = COM_CUSTO.map(([re, faz]) => { const m = linha.replace(/\.$/, '').match(re); return m && faz(m); }).find(Boolean); // LT10 · com ponto final
       if (kc) { Object.assign(topo, kc); frases.push({ texto: linha, lida: true }); continue; }
       if (/^choose one\s*—$/i.test(linha)) { modos = []; frases.push({ texto: linha, lida: true }); continue; }
+      { const ck = magica && !modos && !/(?:^|\n)(?:Escalate|Entwine|Spree|Tiered|Escalar)\b/.test(String(texto || '')) && linha.match(/^choose (two|three|one or both|one or more)\s*—$/i); // K-77 · 700.2d: o escalar, o entrelaçar, o spree e o escalonado têm leitura própria
+        if (ck) { const q = ck[1].toLowerCase(); escolhaK = q === 'two' ? { k: 2 } : q === 'three' ? { k: 3 } : q === 'one or both' ? { k: 2, min: 1, exatos: 2 } : { todos: true, min: 1 }; modos = []; frases.push({ texto: linha, lida: true }); continue; } }
       const mc = til(linha.replace(/\.$/, ''), nome); // M-331 · M-394 · metalurgia (palavra de habilidade)
       const tq = mc.match(/^as long as ~ is on the stack, spells that target it cost \{(\d+)\} more to cast$/i); // M-364 · Kaervek's Torch (601.2f)
       if (tq) { topo.self = { ...(topo.self || {}), encareceQuemMira: +tq[1] }; frases.push({ texto: linha, lida: true }); continue; }
@@ -20975,9 +20978,9 @@ const __m42 = (function () {
     if (topo.custoAlvoExtraL != null) { const d = efeitos.find(e => e && e.dividido && e.dividido.igual); if (d) d.dividido.custoAlvoExtra = topo.custoAlvoExtraL; else frases.push({ texto: 'custo a mais por alvo', lida: false, motivo: 'só com dano dividido igualmente (M-408)' }); delete topo.custoAlvoExtraL; } // M-408 · Fireball
     for (const ab of topo.abilities || []) if (ab && ab.modes && ab.kind === 'triggered' && (ab.modes.length < 2 || ab.falhou)) { frases.push({ texto: 'gatilho modal', lida: false, motivo: 'algum modo sem padrão conhecido (M-527)' }); } // M-527
     for (const ab of topo.abilities || []) if (ab && ab.falhou) delete ab.falhou;
-    const lidas = frases.every(f => f.lida) && (!modos || (modos.length >= 2 && modos.every(Boolean)));
+    const lidas = frases.every(f => f.lida) && (!modos || (modos.length >= 2 && modos.every(Boolean))) && (!escolhaK || (escolhaK.exatos ? modos.length === escolhaK.exatos : escolhaK.todos ? modos.length >= 2 : modos.length > escolhaK.k)); // K-77 · "one or both" com dois modos; "choose two/three" com mais modos que a escolha
     let script = null;
-    if (modos && modos.length && !efeitos.length) script = { name: nome, modes: modos.filter(Boolean), ...topo };
+    if (modos && modos.length && !efeitos.length) script = { name: nome, ...(escolhaK ? { modeCount: escolhaK.todos ? modos.length : escolhaK.k, ...(escolhaK.min ? { modeMin: escolhaK.min } : {}) } : {}), modes: modos.filter(Boolean), ...topo }; // K-77 · 700.2d
     else if (efeitos.length && !modos) script = { name: nome, effects: efeitos, ...topo };
     else if (!magica && (topo.abilities || topo.aura || topo.equip || topo.entersTapped || topo.grants || topo.grantsAll || topo.self || topo.produces || topo.cycling || topo.transmute || topo.escape || topo.entersTappedUnless || topo.affinity || topo.ninjutsu || topo.reduzPor || topo.continuo || topo.alt)) script = { name: nome, ...topo }; // LT3/LT5 · M-351 · continuo · M-392: o custo alternativo (web-slinging) também é texto lido de permanente
     if (script && (script.effects || []).some(e => e.do === 'protection') && !script.choose) script.choose = 'color'; // M-348 · "protection from the color of your choice": a mágica escolhe a cor na resolução (achado da revisão do lote XXI)
