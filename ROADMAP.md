@@ -400,8 +400,8 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-z10 🟡 | Shark: truque próprio no ataque (conta com a habilidade usada depois dos bloqueios e espera os bloqueios); Elves medido por piloto: sem ganho demonstrado (leva 159) | B16 | 1 | bloqueio com truque, truque do oponente |
 | 16º-z9 🟡 | Shark: plano do baralho — Walls Combo fecha a mana infinita; vitórias pilotando a lista 18% → 33% (leva 147) | B9 | 1 | Elves e os outros perfis |
 | 16º-z2 ✅ | Shark usa todas as mecânicas, inclusive as dos terrenos: estoura o terreno que busca básico, abre mana com habilidades, ordena antes do corte do relógio; auditoria de uso (leva 143) | B21 | 1 | — |
-| 16º-sa 🟡 | B22 Shark profissional com cinco listas: fatia 1 ✅ (B-173) listas de torneio embutidas e seletor do Shark só com elas; fatia 2 ✅ (B-174) linha de base: Madness 75% · Elves 63% · Faeries 50% · Control 38% · Terror 25% contra o campo; fatia 3 ✅ (B-175) perfil do Terror + o terreno que falta (pareado 50% × 38% em 32 pares: dentro da margem); fatia 4 (B-176) ameaças do campo no Control: sem ganho (41% × 42% em 64 pares), desligada; fatia 5 (B-177) mulligan por fontes e cores: neutro em força (79 × 81 em 160 pares), ligado pelo comportamento; fatia 6 (B-178) prazo da decisão: p95 430 → 366 ms, pior 4,3 → 0,8 s, força 48 × 47; fatias 7–9 (um perfil por lista; jogar em volta; fechamento) | B22 | 9 | 16º-z2 |
 | 16º-sc 🟡 | DS-K · Ébano e Ouro, design system de patamar (direção K do volume 3, decisão do dono de 24/10): F0.1 ✅ (G-287) tokens de ébano e latão nos três blocos, receitas de animação no `/ds` como contrato da jogabilidade, guarda de contenção de texto no portão; F0.2 fontes self-hosted (sw.js, `armazem`); F1 componentes; F2 telas de gestão; F3 mesa como layout; FA leva de ajuste no aparelho | DS-K | 1 de 11 a 13 | — |
+| 16º-sa 🟡 | B22 Shark profissional com cinco listas: fatia 1 ✅ (B-173) listas de torneio embutidas e seletor do Shark só com elas; fatia 2 ✅ (B-174) linha de base: Madness 75% · Elves 63% · Faeries 50% · Control 38% · Terror 25% contra o campo; fatia 3 ✅ (B-175) perfil do Terror + o terreno que falta (pareado 50% × 38% em 32 pares: dentro da margem); fatia 4 (B-176) ameaças do campo no Control: sem ganho (41% × 42% em 64 pares), desligada; fatia 5 (B-177) mulligan por fontes e cores: neutro em força (79 × 81 em 160 pares), ligado pelo comportamento; fatia 6 (B-178) prazo da decisão: p95 430 → 366 ms, pior 4,3 → 0,8 s, força 48 × 47; fatia 7 (B-179) quando anular: a resposta é lida primeiro e a anulação guardada tem valor, neutro em força (38 × 39 em 96 pares), ligado pelo comportamento; fatias 8–9 (jogar em volta; fechamento) | B22 | 9 | 16º-z2 |
 | 16º-y ✅ | Shark: olhar o turno seguinte (simulação até o próximo turno) — medido, não pagou, fica desligado; achado: a força está no plano de cada baralho (leva 131) | B15 | 1 | — |
 | 16º-w ✅ | Shark: pesos da avaliação postos à prova por torneio — nenhum paga; achado: o limite é a profundidade, não o peso (leva 126) | B20 | 1 | — |
 | 16º-j3 🟡 | Scanner de referência (E52): X14 resposta imediata (leva 127) | E52 | 2 de 6 a 7 | teste no aparelho: "até aceitar" no diagnóstico |
@@ -7404,7 +7404,7 @@ Wildfire × Rakdos Madness) mostrou este como o erro mais caro.
   Caretaker, em duas chamadas; o dano que fecha a partida achado com relógio curto, com o v6 errando).
 - **Depende de:** B17.
 
-**B22 · Shark profissional com cinco listas** 🟡 (pedido do dono de 23/10/2026; fatias 1–6 nas levas B-173…B-178)
+**B22 · Shark profissional com cinco listas** 🟡 (pedido do dono de 23/10/2026; fatias 1–7 nas levas B-173…B-179)
 - **Valor:** o Shark joga a nível competitivo com cinco listas Pauper de torneio, e o usuário só escolhe uma dessas
   cinco para ele; cada lista ganha um perfil medido por piloto.
 - **As cinco listas (escolha de 23/10/2026, dado em `LISTAS_DO_SHARK`, módulo do bot):** do catálogo de torneios do app
@@ -7503,9 +7503,26 @@ Wildfire × Rakdos Madness) mostrou este como o erro mais caro.
   prazo não custou força. Promovido ao `shark`; `shark-v12` = Shark da B-177, congelado. Zero ilegais. Limite: a medição
   é nesta máquina; no celular cada leitura custa mais, mas o prazo é de relógio, então a cauda continua cortada (o pior
   caso passa a ser uma leitura completa além do prazo, não a decisão inteira).
+- **Fatia 7 · quando anular (B-179, 24/10/2026).** **Diagnóstico** (Shark × Shark, pilotos Faeries e Terror contra as
+  outras listas, 16 partidas, 100 ms): de 25 anulações, **14 foram em mágicas de valor 1** (Elvish Mystic, Llanowar Elves,
+  Quirion Ranger, Faithless Looting, Lava Dart…), e ele deixou passar Snuff Out, Cast Down e Fireblast com a Counterspell e a
+  mana na mão. A sonda das notas mostrou a causa do segundo erro: numa resposta o Shark lia **2 a 3 das ~10 jogadas
+  legais** antes do prazo, na ordem estável das chaves, e **em 4 de 14 ofertas a anulação nem era lida** (1 de 10 com 400 ms)
+  — no mundo sorteado, anular era melhor em 10 das 14. **Entregue:** `respondePrimeiro` — com a mágica do oponente no topo
+  da pilha, as jogadas que miram nela vão para a frente da fila; `reserva` — gastar a anulação numa mágica mais barata que
+  a média de valor de mana do que resta na lista do oponente (mão e grimório juntos: a composição é a mesma em todo mundo
+  possível, informação justa) custa a diferença × o peso de uma carta na mão, dividido pelas anulações na mão. Com as
+  duas, no mesmo diagnóstico, as anulações em mágica de valor 3 ou mais vão de 5 para 11 e as de valor 1 de 14 para 9.
+  **Força, pareado a 400 ms** (`PILOTO=2,3,1 ORC=400`, base 7, 32 pares por piloto, `z:respondePrimeiro,reserva` ×
+  `shark`): **38 × 39, só o novo 5, só o antigo 6** (Faeries 14×13 · Terror 13×13 · Control 11×13) — neutro; só 11 de 96
+  pares mudam de resultado. **Divergência declarada** (como na fatia 5): ligado por tirar dois erros visíveis ao jogador,
+  não pela medição; `shark-v13` = Shark da B-178, congelado, para desfazer. Zero ilegais. Tempo (`bot.tempo.mjs`, 400 ms,
+  20 partidas): p95 366 · p99 377 · pior 660 ms · 31 de 10.267 decisões acima do orçamento (0,3%). Posições no `bot.unit` ("B-179").
+  Leitura para a fatia 8: com a anulação no lugar certo, o resultado do Shark × Shark continua decidido em outro lugar —
+  o candidato seguinte é jogar em volta da anulação e da remoção do oponente (mana aberta dele).
 - **Fatias:** 1 listas embutidas + seletor restrito (B-173 ✅) · 2 linha de base (B-174 ✅) · 3 Terror (B-175 ✅, dentro
   da margem) · 4 Control (B-176, sem ganho: desligada) · 5 mulligan (B-177 ✅, neutro, ligado) · 6 tempo por decisão
-  (B-178 ✅) · 7 quando anular · 8 jogar em volta · 9 fechamento.
+  (B-178 ✅) · 7 quando anular (B-179 ✅, neutro, ligado) · 8 jogar em volta · 9 fechamento.
 - **Decisão registrada (divergência dita antes de executar):** o Shark deixa de jogar com qualquer lista da estante,
   inclusive fora do Pauper (Commander e livre ficam sem Shark). É o pedido do dono; se um dia quiser o Shark com
   lista própria de novo, é um chip "lista da estante" no seletor, uma leva.

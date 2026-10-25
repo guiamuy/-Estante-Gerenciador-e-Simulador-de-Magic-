@@ -1252,3 +1252,44 @@ test('B-178 · com o prazo vencido logo na primeira leitura, o Shark ainda devol
     assert.doesNotThrow(() => E.apply(s, j.acao), 'a ação é legal: ' + JSON.stringify(j.acao));
   }
 });
+
+/* ---- B-179 · quando anular: a resposta é lida primeiro e a anulação guardada tem valor ---- */
+const FAERIES = 2;
+async function comMagicaDoOponente(a, b, nome, { p0 = {}, p1 = {} } = {}) {
+  const m = await montaShark(a, b, { ativo: 1, vez: 1, passo: 'main1', p0, p1: { ...p1, mao: [...(p1.mao || []), nome] } });
+  const oid = m.ids[1][nome];
+  const conj = E.legalActions(m.s, 1).find(x => x.t === 'cast' && x.oid === oid);
+  assert.ok(conj, 'o oponente consegue conjurar ' + nome);
+  let s = act(m.s, conj);
+  if (s.turn.priority === 1) s = act(s, { t: 'pass', p: 1 });
+  assert.equal(s.turn.priority, 0); assert.equal(s.objects[s.stack[s.stack.length - 1]].name, nome);
+  return { s, ids: m.ids, alvo: s.stack[s.stack.length - 1] };
+}
+const anulaEm = (s, j, alvo) => j.acao.t === 'cast' && s.objects[j.acao.oid].name === 'Counterspell' && (j.acao.targets || []).some(t => t.oid === alvo);
+test('B-179 · com tempo para uma leitura só, `respondePrimeiro` lê primeiro a anulação na mágica do oponente e anula o Tolarian Terror; sem a opção, a primeira da fila é outra jogada', async () => {
+  const { s, alvo } = await comMagicaDoOponente(FAERIES, TERROR, 'Tolarian Terror', { p0: { campo: ['Island', 'Island', 'Swamp'], mao: ['Counterspell', 'Cast Down', 'Brainstorm'] }, p1: { campo: [...ILHAS(7), 'Delver of Secrets'] } });
+  const legais = E.legalActions(s, 0).filter(a => a.t !== 'pass' && a.t !== 'tap_mana' && a.t !== 'concede').sort((x, y) => B.chaveAcao(x) < B.chaveAcao(y) ? -1 : 1);
+  assert.ok(!anulaEm(s, { acao: legais[0] }, alvo), 'pré-condição: na ordem estável, a anulação não é a primeira');
+  const pula = () => { let n = 0; return () => (n++ > 1 ? 1e9 : 0); }; // a nota de passar e uma candidata
+  const com = B.criaBot({ nivel: 'shark', agora: pula(), extra: { respondePrimeiro: true } }).jogada(s, 0);
+  const sem = B.criaBot({ nivel: 'shark', agora: pula(), extra: { respondePrimeiro: false } }).jogada(s, 0);
+  assert.ok(anulaEm(s, com, alvo), 'com a opção: ' + com.motivo);
+  assert.ok(!anulaEm(s, sem, alvo), 'sem a opção a anulação nem é lida: ' + sem.motivo);
+});
+test('B-179 · `reserva`: com uma Counterspell só, o Shark do Faeries deixa passar o Llanowar Elves (mais barato que o resto da lista dos Elfos) e anula o Timberwatch Elf; sem a reserva, anula os dois', async () => {
+  const campo0 = { campo: ['Island', 'Island', 'Swamp'], mao: ['Counterspell', 'Brainstorm'] }, campo1 = { campo: ['Forest', 'Forest', 'Forest'] };
+  const bot = reserva => B.criaBot({ nivel: 'shark', agora: relogioParado, extra: { reserva } });
+  const elfo = await comMagicaDoOponente(FAERIES, ELFOS, 'Llanowar Elves', { p0: campo0, p1: campo1 });
+  const cro = await comMagicaDoOponente(FAERIES, ELFOS, 'Timberwatch Elf', { p0: campo0, p1: campo1 });
+  const semElfo = bot(false).jogada(elfo.s, 0), comElfo = bot(true).jogada(elfo.s, 0);
+  assert.ok(anulaEm(elfo.s, semElfo, elfo.alvo), 'sem a reserva anula o elfo de 1: ' + semElfo.motivo);
+  assert.equal(comElfo.acao.t, 'pass', 'com a reserva guarda a anulação: ' + comElfo.motivo);
+  const comCro = bot(true).jogada(cro.s, 0);
+  assert.ok(anulaEm(cro.s, comCro, cro.alvo), 'o Timberwatch (3) vale a anulação: ' + comCro.motivo);
+});
+test('B-179 · o Shark publicado guarda a Counterspell diante do Llanowar Elves; o shark-v13 congelado anula', async () => {
+  const { s, alvo } = await comMagicaDoOponente(FAERIES, ELFOS, 'Llanowar Elves', { p0: { campo: ['Island', 'Island', 'Swamp'], mao: ['Counterspell', 'Brainstorm'] }, p1: { campo: ['Forest', 'Forest', 'Forest'] } });
+  const novo = shark('shark').jogada(s, 0), v13 = shark('shark-v13').jogada(s, 0);
+  assert.equal(novo.acao.t, 'pass', 'publicado: ' + novo.motivo);
+  assert.ok(anulaEm(s, v13, alvo), 'v13: ' + v13.motivo);
+});
