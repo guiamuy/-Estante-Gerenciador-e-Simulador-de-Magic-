@@ -11674,7 +11674,8 @@ function monarcaErrosT(sc) {
   if (sc && sc.modoPeloOponente != null && !(sc.modoPeloOponente === true && (sc.modes || []).length >= 2 && !sc.modeCount && !(sc.effects || []).length && sc.modes.every(m => !((m && m.effects) || []).some(isTargeted)))) errs.push('"modoPeloOponente" (700.2e): true, com dois ou mais modos sem alvo, sem modeCount e sem "effects"'); // T-107
   if (sc && sc.modeMin != null && !(Number.isInteger(sc.modeMin) && sc.modeMin >= 1 && Number.isInteger(sc.modeCount) && sc.modeMin < sc.modeCount && !sc.modeRepeat)) errs.push('"modeMin" é um inteiro de 1 até modeCount − 1, sem repetir modos ("choose one or both", "choose one or more")'); // T-104 · CR 700.2d
   if (sc && sc.self && sc.self.emVezDePerder != null && sc.self.emVezDePerder !== 'lich') errs.push("self.emVezDePerder conhece só 'lich' (Lich's Mirror)"); // T-96 · CR 704.7
-  if (sc && sc.self && sc.self.soEmCombate != null && sc.self.soEmCombate !== true) errs.push('self.soEmCombate só vale como true'); // T-92 · "Cast this spell only during combat"
+  if (sc && sc.self && sc.self.soEmCombate != null && sc.self.soEmCombate !== true) errs.push('self.soEmCombate só vale como true');
+  if (sc && sc.self && sc.self.naoAnulavel != null && sc.self.naoAnulavel !== true) errs.push('self.naoAnulavel só vale como true'); // M-579 // T-92 · "Cast this spell only during combat"
   for (const ab of ((sc && sc.abilities) || [])) if (ab && ab.soNoSeuTurno != null && (ab.soNoSeuTurno !== true || ab.kind !== 'activated')) errs.push('soNoSeuTurno só vale como true, numa habilidade ativada'); // T-92 · "Activate only during your turn"
   if (sc && sc.self && sc.self.radGanhaVida != null && sc.self.radGanhaVida !== true) errs.push('self.radGanhaVida só vale como true'); // T-91 · CR 728.1a
   if (sc && sc.self && sc.self.corExceto != null && (!['W', 'U', 'B', 'R', 'G'].includes(sc.self.corExceto) || sc.choose !== 'color')) errs.push("self.corExceto é uma das cinco cores ('W', 'U', 'B', 'R', 'G'), com choose: 'color'"); // T-90 · CR 105.4 · "choose a color other than white"
@@ -20323,6 +20324,7 @@ const __m42 = (function () {
     [/^learn$/i, () => [{ do: 'learn' }]],
     [/^target creature blocks this turn if able$/i, () => [{ do: 'bloqueia_se_puder', target: 'creature' }]], // M-567 · Academic Dispute (509.1c)
     [/^you may have it gain (flying|reach|trample|first strike|deathtouch|lifelink|vigilance|haste|menace) until end of turn$/i, m => [{ do: 'keyword', keyword: m[1].toLowerCase(), target: 'first-target', optional: true }]], // M-567 · a mesma criatura; a escolha é na resolução
+    [/^your opponents can't cast spells this turn$/i, () => [{ do: 'oponentes_nao_conjuram' }]], // M-579 · Silence (o mesmo efeito do Mandate of Peace, T-92; mágicas já na pilha não são afetadas)
     [/^put a \+1\/\+1 counter on it and tap up to one target creature defending player controls$/i, () => [{ do: 'counters', tipo: 'p1p1', amount: 1, target: 'enchanted' }, { do: 'tap', target: { tipos: ['creature'] }, targetDefensor: true, upTo: true }]], // M-401 · Greatsword of Tyr · 508.5: o jogador que a criatura equipada ataca
     [/^that creature also gains (flying|trample|first strike|deathtouch|lifelink|vigilance|haste|menace|indestructible|hexproof) until end of turn if you control a creature with power 4 or greater$/i, m => [{ do: 'keyword', keyword: m[1].toLowerCase(), target: 'first-target', onlyIf: 'ferocious' }]], // M-399 · Temur Battle Rage (ferocidade)
     [/^~ deals (\d+) damage to each creature and each player$/i, m => [{ do: 'damage', amount: +m[1], target: 'each-creature' }, { do: 'damage', amount: +m[1], target: 'each-player' }]], // M-396 · Pestilence
@@ -20781,6 +20783,7 @@ const __m42 = (function () {
       { const rp = linha.replace(/\.$/, '').match(/^(?:domain — )?this spell costs \{(\d+)\} less to cast for each (.+)$/i), per = rp && REDUZ_POR_TEXTO[rp[2].toLowerCase()]; // M-333 · 601.2f
         if (per) { topo.reduzPor = { generic: +rp[1], per }; frases.push({ texto: linha, lida: true }); continue; } }
       if (kc0) { Object.assign(topo, kc0); frases.push({ texto: linha, lida: true }); continue; }
+      if (/^(?:this spell|~) can't be countered$/i.test(linha.replace(/\.$/, ''))) { topo.self = { ...(topo.self || {}), naoAnulavel: true }; frases.push({ texto: linha, lida: true }); continue; } // M-579 · 701.6a: anular é tirar a mágica da pilha; "can't be countered" faz a anulação não acontecer (a mágica continua alvo legal) — Abrupt Decay, Supreme Verdict, Dovin's Veto, Carnage Tyrant
       if (!magica && gatModos) { const bp = linha.match(/^•\s*(.+)$/); // M-527 · os modos do gatilho modal
         if (bp) { const semNome = bp[1].replace(/^[A-Z][A-Za-z'’ ,-]{1,40} — (?=[A-Z])/, ''); const sub = [], e = leParagrafo(semNome, nome, sub); frases.push(...sub); if (e && e.length) gatModos.modes.push({ label: bp[1].replace(/\.$/, ''), effects: e }); else gatModos.falhou = true; continue; }
         gatModos = null; }
@@ -24063,7 +24066,7 @@ function applyEffectM449(s, src, eff, tgt, events) {
       if (outras.length) { if (antes) s.saindoJuntas = antes; else delete s.saindoJuntas; }
       note(eff.mesmoNome ? { mesmoNome: outras.length } : {}); break; }
     case 'counter':
-      if (obj && obj.naoAnulavel && obj.zone === 'stack') { note({ failed: true, naoAnulavel: true }); break; }
+      if (obj && obj.zone === 'stack' && (obj.naoAnulavel || ((((s.facts[obj.name] || {}).script || {}).self || {}).naoAnulavel === true))) { note({ failed: true, naoAnulavel: true }); break; } // M-579 · "This spell can't be countered" (self.naoAnulavel, 701.6a)
       if (eff.target === 'remembered' && (!obj || obj.zone !== 'stack')) { note({ failed: true }); break; } // M-346 · "counter that spell": a mágica já saiu da pilha // M-345 · Delighted Halfling: "that spell can't be countered" (101.2)
       if (eff.mvAte != null && obj && obj.zone === 'stack' && manaValueT(s, obj) > amountOf(s, src, eff.mvAte)) { note({ failed: true, mvAlto: manaValueT(s, obj) }); break; } // M-419 · Prohibit: "counter target spell if its mana value is N or less" — conferido na resolução; acima disso, a mágica alvo fica
       const custoUnless = eff.unless ? String(eff.unless.mana).replace(/\{X\}/g, `{${src.xPaid || 0}}`) : null; // M-338 · 107.3a: o X anunciado (Syncopate)
