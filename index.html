@@ -37939,6 +37939,7 @@ const { onLongPress } = __m20;
 const { norm } = __m7;
 const { FORMATS, coresDaLista } = __m14;
 const { deckCoverage, dungeonByName, roomById, MARCADOR_PT } = __m23; // S57 · masmorra; M-249 · marcadores
+const plural = (n, um, muitos) => (n === 1 ? `${n} ${um}` : `${n} ${muitos}`); // G-305 · relato #34: o custo "pôr/remover marcador" (Wall of Roots) chamava plural() de outro módulo e a folha da carta não abria
 const go = to => { location.hash = '#' + to; };
 const pad = () => ({ class: 'ds-wrap', style: { paddingTop: 'var(--space-5)', paddingBottom: 'var(--space-8)' } });
 /** Campo com botões: não usa <label>, que reenvia o clique para o primeiro

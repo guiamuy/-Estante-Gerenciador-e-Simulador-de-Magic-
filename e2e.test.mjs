@@ -53,6 +53,8 @@ const DB = Object.fromEntries([
   { ...card('Nyxborn Hydra', 'Enchantment Creature — Hydra', ['G'], 1), mana_cost: '{X}{G}', keywords: ['Bestow', 'Reach', 'Trample'], power: '0', toughness: '0',
     oracle_text: "Bestow {X}{G}{G} (If you cast this card for its bestow cost, it's an Aura spell with enchant creature. It becomes a creature again if it's not attached.)\nReach, trample\nNyxborn Hydra enters with X +1/+1 counters on it.\nEnchanted creature gets +1/+1 for each +1/+1 counter on Nyxborn Hydra and has reach and trample." },
   card('Forest', 'Basic Land — Forest', [], 0),
+  // G-305 · relato #34 · texto do Oracle conferido em .listas/oficiais-listas.json (Forge, consulta de 12/10/2026, M-360)
+  { ...card('Wall of Roots', 'Creature — Plant Wall', ['G'], 2), mana_cost: '{1}{G}', keywords: ['Defender'], power: '0', toughness: '5', oracle_text: 'Defender\nPut a -0/-1 counter on Wall of Roots: Add {G}. Activate only once each turn.' },
   // Leva 107 · texto oficial conferido em 30/09/2026 (Scryfall/.listas/oficiais.json)
   { ...card('Duress', 'Sorcery', ['B'], 1), mana_cost: '{B}', oracle_text: 'Target opponent reveals their hand. You choose a noncreature, nonland card from it. That player discards that card.' },
   // Leva 110 · textos oficiais conferidos em 30/09/2026 (.listas/oficiais.json: Fiery Temper, Grab the Prize, Utopia Sprawl)
@@ -1658,6 +1660,48 @@ test('e2e · M7/M6/A6 goldfish: mana paga sozinha, falta de mana, ataque e dano'
   // leva 110: registro reescrito — vida como "perdeu N (antes → depois)", bloqueio como "bloqueou X com Y", alvo como "· alvo:"
   assert.match(log, /Goldfish perdeu 2 de vida \(20 → 18\)/);
   assert.match(log, /Você gerou|conjurou Sky Pike/);
+  assert.deepEqual(errors, []);
+});
+
+// G-305 · relato #34 (Mesa, "impede o uso"): com Wall of Roots no campo, tocar e segurar a carta não abriam nada e a
+// habilidade não saía — a folha e o espiar montam o custo de cada habilidade e o custo "pôr/remover marcador" chamava
+// plural(), que só existia no módulo da mesa-modelo (ReferenceError). Falha antes da G-305 em todas as asserções da folha.
+test('e2e · G-305 Wall of Roots no campo: segurar espia com "Pode agora", tocar abre a folha com "Gerar {G}", e a habilidade põe o marcador −0/−1 e dá {G}', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 697 });
+  await createDeck(page, base, 'Raízes', '30 Forest\n30 Wall of Roots', 'livre');
+  await page.goto(base + '#/mesa'); await page.fill('#mesa-seed', '4'); await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('.tb-banner');
+  await toMyMain(page);
+  await drawUntil(page, 'Forest'); await handCard(page, 'Forest').click(); await page.click('text=Jogar terreno');
+  if (await page.locator('#tb-pass-turn').count()) await page.click('#tb-pass-turn'); else await page.click('#tb-pass');
+  await toMyMain(page);
+  await drawUntil(page, 'Forest'); await handCard(page, 'Forest').click(); await page.click('text=Jogar terreno');
+  await drawUntil(page, 'Wall of Roots'); await handCard(page, 'Wall of Roots').click();
+  await page.click('.ds-dialog >> text=/^Conjurar/');
+  const campo = page.locator('.tb-side--me [data-zone="permanents"] .tb-card[aria-label^="Wall of Roots"]').first();
+  await campo.waitFor(); await page.waitForTimeout(300);
+  await campo.evaluate(el => el.scrollIntoView({ block: 'center' }));
+  // segurar: o espiar abre com o texto e a ação que dá para fazer agora
+  const b = await campo.boundingBox();
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2); await page.mouse.down();
+  await page.waitForSelector('#tb-peek', { state: 'attached', timeout: 3000 });
+  const peek = await page.innerText('#tb-peek');
+  assert.match(peek, /Wall of Roots/); assert.match(peek, /0\/5/); assert.match(peek, /Pode agora:/); assert.match(peek, /Gerar \{G\}|Gerar/);
+  await page.mouse.up(); await page.waitForFunction(() => !document.querySelector('#tb-peek'));
+  // tocar: a folha com a habilidade e o custo por extenso
+  await campo.click(); await page.waitForSelector('.ds-dialog');
+  const gera = page.locator('.ds-dialog button', { hasText: 'Gerar {G} (pôr 1 marcador −0/−1 nesta)' });
+  assert.equal(await gera.count(), 1, await page.innerText('.ds-dialog'));
+  await gera.click(); await page.waitForTimeout(300);
+  const st = await page.evaluate(() => { const s = window.__estanteMesa.estado(), w = Object.values(s.objects).find(o => o.name === 'Wall of Roots' && o.zone === 'battlefield'); return { m: w.counters.m0m1 || 0, g: s.players[s.turn.active].pool.G || 0, pilha: s.stack.length }; });
+  assert.deepEqual(st, { m: 1, g: 1, pilha: 0 }, 'marcador −0/−1, {G} na reserva, sem pilha');
+  assert.match(await campo.getAttribute('aria-label'), /0\/4/, 'a resistência cai para 4');
+  // uma vez por turno: a folha não oferece de novo
+  await campo.click(); await page.waitForSelector('.ds-dialog');
+  assert.equal(await page.locator('.ds-dialog button', { hasText: 'Gerar {G}' }).count(), 0, 'uma vez por turno');
+  await page.keyboard.press('Escape');
   assert.deepEqual(errors, []);
 });
 
@@ -15727,3 +15771,4 @@ test('e2e · DS-K F2.1 · a abertura monta o ícone em três planos (luz acende,
   assert.deepEqual(r, { parada: 'true', anim: 0, nome: '1', luz: '1', lad: 'none' }, 'com menos movimento: ícone, luz e nome no lugar');
   assert.deepEqual(errors, []);
 });
+
