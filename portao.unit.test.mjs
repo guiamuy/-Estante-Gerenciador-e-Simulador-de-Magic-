@@ -79,6 +79,10 @@ test('Q16 · o navegador da fase de tela: PW_CHROMIUM, o do Playwright instalado
   assert.deepEqual(navegadorDeTela({ ...nuvem, existe: tem('/pw/chromium_headless_shell-1194/chrome-linux/headless_shell', '/pw/chromium-1194/chrome-linux/chrome') }), { caminho: '/pw/chromium_headless_shell-1194/chrome-linux/headless_shell', origem: 'outra revisão' });
   assert.deepEqual(navegadorDeTela({ ...nuvem, existe: tem('/pw/chromium-1194/chrome-linux/chrome') }), { caminho: '/pw/chromium-1194/chrome-linux/chrome', origem: 'outra revisão' });
   assert.match(navegadorDeTela({ ...nuvem, existe: tem() }).erro, /playwright install chromium/);
+  // I-305 · revisão 1243 (Chromium 153): as pastas trocaram de nome nas sessões de nuvem de 25/10
+  const nova = { env: { PLAYWRIGHT_BROWSERS_PATH: '/pw' }, padrao: '/pw/chromium_headless_shell-1194/chrome-linux/headless_shell', lista: () => ['chromium', 'chromium-1243', 'chromium_headless_shell-1243', 'ffmpeg-1011'] };
+  assert.deepEqual(navegadorDeTela({ ...nova, existe: tem('/pw/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell', '/pw/chromium-1243/chrome-linux64/chrome') }), { caminho: '/pw/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell', origem: 'outra revisão' });
+  assert.deepEqual(navegadorDeTela({ ...nova, existe: tem('/pw/chromium-1243/chrome-linux64/chrome') }), { caminho: '/pw/chromium-1243/chrome-linux64/chrome', origem: 'outra revisão' });
   assert.match(navegadorDeTela({ env: {}, existe: tem() }).erro, /Não achei o Chromium/);
 });
 

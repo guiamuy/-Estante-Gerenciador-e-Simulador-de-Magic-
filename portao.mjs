@@ -144,8 +144,10 @@ export function navegadorDeTela({ env = process.env, existe = existsSync, lista 
   if (padrao && existe(padrao)) return { caminho: '', origem: 'playwright' };
   const pasta = env.PLAYWRIGHT_BROWSERS_PATH || '';
   const nomes = pasta ? lista(pasta).sort().reverse() : [];
-  for (const [rx, resto] of [[/^chromium_headless_shell-\d+$/, 'chrome-linux/headless_shell'], [/^chromium-\d+$/, 'chrome-linux/chrome']]) {
-    for (const n of nomes.filter((x) => rx.test(x))) { const c = join(pasta, n, resto); if (existe(c)) return { caminho: c, origem: 'outra revisão' }; }
+  // I-305 · desde a revisão 1243 (Chromium 153) as pastas mudaram: chrome-headless-shell-linux64/ e chrome-linux64/ — as sessões de
+  // nuvem de 25/10 trazem esse desenho e o portão das conversas parava em "Não achei o Chromium" sem `PW_CHROMIUM`
+  for (const [rx, restos] of [[/^chromium_headless_shell-\d+$/, ['chrome-linux/headless_shell', 'chrome-headless-shell-linux64/chrome-headless-shell']], [/^chromium-\d+$/, ['chrome-linux/chrome', 'chrome-linux64/chrome']]]) {
+    for (const n of nomes.filter((x) => rx.test(x))) for (const resto of restos) { const c = join(pasta, n, resto); if (existe(c)) return { caminho: c, origem: 'outra revisão' }; }
   }
   return { erro: 'Não achei o Chromium da fase de tela. Rode `npx playwright install chromium` ou aponte PW_CHROMIUM para o executável.' };
 }
