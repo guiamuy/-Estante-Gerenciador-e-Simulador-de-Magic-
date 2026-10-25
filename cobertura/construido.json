@@ -1,23 +1,25 @@
 {
  "versao": 1,
  "formato": "construido",
- "geradoEm": "2026-10-25T06:50:32.730Z",
+ "geradoEm": "2026-10-25T12:01:09.221Z",
  "motor": 112,
  "fonte": "api.scryfall.com/cards/collection",
  "listas": 30,
  "listas100": 0,
- "cartasPendentes": 255,
+ "cartasPendentes": 254,
  "parcial": false,
  "lotesComFalha": 0,
  "porClasse": {
   "texto-mudou": 0,
   "lida": 38,
-  "nova": 217,
+  "nova": 216,
   "parcial": 0,
   "sem-dados": 0
  },
  "novasDesdeAnterior": [],
- "resolvidasDesdeAnterior": [],
+ "resolvidasDesdeAnterior": [
+  "Omen of the Sea"
+ ],
  "curva": [
   {
    "listas": 1,
@@ -33,11 +35,11 @@
   },
   {
    "listas": 25,
-   "cartas": 198
+   "cartas": 197
   },
   {
    "listas": 30,
-   "cartas": 255
+   "cartas": 254
   }
  ],
  "textos": 0,
@@ -173,7 +175,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 2,
-   "gulosa": 18,
+   "gulosa": 17,
    "texto": null
   },
   {
@@ -289,24 +291,6 @@
     "layout": "normal",
     "power": "1",
     "toughness": "1"
-   }
-  },
-  {
-   "name": "Omen of the Sea",
-   "classe": "lida",
-   "nivel": "lida",
-   "motivo": "lida pelo motor, em revisão",
-   "listas": 2,
-   "gulosa": 19,
-   "texto": {
-    "mana_cost": "{1}{U}",
-    "type_line": "Enchantment",
-    "oracle_text": "Flash (You may cast this spell any time you could cast an instant.)\nWhen this enchantment enters, scry 2, then draw a card.\n{2}{U}, Sacrifice this enchantment: Scry 2. (Look at the top two cards of your library, then put any number of them on the bottom and the rest on top in any order.)",
-    "keywords": [
-     "Flash",
-     "Scry"
-    ],
-    "layout": "normal"
    }
   },
   {
@@ -465,7 +449,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 17,
+   "gulosa": 19,
    "texto": null
   },
   {
@@ -529,7 +513,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 1,
-   "gulosa": 17,
+   "gulosa": 19,
    "texto": null
   },
   {
@@ -739,12 +723,22 @@
   },
   {
    "name": "Cultivator's Caravan",
-   "classe": "nova",
-   "nivel": "parcial",
-   "motivo": "parte do texto o motor não resolve",
+   "classe": "lida",
+   "nivel": "lida",
+   "motivo": "lida pelo motor, em revisão",
    "listas": 1,
    "gulosa": 27,
-   "texto": null
+   "texto": {
+    "mana_cost": "{3}",
+    "type_line": "Artifact — Vehicle",
+    "oracle_text": "{T}: Add one mana of any color.\nCrew 3 (Tap any number of creatures you control with total power 3 or more: This Vehicle becomes an artifact creature until end of turn.)",
+    "keywords": [
+     "Crew"
+    ],
+    "layout": "normal",
+    "power": "5",
+    "toughness": "5"
+   }
   },
   {
    "name": "Deafening Clarion",
@@ -752,7 +746,7 @@
    "nivel": "lida",
    "motivo": "lida pelo motor, em revisão",
    "listas": 1,
-   "gulosa": 19,
+   "gulosa": 17,
    "texto": {
     "mana_cost": "{1}{R}{W}",
     "type_line": "Sorcery",
@@ -859,7 +853,7 @@
    "nivel": "lida",
    "motivo": "lida pelo motor, em revisão",
    "listas": 1,
-   "gulosa": 19,
+   "gulosa": 17,
    "texto": {
     "mana_cost": "{2}{U}{U}",
     "type_line": "Sorcery",
@@ -988,7 +982,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 1,
-   "gulosa": 17,
+   "gulosa": 19,
    "texto": null
   },
   {
@@ -1015,7 +1009,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 19,
+   "gulosa": 17,
    "texto": null
   },
   {
@@ -1033,7 +1027,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 1,
-   "gulosa": 17,
+   "gulosa": 19,
    "texto": null
   },
   {
@@ -1087,7 +1081,7 @@
    "nivel": "lida",
    "motivo": "lida pelo motor, em revisão",
    "listas": 1,
-   "gulosa": 17,
+   "gulosa": 19,
    "texto": {
     "mana_cost": "{3}{U}",
     "type_line": "Instant",
@@ -1346,7 +1340,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 19,
+   "gulosa": 17,
    "texto": null
   },
   {
@@ -1364,7 +1358,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 17,
+   "gulosa": 19,
    "texto": null
   },
   {
@@ -1491,7 +1485,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 19,
+   "gulosa": 17,
    "texto": null
   },
   {
@@ -1533,7 +1527,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 17,
+   "gulosa": 19,
    "texto": null
   },
   {
@@ -1542,7 +1536,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 19,
+   "gulosa": 17,
    "texto": null
   },
   {
@@ -2083,7 +2077,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 19,
+   "gulosa": 17,
    "texto": null
   },
   {
@@ -2119,7 +2113,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 1,
-   "gulosa": 17,
+   "gulosa": 19,
    "texto": null
   },
   {
@@ -2245,7 +2239,7 @@
    "nivel": "lida",
    "motivo": "lida pelo motor, em revisão",
    "listas": 1,
-   "gulosa": 17,
+   "gulosa": 19,
    "texto": {
     "mana_cost": "{2}{U}",
     "type_line": "Instant",
@@ -2465,7 +2459,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 19,
+   "gulosa": 17,
    "texto": null
   },
   {
@@ -2874,8 +2868,7 @@
     "Thirst for Meaning",
     "Glass Casket",
     "Shark Typhoon",
-    "Elspeth Conquers Death",
-    "Omen of the Sea"
+    "Elspeth Conquers Death"
    ]
   },
   {
@@ -2943,7 +2936,6 @@
     "Deafening Clarion",
     "Drawn from Dreams",
     "Fires of Invention",
-    "Omen of the Sea",
     "Interplanar Beacon"
    ]
   },
