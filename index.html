@@ -11370,6 +11370,14 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Fierce Guardianship': { texto: '5fuvo9', leva: 'M-577' },
   // M-578 · sentinela do Pauper (cobertura/pauper.json de 24/10/2026), texto da Scryfall de 24/10/2026 UTC, revisor independente
   'Demand Answers': { texto: '158j0rb', leva: 'M-578' },
+  // M-580 · rotina Sentinela do Pauper (cobertura/pauper.json de 25/10/2026; texto da Scryfall do dia em .listas/oficiais-revisadas.json)
+  'Carrot Cake': { texto: '1aqeaak', leva: 'M-580' },
+  'Curious Farm Animals': { texto: 'xgjftl', leva: 'M-580' },
+  'Fields of Strife': { texto: '1tqpdl9', leva: 'M-580' },
+  'Foot Headquarters': { texto: '1ahw43', leva: 'M-580' },
+  'Hidden Grotto': { texto: 'd8zjvi', leva: 'M-580' },
+  'Massive Might': { texto: '15mzdm0', leva: 'M-580' },
+  'Pilfer': { texto: '68e1mu', leva: 'M-580' },
   'Flawless Maneuver': { texto: '1dbabfl', leva: 'M-577' },
   'Deadly Rollick': { texto: 'mi4hfd', leva: 'M-577' },
   // H-18 · revisão em lote 1 dos competitivos (homologacao): 18 cartas `lida`, texto da Scryfall de 25/10/2026 (cobertura/*.json do ramo catalogo), revisor independente
@@ -20334,6 +20342,7 @@ const __m42 = (function () {
     [/^destroy target creature with total power and toughness (\d+) or less$/i, m => [{ do: 'destroy', target: 'creature', targetPTTotalMax: +m[1] }]], // M-331 · Cut Down
     [/^exile that creature$/i, () => [{ do: 'exile', target: 'first-target' }]], // M-331 · "Tap target creature. … exile that creature." (Dispatch)
     [/^destroy (target [a-z ']+)$/i, m => [com({ do: 'destroy' }, alvo(m[1]))]],
+    [/^destroy (up to one target [a-z ']+)$/i, m => [com({ do: 'destroy' }, alvo(m[1]))]], // M-580 · Curious Farm Animals (115.3: "up to one" aceita zero alvos; alvo() devolve upTo)
     [/^destroy (target creature, enchantment, or planeswalker)$/i, m => [com({ do: 'destroy' }, alvo(m[1]))]], // M-341 · Get Lost
     [/^destroy (target nonartifact, non(?:white|blue|black|red|green) creature)$/i, m => [com({ do: 'destroy' }, alvo(m[1]))]], // M-524 · Terror (a vírgula ficava fora do padrão geral)
     [/^exile (target [a-z ']+) until ~ leaves the battlefield$/i, m => [com({ do: 'exile', ate: 'fonte-sair' }, alvo(m[1]))]], // CR2d.1 · 610.3
