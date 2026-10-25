@@ -501,3 +501,22 @@ test('J-26 · o ataque aparece também quando o combate inteiro cabe numa jogada
   const declarado = J(a); declarado.objects[5].attacking = 1; declarado.atacaramNoTurno = [{ oid: 5, z: 0 }];
   assert.deepEqual(ev(a, declarado).filter(e => e.tipo === 'ataque'), [{ tipo: 'ataque', oids: [5], jogador: 0 }], 'declarado e ainda atacando: uma vez só');
 });
+
+test('J-27 · comprar, mirar e troca de vez no DS-K: etapas das keyframes contra o palco; mirar na cor do oponente e com os nós reaproveitados', async () => {
+  const { readFileSync } = await import('node:fs');
+  const HTML = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
+  const kf = n => (HTML.match(new RegExp(`@keyframes ${n} \\{[^\\n]*`)) || [''])[0];
+  assert.match(kf('tb-compra'), /0% \{[^}]*rotateY\(180deg\)/, 'a compra começa de verso');
+  assert.match(kf('tb-compra'), /50% \{[^}]*rotateY\(90deg\) scale\(1\.35\)/, 'de lado e 35 % maior no meio do voo');
+  assert.match(kf('tb-compra-sombra'), /50% \{ opacity: 1;/, 'a sombra cresce no meio do voo');
+  assert.match(HTML, /\.tb-fx--compra \{ animation: tb-compra var\(--dur-4\) var\(--ease-out\)/);
+  assert.match(kf('tb-vez-aperta'), /letter-spacing/); assert.match(HTML, /\.tb-vez--troca \.tb-vez__rotulo \{ animation: tb-vez-aperta var\(--dur-4\) var\(--ease-out\)/);
+  assert.match(HTML, /\.tb-vez--troca \.tb-vez__btn::after \{[^}]*var\(--sheen\)[^}]*animation: tb-vez-varre var\(--dur-4\) var\(--ease-out\) var\(--dur-3\) both/, 'a varredura de latão a --dur-3');
+  assert.match(HTML, /\.tb-vez-veu \{[^}]*pointer-events: none;[^}]*animation: tb-vez-veu var\(--dur-4\)/);
+  assert.match(HTML, /\.tb-seta--mira \{ color: var\(--player-opp\); \}/, 'mirar na cor do oponente');
+  assert.match(HTML, /\.tb-mira\[data-fase="linha"\] \.tb-seta__traco \{ stroke-dasharray: 100; animation: tb-mira-linha var\(--dur-3\)/);
+  assert.match(HTML, /\.tb-mira\[data-fase="marcha"\] \.tb-seta__ponta \{ animation: tb-seta-entra var\(--dur-1\)/);
+  assert.match(HTML, /\.tb-mira\[data-fase="marcha"\] \.tb-seta__traco \{ animation: tb-mira-marcha var\(--dur-pulso\) linear infinite; \}/);
+  assert.match(HTML, /sombra\.setAttribute\('d', c\.d\); traco\.setAttribute\('d', c\.d\)/, 'a seta da mira reaproveita os nós: o tracejado não recomeça a cada quadro');
+  assert.ok(!/tb-fx-chega/.test(HTML), 'o pouso antigo da compra saiu');
+});

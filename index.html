@@ -569,7 +569,10 @@ a { color: var(--accent); }
    e a sombra terminando apagada: a carta pousada volta à sombra baixa dela. */
 @keyframes tb-pousa { 0% { opacity: 0; transform: perspective(700px) translate3d(0, -60px, -280px) rotateX(45deg); } 40% { opacity: 1; transform: perspective(700px) translate3d(0, -16px, 70px) rotateX(-8deg); } 72% { transform: perspective(700px) translate3d(0, 3px, 0) rotateX(3deg); } 100% { opacity: 1; transform: none; } }
 @keyframes tb-pousa-sombra { 0% { opacity: 0; transform: scale(2.2, 1.6); } 55% { opacity: 1; transform: scale(1.2, 1.1); } 100% { opacity: 0; transform: scale(1, 1); } }
-@keyframes tb-fx-chega { from { opacity: 0; transform: translate(36px, -14px) rotate(7deg); } to { opacity: 1; transform: none; } }
+/* J-27 · receita de comprar do DS: a carta chega à mão virando do verso para a face em 3D e cresce 35 % no meio do voo;
+   o verso (.tb-fx-verso) cobre a carta até ela ficar de lado; a sombra própria cresce no meio do voo */
+@keyframes tb-compra { 0% { opacity: 0; transform: perspective(700px) translate(36px, -14px) rotateY(180deg) scale(1); } 15% { opacity: 1; } 50% { transform: perspective(700px) translate(18px, -24px) rotateY(90deg) scale(1.35); } 100% { opacity: 1; transform: perspective(700px) translate(0, 0) rotateY(0deg) scale(1); } }
+@keyframes tb-compra-sombra { 0%, 100% { opacity: 0; transform: none; } 50% { opacity: 1; transform: translateY(8px) scale(1.1); } }
 @keyframes tb-fx-clarao { from { opacity: .6; } to { opacity: 0; } }
 @keyframes tb-fx-anel { from { opacity: .95; transform: scale(.92); } to { opacity: 0; transform: scale(1.28); } }
 @keyframes tb-fx-abalo { 0%, 100% { transform: translate(0, 0); } 15% { transform: translate(-7px, 3px); } 30% { transform: translate(6px, -4px); } 45% { transform: translate(-5px, -2px); } 60% { transform: translate(4px, 3px); } 80% { transform: translate(-2px, 1px); } }
@@ -608,7 +611,8 @@ a { color: var(--accent); }
 .tb-fx--terreno:not([data-voou]), .tb-fx--entra:not([data-voou]) { animation: tb-pousa var(--dur-4) var(--ease-spring) var(--fx-atraso, 0s) backwards; }
 .tb-card.tb-fx--terreno:not([data-voou])::before, .tb-card.tb-fx--entra:not([data-voou])::before { animation: tb-pousa-sombra var(--dur-4) var(--ease-out) var(--fx-atraso, 0s) backwards; }
 .tb-card.tb-fx--entra::after { border: 2px solid var(--accent); animation: tb-fx-anel var(--dur-fx) var(--ease-out) var(--fx-atraso, 0s); }
-.tb-fx--compra { animation: tb-fx-chega var(--dur-4) var(--ease-out) var(--fx-atraso, 0s) backwards; }
+.tb-fx--compra { animation: tb-compra var(--dur-4) var(--ease-out) var(--fx-atraso, 0s) backwards; }
+.tb-card.tb-fx--compra::before { animation: tb-compra-sombra var(--dur-4) var(--ease-out) var(--fx-atraso, 0s) backwards; }
 .tb-fx--conjura { animation: tb-fx-brilho var(--dur-fx) var(--ease-out) var(--fx-atraso, 0s); }
 .tb-fx--abalo { animation: tb-fx-abalo var(--dur-fx) var(--ease-out) var(--fx-atraso, 0s); }
 /* o número que sobe do marcador (ou da criatura) */
@@ -2220,7 +2224,7 @@ body[data-mesa-cheia="true"] .tb-steps__list li { padding: 0 0 1px; border-botto
    quem joga e nos selos de latão da carta (nada de brilho que corra: é luz parada num objeto de metal) */
 .tb-life[data-active="true"] { background-image: linear-gradient(180deg, var(--latao-luz) 0, transparent 45%); }
 .tb-pill:not(.tb-pill--icone):not(.tb-pill--perdeu) { box-shadow: inset 0 1px 0 var(--latao-luz), inset 0 -1px 0 var(--latao-labio); }
-.tb-vez__btn { flex: 1 1 auto; display: flex; align-items: center; gap: var(--space-2); min-height: var(--tap-min); padding: var(--space-1) var(--space-4) var(--space-1) var(--space-1);
+.tb-vez__btn { position: relative; overflow: hidden; flex: 1 1 auto; display: flex; align-items: center; gap: var(--space-2); min-height: var(--tap-min); padding: var(--space-1) var(--space-4) var(--space-1) var(--space-1);
   border: 0; border-radius: inherit; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .tb-vez__btn:disabled { cursor: default; }
 .tb-vez__btn:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
@@ -2248,6 +2252,15 @@ body[data-mesa-cheia="true"] .tb-steps__list li { padding: 0 0 1px; border-botto
 /* Leva 121 · sem escala: a faixa agora é um botão e precisa medir 44 px também durante a entrada */
 @keyframes tb-vez-troca { from { opacity: .2; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
 .tb-vez--troca { animation: tb-vez-troca var(--dur-3) var(--ease-out); }
+/* J-27 · receita de vez do DS (palco ds-aperta e ds-varre): o nome chega com o espaçamento largo que se fecha em --dur-4, e
+   a varredura de latão (--sheen) atravessa a faixa a partir de --dur-3; o véu (.tb-vez-veu) escurece o campo por baixo */
+.tb-vez--troca .tb-vez__rotulo { animation: tb-vez-aperta var(--dur-4) var(--ease-out); }
+.tb-vez--troca .tb-vez__btn::after { content: ''; position: absolute; top: -30%; bottom: -30%; left: 0; width: 30%; background: linear-gradient(100deg, transparent, var(--sheen), transparent); pointer-events: none;
+  transform: translateX(-200%) skewX(-18deg); animation: tb-vez-varre var(--dur-4) var(--ease-out) var(--dur-3) both; }
+@keyframes tb-vez-aperta { from { letter-spacing: .12em; } }
+@keyframes tb-vez-varre { from { transform: translateX(-200%) skewX(-18deg); } to { transform: translateX(420%) skewX(-18deg); } }
+.tb-vez-veu { position: fixed; inset: 0; background: var(--scrim); box-shadow: 0 0 0 100vmax var(--scrim); opacity: 0; pointer-events: none; animation: tb-vez-veu var(--dur-4) var(--ease-out) both; }
+@keyframes tb-vez-veu { 0% { opacity: 0; } 43% { opacity: .35; } 100% { opacity: 0; } }
 /* MJ8 (J-18) · a faixa de vez desliza na troca: vem do lado de quem recebe a vez (o oponente fica em cima, você embaixo),
    só transform e opacidade; o selo da Conversa acompanha */
 @keyframes tb-vez-desce { from { opacity: .2; transform: translateY(-55%); } to { opacity: 1; transform: none; } }
@@ -2433,7 +2446,13 @@ body[data-mesa-cheia="true"] .tb-steps__list li { padding: 0 0 1px; border-botto
 .tb-fx-camada > .tb-mira__carta { position: fixed; margin: 0; pointer-events: none; transform: translateY(calc(var(--space-2) * -1)); }
 .tb-fx-camada > .tb-mira__carta::before { opacity: 1; } /* MJ7 · a carta que mira está levantada: a sombra cresce com ela (a mesma de toda carta levantada) */
 .tb-mira { z-index: 1; }
-.tb-seta--mira { color: var(--accent); }
+.tb-seta--mira { color: var(--player-opp); } /* J-27 · receita de mirar: a cor do oponente, nunca a de ataque (vermelho) ou de bloqueio (dourado) */
+.tb-mira[data-fase="linha"] .tb-seta__traco { stroke-dasharray: 100; animation: tb-mira-linha var(--dur-3) var(--ease-out) both; }
+.tb-mira[data-fase="linha"] .tb-seta__sombra, .tb-mira[data-fase="linha"] .tb-seta__ponta { opacity: 0; }
+.tb-mira[data-fase="marcha"] .tb-seta__ponta { animation: tb-seta-entra var(--dur-1) var(--ease-out) both; }
+.tb-mira[data-fase="marcha"] .tb-seta__traco { animation: tb-mira-marcha var(--dur-pulso) linear infinite; }
+@keyframes tb-mira-linha { from { stroke-dashoffset: 100; } to { stroke-dashoffset: 0; } }
+@keyframes tb-mira-marcha { to { stroke-dashoffset: -30; } }
 .tb-seta--mira .tb-seta__traco { stroke-dasharray: 9 6; }
 .tb-card[data-mira="alvo"] .tb-card__face, .tb-life[data-mira="alvo"] { outline: 2px dashed var(--accent); outline-offset: 2px; }
 .tb-card[data-mira="sob"] .tb-card__face, .tb-life[data-mira="sob"] { outline: 3px solid var(--accent); outline-offset: 2px; }
@@ -38800,7 +38819,12 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       }
       mira.sob = sob;
       const c = __m33.curvaDaSeta(mira.de, para);
-      mira.g.replaceChildren(...(c ? [svgEl('path', { class: 'tb-seta__sombra', d: c.d }), svgEl('path', { class: 'tb-seta__traco', d: c.d }), svgEl('polygon', { class: 'tb-seta__ponta', points: c.ponta })] : []));
+      // J-27 · os mesmos nós a cada quadro (só a curva muda): a linha que se desenha e o tracejado que marcha não recomeçam
+      if (!c) { mira.g.replaceChildren(); mira.partes = null; }
+      else if (!mira.partes) {
+        mira.partes = [svgEl('path', { class: 'tb-seta__sombra', d: c.d }), svgEl('path', { class: 'tb-seta__traco', d: c.d, ...(mira.svg.dataset.fase === 'linha' ? { pathLength: '100' } : {}) }), svgEl('polygon', { class: 'tb-seta__ponta', points: c.ponta })];
+        mira.g.replaceChildren(...mira.partes);
+      } else { const [sombra, traco, ponta] = mira.partes; sombra.setAttribute('d', c.d); traco.setAttribute('d', c.d); ponta.setAttribute('points', c.ponta); }
       mira.svg.dataset.alvo = sob ? sob.g.chave : '';
     };
     const agenda = (x, y) => { ux = x; uy = y; if (!quadro) quadro = requestAnimationFrame(() => { quadro = 0; if (mira) desenha(ux, uy); }); }; // um desenho por quadro
@@ -38815,6 +38839,10 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       Object.assign(carta.style, { left: `${de.x}px`, top: `${de.y}px`, width: `${de.w}px`, height: `${de.h}px` });
       const svg = svgEl('svg', { id: 'tb-mira', class: 'tb-setas tb-mira', 'aria-hidden': 'true', focusable: 'false', 'data-receita': 'mirar' }), g = svgEl('g', { class: 'tb-seta tb-seta--mira' });
       svg.appendChild(g); camadaFx().append(svg, carta);
+      // J-27 · receita de mirar do DS: a linha se desenha (--dur-3), a ponta aparece (--dur-1) e o tracejado marcha até a
+      // escolha; com menos movimento, linha e tracejado parados
+      svg.dataset.fase = menosMovimento() ? 'parado' : 'linha';
+      if (svg.dataset.fase === 'linha') setTimeout(() => { if (svg.isConnected) { svg.dataset.fase = 'marcha'; const tr = svg.querySelector('.tb-seta__traco'); if (tr) tr.removeAttribute('pathLength'); } }, durFx('--dur-3'));
       mira = { v, outro: s.players.findIndex((_, i) => i !== v), de, carta, svg, g, porChave: new Map(alvos.map(a => [a.chave, a])), sobEl: null, sob: null };
       for (const a of alvos) {
         const t = a.alvo.oid != null ? root.querySelector(`.tb-side .tb-card[data-oid="${a.alvo.oid}"]`) || root.querySelector(`.tb-side .tb-card[data-oids~="${a.alvo.oid}"]`) : root.querySelector(a.alvo.player === v ? '#tb-life-me' : '#tb-life-opp');
@@ -39059,6 +39087,11 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       feitos.push(p.fx);
       if (p.fx === 'ataque' && !parado && impacto(p)) feitos.push('impacto');
       if (p.vida != null && (p.fx === 'dano' || p.fx === 'cura') && !parado && rolaVida(el, p)) feitos.push('rolo');
+      if (p.fx === 'compra' && !parado) { // J-27 · o verso cobre a carta comprada até ela ficar de lado no meio do voo
+        const vs = h('span', { class: 'ds-verso tb-voo__verso tb-fx-verso', 'aria-hidden': 'true' }); el.appendChild(vs);
+        const a = vs.animate([{ opacity: 1 }, { offset: 0.5, opacity: 1 }, { offset: 0.52, opacity: 0 }, { opacity: 0 }], { duration: durFx('--dur-4'), delay: p.atraso, fill: 'both' });
+        a.onfinish = a.oncancel = () => vs.remove(); feitos.push('verso');
+      }
       if (p.texto) {
         const r = el.getBoundingClientRect();
         const n = h('span', { class: 'tb-fx-num' + (parado ? ' tb-fx-num--parado' : ''), dataset: { tom: p.tom, receita: 'dano' } }, p.texto); n.style.left = `${r.left + r.width / 2}px`; n.style.top = `${r.top + r.height / 2}px`;
@@ -39178,7 +39211,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   // U7 · faixa de quem joga: anima só quando o turno troca.
   // Q10 · o nó da faixa é um só e muda no lugar enquanto ainda está na tela: assim o leitor de tela
   // anuncia a troca (region viva recriada a cada pintura não é lida).
-  let ultimoTurno = null, vezEl = null, vezPop = null, vezAberto = false;
+  let ultimoTurno = null, vezEl = null, vezPop = null, vezAberto = false, vezTrocou = false;
   let ultimoPasso = null; // MJ8 · a fase e o turno do desenho anterior: o trilho acende em sequência até a fase de agora
   /** Leva 125 · com a pergunta escrita no cabeçalho de decisão, o botão de texto do aviso (palavra do momento + balão) vira
    *  um trecho só de texto, fora da vista e fora do foco: o conteúdo continua no documento, sem alvo de toque invisível. */
@@ -39228,6 +39261,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     if (!vezEl) vezEl = h('div', { class: 'tb-vez', id: 'tb-vez', role: 'status', 'aria-live': 'polite' });
     vezEl.className = 'tb-vez' + (troca ? ' tb-vez--troca' : '');
     if (troca) vezEl.dataset.receita = 'vez'; else delete vezEl.dataset.receita; // J-25 · a troca de vez é a receita de vez do DS
+    if (troca) vezTrocou = true; // J-27 · o véu da troca entra sobre o campo depois do desenho (paint)
     if (troca && papel === 'eu') __m0.haptics.evento('turno'); // D10 · a vez chegou a você: padrão próprio de vibração
     vezEl.dataset.papel = papel; vezEl.dataset.turno = String(vz.turno);
     const assinatura = `${vz.icone || vz.inicial}|${vz.rotulo}|${temDetalhe}|${!!(meuAvatar && papel === 'eu')}`;
@@ -40985,6 +41019,10 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     desenhaSetas(s, v); // MJ4a · depois do desenho novo, com as caixas no lugar
     // A13 · o que está no campo agora já foi visto: a próxima pintura só anima quem entrar
     vistos = new Set(s.zones.flatMap(z => z.battlefield));
+    // J-27 · receita de vez do DS: o véu escurece o campo um instante (--dur-2 a subir) enquanto a faixa troca; a faixa
+    // fica por cima (o véu mora no campo, abaixo da linha de cima); sem toque, fora do leitor de tela; sem véu com menos movimento
+    if (vezTrocou) { vezTrocou = false; const campo = root.querySelector('.tb-board');
+      if (campo && !menosMovimento()) { const veu = h('div', { class: 'tb-vez-veu', 'aria-hidden': 'true', dataset: { receita: 'vez' } }); campo.appendChild(veu); setTimeout(() => veu.remove(), durFx('--dur-4') + 80); } }
     if (cena) aplicaEfeitos(cena, s, v); else delete root.dataset.saidas; // G5 · por cima do desenho novo
   }
 

@@ -14955,20 +14955,30 @@ test('e2e · MJ6b arrastar da permanente ativa a habilidade no alvo; arrastar da
     return { meio, sobre };
   };
   // 1 · do Pinga até o urso: os alvos legais acendem (o urso e as duas vidas; o próprio Pinga não), um desenho por quadro, soltar ativa
+  await page.evaluate(() => { window.__faseDaMira = null; const mo = new MutationObserver(() => { const sv = document.querySelector('#tb-mira'); if (sv && !window.__faseDaMira) { window.__faseDaMira = sv.dataset.fase || 'nenhuma'; mo.disconnect(); } }); mo.observe(document.body, { childList: true, subtree: true }); });
   const m1 = await arrasta(noCampo(c.pinga), noCampo(c.urso), { solta: false, durante: () => page.evaluate(async oid => {
     const acesos = [...document.querySelectorAll('[data-mira="alvo"], [data-mira="sob"]')].map(e => e.id || e.dataset.oid).sort();
-    // 30 movimentos do dedo no mesmo quadro viram um desenho só
+    // 30 movimentos do dedo no mesmo quadro viram um desenho só (J-27: os nós da seta ficam e só a curva é reescrita, para o
+    // tracejado marchar sem recomeçar; conta-se a escrita da curva no traço, ou a troca dos nós quando a seta nasce ou some)
     const g = document.querySelector('#tb-mira g'), el = document.querySelector(`.tb-side .tb-card[data-oid="${oid}"]`); let n = 0;
-    const mo = new MutationObserver(ms => { n += ms.filter(m => m.target === g).length; }); mo.observe(g, { childList: true });
+    const mo = new MutationObserver(ms => { n += ms.filter(m => m.target === g || (m.attributeName === 'd' && m.target.classList.contains('tb-seta__traco'))).length; }); mo.observe(g, { childList: true, subtree: true, attributes: true, attributeFilter: ['d'] });
     const r = el.getBoundingClientRect();
     for (let i = 0; i < 30; i++) el.dispatchEvent(new PointerEvent('pointermove', { pointerId: 1, clientX: r.left + 20, clientY: r.top - 60 - i, bubbles: true }));
     await new Promise(res => requestAnimationFrame(() => requestAnimationFrame(res)));
     mo.disconnect();
-    return { acesos, desenhos: n, mira: document.querySelector('#tb').dataset.mira || null, carta: !!document.querySelector('#tb-fx .tb-mira__carta') }; }, c.pinga) });
+    const tr = g.querySelector('.tb-seta__traco'), svgM = document.querySelector('#tb-mira');
+    const receita = { fase: svgM.dataset.fase, cor: getComputedStyle(g).color, traco: tr && getComputedStyle(tr).animationName, ponta: g.querySelector('.tb-seta__ponta') && getComputedStyle(g.querySelector('.tb-seta__ponta')).animationName,
+      oponente: getComputedStyle(document.documentElement).getPropertyValue('--player-opp').trim(), faseInicial: window.__faseDaMira || null };
+    return { acesos, desenhos: n, receita, mira: document.querySelector('#tb').dataset.mira || null, carta: !!document.querySelector('#tb-fx .tb-mira__carta') }; }, c.pinga) });
   assert.equal(m1.meio.mira, c.pinga, 'a mira começou no Pinga ' + JSON.stringify(m1));
   assert.deepEqual(m1.meio.acesos, [c.urso, 'tb-life-me', 'tb-life-opp'].sort(), 'acendem o urso e as duas vidas; o próprio Pinga e as Ilhas não ' + JSON.stringify(m1.meio));
   assert.ok(m1.meio.carta, 'a carta do campo se levanta');
   assert.ok(m1.meio.desenhos >= 1 && m1.meio.desenhos <= 2, `30 movimentos num quadro: um desenho (${m1.meio.desenhos})`);
+  // J-27 · receita de mirar do DS: a seta nasce desenhando a linha; passados --dur-3 a ponta aparece e o tracejado marcha, na cor do oponente
+  assert.equal(m1.meio.receita.faseInicial, 'linha', 'a linha se desenha primeiro ' + JSON.stringify(m1.meio.receita));
+  assert.deepEqual([m1.meio.receita.fase, m1.meio.receita.traco, m1.meio.receita.ponta], ['marcha', 'tb-mira-marcha', 'tb-seta-entra'], 'depois a ponta aparece (--dur-1) e o tracejado marcha');
+  const rgb = hex => { const m = hex.replace('#', '').match(/../g).map(x => parseInt(x, 16)); return `rgb(${m.join(', ')})`; };
+  assert.equal(m1.meio.receita.cor, rgb(m1.meio.receita.oponente), 'a mira na cor do oponente, nunca a de ataque ou bloqueio');
   assert.deepEqual([m1.sobre.alvo, m1.sobre.sob], [`o:${c.urso}`, [c.urso]], 'sobre o urso a seta encaixa ' + JSON.stringify(m1.sobre));
   for (const tema of ['dark', 'light']) { await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await auditaTela(page, `MJ6b · mirando do campo 360 ${tema}`); }
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/mj6b-campo.png' });
@@ -15771,6 +15781,52 @@ test('e2e · J-26 combate do DS-K: a criatura investe em Z e o alvo recebe o cla
   assert.equal(r.rolos.length, 0, 'menos movimento: o número só troca'); assert.equal(r.texto, String(r.depois));
   assert.equal(r.numero.nome, 'none', 'o número do dano parado');
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/j26-combate.png' });
+  assert.deepEqual(errors, []);
+});
+
+// J-27 (trilha jogabilidade) · comprar e troca de vez no DS-K (mirar está no "MJ6b"): a carta comprada chega virando do
+// verso para a face e cresce no meio do voo; a troca de vez escurece o campo um instante, o nome aperta e o latão varre a faixa
+test('e2e · J-27 comprar e troca de vez do DS-K: a compra vira do verso com a sombra no meio do voo; a troca de vez tem véu no campo, nome que aperta e varredura; menos movimento parado', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start');
+  await page.fill('#mesa-seed', '4'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  await page.waitForSelector('#tb-pass'); await page.setViewportSize({ width: 360, height: 780 });
+  // 1 · a mão inicial aceita é uma troca de vez: véu no campo, nome que aperta e a varredura a --dur-3
+  const vez = await page.evaluate(() => { const b = document.querySelector('#tb-vez .tb-vez__btn'), r = document.querySelector('#tb-vez .tb-vez__rotulo'), veu = document.querySelector('.tb-board .tb-vez-veu');
+    const luz = b && getComputedStyle(b, '::after');
+    return { troca: document.querySelector('#tb-vez').classList.contains('tb-vez--troca'), aperta: r && getComputedStyle(r).animationName, varre: luz && [luz.animationName, luz.animationDelay],
+      veu: veu && { receita: veu.dataset.receita, nome: getComputedStyle(veu).animationName, toque: getComputedStyle(veu).pointerEvents, leitor: veu.getAttribute('aria-hidden') } }; });
+  t.diagnostic('J-27 · vez ' + JSON.stringify(vez));
+  assert.equal(vez.troca, true);
+  assert.equal(vez.aperta, 'tb-vez-aperta', 'o nome chega com o espaçamento largo que se fecha');
+  assert.deepEqual(vez.varre, ['tb-vez-varre', '0.28s'], 'a varredura de latão a partir de --dur-3');
+  assert.deepEqual(vez.veu, { receita: 'vez', nome: 'tb-vez-veu', toque: 'none', leitor: 'true' }, 'o véu escurece o campo, sem toque e fora do leitor');
+  await page.waitForFunction(() => !document.querySelector('.tb-vez-veu'), null, { timeout: 3000 });
+  await auditaTela(page, 'J-27 · troca de vez 360×780');
+  // 2 · comprar: a carta vem do grimório para a mão virando do verso e com a sombra no meio do voo
+  if ((await page.getAttribute('#tb-hand-toggle', 'aria-expanded')) !== 'true') await page.click('#tb-hand-toggle');
+  await page.waitForTimeout(450);
+  const compra = () => page.evaluate(() => { const M = window.__estanteMesa, s = M.estado(), p = s.turn.active;
+    const o = Object.values(s.objects).find(x => x.owner === p && x.zone === 'library'); M.act({ t: 'move', p, oid: o.oid, to: 'hand' });
+    const el = document.querySelector(`#tb-hand .tb-card[data-oid="${o.oid}"]`), cs = el && getComputedStyle(el), sombra = el && getComputedStyle(el, '::before'), vs = el && el.querySelector('.tb-fx-verso');
+    return { oid: o.oid, classes: el ? el.className : '', receita: el && el.dataset.receita, nome: cs && cs.animationName, dur: cs && cs.animationDuration, sombra: sombra && sombra.animationName, verso: !!vs, versoOpaco: vs ? getComputedStyle(vs).opacity : null }; });
+  const c = await compra();
+  t.diagnostic('J-27 · compra ' + JSON.stringify(c));
+  assert.match(c.classes, /tb-fx--compra/); assert.equal(c.receita, 'comprar');
+  assert.deepEqual([c.nome, c.dur], ['tb-compra', '0.42s'], 'a carta vira do verso para a face em --dur-4');
+  assert.equal(c.sombra, 'tb-compra-sombra', 'a sombra cresce no meio do voo');
+  assert.deepEqual([c.verso, c.versoOpaco], [true, '1'], 'o verso cobre a carta no começo do voo');
+  await page.waitForFunction(oid => { const el = document.querySelector(`#tb-hand .tb-card[data-oid="${oid}"]`); return el && !el.querySelector('.tb-fx-verso'); }, c.oid, { timeout: 3000 });
+  // 3 · menos movimento: a carta aparece na mão, sem verso; a troca de vez sem véu
+  await page.evaluate(() => window.__estanteTema.setAparencia({ movimento: 'reduzido' }));
+  const r = await compra();
+  assert.equal(r.verso, false, 'menos movimento: sem verso');
+  assert.ok(parseFloat(r.dur) < 0.001, 'menos movimento: a carta aparece na mão ' + r.dur);
+  await page.click('#tb-pass-turn'); await semPensar(page); await page.waitForTimeout(200);
+  assert.equal(await page.locator('.tb-vez-veu').count(), 0, 'menos movimento: sem véu na troca de vez');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/j27-vez.png' });
   assert.deepEqual(errors, []);
 });
 
