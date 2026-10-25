@@ -6423,6 +6423,7 @@ const EFFECTS = {
   lembradas_ao_cemiterio: { fields: [], targets: ['self'] }, // M-386 · 603.7c: "if any of those cards remain exiled, put them into your graveyard" (Glimpse the Impossible)
   draw_free_cast: { fields: ['amount'], targets: ['self'] },
   /* ↓ K · efeitos da trilha keywords */
+  concede_flashback_k: { fields: [], targets: ['card-in-your-graveyard'] }, // K-80 · 702.34a · "target instant or sorcery card in your graveyard gains flashback until end of turn. The flashback cost is equal to its mana cost"
   dobra_k: { fields: [], targets: [] }, // K-51 · 702.185a · exila a permanente dobrada no começo da próxima etapa final (gerado pelo motor)
   mobilizar_k: { fields: ['n'], targets: [] }, // K-52 · 702.181a (gerado pelo motor)
   mobilizar_ataca_k: { fields: [], targets: [] }, // K-52 · 508.4: as fichas atacam o que o controlador escolheu (gerado pelo motor)
@@ -20823,6 +20824,7 @@ const __m42 = (function () {
   const FILTRO_DESCARTE = { card: {} /* M-516 · Coercion: qualquer carta */, 'nonland card': { notTypes: ['land'] }, 'noncreature, nonland card': { notTypes: ['creature', 'land'] }, 'nonland, noncreature card': { notTypes: ['creature', 'land'] } };
   const FILTRO_TOPO = { colorless: { incolor: true }, 'instant or sorcery': { types: ['instant', 'sorcery'] }, creature: { types: ['creature'] }, artifact: { types: ['artifact'] }, land: { types: ['land'] }, 'creature or land': { types: ['creature', 'land'] } };
   const PRE_PARAGRAFO = [
+    [/^target instant or sorcery card in your graveyard gains flashback until end of turn\. the flashback cost is equal to its mana cost(?:\.\s*|$)/i, () => [{ do: 'concede_flashback_k', target: { zona: 'graveyard', de: 'you', tipos: ['instant', 'sorcery'] } }]], // K-80 · 702.34a (Snapcaster Mage, Flashback)
     [/^(?:it|~) deals that much damage to any other target(\. if a player is dealt damage this way, they can't gain life for the rest of the game)?(?:\.\s*|$)/i,
       m => [{ do: 'damage', amount: { per: 'trigger-value' }, target: { tipos: ['creature', 'planeswalker', 'battle'], jogadores: 'any', outra: true }, ...(m[1] ? { semGanharVidaM: true } : {}) }]], // M-550 · Screaming Nemesis
     [/^exile (up to one )?(another|other) target (nonland )?permanent\. (?:at the beginning of the next end step, return that card to the battlefield under its owner's control|return that card to the battlefield under its owner's control at the beginning of the next end step)(\. if it entered under your control, put a \+1\/\+1 counter on ~)?(?:\.\s*|$)/i,
@@ -22063,7 +22065,7 @@ function moveObject(s, oid, to, { top = true, controller } = {}) {
   if (ultima) Object.assign(ultima, palavrasK || {}); // K-4 · 603.10a: persistir/imortal olham como ela era no campo (K-14: foto tirada antes de sair)
   delete o.ultima; delete o.naoDesviraProximo; // CR2g.6 · 400.7
   const segurava = fromZone === 'battlefield' ? o.holding : null;
-  delete o.holding; delete o.devolverAoSair; delete o.marcadaM; /* M-563 · 400.7: o objeto novo não tem carta ligada */
+  delete o.holding; delete o.devolverAoSair; delete o.marcadaM; /* M-563 · 400.7: o objeto novo não tem carta ligada */ delete o.flashbackConcedidoK; /* K-80 · 400.7: o lampejo concedido era daquele objeto */
   if (segurava) o.devolverAoSair = segurava;
   const devolveAte = fromZone === 'battlefield' && to !== 'battlefield' ? (o.ate || []) : null; // CR2d.1 · 610.3
   delete o.ate;
@@ -23023,7 +23025,13 @@ function flipToFront(s, o) { if (o.frontName) { o.name = o.frontName; delete o.f
 /* ---------------- S16 · custos alternativos e lampejo do passado ---------------- */
 const altSoDaMaoM = alt => !!alt && alt.marcaK === 'dobradaK'; // M-566 · custos alternativos "from your hand" (dobra, 702.185a)
 const altCosts = (s, o) => ((s.facts[o.name].script || {}).alt) || altSemScriptK(s.facts[o.name]); // K-8 · carta sem script com "Evoke" (Toca ponto comum: altCosts)
-const flashbackOf = (s, o) => (s.facts[o.name].script || {}).flashback;
+const flashbackOf = (s, o) => (s.facts[o.name].script || {}).flashback || flashbackConcedidoK(s, o);
+/** K-80 · 702.34a · o lampejo concedido (Snapcaster Mage): só no cemitério, só neste turno, pelo custo de mana impresso (a carta sem custo de mana não tem como pagar, 118.6). O objeto que sai do cemitério perde a marca (moveObject, 400.7). */
+function flashbackConcedidoK(s, o) {
+  const m = o && o.flashbackConcedidoK, f = o && s.facts[o.name];
+  if (!m || o.zone !== 'graveyard' || m.turno !== s.turn.number || !f || f.semCusto || !Object.keys(f.cost || {}).length) return undefined;
+  const mana = costStringT(f.cost); return mana ? { mana } : undefined;
+}
 const escapeOf = (s, o) => (s.facts[o.name].script || {}).escape; // S48 · fuga
 /** CR2c.4 · "an Island card": carta com o subtipo na linha de tipo (Ilha básica, Tropical Island…). */
 const temSubtipo = (s, oid, sub) => new RegExp('\\b' + sub + '\\b').test(linhaDeTipo(s, s.objects[oid]));
@@ -25160,6 +25168,10 @@ function applyEffectM449(s, src, eff, tgt, events) {
       break;
     }
     /* ↓ K · casos de applyEffect da trilha keywords */
+    case 'concede_flashback_k': { // K-80 · 702.34a: a carta alvo no cemitério ganha lampejo do passado até o fim do turno, pelo custo de mana dela (sem custo de mana, não há o que pagar: 118.6)
+      if (!obj || obj.zone !== 'graveyard') { note({ failed: true }); break; }
+      obj.flashbackConcedidoK = { turno: s.turn.number }; note({ name: obj.name }); break;
+    }
     case 'insanidade_k': { // K-74 · 702.35a: "When this card is exiled this way, its owner may cast it by paying [cost]. If that player doesn't, they put this card into their graveyard."
       const c = s.objects[eff.carta], md = c && madnessOf(s, c);
       if (!c || c.zone !== 'exile' || (c.zc || 0) !== eff.z || !md) { note({ failed: true }); break; } // saiu do exílio: nada (400.7)
@@ -37093,7 +37105,8 @@ Object.assign(PALAVRA_PT, { tiered: 'escalonado' }); // K-69
 Object.assign(PALAVRA_PT, { teamwork: 'trabalho em equipe' }); // K-70
 Object.assign(PALAVRA_PT, { afflict: 'aflição', melee: 'refrega', mentor: 'mentor', training: 'treinamento' }); // K-31
 Object.assign(PALAVRA_PT, { 'battle cry': 'grito de guerra', rampage: 'alvoroço', flanking: 'flanquear', bushido: 'bushido' }); // K-30
-const EFEITO_PT_K = { // K-25 · frases dos efeitos da trilha keywords (consultadas por descreveEfeito; antes a pilha mostrava "proeza k")
+const EFEITO_PT_K = { concede_flashback_k: () => 'a mágica instantânea ou feitiço alvo no seu cemitério ganha lampejo do passado até o fim do turno, pelo custo de mana dela', // K-80
+  // K-25 · frases dos efeitos da trilha keywords (consultadas por descreveEfeito; antes a pilha mostrava "proeza k")
   enxerto_k: () => 'move um marcador +1/+1 desta permanente para a criatura que entrou (enxerto)', // K-46
   campeao_k: () => 'exile outra permanente sua da qualidade; se não exilar, esta é sacrificada (campeão)', campeao_fim_k: () => '', // K-44
   campeao_volta_k: () => 'a carta exilada pelo campeão volta ao campo sob o controle do dono (campeão)', // K-44
