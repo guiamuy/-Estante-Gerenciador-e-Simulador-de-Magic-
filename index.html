@@ -1330,6 +1330,13 @@ body[data-tela="entrar"] .ds-appbar { display: none; }
 .ds-folha-sai { position: fixed; z-index: var(--z-modal); pointer-events: none; background: var(--bg-elev-1); border-radius: var(--radius-3); box-shadow: var(--shadow-3); animation: ds-folha-desce var(--dur-2) var(--ease-out) both; }
 /* com menos movimento a folha nasce no estado final, sem animação nenhuma (com 0,01 ms e "both", antes do primeiro
    quadro valia o estado inicial — opacidade 0 por um instante; achado do instável da F1.4) */
+/* DS-K F4.5 · "segue o dedo": o cabeçalho é a pega (a alça mostra que puxa); depois do primeiro arraste a folha fica sem a
+   animação de entrada (senão ela venceria o dedo) e volta com a mola quando solta antes do ponto de fechar */
+.ds-dialog__head { touch-action: none; user-select: none; -webkit-user-select: none; } /* a pega não seleciona texto: arrastar texto selecionado vira arrasto nativo e cancela o gesto */
+.ds-dialog__head::before { content: ''; position: absolute; top: calc(-1 * var(--space-3)); left: 50%; width: 36px; height: 4px; margin-left: -18px; border-radius: var(--radius-full); background: var(--border); pointer-events: none; }
+.ds-dialog--arrastada { animation: none; }
+.ds-dialog--volta { transition: transform var(--dur-2) var(--ease-spring); }
+:root[data-movimento="reduzido"] .ds-dialog--volta { transition: none; }
 :root[data-movimento="reduzido"] .ds-dialog { animation: none; }
 @media (prefers-reduced-motion: reduce) { .ds-dialog { animation: none; } }
 @keyframes ds-veu-some { from { opacity: 1; } to { opacity: 0; } }
@@ -4289,10 +4296,42 @@ function Dialog({ title, body, actions }) {
   if (first && first.focus) first.focus({ preventScroll: true });
   const head = dlg.querySelector('.ds-dialog__head');
   dlg.addEventListener('scroll', () => { head.dataset.rolou = String(dlg.scrollTop > 4); }, { passive: true });
+  seguirODedo(dlg, head); // DS-K F4.5
   return dlg;
 }
 /** D1 · ao trocar de tela, o aviso da tela anterior some; aviso com ação (ex.: nova versão) fica. */
 function fechaToast({ tudo = false } = {}) { if (toastEl && toastEl.dataset.open === 'true' && (tudo || toastEl.dataset.acao !== 'true')) { toastEl.dataset.open = 'false'; clearTimeout(toastTimer); } }
+/** DS-K F4.5 · "segue o dedo" (receita folha): puxar a folha para baixo pelo cabeçalho a leva junto com o dedo; soltar
+    depois de um quarto da altura (no máximo 96 px) ou num gesto rápido para baixo fecha — e a saída parte de onde a
+    folha está; soltar antes volta com a mola. Para cima ela quase não sai do lugar (resiste). Com menos movimento a
+    folha não acompanha, mas o mesmo gesto fecha. Botões do cabeçalho (o X) continuam sendo toque, não arraste. */
+function seguirODedo(dlg, alvo) {
+  if (!dlg || !alvo) return;
+  let ini = null;
+  const reduzido = () => document.documentElement.getAttribute('data-movimento') === 'reduzido' || (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  alvo.addEventListener('pointerdown', e => {
+    if (e.button > 0 || e.target.closest('button, a, input, select, textarea')) return;
+    ini = { y: e.clientY, t: performance.now(), id: e.pointerId, dy: 0 };
+    try { alvo.setPointerCapture(e.pointerId); } catch (err) { /* sem captura: segue o dedo assim mesmo */ }
+  });
+  alvo.addEventListener('pointermove', e => {
+    if (!ini || e.pointerId !== ini.id) return;
+    const dy = e.clientY - ini.y; ini.dy = dy;
+    if (Math.abs(dy) < 4 || reduzido()) return;
+    dlg.classList.add('ds-dialog--arrastada'); dlg.classList.remove('ds-dialog--volta'); // a entrada já acabou: sem animação por cima do dedo
+    dlg.style.transform = `translateY(${dy > 0 ? dy : Math.max(-12, dy / 4)}px)`;
+  });
+  const solta = cancelou => e => {
+    if (!ini || e.pointerId !== ini.id) return;
+    const { dy, t } = ini; ini = null;
+    const v = dy / Math.max(1, performance.now() - t);
+    if (!cancelou && (dy > Math.min(96, dlg.offsetHeight / 4) || (dy > 24 && v > 0.6))) { closeDialog(); return; }
+    if (!dlg.style.transform) return;
+    dlg.classList.add('ds-dialog--volta'); dlg.style.transform = '';
+  };
+  alvo.addEventListener('pointerup', solta(false));
+  alvo.addEventListener('pointercancel', solta(true));
+}
 /** DS-K FA.2 (G-299) · a saída da folha pela receita: o fechamento lógico é imediato (o app por baixo já responde e quem
     espera o diálogo sumir não espera nada); o que anima é uma silhueta da folha — sem texto, sem ids, sem toque — que
     desce e some, com o véu clareando junto, mais curto que a entrada (--dur-2, --ease-out). Menos movimento: nada. */

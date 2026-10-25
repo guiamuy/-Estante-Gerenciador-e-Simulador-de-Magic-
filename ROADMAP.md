@@ -12389,7 +12389,7 @@ prevista no fim para medir quadros no Galaxy S e corrigir o que o portão pegar.
 | F2 ✅ (F2.1 G-293 · F2.2 G-294 · F2.3 G-295 · F2.4 G-296 · F2.5 G-297) | telas de gestão | Início com abertura (receita) e cartão Continuar em ébano; Lista, Coleção, Scanner com a hierarquia da direção K; grade 360 = 16 + 328 + 16 e cabeçalho 44 · 1fr · 44 | capturas antes e depois (360×780, 390×844, dois temas); `auditaTela`; pixels medidos |
 | F3 | mesa como layout | barra e bandeja em ébano; tokens novos disponíveis para a `jogabilidade` desenhar as receitas da mesa em `#tb-fx` | pixels de campo em 360×780 (não perde); contrato visual |
 | FA (FA.1 ✅ G-298 · FA.2 ✅ G-299) | leva de ajuste | medir quadros no aparelho (CPU 4×) nas receitas e na mesa cheia; remedir AA do que a F1/F2 tocou; corrigir o que o portão e o aparelho mostrarem | teste de orçamento; capturas |
-| F4 (F4.1 ✅ G-307 · F4.2 ✅ G-308 · F4.3 ✅ G-309) | telas restantes | Listas prontas e Lista oficial, Perfil e subtelas, Cartas, Notícias guardadas e Série no cabeçalho 44 · 1fr · 44 com um destaque de ébano por tela; "segue o dedo" na folha | e2e por tela (centro, lados, gutter, AA no ébano, `auditaTela`, 360 e 390, dois temas) |
+| F4 (F4.1 ✅ G-307 · F4.2 ✅ G-308 · F4.3 ✅ G-309 · F4.5 ✅ G-310) | telas restantes | Listas prontas e Lista oficial, Perfil e subtelas, Cartas, Notícias guardadas e Série no cabeçalho 44 · 1fr · 44 com um destaque de ébano por tela; "segue o dedo" na folha | e2e por tela (centro, lados, gutter, AA no ébano, `auditaTela`, 360 e 390, dois temas) |
 
 **F4 · Telas restantes — fatias** (pedido do dono de 25/10: "evoluir com o roadmap de design system")
 
@@ -12399,7 +12399,7 @@ prevista no fim para medir quadros no Galaxy S e corrigir o que o portão pegar.
 | F4.2 | Perfil e as subtelas dele no mesmo padrão (e Notícias guardadas, que usava o mesmo desenho) | cabeçalho com voltar nas subtelas; um destaque por tela | ✅ G-308 |
 | F4.3 | a busca de Cartas no padrão | cabeçalho; a caixa de busca em destaque | ✅ G-309 |
 | F4.4 | Série no padrão (Guardadas foi junto na F4.2) | cabeçalho com voltar | com a trilha `jogabilidade`: a tela mora em `src/app/table.js` (entre partidas de uma série), região dela |
-| F4.5 | arrastar a folha para baixo fecha o diálogo ("segue o dedo") | gesto na folha, com volta se soltar cedo; parado com menos movimento | a fazer |
+| F4.5 | arrastar a folha para baixo fecha o diálogo ("segue o dedo") | gesto na folha, com volta se soltar cedo; parado com menos movimento | ✅ G-310 |
 
 **F4.1 · Listas prontas e Lista oficial** ✅ (leva G-307, 25/10/2026)
 - **Valor:** as duas telas que se abrem a partir de Listas ficam iguais às outras: seta de voltar à esquerda, título no
@@ -12437,6 +12437,19 @@ prevista no fim para medir quadros no Galaxy S e corrigir o que o portão pegar.
   preço) verdes.
 - **Fora:** a lista de resultados segue como está (um destaque por tela); Série fica com a trilha `jogabilidade` (F4.4).
 
+**F4.5 · Segue o dedo** ✅ (leva G-310, 25/10/2026)
+- **Valor:** toda folha (diálogo) fecha puxando para baixo, como nos apps do celular: ela acompanha o dedo; soltar
+  cedo faz ela voltar com a mola; passar de um quarto da altura (no máximo 96 px) ou dar um gesto rápido para baixo
+  fecha, e a saída parte de onde a folha está. Fecha a pendência da receita "folha" registrada na FA.2.
+- **Entregue:** `seguirODedo(dlg, cabeçalho)` no `Dialog` (o cabeçalho com o título é a pega, com uma alça de 36 × 4 px
+  no alto; botões continuam sendo toque); para cima resiste (no máximo 12 px); depois do primeiro arraste a folha fica
+  sem a animação de entrada (`ds-dialog--arrastada`) e volta com `--ease-spring` (`ds-dialog--volta`). Menos
+  movimento: a folha não acompanha, o mesmo gesto fecha e não há silhueta.
+- **Testes:** e2e "DS-K F4.5" (acompanha a 60 px sem animação disputando, volta com a mola, resiste para cima, fecha
+  ao passar do ponto com a silhueta partindo do topo arrastado, gesto rápido fecha, o X segue fechando, menos
+  movimento); contrato "DS-K · F4.5"; F1.4, FA.1, FA.2, E50, V2 e I7 verdes.
+- **Fora:** puxar pelo corpo da folha (ele rola o conteúdo; disputar a rolagem trocaria um gesto por outro).
+
 **FA · Ajuste — fatias**
 
 | Fatia | Valor para o usuário | Termina quando | Situação |
@@ -12456,7 +12469,7 @@ prevista no fim para medir quadros no Galaxy S e corrigir o que o portão pegar.
   menos movimento (quatro rodadas verdes seguidas).
 - **Correção da fila:** a primeira versão do véu da saída não tinha a sangria de 100vmax (contrato I7: camada de tela
   inteira com fundo se estende além da caixa); a fila recusou o lote G-294–G-299 por isso. Corrigido.
-- **Fora:** "segue o dedo" (arrastar a folha para fechar) da receita — gesto novo, fica registrado como pendente da
+- **Fora:** "segue o dedo" (arrastar a folha para fechar) da receita — entregue depois na F4.5 (G-310); era pendente da
   receita "folha".
 - **Testes:** contrato visual +1; e2e "DS-K FA.2" (fecha na hora, silhueta sem texto/ids/toque, 180 ms, some, app
   responde, nada com menos movimento).

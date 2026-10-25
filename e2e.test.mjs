@@ -16480,6 +16480,58 @@ test('e2e · DS-K F4.3 · Cartas: cabeçalho 44 · 1fr · 44 com o título no ce
   assert.deepEqual(errors, []);
 });
 
+test('e2e · DS-K F4.5 · segue o dedo: puxar a folha pelo cabeçalho a leva junto; soltar cedo volta com mola, passar de um quarto (ou gesto rápido) fecha a partir de onde está; o X segue sendo toque; com menos movimento a folha não acompanha mas o gesto fecha', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(FAKE_DEVICE(false));
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base + '#/ds'); await page.waitForSelector('#ds-open-dialog');
+  const abre = async () => { await page.click('#ds-open-dialog'); await page.waitForSelector('#ds-overlay[data-open="true"] .ds-dialog');
+    await page.waitForFunction(() => document.querySelector('.ds-dialog').getAnimations().every(a => a.playState !== 'running'), null, { timeout: 2000 }); };
+  const pega = async () => { const b = await page.locator('.ds-dialog__title').boundingBox(); return { x: b.x + 8, y: b.y + b.height / 2 }; };
+  const puxa = async (dy, ms, solta = true) => { const p = await pega(); await page.mouse.move(p.x, p.y); await page.mouse.down();
+    const n = Math.max(2, Math.round(ms / 16)); for (let i = 1; i <= n; i++) { await page.mouse.move(p.x, p.y + dy * i / n); if (ms > 40) await page.waitForTimeout(16); }
+    if (solta) await page.mouse.up(); return p; };
+  const aberto = () => page.$eval('#ds-overlay', o => o.dataset.open === 'true');
+  await abre();
+  // a alça aparece no alto do cabeçalho, sem receber toque
+  const alca = await page.evaluate(() => { const c = getComputedStyle(document.querySelector('.ds-dialog__head'), '::before'); return [c.content, c.width, c.height, c.pointerEvents]; });
+  assert.deepEqual(alca, ['""', '36px', '4px', 'none'], 'alça da folha');
+  // segue o dedo: no meio do arraste a folha está deslocada
+  const p = await puxa(60, 400, false);
+  const meio = await page.evaluate(() => { const d = document.querySelector('.ds-dialog'); return { t: d.style.transform, anim: d.getAnimations().filter(a => a.playState === 'running').length }; });
+  assert.equal(meio.t, 'translateY(60px)', 'a folha acompanha o dedo'); assert.equal(meio.anim, 0, 'nenhuma animação disputa com o dedo');
+  // volta: subir de novo para 30 px e soltar devagar não fecha
+  await page.mouse.move(p.x, p.y + 30); await page.waitForTimeout(300); await page.mouse.up();
+  assert.equal(await aberto(), true, 'soltar antes do ponto não fecha');
+  assert.equal(await page.$eval('.ds-dialog', d => d.style.transform), '', 'volta para o lugar');
+  assert.match(await page.$eval('.ds-dialog', d => getComputedStyle(d).transitionTimingFunction), /cubic-bezier\(0\.34, 1\.3, 0\.64, 1\)/, 'volta com a mola');
+  // para cima resiste
+  await puxa(-80, 300, false); assert.equal(await page.$eval('.ds-dialog', d => d.style.transform), 'translateY(-12px)', 'para cima quase não sai'); await page.mouse.up();
+  // passar de um quarto fecha, e a saída parte de onde a folha está
+  await page.waitForTimeout(350);
+  const alt = await page.$eval('.ds-dialog', d => d.offsetHeight);
+  await puxa(Math.min(96, alt / 4) + 30, 500, false);
+  const topoArrastado = await page.$eval('.ds-dialog', d => Math.round(d.getBoundingClientRect().top));
+  await page.mouse.up();
+  assert.equal(await aberto(), false, 'passou do ponto: fecha');
+  const silhueta = await page.evaluate(() => { const f = document.querySelector('.ds-folha-sai'); return f ? Math.round(parseFloat(f.style.top)) : null; });
+  assert.equal(silhueta, topoArrastado, 'a saída começa onde a folha estava');
+  // gesto rápido curto também fecha
+  await page.waitForTimeout(700); await abre();
+  await puxa(48, 20); assert.equal(await aberto(), false, 'gesto rápido para baixo fecha');
+  // o X continua sendo toque (não vira arraste)
+  await page.waitForTimeout(700); await abre();
+  await page.click('#ds-dialog-close'); assert.equal(await aberto(), false, 'o X fecha');
+  // menos movimento: a folha não acompanha, o gesto fecha
+  await page.evaluate(() => document.documentElement.setAttribute('data-movimento', 'reduzido'));
+  await abre();
+  await puxa(150, 500, false);
+  assert.equal(await page.$eval('.ds-dialog', d => d.style.transform), '', 'com menos movimento a folha fica parada');
+  await page.mouse.up(); assert.equal(await aberto(), false, 'e o gesto fecha mesmo assim');
+  assert.equal(await page.locator('.ds-folha-sai').count(), 0, 'sem silhueta com menos movimento');
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · DS-K F2.1 · a abertura monta o ícone em três planos (luz acende, a cena da estante se monta em 3D e o ladrilho esmaece por cima sem girar — G-306, relato #35 —, sombra assenta), passa a varredura e revela o nome; com menos movimento tudo já no lugar', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.setViewportSize({ width: 360, height: 780 });

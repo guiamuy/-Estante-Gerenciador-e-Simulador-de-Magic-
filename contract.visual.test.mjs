@@ -525,6 +525,15 @@ test('DS-K · F4.3 Cartas usa o cabeçalho 44 · 1fr · 44 e a caixa de busca é
   assert.ok(!HTML.includes("Text('Cartas', { size: '2xl', display: true, as: 'h1' })"), 'o título solto saiu');
 });
 
+/* ---------------- DS-K (G-310) · F4.5 segue o dedo ---------------- */
+test('DS-K · F4.5 a folha fecha puxando pelo cabeçalho: pega sem seleção nem rolagem do navegador, alça sem toque, volta com a mola e menos movimento sem transição', () => {
+  assert.ok(HTML.includes('seguirODedo(dlg, head); // DS-K F4.5'), 'todo Dialog liga o gesto');
+  assert.match(componentCss, /\.ds-dialog__head \{ touch-action: none; user-select: none; -webkit-user-select: none; \}/);
+  assert.match(componentCss, /\.ds-dialog__head::before \{[^}]*width: 36px; height: 4px;[^}]*pointer-events: none; \}/);
+  assert.match(componentCss, /\.ds-dialog--volta \{ transition: transform var\(--dur-2\) var\(--ease-spring\); \}/);
+  assert.match(componentCss, /:root\[data-movimento="reduzido"\] \.ds-dialog--volta \{ transition: none; \}/);
+});
+
 /* ---------------- DS-K (G-295) · F2.3 topo da Lista em ébano ---------------- */
 test('DS-K · F2.3 o topo da Lista é o destaque em ébano (nome, formato em latão, contagens) e o latão em texto pequeno sobre o ébano usa --accent-lo', () => {
   assert.match(HTML, /Surface\(\{ class: 'ds-destaque ds-surface--pad deck-topo', id: 'deck-topo' \}/);
