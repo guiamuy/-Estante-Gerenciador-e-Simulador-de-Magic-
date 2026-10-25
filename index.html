@@ -6674,7 +6674,7 @@ function substituicoesDoScript(sc) {
 const CHAVES_CONTINUO = ['afetados', 'poder', 'resistencia', 'palavras', 'per', 'perPoder', 'perResistencia', 'torna', 'seAfetado', 'ward', 'se', 'perde', 'cores', 'somaCores', 'troca']; // CR2d.8 · cores (camada 5); CR2d.9 · troca (7d) // CR2d.7 · perde: palavras-chave perdidas (camada 6) // M-251 · "enquanto a encantada for …", resistência a magia com custo
 /** CR2-G R3c · "torna-se": camada 4 (tipos e subtipos, substituindo ou somando — `somaTipos`), 6 (perde todas as outras
  * habilidades; `palavras` aqui entram junto com a redefinição, com o mesmo carimbo) e 7b (P/T base). */
-const CHAVES_TORNA = ['tipos', 'subtipos', 'somaTipos', 'base', 'perdeHabilidades', 'palavras'];
+const CHAVES_TORNA = ['tipos', 'subtipos', 'somaTipos', 'base', 'perdeHabilidades', 'palavras', 'todosOsTiposDeCriatura' /* K-76 · 205.3m: "with all creature types" (Mutavault) */];
 function tornaErros(r, tag) {
   if (!r || typeof r !== 'object') return [`${tag}: "torna" precisa ser um objeto`];
   const errs = [];
@@ -6684,12 +6684,13 @@ function tornaErros(r, tag) {
   if (r.base != null && !(Array.isArray(r.base) && r.base.length === 2 && r.base.every(Number.isInteger))) errs.push(`${tag}: P/T base precisa de dois inteiros`);
   if (r.palavras != null && !(Array.isArray(r.palavras) && r.palavras.every(k => KEYWORDS.includes(String(k).toLowerCase())))) errs.push(`${tag}: palavra-chave desconhecida em "torna"`);
   if (r.somaTipos && !(r.tipos || []).length) errs.push(`${tag}: "somaTipos" precisa de tipos`);
+  if (r.todosOsTiposDeCriatura != null && !(r.todosOsTiposDeCriatura === true && (r.tipos || []).includes('creature') && !(r.subtipos || []).length)) errs.push(`${tag}: "todosOsTiposDeCriatura" só vale como true, numa criatura, sem subtipos listados`); // K-76 · 205.3d / 205.3m
   if (!(r.tipos || []).length && !(r.subtipos || []).length && !r.base && !r.perdeHabilidades && !(r.palavras || []).length) errs.push(`${tag}: "torna" não muda nada`);
   return errs;
 }
 /** A redefinição em português do script → a forma guardada no motor (a mesma do `becomes` antigo). */
 const tornaParaBecomes = r => ({ ...(r.tipos ? { types: r.tipos } : {}), ...(r.subtipos ? { subtypes: r.subtipos } : {}), ...(r.base ? { base: r.base } : {}),
-  ...((r.palavras || []).length ? { keywords: r.palavras.map(k => String(k).toLowerCase()) } : {}), ...(r.perdeHabilidades ? { loseAbilities: true } : {}), ...(r.somaTipos ? { addTypes: true } : {}) });
+  ...((r.palavras || []).length ? { keywords: r.palavras.map(k => String(k).toLowerCase()) } : {}), ...(r.perdeHabilidades ? { loseAbilities: true } : {}), ...(r.somaTipos ? { addTypes: true } : {}), ...(r.todosOsTiposDeCriatura ? { todosOsTiposK: true } : {}) }); // K-76
 function continuoErros(c, tag) {
   if (!c || typeof c !== 'object') return [`${tag}: precisa ser um objeto`];
   const errs = [];
@@ -20514,6 +20515,20 @@ const __m42 = (function () {
     return Object.keys(cost).length ? cost : null;
   }
   /** Uma linha de habilidade ativada ("custo: efeito. Activate only as a sorcery.") → { ab, frases } ou null. */
+  /** K-76 · 205.1b / 613.1d–e / 613.4b · o terreno que vira criatura: "Until end of turn, ~ becomes a 4/4 blue and black Shark creature
+      with deathtouch. It's still a land." → o contínuo na própria fonte (tipo somado, subtipos, P/T base, cores, palavras-chave).
+      Sem "until end of turn" (Soulstone Sanctuary) o efeito não acaba (611.2a). Frase a mais, X ou palavra fora do motor: null. */
+  function terrenoViraCriaturaK(corpo) {
+    if (!/\bLand\b/.test(tipoAtual)) return null;
+    const m = String(corpo).match(/^(Until end of turn, )?~ becomes an? (\d+)\/(\d+) ((?:(?:white|blue|black|red|green)(?:, and |, | and ))*(?:white|blue|black|red|green) )?((?:[A-Z][A-Za-z'’-]* )*)(artifact )?creature(?: with ([a-z ,]+?))?( until end of turn)?\. It[’']s still a land$/);
+    if (!m || (m[1] && m[8])) return null;
+    let palavras = m[7] ? m[7].split(/, and |, | and /).map(x => x.trim()) : [];
+    const todos = palavras.includes('all creature types'); palavras = palavras.filter(x => x !== 'all creature types');
+    if (palavras.some(k => !KW.has(k)) || (todos && String(m[5] || '').trim())) return null;
+    const cores = m[4] ? m[4].trim().split(/, and |, | and /).map(x => CORES[x]) : [], subtipos = String(m[5] || '').trim().split(/\s+/).filter(Boolean);
+    return { do: 'continuo', target: 'self-source', torna: { tipos: m[6] ? ['artifact', 'creature'] : ['creature'], somaTipos: true, ...(subtipos.length ? { subtipos } : {}), base: [+m[2], +m[3]], ...(todos ? { todosOsTiposDeCriatura: true } : {}) },
+      ...(palavras.length ? { palavras } : {}), ...(cores.length ? { cores } : {}), ...(m[1] || m[8] ? {} : { ate: 'sempre' }) };
+  }
   function leAtivada(linha, nome, frases) {
     const m = linha.match(/^((?:(?:\{[^}]+\})+|Sacrifice [^:,]+|Discard a card|Discard (?:~|this card)|Discard your hand|Exile ~ from your hand|Exile (?:two|three|four|five) cards from your graveyard|Pay \d+ life|Remove an? [a-z]+ counter from ~|Put an? [+-]\d\/[+-]\d counter on ~)(?:,\s*(?:(?:\{[^}]+\})+|Sacrifice [^:,]+|Discard a card|Discard (?:~|this card)|Discard your hand|Pay \d+ life|Remove an? [a-z]+ counter from ~|Exile (?:~|this card) from your graveyard|Exile ~))*): (.+)$/i); // M-352 · "Exile ~ from your graveyard" (Bramble Wurm) // M-348 · remover marcador, exilar ~ // M-342 · também "Exile ~ from your hand" e "Discard your hand" // M-329 · também "Pay N life" // LT9 · {2}{U} seguidos
     if (!m) { frases.push({ texto: linha, lida: false, motivo: 'habilidade ativada sem padrão conhecido' }); return null; }
@@ -20541,6 +20556,7 @@ const __m42 = (function () {
     const am = corpo.match(/^Add an amount of \{([WUBRGC])\} equal to the sacrificed creature's mana value$/i); // M-464 · Soldevi Adnate: a mana sai do sacrificado (608.2h)
     if (am && cost.sacrificeOther) { frases.push({ texto: m[1], lida: true }, { texto: corpo, lida: true }); return { kind: 'activated', cost, ...extra, effects: [{ do: 'add_mana', symbols: [am[1].toUpperCase()], porContagem: 'sacrificed-mv' }] }; }
     if (/^Add /.test(corpo)) { frases.push({ texto: linha, lida: false, motivo: 'habilidade de mana com custo além de {T} (LT5)' }); return null; }
+    { const vc = terrenoViraCriaturaK(til(corpo, nome)); if (vc) { frases.push({ texto: m[1], lida: true }, { texto: corpo, lida: true }); return { kind: 'activated', cost, ...extra, effects: [vc] }; } } // K-76 · 205.1b
     const sub = []; const e = leParagrafo(corpo.replace(/^it /i, '~ '), nome, sub);
     frases.push({ texto: m[1], lida: true }, ...sub, ...(fraseSo ? [fraseSo] : []));
     return e ? { kind: 'activated', cost, ...extra, effects: e } : null;
@@ -21308,7 +21324,7 @@ function mutacao(s, o) {
     m = { types: b.addTypes ? ordenaTipos([...new Set([...m.types, ...(b.types || [])])]) : (b.types || m.types),
       subtypes: b.addTypes ? [...new Set([...m.subtypes, ...(b.subtypes || [])])] : (b.subtypes || m.subtypes), base: b.base || m.base,
       perde: !!b.loseAbilities || m.perde, corte: b.loseAbilities ? ts : m.corte, keywords: [...(b.loseAbilities ? [] : m.keywords), ...(b.keywords || [])],
-      subtiposDefinidos: (b.subtypes && !b.addTypes) || m.subtiposDefinidos }; // CR2d.12 · 613.3: redefinir os subtipos depois sobrepõe o metamorfo
+      subtiposDefinidos: (b.subtypes && !b.addTypes) || m.subtiposDefinidos, todosTiposK: b.todosOsTiposK ? true : (b.subtypes && !b.addTypes) ? false : m.todosTiposK }; // K-76 · 205.3m: "all creature types" com carimbo (o que redefine os subtipos depois vence, 613.7) // CR2d.12 · 613.3: redefinir os subtipos depois sobrepõe o metamorfo
   }
   return m;
 }
@@ -21325,7 +21341,7 @@ function mutacaoLegado(s, o) {
     m = { types: b.addTypes ? ordenaTipos([...new Set([...m.types, ...(b.types || [])])]) : (b.types || m.types),
       subtypes: b.addTypes ? [...new Set([...m.subtypes, ...(b.subtypes || [])])] : (b.subtypes || m.subtypes), base: b.base || m.base,
       perde: !!b.loseAbilities || m.perde, corte: b.loseAbilities ? ts : m.corte, keywords: [...(b.loseAbilities ? [] : m.keywords), ...(b.keywords || [])],
-      subtiposDefinidos: (b.subtypes && !b.addTypes) || m.subtiposDefinidos }; // CR2d.12 · o mesmo campo do caminho novo
+      subtiposDefinidos: (b.subtypes && !b.addTypes) || m.subtiposDefinidos, todosTiposK: b.todosOsTiposK ? true : (b.subtypes && !b.addTypes) ? false : m.todosTiposK }; // K-76 · o mesmo campo do caminho novo // CR2d.12 · o mesmo campo do caminho novo
   }
   return m;
 }
@@ -28902,6 +28918,7 @@ function ehTipoDeCriaturaK(sub) { return TIPOS_DE_CRIATURA_K.has(String(sub || '
 function metamorfoK(s, o, sub) {
   if (!o || o.faceDown || !s.facts[o.name]) return false;
   const f = s.facts[o.name];
+  if (o.zone === 'battlefield' && (mutacao(s, o) || {}).todosTiposK) return isCreature(s, o) && (sub == null || ehTipoDeCriaturaK(sub)); // K-76 · 205.3m: "becomes a 2/2 creature with all creature types" (Mutavault), pelo efeito, sem a palavra metamorfo
   if (!((f.kw || []).includes('changeling') || (f.textoK || []).includes('changeling') || (f.script || {}).changeling)) return false; // K-15 · também a linha do texto
   if (!/\b(creature|kindred|tribal)\b/i.test(o.zone === 'battlefield' ? linhaDeTipo(s, o) : (f.typeText || ''))) return false;
   if ((mutacao(s, o) || {}).subtiposDefinidos) return false;
