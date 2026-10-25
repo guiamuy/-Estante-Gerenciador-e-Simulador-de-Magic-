@@ -12820,8 +12820,8 @@ test('e2e · R-2 Painel Estante: outro e-mail é recusado e desconectado; o dono
   assert.match(await page.innerText('#pn-main'), /main: G-264 · há 2 h/);
   assert.equal(await page.getAttribute('#pn-carimbo', 'data-farol'), 'verde');
   assert.match(await page.innerText('#pn-cota'), /57 de 60/);
-  assert.equal(await page.locator('#pn-abas .ds-tab').count(), 13);   // R-27 · Pessoas
-  assert.deepEqual(await page.$$eval('#pn-abas .ds-tab', es => es.map(e => e.dataset.tab)), ['pipeline', 'eficiencia', 'roadmap', 'motor', 'jogo', 'qualidade', 'curso', 'skills', 'modelos', 'custo', 'acervo', 'experiencia', 'pessoas']);
+  assert.equal(await page.locator('#pn-abas .ds-tab').count(), 14);   // R-27 · Pessoas · R-33 · Negócio
+  assert.deepEqual(await page.$$eval('#pn-abas .ds-tab', es => es.map(e => e.dataset.tab)), ['pipeline', 'eficiencia', 'roadmap', 'motor', 'jogo', 'qualidade', 'curso', 'skills', 'modelos', 'custo', 'acervo', 'experiencia', 'pessoas', 'negocio']);
   await page.waitForSelector('#pn-visao-pipeline, #pn-sem-dados, #pn-em-breve');
   for (const id of ['#pn-atualizar', '#pn-sair', '#pn-tema', '#pn-voltar']) assert.ok((await page.locator(id).boundingBox()).height >= 44, id + ' com 44 px');
   // abrir outra sub-aba: dentro do prazo do cache não há pedido novo; o conteúdo diz a leva dela
@@ -13555,6 +13555,77 @@ test('e2e · R-30 Painel · Acervo · uso opt-in: sem uso.jsonl os cartões fica
   const tudo = await page.innerText('#pn-visao-acervo'); assert.ok(!/uid|@|exemplo\.com/.test(tudo), 'nada identifica ninguém');
   await auditaTela(page, 'acervo · uso opt-in');
   if (process.env.SHOTS) { await page.screenshot({ path: process.env.SHOTS + '/r30-uso.png', fullPage: true }); }
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · R-33 Painel · Negócio: sem mês lançado, o estado vazio convida a lançar; lançar o mês (Pix, Ko-fi, custo) vai para o banco (/painel/<uid>/negocio/<mês>, lido de volta) com cópia no aparelho; cartões de doações, custo e saldo em 12 meses e as barras por mês; valor que não é dinheiro é recusado; trocar o mês traz o que estava guardado; banco recusando, fica no aparelho pendente; sem sobreposição nas quatro medidas e dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  const painel = base.replace('index.html', 'painel.html');
+  await page.setViewportSize({ width: 360, height: 780 });
+  const json = (r, corpo) => r.fulfill({ json: corpo, headers: { 'content-type': 'application/json', 'x-ratelimit-remaining': '50', 'x-ratelimit-limit': '60', 'access-control-expose-headers': 'etag, x-ratelimit-remaining, x-ratelimit-limit' } });
+  let github = 0;
+  await page.route('https://api.github.com/**', r => { github++; return json(r, /commits\?sha=main&per_page=1/.test(r.request().url()) ? [{ sha: 'abc1234def0', commit: { message: 'Leva R-33 · x', committer: { date: new Date().toISOString() } } }] : []); });
+  await page.route('https://raw.githubusercontent.com/**', r => r.fulfill({ body: '', headers: { 'content-type': 'text/plain', 'access-control-allow-origin': '*' } }));
+  await page.addInitScript(() => {
+    const jwt = email => 'h.' + btoa(JSON.stringify({ email })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') + '.s';
+    window.__PAINEL_FETCH = async (url) => new Response(JSON.stringify(url.includes('securetoken') ? { user_id: 'uidE2E', id_token: jwt('gui.amuy@gmail.com'), refresh_token: 'ref-e2e', expires_in: '3600' } : { localId: 'uidE2E', idToken: jwt('gui.amuy@gmail.com'), refreshToken: 'ref-e2e', expiresIn: '3600' }), { headers: { 'content-type': 'application/json' } });
+    window.__PAINEL_GOOGLE = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }), revoke: (tk, cb) => cb && cb() } } };
+    // banco falso: /painel/<uid>/negocio.json (o mapa) e /painel/<uid>/negocio/<mês>.json (um mês), guardado em sessionStorage
+    window.__dbPedidos = [];
+    window.__PAINEL_FETCH_DB = async (url, opts = {}) => {
+      const m = /^https:\/\/estante-10102026-default-rtdb\.firebaseio\.com\/painel\/([^/]+)\/negocio(?:\/(\d{4}-\d{2}))?\.json\?auth=(.+)$/.exec(url);
+      window.__dbPedidos.push({ url, method: opts.method || 'GET' });
+      const nao = () => new Response('{"error":"Permission denied"}', { status: 401, headers: { 'content-type': 'application/json' } });
+      if (!m || m[1] !== 'uidE2E' || !m[3] || sessionStorage.getItem('db.recusa')) return nao();
+      const mapa = JSON.parse(sessionStorage.getItem('db.negocio') || '{}');
+      if ((opts.method || 'GET') === 'PUT') { mapa[m[2]] = JSON.parse(opts.body); sessionStorage.setItem('db.negocio', JSON.stringify(mapa)); }
+      const corpo = m[2] ? (mapa[m[2]] || null) : (Object.keys(mapa).length ? mapa : null);
+      return new Response(JSON.stringify(corpo), { headers: { 'content-type': 'application/json' } });
+    };
+  });
+  await page.goto(painel + '#negocio'); await page.waitForSelector('#pn-entrar'); await page.click('#pn-entrar');
+  await page.waitForSelector('#pn-visao-negocio');
+  await page.waitForSelector('#pn-negocio-vazio');
+  assert.match(await page.innerText('#pn-negocio-vazio'), /Nenhum mês lançado ainda/);
+  assert.ok(await page.evaluate(() => window.__dbPedidos.some(p => p.method === 'GET' && /negocio\.json/.test(p.url))), 'ao abrir a sub-aba o painel lê os meses do banco');
+  const mesAtual = await page.evaluate(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; });
+  assert.equal(await page.inputValue('#pn-negocio-mes'), mesAtual);
+  for (const id of ['#pn-negocio-mes', '#pn-negocio-pix', '#pn-negocio-kofi', '#pn-negocio-custo', '#pn-negocio-salvar']) assert.ok((await page.locator(id).boundingBox()).height >= 44, id + ' com 44 px');
+  await auditaTela(page, 'negocio vazio 360');
+  // valor que não é dinheiro: recusado, nada vai ao banco
+  await page.fill('#pn-negocio-pix', '12.5'); await page.click('#pn-negocio-salvar'); await page.waitForSelector('#pn-aviso');
+  assert.match(await page.innerText('#pn-aviso'), /Pix: use só números, com vírgula/);
+  assert.equal(await page.evaluate(() => window.__dbPedidos.filter(p => p.method === 'PUT').length), 0);
+  // lançar o mês
+  await page.fill('#pn-negocio-pix', '35,00'); await page.fill('#pn-negocio-kofi', '12,50'); await page.fill('#pn-negocio-custo', '0'); await page.fill('#pn-negocio-nota', 'primeiro mês');
+  await page.click('#pn-negocio-salvar');
+  await page.waitForFunction(() => /salvo agora · no banco/.test(document.querySelector('#pn-negocio-salvo')?.innerText || ''));
+  const gravado = await page.evaluate(m => JSON.parse(sessionStorage.getItem('db.negocio'))[m], mesAtual);
+  assert.deepEqual({ ...gravado, atualizadoEm: 0 }, { kind: 'estante.painel.negocio', version: 1, mes: mesAtual, atualizadoEm: 0, pix: 3500, kofi: 1250, custo: 0, nota: 'primeiro mês' }, 'centavos inteiros, nada além do registro');
+  assert.match(await page.innerText('#pn-k-negocio-mes'), /R\$\s47,50[\s\S]*Pix R\$\s35,00 · Ko-fi R\$\s12,50/);
+  assert.match(await page.innerText('#pn-k-negocio-12'), /R\$\s47,50[\s\S]*1 mês\(es\) lançado/);
+  assert.match(await page.innerText('#pn-k-negocio-saldo'), /R\$\s47,50[\s\S]*as doações cobrem o custo/);
+  assert.equal(await page.locator('#pn-g-negocio-doacoes li').count(), 12, 'uma barra por mês dos últimos 12');
+  // outro mês com custo maior: o saldo passa a negativo
+  const anterior = await page.evaluate(() => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; });
+  await page.fill('#pn-negocio-mes', anterior); await page.dispatchEvent('#pn-negocio-mes', 'input');
+  await page.waitForFunction(m => (document.querySelector('#pn-negocio-pix')?.value === '') && document.querySelector('#pn-negocio-mes')?.value === m, anterior);
+  await page.fill('#pn-negocio-pix', '0'); await page.fill('#pn-negocio-kofi', '0'); await page.fill('#pn-negocio-custo', '60,00');
+  await page.click('#pn-negocio-salvar');
+  await page.waitForFunction(() => /no banco/.test(document.querySelector('#pn-negocio-salvo')?.innerText || ''));
+  assert.match(await page.innerText('#pn-k-negocio-saldo'), /12,50[\s\S]*o custo passa das doações/);
+  assert.equal(await page.getAttribute('#pn-k-negocio-saldo .pn-farol', 'data-farol'), 'amarelo');
+  // voltar ao mês atual traz o que estava guardado
+  await page.fill('#pn-negocio-mes', mesAtual); await page.dispatchEvent('#pn-negocio-mes', 'input');
+  await page.waitForFunction(() => document.querySelector('#pn-negocio-pix')?.value === '35,00');
+  assert.equal(await page.inputValue('#pn-negocio-kofi'), '12,50');
+  await emTodasAsMedidas(page, 'painel negócio');
+  // banco recusando: fica no aparelho, pendente
+  await page.evaluate(() => sessionStorage.setItem('db.recusa', '1'));
+  await page.fill('#pn-negocio-pix', '40,00'); await page.click('#pn-negocio-salvar');
+  await page.waitForFunction(() => /o banco não recebeu ainda/.test(document.querySelector('#pn-negocio-salvo')?.innerText || ''));
+  assert.match(await page.innerText('#pn-aviso'), /recusou a gravação do mês/);
+  assert.equal(github <= 9, true, 'Negócio não gasta cota do GitHub além da casca');
   assert.deepEqual(errors, []);
 });
 

@@ -178,11 +178,11 @@ test('R-2 · fonte sem rede ou com a cota esgotada devolve o que havia guardado 
 });
 
 /* ---------- modelo puro ---------- */
-test('R-2/R-21/R-27 · modelo: treze sub-abas na ordem das fatias (Pipeline antes da Eficiência; Jogo depois do Motor; Custo, Acervo, Experiência e Pessoas no fim), todas com a leva e o que trazem; prontas: Pipeline (R-4), Eficiência (R-5), Roadmap (R-6), Motor (R-7), Jogo (R-18), Qualidade (R-8), Em curso (R-9), Skills (R-10), Modelos (R-11), Custo (R-19), Acervo (R-20) e Experiência (R-21): todas', () => {
+test('R-2/R-21/R-27/R-33 · modelo: catorze sub-abas na ordem das fatias (Pipeline antes da Eficiência; Jogo depois do Motor; Custo, Acervo, Experiência e Pessoas no fim), todas com a leva e o que trazem; prontas: Pipeline (R-4), Eficiência (R-5), Roadmap (R-6), Motor (R-7), Jogo (R-18), Qualidade (R-8), Em curso (R-9), Skills (R-10), Modelos (R-11), Custo (R-19), Acervo (R-20) e Experiência (R-21): todas', () => {
   const { modelo, app } = loadPainel();
-  assert.deepEqual(modelo.SUBABAS.map(a => a.id), ['pipeline', 'eficiencia', 'roadmap', 'motor', 'jogo', 'qualidade', 'curso', 'skills', 'modelos', 'custo', 'acervo', 'experiencia', 'pessoas']);
+  assert.deepEqual(modelo.SUBABAS.map(a => a.id), ['pipeline', 'eficiencia', 'roadmap', 'motor', 'jogo', 'qualidade', 'curso', 'skills', 'modelos', 'custo', 'acervo', 'experiencia', 'pessoas', 'negocio']);
   for (const a of modelo.SUBABAS) { assert.match(a.leva, /^R-\d+$/); assert.ok(a.traz.length > 20); assert.equal(!!a.pronta, true, a.id + ' pronta'); assert.equal(!!app.VISOES[a.id], !!a.pronta, 'toda sub-aba pronta tem a visão que a desenha'); }
-  assert.deepEqual(modelo.SUBABAS.map(a => a.leva), ['R-4', 'R-5', 'R-6', 'R-7', 'R-18', 'R-8', 'R-9', 'R-10', 'R-11', 'R-19', 'R-20', 'R-21', 'R-27']);
+  assert.deepEqual(modelo.SUBABAS.map(a => a.leva), ['R-4', 'R-5', 'R-6', 'R-7', 'R-18', 'R-8', 'R-9', 'R-10', 'R-11', 'R-19', 'R-20', 'R-21', 'R-27', 'R-33']);
 });
 
 test('R-2 · modelo: carimbo dos dados, idade e farol com limiar declarado', () => {
@@ -972,4 +972,57 @@ test('R-32 · força do Shark por lista: linhasDaForca normaliza (%, ordem do ma
   assert.equal(fonte.pedidos, 0, 'nada vai à API'); assert.equal(d.forca.length, 1); assert.deepEqual(d.placares, []);
   const d2 = await app.VISOES.jogo.carrega(base.createFonte({ fetch: async () => ({ ok: false, status: 404, headers: { get: () => null }, text: async () => '', json: async () => ({}) }), guarda: base.createGuarda(null) }), false);
   assert.deepEqual(d2.forca, [], 'sem o arquivo, lista vazia');
+});
+
+
+/* ---------------- R-33 · BI2-4 · Negócio (lançamento manual por mês) ---------------- */
+test('R-33 · dinheiro em centavos inteiros: "1.234,56", "12,5", "12", "R$ 7,00" e vazio; texto que não é dinheiro é recusado; reais formatados', () => {
+  const { modelo: M } = loadPainel();
+  for (const [t, c] of [['1.234,56', 123456], ['12,5', 1250], ['12', 1200], ['R$ 7,00', 700], ['', 0], ['  ', 0], ['0,01', 1], ['1234,5', 123450]]) assert.equal(M.centavosDe(t), c, t);
+  for (const t of ['12.5', '1,234', 'abc', '-5', '1,999', '12,', '1.23,45']) assert.equal(M.centavosDe(t), null, t);
+  assert.equal(M.reaisDe(123456).replace(/\s/g, ' '), 'R$ 1.234,56');
+  assert.equal(M.rotuloDoMes('2026-10'), 'out/26');
+});
+
+test('R-33 · resumo dos 12 meses: mês sem lançamento conta zero; doações = Pix + Ko-fi; saldo = doações − custo; forma inválida fica de fora', () => {
+  const { modelo: M } = loadPainel();
+  const linhas = M.linhasDoNegocio({ '2026-10': { pix: 3500, kofi: 1250, custo: 0 }, '2026-08': { pix: 1000, kofi: 0, custo: 4000 }, '2025-09': { pix: 99999, kofi: 0, custo: 0 }, 'lixo': { pix: 5 }, '2026-07': { pix: 1.5, kofi: -3, custo: 'x' } });
+  assert.deepEqual(linhas.map(l => l.mes), ['2025-09', '2026-07', '2026-08', '2026-10']);
+  assert.deepEqual(linhas.find(l => l.mes === '2026-07'), { mes: '2026-07', pix: 0, kofi: 0, custo: 0, doacoes: 0, saldo: 0, nota: '', atualizadoEm: null, pendente: false, origem: null });
+  const x = M.resumoDoNegocio(linhas, '2026-10');
+  assert.equal(x.doze.length, 12); assert.equal(x.doze[0].mes, '2025-11'); assert.equal(x.doze[11].mes, '2026-10');
+  assert.equal(x.lancados, 3, 'out, ago e jul (set/25 fica fora dos 12 meses)');
+  assert.deepEqual([x.pix, x.kofi, x.doacoes, x.custo, x.saldo], [4500, 1250, 5750, 4000, 1750]);
+  assert.equal(x.atual.doacoes, 4750);
+  assert.equal(M.resumoDoNegocio(M.linhasDoNegocio({}), '2026-01').doze[0].mes, '2025-02', 'vira o ano');
+});
+
+test('R-33 · negócio no banco: gravar faz PUT em /painel/<uid>/negocio/<mês>.json e só diz "no banco" lendo de volta; ler junta o banco e o aparelho mês a mês (o mais novo vence); sem rede, fica no aparelho pendente', async () => {
+  const { base } = loadPainel();
+  const mk = respostas => { const g = base.createGuarda(null); const pedidos = []; const fetch = async (url, opts = {}) => { pedidos.push({ url, method: opts.method || 'GET', body: opts.body ? JSON.parse(opts.body) : null }); const r = respostas.shift(); if (!r) throw new TypeError('sem rede'); return typeof r === 'function' ? r(pedidos.at(-1)) : r; }; return { n: base.createNegocio({ fetch, dbUrl: 'https://db.exemplo', token: async () => 'tok', uid: () => 'uidDono', guarda: g }), g, pedidos }; };
+  const reg = { kind: 'estante.painel.negocio', version: 1, mes: '2026-10', atualizadoEm: 5, pix: 3500, kofi: 1250, custo: 0 };
+  const A = mk([p => ({ ok: true, status: 200, json: async () => p.body })]);
+  assert.deepEqual(await A.n.gravar(reg), { onde: 'banco', motivo: null });
+  assert.equal(A.pedidos[0].url, 'https://db.exemplo/painel/uidDono/negocio/2026-10.json?auth=tok'); assert.equal(A.pedidos[0].method, 'PUT');
+  assert.deepEqual(A.g.ler('painel.negocio'), { '2026-10': { ...reg, origem: 'banco' } });
+  const B = mk([{ ok: true, status: 200, json: async () => ({ ...reg, pix: 1 }) }]);
+  assert.deepEqual(await B.n.gravar(reg), { onde: 'aparelho', motivo: 'conferencia' }); assert.equal(B.g.ler('painel.negocio')['2026-10'].pendente, true);
+  const C = mk([]);
+  assert.deepEqual(await C.n.gravar(reg), { onde: 'aparelho', motivo: 'sem-rede' });
+  // ler: o banco tem set e out (antigo); o aparelho tem out pendente mais novo
+  const D = mk([{ ok: true, status: 200, json: async () => ({ '2026-09': { ...reg, mes: '2026-09', atualizadoEm: 3 }, '2026-10': { ...reg, atualizadoEm: 1, pix: 10 } }) }]);
+  D.g.gravar('painel.negocio', { '2026-10': { ...reg, atualizadoEm: 9, pendente: true } });
+  const r = await D.n.ler();
+  assert.equal(D.pedidos[0].url, 'https://db.exemplo/painel/uidDono/negocio.json?auth=tok');
+  assert.equal(r.onde, 'banco'); assert.equal(r.motivo, 'pendente');
+  assert.equal(r.meses['2026-10'].pix, 3500, 'o do aparelho, mais novo'); assert.equal(r.meses['2026-09'].origem, 'banco');
+  const E = mk([{ ok: false, status: 401, json: async () => null }]);
+  assert.equal((await E.n.ler()).motivo, 'recusado');
+});
+
+test('R-33 · a sub-aba Negócio não lê nada do GitHub nem grava telemetria (o ramo é público): só o banco do dono', () => {
+  const i = script.indexOf('negocio: {\n      filtros'), j = script.indexOf('// R-27 · BI2-3 · Pessoas', i);
+  const visao = script.slice(i, j);
+  assert.ok(i > 0 && j > i);
+  assert.doesNotMatch(visao, /fonte\.(raw|api)\(|telemetria\.jsonl|raw\.githubusercontent/, 'Negócio não lê o GitHub');
 });

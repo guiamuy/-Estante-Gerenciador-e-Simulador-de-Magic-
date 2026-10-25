@@ -235,6 +235,38 @@
             ".validate": false
           }
         },
+        "negocio": {
+          "$mes": {
+            ".validate": "$mes.matches(/^20[0-9][0-9]-(0[1-9]|1[0-2])$/) && newData.hasChildren(['kind', 'version', 'mes', 'atualizadoEm', 'pix', 'kofi', 'custo']) && newData.child('kind').val() === 'estante.painel.negocio' && newData.child('version').val() === 1 && newData.child('mes').val() === $mes",
+            "kind": {
+              ".validate": "newData.isString()"
+            },
+            "version": {
+              ".validate": "newData.isNumber()"
+            },
+            "mes": {
+              ".validate": "newData.isString()"
+            },
+            "atualizadoEm": {
+              ".validate": "newData.isNumber() && newData.val() >= 0"
+            },
+            "pix": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000 && newData.val() % 1 === 0"
+            },
+            "kofi": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000 && newData.val() % 1 === 0"
+            },
+            "custo": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 100000000000 && newData.val() % 1 === 0"
+            },
+            "nota": {
+              ".validate": "newData.isString() && newData.val().length <= 200"
+            },
+            "$outro": {
+              ".validate": false
+            }
+          }
+        },
         "$outro": {
           ".validate": false
         }

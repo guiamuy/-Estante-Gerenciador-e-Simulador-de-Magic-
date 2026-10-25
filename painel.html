@@ -808,7 +808,48 @@ const __p0 = (function () {
       }
     };
   }
-  return { REPO, API, RAW, erro, h, clear, createGuarda, createFonte, createPlano, respostaDoRetrato, diasDoRetrato, commitsDoRetrato, intervaloDoCaminho, RETRATO_FRESCOR };
+  /** R-33 · BI2-4 · Negócio: um registro por mês em `/painel/<uid>/negocio/<AAAA-MM>` (doações por plataforma e o custo
+      que o dono informa; mesma regra do plano: só o uid e o e-mail do dono). O aparelho guarda a cópia do mapa
+      (`painel.negocio`); por mês, o mais novo por `atualizadoEm` vence. Gravar lê de volta antes de dizer "no banco". */
+  function createNegocio({ fetch: fetchFn = null, dbUrl = '', token = null, uid = null, guarda, chave = 'painel.negocio' } = {}) {
+    const f = fetchFn || (typeof fetch === 'function' ? fetch.bind(globalThis) : null);
+    const url = async mes => { const u = uid && uid(); const t = token ? await token() : null; if (!dbUrl || !u || !t || !f) return null; return `${dbUrl}/painel/${encodeURIComponent(u)}/negocio${mes ? '/' + encodeURIComponent(mes) : ''}.json?auth=${encodeURIComponent(t)}`; };
+    const local = () => { const m = guarda.ler(chave); return m && typeof m === 'object' ? m : {}; };
+    const campos = ['mes', 'atualizadoEm', 'pix', 'kofi', 'custo', 'nota'];
+    const igual = (a, b) => !!a && !!b && campos.every(k => (a[k] ?? null) === (b[k] ?? null));
+    const limpo = r => { const x = { ...r }; delete x.origem; delete x.pendente; return x; };
+    return {
+      local,
+      /** Lê o mapa do banco e junta com o do aparelho, mês a mês. Devolve { meses, onde: 'banco'|'aparelho', motivo }. */
+      async ler() {
+        const meu = local();
+        const u = await url().catch(() => null);
+        if (!u) return { meses: meu, onde: 'aparelho', motivo: dbUrl ? 'sem-sessao' : 'sem-banco' };
+        let r; try { r = await f(u, { method: 'GET' }); } catch (e) { return { meses: meu, onde: 'aparelho', motivo: 'sem-rede' }; }
+        if (!r.ok) return { meses: meu, onde: 'aparelho', motivo: r.status === 401 || r.status === 403 ? 'recusado' : 'fora' };
+        let remoto = null; try { remoto = await r.json(); } catch (e) { remoto = null; }
+        const junto = {};
+        for (const [mes, reg] of Object.entries(remoto && typeof remoto === 'object' ? remoto : {})) if (reg && typeof reg === 'object') junto[mes] = { ...reg, origem: 'banco' };
+        for (const [mes, reg] of Object.entries(meu)) if (!junto[mes] || (reg.atualizadoEm || 0) > (junto[mes].atualizadoEm || 0)) junto[mes] = reg;
+        guarda.gravar(chave, junto);
+        return { meses: junto, onde: 'banco', motivo: Object.values(junto).some(x => x.pendente) ? 'pendente' : null };
+      },
+      /** Grava um mês no aparelho e no banco; "no banco" só depois de ler de volta o mesmo registro. */
+      async gravar(reg) {
+        const p = limpo(reg);
+        const poe = x => guarda.gravar(chave, { ...local(), [p.mes]: x });
+        const u = await url(p.mes).catch(() => null);
+        if (!u) { poe({ ...p, pendente: !!dbUrl }); return { onde: 'aparelho', motivo: dbUrl ? 'sem-sessao' : 'sem-banco' }; }
+        let r; try { r = await f(u, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p) }); } catch (e) { poe({ ...p, pendente: true }); return { onde: 'aparelho', motivo: 'sem-rede' }; }
+        if (!r.ok) { poe({ ...p, pendente: true }); return { onde: 'aparelho', motivo: r.status === 401 || r.status === 403 ? 'recusado' : 'fora' }; }
+        let volta = null; try { volta = await r.json(); } catch (e) { volta = null; }
+        if (!igual(volta, p)) { poe({ ...p, pendente: true }); return { onde: 'aparelho', motivo: 'conferencia' }; }
+        poe({ ...p, origem: 'banco' });
+        return { onde: 'banco', motivo: null };
+      }
+    };
+  }
+  return { REPO, API, RAW, erro, h, clear, createGuarda, createFonte, createPlano, createNegocio, respostaDoRetrato, diasDoRetrato, commitsDoRetrato, intervaloDoCaminho, RETRATO_FRESCOR };
 })();
 
 /* ==== src/painel/sessao.js ==== */
@@ -933,7 +974,8 @@ const __p2 = (function () {
     { id: 'custo', rotulo: 'Custo', titulo: 'Custo e escala', leva: 'R-19', pronta: true, traz: 'minutos de Actions por rodada, dia e mês, e o tamanho do index.html por leva' },
     { id: 'acervo', rotulo: 'Acervo', titulo: 'Acervo de listas', leva: 'R-20', pronta: true, traz: 'listas do catálogo por formato e por fonte, saúde e frescor das fontes (MTGJSON, Magic Online, TopDeck.gg), fichas pendentes, a medida do scanner e o uso agregado opt-in (quem compartilha números: listas, coleção, scanner)' },
     { id: 'experiencia', rotulo: 'Experiência', titulo: 'Experiência de desenvolvimento', leva: 'R-21', pronta: true, traz: 'o que o portão mediu em cada leva: testes instáveis por semana e por nome, quedas de orçamento, telas auditadas e a duração do portão local' },
-    { id: 'pessoas', rotulo: 'Pessoas', titulo: 'Pessoas', leva: 'R-27', pronta: true, traz: 'quantas contas existem e quantas nasceram por dia, perfis sincronizados, salas por dia e relatos por conta — só totais, ninguém identificado (decisão D13)' }
+    { id: 'pessoas', rotulo: 'Pessoas', titulo: 'Pessoas', leva: 'R-27', pronta: true, traz: 'quantas contas existem e quantas nasceram por dia, perfis sincronizados, salas por dia e relatos por conta — só totais, ninguém identificado (decisão D13)' },
+    { id: 'negocio', rotulo: 'Negócio', titulo: 'Negócio', leva: 'R-33', pronta: true, traz: 'quanto entrou de doação por mês no Pix e no Ko-fi, o custo do mês que você informa e o saldo dos últimos 12 meses' },
   ];
   /** Limiares dos faróis (doc BI-painel-epicos.md, seção 3): editáveis aqui, exibidos em cada cartão. */
   const LIMIARES = {
@@ -1482,7 +1524,40 @@ const __p2 = (function () {
   // R-19 · BI2-5 · Custo: minutos de Actions no mês (referência: 2.000 min/mês do plano gratuito para repositório privado; o repositório é público e hoje não paga) e tamanho do index.html (app sem build: o arquivo inteiro vai ao aparelho)
   Object.assign(LIMIARES, { minutosMes: { verde: 1500, amarelo: 1900, unidade: 'min no mês', texto: 'minutos de Actions no mês: < 1.500 · < 1.900 · 1.900 ou mais (referência do plano gratuito para privado: 2.000)' }, tamanhoIndex: { verde: 3.5 * 1024 * 1024, amarelo: 4 * 1024 * 1024, unidade: 'bytes', texto: 'tamanho do index.html — ≤ 3,5 MB · ≤ 4 MB · mais' } });
   Object.assign(LIMIARES, { plano: { verde: 80, amarelo: 95, unidade: '% do plano', texto: 'consumo do plano: < 80 % · < 95 % · 95 % ou mais' } });
+  /* R-33 · BI2-4 · Negócio (decisão D9/D do dono, 25/10/2026: lançamento manual, uma vez por mês). Valores em centavos
+     inteiros (nada de ponto flutuante em dinheiro). */
+  /** "1.234,56" · "12,5" · "12" · "R$ 7,00" → centavos; vazio → 0; texto que não é dinheiro → null. */
+  function centavosDe(txt) {
+    const t = String(txt ?? '').replace(/R\$|\s/g, '');
+    if (t === '') return 0;
+    if (!/^\d{1,3}(\.\d{3})*(,\d{1,2})?$|^\d+(,\d{1,2})?$/.test(t)) return null;
+    const [inteiro, frac = ''] = t.replace(/\./g, '').split(',');
+    const c = Number(inteiro) * 100 + Number((frac + '00').slice(0, 2));
+    return Number.isSafeInteger(c) && c <= 100000000000 ? c : null;
+  }
+  /** centavos → "R$ 1.234,56" */
+  const reaisDe = c => 'R$ ' + (Math.round(Number(c) || 0) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const MES_RE = /^\d{4}-(0[1-9]|1[0-2])$/;
+  const mesDe = ms => { const d = new Date(ms); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
+  const mesAnterior = mes => { const [a, m] = mes.split('-').map(Number); return m === 1 ? `${a - 1}-12` : `${a}-${String(m - 1).padStart(2, '0')}`; };
+  const rotuloDoMes = mes => { const [a, m] = mes.split('-'); return ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'][Number(m) - 1] + '/' + a.slice(2); };
+  /** Mapa { AAAA-MM: registro } → linhas em ordem de mês, só as de forma válida. */
+  function linhasDoNegocio(meses) {
+    const int = v => (Number.isSafeInteger(v) && v >= 0 ? v : 0);
+    return Object.entries(meses && typeof meses === 'object' ? meses : {})
+      .filter(([mes, r]) => MES_RE.test(mes) && r && typeof r === 'object')
+      .map(([mes, r]) => { const pix = int(r.pix), kofi = int(r.kofi), custo = int(r.custo); return { mes, pix, kofi, custo, doacoes: pix + kofi, saldo: pix + kofi - custo, nota: typeof r.nota === 'string' ? r.nota : '', atualizadoEm: r.atualizadoEm || null, pendente: !!r.pendente, origem: r.origem || null }; })
+      .sort((a, b) => a.mes.localeCompare(b.mes));
+  }
+  /** Os últimos 12 meses até `mesAtual` (inclusive), com mês sem lançamento como zero, e as somas. */
+  function resumoDoNegocio(linhas, mesAtual) {
+    const por = Object.fromEntries(linhas.map(l => [l.mes, l]));
+    const doze = []; let m = mesAtual; for (let i = 0; i < 12; i++) { doze.unshift(por[m] || { mes: m, pix: 0, kofi: 0, custo: 0, doacoes: 0, saldo: 0, vazio: true }); m = mesAnterior(m); }
+    const soma = k => doze.reduce((n, l) => n + l[k], 0);
+    return { doze, atual: por[mesAtual] || null, lancados: doze.filter(l => !l.vazio).length, pix: soma('pix'), kofi: soma('kofi'), doacoes: soma('doacoes'), custo: soma('custo'), saldo: soma('saldo') };
+  }
   const FONTES = {
+    negocio: 'informado pelo dono no painel, uma vez por mês · banco /painel/<uid>/negocio/<AAAA-MM> (regra só para o uid e o e-mail do dono), com cópia neste aparelho',
     plano: 'informado pelo dono no painel · banco /painel/<uid>/plano (regra só para o uid e o e-mail do dono), com cópia neste aparelho',
     skills: 'ramo telemetria · skills.json (catálogo gerado do registro do orquestrador)',
     fluxos: 'API GitHub · actions/workflows + actions/runs (últimas 50) + raw dos .yml (agendamento)',
@@ -1508,7 +1583,7 @@ const __p2 = (function () {
     coleta: 'raw · catalogo/coleta.json (saúde e contagens da última coleta; gravado pelo fluxo Catálogo)',
     indice: 'raw · catalogo/indice.json (só o cabeçalho: fontes, formatos, total, pendentes; lido uma vez por coleta e guardado por carimbo)'
   };
-  return { SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, linhasDosCommits, levasPorRodada, compactaCommits, MAIN_URL, intervalos, diasDoPeriodo, porSemana, parseRoadmap, resumoDoMapa, linhasDosPlacares, sharkPorVersao, minutosDasRodadas, serieDeTamanho, kb, cabecalhoDoIndice, resumoDoCatalogo, experienciaDasLevas, linhasDasRodadasCI, experienciaDasRodadas, instaveisPorNome, linhasDasPessoas, resumoDasPessoas, linhasDoUso, resumoDoUso, linhasDaForca, resumoDaForca, medidaDoScanner, linhasDosRelatos, linhasDasTrilhas, resumoDoFluxo, fraseDoCron, linhasDosFluxos, linhasDasRotinas, porModelo, SECOES_CR, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
+  return { centavosDe, reaisDe, mesDe, rotuloDoMes, linhasDoNegocio, resumoDoNegocio, SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, linhasDosCommits, levasPorRodada, compactaCommits, MAIN_URL, intervalos, diasDoPeriodo, porSemana, parseRoadmap, resumoDoMapa, linhasDosPlacares, sharkPorVersao, minutosDasRodadas, serieDeTamanho, kb, cabecalhoDoIndice, resumoDoCatalogo, experienciaDasLevas, linhasDasRodadasCI, experienciaDasRodadas, instaveisPorNome, linhasDasPessoas, resumoDasPessoas, linhasDoUso, resumoDoUso, linhasDaForca, resumoDaForca, medidaDoScanner, linhasDosRelatos, linhasDasTrilhas, resumoDoFluxo, fraseDoCron, linhasDosFluxos, linhasDasRotinas, porModelo, SECOES_CR, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
 })();
 
 /* ==== src/painel/ui.js ==== */
@@ -1605,7 +1680,7 @@ const __p3 = (function () {
    sub-aba; filtro cruzado por toque numa barra; cada cartão diz o recorte; a sub-aba Pipeline lê a fila, as rodadas, o Pages e a
    telemetria com orçamento de pedidos declarado. */
 const __p4 = (function () {
-  const { h, clear, createGuarda, createFonte, createPlano } = __p0;
+  const { h, clear, createGuarda, createFonte, createPlano, createNegocio } = __p0;
   const M = __p2;
   const { SUBABAS, LIMIARES, FONTES, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, minutos } = M;
   const { Icone, Button, IconButton, LinkBotao, Text, Empty, Note, AvisoRede, Spinner, Tabs, Farol, Chip, Cartao, Barras, Linha, Field, Input, Select } = __p3;
@@ -2003,6 +2078,50 @@ const __p4 = (function () {
         ];
       }
     },
+    // R-33 · BI2-4 · Negócio: os meses vêm do banco (/painel/<uid>/negocio, lido a cada atualização desta sub-aba); nada do GitHub
+    negocio: {
+      filtros: [], periodoPadrao: '30d',
+      linhas: () => [],
+      async carrega() { return { em: Date.now(), avisos: [], sem: {} }; },
+      desenha(d, filtros, api) {
+        const agora = Date.now();
+        const mesAtual = M.mesDe(agora);
+        const linhas = M.linhasDoNegocio(api.negocio());
+        const x = M.resumoDoNegocio(linhas, mesAtual);
+        const r = api.rascunhoNegocio(mesAtual);
+        const atual = x.atual;
+        const salvo = linhas.find(l => l.mes === r.mes) || null;
+        const ondeTxt = l => l.origem === 'banco' && !l.pendente ? 'no banco' : l.pendente ? 'neste aparelho · o banco não recebeu ainda' : 'neste aparelho';
+        const reais = c => M.reaisDe(c);
+        const cartoes = h('div', { class: 'pn-cartoes' },
+          Cartao({ id: 'pn-k-negocio-mes', rotulo: `Doações em ${M.rotuloDoMes(mesAtual)}`, valor: atual ? reais(atual.doacoes) : '—', unidade: atual ? `Pix ${reais(atual.pix)} · Ko-fi ${reais(atual.kofi)}` : 'mês ainda não lançado', fonte: FONTES.negocio, formula: 'Pix + Ko-fi do mês, informados por você', em: atual ? atual.atualizadoEm : null, semDados: !atual }),
+          Cartao({ id: 'pn-k-negocio-12', rotulo: 'Doações em 12 meses', valor: x.lancados ? reais(x.doacoes) : '—', unidade: x.lancados ? `${x.lancados} mês(es) lançado(s) · Pix ${reais(x.pix)} · Ko-fi ${reais(x.kofi)}` : '', fonte: FONTES.negocio, formula: 'soma dos 12 meses até o atual; mês sem lançamento conta zero', em: null, semDados: !x.lancados }),
+          Cartao({ id: 'pn-k-negocio-custo', rotulo: 'Custo em 12 meses', valor: x.lancados ? reais(x.custo) : '—', unidade: x.lancados ? 'informado por você' : '', fonte: FONTES.negocio, formula: 'soma do custo informado nos 12 meses', em: null, semDados: !x.lancados }),
+          Cartao({ id: 'pn-k-negocio-saldo', rotulo: 'Saldo em 12 meses', valor: x.lancados ? reais(x.saldo) : '—', unidade: x.lancados ? (x.saldo >= 0 ? 'as doações cobrem o custo' : 'o custo passa das doações') : '', farol: x.lancados ? (x.saldo >= 0 ? 'verde' : 'amarelo') : 'cinza', fonte: FONTES.negocio, formula: 'doações − custo, 12 meses', em: null, semDados: !x.lancados }));
+        const barras = (k, titulo, id) => Barras({ id, titulo, itens: x.doze.map(l => ({ chave: l.mes, rotulo: M.rotuloDoMes(l.mes), valor: Math.round(l[k] / 100), dica: `${M.rotuloDoMes(l.mes)}: ${l.vazio ? 'sem lançamento' : reais(l[k])}` })), formato: v => 'R$ ' + Number(v).toLocaleString('pt-BR'), vazio: 'nenhum mês lançado' });
+        const campo = (rotulo, id, k, dica) => Field(rotulo, Input({ id, type: 'text', inputmode: 'decimal', autocomplete: 'off', value: r[k] ?? '', placeholder: dica, onInput: e => api.mudaNegocio({ [k]: e.target.value }) }), { id });
+        const form = h('form', { class: 'pn-form ds-surface pn-cartao', id: 'pn-negocio-form', novalidate: true, onSubmit: e => { e.preventDefault(); api.salvaNegocio(); } },
+          h('span', { class: 'ds-text ds-text--caps' }, 'Lançar um mês (informado por você)'),
+          Field('Mês', Input({ id: 'pn-negocio-mes', type: 'month', value: r.mes, max: mesAtual, onInput: e => api.mudaNegocio({ mes: e.target.value }, true) }), { id: 'pn-negocio-mes' }),
+          campo('Pix (R$)', 'pn-negocio-pix', 'pix', 'o que entrou no extrato, ex.: 35,00'),
+          campo('Ko-fi (R$)', 'pn-negocio-kofi', 'kofi', 'o que o Ko-fi repassou, ex.: 12,50'),
+          campo('Custo do mês (R$)', 'pn-negocio-custo', 'custo', 'domínio, planos pagos; 0 se nada'),
+          Field('Nota', Input({ id: 'pn-negocio-nota', type: 'text', maxlength: 200, autocomplete: 'off', value: r.nota ?? '', placeholder: 'opcional', onInput: e => api.mudaNegocio({ nota: e.target.value }) }), { id: 'pn-negocio-nota' }),
+          h('div', { class: 'ds-row pn-form__acoes' }, Button('Salvar', { variant: 'primary', id: 'pn-negocio-salvar', icone: 'conferir', onClick: () => api.salvaNegocio(), disabled: !!api.salvandoNegocio }),
+            h('span', { class: 'ds-text ds-text--sm ds-text--muted', id: 'pn-negocio-salvo', dataset: { onde: salvo ? (salvo.origem === 'banco' && !salvo.pendente ? 'banco' : 'aparelho') : 'nenhum' } }, salvo ? `${M.rotuloDoMes(salvo.mes)} salvo ${haQuanto(salvo.atualizadoEm, agora)} · ${ondeTxt(salvo)}` : `${M.rotuloDoMes(r.mes)} ainda não lançado`)));
+        const notas = ['doações e custo são o que você informa, uma vez por mês (decisão D9/D, 25/10): o Pix de pessoa física não tem saída automática e o Ko-fi fica para depois (opção B); nada disso vai para o ramo telemetria, que é público',
+          'custo: hoje a Estante roda nos planos gratuitos (GitHub Pages, Actions, Firebase); os minutos de Actions estão na sub-aba Custo. Lance aqui só o que você paga de fato (domínio, plano pago)'];
+        if (!linhas.length) return [Empty('Nenhum mês lançado ainda. Lance o primeiro abaixo: quanto entrou no Pix e no Ko-fi e quanto o projeto custou no mês.', null, { icone: 'painel', titulo: 'Negócio', id: 'pn-negocio-vazio' }), form, h('ul', { class: 'pn-notas ds-text ds-text--sm ds-text--muted', id: 'pn-notas' }, ...notas.map(n => h('li', {}, n)))];
+        return [
+          cartoes,
+          h('div', { class: 'pn-graficos' },
+            barras('doacoes', 'Doações por mês · últimos 12 meses', 'pn-g-negocio-doacoes'),
+            barras('custo', 'Custo por mês · últimos 12 meses', 'pn-g-negocio-custo')),
+          form,
+          h('ul', { class: 'pn-notas ds-text ds-text--sm ds-text--muted', id: 'pn-notas' }, ...notas.map(n => h('li', {}, n)))
+        ];
+      }
+    },
     // R-27 · BI2-3 · Pessoas: pessoas.jsonl (só totais por dia) + a tabela de relatos (cache compartilhado com Qualidade) para relatos por conta
     pessoas: {
       filtros: ['periodo'], periodoPadrao: '30d',
@@ -2356,7 +2475,7 @@ const __p4 = (function () {
         else if (r.cotaEsgotada) est.aviso = { tipo: 'cota', texto: motivo('cota') };
         else if (r.falhou) est.aviso = { tipo: 'api', texto: motivo('api') + ' Mostrando o que havia guardado.' };
         const v = visao();
-        if (v) { est.dados[est.aba] = await v.carrega(fonte, forcar, est.filtros); if (est.aba === 'modelos') await lePlano(); if (est.dados[est.aba].sem && (est.dados[est.aba].sem.ramos || est.dados[est.aba].sem.rodadas) && !est.aviso) est.aviso = { tipo: 'rede', texto: 'Parte dos dados veio do que estava guardado (sem rede ou cota).' }; }
+        if (v) { est.dados[est.aba] = await v.carrega(fonte, forcar, est.filtros); if (est.aba === 'modelos') await lePlano(); if (est.aba === 'negocio') await leNegocio(); if (est.dados[est.aba].sem && (est.dados[est.aba].sem.ramos || est.dados[est.aba].sem.rodadas) && !est.aviso) est.aviso = { tipo: 'rede', texto: 'Parte dos dados veio do que estava guardado (sem rede ou cota).' }; }
       } catch (e) {
         est.aviso = { tipo: e.message === 'sem-rede' ? 'rede' : 'api', texto: e.message === 'sem-rede' ? 'Sem internet. Nenhum dado guardado ainda.' : motivo(e.message) };
       }
@@ -2393,6 +2512,38 @@ const __p4 = (function () {
         est.aviso = r.onde === 'banco' ? null : (MOTIVO_PLANO[r.motivo] ? { tipo: r.motivo === 'sem-rede' ? 'rede' : 'api', texto: MOTIVO_PLANO[r.motivo] } : null);
         desenha();
       } };
+    /* R-33 · Negócio: um mês por vez no formulário; o mapa vem do banco (lido a cada atualização da sub-aba) com cópia aqui */
+    const NEGOCIO = 'painel.negocio';
+    const negocioBanco = createNegocio({ fetch: W.__PAINEL_FETCH_DB || W.__PAINEL_FETCH || null, dbUrl: FIREBASE_DB_URL, token: () => sessao.token(), uid: () => est.sessao && est.sessao.uid, guarda, chave: NEGOCIO });
+    let rascNeg = null;
+    const MOTIVO_NEGOCIO = { 'sem-rede': 'Sem internet: o mês ficou guardado neste aparelho e vai para o banco no próximo Salvar com rede.', recusado: 'O banco recusou a gravação do mês (regra /painel/negocio ainda não publicada?). Ficou guardado neste aparelho.', fora: 'O banco não respondeu. O mês ficou guardado neste aparelho.', conferencia: 'O banco respondeu diferente do que foi gravado. O mês ficou guardado neste aparelho; salve de novo.' };
+    const reaisNoCampo = c => (c == null ? '' : (c / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+    const doMes = mes => { const reg = (guarda.ler(NEGOCIO) || {})[mes]; return { mes, pix: reg ? reaisNoCampo(reg.pix) : '', kofi: reg ? reaisNoCampo(reg.kofi) : '', custo: reg ? reaisNoCampo(reg.custo) : '', nota: reg && reg.nota ? reg.nota : '' }; };
+    Object.assign(api, {
+      negocio: () => guarda.ler(NEGOCIO) || {},
+      rascunhoNegocio: mesAtual => rascNeg || doMes(mesAtual),
+      /** Trocar o mês recarrega os valores guardados desse mês; os outros campos só mudam o rascunho. */
+      mudaNegocio(p, trocaMes) { if (trocaMes) { rascNeg = /^\d{4}-(0[1-9]|1[0-2])$/.test(p.mes || '') ? doMes(p.mes) : { ...(rascNeg || doMes(M.mesDe(Date.now()))), mes: p.mes }; desenha(); return; } rascNeg = { ...(rascNeg || doMes(M.mesDe(Date.now()))), ...p }; },
+      get salvandoNegocio() { return !!est.salvandoNegocio; },
+      async salvaNegocio() {
+        const r = rascNeg || doMes(M.mesDe(Date.now()));
+        const mes = String(r.mes || '');
+        if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(mes) || mes > M.mesDe(Date.now())) { est.aviso = { tipo: 'api', texto: 'Escolha um mês até o atual.' }; desenha(); return; }
+        const v = { pix: M.centavosDe(r.pix), kofi: M.centavosDe(r.kofi), custo: M.centavosDe(r.custo) };
+        const ruim = Object.entries(v).filter(([, c]) => c == null).map(([k]) => ({ pix: 'Pix', kofi: 'Ko-fi', custo: 'Custo' })[k]);
+        if (ruim.length) { est.aviso = { tipo: 'api', texto: `${ruim.join(', ')}: use só números, com vírgula para os centavos (ex.: 12,50).` }; desenha(); return; }
+        const nota = String(r.nota || '').slice(0, 200);
+        const reg = { kind: 'estante.painel.negocio', version: 1, mes, atualizadoEm: Date.now(), ...v, ...(nota ? { nota } : {}) };
+        est.salvandoNegocio = true; desenha();
+        const g = await negocioBanco.gravar(reg);
+        est.salvandoNegocio = false; rascNeg = null;
+        est.aviso = g.onde === 'banco' ? null : (MOTIVO_NEGOCIO[g.motivo] ? { tipo: g.motivo === 'sem-rede' ? 'rede' : 'api', texto: MOTIVO_NEGOCIO[g.motivo] } : null);
+        desenha();
+      } });
+    async function leNegocio() {
+      const r = await negocioBanco.ler();
+      if (r.onde !== 'banco' && MOTIVO_NEGOCIO[r.motivo] && r.motivo !== 'sem-sessao' && !est.aviso) est.aviso = { tipo: r.motivo === 'sem-rede' ? 'rede' : 'api', texto: MOTIVO_NEGOCIO[r.motivo] };
+    }
     /** Na sub-aba Modelos, cada atualização lê o plano do banco (1 pedido ao Firebase, fora da cota do GitHub). */
     async function lePlano() {
       const r = await planoBanco.ler();

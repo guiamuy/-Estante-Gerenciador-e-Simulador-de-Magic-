@@ -377,6 +377,32 @@ test('R-11b · painel/$uid: só o próprio uid com o e-mail do dono lê e escrev
   assert.equal(await transporte(b, DONO).ler(`painel/${DONO.uid}/plano`), null);
 });
 
+test('R-33 · painel/$uid/negocio/$mes: só o dono lê e escreve; um registro por mês AAAA-MM com kind, version 1, mes igual à chave, pix, kofi e custo em centavos inteiros ≥ 0; nota ≤ 200; chave desconhecida recusada', async () => {
+  const DONO = { uid: 'uidDoDono_001', token: { email: 'gui.amuy@gmail.com' } };
+  const b = bancoComRegras();
+  const mes = { kind: 'estante.painel.negocio', version: 1, mes: '2026-10', atualizadoEm: 1700000000000, pix: 3500, kofi: 1250, custo: 0, nota: 'primeiro mês' };
+  const caminho = m => `painel/${DONO.uid}/negocio/${m}`;
+  await transporte(b, DONO).escrever(caminho('2026-10'), mes);
+  assert.deepEqual(await transporte(b, DONO).ler(caminho('2026-10')), mes);
+  await transporte(b, DONO).escrever(caminho('2026-09'), { ...mes, mes: '2026-09', nota: undefined });
+  assert.deepEqual(Object.keys(await transporte(b, DONO).ler(`painel/${DONO.uid}/negocio`)).sort(), ['2026-09', '2026-10']);
+  await recusa(transporte(b, ANA).ler(caminho('2026-10')), 'Ana lê o negócio do dono');
+  await recusa(transporte(b, { uid: DONO.uid, token: { email: 'outra@pessoa.com' } }).escrever(caminho('2026-10'), mes), 'outro e-mail');
+  await recusa(transporte(b, DONO).escrever(caminho('2026-13'), { ...mes, mes: '2026-13' }), 'mês 13');
+  await recusa(transporte(b, DONO).escrever(caminho('out-2026'), { ...mes, mes: 'out-2026' }), 'mês fora da forma');
+  await recusa(transporte(b, DONO).escrever(caminho('2026-11'), mes), 'mes diferente da chave');
+  await recusa(transporte(b, DONO).escrever(caminho('2026-10'), { ...mes, pix: 12.5 }), 'centavos quebrados (dinheiro em ponto flutuante)');
+  await recusa(transporte(b, DONO).escrever(caminho('2026-10'), { ...mes, kofi: -1 }), 'valor negativo');
+  await recusa(transporte(b, DONO).escrever(caminho('2026-10'), { ...mes, custo: '10' }), 'valor em texto');
+  await recusa(transporte(b, DONO).escrever(caminho('2026-10'), { ...mes, nota: 'x'.repeat(201) }), 'nota longa');
+  await recusa(transporte(b, DONO).escrever(caminho('2026-10'), { ...mes, email: 'x@y.z' }), 'chave desconhecida (e-mail nunca entra)');
+  await recusa(transporte(b, DONO).escrever(caminho('2026-10'), { ...mes, version: 2 }), 'versão desconhecida');
+  const { pix, ...semPix } = mes;
+  await recusa(transporte(b, DONO).escrever(caminho('2026-10'), semPix), 'sem pix');
+  // o plano continua igual
+  await transporte(b, DONO).escrever(`painel/${DONO.uid}/plano`, { kind: 'estante.painel.plano', version: 1, atualizadoEm: 1 });
+});
+
 test('G-266 · nome de usuário: a primeira conta reserva; a outra recebe "em uso"; trocar solta o antigo; ninguém mexe na reserva dos outros', async () => {
   // G-280 · o relógio anda: a troca do fim do teste acontece 31 dias depois da primeira reserva (uma troca a cada 30 dias)
   let relogio = 7;
