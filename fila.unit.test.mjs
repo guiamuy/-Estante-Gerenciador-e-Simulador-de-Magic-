@@ -288,7 +288,10 @@ test('I-292 · telemetria da rodada: o portão entrega só um resumo agregado co
 test('Q17 · do lado da conversa: `publicar --fila` envia para fila/<leva>; número já na fila por outra conversa é recusado; o que a fila publicou sai da frente no rebase seguinte', () => {
   const m = mundo();
   try {
-    const publicar = (c, ...args) => spawnSync(process.execPath, [join(RAIZ, 'publicar.mjs'), ...args], { cwd: c.dir, encoding: 'utf8', env: { ...process.env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@t', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@t', GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null' } });
+    // I-307 · o teste é da fila, não do navegador: o publicar confere o Chromium da fase de tela antes de enviar
+    // (garantirNavegador), e desde a I-306 o job `portao` do CI roda a fase rápida sem Chromium — o Q17 caía só lá e
+    // deixou o main vermelho. PW_CHROMIUM aponta para um arquivo que existe (o próprio node); nenhuma fase de tela roda aqui.
+    const publicar = (c, ...args) => spawnSync(process.execPath, [join(RAIZ, 'publicar.mjs'), ...args], { cwd: c.dir, encoding: 'utf8', env: { ...process.env, PW_CHROMIUM: process.execPath, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@t', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@t', GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null' } });
     const a = m.clone('a'), b = m.clone('b');
     a.escreve('fichas.js', ['const fichas = perfil.fichasDoJogador(estado);']); a.acrescenta('ROADMAP.md', '| 16º-ab ✅ | fichas (leva G-2) |');
     a.commit('Leva G-2 · fichas do seu jeito\n\nTrilha: geral');
@@ -318,6 +321,12 @@ test('Q17 · do lado da conversa: `publicar --fila` envia para fila/<leva>; núm
     assert.ok(avancar({ cwd: c.dir, plano: plano(c), portao: 'success' }).publicado);
     assert.equal((m.logDoMain().match(/^Leva G-[23] /gm) || []).length, 2);
   } finally { m.fim(); }
+});
+
+test('I-307 · o Q17 roda igual numa máquina sem o Chromium da fase de tela (o job `portao` do CI desde a I-306)', () => {
+  const fonte = readFileSync(join(RAIZ, 'fila.unit.test.mjs'), 'utf8');
+  const spawn = fonte.split('\n').find(l => /const publicar = \(c, \.\.\.args\) => spawnSync/.test(l)) || '';
+  assert.match(spawn, /PW_CHROMIUM: process\.execPath/, 'o spawn do publicar no Q17 leva PW_CHROMIUM de um arquivo que existe');
 });
 
 test('Q17 · leva recusada, corrigida e publicada: o aviso recusada/<nome> some com a publicação, e aviso velho não aparece como recusa pendente', () => {

@@ -2921,6 +2921,14 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Testes:** `fila.unit` Q23 (2) e Q17/I-292/Q22 do fluxo atualizados à forma de cinco jobs (expectativa mudada com justificativa: o portão passou a ser dois jobs; nenhuma garantia de segurança saiu): junção do resultado, das quedas e do resumo; o passo que avança pela linha de comando com a tela vermelha.
 - **Aceite a medir:** três rodadas seguidas com rodada ≤ 22 min e nenhuma queda nova; se houver, voltar ao job único é desfazer esta leva.
 - **Fora:** cache do navegador (mesmo risco do cache do npm); dividir a fase rápida em mais runners (próximo passo se a rápida virar o gargalo); `gate.yml` (portão de push no `main` e pull request) continua em um job.
+- **I-307 · o `main` vermelho que a divisão causou** (trilha `infra`, 26/10/2026, pela conversa "orquestrador · pendências do
+  dono"): desde a I-306 o job `portao` roda a fase rápida **sem Chromium**, e o teste "Q17 · do lado da conversa"
+  (`fila.unit`) roda o `publicar.mjs` de verdade, que para em "Não achei o Chromium" (`garantirNavegador`) antes de
+  enviar. Caía só no CI (`aviso/main-vermelho` de 26/10 01:33 UTC); as levas esperaram na fila sem recusa (Q22
+  funcionou). Correção no teste, sem baixar asserção: o spawn do `publicar` recebe `PW_CHROMIUM` de um arquivo que
+  existe (o teste é da fila, não do navegador) + guarda `I-307` que fixa isso. Reproduzido aqui com
+  `PW_CHROMIUM=/nao/existe` antes e depois. **Aberto para a infra:** em modo fila o `publicar` exige o Chromium mesmo sem
+  rodar a fase de tela local — decidir se `garantirNavegador` vale só para `--direto`.
 
 **Q24 · Orçamento de tempo calibrado no runner** ⬜ (decisão do dono)
 - **Valor:** testes que medem milissegundos (orçamentos de pintura e de toque) passam numa máquina e podem cair no runner do CI. Calibrar o limite pelo runner (medida de referência no início do portão) ou medir por contagem em vez de relógio. **Correção do diagnóstico de 25/10:** o MJ11b não caía pelo relógio (o aviso manual dizia isso), e sim pelo cenário que não chegava ao turno 3 (J-28 da `jogabilidade`); nenhum `main` vermelho medido até aqui foi por relógio, então a Q24 fica como prevenção, sem urgência.
