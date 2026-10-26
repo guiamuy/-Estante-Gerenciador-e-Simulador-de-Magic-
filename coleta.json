@@ -1,31 +1,32 @@
 {
- "em": "2026-10-25T11:49:16.660Z",
+ "em": "2026-10-26T13:21:04.267Z",
  "saude": {
   "ok": true,
   "alertas": [],
   "avisos": [
-   "TopDeck.gg · Pioneer: zero torneios"
+   "TopDeck.gg · Pioneer: zero torneios",
+   "TopDeck.gg · EDH: HTTP 429"
   ],
   "fontes": {
    "mtgo": {
-    "eventos": 295,
-    "listas": 2265,
-    "maisNova": "2026-10-25",
+    "eventos": 668,
+    "listas": 2326,
+    "maisNova": "2026-10-26",
     "dias": 0
    },
    "topdeck": {
-    "torneios": 772,
-    "erros": 0,
-    "listas": 553,
+    "torneios": 201,
+    "erros": 1,
+    "listas": 561,
     "maisNova": "2026-10-25",
-    "dias": 0
+    "dias": 1
    }
   }
  },
  "topdeck": [
   {
    "formato": "Pauper",
-   "torneios": 60,
+   "torneios": 59,
    "recentes": 20,
    "listas": 97,
    "semLista": 63,
@@ -40,7 +41,7 @@
   },
   {
    "formato": "Standard",
-   "torneios": 22,
+   "torneios": 23,
    "recentes": 20,
    "listas": 8,
    "semLista": 152
@@ -54,57 +55,52 @@
   },
   {
    "formato": "Legacy",
-   "torneios": 86,
+   "torneios": 84,
    "recentes": 20,
-   "listas": 9,
-   "semLista": 151
+   "listas": 17,
+   "semLista": 143
   },
   {
    "formato": "EDH",
-   "torneios": 569,
-   "recentes": 20,
-   "listas": 31,
-   "semLista": 129,
-   "dias": 14,
-   "descartados": 8
+   "erro": "HTTP 429"
   }
  ],
  "mtgo": [
   {
    "formato": "Standard",
-   "eventos": 55,
-   "colhidos": 0,
-   "listas": 0
+   "eventos": 118,
+   "colhidos": 2,
+   "listas": 14
   },
   {
    "formato": "Modern",
-   "eventos": 68,
-   "colhidos": 1,
-   "listas": 8
+   "eventos": 161,
+   "colhidos": 2,
+   "listas": 16
   },
   {
    "formato": "Pioneer",
-   "eventos": 38,
-   "colhidos": 1,
-   "listas": 0
+   "eventos": 86,
+   "colhidos": 3,
+   "listas": 18
   },
   {
    "formato": "Legacy",
-   "eventos": 46,
-   "colhidos": 1,
-   "listas": 8
+   "eventos": 105,
+   "colhidos": 3,
+   "listas": 16
   },
   {
    "formato": "Vintage",
-   "eventos": 40,
-   "colhidos": 1,
-   "listas": 8
+   "eventos": 89,
+   "colhidos": 2,
+   "listas": 6
   },
   {
    "formato": "Pauper",
-   "eventos": 48,
-   "colhidos": 0,
-   "listas": 0
+   "eventos": 109,
+   "colhidos": 2,
+   "listas": 15
   }
  ]
 }

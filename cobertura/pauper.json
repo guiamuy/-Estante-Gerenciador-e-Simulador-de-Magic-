@@ -1,179 +1,65 @@
 {
  "versao": 1,
  "formato": "pauper",
- "geradoEm": "2026-10-25T11:55:54.175Z",
+ "geradoEm": "2026-10-26T13:27:36.921Z",
  "motor": 112,
  "fonte": "api.scryfall.com/cards/collection",
- "listas": 587,
- "listas100": 583,
- "cartasPendentes": 7,
+ "listas": 594,
+ "listas100": 593,
+ "cartasPendentes": 1,
  "parcial": false,
  "lotesComFalha": 0,
  "porClasse": {
   "texto-mudou": 0,
-  "lida": 6,
+  "lida": 0,
   "nova": 1,
   "parcial": 0,
   "sem-dados": 0
  },
- "novasDesdeAnterior": [],
- "resolvidasDesdeAnterior": [],
+ "novasDesdeAnterior": [
+  "Nettle Sentinel"
+ ],
+ "resolvidasDesdeAnterior": [
+  "Carrot Cake",
+  "Curious Farm Animals",
+  "Fields of Strife",
+  "Foot Headquarters",
+  "Hidden Grotto",
+  "Massive Might",
+  "Pilfer"
+ ],
  "curva": [
   {
-   "listas": 584,
+   "listas": 594,
    "cartas": 1
-  },
-  {
-   "listas": 587,
-   "cartas": 7
   }
  ],
  "textos": null,
  "pendentes": [
   {
-   "name": "Carrot Cake",
-   "classe": "lida",
-   "nivel": "lida",
-   "motivo": "lida pelo motor, em revisão",
-   "listas": 1,
-   "gulosa": 4,
-   "texto": {
-    "mana_cost": "{1}{W}",
-    "type_line": "Artifact — Food",
-    "oracle_text": "When this artifact enters and when you sacrifice it, create a 1/1 white Rabbit creature token and scry 1. (Look at the top card of your library. You may put that card on the bottom.)\n{2}, {T}, Sacrifice this artifact: You gain 3 life.",
-    "keywords": [
-     "Scry"
-    ],
-    "layout": "normal"
-   }
-  },
-  {
-   "name": "Curious Farm Animals",
+   "name": "Nettle Sentinel",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 3,
-   "texto": {
-    "mana_cost": "{W}",
-    "type_line": "Creature — Boar Elk Bird Ox",
-    "oracle_text": "When this creature dies, you gain 3 life.\n{2}, Sacrifice this creature: Destroy up to one target artifact or enchantment.",
-    "keywords": [],
-    "layout": "normal",
-    "power": "1",
-    "toughness": "1"
-   }
-  },
-  {
-   "name": "Fields of Strife",
-   "classe": "lida",
-   "nivel": "lida",
-   "motivo": "lida pelo motor, em revisão",
-   "listas": 1,
-   "gulosa": 3,
-   "texto": {
-    "mana_cost": "",
-    "type_line": "Land",
-    "oracle_text": "This land enters tapped.\n{T}: Add {R} or {W}.\n{2}{R}{W}, {T}: Surveil 1. (Look at the top card of your library. You may put it into your graveyard.)",
-    "keywords": [
-     "Surveil"
-    ],
-    "layout": "normal"
-   }
-  },
-  {
-   "name": "Foot Headquarters",
-   "classe": "lida",
-   "nivel": "lida",
-   "motivo": "lida pelo motor, em revisão",
-   "listas": 1,
-   "gulosa": 4,
-   "texto": {
-    "mana_cost": "",
-    "type_line": "Land",
-    "oracle_text": "This land enters tapped.\nWhen this land enters, you gain 1 life.\n{T}: Add {W} or {B}.",
-    "keywords": [],
-    "layout": "normal"
-   }
-  },
-  {
-   "name": "Hidden Grotto",
-   "classe": "lida",
-   "nivel": "lida",
-   "motivo": "lida pelo motor, em revisão",
-   "listas": 1,
-   "gulosa": 2,
-   "texto": {
-    "mana_cost": "",
-    "type_line": "Land",
-    "oracle_text": "When this land enters, surveil 1. (Look at the top card of your library. You may put it into your graveyard.)\n{T}: Add {C}.\n{1}, {T}: Add one mana of any color.",
-    "keywords": [
-     "Surveil"
-    ],
-    "layout": "normal"
-   }
-  },
-  {
-   "name": "Massive Might",
-   "classe": "lida",
-   "nivel": "lida",
-   "motivo": "lida pelo motor, em revisão",
-   "listas": 1,
    "gulosa": 1,
    "texto": {
     "mana_cost": "{G}",
-    "type_line": "Instant",
-    "oracle_text": "Target creature gets +2/+2 and gains trample until end of turn.",
+    "type_line": "Creature — Elf Warrior",
+    "oracle_text": "This creature doesn't untap during your untap step.\nWhenever you cast a green spell, you may untap this creature.",
     "keywords": [],
-    "layout": "normal"
-   }
-  },
-  {
-   "name": "Pilfer",
-   "classe": "lida",
-   "nivel": "lida",
-   "motivo": "lida pelo motor, em revisão",
-   "listas": 1,
-   "gulosa": 4,
-   "texto": {
-    "mana_cost": "{1}{B}",
-    "type_line": "Sorcery",
-    "oracle_text": "Target opponent reveals their hand. You choose a nonland card from it. That player discards that card.",
-    "keywords": [],
-    "layout": "normal"
+    "layout": "normal",
+    "power": "2",
+    "toughness": "2"
    }
   }
  ],
  "listasIncompletas": [
   {
-   "id": "mtgo-pauper-league-2026-10-2511153-1",
-   "nome": "Jeskai Curious Farm Animals",
+   "id": "mtgo-pauper-league-2026-10-2611153-3",
+   "nome": "Tribal de Elfos",
    "faltam": [
-    "Curious Farm Animals",
-    "Fields of Strife"
-   ]
-  },
-  {
-   "id": "topdeck-lpl-autumn-2026-10a-tappa-5",
-   "nome": "Mono Green Vines of Vastwood",
-   "faltam": [
-    "Massive Might"
-   ]
-  },
-  {
-   "id": "topdeck-pauper-regional-qualifier-8",
-   "nome": "Orzhov Pilfer",
-   "faltam": [
-    "Carrot Cake",
-    "Foot Headquarters",
-    "Pilfer"
-   ]
-  },
-  {
-   "id": "topdeck-pauper-regional-qualifier-5",
-   "nome": "Temur Ancient Stirrings",
-   "faltam": [
-    "Hidden Grotto"
+    "Nettle Sentinel"
    ]
   }
  ]
