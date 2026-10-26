@@ -168,6 +168,13 @@ export function juntarResumos(...textos) {
   return JSON.stringify({ kind: (rs.find((r) => r.kind) || {}).kind || 'estante.portao', rapido: (rs.find((r) => r.rapido) || {}).rapido || null, tela: (rs.find((r) => r.tela) || {}).tela || null });
 }
 
+/** I-308 · as quedas de uma fase do portão: `e2e` fica com as do arquivo de tela, `rapido` com as demais; sem fase, todas. */
+export function quedasDaFase(quedas, fase) {
+  if (fase === 'e2e') return quedas.filter((q) => q && q.arquivo === 'e2e.test.mjs');
+  if (fase === 'rapido') return quedas.filter((q) => q && q.arquivo !== 'e2e.test.mjs');
+  return quedas;
+}
+
 /** O que fazer depois do portão. `aceitos` são os ramos somados; `portao` é o resultado do job (success, failure, cancelled…);
     `presonda` e `herdadas` (Q22) dizem se o vermelho é do `main`. A pré-sonda vem antes do "success": quando ela acha as quedas
     do aviso, o job termina verde sem rodar as fases, e isso nunca publica. */
@@ -449,7 +456,12 @@ function principal(argv) {
   if (comando === 'presonda') {
     let quedas = [];
     try { quedas = JSON.parse(process.env.FILA_SONDA || '[]'); } catch (e) { quedas = []; }
-    const res = reexecutar({ cwd, quedas: Array.isArray(quedas) ? quedas.slice(0, MAX_REEXECUCOES) : [] });
+    // I-308 · cada job do portão sonda só as quedas da própria fase, no próprio ambiente (a rápida sem navegador, a de tela com):
+    // num job com navegador a queda da rápida que dependia da falta dele "passava" e o portão inteiro rodava à toa (26/10 01:35 e 02:40)
+    const fase = opc('--fase');
+    quedas = quedasDaFase(Array.isArray(quedas) ? quedas : [], fase);
+    if (fase && !quedas.length) { resumo(`### Pré-sonda (${fase}): nenhuma queda do aviso é desta fase`); saidaDoFluxo({ presonda: '' }); return; }
+    const res = reexecutar({ cwd, quedas: quedas.slice(0, MAX_REEXECUCOES) });
     const veredito = resultadoDaPresonda(res);
     resumo(`### Pré-sonda (main vermelho): ${veredito === 'caem' ? 'as quedas ainda caem com estas levas — o portão inteiro não roda, as levas esperam' : veredito === 'passam' ? 'as quedas passam com estas levas — segue o portão inteiro' : 'sem resultado claro — segue o portão inteiro'}`);
     for (const q of res) resumo(`- ${q.resultado === 'cai' ? '✗' : q.resultado === 'passa' ? '✓' : '?'} ${q.nome}${q.arquivo ? ` (${q.arquivo})` : ''}`);

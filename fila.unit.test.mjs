@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { EPOCA } from './agregacao.mjs';
 import { chave, nomeDoRamo, ordemDaFila, decisao, limparMotivo, quedasDoLog, planoValido, NOME_VALIDO, montar, avancar, ramosDaFila, commitsDa, publicados, situacao, formatarQuedas, limparAvisos,
   AVISO_MAIN, limparQueda, quedasComArquivo, reexecutar, mainVermelho, resultadoDaPresonda, sondaDoAviso, lerAvisoMain, herdadasNoMain,
-  resultadoDoPortao, juntarHerdadas, juntarResumos } from './fila.mjs';
+  resultadoDoPortao, juntarHerdadas, juntarResumos, quedasDaFase } from './fila.mjs';
 
 const RAIZ = dirname(fileURLToPath(import.meta.url));
 const DEPOIS = Math.floor(EPOCA / 1000) + 3600;
@@ -213,9 +213,10 @@ test('Q17 · o fluxo da fila: só o job que avança tem escrita e ele não execu
   assert.match(yml, /^concurrency:\n  group: \S+\n  cancel-in-progress: false$/m);
   assert.match(yml, /^permissions:\n  contents: read$/m, 'padrão do fluxo: só leitura');
   const job = (nome) => (yml.match(new RegExp(`\\n  ${nome}:\\n([\\s\\S]*?)(?=\\n  [a-z]+:\\n|$)`)) || [])[1] || '';
-  const monta = job('monta'), portao = job('portao'), tela = job('tela'), presonda = job('presonda'), avanca = job('avanca');
-  assert.ok(monta && portao && tela && presonda && avanca, 'cinco jobs (Q23: o portão em dois, rápida e tela, mais a pré-sonda da Q22)');
-  for (const [nome, j] of [['monta', monta], ['presonda', presonda], ['portao', portao], ['tela', tela]]) {
+  const monta = job('monta'), portao = job('portao'), tela = job('tela'), avanca = job('avanca');
+  assert.ok(monta && portao && tela && avanca, 'quatro jobs (Q23: o portão em dois, rápida e tela; I-308: a pré-sonda da Q22 é passo de cada um)');
+  assert.equal(job('presonda'), '', 'sem job de pré-sonda à parte (I-308: ela roda no ambiente da própria fase)');
+  for (const [nome, j] of [['monta', monta], ['portao', portao], ['tela', tela]]) {
     assert.doesNotMatch(j, /write/, `${nome} não escreve em nada`);
     assert.match(j, /persist-credentials: false/, `${nome} não deixa credencial no disco`);
     assert.doesNotMatch(j, /github\.token|secrets\./, `${nome} não recebe token nem segredo`);
@@ -224,16 +225,15 @@ test('Q17 · o fluxo da fila: só o job que avança tem escrita e ele não execu
   assert.match(portao, /npm ci\b/); assert.match(portao, /npm run (-s )?test:rapido/); assert.doesNotMatch(portao, /test:e2e|playwright install/);
   assert.match(tela, /npm ci\b/); assert.match(tela, /npm run (-s )?test:e2e/); assert.match(tela, /playwright install/); assert.doesNotMatch(tela, /test:rapido/);
   for (const j of [portao, tela]) {
-    assert.match(j, /needs: \[monta, presonda\]/);
-    assert.match(j, /if: always\(\) && needs\.monta\.result == 'success' && needs\.monta\.outputs\.portao == 'sim' && needs\.presonda\.outputs\.presonda != 'caem'/);
+    assert.match(j, /needs: monta\n    if: needs\.monta\.outputs\.portao == 'sim'\n/);
   }
   assert.match(avanca, /contents: write/);
   assert.doesNotMatch(avanca, /npm (ci|install|run|test)|npx |playwright/, 'o job com escrita não instala nem roda nada da leva');
   assert.match(avanca, /cp fila\.mjs agregacao\.mjs "\$RUNNER_TEMP\/"/, 'o código que avança o main é copiado do main antes de a árvore mudar');
-  assert.match(avanca, /needs: \[monta, presonda, portao, tela\]/);
+  assert.match(avanca, /needs: \[monta, portao, tela\]/);
   assert.match(avanca, /FILA_PORTAO_RAPIDA: \$\{\{ needs\.portao\.result \}\}/, 'quem diz se o portão passou é o resultado dos jobs, não uma saída que o código testado escreve');
   assert.match(avanca, /FILA_PORTAO_TELA: \$\{\{ needs\.tela\.result \}\}/);
-  for (const j of [monta, presonda, portao, tela, avanca]) assert.match(j, /ref: main/, 'todo job parte do main');
+  for (const j of [monta, portao, tela, avanca]) assert.match(j, /ref: main/, 'todo job parte do main');
   assert.doesNotMatch(yml, /--force(?!-)|push -f\b/, 'nenhum push forçado no fluxo');
 });
 
@@ -499,29 +499,55 @@ test('Q22 · culpa da leva continua recusando: a queda que passa no main sozinho
   } finally { m.fim(); }
 });
 
-test('Q22 · o fluxo: pré-sonda num job antes do portão (que não roda com "caem"), reexecução no main em cada job sem credencial, aviso lido no monta, nenhuma permissão nova', () => {
+test('Q22 · o fluxo: pré-sonda dentro de cada job do portão, no ambiente da própria fase (que não roda com "caem"), reexecução no main sem credencial, aviso lido no monta, nenhuma permissão nova', () => {
   const yml = readFileSync(join(RAIZ, '.github/workflows/fila.yml'), 'utf8');
   const job = (nome) => (yml.match(new RegExp(`\\n  ${nome}:\\n([\\s\\S]*?)(?=\\n  [a-z]+:\\n|$)`)) || [])[1] || '';
-  const monta = job('monta'), presonda = job('presonda'), portao = job('portao'), tela = job('tela'), avanca = job('avanca');
+  const monta = job('monta'), portao = job('portao'), tela = job('tela'), avanca = job('avanca');
   assert.match(monta, /sonda: \$\{\{ steps\.monta\.outputs\.sonda \}\}/);
   assert.match(monta, /'\+refs\/heads\/aviso\/\*:refs\/remotes\/origin\/aviso\/\*'/, 'o monta busca o aviso');
-  assert.match(presonda, /if: needs\.monta\.outputs\.portao == 'sim' && needs\.monta\.outputs\.sonda != ''/, 'sem aviso, a pré-sonda nem roda');
-  assert.match(presonda, /FILA_SONDA: \$\{\{ needs\.monta\.outputs\.sonda \}\}/); assert.match(presonda, /cd "\$RUNNER_TEMP" && node fila\.mjs presonda/, 'o fila.mjs do main');
-  assert.match(presonda, /presonda: \$\{\{ steps\.presonda\.outputs\.presonda \}\}/);
-  for (const j of [portao, tela]) {
+  for (const [j, fase] of [[portao, 'rapido'], [tela, 'e2e']]) {
     const passos = j.split('\n      - ');
-    const iFase = passos.findIndex((x) => /^name: Fase /.test(x)), iQue = passos.findIndex((x) => /^name: Testes que caíram/.test(x)), iHer = passos.findIndex((x) => /^name: As quedas caem também no main/.test(x));
-    assert.ok(iFase > 0 && iFase < iQue && iQue < iHer, 'ordem: fase, quedas, reexecução no main');
+    const i = (rx) => passos.findIndex((x) => rx.test(x));
+    const iPre = i(/^name: Pré-sonda/), iFase = i(/^name: Fase /), iQue = i(/^name: Testes que caíram/), iHer = i(/^name: As quedas caem também no main/);
+    assert.ok(iPre > 0 && iPre < iFase && iFase < iQue && iQue < iHer, `ordem em ${fase}: pré-sonda, fase, quedas, reexecução no main`);
+    assert.match(passos[iPre], /if: needs\.monta\.outputs\.sonda != ''/, 'sem aviso, a pré-sonda nem roda');
+    assert.match(passos[iPre], /FILA_SONDA: \$\{\{ needs\.monta\.outputs\.sonda \}\}/);
+    assert.match(passos[iPre], new RegExp(`cd "\\$RUNNER_TEMP" && node fila\\.mjs presonda --cwd "\\$GITHUB_WORKSPACE" --fase ${fase}$`, 'm'), 'o fila.mjs do main, só as quedas desta fase');
+    assert.match(passos[iFase], /if: steps\.presonda\.outputs\.presonda != 'caem'/);
     assert.match(passos[iQue], /node fila\.mjs quedas --log/, 'as quedas saem com o nome inteiro (lista), não cortadas por ";"');
     assert.match(passos[iHer], /if: failure\(\)/);
     assert.match(passos[iHer], /cd "\$RUNNER_TEMP" && node fila\.mjs herdadas --cwd "\$GITHUB_WORKSPACE" --log "\$GITHUB_WORKSPACE\/portao\.log"/);
-    assert.ok(j.includes('herdadas: ${{ steps.herdadas.outputs.herdadas }}'));
+    for (const o of ['herdadas: ${{ steps.herdadas.outputs.herdadas }}', 'presonda: ${{ steps.presonda.outputs.presonda }}']) assert.ok(j.includes(o), o);
     assert.doesNotMatch(j, /write|github\.token|secrets\./, 'o portão continua sem escrita e sem token');
   }
-  for (const s of ['FILA_PRESONDA: ${{ needs.presonda.outputs.presonda }}', 'FILA_HERDADAS: ${{ needs.portao.outputs.herdadas }}', 'FILA_HERDADAS_TELA: ${{ needs.tela.outputs.herdadas }}', 'FILA_MOTIVO_TELA: ${{ needs.tela.outputs.quedas }}']) assert.ok(avanca.includes(s), `pelo ambiente: ${s}`);
-  assert.match(avanca, /name: Telemetria da rodada\n        if: always\(\) && !\(needs\.portao\.result == 'skipped' && needs\.tela\.result == 'skipped'\) && needs\.presonda\.outputs\.presonda != 'caem'/, 'rodada que parou na pré-sonda não é portão');
-  assert.doesNotMatch(presonda, /write|github\.token|secrets\./);
+  assert.ok(passosDe(tela).findIndex((x) => /playwright install/.test(x)) < passosDe(tela).findIndex((x) => /^name: Pré-sonda/.test(x)), 'a pré-sonda de tela já tem o navegador');
+  assert.doesNotMatch(portao, /playwright install/, 'a pré-sonda da rápida roda sem navegador, como a fase');
+  for (const s of ["FILA_PRESONDA: ${{ (needs.portao.outputs.presonda == 'caem' || needs.tela.outputs.presonda == 'caem') && 'caem' || '' }}", 'FILA_HERDADAS: ${{ needs.portao.outputs.herdadas }}', 'FILA_HERDADAS_TELA: ${{ needs.tela.outputs.herdadas }}', 'FILA_MOTIVO_TELA: ${{ needs.tela.outputs.quedas }}']) assert.ok(avanca.includes(s), `pelo ambiente: ${s}`);
+  assert.match(avanca, /name: Telemetria da rodada\n        if: always\(\) && !\(needs\.portao\.result == 'skipped' && needs\.tela\.result == 'skipped'\) && needs\.portao\.outputs\.presonda != 'caem' && needs\.tela\.outputs\.presonda != 'caem'/, 'rodada que parou na pré-sonda não é portão');
   assert.doesNotMatch(avanca, /npm (ci|install|run|test)|npx |playwright|--test/, 'o job com escrita continua sem rodar nada da leva (a reexecução é no portão)');
+});
+const passosDe = (j) => j.split('\n      - ');
+
+test('I-308 · cada fase sonda só as próprias quedas; o publicar em modo fila envia sem o Chromium (a fase de tela roda no CI) e o direto continua exigindo', () => {
+  const q = [{ nome: 'e2e · MJ8', arquivo: 'e2e.test.mjs' }, { nome: 'Q17 · publicar', arquivo: 'fila.unit.test.mjs' }];
+  assert.deepEqual(quedasDaFase(q, 'e2e').map((x) => x.nome), ['e2e · MJ8']);
+  assert.deepEqual(quedasDaFase(q, 'rapido').map((x) => x.nome), ['Q17 · publicar']);
+  assert.equal(quedasDaFase(q, '').length, 2);
+  const m = mundo();
+  try {
+    const vazio = mkdtempSync(join(tmpdir(), 'estante-sem-nav-'));
+    const env = { ...process.env, PW_CHROMIUM: '', PLAYWRIGHT_BROWSERS_PATH: vazio, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@t', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@t', GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null' };
+    delete env.PW_CHROMIUM;
+    const a = m.clone('a');
+    a.escreve('fichas.js', ['const fichas = perfil.fichasDoJogador(estado);']); a.commit('Leva G-2 · fichas\n\nTrilha: geral');
+    const pelaFila = spawnSync(process.execPath, [join(RAIZ, 'publicar.mjs'), '--sem-rapida'], { cwd: a.dir, encoding: 'utf8', env });
+    assert.equal(pelaFila.status, 0, pelaFila.stdout + pelaFila.stderr);
+    assert.match(pelaFila.stdout, /aviso: .*Chromium[\s\S]*Pela fila isso não impede o envio/); assert.match(pelaFila.stdout, /✓ Na fila: fila\/G-2/);
+    a.escreve('mais.js', ['const mais = app.outraTela(estado);']); a.commit('Leva G-3 · outra\n\nTrilha: geral');
+    const direto = spawnSync(process.execPath, [join(RAIZ, 'publicar.mjs'), '--direto'], { cwd: a.dir, encoding: 'utf8', env });
+    assert.equal(direto.status, 1); assert.match(direto.stderr, /Chromium[\s\S]*Nada foi publicado/, 'o caminho direto roda a fase de tela no clone: sem navegador, para');
+    rmSync(vazio, { recursive: true, force: true });
+  } finally { m.fim(); }
 });
 
 /* ---------- Q23 · portão em dois jobs paralelos ---------- */

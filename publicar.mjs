@@ -115,7 +115,11 @@ for (let volta = 1; volta <= MAX_VOLTAS; volta++) {
   const antes = conferirArvore();
   if (antes.length) { console.error('\n' + antes.map((a) => a.texto).join('\n\n')); para(`Conferência antes do portão: ${antes.length} achado(s).`); }
   const nav = await garantirNavegador();
-  if (nav.erro && !soConferir) para(nav.erro);
+  // I-308 · pela fila, este clone só roda a fase rápida (que não abre navegador); a fase de tela roda no CI. Sem o Chromium aqui,
+  // só o caminho direto (que roda as duas fases no clone) para. Antes o modo fila parava também, e o Q17 do fila.unit, que roda
+  // este script de verdade, caiu no job `portao` do CI (sem navegador desde a I-306) e deixou o main vermelho (I-307).
+  if (nav.erro && direto && !soConferir) para(nav.erro);
+  if (nav.erro && !direto) console.log(`aviso: ${nav.erro} Pela fila isso não impede o envio (a fase de tela roda no CI).`);
   console.log(`antes do portão ✓ ids da ordem sem repetição · goldens na versão do motor${nav.erro ? '' : ' · navegador da fase de tela no lugar'}`);
   if (soConferir) { console.log('\n--conferir: parei antes do portão e do envio.'); process.exit(0); }
 
