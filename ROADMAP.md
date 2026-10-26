@@ -401,8 +401,9 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-z9 🟡 | Shark: plano do baralho — Walls Combo fecha a mana infinita; vitórias pilotando a lista 18% → 33% (leva 147) | B9 | 1 | Elves e os outros perfis |
 | 16º-z2 ✅ | Shark usa todas as mecânicas, inclusive as dos terrenos: estoura o terreno que busca básico, abre mana com habilidades, ordena antes do corte do relógio; auditoria de uso (leva 143) | B21 | 1 | — |
 | 16º-sc 🟡 | DS-K · Ébano e Ouro, design system de patamar (direção K do volume 3, decisão do dono de 24/10): F0.1 ✅ (G-287) tokens de ébano e latão nos três blocos, receitas de animação no `/ds` como contrato da jogabilidade, guarda de contenção de texto no portão; F0.2 fontes self-hosted (sw.js, `armazem`); F1 componentes; F2 telas de gestão; F3 mesa como layout; FA leva de ajuste no aparelho | DS-K | 1 de 11 a 13 | — |
-| 16º-sa 🟡 | B22 Shark profissional com cinco listas: fatia 1 ✅ (B-173) listas de torneio embutidas e seletor do Shark só com elas; fatia 2 ✅ (B-174) linha de base: Madness 75% · Elves 63% · Faeries 50% · Control 38% · Terror 25% contra o campo; fatia 3 ✅ (B-175) perfil do Terror + o terreno que falta (pareado 50% × 38% em 32 pares: dentro da margem); fatia 4 (B-176) ameaças do campo no Control: sem ganho (41% × 42% em 64 pares), desligada; fatia 5 (B-177) mulligan por fontes e cores: neutro em força (79 × 81 em 160 pares), ligado pelo comportamento; fatia 6 (B-178) prazo da decisão: p95 430 → 366 ms, pior 4,3 → 0,8 s, força 48 × 47; fatia 7 (B-179) quando anular: a resposta é lida primeiro e a anulação guardada tem valor, neutro em força (38 × 39 em 96 pares), ligado pelo comportamento; fatias 8–9 (jogar em volta; fechamento) | B22 | 9 | 16º-z2 |
-| 16º-sd 🟡 | B23 o Shark usa bem cada carta das cinco listas: fatia 1 ✅ (B-180) auditoria carta a carta (`bot.cartas.mjs`, 76 cartas, 40 partidas): 6 cartas ficam na mão, 5 com alvo no próprio lado por erro; fatia 2 ✅ (B-181) alvo no próprio lado + avaliaV6 (o −3/−0 na própria criatura dava +4), neutro em força (47 × 48), ligado; fatia 3 ✅ (B-182) loucura e descarte conferidos (Fiery Temper 14/20 contando a loucura), sem mudança no Shark; fatia 4 ✅ (B-183) a decisão do outro na resolução (Deem Inferior 1/13 → 13/14), 49 × 47, ligado; fatia 5 ✅ (B-184) jogar em volta: o outro responde com a mágica do Shark na pilha (anula, tira o alvo), 51 × 47, ligado; fatia 6 (fechamento) | B23 | 6 | 16º-sa |
+| 16º-sa 🟡 | B22 Shark profissional com cinco listas: fatia 1 ✅ (B-173) listas de torneio embutidas e seletor do Shark só com elas; fatia 2 ✅ (B-174) linha de base: Madness 75% · Elves 63% · Faeries 50% · Control 38% · Terror 25% contra o campo; fatia 3 ✅ (B-175) perfil do Terror + o terreno que falta (pareado 50% × 38% em 32 pares: dentro da margem); fatia 4 (B-176) ameaças do campo no Control: sem ganho (41% × 42% em 64 pares), desligada; fatia 5 (B-177) mulligan por fontes e cores: neutro em força (79 × 81 em 160 pares), ligado pelo comportamento; fatia 6 (B-178) prazo da decisão: p95 430 → 366 ms, pior 4,3 → 0,8 s, força 48 × 47; fatia 7 (B-179) quando anular: a resposta é lida primeiro e a anulação guardada tem valor, neutro em força (38 × 39 em 96 pares), ligado pelo comportamento; fatias 8–9 viraram a B23 (16º-sd); força final (B-185, 208 decididas por lista, Shark × Shark): Madness 66% · Terror 59% · Elfos 50% · Faeries 47% · Control 29% — o aceite "nenhuma abaixo de 45%" fica aberto pelo Control (B24, 16º-se) | B22 | 9 | 16º-z2 |
+| 16º-sd ✅ | B23 o Shark usa bem cada carta das cinco listas: fatia 1 ✅ (B-180) auditoria carta a carta (`bot.cartas.mjs`, 76 cartas, 40 partidas): 6 cartas ficam na mão, 5 com alvo no próprio lado por erro; fatia 2 ✅ (B-181) alvo no próprio lado + avaliaV6 (o −3/−0 na própria criatura dava +4), neutro em força (47 × 48), ligado; fatia 3 ✅ (B-182) loucura e descarte conferidos (Fiery Temper 14/20 contando a loucura), sem mudança no Shark; fatia 4 ✅ (B-183) a decisão do outro na resolução (Deem Inferior 1/13 → 13/14), 49 × 47, ligado; fatia 5 ✅ (B-184) jogar em volta: o outro responde com a mágica do Shark na pilha (anula, tira o alvo), 51 × 47, ligado; fatia 6 ✅ (B-185) fechamento: reserva pelo alvo (29 × 24) e resposta no meu turno (o Dispel na Counterspell que anulava a minha ameaça; 48 × 46), auditoria final sem "não usa" (69 usam, 5 a revisar declaradas), força por lista com 208 decididas no painel, p95 dentro do orçamento | B23 | 6 | 16º-sa |
+| 16º-se 🔲 | B24 o Shark pilota o Dimir Control acima de 45% contra o campo (hoje 29% em 208 decididas): partida narrada das derrotas do Control, plano de controle (vantagem de cartas, monarca do Thorn of the Black Rose, quando virar o jogo) | B24 | 3–5 | 16º-sd |
 | 16º-y ✅ | Shark: olhar o turno seguinte (simulação até o próximo turno) — medido, não pagou, fica desligado; achado: a força está no plano de cada baralho (leva 131) | B15 | 1 | — |
 | 16º-w ✅ | Shark: pesos da avaliação postos à prova por torneio — nenhum paga; achado: o limite é a profundidade, não o peso (leva 126) | B20 | 1 | — |
 | 16º-j3 🟡 | Scanner de referência (E52): X14 resposta imediata (leva 127) | E52 | 2 de 6 a 7 | teste no aparelho: "até aceitar" no diagnóstico |
@@ -7666,8 +7667,8 @@ Wildfire × Rakdos Madness) mostrou este como o erro mais caro.
 - **Fora:** sideboard real na melhor de três (a reserva das listas vem junto, mas a troca fica para depois da B22);
   outras listas; formatos além do Pauper.
 
-**B23 · O Shark usa bem cada carta das cinco listas** 🟡 (pedido do dono de 24/10/2026; absorve as fatias 8 e 9 da B22;
-fatias 1–5 nas levas B-180…B-184)
+**B23 · O Shark usa bem cada carta das cinco listas** ✅ (pedido do dono de 24/10/2026; absorve as fatias 8 e 9 da B22;
+fatias 1–6 nas levas B-180…B-185)
 - **Valor:** o Shark joga cada carta das cinco listas do portfólio no momento, no alvo e no modo em que um jogador
   profissional jogaria, e não deixa na mão a carta que mudaria a partida.
 - **Aceite:** (1) inventário carta a carta medido em Shark × Shark (por cópia: quantas puderam sair e quantas saíram;
@@ -7747,6 +7748,31 @@ fatias 1–5 nas levas B-180…B-184)
   **Correção no caminho (fila):** o e2e "MJ8 ritmo do turno" (trilha J) lia o trilho 40 ms depois de passar a prioridade na
   principal 1; o Shark, que agora lê a resposta na pilha, ainda não tinha passado e a mesa não tinha redesenhado com
   "menos movimento" — linha nova de espera explícita (`fimDaCena`), sem mudar a asserção.
+- **Fatia 6 · fechamento (B-185, 25/10/2026).** **Duas correções achadas na re-auditoria, cada uma atrás de opção e
+  medida:** (1) `reservaPorAlvo` — a anulação guardada (B-179) vale pela média do que ELA pode pegar na lista do oponente:
+  o Dispel só anula instantâneas e, medido contra a lista inteira, parecia caro em toda mágica que podia anular (Dispel no
+  Cast Down que mata o próprio Delver: antes guardava, agora anula); pareado com Control, Faeries e Terror (48 pares): **29 ×
+  24, só o novo 5, só o antigo 0**. (2) `respondeNoMeuTurno` — com a mágica do oponente no topo da pilha, a instantânea é
+  resposta e não paga o pedágio de "guardar para o turno do outro" (12 pontos): o Dispel na Counterspell que anulava o meu
+  Murmuring Mystic, no meu turno, ficava na mão em todas as versões até a v17; pareado com os cinco pilotos (80 pares):
+  **48 × 46, só o novo 4, só o antigo 2**. As duas ligadas; `shark-v17` = Shark da B-184, congelado. **Auditoria final**
+  (`bot.cartas.mjs`, Shark publicado com B-184 e B-185, 40 partidas, 18.678 decisões, zero ilegais): 76 cartas, **nenhuma
+  "não usa"**, 69 "usa", 5 "a revisar", todas declaradas: Dispel 9/29 cópias (o alvo — instantânea do oponente na pilha —
+  aparece pouco e é quase sempre cantrip; as duas jogadas que importam, salvar a própria criatura e furar a anulação, têm
+  posição no `bot.unit`); Lose Focus 4/9 (guarda quando o oponente pode pagar {2}, de propósito); Lava Dart e Snuff Out com 1
+  alvo próprio cada em 26 e 38 (eram 3 de 27 no Lava Dart; varia de 0 a 3 entre rodadas — fica como resíduo, causa não
+  achada); Treasure 2/5 (ficha do Highway Robbery guardada por falta do que pagar). Counterspell 30/58 cópias (52%; o
+  `shark-v13`, antes da reserva, deu 43/64 = 67% e a B-184 37/57 = 65% nas mesmas sementes — a variação entre rodadas de 40
+  partidas cobre a diferença; não é efeito da reserva). Deem Inferior 11/14, Fiery Temper 14/20 (8 pela loucura), Lead the
+  Stampede 8/14, Viridian Longbow 3/4, Sagu Wildling 10/10, Thought Scour 18 no próprio cemitério de 26. **Flashback do
+  Faithless Looting** (7/12 cópias): sem sonda nesta leva; fica declarado. **Força por lista no painel** (`forca.mjs` →
+  `telemetria/forca.jsonl`, trilha bot; Shark × Shark, 400 ms, 26 rodadas em quatro bases de semente, 520 partidas, todas
+  decididas, **208 por lista**, zero ilegais, pior jogada 1,2 s): **Grixis Madness 65,9% · Mono Blue Terror 58,7% · Mono
+  Green Elves 49,5% · Dimir Faeries 46,6% · Dimir Control 29,3%** (margem ±7). O Control abaixo de 45% é o aceite que
+  fica aberto da B22: vira a B24. Tempo (`bot.tempo.mjs`, 400 ms, 20 partidas, 11.270 decisões): p50 8 · p95 368 · p99 386 ·
+  pior 644 ms · 65 acima do orçamento (0,6%) · zero ilegais. **Revisão de escala:** as
+  quatro leituras novas da B23 (alvo próprio, decisão do outro, resposta na pilha, reserva pelo alvo) olham o prazo da
+  decisão; nenhuma guarda estado entre jogadas; custo por decisão no p95 dentro do orçamento do celular.
 - **Fatias seguintes (plano de 24/10, ordem pelo erro mais caro):** 2 · alvo no próprio lado (B-181 ✅: anulação nunca na
   própria mágica; dano, destruição e virar no próprio lado só quando a nota melhora, nunca por "a mana ia sobrar"; jogadas
   que miram o próprio lado com efeito nocivo vão para o fim da fila de leitura; Agony Warp com os dois alvos na mesma
@@ -7760,6 +7786,14 @@ fatias 1–5 nas levas B-180…B-184)
 - **Testes:** `bot.cartas.unit` (contagem por decisão e por cópia, ficha que sai do jogo, custo alternativo de índice 0,
   classes); cada fatia seguinte nasce com as posições do erro no `bot.unit`.
 - **Fora:** reserva; cartas fora das cinco listas; erro de regra (vai à trilha motor).
+
+**B24 · O Shark pilota o Dimir Control acima de 45%** 🔲 (aberta pela B-185, 25/10/2026; aceite que sobrou da B22)
+- **Valor:** quem escolhe o Control para o Shark enfrenta um controle de verdade — hoje ele perde 7 de 10 contra o campo.
+- **Aceite:** Dimir Control ≥ 45% contra o campo em 200+ decididas (`forca.mjs`, Shark × Shark, 400 ms); nenhuma das
+  outras quatro cai abaixo de 45%; pareado por piloto ≥ antigo; zero ilegais; p95 ≤ 400 ms.
+- **Testes:** posições no `bot.unit` para cada erro achado nas partidas narradas do Control.
+- **Depende de:** B23 (16º-sd).
+- **Fora:** trocar a lista do Control (só se o Shark jogando bem continuar abaixo, com decisão do dono); reserva.
 
 **B15 · Olhar o turno seguinte** ✅ (leva 132, 03/10/2026) — fechada com resultado negativo; **o Shark não mudou de jogo.**
 - **Pergunta:** simular o resto do turno e o turno inteiro do oponente (em vez de um lance) deixa o Shark mais forte?

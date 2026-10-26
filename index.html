@@ -34204,6 +34204,13 @@ const __m25 = (function () {
    sempre passasse. A mão dele é a sorteada em cada mundo: a média pesa a chance de ele ter a resposta. Medida pareada com
    os cinco pilotos (400 ms, 80 pares): 51 × 47. `isca` (vale também a melhor mágica seguinte no mesmo turno, sujeita à
    resposta: a Delver vai antes do Mystic) mediu 49 × 48 e fica desligada. 'shark-v16' é o Shark da B-183, congelado.
+   RESERVA PELO ALVO (B-23, leva B-185): a anulação guardada vale pela média do que ELA pode pegar na lista do oponente
+   (`reservaPorAlvo`): o Dispel só anula instantâneas e, medido contra a lista inteira, parecia caro em toda mágica que
+   podia anular. Medida pareada com Control, Faeries e Terror (400 ms, 48 pares): 29 × 24.
+   RESPONDER NO MEU TURNO (B-185): com a mágica do oponente no topo da pilha, a instantânea é resposta e não paga o pedágio
+   de "guardar para o turno do outro" (`respondeNoMeuTurno`). Antes o Dispel na Counterspell que anulava o meu Murmuring
+   Mystic custava 12 e todas as versões deixavam a ameaça morrer. Medida pareada com os cinco pilotos: 48 × 46.
+   'shark-v17' é o Shark da B-184, congelado.
    LIMITES DE HOJE: um lance à frente + resposta do oponente (na pilha e depois dela) + combate; sem plano
    de vários turnos, sem blefe; não joga em volta do truque de combate nem da varredura; na pilha não responde à resposta
    dele (guerra de anulação); não troca reserva na melhor de três; esquece o que a vidência
@@ -34862,7 +34869,11 @@ function jogadaProfissional(s, p, opts = {}) {
   // ganho for grande; o amador gasta assim que melhora um pouco.
   const ehInstantanea = a => a.t === 'cast' && (s.facts[(s.objects[a.oid] || {}).name] || { types: [] }).types.includes('instant');
   const foraDoCombate = !String(s.turn.step).startsWith('combat');
-  const pedagio = a => (s.turn.active === p && foraDoCombate && ehInstantanea(a) ? LIMIAR_RESPOSTA : 0);
+  // B-185 · `respondeNoMeuTurno`: com a mágica ou a habilidade do oponente no topo da pilha, a instantânea é resposta, não
+  // pressa: não paga o pedágio. Antes o Dispel na Counterspell que anulava o meu Murmuring Mystic, no meu turno, custava 12
+  // e o Shark deixava a ameaça morrer com a resposta na mão (todas as versões até a v17).
+  const respondendo = !!opts.respondeNoMeuTurno && s.stack.length > 0 && (s.objects[s.stack[s.stack.length - 1]] || {}).controller !== p;
+  const pedagio = a => (s.turn.active === p && foraDoCombate && ehInstantanea(a) && !respondendo ? LIMIAR_RESPOSTA : 0);
   // Leva 119 · virar terreno por conta própria não é jogada: o pagamento é automático ao conjurar. Com a nota de
   // passar medida depois da pilha (leva 118), virar terreno parecia "ganhar" a diferença e o Shark gastava a mana à toa.
   const candidatas = minhaDecisao ? acoes : acoes.filter(a => a.t !== 'pass' && !(opts.semToque && a.t === 'tap_mana'));
@@ -34948,18 +34959,28 @@ function jogadaProfissional(s, p, opts = {}) {
   // a composição é a mesma em todo mundo possível e não diz qual carta está na mão (informação justa).
   const ANULA = oid => /"do":"counter"/.test(JSON.stringify(((s.facts[(s.objects[oid] || {}).name] || {}).script) || {}));
   const valorDeMana = nome => { const c = (s.facts[nome] || {}).cost || {}; return (c.generic || 0) + Object.values(c.colored || {}).reduce((x, y) => x + y, 0) + (c.hybrid || []).length; };
-  let refAnula = null;
+  // B-185 · a referência é a média do que ESTA anulação pode pegar: o Dispel ("instant-spell") só anula instantâneas, e medido
+  // contra a lista inteira ele parecia caro em toda mágica que podia anular (saía em 8 de 28 cópias; no shark-v13, 20 de 29).
+  const refAnula = {};
+  const podeAnular = (alvoTipo, nome) => {
+    const tipos = (s.facts[nome] || {}).types || [];
+    const m = /^(non)?([a-z]+)-spell$/.exec(alvoTipo || '');
+    if (!m) return true;
+    return m[1] ? !tipos.includes(m[2]) : tipos.includes(m[2]);
+  };
   function reservaDaAnulacao(a) {
     if (!opts.reserva || a.t !== 'cast' || !ANULA(a.oid)) return 0;
     const alvo = (a.targets || []).map(t => s.objects[t.oid]).find(o => o && s.stack.includes(o.oid) && o.controller !== p && !o.ability);
     if (!alvo) return 0;
-    if (refAnula == null) {
+    const nome = opts.reservaPorAlvo ? s.objects[a.oid].name : '*'; // sem a opção (níveis congelados), a média da lista inteira
+    const efeito = opts.reservaPorAlvo ? (((s.facts[nome] || {}).script || {}).effects || []).find(e => e.do === 'counter') || {} : {};
+    if (refAnula[nome] == null) {
       const d = oponenteDe(s, p), w = W[0], magicas = [];
-      for (const oid of [...w.zones[d].hand, ...w.zones[d].library]) { const o = w.objects[oid]; if (o && !((s.facts[o.name] || {}).types || []).includes('land')) magicas.push(valorDeMana(o.name)); }
-      refAnula = magicas.length ? magicas.reduce((x, y) => x + y, 0) / magicas.length : 0;
+      for (const oid of [...w.zones[d].hand, ...w.zones[d].library]) { const o = w.objects[oid]; if (o && !((s.facts[o.name] || {}).types || []).includes('land') && podeAnular(efeito.target, o.name)) magicas.push(valorDeMana(o.name)); }
+      refAnula[nome] = magicas.length ? magicas.reduce((x, y) => x + y, 0) / magicas.length : 0;
     }
     const minhas = s.zones[p].hand.filter(ANULA).length || 1;
-    return Math.max(0, refAnula - valorDeMana(alvo.name)) * PESOS.mao / minhas;
+    return Math.max(0, refAnula[nome] - valorDeMana(alvo.name)) * PESOS.mao / minhas;
   }
   // B10b · segurar a anulação: com uma resposta na mão que as minhas fontes desviradas pagam, a jogada que me deixa
   // sem essa mana no turno do oponente custa 6 pontos (a resposta em si não paga o pedágio).
@@ -35690,14 +35711,15 @@ const NOVO13 = { ...NOVO12, prazo: true }; // congelado como 'shark-v13' (B-179)
 const NOVO14 = { ...NOVO13, respondePrimeiro: true, reserva: true }; // congelado como 'shark-v14' (B-181) · B-179 · quando anular: a resposta à mágica do oponente é lida primeiro e a anulação guardada vale pela mágica que ainda pode pegar; neutro em força (38 × 39 em 96 pares, Control, Faeries e Terror), ligado porque tira dois erros que o jogador vê
 const NOVO15 = { ...NOVO14, alvoProprio: true, av6: true }; // congelado como 'shark-v15' (B-183) · B-181 · alvo no próprio lado: efeito nocivo no meu lado custa 3 por alvo (anular a própria mágica, 30) e vai para o fim da fila; avaliaV6 lê a mesa sem os pumps; neutro em força (47 × 48 em 80 pares, os cinco pilotos), ligado porque tira cinco erros que o jogador vê
 const NOVO16 = { ...NOVO15, decideOOutro: true }; // congelado como 'shark-v16' (B-184) · B-183 · na simulação, a decisão que a resolução pede ao outro jogador é tomada por ele do jeito pior para quem simula (Deem Inferior, Lose Focus); 49 × 47 em 80 pares, os cinco pilotos
-const NOVO = { ...NOVO16, respostaNaPilha: true }; // B-184 · jogar em volta: com a minha mágica na pilha, o outro responde no mundo possível (anula, tira o alvo) do jeito pior para mim; 51 × 47 em 80 pares (7 pares só do novo, 3 só do antigo), os cinco pilotos. `isca` (a mágica seguinte no mesmo turno) mediu 49 × 48 e fica desligada
+const NOVO17 = { ...NOVO16, respostaNaPilha: true }; // congelado como 'shark-v17' (B-185) · B-184 · jogar em volta: com a minha mágica na pilha, o outro responde no mundo possível (anula, tira o alvo) do jeito pior para mim; 51 × 47 em 80 pares (7 pares só do novo, 3 só do antigo), os cinco pilotos. `isca` (a mágica seguinte no mesmo turno) mediu 49 × 48 e fica desligada
+const NOVO = { ...NOVO17, reservaPorAlvo: true, respondeNoMeuTurno: true }; // B-185 · a reserva de cada anulação é medida pelo que ela pode pegar (o Dispel, só instantâneas): 29 × 24 em 48 pares (Control, Faeries, Terror); a instantânea que responde à mágica do oponente no meu turno não paga o pedágio de "guardar" (o Dispel na Counterspell que anulava o meu Mystic): 48 × 46 em 80 pares, os cinco pilotos
 // B-176 · `ameacas` (ameaças do campo no perfil do Dimir Control) foi medida e fica desligada: 26 de 64 contra 27 de 64 pilotando o Control
 function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date.now(), mundos: mundosN = 0, extra: extraOpts = null, pesos = null } = {}) {
   // Leva 117 · 'profissional' e 'shark' são o Shark atual (v4: o v3 com informação justa). 'shark-v3', 'shark-v2'
   // e 'shark-v1' são as versões anteriores, congeladas, só para o torneio — elas simulam sobre o estado real.
-  const v1 = nivel === 'shark-v1', v2 = nivel === 'shark-v2', v3 = nivel === 'shark-v3', v4 = nivel === 'shark-v4', v5 = nivel === 'shark-v5', v6 = nivel === 'shark-v6', v7 = nivel === 'shark-v7', v8 = nivel === 'shark-v8', v9 = nivel === 'shark-v9', v10 = nivel === 'shark-v10', v11 = nivel === 'shark-v11', v12 = nivel === 'shark-v12', v13 = nivel === 'shark-v13', v14 = nivel === 'shark-v14', v15 = nivel === 'shark-v15', v16 = nivel === 'shark-v16';
-  const atual = nivel === 'profissional' || nivel === 'shark' || v4 || v5 || v6 || v7 || v8 || v9 || v10 || v11 || v12 || v13 || v14 || v15 || v16 || !!extraOpts || !!pesos;
-  const ligadas = { ...(v4 ? {} : v5 ? NOVO5 : v6 ? NOVO6 : v7 ? NOVO7 : v8 ? NOVO8 : v9 ? NOVO9 : v10 ? NOVO10 : v11 ? NOVO11 : v12 ? NOVO12 : v13 ? NOVO13 : v14 ? NOVO14 : v15 ? NOVO15 : v16 ? NOVO16 : NOVO), ...(extraOpts || {}) };
+  const v1 = nivel === 'shark-v1', v2 = nivel === 'shark-v2', v3 = nivel === 'shark-v3', v4 = nivel === 'shark-v4', v5 = nivel === 'shark-v5', v6 = nivel === 'shark-v6', v7 = nivel === 'shark-v7', v8 = nivel === 'shark-v8', v9 = nivel === 'shark-v9', v10 = nivel === 'shark-v10', v11 = nivel === 'shark-v11', v12 = nivel === 'shark-v12', v13 = nivel === 'shark-v13', v14 = nivel === 'shark-v14', v15 = nivel === 'shark-v15', v16 = nivel === 'shark-v16', v17 = nivel === 'shark-v17';
+  const atual = nivel === 'profissional' || nivel === 'shark' || v4 || v5 || v6 || v7 || v8 || v9 || v10 || v11 || v12 || v13 || v14 || v15 || v16 || v17 || !!extraOpts || !!pesos;
+  const ligadas = { ...(v4 ? {} : v5 ? NOVO5 : v6 ? NOVO6 : v7 ? NOVO7 : v8 ? NOVO8 : v9 ? NOVO9 : v10 ? NOVO10 : v11 ? NOVO11 : v12 ? NOVO12 : v13 ? NOVO13 : v14 ? NOVO14 : v15 ? NOVO15 : v16 ? NOVO16 : v17 ? NOVO17 : NOVO), ...(extraOpts || {}) };
   let perfil, avPlano = null, passosCombo = 0, turnoCombo = -1; // B9 · perfil do meu baralho, lido na primeira jogada
   const avAtual = ligadas.av4 || ligadas.av5 || ligadas.av6 || pesos ? avaliadorCom({ ...PESOS_ATUAIS, ...(pesos || {}) }, ligadas.av6 ? avaliaV6 : ligadas.av5 ? avaliaV5 : ligadas.av4 ? avaliaV4 : avaliaV3) : null;
   let plano = []; // leva 143 · ações que faltam do plano de mana em curso

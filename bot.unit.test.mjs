@@ -1431,3 +1431,32 @@ test('B-184 · o Shark publicado segura o Murmuring Mystic contra a anulação c
   const novo = shark('shark').jogada(s, 0), v16 = shark('shark-v16').jogada(s, 0);
   assert.ok(!mystic(novo), 'publicado: ' + novo.motivo); assert.ok(mystic(v16), 'v16: ' + v16.motivo);
 });
+
+/* ---- B-185 · fechamento: a reserva de cada anulação é medida pelo que ela pode pegar ---- */
+test('B-185 · Dispel contra o Cast Down no próprio Delver: com `reservaPorAlvo` (a referência são as instantâneas do oponente) o Shark anula; com a média da lista inteira, guardava', async () => {
+  const { s, alvo } = await comMagicaDoOponente(TERROR, CONTROLE, 'Cast Down', { p0: { campo: ['Island', 'Island', 'Delver of Secrets'], mao: ['Dispel', 'Ponder'] }, p1: { campo: ['Island', 'Swamp'] } });
+  const dispel = j => j.acao.t === 'cast' && s.objects[j.acao.oid].name === 'Dispel' && (j.acao.targets || []).some(t => t.oid === alvo);
+  const bot = op => B.criaBot({ nivel: 'shark', agora: relogioParado, extra: { reservaPorAlvo: op } });
+  const sem = bot(false).jogada(s, 0), com = bot(true).jogada(s, 0);
+  assert.ok(!dispel(sem), 'sem a opção: ' + sem.motivo);
+  assert.ok(dispel(com), 'com a opção: ' + com.motivo);
+});
+test('B-185 · o Shark publicado anula com o Dispel o Cast Down no próprio Delver; o shark-v17 congelado guarda', async () => {
+  const { s, alvo } = await comMagicaDoOponente(TERROR, CONTROLE, 'Cast Down', { p0: { campo: ['Island', 'Island', 'Delver of Secrets'], mao: ['Dispel', 'Ponder'] }, p1: { campo: ['Island', 'Swamp'] } });
+  const dispel = j => j.acao.t === 'cast' && s.objects[j.acao.oid].name === 'Dispel' && (j.acao.targets || []).some(t => t.oid === alvo);
+  const novo = shark('shark').jogada(s, 0), v17 = shark('shark-v17').jogada(s, 0);
+  assert.ok(dispel(novo), 'publicado: ' + novo.motivo); assert.ok(!dispel(v17), 'v17: ' + v17.motivo);
+});
+test('B-185 · no meu turno, o Dispel na Counterspell que anula o meu Murmuring Mystic: com `respondeNoMeuTurno` o Shark responde; sem, a instantânea pagava o pedágio de "guardar para o turno do outro" e o Mystic morria', async () => {
+  const { s: s0, ids } = await montaShark(TERROR, CONTROLE, { p0: { campo: ILHAS(5), mao: ['Murmuring Mystic', 'Dispel'] }, p1: { campo: ['Island', 'Island'], mao: ['Counterspell'] } });
+  let s = act(s0, E.legalActions(s0, 0).find(a => a.t === 'cast' && a.oid === ids[0]['Murmuring Mystic']));
+  s = act(s, { t: 'pass', p: 0 });
+  s = act(s, E.legalActions(s, 1).find(a => a.t === 'cast' && a.oid === ids[1]['Counterspell']));
+  if (s.turn.priority === 1) s = act(s, { t: 'pass', p: 1 });
+  assert.equal(s.turn.priority, 0); assert.equal(s.objects[s.stack[s.stack.length - 1]].name, 'Counterspell');
+  const dispel = j => j.acao.t === 'cast' && s.objects[j.acao.oid].name === 'Dispel';
+  const bot = op => B.criaBot({ nivel: 'shark', agora: relogioParado, extra: { respondeNoMeuTurno: op } });
+  const sem = bot(false).jogada(s, 0), com = bot(true).jogada(s, 0);
+  assert.ok(!dispel(sem), 'sem a opção: ' + sem.motivo);
+  assert.ok(dispel(com), 'com a opção: ' + com.motivo);
+});
