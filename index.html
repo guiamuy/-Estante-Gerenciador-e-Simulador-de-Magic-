@@ -11480,6 +11480,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Hidden Grotto': { texto: 'd8zjvi', leva: 'M-580' },
   'Massive Might': { texto: '15mzdm0', leva: 'M-580' },
   'Pilfer': { texto: '68e1mu', leva: 'M-580' },
+  // M-584 · rotina Sentinela do Pauper (cobertura/pauper.json de 26/10/2026; texto da Scryfall do dia em .listas/oficiais-revisadas.json), revisor independente
+  'Nettle Sentinel': { texto: 'nndgox', leva: 'M-584' },
   'Flawless Maneuver': { texto: '1dbabfl', leva: 'M-577' },
   'Deadly Rollick': { texto: 'mi4hfd', leva: 'M-577' },
   // H-18 · revisão em lote 1 dos competitivos (homologacao): 18 cartas `lida`, texto da Scryfall de 25/10/2026 (cobertura/*.json do ramo catalogo), revisor independente
@@ -20767,6 +20769,7 @@ const __m42 = (function () {
     [/^whenever you cast a spell with mana value (\d+) or greater$/i, 'other-cast', m => ({ filter: { mvMin: +m[1] } })], // M-556 · Up the Beanstalk
     [/^whenever you cast your second spell each turn$/i, 'other-cast', () => ({ filter: { segundaMagiaDoTurno: true } })], // M-526 · Flurry (Cori-Steel Cutter, Jeskai Devotee, Illvoi Operative)
     [/^whenever you cast a multicolored spell$/i, 'other-cast', () => ({ filter: { multicolorida: true } })],
+    [/^whenever you cast an? (white|blue|black|red|green) spell$/i, 'other-cast', m => ({ filter: { anyColors: [({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[1].toLowerCase()]] } })], // M-584 · Nettle Sentinel (105.2: mágica verde é a que tem verde entre as cores, multicolorida inclusive)
     [/^whenever you cast a spell that's ((?:white|blue|black|red|green)(?:-(?:white|blue|black|red|green))+)$/i, 'other-cast', m => ({ filter: { anyColors: [...new Set((m[1]).toLowerCase().match(/white|blue|black|red|green/g).map(c => ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[c]))] } })], // M-541 · Questing Druid // M-460 · 105.2b
     [/^whenever you cast an? (?:white|blue|black|red|green)(?:-(?:white|blue|black|red|green))+ spell$/i, 'other-cast', m => ({ filter: { anyColors: [...new Set(m[0].toLowerCase().match(/white|blue|black|red|green/g).map(c => ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[c]))] } })], // M-395 · God-Pharaoh's Faithful // M-328
     [/^[Ww]henever you cast an? ([A-Z][a-z]+) spell$/, 'other-cast', m => ({ filter: { subtype: m[1] } })], // LT11 · "whenever you cast an Elf spell"
