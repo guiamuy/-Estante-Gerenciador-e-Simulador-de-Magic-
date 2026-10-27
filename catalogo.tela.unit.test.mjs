@@ -251,6 +251,25 @@ test('Q10-7b · leMotorDoCatalogo e medidaDoMotor: só a forma certa entra; medi
   assert.equal(K.medidaDoMotor(null, { id: 'topdeck-a-1' }), null);
 });
 
+// G-311 · relato #36, fatia 1: o Jogar só abre o formato em que o motor joga todas as listas prontas dele.
+test('G-311 · estadoDoFormato: pronto só com todas as listas medidas a 100%; formato fora do catálogo fecha; arquivo sem a contagem (de antes) não fecha nada', () => {
+  const dados = { versao: 1, formatos: { pauper: { geradoEm: '2026-10-27T06:23:00Z', motor: 113, listas: 595, medidas: 594, listas100: 594 },
+    commander: { geradoEm: '2026-10-27T06:25:00Z', motor: 113, listas: 478, medidas: 478, listas100: 0 }, modern: { geradoEm: 'x', listas: 3, medidas: 3, listas100: 9 } }, pct: {} };
+  const m = K.leMotorDoCatalogo(dados);
+  assert.deepEqual(J(m.formatos.pauper), { geradoEm: '2026-10-27T06:23:00Z', motor: 113, listas: 595, medidas: 594, listas100: 594 });
+  assert.equal(m.formatos.modern.listas100, undefined, 'contagem impossível (mais listas a 100% que medidas) é descartada');
+  const p = K.estadoDoFormato(m, 'pauper'), c = K.estadoDoFormato(m, 'commander'), l = K.estadoDoFormato(m, 'livre'), mo = K.estadoDoFormato(m, 'modern');
+  assert.deepEqual([p.estado, p.listas, p.listas100], ['pronto', 594, 594]);
+  assert.deepEqual([c.estado, c.motivo, c.listas, c.listas100], ['fechado', 'incompleto', 478, 0]);
+  assert.equal(c.medidoEm, new Date('2026-10-27T06:25:00Z').toLocaleDateString('pt-BR'));
+  assert.deepEqual([l.estado, l.motivo], ['fechado', 'sem-catalogo']);
+  assert.deepEqual([mo.estado, mo.motivo], ['fechado', 'sem-medida']);
+  assert.deepEqual(J(K.formatosProntos(m)), ['pauper']);
+  // arquivo de antes da contagem (nenhum formato com listas100) e arquivo ausente: a tela fica como era
+  assert.equal(K.estadoDoFormato(K.leMotorDoCatalogo({ versao: 1, formatos: { pauper: { geradoEm: 'x', listas: 2, medidas: 2 } }, pct: {} }), 'livre'), null);
+  assert.equal(K.estadoDoFormato(null, 'pauper'), null); assert.equal(K.formatosProntos(null), null);
+});
+
 test('Q10-7b · serviço: o arquivo do motor é guardado por uma hora; sem rede, o guardado; ausente ou ilegível, sem selo (null)', async () => {
   let agora = 1000, falha = false, corpo = { versao: 1, formatos: {}, pct: { 'topdeck-a-1': [90, 2] } }; const pedidos = [];
   const busca = async url => { pedidos.push(url.replace(K.BASE, '')); if (falha) throw new TypeError('Failed to fetch'); if (corpo === 404) return { ok: false, status: 404 };

@@ -109,6 +109,7 @@ test('Q10-7b · executa grava cobertura/motor.json: soma os formatos, troca só 
     await C.executa({ pasta, formato: 'pauper', busca: scryfall(TABELA), pausa: 0, log: () => {}, agora: 'T1' });
     let m = await le(); assert.equal(m.versao, 1); assert.deepEqual(m.pct, { p1: [100, 0], p2: [91, 1] });
     assert.deepEqual(Object.keys(m.formatos), ['pauper']); assert.equal(m.formatos.pauper.listas, 2); assert.equal(m.formatos.pauper.geradoEm, 'T1');
+    assert.equal(m.formatos.pauper.listas100, 1, 'G-311 · relato #36 · quantas listas do formato jogam inteiras (o Jogar abre o formato só com todas)');
     await C.executa({ pasta, formato: 'commander', busca: scryfall(TABELA), pausa: 0, log: () => {}, agora: 'T2' });
     m = await le(); assert.deepEqual(m.pct, { c1: [95, 1], p1: [100, 0], p2: [91, 1] }); assert.deepEqual(Object.keys(m.formatos).sort(), ['commander', 'pauper']);
     // a p2 sai do catálogo e a p1 muda: só o Pauper é trocado, o Commander fica

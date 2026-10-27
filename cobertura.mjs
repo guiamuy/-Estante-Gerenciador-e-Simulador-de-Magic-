@@ -176,7 +176,8 @@ export const ARQ_MOTOR = 'motor.json'; // cobertura/motor.json: o que o app lê 
 export function juntaMotor(anterior, { formato, pct, idsDoCatalogo, idsDoFormato, agora, motor }) {
   const base = anterior && anterior.versao === 1 && anterior.pct && typeof anterior.pct === 'object' ? anterior : { pct: {}, formatos: {} };
   const fica = Object.entries(base.pct).filter(([id]) => idsDoCatalogo.has(id) && !idsDoFormato.has(id));
-  const formatos = { ...(base.formatos || {}), [formato]: { geradoEm: agora, motor, listas: idsDoFormato.size, medidas: Object.keys(pct).length } };
+  const formatos = { ...(base.formatos || {}), [formato]: { geradoEm: agora, motor, listas: idsDoFormato.size, medidas: Object.keys(pct).length,
+    listas100: Object.values(pct).filter(v => v[0] === 100).length } }; // G-311 · relato #36: o Jogar abre o formato só com todas a 100%
   return { versao: 1, geradoEm: agora, formatos, pct: Object.fromEntries([...fica, ...Object.entries(pct)].sort((a, b) => (a[0] < b[0] ? -1 : 1))) };
 }
 /** Lê as listas de um formato na pasta do ramo catalogo (indice.json + listas/<id>.json). */

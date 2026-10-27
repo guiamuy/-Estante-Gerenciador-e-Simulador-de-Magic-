@@ -8905,6 +8905,43 @@ test('e2e · G-301 selo do motor em toda listagem: Minhas listas e as escolhas d
   assert.deepEqual(errors, []);
 });
 
+/* G-311 · relato #36, fatia 1 · o Jogar só abre o formato em que o motor joga todas as listas prontas dele */
+test('e2e · G-311 Jogar só com formato pronto: Commander e Livre apagados com a ampulheta, o toque explica com a medida e não troca; o Pauper abre; sem formato pronto, o estado vazio leva às Listas prontas', { skip }, async t => {
+  const { page, errors, base } = await open(t, { dev: false });
+  await page.setViewportSize({ width: 360, height: 780 });
+  let motor = { versao: 1, geradoEm: '2026-10-27T06:23:00Z', pct: {}, formatos: {
+    pauper: { geradoEm: '2026-10-27T06:23:00Z', motor: 113, listas: 595, medidas: 594, listas100: 594 },
+    commander: { geradoEm: '2026-10-27T06:25:00Z', motor: 113, listas: 478, medidas: 478, listas100: 12 } } };
+  await page.route(/^https:\/\/raw\.githubusercontent\.com\/.*\/catalogo\/cobertura\/motor\.json/, r => r.fulfill({ json: motor, headers: { 'access-control-allow-origin': '*' } }));
+  await createDeck(page, base, 'Mesa Livre', '30 Island\n30 Counterspell', 'livre');
+  await createDeck(page, base, 'Coberta', '30 Island\n30 Counterspell', 'pauper');
+  await createDeck(page, base, 'Do Comandante', '1 Sol Ring\n99 Island', 'commander');
+  // 1 · a lista pedida é de Commander (fechado): a tela abre no Pauper, com os fechados apagados
+  await page.goto(base + '#/listas'); await page.goto(base + '#/mesa'); await page.waitForSelector('[data-table-format="commander"][data-formato-estado="fechado"]');
+  const chips = await page.$$eval('#mesa-format [data-table-format]', cs => cs.map(c => [c.dataset.tableFormat, c.dataset.formatoEstado, c.getAttribute('aria-pressed'), !!c.querySelector('.ds-icon')]));
+  assert.deepEqual(chips, [['pauper', 'aberto', 'true', false], ['commander', 'fechado', 'false', true], ['livre', 'fechado', 'false', true]]);
+  assert.match(await page.getAttribute('[data-table-format="commander"]', 'aria-label'), /^Commander: ainda não joga\. O motor joga 12 de 478 listas prontas de Commander/);
+  assert.match(await page.getAttribute('[data-table-format="livre"]', 'aria-label'), /Livre não tem listas prontas para medir/);
+  // 2 · o toque no fechado explica (com a medida) e não troca o formato
+  await page.click('[data-table-format="commander"]'); await page.waitForSelector('#mesa-formato-fechado');
+  const folha = await page.$eval('#mesa-formato-fechado', f => ({ txt: f.innerText, agora: f.querySelector('[role="meter"]').getAttribute('aria-valuenow'), max: f.querySelector('[role="meter"]').getAttribute('aria-valuemax') }));
+  assert.deepEqual([folha.agora, folha.max], ['12', '478']); assert.match(folha.txt, /12 de 478 listas/); assert.match(folha.txt, /Hoje jogam inteiros: Pauper\./);
+  await auditaTela(page, 'folha do formato que ainda não joga');
+  await page.keyboard.press('Escape'); await page.waitForSelector('#mesa-formato-fechado', { state: 'detached' });
+  assert.equal(await page.getAttribute('[data-table-format="pauper"]', 'aria-pressed'), 'true', 'o formato não trocou');
+  await page.waitForFunction(() => { const b = document.querySelector('#mesa-start'); return b && !b.disabled; }, null, { timeout: 8000 });
+  await auditaTela(page, 'Jogar com formatos fechados');
+  // 3 · nenhum formato pronto (o Pauper perdeu uma lista): estado vazio que leva às Listas prontas
+  motor = { ...motor, formatos: { ...motor.formatos, pauper: { ...motor.formatos.pauper, listas100: 593 } } };
+  await page.evaluate(async () => { const r = indexedDB.open('mtg'); await new Promise(ok => { r.onsuccess = ok; }); const tx = r.result.transaction('kv', 'readwrite'); tx.objectStore('kv').delete('catalogo.motor'); await new Promise(ok => { tx.oncomplete = ok; }); });
+  await page.goto(base + '#/mesa'); await page.reload(); await page.waitForSelector('#mesa-sem-formato'); // app novo: lê o aparelho sem a cópia
+  assert.match(await page.innerText('#mesa-sem-formato'), /O motor ainda não joga todas as listas prontas de nenhum formato/);
+  assert.equal(await page.locator('#mesa-start').count(), 0);
+  await auditaTela(page, 'Jogar sem formato pronto');
+  await page.click('#mesa-starter'); await page.waitForFunction(() => location.hash.startsWith('#/listas/prontas'));
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · I4 Perfil › Fichas: lista com ícone e cores, artes buscadas na internet, escolha guardada (e usada na mesa), sem internet só o que já foi baixado, e volta ao padrão', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.addInitScript(() => { window.__MTG_TEST = true; });

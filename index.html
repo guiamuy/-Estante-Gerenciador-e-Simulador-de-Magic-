@@ -2165,6 +2165,13 @@ body:has(#outlet .ds-fab[data-acoes="1"]) #outlet { padding-bottom: calc(56px + 
 /* Leva 110 · escolher a lista na preparação da partida: a mesma linha da estante, dentro de um botão */
 .deck-picker { display: block; width: 100%; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-2); background: var(--bg-elev-1); color: inherit; font: inherit; text-align: left; cursor: pointer; box-shadow: var(--shadow-1); }
 .deck-picker:active { transform: translateY(1px); box-shadow: none; }
+/* G-311 · relato #36 · formato que o motor ainda não joga inteiro: chip apagado, borda tracejada, ampulheta; a folha mede quantas listas prontas jogam */
+.ds-chip[data-formato-estado="fechado"] { color: var(--fg-muted); border-style: dashed; background: transparent; box-shadow: none; }
+.mesa-formato-medida { display: grid; gap: var(--space-2); }
+.mesa-formato-medida__barra { display: block; height: 8px; border-radius: var(--radius-full); background: var(--bg-elev-0); border: 1px solid var(--border); overflow: hidden; }
+.mesa-formato-medida__cheio { display: block; height: 100%; min-width: 2px; background: linear-gradient(90deg, var(--accent-lo), var(--accent-hi)); }
+.mesa-formato-medida__conta { font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--fg-muted); }
+.mesa-formato-medida__conta b { color: var(--fg); font-weight: 700; }
 .deck-picker > .deck-item { display: flex; border-bottom: none; }
 .deck-picker__lista .deck-item { width: 100%; border: none; border-bottom: 1px solid var(--border); background: none; color: inherit; font: inherit; cursor: pointer; }
 .deck-picker__lista .deck-item[aria-checked="true"] { background: var(--accent-soft); }
@@ -17289,9 +17296,28 @@ function leMotorDoCatalogo(dados) {
   const pct = new Map(), inteiro = (v, max) => Number.isInteger(v) && v >= 0 && v <= max;
   for (const [id, v] of Object.entries(dados.pct)) if (idValido(id) && Array.isArray(v) && inteiro(v[0], 100) && inteiro(v[1], 100000)) pct.set(id, v);
   const formatos = {};
-  for (const [f, x] of Object.entries(dados.formatos || {})) if (FORMATOS.some(y => y[0] === f) && x && typeof x.geradoEm === 'string') formatos[f] = { geradoEm: x.geradoEm };
+  for (const [f, x] of Object.entries(dados.formatos || {})) if (FORMATOS.some(y => y[0] === f) && x && typeof x.geradoEm === 'string') {
+    formatos[f] = { geradoEm: x.geradoEm };
+    // G-311 · relato #36 · a contagem do formato (quantas listas, quantas medidas, quantas a 100%): só inteiros coerentes
+    if (inteiro(x.motor, 100000)) formatos[f].motor = x.motor;
+    if (inteiro(x.listas, 100000) && inteiro(x.medidas, x.listas) && inteiro(x.listas100, x.medidas)) Object.assign(formatos[f], { listas: x.listas, medidas: x.medidas, listas100: x.listas100 });
+  }
   return { pct, formatos };
 }
+/** G-311 · relato #36 · o Jogar só abre o formato em que o motor joga todas as listas prontas dele, pela medida do catálogo.
+    `mot` = `leMotorDoCatalogo`. Sem arquivo, ou arquivo de antes da contagem (nenhum formato com `listas100`): null — a tela
+    fica como era, para não fechar o Jogar de quem está sem internet ou com a cópia antiga. Puro. */
+const temContagem = mot => !!(mot && mot.formatos && Object.values(mot.formatos).some(x => Number.isInteger(x.listas100)));
+function estadoDoFormato(mot, formato) {
+  if (!temContagem(mot)) return null;
+  const x = mot.formatos[formato];
+  if (!FORMATOS.some(y => y[0] === formato)) return { estado: 'fechado', motivo: 'sem-catalogo', listas: 0, listas100: 0, medidoEm: '' };
+  const medidoEm = x && Date.parse(x.geradoEm) ? new Date(x.geradoEm).toLocaleDateString('pt-BR') : '';
+  if (!x || !Number.isInteger(x.listas100) || !x.medidas) return { estado: 'fechado', motivo: 'sem-medida', listas: 0, listas100: 0, medidoEm };
+  return { estado: x.listas100 === x.medidas ? 'pronto' : 'fechado', motivo: x.listas100 === x.medidas ? null : 'incompleto', listas: x.medidas, listas100: x.listas100, medidoEm };
+}
+/** G-311 · os formatos do catálogo que o motor joga inteiros (na ordem do catálogo); null sem a contagem. Puro. */
+const formatosProntos = mot => (temContagem(mot) ? FORMATOS.map(y => y[0]).filter(f => estadoDoFormato(mot, f).estado === 'pronto') : null);
 /** A medida de uma lista para o selo do motor (`SeloMotor`): medida → completo/incompleto com a data; formato medido sem a
     lista (entrou depois da medida) ou formato ainda não medido → "ainda não medida". Sem o arquivo: null (sem selo). */
 function medidaDoMotor(mot, l) {
@@ -17592,7 +17618,7 @@ function createCatalogoListaScreen({ catalogo, decks, cardRepo, store }) {
   return root;
 }
 
-return { CORES_DO_CATALOGO, MODOS_DE_COR, ORIGENS, ORDENS, NOME_DO_CONJUNTO, novoFiltroDoCatalogo, coresDaLista, origemDe, casaCores, filtrosDoCatalogoAtivos, ordenaCatalogo, descreveCores, descreveFiltroDoCatalogo, abrirFiltrosDoCatalogo, indiceAntigo, linhasDoCartao, valorDoResumo, comResumo, precoDaCarta, fichasDoCatalogo, CHAVE_FICHAS, deTorneio, FONTES_DO_CATALOGO, CreditoDasFontes, VISOES, gruposPorTipo, CHAVE_MOTOR, leMotorDoCatalogo, medidaDoMotor, gruposPorCusto, createCatalogoListaScreen, BASE, CHAVE_INDICE, PRAZO_MS, LOTE, FORMATOS, listasDoIndice, filtraCatalogo, imagemDaCarta, listaParaSalvar, jaNaEstante, createCatalogo, CartaoCatalogo, SecaoCatalogo };
+return { CORES_DO_CATALOGO, MODOS_DE_COR, ORIGENS, ORDENS, NOME_DO_CONJUNTO, novoFiltroDoCatalogo, coresDaLista, origemDe, casaCores, filtrosDoCatalogoAtivos, ordenaCatalogo, descreveCores, descreveFiltroDoCatalogo, abrirFiltrosDoCatalogo, indiceAntigo, linhasDoCartao, valorDoResumo, comResumo, precoDaCarta, fichasDoCatalogo, CHAVE_FICHAS, deTorneio, FONTES_DO_CATALOGO, CreditoDasFontes, VISOES, gruposPorTipo, CHAVE_MOTOR, leMotorDoCatalogo, medidaDoMotor, estadoDoFormato, formatosProntos, ROTULO_DO_FORMATO, gruposPorCusto, createCatalogoListaScreen, BASE, CHAVE_INDICE, PRAZO_MS, LOTE, FORMATOS, listasDoIndice, filtraCatalogo, imagemDaCarta, listaParaSalvar, jaNaEstante, createCatalogo, CartaoCatalogo, SecaoCatalogo };
 })();
 
 /* ==== src/app/decks.js ==== */
@@ -38485,7 +38511,7 @@ const randomSeed = () => {
 };
 
 /* ---------------- A2 · preparar partida ---------------- */
-function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null, online = null }) {
+function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null, online = null, catalogo = null }) {
   const root = Stack(pad(), __m3.Carregando('Abrindo…', { tamanho: 'tela' }));
   // Leva 113 · um modo só: o motor completo. Lista que o motor não resolve 100% não joga, e a tela diz por quê.
   // DEV: a mesa assistida continua no motor para os testes de mesa (ajuste manual de estado); só aparece com
@@ -38518,7 +38544,20 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
     // A12 · modo de jogo: filtra as listas pelo formato, e o formato da partida vem da sua lista
     // Leva 149 · sem "Todos": a partida sempre tem um formato. Começa no formato da primeira lista da estante.
     const FORMAT_KEYS = [...new Set(['pauper', 'commander', 'livre', ...all.map(d => d.format)])].filter(k => all.some(d => d.format === k));
-    state.format = pedida.format;
+    // G-311 · relato #36 · o Jogar só abre o formato em que o motor joga todas as listas prontas dele (medida do catálogo,
+    // `cobertura/motor.json`). A cópia guardada vale na hora; a da rede chega depois e repinta. Sem a medida (nunca baixada,
+    // ou arquivo de antes da contagem), fica como era: quem está sem internet não perde o Jogar. DEV abre tudo (testes de mesa).
+    let telaPronta = false, medidaNova = false;
+    if (catalogo && catalogo.motor) {
+      const pedido = catalogo.motor().catch(() => null);
+      state.motorCat = await Promise.race([pedido, new Promise(r => setTimeout(() => r(null), 800))]);
+      pedido.then(m => { if (!m || m === state.motorCat) return; state.motorCat = m; if (!telaPronta) medidaNova = true; else if (root.isConnected) aoMedirFormatos(); });
+    }
+    const estadoDe = k => (DEV ? null : __m39.estadoDoFormato(state.motorCat, k));
+    const aberto = k => { const e = estadoDe(k); return !e || e.estado === 'pronto'; };
+    if (!FORMAT_KEYS.some(aberto)) return mount(root, Text('Jogar', { size: '2xl', display: true, as: 'h1' }), semFormatoAberto());
+    state.format = aberto(pedida.format) ? pedida.format : FORMAT_KEYS.find(aberto);
+    if (state.format !== pedida.format) { const p = all.find(d => d.format === state.format); state.mine = p.id; state.theirs = p.id; }
     const visiveis = () => all.filter(d => d.format === state.format);
     state.sharkDeck = (listasDoShark()[0] || {}).id || null;
     // E50 P5 · o rótulo diz quantas cartas entram no grimório; a reserva fica de fora e é dita à parte
@@ -38547,8 +38586,12 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
     function paintFormat() {
       mount(formatBox, Row({ class: 'ds-row--wrap' },
         ...FORMAT_KEYS.map(k => [k, FORMATS[k] || k]).map(([k, label]) => {
-          const c = Chip(label, { pressed: state.format === k, dataset: { tableFormat: k } });
+          const est = estadoDe(k), fechado = est && est.estado !== 'pronto';
+          // G-311 · formato que o motor ainda não joga inteiro: apagado, com a ampulheta; o toque diz por quê e não troca
+          const c = Chip(label, { pressed: state.format === k, dataset: { tableFormat: k, formatoEstado: fechado ? 'fechado' : 'aberto' }, icone: fechado ? 'ampulheta' : null });
+          if (fechado) c.setAttribute('aria-label', `${label}: ainda não joga. ${falaDoFechado(k, est)}`); // tocável: abre a explicação (por isso sem aria-disabled)
           c.addEventListener('click', () => {
+            if (fechado) return explicaFormato(k, est);
             if (state.format === k) return;
             state.format = k;
             const lista = visiveis();
@@ -38559,6 +38602,49 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
           });
           return c;
         })));
+    }
+    /* G-311 · relato #36 · por que um formato não abre no Jogar, em uma frase (a mesma no nome falado do chip e na folha). */
+    function rotuloDe(k) { return FORMATS[k] || __m39.ROTULO_DO_FORMATO[k] || k; } // declaração: o estado vazio usa antes desta linha
+    function falaDoFechado(k, est) {
+      if (est.motivo === 'sem-catalogo') return `O Jogar abre só os formatos em que o motor joga todas as listas prontas, e ${rotuloDe(k)} não tem listas prontas para medir.`;
+      if (est.motivo === 'sem-medida') return `As listas prontas de ${rotuloDe(k)} ainda não foram medidas pelo motor.`;
+      return `O motor joga ${est.listas100} de ${est.listas} listas prontas de ${rotuloDe(k)}${est.medidoEm ? ` (medido em ${est.medidoEm})` : ''}. O formato abre aqui quando chegar a todas.`;
+    }
+    function MedidorDoFormato(est) { // a barra de quantas listas prontas o motor joga: latão sobre ébano
+      const pct = est.listas ? Math.round(est.listas100 / est.listas * 100) : 0;
+      return h('div', { class: 'mesa-formato-medida', role: 'meter', 'aria-valuemin': '0', 'aria-valuemax': String(est.listas), 'aria-valuenow': String(est.listas100),
+        'aria-label': `${est.listas100} de ${est.listas} listas prontas jogam` },
+        h('span', { class: 'mesa-formato-medida__barra' }, h('span', { class: 'mesa-formato-medida__cheio', style: { width: `${pct}%` } })),
+        h('span', { class: 'mesa-formato-medida__conta' }, h('b', {}, String(est.listas100)), ` de ${est.listas} listas`));
+    }
+    function explicaFormato(k, est) {
+      const prontos = (__m39.formatosProntos(state.motorCat) || []).map(rotuloDe);
+      Dialog({ title: `${rotuloDe(k)} ainda não joga`, body: Stack({ id: 'mesa-formato-fechado' },
+        est.motivo === 'incompleto' ? MedidorDoFormato(est) : null,
+        Text(falaDoFechado(k, est), { tone: 'muted' }),
+        prontos.length ? Text(`Hoje jogam inteiros: ${prontos.join(', ')}.`, { size: 'sm' }) : null),
+      actions: [Button('Voltar', { onClick: closeDialog })] });
+    }
+    /** O estado vazio quando nenhuma lista sua está num formato que o motor joga inteiro. */
+    function semFormatoAberto() {
+      const prontos = (__m39.formatosProntos(state.motorCat) || []).map(rotuloDe);
+      const el = Empty(prontos.length
+        ? `Hoje o motor joga inteiras as listas de ${prontos.join(', ')}. Adicione uma lista pronta desse formato para jogar.`
+        : 'O motor ainda não joga todas as listas prontas de nenhum formato. O Jogar abre quando o primeiro chegar lá.',
+        Row({ class: 'ds-row--wrap' }, Button('Ver prontas', { variant: 'primary', id: 'mesa-starter', icone: 'caixa', title: 'Ver listas prontas', onClick: () => go('/listas/prontas') })));
+      el.id = 'mesa-sem-formato';
+      return el;
+    }
+    /** A medida da rede chegou depois da tela: repinta os formatos; se o escolhido fechou, vai para o primeiro aberto. */
+    function aoMedirFormatos() {
+      if (!FORMAT_KEYS.some(aberto)) return mount(root, Text('Jogar', { size: '2xl', display: true, as: 'h1' }), semFormatoAberto());
+      if (!aberto(state.format)) {
+        state.format = FORMAT_KEYS.find(aberto);
+        const p = visiveis()[0]; if (p) { state.mine = p.id; state.theirs = p.id; }
+        state.sharkDeck = (listasDoShark()[0] || {}).id || null;
+        paintMine(); paintOpponent(); paintCoverage(); confereOponente();
+      }
+      paintFormat(); paintStart();
     }
     function paintMine() {
       const lista = visiveis();
@@ -38641,7 +38727,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
     let startBtn = null;
     function paintStart() {
       if (!startBtn) return;
-      const ok = (DEV || (state.coverage === 100 && state.coberturaDele === 100)) && !(ehBot() && !deckDoOponente()); // B-22 · Shark sem lista no formato: nada pela metade
+      const ok = (DEV || (state.coverage === 100 && state.coberturaDele === 100 && aberto(state.format))) && !(ehBot() && !deckDoOponente()); // B-22 · Shark sem lista no formato: nada pela metade; G-311 · formato fechado não começa
       startBtn.disabled = !ok || state.busy;
       startBtn.classList.toggle('ds-hidden', state.opponent === 'online'); // leva 133 · online começa pela sala
       const xs = state.faltamDele;
@@ -38892,6 +38978,8 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
     paintStart();
 
     paintFormat(); paintMine(); paintCoverage(); confereOponente();
+    telaPronta = true; // G-311 · a medida da rede chegou enquanto a tela montava
+    if (medidaNova) { if (!FORMAT_KEYS.some(aberto)) return mount(root, Text('Jogar', { size: '2xl', display: true, as: 'h1' }), semFormatoAberto()); aoMedirFormatos(); }
     mount(root,
       Text('Jogar', { size: '2xl', display: true, as: 'h1' }),
       saved ? Surface({ class: 'ds-surface--pad', id: 'mesa-saved' }, Stack({},
@@ -43740,7 +43828,7 @@ const ROUTES = [
   { path: '/lista', title: 'Lista', render: () => createDeckScreen({ decks, collection, cardRepo, images, share: platform.share, files: platform.files, store: platform.store, etiquetas, names, scryfall }) },
   { path: '/colecao', title: 'Coleção', render: () => createCollectionScreen({ collection, decks, cardRepo, scryfall, files: platform.files, persistence: platform.persistence, share: platform.share, names, etiquetas }) },
   { path: '/scanner', title: 'Scanner', render: () => createScannerScreen({ camera: platform.camera, store: platform.store, names, collection, decks, scryfall, env: envVivo, ocr }) },
-  { path: '/mesa', title: 'Jogar', render: () => createTableSetup({ decks, cardRepo, store: platform.store, keeper, perfil, online }) },
+  { path: '/mesa', title: 'Jogar', render: () => createTableSetup({ decks, cardRepo, store: platform.store, keeper, perfil, online, catalogo }) },
   { path: '/partida', title: 'Mesa', render: () => createTableScreen({ store: platform.store, perfil, online, som, partidas }) },
   { path: '/serie', title: 'Série', render: () => createSeriesScreen({ store: platform.store, online }) },
   { path: '/perfil/fichas', title: 'Fichas', render: () => createFichasScreen({ fichas, decks, catalogo, cardRepo }) }, // I4 · G-242: todas as fichas do catálogo
