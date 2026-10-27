@@ -9015,6 +9015,48 @@ test('e2e · G-313 Pedir cobertura: do Jogar, a folha mostra a lista, as cartas 
   assert.deepEqual(errors, []);
 });
 
+/* G-314 · relato #36, fatia 4 · central de notificações: o sino no Início e a entrada no Perfil; a primeira é a cobertura atendida */
+test('e2e · G-314 notificações: vazia diz o que vai chegar; pedido de cobertura atendido vira "já joga" com o selo no sino; filtros; tocar marca como lida e abre a lista no Jogar', { skip }, async t => {
+  const { page, errors, base } = await open(t, { dev: false, formato: true });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'Ilhas', '56 Island\n4 Counterspell', 'pauper');
+  // 1 · sem nada: o sino sem selo e a tela vazia que diz o que vai chegar
+  await page.goto(base + '#/'); await page.waitForSelector('#home-notificacoes');
+  assert.equal(await page.$eval('#home-notificacoes', b => [b.dataset.naoLidas, b.querySelector('.nt-sino__selo').classList.contains('ds-hidden')].join()), '0,true');
+  await page.click('#home-notificacoes'); await page.waitForSelector('#notificacoes-vazio');
+  assert.match(await page.innerText('#notificacoes-vazio'), /Quando o motor passar a jogar uma lista que você pediu/);
+  await auditaTela(page, 'Notificações vazia');
+  // 2 · um pedido de cobertura já enviado, de cartas que o motor joga: ao abrir o Início, vira notificação
+  await page.evaluate(async () => {
+    const r = indexedDB.open('mtg'); await new Promise(ok => { r.onsuccess = ok; }); const db = r.result;
+    const tudo = await new Promise(ok => { const q = db.transaction('kv').objectStore('kv').getAll(); q.onsuccess = () => ok(q.result); });
+    const d = tudo.find(v => v && v.name === 'Ilhas');
+    const rel = __m38.novoRelato(__m38.relatoDeCobertura({ listaId: d.id, formato: 'pauper', rotuloFormato: 'Pauper', total: 60, pct: 93, cartas: ['Island'], motor: 113 }), Date.now() - 3600e3, 'rcobe2e').relato;
+    rel.enviadoEm = new Date().toISOString(); rel.pelaFila = true;
+    const tx = db.transaction('kv', 'readwrite'); tx.objectStore('kv').put([rel], 'relatos.itens'); await new Promise(ok => { tx.oncomplete = ok; });
+  });
+  await page.goto(base + '#/listas'); await page.reload(); await page.goto(base + '#/'); await page.waitForSelector('#home-notificacoes[data-nao-lidas="1"]');
+  assert.equal(await page.getAttribute('#home-notificacoes', 'aria-label'), 'Notificações: 1 não lida'); assert.equal(await page.innerText('#home-notificacoes .nt-sino__selo'), '1');
+  await auditaTela(page, 'Início com o sino e uma não lida');
+  // 3 · a lista: o item não lido com o ponto; os filtros com as contas
+  await page.click('#home-notificacoes'); await page.waitForSelector('#notificacoes-lista .nt-item');
+  const item = await page.$eval('#notificacoes-lista .nt-item', b => ({ titulo: b.querySelector('.nt-item__titulo').textContent, lida: b.dataset.lida, ponto: !!b.querySelector('.nt-item__ponto'), h: b.getBoundingClientRect().height }));
+  assert.deepEqual([item.titulo, item.lida, item.ponto], ['Ilhas já joga', 'false', true]); assert.ok(item.h >= 44);
+  assert.deepEqual(await page.$$eval('[data-nt-filtro]', cs => cs.map(c => c.textContent)), ['Todas · 1', 'Não lidas · 1', 'Cobertura · 1']);
+  assert.equal(await page.textContent('.nt-dia__titulo'), 'Hoje');
+  await auditaTela(page, 'Notificações com uma não lida');
+  // 4 · tocar: marca como lida e abre a lista no Jogar
+  await page.click('#notificacoes-lista .nt-item'); await page.waitForFunction(() => location.hash.startsWith('#/mesa?lista='));
+  await page.waitForSelector('#mesa-mine'); assert.match(await page.innerText('#mesa-mine'), /Ilhas/);
+  await page.goto(base + '#/'); await page.waitForSelector('#home-notificacoes[data-nao-lidas="0"]');
+  await page.click('#home-notificacoes'); await page.waitForSelector('#notificacoes-lista .nt-item[data-lida="true"]');
+  await page.click('[data-nt-filtro="nao-lidas"]'); await page.waitForSelector('#notificacoes-vazio'); assert.match(await page.innerText('#notificacoes-vazio'), /Tudo lido/);
+  // 5 · a entrada do Perfil
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-notificacoes'); assert.ok(await page.$eval('#perfil-notificacoes', b => b.getBoundingClientRect().height >= 44));
+  await page.click('#perfil-notificacoes'); await page.waitForSelector('#notificacoes-cab');
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · I4 Perfil › Fichas: lista com ícone e cores, artes buscadas na internet, escolha guardada (e usada na mesa), sem internet só o que já foi baixado, e volta ao padrão', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.addInitScript(() => { window.__MTG_TEST = true; });

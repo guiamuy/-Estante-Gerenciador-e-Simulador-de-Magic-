@@ -786,6 +786,29 @@ a { color: var(--accent); }
 .inicio__titulo-linha { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); min-width: 0; } /* G-276 · título e Sair da conta */
 .inicio__titulo-linha > .ds-text { min-width: 0; overflow-wrap: anywhere; }
 .inicio__titulo-linha > #home-sair { flex: none; margin-block: calc(-1 * var(--space-1)); } /* 44 px de toque sem empurrar o Jogar */
+.inicio__acoes { flex: none; display: flex; align-items: center; gap: var(--space-1); margin-block: calc(-1 * var(--space-1)); } /* G-314 · sino e Sair */
+
+/* G-314 · relato #36 · central de notificações: sino com selo de latão; lista por dia; não lida com ponto e título forte */
+.nt-sino { position: relative; }
+.nt-sino__selo { position: absolute; top: 4px; right: 2px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: var(--radius-full); display: grid; place-items: center;
+  font-size: var(--text-xs); line-height: 1; font-weight: 700; color: var(--accent-fg); background: linear-gradient(160deg, var(--accent-hi), var(--accent) 55%, var(--accent-lo)); box-shadow: 0 0 0 2px var(--bg); pointer-events: none; }
+.nt-tela { display: grid; gap: var(--space-4); padding-top: var(--space-5); padding-bottom: var(--space-8); }
+.nt-filtros { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.nt-lista { display: grid; gap: var(--space-5); }
+.nt-dia { display: grid; gap: var(--space-2); }
+.nt-dia__titulo { margin: 0; font-size: var(--text-xs); line-height: var(--lh-xs); letter-spacing: .08em; text-transform: uppercase; color: var(--fg-muted); font-weight: 600; }
+.nt-item { display: grid; grid-template-columns: 36px 1fr auto; gap: var(--space-3); align-items: start; width: 100%; min-height: var(--tap-min); padding: var(--space-3); text-align: left;
+  font: inherit; color: inherit; background: var(--bg-elev-1); border: 1px solid var(--border); border-radius: var(--radius-2); box-shadow: var(--shadow-1); cursor: pointer; }
+.nt-item:active { transform: translateY(1px); box-shadow: none; }
+.nt-item[data-lida="false"] { background: var(--bg-elev-0); border-color: var(--accent-lo); }
+.nt-item__selo { width: 36px; height: 36px; border-radius: var(--radius-full); display: grid; place-items: center; color: var(--positive); border: 1px solid var(--border); background: var(--bg-elev-2); }
+.nt-item__corpo { display: grid; gap: 2px; min-width: 0; }
+.nt-item__titulo { font-weight: 600; overflow-wrap: anywhere; }
+.nt-item[data-lida="false"] .nt-item__titulo { font-weight: 700; }
+.nt-item__texto { font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--fg-muted); overflow-wrap: anywhere; }
+.nt-item__quando { font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--fg-muted); }
+.nt-item__ponto { width: 10px; height: 10px; margin-top: 6px; border-radius: var(--radius-full); background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.nt-rodape { justify-content: center; }
 #home-continuar-slot:empty { display: none; }
 .inicio__rapidos { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-2); }
 .inicio__rapidos .ds-atalho.ds-btn { flex-direction: column; align-items: center; justify-content: flex-start; gap: var(--space-2); min-height: 0; padding: var(--space-2) 0; border-color: transparent; background: none; box-shadow: none; text-align: center; }
@@ -3824,6 +3847,8 @@ const ICONES = {
   email: '<rect x="3.5" y="5.5" width="17" height="13" rx="2"/><path d="M4 7l8 6 8-6"/>', // G-263 · entrar com e-mail e senha
   olho: '<path d="M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12s-3.5 6.5-9.5 6.5S2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.75"/>', // G-263 · mostrar a senha
   ampulheta: '<path d="M6.5 3.5h11M6.5 20.5h11"/><path d="M7.5 3.5c0 4.5 4.5 5.5 4.5 8.5s-4.5 4-4.5 8.5M16.5 3.5c0 4.5-4.5 5.5-4.5 8.5s4.5 4 4.5 8.5"/>',
+  // G-314 · notificações: o sino (corpo de sino e badalo), no traço do conjunto
+  sino: '<path d="M6.5 16.5v-5a5.5 5.5 0 0 1 11 0v5l1.5 2h-14z"/><path d="M10 20.5a2 2 0 0 0 4 0"/><path d="M12 4V3"/>',
   // MJ1b (leva J-3) · os contadores de zona da mesa viram ícone + número
   cemiterio: '<path d="M6.5 20.5V10a5.5 5.5 0 0 1 11 0v10.5"/><path d="M4 20.5h16"/><path d="M12 8.5v6M9.6 10.9h4.8"/>',
   exilio: '<path d="M12 12a1.5 1.5 0 0 1 3 0a3 3 0 0 1-6 0a4.5 4.5 0 0 1 9 0a6 6 0 0 1-12 0"/>',
@@ -13588,7 +13613,8 @@ const REGISTRO = [
   ['uso.compartilhar', 'aparelho', false], ['uso.envio', 'aparelho', false], ['uso.scanner', 'aparelho', false], // G-286 · uso agregado opt-in: consentimento deste aparelho, último envio e leituras do scanner
   // derivado
   ['card.', 'derivado', false], ['rulings.', 'derivado', false], ['cambio.usd', 'derivado', false], ['names.catalog', 'derivado', false],
-  ['catalogo.indice', 'derivado', false], ['catalogo.lista.', 'derivado', false], ['catalogo.fichas', 'derivado', false], ['catalogo.motor', 'derivado', false],
+  ['catalogo.indice', 'derivado', false], ['catalogo.lista.', 'derivado', false], ['catalogo.fichas', 'derivado', false], ['catalogo.motor', 'derivado', false], ['notificacoes', 'aparelho', false], // G-314 · a leitura é deste aparelho; a de cobertura nasce de novo dos pedidos (que vão no backup)
+ 
   ['fichas.opcoes', 'derivado', false], ['fichas.opcoes.fila', 'derivado', false], ['fichas.partes', 'derivado', false],
   ['terrenos.opcoes', 'derivado', false], ['terrenos.opcoes.fila', 'derivado', false], ['noticias.colecoes', 'derivado', false]
 ];
@@ -18166,7 +18192,7 @@ function createPortaDeEntrada({ conta = null, perfil = null, haptics = null, aoE
   return root;
 }
 
-function createPerfilScreen({ perfil, backup, conta = null, haptics = null, theme = null, apresentacao = null, dados = null, som = null, fichas = null, partidas = null, terrenos = null, relatos = null, apagar = null, nuvemConectada = () => false, bloqueios = null, aoSair = null }) {
+function createPerfilScreen({ perfil, backup, conta = null, haptics = null, theme = null, apresentacao = null, dados = null, som = null, fichas = null, partidas = null, terrenos = null, relatos = null, apagar = null, nuvemConectada = () => false, bloqueios = null, aoSair = null, notificacoes = null }) {
   const root = Stack(pad(), __m3.Carregando('Abrindo…', { tamanho: 'tela' }));
   const st = { salvo: null, nome: '', avatar: null, erro: null, ocupado: false, conta: null, contaOcupada: false };
   const mudou = () => !!st.salvo && (st.nome !== st.salvo.nome || st.avatar !== st.salvo.avatar);
@@ -18680,6 +18706,12 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
       terrenos ? h('button', { class: 'ds-surface ds-expansivel__cabeca perfil-atalho', type: 'button', id: 'perfil-terrenos', onClick: () => go('/perfil/terrenos') },
         h('span', { class: 'ds-expansivel__selo' }, Icone('terreno', { tamanho: 20 })), h('span', { class: 'ds-expansivel__titulo' }, 'Terrenos'),
         h('span', { class: 'ds-expansivel__resumo' }, st.terrenosEscolhidos ? `${st.terrenosEscolhidos} com a sua arte` : 'Escolher a arte'), Icone('seguir', { tamanho: 20 })) : null,
+      // G-314 · notificações: a entrada do Perfil, com quantas não lidas
+      notificacoes ? (() => { const resumo = h('span', { class: 'ds-expansivel__resumo' }, 'Avisos da Estante');
+        const b = h('button', { class: 'ds-surface ds-expansivel__cabeca perfil-atalho', type: 'button', id: 'perfil-notificacoes', onClick: () => go('/notificacoes') },
+          h('span', { class: 'ds-expansivel__selo' }, Icone('sino', { tamanho: 20 })), h('span', { class: 'ds-expansivel__titulo' }, 'Notificações'), resumo, Icone('seguir', { tamanho: 20 }));
+        notificacoes.naoLidas().then(n => { if (n) { resumo.textContent = n === 1 ? '1 não lida' : `${n} não lidas`; b.dataset.naoLidas = String(n); } }).catch(() => {});
+        return b; })() : null,
       // Y1 · relatos: erros, regras e ideias guardados neste aparelho para a próxima correção
       relatos ? h('button', { class: 'ds-surface ds-expansivel__cabeca perfil-atalho', type: 'button', id: 'perfil-relatos', onClick: () => go('/perfil/relatos') },
         h('span', { class: 'ds-expansivel__selo' }, Icone('relato', { tamanho: 20 })), h('span', { class: 'ds-expansivel__titulo' }, 'Relatos'),
@@ -43804,6 +43836,123 @@ function resumoOffline(st) {
 return { createOfflineKeeper, urlsDeImagem, nomesDaLista, resumoOffline };
 })();
 
+/* ==== src/app/notificacoes.js ==== */
+const __m44 = (function () {
+/* =====================================================================
+   G-314 · relato #36 · central de notificações. Guardada no aparelho (`notificacoes`, até 200, a leitura é deste
+   aparelho). A primeira notificação é a da cobertura: quando o motor do app passa a jogar todas as cartas de um pedido
+   enviado (G-313), nasce "Sua lista já joga". A forma serve para os próximos tipos (o campo `tipo` filtra). O sino fica no
+   Início e a entrada em Perfil; os dois mostram quantas não lidas. O modelo é puro; a tela só desenha.
+   ===================================================================== */
+const { h, mount, Stack, Row, Text, Button, IconButton, Empty, Icone, Chip } = __m3;
+const CHAVE = 'notificacoes', MAX = 200;
+const TIPOS = { cobertura: { rotulo: 'Cobertura', icone: 'marcar' }, aviso: { rotulo: 'Aviso', icone: 'info' } };
+const FILTROS = [['todas', 'Todas'], ['nao-lidas', 'Não lidas'], ['cobertura', 'Cobertura']];
+/** Só o que tem a forma certa entra (o aparelho pode ter cópia de outra versão). Puro. */
+const valida = n => !!(n && typeof n.id === 'string' && n.id && TIPOS[n.tipo] && typeof n.titulo === 'string' && n.titulo.trim() && typeof n.texto === 'string'
+  && typeof n.criadaEm === 'string' && Number.isFinite(Date.parse(n.criadaEm)) && (n.lidaEm == null || typeof n.lidaEm === 'string') && (n.rota == null || (typeof n.rota === 'string' && n.rota.startsWith('/'))));
+const ordena = l => l.slice().sort((a, b) => Date.parse(b.criadaEm) - Date.parse(a.criadaEm));
+const contaNaoLidas = l => (l || []).filter(n => !n.lidaEm).length;
+/** O recorte do filtro escolhido. Puro. */
+const filtra = (l, f) => (l || []).filter(n => f === 'nao-lidas' ? !n.lidaEm : f === 'todas' || !f ? true : n.tipo === f);
+/** O dia da notificação, para agrupar a lista: Hoje, Ontem ou a data. Puro. */
+function diaDe(iso, agora = Date.now()) {
+  const d = new Date(iso), a = new Date(agora), zero = x => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const dias = Math.round((zero(a) - zero(d)) / 86400e3);
+  return dias <= 0 ? 'Hoje' : dias === 1 ? 'Ontem' : d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' });
+}
+/** A notificação de um pedido de cobertura atendido. `lista` é a lista da estante (pode ter sido apagada: null). Puro. */
+function notificacaoDeCobertura(pedido, lista, agora = Date.now()) {
+  const n = pedido.cartas.length;
+  return { id: 'cobertura:' + pedido.id, tipo: 'cobertura', criadaEm: new Date(agora).toISOString(), lidaEm: null,
+    titulo: lista ? `${lista.name} já joga` : 'As cartas que você pediu já jogam',
+    texto: `O motor passou a jogar ${n === 1 ? 'a carta que você pediu' : `as ${n} cartas que você pediu`}${lista ? ': a lista entrou entre as que jogam.' : '.'}`,
+    rota: lista ? `/mesa?lista=${encodeURIComponent(lista.id)}` : '/mesa', dados: { pedido: pedido.id } };
+}
+function createNotificacoes({ store, agora = () => Date.now() }) {
+  const le = async () => { try { const l = await store.get(CHAVE); return Array.isArray(l) ? l.filter(valida) : []; } catch (e) { return []; } };
+  const grava = async l => { const x = ordena(l).slice(0, MAX); await store.set(CHAVE, x); return x; };
+  const ouvintes = new Set(); const avisa = () => ouvintes.forEach(cb => { try { cb(); } catch (e) { /* ouvinte não derruba */ } });
+  return {
+    agora,
+    onMuda(cb) { ouvintes.add(cb); return () => ouvintes.delete(cb); },
+    async todas() { return ordena(await le()); },
+    async naoLidas() { return contaNaoLidas(await le()); },
+    /** Acrescenta as novas (mesmo id não repete); devolve quantas entraram. */
+    async adiciona(ns) {
+      const l = await le(), tem = new Set(l.map(n => n.id)), novas = (ns || []).filter(n => valida(n) && !tem.has(n.id));
+      if (!novas.length) return 0;
+      await grava([...l, ...novas]); avisa(); return novas.length;
+    },
+    async marcaLida(id) { const l = await le(); const n = l.find(x => x.id === id); if (!n || n.lidaEm) return; n.lidaEm = new Date(agora()).toISOString(); await grava(l); avisa(); },
+    async marcaTodas() { const l = await le(); let k = 0; for (const n of l) if (!n.lidaEm) { n.lidaEm = new Date(agora()).toISOString(); k++; } if (k) { await grava(l); avisa(); } return k; }
+  };
+}
+/** Confere os pedidos de cobertura enviados: os que o motor do app já joga inteiros viram notificação (uma por pedido).
+    A conta é a mesma do selo (`contaMotor`), com as cartas guardadas no aparelho; carta sem dado guardado conta como não
+    coberta (sem rede, nada muda). */
+async function confereCoberturas({ notificacoes, cobertura, decks, cardRepo }) {
+  if (!notificacoes || !cobertura || !cardRepo || !cardRepo.cached) return 0;
+  const ps = (await cobertura.pedidos()).filter(p => __m38.etapaDoPedido(p) >= 1);
+  if (!ps.length) return 0;
+  const ja = new Set((await notificacoes.todas()).map(n => n.id));
+  const abertos = ps.filter(p => !ja.has('cobertura:' + p.id)); if (!abertos.length) return 0;
+  const cards = await cardRepo.cached([...new Set(abertos.flatMap(p => p.cartas))]);
+  let listas = []; try { listas = decks ? await decks.list() : []; } catch (e) { listas = []; }
+  const novas = abertos.filter(p => __m15.motorDaLista(p.cartas.map(name => ({ name, qty: 1, zone: 'main' })), cards).estado === 'completo')
+    .map(p => notificacaoDeCobertura(p, listas.find(d => String(d.id) === p.listaId) || null, notificacoes.agora()));
+  return notificacoes.adiciona(novas);
+}
+/** O sino: ícone com o selo de não lidas (ponto de latão com o número); o nome falado diz quantas. */
+function BotaoNotificacoes({ notificacoes, id = 'home-notificacoes', onClick }) {
+  const selo = h('span', { class: 'nt-sino__selo ds-hidden', 'aria-hidden': 'true' });
+  const b = IconButton('sino', 'Notificações', { id, variant: 'ghost', onClick });
+  b.classList.add('nt-sino'); b.appendChild(selo);
+  const pinta = async () => { const n = await notificacoes.naoLidas(); selo.textContent = n > 9 ? '9+' : String(n); selo.classList.toggle('ds-hidden', !n); b.dataset.naoLidas = String(n);
+    const fala = n ? `Notificações: ${n === 1 ? '1 não lida' : `${n} não lidas`}` : 'Notificações'; b.setAttribute('aria-label', fala); b.title = fala; };
+  const sai = notificacoes.onMuda(() => { if (b.isConnected) pinta(); else sai(); });
+  pinta();
+  return b;
+}
+/** A tela: cabeçalho com voltar, filtros (Todas · Não lidas · Cobertura), a lista por dia e "Marcar todas como lidas". */
+function createNotificacoesScreen({ notificacoes, go }) {
+  const root = h('div', { class: 'ds-wrap nt-tela', id: 'notificacoes' }, __m3.Carregando('Abrindo notificações…', { tamanho: 'tela' }));
+  let filtro = 'todas';
+  const cab = __m3.Cabecalho('Notificações', { id: 'notificacoes-cab', esquerda: IconButton('voltar', 'Voltar', { id: 'notificacoes-voltar', onClick: () => go('/') }) });
+  async function pinta() {
+    let todas;
+    try { todas = await notificacoes.todas(); } catch (e) {
+      return mount(root, cab, Empty('Não deu para abrir as notificações deste aparelho agora.', Button('Tentar de novo', { icone: 'atualizar', onClick: pinta })));
+    }
+    const nl = contaNaoLidas(todas), recorte = filtra(todas, filtro);
+    const chips = h('div', { class: 'nt-filtros', role: 'group', 'aria-label': 'Filtrar' }, ...FILTROS.map(([k, r]) => {
+      const qtd = k === 'nao-lidas' ? nl : k === 'todas' ? todas.length : filtra(todas, k).length;
+      const c = Chip(`${r} · ${qtd}`, { pressed: filtro === k, dataset: { ntFiltro: k } });
+      c.addEventListener('click', () => { filtro = k; pinta(); }); return c; }));
+    const grupos = []; let dia = null, grupo = null;
+    for (const n of recorte) { const d = diaDe(n.criadaEm, notificacoes.agora()); if (d !== dia) { dia = d; grupo = []; grupos.push([d, grupo]); } grupo.push(n); }
+    const item = n => { const t = TIPOS[n.tipo];
+      const el = h('button', { class: 'nt-item', type: 'button', dataset: { ntId: n.id, lida: String(!!n.lidaEm), tipo: n.tipo },
+        'aria-label': `${n.lidaEm ? '' : 'Não lida. '}${n.titulo}. ${n.texto}`,
+        onClick: async () => { await notificacoes.marcaLida(n.id); if (n.rota) go(n.rota); else pinta(); } },
+        h('span', { class: 'nt-item__selo', 'aria-hidden': 'true' }, Icone(t.icone, { tamanho: 18 })),
+        h('span', { class: 'nt-item__corpo' }, h('span', { class: 'nt-item__titulo' }, n.titulo), h('span', { class: 'nt-item__texto' }, n.texto),
+          h('span', { class: 'nt-item__quando' }, `${t.rotulo} · ${new Date(n.criadaEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`)),
+        n.lidaEm ? null : h('span', { class: 'nt-item__ponto', 'aria-hidden': 'true' }));
+      return el; };
+    mount(root, cab, chips,
+      !todas.length ? (() => { const e = Empty('Nenhuma notificação ainda. Quando o motor passar a jogar uma lista que você pediu, o aviso chega aqui.'); e.id = 'notificacoes-vazio'; return e; })()
+        : !recorte.length ? (() => { const e = Empty(filtro === 'nao-lidas' ? 'Tudo lido.' : 'Nada neste filtro.'); e.id = 'notificacoes-vazio'; return e; })()
+        : h('div', { class: 'nt-lista', id: 'notificacoes-lista' }, ...grupos.map(([d, ns]) => h('section', { class: 'nt-dia', 'aria-label': d }, h('h2', { class: 'nt-dia__titulo' }, d), ...ns.map(item)))),
+      nl ? Row({ class: 'nt-rodape' }, Button('Marcar todas como lidas', { variant: 'ghost', icone: 'marcar', id: 'notificacoes-ler-todas', onClick: async () => { await notificacoes.marcaTodas(); pinta(); } })) : null);
+  }
+  const sai = notificacoes.onMuda(() => { if (root.isConnected) pinta(); else sai(); });
+  pinta();
+  return root;
+}
+return { CHAVE, MAX, TIPOS, FILTROS, valida, contaNaoLidas, filtra, diaDe, notificacaoDeCobertura, createNotificacoes, confereCoberturas, BotaoNotificacoes, createNotificacoesScreen };
+})();
+
 /* ==== src/app/main.js ==== */
 const __m13 = (function () {
 /* Casca da aplicação. Por enquanto: barra, tema e o catálogo do design system.
@@ -43938,6 +44087,8 @@ const som = __m33.createSom({ store: platform.store }); som.init(); // G4 · som
 // T6e-2 · relato #13 · a fila de relatos da conta conectada (a mesma conta e o mesmo transporte da sincronia do perfil)
 const envioPelaFila = __m38.createEnvioPelaFila({ filaDe: () => { if (online.modo !== 'firebase' || conta.estante().estado !== 'conectada') return null; const uid = conta.sessao.uid(); return uid ? __m40.createFilaDeRelatos({ transporte: online.transporte, uid }) : null; } });
 const cobertura = __m38.createCobertura({ relatos, fila: envioPelaFila }); // G-313 · relato #36 · pedir cobertura do motor pelo Jogar
+const notificacoes = __m44.createNotificacoes({ store: platform.store }); // G-314 · central de notificações (a primeira: cobertura atendida)
+const confereNotificacoes = () => __m44.confereCoberturas({ notificacoes, cobertura, decks, cardRepo }).catch(() => 0);
 const sincronia = __m40.createSincronia({
   remotoDe: () => { if (online.modo !== 'firebase' || conta.estante().estado !== 'conectada') return null; const uid = conta.sessao.uid(); return uid ? __m40.createPerfilRemoto({ transporte: online.transporte, uid }) : null; },
   perfil,
@@ -44009,6 +44160,7 @@ const installer = createInstaller({ window: typeof window !== 'undefined' ? wind
 
 const ROUTES = [
   { path: '/', title: 'Início', render: () => renderHome() },
+  { path: '/notificacoes', title: 'Notificações', render: () => __m44.createNotificacoesScreen({ notificacoes, go: to => { location.hash = '#' + to; } }) }, // G-314
   { path: '/cartas', title: 'Cartas', render: () => createCardsScreen({ repo: cardRepo, images, local: localIndex, env: envVivo, files: platform.files, collection }) },
   { path: '/listas', title: 'Listas', render: () => createDecksHome({ decks, collection, files: platform.files, cardRepo, backup, etiquetas }) },
   { path: '/listas/catalogo', title: 'Lista oficial', render: () => __m39.createCatalogoListaScreen({ catalogo, decks, cardRepo, store: platform.store }) }, // Z3
@@ -44031,7 +44183,7 @@ const ROUTES = [
     // Y3 · abrir a partida anexada: entra no lugar da salva (sem a parte online) e a série em curso sai
     partidas: { temSalva: async () => { try { const d = await platform.store.get(__m18.SAVE_KEY); return !!(d && d.kind === 'estante.match'); } catch (e) { return false; } },
       abre: async p => { const { online: _fora, ...opcoes } = p.options || {}; await platform.store.set(__m18.SAVE_KEY, { ...p, options: opcoes, savedAt: Date.now() }); await platform.store.remove(__m18.SERIE_KEY).catch(() => {}); location.hash = '#/partida'; } } }) }, // Y1 · Y3
-  { path: '/perfil', title: 'Perfil', render: () => createPerfilScreen({ perfil, backup, conta, bloqueios: online.bloqueios, nuvemConectada: () => { try { return online.modo === 'firebase' && conta.estante().estado === 'conectada' && !!conta.sessao.uid(); } catch (e) { return false; } }, aoSair: () => voltaAPorta(),
+  { path: '/perfil', title: 'Perfil', render: () => createPerfilScreen({ perfil, backup, conta, bloqueios: online.bloqueios, notificacoes /* G-314 */, nuvemConectada: () => { try { return online.modo === 'firebase' && conta.estante().estado === 'conectada' && !!conta.sessao.uid(); } catch (e) { return false; } }, aoSair: () => voltaAPorta(),
     apagar: (o = {}) => __m41.apagaTudoComNuvem({ nuvem: o.nuvem ? async () => { // P-13 · nuvem primeiro, com a conta ainda conectada; falhou: a sincronia volta
       try { sincronia.para(); } catch (e) { /* sem sincronia */ }
       let ok = false; try { const uid = conta.sessao.uid(); ok = !!uid && await __m40.createPerfilRemoto({ transporte: online.transporte, uid }).apagarTudo() && await online.bloqueios.apagarDaNuvem() && await uso.apagarDaNuvem(); /* P-15 · a lista de bloqueados sai junto · G-286 · os números de uso também */ } catch (e) { ok = false; }
@@ -44138,7 +44290,10 @@ function renderHome({ ancora = false } = {}) {
   const hoje = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
   const continuar = h('div', { id: 'home-continuar-slot' });
   const rapido = (rotulo, icone, id, rota) => Atalho(rotulo, { icone, id, onClick: () => { location.hash = '#' + rota; } });
-  const tituloLinha = h('div', { class: 'inicio__titulo-linha' }, titulo); // G-276 · com a conta conectada, Sair da conta à direita do título
+  // G-314 · o sino das notificações à direita do título (com o selo de não lidas); Sair da conta (G-276) entra ao lado dele
+  const acoesDoTitulo = h('span', { class: 'inicio__acoes' }, __m44.BotaoNotificacoes({ notificacoes, onClick: () => { location.hash = '#/notificacoes'; } }));
+  const tituloLinha = h('div', { class: 'inicio__titulo-linha' }, titulo, acoesDoTitulo); // G-276 · com a conta conectada, Sair da conta à direita do título
+  confereNotificacoes(); // G-314 · pedido de cobertura atendido vira notificação
   const el = h('div', { class: 'ds-wrap inicio', id: 'home' },
     h('header', { class: 'inicio__cab' }, h('span', { class: 'inicio__data', id: 'home-data' }, hoje), tituloLinha, frase),
     continuar,
@@ -44165,7 +44320,7 @@ function renderHome({ ancora = false } = {}) {
     titulo.textContent = nomeDoPerfil ? `Olá, ${nomeDoPerfil}` : 'Estante';
     frase.classList.toggle('ds-hidden', !!nomeDoPerfil);
   }).catch(() => {});
-  if (conta && conta.get) conta.get().then(c => { if (c && el.isConnected && !tituloLinha.querySelector('#home-sair')) tituloLinha.appendChild(__m3.IconButton('desistir', 'Sair da conta', { id: 'home-sair', variant: 'ghost', onClick: sairDaConta })); }).catch(() => {});
+  if (conta && conta.get) conta.get().then(c => { if (c && el.isConnected && !tituloLinha.querySelector('#home-sair')) acoesDoTitulo.appendChild(__m3.IconButton('desistir', 'Sair da conta', { id: 'home-sair', variant: 'ghost', onClick: sairDaConta })); }).catch(() => {});
   painelContinuar().then(card => { if (card) { continuar.replaceChildren(card); el.querySelector('#go-play').classList.remove('ds-btn--primary'); } }).catch(() => {});
   return el;
 }
