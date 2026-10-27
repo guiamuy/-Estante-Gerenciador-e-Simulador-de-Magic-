@@ -8979,6 +8979,42 @@ test('e2e · G-312 escolha de lista no Jogar: só as que jogam estão entre as e
   assert.deepEqual(errors, []);
 });
 
+/* G-313 · relato #36, fatia 3 · a lista válida que não joga inteira pede a cobertura num toque, sem caixa de texto */
+test('e2e · G-313 Pedir cobertura: do Jogar, a folha mostra a lista, as cartas que vão e as três etapas; sem conta, guarda o pedido e abre o GitHub preenchido; depois o Jogar diz "Pedido enviado"', { skip }, async t => {
+  const { page, errors, base } = await open(t, { dev: false, formato: true });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.addInitScript(() => { window.open = u => { window.__abriu = String(u); return null; }; });
+  await createDeck(page, base, 'Coberta', '56 Island\n4 Counterspell', 'pauper');
+  await createDeck(page, base, 'Quase Pronta', '52 Island\n4 Counterspell\n4 Carta Inexistente', 'pauper');
+  await page.goto(base + '#/listas'); await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-mine');
+  await escolheLista(page, 'mesa-mine', /^Quase Pronta$/);
+  await page.waitForSelector('#mesa-pedir-cobertura');
+  assert.equal(await page.$eval('#mesa-start', b => b.disabled), true, 'a lista que não joga inteira não começa');
+  assert.ok(await page.$eval('#mesa-pedir-cobertura', b => b.getBoundingClientRect().height >= 44));
+  await page.click('#mesa-pedir-cobertura'); await page.waitForSelector('#cobertura-pedido .cob-etapa');
+  const folha = await page.$eval('#cobertura-pedido', f => ({ nome: f.querySelector('.cob-topo__nome').textContent, meta: f.querySelector('.cob-topo__meta').textContent,
+    cartas: [...f.querySelectorAll('.cob-carta__nome')].map(c => [c.textContent, c.getAttribute('lang')]), etapas: [...f.querySelectorAll('.cob-etapa')].map(e => e.dataset.estado),
+    caixa: f.querySelectorAll('textarea, input').length }));
+  assert.equal(folha.nome, 'Quase Pronta'); assert.match(folha.meta, /^Pauper · 60 cartas · motor \d{1,2}%$/);
+  assert.deepEqual(folha.cartas, [['Carta Inexistente', 'en']]); assert.deepEqual(folha.etapas, ['agora', 'depois', 'depois']); assert.equal(folha.caixa, 0, 'sem caixa de texto');
+  assert.match(await page.innerText('#cobertura-promessa'), /não promete data/);
+  await auditaTela(page, 'folha Pedir cobertura');
+  // sem a conta da Estante: o pedido fica guardado e o GitHub abre preenchido, a um toque
+  await page.click('#cobertura-enviar'); await page.waitForSelector('#cobertura-aviso');
+  assert.match(await page.innerText('#cobertura-aviso'), /conecte a conta da Estante/);
+  await page.click('#cobertura-github'); await page.waitForSelector('#cobertura-pedido .cob-etapa[data-estado="feita"]');
+  assert.match(await page.evaluate(() => window.__abriu), /^https:\/\/github\.com\/.+\/issues\/new\?/);
+  const abriu = decodeURIComponent((await page.evaluate(() => window.__abriu)).replace(/\+/g, ' '));
+  assert.match(abriu, /Pedido de cobertura do motor: uma lista de Pauper com 60 cartas/); assert.match(abriu, /Cartas que faltam \(1\): Carta Inexistente\./);
+  assert.doesNotMatch(abriu, /Quase Pronta/, 'o nome da lista não vai ao registro público');
+  await page.click('#cobertura-fechar'); await page.waitForSelector('#cobertura-pedido', { state: 'detached' });
+  await page.waitForSelector('#mesa-cobertura-pedida'); assert.match(await page.innerText('#mesa-cobertura-pedida'), /Pedido enviado/);
+  await auditaTela(page, 'Jogar com o pedido enviado');
+  // o pedido é um relato guardado (vai no backup com os relatos)
+  await page.goto(base + '#/perfil/relatos'); await page.waitForFunction(() => /Pedido de cobertura do motor/.test(document.body.innerText));
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · I4 Perfil › Fichas: lista com ícone e cores, artes buscadas na internet, escolha guardada (e usada na mesa), sem internet só o que já foi baixado, e volta ao padrão', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.addInitScript(() => { window.__MTG_TEST = true; });

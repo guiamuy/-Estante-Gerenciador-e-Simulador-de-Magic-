@@ -2168,6 +2168,28 @@ body:has(#outlet .ds-fab[data-acoes="1"]) #outlet { padding-bottom: calc(56px + 
 /* G-311 · relato #36 · formato que o motor ainda não joga inteiro: chip apagado, borda tracejada, ampulheta; a folha mede quantas listas prontas jogam */
 .ds-chip[data-formato-estado="fechado"] { color: var(--fg-muted); border-style: dashed; background: transparent; box-shadow: none; }
 .mesa-formato-medida { display: grid; gap: var(--space-2); }
+/* G-313 · relato #36 · folha "Pedir cobertura": a lista, as cartas que vão e as três etapas, em ébano e latão */
+.cob { gap: var(--space-4); }
+.cob-topo { display: grid; gap: var(--space-1); padding: var(--space-3) var(--space-4); border-radius: var(--radius-2); background: var(--bg-elev-0); border: 1px solid var(--border); box-shadow: inset 0 1px 0 var(--accent-lo); }
+.cob-topo__nome { font-family: var(--font-display); font-size: var(--text-lg); line-height: var(--lh-lg); color: var(--fg); overflow-wrap: anywhere; }
+.cob-topo__meta { font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--fg-muted); }
+.cob-secao { display: grid; gap: var(--space-2); }
+.cob-secao__titulo { font-size: var(--text-xs); line-height: var(--lh-xs); letter-spacing: .08em; text-transform: uppercase; color: var(--fg-muted); }
+.cob-cartas { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; border-radius: var(--radius-2); overflow: hidden; border: 1px solid var(--border); background: var(--border); }
+.cob-carta { display: grid; gap: 2px; padding: var(--space-2) var(--space-3); background: var(--bg-elev-1); }
+.cob-carta__nome { font-weight: 600; overflow-wrap: anywhere; }
+.cob-carta__tipo { font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--fg-muted); overflow-wrap: anywhere; }
+.cob-etapas { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); }
+.cob-etapa { display: grid; grid-template-columns: 28px 1fr; gap: var(--space-3); align-items: start; }
+.cob-etapa__marca { width: 28px; height: 28px; border-radius: var(--radius-full); display: grid; place-items: center; border: 1px dashed var(--border-strong); color: var(--fg-muted); }
+.cob-etapa[data-estado="feita"] .cob-etapa__marca { border: 1px solid var(--accent-lo); background: linear-gradient(160deg, var(--accent-hi), var(--accent) 55%, var(--accent-lo)); color: var(--accent-fg); }
+.cob-etapa[data-estado="agora"] .cob-etapa__marca { border-style: solid; border-color: var(--accent); color: var(--accent); }
+.cob-etapa__texto { display: grid; gap: 2px; }
+.cob-etapa__fala { font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--fg-muted); }
+.cob-etapa[data-estado="depois"] b { color: var(--fg-muted); font-weight: 600; }
+.cob-acoes { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); width: 100%; }
+@media (prefers-reduced-motion: no-preference) { .cob-etapa[data-estado="feita"] .cob-etapa__marca { animation: cob-pousa var(--dur-3) var(--ease-spring, var(--ease-out)) both; } }
+@keyframes cob-pousa { from { transform: scale(.6); opacity: .4; } to { transform: none; opacity: 1; } }
 .deck-picker__corpo { gap: var(--space-4); }
 .deck-picker__nao .deck-item { color: var(--fg-muted); }
 .deck-picker__nao .deck-item__nome { color: var(--fg-muted); }
@@ -17053,7 +17075,115 @@ function createRelatosScreen({ relatos, share, files = null, partidas = null, fi
   return root;
 }
 
-return { situacaoDoEnvio, foiEnviado, textoDaFalha, PRAZO_FILA, URL_FILA_LIGADA, FILA_MEMORIA_MS, filaLigada, relatoParaFila, createEnvioPelaFila, AREAS, URL_SITUACAO, BUSCA_SITUACAO_MS, urlDoRegistro, situacaoDosRegistros, concilia, EDITAR_JANELA_MS, podeEditar, editavelAte, editaRelato, REPOSITORIO, MARCA, dadosDoRelato, enderecoDoRegistro, limpaTela, nomeDaTela, FILTRO_VAZIO, filtra, contaFiltros, areasDe, csvDosRelatos, jsonDosRelatos, partidaAbrivel, contextoDaPartida, CHAVE, TIPOS, URGENCIAS, DESCRICAO_MIN, DESCRICAO_MAX, RELATOS_MAX, areaDaRota, confere, novoRelato, ordena, textoDoRelato, textoDosRelatos, createRelatos, usa, usaContexto, abreRelato, BotaoRelatar, createRelatosScreen, rotuloDe };
+/* ---------------- G-313 · relato #36 · pedir cobertura do motor ----------------
+   A lista que vale no formato e ainda não joga inteira pede a cobertura num toque, sem caixa de texto: o relato sai montado
+   (tipo "Regra ou carta", urgência alta, as cartas que faltam) e vai pela mesma fila dos relatos. O pedido é o próprio
+   relato guardado, com `contexto.cobertura` (sem chave nova: vai no backup com os relatos). O texto que vai ao GitHub não
+   leva o nome da lista (registro público): só o formato, o tamanho, a porcentagem e as cartas. A Estante não promete data:
+   as etapas são "enviado" (a fila confirmou), "na fila do motor" (o registro existe) e "coberto" (o motor do app joga a
+   lista inteira). */
+const COBERTURA_MAX_CARTAS = 80;
+const nomeCurto = n => String(n || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+/** O relato do pedido, pronto para `relatos.salva`. Puro. */
+function relatoDeCobertura({ listaId, formato, rotuloFormato, total, pct, cartas, motor }) {
+  const nomes = [...new Set((cartas || []).map(nomeCurto).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  const cabeca = `Pedido de cobertura do motor: uma lista de ${rotuloFormato || formato} com ${total} cartas joga ${pct}% no motor v${motor}.`, pe = 'Enviado pelo "Pedir cobertura" do Jogar.';
+  // o texto cabe no relato (DESCRICAO_MAX): entram as cartas que couberem, até COBERTURA_MAX_CARTAS; as outras ficam em "e mais n" (todas vão no contexto)
+  const linha = k => `Cartas que faltam (${nomes.length}): ${nomes.slice(0, k).join('; ')}${nomes.length > k ? `; e mais ${nomes.length - k}` : ''}.`;
+  let k = Math.min(nomes.length, COBERTURA_MAX_CARTAS);
+  while (k > 1 && cabeca.length + linha(k).length + pe.length + 2 > DESCRICAO_MAX) k--;
+  const descricao = [cabeca, linha(k), pe].join('\n');
+  return { tipo: 'regra', urgencia: 'alta', descricao, hash: '#/mesa',
+    contexto: { motor, cobertura: { v: 1, listaId: String(listaId), formato: String(formato), cartas: nomes } },
+    tela: { titulo: 'Jogar', cabecalho: 'Jogar', dialogo: 'Pedir cobertura' } };
+}
+/** Os pedidos guardados (relatos com `contexto.cobertura`), do mais novo ao mais velho. Puro. */
+function pedidosDeCobertura(lista) {
+  return (Array.isArray(lista) ? lista : []).filter(r => r && r.contexto && r.contexto.cobertura && r.contexto.cobertura.v === 1 && Array.isArray(r.contexto.cobertura.cartas))
+    .map(r => ({ id: r.id, relato: r, listaId: r.contexto.cobertura.listaId, formato: r.contexto.cobertura.formato, cartas: r.contexto.cobertura.cartas, pedidoEm: r.criadoEm, envio: situacaoDoEnvio(r) }))
+    .sort((a, b) => Date.parse(b.pedidoEm) - Date.parse(a.pedidoEm));
+}
+/** O pedido que vale para a lista agora: o mais novo da lista que já inclui todas as cartas que faltam (lista mudou e ganhou
+    carta nova sem regra → null: dá para pedir de novo). Pedido que falhou no envio não conta. Puro. */
+function pedidoDaLista(pedidos, listaId, faltam) {
+  const pede = new Set((faltam || []).map(nomeCurto));
+  return (pedidos || []).find(p => p.listaId === String(listaId) && p.envio !== 'falhou' && p.envio !== 'nao-enviado' && [...pede].every(n => p.cartas.includes(n))) || null;
+}
+/** A etapa do pedido: 0 não enviado · 1 enviado · 2 na fila do motor (o registro existe) · 3 coberto. Puro. */
+function etapaDoPedido(p, coberta = false) {
+  if (coberta) return 3;
+  if (!p) return 0;
+  if (p.envio === 'registrado') return 2;
+  return p.envio === 'na-fila' || p.envio === 'no-github' ? 1 : 0;
+}
+const ETAPAS_DO_PEDIDO = [['relato', 'Enviado', 'O pedido saiu do aparelho com a lista das cartas.'], ['ampulheta', 'Na fila do motor', 'O pedido virou um registro; as cartas entram na revisão das regras.'],
+  ['marcar', 'Coberto', 'O motor joga a lista inteira: ela aparece entre as que jogam.']];
+/** O serviço: pedir (salva o relato e envia pela fila; sem conta, devolve o endereço do GitHub) e listar. */
+function createCobertura({ relatos, fila = null }) {
+  return {
+    async pedidos() { return pedidosDeCobertura(await relatos.todos()); },
+    async pede(dados) {
+      const r = await relatos.salva(relatoDeCobertura(dados));
+      if (!r.ok) return { ok: false, motivo: 'erro' };
+      if (!fila || !(await fila.disponivel())) return { ok: false, motivo: 'sem-conta', relato: r.relato, github: enderecoDoRegistro(r.relato) };
+      const x = await fila.envia(r.relato);
+      if (x.ok) { await relatos.muda(r.relato.id, { enviadoEm: x.enviadoEm, pelaFila: true, envioFalhou: null }); return { ok: true, relato: r.relato }; }
+      await relatos.muda(r.relato.id, { envioFalhou: { em: new Date().toISOString(), motivo: x.motivo || 'erro' } });
+      return { ok: false, motivo: x.motivo || 'erro', relato: r.relato, github: enderecoDoRegistro(r.relato) };
+    },
+    /** Sem conta: o GitHub abre preenchido e o pedido conta como "enviado pelo GitHub" (só lá se confirma). */
+    async peloGitHub(r) { try { window.open(enderecoDoRegistro(r), '_blank', 'noopener'); } catch (e) { /* bloqueado */ } await relatos.muda(r.id, { enviadoEm: new Date().toISOString(), envioFalhou: null }); }
+  };
+}
+/** A folha "Pedir cobertura": a lista, as cartas que vão, as três etapas e o envio num toque. `lista` = { id, nome, formato,
+    rotuloFormato, total, pct, faltam: [{ name, type_line }] }. `aoMudar` repinta quem abriu. */
+function abrePedidoDeCobertura({ cobertura, lista, motor, aoMudar = () => {} }) {
+  const corpo = Stack({ id: 'cobertura-pedido', class: 'cob' });
+  let ocupado = false;
+  const etapas = n => h('ol', { class: 'cob-etapas', 'aria-label': 'Etapas do pedido' },
+    ...ETAPAS_DO_PEDIDO.map(([icone, nome, fala], i) => h('li', { class: 'cob-etapa', dataset: { estado: i < n ? 'feita' : i === n ? 'agora' : 'depois' }, 'aria-current': i === n - 1 ? 'step' : null },
+      h('span', { class: 'cob-etapa__marca', 'aria-hidden': 'true' }, Icone(i < n ? 'marcar' : icone, { tamanho: 16 })),
+      h('span', { class: 'cob-etapa__texto' }, h('b', {}, nome), h('span', { class: 'cob-etapa__fala' }, fala)))));
+  async function pinta(n = null, aviso = null) {
+    const p = n == null ? pedidoDaLista(await cobertura.pedidos(), lista.id, lista.faltam.map(c => c.name)) : null;
+    const etapa = n != null ? n : etapaDoPedido(p);
+    const cartas = h('ul', { class: 'cob-cartas', 'aria-label': `${lista.faltam.length} cartas sem regra` },
+      ...lista.faltam.map(c => h('li', { class: 'cob-carta' }, h('span', { class: 'cob-carta__nome', lang: 'en' }, c.name), c.type_line ? h('span', { class: 'cob-carta__tipo', lang: 'en' }, c.type_line) : null)));
+    mount(corpo,
+      h('div', { class: 'cob-topo' }, h('span', { class: 'cob-topo__nome' }, lista.nome),
+        h('span', { class: 'cob-topo__meta' }, `${lista.rotuloFormato} · ${lista.total} cartas · motor ${lista.pct}%`)),
+      h('div', { class: 'cob-secao' }, h('span', { class: 'cob-secao__titulo' }, `Vão para o motor · ${lista.faltam.length}`), cartas),
+      etapas(etapa),
+      Text(etapa >= 1 ? 'A Estante não promete data: cada carta entra depois da revisão das regras, com teste. Quando todas entrarem, esta lista passa a jogar aqui.'
+        : 'Vai um pedido pronto, com o formato e estas cartas (o nome da lista fica no aparelho). A Estante não promete data: cada carta entra depois da revisão das regras, com teste.', { size: 'sm', tone: 'muted', attrs: { id: 'cobertura-promessa' } }),
+      aviso);
+    pintaAcoes(etapa, p);
+  }
+  const acoes = h('div', { class: 'cob-acoes ds-row' });
+  function pintaAcoes(etapa, p) {
+    if (etapa >= 1) return mount(acoes, Button('Fechar', { variant: 'primary', id: 'cobertura-fechar', onClick: closeDialog }));
+    mount(acoes, Button('Voltar', { onClick: closeDialog }), Button('Enviar pedido', { variant: 'primary', icone: 'relato', id: 'cobertura-enviar', onClick: envia }));
+  }
+  async function envia() {
+    if (ocupado) return; ocupado = true;
+    const b = document.getElementById('cobertura-enviar'); if (b) { b.disabled = true; b.querySelector('.ds-btn__rotulo').textContent = 'Enviando…'; }
+    let x; try { x = await cobertura.pede({ listaId: lista.id, formato: lista.formato, rotuloFormato: lista.rotuloFormato, total: lista.total, pct: lista.pct, cartas: lista.faltam.map(c => c.name), motor }); }
+    catch (e) { x = { ok: false, motivo: 'erro' }; }
+    ocupado = false; aoMudar();
+    if (x.ok) { toast('Pedido enviado ao motor', 3600); return pinta(1); }
+    // sem conta (ou a fila não respondeu): o pedido fica guardado; o GitHub abre preenchido, a um toque
+    const aviso = Note(x.motivo === 'sem-conta' ? 'Para enviar daqui, conecte a conta da Estante no Perfil. Ou envie pelo GitHub: abre o pedido já preenchido.'
+      : x.motivo === 'sem-rede' ? 'Sem internet: o pedido ficou guardado em Relatos e você envia depois.' : 'A fila não respondeu agora. O pedido ficou guardado em Relatos; dá para enviar pelo GitHub.', 'warning');
+    aviso.id = 'cobertura-aviso';
+    await pinta(0, aviso);
+    if (x.relato && x.motivo !== 'sem-rede') mount(acoes, Button('Voltar', { onClick: closeDialog }),
+      Button('Pelo GitHub', { variant: 'primary', icone: 'externo', id: 'cobertura-github', onClick: async () => { await cobertura.peloGitHub(x.relato); aoMudar(); pinta(1); } }));
+  }
+  Dialog({ title: 'Pedir cobertura', body: corpo, actions: [acoes] });
+  pinta();
+}
+
+return { relatoDeCobertura, pedidosDeCobertura, pedidoDaLista, etapaDoPedido, ETAPAS_DO_PEDIDO, createCobertura, abrePedidoDeCobertura, situacaoDoEnvio, foiEnviado, textoDaFalha, PRAZO_FILA, URL_FILA_LIGADA, FILA_MEMORIA_MS, filaLigada, relatoParaFila, createEnvioPelaFila, AREAS, URL_SITUACAO, BUSCA_SITUACAO_MS, urlDoRegistro, situacaoDosRegistros, concilia, EDITAR_JANELA_MS, podeEditar, editavelAte, editaRelato, REPOSITORIO, MARCA, dadosDoRelato, enderecoDoRegistro, limpaTela, nomeDaTela, FILTRO_VAZIO, filtra, contaFiltros, areasDe, csvDosRelatos, jsonDosRelatos, partidaAbrivel, contextoDaPartida, CHAVE, TIPOS, URGENCIAS, DESCRICAO_MIN, DESCRICAO_MAX, RELATOS_MAX, areaDaRota, confere, novoRelato, ordena, textoDoRelato, textoDosRelatos, createRelatos, usa, usaContexto, abreRelato, BotaoRelatar, createRelatosScreen, rotuloDe };
 })();
 
 /* ==== src/app/catalogo.js ==== */
@@ -38516,7 +38646,7 @@ const randomSeed = () => {
 };
 
 /* ---------------- A2 · preparar partida ---------------- */
-function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null, online = null, catalogo = null }) {
+function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null, online = null, catalogo = null, cobertura = null }) {
   const root = Stack(pad(), __m3.Carregando('Abrindo…', { tamanho: 'tela' }));
   // Leva 113 · um modo só: o motor completo. Lista que o motor não resolve 100% não joga, e a tela diz por quê.
   // DEV: a mesa assistida continua no motor para os testes de mesa (ajuste manual de estado); só aparece com
@@ -38718,6 +38848,20 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
       const reserva = contaDeck(d).side;
       const lista6 = xs => `${xs.slice(0, 6).join(', ')}${xs.length > 6 ? ` e mais ${xs.length - 6}` : ''}`;
       const bloqueio = cv.pct < 100 ? (() => { const n = Note(__m3.seguro`<b>Esta lista ainda não joga.</b> O motor não resolve ${faltam.length} carta(s) dela: ${lista6(faltam)}. Escolha outra lista ou troque essas cartas.`, 'warning'); n.id = 'mesa-bloqueio'; return n; })() : null;
+      // G-313 · relato #36 · a lista vale no formato e não joga inteira: pedir a cobertura num toque (ou ver o pedido já feito)
+      const pedirBox = h('div', { id: 'mesa-cobertura' });
+      if (!DEV && cobertura && cv.pct < 100) {
+        const dadosDaLista = { id: d.id, nome: d.name, formato: d.format, rotuloFormato: FORMATS[d.format] || d.format, total: contaDeck(d).main, pct: cv.pct,
+          faltam: faltam.map(n => { const c = cards.get(norm(n)) || cards.get(n) || null; return { name: n, type_line: c ? c.type_line || '' : '' }; }) };
+        const abre = () => __m38.abrePedidoDeCobertura({ cobertura, lista: dadosDaLista, motor: E.ENGINE_VERSION, aoMudar: () => { if (root.isConnected) paintCoverage(); } });
+        cobertura.pedidos().then(ps => {
+          if (run !== covRun) return;
+          const p = __m38.pedidoDaLista(ps, d.id, faltam), etapa = __m38.etapaDoPedido(p);
+          mount(pedirBox, etapa >= 1
+            ? Button(etapa === 2 ? 'Na fila do motor' : 'Pedido enviado', { id: 'mesa-cobertura-pedida', icone: 'ampulheta', title: 'Ver o pedido de cobertura', onClick: abre })
+            : Button('Pedir cobertura', { id: 'mesa-pedir-cobertura', icone: 'relato', title: 'Pedir ao motor as cartas que faltam', onClick: abre }));
+        }).catch(() => mount(pedirBox, Button('Pedir cobertura', { id: 'mesa-pedir-cobertura', icone: 'relato', onClick: abre })));
+      }
       // I3 · o estado da lista numa linha de ícones (motor, reserva, offline); o toque abre a folha com as frases inteiras
       // e a versão do motor. Antes eram quatro linhas de texto solto sob o seletor da lista.
       const versao = __m3.seguro`Versão do motor: <span id="mesa-engine-version">motor v${E.ENGINE_VERSION}</span>.`; // P-1 · HTML do código: vai como pedaço seguro
@@ -38732,6 +38876,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
         ], { id: 'mesa-estado', titulo: 'Sua lista', ladrilhos: true }),
         DEV && faltam.length ? Text(`Fica com você: ${lista6(faltam)}`, { size: 'sm', tone: 'muted', attrs: { id: 'mesa-coverage-falta' } }) : null,
         DEV ? null : bloqueio,
+        DEV || !cobertura || situacaoDaLista(d).motivo !== 'motor' ? null : pedirBox, // G-313
         DEV || situacaoDaLista(d).motivo !== 'formato' ? null : (() => { const n = Note(__m3.seguro`<b>Esta lista não vale no ${FORMATS[d.format] || d.format}.</b> ${situacaoDaLista(d).texto} Ajuste a lista no editor ou escolha outra.`, 'warning'); n.id = 'mesa-fora-do-formato'; return n; })(), // G-312
         prontaOffline ? null : Row({}, Button('Baixar cartas', { id: 'mesa-offline-pin', icone: 'baixar', title: 'Guardar para jogar sem internet', onClick: () => guardar(nomes) }))));
       paintMode();
@@ -43792,6 +43937,7 @@ const som = __m33.createSom({ store: platform.store }); som.init(); // G4 · som
    vão e voltam entre aparelhos (árvore v1 da A-262, regras da P-4). O que desce é reaplicado como na restauração do backup. */
 // T6e-2 · relato #13 · a fila de relatos da conta conectada (a mesma conta e o mesmo transporte da sincronia do perfil)
 const envioPelaFila = __m38.createEnvioPelaFila({ filaDe: () => { if (online.modo !== 'firebase' || conta.estante().estado !== 'conectada') return null; const uid = conta.sessao.uid(); return uid ? __m40.createFilaDeRelatos({ transporte: online.transporte, uid }) : null; } });
+const cobertura = __m38.createCobertura({ relatos, fila: envioPelaFila }); // G-313 · relato #36 · pedir cobertura do motor pelo Jogar
 const sincronia = __m40.createSincronia({
   remotoDe: () => { if (online.modo !== 'firebase' || conta.estante().estado !== 'conectada') return null; const uid = conta.sessao.uid(); return uid ? __m40.createPerfilRemoto({ transporte: online.transporte, uid }) : null; },
   perfil,
@@ -43871,7 +44017,7 @@ const ROUTES = [
   { path: '/lista', title: 'Lista', render: () => createDeckScreen({ decks, collection, cardRepo, images, share: platform.share, files: platform.files, store: platform.store, etiquetas, names, scryfall }) },
   { path: '/colecao', title: 'Coleção', render: () => createCollectionScreen({ collection, decks, cardRepo, scryfall, files: platform.files, persistence: platform.persistence, share: platform.share, names, etiquetas }) },
   { path: '/scanner', title: 'Scanner', render: () => createScannerScreen({ camera: platform.camera, store: platform.store, names, collection, decks, scryfall, env: envVivo, ocr }) },
-  { path: '/mesa', title: 'Jogar', render: () => createTableSetup({ decks, cardRepo, store: platform.store, keeper, perfil, online, catalogo }) },
+  { path: '/mesa', title: 'Jogar', render: () => createTableSetup({ decks, cardRepo, store: platform.store, keeper, perfil, online, catalogo, cobertura }) },
   { path: '/partida', title: 'Mesa', render: () => createTableScreen({ store: platform.store, perfil, online, som, partidas }) },
   { path: '/serie', title: 'Série', render: () => createSeriesScreen({ store: platform.store, online }) },
   { path: '/perfil/fichas', title: 'Fichas', render: () => createFichasScreen({ fichas, decks, catalogo, cardRepo }) }, // I4 · G-242: todas as fichas do catálogo
