@@ -71,7 +71,7 @@ const DB = Object.fromEntries([
 // texto oficial de `.listas/oficiais*.json` (o mesmo do torneio). Carta que o DB acima já tem fica como está (os testes antigos contam com ela).
 for (const l of listasDoShark()) for (const e of [...l.entries, ...l.reserva]) { const c = l.cartas[e.name], k = e.name.toLowerCase(); if (c && !DB[k]) DB[k] = { ...card(c.name, c.type_line, c.colors, c.cmc), ...c, id: c.name }; }
 
-async function open(t, { dev = true, apresentacao = false, cena = false, porta = false } = {}) {
+async function open(t, { dev = true, apresentacao = false, cena = false, porta = false, formato = false } = {}) {
   const srv = await serve();
   const browser = await pw.chromium.launch(process.env.PW_CHROMIUM ? { executablePath: process.env.PW_CHROMIUM } : {});
   // capturas de tela nas outras medidas e no tema escuro (ROADMAP §4): SHOT_W=360 SHOT_TEMA=dark
@@ -98,6 +98,9 @@ async function open(t, { dev = true, apresentacao = false, cena = false, porta =
   // H6 · a folha de pagamento abre antes de toda mágica que vira terreno; os testes que não são dela continuam com o
   // pagamento automático (um toque a menos por mágica). O teste da H6 liga por `window.__estanteMesa.manaManual(true)`.
   await ctx.addInitScript(() => { window.__SEM_PAGAMENTO = true; });
+  // G-312 · o Jogar só deixa escolher e começar com lista válida no formato; os testes de mesa usam listas de laboratório
+  // (40 Counterspell, 16 Highway Robbery) e continuam sem essa conferência. O teste da G-312 liga com `formato: true`.
+  if (!formato) await ctx.addInitScript(() => { window.__SEM_VALIDAR_FORMATO = true; });
   // P-7 · T6c-2a · o app publicado tem Client ID e a chave da conta da Estante: os testes começam sem conta (como até a
   // P-7) e sem falar com o Google; o teste que precisa liga com valores falsos (window.__GOOGLE_CLIENT_ID, __FIREBASE_*).
   await ctx.addInitScript(() => { if (window.__GOOGLE_CLIENT_ID === undefined) window.__GOOGLE_CLIENT_ID = ''; if (window.__FIREBASE_API_KEY === undefined) window.__FIREBASE_API_KEY = ''; if (window.__FIREBASE_DB_URL === undefined) window.__FIREBASE_DB_URL = ''; }); // P-8 · e a sala entre duas abas
@@ -241,7 +244,8 @@ async function adicionaPronta(page, base, nome) {
 // leva 110: a lista da partida se escolhe numa folha com as linhas da estante (antes era um <select> de texto)
 async function escolheLista(page, id, qual) {
   await page.click('#' + id); await page.waitForSelector('.deck-picker__lista');
-  const alvo = typeof qual === 'string' ? page.locator(`.deck-picker__lista [data-deck-id="${qual}"]`) : page.locator('.deck-picker__lista .deck-item', { has: page.locator('.deck-item__nome', { hasText: qual }) });
+  // G-312 · a lista válida abaixo de 100% fica no grupo "Ainda não jogam" da mesma folha (e continua escolhível para ver o que falta)
+  const alvo = typeof qual === 'string' ? page.locator(`.deck-picker__corpo [data-deck-id="${qual}"]`) : page.locator('.deck-picker__corpo .deck-item', { has: page.locator('.deck-item__nome', { hasText: qual }) });
   await alvo.first().click(); await page.waitForSelector('.deck-picker__lista', { state: 'detached' });
 }
 /** MJ11 (J-23) · contra o Shark, o toque volta antes de ele decidir: a faixa diz "Shark pensa" e a mesa não aceita toque até ele
@@ -7398,7 +7402,7 @@ test('e2e · leva 149 Jogar: não existe "Todos"; sempre há um formato escolhid
   assert.ok(!c.some(x => /todos/i.test(x.texto) || x.k === 'all'), 'sem a opção "Todos"');
   assert.equal(c.filter(x => x.ligado === 'true').length, 1, 'um formato já vem escolhido');
   const inicial = c.find(x => x.ligado === 'true').k;
-  const doFormato = async k => { await page.click('#mesa-mine'); await page.waitForSelector('.deck-picker__lista'); const f = await page.$$eval('.deck-picker__lista .ds-badge, .deck-picker__lista [data-deck-id]', els => els.filter(e => e.dataset.deckId).length); const txt = await page.innerText('.deck-picker__lista'); await page.keyboard.press('Escape'); return { f, txt }; };
+  const doFormato = async k => { await page.click('#mesa-mine'); await page.waitForSelector('.deck-picker__lista'); const f = await page.$$eval('.deck-picker__corpo [data-deck-id]', els => els.length); const txt = await page.innerText('.deck-picker__corpo'); /* G-312 · a lista fora do formato vem no grupo "Ainda não jogam" */ await page.keyboard.press('Escape'); return { f, txt }; };
   let l = await doFormato(inicial);
   assert.equal(l.f, 1, 'só a lista do formato escolhido aparece para escolher');
   // tocar no formato ligado não desliga: não há estado "sem formato"
@@ -8893,7 +8897,8 @@ test('e2e · G-301 selo do motor em toda listagem: Minhas listas e as escolhas d
   // 3 · as escolhas de lista do Jogar: a linha escolhida e cada linha da folha têm o selo
   await page.waitForSelector('#mesa-mine .deck-item__motor[data-motor="incompleto"]');
   await page.click('#mesa-mine'); await page.waitForSelector('.deck-picker__lista');
-  await page.waitForFunction(() => { const ms = [...document.querySelectorAll('.deck-picker__lista .deck-item__motor')]; return ms.length >= 2 && ms.every(m => m.dataset.motor !== 'calculando'); }, null, { timeout: 8000 });
+  // G-312 · a lista abaixo de 100% passou para o grupo "Ainda não jogam" da mesma folha: as duas linhas continuam com o selo
+  await page.waitForFunction(() => { const ms = [...document.querySelectorAll('.deck-picker__corpo .deck-item__motor')]; return ms.length >= 2 && ms.every(m => m.dataset.motor !== 'calculando'); }, null, { timeout: 8000 });
   await auditaTela(page, 'escolha da sua lista com o selo do motor');
   await page.keyboard.press('Escape'); await page.waitForSelector('.deck-picker__lista', { state: 'detached' });
   await page.click('[data-table-format="pauper"]').catch(() => {});
@@ -8939,6 +8944,38 @@ test('e2e · G-311 Jogar só com formato pronto: Commander e Livre apagados com 
   assert.equal(await page.locator('#mesa-start').count(), 0);
   await auditaTela(page, 'Jogar sem formato pronto');
   await page.click('#mesa-starter'); await page.waitForFunction(() => location.hash.startsWith('#/listas/prontas'));
+  assert.deepEqual(errors, []);
+});
+
+/* G-312 · relato #36, fatia 2 · só a lista que joga (válida no formato e 100% no motor) é escolha no Jogar */
+test('e2e · G-312 escolha de lista no Jogar: só as que jogam estão entre as escolhas; as outras ficam em "Ainda não jogam" com o motivo; fora do formato não é escolha e não começa', { skip }, async t => {
+  const { page, errors, base } = await open(t, { dev: false, formato: true });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'Copias Demais', '30 Island\n30 Counterspell', 'pauper');
+  await createDeck(page, base, 'Furada', '52 Island\n4 Counterspell\n4 Carta Inexistente', 'pauper');
+  await createDeck(page, base, 'Coberta', '56 Island\n4 Counterspell', 'pauper');
+  await page.goto(base + '#/listas'); await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-mine');
+  await page.click('#mesa-mine'); await page.waitForSelector('.deck-picker__lista');
+  const escolhas = await page.$$eval('.deck-picker__lista [role="radio"]', rs => rs.map(r => r.querySelector('.deck-item__nome').textContent));
+  assert.deepEqual(escolhas, ['Coberta'], 'só a que joga é escolha');
+  const nao = await page.$$eval('#mesa-mine-nao-jogam .deck-item', ls => ls.map(l => ({ nome: l.querySelector('.deck-item__nome').textContent, motivo: l.dataset.motivo, txt: l.querySelector('.deck-item__motivo').textContent, tag: l.tagName, role: l.getAttribute('role') })));
+  const porNome = Object.fromEntries(nao.map(x => [x.nome, x]));
+  assert.deepEqual(Object.keys(porNome).sort(), ['Copias Demais', 'Furada']);
+  assert.equal(porNome.Furada.motivo, 'motor'); assert.match(porNome.Furada.txt, /^O motor joga \d{1,2}% desta lista: 1 carta ainda sem regra\.$/);
+  assert.equal(porNome['Copias Demais'].motivo, 'formato'); assert.match(porNome['Copias Demais'].txt, /Mais de 4 cópias: Counterspell/);
+  assert.equal(porNome['Copias Demais'].tag, 'DIV', 'fora do formato não é escolha'); assert.deepEqual([porNome.Furada.tag, porNome.Furada.role], ['BUTTON', 'radio'], 'válida abaixo de 100% abre para ver o que falta');
+  assert.match(await page.textContent('#mesa-mine-nao-jogam .ds-list__group'), /Ainda não jogam · 2/);
+  await auditaTela(page, 'escolha de lista com as que ainda não jogam');
+  await page.click('.deck-picker__lista [role="radio"]'); await page.waitForSelector('.deck-picker__lista', { state: 'detached' });
+  await page.waitForFunction(() => { const b = document.querySelector('#mesa-start'); return b && !b.disabled; }, null, { timeout: 8000 });
+  // a lista fora do formato pedida pelo endereço (J7): aparece, diz por quê e não começa
+  const id = await page.evaluate(async () => { const r = indexedDB.open('mtg'); await new Promise(ok => { r.onsuccess = ok; }); const tx = r.result.transaction('kv'); const q = tx.objectStore('kv').getAll();
+    await new Promise(ok => { q.onsuccess = ok; }); const d = q.result.find(v => v && v.name === 'Copias Demais'); return d && d.id; });
+  assert.ok(id, 'id da lista');
+  await page.goto(base + '#/listas'); await page.goto(base + `#/mesa?lista=${id}`); await page.waitForSelector('#mesa-fora-do-formato');
+  assert.match(await page.innerText('#mesa-fora-do-formato'), /Esta lista não vale no Pauper\. Mais de 4 cópias: Counterspell/);
+  await page.waitForTimeout(400); assert.equal(await page.$eval('#mesa-start', b => b.disabled), true, 'fora do formato não começa');
+  await auditaTela(page, 'Jogar com a lista fora do formato');
   assert.deepEqual(errors, []);
 });
 

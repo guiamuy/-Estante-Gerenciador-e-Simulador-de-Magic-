@@ -2168,6 +2168,11 @@ body:has(#outlet .ds-fab[data-acoes="1"]) #outlet { padding-bottom: calc(56px + 
 /* G-311 · relato #36 · formato que o motor ainda não joga inteiro: chip apagado, borda tracejada, ampulheta; a folha mede quantas listas prontas jogam */
 .ds-chip[data-formato-estado="fechado"] { color: var(--fg-muted); border-style: dashed; background: transparent; box-shadow: none; }
 .mesa-formato-medida { display: grid; gap: var(--space-2); }
+.deck-picker__corpo { gap: var(--space-4); }
+.deck-picker__nao .deck-item { color: var(--fg-muted); }
+.deck-picker__nao .deck-item__nome { color: var(--fg-muted); }
+.deck-item__motivo { display: flex; align-items: flex-start; gap: var(--space-1); color: var(--fg-muted); }
+.deck-item__motivo .ds-icon { flex: none; margin-top: 2px; color: var(--warning); }
 .mesa-formato-medida__barra { display: block; height: 8px; border-radius: var(--radius-full); background: var(--bg-elev-0); border: 1px solid var(--border); overflow: hidden; }
 .mesa-formato-medida__cheio { display: block; height: 100%; min-width: 2px; background: linear-gradient(90deg, var(--accent-lo), var(--accent-hi)); }
 .mesa-formato-medida__conta { font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--fg-muted); }
@@ -38571,13 +38576,48 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
     // B-22 · a linha de uma lista do Shark diz de onde ela veio (torneio, colocação, jogador, data)
     const origemDoShark = l => `${l.origem} · ${l.jogador} · ${l.data.split('-').reverse().join('/')}`;
     const linhaDoShark = (d, extra) => { const el = linhaDe(d, extra); el.querySelector('.deck-item__corpo').append(h('span', { class: 'deck-item__origem ds-text ds-text--sm ds-text--muted' }, origemDoShark(d.shark))); return el; };
-    function seletor(id, rotulo, valor, aoEscolher, fonte = visiveis, acha = byId, linha = linhaDe) {
+    /* G-312 · relato #36 · uma lista só é escolha para jogar se joga: válida no formato (as regras do editor, `validateDeck`) e
+       100% no motor (a mesma conta do selo, `contaMotor`, com as cartas guardadas no aparelho). As outras aparecem à parte, com
+       o motivo, sem ser escolhidas. A conta fica guardada por lista (cache do selo); DEV joga tudo (testes de mesa). */
+    const situacoes = new Map();
+    function situacaoDaLista(d) {
+      if (DEV || !d) return { joga: true };
+      const k = `${d.id}|${d.format}|${d.entries.length}`; if (situacoes.has(k)) return situacoes.get(k);
+      let r = { joga: true };
+      const semFormato = typeof window !== 'undefined' && !!window.__SEM_VALIDAR_FORMATO; // só os testes de mesa com listas de laboratório ligam
+      const erro = semFormato ? null : __m14.validateDeck(d, guardadas, { semRede: true }).find(x => x.level === 'error');
+      if (erro) r = { joga: false, motivo: 'formato', texto: erro.message };
+      else { const m = __m15.contaMotor(d, guardadas);
+        if (m.estado !== 'completo') r = { joga: false, motivo: 'motor', motor: m, texto: m.estado === 'vazia' ? 'Lista sem cartas no deck.' : `O motor joga ${m.pct}% desta lista: ${plural(m.faltam.length, 'carta ainda sem regra', 'cartas ainda sem regra')}.` }; }
+      situacoes.set(k, r); return r;
+    }
+    const primeiraQueJoga = lista => lista.find(x => situacaoDaLista(x).joga) || lista[0];
+    /** G-312 · as duas listas valem no formato (a do Shark é do bot e já vale); a cobertura é conferida à parte. */
+    const validaParaJogar = () => situacaoDaLista(byId(state.mine)).motivo !== 'formato'
+      && !(state.opponent === 'hotseat' && situacaoDaLista(byId(state.theirs)).motivo === 'formato');
+    function seletor(id, rotulo, valor, aoEscolher, fonte = visiveis, acha = byId, linha = linhaDe, classifica = null) {
       const d = acha(valor);
       const botao = h('button', { class: 'deck-picker', id, type: 'button', 'aria-haspopup': 'dialog', 'aria-label': `${rotulo}: ${d ? d.name : 'nenhuma'}. Trocar`,
-        onClick: () => Dialog({ title: rotulo, body: h('div', { class: 'ds-list deck-picker__lista', role: 'radiogroup', 'aria-label': rotulo },
-          ...fonte().map(x => linha(x, { dataset: { deckId: x.id }, tag: 'button', attrs: { type: 'button', role: 'radio', 'aria-checked': String(x.id === valor), onClick: () => { closeDialog(); aoEscolher(x.id); } },
-            fim: x.id === valor ? h('span', { class: 'deck-item__ja', 'aria-hidden': 'true' }, Icone('marcar', { tamanho: 20 })) : h('span', { class: 'deck-item__ja' }) }))),
-          actions: [Button('Voltar', { onClick: closeDialog })] }) },
+        onClick: () => {
+          const todas = fonte(), sit = classifica ? new Map(todas.map(x => [x.id, classifica(x)])) : null;
+          const jogam = sit ? todas.filter(x => sit.get(x.id).joga) : todas, nao = sit ? todas.filter(x => !sit.get(x.id).joga) : [];
+          // G-312 · a que não joga: a linha da estante apagada, com o motivo embaixo do nome. Fora do formato não é escolha (não é
+          // botão); válida mas abaixo de 100% pode ser aberta para ver o que falta (e pedir a cobertura), mas não começa partida
+          const naoJoga = x => { const pode = sit.get(x.id).motivo === 'motor';
+            const el = linha(x, { dataset: { deckId: x.id, joga: 'nao', motivo: sit.get(x.id).motivo }, tag: pode ? 'button' : 'div',
+              ...(pode ? { attrs: { type: 'button', role: 'radio', 'aria-checked': String(x.id === valor), onClick: () => { closeDialog(); aoEscolher(x.id); } },
+                fim: x.id === valor ? h('span', { class: 'deck-item__ja', 'aria-hidden': 'true' }, Icone('marcar', { tamanho: 20 })) : h('span', { class: 'deck-item__ja' }) } : {}) });
+            el.querySelector('.deck-item__corpo').append(h('span', { class: 'deck-item__motivo ds-text ds-text--sm' }, Icone(sit.get(x.id).motivo === 'motor' ? 'ampulheta' : 'alerta', { tamanho: 14 }), h('span', {}, sit.get(x.id).texto)));
+            return el; };
+          Dialog({ title: rotulo, body: Stack({ class: 'deck-picker__corpo' },
+            jogam.length ? h('div', { class: 'ds-list deck-picker__lista', role: 'radiogroup', 'aria-label': rotulo },
+              ...jogam.map(x => linha(x, { dataset: { deckId: x.id }, tag: 'button', attrs: { type: 'button', role: 'radio', 'aria-checked': String(x.id === valor), onClick: () => { closeDialog(); aoEscolher(x.id); } },
+                fim: x.id === valor ? h('span', { class: 'deck-item__ja', 'aria-hidden': 'true' }, Icone('marcar', { tamanho: 20 })) : h('span', { class: 'deck-item__ja' }) })))
+              : h('div', { class: 'deck-picker__lista deck-picker__lista--vazia', id: id + '-nenhuma' }, Note(__m3.seguro`Nenhuma lista sua de ${FORMATS[state.format] || state.format} joga ainda.`, 'warning')),
+            nao.length ? h('div', { class: 'ds-list deck-picker__nao', id: id + '-nao-jogam', role: 'radiogroup', 'aria-label': 'Ainda não jogam' },
+              h('div', { class: 'ds-list__group' }, `Ainda não jogam · ${nao.length}`), ...nao.map(naoJoga)) : null),
+            actions: [Button('Voltar', { onClick: closeDialog })] });
+        } },
         d ? linha(d, { tag: 'span', fim: Icone('descer', { tamanho: 18, classe: 'ds-list__seta' }) }) : Text('Escolha uma lista', { tone: 'muted' }));
       return ChipField(rotulo, botao);
     }
@@ -38594,9 +38634,9 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
             if (fechado) return explicaFormato(k, est);
             if (state.format === k) return;
             state.format = k;
-            const lista = visiveis();
-            if (!lista.some(d => d.id === state.mine)) state.mine = (lista[0] || all[0]).id;
-            if (!lista.some(d => d.id === state.theirs)) state.theirs = (lista[0] || all[0]).id;
+            const lista = visiveis(), primeira = primeiraQueJoga(lista); // G-312 · a primeira que joga
+            if (!lista.some(d => d.id === state.mine)) state.mine = (primeira || all[0]).id;
+            if (!lista.some(d => d.id === state.theirs)) state.theirs = (primeira || all[0]).id;
             state.sharkDeck = (listasDoShark()[0] || {}).id || null; // B-22
             paintFormat(); paintMine(); paintOpponent(); paintCoverage(); confereOponente();
           });
@@ -38649,7 +38689,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
     function paintMine() {
       const lista = visiveis();
       mount(mineField, lista.length
-        ? seletor('mesa-mine', 'Sua lista', state.mine, id => { state.mine = id; paintMine(); paintCoverage(); })
+        ? seletor('mesa-mine', 'Sua lista', state.mine, id => { state.mine = id; paintMine(); paintCoverage(); }, visiveis, byId, linhaDe, situacaoDaLista)
         : Note('Você não tem lista neste formato. Toque em "Listas prontas" para adicionar uma.', { tone: 'warning' }));
     }
     const covBox = h('div', { id: 'mesa-coverage' });
@@ -38692,6 +38732,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
         ], { id: 'mesa-estado', titulo: 'Sua lista', ladrilhos: true }),
         DEV && faltam.length ? Text(`Fica com você: ${lista6(faltam)}`, { size: 'sm', tone: 'muted', attrs: { id: 'mesa-coverage-falta' } }) : null,
         DEV ? null : bloqueio,
+        DEV || situacaoDaLista(d).motivo !== 'formato' ? null : (() => { const n = Note(__m3.seguro`<b>Esta lista não vale no ${FORMATS[d.format] || d.format}.</b> ${situacaoDaLista(d).texto} Ajuste a lista no editor ou escolha outra.`, 'warning'); n.id = 'mesa-fora-do-formato'; return n; })(), // G-312
         prontaOffline ? null : Row({}, Button('Baixar cartas', { id: 'mesa-offline-pin', icone: 'baixar', title: 'Guardar para jogar sem internet', onClick: () => guardar(nomes) }))));
       paintMode();
       paintChips();
@@ -38727,11 +38768,13 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
     let startBtn = null;
     function paintStart() {
       if (!startBtn) return;
-      const ok = (DEV || (state.coverage === 100 && state.coberturaDele === 100 && aberto(state.format))) && !(ehBot() && !deckDoOponente()); // B-22 · Shark sem lista no formato: nada pela metade; G-311 · formato fechado não começa
+      const ok = (DEV || (state.coverage === 100 && state.coberturaDele === 100 && aberto(state.format) && validaParaJogar())) && !(ehBot() && !deckDoOponente()); // B-22 · Shark sem lista no formato: nada pela metade; G-311 · formato fechado não começa
       startBtn.disabled = !ok || state.busy;
       startBtn.classList.toggle('ds-hidden', state.opponent === 'online'); // leva 133 · online começa pela sala
       const xs = state.faltamDele;
-      mount(bloqueioDele, estadoDele(), !DEV && state.coberturaDele < 100 ? Note(__m3.seguro`<b>A lista do oponente ainda não joga.</b> O motor não resolve ${xs.length} carta(s) dela: ${xs.slice(0, 6).join(', ')}${xs.length > 6 ? ` e mais ${xs.length - 6}` : ''}.`, 'warning') : null);
+      const deleFora = !DEV && state.opponent === 'hotseat' && byId(state.theirs) && situacaoDaLista(byId(state.theirs)).motivo === 'formato' // G-312
+        ? Note(__m3.seguro`<b>A lista do oponente não vale no ${FORMATS[state.format] || state.format}.</b> ${situacaoDaLista(byId(state.theirs)).texto}`, 'warning') : null;
+      mount(bloqueioDele, deleFora, estadoDele(), !DEV && state.coberturaDele < 100 ? Note(__m3.seguro`<b>A lista do oponente ainda não joga.</b> O motor não resolve ${xs.length} carta(s) dela: ${xs.slice(0, 6).join(', ')}${xs.length > 6 ? ` e mais ${xs.length - 6}` : ''}.`, 'warning') : null);
     }
     /** S64 · busca o que falta e guarda tudo, sem prazo de validade. */
     async function guardar(nomes) {
@@ -38776,13 +38819,13 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
       Row({ class: 'ds-row--wrap' },
         Field('Seu nome', Input({ id: 'mesa-me', value: state.me, onInput: e => { state.me = e.target.value; } })),
         Field('Nome do oponente', Input({ id: 'mesa-them', value: state.them, onInput: e => { state.them = e.target.value; } }))),
-      seletor('mesa-theirs', 'Lista do oponente', state.theirs, id => { state.theirs = id; paintOpponent(); confereOponente(); }))
+      seletor('mesa-theirs', 'Lista do oponente', state.theirs, id => { state.theirs = id; paintOpponent(); confereOponente(); }, visiveis, byId, linhaDe, situacaoDaLista))
       : state.opponent === 'online' ? painelOnline() : null);
     /* ---- Leva 133 · partida online: criar sala ou entrar com código; a sala monta a mesa nos dois aparelhos ---- */
     const on = { modo: 'criar', codigo: null, digitado: '', esperando: false, erro: null, parar: null, publiquei: false };
     const ERROS_SALA = { 'codigo-invalido': 'Código incompleto: são 6 letras ou números depois de ESTA- (salas antigas: 4).', 'sala-inexistente': 'Não há sala com esse código.', 'sala-cheia': 'Essa sala já tem dois jogadores.', 'sala-velha': 'Essa sala já acabou.', 'formato-diferente': 'A sala é de outro formato.', 'sala-bloqueada': 'Você bloqueou quem criou essa sala. Para jogar com essa conta, desbloqueie em Perfil › Dados.', 'sem-codigo-livre': 'Não consegui sortear um código. Tente de novo.' };
     const meuNome = (papel = 'criar') => state.meuNome || (state.me.trim() && state.me.trim() !== 'Você' ? state.me.trim() : '') || (papel === 'criar' ? 'Jogador 1' : 'Jogador 2');
-    const cobertaOnline = () => DEV || state.coverage === 100; // online é motor completo: a lista precisa jogar sozinha
+    const cobertaOnline = () => DEV || (state.coverage === 100 && situacaoDaLista(byId(state.mine)).motivo !== 'formato'); // online é motor completo: a lista precisa jogar sozinha; G-312 · e valer no formato
     async function cartasDe(entries) {
       const names = [...new Set(entries.map(e => e.name))];
       const found = await cardRepo.byNames(names);
