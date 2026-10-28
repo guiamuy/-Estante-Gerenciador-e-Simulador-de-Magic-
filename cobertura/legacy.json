@@ -1,57 +1,63 @@
 {
  "versao": 1,
  "formato": "legacy",
- "geradoEm": "2026-10-27T12:40:58.306Z",
+ "geradoEm": "2026-10-28T13:27:13.505Z",
  "motor": 112,
  "fonte": "api.scryfall.com/cards/collection",
- "listas": 460,
- "listas100": 35,
- "cartasPendentes": 323,
+ "listas": 452,
+ "listas100": 34,
+ "cartasPendentes": 330,
  "parcial": false,
  "lotesComFalha": 0,
  "porClasse": {
   "texto-mudou": 0,
   "lida": 10,
-  "nova": 313,
+  "nova": 320,
   "parcial": 0,
   "sem-dados": 0
  },
- "novasDesdeAnterior": [],
- "resolvidasDesdeAnterior": [
-  "Intuition"
+ "novasDesdeAnterior": [
+  "Duskwatch Recruiter",
+  "Leyline of Abundance",
+  "Nature's Rhythm",
+  "Shang-Chi, Master of Kung Fu",
+  "Tyvar, Jubilant Brawler",
+  "Tyvar, the Pummeler",
+  "Vizier of Remedies"
  ],
+ "resolvidasDesdeAnterior": [],
  "curva": [
   {
-   "listas": 36,
+   "listas": 35,
    "cartas": 1
   },
   {
-   "listas": 40,
-   "cartas": 1
-  },
-  {
-   "listas": 45,
+   "listas": 39,
    "cartas": 2
   },
   {
-   "listas": 60,
+   "listas": 44,
+   "cartas": 2
+  },
+  {
+   "listas": 59,
    "cartas": 8
   },
   {
-   "listas": 85,
+   "listas": 84,
    "cartas": 14
   },
   {
-   "listas": 135,
+   "listas": 134,
    "cartas": 39
   },
   {
-   "listas": 235,
-   "cartas": 96
+   "listas": 234,
+   "cartas": 100
   },
   {
-   "listas": 460,
-   "cartas": 323
+   "listas": 452,
+   "cartas": 330
   }
  ],
  "textos": 0,
@@ -78,8 +84,8 @@
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
-   "listas": 77,
-   "gulosa": 239,
+   "listas": 74,
+   "gulosa": 236,
    "texto": {
     "mana_cost": "",
     "type_line": "Enchantment Land — Urza's Saga",
@@ -93,8 +99,8 @@
    "classe": "nova",
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
-   "listas": 71,
-   "gulosa": 36,
+   "listas": 70,
+   "gulosa": 35,
    "texto": {
     "mana_cost": "{B}",
     "type_line": "Creature — Elemental",
@@ -112,8 +118,8 @@
    "classe": "nova",
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
-   "listas": 59,
-   "gulosa": 154,
+   "listas": 58,
+   "gulosa": 153,
    "texto": {
     "mana_cost": "",
     "type_line": "Land",
@@ -127,8 +133,8 @@
    "classe": "nova",
    "nivel": "manual",
    "motivo": "mágica sem script",
-   "listas": 58,
-   "gulosa": 253,
+   "listas": 57,
+   "gulosa": 248,
    "texto": {
     "mana_cost": "{X}{C}{C}",
     "type_line": "Kindred Instant — Eldrazi",
@@ -145,7 +151,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 56,
-   "gulosa": 72,
+   "gulosa": 71,
    "texto": {
     "mana_cost": "{3}{G}{W}{U}{B}",
     "type_line": "Legendary Creature — Phyrexian Angel",
@@ -166,7 +172,7 @@
    "classe": "nova",
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
-   "listas": 48,
+   "listas": 47,
    "gulosa": 102,
    "texto": {
     "mana_cost": "{4}",
@@ -202,8 +208,8 @@
    "classe": "nova",
    "nivel": "manual",
    "motivo": "mágica sem script",
-   "listas": 45,
-   "gulosa": 231,
+   "listas": 46,
+   "gulosa": 217,
    "texto": {
     "mana_cost": "{1}{G}",
     "type_line": "Instant",
@@ -218,7 +224,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 41,
-   "gulosa": 208,
+   "gulosa": 200,
    "texto": {
     "mana_cost": "{1}{R}",
     "type_line": "Creature — Goblin Sorcerer",
@@ -232,12 +238,33 @@
    }
   },
   {
-   "name": "Amped Raptor",
+   "name": "Hogaak, Arisen Necropolis",
    "classe": "nova",
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 40,
-   "gulosa": 199,
+   "gulosa": 73,
+   "texto": {
+    "mana_cost": "{5}{B/G}{B/G}",
+    "type_line": "Legendary Creature — Avatar",
+    "oracle_text": "You can't spend mana to cast this spell.\nConvoke, delve (Each creature you tap while casting this spell pays for {1} or one mana of that creature's color. Each card you exile from your graveyard pays for {1}.)\nYou may cast this card from your graveyard.\nTrample",
+    "keywords": [
+     "Delve",
+     "Trample",
+     "Convoke"
+    ],
+    "layout": "normal",
+    "power": "8",
+    "toughness": "8"
+   }
+  },
+  {
+   "name": "Amped Raptor",
+   "classe": "nova",
+   "nivel": "parcial",
+   "motivo": "parte do texto o motor não resolve",
+   "listas": 39,
+   "gulosa": 197,
    "texto": {
     "mana_cost": "{1}{R}",
     "type_line": "Creature — Dinosaur",
@@ -255,8 +282,8 @@
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
-   "listas": 40,
-   "gulosa": 199,
+   "listas": 39,
+   "gulosa": 197,
    "texto": {
     "mana_cost": "{W}",
     "type_line": "Creature — Human Cleric",
@@ -268,33 +295,12 @@
    }
   },
   {
-   "name": "Hogaak, Arisen Necropolis",
-   "classe": "nova",
-   "nivel": "parcial",
-   "motivo": "parte do texto o motor não resolve",
-   "listas": 40,
-   "gulosa": 74,
-   "texto": {
-    "mana_cost": "{5}{B/G}{B/G}",
-    "type_line": "Legendary Creature — Avatar",
-    "oracle_text": "You can't spend mana to cast this spell.\nConvoke, delve (Each creature you tap while casting this spell pays for {1} or one mana of that creature's color. Each card you exile from your graveyard pays for {1}.)\nYou may cast this card from your graveyard.\nTrample",
-    "keywords": [
-     "Delve",
-     "Trample",
-     "Convoke"
-    ],
-    "layout": "normal",
-    "power": "8",
-    "toughness": "8"
-   }
-  },
-  {
    "name": "Ocelot Pride",
    "classe": "nova",
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
-   "listas": 40,
-   "gulosa": 199,
+   "listas": 39,
+   "gulosa": 197,
    "texto": {
     "mana_cost": "{W}",
     "type_line": "Creature — Cat",
@@ -310,12 +316,27 @@
    }
   },
   {
+   "name": "Chalice of the Void",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
+   "listas": 37,
+   "gulosa": 194,
+   "texto": {
+    "mana_cost": "{X}{X}",
+    "type_line": "Artifact",
+    "oracle_text": "This artifact enters with X charge counters on it.\nWhenever a player casts a spell with mana value equal to the number of charge counters on this artifact, counter that spell.",
+    "keywords": [],
+    "layout": "normal"
+   }
+  },
+  {
    "name": "Karn, the Great Creator",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
-   "listas": 38,
-   "gulosa": 247,
+   "listas": 37,
+   "gulosa": 238,
    "texto": {
     "mana_cost": "{4}",
     "type_line": "Legendary Planeswalker — Karn",
@@ -330,8 +351,8 @@
    "classe": "nova",
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
-   "listas": 38,
-   "gulosa": 253,
+   "listas": 37,
+   "gulosa": 248,
    "texto": {
     "mana_cost": "",
     "type_line": "Land",
@@ -341,16 +362,35 @@
    }
   },
   {
-   "name": "Chalice of the Void",
+   "name": "Dark Matter Manipulator",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
-   "listas": 37,
-   "gulosa": 196,
+   "listas": 36,
+   "gulosa": 72,
    "texto": {
-    "mana_cost": "{X}{X}",
-    "type_line": "Artifact",
-    "oracle_text": "This artifact enters with X charge counters on it.\nWhenever a player casts a spell with mana value equal to the number of charge counters on this artifact, counter that spell.",
+    "mana_cost": "{B}",
+    "type_line": "Creature — Human Warlock",
+    "oracle_text": "When this creature enters, mill three cards.\nThis creature gets +2/+0 for every seven cards in your graveyard.",
+    "keywords": [
+     "Mill"
+    ],
+    "layout": "normal",
+    "power": "1",
+    "toughness": "2"
+   }
+  },
+  {
+   "name": "Lazotep Quarry",
+   "classe": "nova",
+   "nivel": "parcial",
+   "motivo": "parte do texto o motor não resolve",
+   "listas": 36,
+   "gulosa": 199,
+   "texto": {
+    "mana_cost": "",
+    "type_line": "Land — Desert",
+    "oracle_text": "{T}: Add {C}.\n{T}, Sacrifice a creature: Add one mana of any color.\n{X}{2}, {T}, Sacrifice a Desert: Exile target creature card with mana value X from your graveyard. Create a token that's a copy of it, except it's a 4/4 black Zombie. Activate only as a sorcery.",
     "keywords": [],
     "layout": "normal"
    }
@@ -360,8 +400,8 @@
    "classe": "nova",
    "nivel": "manual",
    "motivo": "mágica sem script",
-   "listas": 37,
-   "gulosa": 73,
+   "listas": 36,
+   "gulosa": 72,
    "texto": {
     "mana_cost": "{2}{U}",
     "type_line": "Sorcery",
@@ -371,12 +411,31 @@
    }
   },
   {
-   "name": "Ajani, Nacatl Pariah",
+   "name": "Stitcher's Supplier",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 36,
-   "gulosa": 199,
+   "gulosa": 73,
+   "texto": {
+    "mana_cost": "{B}",
+    "type_line": "Creature — Zombie",
+    "oracle_text": "When this creature enters or dies, mill three cards. (Put the top three cards of your library into your graveyard.)",
+    "keywords": [
+     "Mill"
+    ],
+    "layout": "normal",
+    "power": "1",
+    "toughness": "1"
+   }
+  },
+  {
+   "name": "Ajani, Nacatl Pariah",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
+   "listas": 35,
+   "gulosa": 197,
    "texto": {
     "mana_cost": "",
     "type_line": "Legendary Creature — Cat Warrior // Legendary Planeswalker — Ajani",
@@ -404,65 +463,12 @@
    }
   },
   {
-   "name": "Lazotep Quarry",
-   "classe": "nova",
-   "nivel": "parcial",
-   "motivo": "parte do texto o motor não resolve",
-   "listas": 36,
-   "gulosa": 201,
-   "texto": {
-    "mana_cost": "",
-    "type_line": "Land — Desert",
-    "oracle_text": "{T}: Add {C}.\n{T}, Sacrifice a creature: Add one mana of any color.\n{X}{2}, {T}, Sacrifice a Desert: Exile target creature card with mana value X from your graveyard. Create a token that's a copy of it, except it's a 4/4 black Zombie. Activate only as a sorcery.",
-    "keywords": [],
-    "layout": "normal"
-   }
-  },
-  {
-   "name": "Stitcher's Supplier",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "texto que o motor não resolve",
-   "listas": 36,
-   "gulosa": 74,
-   "texto": {
-    "mana_cost": "{B}",
-    "type_line": "Creature — Zombie",
-    "oracle_text": "When this creature enters or dies, mill three cards. (Put the top three cards of your library into your graveyard.)",
-    "keywords": [
-     "Mill"
-    ],
-    "layout": "normal",
-    "power": "1",
-    "toughness": "1"
-   }
-  },
-  {
-   "name": "Dark Matter Manipulator",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "texto que o motor não resolve",
-   "listas": 35,
-   "gulosa": 73,
-   "texto": {
-    "mana_cost": "{B}",
-    "type_line": "Creature — Human Warlock",
-    "oracle_text": "When this creature enters, mill three cards.\nThis creature gets +2/+0 for every seven cards in your graveyard.",
-    "keywords": [
-     "Mill"
-    ],
-    "layout": "normal",
-    "power": "1",
-    "toughness": "2"
-   }
-  },
-  {
    "name": "Glaring Fleshraker",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 35,
-   "gulosa": 336,
+   "gulosa": 339,
    "texto": null
   },
   {
@@ -470,8 +476,8 @@
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
-   "listas": 35,
-   "gulosa": 31,
+   "listas": 34,
+   "gulosa": 30,
    "texto": {
     "mana_cost": "{B}",
     "type_line": "Creature — Lhurgoyf",
@@ -489,8 +495,8 @@
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
-   "listas": 35,
-   "gulosa": 154,
+   "listas": 34,
+   "gulosa": 153,
    "texto": {
     "mana_cost": "{U}{U}",
     "type_line": "Creature — Merfolk Wizard",
@@ -499,23 +505,6 @@
     "layout": "normal",
     "power": "1",
     "toughness": "3"
-   }
-  },
-  {
-   "name": "Disruptor Flute",
-   "classe": "nova",
-   "nivel": "parcial",
-   "motivo": "parte do texto o motor não resolve",
-   "listas": 33,
-   "gulosa": 195,
-   "texto": {
-    "mana_cost": "{2}",
-    "type_line": "Artifact",
-    "oracle_text": "Flash\nAs this artifact enters, choose a card name.\nSpells with the chosen name cost {3} more to cast.\nActivated abilities of sources with the chosen name can't be activated unless they're mana abilities.",
-    "keywords": [
-     "Flash"
-    ],
-    "layout": "normal"
    }
   },
   {
@@ -536,12 +525,29 @@
    }
   },
   {
+   "name": "Disruptor Flute",
+   "classe": "nova",
+   "nivel": "parcial",
+   "motivo": "parte do texto o motor não resolve",
+   "listas": 32,
+   "gulosa": 193,
+   "texto": {
+    "mana_cost": "{2}",
+    "type_line": "Artifact",
+    "oracle_text": "Flash\nAs this artifact enters, choose a card name.\nSpells with the chosen name cost {3} more to cast.\nActivated abilities of sources with the chosen name can't be activated unless they're mana abilities.",
+    "keywords": [
+     "Flash"
+    ],
+    "layout": "normal"
+   }
+  },
+  {
    "name": "Static Prison",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
-   "listas": 32,
-   "gulosa": 201,
+   "listas": 31,
+   "gulosa": 199,
    "texto": {
     "mana_cost": "{W}",
     "type_line": "Enchantment",
@@ -555,8 +561,8 @@
    "classe": "nova",
    "nivel": "manual",
    "motivo": "mágica sem script",
-   "listas": 31,
-   "gulosa": 154,
+   "listas": 30,
+   "gulosa": 153,
    "texto": {
     "mana_cost": "{B}{B}{B}",
     "type_line": "Sorcery",
@@ -570,8 +576,8 @@
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
-   "listas": 30,
-   "gulosa": 253,
+   "listas": 29,
+   "gulosa": 248,
    "texto": {
     "mana_cost": "{7}",
     "type_line": "Legendary Planeswalker — Ugin",
@@ -582,30 +588,12 @@
    }
   },
   {
-   "name": "Life from the Loam",
-   "classe": "lida",
-   "nivel": "lida",
-   "motivo": "lida pelo motor, em revisão",
-   "listas": 28,
-   "gulosa": 18,
-   "texto": {
-    "mana_cost": "{1}{G}",
-    "type_line": "Sorcery",
-    "oracle_text": "Return up to three target land cards from your graveyard to your hand.\nDredge 3 (If you would draw a card, you may mill three cards instead. If you do, return this card from your graveyard to your hand.)",
-    "keywords": [
-     "Dredge",
-     "Mill"
-    ],
-    "layout": "normal"
-   }
-  },
-  {
    "name": "Omniscience",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 28,
-   "gulosa": 124,
+   "gulosa": 123,
    "texto": {
     "mana_cost": "{7}{U}{U}{U}",
     "type_line": "Enchantment",
@@ -620,15 +608,65 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 28,
-   "gulosa": 271,
+   "gulosa": 265,
    "texto": null
+  },
+  {
+   "name": "Life from the Loam",
+   "classe": "lida",
+   "nivel": "lida",
+   "motivo": "lida pelo motor, em revisão",
+   "listas": 27,
+   "gulosa": 18,
+   "texto": {
+    "mana_cost": "{1}{G}",
+    "type_line": "Sorcery",
+    "oracle_text": "Return up to three target land cards from your graveyard to your hand.\nDredge 3 (If you would draw a card, you may mill three cards instead. If you do, return this card from your graveyard to your hand.)",
+    "keywords": [
+     "Dredge",
+     "Mill"
+    ],
+    "layout": "normal"
+   }
+  },
+  {
+   "name": "Sand Scout",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
+   "listas": 26,
+   "gulosa": 200,
+   "texto": {
+    "mana_cost": "{1}{W}",
+    "type_line": "Creature — Human Scout",
+    "oracle_text": "When this creature enters, if an opponent controls more lands than you, search your library for a Desert card, put it onto the battlefield tapped, then shuffle.\nWhenever one or more land cards are put into your graveyard from anywhere, create a 1/1 red, green, and white Sand Warrior creature token. This ability triggers only once each turn.",
+    "keywords": [],
+    "layout": "normal",
+    "power": "2",
+    "toughness": "2"
+   }
+  },
+  {
+   "name": "Wrath of the Skies",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "mágica sem script",
+   "listas": 26,
+   "gulosa": 1,
+   "texto": {
+    "mana_cost": "{X}{W}{W}",
+    "type_line": "Sorcery",
+    "oracle_text": "You get X {E} (energy counters), then you may pay any amount of {E}. Destroy each artifact, creature, and enchantment with mana value less than or equal to the amount of {E} paid this way.",
+    "keywords": [],
+    "layout": "normal"
+   }
   },
   {
    "name": "Emrakul, the Aeons Torn",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
-   "listas": 26,
+   "listas": 25,
    "gulosa": 116,
    "texto": {
     "mana_cost": "{15}",
@@ -645,20 +683,18 @@
    }
   },
   {
-   "name": "Sand Scout",
+   "name": "Veil of Summer",
    "classe": "nova",
    "nivel": "manual",
-   "motivo": "texto que o motor não resolve",
-   "listas": 26,
-   "gulosa": 208,
+   "motivo": "mágica sem script",
+   "listas": 25,
+   "gulosa": 132,
    "texto": {
-    "mana_cost": "{1}{W}",
-    "type_line": "Creature — Human Scout",
-    "oracle_text": "When this creature enters, if an opponent controls more lands than you, search your library for a Desert card, put it onto the battlefield tapped, then shuffle.\nWhenever one or more land cards are put into your graveyard from anywhere, create a 1/1 red, green, and white Sand Warrior creature token. This ability triggers only once each turn.",
+    "mana_cost": "{G}",
+    "type_line": "Instant",
+    "oracle_text": "Draw a card if an opponent has cast a blue or black spell this turn. Spells you control can't be countered this turn. You and permanents you control gain hexproof from blue and from black until end of turn. (You and they can't be the targets of blue or black spells or abilities your opponents control.)",
     "keywords": [],
-    "layout": "normal",
-    "power": "2",
-    "toughness": "2"
+    "layout": "normal"
    }
   },
   {
@@ -666,8 +702,17 @@
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
-   "listas": 26,
-   "gulosa": 291,
+   "listas": 25,
+   "gulosa": 284,
+   "texto": null
+  },
+  {
+   "name": "Badgermole Cub",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
+   "listas": 24,
+   "gulosa": 273,
    "texto": null
   },
   {
@@ -675,8 +720,106 @@
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
-   "listas": 25,
-   "gulosa": 291,
+   "listas": 24,
+   "gulosa": 284,
+   "texto": null
+  },
+  {
+   "name": "Sylvan Safekeeper",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
+   "listas": 24,
+   "gulosa": 265,
+   "texto": null
+  },
+  {
+   "name": "Thespian's Stage",
+   "classe": "nova",
+   "nivel": "parcial",
+   "motivo": "parte do texto o motor não resolve",
+   "listas": 24,
+   "gulosa": 284,
+   "texto": null
+  },
+  {
+   "name": "Elvish Reclaimer",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
+   "listas": 22,
+   "gulosa": 265,
+   "texto": null
+  },
+  {
+   "name": "Forth Eorlingas!",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "mágica sem script",
+   "listas": 22,
+   "gulosa": 103,
+   "texto": {
+    "mana_cost": "{X}{R}{W}",
+    "type_line": "Sorcery",
+    "oracle_text": "Create X 2/2 red Human Knight creature tokens with trample and haste.\nWhenever one or more creatures you control deal combat damage to one or more players this turn, you become the monarch.",
+    "keywords": [],
+    "layout": "normal"
+   }
+  },
+  {
+   "name": "Eldrazi Linebreaker",
+   "classe": "nova",
+   "nivel": "parcial",
+   "motivo": "parte do texto o motor não resolve",
+   "listas": 21,
+   "gulosa": 396,
+   "texto": null
+  },
+  {
+   "name": "Eye of Ugin",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
+   "listas": 21,
+   "gulosa": 396,
+   "texto": null
+  },
+  {
+   "name": "Icetill Explorer",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
+   "listas": 21,
+   "gulosa": 63,
+   "texto": {
+    "mana_cost": "{2}{G}{G}",
+    "type_line": "Creature — Insect Scout",
+    "oracle_text": "You may play an additional land on each of your turns.\nYou may play lands from your graveyard.\nLandfall — Whenever a land you control enters, mill a card.",
+    "keywords": [
+     "Mill",
+     "Landfall"
+    ],
+    "layout": "normal",
+    "power": "2",
+    "toughness": "4"
+   }
+  },
+  {
+   "name": "Maze of Ith",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
+   "listas": 21,
+   "gulosa": 287,
+   "texto": null
+  },
+  {
+   "name": "Reality Smasher",
+   "classe": "nova",
+   "nivel": "parcial",
+   "motivo": "parte do texto o motor não resolve",
+   "listas": 21,
+   "gulosa": 396,
    "texto": null
   },
   {
@@ -684,8 +827,8 @@
    "classe": "nova",
    "nivel": "manual",
    "motivo": "mágica sem script",
-   "listas": 25,
-   "gulosa": 14,
+   "listas": 21,
+   "gulosa": 15,
    "texto": {
     "mana_cost": "",
     "type_line": "Instant // Land",
@@ -709,60 +852,12 @@
    }
   },
   {
-   "name": "Sylvan Safekeeper",
+   "name": "Thought-Knot Seer",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
-   "listas": 25,
-   "gulosa": 271,
-   "texto": null
-  },
-  {
-   "name": "Thespian's Stage",
-   "classe": "nova",
-   "nivel": "parcial",
-   "motivo": "parte do texto o motor não resolve",
-   "listas": 25,
-   "gulosa": 291,
-   "texto": null
-  },
-  {
-   "name": "Veil of Summer",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "mágica sem script",
-   "listas": 25,
-   "gulosa": 133,
-   "texto": {
-    "mana_cost": "{G}",
-    "type_line": "Instant",
-    "oracle_text": "Draw a card if an opponent has cast a blue or black spell this turn. Spells you control can't be countered this turn. You and permanents you control gain hexproof from blue and from black until end of turn. (You and they can't be the targets of blue or black spells or abilities your opponents control.)",
-    "keywords": [],
-    "layout": "normal"
-   }
-  },
-  {
-   "name": "Wrath of the Skies",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "mágica sem script",
-   "listas": 24,
-   "gulosa": 11,
-   "texto": {
-    "mana_cost": "{X}{W}{W}",
-    "type_line": "Sorcery",
-    "oracle_text": "You get X {E} (energy counters), then you may pay any amount of {E}. Destroy each artifact, creature, and enchantment with mana value less than or equal to the amount of {E} paid this way.",
-    "keywords": [],
-    "layout": "normal"
-   }
-  },
-  {
-   "name": "Elvish Reclaimer",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "texto que o motor não resolve",
-   "listas": 23,
-   "gulosa": 271,
+   "listas": 21,
+   "gulosa": 396,
    "texto": null
   },
   {
@@ -770,8 +865,8 @@
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
-   "listas": 23,
-   "gulosa": 7,
+   "listas": 21,
+   "gulosa": 11,
    "texto": {
     "mana_cost": "{0}",
     "type_line": "Artifact",
@@ -781,12 +876,21 @@
    }
   },
   {
+   "name": "Wastescape Battlemage",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
+   "listas": 21,
+   "gulosa": 396,
+   "texto": null
+  },
+  {
    "name": "White Orchid Phantom",
    "classe": "lida",
    "nivel": "lida",
    "motivo": "lida pelo motor, em revisão",
-   "listas": 23,
-   "gulosa": 202,
+   "listas": 21,
+   "gulosa": 222,
    "texto": {
     "mana_cost": "{W}{W}",
     "type_line": "Creature — Spirit Knight",
@@ -801,36 +905,12 @@
    }
   },
   {
-   "name": "Badgermole Cub",
+   "name": "Collector Ouphe",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
-   "listas": 22,
-   "gulosa": 280,
-   "texto": null
-  },
-  {
-   "name": "Forth Eorlingas!",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "mágica sem script",
-   "listas": 22,
-   "gulosa": 103,
-   "texto": {
-    "mana_cost": "{X}{R}{W}",
-    "type_line": "Sorcery",
-    "oracle_text": "Create X 2/2 red Human Knight creature tokens with trample and haste.\nWhenever one or more creatures you control deal combat damage to one or more players this turn, you become the monarch.",
-    "keywords": [],
-    "layout": "normal"
-   }
-  },
-  {
-   "name": "Maze of Ith",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "texto que o motor não resolve",
-   "listas": 22,
-   "gulosa": 294,
+   "listas": 20,
+   "gulosa": 271,
    "texto": null
   },
   {
@@ -838,8 +918,8 @@
    "classe": "nova",
    "nivel": "manual",
    "motivo": "mágica sem script",
-   "listas": 21,
-   "gulosa": 253,
+   "listas": 20,
+   "gulosa": 248,
    "texto": {
     "mana_cost": "{2}{C}{C}",
     "type_line": "Instant",
@@ -849,104 +929,12 @@
    }
   },
   {
-   "name": "Eldrazi Linebreaker",
-   "classe": "nova",
-   "nivel": "parcial",
-   "motivo": "parte do texto o motor não resolve",
-   "listas": 21,
-   "gulosa": 403,
-   "texto": null
-  },
-  {
-   "name": "Eye of Ugin",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "texto que o motor não resolve",
-   "listas": 21,
-   "gulosa": 403,
-   "texto": null
-  },
-  {
-   "name": "Icetill Explorer",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "texto que o motor não resolve",
-   "listas": 21,
-   "gulosa": 64,
-   "texto": {
-    "mana_cost": "{2}{G}{G}",
-    "type_line": "Creature — Insect Scout",
-    "oracle_text": "You may play an additional land on each of your turns.\nYou may play lands from your graveyard.\nLandfall — Whenever a land you control enters, mill a card.",
-    "keywords": [
-     "Mill",
-     "Landfall"
-    ],
-    "layout": "normal",
-    "power": "2",
-    "toughness": "4"
-   }
-  },
-  {
-   "name": "Reality Smasher",
-   "classe": "nova",
-   "nivel": "parcial",
-   "motivo": "parte do texto o motor não resolve",
-   "listas": 21,
-   "gulosa": 403,
-   "texto": null
-  },
-  {
-   "name": "The Tabernacle at Pendrell Vale",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "texto que o motor não resolve",
-   "listas": 21,
-   "gulosa": 296,
-   "texto": null
-  },
-  {
-   "name": "Thought-Knot Seer",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "texto que o motor não resolve",
-   "listas": 21,
-   "gulosa": 403,
-   "texto": null
-  },
-  {
-   "name": "Wastescape Battlemage",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "texto que o motor não resolve",
-   "listas": 21,
-   "gulosa": 403,
-   "texto": null
-  },
-  {
-   "name": "Collector Ouphe",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "texto que o motor não resolve",
-   "listas": 20,
-   "gulosa": 278,
-   "texto": null
-  },
-  {
-   "name": "Exploration",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "texto que o motor não resolve",
-   "listas": 20,
-   "gulosa": 296,
-   "texto": null
-  },
-  {
    "name": "Manifold Key",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 20,
-   "gulosa": 335,
+   "gulosa": 338,
    "texto": null
   },
   {
@@ -955,7 +943,7 @@
    "nivel": "lida",
    "motivo": "lida pelo motor, em revisão",
    "listas": 20,
-   "gulosa": 214,
+   "gulosa": 205,
    "texto": {
     "mana_cost": "{1}{R}{W}",
     "type_line": "Legendary Creature — Elder Giant",
@@ -969,12 +957,30 @@
    }
   },
   {
+   "name": "The Tabernacle at Pendrell Vale",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
+   "listas": 20,
+   "gulosa": 289,
+   "texto": null
+  },
+  {
+   "name": "Exploration",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
+   "listas": 19,
+   "gulosa": 289,
+   "texto": null
+  },
+  {
    "name": "It That Heralds the End",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 19,
-   "gulosa": 403,
+   "gulosa": 396,
    "texto": null
   },
   {
@@ -983,7 +989,25 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 19,
-   "gulosa": 336,
+   "gulosa": 339,
+   "texto": null
+  },
+  {
+   "name": "Tezzeret, Cruel Captain",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
+   "listas": 19,
+   "gulosa": 338,
+   "texto": null
+  },
+  {
+   "name": "Endurance",
+   "classe": "nova",
+   "nivel": "parcial",
+   "motivo": "parte do texto o motor não resolve",
+   "listas": 18,
+   "gulosa": 273,
    "texto": null
   },
   {
@@ -991,8 +1015,8 @@
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
-   "listas": 19,
-   "gulosa": 192,
+   "listas": 18,
+   "gulosa": 190,
    "texto": {
     "mana_cost": "{1}{W}",
     "type_line": "Creature — Kor Artificer",
@@ -1004,54 +1028,12 @@
    }
   },
   {
-   "name": "Tezzeret, Cruel Captain",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "texto que o motor não resolve",
-   "listas": 19,
-   "gulosa": 335,
-   "texto": null
-  },
-  {
-   "name": "Blast Zone",
-   "classe": "nova",
-   "nivel": "parcial",
-   "motivo": "parte do texto o motor não resolve",
-   "listas": 18,
-   "gulosa": 298,
-   "texto": null
-  },
-  {
-   "name": "Endurance",
-   "classe": "nova",
-   "nivel": "parcial",
-   "motivo": "parte do texto o motor não resolve",
-   "listas": 18,
-   "gulosa": 280,
-   "texto": null
-  },
-  {
-   "name": "Sneak Attack",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "texto que o motor não resolve",
-   "listas": 18,
-   "gulosa": 116,
-   "texto": {
-    "mana_cost": "{3}{R}",
-    "type_line": "Enchantment",
-    "oracle_text": "{R}: You may put a creature card from your hand onto the battlefield. That creature gains haste. Sacrifice the creature at the beginning of the next end step.",
-    "keywords": [],
-    "layout": "normal"
-   }
-  },
-  {
    "name": "Urza's Workshop",
    "classe": "nova",
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 18,
-   "gulosa": 268,
+   "gulosa": 262,
    "texto": {
     "mana_cost": "",
     "type_line": "Land — Urza's",
@@ -1063,12 +1045,36 @@
    }
   },
   {
+   "name": "Blast Zone",
+   "classe": "nova",
+   "nivel": "parcial",
+   "motivo": "parte do texto o motor não resolve",
+   "listas": 17,
+   "gulosa": 291,
+   "texto": null
+  },
+  {
+   "name": "Sneak Attack",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
+   "listas": 17,
+   "gulosa": 116,
+   "texto": {
+    "mana_cost": "{3}{R}",
+    "type_line": "Enchantment",
+    "oracle_text": "{R}: You may put a creature card from your hand onto the battlefield. That creature gains haste. Sacrifice the creature at the beginning of the next end step.",
+    "keywords": [],
+    "layout": "normal"
+   }
+  },
+  {
    "name": "Trinisphere",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 17,
-   "gulosa": 196,
+   "gulosa": 194,
    "texto": {
     "mana_cost": "{3}",
     "type_line": "Artifact",
@@ -1078,12 +1084,12 @@
    }
   },
   {
-   "name": "Wight of the Reliquary",
+   "name": "Abundant Countryside",
    "classe": "nova",
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
-   "listas": 17,
-   "gulosa": 271,
+   "listas": 16,
+   "gulosa": 396,
    "texto": null
   },
   {
@@ -1092,7 +1098,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 16,
-   "gulosa": 135,
+   "gulosa": 134,
    "texto": {
     "mana_cost": "{2}{B}",
     "type_line": "Legendary Creature — Zombie Wizard",
@@ -1111,7 +1117,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 16,
-   "gulosa": 135,
+   "gulosa": 134,
    "texto": {
     "mana_cost": "{2}{G}{G}",
     "type_line": "Enchantment",
@@ -1121,12 +1127,67 @@
    }
   },
   {
+   "name": "Wight of the Reliquary",
+   "classe": "nova",
+   "nivel": "parcial",
+   "motivo": "parte do texto o motor não resolve",
+   "listas": 16,
+   "gulosa": 265,
+   "texto": null
+  },
+  {
+   "name": "Sire of Seven Deaths",
+   "classe": "nova",
+   "nivel": "parcial",
+   "motivo": "parte do texto o motor não resolve",
+   "listas": 15,
+   "gulosa": 402,
+   "texto": null
+  },
+  {
+   "name": "Thalia, Guardian of Thraben",
+   "classe": "nova",
+   "nivel": "parcial",
+   "motivo": "parte do texto o motor não resolve",
+   "listas": 15,
+   "gulosa": 220,
+   "texto": {
+    "mana_cost": "{1}{W}",
+    "type_line": "Legendary Creature — Human Soldier",
+    "oracle_text": "First strike\nNoncreature spells cost {1} more to cast.",
+    "keywords": [
+     "First strike"
+    ],
+    "layout": "normal",
+    "power": "2",
+    "toughness": "1"
+   }
+  },
+  {
+   "name": "Aether Vial",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
+   "listas": 14,
+   "gulosa": 382,
+   "texto": null
+  },
+  {
+   "name": "Craterhoof Behemoth",
+   "classe": "nova",
+   "nivel": "parcial",
+   "motivo": "parte do texto o motor não resolve",
+   "listas": 14,
+   "gulosa": 279,
+   "texto": null
+  },
+  {
    "name": "Emry, Lurker of the Loch",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
-   "listas": 16,
-   "gulosa": 240,
+   "listas": 14,
+   "gulosa": 237,
    "texto": {
     "mana_cost": "{2}{U}",
     "type_line": "Legendary Creature — Merfolk Wizard",
@@ -1141,68 +1202,54 @@
    }
   },
   {
-   "name": "Thalia, Guardian of Thraben",
-   "classe": "nova",
-   "nivel": "parcial",
-   "motivo": "parte do texto o motor não resolve",
-   "listas": 16,
-   "gulosa": 203,
-   "texto": {
-    "mana_cost": "{1}{W}",
-    "type_line": "Legendary Creature — Human Soldier",
-    "oracle_text": "First strike\nNoncreature spells cost {1} more to cast.",
-    "keywords": [
-     "First strike"
-    ],
-    "layout": "normal",
-    "power": "2",
-    "toughness": "1"
-   }
-  },
-  {
-   "name": "Abundant Countryside",
-   "classe": "nova",
-   "nivel": "parcial",
-   "motivo": "parte do texto o motor não resolve",
-   "listas": 15,
-   "gulosa": 403,
-   "texto": null
-  },
-  {
-   "name": "Aether Vial",
+   "name": "Grist, the Hunger Tide",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
-   "listas": 15,
-   "gulosa": 389,
-   "texto": null
-  },
-  {
-   "name": "Pinnacle Emissary",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "texto que o motor não resolve",
-   "listas": 15,
-   "gulosa": 240,
+   "listas": 14,
+   "gulosa": 236,
    "texto": {
-    "mana_cost": "{1}{U}{R}",
-    "type_line": "Artifact Creature — Robot",
-    "oracle_text": "Whenever you cast an artifact spell, create a 1/1 colorless Drone artifact creature token with flying and \"This token can block only creatures with flying.\"\nWarp {U/R} (You may cast this card from your hand for its warp cost. Exile this creature at the beginning of the next end step, then you may cast it from exile on a later turn.)",
+    "mana_cost": "{1}{B}{G}",
+    "type_line": "Legendary Planeswalker — Grist",
+    "oracle_text": "As long as Grist isn't on the battlefield, it's a 1/1 Insect creature in addition to its other types.\n+1: Create a 1/1 black and green Insect creature token, then mill a card. If an Insect card was milled this way, put a loyalty counter on Grist and repeat this process.\n−2: You may sacrifice a creature. When you do, destroy target creature or planeswalker.\n−5: Each opponent loses life equal to the number of creature cards in your graveyard.",
     "keywords": [
-     "Warp"
+     "Mill"
     ],
     "layout": "normal",
-    "power": "3",
-    "toughness": "3"
+    "loyalty": "3"
    }
   },
   {
-   "name": "Sire of Seven Deaths",
+   "name": "Mystic Sanctuary",
+   "classe": "lida",
+   "nivel": "lida",
+   "motivo": "lida pelo motor, em revisão",
+   "listas": 14,
+   "gulosa": 21,
+   "texto": {
+    "mana_cost": "",
+    "type_line": "Land — Island",
+    "oracle_text": "({T}: Add {U}.)\nThis land enters tapped unless you control three or more other Islands.\nWhen this land enters untapped, you may put target instant or sorcery card from your graveyard on top of your library.",
+    "keywords": [],
+    "layout": "normal"
+   }
+  },
+  {
+   "name": "Natural Order",
    "classe": "nova",
-   "nivel": "parcial",
-   "motivo": "parte do texto o motor não resolve",
-   "listas": 15,
-   "gulosa": 409,
+   "nivel": "manual",
+   "motivo": "mágica sem script",
+   "listas": 14,
+   "gulosa": 278,
+   "texto": null
+  },
+  {
+   "name": "Portable Hole",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
+   "listas": 14,
+   "gulosa": 338,
    "texto": null
   },
   {
@@ -1210,8 +1257,33 @@
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
-   "listas": 15,
-   "gulosa": 388,
+   "listas": 14,
+   "gulosa": 381,
+   "texto": null
+  },
+  {
+   "name": "Teferi, Time Raveler",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
+   "listas": 14,
+   "gulosa": 101,
+   "texto": {
+    "mana_cost": "{1}{W}{U}",
+    "type_line": "Legendary Planeswalker — Teferi",
+    "oracle_text": "Each opponent can cast spells only any time they could cast a sorcery.\n+1: Until your next turn, you may cast sorcery spells as though they had flash.\n−3: Return up to one target artifact, creature, or enchantment to its owner's hand. Draw a card.",
+    "keywords": [],
+    "layout": "normal",
+    "loyalty": "4"
+   }
+  },
+  {
+   "name": "Voltaic Key",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
+   "listas": 14,
+   "gulosa": 339,
    "texto": null
   },
   {
@@ -1219,8 +1291,8 @@
    "classe": "lida",
    "nivel": "lida",
    "motivo": "lida pelo motor, em revisão",
-   "listas": 15,
-   "gulosa": 334,
+   "listas": 14,
+   "gulosa": 337,
    "texto": {
     "mana_cost": "",
     "type_line": "Creature — Human Warlock // Land",
@@ -1246,30 +1318,21 @@
    }
   },
   {
-   "name": "Grist, the Hunger Tide",
+   "name": "Formidable Speaker",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
-   "listas": 14,
-   "gulosa": 239,
-   "texto": {
-    "mana_cost": "{1}{B}{G}",
-    "type_line": "Legendary Planeswalker — Grist",
-    "oracle_text": "As long as Grist isn't on the battlefield, it's a 1/1 Insect creature in addition to its other types.\n+1: Create a 1/1 black and green Insect creature token, then mill a card. If an Insect card was milled this way, put a loyalty counter on Grist and repeat this process.\n−2: You may sacrifice a creature. When you do, destroy target creature or planeswalker.\n−5: Each opponent loses life equal to the number of creature cards in your graveyard.",
-    "keywords": [
-     "Mill"
-    ],
-    "layout": "normal",
-    "loyalty": "3"
-   }
+   "listas": 13,
+   "gulosa": 309,
+   "texto": null
   },
   {
    "name": "Jace, Wielder of Mysteries",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
-   "listas": 14,
-   "gulosa": 166,
+   "listas": 13,
+   "gulosa": 165,
    "texto": {
     "mana_cost": "{1}{U}{U}{U}",
     "type_line": "Legendary Planeswalker — Jace",
@@ -1286,26 +1349,55 @@
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
-   "listas": 14,
-   "gulosa": 389,
+   "listas": 13,
+   "gulosa": 382,
    "texto": null
   },
   {
-   "name": "Portable Hole",
+   "name": "Mockingbird",
+   "classe": "nova",
+   "nivel": "parcial",
+   "motivo": "parte do texto o motor não resolve",
+   "listas": 13,
+   "gulosa": 60,
+   "texto": {
+    "mana_cost": "{X}{U}",
+    "type_line": "Creature — Bird Bard",
+    "oracle_text": "Flying\nYou may have this creature enter as a copy of any creature on the battlefield with mana value less than or equal to the amount of mana spent to cast this creature, except it's a Bird in addition to its other types and it has flying.",
+    "keywords": [
+     "Flying"
+    ],
+    "layout": "normal",
+    "power": "1",
+    "toughness": "1"
+   }
+  },
+  {
+   "name": "Pinnacle Emissary",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
-   "listas": 14,
-   "gulosa": 335,
-   "texto": null
+   "listas": 13,
+   "gulosa": 237,
+   "texto": {
+    "mana_cost": "{1}{U}{R}",
+    "type_line": "Artifact Creature — Robot",
+    "oracle_text": "Whenever you cast an artifact spell, create a 1/1 colorless Drone artifact creature token with flying and \"This token can block only creatures with flying.\"\nWarp {U/R} (You may cast this card from your hand for its warp cost. Exile this creature at the beginning of the next end step, then you may cast it from exile on a later turn.)",
+    "keywords": [
+     "Warp"
+    ],
+    "layout": "normal",
+    "power": "3",
+    "toughness": "3"
+   }
   },
   {
    "name": "Pre-War Formalwear",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
-   "listas": 14,
-   "gulosa": 389,
+   "listas": 13,
+   "gulosa": 382,
    "texto": null
   },
   {
@@ -1313,33 +1405,17 @@
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
-   "listas": 14,
-   "gulosa": 389,
+   "listas": 13,
+   "gulosa": 382,
    "texto": null
   },
   {
-   "name": "Teferi, Time Raveler",
+   "name": "Allosaurus Shepherd",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
-   "listas": 14,
-   "gulosa": 101,
-   "texto": {
-    "mana_cost": "{1}{W}{U}",
-    "type_line": "Legendary Planeswalker — Teferi",
-    "oracle_text": "Each opponent can cast spells only any time they could cast a sorcery.\n+1: Until your next turn, you may cast sorcery spells as though they had flash.\n−3: Return up to one target artifact, creature, or enchantment to its owner's hand. Draw a card.",
-    "keywords": [],
-    "layout": "normal",
-    "loyalty": "4"
-   }
-  },
-  {
-   "name": "Voltaic Key",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "texto que o motor não resolve",
-   "listas": 14,
-   "gulosa": 336,
+   "listas": 12,
+   "gulosa": 309,
    "texto": null
   },
   {
@@ -1347,8 +1423,8 @@
    "classe": "nova",
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
-   "listas": 13,
-   "gulosa": 59,
+   "listas": 12,
+   "gulosa": 58,
    "texto": {
     "mana_cost": "{2}{B}",
     "type_line": "Creature — Lhurgoyf",
@@ -1364,12 +1440,21 @@
    }
   },
   {
+   "name": "Canoptek Scarab Swarm",
+   "classe": "nova",
+   "nivel": "parcial",
+   "motivo": "parte do texto o motor não resolve",
+   "listas": 12,
+   "gulosa": 382,
+   "texto": null
+  },
+  {
    "name": "Cloak and Dagger, Entwined",
    "classe": "nova",
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
-   "listas": 13,
-   "gulosa": 390,
+   "listas": 12,
+   "gulosa": 383,
    "texto": null
   },
   {
@@ -1377,7 +1462,7 @@
    "classe": "nova",
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
-   "listas": 13,
+   "listas": 12,
    "gulosa": 111,
    "texto": {
     "mana_cost": "{4}{B}{B}{B}{B}",
@@ -1393,111 +1478,13 @@
    }
   },
   {
-   "name": "Mystic Sanctuary",
-   "classe": "lida",
-   "nivel": "lida",
-   "motivo": "lida pelo motor, em revisão",
-   "listas": 13,
-   "gulosa": 21,
-   "texto": {
-    "mana_cost": "",
-    "type_line": "Land — Island",
-    "oracle_text": "({T}: Add {U}.)\nThis land enters tapped unless you control three or more other Islands.\nWhen this land enters untapped, you may put target instant or sorcery card from your graveyard on top of your library.",
-    "keywords": [],
-    "layout": "normal"
-   }
-  },
-  {
-   "name": "Natural Order",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "mágica sem script",
-   "listas": 13,
-   "gulosa": 285,
-   "texto": null
-  },
-  {
    "name": "Overlord of the Balemurk",
    "classe": "nova",
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
-   "listas": 13,
-   "gulosa": 390,
+   "listas": 12,
+   "gulosa": 383,
    "texto": null
-  },
-  {
-   "name": "Canoptek Scarab Swarm",
-   "classe": "nova",
-   "nivel": "parcial",
-   "motivo": "parte do texto o motor não resolve",
-   "listas": 12,
-   "gulosa": 389,
-   "texto": null
-  },
-  {
-   "name": "Craterhoof Behemoth",
-   "classe": "nova",
-   "nivel": "parcial",
-   "motivo": "parte do texto o motor não resolve",
-   "listas": 12,
-   "gulosa": 286,
-   "texto": null
-  },
-  {
-   "name": "Kappa Cannoneer",
-   "classe": "nova",
-   "nivel": "parcial",
-   "motivo": "parte do texto o motor não resolve",
-   "listas": 12,
-   "gulosa": 240,
-   "texto": {
-    "mana_cost": "{5}{U}",
-    "type_line": "Artifact Creature — Turtle Warrior",
-    "oracle_text": "Improvise (Your artifacts can help cast this spell. Each artifact you tap after you're done activating mana abilities pays for {1}.)\nWard {4}\nWhenever this creature or another artifact you control enters, put a +1/+1 counter on this creature. It can't be blocked this turn.",
-    "keywords": [
-     "Improvise",
-     "Ward"
-    ],
-    "layout": "normal",
-    "power": "4",
-    "toughness": "4"
-   }
-  },
-  {
-   "name": "Mockingbird",
-   "classe": "nova",
-   "nivel": "parcial",
-   "motivo": "parte do texto o motor não resolve",
-   "listas": 12,
-   "gulosa": 61,
-   "texto": {
-    "mana_cost": "{X}{U}",
-    "type_line": "Creature — Bird Bard",
-    "oracle_text": "Flying\nYou may have this creature enter as a copy of any creature on the battlefield with mana value less than or equal to the amount of mana spent to cast this creature, except it's a Bird in addition to its other types and it has flying.",
-    "keywords": [
-     "Flying"
-    ],
-    "layout": "normal",
-    "power": "1",
-    "toughness": "1"
-   }
-  },
-  {
-   "name": "Otawara, Soaring City",
-   "classe": "lida",
-   "nivel": "lida",
-   "motivo": "lida pelo motor, em revisão",
-   "listas": 12,
-   "gulosa": 262,
-   "texto": {
-    "mana_cost": "",
-    "type_line": "Legendary Land",
-    "oracle_text": "{T}: Add {U}.\nChannel — {3}{U}, Discard this card: Return target artifact, creature, enchantment, or planeswalker to its owner's hand. This ability costs {1} less to activate for each legendary creature you control.",
-    "keywords": [
-     "Channel"
-    ],
-    "layout": "normal"
-   }
   },
   {
    "name": "Raph & Mikey, Troublemakers",
@@ -1525,16 +1512,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 12,
-   "gulosa": 273,
-   "texto": null
-  },
-  {
-   "name": "Allosaurus Shepherd",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "texto que o motor não resolve",
-   "listas": 11,
-   "gulosa": 355,
+   "gulosa": 266,
    "texto": null
   },
   {
@@ -1558,7 +1536,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 11,
-   "gulosa": 369,
+   "gulosa": 362,
    "texto": null
   },
   {
@@ -1567,7 +1545,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 11,
-   "gulosa": 323,
+   "gulosa": 326,
    "texto": null
   },
   {
@@ -1576,16 +1554,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 11,
-   "gulosa": 369,
-   "texto": null
-  },
-  {
-   "name": "Formidable Speaker",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "texto que o motor não resolve",
-   "listas": 11,
-   "gulosa": 355,
+   "gulosa": 362,
    "texto": null
   },
   {
@@ -1594,7 +1563,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 11,
-   "gulosa": 369,
+   "gulosa": 362,
    "texto": null
   },
   {
@@ -1603,7 +1572,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 11,
-   "gulosa": 335,
+   "gulosa": 338,
    "texto": null
   },
   {
@@ -1612,7 +1581,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 11,
-   "gulosa": 67,
+   "gulosa": 66,
    "texto": {
     "mana_cost": "{B}",
     "type_line": "Sorcery",
@@ -1641,12 +1610,76 @@
    }
   },
   {
+   "name": "Temur Sabertooth",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
+   "listas": 11,
+   "gulosa": 309,
+   "texto": null
+  },
+  {
+   "name": "Wirewood Symbiote",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
+   "listas": 11,
+   "gulosa": 309,
+   "texto": null
+  },
+  {
+   "name": "Kappa Cannoneer",
+   "classe": "nova",
+   "nivel": "parcial",
+   "motivo": "parte do texto o motor não resolve",
+   "listas": 10,
+   "gulosa": 237,
+   "texto": {
+    "mana_cost": "{5}{U}",
+    "type_line": "Artifact Creature — Turtle Warrior",
+    "oracle_text": "Improvise (Your artifacts can help cast this spell. Each artifact you tap after you're done activating mana abilities pays for {1}.)\nWard {4}\nWhenever this creature or another artifact you control enters, put a +1/+1 counter on this creature. It can't be blocked this turn.",
+    "keywords": [
+     "Improvise",
+     "Ward"
+    ],
+    "layout": "normal",
+    "power": "4",
+    "toughness": "4"
+   }
+  },
+  {
+   "name": "Otawara, Soaring City",
+   "classe": "lida",
+   "nivel": "lida",
+   "motivo": "lida pelo motor, em revisão",
+   "listas": 10,
+   "gulosa": 256,
+   "texto": {
+    "mana_cost": "",
+    "type_line": "Legendary Land",
+    "oracle_text": "{T}: Add {U}.\nChannel — {3}{U}, Discard this card: Return target artifact, creature, enchantment, or planeswalker to its owner's hand. This ability costs {1} less to activate for each legendary creature you control.",
+    "keywords": [
+     "Channel"
+    ],
+    "layout": "normal"
+   }
+  },
+  {
+   "name": "Sphere of Resistance",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
+   "listas": 10,
+   "gulosa": 294,
+   "texto": null
+  },
+  {
    "name": "Thundertrap Trainer",
    "classe": "nova",
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
-   "listas": 11,
-   "gulosa": 150,
+   "listas": 10,
+   "gulosa": 149,
    "texto": {
     "mana_cost": "{1}{U}",
     "type_line": "Creature — Otter Wizard",
@@ -1660,12 +1693,30 @@
    }
   },
   {
+   "name": "Echo of Eons",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "mágica sem script",
+   "listas": 9,
+   "gulosa": 359,
+   "texto": null
+  },
+  {
+   "name": "Gamble",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "mágica sem script",
+   "listas": 9,
+   "gulosa": 307,
+   "texto": null
+  },
+  {
    "name": "Grafdigger's Cage",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
-   "listas": 10,
-   "gulosa": 252,
+   "listas": 9,
+   "gulosa": 247,
    "texto": {
     "mana_cost": "{1}",
     "type_line": "Artifact",
@@ -1675,72 +1726,12 @@
    }
   },
   {
-   "name": "Sphere of Resistance",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "texto que o motor não resolve",
-   "listas": 10,
-   "gulosa": 301,
-   "texto": null
-  },
-  {
-   "name": "Temur Sabertooth",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "texto que o motor não resolve",
-   "listas": 10,
-   "gulosa": 355,
-   "texto": null
-  },
-  {
-   "name": "Wirewood Symbiote",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "texto que o motor não resolve",
-   "listas": 10,
-   "gulosa": 355,
-   "texto": null
-  },
-  {
-   "name": "Echo of Eons",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "mágica sem script",
-   "listas": 9,
-   "gulosa": 366,
-   "texto": null
-  },
-  {
-   "name": "Eumidian Hatchery",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "texto que o motor não resolve",
-   "listas": 9,
-   "gulosa": 239,
-   "texto": {
-    "mana_cost": "",
-    "type_line": "Land",
-    "oracle_text": "{T}, Pay 1 life: Add {B}. Put a hatchling counter on this land.\nWhen this land is put into a graveyard from the battlefield, for each hatchling counter on it, create a 1/1 black Insect creature token with flying.",
-    "keywords": [],
-    "layout": "normal"
-   }
-  },
-  {
-   "name": "Gamble",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "mágica sem script",
-   "listas": 9,
-   "gulosa": 315,
-   "texto": null
-  },
-  {
    "name": "Knight of the Reliquary",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 9,
-   "gulosa": 288,
+   "gulosa": 281,
    "texto": null
   },
   {
@@ -1749,7 +1740,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 9,
-   "gulosa": 150,
+   "gulosa": 149,
    "texto": {
     "mana_cost": "{2}{R}",
     "type_line": "Creature — Human Wizard",
@@ -1766,8 +1757,25 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 9,
-   "gulosa": 344,
+   "gulosa": 347,
    "texto": null
+  },
+  {
+   "name": "Terminus",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "mágica sem script",
+   "listas": 9,
+   "gulosa": 5,
+   "texto": {
+    "mana_cost": "{4}{W}{W}",
+    "type_line": "Sorcery",
+    "oracle_text": "Put all creatures on the bottom of their owners' libraries.\nMiracle {W} (You may cast this card for its miracle cost when you draw it if it's the first card you drew this turn.)",
+    "keywords": [
+     "Miracle"
+    ],
+    "layout": "normal"
+   }
   },
   {
    "name": "Vibrance",
@@ -1775,7 +1783,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 9,
-   "gulosa": 355,
+   "gulosa": 311,
    "texto": null
   },
   {
@@ -1784,7 +1792,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 8,
-   "gulosa": 72,
+   "gulosa": 71,
    "texto": {
     "mana_cost": "{6}{B}{B}",
     "type_line": "Creature — Archon",
@@ -1803,7 +1811,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 8,
-   "gulosa": 278,
+   "gulosa": 271,
    "texto": null
   },
   {
@@ -1812,7 +1820,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 8,
-   "gulosa": 70,
+   "gulosa": 69,
    "texto": {
     "mana_cost": "{1}{U}{U}",
     "type_line": "Legendary Planeswalker — Chandra",
@@ -1825,20 +1833,18 @@
    }
   },
   {
-   "name": "Goblin Welder",
+   "name": "Eumidian Hatchery",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 8,
-   "gulosa": 245,
+   "gulosa": 236,
    "texto": {
-    "mana_cost": "{R}",
-    "type_line": "Creature — Goblin Artificer",
-    "oracle_text": "{T}: Choose target artifact a player controls and target artifact card in that player's graveyard. If both targets are still legal as this ability resolves, that player simultaneously sacrifices the artifact and returns the artifact card to the battlefield.",
+    "mana_cost": "",
+    "type_line": "Land",
+    "oracle_text": "{T}, Pay 1 life: Add {B}. Put a hatchling counter on this land.\nWhen this land is put into a graveyard from the battlefield, for each hatchling counter on it, create a 1/1 black Insect creature token with flying.",
     "keywords": [],
-    "layout": "normal",
-    "power": "1",
-    "toughness": "1"
+    "layout": "normal"
    }
   },
   {
@@ -1847,7 +1853,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 8,
-   "gulosa": 249,
+   "gulosa": 244,
    "texto": {
     "mana_cost": "{1}{U}",
     "type_line": "Creature — Illusion",
@@ -1861,29 +1867,12 @@
    }
   },
   {
-   "name": "Terminus",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "mágica sem script",
-   "listas": 8,
-   "gulosa": 1,
-   "texto": {
-    "mana_cost": "{4}{W}{W}",
-    "type_line": "Sorcery",
-    "oracle_text": "Put all creatures on the bottom of their owners' libraries.\nMiracle {W} (You may cast this card for its miracle cost when you draw it if it's the first card you drew this turn.)",
-    "keywords": [
-     "Miracle"
-    ],
-    "layout": "normal"
-   }
-  },
-  {
    "name": "Dress Down",
    "classe": "nova",
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 7,
-   "gulosa": 69,
+   "gulosa": 68,
    "texto": {
     "mana_cost": "{1}{U}",
     "type_line": "Enchantment",
@@ -1900,7 +1889,16 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 7,
-   "gulosa": 291,
+   "gulosa": 284,
+   "texto": null
+  },
+  {
+   "name": "Eladamri, Korvecdal",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
+   "listas": 7,
+   "gulosa": 309,
    "texto": null
   },
   {
@@ -1909,23 +1907,23 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 7,
-   "gulosa": 322,
+   "gulosa": 325,
    "texto": null
   },
   {
-   "name": "Loki, God of Mischief",
+   "name": "Goblin Welder",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 7,
-   "gulosa": 244,
+   "gulosa": 242,
    "texto": {
-    "mana_cost": "{1}{U}",
-    "type_line": "Legendary Creature — God Sorcerer Villain",
-    "oracle_text": "Whenever a player or permanent becomes the target of an ability you control, draw a card. This ability triggers only once each turn.",
+    "mana_cost": "{R}",
+    "type_line": "Creature — Goblin Artificer",
+    "oracle_text": "{T}: Choose target artifact a player controls and target artifact card in that player's graveyard. If both targets are still legal as this ability resolves, that player simultaneously sacrifices the artifact and returns the artifact card to the battlefield.",
     "keywords": [],
     "layout": "normal",
-    "power": "2",
+    "power": "1",
     "toughness": "1"
    }
   },
@@ -1935,7 +1933,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 7,
-   "gulosa": 175,
+   "gulosa": 173,
    "texto": {
     "mana_cost": "{3}{U}{U}",
     "type_line": "Instant",
@@ -1945,17 +1943,19 @@
    }
   },
   {
-   "name": "Sheoldred's Edict",
+   "name": "Shifting Woodland",
    "classe": "nova",
-   "nivel": "manual",
-   "motivo": "mágica sem script",
+   "nivel": "parcial",
+   "motivo": "parte do texto o motor não resolve",
    "listas": 7,
-   "gulosa": 65,
+   "gulosa": 264,
    "texto": {
-    "mana_cost": "{1}{B}",
-    "type_line": "Instant",
-    "oracle_text": "Choose one —\n• Each opponent sacrifices a nontoken creature of their choice.\n• Each opponent sacrifices a creature token of their choice.\n• Each opponent sacrifices a planeswalker of their choice.",
-    "keywords": [],
+    "mana_cost": "",
+    "type_line": "Land",
+    "oracle_text": "This land enters tapped unless you control a Forest.\n{T}: Add {G}.\nDelirium — {2}{G}{G}: This land becomes a copy of target permanent card in your graveyard until end of turn. Activate only if there are four or more card types among cards in your graveyard.",
+    "keywords": [
+     "Delirium"
+    ],
     "layout": "normal"
    }
   },
@@ -1965,7 +1965,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 7,
-   "gulosa": 369,
+   "gulosa": 362,
    "texto": null
   },
   {
@@ -1991,7 +1991,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 6,
-   "gulosa": 317,
+   "gulosa": 320,
    "texto": null
   },
   {
@@ -2000,7 +2000,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 6,
-   "gulosa": 317,
+   "gulosa": 320,
    "texto": null
   },
   {
@@ -2009,7 +2009,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 6,
-   "gulosa": 153,
+   "gulosa": 152,
    "texto": {
     "mana_cost": "{2}{R}",
     "type_line": "Enchantment",
@@ -2024,7 +2024,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 6,
-   "gulosa": 383,
+   "gulosa": 376,
    "texto": null
   },
   {
@@ -2033,35 +2033,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 6,
-   "gulosa": 323,
-   "texto": null
-  },
-  {
-   "name": "Dauthi Voidwalker",
-   "classe": "nova",
-   "nivel": "parcial",
-   "motivo": "parte do texto o motor não resolve",
-   "listas": 6,
-   "gulosa": 65,
-   "texto": {
-    "mana_cost": "{B}{B}",
-    "type_line": "Creature — Dauthi Rogue",
-    "oracle_text": "Shadow (This creature can block or be blocked by only creatures with shadow.)\nIf a card would be put into an opponent's graveyard from anywhere, instead exile it with a void counter on it.\n{T}, Sacrifice this creature: Choose an exiled card an opponent owns with a void counter on it. You may play it this turn without paying its mana cost.",
-    "keywords": [
-     "Shadow"
-    ],
-    "layout": "normal",
-    "power": "3",
-    "toughness": "2"
-   }
-  },
-  {
-   "name": "Eladamri, Korvecdal",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "texto que o motor não resolve",
-   "listas": 6,
-   "gulosa": 357,
+   "gulosa": 326,
    "texto": null
   },
   {
@@ -2070,7 +2042,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 6,
-   "gulosa": 328,
+   "gulosa": 331,
    "texto": null
   },
   {
@@ -2079,7 +2051,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 6,
-   "gulosa": 317,
+   "gulosa": 320,
    "texto": null
   },
   {
@@ -2088,8 +2060,25 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 6,
-   "gulosa": 317,
+   "gulosa": 320,
    "texto": null
+  },
+  {
+   "name": "Loki, God of Mischief",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
+   "listas": 6,
+   "gulosa": 241,
+   "texto": {
+    "mana_cost": "{1}{U}",
+    "type_line": "Legendary Creature — God Sorcerer Villain",
+    "oracle_text": "Whenever a player or permanent becomes the target of an ability you control, draw a card. This ability triggers only once each turn.",
+    "keywords": [],
+    "layout": "normal",
+    "power": "2",
+    "toughness": "1"
+   }
   },
   {
    "name": "Phyrexian Dragon Engine",
@@ -2097,7 +2086,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 6,
-   "gulosa": 317,
+   "gulosa": 320,
    "texto": null
   },
   {
@@ -2106,7 +2095,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 6,
-   "gulosa": 369,
+   "gulosa": 362,
    "texto": null
   },
   {
@@ -2115,16 +2104,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 6,
-   "gulosa": 323,
-   "texto": null
-  },
-  {
-   "name": "Secluded Courtyard",
-   "classe": "nova",
-   "nivel": "parcial",
-   "motivo": "parte do texto o motor não resolve",
-   "listas": 6,
-   "gulosa": 416,
+   "gulosa": 326,
    "texto": null
   },
   {
@@ -2133,7 +2113,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 6,
-   "gulosa": 242,
+   "gulosa": 239,
    "texto": {
     "mana_cost": "{1}",
     "type_line": "Legendary Artifact — Equipment",
@@ -2145,19 +2125,17 @@
    }
   },
   {
-   "name": "Shifting Woodland",
+   "name": "Sheoldred's Edict",
    "classe": "nova",
-   "nivel": "parcial",
-   "motivo": "parte do texto o motor não resolve",
+   "nivel": "manual",
+   "motivo": "mágica sem script",
    "listas": 6,
-   "gulosa": 270,
+   "gulosa": 65,
    "texto": {
-    "mana_cost": "",
-    "type_line": "Land",
-    "oracle_text": "This land enters tapped unless you control a Forest.\n{T}: Add {G}.\nDelirium — {2}{G}{G}: This land becomes a copy of target permanent card in your graveyard until end of turn. Activate only if there are four or more card types among cards in your graveyard.",
-    "keywords": [
-     "Delirium"
-    ],
+    "mana_cost": "{1}{B}",
+    "type_line": "Instant",
+    "oracle_text": "Choose one —\n• Each opponent sacrifices a nontoken creature of their choice.\n• Each opponent sacrifices a creature token of their choice.\n• Each opponent sacrifices a planeswalker of their choice.",
+    "keywords": [],
     "layout": "normal"
    }
   },
@@ -2204,7 +2182,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 6,
-   "gulosa": 323,
+   "gulosa": 326,
    "texto": null
   },
   {
@@ -2213,7 +2191,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 5,
-   "gulosa": 375,
+   "gulosa": 368,
    "texto": null
   },
   {
@@ -2222,7 +2200,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 5,
-   "gulosa": 323,
+   "gulosa": 326,
    "texto": null
   },
   {
@@ -2231,7 +2209,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 5,
-   "gulosa": 258,
+   "gulosa": 252,
    "texto": {
     "mana_cost": "{1}{U}",
     "type_line": "Instant",
@@ -2243,21 +2221,21 @@
    }
   },
   {
-   "name": "Emperor of Bones",
+   "name": "Dauthi Voidwalker",
    "classe": "nova",
-   "nivel": "manual",
-   "motivo": "texto que o motor não resolve",
+   "nivel": "parcial",
+   "motivo": "parte do texto o motor não resolve",
    "listas": 5,
-   "gulosa": 60,
+   "gulosa": 65,
    "texto": {
-    "mana_cost": "{1}{B}",
-    "type_line": "Creature — Skeleton Noble",
-    "oracle_text": "At the beginning of combat on your turn, exile up to one target card from a graveyard.\n{1}{B}: Adapt 2.\nWhenever one or more +1/+1 counters are put on this creature, put a creature card exiled with this creature onto the battlefield under your control with a finality counter on it. It gains haste. Sacrifice it at the beginning of the next end step.",
+    "mana_cost": "{B}{B}",
+    "type_line": "Creature — Dauthi Rogue",
+    "oracle_text": "Shadow (This creature can block or be blocked by only creatures with shadow.)\nIf a card would be put into an opponent's graveyard from anywhere, instead exile it with a void counter on it.\n{T}, Sacrifice this creature: Choose an exiled card an opponent owns with a void counter on it. You may play it this turn without paying its mana cost.",
     "keywords": [
-     "Adapt"
+     "Shadow"
     ],
     "layout": "normal",
-    "power": "2",
+    "power": "3",
     "toughness": "2"
    }
   },
@@ -2267,7 +2245,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 5,
-   "gulosa": 375,
+   "gulosa": 368,
    "texto": null
   },
   {
@@ -2276,7 +2254,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 5,
-   "gulosa": 192,
+   "gulosa": 190,
    "texto": {
     "mana_cost": "{7}",
     "type_line": "Legendary Artifact — Equipment",
@@ -2295,7 +2273,16 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 5,
-   "gulosa": 384,
+   "gulosa": 377,
+   "texto": null
+  },
+  {
+   "name": "Secluded Courtyard",
+   "classe": "nova",
+   "nivel": "parcial",
+   "motivo": "parte do texto o motor não resolve",
+   "listas": 5,
+   "gulosa": 410,
    "texto": null
   },
   {
@@ -2319,7 +2306,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 5,
-   "gulosa": 329,
+   "gulosa": 332,
    "texto": null
   },
   {
@@ -2328,7 +2315,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 5,
-   "gulosa": 243,
+   "gulosa": 240,
    "texto": {
     "mana_cost": "",
     "type_line": "Instant // Land",
@@ -2357,8 +2344,27 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 5,
-   "gulosa": 329,
+   "gulosa": 332,
    "texto": null
+  },
+  {
+   "name": "Uro, Titan of Nature's Wrath",
+   "classe": "lida",
+   "nivel": "lida",
+   "motivo": "lida pelo motor, em revisão",
+   "listas": 5,
+   "gulosa": 63,
+   "texto": {
+    "mana_cost": "{1}{G}{U}",
+    "type_line": "Legendary Creature — Elder Giant",
+    "oracle_text": "When Uro enters, sacrifice it unless it escaped.\nWhenever Uro enters or attacks, you gain 3 life and draw a card, then you may put a land card from your hand onto the battlefield.\nEscape—{G}{G}{U}{U}, Exile five other cards from your graveyard. (You may cast this card from your graveyard for its escape cost.)",
+    "keywords": [
+     "Escape"
+    ],
+    "layout": "normal",
+    "power": "6",
+    "toughness": "6"
+   }
   },
   {
    "name": "Wishclaw Talisman",
@@ -2366,7 +2372,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 5,
-   "gulosa": 375,
+   "gulosa": 368,
    "texto": null
   },
   {
@@ -2375,7 +2381,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 4,
-   "gulosa": 206,
+   "gulosa": 227,
    "texto": {
     "mana_cost": "",
     "type_line": "Legendary Creature — Cat Warrior // Legendary Planeswalker — Ajani",
@@ -2408,7 +2414,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 4,
-   "gulosa": 384,
+   "gulosa": 377,
    "texto": null
   },
   {
@@ -2417,7 +2423,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 4,
-   "gulosa": 384,
+   "gulosa": 377,
    "texto": null
   },
   {
@@ -2426,7 +2432,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 4,
-   "gulosa": 289,
+   "gulosa": 282,
    "texto": null
   },
   {
@@ -2435,7 +2441,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 4,
-   "gulosa": 384,
+   "gulosa": 377,
    "texto": null
   },
   {
@@ -2459,7 +2465,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 4,
-   "gulosa": 192,
+   "gulosa": 190,
    "texto": {
     "mana_cost": "{2}{U}",
     "type_line": "Artifact — Equipment",
@@ -2471,12 +2477,31 @@
    }
   },
   {
+   "name": "Emperor of Bones",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
+   "listas": 4,
+   "gulosa": 59,
+   "texto": {
+    "mana_cost": "{1}{B}",
+    "type_line": "Creature — Skeleton Noble",
+    "oracle_text": "At the beginning of combat on your turn, exile up to one target card from a graveyard.\n{1}{B}: Adapt 2.\nWhenever one or more +1/+1 counters are put on this creature, put a creature card exiled with this creature onto the battlefield under your control with a finality counter on it. It gains haste. Sacrifice it at the beginning of the next end step.",
+    "keywords": [
+     "Adapt"
+    ],
+    "layout": "normal",
+    "power": "2",
+    "toughness": "2"
+   }
+  },
+  {
    "name": "Flame of Anor",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 4,
-   "gulosa": 150,
+   "gulosa": 149,
    "texto": {
     "mana_cost": "{1}{U}{R}",
     "type_line": "Instant",
@@ -2491,7 +2516,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 4,
-   "gulosa": 238,
+   "gulosa": 235,
    "texto": {
     "mana_cost": "{G}{W}",
     "type_line": "Legendary Creature — Kithkin Advisor",
@@ -2508,7 +2533,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 4,
-   "gulosa": 384,
+   "gulosa": 377,
    "texto": null
   },
   {
@@ -2517,7 +2542,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 4,
-   "gulosa": 287,
+   "gulosa": 280,
    "texto": null
   },
   {
@@ -2526,7 +2551,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 4,
-   "gulosa": 292,
+   "gulosa": 285,
    "texto": null
   },
   {
@@ -2535,7 +2560,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 4,
-   "gulosa": 285,
+   "gulosa": 278,
    "texto": null
   },
   {
@@ -2544,7 +2569,7 @@
    "nivel": "lida",
    "motivo": "lida pelo motor, em revisão",
    "listas": 4,
-   "gulosa": 384,
+   "gulosa": 377,
    "texto": {
     "mana_cost": "{3}{R}{R}",
     "type_line": "Creature — Ox",
@@ -2558,31 +2583,12 @@
    }
   },
   {
-   "name": "Patchwork Automaton",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "texto que o motor não resolve",
-   "listas": 4,
-   "gulosa": 241,
-   "texto": {
-    "mana_cost": "{2}",
-    "type_line": "Artifact Creature — Construct",
-    "oracle_text": "Ward {2} (Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {2}.)\nWhenever you cast an artifact spell, put a +1/+1 counter on this creature.",
-    "keywords": [
-     "Ward"
-    ],
-    "layout": "normal",
-    "power": "1",
-    "toughness": "1"
-   }
-  },
-  {
    "name": "Pyrogoyf",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 4,
-   "gulosa": 329,
+   "gulosa": 332,
    "texto": null
   },
   {
@@ -2591,7 +2597,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 4,
-   "gulosa": 68,
+   "gulosa": 67,
    "texto": {
     "mana_cost": "{2}{B}{B}",
     "type_line": "Legendary Creature — Phyrexian Praetor",
@@ -2610,7 +2616,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 4,
-   "gulosa": 182,
+   "gulosa": 180,
    "texto": {
     "mana_cost": "{1}{U}",
     "type_line": "Creature — Illusion",
@@ -2631,27 +2637,8 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 4,
-   "gulosa": 350,
+   "gulosa": 353,
    "texto": null
-  },
-  {
-   "name": "Uro, Titan of Nature's Wrath",
-   "classe": "lida",
-   "nivel": "lida",
-   "motivo": "lida pelo motor, em revisão",
-   "listas": 4,
-   "gulosa": 64,
-   "texto": {
-    "mana_cost": "{1}{G}{U}",
-    "type_line": "Legendary Creature — Elder Giant",
-    "oracle_text": "When Uro enters, sacrifice it unless it escaped.\nWhenever Uro enters or attacks, you gain 3 life and draw a card, then you may put a land card from your hand onto the battlefield.\nEscape—{G}{G}{U}{U}, Exile five other cards from your graveyard. (You may cast this card from your graveyard for its escape cost.)",
-    "keywords": [
-     "Escape"
-    ],
-    "layout": "normal",
-    "power": "6",
-    "toughness": "6"
-   }
   },
   {
    "name": "Witherbloom Command",
@@ -2676,7 +2663,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 3,
-   "gulosa": 185,
+   "gulosa": 183,
    "texto": {
     "mana_cost": "{1}{R}{G}",
     "type_line": "Legendary Creature — Raccoon Bard",
@@ -2693,7 +2680,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 3,
-   "gulosa": 249,
+   "gulosa": 244,
    "texto": {
     "mana_cost": "{1}{U}",
     "type_line": "Creature — Octopus Wizard",
@@ -2712,7 +2699,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 3,
-   "gulosa": 188,
+   "gulosa": 186,
    "texto": {
     "mana_cost": "{1}{U}",
     "type_line": "Legendary Artifact Creature — Robot",
@@ -2729,7 +2716,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 3,
-   "gulosa": 366,
+   "gulosa": 359,
    "texto": null
   },
   {
@@ -2738,7 +2725,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 3,
-   "gulosa": 278,
+   "gulosa": 271,
    "texto": null
   },
   {
@@ -2764,7 +2751,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 3,
-   "gulosa": 192,
+   "gulosa": 190,
    "texto": {
     "mana_cost": "{2}{U}{U}",
     "type_line": "Legendary Planeswalker — Jace",
@@ -2780,7 +2767,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 3,
-   "gulosa": 366,
+   "gulosa": 359,
    "texto": null
   },
   {
@@ -2789,7 +2776,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 3,
-   "gulosa": 185,
+   "gulosa": 183,
    "texto": {
     "mana_cost": "{G/W}{G/U}{B/G}{R/G}",
     "type_line": "Enchantment",
@@ -2804,7 +2791,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 3,
-   "gulosa": 349,
+   "gulosa": 352,
    "texto": null
   },
   {
@@ -2813,7 +2800,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 3,
-   "gulosa": 196,
+   "gulosa": 194,
    "texto": {
     "mana_cost": "{1}{B}",
     "type_line": "Instant",
@@ -2828,7 +2815,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 3,
-   "gulosa": 252,
+   "gulosa": 247,
    "texto": {
     "mana_cost": "{1}{G}",
     "type_line": "Legendary Creature — Elf Druid",
@@ -2860,7 +2847,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 3,
-   "gulosa": 249,
+   "gulosa": 244,
    "texto": {
     "mana_cost": "{W}",
     "type_line": "Creature — Kor Nomad Soldier",
@@ -2877,7 +2864,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 3,
-   "gulosa": 196,
+   "gulosa": 194,
    "texto": {
     "mana_cost": "{2}{B}",
     "type_line": "Creature — Human Rogue",
@@ -2891,12 +2878,31 @@
    }
   },
   {
+   "name": "Patchwork Automaton",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
+   "listas": 3,
+   "gulosa": 239,
+   "texto": {
+    "mana_cost": "{2}",
+    "type_line": "Artifact Creature — Construct",
+    "oracle_text": "Ward {2} (Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {2}.)\nWhenever you cast an artifact spell, put a +1/+1 counter on this creature.",
+    "keywords": [
+     "Ward"
+    ],
+    "layout": "normal",
+    "power": "1",
+    "toughness": "1"
+   }
+  },
+  {
    "name": "Phyrexian Dreadnought",
    "classe": "nova",
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 3,
-   "gulosa": 188,
+   "gulosa": 186,
    "texto": {
     "mana_cost": "{1}",
     "type_line": "Artifact Creature — Phyrexian Dreadnought",
@@ -2915,7 +2921,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 3,
-   "gulosa": 366,
+   "gulosa": 359,
    "texto": null
   },
   {
@@ -2924,7 +2930,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 3,
-   "gulosa": 185,
+   "gulosa": 183,
    "texto": {
     "mana_cost": "{12}",
     "type_line": "Artifact Creature — Dragon",
@@ -2944,7 +2950,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 3,
-   "gulosa": 294,
+   "gulosa": 287,
    "texto": null
   },
   {
@@ -2953,7 +2959,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 2,
-   "gulosa": 188,
+   "gulosa": 186,
    "texto": {
     "mana_cost": "{2}{U}",
     "type_line": "Creature — Eye",
@@ -2974,7 +2980,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 2,
-   "gulosa": 363,
+   "gulosa": 318,
    "texto": null
   },
   {
@@ -3002,7 +3008,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 2,
-   "gulosa": 381,
+   "gulosa": 374,
    "texto": null
   },
   {
@@ -3011,7 +3017,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 2,
-   "gulosa": 334,
+   "gulosa": 337,
    "texto": null
   },
   {
@@ -3053,7 +3059,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 2,
-   "gulosa": 240,
+   "gulosa": 237,
    "texto": {
     "mana_cost": "{2}{U}",
     "type_line": "Legendary Creature — Human Scientist Hero",
@@ -3070,7 +3076,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 2,
-   "gulosa": 381,
+   "gulosa": 374,
    "texto": null
   },
   {
@@ -3079,7 +3085,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 2,
-   "gulosa": 62,
+   "gulosa": 61,
    "texto": {
     "mana_cost": "{3}",
     "type_line": "Artifact",
@@ -3094,7 +3100,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 2,
-   "gulosa": 269,
+   "gulosa": 263,
    "texto": {
     "mana_cost": "{2}{U}",
     "type_line": "Instant",
@@ -3109,7 +3115,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 2,
-   "gulosa": 63,
+   "gulosa": 62,
    "texto": {
     "mana_cost": "{B}",
     "type_line": "Creature — Avatar",
@@ -3126,7 +3132,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 2,
-   "gulosa": 335,
+   "gulosa": 338,
    "texto": null
   },
   {
@@ -3135,7 +3141,16 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 2,
-   "gulosa": 381,
+   "gulosa": 374,
+   "texto": null
+  },
+  {
+   "name": "Fiend Artisan",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
+   "listas": 2,
+   "gulosa": 279,
    "texto": null
   },
   {
@@ -3144,7 +3159,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 2,
-   "gulosa": 367,
+   "gulosa": 360,
    "texto": null
   },
   {
@@ -3153,7 +3168,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 2,
-   "gulosa": 248,
+   "gulosa": 243,
    "texto": {
     "mana_cost": "{1}",
     "type_line": "Artifact",
@@ -3170,7 +3185,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 2,
-   "gulosa": 289,
+   "gulosa": 282,
    "texto": null
   },
   {
@@ -3179,7 +3194,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 2,
-   "gulosa": 131,
+   "gulosa": 130,
    "texto": {
     "mana_cost": "",
     "type_line": "Land",
@@ -3194,7 +3209,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 2,
-   "gulosa": 248,
+   "gulosa": 243,
    "texto": {
     "mana_cost": "{2}",
     "type_line": "Artifact Creature — Scarecrow",
@@ -3211,7 +3226,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 2,
-   "gulosa": 269,
+   "gulosa": 263,
    "texto": {
     "mana_cost": "{X}{U}",
     "type_line": "Sorcery",
@@ -3226,7 +3241,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 2,
-   "gulosa": 315,
+   "gulosa": 307,
    "texto": null
   },
   {
@@ -3235,7 +3250,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 2,
-   "gulosa": 367,
+   "gulosa": 360,
    "texto": null
   },
   {
@@ -3244,16 +3259,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 2,
-   "gulosa": 307,
-   "texto": null
-  },
-  {
-   "name": "Six",
-   "classe": "nova",
-   "nivel": "parcial",
-   "motivo": "parte do texto o motor não resolve",
-   "listas": 2,
-   "gulosa": 312,
+   "gulosa": 300,
    "texto": null
   },
   {
@@ -3262,7 +3268,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 2,
-   "gulosa": 239,
+   "gulosa": 236,
    "texto": {
     "mana_cost": "{B}{B}",
     "type_line": "Sorcery",
@@ -3277,7 +3283,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 2,
-   "gulosa": 234,
+   "gulosa": 231,
    "texto": {
     "mana_cost": "{1}{R}",
     "type_line": "Legendary Creature — Spider Human Hero",
@@ -3296,7 +3302,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 2,
-   "gulosa": 236,
+   "gulosa": 233,
    "texto": {
     "mana_cost": "{1}{W}",
     "type_line": "Artifact",
@@ -3311,7 +3317,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 2,
-   "gulosa": 67,
+   "gulosa": 66,
    "texto": {
     "mana_cost": "{1}{B}",
     "type_line": "Legendary Creature — Mutant Ninja Human",
@@ -3330,7 +3336,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 2,
-   "gulosa": 70,
+   "gulosa": 69,
    "texto": {
     "mana_cost": "",
     "type_line": "Land — Island",
@@ -3348,7 +3354,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 2,
-   "gulosa": 422,
+   "gulosa": 415,
    "texto": null
   },
   {
@@ -3357,7 +3363,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 2,
-   "gulosa": 381,
+   "gulosa": 374,
    "texto": null
   },
   {
@@ -3366,7 +3372,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 2,
-   "gulosa": 381,
+   "gulosa": 374,
    "texto": null
   },
   {
@@ -3375,7 +3381,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 2,
-   "gulosa": 381,
+   "gulosa": 374,
    "texto": null
   },
   {
@@ -3384,7 +3390,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 2,
-   "gulosa": 308,
+   "gulosa": 301,
    "texto": null
   },
   {
@@ -3393,7 +3399,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 237,
+   "gulosa": 234,
    "texto": {
     "mana_cost": "",
     "type_line": "Land",
@@ -3408,7 +3414,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 365,
+   "gulosa": 358,
    "texto": null
   },
   {
@@ -3417,7 +3423,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 1,
-   "gulosa": 424,
+   "gulosa": 417,
    "texto": null
   },
   {
@@ -3426,7 +3432,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 383,
+   "gulosa": 376,
    "texto": null
   },
   {
@@ -3435,7 +3441,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 334,
+   "gulosa": 337,
    "texto": null
   },
   {
@@ -3444,7 +3450,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 334,
+   "gulosa": 337,
    "texto": null
   },
   {
@@ -3453,7 +3459,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 1,
-   "gulosa": 270,
+   "gulosa": 264,
    "texto": null
   },
   {
@@ -3462,7 +3468,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 383,
+   "gulosa": 376,
    "texto": null
   },
   {
@@ -3471,7 +3477,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 388,
+   "gulosa": 381,
    "texto": null
   },
   {
@@ -3480,7 +3486,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 322,
+   "gulosa": 325,
    "texto": null
   },
   {
@@ -3489,7 +3495,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 380,
+   "gulosa": 373,
    "texto": null
   },
   {
@@ -3498,7 +3504,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 401,
+   "gulosa": 393,
    "texto": null
   },
   {
@@ -3507,7 +3513,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 1,
-   "gulosa": 195,
+   "gulosa": 193,
    "texto": {
     "mana_cost": "{1}{W}{W}",
     "type_line": "Sorcery",
@@ -3541,7 +3547,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 383,
+   "gulosa": 376,
    "texto": null
   },
   {
@@ -3550,7 +3556,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 1,
-   "gulosa": 424,
+   "gulosa": 417,
    "texto": null
   },
   {
@@ -3559,7 +3565,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 1,
-   "gulosa": 251,
+   "gulosa": 246,
    "texto": {
     "mana_cost": "{2}{W}",
     "type_line": "Sorcery",
@@ -3576,7 +3582,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 424,
+   "gulosa": 417,
    "texto": null
   },
   {
@@ -3585,7 +3591,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 190,
+   "gulosa": 188,
    "texto": {
     "mana_cost": "{1}{W}",
     "type_line": "Creature — Thrull",
@@ -3615,12 +3621,21 @@
    }
   },
   {
+   "name": "Duskwatch Recruiter",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
+   "listas": 1,
+   "gulosa": 395,
+   "texto": null
+  },
+  {
    "name": "Eiganjo, Seat of the Empire",
    "classe": "nova",
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 389,
+   "gulosa": 382,
    "texto": null
   },
   {
@@ -3629,7 +3644,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 380,
+   "gulosa": 373,
    "texto": null
   },
   {
@@ -3638,7 +3653,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 266,
+   "gulosa": 260,
    "texto": {
     "mana_cost": "{13}",
     "type_line": "Legendary Creature — Eldrazi",
@@ -3659,7 +3674,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 247,
+   "gulosa": 238,
    "texto": {
     "mana_cost": "{X}",
     "type_line": "Artifact",
@@ -3676,7 +3691,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 230,
+   "gulosa": 216,
    "texto": {
     "mana_cost": "{1}{W}",
     "type_line": "Creature — Kor Cleric",
@@ -3696,16 +3711,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 322,
-   "texto": null
-  },
-  {
-   "name": "Fiend Artisan",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "texto que o motor não resolve",
-   "listas": 1,
-   "gulosa": 286,
+   "gulosa": 325,
    "texto": null
   },
   {
@@ -3714,7 +3720,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 1,
-   "gulosa": 333,
+   "gulosa": 336,
    "texto": null
   },
   {
@@ -3723,7 +3729,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 1,
-   "gulosa": 383,
+   "gulosa": 376,
    "texto": null
   },
   {
@@ -3732,7 +3738,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 425,
+   "gulosa": 418,
    "texto": null
   },
   {
@@ -3741,7 +3747,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 365,
+   "gulosa": 358,
    "texto": null
   },
   {
@@ -3750,7 +3756,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 366,
+   "gulosa": 359,
    "texto": null
   },
   {
@@ -3759,7 +3765,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 310,
+   "gulosa": 303,
    "texto": null
   },
   {
@@ -3768,7 +3774,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 380,
+   "gulosa": 373,
    "texto": null
   },
   {
@@ -3777,7 +3783,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 1,
-   "gulosa": 191,
+   "gulosa": 189,
    "texto": {
     "mana_cost": "{1}{B}",
     "type_line": "Instant — Arcane",
@@ -3794,7 +3800,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 388,
+   "gulosa": 381,
    "texto": null
   },
   {
@@ -3803,7 +3809,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 316,
+   "gulosa": 308,
    "texto": null
   },
   {
@@ -3812,7 +3818,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 380,
+   "gulosa": 373,
    "texto": null
   },
   {
@@ -3821,7 +3827,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 354,
+   "gulosa": 357,
    "texto": null
   },
   {
@@ -3830,7 +3836,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 191,
+   "gulosa": 189,
    "texto": {
     "mana_cost": "{3}{G}{G}{U}{U}",
     "type_line": "Legendary Creature — Serpent",
@@ -3850,7 +3856,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 248,
+   "gulosa": 243,
    "texto": {
     "mana_cost": "{1}",
     "type_line": "Artifact — Equipment",
@@ -3867,7 +3873,16 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 354,
+   "gulosa": 357,
+   "texto": null
+  },
+  {
+   "name": "Leyline of Abundance",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
+   "listas": 1,
+   "gulosa": 395,
    "texto": null
   },
   {
@@ -3876,7 +3891,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 1,
-   "gulosa": 424,
+   "gulosa": 417,
    "texto": null
   },
   {
@@ -3885,7 +3900,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 316,
+   "gulosa": 308,
    "texto": null
   },
   {
@@ -3894,7 +3909,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 402,
+   "gulosa": 394,
    "texto": null
   },
   {
@@ -3903,7 +3918,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 425,
+   "gulosa": 418,
    "texto": null
   },
   {
@@ -3912,7 +3927,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 311,
+   "gulosa": 304,
    "texto": null
   },
   {
@@ -3921,7 +3936,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 1,
-   "gulosa": 270,
+   "gulosa": 264,
    "texto": null
   },
   {
@@ -3930,7 +3945,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 425,
+   "gulosa": 418,
    "texto": null
   },
   {
@@ -3939,7 +3954,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 1,
-   "gulosa": 424,
+   "gulosa": 417,
    "texto": null
   },
   {
@@ -3948,7 +3963,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 354,
+   "gulosa": 357,
    "texto": null
   },
   {
@@ -3957,7 +3972,16 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 328,
+   "gulosa": 331,
+   "texto": null
+  },
+  {
+   "name": "Nature's Rhythm",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "mágica sem script",
+   "listas": 1,
+   "gulosa": 395,
    "texto": null
   },
   {
@@ -3966,7 +3990,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 354,
+   "gulosa": 357,
    "texto": null
   },
   {
@@ -3975,7 +3999,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 1,
-   "gulosa": 251,
+   "gulosa": 246,
    "texto": {
     "mana_cost": "{W}",
     "type_line": "Instant",
@@ -3992,7 +4016,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 290,
+   "gulosa": 283,
    "texto": null
   },
   {
@@ -4001,7 +4025,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 1,
-   "gulosa": 424,
+   "gulosa": 417,
    "texto": null
   },
   {
@@ -4010,7 +4034,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 365,
+   "gulosa": 358,
    "texto": null
   },
   {
@@ -4019,7 +4043,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 267,
+   "gulosa": 261,
    "texto": {
     "mana_cost": "{U}{U}",
     "type_line": "Enchantment — Aura",
@@ -4036,7 +4060,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 191,
+   "gulosa": 189,
    "texto": {
     "mana_cost": "{B}",
     "type_line": "Creature — Zombie Imp",
@@ -4055,7 +4079,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 316,
+   "gulosa": 308,
    "texto": null
   },
   {
@@ -4064,7 +4088,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 288,
+   "gulosa": 281,
    "texto": null
   },
   {
@@ -4073,7 +4097,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 388,
+   "gulosa": 381,
    "texto": null
   },
   {
@@ -4082,7 +4106,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 184,
+   "gulosa": 182,
    "texto": {
     "mana_cost": "{1}{U}",
     "type_line": "Legendary Creature — Human Wizard",
@@ -4094,12 +4118,21 @@
    }
   },
   {
+   "name": "Shang-Chi, Master of Kung Fu",
+   "classe": "nova",
+   "nivel": "parcial",
+   "motivo": "parte do texto o motor não resolve",
+   "listas": 1,
+   "gulosa": 395,
+   "texto": null
+  },
+  {
    "name": "Silvergill Adept",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 425,
+   "gulosa": 418,
    "texto": null
   },
   {
@@ -4108,7 +4141,16 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 425,
+   "gulosa": 418,
+   "texto": null
+  },
+  {
+   "name": "Six",
+   "classe": "nova",
+   "nivel": "parcial",
+   "motivo": "parte do texto o motor não resolve",
+   "listas": 1,
+   "gulosa": 305,
    "texto": null
   },
   {
@@ -4117,7 +4159,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 1,
-   "gulosa": 314,
+   "gulosa": 306,
    "texto": null
   },
   {
@@ -4126,7 +4168,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 365,
+   "gulosa": 358,
    "texto": null
   },
   {
@@ -4135,7 +4177,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 1,
-   "gulosa": 30,
+   "gulosa": 29,
    "texto": {
     "mana_cost": "{1}{B}",
     "type_line": "Sorcery",
@@ -4150,7 +4192,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 380,
+   "gulosa": 373,
    "texto": null
   },
   {
@@ -4159,7 +4201,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 1,
-   "gulosa": 424,
+   "gulosa": 417,
    "texto": null
   },
   {
@@ -4168,7 +4210,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 388,
+   "gulosa": 381,
    "texto": null
   },
   {
@@ -4177,7 +4219,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 365,
+   "gulosa": 358,
    "texto": null
   },
   {
@@ -4186,7 +4228,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 425,
+   "gulosa": 418,
    "texto": null
   },
   {
@@ -4195,7 +4237,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 250,
+   "gulosa": 245,
    "texto": {
     "mana_cost": "",
     "type_line": "Legendary Land",
@@ -4210,7 +4252,25 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 425,
+   "gulosa": 418,
+   "texto": null
+  },
+  {
+   "name": "Tyvar, Jubilant Brawler",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
+   "listas": 1,
+   "gulosa": 395,
+   "texto": null
+  },
+  {
+   "name": "Tyvar, the Pummeler",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
+   "listas": 1,
+   "gulosa": 395,
    "texto": null
   },
   {
@@ -4219,7 +4279,16 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 383,
+   "gulosa": 376,
+   "texto": null
+  },
+  {
+   "name": "Vizier of Remedies",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
+   "listas": 1,
+   "gulosa": 395,
    "texto": null
   },
   {
@@ -4228,7 +4297,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 425,
+   "gulosa": 418,
    "texto": null
   },
   {
@@ -4237,7 +4306,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 388,
+   "gulosa": 381,
    "texto": null
   },
   {
@@ -4246,7 +4315,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 268,
+   "gulosa": 262,
    "texto": {
     "mana_cost": "{2}{G}",
     "type_line": "Legendary Enchantment",
@@ -4264,7 +4333,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 134,
+   "gulosa": 133,
    "texto": {
     "mana_cost": "{3}",
     "type_line": "Legendary Artifact",
@@ -4279,7 +4348,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 252,
+   "gulosa": 247,
    "texto": {
     "mana_cost": "{0}",
     "type_line": "Artifact",
@@ -4290,6 +4359,120 @@
   }
  ],
  "listasIncompletas": [
+  {
+   "id": "mtgo-legacy-challenge-32-2026-10-2712857009-2",
+   "nome": "Abzan Leyline of Abundance",
+   "faltam": [
+    "Boseiju, Who Endures",
+    "Duskwatch Recruiter",
+    "Fiend Artisan",
+    "Badgermole Cub",
+    "Formidable Speaker",
+    "Craterhoof Behemoth",
+    "Tyvar, Jubilant Brawler",
+    "Once Upon a Time",
+    "Shang-Chi, Master of Kung Fu",
+    "Vizier of Remedies",
+    "Tyvar, the Pummeler",
+    "Nature's Rhythm",
+    "Leyline of Abundance"
+   ]
+  },
+  {
+   "id": "mtgo-legacy-challenge-32-2026-10-2712857009-1",
+   "nome": "Bant Quantum Riddler",
+   "faltam": [
+    "Wrath of the Skies",
+    "Terminus",
+    "Mystic Sanctuary",
+    "Uro, Titan of Nature's Wrath",
+    "Icetill Explorer"
+   ]
+  },
+  {
+   "id": "mtgo-legacy-challenge-32-2026-10-2712857009-4",
+   "nome": "Bant Quantum Riddler",
+   "faltam": [
+    "Wrath of the Skies"
+   ]
+  },
+  {
+   "id": "mtgo-legacy-challenge-32-2026-10-2712857009-5",
+   "nome": "Dimir Nethergoyf",
+   "faltam": [
+    "Moonshadow",
+    "Kaito, Bane of Nightmares",
+    "Nethergoyf",
+    "Bilbo, Thief in the Night"
+   ]
+  },
+  {
+   "id": "mtgo-legacy-challenge-32-2026-10-2712857009-3",
+   "nome": "Mono Green Exploration",
+   "faltam": [
+    "Boseiju, Who Endures",
+    "Exploration",
+    "Yavimaya, Cradle of Growth",
+    "Urza's Saga",
+    "Blast Zone",
+    "Sphere of Resistance",
+    "Dark Depths",
+    "Life from the Loam",
+    "Maze of Ith",
+    "Talon Gates of Madara",
+    "The Tabernacle at Pendrell Vale",
+    "Icetill Explorer",
+    "Thespian's Stage",
+    "Shifting Woodland"
+   ]
+  },
+  {
+   "id": "mtgo-legacy-challenge-32-2026-10-2712857009-6",
+   "nome": "Quatro cores Atraxa",
+   "faltam": [
+    "Formidable Speaker",
+    "Badgermole Cub",
+    "Boseiju, Who Endures",
+    "Craterhoof Behemoth",
+    "Allosaurus Shepherd",
+    "Once Upon a Time",
+    "Atraxa, Grand Unifier",
+    "Natural Order",
+    "Temur Sabertooth",
+    "Wirewood Symbiote",
+    "Eladamri, Korvecdal"
+   ]
+  },
+  {
+   "id": "mtgo-legacy-challenge-32-2026-10-2712857009-8",
+   "nome": "Sultai Mockingbird",
+   "faltam": [
+    "Dark Matter Manipulator",
+    "Hogaak, Arisen Necropolis",
+    "Stitcher's Supplier",
+    "Moonshadow",
+    "Mockingbird",
+    "Kaito, Bane of Nightmares"
+   ]
+  },
+  {
+   "id": "mtgo-legacy-challenge-32-2026-10-2712857009-7",
+   "nome": "Tribal de Eldrazi",
+   "faltam": [
+    "Chalice of the Void",
+    "Eye of Ugin",
+    "Reality Smasher",
+    "Thought-Knot Seer",
+    "Cavern of Souls",
+    "Wastescape Battlemage",
+    "Eldrazi Linebreaker",
+    "Kozilek's Command",
+    "It That Heralds the End",
+    "Glaring Fleshraker",
+    "Sire of Seven Deaths",
+    "Abundant Countryside"
+   ]
+  },
   {
    "id": "mtgo-legacy-showcase-challenge-2026-10-2512856952-3",
    "nome": "Bant Quantum Riddler",
@@ -10033,207 +10216,6 @@
     "Cavern of Souls",
     "Doomsday",
     "Thassa's Oracle"
-   ]
-  },
-  {
-   "id": "mtgo-legacy-challenge-16-2026-09-2712854929-5",
-   "nome": "Cinco cores Sneak Attack",
-   "faltam": [
-    "Sneak Attack",
-    "Show and Tell",
-    "Griselbrand",
-    "Emrakul, the Aeons Torn",
-    "Atraxa, Grand Unifier"
-   ]
-  },
-  {
-   "id": "mtgo-legacy-challenge-16-2026-09-2712854929-2",
-   "nome": "Dimir Nethergoyf",
-   "faltam": [
-    "Bilbo, Thief in the Night",
-    "Kaito, Bane of Nightmares",
-    "Moonshadow",
-    "Nethergoyf"
-   ]
-  },
-  {
-   "id": "mtgo-legacy-challenge-32-2026-09-2712854934-6",
-   "nome": "Golgari Stitcher's Supplier",
-   "faltam": [
-    "Boseiju, Who Endures",
-    "Elvish Reclaimer",
-    "Eumidian Hatchery",
-    "Talon Gates of Madara",
-    "Hogaak, Arisen Necropolis",
-    "Moonshadow",
-    "Once Upon a Time",
-    "Stitcher's Supplier",
-    "Sylvan Safekeeper",
-    "Wight of the Reliquary"
-   ]
-  },
-  {
-   "id": "mtgo-legacy-challenge-32-2026-09-2712854934-1",
-   "nome": "Izzet Emry",
-   "faltam": [
-    "Emry, Lurker of the Loch",
-    "Kappa Cannoneer",
-    "Urza's Saga",
-    "Urza's Bauble",
-    "Goblin Welder",
-    "Pinnacle Emissary",
-    "Sink into Stupor",
-    "Loki, God of Mischief"
-   ]
-  },
-  {
-   "id": "mtgo-legacy-challenge-16-2026-09-2712854929-6",
-   "nome": "Izzet Emry",
-   "faltam": [
-    "Emry, Lurker of the Loch",
-    "Kappa Cannoneer",
-    "Pinnacle Emissary",
-    "Urza's Bauble",
-    "Sink into Stupor",
-    "Urza's Saga",
-    "Patchwork Automaton"
-   ]
-  },
-  {
-   "id": "mtgo-legacy-challenge-32-2026-09-2712854934-7",
-   "nome": "Mardu Cabal Therapy",
-   "faltam": [
-    "Guide of Souls",
-    "Ocelot Pride",
-    "Ajani, Nacatl Pariah",
-    "Amped Raptor",
-    "Static Prison",
-    "White Orchid Phantom"
-   ]
-  },
-  {
-   "id": "mtgo-legacy-challenge-32-2026-09-2712854934-3",
-   "nome": "Mono Black Barrowgoyf",
-   "faltam": [
-    "Dauthi Voidwalker",
-    "Nethergoyf",
-    "Moonshadow",
-    "Sheoldred's Edict",
-    "Barrowgoyf"
-   ]
-  },
-  {
-   "id": "mtgo-legacy-challenge-16-2026-09-2712854929-8",
-   "nome": "Mono Blue Thundertrap Trainer",
-   "faltam": [
-    "Thundertrap Trainer",
-    "The One Ring",
-    "Karn, the Great Creator",
-    "Sink into Stupor",
-    "Eldrazi Confluence",
-    "Planar Nexus",
-    "Kozilek's Command",
-    "Ugin, Eye of the Storms"
-   ]
-  },
-  {
-   "id": "mtgo-legacy-challenge-32-2026-09-2712854934-4",
-   "nome": "Mono Green Exploration",
-   "faltam": [
-    "Thespian's Stage",
-    "Urza's Saga",
-    "The Tabernacle at Pendrell Vale",
-    "Maze of Ith",
-    "Boseiju, Who Endures",
-    "Dark Depths",
-    "Yavimaya, Cradle of Growth",
-    "Life from the Loam",
-    "Grafdigger's Cage",
-    "Sphere of Resistance",
-    "Exploration",
-    "Otawara, Soaring City",
-    "Blast Zone",
-    "Icetill Explorer"
-   ]
-  },
-  {
-   "id": "mtgo-legacy-challenge-32-2026-09-2712854934-5",
-   "nome": "Mono Green Exploration",
-   "faltam": [
-    "Exploration",
-    "Urza's Saga",
-    "Disruptor Flute",
-    "Icetill Explorer",
-    "The Tabernacle at Pendrell Vale",
-    "Boseiju, Who Endures",
-    "Yavimaya, Cradle of Growth",
-    "Maze of Ith",
-    "Thespian's Stage",
-    "Dark Depths",
-    "Life from the Loam",
-    "Blast Zone",
-    "Six",
-    "Otawara, Soaring City"
-   ]
-  },
-  {
-   "id": "mtgo-legacy-challenge-16-2026-09-2712854929-1",
-   "nome": "Orzhov Overlord of the Balemurk",
-   "faltam": [
-    "Pre-War Formalwear",
-    "Witch Enchanter",
-    "Lion Sash",
-    "Aether Vial",
-    "Emperor of Bones",
-    "Stoneforge Mystic",
-    "Skyclave Apparition",
-    "Recruiter of the Guard",
-    "White Orchid Phantom",
-    "Overlord of the Balemurk",
-    "Cloak and Dagger, Entwined",
-    "Thalia, Guardian of Thraben"
-   ]
-  },
-  {
-   "id": "mtgo-legacy-challenge-16-2026-09-2712854929-4",
-   "nome": "Quatro cores Brainstorm",
-   "faltam": [
-    "Kaito, Bane of Nightmares"
-   ]
-  },
-  {
-   "id": "mtgo-legacy-challenge-32-2026-09-2712854934-2",
-   "nome": "Sultai Doomsday",
-   "faltam": [
-    "Doomsday",
-    "Cavern of Souls",
-    "Thassa's Oracle",
-    "Jace, Wielder of Mysteries"
-   ]
-  },
-  {
-   "id": "mtgo-legacy-challenge-16-2026-09-2712854929-7",
-   "nome": "Temur Dragon's Rage Channeler",
-   "faltam": [
-    "Sink into Stupor"
-   ]
-  },
-  {
-   "id": "mtgo-legacy-challenge-16-2026-09-2712854929-3",
-   "nome": "Tribal de Eldrazi",
-   "faltam": [
-    "Sire of Seven Deaths",
-    "Glaring Fleshraker",
-    "It That Heralds the End",
-    "Kozilek's Command",
-    "Wastescape Battlemage",
-    "Eldrazi Linebreaker",
-    "Reality Smasher",
-    "Thought-Knot Seer",
-    "Eye of Ugin",
-    "Cavern of Souls",
-    "Chalice of the Void",
-    "Secluded Courtyard"
    ]
   }
  ],
