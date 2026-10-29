@@ -1,25 +1,78 @@
 {
  "versao": 1,
  "formato": "pauper",
- "geradoEm": "2026-10-28T13:24:20.943Z",
+ "geradoEm": "2026-10-29T13:33:51.093Z",
  "motor": 112,
  "fonte": "api.scryfall.com/cards/collection",
- "listas": 594,
- "listas100": 594,
- "cartasPendentes": 0,
+ "listas": 586,
+ "listas100": 585,
+ "cartasPendentes": 2,
  "parcial": false,
  "lotesComFalha": 0,
  "porClasse": {
   "texto-mudou": 0,
   "lida": 0,
-  "nova": 0,
+  "nova": 2,
   "parcial": 0,
   "sem-dados": 0
  },
- "novasDesdeAnterior": [],
+ "novasDesdeAnterior": [
+  "Custodi Squire",
+  "Visionary's Dance"
+ ],
  "resolvidasDesdeAnterior": [],
- "curva": [],
+ "curva": [
+  {
+   "listas": 586,
+   "cartas": 2
+  }
+ ],
  "textos": null,
- "pendentes": [],
- "listasIncompletas": []
+ "pendentes": [
+  {
+   "name": "Custodi Squire",
+   "classe": "nova",
+   "nivel": "parcial",
+   "motivo": "parte do texto o motor não resolve",
+   "listas": 1,
+   "gulosa": 1,
+   "texto": {
+    "mana_cost": "{4}{W}",
+    "type_line": "Creature — Spirit Cleric",
+    "oracle_text": "Flying\nWill of the council — When this creature enters, starting with you, each player votes for an artifact, creature, or enchantment card in your graveyard. Return each card with the most votes or tied for most votes to your hand.",
+    "keywords": [
+     "Flying",
+     "Will of the council"
+    ],
+    "layout": "normal",
+    "power": "3",
+    "toughness": "3"
+   }
+  },
+  {
+   "name": "Visionary's Dance",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "mágica sem script",
+   "listas": 1,
+   "gulosa": 1,
+   "texto": {
+    "mana_cost": "{5}{U}{R}",
+    "type_line": "Sorcery",
+    "oracle_text": "Create two 3/3 blue and red Elemental creature tokens with flying.\n{2}, Discard this card: Look at the top two cards of your library. Put one of them into your hand and the other into your graveyard.",
+    "keywords": [],
+    "layout": "normal"
+   }
+  }
+ ],
+ "listasIncompletas": [
+  {
+   "id": "mtgo-pauper-challenge-32-2026-10-2812857017-4",
+   "nome": "Cinco cores Visionary's Dance",
+   "faltam": [
+    "Visionary's Dance",
+    "Custodi Squire"
+   ]
+  }
+ ]
 }
