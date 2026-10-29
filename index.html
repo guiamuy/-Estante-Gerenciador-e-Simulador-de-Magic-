@@ -6677,6 +6677,7 @@ const EFFECTS = {
   oponentes_nao_conjuram: { fields: [], targets: ['self'] }, // T-92 · "Your opponents can't cast spells this turn."
   rad: { fields: ['amount'], targets: ['self', 'player', 'opponent', 'each-player', 'each-opponent'] }, // T-91 · CR 728.1 · "[target player | each player | each opponent | you] get(s) N rad counters"
   descarta_para_comprar: { fields: [], targets: ['self'] }, // T-88 · "you may discard a card. If you do, draw a card." (a pergunta só aparece com carta na mão; a compra só se descartou)
+  voto_m: { fields: [], targets: ['self'] }, // M-586 · CR 701.38 · Will of the council: "starting with you, each player votes for a [tipo] card in your graveyard. Return each card with the most votes or tied for most votes to your hand" (`filter` opcional: tipos)
   pilhas: { fields: ['amount'], targets: ['self'] }, // T-83 · CR 700.3 · "reveal the top N cards of your library; [an opponent | you] separates those cards into two piles; put one pile into your hand and the other into your graveyard" — `separa` e `escolhe`: 'voce' | 'oponente'
   exila_mesmo_nome: { fields: [], targets: ['permanent'] }, // T-80 (o alvo de verdade é o seletor com zona 'graveyard', conferido na validação da trilha) · CR 701.23 · "search its owner's graveyard, hand, and library for any number of cards with the same name as that card and exile them. Then that player shuffles." (alvo: seletor de carta em cemitério)
   escolhe_nome: { fields: [], targets: ['self'] }, // T-77 · CR 201.4 · "choose a [nonland] card name": `filtro` opcional ({ tipos, semTipos }); quem controla o efeito escolhe, na resolução
@@ -11543,6 +11544,7 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Nettle Sentinel': { texto: 'nndgox', leva: 'M-584' },
   // M-585 · rotina Sentinela do Pauper (cobertura/pauper.json de 29/10/2026; texto da Scryfall do dia em .listas/oficiais-revisadas.json), revisor independente
   'Visionary\'s Dance': { texto: 'qkso13', leva: 'M-585' },
+  'Custodi Squire': { texto: 'sgxuof', leva: 'M-586' },
   'Flawless Maneuver': { texto: '1dbabfl', leva: 'M-577' },
   'Deadly Rollick': { texto: 'mi4hfd', leva: 'M-577' },
   // H-18 · revisão em lote 1 dos competitivos (homologacao): 18 cartas `lida`, texto da Scryfall de 25/10/2026 (cobertura/*.json do ramo catalogo), revisor independente
@@ -21177,6 +21179,8 @@ const __m42 = (function () {
       return [{ do: 'discard_chosen', amount: 1, target: m[1].toLowerCase() === 'target player' ? 'player' : 'opponent', ...(padrao ? {} : { filter: filtro }) }]; }],
     [new RegExp(`^look at the top ${N} cards of your library\\. put ${N} of them into your hand and the rest on the bottom of your library in (any|a random) order(?:\\.\\s*|$)`, 'i'), m => {
       const c = num(m[1]), k = num(m[2]); return c && k && k < c ? [{ do: 'look', count: c, amount: k, min: k, to: 'hand', rest: /random/i.test(m[3]) ? 'library-bottom-random' : 'library-bottom' }] : null; }],
+    [/^starting with you, each player votes for an? ((?:artifact|creature|enchantment|instant|sorcery|land|planeswalker)(?:,? (?:or )?(?:artifact|creature|enchantment|instant|sorcery|land|planeswalker))*) card in your graveyard\. return each card with the most votes or tied for most votes to your hand(?:\.\s*|$)/i,
+      m => [{ do: 'voto_m', filter: { types: m[1].toLowerCase().match(/artifact|creature|enchantment|instant|sorcery|land|planeswalker/g) } }]], // M-586 · Custodi Squire (701.38, Will of the council)
     [new RegExp(`^look at the top ${N} cards of your library\\. put ${N} of them into your hand and the (other|rest) into your graveyard(?:\\.\\s*|$)`, 'i'), m => { // M-585 · Visionary's Dance (701.20: olhar é privado; "the other" só com uma sobrando)
       const c = num(m[1]), k = num(m[2]); return c && k && k < c && (m[3].toLowerCase() === 'rest' || c - k === 1) ? [{ do: 'look', count: c, amount: k, min: k, to: 'hand', rest: 'graveyard' }] : null; }],
     [new RegExp(`^look at the top ${N} cards of your library\\. you may reveal an? (instant or sorcery|creature|artifact|land|creature or land|colorless) card from among them and put it into your hand\\. (?:then )?put the rest on the bottom of your library in (any|a random) order(?:\\.\\s*|$)`, 'i'), m => {
@@ -25907,6 +25911,7 @@ function applyEffectM449(s, src, eff, tgt, events) {
     case 'radiacao': radiacaoT(s, src, events); break; // T-91 · CR 728.1 · a habilidade sem fonte
     case 'descarta_para_comprar': descartaParaComprarT(s, src, events); break; // T-88
     case 'pilhas': pilhasT(s, src, eff, events); break; // T-83 · CR 700.3
+    case 'voto_m': votoM(s, src, eff, events); break; // M-586 · CR 701.38
     case 'exila_mesmo_nome': exilaMesmoNomeT(s, src, obj, events); break; // T-80 · CR 701.23 / 201.2
     case 'escolhe_nome': escolheNomeT(s, src, eff, events); break; // T-77 · CR 201.4
     case 'descarta_nome': descartaNomeT(s, src, playerOf(), events); break; // T-77 · CR 201.4 / 701.20
@@ -26012,6 +26017,7 @@ function startPick(s, spec, events) {
     ...(spec.repartir ? { repartir: spec.repartir } : {}), // M-267 · os próximos destinos do repartir
     ...(spec.descarteOuTipoM ? { descarteOuTipoM: spec.descarteOuTipoM } : {}), // M-551 · Winternight Stories
     ...(spec.tituloM ? { tituloM: spec.tituloM } : {}), ...(spec.dicaM ? { dicaM: spec.dicaM } : {}), // M-552 · o que a folha de escolha diz
+    ...(spec.votoM ? { votoM: spec.votoM } : {}), // M-586 · 701.38: a votação em curso (quem ainda vota, os votos)
     ...(spec.esconde ? { esconde: spec.esconde } : {}), // M-268 · a permanente do esconderijo
     ...(spec.copiaAoEntrar ? { copiaAoEntrar: spec.copiaAoEntrar } : {}), ...(spec.descarteAntesDeEntrarM ? { descarteAntesDeEntrarM: spec.descarteAntesDeEntrarM } : {}) /* M-564 */ }; // CR2f.2 // M-268 · a permanente do esconderijo // M-267 · os próximos destinos do repartir
   events.push({ kind: 'choice', what: spec.label, name: spec.source, amount: spec.from.length });
@@ -26041,6 +26047,31 @@ function descarteOuTipoM(s, pk, events) {
     return;
   }
   for (const oid of [d.primeira, ...pk.picked]) if (s.objects[oid] && s.objects[oid].zone === 'hand') descartaCarta(s, oid);
+}
+/* M-586 · CR 701.38 · votar (Will of the council, Custodi Squire). Começando por quem controla o efeito, cada jogador, na ordem de turno, vota
+   numa das cartas que servem (701.38a: o voto é uma escolha; cada jogador vota uma vez, 701.38b); a carta com mais votos, e as empatadas
+   com mais votos, voltam para a mão. Cada voto é uma escolha `pick` de quem vota (`to: 'stay'`), encadeada pelo `votoM` do pending; o
+   voto é público (a folha mostra o placar até ali). Sem carta que sirva, ninguém vota e nada volta. */
+function votoM(s, src, eff, events) {
+  const p = src.controller, n = s.players.length, fila = [];
+  for (let k = 0; k < n; k++) { const i = (p + k) % n; if (!s.players[i].lost) fila.push(i); }
+  const cands = s.zones[p].graveyard.filter(oid => matchesFilter(s, s.objects[oid], eff.filter));
+  events.push({ kind: 'effect', do: 'voto_m', name: src.name, target: s.players[p].name, amount: cands.length });
+  if (!cands.length) return;
+  proximoVotoM(s, { fonte: src.name, dono: p, fila, cands, votos: {} }, events);
+}
+function proximoVotoM(s, v, events) {
+  const cands = v.cands.filter(oid => s.objects[oid] && s.objects[oid].zone === 'graveyard' && s.objects[oid].owner === v.dono);
+  if (!v.fila.length || !cands.length) return apuraVotoM(s, { ...v, cands }, events);
+  const [quem, ...resto] = v.fila, placar = Object.entries(v.votos).map(([o, k]) => `${s.objects[o].name} ${k}`).join(' · ');
+  startPick(s, { p: quem, from: cands, min: 1, max: 1, to: 'stay', rest: 'stay', label: 'votar', source: v.fonte, votoM: { ...v, cands, fila: resto },
+    tituloM: 'Votar', dicaM: `Toque na carta do cemitério de ${s.players[v.dono].name} em que você vota${placar ? ` (votos até aqui: ${placar})` : ''}. A mais votada, e as empatadas com ela, voltam para a mão de ${s.players[v.dono].name}.` }, events);
+}
+function apuraVotoM(s, v, events) {
+  const max = Math.max(0, ...v.cands.map(o => v.votos[o] || 0)); if (!max) return;
+  const voltam = v.cands.filter(o => (v.votos[o] || 0) === max && s.objects[o] && s.objects[o].zone === 'graveyard');
+  for (const o of voltam) moveObject(s, o, 'hand');
+  events.push({ kind: 'effect', do: 'to_hand', name: v.fonte, target: voltam.map(o => s.objects[o].name).join(', ') });
 }
 /** O que a escolha faz com as cartas, sem retomar os efeitos (quem chama de dentro de uma resolução continua sozinho). */
 function concluiPick(s, events) {
@@ -26094,6 +26125,7 @@ function concluiPick(s, events) {
   if (pk.copiaAoEntrar && s.objects[pk.copiaAoEntrar] && s.objects[pk.copiaAoEntrar].zone === 'stack' && s.stack[s.stack.length - 1] === pk.copiaAoEntrar) { // CR2f.2 · retoma a resolução
     s.objects[pk.copiaAoEntrar].copiaEscolhida = pk.picked[0] || null; events.push(resolveTop(s, events)); s.turn.priority = s.turn.active; }
   if (pk.descarteOuTipoM) descarteOuTipoM(s, pk, events); // M-551
+  if (pk.votoM) { const v = { ...pk.votoM, votos: { ...pk.votoM.votos } }; for (const o of pk.picked) v.votos[o] = (v.votos[o] || 0) + 1; events.push({ kind: 'effect', do: 'votou_m', name: pk.source, target: s.players[pk.p].name, carta: pk.picked.map(o => s.objects[o].name).join(', ') }); proximoVotoM(s, v, events); } // M-586 · 701.38
   if (pk.repartir) iniciaRepartir(s, pk.p, pk.repartir.de.filter(oid => !pk.picked.includes(oid) && s.objects[oid].zone === 'library'), pk.repartir.destinos, pk.source, events); // M-267
 }
 /** Efeitos que ficaram esperando a escolha terminar. */
@@ -37708,6 +37740,8 @@ function descreveEfeito(e) {
     case 'search': return `procura ${plural(n, 'carta', 'cartas')}${e.filter && e.filter.types && e.filter.types.includes('creature') && e.filter.cores ? ` de criatura ${e.filter.cores.map(c => ({ W: 'branca', U: 'azul', B: 'preta', R: 'vermelha', G: 'verde' })[c]).join(' e ')}` : ''}${e.filter && e.filter.mvMax != null ? ` de valor de mana ${typeof e.filter.mvMax === 'object' ? 'X' : e.filter.mvMax} ou menos` : ''} ${e.filter && e.filter.name ? `chamada ${e.filter.name} ` : ''}no grimório${e.to === 'battlefield' && !e.reparte ? ' e põe no campo de batalha' : ''}${e.to === 'battlefield-tapped' && !e.reparte ? ' e põe no campo de batalha virada' : ''}${e.compartilhaTipoM ? ' com um tipo de terreno em comum' : ''}${e.reparte ? ' (a primeira entra virada, a segunda vai para a mão)' : ''}${e.desviraSeTerrenos ? ` (desvira a terra achada se você tiver ${e.desviraSeTerrenos} terrenos ou mais)` : ''}`; // M-343
     case 'scry': return `vidência ${n}: olha ${plural(n, 'carta', 'cartas')} de cima e decide o que fica no topo`;
     case 'surveil': return `vigia ${n}`;
+    case 'voto_m': { const TIPO = { artifact: 'artefato', creature: 'criatura', enchantment: 'encantamento', instant: 'instantânea', sorcery: 'feitiço', land: 'terreno', planeswalker: 'planeswalker' }, ts = ((e.filter || {}).types || []).map(t => TIPO[t] || t); // M-586 · 701.38
+      return `começando por você, cada jogador vota numa carta${ts.length ? ` de ${ts.length > 1 ? ts.slice(0, -1).join(', ') + ' ou ' + ts[ts.length - 1] : ts[0]}` : ''} do seu cemitério; a mais votada, e as empatadas com ela, voltam para a sua mão`; }
     case 'look': { // M-354 · achado da revisão do lote XXVI: dizia "olha as 1 cartas" (contava o que vai para a mão, não o que se olha)
       const k = e.count || n, f = e.filter || {}, TIPO = { creature: 'de criatura', land: 'de terreno', artifact: 'de artefato', enchantment: 'de encantamento', instant: 'instantânea', sorcery: 'de feitiço', planeswalker: 'de planeswalker' };
       const qual = (f.incolor ? ' incolor' : (f.types || []).length ? ' ' + f.types.map(t => TIPO[t] || t).join(' ou ') : '') + (f.powerMax != null ? ` com poder ${f.powerMax} ou menos` : ''); // M-420
