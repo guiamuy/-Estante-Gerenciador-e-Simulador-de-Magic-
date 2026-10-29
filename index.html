@@ -11541,6 +11541,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Pilfer': { texto: '68e1mu', leva: 'M-580' },
   // M-584 · rotina Sentinela do Pauper (cobertura/pauper.json de 26/10/2026; texto da Scryfall do dia em .listas/oficiais-revisadas.json), revisor independente
   'Nettle Sentinel': { texto: 'nndgox', leva: 'M-584' },
+  // M-585 · rotina Sentinela do Pauper (cobertura/pauper.json de 29/10/2026; texto da Scryfall do dia em .listas/oficiais-revisadas.json), revisor independente
+  'Visionary\'s Dance': { texto: 'qkso13', leva: 'M-585' },
   'Flawless Maneuver': { texto: '1dbabfl', leva: 'M-577' },
   'Deadly Rollick': { texto: 'mi4hfd', leva: 'M-577' },
   // H-18 · revisão em lote 1 dos competitivos (homologacao): 18 cartas `lida`, texto da Scryfall de 25/10/2026 (cobertura/*.json do ramo catalogo), revisor independente
@@ -21175,6 +21177,8 @@ const __m42 = (function () {
       return [{ do: 'discard_chosen', amount: 1, target: m[1].toLowerCase() === 'target player' ? 'player' : 'opponent', ...(padrao ? {} : { filter: filtro }) }]; }],
     [new RegExp(`^look at the top ${N} cards of your library\\. put ${N} of them into your hand and the rest on the bottom of your library in (any|a random) order(?:\\.\\s*|$)`, 'i'), m => {
       const c = num(m[1]), k = num(m[2]); return c && k && k < c ? [{ do: 'look', count: c, amount: k, min: k, to: 'hand', rest: /random/i.test(m[3]) ? 'library-bottom-random' : 'library-bottom' }] : null; }],
+    [new RegExp(`^look at the top ${N} cards of your library\\. put ${N} of them into your hand and the (other|rest) into your graveyard(?:\\.\\s*|$)`, 'i'), m => { // M-585 · Visionary's Dance (701.20: olhar é privado; "the other" só com uma sobrando)
+      const c = num(m[1]), k = num(m[2]); return c && k && k < c && (m[3].toLowerCase() === 'rest' || c - k === 1) ? [{ do: 'look', count: c, amount: k, min: k, to: 'hand', rest: 'graveyard' }] : null; }],
     [new RegExp(`^look at the top ${N} cards of your library\\. you may reveal an? (instant or sorcery|creature|artifact|land|creature or land|colorless) card from among them and put it into your hand\\. (?:then )?put the rest on the bottom of your library in (any|a random) order(?:\\.\\s*|$)`, 'i'), m => {
       const c = num(m[1]); return c ? [{ do: 'look', count: c, amount: 1, min: 0, to: 'hand', rest: /random/i.test(m[3]) ? 'library-bottom-random' : 'library-bottom', revelaEscolhida: true, filter: FILTRO_TOPO[m[2].toLowerCase()] }] : null; }],
     [new RegExp(`^look at the top ${N} cards of your library\\. you may reveal a creature card with power (\\d+) or less from among them and put it into your hand\\. (?:then )?put the rest on the bottom of your library in (any|a random) order(?:\\.\\s*|$)`, 'i'), m => { // M-420 · Militia Bugler
@@ -21318,6 +21322,7 @@ const __m42 = (function () {
       { const cr = !magica && /\bVehicle\b/.test(tipo) && linha.replace(/\.$/, '').match(/^crew (\d+)$/i); // K-78 · 702.122a: "Crew N" é a habilidade ativada de tripular (forma canônica da T-4: custo { crew: N } e o efeito `tripulada`)
         if (cr) { (topo.abilities = topo.abilities || []).push({ kind: 'activated', label: `Tripular ${+cr[1]}`, cost: { crew: +cr[1] }, effects: [{ do: 'tripulada' }] }); frases.push({ texto: linha, lida: true }); continue; } }
       if (!magica && /^ward \{\d+\}$/i.test(linha.replace(/\.$/, ''))) { frases.push({ texto: linha, lida: true, palavras: true }); continue; } // M-333 · 702.21: o motor lê "Ward {N}" impresso da carta (K-2)
+      if (magica && /^(?:\{[^}]+\})+, Discard (?:~|this card): /i.test(til(linha, nome))) { const a = leAtivada(til(linha, nome).replace(/\.$/, ''), nome, frases); if (a) (topo.abilities = topo.abilities || []).push(a); continue; } // M-585 · Visionary's Dance (113.6: a habilidade de mágica com "Discard this card" funciona da mão)
       if (magica && /^(?:\{[^}]+\})+, Exile (?:~|this card) from your graveyard: /i.test(til(linha, nome))) { const a = leAtivada(til(linha, nome).replace(/\.$/, ''), nome, frases); /* M-574 · também com o nome impresso */ if (a) (topo.abilities = topo.abilities || []).push(a); continue; } // M-569 · Wither and Bloom (113.6: funciona do cemitério)
       if (magica && /^harmonize (?:\{[0-9WUBRGC]+\})+$/i.test(linha.replace(/\.$/, ''))) { frases.push({ texto: linha, lida: true, palavras: true }); continue; } // M-413 · 702.180: o motor lê "Harmonize {custo}" impresso da carta (K-55, harmonizarK)
       { const rf = linha.replace(/\.$/, '').match(/^reinforce (\d+)\s*[—-]\s*(\{[^}]+\}(?:\{[^}]+\})*)$/i); // M-410 · 702.77a: "[custo], descarte esta carta: ponha N marcadores +1/+1 na criatura alvo" — ativada que funciona da mão (113.6), a qualquer momento com prioridade

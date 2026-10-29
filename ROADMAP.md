@@ -5622,6 +5622,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Revisão independente:** aprovada — não desvira no passo de desvirar; verde mono e multicolorida perguntam (aceitar desvira, recusar não); azul, incolor e verde do oponente não disparam; dispara ao conjurar, mesmo com a mágica anulada; duas Nettles disparam cada uma. Leitor antes e depois sobre 2.332 textos de `.listas/*.json` e `cobertura/*.json`: nenhuma leitura mudou.
 - **Teste:** `lt264.unit` (4 testes; falham no motor anterior).
 
+**M-585 · LT242 · Sentinela do Pauper: Visionary's Dance (585 → 586 de 586 listas, com a M-586)** ✅ (leva M-585, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** a sentinela (`cobertura/pauper.json` de 29/10/2026 13:33 UTC) mostrava 585 de 586 listas Pauper a 100% no app, com duas cartas `nova` (Visionary's Dance e Custodi Squire, 1 lista). Texto da API da Scryfall de 29/10/2026 (campo `texto` do relatório), gravado em `.listas/oficiais-revisadas.json`.
+- **Regra:** triagem A — o leitor `__m42` passa a ler, em instantânea ou feitiço, a habilidade ativada com "Discard this card" no custo (113.6: funciona da mão; o custo já era lido, M-572) e o efeito "Look at the top N cards of your library. Put K of them into your hand and the other/rest into your graveyard" (701.20: olhar é privado; "the other" só quando sobra uma). Núcleo intacto.
+- **Revisão independente:** aprovada — duas fichas 3/3 azul e vermelha Elemental com voar; a habilidade só da mão, {2} e o descarte como custo, velocidade de instantânea; olha exatamente as duas do topo, uma obrigatória para a mão e a outra para o cemitério; com grimório de 1 ou 0 cartas, sem erro. Leitor antes e depois sobre 2.159 textos de `.listas/*.json`: só a Visionary's Dance mudou (manual → completo).
+- **Teste:** `lt265.unit` (4 testes; 3 falham no motor anterior — o quarto, "só funciona da mão", é guarda).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.
