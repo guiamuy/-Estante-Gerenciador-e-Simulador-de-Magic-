@@ -1,77 +1,138 @@
 {
  "versao": 1,
  "formato": "pauper",
- "geradoEm": "2026-10-29T13:33:51.093Z",
+ "geradoEm": "2026-10-30T13:25:16.689Z",
  "motor": 112,
  "fonte": "api.scryfall.com/cards/collection",
- "listas": 586,
- "listas100": 585,
- "cartasPendentes": 2,
+ "listas": 596,
+ "listas100": 592,
+ "cartasPendentes": 4,
  "parcial": false,
  "lotesComFalha": 0,
  "porClasse": {
   "texto-mudou": 0,
-  "lida": 0,
+  "lida": 2,
   "nova": 2,
   "parcial": 0,
   "sem-dados": 0
  },
  "novasDesdeAnterior": [
+  "Angelsong",
+  "Colossal Dreadmask",
+  "Tectonic Hazard",
+  "Unstable Experiment"
+ ],
+ "resolvidasDesdeAnterior": [
   "Custodi Squire",
   "Visionary's Dance"
  ],
- "resolvidasDesdeAnterior": [],
  "curva": [
   {
-   "listas": 586,
-   "cartas": 2
+   "listas": 593,
+   "cartas": 1
+  },
+  {
+   "listas": 596,
+   "cartas": 4
   }
  ],
  "textos": null,
  "pendentes": [
   {
-   "name": "Custodi Squire",
-   "classe": "nova",
-   "nivel": "parcial",
-   "motivo": "parte do texto o motor não resolve",
+   "name": "Angelsong",
+   "classe": "lida",
+   "nivel": "lida",
+   "motivo": "lida pelo motor, em revisão",
    "listas": 1,
-   "gulosa": 1,
+   "gulosa": 4,
    "texto": {
-    "mana_cost": "{4}{W}",
-    "type_line": "Creature — Spirit Cleric",
-    "oracle_text": "Flying\nWill of the council — When this creature enters, starting with you, each player votes for an artifact, creature, or enchantment card in your graveyard. Return each card with the most votes or tied for most votes to your hand.",
+    "mana_cost": "{1}{W}",
+    "type_line": "Instant",
+    "oracle_text": "Prevent all combat damage that would be dealt this turn.\nCycling {2} ({2}, Discard this card: Draw a card.)",
     "keywords": [
-     "Flying",
-     "Will of the council"
+     "Cycling"
     ],
-    "layout": "normal",
-    "power": "3",
-    "toughness": "3"
+    "layout": "normal"
    }
   },
   {
-   "name": "Visionary's Dance",
+   "name": "Colossal Dreadmask",
+   "classe": "lida",
+   "nivel": "lida",
+   "motivo": "lida pelo motor, em revisão",
+   "listas": 1,
+   "gulosa": 3,
+   "texto": {
+    "mana_cost": "{4}{G}{G}",
+    "type_line": "Artifact — Equipment",
+    "oracle_text": "Living weapon (When this Equipment enters, create a 0/0 black Phyrexian Germ creature token, then attach this to it.)\nEquipped creature gets +6/+6 and has trample.\nEquip {3}{G}{G}",
+    "keywords": [
+     "Equip",
+     "Living weapon"
+    ],
+    "layout": "normal"
+   }
+  },
+  {
+   "name": "Tectonic Hazard",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "mágica sem script",
+   "listas": 1,
+   "gulosa": 2,
+   "texto": {
+    "mana_cost": "{R}",
+    "type_line": "Sorcery",
+    "oracle_text": "Tectonic Hazard deals 1 damage to each opponent and each creature they control.",
+    "keywords": [],
+    "layout": "normal"
+   }
+  },
+  {
+   "name": "Unstable Experiment",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 1,
    "gulosa": 1,
    "texto": {
-    "mana_cost": "{5}{U}{R}",
-    "type_line": "Sorcery",
-    "oracle_text": "Create two 3/3 blue and red Elemental creature tokens with flying.\n{2}, Discard this card: Look at the top two cards of your library. Put one of them into your hand and the other into your graveyard.",
-    "keywords": [],
+    "mana_cost": "{1}{U}",
+    "type_line": "Instant",
+    "oracle_text": "Target player draws a card, then up to one target creature you control connives. (Draw a card, then discard a card. If you discarded a nonland card, put a +1/+1 counter on that creature.)",
+    "keywords": [
+     "Connive"
+    ],
     "layout": "normal"
    }
   }
  ],
  "listasIncompletas": [
   {
-   "id": "mtgo-pauper-challenge-32-2026-10-2812857017-4",
-   "nome": "Cinco cores Visionary's Dance",
+   "id": "topdeck-lyonpauper-jeudi-29-octobre-2026-4",
+   "nome": "Dimir Baleful Strix",
    "faltam": [
-    "Visionary's Dance",
-    "Custodi Squire"
+    "Unstable Experiment"
+   ]
+  },
+  {
+   "id": "topdeck-lyonpauper-jeudi-29-octobre-2026-7",
+   "nome": "Gruul Burning-Tree Emissary",
+   "faltam": [
+    "Tectonic Hazard"
+   ]
+  },
+  {
+   "id": "topdeck-lyonpauper-jeudi-29-octobre-2026-5",
+   "nome": "Gruul Eldrazi Repurposer",
+   "faltam": [
+    "Colossal Dreadmask"
+   ]
+  },
+  {
+   "id": "mtgo-pauper-league-2026-10-2711153-3",
+   "nome": "Jeskai Skred",
+   "faltam": [
+    "Angelsong"
    ]
   }
  ]

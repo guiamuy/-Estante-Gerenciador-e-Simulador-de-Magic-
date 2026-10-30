@@ -1,7 +1,7 @@
 {
  "versao": 1,
  "formato": "iniciante",
- "geradoEm": "2026-10-29T13:39:26.877Z",
+ "geradoEm": "2026-10-30T13:30:47.313Z",
  "motor": 112,
  "fonte": "api.scryfall.com/cards/collection",
  "listas": 648,
@@ -11,8 +11,8 @@
  "lotesComFalha": 0,
  "porClasse": {
   "texto-mudou": 8,
-  "lida": 1535,
-  "nova": 4926,
+  "lida": 1541,
+  "nova": 4920,
   "parcial": 0,
   "sem-dados": 0
  },
@@ -1087,12 +1087,20 @@
   },
   {
    "name": "Forbidden Alchemy",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "mágica sem script",
+   "classe": "lida",
+   "nivel": "lida",
+   "motivo": "lida pelo motor, em revisão",
    "listas": 4,
    "gulosa": 154,
-   "texto": null
+   "texto": {
+    "mana_cost": "{2}{U}",
+    "type_line": "Instant",
+    "oracle_text": "Look at the top four cards of your library. Put one of them into your hand and the rest into your graveyard.\nFlashback {6}{B} (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
+    "keywords": [
+     "Flashback"
+    ],
+    "layout": "normal"
+   }
   },
   {
    "name": "Gatekeeper of Malakir",
@@ -3815,12 +3823,20 @@
   },
   {
    "name": "Sultai Soothsayer",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "texto que o motor não resolve",
+   "classe": "lida",
+   "nivel": "lida",
+   "motivo": "lida pelo motor, em revisão",
    "listas": 3,
    "gulosa": 415,
-   "texto": null
+   "texto": {
+    "mana_cost": "{2}{B}{G}{U}",
+    "type_line": "Creature — Snake Shaman",
+    "oracle_text": "When this creature enters, look at the top four cards of your library. Put one of them into your hand and the rest into your graveyard.",
+    "keywords": [],
+    "layout": "normal",
+    "power": "2",
+    "toughness": "5"
+   }
   },
   {
    "name": "Suspension Field",
@@ -3965,12 +3981,22 @@
   },
   {
    "name": "Tower Geist",
-   "classe": "nova",
-   "nivel": "parcial",
-   "motivo": "parte do texto o motor não resolve",
+   "classe": "lida",
+   "nivel": "lida",
+   "motivo": "lida pelo motor, em revisão",
    "listas": 3,
    "gulosa": 158,
-   "texto": null
+   "texto": {
+    "mana_cost": "{3}{U}",
+    "type_line": "Creature — Spirit",
+    "oracle_text": "Flying\nWhen this creature enters, look at the top two cards of your library. Put one of them into your hand and the other into your graveyard.",
+    "keywords": [
+     "Flying"
+    ],
+    "layout": "normal",
+    "power": "2",
+    "toughness": "2"
+   }
   },
   {
    "name": "Treasured Find",
@@ -8856,12 +8882,18 @@
   },
   {
    "name": "Glimpse the Future",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "mágica sem script",
+   "classe": "lida",
+   "nivel": "lida",
+   "motivo": "lida pelo motor, em revisão",
    "listas": 2,
    "gulosa": 138,
-   "texto": null
+   "texto": {
+    "mana_cost": "{2}{U}",
+    "type_line": "Sorcery",
+    "oracle_text": "Look at the top three cards of your library. Put one of them into your hand and the rest into your graveyard.",
+    "keywords": [],
+    "layout": "normal"
+   }
   },
   {
    "name": "Glittering Lion",
@@ -18282,12 +18314,18 @@
   },
   {
    "name": "Ancestral Memories",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "mágica sem script",
+   "classe": "lida",
+   "nivel": "lida",
+   "motivo": "lida pelo motor, em revisão",
    "listas": 1,
    "gulosa": 12,
-   "texto": null
+   "texto": {
+    "mana_cost": "{2}{U}{U}{U}",
+    "type_line": "Sorcery",
+    "oracle_text": "Look at the top seven cards of your library. Put two of them into your hand and the rest into your graveyard.",
+    "keywords": [],
+    "layout": "normal"
+   }
   },
   {
    "name": "Ancestral Vengeance",
@@ -21401,12 +21439,18 @@
   },
   {
    "name": "Bitter Revelation",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "mágica sem script",
+   "classe": "lida",
+   "nivel": "lida",
+   "motivo": "lida pelo motor, em revisão",
    "listas": 1,
    "gulosa": 417,
-   "texto": null
+   "texto": {
+    "mana_cost": "{3}{B}",
+    "type_line": "Sorcery",
+    "oracle_text": "Look at the top four cards of your library. Put two of them into your hand and the rest into your graveyard. You lose 2 life.",
+    "keywords": [],
+    "layout": "normal"
+   }
   },
   {
    "name": "Black Oak of Odunos",
