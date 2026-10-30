@@ -5635,6 +5635,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora (declarado):** o Shark vota pela heurística genérica de escolha (pode votar na melhor carta do oponente) — pedido à `bot`; a mesa usa a folha de escolha comum (título "Votar" e o placar na dica).
 - **Teste:** `lt266.unit` (5 testes; 4 falham no motor anterior).
 
+**M-587 · LT244 · Sentinela do Pauper: Angelsong, Colossal Dreadmask, Tectonic Hazard e Unstable Experiment (596 de 596 listas Pauper a 100% no app na próxima coleta)** ✅ (leva M-587, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** fecha a sentinela de 30/10/2026 (`cobertura/pauper.json` de 13:25 UTC: 592 de 596). Texto da API da Scryfall de 30/10/2026 em `.listas/oficiais-revisadas.json`.
+- **Regra:** Angelsong e Colossal Dreadmask já eram lidas por inteiro (prevenção de combate + ciclagem; arma viva 702.92 + equipamento) e só faltava a revisão. Tectonic Hazard: padrão novo do leitor "~ deals N damage to each opponent and each creature they control" (mesma forma da End the Festivities). Unstable Experiment: "(up to one) target creature you control connives" — conspirar (701.50) passa a aceitar alvo: quem controla a criatura compra e descarta, o marcador vai nela; criatura que saiu ou deixou de ser sua não conspira e o resto da mágica resolve (608.2b); "up to one" aceita zero (115.3).
+- **Revisão independente:** aprovadas as quatro, sem divergência (alvos oferecidos, troca de controle com a mágica na pilha, Germe 6/6 atropelar e Germe que morre ao reequipar, equipar só como feitiço, prevenção só do dano de combate); Raffine's Informant e Pharaoh Rama-Tut ("~ connives") intactas; leitor antes e depois sobre todas as cartas revisadas: só as quatro mudaram.
+- **Fora (declarado):** nada.
+- **Teste:** `lt267.unit` (8 testes; os 8 falham no motor anterior).
+
 **CR2 · Alicerces do motor** ○ — as estruturas de que as palavras-chave dependem, cada uma com a regra numerada inteira, fuzz e teste de conformidade. Estimativa: 55 a 70 levas.
 - **CR2a** zonas, objeto novo ao mudar de zona, última informação conhecida, ações de estado completas e no momento certo (704, 608.2). 5 a 7 levas.
 - **CR2b** gatilhos: atrasados (603.7), reflexivos (603.12), pontos de disparo de todos os passos e de todos os jogadores (603.2), "olhar para trás" e eventos simultâneos (603.10), mais de um alvo (603.3d). 5 a 6 levas.

@@ -6457,7 +6457,7 @@ const EFFECTS = {
   endure: { fields: ['amount'], targets: ['self'] }, // M-380 · "it endures N": põe N marcadores +1/+1 nela OU cria um Espírito branco N/N (quem controla escolhe; Tarkir: Dragonstorm, texto de lembrete)
   discard: { fields: ['amount'], targets: ['self', 'player', 'opponent', 'target-controller', 'each-opponent'] },
   // S40 · conluio: compra, descarta e ganha marcador se o descarte não foi terreno
-  connive: { fields: ['amount'], targets: ['self'] },
+  connive: { fields: ['amount'], targets: ['self', 'creature-you-control'] }, // M-587 · "up to one target creature you control connives" (Unstable Experiment)
   // S13/S14 · zonas ocultas: vasculhar, olhar o topo, scry, surveil, moer e devolver ao topo
   search: { fields: ['amount'], targets: ['self', 'target-controller'] },
   look: { fields: ['amount', 'count'], targets: ['self', 'player' /* M-518 · "look at the top card of target player's library" (Eye Spy): quem conjurou olha e decide */] },
@@ -11545,6 +11545,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   // M-585 · rotina Sentinela do Pauper (cobertura/pauper.json de 29/10/2026; texto da Scryfall do dia em .listas/oficiais-revisadas.json), revisor independente
   'Visionary\'s Dance': { texto: 'qkso13', leva: 'M-585' },
   'Custodi Squire': { texto: 'sgxuof', leva: 'M-586' },
+  'Angelsong': { texto: 'npkugq', leva: 'M-587' }, 'Colossal Dreadmask': { texto: '14gvq0l', leva: 'M-587' }, // M-587 · Sentinela do Pauper (Scryfall de 30/10/2026)
+  'Tectonic Hazard': { texto: 'jq02et', leva: 'M-587' }, 'Unstable Experiment': { texto: '1f62prx', leva: 'M-587' },
   'Flawless Maneuver': { texto: '1dbabfl', leva: 'M-577' },
   'Deadly Rollick': { texto: 'mi4hfd', leva: 'M-577' },
   // H-18 · revisão em lote 1 dos competitivos (homologacao): 18 cartas `lida`, texto da Scryfall de 25/10/2026 (cobertura/*.json do ramo catalogo), revisor independente
@@ -20808,6 +20810,8 @@ const __m42 = (function () {
     [/^return target creature card with mana value (\d+) or less from your graveyard to the battlefield$/i, m => [{ do: 'reanimate', target: 'creature-in-your-graveyard', targetMvMax: +m[1] }]], // LT13
     [/^return target creature or land card from a graveyard to its owner's hand$/i, () => [{ do: 'to_hand', target: 'creature-land-in-any-graveyard' }]], // LT9
     [/^~ connives$/i, () => [{ do: 'connive', amount: 1 }]], // LT9 · 701.50
+    [/^((?:up to one )?target creature you control) connives$/i, m => [com({ do: 'connive', amount: 1 }, alvo(m[1]))]], // M-587 · 701.50: a criatura alvo conspira (quem a controla compra e descarta; o marcador vai nela) · Unstable Experiment
+    [new RegExp(`^~ deals ${N} damage to each opponent and each creature they control$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'each-opponent' }, { do: 'damage', amount: num(m[1]), target: 'each-opponent-creature' }]], // M-587 · Tectonic Hazard (mesma forma da End the Festivities, LT12)
     [new RegExp(`^~ deals ${N} damage to each creature without flying$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'each-nonflying-creature' }]], // LT10
     [/^damage can't be prevented this turn$/i, () => [{ do: 'no_prevention' }]], // LT10 · 615.12
     [/^~ can't be blocked this turn except by creatures with (haste|defender|flying)$/i, m => [{ do: 'imbloqueavel', target: 'self-source', exceto: m[1].toLowerCase() }]], // M-370 · Gingerbrute, Tin Street Dodger
@@ -24698,8 +24702,9 @@ function applyEffectM449(s, src, eff, tgt, events) {
       note({ amount: n }); break;
     }
     case 'connive': { // S40 · conluio: compra uma, descarta uma, e marcador se não foi terreno
-      const who = ctrl;
-      const fonte = src.ability ? src.source : src.oid;
+      if (eff.target === 'creature-you-control' && (!obj || obj.zone !== 'battlefield')) { note({ failed: true }); break; } // M-587 · alvo que saiu: não conspira (608.2b)
+      const who = eff.target === 'creature-you-control' ? obj.controller : ctrl; // M-587 · 701.50a: quem controla a criatura que conspira
+      const fonte = eff.target === 'creature-you-control' ? obj.oid : src.ability ? src.source : src.oid;
       const n = amountOf(s, src, eff.amount);
       draw(s, who, n);
       const podeDescartar = Math.min(n, s.zones[who].hand.length);
