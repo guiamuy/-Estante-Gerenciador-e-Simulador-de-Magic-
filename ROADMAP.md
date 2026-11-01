@@ -5629,6 +5629,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Conferido:** o leitor antes e depois sobre as cartas revisadas e os pendentes dos competitivos: nenhuma leitura já completa mudou.
 - **Teste:** `lt269.unit` (4 testes; falham no motor anterior).
 
+**M-589 · LT247 · Null Rod, Collector Ouphe e Stony Silence: habilidades ativadas de artefatos não podem ser ativadas (CR 602.5)** ✅ (leva M-589, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** passam a ser **lidas por inteiro** Null Rod (35 listas competitivas), Collector Ouphe (32) e Stony Silence (4). Karn, the Great Creator (157) ganha a trava "your opponents control" e segue parcial pelas habilidades de lealdade. Jogam no app depois da aprovação (homologacao).
+- **Regra:** `self.travaAtivadasDeArtefato: 'todos' | 'oponentes'` (validador recusa outro valor). Só artefato no campo; vale para habilidade de mana (605.1a: continua sendo ativada; o pagamento automático deixa de usar a pedra de mana), para tripular e para os dois lados da mesa. Entra no mesmo caminho das travas por nome da T-79 (`acaoTravadaPeloNomeT`, `filtraTravadasPeloNomeT`, `manaTravadaPeloNomeT`), com a função nova `artefatoTravadoM`.
+- **Conferido:** o leitor antes e depois sobre as cartas revisadas e os pendentes dos competitivos: nenhuma leitura já completa mudou.
+- **Teste:** `lt270.unit` (4 testes; falham no motor anterior).
+
 **M-584 · LT241 · Sentinela do Pauper: Nettle Sentinel (593 → 594 de 594 listas)** ✅ (leva M-584, motor v112 sem mudança de forma; goldens intactos)
 - **Valor:** a sentinela (`cobertura/pauper.json` de 26/10/2026 13:27 UTC) mostrava 593 de 594 listas Pauper a 100% no app, com uma carta `nova` (Nettle Sentinel, 1 lista). Aprovada, 594 de 594 na próxima coleta. Texto da API da Scryfall de 26/10/2026 (campo `texto` do relatório), gravado em `.listas/oficiais-revisadas.json`.
 - **Regra:** triagem A — o leitor `__m42` lê "Whenever you cast a/an <cor> spell" com uma cor só (gatilho `other-cast`, `filter.anyColors`; 105.2: multicolorida com verde conta); "doesn't untap during your untap step" (502.3, M-558) e o "you may" do gatilho (603.5, pergunta na resolução) já existiam. Núcleo intacto; numerada M-584 porque a M-583 está reservada pela conversa dos competitivos.
