@@ -2347,7 +2347,14 @@ body[data-mesa-cheia="true"] .tb > .tb-top { column-gap: var(--space-1); row-gap
 /* a linha de cima nunca quebra: a faixa de vez cede o que sobra entre o Sair e as ferramentas (três ícones; quatro online) */
 /* abaixo de 360 px (fora das faixas suportadas) as ferramentas podem descer de linha e o rótulo segue inteiro, como antes */
 @media (min-width: 360px) {
-  body[data-mesa-cheia="true"] .tb > .tb-top > .tb-vez { flex: 0 1 auto; min-width: 0; max-width: calc(100% - 4 * var(--tap-min) - 2 * 2px - 3 * var(--space-1)); }
+  body[data-mesa-cheia="true"] .tb > .tb-top > .tb-vez { flex: 0 1 auto; min-width: 0; max-width: calc(100% - 4 * var(--tap-min) - 4 * var(--space-1)); }
+  body[data-mesa-cheia="true"] .tb > .tb-top:has(> .tb-vez-selo) > .tb-vez { max-width: calc(100% - 5 * var(--tap-min) - 4 * var(--space-1) - 2px); }
+}
+/* DS-K2 M3 · online na faixa estreita (≤ 374 px): com o selo da Conversa a faixa perde um alvo; o ícone de quem joga sai da faixa
+   (a cor e o rótulo dizem a vez) para "Seu turno" caber inteiro */
+@media (min-width: 360px) and (max-width: 374px) {
+  body[data-mesa-cheia="true"] .tb > .tb-top:has(> .tb-vez-selo) .tb-vez__avatar { display: none; }
+  body[data-mesa-cheia="true"] .tb > .tb-top:has(> .tb-vez-selo) .tb-vez__btn { padding-left: var(--space-3); }
 }
 /* MJ1e (J-7) · online, a Conversa é um selo colado à faixa de vez (2 px de vão, cantos de dentro retos) e o Desfazer sai:
    Sair + faixa + selo + duas ferramentas somam o mesmo que Sair + faixa + três ferramentas, então vale o mesmo teto da faixa */
@@ -2381,6 +2388,32 @@ body[data-mesa-cheia="true"] .tb-steps__list li { padding: 0 0 1px; border-botto
 .tb-top > .tb-vez { flex: 0 0 auto; max-width: 100%; }
 .tb-top > .tb-top__actions { margin-left: auto; }
 .tb-top > .tb-top__actions { order: 2; }
+/* DS-K2 M3 (J-39) · a barra da proposta K numa linha: Sair · vida dele · faixa de vez · sua vida · ⋯; o trilho de fases vira
+   cinco pontos embaixo (o atual em latão). A soma de larguras fixas é a mesma de antes (Sair + 3 ferramentas = Sair + 2 vidas + ⋯):
+   a faixa tem o mesmo teto; online, o selo da Conversa custa um alvo a mais à faixa, como antes custava o Desfazer. */
+.tb-top > .tb-life--barra { flex: none; order: 0; justify-content: center; gap: 0; min-width: var(--tap-min); padding: 0 var(--space-2); border-radius: var(--radius-full); }
+.tb-top > .tb-life--barra[data-lado="oponente"] { margin-right: auto; color: var(--player-opp); border-color: var(--player-opp); background-color: var(--player-opp-soft); }
+.tb-top > .tb-life--barra[data-lado="eu"] { margin-left: auto; color: var(--accent); border-color: var(--accent); background-color: var(--accent-soft); }
+.tb-life--barra .tb-life__n { font-size: var(--text-xl); min-width: 2ch; }
+.tb-top > .tb-life--barra[data-active="true"] { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px currentColor; }
+.tb-top > #tb-mais { flex: none; order: 0; color: var(--fg-muted); }
+.tb-mais { position: absolute; z-index: var(--z-overlay); top: calc(100% + var(--space-1)); right: var(--space-2); display: grid; gap: 2px; min-width: 176px; padding: var(--space-1);
+  background: var(--bg-elev-1); border: 1px solid var(--border-strong); border-radius: var(--radius-2); box-shadow: var(--shadow-2); }
+.tb-mais[hidden] { display: none; }
+.tb-mais > .ds-btn { justify-content: flex-start; width: 100%; color: var(--fg); }
+.tb-mais > #tb-concede { color: var(--negative); }
+@keyframes tb-mais-abre { from { opacity: 0; transform: translateY(calc(var(--space-1) * -1)); } to { opacity: 1; transform: none; } }
+.tb-mais:not([hidden]) { animation: tb-mais-abre var(--dur-1) var(--ease-out); }
+@media (prefers-reduced-motion: reduce) { .tb-mais:not([hidden]) { animation: none; } }
+body[data-mesa-cheia="true"] .tb > .tb-top > .tb-steps { order: 3; flex-basis: 100%; }
+body[data-mesa-cheia="true"] .tb-steps__list { display: flex; justify-content: center; gap: var(--space-2); }
+body[data-mesa-cheia="true"] .tb-steps__list li { width: 6px; height: 6px; padding: 0; border: none; border-radius: var(--radius-full); background: var(--border-strong); }
+body[data-mesa-cheia="true"] .tb-steps__list li[data-current="true"] { width: 18px; background: var(--accent); }
+body[data-mesa-cheia="true"] .tb-steps__list li > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+body[data-mesa-cheia="true"] .tb-steps__list > li::after { inset: 0; height: auto; border-radius: inherit; }
+.tb-side__info b { color: var(--fg); font-weight: var(--weight-medium); font-size: var(--text-sm); }
+.tb-side__info { min-width: 0; flex: 1 1 auto; overflow: hidden; color: var(--fg-muted); font-size: var(--text-xs); line-height: var(--lh-xs);
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .tb-top > .tb-steps { order: 3; flex-basis: 100%; }
 .tb-top__actions .ds-btn { color: var(--fg-muted); }
 .tb-vez__rotulo { white-space: nowrap; }
@@ -5127,6 +5160,8 @@ function renderDS() {
         h('div', { class: 'ds-row ds-row--wrap', id: 'ds-table' },
           M.LifeCounter({ name: 'Você', life: 17, active: true, onClick: () => toast('Vida') }),
           M.LifeCounter({ name: 'Goldfish', life: 20, sub: 'goldfish' }),
+          // DS-K2 M3 (J-39) · as vidas da barra da mesa: a dele na cor do oponente, a sua em latão
+          h('span', { class: 'tb-top ds-campo-barra', id: 'ds-barra' }, M.LifeCounter({ name: 'Shark', life: 11, lado: 'oponente' }), M.LifeCounter({ name: 'Você', life: 14, active: true, lado: 'eu' })),
           M.ZoneChip('Cemitério', 4, () => toast('Cemitério'))),
         M.ZoneRow('Permanentes', [M.TableCard(demo('Delver of Secrets', { sick: true })), M.TableCard(demo('Spellstutter Sprite', { tapped: true, counters: { p1p1: 1 } })), M.TableCard(demo('Guardian', { damage: 2 }))]),
         // T4 · carta modificada: P/T acima do impresso em verde, abaixo em vermelho; habilidade ganha e perdida
@@ -36986,7 +37021,11 @@ function ZoneRow(label, cards, opts = {}) {
 }
 
 /** Contador de vida: o número é o botão. */
-function LifeCounter({ name, life, active, sub, onClick, id }) {
+function LifeCounter({ name, life, active, sub, onClick, id, lado = null }) {
+  // DS-K2 M3 (J-39) · `lado` ('eu' | 'oponente'): a vida mora na barra de cima, como na proposta K — só o número, na cor de
+  // quem é (latão para você, a cor do oponente para ele); o nome e o resto ficam no nome falado (e no lado da mesa)
+  if (lado) return h('button', { class: 'tb-life tb-life--barra', type: 'button', id, title: name, dataset: { active: String(!!active), lado }, onClick, 'aria-label': `${name}: ${life} de vida` + (sub ? `, ${sub}` : '') },
+    h('span', { class: 'tb-life__n' }, String(life)));
   return h('button', { class: 'tb-life', type: 'button', id, dataset: { active: String(!!active) }, onClick, 'aria-label': `${name}: ${life} de vida` },
     h('span', { class: 'tb-life__n' }, String(life)),
     h('span', { class: 'tb-life__who' }, name, sub ? h('small', {}, sub) : null));
@@ -40648,6 +40687,29 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   // Q10 · o nó da faixa é um só e muda no lugar enquanto ainda está na tela: assim o leitor de tela
   // anuncia a troca (region viva recriada a cada pintura não é lida).
   let ultimoTurno = null, vezEl = null, vezPop = null, vezAberto = false, vezTrocou = false;
+  /* DS-K2 M3 (J-39) · a barra de cima da proposta K: Sair · vida dele · faixa de vez · sua vida · ⋯. As vidas saem dos lados
+     (vidasDaBarra, montadas por side()); Desfazer, Registro e Desistir moram num menu que abre do ⋯ por cima da mesa (fecha no
+     toque fora, no Esc, no ⋯ de novo e ao escolher). O menu continua no documento fechado (hidden): o estado dos botões
+     (Desfazer apagado) é o mesmo de antes. */
+  let vidasDaBarra = {}, maisAberto = false, maisMenu = null, maisBtn = null;
+  const foraDoMais = e => { if (maisMenu && !maisMenu.contains(e.target) && !(maisBtn && maisBtn.contains(e.target))) abreMais(false); };
+  const escDoMais = e => { if (e.key === 'Escape') { abreMais(false); if (maisBtn) maisBtn.focus(); } };
+  function abreMais(sim) {
+    maisAberto = !!sim;
+    if (maisMenu) maisMenu.hidden = !maisAberto;
+    if (maisBtn) maisBtn.setAttribute('aria-expanded', String(maisAberto));
+    document.removeEventListener('pointerdown', foraDoMais, true); document.removeEventListener('keydown', escDoMais);
+    if (maisAberto) { document.addEventListener('pointerdown', foraDoMais, true); document.addEventListener('keydown', escDoMais); }
+  }
+  function maisDaBarra(...itens) {
+    const botoes = itens.filter(Boolean);
+    // ao escolher, o foco passa ao ⋯ antes da ação (a folha que abrir devolve o foco a ele, que continua à vista) e o menu fecha
+    for (const b of botoes) { b.setAttribute('role', 'menuitem'); b.addEventListener('click', () => { if (maisBtn) maisBtn.focus({ preventScroll: true }); abreMais(false); }, { capture: true }); }
+    maisBtn = IconButton('pontos', 'Mais ações', { id: 'tb-mais', variant: 'ghost', onClick: () => abreMais(!maisAberto) });
+    maisBtn.setAttribute('aria-haspopup', 'menu'); maisBtn.setAttribute('aria-controls', 'tb-mais-menu'); maisBtn.setAttribute('aria-expanded', String(maisAberto));
+    maisMenu = h('div', { class: 'tb-mais', id: 'tb-mais-menu', role: 'menu', 'aria-label': 'Mais ações', hidden: !maisAberto, dataset: { sobrepoe: 'true' } }, ...botoes);
+    return [maisBtn, maisMenu];
+  }
   let ultimoPasso = null; // MJ8 · a fase e o turno do desenho anterior: o trilho acende em sequência até a fase de agora
   /** Leva 125 · com a pergunta escrita no cabeçalho de decisão, o botão de texto do aviso (palavra do momento + balão) vira
    *  um trecho só de texto, fora da vista e fora do foco: o conteúdo continua no documento, sem alvo de toque invisível. */
@@ -41908,8 +41970,14 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const energiaTxt = pl.energia ? `Energia ${pl.energia}` : null; // M-367 · marcadores de energia à vista
     const comandanteTxt = __m18.textoDoDanoDeComandante(s, p); // G-259 · relato #20: dano de comandante à vista
     const designacao = [s.monarca === p ? 'Monarca' : null, s.iniciativa === p ? 'Iniciativa' : null].filter(Boolean).join(' · ') || null; // M-332 · CR 725 / 726
-    const life = LifeCounter({ name: pl.name + (pl.lost ? ' (fora)' : ''), life: pl.life, active: s.turn.active === p,
-      sub: [designacao, subMasm, veneno, energiaTxt, pl.rad ? `Radiação ${pl.rad}` /* T-91 · CR 728.1 (Toca ponto comum: table.js, linha de vida) */ : null, E.encantamentosDoJogadorT(s, p) /* T-94 · CR 303.4b: "Encantado por …" */, comandanteTxt].filter(Boolean).join(' · ') || null, onClick: () => openLife(p), id: mine ? 'tb-life-me' : 'tb-life-opp' });
+    const subVida = [designacao, subMasm, veneno, energiaTxt, pl.rad ? `Radiação ${pl.rad}` /* T-91 · CR 728.1 (Toca ponto comum: table.js, linha de vida) */ : null, E.encantamentosDoJogadorT(s, p) /* T-94 · CR 303.4b: "Encantado por …" */, comandanteTxt].filter(Boolean).join(' · ') || null;
+    // DS-K2 M3 (J-39) · a vida vai para a barra de cima (vidasDaBarra); o que a acompanhava (monarca, veneno, energia,
+    // masmorra, radiação, encantado por, dano de comandante) fica no lado, numa linha à esquerda das zonas
+    vidasDaBarra[mine ? 'eu' : 'oponente'] = LifeCounter({ name: pl.name + (pl.lost ? ' (fora)' : ''), life: pl.life, active: s.turn.active === p, sub: subVida, onClick: () => openLife(p), id: mine ? 'tb-life-me' : 'tb-life-opp', lado: mine ? 'eu' : 'oponente' });
+    // o nome do outro continua à vista no lado dele (você é a vida em latão); o seu lado só ganha linha quando há o que dizer
+    const nomeNoLado = mine ? null : pl.name + (pl.lost ? ' (fora)' : '');
+    const life = nomeNoLado || subVida ? h('span', { class: 'tb-side__info', id: mine ? 'tb-info-me' : 'tb-info-opp' },
+      nomeNoLado ? h('b', {}, nomeNoLado) : null, nomeNoLado && subVida ? ' · ' : null, subVida) : null;
     // D6 · relance: sem nada em campo, uma linha só ("Campo vazio"); com uma das duas zonas vazia, ela vira uma linha fina
     // D6 · relance: "Terrenos" e "Permanentes" só quando há; com o campo vazio o lado é só a linha de vida e zonas
     const campoVazio = !others.length && !lands.length;
@@ -42564,11 +42632,13 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     }) : null;
 
     document.body.dataset.mesaCheia = 'true'; // MJ1a · a mesa aberta ocupa a tela inteira (o roteador tira a marca ao trocar de tela)
+    vidasDaBarra = {}; const ladoDele = opp != null ? side(s, opp, false) : null, meuLado = side(s, v, true); // DS-K2 M3 · os lados montam as vidas da barra
     mount(root,
       h('h1', { class: 'ds-sr-only' }, 'Mesa'), // D11 · a tela da partida tem título para o leitor de tela
       h('header', { class: 'tb-top ds-wrap' },
         // MJ1a (J-2) · a partida ocupa a tela inteira: o cabeçalho do app sai e a saída mora aqui (a partida segue guardada)
         IconButton('voltar', 'Sair da partida', { id: 'tb-sair', variant: 'ghost', onClick: () => go('/mesa') }),
+        vidasDaBarra.oponente || null, // DS-K2 M3 (J-39) · barra da proposta K: vida dele · vez · sua vida
         vezBox(s, v), vezPop,
         // MJ1e (J-7) · online, a Conversa é um selo colado à faixa de vez (mesma cor, com o ponto de ligação e o número de
         // novas) e não mais uma quarta ferramenta: o rótulo da faixa tem online o mesmo espaço que fora dele
@@ -42578,20 +42648,22 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
           b.title = `Conversa · sala ${table.online.codigo}` + (lig ? '' : ' · reconectando…'); return b; })() : null,
         // Leva 121 · o placar da série (leva 114) mora no balão da faixa: ver vezDaMesa
         StepBar({ turn: s.turn.number || 0, step: s.turn.step, active: s.status === 'mulligan' ? 'mulligan' : s.players[s.turn.active].name, label: s.status === 'mulligan' ? 'Mão inicial' : E.STEP_PT[s.turn.step], ciclo: s.cicloT === 'noite' ? 'Noite' : s.cicloT === 'dia' ? 'Dia' : null, acende: acende }), // T-48 · CR 731.1 (Toca ponto comum: StepBar) · MJ8: fases que acendem
-        h('div', { class: 'tb-top__actions' },
+        vidasDaBarra.eu || null,
+        // DS-K2 M3 (J-39) · Desfazer, Registro e Desistir moram no ⋯ (decisão do dono, 01/11): a barra fica numa linha só
+        maisDaBarra(
           // U2 · ações de ícone com nome acessível; desistir continua pedindo confirmação
           // MJ1e (J-7) · online não dá para desfazer: o botão, que só aparecia apagado, sai (a Conversa foi para a faixa de vez)
-          sinc ? null : IconButton('desfazer', 'Desfazer', { id: 'tb-undo', variant: 'ghost', disabled: !podeVoltar(), onClick: () => { if (table.undo()) { if (table.colhePassos) table.colhePassos(); adjudicating = null; semSentidos = true; save(); paint(); toast('Desfeito'); } } }),
-          IconButton('registro', 'Registro da partida', { id: 'tb-log', variant: 'ghost', onClick: openLog }),
-          IconButton('desistir', 'Desistir', { id: 'tb-concede', variant: 'ghost', onClick: () => Dialog({ title: 'Desistir da partida?', body: Text(serie && serie.melhorDe > 1 ? 'Esta partida termina com vitória do oponente. A série continua se ainda não estiver decidida.' : 'A partida termina com vitória do oponente.', { tone: 'muted' }),
+          sinc ? null : Button('Desfazer', { icone: 'desfazer', id: 'tb-undo', variant: 'ghost', disabled: !podeVoltar(), onClick: () => { if (table.undo()) { if (table.colhePassos) table.colhePassos(); adjudicating = null; semSentidos = true; save(); paint(); toast('Desfeito'); } } }),
+          Button('Registro', { icone: 'registro', id: 'tb-log', variant: 'ghost', onClick: openLog }),
+          Button('Desistir', { icone: 'desistir', id: 'tb-concede', variant: 'ghost', onClick: () => Dialog({ title: 'Desistir da partida?', body: Text(serie && serie.melhorDe > 1 ? 'Esta partida termina com vitória do oponente. A série continua se ainda não estiver decidida.' : 'A partida termina com vitória do oponente.', { tone: 'muted' }),
             actions: [Button('Cancelar', { onClick: closeDialog }), Button('Desistir', { variant: 'danger', onClick: () => { closeDialog(); const segue = serie && serie.melhorDe > 1 && T.resultadoDaSerie(T.registraJogo(serie, 1 - v)) == null; act({ t: 'concede', p: v }); if (sinc && !segue) online.sala.encerrar(table.online.codigo, 'desistiu').catch(() => {}); } })] }) }))),
       h('div', { class: 'tb-board ds-wrap' },
-        opp != null ? side(s, opp, false) : null,
+        ladoDele,
         h('div', { class: 'tb-center' }, onlineBox(), recusaBox(), adj),
         // MJ1c (J-4) · pilha e resumo numa camada de altura zero entre os lados: ficam por cima, não empurram o campo
         // J-36 · relato #42 · o resumo do turno saiu do meio da mesa: mora nos detalhes da faixa de vez (a faixa ganha o ponto de novidade)
         painelPilha ? h('div', { class: 'tb-camada', dataset: { sobrepoe: 'true' } }, h('div', { class: 'tb-camada__linha' }, painelPilha)) : null,
-        side(s, v, true)),
+        meuLado),
       dock(s, v));
     encaixaMesa(); // J-32 · com a mão aberta, a mesa encolhe até caber acima dela (antes das setas e do voo, que medem o campo)
     devolveFileiras(fileiras); mostraNovidade(s, v); // J2

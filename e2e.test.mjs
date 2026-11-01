@@ -337,7 +337,7 @@ test('e2e · goldfish: mão, terreno, criatura, adjudicação, desfazer, retomar
   await page.waitForSelector('.tb-side--me [data-zone="lands"] .tb-card');
 
   // A7: desfazer tira o terreno de volta para a mão
-  await page.click('#tb-undo');
+  await noMais(page, '#tb-undo');
   await page.waitForFunction(() => !document.querySelector('.tb-side--me [data-zone="lands"] .tb-card'));
   await island.click(); await page.click('text=Jogar terreno');
 
@@ -366,7 +366,7 @@ test('e2e · goldfish: mão, terreno, criatura, adjudicação, desfazer, retomar
   assert.equal(await page.locator('.tb-side--me [data-zone="lands"] .tb-card').count(), lands);
 
   // registro legível
-  await page.click('#tb-log');
+  await noMais(page, '#tb-log');
   assert.match(await page.innerText('.ds-dialog'), /Você jogou Island/);
   await page.keyboard.press('Escape');
 
@@ -1675,7 +1675,7 @@ test('e2e · M7/M6/A6 goldfish: mana paga sozinha, falta de mana, ataque e dano'
   await page.click('#tb-resumo-ok');
   await page.waitForFunction(() => !document.querySelector('#tb-resumo'));
   if (await page.locator('#tb-vez-pop:not([hidden])').count()) await page.click('#tb-vez-fechar'); // J-36
-  await page.click('#tb-log');
+  await noMais(page, '#tb-log');
   const log = await page.innerText('.ds-dialog');
   assert.match(log, /Você atacou com Sky Pike/);
   // leva 110: registro reescrito — vida como "perdeu N (antes → depois)", bloqueio como "bloqueou X com Y", alvo como "· alvo:"
@@ -1739,7 +1739,7 @@ test('e2e · A6 hot-seat: bloqueio com prévia de dano e alcance contra voar', {
   await reveal(page); await page.click('#tb-keep');
   const put = async name => { await drawUntil(page, name); await handCard(page, name).click(); await page.click('.ds-dialog >> text=Conjurar'); for (let i = 0; i < 4 && await page.locator('.tb-stack').count(); i++) { await reveal(page); if (await page.locator('#tb-pass').count()) await page.click('#tb-pass'); } if (await page.locator('#tb-adj-done').count()) await page.click('#tb-adj-done'); };
   await reveal(page); await toMyMain(page);
-  const first = (await page.innerText('#tb-life-me')).includes('Ana') ? 'Ana' : 'Bia';
+  const first = (await page.getAttribute('#tb-life-me', 'aria-label')).includes('Ana') ? 'Ana' : 'Bia';
   await put(first === 'Ana' ? 'Sky Pike' : 'Wall Guard');
   await page.click('#tb-pass-turn'); await reveal(page); await toMyMain(page);
   await put(first === 'Ana' ? 'Wall Guard' : 'Sky Pike');
@@ -1757,7 +1757,7 @@ test('e2e · A6 hot-seat: bloqueio com prévia de dano e alcance contra voar', {
   await page.waitForSelector('#tb-handoff');
   assert.match(await page.innerText('#tb-handoff'), /declarar bloqueadores/);
   await page.click('#tb-reveal');
-  const defLife = await page.innerText('#tb-life-me');
+  const defLife = await page.getAttribute('#tb-life-me', 'aria-label');
   // A16 · a prévia do bloqueio agora diz a vida resultante e quem morre de cada lado (antes: "você perde 2 de vida")
   assert.match(await page.innerText('.tb-banner'), /Prévia: (Ana|Bia) 20 → 18 · ninguém morre\./);
   await page.locator('.tb-side--me .tb-card[data-eligible="true"][aria-label*="Wall Guard"]').click();
@@ -1767,7 +1767,7 @@ test('e2e · A6 hot-seat: bloqueio com prévia de dano e alcance contra voar', {
   await page.click('#tb-block');
   await page.waitForSelector('#tb-reveal'); // o combate se resolve sozinho e a vez volta para o atacante
   await page.click('#tb-reveal');
-  await page.click('#tb-log');
+  await noMais(page, '#tb-log');
   const log = await page.innerText('.ds-dialog');
   assert.match(log, /bloqueou Sky Pike com Wall Guard/);
   assert.doesNotMatch(log, /\(20 → 18\)/);
@@ -1803,7 +1803,7 @@ test('e2e · S4/S5 mágica com script resolve sozinha e o registro conta o efeit
   if (await page.locator('#tb-pass').count()) await page.click('#tb-pass'); // a mágica resolve quando todos passam
   await page.waitForFunction(() => /17/.test(document.querySelector('#tb-life-opp').innerText));
   assert.equal(await page.locator('#tb-adj').count(), 0, 'com script não há adjudicação');
-  await page.click('#tb-log');
+  await noMais(page, '#tb-log');
   const log = await page.innerText('.ds-dialog');
   assert.match(log, /conjurou Lightning Bolt · alvo: Goldfish/);
   assert.match(log, /Lightning Bolt causou 3 de dano a Goldfish/);
@@ -2040,7 +2040,7 @@ test('e2e · U7 de quem é a vez: faixa na cor do jogador, lado ativo aceso, pri
   await page.setViewportSize({ width: 360, height: 780 }); await page.waitForTimeout(350);
   const corte = await page.evaluate(() => [...document.querySelectorAll('#tb-vez .tb-vez__rotulo')].map(e => e.scrollWidth - e.clientWidth));
   assert.deepEqual(corte, [0], 'rótulo inteiro');
-  const [fx, fr] = [await page.locator('#tb-vez').boundingBox(), await page.locator('#tb-concede').boundingBox()];
+  const [fx, fr] = [await page.locator('#tb-vez').boundingBox(), await page.locator('#tb-mais').boundingBox()]; // DS-K2 M3 · as ferramentas moram no ⋯ da mesma linha
   assert.ok(fr.y < fx.y + fx.height && fr.y + fr.height > fx.y, 'ferramentas na linha da faixa');
   if (process.env.SHOTS) { await page.screenshot({ path: process.env.SHOTS + '/vez-oponente.png' }); }
   assert.deepEqual(errors, []);
@@ -2275,7 +2275,7 @@ test('e2e · A14 a pilha explicada: cartões com quem, o que faz e alvo; priorid
   assert.match(await page.innerText('#tb-stack-prio'), /Prioridade: (Ana|Bia)/);
   const resolve = async () => { for (let i = 0; i < 8 && await page.locator('#tb-stack').count(); i++) { await reveal(page); if (await page.locator('#tb-pass').count()) await page.click('#tb-pass'); } await reveal(page); if (await page.locator('#tb-adj-done').count()) await page.click('#tb-adj-done'); };
   await resolve();
-  const minhaVez = async () => { for (let i = 0; i < 6 && !(await page.innerText('#tb-life-me')).includes(eu); i++) { await reveal(page); if (await page.locator('#tb-pass').count()) await page.click('#tb-pass'); await reveal(page); } };
+  const minhaVez = async () => { for (let i = 0; i < 6 && !(await page.getAttribute('#tb-life-me', 'aria-label')).includes(eu); i++) { await reveal(page); if (await page.locator('#tb-pass').count()) await page.click('#tb-pass'); await reveal(page); } };
   await minhaVez();
   await page.waitForSelector(`.tb-side--me [data-zone="permanents"] .tb-card[aria-label^="Prodigal Sorcerer"]`);
 
@@ -2292,7 +2292,7 @@ test('e2e · A14 a pilha explicada: cartões com quem, o que faz e alvo; priorid
   await page.waitForFunction(() => !document.querySelector('#tb-recusa'), null, { timeout: 8000 });
   for (let i = 0; i < 120; i++) {
     await reveal(page);
-    if (await page.locator(`.tb-side--me .tb-card[aria-label^="Prodigal Sorcerer"]:not([data-sick="true"])`).count() && (await page.innerText('.tb-banner')).includes('Principal 1') && (await page.innerText('#tb-life-me')).includes(eu)) break;
+    if (await page.locator(`.tb-side--me .tb-card[aria-label^="Prodigal Sorcerer"]:not([data-sick="true"])`).count() && (await page.innerText('.tb-banner')).includes('Principal 1') && (await page.getAttribute('#tb-life-me', 'aria-label')).includes(eu)) break;
     if ((await page.innerText('.tb-banner')).includes('Descarte')) { await page.locator('.tb-hand .tb-card').first().click(); continue; }   // mão acima de 7 na limpeza
     if (await page.locator('#tb-no-attack').count()) await page.click('#tb-no-attack');
     else if (await page.locator('#tb-pass-turn').count()) await page.click('#tb-pass-turn');
@@ -2326,7 +2326,7 @@ test('e2e · A14 a pilha explicada: cartões com quem, o que faz e alvo; priorid
 
   // registro em linha do tempo: turno mais recente primeiro, fases nomeadas
   await reveal(page);
-  await page.click('#tb-log');
+  await noMais(page, '#tb-log');
   await page.waitForSelector('#tb-timeline');
   const turnos = await page.locator('#tb-timeline .tb-log__turn').allInnerTexts();
   assert.ok(turnos.length >= 3, 'vários turnos');
@@ -2361,7 +2361,7 @@ test('e2e · M9 gatilho de entrada e habilidade ativada na mesa', { skip }, asyn
     await page.click('#tb-pass');
   }
   await page.waitForFunction(n => document.querySelectorAll('.tb-hand .tb-card').length === n, hand, { timeout: 8000 });
-  await page.click('#tb-log');
+  await noMais(page, '#tb-log');
   assert.match(await page.innerText('.ds-dialog'), /Gatilho de Elvish Visionary/);
   await page.keyboard.press('Escape');
 
@@ -2442,6 +2442,13 @@ test('e2e · A12 listas prontas: sem listas próprias da Estante; a lista na est
    em tela de celular (390×844), nos dois temas. Achados da revisão: H1…H15.
    ===================================================================== */
 /** O que toda tela precisa cumprir: sem rolagem lateral, alvo de toque ≥ 44px, sem erro no console. */
+/** DS-K2 M3 (J-39) · Desfazer, Registro e Desistir moram no ⋯ da barra da mesa: abre o menu (se fechado) e toca o item.
+    (Na mesma leva, a vida da barra virou só o número: quem lia nome e notas no texto de #tb-life-* passou a ler o nome falado;
+    e quem media "as ferramentas à direita da faixa" (.tb-top__actions) passou a medir o vizinho da direita, a sua vida.) */
+async function noMais(pg, sel) {
+  if (!(await pg.isVisible(sel))) { await pg.click('#tb-mais'); await pg.waitForSelector(sel, { state: 'visible' }); }
+  await pg.click(sel);
+}
 async function auditaTela(page, nome) {
   console.log(`# auditaTela · ${nome}`);   // R-21 · o portão conta as telas auditadas por esta linha (resumo em .tmp/portao.json)
   await page.waitForTimeout(350);   // deixa terminar a animação de entrada de diálogos e cartas
@@ -2586,7 +2593,7 @@ test('e2e · HOMOLOGAÇÃO 1 · todas as telas, nos dois temas: sem rolagem late
     await auditaTela(page, `mesa · mão inicial (${tema})`);
     await page.click('#tb-keep'); await page.waitForSelector('#tb-pass');
     await auditaTela(page, `mesa · jogando (${tema})`);
-    await page.click('#tb-log'); await page.waitForSelector('.ds-dialog'); await auditaTela(page, `mesa · registro (${tema})`); await page.keyboard.press('Escape');
+    await noMais(page, '#tb-log'); await page.waitForSelector('.ds-dialog'); await auditaTela(page, `mesa · registro (${tema})`); await page.keyboard.press('Escape');
   }
   assert.deepEqual(errors, []);
 });
@@ -2757,7 +2764,7 @@ test('e2e · HOMOLOGAÇÃO 5 · partida inteira contra o Shark até o fim, sem t
     await page.waitForTimeout(50);
   }
   assert.ok(turnoMax >= 6, `a partida andou (turno ${turnoMax})`);
-  await page.click('#tb-log'); await page.waitForSelector('#tb-timeline');
+  await noMais(page, '#tb-log'); await page.waitForSelector('#tb-timeline');
   assert.match(await page.innerText('#tb-timeline'), /Shark/);
   assert.deepEqual(errors, []);
 });
@@ -2843,19 +2850,22 @@ test('e2e · U2 ícones, profundidade e CTAs enxutos: barra, início e topo da m
   assert.equal(EMOJI.test(await page.innerText('#tb-vez')), false, 'faixa sem emoji');
   await page.click('#tb-keep'); await page.waitForSelector('#tb-pass');
   assert.equal(await page.getAttribute('#nav-play', 'aria-current'), 'page', 'a partida também conta como Jogar');
-  const ferramentas = await audita('.tb-top__actions button'); confere(ferramentas, 'topo da mesa', { maxPalavras: 0 });
-  assert.deepEqual(ferramentas.map(f => f.id), ['tb-undo', 'tb-log', 'tb-concede']);
-  assert.deepEqual(ferramentas.map(f => f.nome), ['Desfazer', 'Registro da partida', 'Desistir']);
+  // DS-K2 M3 (J-39) · expectativa mudou de propósito (decisão do dono, 01/11): no topo, só o ⋯ é ferramenta (ícone sem palavra);
+  // Desfazer, Registro e Desistir viraram itens do menu dele, com ícone e uma palavra
+  const ferramentas = await audita('.tb-top > #tb-mais'); confere(ferramentas, 'topo da mesa', { maxPalavras: 0 });
+  assert.deepEqual(ferramentas.map(f => f.id), ['tb-mais']);
+  assert.deepEqual(ferramentas.map(f => f.nome), ['Mais ações']);
+  assert.deepEqual(await page.$$eval('#tb-mais-menu > button', bs => bs.map(b => [b.id, b.textContent.trim()])), [['tb-undo', 'Desfazer'], ['tb-log', 'Registro'], ['tb-concede', 'Desistir']]);
   await page.waitForTimeout(400); // a faixa entra com animação de 300ms
-  const [vez, desistir] = [await caixa('#tb-vez'), await caixa('#tb-concede')];
+  const [vez, desistir] = [await caixa('#tb-vez'), await caixa('#tb-mais')];
   assert.ok(Math.abs((vez.y + vez.height / 2) - (desistir.y + desistir.height / 2)) < 4, 'ferramentas na mesma linha da faixa de vez');
   assert.ok(desistir.x + desistir.width <= 360, 'cabem na tela de 360');
   // desistir continua pedindo confirmação; cancelar não encerra a partida
-  await page.click('#tb-concede'); await page.waitForSelector('.ds-dialog');
+  await noMais(page, '#tb-concede'); await page.waitForSelector('.ds-dialog');
   assert.match(await page.innerText('.ds-dialog'), /Desistir da partida\?/);
   await page.click('.ds-dialog >> text=Cancelar'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
   assert.notEqual(await page.evaluate(() => window.__estanteMesa.estado().status), 'over');
-  await page.click('#tb-log'); await page.waitForSelector('#tb-timeline'); await page.keyboard.press('Escape');
+  await noMais(page, '#tb-log'); await page.waitForSelector('#tb-timeline'); await page.keyboard.press('Escape');
   assert.deepEqual(errors, []);
 });
 
@@ -3147,7 +3157,7 @@ test('e2e · E50 janela do atacante depois dos bloqueios: quadro dos bloqueios, 
   await reveal(page); await page.click('#tb-keep');
   const put = async name => { await drawUntil(page, name); await handCard(page, name).click(); await page.click('.ds-dialog >> text=Conjurar'); for (let i = 0; i < 4 && await page.locator('.tb-stack').count(); i++) { await reveal(page); if (await page.locator('#tb-pass').count()) await page.click('#tb-pass'); } if (await page.locator('#tb-adj-done').count()) await page.click('#tb-adj-done'); };
   await reveal(page); await toMyMain(page);
-  const first = (await page.innerText('#tb-life-me')).includes('Ana') ? 'Ana' : 'Bia';
+  const first = (await page.getAttribute('#tb-life-me', 'aria-label')).includes('Ana') ? 'Ana' : 'Bia';
   await put(first === 'Ana' ? 'Sky Pike' : 'Wall Guard');
   // com Raios nos dois grimórios, a outra jogadora ganha paradas para responder: passa até chegar à principal da outra
   // K3 (leva G-215) · com mana livre o Raio é resposta possível em toda etapa: a mesa para em mais lugares, então o laço anda mais
@@ -3199,7 +3209,7 @@ test('e2e · E50 janela do atacante depois dos bloqueios: quadro dos bloqueios, 
   assert.match(await page.locator('.tb-side--me .tb-card[aria-label*="Sky Pike"]').first().getAttribute('aria-label'), /Bloqueada por Wall Guard/);
   assert.match(await page.locator('.tb-side--opp .tb-card[aria-label*="Wall Guard"]').first().getAttribute('aria-label'), /Bloqueia Sky Pike/);
   assert.equal(await page.locator('.tb-side--me .tb-card[aria-label*="Sky Pike"] .tb-pill--icone[data-marca="ataca"] [data-icone="escudo"]').count(), 1, 'atacante bloqueado: selo do escudo');
-  const vidaAntes = await page.innerText('#tb-life-opp');
+  const vidaAntes = await page.getAttribute('#tb-life-opp', 'aria-label');
   // resposta: Raio no bloqueador
   await handCard(page, 'Lightning Bolt').click();
   await page.click('.ds-dialog >> text=/Conjurar → Wall Guard/');
@@ -3217,14 +3227,14 @@ test('e2e · E50 janela do atacante depois dos bloqueios: quadro dos bloqueios, 
     if (await page.locator('#tb-pass').count()) await page.click('#tb-pass'); else await page.waitForTimeout(100);
   }
   await reveal(page);
-  await page.click('#tb-log'); await page.waitForSelector('#tb-timeline');
+  await noMais(page, '#tb-log'); await page.waitForSelector('#tb-timeline');
   const log = await page.innerText('.ds-dialog');
   assert.match(log, /bloqueou Sky Pike com Wall Guard/);
   assert.match(log, /conjurou Lightning Bolt/);
   assert.match(log, /Wall Guard morreu/, 'o bloqueador morreu (3 do Raio + 2 de combate ≥ 4)');
   assert.doesNotMatch(log, /\(20 → 18\)/, 'o Sky Pike continuou bloqueado: nada passou');
   // K3 (leva G-215) · com mais paradas, a vez pode estar com a defensora no fim: confere a vida dela pelo nome, não pelo lado da tela
-  { const [vida, nome] = vidaAntes.split('\n'); assert.equal(await page.evaluate(n => window.__estanteMesa.estado().players.find(p => p.name === n).life, nome.trim()), Number(vida)); }
+  { const [, nome, vida] = vidaAntes.match(/^(.*?)(?: \(fora\))?: (\d+) de vida/); assert.equal(await page.evaluate(n => window.__estanteMesa.estado().players.find(p => p.name === n).life, nome.trim()), Number(vida)); }
   assert.deepEqual(errors, []);
 });
 
@@ -3641,7 +3651,7 @@ test('e2e · leva 104 escolhas de quem paga: Jaspera vira a criatura escolhida, 
   const h = await page.evaluate(o => { const x = window.__estanteMesa.estado().objects[o]; return { zona: x.zone, marcadores: x.counters.p1p1 }; }, hidra);
   assert.deepEqual(h, { zona: 'battlefield', marcadores: 3 }, 'entrou com os 3 marcadores escolhidos');
   await reveal(page);
-  await page.click('#tb-log'); await page.waitForSelector('#tb-timeline');
+  await noMais(page, '#tb-log'); await page.waitForSelector('#tb-timeline');
   assert.match(await page.innerText('#tb-timeline'), /conjurou Nyxborn Hydra com X = 3/);
   assert.deepEqual(errors, []);
 });
@@ -4588,7 +4598,7 @@ test('e2e · leva 114 melhor de 3: placar da série, troca visual com a reserva 
   // cortava "Turno de Shark") e virou o primeiro detalhe do balão, a um toque. Continua a um gesto, em qualquer fase.
   const placarDaSerie = async () => { await page.click('#tb-vez-btn'); await page.waitForSelector('#tb-serie'); const txt = await page.innerText('#tb-serie'); await page.click('#tb-vez-fechar'); await page.waitForSelector('#tb-vez-pop', { state: 'hidden' }); return txt; };
   assert.match(await placarDaSerie(), /Partida 1 de 3 · Você 0–0 Goldfish/);
-  const desiste = async () => { await page.click('#tb-concede'); await page.click('.ds-dialog .ds-btn--danger'); };
+  const desiste = async () => { await noMais(page, '#tb-concede'); await page.click('.ds-dialog .ds-btn--danger'); };
   await desiste();
   await page.waitForSelector('#tb-serie-next');
   assert.match(await page.textContent('.tb-banner'), /Goldfish venceu a partida 1/);
@@ -4733,7 +4743,7 @@ test('e2e · Leva 121 · faixa de turno: ícone + duas palavras, nunca cortada, 
   assert.equal(EMOJI_121.test(await page.innerText('#tb-vez')), false);
   for (const [w, hgt] of [[320, 700], [360, 780], [384, 832], [390, 844], [412, 891]]) {
     await page.setViewportSize({ width: w, height: hgt }); await page.waitForTimeout(350);
-    const m = await page.evaluate(() => { const r = document.querySelector('#tb-vez .tb-vez__rotulo'), f = document.querySelector('#tb-vez'), a = document.querySelector('.tb-top__actions'), sr = null;
+    const m = await page.evaluate(() => { const r = document.querySelector('#tb-vez .tb-vez__rotulo'), f = document.querySelector('#tb-vez'), a = document.querySelector('#tb-life-me'), sr = null;
       const b = f.getBoundingClientRect(), ab = a.getBoundingClientRect(), rb = r.getBoundingClientRect(), sb = sr ? sr.getBoundingClientRect() : null;
       return { corte: r.scrollWidth - r.clientWidth, dentro: rb.right <= b.right && rb.left >= b.left, direita: b.right, altura: b.height, acoesX: ab.left, serieX: sb ? sb.left : null, serieR: sb ? sb.right : null, mesmaLinha: Math.abs((b.top + b.height / 2) - (ab.top + ab.height / 2)) < 4, tela: window.innerWidth, doc: document.documentElement.scrollWidth }; });
     assert.equal(m.corte, 0, `${w}: rótulo inteiro`); assert.ok(m.dentro, `${w}: rótulo dentro da faixa`);
@@ -4807,7 +4817,7 @@ test('e2e · Leva 121 · Highway Robbery: tramar pela folha, a tramada à vista 
   assert.equal(await cedo.isDisabled(), true); assert.match(await cedo.innerText(), /só a partir do próximo turno/);
   await naFolha(page, /^Fechar$/);
   await auditaTela(page, 'bandeja com carta tramada');
-  await page.click('#tb-log'); await page.waitForSelector('#tb-timeline');
+  await noMais(page, '#tb-log'); await page.waitForSelector('#tb-timeline');
   assert.match(await page.innerText('#tb-timeline'), /Você tramou Highway Robbery/, 'o registro conta');
   await page.locator('.ds-dialog button', { hasText: /^Fechar$/ }).first().click(); await page.waitForTimeout(150);
   // turno seguinte: conjura sem pagar mana (as montanhas continuam desviradas)
@@ -5042,7 +5052,7 @@ test('e2e · Leva 122 · Axebane Guardian: um botão abre a divisão por cor, s�
   await page.click('#tb-mana-ok'); await page.waitForTimeout(200);
   const pool = await page.evaluate(() => window.__estanteMesa.estado().players[0].pool);
   assert.equal(pool.R, 1); assert.equal(pool.U, x.n - 1); assert.equal(pool.G, 0, 'gerou exatamente a divisão escolhida');
-  await page.click('#tb-log'); await page.waitForSelector('#tb-timeline');
+  await noMais(page, '#tb-log'); await page.waitForSelector('#tb-timeline');
   assert.match((await page.innerText('#tb-timeline')).replace(/\s+/g, ' '), /Você gerou .*com Axebane Guardian/, 'o registro diz o que foi gerado');
   assert.deepEqual(errors, []);
 });
@@ -5397,7 +5407,8 @@ test('e2e · Leva 128 perfil: nome e foto na barra e na mesa, hot-seat preenchid
   await page.click('[data-opponent="hotseat"]'); assert.equal(await page.inputValue('#mesa-me'), 'Guilherme', 'hot-seat preenchido com o nome do perfil');
   await page.click('[data-opponent="goldfish"]'); await page.fill('#mesa-seed', '4'); await page.click('#mesa-start');
   await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-pass'); await page.waitForTimeout(300);
-  assert.match(await page.innerText('.tb-side--me'), /Guilherme/, 'o contador de vida mostra o nome do perfil');
+  // DS-K2 M3 (J-39) · expectativa mudou de propósito: a sua vida é o número em latão na barra; o nome do perfil fica no nome falado dela (a foto continua na faixa de vez)
+  assert.match(await page.getAttribute('#tb-life-me', 'aria-label'), /Guilherme/, 'o contador de vida diz o nome do perfil');
   assert.doesNotMatch(await page.innerText('.tb-side--me .tb-life, .tb-side--me'), /\bVocê\b.*Grimório/s, 'não sobra "Você" no assento');
   // foto do perfil no círculo da faixa de vez quando o turno é seu
   await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-arroba');
@@ -7055,7 +7066,7 @@ test('e2e · Leva 133 partida online: criar sala, entrar com o código em outra 
   }
   await auditaTela(A, 'mesa online');
   // 4 · desistir no anfitrião: os dois veem o fim e a sala encerra
-  await A.click('#tb-concede'); await A.waitForSelector('.ds-dialog'); await A.click('.ds-dialog .ds-btn--danger');
+  await noMais(A, '#tb-concede'); await A.waitForSelector('.ds-dialog'); await A.click('.ds-dialog .ds-btn--danger');
   await B.waitForFunction(() => window.__estanteMesa.estado().status === 'over', null, { timeout: 10000 });
   assert.equal(JSON.parse(await estado(B)).winner, 1, 'o convidado venceu');
   assert.equal(await A.evaluate(c => JSON.parse(localStorage.getItem('estante.online:salas/' + c)).estado, codigo), 'encerrada');
@@ -8244,7 +8255,7 @@ test('e2e · G4 som na partida: a jogada vira evento e som (terreno, sua vez, co
   assert.ok(!jogada.includes('descarte'), 'mágica que resolveu não soa como descarte');
   // desfazer volta o estado sem tocar nada
   const antes = (await tocados()).length;
-  if (await page.isEnabled('#tb-undo')) { await page.click('#tb-undo'); await page.waitForTimeout(150); assert.equal((await tocados()).length, antes, 'desfazer é silencioso'); }
+  if (await page.isEnabled('#tb-undo')) { await noMais(page, '#tb-undo'); await page.waitForTimeout(150); assert.equal((await tocados()).length, antes, 'desfazer é silencioso'); }
   // desligar: ícone e nome mudam, nada mais toca, e a escolha fica guardada
   await abreBalao(); await page.click('#tb-som'); await page.waitForFunction(() => document.querySelector('#tb-som').getAttribute('aria-pressed') === 'false');
   assert.deepEqual(await page.$$eval('#tb-som .ds-icon', is => is.map(i => i.dataset.icone)), ['somMudo']); assert.equal(await page.getAttribute('#tb-som', 'aria-label'), 'Som da partida desligado');
@@ -8391,7 +8402,7 @@ test('e2e · H1 imagens nítidas: a folha da carta na mesa traz todos os tamanho
   await page.keyboard.press('Escape'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
   await auditaTela(page, 'mesa com carta transformada');
   // troca com a reserva: cada carta com a imagem (dupla face pela frente), nítida para a tela
-  await page.click('#tb-concede'); await page.click('.ds-dialog .ds-btn--danger'); await page.waitForSelector('#tb-serie-next'); await page.click('#tb-serie-next'); await page.waitForSelector('#troca');
+  await noMais(page, '#tb-concede'); await page.click('.ds-dialog .ds-btn--danger'); await page.waitForSelector('#tb-serie-next'); await page.click('#tb-serie-next'); await page.waitForSelector('#troca');
   // G-277 · o srcset (nítida para a tela) só entra depois que a primeira imagem, a guardada, chegou: a conferência vem depois da carga
   await page.waitForFunction(() => [...document.querySelectorAll('img.troca-carta__img')].every(i => i.complete && i.naturalWidth > 0 && i.hasAttribute('srcset')));
   const troca = await page.$$eval('.troca-carta', bs => bs.map(b => { const i = b.querySelector('img.troca-carta__img'); return [b.dataset.nome, i ? i.getAttribute('srcset') : null, !!b.querySelector('.troca-carta__semimg')]; }));
@@ -8440,7 +8451,7 @@ test('e2e · H2 contra o Shark dá para voltar quantas jogadas quiser: o botão 
   const fim = await est(); assert.ok(fim.turno >= 4 && fotos.length >= 5, JSON.stringify(fim));
   assert.ok(fim.grimorio < fotos[0].grimorio, 'houve compra no caminho');
   // o registro: cada turno com jogada minha tem "Voltar"; confirma antes
-  await page.click('#tb-log'); await esperaH2(page, '#tb-timeline'); await page.waitForTimeout(350);
+  await noMais(page, '#tb-log'); await esperaH2(page, '#tb-timeline'); await page.waitForTimeout(350);
   const botoes = await page.$$eval('#tb-timeline [data-volta-turno]', bs => bs.map(b => ({ turno: Number(b.dataset.voltaTurno), texto: b.textContent.trim(), h: b.getBoundingClientRect().height, icone: (b.querySelector('.ds-icon') || { dataset: {} }).dataset.icone })));
   assert.ok(botoes.length >= 2, 'há turnos para voltar: ' + JSON.stringify(botoes)); assert.ok(botoes.every(b => b.texto === 'Voltar' && b.h >= 44 && b.icone === 'desfazer'), JSON.stringify(botoes));
   await auditaTela(page, 'registro com voltar ao turno');
@@ -8452,11 +8463,11 @@ test('e2e · H2 contra o Shark dá para voltar quantas jogadas quiser: o botão 
   await page.click(`#tb-timeline [data-volta-turno="${alvo}"]`); await page.click('#tb-volta-confirma'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
   assert.deepEqual(await est(), fotos[idx], `voltou ao estado em que o turno ${alvo} chegou para mim`);
   // o botão: três toques, três jogadas para trás, cada uma no estado exato de antes (atravessa compra e o turno do bot)
-  for (let k = 1; k <= 3; k++) { await page.click('#tb-undo'); await page.waitForTimeout(120); assert.deepEqual(await est(), fotos[idx - k], 'volta ' + k); }
+  for (let k = 1; k <= 3; k++) { await noMais(page, '#tb-undo'); await page.waitForTimeout(120); assert.deepEqual(await est(), fotos[idx - k], 'volta ' + k); }
   assert.ok(fotos[idx - 3].grimorio > fotos[idx].grimorio || fotos[idx - 3].turno < fotos[idx].turno, 'as voltas atravessaram um turno');
   assert.equal(await page.isEnabled('#tb-undo'), true, 'e continua podendo voltar');
   // até o começo: o botão volta tudo e só então apaga
-  for (let i = 0; i < 40 && await page.isEnabled('#tb-undo'); i++) { await page.click('#tb-undo'); await page.waitForTimeout(60); }
+  for (let i = 0; i < 40 && await page.isEnabled('#tb-undo'); i++) { await noMais(page, '#tb-undo'); await page.waitForTimeout(60); }
   await esperaH2(page, '#tb-keep'); assert.equal(await page.isDisabled('#tb-undo'), true, 'de volta à mão inicial: nada mais a desfazer');
   // recarregar não perde a possibilidade de voltar
   // leva G-221 · a queda de 08/10 mostrou a causa de uma das formas: Manter valeu, mas o recarregar logo depois correu
@@ -8655,9 +8666,9 @@ test('e2e · H3 melhor de 3 online: a série nasce nos dois lados, desistir de u
   await B.fill('#online-codigo-input', codigo.slice(5)); await B.click('#online-entrar');
   await A.waitForSelector('#tb-keep', { timeout: 20000 }); await B.waitForSelector('#tb-keep', { timeout: 20000 });
   const estado = p => p.evaluate(() => JSON.stringify(window.__estanteMesa.estado()));
-  const desiste = async p => { await p.click('#tb-concede'); await p.waitForSelector('.ds-dialog'); await p.click('.ds-dialog .ds-btn--danger'); };
+  const desiste = async p => { await noMais(p, '#tb-concede'); await p.waitForSelector('.ds-dialog'); await p.click('.ds-dialog .ds-btn--danger'); };
   // 1 · partida 1: o anfitrião desiste; a sala continua aberta e os dois veem "Próxima partida"
-  await A.click('#tb-concede'); await A.waitForSelector('.ds-dialog');
+  await noMais(A, '#tb-concede'); await A.waitForSelector('.ds-dialog');
   assert.match(await A.innerText('.ds-dialog'), /A série continua/, 'o aviso de desistir fala da série');
   await A.click('.ds-dialog .ds-btn--danger');
   await B.waitForFunction(() => window.__estanteMesa.estado().status === 'over', null, { timeout: 10000 });
@@ -9306,6 +9317,69 @@ test('e2e · DS-K2 J2 · Jogar como mesa de preparação: a sua lista é um cart
 // mão caber sem rolar; uma carta cobre no máximo 40% da vizinha, então o centro de cada carta é dela (é ali que o dedo e o
 // teste tocam); as pontas giram até 10° e descem em arco; a carta segurada endireita, sobe e fica por cima. Com 8 cartas em
 // 360 px a mão rola de lado e continua em leque. A fileira não ganha rolagem vertical por causa do giro.
+test('e2e · DS-K2 M3 barra da mesa: Sair · vida dele · faixa de vez · sua vida · ⋯ numa linha, vidas na cor de cada um e tocáveis, trilho em cinco pontos, ⋯ abre Desfazer/Registro/Desistir e fecha no toque fora e no Esc, o lado guarda o que acompanhava a vida; 360 e 390, dois temas, auditaTela', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await createDeck(page, base, 'Barra', PAUPER);
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start'); await page.fill('#mesa-seed', '4');
+  await page.click('[data-opponent="goldfish"]');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-pass');
+  const mede = () => page.evaluate(() => {
+    const top = document.querySelector('.tb-top'), cx = e => { const r = e.getBoundingClientRect(); return { l: r.left, r: r.right, t: r.top, b: r.bottom, w: r.width, h: r.height, m: r.top + r.height / 2 }; };
+    const ordem = [...top.children].filter(e => !e.hidden && getComputedStyle(e).display !== 'none' && e.getBoundingClientRect().height > 0 && !e.classList.contains('tb-steps')).sort((a, b) => a.getBoundingClientRect().left - b.getBoundingClientRect().left).map(e => e.id || e.className.split(' ')[0]);
+    const ids = ['tb-sair', 'tb-life-opp', 'tb-vez', 'tb-life-me', 'tb-mais'], c = Object.fromEntries(ids.map(i => [i, cx(document.getElementById(i))]));
+    const pts = [...document.querySelectorAll('.tb-steps__list li')].map(li => ({ w: li.getBoundingClientRect().width, h: li.getBoundingClientRect().height, atual: li.dataset.current === 'true', cor: getComputedStyle(li).backgroundColor }));
+    const rot = document.querySelector('#tb-vez .tb-vez__rotulo');
+    return { ordem, c, pts, passos: cx(document.querySelector('.tb-steps')), corte: rot.scrollWidth - rot.clientWidth, largura: innerWidth, doc: document.documentElement.scrollWidth - innerWidth,
+      vidas: ['tb-life-opp', 'tb-life-me'].map(i => { const e = document.getElementById(i), cs = getComputedStyle(e); return { nome: e.getAttribute('aria-label'), texto: e.textContent.trim(), cor: cs.color, borda: cs.borderTopColor, lado: e.dataset.lado, dentroDoLado: !!e.closest('.tb-side') }; }),
+      ladoTemVida: !!document.querySelector('.tb-side .tb-life'), acc: getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() };
+  });
+  for (const [w, hgt] of [[360, 780], [390, 844]]) for (const tema of ['dark', 'light']) {
+    await page.setViewportSize({ width: w, height: hgt }); await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(400);
+    const m = await mede(), onde = `${w} ${tema}`;
+    assert.deepEqual(m.ordem.filter(x => x !== 'tb-vez-pop'), ['tb-sair', 'tb-life-opp', 'tb-vez', 'tb-life-me', 'tb-mais'], `${onde}: a ordem da barra`);
+    for (const [k, v] of Object.entries(m.c)) { assert.ok(Math.abs(v.m - m.c['tb-vez'].m) < 2, `${onde}: ${k} na linha da faixa`); assert.ok(v.h >= 44 && v.w >= 44, `${onde}: ${k} com 44 px (${v.w}×${v.h})`); }
+    assert.ok(m.c['tb-mais'].r <= m.largura, `${onde}: o ⋯ cabe na tela`); assert.equal(m.doc, 0, `${onde}: nada rola de lado`);
+    assert.equal(m.corte, 0, `${onde}: o rótulo da faixa inteiro`);
+    assert.ok(Math.abs((m.c['tb-vez'].l - m.c['tb-life-opp'].r) - (m.c['tb-life-me'].l - m.c['tb-vez'].r)) <= 2, `${onde}: a faixa no meio das duas vidas`);
+    assert.deepEqual(m.vidas.map(v => [v.lado, v.texto, v.dentroDoLado]), [['oponente', '20', false], ['eu', '20', false]], `${onde}: as duas vidas na barra, só o número`);
+    assert.ok(/Goldfish: 20 de vida/.test(m.vidas[0].nome) && /: 20 de vida/.test(m.vidas[1].nome), `${onde}: o nome falado diz de quem é`);
+    assert.notEqual(m.vidas[0].cor, m.vidas[1].cor, `${onde}: cada vida na cor de quem é`); assert.equal(m.vidas[1].cor, m.vidas[1].borda, `${onde}: sua vida em latão, texto e borda`);
+    assert.equal(m.ladoTemVida, false, `${onde}: a vida saiu dos lados`);
+    assert.equal(m.pts.length, 5, `${onde}: cinco fases`); assert.equal(m.pts.filter(p => p.atual).length, 1, `${onde}: uma fase atual`);
+    assert.ok(m.pts.every(p => p.h <= 8) && m.pts.find(p => p.atual).w > m.pts.find(p => !p.atual).w, `${onde}: pontos, o atual mais longo`);
+    assert.ok(m.passos.h <= 10 && m.passos.t >= m.c['tb-vez'].b, `${onde}: o trilho de pontos fica embaixo da faixa, em até 10 px`);
+    await auditaTela(page, `DS-K2 M3 · barra ${onde}`);
+    if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + `/ds-k2-m3-barra-${w}-${tema}.png`, clip: { x: 0, y: 0, width: w, height: 260 } });
+  }
+  // o ⋯: abre o menu por cima da mesa, com os três itens; fecha no toque fora e no Esc; a vida tocada abre a vida
+  await page.setViewportSize({ width: 360, height: 780 }); await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  assert.equal(await page.getAttribute('#tb-mais', 'aria-expanded'), 'false'); assert.equal(await page.isVisible('#tb-undo'), false, 'fechado: os itens não aparecem');
+  // o estado do Desfazer vale com o menu fechado: depois de baixar um terreno, ele acende
+  await page.evaluate(() => { const M = window.__estanteMesa, a = M.legais().find(x => x.t === 'play_land'); if (a) M.act(a); });
+  await page.waitForFunction(() => { const b = document.querySelector('#tb-undo'); return b && !b.disabled; }, null, { timeout: 4000 });
+  assert.equal(await page.isVisible('#tb-undo'), false, 'e continua escondido no menu fechado');
+  await page.click('#tb-mais'); await page.waitForSelector('#tb-mais-menu:not([hidden])');
+  const menu = await page.evaluate(() => { const m = document.querySelector('#tb-mais-menu'), r = m.getBoundingClientRect();
+    return { itens: [...m.children].map(b => [b.id, b.getAttribute('role'), Math.round(b.getBoundingClientRect().height)]), dentro: r.right <= innerWidth && r.left >= 0, expandido: document.querySelector('#tb-mais').getAttribute('aria-expanded') }; });
+  assert.deepEqual(menu.itens.map(i => i[0]), ['tb-undo', 'tb-log', 'tb-concede']); assert.ok(menu.itens.every(i => i[1] === 'menuitem' && i[2] >= 44), 'itens de menu de 44 px ' + JSON.stringify(menu.itens));
+  assert.ok(menu.dentro && menu.expandido === 'true', 'o menu cabe na tela e o ⋯ diz que abriu');
+  await auditaTela(page, 'DS-K2 M3 · ⋯ aberto');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/ds-k2-m3-mais.png', clip: { x: 0, y: 0, width: 360, height: 300 } });
+  await page.mouse.click(180, 500); await page.waitForSelector('#tb-mais-menu[hidden]', { state: 'attached' });
+  await page.click('#tb-mais'); await page.waitForSelector('#tb-mais-menu:not([hidden])'); await page.keyboard.press('Escape'); await page.waitForSelector('#tb-mais-menu[hidden]', { state: 'attached' });
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'tb-mais', 'no Esc o foco fica no ⋯');
+  await noMais(page, '#tb-concede'); await page.waitForSelector('.ds-dialog'); assert.equal(await page.isVisible('#tb-mais-menu'), false, 'escolher fecha o menu');
+  await page.keyboard.press('Escape'); await page.waitForSelector('.ds-dialog', { state: 'detached' }); assert.equal(await page.evaluate(() => document.activeElement.id), 'tb-mais', 'a folha devolve o foco ao ⋯');
+  await page.click('#tb-life-opp'); await page.waitForSelector('.ds-dialog, .ds-overlay[data-open="true"]'); await page.keyboard.press('Escape');
+  // o nome do outro continua no lado dele; o seu lado, sem nada que acompanhe a vida (veneno, monarca…), não ganha linha
+  assert.deepEqual(await page.evaluate(() => [(document.querySelector('#tb-info-opp') || {}).textContent || null, !!document.querySelector('#tb-info-me')]), ['Goldfish', false]);
+  // /ds: as duas vidas da barra no catálogo
+  await page.goto(base + '#/ds'); await page.waitForSelector('#ds-barra');
+  assert.deepEqual(await page.$$eval('#ds-barra .tb-life--barra', ls => ls.map(l => [l.dataset.lado, l.textContent])), [['oponente', '11'], ['eu', '14']]);
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · DS-K2 M1 carta do campo na moldura K: a caixa da arte mostra só a janela da arte da imagem, nome em faixa opaca, P/T no pé (e sem pé quando não há P/T), largura e raio da proposta, fila centralizada e rolando desde a primeira com muitas cartas, virada com o nome de pé; 360 e 390, dois temas, auditaTela; /ds', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.addInitScript(() => { window.__MTG_TEST = true; });
@@ -9659,7 +9733,7 @@ test('e2e · I5 Perfil › Partidas: a partida que termina entra no histórico (
   assert.equal(await page.locator('.ds-btn--primary:visible').count(), 1, 'um primário: Jogar');
   await auditaTela(page, 'partidas · vazio');
   const comeca = async () => { await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start'); await page.waitForFunction(() => !document.querySelector('#mesa-start').disabled, null, { timeout: 10000 });
-    await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-pass, #tb-pass-turn, #tb-concede'); };
+    await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-pass, #tb-pass-turn, #tb-mais'); }; // DS-K2 M3 · o Desistir mora no ⋯ (escondido): a mesa pronta é o ⋯ à vista
   const acaba = async quemPerde => { await page.evaluate(q => window.__estanteMesa.act({ t: 'concede', p: q }), quemPerde); await page.waitForSelector('#tb-new'); await page.evaluate(() => window.__estanteMesa.gravado()); await page.waitForTimeout(150); };
   const total = async () => { await page.goto(base + '#/perfil/partidas'); await page.waitForSelector('#partidas-total, #partidas-vazio'); return (await page.locator('#partidas-total').count()) ? Number(await page.$eval('#partidas-total b', e => e.textContent)) : 0; };
   // 1 · perdi (desisti): entra uma derrota; desfazer o fim tira o registro; terminar de novo grava de novo
@@ -9667,9 +9741,9 @@ test('e2e · I5 Perfil › Partidas: a partida que termina entra no histórico (
   assert.equal(await total(), 1);
   await page.goto(base + '#/partida'); await page.waitForSelector('#tb-new');
   if (await page.locator('#tb-undo:not([disabled])').count()) {
-    await page.click('#tb-undo'); await page.waitForFunction(() => window.__estanteMesa.estado().status === 'playing'); await page.waitForTimeout(200);
+    await noMais(page, '#tb-undo'); await page.waitForFunction(() => window.__estanteMesa.estado().status === 'playing'); await page.waitForTimeout(200);
     assert.equal(await total(), 0, 'desfazer o fim da partida tira o registro');
-    await page.goto(base + '#/partida'); await page.waitForSelector('#tb-concede'); await acaba(0); assert.equal(await total(), 1, 'terminar de novo grava uma vez só');
+    await page.goto(base + '#/partida'); await page.waitForSelector('#tb-concede', { state: 'attached' }); await acaba(0); assert.equal(await total(), 1, 'terminar de novo grava uma vez só');
   }
   // 2 e 3 · duas vitórias (o oponente perde)
   await page.goto(base + '#/partida'); await page.waitForSelector('#tb-new'); await page.click('#tb-new'); await comeca(); await acaba(1);
@@ -11027,8 +11101,9 @@ test('e2e · J2 ficar onde está na mesa: agir não devolve as fileiras ao come�
   a = await prepara(); await page.locator(PERM + ' .tb-card').last().click(); await page.waitForSelector('.ds-overlay[data-open="true"]'); await page.keyboard.press('Escape'); await page.waitForTimeout(400); igual(a, await mede(), 'folha da permanente');
   a = await prepara(); await page.locator(MAO + ' .tb-card').last().click(); await page.waitForSelector('.ds-overlay[data-open="true"]'); await page.keyboard.press('Escape'); await page.waitForTimeout(400); igual(a, await mede(), 'folha da carta da mão');
   // 3 · Registro: abrir e fechar devolve o foco ao botão sem levar a tela até ele
-  a = await prepara(); await page.evaluate(() => { const b = document.querySelector('#tb-log'); b.focus({ preventScroll: true }); b.click(); }); await page.waitForSelector('#tb-timeline, .ds-overlay[data-open="true"]'); await page.keyboard.press('Escape'); await page.waitForTimeout(400); igual(a, await mede(), 'Registro');
-  assert.equal(await page.evaluate(() => document.activeElement.id), 'tb-log', 'o foco volta para quem abriu');
+  // DS-K2 M3 (J-39) · o Registro mora no ⋯: o foco volta ao ⋯ (o item fica escondido com o menu fechado) — expectativa mudou de propósito
+  a = await prepara(); await page.evaluate(() => { const m = document.querySelector('#tb-mais'); m.focus({ preventScroll: true }); m.click(); document.querySelector('#tb-log').click(); }); await page.waitForSelector('#tb-timeline, .ds-overlay[data-open="true"]'); await page.keyboard.press('Escape'); await page.waitForTimeout(400); igual(a, await mede(), 'Registro');
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'tb-mais', 'o foco volta para quem abriu');
   // 4 · passar a vez de um passo (bandeja): a fileira continua onde estava
   a = await prepara(); await page.evaluate(() => { const E = window.__estanteMesa; E.act(E.legais().find(x => x.t === 'pass' && x.p === 0)); }); await page.waitForTimeout(400);
   const d = await mede(); assert.ok(Math.abs(a.perm - d.perm) <= 2, `passar: ${JSON.stringify(a)} → ${JSON.stringify(d)}`);
@@ -13448,15 +13523,18 @@ test('e2e · G-259 dano de comandante à vista: o selo de vida mostra "Comandant
   await reveal(page); await page.click('#tb-keep');
   await reveal(page);
   for (let i = 0; i < 6 && !(await page.locator('#tb-pass').count()); i++) await reveal(page);
-  assert.doesNotMatch(await page.innerText('#tb-life-opp'), /Comandante/, 'sem dano, sem linha');
+  assert.doesNotMatch(await page.getAttribute('#tb-life-opp', 'aria-label'), /Comandante/, 'sem dano, sem linha');
   // o comandante de quem tem a prioridade causa 12 de dano de combate ao outro (o motor soma igual: 903.10a)
   await page.evaluate(() => {
     const M = window.__estanteMesa, s = M.estado(), p = s.turn.priority;
     const c = Object.values(s.objects).find(o => o.commander && o.owner === p);
     M.act({ t: 'commander_damage', p, target: 1 - p, source: c.oid, delta: 12 });
   });
-  await page.waitForFunction(() => /Comandante 12 de 21/.test(document.querySelector('#tb-life-opp').textContent), null, { timeout: 4000 });
-  assert.doesNotMatch(await page.innerText('#tb-life-me'), /Comandante/, 'quem causou não leva');
+  await page.waitForFunction(() => /Comandante 12 de 21/.test(document.querySelector('#tb-life-opp').getAttribute('aria-label')), null, { timeout: 4000 });
+  // DS-K2 M3 (J-39) · à vista: a linha do lado dele (a vida da barra é só o número); inteira, sem cortar
+  const linha = await page.evaluate(() => { const e = document.querySelector('#tb-info-opp'); return e && { t: e.textContent, cabe: e.scrollHeight <= e.clientHeight + 1 && e.scrollWidth <= e.clientWidth + 1 }; });
+  assert.ok(linha && /Comandante 12 de 21/.test(linha.t) && linha.cabe, 'o dano de comandante aparece inteiro no lado dele ' + JSON.stringify(linha));
+  assert.doesNotMatch(await page.getAttribute('#tb-life-me', 'aria-label'), /Comandante/, 'quem causou não leva');
   const caixa = await page.locator('#tb-life-opp').boundingBox(), tela = page.viewportSize();
   assert.ok(caixa.height >= 44 && caixa.x >= 0 && caixa.x + caixa.width <= tela.width + 1, 'o selo continua tocável e dentro da tela');
   // tocar na vida detalha por comandante
@@ -14933,7 +15011,7 @@ test('e2e · MJ1a partida em tela cheia: sem o cabeçalho do app, campo no alto,
       const cx = sel => { const e = document.querySelector(sel); if (!e) return null; const b = e.getBoundingClientRect(); return { x: b.left, r: b.right, y: b.top, h: b.height, meio: b.top + b.height / 2 }; };
       const barra = document.querySelector('.ds-appbar');
       return { barra: !!barra && barra.getBoundingClientRect().height > 0 && getComputedStyle(barra).display !== 'none',
-        lado: cx('.tb-board .tb-side'), sair: cx('#tb-sair'), vez: cx('#tb-vez'), acoes: cx('.tb-top__actions'),
+        lado: cx('.tb-board .tb-side'), sair: cx('#tb-sair'), vez: cx('#tb-vez'), acoes: cx('#tb-life-me'),
         nomeSair: document.querySelector('#tb-sair').getAttribute('aria-label'),
         atual: document.querySelectorAll('.tb-steps__list li[data-current="true"]').length,
         cabecalho: getComputedStyle(document.querySelector('.tb-steps__head')).position,
@@ -14957,7 +15035,7 @@ test('e2e · MJ1a partida em tela cheia: sem o cabeçalho do app, campo no alto,
   // J-2 recusada na fila: no CI a fonte do sistema é mais larga que a deste clone e o rótulo da faixa cortou 5 px em 360.
   // Guarda-corpo: com uma fonte larga (DejaVu Sans, a do Ubuntu do CI) o rótulo continua inteiro e a linha não quebra.
   await page.addStyleTag({ content: ':root{--font-ui:"DejaVu Sans",sans-serif !important}' }); await page.waitForTimeout(150);
-  const larga = await page.evaluate(() => { const r = document.querySelector('#tb-vez .tb-vez__rotulo'), v = document.querySelector('#tb-vez').getBoundingClientRect(), a = document.querySelector('.tb-top__actions').getBoundingClientRect();
+  const larga = await page.evaluate(() => { const r = document.querySelector('#tb-vez .tb-vez__rotulo'), v = document.querySelector('#tb-vez').getBoundingClientRect(), a = document.querySelector('#tb-life-me').getBoundingClientRect();
     return { corte: r.scrollWidth - r.clientWidth, mesmaLinha: Math.abs((v.top + v.height / 2) - (a.top + a.height / 2)) < 4 }; });
   assert.equal(larga.corte, 0, 'fonte larga: rótulo da faixa inteiro em 360');
   assert.ok(larga.mesmaLinha, 'fonte larga: faixa e ferramentas na mesma linha em 360');
@@ -15005,24 +15083,25 @@ test('e2e · MJ1b faixa compacta por lado: vida e contadores numa linha de 44 px
     await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema);
     await page.waitForTimeout(250);
     const lados = await page.$$eval('.tb-board .tb-side', ls => ls.map(l => {
-      const r = e => e.getBoundingClientRect(), cab = l.querySelector('.tb-side__head'), vida = l.querySelector('.tb-life');
+      // DS-K2 M3 (J-39) · a vida foi para a barra de cima: na linha do lado ficam o nome do outro (e notas) e os contadores
+      const r = e => e.getBoundingClientRect(), cab = l.querySelector('.tb-side__head'), vida = l.querySelector('.tb-side__info') || cab;
       const chips = [...l.querySelectorAll('.tb-chip')].map(c => ({ ...(b => ({ x: b.left, r: b.right, y: b.top, h: b.height, w: b.width, meio: b.top + b.height / 2 }))(r(c)), nome: c.getAttribute('aria-label'), icone: !!c.querySelector('.ds-icon svg') }));
       const carta = l.querySelector('.tb-card'), rotulos = [...l.querySelectorAll('.tb-zone__label')];
-      return { lado: l.className, cab: r(cab).height, vida: { r: r(vida).right, meio: r(vida).top + r(vida).height / 2, h: r(vida).height }, chips,
+      return { lado: l.className, cab: r(cab).height, vida: { r: vida === cab ? r(cab).left : r(vida).right, meio: r(cab).top + r(cab).height / 2, h: r(cab).height }, chips,
         cartaAbaixo: carta ? r(carta).top - r(l).top : null, rotulosVisiveis: rotulos.filter(x => r(x).width > 1).length, rotulosTexto: rotulos.map(x => x.textContent).join(' | ') };
     }));
     const nome = `${w}×${hgt} ${tema}`;
     for (const l of lados) {
       const quem = `${nome} ${/--me/.test(l.lado) ? 'meu lado' : 'oponente'}`;
       assert.ok(l.cab <= 52, `${quem}: faixa da vida e contadores com ≤ 52 px (mediu ${Math.round(l.cab)}; eram ≈ 106 no oponente)`);
-      assert.ok(l.vida.h >= 44 && l.vida.h <= 48, `${quem}: vida com 44 px`);
+      assert.ok(l.vida.h >= 44 && l.vida.h <= 48, `${quem}: linha do lado com 44 px`);
       assert.ok(l.chips.length >= 3, `${quem}: contadores à vista`);
       for (const c of l.chips) {
         assert.ok(c.h >= 44 && c.w >= 44, `${quem}: ${c.nome} tocável (${Math.round(c.w)}×${Math.round(c.h)})`);
         assert.ok(c.icone, `${quem}: ${c.nome} com ícone`);
         assert.match(c.nome, /^(Mão|Grimório|Cemitério|Exílio): \d+/, `${quem}: nome falado com a zona e o número`);
-        assert.ok(Math.abs(c.meio - l.vida.meio) < 4, `${quem}: ${c.nome} na linha da vida`);
-        assert.ok(c.x >= l.vida.r, `${quem}: ${c.nome} não encosta na vida`);
+        assert.ok(Math.abs(c.meio - l.vida.meio) < 4, `${quem}: ${c.nome} na linha do lado`);
+        assert.ok(c.x >= l.vida.r, `${quem}: ${c.nome} não encosta no nome do outro`);
       }
       assert.ok(l.cartaAbaixo != null && l.cartaAbaixo <= 76, `${quem}: primeira carta a ${Math.round(l.cartaAbaixo)} px do topo do lado (era ≈ 160)`);
       assert.equal(l.rotulosVisiveis, 0, `${quem}: rótulos de zona fora da vista`);
@@ -15033,9 +15112,9 @@ test('e2e · MJ1b faixa compacta por lado: vida e contadores numa linha de 44 px
   // guarda-corpo de fonte larga (a do CI): em 360 a vida encolhe com reticências e os contadores não descem de linha
   await page.setViewportSize({ width: 360, height: 780 });
   await page.addStyleTag({ content: ':root{--font-ui:"DejaVu Sans",sans-serif !important}' }); await page.waitForTimeout(150);
-  const larga = await page.$$eval('.tb-board .tb-side', ls => ls.map(l => { const v = l.querySelector('.tb-life').getBoundingClientRect(), cs = [...l.querySelectorAll('.tb-chip')].map(c => c.getBoundingClientRect());
-    return { cab: l.querySelector('.tb-side__head').getBoundingClientRect().height, junto: cs.every(c => Math.abs(c.top - v.top) < 4 && c.left >= v.right) }; }));
-  for (const l of larga) { assert.ok(l.cab <= 52, `fonte larga: faixa com ${Math.round(l.cab)} px`); assert.ok(l.junto, 'fonte larga: contadores na linha da vida, sem encostar'); }
+  const larga = await page.$$eval('.tb-board .tb-side', ls => ls.map(l => { const cab = l.querySelector('.tb-side__head').getBoundingClientRect(), i = l.querySelector('.tb-side__info'), v = i ? i.getBoundingClientRect() : { right: cab.left }, cs = [...l.querySelectorAll('.tb-chip')].map(c => c.getBoundingClientRect());
+    return { cab: cab.height, junto: cs.every(c => Math.abs((c.top + c.height / 2) - (cab.top + cab.height / 2)) < 4 && c.left >= v.right) }; }));
+  for (const l of larga) { assert.ok(l.cab <= 52, `fonte larga: faixa com ${Math.round(l.cab)} px`); assert.ok(l.junto, 'fonte larga: contadores na linha do lado, sem encostar no nome'); }
   await auditaTela(page, 'MJ1b · mesa 360 com fonte larga');
   // o contador continua abrindo a zona
   await page.click('#tb-cemiterio-me'); await page.waitForSelector('.ds-dialog');
@@ -15266,8 +15345,8 @@ test('e2e · MJ1e Conversa no selo da faixa de vez: colado à faixa, mesma cor, 
     const q = s => document.querySelector(s), r = s => { const b = q(s).getBoundingClientRect(); return { x: b.left, r: b.right, y: b.top, h: b.height, w: b.width }; };
     const rot = q('#tb-vez .tb-vez__rotulo'), sel = q('#tb-chat');
     const texto = rot.textContent; rot.textContent = 'Turno Maria Eduarda Fonseca Lima'; const espaco = q('#tb-vez').getBoundingClientRect().width; rot.textContent = texto; // teto da faixa com nome longo
-    return { espaco, vez: r('#tb-vez'), selo: r('#tb-chat'), acoes: r('.tb-top__actions'), sair: r('#tb-sair'), corte: rot.scrollWidth - rot.clientWidth, rotulo: rot.textContent,
-      naFerramenta: !!sel.closest('.tb-top__actions'), papelVez: q('#tb-vez').dataset.papel, papelSelo: sel.dataset.papel,
+    return { espaco, vez: r('#tb-vez'), selo: r('#tb-chat'), acoes: r('#tb-life-me'), sair: r('#tb-sair'), corte: rot.scrollWidth - rot.clientWidth, rotulo: rot.textContent,
+      naFerramenta: !!sel.closest('#tb-life-me'), papelVez: q('#tb-vez').dataset.papel, papelSelo: sel.dataset.papel,
       corVez: getComputedStyle(q('#tb-vez')).backgroundColor, corSelo: getComputedStyle(sel).backgroundColor, desfazer: document.querySelectorAll('#tb-undo').length,
       doc: document.documentElement.scrollWidth, tela: innerWidth };
   });
@@ -15291,7 +15370,10 @@ test('e2e · MJ1e Conversa no selo da faixa de vez: colado à faixa, mesma cor, 
     assert.ok(m.selo.r <= m.acoes.x, `${nome}: o selo não invade as ferramentas`);
     assert.ok(Math.abs(m.acoes.y - m.vez.y) < 1 && Math.abs(m.sair.y - m.vez.y) < 1, `${nome}: Sair, faixa, selo e ferramentas numa linha só`);
     assert.ok(m.doc <= m.tela, `${nome}: sem rolagem lateral`);
-    if (w === 360) assert.ok(m.espaco >= 150, `${nome}: com nome longo a faixa tem o espaço de fora do online (${m.espaco} px; era 102)`);
+    // DS-K2 M3 (J-39) · expectativa mudou de propósito: as duas vidas foram para a barra (decisão do dono, 01/11), então online, com o
+    // selo, a faixa fica com um alvo a menos que fora do online (≈ 106 px em 360); o ícone de quem joga sai da faixa ali e
+    // "Seu turno" cabe inteiro; nome longo do outro usa as reticências declaradas
+    if (w === 360) assert.ok(m.espaco >= 100, `${nome}: com nome longo a faixa tem ao menos 100 px (${m.espaco} px)`);
     await auditaTela(p, `MJ1e · ${nome}`);
   }
   for (const p of [A, B]) { await p.setViewportSize({ width: 360, height: 780 }); await p.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark')); }
@@ -15377,7 +15459,7 @@ test('e2e · J-30 aviso da partida dentro da faixa de vez: não cobre Sair nem f
     const R = e => e.getBoundingClientRect(), vis = e => !!e && e.offsetParent !== null && R(e).width > 0 && getComputedStyle(e).visibility !== 'hidden' && getComputedStyle(e).display !== 'none';
     const ds = document.querySelector('#ds-toast'), av = document.querySelector('#tb-aviso'), vez = document.querySelector('#tb-vez');
     // cada controle da linha de cima continua sendo o que está no ponto do meio dele (nada por cima)
-    const ctl = [...document.querySelectorAll('.tb-top > #tb-sair, .tb-top__actions button')].filter(vis);
+    const ctl = [...document.querySelectorAll('.tb-top > #tb-sair, .tb-top > .tb-life--barra, .tb-top > #tb-mais')].filter(vis);
     const tapados = ctl.filter(b => { const r = R(b), x = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return !(x === b || b.contains(x)); }).map(b => b.id || b.getAttribute('aria-label'));
     const tx = av && av.querySelector('.tb-vez__aviso-texto');
     return { dsVisivel: vis(ds), aviso: vis(av) ? av.textContent : null, dentroDaFaixa: !!(av && vez && vez.contains(av)), alturaFaixa: R(vez).height, controles: ctl.length, tapados,
@@ -15400,7 +15482,7 @@ test('e2e · J-30 aviso da partida dentro da faixa de vez: não cobre Sair nem f
   // com o aviso à vista, o toque chega às ferramentas (Registro abre) e a faixa abre os detalhes com o aviso inteiro no topo
   await page.setViewportSize({ width: 360, height: 780 }); await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   await page.evaluate(x => __m3.toast(x, 8000), LONGO); await page.waitForSelector('#tb-aviso');
-  await page.click('#tb-log', { timeout: 3000 }); await page.waitForSelector('.ds-dialog'); await page.keyboard.press('Escape'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
+  await noMais(page, '#tb-log'); await page.waitForSelector('.ds-dialog'); await page.keyboard.press('Escape'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
   await page.evaluate(x => __m3.toast(x, 8000), LONGO); await page.waitForSelector('#tb-aviso');
   await page.click('#tb-vez-btn'); await page.waitForSelector('#tb-vez-pop:not([hidden]) #tb-vez-aviso');
   assert.equal(await page.textContent('#tb-vez-aviso'), LONGO, 'nos detalhes do turno, o aviso inteiro');
@@ -17832,4 +17914,5 @@ test('e2e · J-34 · relato #41 · CR 601.2c/601.2h · lampejo do Dread Return: 
   assert.deepEqual(fim.alvos, ['battlefield', 'graveyard', 'graveyard', 'graveyard', 'graveyard'], 'a criatura escolhida volta ao campo');
   assert.deepEqual(M.errors, []);
 });
+
 

@@ -13269,8 +13269,29 @@ sentinela do Pauper mantém as novas jogando. Outro formato entra quando chegar 
 | L1 | Lista: hero com a arte da carta-chave e a posse na coleção | e2e | geral | a fazer |
 | M1 | Mesa: cartas do campo com arte na fila, tamanho e raio da proposta | e2e, contrato visual | jogabilidade | ✅ J-38 |
 | M2 | Mesa: mão em leque com arte e rotação, a carta tocada sobe | e2e, 60 quadros | jogabilidade | ✅ J-37 |
-| M3 | Mesa: barra vida · fase com os pontos do turno · vida | e2e | jogabilidade | a fazer |
+| M3 | Mesa: barra vida · fase com os pontos do turno · vida | e2e | jogabilidade | ✅ J-39 |
 | M4 | Mesa: bandeja com a ação primária em latão e o resto em segundo plano | e2e | jogabilidade | a fazer |
+
+**M3 · Barra da mesa: vida · vez · vida** ✅ (leva J-39, trilha `jogabilidade`, 01/11/2026)
+- **Valor:** as duas vidas ficam lado a lado no alto da mesa, como na proposta K: a dele à esquerda na cor do oponente, a
+  sua à direita em latão, a vez no meio e as cinco fases como pontos embaixo (a atual em latão). Dá para ver o placar da
+  partida de relance, sem procurar a vida em cada lado.
+- **Regra:** barra numa linha: Sair · vida dele · faixa de vez · sua vida · ⋯ (cinco alvos de 44 px; a soma de larguras
+  fixas é a mesma de antes, então a faixa tem o mesmo teto; online, o selo da Conversa custa um alvo à faixa, como antes
+  custava o Desfazer). Desfazer, Registro e Desistir moram no ⋯ (decisão do dono, 01/11): o menu abre por cima da mesa,
+  fecha no toque fora, no Esc, no ⋯ de novo e ao escolher; o foco volta ao ⋯. Desistir continua pedindo confirmação.
+  A vida tocada abre a vida como antes. O que acompanhava a vida (monarca, iniciativa, veneno, energia, masmorra,
+  radiação, encantado por, dano de comandante) fica no lado, numa linha antes das zonas, e no nome falado da vida; o nome do
+  outro continua à vista no lado dele.
+- **Custo:** desfazer passou a custar dois toques (era um). Online em 360 px, a faixa fica com ~106 px (eram ~150): o ícone de
+  quem joga sai da faixa ali, "Seu turno" cabe inteiro e nome longo do outro usa reticências. O seu nome sai da vista da mesa (fica no nome falado da sua
+  vida; a foto continua na faixa de vez).
+- **Testes:** e2e "DS-K2 M3" (ordem e linha da barra, 44 px, faixa no meio das vidas e com o rótulo inteiro, cores,
+  pontos, menu com toque fora/Esc/foco, 360 e 390, dois temas, auditaTela) e contrato "DS-K2 · M3" (tokens, menu
+  declarado, contraste ≥ 3 do número grande nos dois temas). Testes de outras levas que tocavam Desfazer, Registro e
+  Desistir passam pelo ⋯ (`noMais`); U2, U7 e J2 tiveram a expectativa trocada de propósito, com a linha no próprio teste.
+- **Pixels de campo em 360×780 (medido):** a mesa começa 12 px mais alto (74 → 62 px), porque o trilho virou pontos de 6 px;
+  a linha de cada lado continua com 44 px por causa das zonas (agora com o nome do outro no lugar da vida).
 
 **M1 · Carta do campo na moldura K** ✅ (leva J-38, trilha `jogabilidade`, 01/11/2026)
 - **Valor:** no campo, cada carta se lê de longe como na proposta K: o nome em faixa própria, legível (antes, o nome

@@ -598,6 +598,20 @@ test('DS-K2 · M2 a mão em leque: largura e passo por conta de CSS sobre a larg
   assert.ok(!/tb-mao-na-decisao'[^\n]*tb-row--leque|tb-pick-cards'[^\n]*tb-row--leque/.test(HTML), 'as fileiras de decisão continuam fileiras (cada carta inteira)');
 });
 
+test('DS-K2 · M3 a barra da mesa: vidas na barra na cor de cada um (texto e borda; fundo suave por token), ⋯ com menu declarado por cima da mesa, trilho em pontos, o que acompanhava a vida fica no lado', () => {
+  assert.match(HTML, /if \(lado\) return h\('button', \{ class: 'tb-life tb-life--barra'/, 'a vida da barra é só o número, com o nome falado');
+  assert.match(componentCss, /\.tb-top > \.tb-life--barra\[data-lado="oponente"\] \{[^}]*color: var\(--player-opp\); border-color: var\(--player-opp\); background-color: var\(--player-opp-soft\);/);
+  assert.match(componentCss, /\.tb-top > \.tb-life--barra\[data-lado="eu"\] \{[^}]*color: var\(--accent\); border-color: var\(--accent\); background-color: var\(--accent-soft\);/);
+  assert.match(HTML, /maisMenu = h\('div', \{ class: 'tb-mais', id: 'tb-mais-menu', role: 'menu', 'aria-label': 'Mais ações', hidden: !maisAberto, dataset: \{ sobrepoe: 'true' \} \}/, 'o menu por cima da mesa é sobreposição declarada');
+  assert.match(componentCss, /\.tb-mais \{ position: absolute; z-index: var\(--z-overlay\);/, 'camada por token');
+  assert.match(componentCss, /@media \(prefers-reduced-motion: reduce\) \{ \.tb-mais:not\(\[hidden\]\) \{ animation: none; \} \}/);
+  assert.match(componentCss, /body\[data-mesa-cheia="true"\] \.tb-steps__list li\[data-current="true"\] \{ width: 18px; background: var\(--accent\); \}/, 'a fase atual é o ponto longo em latão');
+  assert.ok(!/class: 'tb-top__actions'/.test(HTML), 'a linha das três ferramentas saiu');
+  for (const [nome, t] of [['escuro', DARK], ['claro', LIGHT]]) for (const k of ['--player-opp', '--accent']) {
+    const r = ratio(t[k], t['--bg-elev-1']); assert.ok(r >= 3, `${k} (número grande) sobre a barra (${nome}): ${r.toFixed(2)}`);
+  }
+});
+
 test('DS-K2 · M1 a carta do campo na moldura K: janela da arte por token sobre a mesma imagem, faixa do nome opaca, pé só com P/T, fileira centralizada sem perder a rolagem', () => {
   assert.match(css, /:root \{ --moldura-hd: calc\(var\(--text-2xs\) \* 1\.2 \+ 6px\); --moldura-ft: calc\(var\(--text-xs\) \* 1\.4 \+ 6px\); --moldura-borda: 3px;\s*--arte-topo: 0\.112; --arte-alto: 0\.442; \}/, 'a moldura e a janela da arte são tokens, iguais nos dois temas');
   // a janela da arte da moldura de 2015 (8,2–91,8% × 11,18–55,44%) cobre a caixa: a imagem cresce pela altura e centraliza
