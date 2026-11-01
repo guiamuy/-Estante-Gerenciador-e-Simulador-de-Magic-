@@ -157,3 +157,64 @@ test('S-595 · gerador com autoteste: grava medida.json só com números (acerto
   assert.ok(!/data:image|base64/.test(JSON.stringify(m)));
   assert.equal(r.medida.variacoes.reta.casos, 10);
 });
+
+/* ---------------- S-596 · a base no aparelho e a decisão nome + arte ---------------- */
+test('S-596 · decisão: arte confirma o nome (aproximado sobe a exato, edição vem da arte); arte de outra carta deixa "confira"; sem nome, só arte inequívoca responde; nome exato nunca é trocado', () => {
+  const L = X.LIMIAR_ARTE, A = 0.85, E = 0.97;
+  const sol = { i: 3, d: 12, nome: 'Sol Ring', set: 'cmr', numero: '472' }, outra = { i: 9, d: 10, nome: 'Arcane Signet', set: 'cmr', numero: '297' };
+  let r = X.decideArte({ found: [{ name: 'Sol Ring', score: 0.88 }], doNome: sol, top: [], aceite: A, exata: E });
+  assert.equal(r.confere, true); assert.equal(r.found[0].score, E); assert.equal(r.arte.set, 'cmr');
+  r = X.decideArte({ found: [{ name: 'Sol Ring', score: 1 }], doNome: { ...sol, d: L.igual + 1 }, top: [outra], aceite: A, exata: E });
+  assert.equal(r.discorda, false); assert.equal(r.found[0].name, 'Sol Ring', 'nome exato não é trocado pela arte');
+  r = X.decideArte({ found: [{ name: 'Sol Ring', score: 0.88 }], doNome: { ...sol, d: 90 }, top: [outra], aceite: A, exata: E });
+  assert.equal(r.discorda, true); assert.equal(r.found[0].score, r.found[1].score, 'as duas coladas: o porteiro marca ambígua');
+  r = X.decideArte({ found: [], top: [outra, { i: 1, d: 80, nome: 'X' }], aceite: A, exata: E });
+  assert.equal(r.found[0].name, 'Arcane Signet'); assert.equal(r.found[0].score, E); assert.equal(r.found[0].viaArte, true);
+  r = X.decideArte({ found: [], top: [{ ...outra, d: 25 }, { i: 1, d: 80, nome: 'X' }], aceite: A, exata: E });
+  assert.ok(r.found[0].score >= A && r.found[0].score < E, 'perto mas não tanto: aceita como aproximada (precisa repetir)');
+  r = X.decideArte({ found: [], top: [outra, { i: 1, d: outra.d + 5, nome: 'Y' }], aceite: A, exata: E });
+  assert.equal(r.found.length, 0, 'duas artes quase iguais: a arte não responde');
+  r = X.decideArte({ found: [], top: [{ ...outra, d: L.soArte + 1 }], aceite: A, exata: E });
+  assert.equal(r.found.length, 0, 'longe demais: não responde');
+});
+
+function serveBase(lista, nomes, { ok = true } = {}) {
+  const indice = { versao: 1, geradoEm: '2026-11-02T08:00:00Z', bits: 192, campos: ['nome', 'set', 'numero', 'ilustracao', 'versao'], cartas: nomes.map((n, i) => [n[0], n[1], n[2], 'il' + i, '1']) };
+  const bin = X.binDasArtes(lista);
+  const pedidos = [];
+  const fetchFn = async (url) => { pedidos.push(url); if (!ok) return { ok: false, status: 503 };
+    return { ok: true, json: async () => JSON.parse(JSON.stringify(indice)), arrayBuffer: async () => bin.buffer.slice(bin.byteOffset, bin.byteOffset + bin.byteLength) }; };
+  return { fetchFn, pedidos };
+}
+function lojaMemoria() { const m = new Map(); return { m, get: async k => (m.has(k) ? m.get(k) : null), set: async (k, v) => { m.set(k, v); return true; } }; }
+
+test('S-596 · base no aparelho: baixa uma vez e guarda; abre da guardada sem rede; velha (> 7 dias) baixa de novo; base ruim não é guardada; sem nada, segue sem arte', async () => {
+  const cartas = [carta(1), carta(2), carta(3)], lista = cartas.map(c => imp(c));
+  const nomes = [['Sol Ring', 'cmr', '472'], ['Sol Ring', 'c21', '263'], ['Arcane Signet', 'cmr', '297']];
+  const store = lojaMemoria(); let t = Date.UTC(2026, 10, 2);
+  const s1 = serveBase(lista, nomes);
+  const b1 = X.criaBaseDeArtes({ store, fetchFn: s1.fetchFn, agora: () => t, url: 'https://x/' });
+  assert.equal(b1.pronta(), false);
+  await b1.carrega();
+  assert.equal(b1.pronta(), true); assert.equal(b1.info().total, 3); assert.equal(s1.pedidos.join(','), 'https://x/artes.json,https://x/artes.bin');
+  // edição pelo nome: das duas Sol Ring, a da arte certa
+  const r = b1.doNome(imp(cartas[1]), 'Sol Ring');
+  assert.equal(r.set, 'c21'); assert.equal(r.d, 0);
+  assert.equal(b1.top(imp(cartas[2]))[0].nome, 'Arcane Signet');
+  // outra sessão, sem rede: abre a guardada
+  const s2 = serveBase(lista, nomes, { ok: false });
+  const b2 = X.criaBaseDeArtes({ store, fetchFn: s2.fetchFn, agora: () => t });
+  await b2.carrega({ online: false });
+  assert.equal(b2.pronta(), true); assert.equal(s2.pedidos.length, 0);
+  // 8 dias depois, com rede: baixa de novo; se a rede falha, fica a guardada
+  t += 8 * 24 * 3600 * 1000;
+  const b3 = X.criaBaseDeArtes({ store, fetchFn: s2.fetchFn, agora: () => t });
+  await b3.carrega();
+  assert.equal(s2.pedidos.length, 1, 'tentou baixar'); assert.equal(b3.pronta(), true, 'a guardada continua valendo');
+  // base cortada: não entra nem é guardada
+  const loja2 = lojaMemoria();
+  const ruim = { fetchFn: async u => ({ ok: true, json: async () => ({ versao: 1, bits: 192, cartas: [['A'], ['B']] }), arrayBuffer: async () => new ArrayBuffer(24) }) };
+  const b4 = X.criaBaseDeArtes({ store: loja2, fetchFn: ruim.fetchFn });
+  assert.equal(await b4.carrega(), null); assert.equal(loja2.m.size, 0);
+  assert.equal(b4.doNome(imp(cartas[0]), 'Sol Ring'), null); assert.equal(b4.top(imp(cartas[0])).length, 0);
+});

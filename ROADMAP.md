@@ -8681,8 +8681,28 @@ estruturado para tornarmos o Shark um jogador de nível profissional com as suas
     versão errada e base cortada são recusadas; quais cartas entram; gerador com Scryfall falsa: imagem que falha fica
     de fora, segunda corrida só baixa a ilustração nova ou mudada, terceira não regrava; autoteste só com números);
     P-2 (`seguranca.actions.unit`) cobre o fluxo novo (permissões no topo, ações por SHA).
-- **Fatia 2 (S-596):** o app baixa a base do ramo `artes` (como a base de nomes, uma vez, offline), lê a arte da carta
-  achada em cada passada e confere com o nome; arte e nome concordando entra; discordando, "confira".
+- **Fatia 2 · no app (S-596)** 🟡 (aguardando a primeira base real e o teste no aparelho):
+  - a base (`artes.json` + `artes.bin` do ramo `artes`) é baixada ao abrir o scanner, em segundo plano, conferida (versão,
+    bits, tamanho) e guardada no aparelho (`scanner.artes`, derivado, fora do backup); com mais de 7 dias e rede, baixa de
+    novo; sem rede, vale a guardada; sem base, o scanner segue só pelo nome;
+  - em cada passada com a carta achada, a arte (o pedaço do vídeo com a arte, até 320 px) vira impressão e é comparada
+    (`decideArte`): **nome lido + arte de uma edição desse nome** (≤ 44 bits) → confere: nome aproximado sobe a exato, e
+    nome + arte com a carta parada entram na primeira passada; **nome aproximado + arte clara de outra carta** → as duas
+    coladas, a leitura vira "confira"; **sem nome** → a arte responde quando está perto (≤ 30) e com folga para a segunda
+    (≥ 18): exata (≤ 18) pede duas passadas, aproximada três. Nome exato nunca é trocado pela arte;
+  - a varredura da base inteira só roda quando o nome não deu ou não bateu com nenhuma edição dele (ressalva de escala);
+  - **edição pela arte:** quando a linha de coleção não lê, a edição vem da arte (se a arte é da carta aceita);
+  - diagnóstico: `leitor_versao: S-596`, `artes: N artes`, tempo da etapa `arte` em cada leitura e `arte <bits>` no aceite;
+    "O que sai do aparelho" cita a base de artes do scanner (mesma origem do GitHub).
+  - **Limiares provisórios** (`LIMIAR_ARTE`), medidos em artes desenhadas: recalibrar com o `medida.json` da primeira
+    corrida do fluxo, antes de tirar o 🟡.
+  - **Testes:** U (decisão: confere, discorda, só arte, arte ambígua, longe demais, nome exato não trocado; base no
+    aparelho: baixa uma vez e guarda, abre a guardada sem rede, velha baixa de novo e a rede que falha mantém a guardada,
+    base cortada não entra nem é guardada; edição pelo nome entre duas impressões da mesma carta), I headless ("S-596":
+    base servida com a impressão da carta da foto entre 300 sorteadas; o leitor de nome não lê nada; a carta entra pela
+    arte, a edição MH2 #267 vem da arte, e ao reabrir sem rede o diagnóstico mostra a base guardada).
+  - **Correção no caminho:** o primeiro registro da chave `scanner.artes` levava um comentário de linha que apagava as
+    chaves seguintes do registro do armazenamento (`names.catalog`, `cambio.usd`); o e2e pegou ("chave sem classe").
 - **Revisão de segurança (01/11/2026):** aprovado com duas correções aplicadas antes de publicar: a geração roda sem a
   credencial de escrita no git (só o passo de publicar usa o token) e a decodificação recusa imagem acima de 4 MP. Para a
   S-596: nome vindo da base entra na tela só como texto (`h()`), e "O que sai do aparelho" passa a citar a base de artes.
