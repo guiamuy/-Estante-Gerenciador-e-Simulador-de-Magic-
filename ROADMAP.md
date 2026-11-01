@@ -5678,6 +5678,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Conferido:** o leitor antes e depois sobre as cartas revisadas e os pendentes dos competitivos: nenhuma leitura já completa mudou.
 - **Teste:** `lt276.unit` (2 testes; falham no motor anterior).
 
+**M-596 · LT254 · Hexing Squelcher: mágicas suas não podem ser anuladas; salvaguarda de vida concedida** ✅ (leva M-596, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** Hexing Squelcher (64 listas competitivas) passa a ser **lida por inteiro**. Texto da Scryfall de 25/10/2026. Joga no app depois da aprovação (homologacao).
+- **Regra:** "Ward—Pay N life." impresso passa a ser aceito pelo leitor (o motor já lia da carta); "Spells you control can't be countered" (101.2: "can't" vence "can"; vale para mágica, não para habilidade; `self.magiasNaoAnulaveis`); "Other creatures you control have "Ward—Pay 2 life."" (702.21, salvaguarda concedida por `continuo`; o validador passa a aceitar contínuo que só concede salvaguarda).
+- **Conferido:** o leitor antes e depois sobre as cartas revisadas e os pendentes dos competitivos: nenhuma leitura já completa mudou.
+- **Teste:** `lt277.unit` (3 testes; falham no motor anterior).
+
 **M-584 · LT241 · Sentinela do Pauper: Nettle Sentinel (593 → 594 de 594 listas)** ✅ (leva M-584, motor v112 sem mudança de forma; goldens intactos)
 - **Valor:** a sentinela (`cobertura/pauper.json` de 26/10/2026 13:27 UTC) mostrava 593 de 594 listas Pauper a 100% no app, com uma carta `nova` (Nettle Sentinel, 1 lista). Aprovada, 594 de 594 na próxima coleta. Texto da API da Scryfall de 26/10/2026 (campo `texto` do relatório), gravado em `.listas/oficiais-revisadas.json`.
 - **Regra:** triagem A — o leitor `__m42` lê "Whenever you cast a/an <cor> spell" com uma cor só (gatilho `other-cast`, `filter.anyColors`; 105.2: multicolorida com verde conta); "doesn't untap during your untap step" (502.3, M-558) e o "you may" do gatilho (603.5, pergunta na resolução) já existiam. Núcleo intacto; numerada M-584 porque a M-583 está reservada pela conversa dos competitivos.

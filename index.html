@@ -7027,7 +7027,7 @@ function continuoErros(c, tag) {
   if (c.torna != null) { errs.push(...tornaErros(c.torna, tag)); if (c.afetados !== 'anexada') errs.push(`${tag}: "torna" estático só vale para a permanente anexada (o resto precisa da dependência 613.8)`); }
   if (c.perde != null && !(Array.isArray(c.perde) && c.perde.length && c.perde.every(k => KEYWORDS.includes(String(k).toLowerCase())))) errs.push(`${tag}: palavra-chave desconhecida em "perde"`); // CR2d.7
   if (c.cores != null && !(Array.isArray(c.cores) && c.cores.every(x => ['W', 'U', 'B', 'R', 'G'].includes(x)) && (c.cores.length || !c.somaCores))) errs.push(`${tag}: "cores" precisa de W, U, B, R ou G (vazio = incolor)`); // CR2d.8
-  if (!c.poder && !c.resistencia && !(c.palavras || []).length && !c.perPoder && !c.perResistencia && !c.torna && !(c.perde || []).length && c.cores == null && !c.troca) errs.push(`${tag}: não muda nada`);
+  if (!c.poder && !c.resistencia && !(c.palavras || []).length && !c.perPoder && !c.perResistencia && !c.torna && !(c.perde || []).length && c.cores == null && !c.troca && c.ward == null /* M-596 · só a salvaguarda concedida também muda algo */) errs.push(`${tag}: não muda nada`);
   return errs;
 }
 const TRIGGERS = ['etb', 'dies', 'leaves-battlefield', 'other-leaves-battlefield', 'enchanted-deals-damage', 'upkeep', 'attacks', 'blocks', 'other-etb', 'other-dies', 'combat-damage', 'combat-damage-player-or-pw' /* M-538 */, 'artefatos-saem-seu-turno' /* M-546 */, 'cast-self', 'other-cast', 'main2', 'end-of-combat', 'other-sacrificed', 'counters-added', 'third-draw', 'enchanted-tapped-or-damaged',
@@ -12123,6 +12123,7 @@ function monarcaErrosT(sc) {
   if (sc && sc.self && sc.self.emVezDePerder != null && sc.self.emVezDePerder !== 'lich') errs.push("self.emVezDePerder conhece só 'lich' (Lich's Mirror)"); // T-96 · CR 704.7
   if (sc && sc.self && sc.self.soEmCombate != null && sc.self.soEmCombate !== true) errs.push('self.soEmCombate só vale como true');
   if (sc && sc.self && sc.self.travaAtivadasDeArtefato != null && !['todos', 'oponentes'].includes(sc.self.travaAtivadasDeArtefato)) errs.push("self.travaAtivadasDeArtefato é 'todos' ou 'oponentes'"); // M-589 · 602.5
+  if (sc && sc.self && sc.self.magiasNaoAnulaveis != null && sc.self.magiasNaoAnulaveis !== true) errs.push('self.magiasNaoAnulaveis só vale como true'); // M-596
   if (sc && sc.self && sc.self.naoAnulavel != null && sc.self.naoAnulavel !== true) errs.push('self.naoAnulavel só vale como true'); // M-579 // T-92 · "Cast this spell only during combat"
   for (const ab of ((sc && sc.abilities) || [])) if (ab && ab.soNoSeuTurno != null && (ab.soNoSeuTurno !== true || ab.kind !== 'activated')) errs.push('soNoSeuTurno só vale como true, numa habilidade ativada'); // T-92 · "Activate only during your turn"
   if (sc && sc.self && sc.self.radGanhaVida != null && sc.self.radGanhaVida !== true) errs.push('self.radGanhaVida só vale como true'); // T-91 · CR 728.1a
@@ -21439,7 +21440,8 @@ const __m42 = (function () {
         if (mo) { topo.morph = { mana: mo[2], ...(mo[1] === 'Megamorph' ? { mega: true } : {}) }; frases.push({ texto: linha, lida: true }); continue; } }
       { const cr = !magica && /\bVehicle\b/.test(tipo) && linha.replace(/\.$/, '').match(/^crew (\d+)$/i); // K-78 · 702.122a: "Crew N" é a habilidade ativada de tripular (forma canônica da T-4: custo { crew: N } e o efeito `tripulada`)
         if (cr) { (topo.abilities = topo.abilities || []).push({ kind: 'activated', label: `Tripular ${+cr[1]}`, cost: { crew: +cr[1] }, effects: [{ do: 'tripulada' }] }); frases.push({ texto: linha, lida: true }); continue; } }
-      if (!magica && /^ward \{\d+\}$/i.test(linha.replace(/\.$/, ''))) { frases.push({ texto: linha, lida: true, palavras: true }); continue; } // M-333 · 702.21: o motor lê "Ward {N}" impresso da carta (K-2)
+      if (!magica && /^ward(?: \{\d+\}|\s*[—-]\s*pay \d+ life)$/i.test(linha.replace(/\.$/, ''))) { // M-596 · também "Ward—Pay N life." (o motor lê da carta, wardImpressoK)
+        frases.push({ texto: linha, lida: true, palavras: true }); continue; } // M-333 · 702.21: o motor lê "Ward {N}" impresso da carta (K-2)
       if (magica && /^(?:\{[^}]+\})+, Discard (?:~|this card): /i.test(til(linha, nome))) { const a = leAtivada(til(linha, nome).replace(/\.$/, ''), nome, frases); if (a) (topo.abilities = topo.abilities || []).push(a); continue; } // M-585 · Visionary's Dance (113.6: a habilidade de mágica com "Discard this card" funciona da mão)
       if (magica && /^(?:\{[^}]+\})+, Exile (?:~|this card) from your graveyard: /i.test(til(linha, nome))) { const a = leAtivada(til(linha, nome).replace(/\.$/, ''), nome, frases); /* M-574 · também com o nome impresso */ if (a) (topo.abilities = topo.abilities || []).push(a); continue; } // M-569 · Wither and Bloom (113.6: funciona do cemitério)
       if (magica && /^harmonize (?:\{[0-9WUBRGC]+\})+$/i.test(linha.replace(/\.$/, ''))) { frases.push({ texto: linha, lida: true, palavras: true }); continue; } // M-413 · 702.180: o motor lê "Harmonize {custo}" impresso da carta (K-55, harmonizarK)
@@ -21572,6 +21574,9 @@ const __m42 = (function () {
         if (el2) { const g1 = leGatilho(`When ~ enters, ${el2[1]}`, nome, frases), g2 = leGatilho(`When ~ leaves the battlefield, ${el2[1]}`, nome, []); if (g1 && g2) (topo.abilities = topo.abilities || []).push(g1, g2); continue; }
         if (/^you may play an additional land on each of your turns$/i.test(lp)) { topo.regraJogador = [...(topo.regraJogador || []), { quem: 'voce', terrenosExtras: 1 }]; frases.push({ texto: linha, lida: true }); continue; } // M-594 · 305.2 · Icetill Explorer
         if (/^you may play lands from your graveyard$/i.test(lp)) { topo.regraJogador = [...(topo.regraJogador || []), { quem: 'voce', terrenosDoCemiterio: true }]; frases.push({ texto: linha, lida: true }); continue; } // M-594 · 305.1: jogar terreno do cemitério conta como a jogada de terreno
+        if (/^spells you control can't be countered$/i.test(lp)) { topo.self = { ...(topo.self || {}), magiasNaoAnulaveis: true }; frases.push({ texto: linha, lida: true }); continue; } // M-596 · 101.2 · Hexing Squelcher
+        { const ow = lp.match(/^other creatures you control have "ward\s*[—-]\s*pay (\d+) life\.?"$/i); // M-596 · Hexing Squelcher (702.21)
+          if (ow) { topo.continuo = [...(topo.continuo || []), { afetados: { tipos: ['creature'], de: 'you', outra: true }, ward: { pagarVida: +ow[1] } }]; frases.push({ texto: linha, lida: true }); continue; } }
         if (/^~ can't be blocked except by three or more creatures$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'three-or-more' }; frases.push({ texto: linha, lida: true }); continue; } // M-349 · Troll of Khazad-dûm
         const egf = lp.match(new RegExp(`^(?:this land|~) enters(?: the battlefield)? tapped unless you control ${N} or more other (Plains|Islands|Swamps|Mountains|Forests)$`, 'i')); // M-349 · Gingerbread Cabin
         if (egf) { topo.entersTappedUnless = { minOutrosDoSubtipo: [/^plains$/i.test(egf[2]) ? 'Plains' : egf[2].replace(/s$/, ''), num(egf[1])] }; /* M-395 · o singular de "Plains" é "Plains" (Idyllic Grange: antes virava "Plain" e nunca contava) */ frases.push({ texto: linha, lida: true }); continue; }
@@ -24761,7 +24766,7 @@ function applyEffectM449(s, src, eff, tgt, events) {
       if (outras.length) { if (antes) s.saindoJuntas = antes; else delete s.saindoJuntas; }
       note(eff.mesmoNome ? { mesmoNome: outras.length } : {}); break; }
     case 'counter':
-      if (obj && obj.zone === 'stack' && (obj.naoAnulavel || ((((s.facts[obj.name] || {}).script || {}).self || {}).naoAnulavel === true))) { note({ failed: true, naoAnulavel: true }); break; } // M-579 · "This spell can't be countered" (self.naoAnulavel, 701.6a)
+      if (obj && obj.zone === 'stack' && (obj.naoAnulavel || ((((s.facts[obj.name] || {}).script || {}).self || {}).naoAnulavel === true) || magiasDeleNaoAnulaveisM(s, obj))) { note({ failed: true, naoAnulavel: true }); break; } // M-579 · "This spell can't be countered" (self.naoAnulavel, 701.6a)
       if (eff.target === 'remembered' && (!obj || obj.zone !== 'stack')) { note({ failed: true }); break; } // M-346 · "counter that spell": a mágica já saiu da pilha // M-345 · Delighted Halfling: "that spell can't be countered" (101.2)
       if (eff.mvAte != null && obj && obj.zone === 'stack' && manaValueT(s, obj) > amountOf(s, src, eff.mvAte)) { note({ failed: true, mvAlto: manaValueT(s, obj) }); break; } // M-419 · Prohibit: "counter target spell if its mana value is N or less" — conferido na resolução; acima disso, a mágica alvo fica
       const custoUnless = eff.unless ? String(eff.unless.mana).replace(/\{X\}/g, `{${src.xPaid || 0}}`) : null; // M-338 · 107.3a: o X anunciado (Syncopate)
@@ -34048,6 +34053,12 @@ function artefatoTravadoM(s, o) {
   if (!o || o.zone !== 'battlefield' || o.phasedOut || !tiposDe(s, o).includes('artifact')) return null;
   for (const f of battlefield(s)) { const m = !f.faceDown && ((((s.facts[f.name] || {}).script || {}).self) || {}).travaAtivadasDeArtefato; if (m && !semImpressas(s, f) && (m === 'todos' || f.controller !== o.controller)) return { fonte: f.name, nome: o.name, modo: 'todas', artefato: true }; }
   return null;
+}
+/** M-596 · "Spells you control can't be countered" (Hexing Squelcher): a mágica (não a habilidade) cujo controlador tem uma permanente com
+ * `self.magiasNaoAnulaveis` não pode ser anulada (101.2: "can't" vence "can"). */
+function magiasDeleNaoAnulaveisM(s, obj) {
+  if (!obj || obj.ability || isAbility(obj)) return false;
+  return battlefield(s).some(f => f.controller === obj.controller && !f.faceDown && !semImpressas(s, f) && ((((s.facts[f.name] || {}).script || {}).self) || {}).magiasNaoAnulaveis === true);
 }
 function acaoTravadaPeloNomeT(s, a, travas) {
   if (!a) return null;
