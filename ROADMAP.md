@@ -6574,6 +6574,14 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Fora, declarado:** Leyline of the Guildpact ("every basic land type", com mais duas frases) e Planar Nexus ("every nonbasic land type") para a próxima leva; Urborg que perde a habilidade por Aura (`aura.becomes`) — só a perda por `vira` e por Blood Moon é conferida.
 - **Toca ponto comum:** nenhum novo além dos da K-87 (validador de `self`: uma linha reescrita; leitor: uma frase).
 - **Testes:** `keywords.k88.unit` (3; o arquivo falha inteiro sem a leva); `keywords.k87.unit` (a mensagem do caso "todos" mudou: agora exige `soma`); goldens idênticos; motor v112.
+**K-89 · "This land is every nonbasic land type" (205.3i, 604.3)** ✅ (leva K-89)
+- **Valor:** Planar Nexus (42 listas competitivas), que era parcial, fica lida por inteiro: em qualquer zona a linha de tipo tem todos os tipos de terreno não básicos (Cave, Desert, Gate, Lair, Locus, Mine, Power-Plant, Sphere, Tower, Urza's, e os mais novos da lista do motor), o que conta para quem procura ou confere esses tipos. Sob Blood Moon fica só Mountain; com Urborg, soma Swamp.
+- **Aceite:** Planar Nexus na mão e no campo mostra os dez tipos do lembrete; gera {C} (e {1}, {T}: qualquer cor, como antes); com Blood Moon, "Land — Mountain" e {R}.
+- **Forma do script:** `self.todosNaoBasicosK: true` (validador: só `true`); na criação da partida, a linha de tipo dos fatos da carta ganha os tipos (`linhaComTodosNaoBasicosK`, sobre `TIPOS_DE_TERRENO_M`), só na partida que tem a carta.
+- **Cartas lidas, para a homologação revisar:** Planar Nexus (Scryfall pelo ramo `catalogo`, 01/11/2026).
+- **Fora, declarado:** as cartas de Tron (Urza's Tower/Mine/Power-Plant) não estão no motor; o ganho de Planar Nexus nelas espera essas cartas.
+- **Toca ponto comum:** `createGame` (uma linha, na cópia do `self`), validador de `self` (uma linha), leitor (uma frase).
+- **Testes:** `keywords.k89.unit` (2; os 2 falham sem a leva); goldens idênticos; motor v112.
 **CR5 · Tipos e formatos de carta** ○ — planeswalker completo, Sagas, Veículos, batalhas, aventuras, cartas divididas, dupla face modal, Classes, Casos, Salas, protótipo, mutação, nivelar, virar (flip), face para baixo completa, monarca, iniciativa, dia e noite, moeda e dado. 25 a 35 levas.
 
 **CR5-T1 · Sagas (714, com 703.4f, 704.5s e read ahead)** ✅ (leva T-1, motor v109 sem mudança de versão) — 27 testes em `tipos.sagas.unit` (todos falham sem a leva) e 1 de tela.
