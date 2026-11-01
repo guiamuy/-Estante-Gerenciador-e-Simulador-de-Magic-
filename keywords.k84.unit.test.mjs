@@ -47,7 +47,7 @@ test('K-84 · na partida, a Saga lida ganha o capítulo I ao entrar e o II na fa
   assert.equal(s.players[0].life, 25, 'capítulo II'); assert.equal(s.objects[sg].zone, 'graveyard', '714.4: sacrificada depois do último capítulo');
 });
 
-test("K-84 · Urza's Saga: a linha de capítulo é lida; os efeitos vêm nas K-85 e K-86", () => {
+test("K-84 · Urza's Saga: a linha de capítulo é lida; os três capítulos, com os efeitos das K-85 e K-86", () => {
   const r = L.ler(of("Urza's Saga"));
-  assert.ok(r.frases.some(f => /^III — /.test(f.texto) && !f.lida), 'o III espera a K-86'); // K-85 · o I (mana ganha) passou a ser lido: a contagem de 3 capítulos sem leitura caiu para 2
+  assert.ok(['I', 'II', 'III'].every(n => r.frases.some(f => f.lida && f.texto.startsWith(n + ' — '))), 'os três capítulos lidos'); // K-86 · com a K-85 (mana e habilidade ganhas) e a K-86 (Construct e busca por custo), os três efeitos são lidos
 });

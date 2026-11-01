@@ -10,11 +10,11 @@ const { leitor: L } = loadModules();
 const OF = JSON.parse(readFileSync(new URL('./.listas/oficiais-keywords.json', import.meta.url), 'utf8')).cartas;
 const of = n => { const c = OF.find(x => x.name === n); assert.ok(c, 'sem texto oficial: ' + n); return { name: n, type_line: c.type_line, mana_cost: c.mana_cost || '', cmc: 0, keywords: c.keywords || [], oracle_text: c.oracle_text, colors: [] }; };
 
-test("K-85 · Urza's Saga: o capítulo I vira a mana ganha; II e III ainda sem leitura (K-86)", () => {
+test("K-85 · Urza's Saga: o capítulo I vira a mana ganha", () => {
   const r = L.ler(of("Urza's Saga"));
   const cap1 = J((r.script.abilities || []).find(a => a.when === 'chapter' && a.chapters[0] === 1));
   assert.deepEqual(cap1 && cap1.effects, [{ do: 'ganha_hab_k', target: 'self-source', produz: [['C']] }]);
-  assert.equal(r.frases.filter(f => !f.lida && /^(II|III) — /.test(f.texto)).length, 2);
+  // K-86 · o II (ficha Construct) e o III (busca por custo exato) passaram a ser lidos: ver keywords.k86.unit
 });
 
 const SAGA = { name: 'Saga de Teste', type_line: 'Enchantment — Saga', mana_cost: '{1}', cmc: 1, keywords: [], colors: [],
