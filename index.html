@@ -35224,6 +35224,11 @@ const __m25 = (function () {
    de "guardar para o turno do outro" (`respondeNoMeuTurno`). Antes o Dispel na Counterspell que anulava o meu Murmuring
    Mystic custava 12 e todas as versões deixavam a ameaça morrer. Medida pareada com os cinco pilotos: 48 × 46.
    'shark-v17' é o Shark da B-184, congelado.
+   CONTRA-ATAQUE (B25, leva B-190): a nota de um ataque desconta o dano que volta no turno do oponente — os atacantes dele
+   contra os meus bloqueadores que sobraram desvirados, do mesmo jeito guloso de `riscoDeVolta` — mesmo quando esse dano
+   não mata (`contraAtaque`). Antes só o contra-ataque letal pesava, e o Control atacava com os dois Baleful Strix contra
+   16 de poder do outro lado. Medida pareada com os cinco pilotos (400 ms, 120 pares): 73 × 65 (14 pares só do novo, 6 só
+   do antigo); o Madness, agressor puro, foi o único a cair (16 × 18). 'shark-v18' é o Shark da B-185, congelado.
    LIMITES DE HOJE: um lance à frente + resposta do oponente (na pilha e depois dela) + combate; sem plano
    de vários turnos, sem blefe; não joga em volta do truque de combate nem da varredura; na pilha não responde à resposta
    dele (guerra de anulação); não troca reserva na melhor de três; esquece o que a vidência
@@ -35625,7 +35630,7 @@ function notaDoAtaque(s, p, atacantes, opts = {}) {
     const rp = simula(cur, { t: 'pass', p: cur.turn.priority }); if (!rp) break; cur = rp.estado;
   }
   // Leva 115 · v3: atacar e ficar sem bloqueador para o contra-ataque que mata não é ataque bom
-  return (opts.av || avalia)(cur, p).nota - (opts.corrida ? riscoDeVolta(cur, p) : 0);
+  return notaComVolta(cur, p, opts);
 }
 
 /** B16 · truque próprio no ataque: a nota do ataque contando que, depois dos bloqueios, eu ainda posso usar uma
@@ -35645,7 +35650,7 @@ function notaDoAtaqueComTruque(s, p, atacantes, opts = {}) {
     const rp = simula(cur, { t: 'pass', p: cur.turn.priority }); if (!rp) return null; cur = rp.estado;
   }
   if (cur.status !== 'playing' || cur.pending || cur.turn.priority !== p || cur.stack.length) return null;
-  const fecha = st => av(projetaCombate(st), p).nota - (opts.corrida ? riscoDeVolta(projetaCombate(st), p) : 0);
+  const fecha = st => notaComVolta(projetaCombate(st), p, opts);
   let melhor = { nota: fecha(cur), truque: null };
   const meus = new Set((cur.combat || {}).attackers || []);
   const vistos = new Set(); let n = 0;
@@ -36192,6 +36197,31 @@ function projetaCombate(s, max = 24) {
 }
 /** Quanto pesa o contra-ataque do oponente no turno dele, do jeito que a mesa ficou: 400 se o dano que passa pelos
     meus bloqueadores desvirados mata; senão 0. Conta voar/alcance; cada bloqueador segura um atacante. */
+/** B-190 · o dano do contra-ataque: quanto passa pelos meus bloqueadores desvirados se o oponente atacar com tudo no turno dele
+    (mesma conta do `riscoDeVolta`: cada bloqueador segura um atacante, do maior para o menor; voar só para quem voa ou alcança). */
+function danoDeVolta(s, p) {
+  if (s.status !== 'playing') return 0;
+  const d = oponenteDe(s, p);
+  const atacantes = criaturasDe(s, d).filter(c => !E.hasKeyword(s, c, 'defender')).map(c => ({ poder: Math.max(0, E.stats(s, c).power), voa: E.hasKeyword(s, c, 'flying') }))
+    .filter(x => x.poder > 0).sort((a, b) => b.poder - a.poder);
+  const livres = criaturasDe(s, p).filter(c => !c.tapped).map(c => ({ voa: E.hasKeyword(s, c, 'flying') || E.hasKeyword(s, c, 'reach'), usado: false }));
+  let passa = 0;
+  for (const a of atacantes) { const b = livres.find(x => !x.usado && (!a.voa || x.voa)); if (b) b.usado = true; else passa += a.poder; }
+  return passa;
+}
+/** B-190 · `contraAtaque` (B25, o erro decisivo da fase 1): a nota de um ataque desconta o contra-ataque do turno seguinte pelo
+    dano que ele causa — a minha vida depois dele entra na avaliação —, e não só quando ele mata (o `riscoDeVolta`, com
+    `corrida`, continua valendo para o letal). Antes, o Control atacava com o Baleful Strix por 1 e o Tolarian Terror batia 5
+    livre no turno seguinte: 14 vezes nas 7 derrotas narradas. A conta é a mesma em toda formação de ataque, inclusive a de
+    não atacar, que só deixa passar o que os meus bloqueadores não seguram. */
+function notaComVolta(cur, p, opts = {}) {
+  const av = opts.av || avalia;
+  const agora = av(cur, p).nota, nota = agora - (opts.corrida ? riscoDeVolta(cur, p) : 0);
+  if (!opts.contraAtaque || cur.status !== 'playing') return nota;
+  const dano = danoDeVolta(cur, p); if (!dano) return nota;
+  const depois = { ...cur, players: cur.players.map((pl, i) => i === p ? { ...pl, life: pl.life - dano } : pl) };
+  return nota + av(depois, p).nota - agora;
+}
 function riscoDeVolta(s, p) {
   if (s.status !== 'playing') return 0;
   const d = oponenteDe(s, p);
@@ -36725,14 +36755,15 @@ const NOVO14 = { ...NOVO13, respondePrimeiro: true, reserva: true }; // congelad
 const NOVO15 = { ...NOVO14, alvoProprio: true, av6: true }; // congelado como 'shark-v15' (B-183) · B-181 · alvo no próprio lado: efeito nocivo no meu lado custa 3 por alvo (anular a própria mágica, 30) e vai para o fim da fila; avaliaV6 lê a mesa sem os pumps; neutro em força (47 × 48 em 80 pares, os cinco pilotos), ligado porque tira cinco erros que o jogador vê
 const NOVO16 = { ...NOVO15, decideOOutro: true }; // congelado como 'shark-v16' (B-184) · B-183 · na simulação, a decisão que a resolução pede ao outro jogador é tomada por ele do jeito pior para quem simula (Deem Inferior, Lose Focus); 49 × 47 em 80 pares, os cinco pilotos
 const NOVO17 = { ...NOVO16, respostaNaPilha: true }; // congelado como 'shark-v17' (B-185) · B-184 · jogar em volta: com a minha mágica na pilha, o outro responde no mundo possível (anula, tira o alvo) do jeito pior para mim; 51 × 47 em 80 pares (7 pares só do novo, 3 só do antigo), os cinco pilotos. `isca` (a mágica seguinte no mesmo turno) mediu 49 × 48 e fica desligada
-const NOVO = { ...NOVO17, reservaPorAlvo: true, respondeNoMeuTurno: true }; // B-185 · a reserva de cada anulação é medida pelo que ela pode pegar (o Dispel, só instantâneas): 29 × 24 em 48 pares (Control, Faeries, Terror); a instantânea que responde à mágica do oponente no meu turno não paga o pedágio de "guardar" (o Dispel na Counterspell que anulava o meu Mystic): 48 × 46 em 80 pares, os cinco pilotos
+const NOVO18 = { ...NOVO17, reservaPorAlvo: true, respondeNoMeuTurno: true }; // congelado como 'shark-v18' (B-190) · B-185 · a reserva de cada anulação é medida pelo que ela pode pegar (o Dispel, só instantâneas): 29 × 24 em 48 pares (Control, Faeries, Terror); a instantânea que responde à mágica do oponente no meu turno não paga o pedágio de "guardar" (o Dispel na Counterspell que anulava o meu Mystic): 48 × 46 em 80 pares, os cinco pilotos
+const NOVO = { ...NOVO18, contraAtaque: true }; // B-190 · B25 · o contra-ataque entra na nota do ataque pelo dano (danoDeVolta), não só quando é letal: 73 × 65 em 120 pares, os cinco pilotos (Control 16 × 13, Elfos 16 × 12, Faeries 10 × 9, Madness 16 × 18, Terror 15 × 13)
 // B-176 · `ameacas` (ameaças do campo no perfil do Dimir Control) foi medida e fica desligada: 26 de 64 contra 27 de 64 pilotando o Control
 function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date.now(), mundos: mundosN = 0, extra: extraOpts = null, pesos = null } = {}) {
   // Leva 117 · 'profissional' e 'shark' são o Shark atual (v4: o v3 com informação justa). 'shark-v3', 'shark-v2'
   // e 'shark-v1' são as versões anteriores, congeladas, só para o torneio — elas simulam sobre o estado real.
-  const v1 = nivel === 'shark-v1', v2 = nivel === 'shark-v2', v3 = nivel === 'shark-v3', v4 = nivel === 'shark-v4', v5 = nivel === 'shark-v5', v6 = nivel === 'shark-v6', v7 = nivel === 'shark-v7', v8 = nivel === 'shark-v8', v9 = nivel === 'shark-v9', v10 = nivel === 'shark-v10', v11 = nivel === 'shark-v11', v12 = nivel === 'shark-v12', v13 = nivel === 'shark-v13', v14 = nivel === 'shark-v14', v15 = nivel === 'shark-v15', v16 = nivel === 'shark-v16', v17 = nivel === 'shark-v17';
-  const atual = nivel === 'profissional' || nivel === 'shark' || v4 || v5 || v6 || v7 || v8 || v9 || v10 || v11 || v12 || v13 || v14 || v15 || v16 || v17 || !!extraOpts || !!pesos;
-  const ligadas = { ...(v4 ? {} : v5 ? NOVO5 : v6 ? NOVO6 : v7 ? NOVO7 : v8 ? NOVO8 : v9 ? NOVO9 : v10 ? NOVO10 : v11 ? NOVO11 : v12 ? NOVO12 : v13 ? NOVO13 : v14 ? NOVO14 : v15 ? NOVO15 : v16 ? NOVO16 : v17 ? NOVO17 : NOVO), ...(extraOpts || {}) };
+  const v1 = nivel === 'shark-v1', v2 = nivel === 'shark-v2', v3 = nivel === 'shark-v3', v4 = nivel === 'shark-v4', v5 = nivel === 'shark-v5', v6 = nivel === 'shark-v6', v7 = nivel === 'shark-v7', v8 = nivel === 'shark-v8', v9 = nivel === 'shark-v9', v10 = nivel === 'shark-v10', v11 = nivel === 'shark-v11', v12 = nivel === 'shark-v12', v13 = nivel === 'shark-v13', v14 = nivel === 'shark-v14', v15 = nivel === 'shark-v15', v16 = nivel === 'shark-v16', v17 = nivel === 'shark-v17', v18 = nivel === 'shark-v18';
+  const atual = nivel === 'profissional' || nivel === 'shark' || v4 || v5 || v6 || v7 || v8 || v9 || v10 || v11 || v12 || v13 || v14 || v15 || v16 || v17 || v18 || !!extraOpts || !!pesos;
+  const ligadas = { ...(v4 ? {} : v5 ? NOVO5 : v6 ? NOVO6 : v7 ? NOVO7 : v8 ? NOVO8 : v9 ? NOVO9 : v10 ? NOVO10 : v11 ? NOVO11 : v12 ? NOVO12 : v13 ? NOVO13 : v14 ? NOVO14 : v15 ? NOVO15 : v16 ? NOVO16 : v17 ? NOVO17 : v18 ? NOVO18 : NOVO), ...(extraOpts || {}) };
   let perfil, avPlano = null, passosCombo = 0, turnoCombo = -1; // B9 · perfil do meu baralho, lido na primeira jogada
   const avAtual = ligadas.av4 || ligadas.av5 || ligadas.av6 || pesos ? avaliadorCom({ ...PESOS_ATUAIS, ...(pesos || {}) }, ligadas.av6 ? avaliaV6 : ligadas.av5 ? avaliaV5 : ligadas.av4 ? avaliaV4 : avaliaV3) : null;
   let plano = []; // leva 143 · ações que faltam do plano de mana em curso
@@ -36776,7 +36807,7 @@ function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date
   };
 }
 
-return { PESOS, LIMIAR_RESPOSTA, avalia, avaliaV2, avaliaV3, projetaCombate, riscoDeVolta, decideMulligan, decideMulligan2, viraTerreno, simula, escolhe, chaveAcao, fontesDeMana,
+return { PESOS, LIMIAR_RESPOSTA, avalia, avaliaV2, avaliaV3, projetaCombate, riscoDeVolta, danoDeVolta, decideMulligan, decideMulligan2, viraTerreno, simula, escolhe, chaveAcao, fontesDeMana,
   jogadaAmador, jogadaProfissional, decideAtaque, decideAtaqueProfissional, decideBloqueio, decideBloqueioProfissional,
   notaComResposta, notaDoAtaque, resumoDoTurno, dicas, visaoDe, sementePublica, atualizaMemoria, MUNDOS, avaliadorCom, PESOS_ATUAIS, politicaRapida, rola, avaliaV4, planoDeMana, PERFIS, AMEACAS_DO_CAMPO, perfilDe, passoDoCombo, avaliadorDoPlano, avaliaV5, avaliaV6, notaDoAtaqueComTruque, custoDaResposta, criaBot, NOME_DO_BOT, nivelDaMesa, LISTAS_DO_SHARK };
 })();

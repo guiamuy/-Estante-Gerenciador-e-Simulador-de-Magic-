@@ -170,11 +170,11 @@ export const POSICOES = [
 ];
 
 /** Nota de um nível: acertos por classe e as posições erradas (com o motivo do Shark). */
-export function pontua(nivel = 'shark') {
+export function pontua(nivel = 'shark', extra = null) {
   const porClasse = {}, erradas = []; let certas = 0;
   for (const P of POSICOES) {
     const m = P.monta();
-    const bot = B.criaBot({ nivel, agora: () => 0 });
+    const bot = B.criaBot({ nivel, agora: () => 0, ...(extra ? { extra } : {}) });
     const j = P.mulligan ? bot.mulligan(m.s, 0) : bot.jogada(m.s, 0);
     const ok = !!j && !!j.acao && P.certo(m.s, j);
     const c = (porClasse[P.classe] = porClasse[P.classe] || [0, 0]); c[1]++;
@@ -185,7 +185,7 @@ export function pontua(nivel = 'shark') {
 
 if (process.argv[1] && process.argv[1].endsWith('bot.bateria.mjs')) {
   for (const nivel of process.argv.slice(2).length ? process.argv.slice(2) : ['shark']) {
-    const r = pontua(nivel);
+    const r = nivel.startsWith('z:') ? pontua('shark', Object.fromEntries(nivel.slice(2).split(',').filter(Boolean).map(k => k.startsWith('!') ? [k.slice(1), false] : [k, true]))) : pontua(nivel); // B-190 · 'z:peça' = o Shark publicado com a peça a mais
     console.log(`${nivel}: ${r.certas} de ${r.total} (${r.pct}%) · ` + Object.entries(r.porClasse).map(([k, [a, t]]) => `${k} ${a}/${t}`).join(' · '));
     for (const e of r.erradas) console.log(`  errou ${e.id}: ${e.fez} · ${e.motivo || ''}`);
   }

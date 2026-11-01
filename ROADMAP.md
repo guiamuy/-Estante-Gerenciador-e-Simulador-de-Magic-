@@ -407,7 +407,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-sd ✅ | B23 o Shark usa bem cada carta das cinco listas: fatia 1 ✅ (B-180) auditoria carta a carta (`bot.cartas.mjs`, 76 cartas, 40 partidas): 6 cartas ficam na mão, 5 com alvo no próprio lado por erro; fatia 2 ✅ (B-181) alvo no próprio lado + avaliaV6 (o −3/−0 na própria criatura dava +4), neutro em força (47 × 48), ligado; fatia 3 ✅ (B-182) loucura e descarte conferidos (Fiery Temper 14/20 contando a loucura), sem mudança no Shark; fatia 4 ✅ (B-183) a decisão do outro na resolução (Deem Inferior 1/13 → 13/14), 49 × 47, ligado; fatia 5 ✅ (B-184) jogar em volta: o outro responde com a mágica do Shark na pilha (anula, tira o alvo), 51 × 47, ligado; fatia 6 ✅ (B-185) fechamento: reserva pelo alvo (29 × 24) e resposta no meu turno (o Dispel na Counterspell que anulava a minha ameaça; 48 × 46), auditoria final sem "não usa" (69 usam, 5 a revisar declaradas), força por lista com 208 decididas no painel, p95 dentro do orçamento | B23 | 6 | 16º-sa |
 | 16º-sz ✅ | B6 estável: o torneio Shark × sparring mede força por trabalho feito (relógio de contas), não pelo relógio da máquina — caía no CI (mais lento) e passava no clone, deixando o `main` vermelho e a fila parada (B-186, 01/11/2026) | B | 1 | 16º-sd |
 | 16º-se 🔲 | B24 o Shark pilota o Dimir Control acima de 45% contra o campo (hoje 29% em 208 decididas): partida narrada das derrotas do Control, plano de controle (vantagem de cartas, monarca do Thorn of the Black Rose, quando virar o jogo) | B24 | 3–5 | 16º-sd |
-| 16º-sq 🟡 | B25 Shark profissional com as cinco listas (pedido do dono de 01/11): quatro réguas — força absoluta × `shark-v12` ≥ 60%, nenhuma lista < 45% contra o campo, bateria profissional ≥ 85%, higiene (zero ilegais, p95 ≤ 400 ms); fases 0 réguas (B-187, B-188) · 1 diagnóstico (B-189) · 2 avaliação aprendida (B-190…B-192) · 3 busca no próprio turno (B-193, B-194) · 4 correções (B-195…B-197, absorve a B24) · 5 fechamento (B-198) | B25 | 12 | 16º-sd |
+| 16º-sq 🟡 | B25 Shark profissional com as cinco listas (pedido do dono de 01/11): quatro réguas — força absoluta × `shark-v12` ≥ 60%, nenhuma lista < 45% contra o campo, bateria profissional ≥ 85%, higiene (zero ilegais, p95 ≤ 400 ms); fases 0 réguas (B-187 ✅, B-188 ✅) · 1 diagnóstico (B-189 ✅) · 4 correções primeiro (B-190 contra-ataque, B-191 Elfos, B-192 Control; absorve a B24) · 2 avaliação aprendida (B-193, B-194) · 3 busca no próprio turno (rebaixada pela B-189) · 5 fechamento (B-198) | B25 | 12 | 16º-sd |
 | 16º-y ✅ | Shark: olhar o turno seguinte (simulação até o próximo turno) — medido, não pagou, fica desligado; achado: a força está no plano de cada baralho (leva 131) | B15 | 1 | — |
 | 16º-w ✅ | Shark: pesos da avaliação postos à prova por torneio — nenhum paga; achado: o limite é a profundidade, não o peso (leva 126) | B20 | 1 | — |
 | 16º-j3 🟡 | Scanner de referência (E52): X14 resposta imediata (leva 127) | E52 | 2 de 6 a 7 | teste no aparelho: "até aceitar" no diagnóstico |
@@ -8060,6 +8060,15 @@ estruturado para tornarmos o Shark um jogador de nível profissional com as suas
   **Replanejamento:** a fase 4 começa pelo erro decisivo — **o contra-ataque entra na nota do ataque pelo dano que causa,
   não só quando mata** (B-190) —, depois a fase 2 (avaliação aprendida: as 14.247 posições de 224 partidas já coletadas por
   `bot.aprende.mjs`) e os erros dos Elfos.
+- **Fase 4 · B-190 · contra-ataque na nota do ataque (01/11/2026).** A nota de um ataque passa a descontar o dano que
+  volta no turno do oponente — os atacantes dele contra os meus bloqueadores que sobraram desvirados, do mesmo jeito guloso
+  de `riscoDeVolta` — mesmo quando esse dano não mata (`contraAtaque`; `danoDeVolta`, `notaComVolta`). Vale no ataque
+  simples e no ataque com truque. **Medida pareada** (`PILOTO=i`, 400 ms, a mesma partida com e sem a peça, contra o Shark
+  publicado, 24 pares por piloto): Control **16 × 13** · Elfos **16 × 12** · Faeries 10 × 9 · Madness 16 × 18 ·
+  Terror 15 × 13; no total **73 × 65 em 120 pares** (14 pares só do novo, 6 só do antigo); zero ilegais, pior jogada 1,6 s com a máquina carregada (dois processos em dois núcleos). O Madness, o único agressor puro, foi o único a cair (2 pares, dentro do ruído): fica
+  como pergunta para a fase 2 (o peso do contra-ataque por papel). Bateria: **24 de 25** (as duas posições `papel-strix`
+  passam; erra só a isca). Promovida: `NOVO = { ...NOVO18, contraAtaque: true }`; **`shark-v18` é o Shark da B-185,
+  congelado**; piso da bateria 22 → 24.
 - **Fases:**
   - **0 · réguas** — B-187 régua absoluta e linha de base das quatro; B-188 bateria profissional (30+ posições).
   - **1 · diagnóstico** — B-189 partidas narradas das derrotas (Control e Faeries primeiro), cada erro classificado e

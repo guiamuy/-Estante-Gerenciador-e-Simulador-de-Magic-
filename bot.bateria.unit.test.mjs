@@ -4,9 +4,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { loadModules } from './_load.mjs';
 import { POSICOES, pontua } from './bot.bateria.mjs';
-const { engine: E } = loadModules();
+const { engine: E, bot: B } = loadModules();
 
-const PISO = 22; // B-188 · 22 de 23 (erra só a isca: `volta-isca`, a isca de dois lances que mediu 49 × 48 na B-184)
+const PISO = 24; // B-190 · 24 de 25 com o contra-ataque na nota do ataque (erra só a isca: `volta-isca`, a isca de dois lances que mediu 49 × 48 na B-184). Era 22 (B-188)
 
 test('B-188 · toda posição da bateria monta, tem classe, porquê, e a jogada certa está entre as legais', () => {
   const ids = new Set();
@@ -25,4 +25,12 @@ test('B-188 · a nota do Shark publicado na bateria não cai abaixo do piso; o s
   const novo = pontua('shark'), v12 = pontua('shark-v12');
   assert.ok(novo.certas >= PISO, `shark ${novo.certas}/${novo.total}: ` + novo.erradas.map(e => e.id).join(', '));
   assert.ok(v12.certas < novo.certas, `v12 ${v12.certas} × shark ${novo.certas}`);
+});
+
+test('B-190 · contra-ataque: com Tolarian Terror e Serpentes (ou o Avenging Hunter) do outro lado, o Shark publicado segura os Baleful Strix em casa; o shark-v18 congelado atacava', () => {
+  for (const id of ['papel-strix-segura-serpentes', 'papel-strix-segura-hunter']) {
+    const P = POSICOES.find(x => x.id === id), joga = nivel => { const { s } = P.monta(); const j = B.criaBot({ nivel, agora: () => 0 }).jogada(s, 0); return { ok: P.certo(s, j), j }; };
+    const novo = joga('shark'), v18 = joga('shark-v18');
+    assert.ok(novo.ok, id + ' · publicado: ' + novo.j.motivo); assert.ok(!v18.ok, id + ' · v18: ' + v18.j.motivo);
+  }
 });
