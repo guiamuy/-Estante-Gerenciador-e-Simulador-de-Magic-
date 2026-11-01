@@ -21371,6 +21371,12 @@ const __m42 = (function () {
       if (linhaDePalavras(linha)) { frases.push({ texto: linha, lida: true, palavras: true }); continue; }
       if (magica && /^teamwork \d+$/i.test(linha.replace(/\.$/, ''))) { frases.push({ texto: linha, lida: true, palavras: true }); continue; } // M-379 · 702.194 (K-70): o N vem do texto da carta (fatos.equipeK)
       if (!magica && /^sunburst$/i.test(linha.replace(/\.$/, ''))) { topo.sunburst = true; frases.push({ texto: linha, lida: true }); continue; } // M-451 · 702.44a: o motor guarda as cores gastas ao conjurar
+      if (!magica && /\bSaga\b/.test(tipo.split(' // ')[0]) && /^read ahead$/i.test(linha.replace(/\.$/, ''))) { topo.self = { ...(topo.self || {}), readAhead: true }; frases.push({ texto: linha, lida: true }); continue; } // K-84 · 714.3b / 702.155
+      { const cap = !magica && /\bSaga\b/.test(tipo.split(' // ')[0]) && linha.match(/^((?:I|II|III|IV|V|VI)(?:, (?:I|II|III|IV|V|VI))*) — (?:[A-Z][A-Za-z'’ -]{1,30} — )?(.+)$/); // K-84 · 714.2: "I, II — efeito" é uma habilidade de capítulo por número (o nome de habilidade antes do efeito não tem regra, 207.2c)
+        if (cap) { const ns = cap[1].split(', ').map(r => ({ I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6 })[r]); const sub = [], e = leParagrafo(cap[2], nome, sub);
+          if (e && e.length) { (topo.abilities = topo.abilities || []).push({ kind: 'triggered', when: 'chapter', chapters: ns, effects: e }); frases.push({ texto: linha, lida: true }); }
+          else frases.push({ texto: linha, lida: false, motivo: 'capítulo de Saga: efeito sem padrão conhecido' }, ...sub.filter(f => !f.lida));
+          continue; } }
       { const ew = !magica && topo.escape && !topo.escape.comMarcadoresT && til(linha.replace(/\.$/, ''), nome).match(new RegExp(`^(?:~|this creature|this permanent) escapes with ${N} \\+1\\/\\+1 counters? on it$`, 'i')); // K-81 · 702.138c: "escapes with a +1/+1 counter on it"
         if (ew && num(ew[1])) { topo.escape = { ...topo.escape, comMarcadoresT: { p1p1: num(ew[1]) } }; frases.push({ texto: linha, lida: true }); continue; } }
       { const mo = !magica && /\bCreature\b/.test(tipo.split(' // ')[0]) && !topo.morph && linha.replace(/\.$/, '').match(/^(Megamorph|Morph) ((?:\{[0-9WUBRGC]\})+)$/); // K-79 · 702.37a / 702.37b: "Morph {custo}" / "Megamorph {custo}" de mana (o custo que não é de mana fica sem leitura)
@@ -21579,6 +21585,7 @@ const __m42 = (function () {
     for (const ab of topo.abilities || []) if (ab && ab.falhou) delete ab.falhou;
     const lidas = frases.every(f => f.lida) && (!modos || (modos.length >= 2 && modos.every(Boolean))) && (!escolhaK || (escolhaK.exatos ? modos.length === escolhaK.exatos : escolhaK.todos ? modos.length >= 2 : modos.length > escolhaK.k)); // K-77 · "one or both" com dois modos; "choose two/three" com mais modos que a escolha
     let script = null;
+    if (!magica && /\bSaga\b/.test(tipo.split(' // ')[0]) && (topo.abilities || []).some(a => a.when === 'chapter') && !(topo.self || {}).readAhead && !topo.entra) topo.entra = [{ afetados: 'self', marcadores: { lore: 1 } }]; // K-84 · 714.3a: entra com um marcador de lore
     if (modos && modos.length && !efeitos.length) script = { name: nome, ...(escolhaK ? { modeCount: escolhaK.todos ? modos.length : escolhaK.k, ...(escolhaK.min ? { modeMin: escolhaK.min } : {}) } : {}), modes: modos.filter(Boolean), ...topo }; // K-77 · 700.2d
     else if (efeitos.length && !modos) script = { name: nome, effects: efeitos, ...topo };
     else if (!magica && (topo.abilities || topo.morph /* K-79 */ || topo.aura || topo.equip || topo.entersTapped || topo.grants || topo.grantsAll || topo.self || topo.produces || topo.cycling || topo.transmute || topo.escape || topo.entersTappedUnless || topo.affinity || topo.ninjutsu || topo.reduzPor || topo.continuo || topo.alt)) script = { name: nome, ...topo }; // LT3/LT5 · M-351 · continuo · M-392: o custo alternativo (web-slinging) também é texto lido de permanente
