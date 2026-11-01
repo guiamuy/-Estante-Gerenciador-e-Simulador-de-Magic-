@@ -91,6 +91,21 @@ export function pushSemFiltro(yml) {
   return false;
 }
 
+/* ---------- Q25 · fase rápida sem cauda ---------- */
+
+/** Arquivos da fase rápida que, sozinhos, levam vários minutos (medido no CI em 01/11/2026: `bot.torneio` ~12 min, `scripts.unit`
+    ~4 min, numa fase de 18,5). O Node roda os arquivos em ordem alfabética, seja qual for a ordem passada: o pesado que começa tarde
+    vira cauda, com os outros núcleos parados esperando por ele. */
+export const PESADOS_DA_RAPIDA = ['bot.torneio.test.mjs', 'scripts.unit.test.mjs'];
+/** Com quatro núcleos ou mais (CI), os pesados saem num processo só deles, um núcleo cada, que começa junto com o processo do resto;
+    a soma dos dois processos usa os mesmos núcleos de antes. Com dois núcleos (conversas de nuvem) nada muda: três processos em dois
+    núcleos atrasariam os testes que medem tempo. `PORTAO_PESADOS=0` desliga; `PORTAO_PESADOS=1` liga com qualquer número de núcleos (para medir). Devolve [{ arquivos, concorrencia }], cada arquivo uma vez. */
+export function divisaoDaRapida(arquivos, nucleos = availableParallelism(), env = process.env) {
+  const pesados = PESADOS_DA_RAPIDA.filter((n) => arquivos.includes(n));
+  if (env.PORTAO_PESADOS === '0' || (nucleos < 4 && env.PORTAO_PESADOS !== '1') || !pesados.length || pesados.length >= arquivos.length) return [{ arquivos, concorrencia: Math.max(2, nucleos) }];
+  return [{ arquivos: pesados, concorrencia: pesados.length }, { arquivos: arquivos.filter((n) => !pesados.includes(n)), concorrencia: Math.max(1, nucleos - pesados.length) }];
+}
+
 /* ---------- Q19 · fase de tela em fatias ---------- */
 
 /** Em quantos processos a fase de tela roda. Cada fatia tem o seu Chromium, e os testes de tela dependem de tempo: só vale
@@ -172,8 +187,13 @@ async function principal() {
   if (fase === 'tudo' || fase === 'rapido') {
     const arquivos = arquivosDaFase('rapido');
     titulo(`fase 1 · rápida (${arquivos.length} arquivos, sem navegador)`);
-    // um processo por núcleo (o padrão do Node deixa um núcleo livre: em máquina de dois núcleos os arquivos rodavam em fila)
-    const r = await roda(['--test', `--test-concurrency=${Math.max(2, availableParallelism())}`, ...arquivos]);
+    // um processo por núcleo (o padrão do Node deixa um núcleo livre: em máquina de dois núcleos os arquivos rodavam em fila);
+    // Q25 · com quatro núcleos, os pesados num processo próprio desde o início (o do resto aparece ao vivo, o dos pesados em seguida)
+    const partes = divisaoDaRapida(arquivos);
+    if (partes.length > 1) console.log(`# pesados desde o início, num processo próprio: ${partes[0].arquivos.join(', ')}`);
+    const rs = await Promise.all(partes.map((p, i) => roda(['--test', `--test-concurrency=${p.concorrencia}`, ...p.arquivos], { eco: i === partes.length - 1 })));
+    rs.slice(0, -1).forEach((p) => { console.log('\n# ── pesados'); process.stdout.write(p.saida); });
+    const r = { ok: rs.every((p) => p.ok), saida: rs.map((p) => p.saida).join('\n') };
     console.log(`# fase 1 em ${minutos(Date.now() - inicio)}`);
     gravaResumo({ fase: 'rapido', verde: r.ok, minutos: Math.round((Date.now() - inicio) / 6000) / 10, ...resumoDoTap(r.saida) });
     if (!r.ok) { console.error('\n✗ Fase rápida vermelha: a fase de tela nem começou.'); process.exit(1); }
