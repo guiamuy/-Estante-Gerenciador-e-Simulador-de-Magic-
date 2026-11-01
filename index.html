@@ -9717,7 +9717,7 @@ const RAW_SCRIPTS = [
     example: { target: 'self-player', expect: { handDelta: 2 } } },
   // C-2 · "Create two 1/1 green Squirrel creature tokens. · Flashback—{1}{G}, Pay 3 life."
   { name: 'Acorn Harvest', effects: [{ do: 'token', amount: 2, token: { name: 'Squirrel', types: ['creature'], subtypes: ['Squirrel'], colors: ['G'], power: 1, toughness: 1 } }],
-    flashback: { mana: '{1}{G}', pagarVida: 3 }, note: 'o botão do lampejo mostra só {1}{G}; os 3 de vida são cobrados (e conferidos) junto',
+    flashback: { mana: '{1}{G}', pagarVida: 3 }, note: 'o botão do lampejo diz "{1}{G} e pagar 3 de vida" (J-34); os 3 de vida são cobrados (e conferidos) junto',
     example: { target: 'none', expect: { tokens: 2 } } },
   // C-2 · "Target creature gets +1/+0 until end of turn and can't be blocked this turn. · Rebound" (o ricochete vem da linha impressa)
   { name: 'Distortion Strike', effects: [{ do: 'continuo', target: 'creature', poder: 1, resistencia: 0 }, { do: 'imbloqueavel', target: 'first-target' }],
@@ -40565,8 +40565,11 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const campos = CAMPOS_PAGAMENTO.filter(([c]) => opcoes.some(a => a.pay && a.pay[c] != null));
     if (!campos.length && !opcoes.some(a => a.add === null)) return act(opcoes[0]);
     // uma pergunta só quando todas as opções pagam do mesmo jeito; senão, "como você paga?"
-    const unico = (u => (u && u[0] === 'crew' && opcoes.some(a => E.selarDaAcaoT(s, a)) ? ['crew', () => 'Quais criaturas selam?', 'Virar'] : u))(campos.length === 1 && opcoes.every(a => a.pay && a.pay[campos[0][0]] != null) ? campos[0] : null); // T-31 · selar: a pergunta fala em selar (Toca ponto comum: escolha do pagamento)
+    let unico = (u => (u && u[0] === 'crew' && opcoes.some(a => E.selarDaAcaoT(s, a)) ? ['crew', () => 'Quais criaturas selam?', 'Virar'] : u))(campos.length === 1 && opcoes.every(a => a.pay && a.pay[campos[0][0]] != null) ? campos[0] : null); // T-31 · selar: a pergunta fala em selar (Toca ponto comum: escolha do pagamento)
     const qtd = unico ? [].concat(opcoes[0].pay[unico[0]]).length : 0;
+    // J-34 · relato #41 · "Quais criaturas você sacrifica para pagar?" quando tudo o que serve é criatura (Dread Return), em vez de "O que…"
+    if (unico && unico[0] === 'sacrifice') { const ids = [...new Set(opcoes.flatMap(a => [].concat(a.pay.sacrifice)))];
+      if (ids.length && ids.every(x => s.objects[x] && E.isCreature(s, s.objects[x]))) unico = ['sacrifice', n => n > 1 ? 'Quais criaturas você sacrifica para pagar?' : 'Qual criatura você sacrifica para pagar?', 'Sacrificar']; }
     // Leva 125 · quando a escolha é UMA carta (descartar, sacrificar, virar, devolver, exilar), a pergunta mostra as
     // cartas, não uma lista de botões dourados com o nome: cópias iguais da mão ou do cemitério viram uma carta só com ×N.
     if (unico && qtd === 1 && unico[0] !== 'revelar' && opcoes.every(a => s.objects[[].concat(a.pay[unico[0]])[0]])) return escolherCarta(titulo, unico, opcoes);
@@ -40654,19 +40657,25 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     if (opcoes.length === 1 && !sempre) return executa(opcoes[0]);
     const eu = table.viewer();
     // grupos: jogadores, suas permanentes, as do oponente (12 "Grizzly Bear" sem dono não dizem nada)
-    const grupo = a => { const x = (a.targets || [])[0]; if (!x || x.player != null) return 0; const o = s.objects[x.oid]; return o && o.controller === eu ? 1 : 2; };
+    // J-34 · relato #41 · carta fora do campo (cemitério do Dread Return) não é permanente: ganha grupo próprio, pelo dono
+    const grupo = a => { const x = (a.targets || [])[0]; if (!x || x.player != null) return 0; const o = s.objects[x.oid]; if (o && o.zone !== 'battlefield') return o.owner === eu ? 3 : 4; return o && o.controller === eu ? 1 : 2; };
     const ord = opcoes.map((a, i) => [a, i]).sort((x, y) => grupo(x[0]) - grupo(y[0]) || x[1] - y[1]).map(x => x[0]);
+    const ZONA_PT = { graveyard: 'cemitério', exile: 'exílio', hand: 'mão', library: 'grimório', stack: 'pilha' };
+    const zonaDe = g => { const a = ord.find(x => grupo(x) === g); const o = a && s.objects[a.targets[0].oid]; return (o && ZONA_PT[o.zone]) || 'cemitério'; };
     const nome = x => (x.player != null ? (x.player === eu ? 'Você' : s.players[x.player].name) : s.objects[x.oid].name);
     const estado = x => { const o = x.oid != null && s.objects[x.oid]; if (!o) return null;
       const p = [o.tapped ? 'virada' : null, o.damage ? `${o.damage} de dano` : null, (o.counters || {}).p1p1 ? `+${o.counters.p1p1}/+${o.counters.p1p1}` : null].filter(Boolean); return p.length ? p.join(' · ') : null; };
     const botao = a => { const ts = a.targets || []; const st = ts.length === 1 ? estado(ts[0]) : null;
       return Button(ts.map(nome).join(' + ') || 'Sem alvo', { block: true, onClick: () => { closeDialog(); executa(a); }, ...(st ? { title: st } : {}) }, ); };
     const oponente = s.players.find((_, i) => i !== eu);
-    const TITULOS = ['Jogadores', 'Suas permanentes', `Permanentes de ${oponente ? oponente.name : 'oponente'}`];
-    const secoes = [0, 1, 2].map(g => ord.filter(a => grupo(a) === g)).map((lista, g) => lista.length ? Stack({ style: { gap: 'var(--space-2)' } },
+    const TITULOS = ['Jogadores', 'Suas permanentes', `Permanentes de ${oponente ? oponente.name : 'oponente'}`, `Cartas do seu ${zonaDe(3)}`, `Cartas do ${zonaDe(4)} de ${oponente ? oponente.name : 'oponente'}`];
+    const secoes = [0, 1, 2, 3, 4].map(g => ord.filter(a => grupo(a) === g)).map((lista, g) => lista.length ? Stack({ style: { gap: 'var(--space-2)' } },
       h('p', { class: 'ds-text ds-text--xs ds-text--muted tb-alvos__grupo' }, TITULOS[g]),
       ...lista.map(a => { const b = botao(a); const st = (a.targets || []).length === 1 ? estado(a.targets[0]) : null; if (st) b.append(h('span', { class: 'tb-alvos__estado' }, st)); return b; })) : null).filter(Boolean);
-    Dialog({ title: titulo, body: h('div', { class: 'tb-sheet__actions', id: 'tb-alvos' }, ...secoes),
+    // J-34 · 601.2c/601.2h · a ordem fica escrita: o alvo vem antes do custo (sacrificar, descartar, virar)
+    const cartas = ord.some(a => grupo(a) >= 3), pagaDepois = opcoes.some(a => a.pay && CAMPOS_PAGAMENTO.some(([c]) => a.pay[c] != null));
+    const pergunta = `${cartas ? 'Qual carta é o alvo?' : 'Qual é o alvo?'}${pagaDepois ? ' Depois você paga o custo.' : ''}`;
+    Dialog({ title: titulo, body: Stack({}, cartas || pagaDepois ? h('p', { class: 'ds-text ds-text--sm ds-text--muted', id: 'tb-alvos-pergunta' }, pergunta) : null, h('div', { class: 'tb-sheet__actions', id: 'tb-alvos' }, ...secoes)),
       actions: [Button('Voltar', { onClick: closeDialog })] });
   }
   /** X: um seletor com − e +, o total em símbolos e a confirmação. Só valores pagáveis. */
@@ -40770,8 +40779,17 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   }
   /** R6 · custo do lampejo do passado por extenso: mana, ou "virar 3 criaturas brancas" (Battle Screech, Prismatic Strands). Antes o botão saía com o custo vazio. */
   function custoDoLampejo(fb) {
-    fb = fb || {}; if (fb.mana) return fb.mana;
-    if (fb.sacrificeOther) { const so = fb.sacrificeOther; return `sacrificar ${so.subtype ? ({ Plains: 'uma Planície', Island: 'uma Ilha', Swamp: 'um Pântano', Mountain: 'uma Montanha', Forest: 'uma Floresta' }[so.subtype] || so.subtype) : 'uma permanente'}`; } // M-331
+    fb = fb || {};
+    // J-34 · relato #41 · o custo inteiro do lampejo, por extenso: "{1}{U} e pagar 3 de vida" (Deep Analysis), "{1}{U} e descartar uma carta"
+    // (Twinned Vision), "sacrificar três criaturas" (Dread Return; antes saía "sacrificar uma permanente"), "sacrificar uma criatura" (Cabal Therapy)
+    const NUM = { 2: 'duas', 3: 'três', 4: 'quatro', 5: 'cinco' };
+    const extras = [fb.pagarVida ? `pagar ${fb.pagarVida} de vida` : null, fb.discard ? (fb.discard > 1 ? `descartar ${fb.discard} cartas` : 'descartar uma carta') : null].filter(Boolean);
+    if (fb.mana) return [fb.mana, ...extras].join(' e ');
+    if (fb.sacrificeOther) { const so = fb.sacrificeOther, n = so.amount || 1;
+      if (so.subtype) return `sacrificar ${({ Plains: 'uma Planície', Island: 'uma Ilha', Swamp: 'um Pântano', Mountain: 'uma Montanha', Forest: 'uma Floresta' }[so.subtype] || so.subtype)}`; // M-331
+      const PT = { creature: ['uma criatura', 'criaturas'], artifact: ['um artefato', 'artefatos'], land: ['um terreno', 'terrenos'], enchantment: ['um encantamento', 'encantamentos'] }, ts = so.types || [];
+      if (ts.length === 1 && PT[ts[0]]) return n > 1 ? `sacrificar ${NUM[n] || n} ${PT[ts[0]][1]}` : `sacrificar ${PT[ts[0]][0]}`;
+      return n > 1 ? `sacrificar ${NUM[n] || n} permanentes` : 'sacrificar uma permanente'; }
     const t = fb.tapOther; if (!t) return 'sem custo';
     const COR = { W: 'branca', U: 'azul', B: 'preta', R: 'vermelha', G: 'verde' }, n = t.amount || 1;
     return n === 1 ? `virar uma criatura${t.color ? ' ' + COR[t.color] : ''}` : `virar ${n} criaturas${t.color ? ' ' + COR[t.color] + 's' : ''}`;

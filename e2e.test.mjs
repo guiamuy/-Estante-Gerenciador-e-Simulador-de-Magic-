@@ -16856,3 +16856,47 @@ test('e2e · DS-K F2.1 · a abertura monta o ícone em três planos (luz acende,
   assert.deepEqual(errors, []);
 });
 
+
+test('e2e · J-34 · relato #41 · CR 601.2c/601.2h · lampejo do Dread Return: o botão diz "sacrificar três criaturas"; primeiro a criatura do cemitério que volta (lista "Cartas do seu cemitério", não "permanentes"), depois as três criaturas sacrificadas; a mágica fica na pilha e só depois a criatura volta', { skip }, async t => {
+  // Dread Return {2}{B}{B} Sorcery: "Return target creature card from your graveyard to the battlefield. Flashback—Sacrifice three creatures."
+  // Texto oficial em .listas/oficiais-cartas.json (consulta de 12/10/2026). Antes: "Lampejo do passado · sacrificar uma permanente" e a
+  // escolha do alvo aparecia sob "Suas permanentes" — o dono leu a lista de alvos como a do sacrifício.
+  const DREAD = { name: 'Dread Return', mana_cost: '{2}{B}{B}', type_line: 'Sorcery', oracle_text: 'Return target creature card from your graveyard to the battlefield.\nFlashback—Sacrifice three creatures. (You may cast this card from your graveyard for its flashback cost. Then exile it.)' };
+  const M = await comLista125(t, '20 Swamp\n12 Llanowar Elves\n1 Elvish Mystic\n1 Gladecover Scout\n1 Slippery Bogle\n1 Silhana Ledgewalker\n4 Dread Return', ['Swamp', 'Llanowar Elves', 'Elvish Mystic', 'Gladecover Scout', 'Slippery Bogle', 'Silhana Ledgewalker', 'Dread Return'], '4', { extras: [DREAD], paradas: true }); // J3 · parar em tudo: a mágica fica na pilha esperando resposta
+  const { page } = M;
+  const ids = await page.evaluate(() => { const s = window.__estanteMesa.estado(), z = s.zones[0];
+    const tira = nome => { for (const de of ['library', 'hand']) { const i = z[de].findIndex(o => s.objects[o].name === nome); if (i >= 0) return z[de].splice(i, 1)[0]; } return null; };
+    const poe = (nome, zona) => { const oid = tira(nome); Object.assign(s.objects[oid], { zone: zona, controller: 0, tapped: false, sick: false, damage: 0, counters: {} }); z[zona].push(oid); return oid; };
+    const dr = poe('Dread Return', 'graveyard'), alvos = ['Llanowar Elves', 'Elvish Mystic', 'Gladecover Scout', 'Slippery Bogle', 'Silhana Ledgewalker'].map(n => poe(n, 'graveyard')); // cinco nomes (mais que LIMITE_DE_ALVOS): a escolha do alvo abre, como no cemitério cheio do relato
+    const campo = [0, 1, 2, 3].map(() => poe('Llanowar Elves', 'battlefield'));
+    window.__estanteMesa.repinta(); return { dr, alvos, campo }; });
+  await page.click('#tb-cemiterio-me'); await page.waitForSelector('.ds-dialog');
+  await page.locator('.ds-dialog .tb-card[aria-label^="Dread Return"]').first().click(); await page.waitForTimeout(300);
+  const bs = await page.locator('.ds-dialog .tb-sheet__actions button').evaluateAll(bs => bs.map(b => b.innerText.replace(/\s+/g, ' ').trim()));
+  const lampejo = bs.filter(b => /^Lampejo do passado/.test(b));
+  assert.equal(lampejo.length, 1, 'um botão de lampejo: ' + JSON.stringify(bs));
+  assert.equal(lampejo[0], 'Lampejo do passado · sacrificar três criaturas · 5 alvos', 'o custo por extenso (antes: "sacrificar uma permanente")');
+  await page.locator('.ds-dialog .tb-sheet__actions button', { hasText: /^Lampejo do passado/ }).click(); await page.waitForSelector('#tb-alvos');
+  // 1º o alvo (601.2c), escrito como carta do cemitério
+  const alvos = await page.innerText('#tb-alvos');
+  assert.match(alvos, /Cartas do seu cemitério/i, 'a lista de alvos diz de onde vem: ' + alvos);
+  assert.doesNotMatch(alvos, /permanentes/i, 'carta no cemitério não é permanente');
+  assert.match(await page.innerText('#tb-alvos-pergunta'), /^Qual carta é o alvo\? Depois você paga o custo\.$/);
+  await auditaTela(page, 'alvo do lampejo do Dread Return');
+  await page.locator('#tb-alvos button').first().click(); await page.waitForSelector('#tb-escolha');
+  // 2º o custo (601.2h): três criaturas, ditas como criaturas
+  assert.equal(await page.innerText('#tb-escolha-pergunta'), 'Quais criaturas você sacrifica para pagar? Toque nas cartas: 0 de 3.');
+  await auditaTela(page, 'sacrificar três criaturas');
+  for (let i = 0; i < 6 && await page.locator('#tb-escolha').count(); i++) { await page.locator('#tb-escolha .tb-card').nth(i % await page.locator('#tb-escolha .tb-card').count()).click(); await page.waitForTimeout(200); }
+  // 3º na pilha: as três já foram sacrificadas, a criatura alvo ainda está no cemitério (o oponente pode responder)
+  const pilha = await page.evaluate(({ dr, alvos, campo }) => { const s = window.__estanteMesa.estado(), z = id => s.objects[id].zone;
+    return { dr: z(dr), alvos: alvos.map(z), campo: campo.map(z).sort() }; }, ids);
+  assert.equal(pilha.dr, 'stack', 'o Dread Return espera na pilha: ' + JSON.stringify(pilha));
+  assert.ok(pilha.alvos.every(z => z === 'graveyard'), 'ninguém voltou antes de resolver');
+  assert.deepEqual(pilha.campo, ['battlefield', 'graveyard', 'graveyard', 'graveyard'], 'três criaturas sacrificadas ao conjurar');
+  await M.resolve();
+  const fim = await page.evaluate(({ dr, alvos }) => { const s = window.__estanteMesa.estado(); return { dr: s.objects[dr].zone, alvos: alvos.map(a => s.objects[a].zone).sort() }; }, ids);
+  assert.equal(fim.dr, 'exile', 'lampejo vai para o exílio');
+  assert.deepEqual(fim.alvos, ['battlefield', 'graveyard', 'graveyard', 'graveyard', 'graveyard'], 'a criatura escolhida volta ao campo');
+  assert.deepEqual(M.errors, []);
+});
