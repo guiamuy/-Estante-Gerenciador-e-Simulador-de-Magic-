@@ -2756,6 +2756,18 @@ body[data-mesa-cheia="true"] .tb-steps__list li { padding: 0 0 1px; border-botto
   color: var(--accent-fg); background: linear-gradient(160deg, var(--accent-hi), var(--accent) 55%, var(--accent-lo)); box-shadow: 0 0 0 2px var(--bg-elev-1), var(--shadow-1); pointer-events: none; }
 @media (prefers-reduced-motion: no-preference) { .tb-card__usa { animation: tb-usa-pousa var(--dur-3) var(--ease-spring, var(--ease-out)) both; } }
 @keyframes tb-usa-pousa { from { transform: scale(.4); opacity: 0; } to { transform: none; opacity: 1; } }
+/* J-32 · relato #38 · mesa justa (mão aberta e a mesa não cabia): os vãos apertam antes de a carta encolher; o cabeçalho de cada
+   lado continua com 44 px de toque, numa linha */
+/* o vão entre os dois lados fica como está: é onde pousa o resumo do turno e a faixa da pilha (camada de altura zero, MJ1c) */
+.tb-board[data-justa="true"] { padding-top: var(--space-1); }
+.tb-board[data-justa="true"] .tb-side { padding-left: var(--space-2); padding-right: var(--space-2); gap: 0; }
+.tb-board[data-justa="true"] .tb-side--opp { padding-top: var(--space-1); }
+.tb-board[data-justa="true"] .tb-side--me { padding-bottom: var(--space-1); }
+.tb-board[data-justa="true"] .tb-side .tb-row { padding-top: var(--space-1); padding-bottom: var(--space-1); }
+.tb-board[data-justa="true"][data-anima="true"] .tb-side, .tb-board[data-justa="true"][data-anima="true"] { transition: padding var(--dur-3) var(--ease-out), gap var(--dur-3) var(--ease-out); }
+/* J-32 · relato #38 · a mesa que encolhe com a mão aberta desliza de um tamanho a outro (só na troca; menos movimento: no lugar) */
+.tb-board[data-anima="true"] .tb-card, .tb-board[data-anima="true"] .tb-leque, .tb-board[data-anima="true"] .tb-leque__camada { transition: width var(--dur-3) var(--ease-out), margin var(--dur-3) var(--ease-out); }
+@media (prefers-reduced-motion: reduce) { .tb-board[data-anima="true"] .tb-card, .tb-board[data-anima="true"] .tb-leque, .tb-board[data-anima="true"] .tb-leque__camada { transition: none; } }
 .tb-zonegrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--carta-campo), 1fr)); gap: var(--space-3) var(--space-2); justify-items: center; align-items: end; }
 .tb-sheet__img { width: 100%; max-width: 240px; margin: 0 auto; display: block; border-radius: var(--radius-card); }
 .tb-sheet__actions { display: flex; flex-direction: column; gap: var(--space-2); }
@@ -41595,6 +41607,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       maoRecolhida = recolher != null ? recolher : !maoRecolhida;
       store.set(MAO_KEY, maoRecolhida).catch(() => {});
       aplica(!maoRecolhida);
+      encaixaMesa({ anima: true }); setTimeout(redesenhaSetas, durFx('--dur-3') + 40); // J-32
       __m0.haptics.evento('toque');
     };
     const puxador = h('button', { class: 'tb-hand__toggle', id: 'tb-hand-toggle', type: 'button', 'aria-controls': 'tb-hand-body', 'aria-expanded': String(band.aberta),
@@ -41634,6 +41647,59 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     for (const alvo of [zona, grip, barra]) ligaGestoDeBandeja(alvo, { aberta: () => doca.dataset.recolhida !== 'true', alvoVisual: doca, aoDecidir: d => alterna(d === 'recolher') });
     return doca;
   }
+
+  /* ---- J-32 · relato #38 · com a mão aberta, a mesa encolhe até caber acima dela ----
+     As cartas do campo dos dois lados (permanentes e terrenos, na mesma escala) recebem um tamanho menor pelo token
+     (--carta-campo e --carta-terreno no próprio .tb-board) até o tabuleiro inteiro caber entre o alto da página e a mão
+     aberta. Os cabeçalhos (vida, contadores) mantêm a altura de toque (44 px). A altura do tabuleiro é linear no tamanho da
+     carta (fileiras de altura fixa por carta): duas medidas dão a escala; antes de encolher carta, os vãos apertam; a escala vai de 1 a 0,6 (abaixo disso a carta
+     deixa de ser legível e a página rola como antes). A medida fica guardada enquanto nada que mude a altura mudar. */
+  let fatorDaMesa = 1, justaDaMesa = false, justaAntes = false, chaveDoEncaixe = '', cartaBase = null;
+  function encaixaMesa({ anima = false } = {}) {
+    const board = root.querySelector('.tb-board'), doca = root.querySelector('#tb-dock');
+    if (!board || !doca) return;
+    const aberta = doca.dataset.recolhida !== 'true';
+    // a altura do tabuleiro depende de quantas fileiras têm carta (as fileiras rolam de lado: mais uma carta não muda a altura)
+    // e do que está entre os lados; a mão aberta tem uma fileira só. Mudou isso ou a janela, mede de novo.
+    const cheias = [...board.querySelectorAll('.tb-row')].map(r => (r.firstElementChild ? 1 : 0)).join('');
+    const meio = board.querySelector('.tb-center'), centro = meio ? [...meio.children].map(c => c.id || c.className).join(',') : '';
+    const chave = aberta ? [innerWidth, innerHeight, cheias, centro].join('|') : '';
+    if (!cartaBase || chave !== chaveDoEncaixe) { const raiz = getComputedStyle(document.documentElement);
+      cartaBase = { campo: parseFloat(raiz.getPropertyValue('--carta-campo')) || 84, terreno: parseFloat(raiz.getPropertyValue('--carta-terreno')) || 60 }; }
+    // `f` é a escala das cartas; `justa` aperta as margens de fora (dos lados e das fileiras) antes de encolher carta
+    const poe = (f, justa = f < 1) => {
+      if (justa) board.dataset.justa = 'true'; else delete board.dataset.justa;
+      if (f >= 0.999) { board.style.removeProperty('--carta-campo'); board.style.removeProperty('--carta-terreno'); delete board.dataset.encaixe; }
+      else { board.style.setProperty('--carta-campo', `${(cartaBase.campo * f).toFixed(1)}px`); board.style.setProperty('--carta-terreno', `${(cartaBase.terreno * f).toFixed(1)}px`); board.dataset.encaixe = f.toFixed(2); } };
+    const antes = fatorDaMesa, justaVelha = justaAntes;
+    delete board.dataset.anima;
+    if (!aberta) { fatorDaMesa = 1; justaDaMesa = false; chaveDoEncaixe = ''; }
+    else if (chave !== chaveDoEncaixe) {
+      chaveDoEncaixe = chave;
+      const corpo = doca.querySelector('.tb-hand__body'), miolo = corpo && corpo.querySelector('.tb-hand__inner');
+      // a bandeja pode estar abrindo (a altura desliza): conta a altura dela já aberta, com o corpo da mão inteiro
+      const docaAberta = doca.getBoundingClientRect().height - (corpo && miolo ? corpo.getBoundingClientRect().height - miolo.scrollHeight : 0);
+      // o que precisa caber: do alto do tabuleiro ao fim da última carta do campo (o tabuleiro reserva embaixo o espaço da bandeja)
+      const base = board.getBoundingClientRect().top + scrollY, disponivel = innerHeight - docaAberta - base - 8;
+      const fim = () => { let m = 0; for (const c of board.querySelectorAll('.tb-side .tb-card, .tb-side .tb-leque')) { const r = c.getBoundingClientRect(); if (r.height) m = Math.max(m, r.bottom + scrollY - base); } return m; };
+      poe(1, false); const h0 = fim();
+      justaDaMesa = false;
+      if (h0 <= disponivel) fatorDaMesa = 1;
+      else { justaDaMesa = true; poe(1, true); const h1 = fim();
+        if (h1 <= disponivel) fatorDaMesa = 1;
+        else { poe(0.6, true); const h2 = fim(), b = (h1 - h2) / 0.4, a = h1 - b;
+          fatorDaMesa = b > 0 ? Math.max(0.6, Math.min(1, Math.floor((disponivel - a) / b * 100) / 100)) : 1; } }
+    }
+    const mudou = Math.abs(antes - fatorDaMesa) > 0.005 || justaVelha !== justaDaMesa;
+    if (anima && mudou && !menosMovimento()) { poe(antes, justaVelha); void board.offsetHeight; board.dataset.anima = 'true'; } // volta ao de antes para a troca deslizar
+    poe(fatorDaMesa, justaDaMesa); justaAntes = justaDaMesa;
+    if (aberta && justaDaMesa && mudou) scrollTo({ top: 0 });
+  }
+  // a janela mudou de tamanho (girar, teclado): mede de novo. Observa a raiz da mesa: sem ouvinte na janela, solta sozinho ao sair.
+  if (typeof ResizeObserver !== 'undefined') { let largura = 0, altura = 0;
+    const ro = new ResizeObserver(() => { if (!root.isConnected) { ro.disconnect(); return; } if (innerWidth === largura && innerHeight === altura) return;
+      largura = innerWidth; altura = innerHeight; if (chaveDoEncaixe) { chaveDoEncaixe = ''; encaixaMesa(); } });
+    ro.observe(root); }
 
   /* ---- J2 · ficar onde está na mesa: redesenhar não devolve as fileiras ao começo, e a mesa só anda para mostrar o que
      entrou fora da vista (a permanente que acabei de pôr em campo, o motivo de uma recusa) ---- */
@@ -41769,6 +41835,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
         (resumo => painelPilha || resumo ? h('div', { class: 'tb-camada', dataset: { sobrepoe: 'true' } }, h('div', { class: 'tb-camada__linha' }, painelPilha, resumo)) : null)(resumoBox()),
         side(s, v, true)),
       dock(s, v));
+    encaixaMesa(); // J-32 · com a mão aberta, a mesa encolhe até caber acima dela (antes das setas e do voo, que medem o campo)
     devolveFileiras(fileiras); mostraNovidade(s, v); // J2
     simbolizar(root); // U3 · custos, habilidades e textos da mesa em símbolos
     armaMiras(s, v); // MJ6a · arrastar a mágica da mão até o alvo

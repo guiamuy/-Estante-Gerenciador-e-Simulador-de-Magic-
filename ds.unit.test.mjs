@@ -107,6 +107,7 @@ test('J1 · contrato: o app só move a rolagem nos pontos declarados, cada um co
     ["if (ancora) requestAnimationFrame(() => { if (root.isConnected) root.scrollIntoView({ block: 'start' }); });", 'notícias (T2): a rota das notícias abre a Início já na seção'],
     ["onClick: () => { window.scrollTo({ top: 0, behavior: parado() ? 'auto' : 'smooth' }); topo.hidden = true; }", 'notícias (T2): o botão Topo, pedido pelo toque'],
     ["alvo.scrollIntoView({ behavior: 'smooth', block: 'start' });", 'Perfil (G-281, relato #25): "Criar minha conta" leva à seção da conta, pedido pelo toque'],
+    ['if (aberta && justaDaMesa && mudou) scrollTo({ top: 0 });', 'mesa (J-32, relato #38): a mão abriu e a mesa encolheu para caber acima dela; a página volta ao topo, onde a mesa inteira está'],
   ];
   const linhas = html.split('\n').filter(l => /\.scrollIntoView\(|\bscrollTo\(|\bscrollBy\(|\.scrollTop\s*=[^=]/.test(l) && !/^\s*(\/\/|\*|\/\*)/.test(l) && !/lista\.scrollTop = lista\.scrollHeight/.test(l));
   const semMotivo = linhas.filter(l => !DECLARADOS.some(([trecho]) => l.includes(trecho)));
