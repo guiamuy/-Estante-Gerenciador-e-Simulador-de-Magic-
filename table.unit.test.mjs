@@ -851,3 +851,23 @@ test('MJ11b · "o que é jogável" e as palavras-chave de cada carta ficam guard
     assert.equal(T.modificacoesDaCarta(st, o, { p: 1, t: 1 }), T.modificacoesDaCarta(st, o, { p: 1, t: 1 }));
   }
 });
+
+test('DS-K2 M2 · lequeDaMao: giro simétrico, nunca acima de 10°, no máximo 6,5° entre vizinhas, uma carta não gira, o centro não desce e as pontas descem até 8 px', () => {
+  assert.deepEqual(J(T.lequeDaMao(0)), []);
+  assert.deepEqual(J(T.lequeDaMao(1)), [{ rot: 0, y: 0 }]);
+  assert.deepEqual(J(T.lequeDaMao(4)).map(c => c.rot), [-9.75, -3.25, 3.25, 9.75], 'quatro cartas: praticamente a proposta (−10, −3,5, 3,5, 10)');
+  for (let n = 2; n <= 12; n++) {
+    const l = T.lequeDaMao(n), nome = `${n} cartas`;
+    assert.equal(l.length, n, nome);
+    l.forEach((c, i) => {
+      const par = l[n - 1 - i];
+      assert.ok(Math.abs(c.rot + par.rot) < 0.011 && Math.abs(c.y - par.y) < 0.011, `${nome}: simétrico (${i})`);
+      assert.ok(Math.abs(c.rot) <= T.LEQUE.giro && c.y >= 0 && c.y <= T.LEQUE.desce, `${nome}: dentro dos limites (${i})`);
+      if (i) { assert.ok(c.rot - l[i - 1].rot <= T.LEQUE.passo + 0.011 && c.rot > l[i - 1].rot, `${nome}: o giro cresce no máximo ${T.LEQUE.passo}° de uma carta para a próxima (${i})`); }
+    });
+    assert.ok(l[0].y >= Math.max(...l.map(c => c.y)), `${nome}: as pontas são as mais baixas`);
+    if (n % 2) assert.deepEqual(J(l[(n - 1) / 2]), { rot: 0, y: 0 }, `${nome}: a do meio fica reta e no alto`);
+    if (n >= 5) assert.deepEqual([l[0].rot, l[n - 1].rot, l[0].y], [-10, 10, 8], `${nome}: leque aberto, pontas a 10° e 8 px abaixo`);
+  }
+  assert.ok(T.lequeDaMao(2)[0].y < T.lequeDaMao(5)[0].y, 'leque mais fechado, arco mais raso');
+});

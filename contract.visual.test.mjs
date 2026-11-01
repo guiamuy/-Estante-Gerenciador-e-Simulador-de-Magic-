@@ -560,6 +560,21 @@ test('DS-K2 · J2 o Jogar tem a sua lista como cartão com a carta-chave dentro 
   assert.ok(!HTML.includes("ChipField('Formato', formatBox),\n        mineField,\n        covBox,\n        ChipField('Oponente'"), 'o formulário único saiu');
 });
 
+/* ---------------- DS-K2 M2 (J-37) · a mão em leque ---------------- */
+test('DS-K2 · M2 a mão em leque: largura e passo por conta de CSS sobre a largura da bandeja, sobreposição e largura mínima por token, giro e arco só por rotate/translate, sem transição com menos movimento', () => {
+  assert.match(css, /:root \{ --carta-mao-min: \d+px; --leque-sobrepoe: 0\.4; \}/, 'os dois valores do leque são tokens, iguais nos dois temas');
+  assert.match(componentCss, /--leque-pad: var\(--space-3\); container-type: inline-size;/, "a conta é feita pelo navegador sobre a largura da própria fileira (que não muda de altura quando a bandeja desliza)");
+  const regra = componentCss.slice(componentCss.indexOf('.tb-row--leque > .tb-card--leque {'), componentCss.indexOf('}', componentCss.indexOf('.tb-row--leque > .tb-card--leque {')));
+  assert.match(regra, /rotate: var\(--leque-rot, 0deg\); translate: 0 var\(--leque-y, 0px\);/, 'giro e arco são propriedades próprias (não brigam com o transform dos efeitos)');
+  const props = [...regra.matchAll(/transition: ([^;]+);/g)].flatMap(m => m[1].split(',').map(x => x.trim().split(' ')[0]));
+  assert.deepEqual(props, ['transform', 'rotate', 'translate'], 'só propriedades que o compositor anima sozinho');
+  assert.ok(/var\(--dur-2\) var\(--ease-out\)/.test(regra) && !/\d+ms/.test(regra), 'duração e curva por token');
+  assert.match(componentCss, /@media \(prefers-reduced-motion: reduce\) \{ \.tb-row--leque > \.tb-card--leque \{ transition: none; \} \}/);
+  assert.match(componentCss, /\.tb-row--leque > \.tb-card--leque:is\(\[data-segurando="true"\], \[data-selected="true"\], :active\) \{ rotate: 0deg;[^}]*z-index: 2; \}/, 'a carta em foco endireita e fica por cima');
+  assert.ok(HTML.includes("h('div', { class: 'tb-row tb-row--leque', dataset: { sobrepoe: 'leque'"), 'a sobreposição da mão é intencional e declarada');
+  assert.ok(!/tb-mao-na-decisao'[^\n]*tb-row--leque|tb-pick-cards'[^\n]*tb-row--leque/.test(HTML), 'as fileiras de decisão continuam fileiras (cada carta inteira)');
+});
+
 /* ---------------- DS-K (G-295) · F2.3 topo da Lista em ébano ---------------- */
 test('DS-K · F2.3 o topo da Lista é o destaque em ébano (nome, formato em latão, contagens) e o latão em texto pequeno sobre o ébano usa --accent-lo', () => {
   assert.match(HTML, /Surface\(\{ class: 'ds-destaque ds-surface--pad deck-topo', id: 'deck-topo' \}/);

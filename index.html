@@ -2678,6 +2678,27 @@ body[data-mesa-cheia="true"] .tb-steps__list li { padding: 0 0 1px; border-botto
    (a mesma exceção declarada da opção em bloco). Rótulo que cabe continua numa linha. */
 .tb-banner__actions .ds-btn { max-width: 100%; white-space: normal; text-wrap: balance; text-align: center; line-height: var(--lh-sm); padding-block: var(--space-2); flex-shrink: 1; }
 .tb-hand .tb-row { padding-top: var(--space-2); }
+/* DS-K2 M2 (J-37) · a mão em leque, como na proposta K. A largura da carta é a maior entre --carta-mao-min e --carta-mao
+   que deixa a mão caber na largura da própria bandeja (cqi: o navegador faz a conta, o app não mede nada); o passo entre
+   cartas vai de (1 − --leque-sobrepoe) da carta até a carta mais o vão. Até 7 cartas, cabe sem rolar a partir de 360 px;
+   com mais, rola de lado e continua em leque. A sobreposição é margem negativa: a ordem do DOM, a rolagem e a fileira
+   guardada no redesenho (J2) continuam valendo. Giro e arco são rotate/translate (propriedades próprias): não brigam com
+   o transform de pressionar, segurar e dos efeitos. A carta em foco endireita, sobe e fica por cima das vizinhas. */
+.tb-hand .tb-row--leque {
+  --leque-pad: var(--space-3); container-type: inline-size; /* a própria fileira é o contêiner: a altura dela não muda quando a bandeja desliza */
+  --leque-util: 100cqi; /* a largura do conteúdo da fileira (sem o respiro dos lados, onde cabem os cantos girados) */
+  --leque-w: clamp(var(--carta-mao-min), calc(var(--leque-util) / (1 + (1 - var(--leque-sobrepoe)) * (var(--n) - 1))), var(--carta-mao));
+  --leque-passo: clamp(calc(var(--leque-w) * (1 - var(--leque-sobrepoe))), calc((var(--leque-util) - var(--leque-w)) / max(var(--n) - 1, 1)), calc(var(--leque-w) + var(--space-2)));
+  gap: 0; padding: var(--space-2) var(--leque-pad) var(--space-4); scroll-snap-type: none;
+}
+.tb-row--leque > .tb-card--leque { width: var(--leque-w); margin-left: calc(var(--leque-passo) - var(--leque-w)); scroll-snap-align: none;
+  rotate: var(--leque-rot, 0deg); translate: 0 var(--leque-y, 0px);
+  transition: transform var(--dur-2) var(--ease-out), rotate var(--dur-2) var(--ease-out), translate var(--dur-2) var(--ease-out); }
+.tb-row--leque > .tb-card--leque:first-child { margin-left: auto; } /* cabe: o leque fica no meio; não cabe: as margens somem e a rolagem começa na primeira */
+.tb-row--leque > .tb-card--leque:last-child { margin-right: auto; }
+.tb-row--leque > .tb-card--leque:is([data-segurando="true"], [data-selected="true"], :active) { rotate: 0deg; translate: 0 calc(var(--space-1) * -1.5); transform: scale(1.04); z-index: 2; }
+.tb-row--leque > .tb-card--leque[data-selected="true"] :is(.tb-card__face, .tb-card__label), .tb-row--leque > .tb-card--leque[data-selected="true"]::before { transform: none; } /* a carta inteira já subiu */
+@media (prefers-reduced-motion: reduce) { .tb-row--leque > .tb-card--leque { transition: none; } }
 /* U6b · bandeja em camadas, no desenho de folha inferior (bottom sheet):
    puxador na borda de cima · uma linha com a mão, o momento e as ações · as cartas.
    Recolhida, sobra a linha (≈ 60 px). O arrasto acompanha o dedo por --puxao. */
@@ -3125,6 +3146,9 @@ button.col-dash__bar:active, .col-dash__bar--on { background: var(--accent-soft)
    Faixas: estreita ≤ 374 (Galaxy S), padrão 375–399 (iPhone 390, S+ com zoom de tela), larga ≥ 400 (S+ e Ultra).
    Altura: com a barra do navegador, o 780 vira ~700 úteis; abaixo de 740 a mão encolhe para a mesa caber. */
 :root { --carta-campo: 84px; --carta-mao: 100px; --carta-pilha: 56px; --carta-terreno: 60px; } /* MJ1d (J-5) · terreno ≈ 72% da carta do campo */
+/* DS-K2 M2 (J-37) · a mão em leque: a carta da mão encolhe até --carta-mao-min para a mão caber sem rolar; uma carta cobre
+   no máximo --leque-sobrepoe da vizinha (o centro de cada carta fica sempre à vista, e é ali que se toca) */
+:root { --carta-mao-min: 66px; --leque-sobrepoe: 0.4; }
 @media (max-width: 374px) {
   :root { --carta-campo: 76px; --carta-mao: 92px; --carta-pilha: 52px; --carta-terreno: 56px; }
   .tb-steps__longo { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } /* o leitor de tela ainda lê o nome inteiro */
@@ -5067,6 +5091,17 @@ function renderDS() {
             h('span', { class: 'ds-material__item' }, quadro, Button('Virar', { icone: 'virar', id: 'ds-virar', onClick: vira })));
         })(),
         Text('Tokens: --sombra-carta (espessura) · --sombra-carta-alta (levantada) · --mesa-luz e --mesa-penumbra (luz do feltro, só na partida) · --latao-luz e --latao-labio (fio de luz e lábio do latão: faixa de vez, vida de quem joga, selos).', { size: 'xs', tone: 'muted', attrs: { id: 'ds-material-tokens' } }),
+        // DS-K2 M2 (J-37) · a mão em leque com 3, 5 e 7 cartas, com o mesmo modelo (lequeDaMao) e o mesmo CSS da partida
+        Text('Mão em leque', { size: 'sm', caps: true, as: 'h3' }),
+        h('div', { class: 'ds-stack', id: 'ds-leque' }, ...[3, 5, 7].map(n => {
+          const nomes = ['Lightning Bolt', 'Counterspell', 'Delver of Secrets', 'Island', 'Ponder', 'Mountain', 'Spellstutter Sprite'];
+          const leque = __m18.lequeDaMao(n), cartas = nomes.slice(0, n).map((nm, i) => {
+            const c = M.TableCard(demo(nm, { oid: `ds-leque-${n}-${i}` }), { size: 'hand' }); c.classList.add('tb-card--leque');
+            c.style.setProperty('--leque-rot', `${leque[i].rot}deg`); c.style.setProperty('--leque-y', `${leque[i].y}px`); return c; });
+          const fileira = h('div', { class: 'tb-row tb-row--leque', dataset: { sobrepoe: 'leque', n: String(n) } }, ...cartas); fileira.style.setProperty('--n', String(n));
+          return h('div', { class: 'tb-hand' }, h('div', { class: 'tb-hand__inner' }, fileira));
+        })),
+        Text('Tokens: --carta-mao (largura de sempre) · --carta-mao-min (a menor, para a mão caber sem rolar) · --leque-sobrepoe (quanto uma carta cobre da vizinha, no máximo). Segure uma carta: ela endireita e sobe.', { size: 'xs', tone: 'muted', attrs: { id: 'ds-leque-tokens' } }),
         // MJ9 (J-21) · o desfecho da partida: vitória (selo de latão com brilho uma vez), derrota numa série e empate; "Rever" toca a entrada de novo
         Text('Desfecho', { size: 'sm', caps: true, as: 'h3' }),
         (() => {
@@ -37852,6 +37887,20 @@ function bandejaDaMao(s, v, recolhida) {
   const noCampo = !motivo && !!pd && pd.p === v && DECISAO_NO_CAMPO.includes(pd.kind);
   return { aberta: (!recolhida || !!motivo) && !noCampo, forcada: !!(recolhida && motivo), motivo, total, ...(noCampo ? { campo: true } : {}) };
 }
+/** DS-K2 M2 (J-37) · a mão em leque, como na proposta K: cada carta gira conforme a posição (no máximo LEQUE.passo graus
+    de uma carta para a próxima e LEQUE.giro nas pontas) e as pontas descem em arco até LEQUE.desce px. Só depende do
+    número de cartas; a largura e a sobreposição saem do CSS (conta sobre a largura da própria mão, sem medir nada). */
+const LEQUE = Object.freeze({ passo: 6.5, giro: 10, desce: 8 });
+function lequeDaMao(n) {
+  const total = Math.max(0, Math.floor(Number(n) || 0)), c = (total - 1) / 2;
+  const passo = total > 1 ? Math.min(LEQUE.passo, (2 * LEQUE.giro) / (total - 1)) : 0;
+  const r = x => Math.round(x * 100) / 100 || 0; // || 0: sem -0
+  const arco = Math.min(1, (c * passo) / LEQUE.giro); // leque mais fechado, arco mais raso (duas cartas não descem 8 px juntas)
+  return Array.from({ length: total }, (_, i) => {
+    const t = c > 0 ? (i - c) / c : 0;
+    return { rot: r(Math.max(-LEQUE.giro, Math.min(LEQUE.giro, (i - c) * passo))), y: r(LEQUE.desce * arco * t * t) };
+  });
+}
 /** U5 · o que faz uma permanente diferente das irmãs de mesmo nome (e por isso fica fora do leque). */
 const MODIFICADORES = ['pump', 'pumpNext', 'tempKeywords', 'keywordsNext', 'temporarios', 'copias', 'controles', // CR2d.13 · efeito com duração separa do leque
   'goaded', 'attacking', 'blocking', 'blockedBy', 'cantAttackNext',
@@ -38687,7 +38736,7 @@ function toquesDaContagem(grupos, conta) {
   for (const g of grupos) { let i = 0; (conta[g.chave] || []).forEach((n, k) => { for (let j = 0; j < n && i < g.oids.length; j++) out.push({ oid: g.oids[i++], option: k }); }); }
   return out;
 }
-return { textoDoCustoOpcionalM, rotulosDeCiclar, nomesDeCatalogo, LIMITE_COMANDANTE, danoDeComandante, textoDoDanoDeComandante, GRUPOS_DE_PARADA, PARADAS_PADRAO, paradasValidas, grupoDoPasso, usaParadas, paradasAtuais, iconeDaLinhaDoRegistro, donoDaLinha, iconeDaFase, trocaLegitima, cartaDaMesa, fontesDeMana, conferePagamento, planoDePagamento, gruposDeFontes, contagemDosToques, toquesDaContagem, sinaisDoResumo, iconeDaLinhaDoResumo, repeticaoDoCombo, chaveDaRepeticao, linhasDoCampo, rotulosDeAlvos, alvoSemEfeito, enxugaAlvos, LIMITE_DE_ALVOS, SAVE_KEY, SERIE_KEY, novaSerie, resultadoDaSerie, registraJogo, desfechoDaPartida, MOTIVO_DA_DERROTA, moveNaTroca, validaTroca, diffDaTroca, limitesDaTroca, proximoJogo, ZONE_PT, buildSetup, describe, revealed, shouldStop, legaisDe, esqueceEstado, createTable, restoreTable, estadoDaCarta, modificacoesDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveContinuo, descreveDano, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
+return { textoDoCustoOpcionalM, rotulosDeCiclar, nomesDeCatalogo, LIMITE_COMANDANTE, danoDeComandante, textoDoDanoDeComandante, GRUPOS_DE_PARADA, PARADAS_PADRAO, paradasValidas, grupoDoPasso, usaParadas, paradasAtuais, iconeDaLinhaDoRegistro, donoDaLinha, iconeDaFase, trocaLegitima, cartaDaMesa, fontesDeMana, conferePagamento, planoDePagamento, gruposDeFontes, contagemDosToques, toquesDaContagem, sinaisDoResumo, iconeDaLinhaDoResumo, repeticaoDoCombo, chaveDaRepeticao, linhasDoCampo, rotulosDeAlvos, alvoSemEfeito, enxugaAlvos, LIMITE_DE_ALVOS, SAVE_KEY, SERIE_KEY, novaSerie, resultadoDaSerie, registraJogo, desfechoDaPartida, MOTIVO_DA_DERROTA, moveNaTroca, validaTroca, diffDaTroca, limitesDaTroca, proximoJogo, ZONE_PT, buildSetup, describe, revealed, shouldStop, legaisDe, esqueceEstado, createTable, restoreTable, estadoDaCarta, modificacoesDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, LEQUE, lequeDaMao, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveContinuo, descreveDano, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
 })();
 
 
@@ -39850,7 +39899,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   function preparaEfeitos(evs, v, s) {
     const plano = __m33.planoDeEfeitos(evs, { espectador: v });
     const parado = menosMovimento(), fantasmas = [];
-    const foto = (p, el) => { if (!el) return; const r = el.getBoundingClientRect(); if (r.width && r.height) fantasmas.push({ p, r, clone: el.cloneNode(true) }); };
+    const foto = (p, el) => { if (!el) return; const c = caixaReal(el); if (c.w && c.h) fantasmas.push({ p, r: { left: c.x, top: c.y, width: c.w, height: c.h, rot: c.rot }, clone: el.cloneNode(true) }); };
     if (!parado) for (const p of plano) if (p.fx === 'fantasma') foto(p, root.querySelector(`.tb-card[data-oid="${p.oid}"]`));
     // MJ3b · a mágica que sai da sua mão (para a pilha, ou já resolvida para o cemitério) também é fotografada;
     // a que vira permanente voa pela chegada ao campo (MJ3a)
@@ -39869,10 +39918,15 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   const concluiVoos = () => { for (const a of voos.slice()) { try { a.finish(); } catch (e) { /* já acabou */ } } };
   root.addEventListener('pointerdown', concluiVoos, { capture: true, passive: true });
   const caixaDe = el => { const r = el.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; };
+  // DS-K2 M2 (J-37) · a carta da mão em leque está girada: a caixa da tela é maior que a carta. A caixa real é a da carta
+  // sem giro, no mesmo centro, com o ângulo junto (o voo que sai da mão começa girado e endireita no caminho).
+  const caixaReal = el => { const r = el.getBoundingClientRect(), w = el.offsetWidth, h = el.offsetHeight;
+    if (!el.classList.contains('tb-card--leque') || !w || !h) return { x: r.left, y: r.top, w: r.width, h: r.height };
+    return { x: r.left + r.width / 2 - w / 2, y: r.top + r.height / 2 - h / 2, w, h, rot: parseFloat(getComputedStyle(el).rotate) || 0 }; };
   function medeVoo() {
     if (semSentidos || !estadoOuvido || menosMovimento()) return null; // abrir, desfazer e movimento reduzido: nada voa
     const antes = {};
-    for (const el of root.querySelectorAll('#tb-hand .tb-card[data-oid]')) { const c = caixaDe(el); if (c.w && c.h) antes[el.dataset.oid] = c; }
+    for (const el of root.querySelectorAll('#tb-hand .tb-card[data-oid]')) { const c = caixaReal(el); if (c.w && c.h) antes[el.dataset.oid] = c; }
     const faixa = root.querySelector('#tb-stack-btn');
     // MJ3c · o contador da mão do oponente, como estava antes desta jogada, e as cartas que estavam nela
     const chipDele = root.querySelector('.tb-side--opp .tb-chip[data-zona="hand"]'), ladoDele = chipDele && chipDele.closest('.tb-side');
@@ -40113,7 +40167,8 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       camadaFx().appendChild(foto);
       if (p.esconde) alvo.el.style.opacity = '0';
       if (p.verso) versoQueVira(foto, dur);
-      const a = foto.animate([{ transform: `translate(${p.dx}px, ${p.dy}px) scale(${p.escala})` }, { transform: 'none' }], { duration: dur, easing: ease });
+      const giro = p.origem === 'mao' && m.antes[p.oid] && m.antes[p.oid].rot ? ` rotate(${m.antes[p.oid].rot}deg)` : ''; // DS-K2 M2 · sai da mão no ângulo do leque
+      const a = foto.animate([{ transform: `translate(${p.dx}px, ${p.dy}px) scale(${p.escala})${giro}` }, { transform: 'none' }], { duration: dur, easing: ease });
       voos.push(a);
       try { foto.animate([{ opacity: 0, transform: 'scale(1.6, 1.4)' }, { opacity: 1, transform: 'scale(1.15, 1.08)', offset: .6 }, { opacity: 0, transform: 'none' }], { duration: dur, easing: easeSombra, pseudoElement: '::before' }); } catch (e) { /* sem animação de pseudo: a sombra fica parada */ } // some com a foto
       const fim = () => { const i = voos.indexOf(a); if (i >= 0) voos.splice(i, 1); foto.remove(); alvo.el.style.opacity = '';
@@ -40270,7 +40325,11 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       clone.removeAttribute('id'); clone.disabled = true; clone.tabIndex = -1;
       Object.assign(clone.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
       const rota = rotas.get(String(p.oid));
+      // DS-K2 M2 · a foto da carta do leque sai no ângulo em que estava: no voo o giro entra no fim do transform (gira no
+      // lugar, depois anda); a propriedade rotate giraria o caminho junto
+      const giro = r.rot ? ` rotate(${r.rot}deg)` : '';
       if (!rota) {
+        if (r.rot) clone.style.rotate = `${r.rot}deg`;
         clone.className += ' tb-fx-fantasma tb-fx-fantasma--' + p.como;
         clone.style.setProperty('--fx-dir', s.objects[p.oid] && s.objects[p.oid].owner === v ? '1' : '-1'); // devolvida: desce para a minha mão, sobe para a do oponente
         if (p.como !== 'conjura') { naCamada(clone, p, p.como === 'morre' ? medio : curto + 120); feitos.push('fantasma:' + p.como); }
@@ -40281,8 +40340,8 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       camadaFx().appendChild(clone);
       // morrer escurece, exilar clareia; a carta para um instante, voa encolhendo e some ao pousar
       const tinta = p.como === 'morre' ? 'grayscale(1) brightness(.7)' : p.como === 'exila' ? 'brightness(1.6)' : 'none';
-      const fim = `translate(${rota.dx}px, ${rota.dy}px) scale(${rota.escala})`;
-      const a = clone.animate([{ transform: 'none', opacity: 1, filter: 'none' }, { offset: 0.2, transform: 'none', opacity: 1, filter: tinta, easing: ease },
+      const fim = `translate(${rota.dx}px, ${rota.dy}px) scale(${rota.escala})${giro}`, ini = giro.trim() || 'none';
+      const a = clone.animate([{ transform: ini, opacity: 1, filter: 'none' }, { offset: 0.2, transform: ini, opacity: 1, filter: tinta, easing: ease },
         { offset: 0.85, transform: fim, opacity: 1, filter: tinta }, { transform: fim, opacity: 0, filter: tinta }], { duration: p.como === 'morre' ? medio : durFx('--dur-4'), delay: p.atraso || 0 });
       voos.push(a);
       const alvo = destino.el;
@@ -42065,6 +42124,12 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       c.classList.add('tb-card--tramada'); c.dataset.pronta = String(s.objects[oid].plotted < s.turn.number); return c;
     });
     hand.unshift(...tramadas); // primeiro: com a mão cheia, no fim da fileira elas ficavam fora da tela
+    // DS-K2 M2 (J-37) · a mão em leque: o giro e a descida de cada carta vêm do modelo (puro, só pelo número de cartas);
+    // a largura e a sobreposição, do CSS (--n). A ordem do DOM continua a da mão: quem vem depois fica por cima.
+    const leque = T.lequeDaMao(hand.length);
+    hand.forEach((c, i) => { c.classList.add('tb-card--leque'); c.style.setProperty('--leque-rot', `${leque[i].rot}deg`); c.style.setProperty('--leque-y', `${leque[i].y}px`); });
+    const fileiraDaMao = h('div', { class: 'tb-row tb-row--leque', dataset: { sobrepoe: 'leque', n: String(hand.length) } }, ...hand);
+    fileiraDaMao.style.setProperty('--n', String(Math.max(1, hand.length)));
     // U6b · bandeja em três camadas: puxador na borda de cima (toque ou arrasto), uma linha com a mão,
     // o momento e as ações, e as cartas. Recolhida, sobra só a linha: a mesa ganha a altura da mão e da dica.
     // leva 102 · bug: quem tinha recolhido a mão numa partida anterior começava o 1º turno sem ver as cartas (a mão
@@ -42105,7 +42170,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     if (decisao) { doca.dataset.decisao = 'true'; semBotaoDeTexto(banner); }
     const barra = h('div', { class: 'tb-dock__bar' }, puxador, banner);
     bandeja.append(h('div', { class: 'tb-hand__body', id: 'tb-hand-body' },
-      h('div', { class: 'tb-hand__inner' }, hand.length ? h('div', { class: 'tb-row' }, ...hand) : h('span', { class: 'tb-zone__empty' }, 'mão vazia'))));
+      h('div', { class: 'tb-hand__inner' }, hand.length ? fileiraDaMao : h('span', { class: 'tb-zone__empty' }, 'mão vazia'))));
     doca.append(...[grip, desfecho, decisao, barra, decisao ? null : aviso, bandeja].filter(Boolean));
     if (desfecho) { doca.dataset.desfecho = 'true'; if (!band.forcada) aplica(false); } // MJ9 · no fim a mão recolhe (o puxador ainda abre): o campo final fica à vista
     __m3.reservaDoca(doca); // o aviso flutuante (toast) sobe para ficar acima da bandeja, em vez de cobri-la

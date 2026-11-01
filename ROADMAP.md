@@ -13101,9 +13101,42 @@ sentinela do Pauper mantém as novas jogando. Outro formato entra quando chegar 
 | I2 | Início: a faixa de offline de uma linha (anel + "faltam N itens" + Ver), o painel inteiro vira folha | e2e | geral | a fazer |
 | L1 | Lista: hero com a arte da carta-chave e a posse na coleção | e2e | geral | a fazer |
 | M1 | Mesa: cartas do campo com arte na fila, tamanho e raio da proposta | e2e, contrato visual | jogabilidade | a fazer |
-| M2 | Mesa: mão em leque com arte e rotação, a carta tocada sobe | e2e, 60 quadros | jogabilidade | a fazer |
+| M2 | Mesa: mão em leque com arte e rotação, a carta tocada sobe | e2e, 60 quadros | jogabilidade | ✅ J-37 |
 | M3 | Mesa: barra vida · fase com os pontos do turno · vida | e2e | jogabilidade | a fazer |
 | M4 | Mesa: bandeja com a ação primária em latão e o resto em segundo plano | e2e | jogabilidade | a fazer |
+
+**M2 · Mão em leque** ✅ (leva J-37, trilha `jogabilidade`, 01/11/2026)
+- **Valor:** a mão parece uma mão de cartas: abre em arco, cabe inteira na tela sem arrastar para o lado (até 7 cartas a
+  partir de 360 px), a arte de cada carta aparece e a carta que você segura endireita, sobe e fica por cima das vizinhas.
+- **Regra:** a carta da mão é a maior entre `--carta-mao-min` (66 px) e `--carta-mao` que deixa a mão caber na largura da
+  fileira; uma carta cobre no máximo `--leque-sobrepoe` (40%) da vizinha, então o centro de cada carta é dela (é ali que o
+  dedo e os testes tocam). Giro por posição (`lequeDaMao`, puro, em `__m18`): no máximo 6,5° de uma carta para a próxima e
+  10° nas pontas (4 cartas: −9,75°, −3,25°, 3,25°, 9,75°, a proposta é −10, −3,5, 3,5, 10); as pontas descem até 8 px, e o
+  arco fica mais raso quando o leque é mais fechado. Com 8 cartas ou mais em 360/390, a mão rola de lado e continua em leque.
+- **Entregue:** `.tb-row--leque` (a própria fileira é contêiner: largura e passo por conta de CSS, sem medir nada no
+  desenho; a sobreposição é margem negativa, então a ordem do DOM, a rolagem e a fileira guardada no redesenho continuam
+  valendo); giro e arco por `rotate`/`translate` (não brigam com o `transform` de pressionar, segurar e dos efeitos);
+  foco (segurar, escolhida, pressionada) com `rotate: 0`, sobe e `z-index: 2`; a foto que sai da mão (voo ao campo, à
+  pilha, ao cemitério) começa no ângulo e no tamanho reais da carta (`caixaReal`); `/ds` › Mão em leque (3, 5 e 7 cartas).
+  As fileiras de decisão (mão para ver, escolher cartas) continuam fileiras: ali cada carta aparece inteira.
+- **Pixels em 360×780 com a mão aberta** (altura da fileira, medida): 1 a 5 cartas, 144 → 152 px (+8: respiro de baixo
+  para as pontas giradas); 6 cartas, 144 → 133 px (a carta vai a 78 px); 7 cartas, 144 → 118 px (a carta vai a 68 px).
+  A mesa já se ajusta à altura da mão aberta (J-32). Antes, de 4 cartas em diante a mão rolava de lado (64 a 364 px).
+- **Quadros** (360×780, CPU 4× mais lenta, abrir/recolher a mão 4× e segurar uma carta 3×, seis rodadas de cada lado):
+  52–54 quadros por segundo com o leque, 54–56 antes; tarefas longas de 50–70 ms aparecem dos dois lados, ao abrir a
+  mão, na mesma medida. A primeira versão (contêiner na bandeja) tinha tarefa longa em toda rodada: o contêiner passou
+  para a fileira, que não muda de altura quando a bandeja desliza.
+- **Testes:** `table.unit` "DS-K2 M2 · lequeDaMao" (simetria, limites, passo, uma carta reta, centro no alto, arco);
+  contrato "DS-K2 · M2" (tokens, contêiner, só `transform`/`rotate`/`translate` com duração por token, sem transição com
+  menos movimento, foco por cima, sobreposição declarada, fileiras de decisão intocadas); e2e "DS-K2 M2" (360 e 390, dois
+  temas, 1/3/5/7 cartas: sem rolagem lateral nem vertical, o centro de cada carta toca aquela carta, sobreposição ≤ 40%,
+  nenhuma carta fora da bandeja, pontas entre 8° e 10°, `auditaTela`; segurar endireita, sobe e põe por cima; 8 cartas em
+  360 rolam e a última fica tocável; toque abre a folha; `/ds`).
+- **Mudança de teste justificada:** o e2e J2 ("ficar onde está na mesa") exigia que a mão da partida rolasse mais de 60 px;
+  com o leque, as 6 cartas daquela partida cabem sem rolar. O teste passa a subir `--carta-mao-min` para 100 px só nele,
+  para a fileira rolar como antes; o que ele prova (o redesenho não devolve a fileira ao começo) é o mesmo.
+- **Fora:** leque na mão do oponente; reordenar a mão arrastando; profundidade ao espiar; M1, M3 e M4. A foto que **chega**
+  à mão (voltar para a mão) mira a caixa da carta girada (até ~10% maior que a carta), sem girar junto.
 
 **J2 · Jogar como mesa de preparação** ✅ (leva G-318, 01/11/2026)
 - **Valor:** preparar a partida parece preparar a partida: a sua lista é um cartão com a carta-chave em arte, o nome em

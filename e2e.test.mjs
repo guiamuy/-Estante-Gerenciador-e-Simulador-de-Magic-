@@ -9134,6 +9134,78 @@ test('e2e · DS-K2 J2 · Jogar como mesa de preparação: a sua lista é um cart
   assert.deepEqual(errors, []);
 });
 
+// DS-K2 M2 (J-37) · a mão em leque, como na proposta K: a carta da mão encolhe (de --carta-mao até --carta-mao-min) para a
+// mão caber sem rolar; uma carta cobre no máximo 40% da vizinha, então o centro de cada carta é dela (é ali que o dedo e o
+// teste tocam); as pontas giram até 10° e descem em arco; a carta segurada endireita, sobe e fica por cima. Com 8 cartas em
+// 360 px a mão rola de lado e continua em leque. A fileira não ganha rolagem vertical por causa do giro.
+test('e2e · DS-K2 M2 mão em leque: até 7 cartas cabem sem rolar em 360 e 390, o centro de cada carta toca aquela carta, sobreposição ≤ 40%, pontas giradas de 8° a 10°, segurar endireita e põe por cima; 8 cartas em 360 rolam e continuam em leque; dois temas, auditaTela', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await createDeck(page, base, 'Leque', '30 Island\n20 Delver of Secrets\n10 Counterspell');
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start'); await page.fill('#mesa-seed', '7');
+  await page.click('[data-opponent="goldfish"]');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-pass');
+  const maoCom = async n => {
+    await page.evaluate(n => { const M = window.__estanteMesa, s = M.estado(), p = s.turn.active, mao = s.zones[p].hand.slice();
+      for (const oid of mao.slice(n)) M.act({ t: 'move', p, oid, to: 'library', top: false });
+      for (const oid of s.zones[p].library.slice(0, Math.max(0, n - mao.length))) M.act({ t: 'move', p, oid, to: 'hand' }); }, n);
+    await page.waitForFunction(n => document.querySelectorAll('#tb-hand .tb-card').length === n, n);
+    if ((await page.getAttribute('#tb-hand-toggle', 'aria-expanded')) !== 'true') await page.click('#tb-hand-toggle');
+    await page.waitForTimeout(450);
+  };
+  const mede = () => page.evaluate(() => {
+    const row = document.querySelector('#tb-hand .tb-row'), rr = row.getBoundingClientRect(), cards = [...row.querySelectorAll('.tb-card')];
+    return { leque: row.classList.contains('tb-row--leque') && row.dataset.sobrepoe === 'leque', rola: row.scrollWidth - row.clientWidth, rolaV: row.scrollHeight - row.clientHeight,
+      cartas: cards.map((c, i) => { const r = c.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2, alvo = document.elementFromPoint(x, y);
+        const cs = getComputedStyle(c), largura = parseFloat(cs.width); // a margem negativa é a sobreposição (sem o arredondamento do offsetLeft)
+        return { w: Math.round(largura), rot: parseFloat(cs.rotate) || 0, centro: !!alvo && alvo.closest('.tb-card') === c,
+          cobre: i ? Math.max(0, -parseFloat(cs.marginLeft) / largura) : 0, dentro: r.left >= rr.left - 0.5 && r.right <= rr.right + 0.5 }; }) };
+  });
+  for (const [w, hgt] of [[360, 780], [390, 844]]) for (const tema of ['dark', 'light']) {
+    await page.setViewportSize({ width: w, height: hgt }); await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema);
+    for (const n of [1, 3, 5, 7]) {
+      await maoCom(n); const m = await mede(), nome = `${w} ${tema} · ${n} cartas`;
+      assert.ok(m.leque, `${nome}: a fileira da mão é o leque`);
+      assert.ok(m.rola <= 1, `${nome}: cabe sem rolar de lado (${m.rola} px)`);
+      assert.ok(m.rolaV <= 1, `${nome}: o giro não cria rolagem vertical (${m.rolaV} px)`);
+      assert.ok(m.cartas.every(c => c.centro), `${nome}: o centro de cada carta toca aquela carta ${JSON.stringify(m.cartas)}`);
+      assert.ok(m.cartas.every(c => c.cobre <= 0.401), `${nome}: uma carta cobre no máximo 40% da vizinha ${JSON.stringify(m.cartas.map(c => c.cobre))}`);
+      assert.ok(m.cartas.every(c => c.dentro), `${nome}: nenhuma carta sai da bandeja ${JSON.stringify(m.cartas)}`);
+      assert.ok(m.cartas.every(c => c.w >= 66), `${nome}: a carta não encolhe abaixo de 66 px ${JSON.stringify(m.cartas.map(c => c.w))}`);
+      if (n === 1) assert.equal(m.cartas[0].rot, 0, `${nome}: uma carta não gira`);
+      if (n >= 5) { const [a, z] = [m.cartas[0].rot, m.cartas[n - 1].rot]; assert.ok(a <= -8 && a >= -10 && z >= 8 && z <= 10, `${nome}: pontas giradas entre 8° e 10° (${a}, ${z})`); }
+      if (n === 7) {
+        await auditaTela(page, `DS-K2 M2 · ${nome}`);
+        if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/ds-k2-m2-${tema}-${w}.png` });
+      }
+    }
+  }
+  // segurar: a carta endireita, sobe e fica por cima das vizinhas; soltar devolve ao leque
+  await page.setViewportSize({ width: 360, height: 780 }); await maoCom(5);
+  const sel = '#tb-hand .tb-card:nth-child(2)';
+  const antes = await page.$eval(sel, el => { const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, topo: r.top, rot: getComputedStyle(el).rotate }; });
+  await page.mouse.move(antes.x, antes.y); await page.mouse.down(); await page.waitForTimeout(650);
+  const seg = await page.$eval(sel, el => ({ seg: el.dataset.segurando, rot: getComputedStyle(el).rotate, z: getComputedStyle(el).zIndex, topo: el.getBoundingClientRect().top }));
+  assert.equal(seg.seg, 'true', 'segurando');
+  assert.ok(seg.rot === '0deg' || seg.rot === 'none', `segurada, a carta endireita (${antes.rot} → ${seg.rot})`);
+  assert.equal(seg.z, '2', 'segurada, fica por cima das vizinhas');
+  assert.ok(seg.topo < antes.topo - 2, `segurada, a carta sobe (${antes.topo} → ${seg.topo})`);
+  await page.mouse.up(); await page.keyboard.press('Escape'); await page.waitForTimeout(400);
+  // 8 cartas em 360 px: rola de lado e continua em leque (nenhuma carta abaixo de 66 px, sobreposição ≤ 40%, centros tocáveis depois de rolar)
+  await maoCom(8); const oito = await mede();
+  assert.ok(oito.rola > 0 && oito.leque, `8 cartas em 360: a mão rola de lado (${oito.rola} px) e continua em leque`);
+  assert.ok(oito.cartas.every(c => c.cobre <= 0.401 && c.w >= 66), `8 cartas: sobreposição ≤ 40% e carta ≥ 66 px ${JSON.stringify(oito.cartas)}`);
+  await page.$eval('#tb-hand .tb-row', r => { r.scrollLeft = r.scrollWidth; }); await page.waitForTimeout(100);
+  const fim = await mede(); assert.ok(fim.cartas[7].centro && fim.cartas[7].dentro, 'rolada até o fim, a última carta fica à vista e tocável');
+  await page.click('#tb-hand .tb-card:last-child'); await page.waitForSelector('.ds-dialog'); // o toque simples continua abrindo a folha da carta
+  // o catálogo do DS mostra o mesmo leque (3, 5 e 7 cartas), com o mesmo modelo e o mesmo CSS
+  await page.goto(base + '#/ds'); await page.waitForSelector('#ds-leque .tb-row--leque');
+  const ds = await page.$$eval('#ds-leque .tb-row--leque', rs => rs.map(r => ({ n: r.children.length, rola: r.scrollWidth - r.clientWidth, ponta: parseFloat(getComputedStyle(r.lastElementChild).rotate) || 0 })));
+  assert.deepEqual(ds.map(x => x.n), [3, 5, 7], '/ds: Mão em leque com 3, 5 e 7 cartas');
+  assert.ok(ds.every(x => (x.n === 7 || x.rola <= 1) && x.ponta > 0), `/ds: 3 e 5 cabem sem rolar (o catálogo é mais estreito que a bandeja) e as pontas giram ${JSON.stringify(ds)}`);
+  assert.deepEqual(errors, []);
+});
+
 /* G-312 · relato #36, fatia 2 · só a lista que joga (válida no formato e 100% no motor) é escolha no Jogar */
 test('e2e · G-312 escolha de lista no Jogar: só as que jogam estão entre as escolhas; as outras ficam em "Ainda não jogam" com o motivo; fora do formato não é escolha e não começa', { skip }, async t => {
   const { page, errors, base } = await open(t, { dev: false, formato: true });
@@ -10683,6 +10755,10 @@ test('e2e · J2 ficar onde está na mesa: agir não devolve as fileiras ao come�
     await M.proximo();
   }
   const PERM = '.tb-side--me [data-zone="permanents"] .tb-row', MAO = '#tb-hand-body .tb-row';
+  // DS-K2 M2 (J-37) · a mão em leque cabe até 7 cartas sem rolar (nesta partida ficam 6, que rolavam ~200 px na fileira
+  // antiga; contra o Shark a mesa não aceita mover carta para a mão): a carta mínima da mão sobe a 100 px só neste teste,
+  // para a fileira rolar de lado como antes; o que se prova (o redesenho não devolve a fileira ao começo) é o mesmo
+  await page.addStyleTag({ content: ':root { --carta-mao-min: 100px !important; }' }); await page.waitForTimeout(700);
   const larguras = await page.evaluate(([a, b]) => [a, b].map(q => { const r = document.querySelector(q); return r ? r.scrollWidth - r.clientWidth : -1; }), [PERM, MAO]);
   assert.ok(larguras[0] > 60 && larguras[1] > 60, 'as duas fileiras rolam de lado: ' + larguras);
   const mede = () => page.evaluate(([a, b]) => ({ sy: Math.round(scrollY), perm: Math.round(document.querySelector(a).scrollLeft), mao: Math.round(document.querySelector(b).scrollLeft) }), [PERM, MAO]);
