@@ -1135,3 +1135,29 @@ test('S-594 · linha realçada: a máscara de nitidez devolve borda à linha bor
   const a = L.y1 - L.y0, longe = Math.min(f.h - 1, L.y1 + Math.round(a * 0.35) + Math.max(2, Math.round(a * 0.12)) + 2);
   if (longe < f.h - 1) assert.equal(borr[longe * f.w + 10], copia[longe * f.w + 10], 'linha fora da janela não muda');
 });
+
+// S-603 · com os nomes impressos de cinco línguas a base de nomes passa de 180 mil entradas: o filtro de bigramas vira um
+// índice invertido. Mesmo resultado, item por item, da varredura antiga (a cópia sem o índice usa o caminho antigo).
+test('S-603 · índice invertido de bigramas: mesmo resultado da varredura e só olha quem divide bigramas', () => {
+  const apelidos = DECOYS.slice(0, 8000).map((d, i) => ['Ap ' + word() + ' ' + word(), REAL[i % REAL.length]]);
+  const ix = X.buildIndex([...REAL, ...DECOYS], apelidos), ref = ix.slice();
+  Object.defineProperty(ref, 'exatos', { value: ix.exatos }); Object.defineProperty(ref, 'prefixos', { value: ix.prefixos });
+  assert.ok(ix.invertido && !ref.invertido);
+  const sujo = s => [...s].map(c => { const x = rnd(); return x < 0.06 ? '' : x < 0.12 ? 'rnmil1cvo0'[Math.floor(rnd() * 10)] : c; }).join('');
+  const fontes = [...REAL, ...DECOYS.slice(0, 400), ...apelidos.slice(0, 200).map(p => p[0])];
+  for (let k = 0; k < 150; k++) {
+    const q = (rnd() < 0.3 ? 'ol ' : '') + sujo(fontes[k % fontes.length]) + (rnd() < 0.3 ? ' 2G' : '');
+    assert.deepEqual(X.matchName(ix, q, { limit: 5 }), X.matchName(ref, q, { limit: 5 }), q);
+  }
+  const c = X.candidatosDoIndice(ix, 'lightning bolt');
+  assert.ok(c.some(i => ix[i].name === 'Lightning Bolt'), 'o nome certo está entre os candidatos');
+  assert.ok(c.length < ix.length * 0.1, `candidatos ${c.length} de ${ix.length}`);   // sílabas sintéticas repetem muito; na base real ~0,2%
+  assert.ok(c.every((v, i) => i === 0 || c[i - 1] < v), 'na ordem do índice (desempate igual ao da varredura)');
+});
+
+test('S-603 · bigrama presente em mais de 65 mil entradas não estoura a contagem do índice', () => {
+  const muitos = Array.from({ length: 70000 }, (_, i) => 'Ab ' + i.toString(36).replace(/[0-9]/g, d => 'qwxyzjkpvh'[d]));
+  const ix = X.buildIndex([...muitos, 'Abacaxi Voador']);
+  assert.equal((X.matchName(ix, 'Abacaxi Vcador')[0] || {}).name, 'Abacaxi Voador');
+  assert.equal(ix.invertido.lista.length, ix.reduce((s, e) => s + e.bg.length, 0));
+});
