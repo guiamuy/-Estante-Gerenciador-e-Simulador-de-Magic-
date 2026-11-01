@@ -3302,6 +3302,28 @@ function webCamera(nav, doc, deps = {}) {
     }
     throw erro;
   };
+  /* S-594 · lente que foca. Em celulares com várias câmeras traseiras o navegador pode abrir, para "traseira", uma
+     lente de foco fixo (a grande-angular): a carta de perto fica borrada por mais que se toque na tela. Quando a lente
+     aberta diz que foca mas não tem foco contínuo, as outras traseiras são provadas, uma por vez, e fica a primeira com
+     foco contínuo; nenhuma serve, volta a de antes. Câmera que não diz nada sobre foco (computador) não é trocada. */
+  const focaSozinha = () => { const fm = caps().focusMode; return Array.isArray(fm) && fm.includes('continuous'); };
+  const fixa = () => { const fm = caps().focusMode; return Array.isArray(fm) && fm.length > 0 && !fm.includes('continuous'); };
+  const fecha = () => { if (stream) stream.getTracks().forEach(t => t.stop()); stream = null; };
+  const procuraLenteQueFoca = async (opts) => {
+    if (!fixa() || opts.lente) return null;
+    const antes = (sets().deviceId) || '';
+    let lista = [];
+    try { lista = (await nav.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput' && d.deviceId && d.deviceId !== antes && !/front|frontal|user|selfie/i.test(d.label || '')); } catch (e) { return null; }
+    for (const d of lista) {
+      fecha();
+      try { await abre({ lente: d.deviceId, soEssa: true }); } catch (e) { continue; }
+      if (focaSozinha()) return d.deviceId;
+    }
+    fecha();
+    await abre(opts);
+    return null;
+  };
+  let lenteAuto = null;
   return {
     kind: 'web',
     available() { return !!(nav && nav.mediaDevices && nav.mediaDevices.getUserMedia); },
@@ -3309,6 +3331,7 @@ function webCamera(nav, doc, deps = {}) {
       if (!this.available()) throw new Error('camera-unavailable');
       basico = {}; avancado = {}; medida = { fps: null, degrau: null, tentativas: [] };
       await abre(opts);
+      lenteAuto = await procuraLenteQueFoca(opts);
       video = el; video.srcObject = stream;
       if (video.play) await video.play();
       // foco, exposição e branco contínuos quando a câmera souber (Android Chrome): é o que tira o "embaçado"
@@ -3412,7 +3435,7 @@ function webCamera(nav, doc, deps = {}) {
       return { width: s.width || (video && video.videoWidth) || 0, height: s.height || (video && video.videoHeight) || 0, fps: medida.fps || s.frameRate || 0, foco: s.focusMode || '?', rotulo: t && t.label || '',
         maximo: c.width && c.height && c.width.max ? `${Math.max(c.width.max, c.height.max)}×${Math.min(c.width.max, c.height.max)}` : '?',
         subida: medida.tentativas.map(x => `${x.pedido}${x.medindo ? ' …' : x.ok ? ' ✓' : x.erro ? ' ✗ ' + x.erro : ` ✗ ${x.fps == null ? '?' : Math.round(x.fps)} qps`}`).join(', ') || '—',
-        zoom: s.zoom || avancado.zoom || 1, lanterna: !!(avancado.torch), lente: lenteId || s.deviceId || '',
+        zoom: s.zoom || avancado.zoom || 1, lanterna: !!(avancado.torch), lente: lenteId || s.deviceId || '', lenteAuto,
         pode: { zoom: this.zooms().length > 1, lanterna: !!c.torch, ponto: suporta('pointsOfInterest') } };
     },
     /** Recorta uma região relativa (0..1) do quadro e devolve um canvas.
@@ -42995,6 +43018,21 @@ function limpaLinha(d, w, h, limiar = 120) {
   for (let p = 0; p < w * h; p++) if (escuro[p] === 2) d[p * 4] = d[p * 4 + 1] = d[p * 4 + 2] = 255;
   return d;
 }
+/** S-594 · máscara de nitidez na linha do nome (no lugar): g + quanto × (g − g borrado). O borrado é caixa duas vezes
+    (≈ gaussiano) com raio de 12% da altura da linha. Medido nas 27 fotos do portão: como segunda leitura, desfoque de
+    3 px numa carta de 600 px vai de 0 a 10 de 27 e protetor com desfoque de 2 px de 22 a 25; aplicado à foto nítida
+    piora (27 → 25), por isso só entra depois de a primeira leitura falhar numa linha borrada. Mexe só nas linhas que a binarização lê (a linha e a margem dela). */
+function afiaLinha(g, w, h, y0, y1, { quanto = 1.5, margem = 0.35 } = {}) {
+  const { max, min, round } = Math;
+  const a = y1 - y0, r = max(2, round(a * 0.12)), ya = max(0, y0 - round(a * margem) - r), yb = min(h, y1 + round(a * margem) + r), hh = yb - ya;
+  const base = Float32Array.from(g.subarray(ya * w, yb * w)), tmp = new Float32Array(w * hh), b = Float32Array.from(base);
+  for (let passo = 0; passo < 2; passo++) {
+    for (let y = 0; y < hh; y++) { let s = 0; const o = y * w; for (let x = -r; x <= r; x++) s += b[o + max(0, min(w - 1, x))]; for (let x = 0; x < w; x++) { tmp[o + x] = s / (2 * r + 1); s += b[o + min(w - 1, x + r + 1)] - b[o + max(0, x - r)]; } }
+    for (let x = 0; x < w; x++) { let s = 0; for (let y = -r; y <= r; y++) s += tmp[max(0, min(hh - 1, y)) * w + x]; for (let y = 0; y < hh; y++) { b[y * w + x] = s / (2 * r + 1); s += tmp[min(hh - 1, y + r + 1) * w + x] - tmp[max(0, y - r) * w + x]; } }
+  }
+  for (let j = 0; j < w * hh; j++) g[ya * w + j] = max(0, min(255, base[j] + quanto * (base[j] - b[j])));
+  return g;
+}
 /** Nitidez da linha do nome (cinza, linhas y0..y1): variância do laplaciano sobre o contraste ao quadrado. */
 function nitidezDaLinha(g, w, y0, y1) {
   const { max } = Math;
@@ -43009,12 +43047,14 @@ function nitidezDaLinha(g, w, y0, y1) {
 /** O caminho inteiro da imagem até o que o OCR lê. `src` é RGBA de qualquer recorte do quadro e `cantos`
     são os quatro cantos da CARTA (ou da moldura guia) em pixels de `src`. Devolve a linha do nome pronta
     ({ data, w, h }), mais o que o diagnóstico mostra. null quando não há linha de texto na faixa. */
-function preparaNome(src, sw, sh, cantos, { inverte = false, largura = LARGURA_NOME } = {}) {
+function preparaNome(src, sw, sh, cantos, { inverte = false, largura = LARGURA_NOME, afia = false } = {}) {
   const alt = Math.max(8, Math.round(largura * (FAIXA_NOME.h / FAIXA_NOME.w) / PROPORCAO_CARTA));
   const faixa = retifica(src, sw, sh, cantosDaFaixa(cantos, FAIXA_NOME), largura, alt);
   const L = linhaDoNome(faixa.data, faixa.w, faixa.h);
   if (!L || !(L.nota > 0)) return null;
   const nit = nitidezDaLinha(L.cinza, faixa.w, L.y0, L.y1);
+  // S-594 · segunda tentativa com a linha borrada: realça as bordas antes de binarizar (na linha limpa piora: só depois de falhar)
+  if (afia) afiaLinha(L.cinza, faixa.w, faixa.h, L.y0, L.y1);
   const bin = binarizaLinha(L.cinza, faixa.w, faixa.h, L.y0, L.y1, { inverte });
   limpaLinha(bin.data, bin.w, bin.h);
   return { data: bin.data, w: bin.w, h: bin.h, claro: bin.claro, nitidez: nit, linha: { y0: L.y0 / faixa.h, y1: L.y1 / faixa.h, nota: L.nota } };
@@ -43063,13 +43103,15 @@ function deslocamento(a, b) {
   }
   return menor;
 }
-/* Calibrado nas fotos reais de 01/10/2026 (cartas de 470 a 1150 px de altura): linha legível fica entre 0,9 e 28;
-   a mesma foto desfocada (caixa de 2 px, duas passadas), que o OCR já não lê, cai para 0,1. O limiar corta só isso. */
-const LIMIARES_LINHA = { nitidezMin: 0.3, deslocamentoMax: 0.05, alturaMin: 0.30 };
+/* Nitidez da linha: fotos reais de 01/10/2026 (cartas de 470 a 1150 px) ficam entre 0,9 e 28 quando nítidas.
+   S-594 · a régua `nitidezMin` (0,3) que pulava a leitura saiu: o leitor lê linha de 0,04 (desfoque leve, protetor)
+   e a medida não separa o que ele lê do que não lê. `borrada` (0,5) só decide a segunda leitura realçada e o aviso
+   de foco; nas 27 fotos nítidas a menor é 0,42 e lê de primeira, sem segunda leitura. */
+const LIMIARES_LINHA = { borrada: 0.5, deslocamentoMax: 0.05, alturaMin: 0.30 };
 
 return { cleanOcr, matchName, matchLines, criaVotacao, criaPorteiro, PORTEIRO, leituraConfiavel, nitidezDaFaixa, movimentoEntre, LIMIARES_FAIXA, criaDiario, criaCronometro, EXATA, buildIndex, createNameIndex, createLot, coverRegion, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, ACCEPT, ALTA, SUGGEST, lev,
   detectaCarta, detectaEmEscalas, ESCALAS_DETECTOR, brilho, nitidez, prontoParaLer, criaDetector, paradaEm, screenRect, LIMIARES, PROPORCAO_CARTA, realcaTexto, trechoEscuroEmbaixo, limpaBordas, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, faixaDaCarta, escalaOcr,
-  retasDoQuadro, achaQuadrilatero, ordenaCantos, homografia, cantosDaFaixa, retifica, FAIXA_NOME, FAIXA_COLECAO, LARGURA_NOME, linhaDoNome, binarizaLinha, limpaLinha, nitidezDaLinha, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, alturaDaCarta, deslocamento, LIMIARES_LINHA, QUAD };
+  retasDoQuadro, achaQuadrilatero, ordenaCantos, homografia, cantosDaFaixa, retifica, FAIXA_NOME, FAIXA_COLECAO, LARGURA_NOME, linhaDoNome, binarizaLinha, limpaLinha, nitidezDaLinha, afiaLinha, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, alturaDaCarta, deslocamento, LIMIARES_LINHA, QUAD };
 })();
 
 
@@ -43087,6 +43129,7 @@ const { createLot, coverRegion, screenRect, parseCollectorLine, resolvePrinting,
 const { pulse } = __m20;
 const TESSERACT_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
 // Leva 109 · o laço lê uma leitura atrás da outra; estes são só os respiros entre elas
+const ZOOM_INICIAL = 2;        // S-594 · zoom de partida sem escolha guardada (ver aplicaZoomGuardado)
 const RESPIRO_MS = 120;        // sem carta no quadro, ou passada pulada (tremida/desfocada: a régua de movimento precisa de intervalo entre dois quadros). X14: com carta lida, a próxima passada sai no próximo quadro do vídeo
 const REPOUSO_MS = 250;        // X14 · carta já aceita parada no quadro: não há o que ler, o laço descansa (bateria e aquecimento)
 // Leva 112 · o plano B (texto esparso do quadro inteiro) saiu: era a origem das leituras erradas com a carta mal
@@ -43225,6 +43268,8 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
       await camera.start(video, { facing: 'environment', ...(lente ? { lente } : {}) });
       if (!state.alive) return camera.stop();
       state.camera = 'on';
+      // S-594 · a câmera trocou sozinha para a lente que foca: ela é a lente desta tela daqui em diante
+      try { const inf = camera.info && camera.info(); if (inf && inf.lenteAuto) store.set('scanner.lente', inf.lenteAuto); } catch (e) { /* segue */ }
       aplicaZoomGuardado().then(() => camera.melhorar && camera.melhorar()).catch(() => {});
     }
     catch (e) { state.camera = /denied|notallowed|permission/i.test(String(e && (e.name || e.message))) ? 'denied' : 'unavailable'; }
@@ -43260,12 +43305,12 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
   }
   /** A linha do nome pronta para o OCR, a partir dos cantos da carta (ou da moldura), em frações do quadro.
       Do vídeo sai só o pedaço que tem o nome, na resolução cheia. */
-  function linhaPronta(cantosFr) {
+  function linhaPronta(cantosFr, { afia = false } = {}) {
     const rec = recorteDaFaixa(cantosFr, FAIXA_NOME, video.videoWidth, video.videoHeight);
     if (!rec) return null;
     const p = pixels(rec.regiao, { canvas: telas.faixa });
     const kx = p.w / rec.w, ky = p.h / rec.h;
-    const pr = preparaNome(p.d, p.w, p.h, rec.cantos.map(c => ({ x: c.x * kx, y: c.y * ky })));
+    const pr = preparaNome(p.d, p.w, p.h, rec.cantos.map(c => ({ x: c.x * kx, y: c.y * ky })), { afia });
     if (!pr) return null;
     return { tela: paraCanvas(pr, telas.linha), nitidez: pr.nitidez, claro: pr.claro };
   }
@@ -43331,7 +43376,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
 
   /* ---- a leitura ---- */
   const dormir = ms => new Promise(r => setTimeout(r, ms));
-  const DICAS = { desfocada: 'Desfocado: afaste um pouco e segure firme.', tremida: 'Segure firme.', longe: 'Aproxime a carta.', escuro: 'Está escuro: procure mais luz.', ambigua: 'Duas cartas parecidas: aproxime a câmera do nome.', espera: 'Lendo… segure assim.', repetida: 'Já na pilha. Toque na tela para somar outra.', fraca: 'Nome pouco legível: aproxime e tire o reflexo.', nada: 'Enquadre a carta na moldura.' };
+  const DICAS = { foco: 'Fora de foco: afaste a câmera um palmo.', tremida: 'Segure firme.', longe: 'Aproxime a carta.', escuro: 'Está escuro: procure mais luz.', ambigua: 'Duas cartas parecidas: centralize o nome.', espera: 'Lendo… segure assim.', repetida: 'Já na pilha. Toque na tela para somar outra.', fraca: 'Nome pouco legível: incline para tirar o reflexo.', nada: 'Enquadre a carta na moldura.' };
   /** X11 · uma leitura: acha os quatro cantos da carta em qualquer lugar do quadro, endireita o topo dela, acha a
       linha do nome, lê e casa com a base. Sem contorno (carta na mão, protetor, mesa da cor da borda), o mesmo
       caminho vale a partir da moldura guia. Quando o contorno não dá leitura, a moldura é tentada na mesma passada. */
@@ -43357,26 +43402,39 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     const caminhos = [];
     if (quad && !longe) caminhos.push({ nome: 'carta', cantos: state.invertida ? viraCantos(quad.cantos) : quad.cantos });
     caminhos.push({ nome: 'moldura', cantos: cantosDe(molduraNoQuadro()) });
-    let melhor = null, desfocada = null;
+    let melhor = null, afiou = false;
     const nota = r => (r && r.found[0] ? r.found[0].score : 0);
+    /* S-594 · a régua de nitidez não pula mais a leitura. Medido nas 27 fotos do portão com desfoque leve (1,5 px numa
+       carta de 600 px): a régua descartava 17 de 27 que o leitor lê certo (nome 9 → 27 de 27 sem ela), e com protetor e
+       desfoque, 26 de 27 (1 → 25); sem a régua, nenhum nome errado entrou. A linha borrada que não deu nome é lida de
+       novo uma vez, realçada (afiaLinha): desfoque forte 0 → 10 de 27. */
+    const le = async (c, L) => {
+      let ta = relogio();
+      const texto = await ocr.read(L.tela, 'linha');
+      tempos.ocr += Math.round(relogio() - ta); ta = relogio();
+      const r = { caminho: c.nome, cantos: c.cantos, texto, found: names.match(texto), nitidez: L.nitidez, afiada: !!L.afiada };
+      tempos.casa += Math.round(relogio() - ta);
+      return r;
+    };
     for (const c of caminhos) {
       let ta = relogio();
       const L = linhaPronta(c.cantos);
       tempos.prep += Math.round(relogio() - ta);
       if (!L) continue;
-      if (via !== 'manual' && L.nitidez < LIMIARES_LINHA.nitidezMin) { if (desfocada == null) desfocada = L.nitidez; continue; }
-      ta = relogio();
-      const texto = await ocr.read(L.tela, 'linha');
-      tempos.ocr += Math.round(relogio() - ta); ta = relogio();
-      const r = { caminho: c.nome, cantos: c.cantos, texto, found: names.match(texto), nitidez: L.nitidez };
-      tempos.casa += Math.round(relogio() - ta);
+      let r = await le(c, L);
+      if (nota(r) < ACCEPT && L.nitidez < LIMIARES_LINHA.borrada && !afiou) {
+        afiou = true; ta = relogio();
+        const L2 = linhaPronta(c.cantos, { afia: true });
+        tempos.prep += Math.round(relogio() - ta);
+        if (L2) { const r2 = await le(c, { ...L2, nitidez: L.nitidez, afiada: true }); if (nota(r2) > nota(r)) r = r2; }
+      }
       if (!melhor || nota(r) > nota(melhor)) melhor = r;
       if (nota(r) >= ACCEPT) break;
     }
     if (!melhor) {
-      const qual = desfocada != null ? 'desfocada' : longe ? 'longe' : 'nada';
+      const qual = longe ? 'longe' : 'nada';
       dicaTexto(DICAS[qual]);
-      return { pulou: qual, ms: 0, nitidez: desfocada || 0, ...base };
+      return { pulou: qual, ms: 0, nitidez: 0, ...base };
     }
     // carta de cabeça para baixo: depois de três leituras sem nome com o contorno achado, vira a carta e MANTÉM
     // virada enquanto estiver lendo (o porteiro precisa de leituras seguidas iguais); três falhas viradas, desvira
@@ -43445,7 +43503,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
         const semNome = v.motivo === 'nada' || v.motivo === 'fraca';
         // com a carta achada e sem nome, o problema é a leitura (reflexo, distância), não o enquadramento
         // enquanto o "[nome] ✓" está na tela, uma leitura vazia não troca a confirmação por uma bronca
-        if (!(semNome && Date.now() - (state.aceitoEm || 0) < 1600)) dicaTexto(semNome && L.luz < 45 ? DICAS.escuro : semNome && L.longe ? DICAS.longe : semNome && L.contorno ? DICAS.fraca : DICAS[v.motivo === 'ambígua' ? 'ambigua' : v.motivo] || '');
+        if (!(semNome && Date.now() - (state.aceitoEm || 0) < 1600)) dicaTexto(semNome && L.luz < 45 ? DICAS.escuro : semNome && L.longe ? DICAS.longe : semNome && L.contorno ? (L.nitidez < LIMIARES_LINHA.borrada ? DICAS.foco : DICAS.fraca) : DICAS[v.motivo === 'ambígua' ? 'ambigua' : v.motivo] || '');
         if ((v.motivo === 'ambígua' || v.motivo === 'fraca') && L.found.length) { state.last = { text: L.texto, found: L.found, key: null, printing: null, candidates: [], pendente: false }; paintResult(); }
       }
       diario.anota({ via: L.caminho, texto: L.texto, melhor: L.found[0] || null, ms: L.ms, decisao, nitidez: L.nitidez, movimento: L.movimento, tempos: L.tempos, ateAceitar });
@@ -43511,8 +43569,16 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     }
   });
   /** X13 · o zoom escolhido da última vez volta sozinho (depois da subida de resolução, que troca as restrições). */
+  /* S-594 · sem zoom escolhido, começa em 2× quando a câmera tem. Com a carta enchendo a moldura em 1×, o celular fica a
+     uns 9 cm dela, no limite do foco das câmeras principais: a imagem borra. Em 2× a mesma moldura pede uns 18 cm, onde
+     a lente foca; e o zoom da câmera recorta o sensor (que tem pixels de sobra), não a imagem já reduzida. Quem escolher
+     outro zoom no chip fica com ele (inclusive 1×). */
   async function aplicaZoomGuardado() {
-    try { const z = await store.get('scanner.zoom'); if (z && z !== 1 && camera.zoom) await camera.zoom(z); } catch (e) { /* segue em 1× */ }
+    try {
+      let z = await store.get('scanner.zoom');
+      if (z == null && camera.zooms && camera.zooms().includes(ZOOM_INICIAL)) z = ZOOM_INICIAL;
+      if (z && z !== 1 && camera.zoom) await camera.zoom(z);
+    } catch (e) { /* segue em 1× */ }
   }
   function setAuto(on) {
     const antes = state.auto;
@@ -43527,7 +43593,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
   function infoAparelho() {
     const LEITOR = { idle: 'parado', loading: 'carregando', ready: 'pronto', failed: 'falhou' };
     const cam = camera.info ? camera.info() : {};
-    return { leitor_versao: 'X14 (resposta imediata)', aparelho: (navigator.userAgent || '').slice(0, 80), video: `${cam.width || video.videoWidth || 0}×${cam.height || video.videoHeight || 0}${cam.fps ? ` @${Math.round(cam.fps)}` : ''}`, foco: cam.foco || '?', camera_maximo: cam.maximo || '?', subida: cam.subida || '—', zoom: `${(+(cam.zoom || 1)).toFixed(1)}×`, lanterna: cam.lanterna ? 'ligada' : 'desligada', lente: (cam.rotulo || '?').slice(0, 40), ate_aceitar: (r => r.n ? (r.nEntrada ? `mediana ${r.desdeEntrada} ms desde a entrada (${r.nEntrada} carta(s)); ` : '') + `confirmação ${r.confirmacao} ms (${r.n} carta(s))` : 'sem cartas ainda')(cronometro.resumo()), base: (names.info() || {}).count || 0, leitor: LEITOR[state.engine] || state.engine, automatico: state.auto ? 'ligado' : 'pausado', limiares: `nitidez ≥ ${LIMIARES_LINHA.nitidezMin}, movimento ≤ ${Math.round(LIMIARES_LINHA.deslocamentoMax * 100)}, carta ≥ ${Math.round(LIMIARES_LINHA.alturaMin * 100)}% do quadro` };
+    return { leitor_versao: 'S-594 (sem régua de nitidez, lente que foca, 2×)', aparelho: (navigator.userAgent || '').slice(0, 80), video: `${cam.width || video.videoWidth || 0}×${cam.height || video.videoHeight || 0}${cam.fps ? ` @${Math.round(cam.fps)}` : ''}`, foco: cam.foco || '?', camera_maximo: cam.maximo || '?', subida: cam.subida || '—', zoom: `${(+(cam.zoom || 1)).toFixed(1)}×`, lanterna: cam.lanterna ? 'ligada' : 'desligada', lente: (cam.rotulo || '?').slice(0, 40) + (cam.lenteAuto ? ' (trocada: a anterior não focava)' : ''), ate_aceitar: (r => r.n ? (r.nEntrada ? `mediana ${r.desdeEntrada} ms desde a entrada (${r.nEntrada} carta(s)); ` : '') + `confirmação ${r.confirmacao} ms (${r.n} carta(s))` : 'sem cartas ainda')(cronometro.resumo()), base: (names.info() || {}).count || 0, leitor: LEITOR[state.engine] || state.engine, automatico: state.auto ? 'ligado' : 'pausado', limiares: `borrada < ${LIMIARES_LINHA.borrada} (lê de novo realçada), movimento ≤ ${Math.round(LIMIARES_LINHA.deslocamentoMax * 100)}, carta ≥ ${Math.round(LIMIARES_LINHA.alturaMin * 100)}% do quadro` };
   }
   function paintEstado() {
     const txt = state.camera !== 'on' ? '' : state.engine === 'loading' ? 'Preparando o leitor…' : state.engine === 'failed' ? 'Leitor indisponível' : state.auto ? 'Automático' : 'Pausado';

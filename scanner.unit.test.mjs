@@ -734,7 +734,7 @@ test('X11 · nitidez da linha separa texto nítido de desfocado; deslocamento me
   const borr = new Float32Array(L.cinza.length);
   for (let y = 0; y < f.h; y++) for (let x = 0; x < f.w; x++) { let s = 0, n = 0; for (let k = -6; k <= 6; k++) { const xx = x + k; if (xx >= 0 && xx < f.w) { s += L.cinza[y * f.w + xx]; n++; } } borr[y * f.w + x] = s / n; }
   const desfocada = X.nitidezDaLinha(borr, f.w, L.y0, L.y1);
-  assert.ok(nitida > X.LIMIARES_LINHA.nitidezMin * 4, 'nítida: ' + nitida.toFixed(2));
+  assert.ok(nitida > X.LIMIARES_LINHA.borrada * 2, 'nítida: ' + nitida.toFixed(2));
   assert.ok(desfocada < nitida / 10, `desfocada ${desfocada.toFixed(2)} × nítida ${nitida.toFixed(2)}`);
   const a = [{ x: 0.2, y: 0.2 }, { x: 0.8, y: 0.2 }, { x: 0.8, y: 0.9 }, { x: 0.2, y: 0.9 }];
   assert.equal(X.deslocamento(a, a), 0);
@@ -1072,4 +1072,66 @@ test('X14 · nome exato é achado por consulta direta: mesmo resultado, sem perc
   assert.ok(performance.now() - t0 < 50, 'consulta direta: ' + (performance.now() - t0).toFixed(1) + ' ms por mil');
   // o índice continua sendo uma lista comum (quem percorre não vê a tabela)
   assert.equal(Object.keys(INDEX).includes('exatos'), false); assert.ok(Array.isArray(INDEX));
+});
+
+/* ---------------- S-594 · lente que foca, régua que não pula leitura, linha realçada ---------------- */
+/** Câmera falsa com várias lentes, cada uma com o próprio foco: abre a padrão (a de foco fixo) quando ninguém
+    pede uma lente, como o Chrome faz em alguns celulares com "traseira". */
+function camerasComLentes({ focos, padrao, dispositivos }) {
+  const abertas = [], paradas = [];
+  const nav = { mediaDevices: {
+    getUserMedia: async c => {
+      const id = (c.video.deviceId && c.video.deviceId.exact) || padrao; abertas.push(id);
+      const t = { label: id, stop() { paradas.push(id); }, getCapabilities: () => (focos[id] ? { focusMode: focos[id] } : {}), getSettings: () => ({ deviceId: id, width: 1920, height: 1080 }), applyConstraints: async () => {} };
+      return { getVideoTracks: () => [t], getTracks: () => [t] };
+    },
+    getSupportedConstraints: () => ({}), enumerateDevices: async () => dispositivos } };
+  const doc = { createElement: () => ({ width: 0, height: 0, getContext: () => ({ drawImage() {} }) }) };
+  return { camera: P.webCamera(nav, doc, { medeFps: async () => 30 }), video: { videoWidth: 1920, videoHeight: 1080, play: async () => {} }, abertas, paradas };
+}
+const TRES_LENTES = [{ kind: 'videoinput', deviceId: 'larga', label: 'camera2 2, facing back' }, { kind: 'videoinput', deviceId: 'frente', label: 'camera2 1, facing front' }, { kind: 'videoinput', deviceId: 'principal', label: 'camera2 0, facing back' }];
+
+test('S-594 · câmera: a traseira aberta não foca sozinha (grande-angular de foco fixo) → troca para a que foca, sem passar pela frontal', async () => {
+  const f = camerasComLentes({ padrao: 'larga', focos: { larga: ['manual'], principal: ['manual', 'single-shot', 'continuous'], frente: ['continuous'] }, dispositivos: TRES_LENTES });
+  await f.camera.start(f.video, { facing: 'environment' });
+  assert.equal(f.abertas.join(','), 'larga,principal', 'a frontal não é provada');
+  assert.equal(f.paradas.join(','), 'larga', 'a lente de foco fixo é fechada');
+  const i = f.camera.info();
+  assert.equal(i.lenteAuto, 'principal'); assert.equal(i.lente, 'principal');
+});
+
+test('S-594 · câmera: lente que já foca, câmera que não diz nada de foco (computador) e lente escolhida não são trocadas; nenhuma foca → volta à de antes', async () => {
+  const boa = camerasComLentes({ padrao: 'principal', focos: { principal: ['continuous'], larga: ['manual'] }, dispositivos: TRES_LENTES });
+  await boa.camera.start(boa.video, { facing: 'environment' });
+  assert.equal(boa.abertas.join(','), 'principal'); assert.equal(boa.camera.info().lenteAuto, null);
+  const pc = camerasComLentes({ padrao: 'webcam', focos: {}, dispositivos: [{ kind: 'videoinput', deviceId: 'webcam', label: 'HD Camera' }, { kind: 'videoinput', deviceId: 'outra', label: 'USB' }] });
+  await pc.camera.start(pc.video, { facing: 'environment' });
+  assert.equal(pc.abertas.join(','), 'webcam', 'sem focusMode declarado não há como saber: fica');
+  const escolhida = camerasComLentes({ padrao: 'larga', focos: { larga: ['manual'], principal: ['continuous'] }, dispositivos: TRES_LENTES });
+  await escolhida.camera.start(escolhida.video, { lente: 'larga' });
+  assert.equal(escolhida.abertas.join(','), 'larga', 'a lente que a pessoa escolheu é respeitada');
+  const nenhuma = camerasComLentes({ padrao: 'larga', focos: { larga: ['manual'], principal: ['manual'] }, dispositivos: TRES_LENTES });
+  await nenhuma.camera.start(nenhuma.video, { facing: 'environment' });
+  assert.equal(nenhuma.abertas.join(','), 'larga,principal,larga', 'prova as outras e volta à de antes');
+  assert.equal(nenhuma.camera.info().lenteAuto, null);
+});
+
+test('S-594 · a régua de nitidez não pula leitura: só marca a linha borrada para a segunda leitura realçada', () => {
+  assert.equal(X.LIMIARES_LINHA.nitidezMin, undefined, 'a régua que pulava a leitura saiu (descartava 17 de 27 fotos levemente borradas que o leitor lê)');
+  assert.ok(X.LIMIARES_LINHA.borrada > 0.42 && X.LIMIARES_LINHA.borrada <= 1, 'acima da menor linha nítida do portão (0,42): a nítida nunca paga a segunda leitura à toa... e abaixo de 1');
+});
+
+test('S-594 · linha realçada: a máscara de nitidez devolve borda à linha borrada e só mexe perto dela', () => {
+  const f = faixaComTitulo({ arte: false }), L = X.linhaDoNome(f.d, f.w, f.h);
+  const borr = new Float32Array(L.cinza.length);
+  for (let y = 0; y < f.h; y++) for (let x = 0; x < f.w; x++) { let s = 0, n = 0; for (let k = -3; k <= 3; k++) { const xx = x + k; if (xx >= 0 && xx < f.w) { s += L.cinza[y * f.w + xx]; n++; } } borr[y * f.w + x] = s / n; }
+  // borda = degrau entre vizinhos na linha do nome (média do |diferença| na horizontal)
+  const borda = g => { let s = 0, n = 0; for (let y = L.y0; y < L.y1; y++) for (let x = 1; x < f.w; x++) { s += Math.abs(g[y * f.w + x] - g[y * f.w + x - 1]); n++; } return s / n; };
+  const antes = borda(borr), copia = Float32Array.from(borr);
+  X.afiaLinha(borr, f.w, f.h, L.y0, L.y1);
+  const depois = borda(borr);
+  assert.ok(depois > antes * 1.5, `borda ${antes.toFixed(2)} → ${depois.toFixed(2)}`);
+  assert.ok(borr.every(v => v >= 0 && v <= 255), 'fica no intervalo de cinza');
+  const a = L.y1 - L.y0, longe = Math.min(f.h - 1, L.y1 + Math.round(a * 0.35) + Math.max(2, Math.round(a * 0.12)) + 2);
+  if (longe < f.h - 1) assert.equal(borr[longe * f.w + 10], copia[longe * f.w + 10], 'linha fora da janela não muda');
 });

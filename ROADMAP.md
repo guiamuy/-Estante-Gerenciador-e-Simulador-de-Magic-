@@ -8547,7 +8547,52 @@ X14 ataca. Sobre imagem: acima de 1440p o **nome** não ganha (a linha é lida e
 | 4º | **X16** tela nova do scanner | experiência | 1 a 2 |
 | 5º | **X17** pilha e conferência visuais | experiência | 1 |
 | 6º | **X18** sessão de catalogação | experiência | 1 |
+| 2º-b 🟡 | **X19** foco, borrado e protetor (pedido de 01/11) | imagem e velocidade | 1 (leva S-594) |
 | à parte | **X12** reconhecimento pela arte · **X10** fotos reais | decisão e insumo do usuário | 2 |
+
+**X19 · Foco, borrado e protetor** 🟡 (leva S-594; aguardando teste no aparelho)
+- **Pedido (01/11/2026, depois de testar no aparelho):** fora do protetor acerta a maior parte, mas demora; diz que a carta
+  não está legível quando dá para ler o nome; a imagem fica embaçada numa câmera boa; com protetor, mais embaçada, e não lê.
+- **Causas achadas (medidas antes de mexer):**
+  1. **A régua de nitidez pulava a leitura.** Nas 27 fotos do portão com desfoque leve (gaussiano de 1,5 px numa carta de
+     600 px de altura), a régua (`nitidezMin` 0,3) descartava 17 sem ler; sem ela o leitor lê as 27. Com protetor simulado
+     e desfoque de 2 px, descartava 26 de 27; sem ela, 22 leem. Nenhum nome errado entrou sem a régua. A medida de nitidez
+     não separa o que o leitor lê do que não lê (lidas a partir de 0,04). Era ela o "segure firme / desfocado" com a carta
+     legível e a maior parte da demora (cada passada pulada é uma leitura perdida).
+  2. **Perto demais para focar.** A moldura guia ocupa 86% da altura da câmera: em 1×, a carta que a enche fica a uns 9 cm
+     da lente, no limite do foco da câmera principal. Daí o "embaçado numa câmera boa". E o aviso "aproxime" empurrava
+     para mais perto.
+  3. **Lente de foco fixo.** Em celulares com várias traseiras, o navegador pode abrir para "traseira" a grande-angular,
+     que não foca de perto (conhecido em leitores de código no Android; não confirmado no S25 — o diagnóstico mostra).
+- **Entregue (leva S-594):** a régua sai: toda linha achada é lida; a linha borrada (`borrada` < 0,5) que não deu nome é
+  lida de novo, uma vez por passada, com máscara de nitidez (`afiaLinha`); sem zoom escolhido, a câmera começa em **2×**
+  (a mesma moldura pede uns 18 cm, onde a lente foca; o zoom recorta o sensor); lente aberta que diz que foca mas não tem
+  foco contínuo é trocada pela primeira traseira que tem, e a escolha fica guardada; avisos: "Fora de foco: afaste a câmera
+  um palmo" com a linha borrada, "Nome pouco legível: incline para tirar o reflexo" com a linha nítida, e nenhum aviso pede
+  para aproximar fora da carta pequena de verdade. O diagnóstico diz a versão `S-594`, a lente trocada e o zoom.
+- **Medido (01/11/2026, 27 fotos do portão, caminho do app fora do navegador, base com 2.262 nomes reais + 6.000 parecidos):**
+
+  | Variação | Antes | Depois | Nomes errados |
+  |---|---|---|---|
+  | Limpa | 27 | 27 | 0 |
+  | Desfoque 1,5 px | 9 | **27** | 0 |
+  | Desfoque 3 px | 0 | **10** | 0 |
+  | Desfoque 4,5 px | 0 | 1 | 0 |
+  | Protetor (véu + reflexo no topo) | 27 | 27 | 0 |
+  | Protetor + desfoque 2 px | 1 | **25** | 0 |
+  | Protetor + desfoque 3 px | 0 | 4 | 0 |
+
+- **Parcial, e o que falta:** não testado em aparelho real; o protetor é simulado (véu de 16%, reflexo em faixa, borda
+  4% maior) e não reproduz o contorno do protetor cortado pela mão nem reflexo que apaga letras; desfoque forte (≥ 3 px)
+  continua fora do OCR — é o caso do reconhecimento pela arte (X12). A troca de lente depende de o navegador declarar
+  `focusMode` por lente (Chrome do Android declara; Safari não troca nada).
+- **Testes:** U (lente de foco fixo trocada sem provar a frontal; lente boa, computador e lente escolhida ficam; nenhuma
+  foca → volta; régua `nitidezMin` não existe; máscara de nitidez devolve borda e só mexe perto da linha), fotos (9 fotos
+  com desfoque de 1,5 px: nenhuma pulada, ≥ 8 certas, 0 erradas; 9 com protetor e desfoque de 2 px: ≥ 7 certas, 0 erradas),
+  I headless ("S-594 lente que foca": abre a grande-angular falsa, troca para a principal, zoom 2×, diagnóstico, reabre na
+  principal). **Expectativas ajustadas com justificativa:** X13 começa em "Zoom 2×" (antes 1×) e o chip vai a 3×; X13 e leva 112 leem a versão `S-594` e `limiares: borrada` no diagnóstico (a régua `nitidez` saiu).
+- **Custo:** a linha que antes era pulada agora vai ao leitor (uma leitura a mais por passada com carta borrada, e no máximo uma segunda, realçada); com a carta nítida nada muda. A troca de lente custa uma abertura de câmera a mais, uma vez, só no aparelho que abre a lente de foco fixo. `index.html` +5 KB.
+- **Fora:** reconhecimento pela arte (X12); contorno do protetor (próxima fatia da trilha); a tela nova (X16).
 
 **X13 · Câmera no máximo e cronômetro de leitura** 🟡 (leva 120; aguardando teste no aparelho)
 - **Valor:** o scanner usa tudo o que a câmera do aparelho entrega, e passa a dizer quanto demora, por etapa.
@@ -13635,6 +13680,7 @@ Regras completas em `CLAUDE.md`. Trilhas em uso (o nome vai no rodapé `Trilha:`
 | `homologacao` | prova de partida do catálogo (`catalogo.prova.mjs`, fora do portão) e correção dos achados com teste antes (levas `H-N`) |
 | `radar` | Painel Estante (BI do dono): `painel.html`, `telemetria.mjs` e o ramo `telemetria`; não toca `index.html` (levas `R-N`) |
 | `jogabilidade` | MJ · mesa de patamar: layout, continuidade, combate desenhado, material e ritmo do modo Jogar; região da mesa (`src/app/table.js`, `src/ui/table-components.js`, `src/app/sentidos.js`, `#tb-fx`); não toca motor nem bot (levas `J-N`) |
+| `scanner` | E52 · scanner: câmera, leitura do nome, reconhecimento pela arte (X12) e a tela do scanner; região `src/app/scanner.js` e `webCamera` na plataforma; não toca motor, bot nem mesa (levas `S-N`, a partir de S-594) |
 
 ### Publicar pela interface web
 
