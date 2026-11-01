@@ -41,13 +41,18 @@ const botAleatorio = semente => {
   const politica = E.randomPolicy(semente);
   return { nivel: 'aleatorio', jogada(s, p) { const a = politica(s, p); return a ? { acao: a, motivo: 'aleatório' } : null; } };
 };
-const criaJogador = (nivel, semente) => nivel === 'aleatorio' ? botAleatorio(semente) : B.criaBot({ nivel });
+// B-186 · `relogio: 'parado'` tira o corte por tempo da decisão: a força medida deixa de depender da máquina (o B6 caía no CI,
+// mais lento, e passava no clone — 01/11/2026). Os testes que medem a velocidade continuam no relógio de verdade.
+const relogioParado = () => 0;
+const relogioDeContas = () => { let t = 0; return () => (t += 1); }; // cada consulta ao relógio vale 1 ms: corta por trabalho feito, igual em toda máquina
+const criaJogador = (nivel, semente, relogio = 'real') => nivel === 'aleatorio' ? botAleatorio(semente)
+  : B.criaBot({ nivel, ...(relogio === 'parado' ? { agora: relogioParado } : relogio === 'contas' ? { agora: relogioDeContas() } : {}) });
 
 /** Uma partida inteira entre dois bots. Devolve quem venceu e como foi. */
-function partida({ seed, nivel0, nivel1, maxAcoes = 1200, deck0 = DECK, deck1 = DECK }) {
+function partida({ seed, nivel0, nivel1, maxAcoes = 1200, deck0 = DECK, deck1 = DECK, relogio = 'real' }) {
   let s = E.createGame({ format: 'livre', seed, mode: 'full', manaCheck: true, cards: CARDS, scripts: SCRIPTS,
     players: [{ name: 'P0', deck: deck0 }, { name: 'P1', deck: deck1 }] });
-  const jogadores = [criaJogador(nivel0, seed), criaJogador(nivel1, seed + 7)];
+  const jogadores = [criaJogador(nivel0, seed, relogio), criaJogador(nivel1, seed + 7, relogio)];
   let acoes = 0, ilegal = null, pior = 0;
   const t0 = Date.now();
   for (let i = 0; i < maxAcoes && s.status !== 'over'; i++) {
@@ -70,13 +75,13 @@ function partida({ seed, nivel0, nivel1, maxAcoes = 1200, deck0 = DECK, deck1 = 
 }
 
 /** Série de partidas com os assentos trocados a cada rodada. */
-function serie({ nivelForte, nivelFraco, partidas = 12, base = 1000, misto = false }) {
+function serie({ nivelForte, nivelFraco, partidas = 12, base = 1000, misto = false, relogio = 'real' }) {
   const r = { forte: 0, fraco: 0, semDecisao: 0, ilegais: [], turnos: 0, ms: 0, acoes: 0, pior: 0 };
   for (let i = 0; i < partidas; i++) {
     const forteComeca = i % 2 === 0;   // troca de assento a cada partida
     // misto: a cada par de partidas, um dos lados usa o deck de voadores, trocando quem fica com ele
     const decks = !misto || i % 4 < 2 ? [DECK, DECK] : (i >> 2) % 2 ? [DECK, DECK_VOO] : [DECK_VOO, DECK];
-    const g = partida({ seed: base + i * 13, nivel0: forteComeca ? nivelForte : nivelFraco, nivel1: forteComeca ? nivelFraco : nivelForte, deck0: decks[0], deck1: decks[1] });
+    const g = partida({ seed: base + i * 13, nivel0: forteComeca ? nivelForte : nivelFraco, nivel1: forteComeca ? nivelFraco : nivelForte, deck0: decks[0], deck1: decks[1], relogio });
     r.pior = Math.max(r.pior, g.pior);
     if (g.ilegal) r.ilegais.push(`semente ${base + i * 13} · ${g.ilegal}`);
     r.turnos += g.turnos; r.ms += g.ms; r.acoes += g.acoes;
@@ -115,7 +120,7 @@ test('U10 · o Shark ganha da política aleatória em pelo menos 80% das partida
 test('B6 · o Shark (profissional) ganha do sparring em pelo menos 60% das partidas decididas', () => {
   // 24 partidas: com 12 a medida balança ±15 pontos e o número não significa nada.
   const partidas = 24;
-  const r = serie({ nivelForte: 'profissional', nivelFraco: 'amador', partidas, base: 3000 });
+  const r = serie({ nivelForte: 'profissional', nivelFraco: 'amador', partidas, base: 3000, relogio: 'contas' }); // B-186 · força, não velocidade
   console.log(relatorio('Shark × sparring', r, partidas));
   assert.deepEqual(r.ilegais, [], 'nenhuma partida terminou por ação ilegal');
   assert.equal(r.decididas >= partidas * 0.6, true, `só ${r.decididas} de ${partidas} partidas decidiram`);
