@@ -1,0 +1,59 @@
+# X12 · I-311 · Base de impressões da arte para o scanner (S-595: artes.mjs, no main).
+# Toda semana lê os dados em massa "Unique Artwork" da Scryfall e a imagem pequena de cada ilustração, calcula a
+# impressão de 192 bits (a mesma função do app, lida do index.html) e publica no ramo `artes`: artes.json (índice),
+# artes.bin (impressões) e medida.json (autoteste: só números). Nenhuma imagem é guardada nem publicada.
+# O `main` não recebe commit daqui. O push com o GITHUB_TOKEN não dispara outros fluxos.
+# Trilha: infra (arquivo de fluxo novo, no molde do Catálogo).
+name: Artes do scanner
+
+on:
+  schedule:
+    - cron: '41 7 * * 1'   # toda segunda, 07:41 UTC (fora do minuto cheio); a Scryfall atualiza os dados em massa todo dia
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: artes
+  cancel-in-progress: false
+
+jobs:
+  base:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120   # primeira geração: ~50 mil imagens pequenas; as semanais só baixam a ilustração nova ou mudada
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09   # v5 (fixada por SHA; roda em Node 24)
+        with:
+          persist-credentials: false   # a geração lê dados e imagens de fora: roda sem a credencial de escrita no git
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444   # v5 (fixada por SHA; roda em Node 24)
+        with:
+          node-version: 22
+      - name: Dependências (exatamente o lockfile, sem scripts nem navegador)
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+        run: npm ci --no-audit --no-fund --ignore-scripts
+      - name: Trazer o que já está publicado (ou começar o ramo vazio)
+        run: |
+          if git ls-remote --exit-code --heads origin artes > /dev/null; then
+            git fetch --depth 1 origin artes
+            git worktree add saida FETCH_HEAD
+            git -C saida switch -c artes
+          else
+            git worktree add --detach saida
+            git -C saida switch --orphan artes
+            printf '%s\n' '# Estante · base de artes do scanner' '' 'Ramo gerado pelo fluxo "Artes do scanner" (`artes.mjs`, no `main`). Não edite à mão.' '' 'Impressões perceptuais calculadas a partir das imagens da Scryfall (https://scryfall.com); nenhuma imagem é guardada aqui. Magic: The Gathering é marca da Wizards of the Coast.' > saida/README.md
+          fi
+      - name: Gerar
+        id: gera
+        run: node artes.mjs --saida saida --autoteste 400
+      - name: Publicar no ramo artes
+        if: steps.gera.conclusion == 'success'
+        run: |
+          cd saida
+          git add -A
+          if git diff --cached --quiet; then echo "sem mudança"; exit 0; fi
+          git -c user.name="estante-artes" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit --quiet -m "Artes · base de $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" artes   # a credencial entra só aqui
+        env:
+          GH_TOKEN: ${{ github.token }}
