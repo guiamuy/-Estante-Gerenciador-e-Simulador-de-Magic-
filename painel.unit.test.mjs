@@ -178,11 +178,11 @@ test('R-2 · fonte sem rede ou com a cota esgotada devolve o que havia guardado 
 });
 
 /* ---------- modelo puro ---------- */
-test('R-2/R-21/R-27/R-33 · modelo: catorze sub-abas na ordem das fatias (Pipeline antes da Eficiência; Jogo depois do Motor; Custo, Acervo, Experiência e Pessoas no fim), todas com a leva e o que trazem; prontas: Pipeline (R-4), Eficiência (R-5), Roadmap (R-6), Motor (R-7), Jogo (R-18), Qualidade (R-8), Em curso (R-9), Skills (R-10), Modelos (R-11), Custo (R-19), Acervo (R-20) e Experiência (R-21): todas', () => {
+test('R-2/R-21/R-27/R-33/R-35 · modelo: quinze sub-abas (a 15ª, Glossário, é da R-35 e não tem fonte) na ordem das fatias (Pipeline antes da Eficiência; Jogo depois do Motor; Custo, Acervo, Experiência e Pessoas no fim), todas com a leva e o que trazem; prontas: Pipeline (R-4), Eficiência (R-5), Roadmap (R-6), Motor (R-7), Jogo (R-18), Qualidade (R-8), Em curso (R-9), Skills (R-10), Modelos (R-11), Custo (R-19), Acervo (R-20) e Experiência (R-21): todas', () => {
   const { modelo, app } = loadPainel();
-  assert.deepEqual(modelo.SUBABAS.map(a => a.id), ['pipeline', 'eficiencia', 'roadmap', 'motor', 'jogo', 'qualidade', 'curso', 'skills', 'modelos', 'custo', 'acervo', 'experiencia', 'pessoas', 'negocio']);
+  assert.deepEqual(modelo.SUBABAS.map(a => a.id), ['pipeline', 'eficiencia', 'roadmap', 'motor', 'jogo', 'qualidade', 'curso', 'skills', 'modelos', 'custo', 'acervo', 'experiencia', 'pessoas', 'negocio', 'glossario']);
   for (const a of modelo.SUBABAS) { assert.match(a.leva, /^R-\d+$/); assert.ok(a.traz.length > 20); assert.equal(!!a.pronta, true, a.id + ' pronta'); assert.equal(!!app.VISOES[a.id], !!a.pronta, 'toda sub-aba pronta tem a visão que a desenha'); }
-  assert.deepEqual(modelo.SUBABAS.map(a => a.leva), ['R-4', 'R-5', 'R-6', 'R-7', 'R-18', 'R-8', 'R-9', 'R-10', 'R-11', 'R-19', 'R-20', 'R-21', 'R-27', 'R-33']);
+  assert.deepEqual(modelo.SUBABAS.map(a => a.leva), ['R-4', 'R-5', 'R-6', 'R-7', 'R-18', 'R-8', 'R-9', 'R-10', 'R-11', 'R-19', 'R-20', 'R-21', 'R-27', 'R-33', 'R-35']);
 });
 
 test('R-2 · modelo: carimbo dos dados, idade e farol com limiar declarado', () => {
@@ -1025,4 +1025,40 @@ test('R-33 · a sub-aba Negócio não lê nada do GitHub nem grava telemetria (o
   const visao = script.slice(i, j);
   assert.ok(i > 0 && j > i);
   assert.doesNotMatch(visao, /fonte\.(raw|api)\(|telemetria\.jsonl|raw\.githubusercontent/, 'Negócio não lê o GitHub');
+});
+
+test('R-35 · glossário: verbetes completos (termo, definição, como ler, grupo conhecido, onde aparece só em sub-abas que existem), ids únicos, os termos que o dono citou e os do painel presentes; busca sem acento por termo, sinônimo e definição', () => {
+  const { modelo } = loadPainel();
+  const G = modelo.GLOSSARIO, ids = new Set(), abas = new Set(modelo.SUBABAS.map(a => a.id));
+  assert.ok(G.length >= 60, 'glossário completo: ' + G.length);
+  for (const v of G) {
+    assert.ok(!ids.has(v.id), 'id repetido: ' + v.id); ids.add(v.id);
+    assert.ok(v.termo && v.def.length >= 80 && v.ler.length >= 40, 'verbete sem definição ou sem "como ler": ' + v.id);
+    assert.ok(modelo.GRUPOS_GLOSSARIO[v.grupo], 'grupo desconhecido: ' + v.id);
+    assert.ok(Array.isArray(v.onde) && v.onde.length && v.onde.every(a => abas.has(a)), 'onde aparece aponta para sub-aba que não existe: ' + v.id);
+    assert.doesNotMatch(v.def + v.ler, /@|\buid\b/i, 'nada de e-mail ou identificador: ' + v.id);
+  }
+  for (const id of ['portao', 'portao-verde', 'portao-vermelho', 'instavel', 'fila', 'leva', 'trilha', 'rodada', 'main', 'sha', 'recusada', 'guarda', 'conflito', 'golden', 'fuzz', 'motor', 'shark', 'telemetria', 'retrato', 'raw', 'ci', 'pages', 'farol', 'limiar', 'p95', 'orcamento', 'fase-tela', 'cobertura', 'prova', 'opt-in', 'mediana'])
+    assert.ok(ids.has(id), 'falta o verbete ' + id);
+  const ids_ = r => modelo.buscaGlossario(r).map(v => v.id);
+  assert.equal(ids_('portão')[0], 'portao', 'termo exato primeiro');
+  assert.equal(ids_('PORTAO')[0], 'portao', 'sem acento e sem maiúscula');
+  assert.ok(ids_('portão vermelho').includes('portao-vermelho'));
+  assert.equal(ids_('flaky')[0], 'instavel', 'sinônimo em inglês acha o verbete');
+  assert.ok(ids_('percentil').includes('p95'), 'busca pela definição/sinônimo');
+  assert.ok(ids_('vitórias').includes('forca'), 'palavra que só está na definição');
+  assert.deepEqual(ids_('xyzzy'), [], 'nada encontrado devolve lista vazia');
+  assert.equal(modelo.buscaGlossario('').length, G.length, 'busca vazia devolve tudo');
+  assert.equal(modelo.verbeteDe('fila').termo, 'fila'); assert.equal(modelo.verbeteDe('nao-existe'), null);
+  const grupos = modelo.glossarioPorGrupo();
+  assert.deepEqual(grupos.map(g => g.grupo), Object.keys(modelo.GRUPOS_GLOSSARIO));
+  assert.equal(grupos.reduce((n, g) => n + g.verbetes.length, 0), G.length, 'todo verbete cai num grupo');
+});
+
+test('R-35 · a sub-aba Glossário não pede nada: carregar não faz pedido nem lê arquivo', async () => {
+  const { base, app } = loadPainel();
+  const chamadas = [];
+  const fonte = base.createFonte({ fetch: async url => { chamadas.push(url); return { ok: true, status: 200, headers: { get: () => null }, json: async () => ({}), text: async () => '' }; }, guarda: base.createGuarda(null) });
+  const d = await app.VISOES.glossario.carrega(fonte, false);
+  assert.deepEqual(chamadas, []); assert.equal(fonte.pedidos, 0); assert.deepEqual(app.VISOES.glossario.filtros, []); assert.ok(d.em);
 });

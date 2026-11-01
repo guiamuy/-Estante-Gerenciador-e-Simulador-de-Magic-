@@ -13048,8 +13048,8 @@ test('e2e · R-2 Painel Estante: outro e-mail é recusado e desconectado; o dono
   assert.match(await page.innerText('#pn-main'), /main: G-264 · há 2 h/);
   assert.equal(await page.getAttribute('#pn-carimbo', 'data-farol'), 'verde');
   assert.match(await page.innerText('#pn-cota'), /57 de 60/);
-  assert.equal(await page.locator('#pn-abas .ds-tab').count(), 14);   // R-27 · Pessoas · R-33 · Negócio
-  assert.deepEqual(await page.$$eval('#pn-abas .ds-tab', es => es.map(e => e.dataset.tab)), ['pipeline', 'eficiencia', 'roadmap', 'motor', 'jogo', 'qualidade', 'curso', 'skills', 'modelos', 'custo', 'acervo', 'experiencia', 'pessoas', 'negocio']);
+  assert.equal(await page.locator('#pn-abas .ds-tab').count(), 15);   // R-27 · Pessoas · R-33 · Negócio · R-35 · Glossário
+  assert.deepEqual(await page.$$eval('#pn-abas .ds-tab', es => es.map(e => e.dataset.tab)), ['pipeline', 'eficiencia', 'roadmap', 'motor', 'jogo', 'qualidade', 'curso', 'skills', 'modelos', 'custo', 'acervo', 'experiencia', 'pessoas', 'negocio', 'glossario']);
   await page.waitForSelector('#pn-visao-pipeline, #pn-sem-dados, #pn-em-breve');
   for (const id of ['#pn-atualizar', '#pn-sair', '#pn-tema', '#pn-voltar']) assert.ok((await page.locator(id).boundingBox()).height >= 44, id + ' com 44 px');
   // abrir outra sub-aba: dentro do prazo do cache não há pedido novo; o conteúdo diz a leva dela
@@ -13127,6 +13127,68 @@ test('e2e · R-34 Painel · DS-K: as fontes do app (Cormorant/Figtree) carregam 
   assert.match(aba, /linear-gradient/, 'aba selecionada em latão');
   await emTodasAsMedidas(page, 'painel DS-K');
   if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.screenshot({ path: process.env.SHOTS + '/r33-dsk.png', fullPage: false }); }
+  assert.deepEqual(errors, []);
+});
+
+/* ---------- R-35 · painel didático, fatia 1: aba Glossário com busca ---------- */
+test('e2e · R-35 Painel · Glossário: a 15ª sub-aba lista os verbetes por grupo; a busca filtra enquanto se digita (sem acento, por termo, sinônimo e definição) sem tirar o foco do campo; "portão vermelho" explica o que é e como ler; nada encontrado tem estado vazio e "Limpar a busca"; #glossario?termo= abre já filtrado; "Aparece em" leva à sub-aba; nenhum pedido a mais; sem sobreposição nos dois temas', { timeout: 120000 }, async t => {
+  const { page, errors, base } = await open(t);
+  const painel = base.replace('index.html', 'painel.html');
+  await page.setViewportSize({ width: 360, height: 780 });
+  let pedidos = 0;
+  const json = (r, corpo) => r.fulfill({ json: corpo, headers: { 'content-type': 'application/json', 'x-ratelimit-remaining': '50', 'x-ratelimit-limit': '60', 'access-control-expose-headers': 'etag, x-ratelimit-remaining, x-ratelimit-limit' } });
+  await page.route('https://api.github.com/**', r => { pedidos++; return json(r, /commits\?sha=main/.test(r.request().url()) ? [{ sha: 'abc1234def0', commit: { message: 'Leva R-35 · x', committer: { date: new Date().toISOString() } } }] : /\/runs/.test(r.request().url()) ? { workflow_runs: [], total_count: 0 } : []); });
+  await page.route('https://raw.githubusercontent.com/**', r => { pedidos++; return r.fulfill({ body: '', headers: { 'content-type': 'text/plain', 'access-control-allow-origin': '*' } }); });
+  await page.addInitScript(() => {
+    const jwt = email => 'h.' + btoa(JSON.stringify({ email })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') + '.s';
+    window.__PAINEL_FETCH = async (url) => new Response(JSON.stringify(url.includes('securetoken') ? { user_id: 'uidE2E', id_token: jwt('gui.amuy@gmail.com'), refresh_token: 'ref-e2e', expires_in: '3600' } : { localId: 'uidE2E', idToken: jwt('gui.amuy@gmail.com'), refreshToken: 'ref-e2e', expiresIn: '3600', email: 'gui.amuy@gmail.com' }), { status: 200, headers: { 'content-type': 'application/json' } });
+    window.__PAINEL_GOOGLE = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }), revoke: (tk, cb) => cb && cb() } } };
+  });
+  await page.goto(painel + '#glossario'); await page.waitForSelector('#pn-entrar'); await page.click('#pn-entrar');
+  await page.waitForSelector('#pn-glossario');
+  await page.waitForFunction(() => { const f = document.querySelector('#pn-faixa'); return f && !f.querySelector('.ds-spinner'); });
+  const antes = pedidos;
+  // a aba existe e é a última; os verbetes vêm por grupo, sem filtros de período
+  assert.equal(await page.locator('#pn-abas [role="tab"]').last().innerText(), 'Glossário');
+  assert.equal(await page.locator('#pn-filtros').count(), 0, 'o glossário não tem filtros');
+  assert.match(await page.innerText('#pn-glossario-conta'), /^\d{2,} verbetes em 6 grupos$/);
+  // a aba ativa fica à vista na faixa de abas (é a 15ª: antes do R-35 cada redesenho voltava a faixa para o começo)
+  const vis = await page.evaluate(() => { const t = document.querySelector('#pn-abas'), a = t.querySelector('[aria-selected="true"]'); const rt = t.getBoundingClientRect(), ra = a.getBoundingClientRect(); return ra.left >= rt.left - 1 && ra.right <= rt.right + 1; });
+  assert.ok(vis, 'a aba Glossário aparece na faixa de abas');
+  assert.ok(await page.locator('.pn-glossario__grupo').count() >= 6);
+  await auditaTela(page, 'glossário inteiro');
+  // busca: digita devagar e o foco fica no campo (a lista se refaz por baixo)
+  const campo = page.locator('#pn-glossario-busca');
+  await campo.click(); await page.keyboard.type('portao vermelho', { delay: 15 });
+  assert.equal(await page.evaluate(() => document.activeElement && document.activeElement.id), 'pn-glossario-busca', 'o campo não perde o foco enquanto se digita');
+  const primeiro = page.locator('.pn-verbete').first();
+  assert.equal(await primeiro.getAttribute('data-termo'), 'portao-vermelho');
+  assert.equal(await primeiro.getAttribute('data-aberto'), 'true');
+  assert.match(await primeiro.innerText(), /portão vermelho[\s\S]*Pelo menos um teste falhou[\s\S]*Como ler:/);
+  assert.match(await page.innerText('#pn-glossario-conta'), /^\d+ pelo nome/);
+  await page.waitForFunction(() => location.hash === '#glossario?termo=portao%20vermelho');
+  // sinônimo em inglês acha o verbete certo
+  await campo.fill(''); await campo.type('flaky');
+  assert.equal(await page.locator('.pn-verbete').first().getAttribute('data-termo'), 'instavel');
+  // nada encontrado: estado vazio com saída
+  await campo.fill(''); await campo.type('xyzzy');
+  await page.waitForSelector('#pn-glossario-vazio');
+  assert.match(await page.innerText('#pn-glossario-vazio'), /Nenhum termo encontrado[\s\S]*portão, fila, farol/);
+  await auditaTela(page, 'glossário vazio');
+  await page.click('#pn-glossario-limpar');
+  assert.equal(await campo.inputValue(), ''); assert.match(await page.innerText('#pn-glossario-conta'), /verbetes em 6 grupos/);
+  assert.equal(pedidos, antes, 'buscar no glossário não faz pedido nenhum');
+  // link direto: #glossario?termo=fila abre filtrado
+  await page.goto(painel + '#glossario?termo=fila'); await page.waitForSelector('#pn-glossario');
+  assert.equal(await page.locator('#pn-glossario-busca').inputValue(), 'fila');
+  assert.equal(await page.locator('.pn-verbete').first().getAttribute('data-termo'), 'fila');
+  // "Aparece em" leva à sub-aba
+  await page.locator('.pn-verbete').first().locator('.pn-verbete__onde .ds-chip[data-aba="pipeline"]').click();
+  await page.waitForFunction(() => location.hash.startsWith('#pipeline'));
+  assert.equal(await page.locator('#pn-abas [role="tab"][aria-selected="true"]').innerText(), 'Pipeline');
+  await page.click('#pn-abas [role="tab"]:has-text("Glossário")'); await page.waitForSelector('#pn-glossario-busca');
+  await emTodasAsMedidas(page, 'glossário');
+  if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.locator('#pn-glossario-busca').fill('portão'); await page.screenshot({ path: process.env.SHOTS + '/r35-glossario.png', fullPage: false }); }
   assert.deepEqual(errors, []);
 });
 
