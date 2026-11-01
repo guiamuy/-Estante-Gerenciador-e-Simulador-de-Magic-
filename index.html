@@ -13739,7 +13739,7 @@ const REGISTRO = [
   ['ui.entrada', 'aparelho', false], // G-274 · a porta de entrada já foi atravessada neste aparelho (com conta ou sem)
   ['uso.compartilhar', 'aparelho', false], ['uso.envio', 'aparelho', false], ['uso.scanner', 'aparelho', false], // G-286 · uso agregado opt-in: consentimento deste aparelho, último envio e leituras do scanner
   // derivado
-  ['card.', 'derivado', false], ['rulings.', 'derivado', false], ['cambio.usd', 'derivado', false], ['names.catalog', 'derivado', false],
+  ['card.', 'derivado', false], ['rulings.', 'derivado', false], ['scanner.artes', 'derivado', false], /* S-596 · base de artes do scanner (ramo artes) */ ['cambio.usd', 'derivado', false], ['names.catalog', 'derivado', false],
   ['catalogo.indice', 'derivado', false], ['catalogo.lista.', 'derivado', false], ['catalogo.fichas', 'derivado', false], ['catalogo.motor', 'derivado', false], ['notificacoes', 'aparelho', false], // G-314 · a leitura é deste aparelho; a de cobertura nasce de novo dos pedidos (que vão no backup)
  
   ['fichas.opcoes', 'derivado', false], ['fichas.opcoes.fila', 'derivado', false], ['fichas.partes', 'derivado', false],
@@ -16491,8 +16491,8 @@ const DESTINOS = [
     quando: 'Ao abrir listas, buscar cartas e jogar com cartas que ainda não estão guardadas.',
     evitar: 'Carta guardada não volta à Scryfall. Sem internet, o app usa só o que já guardou.' },
   { id: 'github', nome: 'GitHub (arquivos do app)', icone: 'jornal', origens: ['https://raw.githubusercontent.com'],
-    vai: 'Só o pedido dos arquivos: notícias, listas prontas do catálogo, fichas e a situação dos seus relatos.',
-    quando: 'Ao abrir Início, Catálogo, Fichas e Relatos com internet.',
+    vai: 'Só o pedido dos arquivos: notícias, listas prontas do catálogo, fichas, a base de artes do scanner e a situação dos seus relatos.',
+    quando: 'Ao abrir Início, Catálogo, Fichas, Scanner e Relatos com internet.',
     evitar: 'Sem internet, ficam as últimas versões guardadas.' },
   { id: 'cambio', nome: 'Cotação do dólar', icone: 'globo', origens: ['https://economia.awesomeapi.com.br', 'https://api.frankfurter.dev', 'https://open.er-api.com'],
     vai: 'Só o pedido da cotação do dia (uma das três fontes, se a anterior não responder).',
@@ -42403,7 +42403,7 @@ function criaDiario({ maximo = 30, agora = () => Date.now() } = {}) {
     texto(info = {}) {
       const cab = Object.entries(info).map(([k, v]) => `${k}: ${v}`).join('\n');
       // X13 · cada linha traz o tempo por etapa (detector, preparo, leitor, casamento) e, no aceite, o tempo até aceitar
-      const etapas = x => x.tempos ? ` [det ${x.tempos.det} · prep ${x.tempos.prep} · ocr ${x.tempos.ocr} · casa ${x.tempos.casa}]` : '';
+      const etapas = x => x.tempos ? ` [det ${x.tempos.det} · prep ${x.tempos.prep} · ocr ${x.tempos.ocr} · casa ${x.tempos.casa}${x.tempos.arte != null ? ` · arte ${x.tempos.arte}` : ''}]` : '';
       const linhas = itens.map(x => `${x.via} · ${x.ms} ms${etapas(x)} · "${String(x.texto || '').replace(/\s+/g, ' ').trim().slice(0, 60)}" → ${x.melhor ? `${x.melhor.name} ${Math.round(x.melhor.score * 100)}%` : '—'} · ${x.decisao}${x.ateAceitar != null ? ` · até aceitar ${x.ateAceitar} ms` : ''}`);
       return [cab, ...linhas].filter(Boolean).join('\n');
     }
@@ -43234,6 +43234,76 @@ function abreBaseDeArtes(indice, bin) {
   const carta = i => { const c = indice.cartas[i] || []; const o = {}; campos.forEach((k, j) => { o[k] = c[j]; }); return o; };
   return { total: indice.cartas.length, hashes, carta, geradoEm: indice.geradoEm || null };
 }
+/* ---------------- X12 · S-596 · a base no aparelho e a decisão com a arte ---------------- */
+const URL_ARTES = 'https://raw.githubusercontent.com/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-/artes/';
+const ARTES_KEY = 'scanner.artes', ARTES_VELHA_MS = 7 * 24 * 3600 * 1000;
+/* Limiares em bits diferentes (de 189). PROVISÓRIOS: medidos em 2.000 artes desenhadas (mesma carta degradada: mediana 16 a
+   34; cartas diferentes: p5 84). A primeira corrida do fluxo grava medida.json com arte de verdade; recalibrar com ela. */
+const LIMIAR_ARTE = { igual: 44, soArte: 30, folga: 18, exata: 18, diferente: 70 };
+/** A base de artes no aparelho: guardada no store (uma vez), baixada do ramo `artes` quando falta ou tem mais de 7 dias
+    e há rede. Sem base, o scanner segue só pelo nome. */
+function criaBaseDeArtes({ store, fetchFn = (typeof fetch === 'function' ? fetch.bind(globalThis) : null), agora = () => Date.now(), url = URL_ARTES } = {}) {
+  let base = null, porNome = null, carregando = null;
+  const monta = (indice, bin) => {
+    base = abreBaseDeArtes(indice, bin);
+    porNome = new Map();
+    for (let i = 0; i < base.total; i++) { const n = String(indice.cartas[i][0] || '').toLowerCase(); if (!porNome.has(n)) porNome.set(n, []); porNome.get(n).push(i); }
+    return base;
+  };
+  const baixa = async () => {
+    const r1 = await fetchFn(url + 'artes.json', { cache: 'no-cache' }); if (!r1.ok) throw new Error('artes-' + r1.status);
+    const indice = await r1.json();
+    const r2 = await fetchFn(url + 'artes.bin', { cache: 'no-cache' }); if (!r2.ok) throw new Error('artes-' + r2.status);
+    const bin = await r2.arrayBuffer();
+    monta(indice, bin);   // confere antes de guardar: base cortada ou de outra versão não entra
+    try { await store.set(ARTES_KEY, { ts: agora(), indice, bin }); } catch (e) { /* sem espaço: vale nesta sessão */ }
+    return base;
+  };
+  return {
+    /** Abre a guardada; baixa se não há ou se está velha (com rede). Nunca lança: devolve a base ou null. */
+    carrega({ online = true } = {}) {
+      if (carregando) return carregando;
+      return (carregando = (async () => {
+        let guardada = null;
+        try { guardada = await store.get(ARTES_KEY); if (guardada) monta(guardada.indice, guardada.bin); } catch (e) { base = null; }
+        if (online && fetchFn && (!base || !guardada || agora() - (guardada.ts || 0) > ARTES_VELHA_MS)) { try { await baixa(); } catch (e) { /* fica a guardada, se houver */ } }
+        return base;
+      })().finally(() => { carregando = null; }));
+    },
+    pronta: () => !!base,
+    info: () => (base ? { total: base.total, geradoEm: base.geradoEm } : null),
+    /** A carta mais parecida entre as edições de um nome: { i, d, nome, set, numero } ou null. */
+    doNome(h, nome) {
+      if (!base) return null;
+      const lista = porNome.get(String(nome || '').toLowerCase()); if (!lista) return null;
+      let melhor = null; for (const i of lista) { const d = distanciaDaArte(h, base.hashes, i); if (!melhor || d < melhor.d) melhor = { i, d }; }
+      return melhor && { ...melhor, ...base.carta(melhor.i) };
+    },
+    /** As duas mais parecidas na base inteira (varredura: só quando o nome não deu). */
+    top(h) { if (!base) return []; return buscaArte(base.hashes, h, { quantas: 2 }).map(t => ({ ...t, ...base.carta(t.i) })); }
+  };
+}
+/** Junta a leitura do nome com a da arte. Devolve { found, arte, confere, discorda }:
+    - nome lido (≥ aceite) e uma edição desse nome com a arte igual → confere (nome aproximado sobe a exato; a edição vem da arte);
+    - nome aproximado e a arte é de outra carta, clara → discorda: as duas ficam coladas e a leitura vira "confira";
+    - sem nome e a arte é inequívoca (perto e com folga para a segunda) → a arte responde. Nome exato nunca é trocado pela arte. */
+function decideArte({ found = [], doNome = null, top = [], aceite = 0.85, exata = 0.97, L = LIMIAR_ARTE } = {}) {
+  const best = found[0];
+  if (best && best.score >= aceite) {
+    if (doNome && doNome.d <= L.igual) {
+      const f = best.score >= exata ? found : [{ ...best, score: exata }, ...found.slice(1)];
+      return { found: f, arte: doNome, confere: true, discorda: false };
+    }
+    const outra = top[0];
+    if (best.score < exata && outra && outra.d <= L.soArte && outra.nome !== best.name && (!doNome || doNome.d >= L.diferente))
+      return { found: [{ name: outra.nome, score: best.score, viaArte: true }, best, ...found.slice(1)], arte: outra, confere: false, discorda: true };
+    return { found, arte: null, confere: false, discorda: false };
+  }
+  const [a, b] = top;
+  if (a && a.d <= L.soArte && (!b || b.d - a.d >= L.folga))
+    return { found: [{ name: a.nome, score: a.d <= L.exata ? exata : aceite + 0.02, viaArte: true }], arte: a, confere: false, discorda: false };
+  return { found, arte: null, confere: false, discorda: false };
+}
 /** Grava as impressões no formato do artes.bin (Uint32 little-endian, 8 por arte, na ordem do índice). */
 function binDasArtes(lista) {
   const buf = new ArrayBuffer(lista.length * PALAVRAS_ARTE * 4), v = new DataView(buf);
@@ -43318,7 +43388,7 @@ const LIMIARES_LINHA = { borrada: 0.5, deslocamentoMax: 0.05, alturaMin: 0.30 };
 
 return { cleanOcr, matchName, matchLines, criaVotacao, criaPorteiro, PORTEIRO, leituraConfiavel, nitidezDaFaixa, movimentoEntre, LIMIARES_FAIXA, criaDiario, criaCronometro, EXATA, buildIndex, createNameIndex, createLot, coverRegion, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, ACCEPT, ALTA, SUGGEST, lev,
   detectaCarta, detectaEmEscalas, ESCALAS_DETECTOR, brilho, nitidez, prontoParaLer, criaDetector, paradaEm, screenRect, LIMIARES, PROPORCAO_CARTA, realcaTexto, trechoEscuroEmbaixo, limpaBordas, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, faixaDaCarta, escalaOcr,
-  retasDoQuadro, achaQuadrilatero, ordenaCantos, homografia, cantosDaFaixa, retifica, FAIXA_NOME, FAIXA_COLECAO, LARGURA_NOME, linhaDoNome, binarizaLinha, limpaLinha, nitidezDaLinha, afiaLinha, FAIXA_ARTE, BITS_ARTE, impressaoDaArte, distanciaDaArte, buscaArte, abreBaseDeArtes, binDasArtes, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, alturaDaCarta, deslocamento, LIMIARES_LINHA, QUAD };
+  retasDoQuadro, achaQuadrilatero, ordenaCantos, homografia, cantosDaFaixa, retifica, FAIXA_NOME, FAIXA_COLECAO, LARGURA_NOME, linhaDoNome, binarizaLinha, limpaLinha, nitidezDaLinha, afiaLinha, FAIXA_ARTE, BITS_ARTE, impressaoDaArte, distanciaDaArte, buscaArte, abreBaseDeArtes, binDasArtes, criaBaseDeArtes, decideArte, LIMIAR_ARTE, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, alturaDaCarta, deslocamento, LIMIARES_LINHA, QUAD };
 })();
 
 
@@ -43332,7 +43402,8 @@ const __m22 = (function () {
    ===================================================================== */
 const { h, mount, Stack, Row, Surface, Text, Button, Field, Input, Select, Badge, Chip, Empty, Note, Spinner, Dialog, closeDialog, toast, reservaDoca, Simbolo, Icone, IconButton, AvisoRede } = __m3;
 const { createLot, coverRegion, screenRect, parseCollectorLine, resolvePrinting, ACCEPT, EXATA, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, criaPorteiro, PORTEIRO, leituraConfiavel, criaDiario, criaCronometro, realcaTexto,
-  achaQuadrilatero, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, FAIXA_NOME, FAIXA_COLECAO, alturaDaCarta, deslocamento, LIMIARES_LINHA, brilho } = __m21;
+  achaQuadrilatero, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, FAIXA_NOME, FAIXA_COLECAO, alturaDaCarta, deslocamento, LIMIARES_LINHA, brilho,
+  FAIXA_ARTE, impressaoDaArte, criaBaseDeArtes, decideArte, LIMIAR_ARTE } = __m21;
 const { pulse } = __m20;
 const TESSERACT_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
 // Leva 109 · o laço lê uma leitura atrás da outra; estes são só os respiros entre elas
@@ -43430,6 +43501,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
   const state = { camera: 'idle', engine: 'idle', base: 'idle', auto: false, busy: false, last: null, alive: true, edition: true, ocrReady: false,
     moldura: true, cantosAntes: null, falhas: 0, invertida: false, aceitoEm: 0, diag: false, pilhaAberta: false };
   const porteiro = criaPorteiro();
+  const artes = criaBaseDeArtes({ store });
   const diario = criaDiario();
   const cronometro = criaCronometro();
   if (typeof window !== 'undefined') window.__scanDiario = diario; // o mesmo que "Copiar diagnóstico" mostra
@@ -43465,6 +43537,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     state.ocrReady = !!(await store.get('ocr.ready'));
     try { const m = await names.ensure({ online: online() }); state.base = m ? 'ready' : 'missing'; }
     catch (e) { state.base = 'missing'; }
+    artes.carrega({ online: online() }).catch(() => {});   // S-596 · a base de artes vem em segundo plano: sem ela, só o nome
     paintStatus(); marca();
     if (!camera.available()) { state.camera = 'unavailable'; paintStatus(); paintDock(); marca(); return; }
     state.camera = 'starting'; paintStatus(); marca();
@@ -43498,7 +43571,14 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
   }
   const cantosDe = r => [{ x: r.x, y: r.y }, { x: r.x + r.w, y: r.y }, { x: r.x + r.w, y: r.y + r.h }, { x: r.x, y: r.y + r.h }];
   // três canvas reaproveitados: o quadro pequeno do detector, o pedaço do vídeo com o nome e a linha pronta
-  const telas = { pequeno: document.createElement('canvas'), faixa: document.createElement('canvas'), linha: document.createElement('canvas') };
+  const telas = { pequeno: document.createElement('canvas'), faixa: document.createElement('canvas'), linha: document.createElement('canvas'), arte: document.createElement('canvas') };
+  /** X12 · S-596 · a impressão da arte da carta achada (o pedaço do vídeo com a arte, até 320 px). */
+  function arteDoQuadro(cantosFr) {
+    const rec = recorteDaFaixa(cantosFr, FAIXA_ARTE, video.videoWidth, video.videoHeight);
+    if (!rec) return null;
+    const p = pixels(rec.regiao, { maxLado: 320, canvas: telas.arte }), kx = p.w / rec.w, ky = p.h / rec.h;
+    return impressaoDaArte(p.d, p.w, p.h, rec.cantos.map(c => ({ x: c.x * kx, y: c.y * ky })));
+  }
   function pixels(regiao, opts) {
     const c = camera.capture(regiao, opts);
     return { d: c.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, c.width, c.height).data, w: c.width, h: c.height };
@@ -43557,7 +43637,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     if (!printsCache.has(name)) { try { printsCache.set(name, await scryfall.search(`!"${name}"`, { unique: 'prints', order: 'released' })); } catch (e) { return []; } }
     return printsCache.get(name) || [];
   }
-  async function identify(name, cantosLidos, peloContorno) {
+  async function identify(name, cantosLidos, peloContorno, arte = null) {
     if (!state.edition) return { exact: null, candidates: [], parsed: null };
     let parsed = { number: '', set: '', lang: '' };
     try {
@@ -43576,6 +43656,8 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
       const pr = preparaColecao(p.d, p.w, p.h, rec.cantos.map(c => ({ x: c.x * kx, y: c.y * ky })), larguraColecao(alturaDaCarta(cantosFr, vw, vh)));
       if (pr) parsed = parseCollectorLine(await ocr.read(paraCanvas(pr), 'colecao', 1));
     } catch (e) { /* segue sem edição */ }
+    // S-596 · a linha de coleção não leu: a edição vem da arte, quando a arte é desta carta
+    if (!(parsed.set && parsed.number) && arte && arte.nome === name && arte.set) parsed = { ...parsed, set: arte.set, number: String(arte.numero || ''), deArte: true };
     const list = await prints(name);
     if (list.length) return { ...resolvePrinting(list, parsed), parsed };
     return { exact: parsed.set && parsed.number ? { set: parsed.set, number: parsed.number, verified: false } : null, candidates: [], parsed };
@@ -43638,6 +43720,26 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
       if (!melhor || nota(r) > nota(melhor)) melhor = r;
       if (nota(r) >= ACCEPT) break;
     }
+    /* X12 · S-596 · a arte da carta achada confere o nome (e dá a edição) ou responde quando o nome não deu. A varredura
+       da base inteira só roda quando o nome não deu ou não bateu com nenhuma edição dele (orçamento de escala). */
+    if (quad && !longe && artes.pronta()) {
+      const ta = relogio();
+      try {
+        const cartaCantos = state.invertida ? viraCantos(quad.cantos) : quad.cantos;
+        const h = arteDoQuadro(cartaCantos);
+        if (h) {
+          const nomeLido = melhor && nota(melhor) >= ACCEPT ? melhor.found[0].name : null;
+          const doNome = nomeLido ? artes.doNome(h, nomeLido) : null;
+          const precisaTop = !nomeLido || (nota(melhor) < EXATA && !(doNome && doNome.d <= LIMIAR_ARTE.igual));
+          const dec = decideArte({ found: melhor ? melhor.found : [], doNome, top: precisaTop ? artes.top(h) : [], aceite: ACCEPT, exata: EXATA });
+          if (dec.arte || dec.discorda) {
+            if (!melhor || melhor.caminho !== 'carta') melhor = { caminho: 'carta', cantos: cartaCantos, texto: melhor ? melhor.texto : '', nitidez: melhor ? melhor.nitidez : 0 };
+            melhor = { ...melhor, found: dec.found, arte: dec.arte, confereArte: dec.confere, discordaArte: dec.discorda };
+          }
+        }
+      } catch (e) { /* segue só pelo nome */ }
+      tempos.arte = Math.round(relogio() - ta);
+    }
     if (!melhor) {
       const qual = longe ? 'longe' : 'nada';
       dicaTexto(DICAS[qual]);
@@ -43661,7 +43763,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     if (!leitura.cantos) return key;
     (async () => {
       try {
-        const ed = await identify(name, leitura.cantos, leitura.caminho === 'carta');
+        const ed = await identify(name, leitura.cantos, leitura.caminho === 'carta', leitura.arte);
         const img = await miniatura(name, ed.exact);
         const nova = await lot.enrich(key, { printing: ed.exact, img });
         if (state.last && state.last.key === key) state.last = { ...state.last, key: nova || key, printing: ed.exact, candidates: ed.candidates || [], pendente: false };
@@ -43697,7 +43799,8 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
       if (L.pulou) { if (L.pulou !== 'tremida' && L.pulou !== 'desfocada') cronometro.leitura(null); diario.anota({ via: L.pulou, texto: '', melhor: null, ms: 0, decisao: 'pulou', nitidez: L.nitidez, movimento: L.movimento, tempos: L.tempos }); return; }
       // X14 · leitura idêntica a um nome da base, pelo contorno, entra na primeira (o resto segue pedindo repetição)
       const peloContorno = L.caminho === 'carta';
-      const confiavel = leituraConfiavel(L.found, { peloContorno }) && segueParada(L);
+      // S-596 · nome lido e arte da mesma carta (evidências independentes): entra na primeira, com a carta parada
+      const confiavel = (leituraConfiavel(L.found, { peloContorno }) || (L.confereArte && L.found[0] && L.found[0].score >= EXATA && peloContorno)) && segueParada(L);
       const v = porteiro.voto(L.found, { confiavel });
       // carta no quadro que não dá nome (reflexo, verso, sleeve fosco): depois de 8 passadas secas, volta ao passo de 120 ms
       state.secas = v.motivo === 'nada' || v.motivo === 'fraca' ? (state.secas || 0) + 1 : 0;
@@ -43705,7 +43808,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
       // carta já aceita e ainda no quadro: o tempo dela não é tempo de leitura
       cronometro.leitura(v.motivo === 'repetida' ? null : lido, L.inicio);
       let decisao = v.motivo, ateAceitar = null;
-      if (v.aceito) { const c = cronometro.aceite(v.aceito); ateAceitar = c.desdeEntrada != null ? c.desdeEntrada : c.confirmacao; await aceita(v.aceito, L); decisao = `${v.aceito} +1${confiavel ? ' (1ª leitura)' : ''}`; dicaTexto(''); }
+      if (v.aceito) { const c = cronometro.aceite(v.aceito); ateAceitar = c.desdeEntrada != null ? c.desdeEntrada : c.confirmacao; await aceita(v.aceito, L); decisao = `${v.aceito} +1${confiavel ? ' (1ª leitura)' : ''}${L.arte && L.arte.nome === v.aceito ? ` · arte ${L.arte.d}` : ''}`; dicaTexto(''); }
       else {
         const semNome = v.motivo === 'nada' || v.motivo === 'fraca';
         // com a carta achada e sem nome, o problema é a leitura (reflexo, distância), não o enquadramento
@@ -43800,7 +43903,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
   function infoAparelho() {
     const LEITOR = { idle: 'parado', loading: 'carregando', ready: 'pronto', failed: 'falhou' };
     const cam = camera.info ? camera.info() : {};
-    return { leitor_versao: 'S-594 (sem régua de nitidez, lente que foca, 2×)', aparelho: (navigator.userAgent || '').slice(0, 80), video: `${cam.width || video.videoWidth || 0}×${cam.height || video.videoHeight || 0}${cam.fps ? ` @${Math.round(cam.fps)}` : ''}`, foco: cam.foco || '?', camera_maximo: cam.maximo || '?', subida: cam.subida || '—', zoom: `${(+(cam.zoom || 1)).toFixed(1)}×`, lanterna: cam.lanterna ? 'ligada' : 'desligada', lente: (cam.rotulo || '?').slice(0, 40) + (cam.lenteAuto ? ' (trocada: a anterior não focava)' : ''), ate_aceitar: (r => r.n ? (r.nEntrada ? `mediana ${r.desdeEntrada} ms desde a entrada (${r.nEntrada} carta(s)); ` : '') + `confirmação ${r.confirmacao} ms (${r.n} carta(s))` : 'sem cartas ainda')(cronometro.resumo()), base: (names.info() || {}).count || 0, leitor: LEITOR[state.engine] || state.engine, automatico: state.auto ? 'ligado' : 'pausado', limiares: `borrada < ${LIMIARES_LINHA.borrada} (lê de novo realçada), movimento ≤ ${Math.round(LIMIARES_LINHA.deslocamentoMax * 100)}, carta ≥ ${Math.round(LIMIARES_LINHA.alturaMin * 100)}% do quadro` };
+    return { leitor_versao: 'S-596 (nome + arte; lente que foca, 2×)', artes: (artes.info() ? `${artes.info().total} artes` : 'sem base'), aparelho: (navigator.userAgent || '').slice(0, 80), video: `${cam.width || video.videoWidth || 0}×${cam.height || video.videoHeight || 0}${cam.fps ? ` @${Math.round(cam.fps)}` : ''}`, foco: cam.foco || '?', camera_maximo: cam.maximo || '?', subida: cam.subida || '—', zoom: `${(+(cam.zoom || 1)).toFixed(1)}×`, lanterna: cam.lanterna ? 'ligada' : 'desligada', lente: (cam.rotulo || '?').slice(0, 40) + (cam.lenteAuto ? ' (trocada: a anterior não focava)' : ''), ate_aceitar: (r => r.n ? (r.nEntrada ? `mediana ${r.desdeEntrada} ms desde a entrada (${r.nEntrada} carta(s)); ` : '') + `confirmação ${r.confirmacao} ms (${r.n} carta(s))` : 'sem cartas ainda')(cronometro.resumo()), base: (names.info() || {}).count || 0, leitor: LEITOR[state.engine] || state.engine, automatico: state.auto ? 'ligado' : 'pausado', limiares: `borrada < ${LIMIARES_LINHA.borrada} (lê de novo realçada), movimento ≤ ${Math.round(LIMIARES_LINHA.deslocamentoMax * 100)}, carta ≥ ${Math.round(LIMIARES_LINHA.alturaMin * 100)}% do quadro` };
   }
   function paintEstado() {
     const txt = state.camera !== 'on' ? '' : state.engine === 'loading' ? 'Preparando o leitor…' : state.engine === 'failed' ? 'Leitor indisponível' : state.auto ? 'Automático' : 'Pausado';
@@ -44034,7 +44137,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
       const linha = x => h('div', { class: 'scan-diag__linha' },
         Badge(x.via, { tone: x.via === 'carta' || x.via === 'moldura' ? 'positive' : x.via === 'erro' ? 'danger' : undefined }),
         Text(`${x.ms} ms`, { size: 'xs', tone: 'muted' }),
-        x.tempos && x.ms ? Text(`det ${x.tempos.det} · prep ${x.tempos.prep} · ocr ${x.tempos.ocr} · casa ${x.tempos.casa}`, { size: 'xs', tone: 'muted' }) : null,
+        x.tempos && x.ms ? Text(`det ${x.tempos.det} · prep ${x.tempos.prep} · ocr ${x.tempos.ocr} · casa ${x.tempos.casa}${x.tempos.arte != null ? ` · arte ${x.tempos.arte}` : ''}`, { size: 'xs', tone: 'muted' }) : null,
         x.nitidez != null ? Text(`nit ${(+x.nitidez).toFixed(1)} · mov ${Math.round(x.movimento || 0)}`, { size: 'xs', tone: 'muted' }) : null,
         Text(`"${String(x.texto || '').replace(/\s+/g, ' ').trim().slice(0, 40) || '—'}"`, { size: 'xs' }),
         Text(x.melhor ? `→ ${x.melhor.name} ${Math.round(x.melhor.score * 100)}%` : '→ —', { size: 'xs', tone: 'muted' }),
