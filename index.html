@@ -2358,6 +2358,14 @@ body[data-mesa-cheia="true"] .tb-steps__list li { padding: 0 0 1px; border-botto
   display: flex; align-items: flex-start; gap: var(--space-2); padding: var(--space-2) var(--space-1) var(--space-3) var(--space-4);
   border: 1px solid var(--border-strong); border-radius: var(--radius-2); background: var(--bg-elev-2); color: var(--fg); box-shadow: var(--shadow-3); animation: ds-rise var(--dur-2) var(--ease-out); }
 .tb-vez-pop[hidden] { display: none; }
+/* J-35 · relato #42 · o resumo do turno mora no topo dos detalhes da faixa (antes era uma faixa de 44 px no meio da mesa);
+   a faixa de vez mostra um ponto de latão enquanto houver resumo não dispensado */
+.tb-vez__novidade { flex: none; width: 8px; height: 8px; border-radius: var(--radius-full); background: currentColor; } /* a cor do texto da faixa: contrasta em latão (sua vez) e em azul (vez do outro) */
+@media (prefers-reduced-motion: no-preference) { .tb-vez__novidade { animation: tb-usa-pousa var(--dur-3) var(--ease-spring, var(--ease-out)) both; } }
+.tb-vez-pop { max-height: calc(100dvh - 120px); overflow-y: auto; }
+.tb-vez-pop > .tb-resumo { flex: 1 0 100%; margin-bottom: var(--space-2); }
+.tb-vez-pop .tb-resumo__linha { background: var(--bg-elev-0); box-shadow: inset 3px 0 0 var(--accent); }
+.tb-vez-pop .tb-resumo__painel { position: static; max-height: 34vh; margin-top: var(--space-2); box-shadow: none; }
 .tb-vez-pop { flex-wrap: wrap; } .tb-vez-pop__som { flex: none; margin-top: var(--space-2); } /* G4 · som da partida no balão */
 .tb-vez-pop__lista { flex: 1 1 auto; min-width: 0; margin: var(--space-2) 0 0; display: grid; grid-template-columns: auto 1fr; gap: var(--space-1) var(--space-3); font-size: var(--text-md); line-height: var(--lh-md); }
 .tb-vez-pop__lista dt { color: var(--fg-muted); font-weight: var(--weight-regular); }
@@ -39989,11 +39997,14 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const troca = anima && ultimoTurno !== null && vz.turno !== ultimoTurno;
     if (anima) ultimoTurno = vz.turno;
     const papel = vz.fase !== 'jogo' ? vz.fase : vz.meuTurno ? 'eu' : 'oponente';
-    const temDetalhe = anima && vz.detalhes.length > 0;
+    // J-35 · relato #42 · o resumo do turno que acabou fica nos detalhes da faixa; a faixa mostra o ponto de novidade até você dispensar
+    const resumoEl = anima ? resumoBox() : null;
+    const temDetalhe = anima && (vz.detalhes.length > 0 || !!resumoEl);
     const miolo = () => [
       h('span', { class: 'tb-vez__avatar', 'aria-hidden': 'true', dataset: { foto: String(!!(meuAvatar && papel === 'eu')) } },
         meuAvatar && papel === 'eu' ? h('img', { src: meuAvatar, alt: '', draggable: 'false' }) : vz.icone ? Icone(vz.icone, { tamanho: 20 }) : vz.inicial),
-      h('span', { class: 'tb-vez__rotulo' }, vz.rotulo)];
+      h('span', { class: 'tb-vez__rotulo' }, vz.rotulo),
+      resumoEl ? h('span', { class: 'tb-vez__novidade', id: 'tb-vez-novidade', 'aria-hidden': 'true' }) : null];
     if (!anima) return h('div', { class: 'tb-vez', id: 'tb-vez-cortina', role: 'status', dataset: { papel, turno: String(vz.turno) } }, h('span', { class: 'tb-vez__btn' }, ...miolo()));
     if (!vezEl) vezEl = h('div', { class: 'tb-vez', id: 'tb-vez', role: 'status', 'aria-live': 'polite' });
     vezEl.className = 'tb-vez' + (troca ? ' tb-vez--troca' : '');
@@ -40001,17 +40012,19 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     if (troca) vezTrocou = true; // J-27 · o véu da troca entra sobre o campo depois do desenho (paint)
     if (troca && papel === 'eu') __m0.haptics.evento('turno'); // D10 · a vez chegou a você: padrão próprio de vibração
     vezEl.dataset.papel = papel; vezEl.dataset.turno = String(vz.turno);
-    const assinatura = `${vz.icone || vz.inicial}|${vz.rotulo}|${temDetalhe}|${!!(meuAvatar && papel === 'eu')}`;
+    const assinatura = `${vz.icone || vz.inicial}|${vz.rotulo}|${temDetalhe}|${!!(meuAvatar && papel === 'eu')}|${!!resumoEl}`;
     vezEl.dataset.serie = String(vz.detalhes.some(d => d.k === 'serie'));
     if (vezEl.dataset.assinatura !== assinatura) {
       vezEl.dataset.assinatura = assinatura;
       vezEl.replaceChildren(h('button', { class: 'tb-vez__btn', type: 'button', id: 'tb-vez-btn', disabled: !temDetalhe, 'aria-expanded': String(vezAberto && temDetalhe),
-        'aria-controls': 'tb-vez-pop', title: temDetalhe ? 'Detalhes do turno' : null, onClick: () => abreVez(!vezAberto) }, ...miolo()));
+        'aria-controls': 'tb-vez-pop', title: temDetalhe ? (resumoEl ? 'Detalhes do turno e o resumo do último' : 'Detalhes do turno') : null,
+        'aria-label': resumoEl ? `${vz.rotulo}. Há resumo do último turno: toque para ver` : null, onClick: () => abreVez(!vezAberto) }, ...miolo()));
     }
     pintaAviso(); // J-30 · o aviso atravessa o redesenho da faixa
     if (!temDetalhe && vezAberto) abreVez(false);
     if (!vezPop) vezPop = h('div', { class: 'tb-vez-pop', id: 'tb-vez-pop', role: 'dialog', 'aria-label': 'Detalhes do turno', hidden: true, dataset: { sobrepoe: 'true' } });
     vezPop.replaceChildren(
+      ...(resumoEl ? [resumoEl] : []),
       h('dl', { class: 'tb-vez-pop__lista' }, ...vz.detalhes.flatMap(d => [h('dt', {}, d.rotulo), h('dd', { id: d.k === 'serie' ? 'tb-serie' : null, dataset: { k: d.k, meu: String(d.valor === 'Você') } }, d.valor)])),
       IconButton('fechar', 'Fechar', { variant: 'ghost', id: 'tb-vez-fechar', onClick: () => abreVez(false) }));
     pintaAvisoNosDetalhes(); // J-30
@@ -41832,7 +41845,8 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
         opp != null ? side(s, opp, false) : null,
         h('div', { class: 'tb-center' }, onlineBox(), recusaBox(), adj),
         // MJ1c (J-4) · pilha e resumo numa camada de altura zero entre os lados: ficam por cima, não empurram o campo
-        (resumo => painelPilha || resumo ? h('div', { class: 'tb-camada', dataset: { sobrepoe: 'true' } }, h('div', { class: 'tb-camada__linha' }, painelPilha, resumo)) : null)(resumoBox()),
+        // J-35 · relato #42 · o resumo do turno saiu do meio da mesa: mora nos detalhes da faixa de vez (a faixa ganha o ponto de novidade)
+        painelPilha ? h('div', { class: 'tb-camada', dataset: { sobrepoe: 'true' } }, h('div', { class: 'tb-camada__linha' }, painelPilha)) : null,
         side(s, v, true)),
       dock(s, v));
     encaixaMesa(); // J-32 · com a mão aberta, a mesa encolhe até caber acima dela (antes das setas e do voo, que medem o campo)
