@@ -241,6 +241,12 @@ async function adicionaPronta(page, base, nome) {
   assert.ok(sd, 'lista de teste: ' + nome);
   await createDeck(page, base, nome, sd.text, sd.format);
 }
+// J-36 · relato #42 · o resumo do turno mora nos detalhes da faixa de vez: espera o ponto de novidade e abre os detalhes
+async function abreResumoDaFaixa(page, timeout = 8000) {
+  await page.waitForSelector('#tb-vez-novidade', { timeout });
+  if (await page.locator('#tb-vez-pop[hidden]').count()) await page.click('#tb-vez-btn');
+  await page.waitForSelector('#tb-vez-pop:not([hidden]) #tb-resumo');
+}
 // leva 110: a lista da partida se escolhe numa folha com as linhas da estante (antes era um <select> de texto)
 async function escolheLista(page, id, qual) {
   await page.click('#' + id); await page.waitForSelector('.deck-picker__lista');
@@ -1657,7 +1663,7 @@ test('e2e · M7/M6/A6 goldfish: mana paga sozinha, falta de mana, ataque e dano'
   await page.waitForFunction(() => /18/.test(document.querySelector('#tb-life-opp').innerText));
   // A16 · passado o turno, o resumo dele aparece na mesa: vida e o que entrou; some com OK
   await page.click('#tb-pass-turn');
-  await page.waitForSelector('#tb-resumo', { timeout: 8000 });
+  await abreResumoDaFaixa(page); // J-36 · o resumo mora nos detalhes da faixa de vez (antes, faixa no meio da mesa)
   // H4 · expectativa ajustada com justificativa: o resumo nasce recolhido numa faixa (o balão aberto afastava as mesas); o texto abre a um toque
   assert.equal(await page.locator('#tb-resumo-painel').isVisible(), false); await page.click('#tb-resumo-btn'); await page.waitForSelector('#tb-resumo-painel', { state: 'visible' });
   const resumoTurno = await page.innerText('#tb-resumo');
@@ -1665,6 +1671,7 @@ test('e2e · M7/M6/A6 goldfish: mana paga sozinha, falta de mana, ataque e dano'
   assert.match(resumoTurno, /Vida: Goldfish 20 → 18/);
   await page.click('#tb-resumo-ok');
   await page.waitForFunction(() => !document.querySelector('#tb-resumo'));
+  if (await page.locator('#tb-vez-pop:not([hidden])').count()) await page.click('#tb-vez-fechar'); // J-36
   await page.click('#tb-log');
   const log = await page.innerText('.ds-dialog');
   assert.match(log, /Você atacou com Sky Pike/);
@@ -3195,14 +3202,13 @@ test('e2e · E50 janela do atacante depois dos bloqueios: quadro dos bloqueios, 
   await page.click('.ds-dialog >> text=/Conjurar → Wall Guard/');
   await page.waitForSelector('#tb-stack, #tb-handoff');
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/janela-pos-raio.png' });
-  await reveal(page); await page.waitForSelector('.tb-banner, #tb-resumo', { timeout: 8000 });
-  if (await page.locator('#tb-resumo-ok').count()) await page.click('#tb-resumo-ok');
+  // J-36 · o resumo não fica mais por cima da mesa (mora nos detalhes da faixa): espera só a faixa da bandeja existir e segue sem dispensar
+  await reveal(page); await page.waitForSelector('.tb-banner', { state: 'attached', timeout: 8000 });
   const dep = await page.textContent('.tb-banner');
   assert.ok(/Pilha: Lightning Bolt|Bloqueios/.test(dep), 'depois do Raio: ' + dep);
   // a defensora responde ou passa; depois o Raio resolve e o dano de combate vem em seguida
   for (let i = 0; i < 8; i++) {
     await reveal(page);
-    if (await page.locator('#tb-resumo-ok').count()) await page.click('#tb-resumo-ok');
     const b = (await page.locator('.tb-banner').count()) ? await page.textContent('.tb-banner') : '';
     if (!(await page.locator('.tb-stack').count()) && !/Bloqueios/.test(b)) break;
     if (await page.locator('#tb-pass').count()) await page.click('#tb-pass'); else await page.waitForTimeout(100);
@@ -8414,43 +8420,39 @@ test('e2e · H2 contra o Shark dá para voltar quantas jogadas quiser: o botão 
   assert.deepEqual(errors, []);
 });
 
-test('e2e · H4 resumo do turno recolhido: faixa de 44 px com ícone e sinais no lugar do balão; abre por cima da mesa sem empurrar o campo; fecha no toque fora, no Esc e no X', { skip }, async t => {
+// J-36 · relato #42 · expectativa mudada com motivo: o resumo do turno era uma faixa de 44 px no meio da mesa (H4) e "cobria/tomava
+// espaço da mesa". Agora mora no topo dos detalhes da faixa de vez: a faixa ganha um ponto de latão enquanto houver resumo; o
+// toque na faixa abre os detalhes com o resumo (mesmos sinais, mesmo detalhe por turno, Registro e Dispensar); a mesa não tem
+// mais nada por cima entre os lados.
+test('e2e · J-36 resumo do turno nos detalhes da faixa de vez: nada no meio da mesa; ponto de novidade na faixa; um toque mostra o resumo com sinais, detalhe, Registro e Dispensar', { skip }, async t => {
   const M = await comLista125(t, '20 Mountain\n20 Fiery Temper\n20 Kitchen Imp', ['Mountain', 'Fiery Temper', 'Kitchen Imp'], '3');
   const { page, errors } = M;
   await M.terreno(); await M.proximo();
-  await page.waitForSelector('#tb-resumo');
-  const medida = () => page.evaluate(() => { const r = s => { const e = document.querySelector(s); if (!e) return null; const b = e.getBoundingClientRect(); return { y: Math.round(b.top + scrollY), h: Math.round(b.height), w: Math.round(b.width) }; };
-    return { resumo: r('#tb-resumo'), faixa: r('#tb-resumo-btn'), x: r('#tb-resumo-ok'), meuLado: r('#tb-life-me'), painel: document.querySelector('#tb-resumo-painel').hidden ? null : r('#tb-resumo-painel') }; });
-  const fechado = await medida();
-  // recolhido: uma linha só, com alvos de 44 px (antes: caixa aberta com as linhas dos dois turnos, 150 px ou mais entre as mesas)
-  assert.ok(fechado.resumo.h >= 44 && fechado.resumo.h <= 50, 'faixa de uma linha: ' + JSON.stringify(fechado)); assert.ok(fechado.faixa.h >= 44 && fechado.x.h >= 44 && fechado.x.w >= 44); assert.equal(fechado.painel, null);
-  assert.equal(await page.getAttribute('#tb-resumo-btn', 'aria-expanded'), 'false');
-  assert.deepEqual(await page.$$eval('#tb-resumo-btn > .ds-icon', is => is.map(i => i.dataset.icone)), ['registro', 'descer']);
+  await page.waitForSelector('#tb-vez-novidade');
+  // a mesa: nada entre os lados (antes: a faixa do resumo flutuava ali)
+  assert.equal(await page.locator('.tb-board #tb-resumo, .tb-camada #tb-resumo').count(), 0, 'o resumo não fica no meio da mesa');
+  assert.match(await page.getAttribute('#tb-vez-btn', 'aria-label'), /Há resumo do último turno/);
+  await auditaTela(page, 'J-36 · mesa com o ponto de novidade na faixa');
+  // um toque na faixa: os detalhes abrem com o resumo no topo
+  await page.click('#tb-vez-btn'); await page.waitForSelector('#tb-vez-pop:not([hidden]) #tb-resumo');
+  const ordem = await page.$$eval('#tb-vez-pop > *', es => es.map(e => e.id || e.className.split(' ')[0]));
+  assert.equal(ordem[0], 'tb-resumo', 'o resumo vem primeiro nos detalhes: ' + ordem.join(','));
   assert.match(await page.innerText('#tb-resumo-btn .tb-resumo__titulo'), /^Turnos \d+ e \d+$|^Turno \d+ · /);
   const sinais = await page.$$eval('#tb-resumo .tb-resumo__sinal', ss => ss.map(x => [x.dataset.sinal, x.querySelector('.ds-icon').dataset.icone, x.textContent.trim()]));
   assert.ok(sinais.length >= 1 && sinais.every(([k, icone, n]) => k && icone && /^\d+$/.test(n)), 'sinais com ícone e número: ' + JSON.stringify(sinais));
   assert.match(await page.getAttribute('#tb-resumo-btn', 'aria-label'), /^Resumo, turnos? .+: \d+ /);
   assert.doesNotMatch(await page.innerText('#tb-resumo'), /\p{Extended_Pictographic}/u, 'sem emoji');
-  await auditaTela(page, 'mesa com o resumo recolhido');
-  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/h4-recolhido.png' });
-  // aberto: o detalhe flutua por cima; a faixa e o meu lado da mesa ficam exatamente onde estavam
-  await page.click('#tb-resumo-btn'); await page.waitForSelector('#tb-resumo-painel', { state: 'visible' }); await page.waitForTimeout(250);
-  const aberto = await medida();
-  assert.equal(aberto.resumo.h, fechado.resumo.h, 'abrir não muda a altura que o resumo ocupa'); assert.deepEqual(aberto.meuLado, fechado.meuLado, 'o campo não desce nem um pixel');
-  assert.ok(aberto.painel.h > 40 && aberto.painel.y >= fechado.resumo.y + fechado.resumo.h); assert.equal(await page.getAttribute('#tb-resumo-btn', 'aria-expanded'), 'true');
-  assert.match(await page.innerText('#tb-resumo-painel'), /Turno \d+ · /); assert.ok(await page.locator('#tb-resumo-painel .tb-resumo__lines li .ds-icon').count() >= 1, 'cada linha com ícone');
-  await auditaTela(page, 'mesa com o resumo aberto');
-  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/h4-aberto.png' });
-  // fecha: toque de novo, toque fora, Esc
-  await page.click('#tb-resumo-btn'); assert.equal(await page.locator('#tb-resumo-painel').isVisible(), false);
+  await auditaTela(page, 'J-36 · detalhes da faixa com o resumo');
+  // o detalhe por turno abre dentro dos detalhes
   await page.click('#tb-resumo-btn'); await page.waitForSelector('#tb-resumo-painel', { state: 'visible' });
-  await page.locator('#tb-life-opp').dispatchEvent('pointerdown'); assert.equal(await page.locator('#tb-resumo-painel').isVisible(), false, 'toque fora fecha');
-  await page.click('#tb-resumo-btn'); await page.keyboard.press('Escape'); assert.equal(await page.locator('#tb-resumo-painel').isVisible(), false, 'Esc fecha');
-  // "Registro" dentro do detalhe leva ao registro completo
-  await page.click('#tb-resumo-btn'); await page.click('#tb-resumo-registro'); await page.waitForSelector('#tb-timeline'); await page.keyboard.press('Escape'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
-  // o X dispensa: a faixa some e a mesa ganha a linha de volta
+  assert.match(await page.innerText('#tb-resumo-painel'), /Turno \d+ · /); assert.ok(await page.locator('#tb-resumo-painel .tb-resumo__lines li .ds-icon').count() >= 1, 'cada linha com ícone');
+  await auditaTela(page, 'J-36 · resumo aberto nos detalhes');
+  // "Registro" leva ao registro completo
+  await page.click('#tb-resumo-registro'); await page.waitForSelector('#tb-timeline'); await page.keyboard.press('Escape'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
+  // Dispensar: o resumo sai dos detalhes e o ponto sai da faixa
+  if (await page.locator('#tb-vez-pop[hidden]').count()) await page.click('#tb-vez-btn');
   assert.equal(await page.getAttribute('#tb-resumo-ok', 'aria-label'), 'Dispensar resumo');
-  await page.click('#tb-resumo-ok'); await page.waitForFunction(() => !document.querySelector('#tb-resumo'));
+  await page.click('#tb-resumo-ok'); await page.waitForFunction(() => !document.querySelector('#tb-resumo') && !document.querySelector('#tb-vez-novidade'));
   assert.deepEqual(errors, []);
 });
 
@@ -8781,7 +8783,7 @@ test('e2e · I1 registro: a fase fica em cima e os acontecimentos usam a largura
   const M = await comLista125(t, '20 Mountain\n20 Fiery Temper\n20 Kitchen Imp', ['Mountain', 'Fiery Temper', 'Kitchen Imp'], '3');
   const { page, errors } = M;
   await M.terreno(); await M.proximo();
-  await page.waitForSelector('#tb-resumo');
+  await abreResumoDaFaixa(page); // J-36
   // resumo aberto: mesmas linhas do registro (classe, ícone) e o mesmo cabeçalho de turno
   await page.click('#tb-resumo-btn'); await page.waitForSelector('#tb-resumo-painel', { state: 'visible' }); await page.waitForTimeout(250);
   const res = await page.$$eval('#tb-resumo-painel .tb-fatos__linha', ls => ls.map(l => ({ icone: (l.querySelector('.ds-icon') || { dataset: {} }).dataset.icone, texto: l.textContent.trim() })));
