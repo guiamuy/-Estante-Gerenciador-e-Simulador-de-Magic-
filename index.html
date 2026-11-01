@@ -6613,6 +6613,7 @@ const EFFECTS = {
   lembradas_ao_cemiterio: { fields: [], targets: ['self'] }, // M-386 · 603.7c: "if any of those cards remain exiled, put them into your graveyard" (Glimpse the Impossible)
   draw_free_cast: { fields: ['amount'], targets: ['self'] },
   /* ↓ K · efeitos da trilha keywords */
+  ganha_hab_k: { fields: [], targets: ['self-source'] }, // K-85 · 613.1f · "This Saga gains '<habilidade>'": a própria permanente ganha a habilidade enquanto estiver no campo (Urza's Saga)
   sacrifica_sem_fuga_k: { fields: [], targets: [] }, // K-81 · 702.138 · "When ~ enters, sacrifice it unless it escaped" (Phlage, Uro)
   concede_flashback_k: { fields: [], targets: ['card-in-your-graveyard'] }, // K-80 · 702.34a · "target instant or sorcery card in your graveyard gains flashback until end of turn. The flashback cost is equal to its mana cost"
   dobra_k: { fields: [], targets: [] }, // K-51 · 702.185a · exila a permanente dobrada no começo da próxima etapa final (gerado pelo motor)
@@ -7679,6 +7680,10 @@ function effectErrors(effects, label, opcional) {
     } else if (t !== 'self' && t !== 'delayed-object' && t !== 'remembered' && t !== 'that-player' && t !== 'enchanted-player' /* T-94 (Toca ponto comum: effectErrors) */ && !spec.targets.includes(t)) errs.push(`${label} ${i + 1} (${e.do}): alvo "${t}" não vale aqui`);
   });
   /* ↓ K · validação da trilha keywords */
+  effects.forEach((e, i) => { if (e.do !== 'ganha_hab_k') return; // K-85
+    if (!(e.produz || e.habilidade)) errs.push(`${label} ${i + 1} (ganha_hab_k): diga a mana que a permanente passa a gerar (produz) ou a habilidade ganha`);
+    if (e.produz != null && !(Array.isArray(e.produz) && e.produz.length && e.produz.every(x => Array.isArray(x) && x.length && x.every(c => 'WUBRGC'.includes(c))))) errs.push(`${label} ${i + 1} (ganha_hab_k): produz é uma lista de opções de mana, como [['C']]`);
+    if (e.habilidade != null) { if (e.habilidade.kind !== 'activated') errs.push(`${label} ${i + 1} (ganha_hab_k): a habilidade ganha é ativada`); else errs.push(...effectErrors(e.habilidade.effects, `${label} ${i + 1} (habilidade ganha)`)); } });
   /* ↓ V · validação da trilha verbos */
   effects.forEach((e, i) => { // V-29
     if (e.do === 'empower_jace' && typeof e.amount === 'number' && !(Number.isInteger(e.amount) && e.amount > 0)) errs.push(`${label} ${i + 1} (empower_jace): amount precisa ser inteiro positivo`);
@@ -21232,6 +21237,9 @@ const __m42 = (function () {
   const FILTRO_DESCARTE = { card: {} /* M-516 · Coercion: qualquer carta */, 'nonland card': { notTypes: ['land'] }, 'noncreature, nonland card': { notTypes: ['creature', 'land'] }, 'nonland, noncreature card': { notTypes: ['creature', 'land'] } };
   const FILTRO_TOPO = { colorless: { incolor: true }, 'instant or sorcery': { types: ['instant', 'sorcery'] }, creature: { types: ['creature'] }, artifact: { types: ['artifact'] }, land: { types: ['land'] }, 'creature or land': { types: ['creature', 'land'] } };
   const PRE_PARAGRAFO = [
+    [/^(?:~|this saga|this land|this permanent) gains "(.+?)\.?"(?:\.\s*|$)/i, m => { // K-85 · 613.1f (Urza's Saga): sem duração, a própria permanente ganha a habilidade enquanto estiver no campo
+      const mn = m[1].match(/^\{T\}: Add (\{[WUBRGC]\})(?: or (\{[WUBRGC]\}))?$/i); if (mn) return [{ do: 'ganha_hab_k', target: 'self-source', produz: [mn[1], mn[2]].filter(Boolean).map(x => [x.slice(1, -1).toUpperCase()]) }];
+      const sub = [], ab = /^[^:"]+: /.test(m[1]) ? leAtivada(m[1], nomeAtual, sub) : null; return ab && sub.every(f => f.lida) ? [{ do: 'ganha_hab_k', target: 'self-source', habilidade: ab }] : null; }],
     [/^sacrifice (?:it|~) unless it escaped(?:\.\s*|$)/i, () => [{ do: 'sacrifica_sem_fuga_k' }]], // K-81 · 702.138 (Phlage, Uro)
     [/^target instant or sorcery card in your graveyard gains flashback until end of turn\. the flashback cost is equal to its mana cost(?:\.\s*|$)/i, () => [{ do: 'concede_flashback_k', target: { zona: 'graveyard', de: 'you', tipos: ['instant', 'sorcery'] } }]], // K-80 · 702.34a (Snapcaster Mage, Flashback)
     [/^(?:it|~) deals that much damage to any other target(\. if a player is dealt damage this way, they can't gain life for the rest of the game)?(?:\.\s*|$)/i,
@@ -22493,7 +22501,7 @@ function moveObject(s, oid, to, { top = true, controller } = {}) {
   if (ultima) Object.assign(ultima, palavrasK || {}); // K-4 · 603.10a: persistir/imortal olham como ela era no campo (K-14: foto tirada antes de sair)
   delete o.ultima; delete o.naoDesviraProximo; // CR2g.6 · 400.7
   const segurava = fromZone === 'battlefield' ? o.holding : null;
-  delete o.holding; delete o.devolverAoSair; delete o.marcadaM; /* M-563 · 400.7: o objeto novo não tem carta ligada */ delete o.flashbackConcedidoK; /* K-80 · 400.7: o lampejo concedido era daquele objeto */
+  delete o.holding; delete o.devolverAoSair; delete o.marcadaM; /* M-563 · 400.7: o objeto novo não tem carta ligada */ delete o.flashbackConcedidoK; delete o.ganhasK; /* K-85 · a habilidade ganha era daquele objeto */ /* K-80 · 400.7: o lampejo concedido era daquele objeto */
   if (segurava) o.devolverAoSair = segurava;
   const devolveAte = fromZone === 'battlefield' && to !== 'battlefield' ? (o.ate || []) : null; // CR2d.1 · 610.3
   delete o.ate;
@@ -22901,6 +22909,7 @@ function productions(s, o, visto) {
   const spec = perde ? [] : ((s.facts[o.name].script || {}).produces) || [];
   // quando o script declara a produção, ela substitui o que foi lido do texto
   let opts = perde ? [] : spec.length ? spec.flatMap(x => expandProduction(s, o, x, visto)) : (s.facts[o.name].produces || []).flatMap(x => expandProduction(s, o, x, visto));
+  if (!perde && o.ganhasK && (o.ganhasK.produz || []).length) opts = opts.concat(o.ganhasK.produz.flatMap(x => expandProduction(s, o, x, visto))); // K-85 · a habilidade de mana ganha ("This Saga gains '{T}: Add {C}.'")
   if (mu && !perde && tiposDe(s, o).includes('land')) { const imp = String(s.facts[o.name].typeText || '').split('—')[1] || ''; const BAS = { Plains: 'W', Island: 'U', Swamp: 'B', Mountain: 'R', Forest: 'G' }; for (const t of mu.subtypes) if (BAS[t] && !new RegExp('\\b' + t + '\\b').test(imp) && !opts.some(x => x.length === 1 && x[0] === BAS[t])) opts.push([BAS[t]]); } // M-388 · 305.6/305.7: o tipo básico ganho traz a habilidade de mana dele
   // R9 · primeiro toda a produção concedida (Abundant Growth), depois o mana extra (Utopia Sprawl): ele vale
   // para qualquer mana que o terreno gere, não só para as opções que existiam quando a Aura entrou
@@ -24145,6 +24154,7 @@ function grantedAbilities(s, o) {
     for (const ab of (concessaoVigenteT(s, aura, (s.facts[aura.name].script || {}).grants) || {}).activated || []) out.push /* T-118 · seCriaturaT (Toca ponto comum: grantedAbilities) */({ ...ab, kind: 'activated', grantedBy: aura.name, grantedTs: aura.anexadaEm || 0 });
     for (const ab of (concessaoVigenteT(s, aura, (s.facts[aura.name].script || {}).grants) || {}).triggered || []) out.push({ ...ab, kind: 'triggered', grantedBy: aura.name, grantedTs: aura.anexadaEm || 0 }); // M-251 · "Enchanted creature has 'Whenever this creature …'" (613.1f)
   }
+  for (const h of (o.ganhasK || {}).habilidades || []) out.push({ ...h.ab, grantedBy: o.name, grantedTs: h.ts || 0 }); // K-85 · "This Saga gains '…'"
   for (const h of o.tempHabilidades || []) out.push({ ...h.ab, grantedBy: h.de, grantedTs: h.ts || 0 }); // M-260 · reforço: habilidades ganhas até o fim do turno
   const par = soulbondPartner(s, o);
   if (par) for (const dono of [o, par]) {
@@ -25604,6 +25614,12 @@ function applyEffectM449(s, src, eff, tgt, events) {
       break;
     }
     /* ↓ K · casos de applyEffect da trilha keywords */
+    case 'ganha_hab_k': { // K-85 · 611.2a / 613.1f: sem duração escrita, vale enquanto a permanente estiver no campo; a habilidade de mana ganha entra nas produções, a ativada nas habilidades
+      const f = src.ability ? s.objects[src.source] : src;
+      if (!f || f.zone !== 'battlefield' || (src.fonteZc != null && (f.zc || 0) !== src.fonteZc)) { note({ failed: true }); break; } // 400.7
+      const g = f.ganhasK || {}; f.ganhasK = { produz: [...(g.produz || []), ...(eff.produz || []).map(x => x.slice())], habilidades: [...(g.habilidades || []), ...(eff.habilidade ? [{ ab: eff.habilidade, ts: relogio(s) }] : [])] };
+      note({ name: f.name }); break;
+    }
     case 'sacrifica_sem_fuga_k': { // K-81 · 702.138: a permanente que não foi conjurada pela fuga é sacrificada (a marca `escapouT` vem da conjuração, MARCAS_DA_CONJURACAO)
       const f = src.ability ? s.objects[src.source] : src;
       if (!f || f.zone !== 'battlefield' || (src.fonteZc != null && (f.zc || 0) !== src.fonteZc)) { note({ failed: true }); break; } // 400.7: a que saiu e voltou é outro objeto
@@ -37661,7 +37677,8 @@ Object.assign(PALAVRA_PT, { tiered: 'escalonado' }); // K-69
 Object.assign(PALAVRA_PT, { teamwork: 'trabalho em equipe' }); // K-70
 Object.assign(PALAVRA_PT, { afflict: 'aflição', melee: 'refrega', mentor: 'mentor', training: 'treinamento' }); // K-31
 Object.assign(PALAVRA_PT, { 'battle cry': 'grito de guerra', rampage: 'alvoroço', flanking: 'flanquear', bushido: 'bushido' }); // K-30
-const EFEITO_PT_K = { sacrifica_sem_fuga_k: () => 'sacrifica esta permanente, a menos que tenha sido conjurada pela fuga', // K-81
+const EFEITO_PT_K = { ganha_hab_k: e => e.produz ? `esta permanente passa a ter "{T}: gerar ${e.produz.map(x => x.join('')).join(' ou ')}"` : 'esta permanente ganha uma habilidade ativada enquanto estiver no campo', // K-85
+  sacrifica_sem_fuga_k: () => 'sacrifica esta permanente, a menos que tenha sido conjurada pela fuga', // K-81
   concede_flashback_k: () => 'a mágica instantânea ou feitiço alvo no seu cemitério ganha lampejo do passado até o fim do turno, pelo custo de mana dela', // K-80
   // K-25 · frases dos efeitos da trilha keywords (consultadas por descreveEfeito; antes a pilha mostrava "proeza k")
   enxerto_k: () => 'move um marcador +1/+1 desta permanente para a criatura que entrou (enxerto)', // K-46
