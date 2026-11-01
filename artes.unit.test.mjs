@@ -1,0 +1,159 @@
+// X12 · S-595 · impressão digital da arte e o gerador da base (artes.mjs), sem rede: Scryfall falsa com cartas desenhadas.
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtemp, readFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { createRequire } from 'node:module';
+import { loadModules } from './_load.mjs';
+import { gera, cartasDaBase, autotesteDaBase } from './artes.mjs';
+
+const X = loadModules().scanner;
+const require = createRequire(import.meta.url);
+const jpeg = require('jpeg-js');
+
+/** Carta de 146 × 204 (o tamanho "small" da Scryfall): borda preta, barra do título e caixa de texto iguais em todas;
+    a arte é um desenho aleatório de 6 a 10 formas coloridas (semente = a carta). */
+function carta(semente, w = 146, h = 204) {
+  let s = semente * 7919 + 13; const r = () => (s = (s * 1103515245 + 12345) >>> 0) / 4294967296;
+  const d = new Uint8ClampedArray(w * h * 4);
+  const pinta = (x0, y0, x1, y1, cor) => { for (let y = Math.max(0, y0 | 0); y < Math.min(h, y1); y++) for (let x = Math.max(0, x0 | 0); x < Math.min(w, x1); x++) { const i = (y * w + x) * 4; d[i] = cor[0]; d[i + 1] = cor[1]; d[i + 2] = cor[2]; d[i + 3] = 255; } };
+  pinta(0, 0, w, h, [12, 12, 12]); pinta(6, 7, w - 6, 20, [225, 215, 190]); pinta(9, 116, w - 9, 126, [225, 215, 190]); pinta(9, 128, w - 9, 186, [235, 228, 210]);
+  const ax0 = 11, ay0 = 22, ax1 = w - 11, ay1 = 114;
+  pinta(ax0, ay0, ax1, ay1, [r() * 255, r() * 255, r() * 255]);
+  const n = 6 + Math.floor(r() * 5);
+  for (let k = 0; k < n; k++) {
+    const cx = ax0 + r() * (ax1 - ax0), cy = ay0 + r() * (ay1 - ay0), rx = 6 + r() * 30, ry = 6 + r() * 25, cor = [r() * 255, r() * 255, r() * 255];
+    for (let y = Math.max(ay0, cy - ry | 0); y < Math.min(ay1, cy + ry); y++) for (let x = Math.max(ax0, cx - rx | 0); x < Math.min(ax1, cx + rx); x++) if (((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1) { const i = (y * w + x) * 4; d[i] = cor[0]; d[i + 1] = cor[1]; d[i + 2] = cor[2]; }
+  }
+  return { data: d, width: w, height: h };
+}
+const reta = img => [{ x: 0, y: 0 }, { x: img.width, y: 0 }, { x: img.width, y: img.height }, { x: 0, y: img.height }];
+const imp = (img, cantos = reta(img)) => X.impressaoDaArte(img.data, img.width, img.height, cantos);
+/** A carta como a câmera a vê: dentro de uma foto maior, em perspectiva, com fundo de mesa. */
+function naFoto(img, { escala = 4, inclina = 0.05 } = {}) {
+  const W = img.width * escala + 200, H = img.height * escala + 200, d = new Uint8ClampedArray(W * H * 4);
+  for (let i = 0; i < W * H; i++) { d[i * 4] = 90; d[i * 4 + 1] = 70; d[i * 4 + 2] = 50; d[i * 4 + 3] = 255; }
+  const cantos = [{ x: 100 + inclina * img.width * escala, y: 100 }, { x: 100 + img.width * escala, y: 100 + inclina * img.height * escala }, { x: 100 + img.width * escala - inclina * img.width * escala, y: 100 + img.height * escala }, { x: 100, y: 100 + img.height * escala - inclina * img.height * escala }];
+  // a carta é "pintada" na foto ponto a ponto, mais denso que os pixels da foto (sem buracos)
+  const H1 = X.homografia(cantos), nu = img.width * escala * 1.5, nv = img.height * escala * 1.5;
+  for (let a = 0; a < nv; a++) for (let b = 0; b < nu; b++) {
+    const u = (b + 0.5) / nu, v = (a + 0.5) / nv, p = H1(u, v), x = p.x | 0, y = p.y | 0;
+    if (x < 0 || y < 0 || x >= W || y >= H) continue;
+    const i = ((Math.min(img.height - 1, v * img.height | 0)) * img.width + Math.min(img.width - 1, u * img.width | 0)) * 4, o = (y * W + x) * 4;
+    d[o] = img.data[i]; d[o + 1] = img.data[i + 1]; d[o + 2] = img.data[i + 2];
+  }
+  return { img: { data: d, width: W, height: H }, cantos };
+}
+
+test('S-595 · impressão da arte: 192 bits (189 usados), determinística, e só a arte conta (título e texto iguais não aproximam cartas diferentes)', () => {
+  const a = carta(1), b = carta(2);
+  const ha = imp(a), hb = imp(b);
+  assert.equal(ha.length, 6); assert.equal(X.BITS_ARTE, 192);
+  assert.equal(X.distanciaDaArte(ha, imp(carta(1))), 0, 'a mesma carta dá a mesma impressão');
+  assert.ok(X.distanciaDaArte(ha, hb) > 70, 'cartas com arte diferente ficam longe: ' + X.distanciaDaArte(ha, hb));
+});
+
+test('S-595 · a impressão aguenta o que a câmera faz: carta grande em perspectiva numa foto, contorno 3% torto, protetor (contorno 4% maior)', () => {
+  let pior = 0;
+  for (const k of [3, 4, 5]) {
+    const c = carta(k), h = imp(c);
+    const f = naFoto(c);
+    pior = Math.max(pior, X.distanciaDaArte(h, X.impressaoDaArte(f.img.data, f.img.width, f.img.height, f.cantos)));
+    const torto = [{ x: 3, y: -4 }, { x: c.width + 2, y: 3 }, { x: c.width - 4, y: c.height + 5 }, { x: -2, y: c.height - 3 }];
+    pior = Math.max(pior, X.distanciaDaArte(h, imp(c, torto)));
+    const dx = c.width * 0.02, dy = c.height * 0.02;
+    pior = Math.max(pior, X.distanciaDaArte(h, imp(c, [{ x: -dx, y: -dy }, { x: c.width + dx, y: -dy }, { x: c.width + dx, y: c.height + dy }, { x: -dx, y: c.height + dy }])));
+  }
+  assert.ok(pior <= 45, 'a mesma carta fica perto em todas as variações (pior: ' + pior + ' de 189 bits)');
+});
+
+test('S-595 · busca: entre 2.000 artes, a carta degradada (borrada, protetor, contorno torto) é a primeira em quase todas, e rápido', () => {
+  const N = 2000, imagens = [], lista = [];
+  for (let i = 0; i < N; i++) { const c = carta(100 + i); if (i < 40) imagens.push(c); lista.push(imp(c)); }
+  const bin = X.binDasArtes(lista);
+  const base = X.abreBaseDeArtes({ versao: 1, bits: 192, cartas: lista.map((_, i) => ['c' + i, 'tst', String(i), 'il' + i, '1']) }, bin);
+  assert.equal(base.total, N); assert.equal(base.carta(7).nome, 'c7');
+  const r = autotesteDaBase(X, base, imagens.map((img, j) => ({ img, j })));
+  for (const [nome, m] of Object.entries(r.variacoes)) assert.ok(m.certas >= m.casos - 1, `${nome}: ${m.certas}/${m.casos} ${JSON.stringify(m)}`);
+  // custo da busca: varredura linear de 50 mil artes cabe no orçamento de uma passada (projeção a partir de 2.000)
+  const t0 = performance.now(); for (let k = 0; k < 20; k++) X.buscaArte(base.hashes, lista[k]);
+  const porBusca50k = (performance.now() - t0) / 20 * 25;
+  assert.ok(porBusca50k < 60, 'busca em 50 mil artes ≈ ' + porBusca50k.toFixed(1) + ' ms');
+});
+
+test('S-595 · formato da base: o que o gerador grava o app abre; base de outra versão ou cortada é recusada', () => {
+  const lista = [imp(carta(1)), imp(carta(2))], bin = X.binDasArtes(lista);
+  assert.equal(bin.byteLength, 2 * 24);
+  const b = X.abreBaseDeArtes({ versao: 1, bits: 192, cartas: [['A', 'a', '1', 'x', ''], ['B', 'b', '2', 'y', '']] }, bin);
+  assert.equal(X.distanciaDaArte(lista[1], b.hashes, 1), 0);
+  assert.throws(() => X.abreBaseDeArtes({ versao: 2, bits: 192, cartas: [] }, new Uint8Array(0)), /invalida/);
+  assert.throws(() => X.abreBaseDeArtes({ versao: 1, bits: 192, cartas: [['A']] }, bin.slice(0, 16)), /incompleta/);
+});
+
+test('S-595 · quais cartas entram: papel, com imagem pequena da frente na Scryfall; digital, série de arte e endereço estranho ficam de fora', () => {
+  const c = cartasDaBase([
+    { name: 'Counterspell', set: 'mh2', collector_number: '267', illustration_id: 'il-1', layout: 'normal', image_uris: { small: 'https://cards.scryfall.io/small/front/a/b/x.jpg?1625' } },
+    { name: 'Delver of Secrets // Insectile Aberration', set: 'isd', collector_number: '51', layout: 'transform', card_faces: [{ illustration_id: 'il-2', image_uris: { small: 'https://cards.scryfall.io/small/front/c/d/y.jpg?7' } }, {}] },
+    { name: 'Digital', digital: true, layout: 'normal', image_uris: { small: 'https://cards.scryfall.io/s.jpg' } },
+    { name: 'Arte', layout: 'art_series', image_uris: { small: 'https://cards.scryfall.io/s.jpg' } },
+    { name: 'Fora', layout: 'normal', image_uris: { small: 'https://exemplo.com/s.jpg' } },
+    { name: 'Sem imagem', layout: 'normal' }
+  ]);
+  assert.equal(c.map(x => x.nome).join(' | '), 'Counterspell | Delver of Secrets // Insectile Aberration');
+  assert.equal(c[0].versao, '1625'); assert.equal(c[1].ilustracao, 'il-2');
+});
+
+/** Scryfall falsa: os dados em massa com `n` cartas e as imagens JPEG desenhadas; conta as imagens pedidas. */
+function scryfallFalsa(n, { falha = new Set(), versao = () => '1' } = {}) {
+  const pedidas = [];
+  const cartas = Array.from({ length: n }, (_, i) => ({ name: 'Carta ' + String(i).padStart(3, '0'), set: 'tst', collector_number: String(i + 1), illustration_id: 'il-' + i, layout: 'normal', image_uris: { small: `https://cards.scryfall.io/small/${i}.jpg?${versao(i)}` } }));
+  const resp = (corpo, tipo) => ({ ok: true, status: 200, json: async () => corpo, arrayBuffer: async () => corpo });
+  const fetchFn = async (url, opts) => {
+    assert.match(opts.headers['User-Agent'], /^Estante\//, 'identifica o app para a Scryfall');
+    if (url === 'https://api.scryfall.com/bulk-data/unique-artwork') return resp({ download_uri: 'https://data.scryfall.io/unique-artwork/x.json', updated_at: '2026-11-01T09:00:00Z' });
+    if (url === 'https://data.scryfall.io/unique-artwork/x.json') return resp(cartas);
+    const m = /\/small\/(\d+)\.jpg/.exec(url); if (!m) throw new Error('url inesperada ' + url);
+    const i = +m[1]; pedidas.push(i);
+    if (falha.has(i)) return { ok: false, status: 404 };
+    const img = carta(500 + i);
+    return resp(jpeg.encode({ data: Buffer.from(img.data), width: img.width, height: img.height }, 92).data.buffer.slice(0));
+  };
+  return { fetchFn, pedidas };
+}
+
+test('S-595 · gerador: grava índice e impressões, imagem que falha fica de fora (contada), segunda vez só baixa a ilustração nova ou mudada', async () => {
+  const pasta = await mkdtemp(join(tmpdir(), 'artes-'));
+  const um = scryfallFalsa(12, { falha: new Set([4]) });
+  const r1 = await gera({ saida: pasta, fetchFn: um.fetchFn, X, log: () => {}, paralelo: 3 });
+  assert.equal(r1.total, 11); assert.equal(r1.falhas, 1); assert.equal(r1.novas, 11);
+  const indice = JSON.parse(await readFile(join(pasta, 'artes.json'), 'utf8')), bin = await readFile(join(pasta, 'artes.bin'));
+  const base = X.abreBaseDeArtes(indice, bin);
+  assert.equal(base.total, 11); assert.equal(indice.dadosDe, '2026-11-01T09:00:00Z'); assert.equal(indice.bits, 192);
+  assert.ok(!indice.cartas.some(c => c[0] === 'Carta 004'), 'a que falhou não entra');
+  // a impressão gravada é a da imagem (JPEG) da carta: reconhece a carta desenhada
+  const c7 = indice.cartas.findIndex(c => c[0] === 'Carta 007');
+  assert.equal(X.buscaArte(base.hashes, imp(carta(507)))[0].i, c7);
+  // segunda execução: nada mudou → nenhuma imagem baixada; a ilustração 2 ganhou versão nova → só ela
+  const dois = scryfallFalsa(12, { versao: i => (i === 2 ? '2' : '1') });
+  const r2 = await gera({ saida: pasta, fetchFn: dois.fetchFn, X, log: () => {}, paralelo: 3 });
+  assert.deepEqual(dois.pedidas.sort((a, b) => a - b), [2, 4], 'só a mudada e a que faltava');
+  assert.equal(r2.total, 12); assert.equal(r2.reaproveitadas, 10);
+  // terceira: nada mudou → nada baixado e nada regravado (o ramo não cresce à toa)
+  const tres = scryfallFalsa(12, { versao: i => (i === 2 ? '2' : '1') });
+  const r3 = await gera({ saida: pasta, fetchFn: tres.fetchFn, X, log: () => {} });
+  assert.equal(tres.pedidas.length, 0); assert.equal(r3.igual, true); assert.equal(r2.igual, false);
+});
+
+test('S-595 · gerador com autoteste: grava medida.json só com números (acerto por variação e distâncias), sem imagem', async () => {
+  const pasta = await mkdtemp(join(tmpdir(), 'artes-'));
+  const f = scryfallFalsa(60);
+  const r = await gera({ saida: pasta, fetchFn: f.fetchFn, X, log: () => {}, autoteste: 10 });
+  const m = JSON.parse(await readFile(join(pasta, 'medida.json'), 'utf8'));
+  assert.equal(m.total, 60);
+  assert.deepEqual(Object.keys(m.variacoes), ['reta', 'torta', 'borrada', 'protetor', 'tudo']);
+  assert.equal(m.variacoes.reta.certas, 10);
+  assert.ok(m.variacoes.tudo.certas >= 9, JSON.stringify(m.variacoes.tudo));
+  assert.ok(!/data:image|base64/.test(JSON.stringify(m)));
+  assert.equal(r.medida.variacoes.reta.casos, 10);
+});

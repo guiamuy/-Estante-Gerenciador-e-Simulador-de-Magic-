@@ -43237,6 +43237,66 @@ function afiaLinha(g, w, h, y0, y1, { quanto = 1.5, margem = 0.35 } = {}) {
   for (let j = 0; j < w * hh; j++) g[ya * w + j] = max(0, min(255, base[j] + quanto * (base[j] - b[j])));
   return g;
 }
+/* ---------------- X12 · impressão digital da arte (S-595) ----------------
+   A carta endireitada (X11) tem a arte sempre no mesmo lugar. Dela sai uma impressão perceptual de 192 bits: a arte,
+   reduzida a 32 × 32 por média em três canais (cinza, vermelho−verde, amarelo−azul), passa pela DCT; os 8 × 8
+   coeficientes de frequência mais baixa de cada canal viram 63 bits (acima ou abaixo da mediana do canal; o termo
+   constante fica de fora). Medido (01/11/2026, 2.000 artes desenhadas): só o cinza com 16 × 16 coeficientes perdia a
+   carta com o contorno 3% torto (48 de 60); com frequência mais baixa e cor, 60 de 60, e cartas diferentes seguem
+   longe. A MESMA função gera a base (artes.mjs, a partir das imagens da Scryfall) e lê a câmera (S-596).
+   Distância = bits diferentes (0 a 189). */
+const FAIXA_ARTE = { x: 0.13, y: 0.15, w: 0.74, h: 0.36 };   // bem dentro da caixa da arte: contorno torto ou protetor não trazem a moldura
+const BITS_ARTE = 192, PALAVRAS_ARTE = BITS_ARTE / 32;
+const COS_ARTE = (() => { const m = new Float64Array(8 * 32); for (let k = 0; k < 8; k++) for (let n = 0; n < 32; n++) m[k * 32 + n] = Math.cos(Math.PI * (n + 0.5) * k / 32); return m; })();
+/** Impressão da arte de uma carta: `src` RGBA (sw × sh) e os quatro cantos DA CARTA em pixels de `src`. Uint32Array(6). */
+function impressaoDaArte(src, sw, sh, cantos) {
+  const A = retifica(src, sw, sh, cantosDaFaixa(cantos, FAIXA_ARTE), 128, 96), d = A.data;
+  const canais = [new Float64Array(1024), new Float64Array(1024), new Float64Array(1024)];
+  for (let y = 0; y < 96; y++) for (let x = 0; x < 128; x++) {
+    const i = (y * 128 + x) * 4, j = ((y / 3) | 0) * 32 + (x >> 2), R = d[i], G = d[i + 1], B = d[i + 2];
+    canais[0][j] += 0.299 * R + 0.587 * G + 0.114 * B; canais[1][j] += R - G; canais[2][j] += (R + G) / 2 - B;
+  }
+  const out = new Uint32Array(PALAVRAS_ARTE), t = new Float64Array(8 * 32), c = new Float64Array(64);
+  let bit = 0;
+  for (const g of canais) {
+    for (let y = 0; y < 32; y++) for (let k = 0; k < 8; k++) { let s = 0; for (let x = 0; x < 32; x++) s += g[y * 32 + x] * COS_ARTE[k * 32 + x]; t[k * 32 + y] = s; }
+    for (let ky = 0; ky < 8; ky++) for (let kx = 0; kx < 8; kx++) { let s = 0; for (let y = 0; y < 32; y++) s += t[kx * 32 + y] * COS_ARTE[ky * 32 + y]; c[ky * 8 + kx] = s; }
+    const med = Float64Array.from(c.subarray(1)).sort()[31];   // mediana dos 63 sem o termo constante
+    for (let i = 1; i < 64; i++, bit++) if (c[i] > med) out[bit >> 5] = (out[bit >> 5] | (1 << (bit & 31))) >>> 0;
+  }
+  return out;
+}
+const bitsLigados = v => { v = v - ((v >>> 1) & 0x55555555); v = (v & 0x33333333) + ((v >>> 2) & 0x33333333); return (((v + (v >>> 4)) & 0x0F0F0F0F) * 0x01010101) >>> 24; };
+/** Bits diferentes entre a impressão `a` e a de posição `j` em `base` (Uint32Array com 8 palavras por arte). */
+function distanciaDaArte(a, base, j = 0) { let d = 0; const o = j * PALAVRAS_ARTE; for (let i = 0; i < PALAVRAS_ARTE; i++) d += bitsLigados((a[i] ^ base[o + i]) >>> 0); return d; }
+/** As `quantas` artes mais próximas de `h` na base, em ordem: [{ i, d }]. Varredura linear: 50 mil artes em poucos ms. */
+function buscaArte(base, h, { quantas = 3 } = {}) {
+  const n = Math.floor(base.length / PALAVRAS_ARTE), melhores = [];
+  for (let j = 0; j < n; j++) {
+    const d = distanciaDaArte(h, base, j);
+    if (melhores.length < quantas || d < melhores[melhores.length - 1].d) {
+      melhores.push({ i: j, d }); melhores.sort((x, y) => x.d - y.d || x.i - y.i); if (melhores.length > quantas) melhores.pop();
+    }
+  }
+  return melhores;
+}
+/** Abre a base de artes publicada (artes.json + artes.bin, gerados por artes.mjs). Confere versão, bits e tamanho. */
+function abreBaseDeArtes(indice, bin) {
+  if (!indice || indice.versao !== 1 || indice.bits !== BITS_ARTE || !Array.isArray(indice.cartas)) throw new Error('base-de-artes-invalida');
+  const buf = bin instanceof ArrayBuffer ? bin : bin && bin.buffer ? bin.buffer.slice(bin.byteOffset, bin.byteOffset + bin.byteLength) : null;
+  if (!buf || buf.byteLength !== indice.cartas.length * PALAVRAS_ARTE * 4) throw new Error('base-de-artes-incompleta');
+  const v = new DataView(buf), hashes = new Uint32Array(indice.cartas.length * PALAVRAS_ARTE);
+  for (let i = 0; i < hashes.length; i++) hashes[i] = v.getUint32(i * 4, true);
+  const campos = indice.campos || ['nome', 'set', 'numero', 'ilustracao', 'versao'];
+  const carta = i => { const c = indice.cartas[i] || []; const o = {}; campos.forEach((k, j) => { o[k] = c[j]; }); return o; };
+  return { total: indice.cartas.length, hashes, carta, geradoEm: indice.geradoEm || null };
+}
+/** Grava as impressões no formato do artes.bin (Uint32 little-endian, 8 por arte, na ordem do índice). */
+function binDasArtes(lista) {
+  const buf = new ArrayBuffer(lista.length * PALAVRAS_ARTE * 4), v = new DataView(buf);
+  lista.forEach((h, j) => { for (let i = 0; i < PALAVRAS_ARTE; i++) v.setUint32((j * PALAVRAS_ARTE + i) * 4, h[i] >>> 0, true); });
+  return new Uint8Array(buf);
+}
 /** Nitidez da linha do nome (cinza, linhas y0..y1): variância do laplaciano sobre o contraste ao quadrado. */
 function nitidezDaLinha(g, w, y0, y1) {
   const { max } = Math;
@@ -43315,7 +43375,7 @@ const LIMIARES_LINHA = { borrada: 0.5, deslocamentoMax: 0.05, alturaMin: 0.30 };
 
 return { cleanOcr, matchName, matchLines, criaVotacao, criaPorteiro, PORTEIRO, leituraConfiavel, nitidezDaFaixa, movimentoEntre, LIMIARES_FAIXA, criaDiario, criaCronometro, EXATA, buildIndex, createNameIndex, createLot, coverRegion, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, ACCEPT, ALTA, SUGGEST, lev,
   detectaCarta, detectaEmEscalas, ESCALAS_DETECTOR, brilho, nitidez, prontoParaLer, criaDetector, paradaEm, screenRect, LIMIARES, PROPORCAO_CARTA, realcaTexto, trechoEscuroEmbaixo, limpaBordas, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, faixaDaCarta, escalaOcr,
-  retasDoQuadro, achaQuadrilatero, ordenaCantos, homografia, cantosDaFaixa, retifica, FAIXA_NOME, FAIXA_COLECAO, LARGURA_NOME, linhaDoNome, binarizaLinha, limpaLinha, nitidezDaLinha, afiaLinha, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, alturaDaCarta, deslocamento, LIMIARES_LINHA, QUAD };
+  retasDoQuadro, achaQuadrilatero, ordenaCantos, homografia, cantosDaFaixa, retifica, FAIXA_NOME, FAIXA_COLECAO, LARGURA_NOME, linhaDoNome, binarizaLinha, limpaLinha, nitidezDaLinha, afiaLinha, FAIXA_ARTE, BITS_ARTE, impressaoDaArte, distanciaDaArte, buscaArte, abreBaseDeArtes, binDasArtes, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, alturaDaCarta, deslocamento, LIMIARES_LINHA, QUAD };
 })();
 
 

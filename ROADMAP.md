@@ -8558,7 +8558,41 @@ fatias 1–6 nas levas B-180…B-185)
 - **Depende de:** X7, X10.
 - **Fora:** reconhecimento pela arte (X12); cartas de dupla face pelo verso; idiomas além do inglês.
 
-**X12 · Reconhecimento pela arte (impressão digital da imagem)** ○
+**X12 · Reconhecimento pela arte (impressão digital da imagem)** 🟡 (fatia 1 na S-595 + I-311; fatia 2 na S-596)
+- **Decisão do usuário (01/11/2026):** opção A, "pode seguir" depois da explicação das duas opções: a base é gerada por um
+  fluxo do GitHub Actions a partir dos dados em massa da Scryfall e publicada no ramo `artes`.
+- **Fatia 1 · base (S-595 + I-311):**
+  - **Impressão de 192 bits** (`impressaoDaArte`; 189 usados): a arte da carta endireitada (`FAIXA_ARTE`, bem dentro da
+    caixa da arte), reduzida a 32 × 32 em três canais (cinza, vermelho−verde, amarelo−azul), DCT, 8 × 8 coeficientes de
+    frequência baixa por canal, 1 bit por coeficiente (acima da mediana). O aceite original pedia 256 bits só em cinza:
+    **medido e trocado.** Em 2.000 artes desenhadas, 16 × 16 em cinza perdia a carta com o contorno 3% torto (48 de 60,
+    mediana da distância certa 64 de 255); 8 × 8 em três canais acerta 60 de 60 (mediana 24 de 189) e cartas diferentes
+    seguem longe (p5 84). Também mais leve: 24 bytes por arte.
+  - **Gerador `artes.mjs`:** dados em massa "Unique Artwork" (uma carta por ilustração; papel; sem série de arte nem
+    digital), imagem pequena da frente de cada uma (`cards.scryfall.io`, 8 ao mesmo tempo, tempo-limite e novas tentativas),
+    a MESMA `impressaoDaArte` do app (lida do `index.html`). Grava `artes.json` (nome, edição, número, ilustração, versão
+    da imagem), `artes.bin` (impressões) e `medida.json` (autoteste com 400 cartas da própria base, degradadas como a
+    câmera degrada: reta, contorno torto, borrada, protetor e tudo junto; só números). Reaproveita a impressão da
+    ilustração que não mudou; base igual à publicada não é regravada (o ramo não cresce toda semana).
+  - **Fluxo `artes.yml` (I-311):** toda segunda às 07:41 UTC e à mão; `contents: write` só no passo de publicar
+    (a geração roda sem credencial no git: `persist-credentials: false`); ações fixadas por SHA; `npm ci --ignore-scripts`.
+  - **Política da Scryfall (rate-limits, consultada em 01/11/2026):** para um número grande de imagens, os dados em massa
+    são obrigatórios; os servidores `*.scryfall.io` não têm limite de taxa. Nenhuma imagem é guardada ou publicada.
+  - **Parcial, e o que falta:** a primeira base real só existe depois da primeira corrida do fluxo (a sessão não alcança a
+    Scryfall); a separação entre 50 mil artes reais só se mede pelo `medida.json` dessa corrida. As cartas de teste são
+    desenhadas, não arte de verdade. Carta de dupla face entra só pela frente. A base pesa cerca de 1,2 MB de impressões +
+    o índice (estimativa; a corrida mede).
+  - **Testes:** U (`artes.unit`: impressão determinística e com 6 palavras; a mesma carta numa foto em perspectiva, com
+    contorno 3% torto e com o contorno do protetor 4% maior fica perto; entre 2.000 artes a degradada é a primeira em
+    pelo menos 39 de 40 por variação; busca em 50 mil projetada abaixo de 60 ms; formato que o gerador grava o app abre,
+    versão errada e base cortada são recusadas; quais cartas entram; gerador com Scryfall falsa: imagem que falha fica
+    de fora, segunda corrida só baixa a ilustração nova ou mudada, terceira não regrava; autoteste só com números);
+    P-2 (`seguranca.actions.unit`) cobre o fluxo novo (permissões no topo, ações por SHA).
+- **Fatia 2 (S-596):** o app baixa a base do ramo `artes` (como a base de nomes, uma vez, offline), lê a arte da carta
+  achada em cada passada e confere com o nome; arte e nome concordando entra; discordando, "confira".
+- **Revisão de segurança (01/11/2026):** aprovado com duas correções aplicadas antes de publicar: a geração roda sem a
+  credencial de escrita no git (só o passo de publicar usa o token) e a decodificação recusa imagem acima de 4 MP. Para a
+  S-596: nome vindo da base entra na tela só como texto (`h()`), e "O que sai do aparelho" passa a citar a base de artes.
 - **Valor:** identificar a carta e a **edição** sem depender do OCR: moldura antiga, foil, nome coberto, carta em
   outro idioma. É como ManaBox e Delver Lens resolvem o que o texto não resolve.
 - **Aceite:**
@@ -8613,7 +8647,8 @@ X14 ataca. Sobre imagem: acima de 1440p o **nome** não ganha (a linha é lida e
 | 5º | **X17** pilha e conferência visuais | experiência | 1 |
 | 6º | **X18** sessão de catalogação | experiência | 1 |
 | 2º-b 🟡 | **X19** foco, borrado e protetor (pedido de 01/11) | imagem e velocidade | 1 (leva S-594) |
-| à parte | **X12** reconhecimento pela arte · **X10** fotos reais | decisão e insumo do usuário | 2 |
+| 3º 🟡 | **X12** reconhecimento pela arte (decisão A em 01/11) | precisão e velocidade | 2 (S-595 + I-311 base; S-596 no app) |
+| à parte | **X10** fotos reais | insumo do usuário | 1 |
 
 **X19 · Foco, borrado e protetor** 🟡 (leva S-594; aguardando teste no aparelho)
 - **Pedido (01/11/2026, depois de testar no aparelho):** fora do protetor acerta a maior parte, mas demora; diz que a carta
