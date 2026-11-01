@@ -6800,7 +6800,7 @@ DUNGEONS.push(
   ] });
 const dungeonByName = n => DUNGEONS.find(d => d.name === n) || null;
 const roomById = (d, id) => (d ? d.rooms.find(r => r.id === id) : null) || null;
-const REGRAS_DO_JOGADOR = ['naoGanhaVida', 'terrenosExtras', 'semLimiteDeMao']; // CR2d.10 (o motor tem a mesma lista)
+const REGRAS_DO_JOGADOR = ['naoGanhaVida', 'terrenosExtras', 'semLimiteDeMao', 'terrenosDoCemiterio' /* M-594 */]; // CR2d.10 (o motor tem a mesma lista)
 const PICK_DESTS = ['hand', 'graveyard', 'battlefield', 'battlefield-tapped', 'library-top', 'library-bottom', 'library-bottom-random', 'stay']; // M-262 · "on the bottom in a random order"
 const FILTER_TYPES = ['creature', 'land', 'artifact', 'enchantment', 'instant', 'sorcery', 'planeswalker', 'battle']; // M-246 · "nonland permanent" inclui batalha
 const LOYALTY_PT = c => (c > 0 ? '+' : '') + c;
@@ -21532,6 +21532,8 @@ const __m42 = (function () {
         if (es) { const g1 = leGatilho(`When ~ enters, ${es[1]}`, nome, frases), g2 = leGatilho(`When you sacrifice ~, ${es[1]}`, nome, []); if (g1 && g2) (topo.abilities = topo.abilities || []).push(g1, g2); continue; }
         const el2 = lp.match(/^when (?:~|this artifact|this creature|this permanent) enters or leaves the battlefield, (.+)$/i); // M-349 · Cryogen Relic: dois gatilhos
         if (el2) { const g1 = leGatilho(`When ~ enters, ${el2[1]}`, nome, frases), g2 = leGatilho(`When ~ leaves the battlefield, ${el2[1]}`, nome, []); if (g1 && g2) (topo.abilities = topo.abilities || []).push(g1, g2); continue; }
+        if (/^you may play an additional land on each of your turns$/i.test(lp)) { topo.regraJogador = [...(topo.regraJogador || []), { quem: 'voce', terrenosExtras: 1 }]; frases.push({ texto: linha, lida: true }); continue; } // M-594 · 305.2 · Icetill Explorer
+        if (/^you may play lands from your graveyard$/i.test(lp)) { topo.regraJogador = [...(topo.regraJogador || []), { quem: 'voce', terrenosDoCemiterio: true }]; frases.push({ texto: linha, lida: true }); continue; } // M-594 · 305.1: jogar terreno do cemitério conta como a jogada de terreno
         if (/^~ can't be blocked except by three or more creatures$/i.test(lp)) { topo.self = { ...(topo.self || {}), evasion: 'three-or-more' }; frases.push({ texto: linha, lida: true }); continue; } // M-349 · Troll of Khazad-dûm
         const egf = lp.match(new RegExp(`^(?:this land|~) enters(?: the battlefield)? tapped unless you control ${N} or more other (Plains|Islands|Swamps|Mountains|Forests)$`, 'i')); // M-349 · Gingerbread Cabin
         if (egf) { topo.entersTappedUnless = { minOutrosDoSubtipo: [/^plains$/i.test(egf[2]) ? 'Plains' : egf[2].replace(/s$/, ''), num(egf[1])] }; /* M-395 · o singular de "Plains" é "Plains" (Idyllic Grange: antes virava "Plain" e nunca contava) */ frases.push({ texto: linha, lida: true }); continue; }
@@ -27478,7 +27480,7 @@ function payAbilityCost(s, p, source, ab) {
    De habilidade estática (`regraJogador: [{ quem, ... }]` no script, relativo a quem controla a permanente) ou de resolução
    (`efeito_jogador`, guardado em s.players[i].efeitos com duração). O que existe: não pode ganhar vida (119.7), terrenos a mais
    por turno (305.2) e sem tamanho máximo de mão (402.2). */
-const REGRAS_JOGADOR = ['naoGanhaVida', 'terrenosExtras', 'semLimiteDeMao'];
+const REGRAS_JOGADOR = ['naoGanhaVida', 'terrenosExtras', 'semLimiteDeMao', 'terrenosDoCemiterio' /* M-594 */];
 const casaJogadores = (quem, dono, p) => quem === 'todos' || (quem === 'voce' ? p === dono : quem === 'oponentes' ? p !== dono : false);
 function regrasDoJogador(s, p) {
   const out = [];
@@ -27491,6 +27493,7 @@ function regrasDoJogador(s, p) {
 const naoGanhaVida = (s, p) => regrasDoJogador(s, p).some(e => e.naoGanhaVida);
 const terrenosPorTurno = (s, p) => 1 + regrasDoJogador(s, p).reduce((n, e) => n + (e.terrenosExtras || 0), 0);
 const semLimiteDeMao = (s, p) => regrasDoJogador(s, p).some(e => e.semLimiteDeMao);
+const terrenosDoCemiterio = (s, p) => regrasDoJogador(s, p).some(e => e.terrenosDoCemiterio); // M-594 · "You may play lands from your graveyard" (Icetill Explorer, Crucible of Worlds)
 /** CR2d.10 · 119.7: todo ganho de vida passa por aqui; quem não pode ganhar vida não ganha (o evento que ganharia não acontece). */
 function ganhaVidaJogador(s, p, n) {
   if (!(n > 0) || !s.players[p] || naoGanhaVida(s, p)) return 0;
@@ -27808,7 +27811,8 @@ const HANDLERS = {
     // S61 · Cavernas das Runas: a carta exilada pode ser jogada de lá
     const exilada = s.objects[a.oid];
     const doExilio = jogavelDoExilio(s, a.p, exilada) && exilada.owner === a.p && !exilada.soConjurarM; // M-270 · M-566: "you may cast" não deixa jogar terreno
-    const o = doExilio ? exilada : owns(s, a.p, a.oid, 'hand');
+    const doCemiterio = !doExilio && !!exilada && exilada.zone === 'graveyard' && exilada.owner === a.p && s.facts[exilada.name].types.includes('land') && terrenosDoCemiterio(s, a.p); // M-594
+    const o = doExilio || doCemiterio ? exilada : owns(s, a.p, a.oid, 'hand');
     faceEscolhidaT(s, a, o); // T-8 · CR 712.12 · dupla face modal jogada como terreno: a face escolhida vai para cima antes da conferência de tipo
     if (!s.facts[o.name].types.includes('land')) throw new RuleError('tipo', 'não é terreno');
     if (s.turn.active !== a.p || (!a.granted && (!isMain(s) || s.stack.length))) throw new RuleError('tempo', 'terreno só na sua fase principal, com a pilha vazia'); // M-268 · por efeito: só no seu turno (305.2)
@@ -29056,6 +29060,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
       else reforcos(o).forEach(n => adicionais(o).forEach(v => casts(o).forEach(x => empurra({ ...x, ...v, ...(n ? { kick: n } : {}) }))));
     }
   }
+  if (canSorcery && s.players[p].landsPlayed < terrenos && terrenosDoCemiterio(s, p)) for (const oid of s.zones[p].graveyard) { const o = s.objects[oid]; if ((s.facts[o.name] || {}).types && s.facts[o.name].types.includes('land')) out.push({ t: 'play_land', p, oid }); } // M-594 · 305.1: o terreno do seu cemitério, usando a jogada do turno
   // S61 · Cavernas das Runas: as cartas exiladas que você pode jogar · M-566: também as de outro dono que você pode conjurar (Ragavan)
   for (const oid of s.zones[p].exile.concat(exilioDeOutrosM(s, p))) {
     const o = s.objects[oid]; if (!jogavelDoExilio(s, p, o)) continue; // M-270
@@ -37908,7 +37913,7 @@ function descreveEfeito(e) {
     case 'nao_desvira': return `${alvo || 'a criatura'} não desvira no próximo passo de desvirar de quem a controla`; // CR2g.6
     case 'combate_extra': return 'depois desta fase principal, um combate adicional e outra fase principal'; // CR2g.4
     case 'desvira_atacantes': return 'desvira as criaturas que atacaram neste turno';
-    case 'efeito_jogador': { const q = { voce: 'você', oponentes: 'cada oponente', todos: 'cada jogador' }[e.quem || 'voce']; const partes = []; if (e.naoGanhaVida) partes.push('não pode ganhar vida'); if (e.terrenosExtras) partes.push(`pode jogar ${e.terrenosExtras} terreno${e.terrenosExtras > 1 ? 's' : ''} a mais`); if (e.semLimiteDeMao) partes.push('não tem tamanho máximo de mão'); return e.emblema ? `${q === 'você' ? 'você ganha' : q + ' ganha'} um emblema: ${partes.join(' e ')}` : `${q} ${partes.join(' e ')} ${duracaoPT(e.ate)}`; } // M-553 · emblema (114.4) // CR2d.10
+    case 'efeito_jogador': { const q = { voce: 'você', oponentes: 'cada oponente', todos: 'cada jogador' }[e.quem || 'voce']; const partes = []; if (e.naoGanhaVida) partes.push('não pode ganhar vida'); if (e.terrenosExtras) partes.push(`pode jogar ${e.terrenosExtras} terreno${e.terrenosExtras > 1 ? 's' : ''} a mais`); if (e.semLimiteDeMao) partes.push('não tem tamanho máximo de mão'); if (e.terrenosDoCemiterio) partes.push('pode jogar terrenos do cemitério') /* M-594 */; return e.emblema ? `${q === 'você' ? 'você ganha' : q + ' ganha'} um emblema: ${partes.join(' e ')}` : `${q} ${partes.join(' e ')} ${duracaoPT(e.ate)}`; } // M-553 · emblema (114.4) // CR2d.10
     case 'ganhar_controle': return `ganha o controle de ${alvo || 'uma criatura'}${e.ate && e.ate !== 'sempre' ? ' ' + duracaoPT(e.ate) : ''}`; // M-272 · CR2d.6
     case 'copiar_esta': return `${e.seConjuradaDe === 'graveyard' ? 'se foi conjurada de um cemitério, ' : ''}pode copiar esta mágica (a cópia escolhe um alvo novo)`; // M-271
     case 'exilar_topo_conjuravel': return `exila as ${qtd(e.amount)} cartas de cima; as criaturas exiladas assim podem ser conjuradas do exílio enquanto você controlar um planeswalker ${e.enquantoControlar}`; // M-270

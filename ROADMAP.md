@@ -5665,6 +5665,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Conferido:** o leitor antes e depois sobre as cartas revisadas e os pendentes dos competitivos: nenhuma leitura já completa mudou.
 - **Teste:** `lt274.unit` (3 testes; falham no motor anterior).
 
+**M-594 · LT252 · Icetill Explorer: terreno a mais por turno e jogar terreno do cemitério** ✅ (leva M-594, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** Icetill Explorer (92 listas competitivas) passa a ser **lida por inteiro**. Texto da Scryfall de 25/10/2026 (`cobertura/resumo.json`). Joga no app depois da aprovação (homologacao).
+- **Regra:** "You may play an additional land on each of your turns" (305.2) e "You may play lands from your graveyard" (305.1: usa a jogada de terreno do turno, só na sua fase principal com a pilha vazia) viram regras de jogador (`regraJogador` com `terrenosExtras: 1` e o novo `terrenosDoCemiterio: true`, aceito pelo validador). A mesa oferece o terreno do cemitério como "Jogar terreno"; a pilha explicada diz "pode jogar terrenos do cemitério".
+- **Conferido:** o leitor antes e depois sobre as cartas revisadas e os pendentes dos competitivos: nenhuma leitura já completa mudou; nova lida só a Icetill Explorer.
+- **Teste:** `lt275.unit` (4 testes; falham no motor anterior).
+
 **M-584 · LT241 · Sentinela do Pauper: Nettle Sentinel (593 → 594 de 594 listas)** ✅ (leva M-584, motor v112 sem mudança de forma; goldens intactos)
 - **Valor:** a sentinela (`cobertura/pauper.json` de 26/10/2026 13:27 UTC) mostrava 593 de 594 listas Pauper a 100% no app, com uma carta `nova` (Nettle Sentinel, 1 lista). Aprovada, 594 de 594 na próxima coleta. Texto da API da Scryfall de 26/10/2026 (campo `texto` do relatório), gravado em `.listas/oficiais-revisadas.json`.
 - **Regra:** triagem A — o leitor `__m42` lê "Whenever you cast a/an <cor> spell" com uma cor só (gatilho `other-cast`, `filter.anyColors`; 105.2: multicolorida com verde conta); "doesn't untap during your untap step" (502.3, M-558) e o "you may" do gatilho (603.5, pergunta na resolução) já existiam. Núcleo intacto; numerada M-584 porque a M-583 está reservada pela conversa dos competitivos.
