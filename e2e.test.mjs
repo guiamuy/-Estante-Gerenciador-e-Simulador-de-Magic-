@@ -13192,6 +13192,70 @@ test('e2e · R-35 Painel · Glossário: a 15ª sub-aba lista os verbetes por gru
   assert.deepEqual(errors, []);
 });
 
+/* ---------- R-36 · painel didático, fatia 2: termos marcados com balão ---------- */
+test('e2e · R-36 Painel · termos marcados: os termos técnicos da sub-aba e da faixa têm cor própria e sublinhado pontilhado (uma vez por bloco, nunca dentro de botão); passar o mouse abre o balão com o que é e como ler, e tirar o mouse fecha; tocar abre e tocar fora fecha; Tab abre, Esc fecha e devolve o foco; o balão fica dentro da tela; "Ver no glossário" abre o verbete; o Glossário não marca nada; sem sobreposição nos dois temas', { timeout: 120000 }, async t => {
+  const { page, errors, base } = await open(t);
+  const painel = base.replace('index.html', 'painel.html');
+  await page.setViewportSize({ width: 360, height: 780 });
+  const json = (r, corpo) => r.fulfill({ json: corpo, headers: { 'content-type': 'application/json', 'x-ratelimit-remaining': '50', 'x-ratelimit-limit': '60', 'access-control-expose-headers': 'etag, x-ratelimit-remaining, x-ratelimit-limit' } });
+  await page.route('https://api.github.com/**', r => json(r, /commits\?sha=main/.test(r.request().url()) ? [{ sha: 'abc1234def0', commit: { message: 'Leva R-36 · x', committer: { date: new Date().toISOString() } } }] : /\/runs/.test(r.request().url()) ? { workflow_runs: [], total_count: 0 } : []));
+  await page.route('https://raw.githubusercontent.com/**', r => r.fulfill({ body: '', headers: { 'content-type': 'text/plain', 'access-control-allow-origin': '*' } }));
+  await page.addInitScript(() => {
+    const jwt = email => 'h.' + btoa(JSON.stringify({ email })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') + '.s';
+    window.__PAINEL_FETCH = async (url) => new Response(JSON.stringify(url.includes('securetoken') ? { user_id: 'uidE2E', id_token: jwt('gui.amuy@gmail.com'), refresh_token: 'ref-e2e', expires_in: '3600' } : { localId: 'uidE2E', idToken: jwt('gui.amuy@gmail.com'), refreshToken: 'ref-e2e', expiresIn: '3600', email: 'gui.amuy@gmail.com' }), { status: 200, headers: { 'content-type': 'application/json' } });
+    window.__PAINEL_GOOGLE = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }), revoke: (tk, cb) => cb && cb() } } };
+  });
+  await page.goto(painel + '#pipeline'); await page.waitForSelector('#pn-entrar'); await page.click('#pn-entrar');
+  await page.waitForFunction(() => { const f = document.querySelector('#pn-faixa'); return f && !f.querySelector('.ds-spinner') && document.querySelector('#pn-main') && document.querySelector('.pn-cartao'); });
+  // marcados: a faixa ("main") e os cartões da Pipeline (fila, recusadas, rodada); nunca dentro de botão ou chip; uma vez por bloco
+  const marca = await page.evaluate(() => {
+    const ds = [...document.querySelectorAll('dfn.pn-termo')];
+    const porBloco = new Map(); for (const d of ds) { const b = d.closest('.pn-cartao, .pn-barras, .ds-note, .ds-empty, .pn-faixa__item, .pn-linha, li') || d.closest('section, p, h2, h3'); if (!porBloco.has(b)) porBloco.set(b, {}); const m = porBloco.get(b); m[d.dataset.termo] = (m[d.dataset.termo] || 0) + 1; }
+    const um = ds[0]; const c = um ? getComputedStyle(um) : null, texto = um ? getComputedStyle(um.parentElement).color : null;
+    const soltoEmFlex = ds.filter(d => /flex|grid/.test(getComputedStyle(d.parentElement).display)).length;   // num pai flex/grid o termo quebraria a frase em itens
+    return { soltoEmFlex, termos: [...new Set(ds.map(d => d.dataset.termo))], dentroDeControle: ds.filter(d => d.closest('button, a, .ds-chip, .ds-tab')).length, repetidos: [...porBloco.values()].reduce((n, m) => n + Object.values(m).filter(x => x > 1).length, 0),
+      cor: c && c.color, corTexto: texto, sublinhado: c && c.textDecorationLine, estilo: c && c.textDecorationStyle, foco: um && um.tabIndex };
+  });
+  for (const id of ['main', 'fila', 'recusada', 'rodada']) assert.ok(marca.termos.includes(id), `termo "${id}" marcado: ${marca.termos.join(', ')}`);
+  assert.equal(marca.dentroDeControle, 0, 'nada marcado dentro de botão, link, chip ou aba');
+  assert.equal(marca.repetidos, 0, 'o mesmo termo só uma vez por bloco');
+  assert.equal(marca.soltoEmFlex, 0, 'termo nunca é item solto de um pai flex ou grid (a frase quebraria em linhas: "sem dados neste / recorte")');
+  assert.notEqual(marca.cor, marca.corTexto, 'o termo tem cor própria'); assert.match(marca.sublinhado, /underline/); assert.equal(marca.estilo, 'dotted'); assert.equal(marca.foco, 0, 'alcançável pelo teclado');
+  await auditaTela(page, 'pipeline com termos');
+  // mouse: passar por cima abre; tirar fecha
+  const termoMain = page.locator('#pn-faixa dfn.pn-termo[data-termo="main"]');
+  await termoMain.hover(); await page.waitForSelector('#pn-balao');
+  assert.equal(await page.getAttribute('#pn-balao', 'data-termo'), 'main');
+  assert.match(await page.innerText('#pn-balao'), /^main[\s\S]*versão oficial do código[\s\S]*Como ler:[\s\S]*Ver no glossário/);
+  const dentro = await page.evaluate(() => { const r = document.querySelector('#pn-balao').getBoundingClientRect(), w = document.documentElement.clientWidth; return r.left >= 16 - 0.5 && r.right <= w - 16 + 0.5 && r.top >= 0 && r.bottom <= innerHeight; });
+  assert.ok(dentro, 'o balão fica dentro da tela, com 16 px de margem');
+  const cobre = await page.evaluate(() => { const a = document.querySelector('#pn-faixa dfn[data-termo="main"]').getBoundingClientRect(), b = document.querySelector('#pn-balao').getBoundingClientRect(); return !(b.bottom <= a.top || b.top >= a.bottom || b.right <= a.left || b.left >= a.right); });
+  assert.equal(cobre, false, 'o balão não cobre o termo');
+  await auditaTela(page, 'balão aberto');
+  await page.mouse.move(5, 770); await page.waitForSelector('#pn-balao', { state: 'detached' });
+  // toque: tocar abre e tocar fora fecha (no celular não há "passar o mouse")
+  const termoFila = page.locator('.pn-cartao dfn.pn-termo[data-termo="fila"]').first();
+  await termoFila.dispatchEvent('click'); await page.waitForSelector('#pn-balao');
+  assert.equal(await page.getAttribute('#pn-balao', 'data-termo'), 'fila');
+  assert.match(await page.innerText('#pn-balao'), /esteira de publicação/);
+  await page.mouse.click(180, 760); await page.waitForSelector('#pn-balao', { state: 'detached' });
+  // teclado: foco abre, Esc fecha e devolve o foco ao termo
+  await termoFila.focus(); await page.waitForSelector('#pn-balao');
+  await page.keyboard.press('Escape'); await page.waitForSelector('#pn-balao', { state: 'detached' });
+  assert.equal(await page.evaluate(() => document.activeElement && document.activeElement.dataset.termo), 'fila', 'Esc devolve o foco ao termo');
+  // "Ver no glossário" leva ao verbete, já filtrado
+  await termoFila.dispatchEvent('click'); await page.waitForSelector('#pn-balao-ver');
+  await page.click('#pn-balao-ver'); await page.waitForSelector('#pn-glossario');
+  assert.equal(await page.locator('#pn-glossario-busca').inputValue(), 'fila');
+  assert.equal(await page.locator('.pn-verbete').first().getAttribute('data-termo'), 'fila');
+  assert.equal(await page.locator('#pn-conteudo dfn.pn-termo').count(), 0, 'o Glossário não marca termos (lá o termo é o título)');
+  // de volta à Pipeline, nos dois temas e nas quatro medidas
+  await page.click('#pn-abas [role="tab"]:has-text("Pipeline")'); await page.waitForSelector('.pn-cartao dfn.pn-termo');
+  await emTodasAsMedidas(page, 'termos marcados');
+  if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.locator('.pn-cartao dfn.pn-termo[data-termo="fila"]').first().dispatchEvent('click'); await page.waitForSelector('#pn-balao'); await page.waitForTimeout(400); await page.screenshot({ path: process.env.SHOTS + '/r36-balao.png', fullPage: false }); }
+  assert.deepEqual(errors, []);
+});
+
 /* ---------- R-4 · BI1-2b · Pipeline + filtros em tudo (incremento 1) ---------- */
 test('e2e · R-4 Painel · Pipeline: fila agora com espera e recusas com motivo, rodada em curso, rodadas verdes e Pages; chips filtram tudo e vão para o endereço; toque numa barra filtra; recorte vazio diz "sem dados"; reabrir pelo endereço mantém o filtro; barra de filtros em até três linhas no 360; sem sobreposição nas quatro medidas e dois temas', { skip }, async t => {
   const { page, errors, base } = await open(t);

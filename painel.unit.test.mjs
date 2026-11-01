@@ -1062,3 +1062,25 @@ test('R-35 · a sub-aba Glossário não pede nada: carregar não faz pedido nem 
   const d = await app.VISOES.glossario.carrega(fonte, false);
   assert.deepEqual(chamadas, []); assert.equal(fonte.pedidos, 0); assert.deepEqual(app.VISOES.glossario.filtros, []); assert.ok(d.em);
 });
+
+test('R-36 · termos marcados: toda expressão marcável aponta para um verbete do glossário; a mais longa vence ("portão vermelho" antes de "portão"); palavra inteira, sem acento estragar o limite; grafia exata onde importa (main, CI); primeira ocorrência por bloco', () => {
+  const { modelo } = loadPainel();
+  const ids = new Set(modelo.GLOSSARIO.map(v => v.id));
+  for (const [exp, id] of modelo.MARCAVEIS) assert.ok(ids.has(id), `"${exp}" aponta para verbete que não existe: ${id}`);
+  const seg = (t, ja) => modelo.segmentosComTermos(t, ja);
+  const termos = s => (s || []).filter(p => p.termo).map(p => [p.texto, p.termo]);
+  assert.deepEqual(termos(seg('O portão vermelho voltou')), [['portão vermelho', 'portao-vermelho']], 'a expressão mais longa vence');
+  assert.deepEqual(termos(seg('3 levas na fila, portão verde')), [['levas', 'leva'], ['na fila', 'fila'], ['portão verde', 'portao-verde']]);
+  assert.equal(seg('levantou a guarda e saiu da filatelia'), null, 'só palavra inteira: "levantou" não é "leva", "filatelia" não é "fila", "guarda" solta não marca');
+  assert.equal(seg('portãozinho'), null, 'acento não quebra o limite da palavra');
+  assert.deepEqual(termos(seg('main: R-35 · há 2 h')), [['main', 'main']]);
+  assert.equal(seg('o domain principal'), null, 'main só como palavra');
+  assert.equal(seg('Main street'), null, 'main só em minúscula (é o nome do ramo)');
+  assert.deepEqual(termos(seg('minutos de Actions no CI')), [['Actions', 'ci']], 'um verbete por vez: CI e Actions são o mesmo e só o primeiro marca');
+  const ja = new Set();
+  assert.deepEqual(termos(seg('a fila andou', ja)), [['fila', 'fila']]);
+  assert.equal(seg('a fila parou', ja), null, 'no mesmo bloco, o termo só marca uma vez');
+  const pedacos = seg('Shark até o fim · pior jogada');
+  assert.equal(pedacos.map(p => p.texto).join(''), 'Shark até o fim · pior jogada', 'os pedaços remontam o texto inteiro');
+  assert.equal(seg(''), null); assert.equal(seg('   '), null);
+});

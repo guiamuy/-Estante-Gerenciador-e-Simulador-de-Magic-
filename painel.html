@@ -716,6 +716,21 @@ button.pn-barras__linha[aria-pressed="true"] { background: var(--accent-soft); }
 .pn-verbete__ler strong { font-weight: 600; color: var(--fg); }
 .pn-verbete__onde { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); margin-top: var(--space-1); }
 
+/* R-36 · termo técnico marcado: cor de destaque do DS e sublinhado pontilhado (lê como "tem explicação"); o balão é uma superfície
+   elevada, fixa, com no máximo 320 px, sobre o conteúdo (sobreposição declarada), e o botão "Ver no glossário" de 44 px */
+.pn-termo { font-style: normal; color: var(--accent-lo); text-decoration: underline dotted; text-decoration-thickness: 1px; text-underline-offset: 3px; cursor: help; border-radius: var(--radius-1); }
+:root[data-theme="dark"] .pn-termo { color: var(--accent); }
+.pn-termo[data-aberto="true"] { background: var(--accent-soft); }
+.pn-termo:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pn-balao { position: fixed; z-index: var(--z-overlay); padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-2); border: 1px solid var(--border-strong); box-shadow: var(--shadow-2); animation: pn-balao-entra var(--dur-2) var(--ease-out); }
+.pn-balao p { margin: 0; overflow-wrap: anywhere; }
+.pn-balao__termo { color: var(--fg); }
+.pn-balao__ler strong { font-weight: 600; color: var(--fg); }
+.pn-balao .ds-btn { align-self: flex-start; }
+@keyframes pn-balao-entra { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .pn-balao { animation: none; } }
+:root[data-movimento="reduzido"] .pn-balao { animation: none; }
+
 </style>
 </head>
 <body>
@@ -1742,6 +1757,49 @@ const __p2 = (function () {
     const soma = k => doze.reduce((n, l) => n + l[k], 0);
     return { doze, atual: por[mesAtual] || null, lancados: doze.filter(l => !l.vazio).length, pix: soma('pix'), kofi: soma('kofi'), doacoes: soma('doacoes'), custo: soma('custo'), saldo: soma('saldo') };
   }
+  /* ---------- R-36 · termos marcados (puro): o que no texto do painel vira termo com balão, e em que verbete cai ---------- */
+  /** Expressões curadas → verbete. A mais longa vence ("portão vermelho" antes de "portão"); `cs` = só com essa grafia (main, Pages, CI).
+      Fora de propósito: palavras comuns com outro sentido no painel ("verde", "fonte", "lista", "plano") não se marcam soltas. */
+  const MARCAVEIS = [
+    ['(?:portão|portões) vermelhos?', 'portao-vermelho'], ['(?:portão|portões) verdes?', 'portao-verde'], ['portão|portões', 'portao'],
+    ['testes? instáve(?:l|is)', 'instavel'], ['instáve(?:l|is)', 'instavel'],
+    ['fase rápida', 'fase-rapida'], ['testes? de tela', 'fase-tela'], ['fase de tela', 'fase-tela'], ['e2e', 'fase-tela'],
+    ['partidas?-referência', 'golden'], ['goldens?', 'golden'], ['fuzz', 'fuzz'], ['contrato visual', 'contrato-visual'],
+    ['telas auditadas', 'sobreposicao'], ['auditaTela', 'sobreposicao'], ['quedas? de orçamento', 'orcamento'], ['orçamentos?', 'orcamento'], ['p95', 'p95'],
+    ['na fila', 'fila'], ['filas?', 'fila'], ['rodadas?', 'rodada'], ['levas?', 'leva'], ['trilhas?', 'trilha'],
+    ['recusadas?', 'recusada'], ['guarda de agregação', 'guarda'], ['conflitos?', 'conflito'], ['rebase', 'conflito'],
+    ['main', 'main', 'cs'], ['sha', 'sha', 'cs'], ['commits?', 'sha'], ['Pages', 'pages', 'cs'], ['GitHub Actions', 'ci', 'cs'], ['Actions', 'ci', 'cs'], ['CI', 'ci', 'cs'],
+    ['ramos?', 'ramo'], ['index\\.html', 'index'], ['tokens? do GitHub', 'cota'], ['cota', 'cota'], ['API', 'cota', 'cs'],
+    ['motor', 'motor'], ['mapa de regras', 'regra'], ['regras cobertas', 'regra'], ['scripts?', 'script'], ['leitor', 'leitor'],
+    ['listas que jogam', 'cobertura'], ['cobertura', 'cobertura'], ['prova de partida', 'prova'], ['placar(?:es)?', 'prova'],
+    ['Shark', 'shark', 'cs'], ['contra o campo', 'forca'], ['jogadas? ilega(?:l|is)', 'ilegal'], ['ilega(?:l|is)', 'ilegal'],
+    ['catálogo', 'catalogo'], ['coleta', 'catalogo'], ['arquétipos?', 'lista'], ['scanner', 'scanner'],
+    ['pendente de telemetria', 'pendente-telemetria'], ['telemetria', 'telemetria'], ['retrato', 'retrato'], ['raw', 'raw', 'cs'],
+    ['relatos?', 'relato'], ['opt-in', 'opt-in'], ['medianas?', 'mediana'], ['Firebase', 'firebase', 'cs'], ['conta de serviço', 'conta-servico'],
+    ['faróis', 'farol'], ['farol', 'farol'], ['limiar(?:es)?', 'limiar'], ['recorte', 'recorte'], ['KPIs?', 'kpi', 'cs'],
+    ['skills?', 'skill'], ['rotinas?', 'rotina'], ['épicos?', 'epico'], ['ROADMAP', 'roadmap', 'cs'], ['design system', 'design-system'], ['DS-K', 'design-system', 'cs']
+  ];
+  const LETRA = '[\\p{L}\\p{N}_-]';
+  const PADROES = MARCAVEIS.map(([exp, id, cs]) => ({ id, re: new RegExp(`(?<!${LETRA})(?:${exp})(?!${LETRA})`, cs ? 'u' : 'iu') }));
+  /** Quebra um texto em pedaços [{ texto }, { texto, termo }]: marca a primeira ocorrência de cada verbete que ainda não está em `ja`
+      (o conjunto é do bloco — um cartão, uma nota — para o mesmo termo não aparecer colorido cinco vezes). Devolve null se nada marca. */
+  function segmentosComTermos(texto, ja = new Set()) {
+    const t = String(texto || ''); if (!t.trim()) return null;
+    const achados = [];
+    for (const { id, re } of PADROES) {
+      if (ja.has(id)) continue;
+      const m = re.exec(t); if (!m) continue;
+      achados.push({ ini: m.index, fim: m.index + m[0].length, id });
+    }
+    if (!achados.length) return null;
+    achados.sort((a, b) => a.ini - b.ini || (b.fim - b.ini) - (a.fim - a.ini));
+    const escolhidos = []; let ate = 0; const usados = new Set();
+    for (const a of achados) { if (a.ini < ate || usados.has(a.id)) continue; escolhidos.push(a); ate = a.fim; usados.add(a.id); }
+    const out = []; let pos = 0;
+    for (const a of escolhidos) { if (a.ini > pos) out.push({ texto: t.slice(pos, a.ini) }); out.push({ texto: t.slice(a.ini, a.fim), termo: a.id }); ja.add(a.id); pos = a.fim; }
+    if (pos < t.length) out.push({ texto: t.slice(pos) });
+    return out;
+  }
   const FONTES = {
     negocio: 'informado pelo dono no painel, uma vez por mês · banco /painel/<uid>/negocio/<AAAA-MM> (regra só para o uid e o e-mail do dono), com cópia neste aparelho',
     plano: 'informado pelo dono no painel · banco /painel/<uid>/plano (regra só para o uid e o e-mail do dono), com cópia neste aparelho',
@@ -1769,7 +1827,7 @@ const __p2 = (function () {
     coleta: 'raw · catalogo/coleta.json (saúde e contagens da última coleta; gravado pelo fluxo Catálogo)',
     indice: 'raw · catalogo/indice.json (só o cabeçalho: fontes, formatos, total, pendentes; lido uma vez por coleta e guardado por carimbo)'
   };
-  return { centavosDe, reaisDe, mesDe, rotuloDoMes, linhasDoNegocio, resumoDoNegocio, SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, linhasDosCommits, levasPorRodada, compactaCommits, MAIN_URL, intervalos, diasDoPeriodo, porSemana, parseRoadmap, resumoDoMapa, linhasDosPlacares, sharkPorVersao, minutosDasRodadas, serieDeTamanho, kb, cabecalhoDoIndice, resumoDoCatalogo, experienciaDasLevas, linhasDasRodadasCI, experienciaDasRodadas, instaveisPorNome, linhasDasPessoas, resumoDasPessoas, linhasDoUso, resumoDoUso, linhasDaForca, resumoDaForca, GLOSSARIO, GRUPOS_GLOSSARIO, buscaGlossario, nomeBate, verbeteDe, glossarioPorGrupo, semAcento, medidaDoScanner, linhasDosRelatos, linhasDasTrilhas, resumoDoFluxo, fraseDoCron, linhasDosFluxos, linhasDasRotinas, porModelo, SECOES_CR, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
+  return { centavosDe, reaisDe, mesDe, rotuloDoMes, linhasDoNegocio, resumoDoNegocio, SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, linhasDosCommits, levasPorRodada, compactaCommits, MAIN_URL, intervalos, diasDoPeriodo, porSemana, parseRoadmap, resumoDoMapa, linhasDosPlacares, sharkPorVersao, minutosDasRodadas, serieDeTamanho, kb, cabecalhoDoIndice, resumoDoCatalogo, experienciaDasLevas, linhasDasRodadasCI, experienciaDasRodadas, instaveisPorNome, linhasDasPessoas, resumoDasPessoas, linhasDoUso, resumoDoUso, linhasDaForca, resumoDaForca, GLOSSARIO, GRUPOS_GLOSSARIO, buscaGlossario, nomeBate, verbeteDe, MARCAVEIS, segmentosComTermos, glossarioPorGrupo, semAcento, medidaDoScanner, linhasDosRelatos, linhasDasTrilhas, resumoDoFluxo, fraseDoCron, linhasDosFluxos, linhasDasRotinas, porModelo, SECOES_CR, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
 })();
 
 /* ==== src/painel/ui.js ==== */
@@ -2891,11 +2949,82 @@ const __p4 = (function () {
         rodape()
       ];
     }
+
+    /* ---------- R-36 · termos marcados e o balão: a primeira ocorrência de cada termo por bloco ganha cor do DS e sublinhado
+       pontilhado; passar o mouse, tocar ou focar abre um balão com o que é, como ler e "Ver no glossário" ---------- */
+    const FORA_DA_MARCA = 'button, a, input, select, textarea, label, .ds-chip, .ds-tab, dfn, svg, .pn-glossario, #pn-balao, [aria-hidden="true"], .pn-farol';
+    // o bloco é o cartão, o gráfico, a nota ou a linha inteira (o termo marca uma vez ali); fora deles, o parágrafo ou o título
+    const BLOCO_DA_MARCA = '.pn-cartao, .pn-barras, .ds-note, .ds-empty, .pn-faixa__item, .pn-linha, li', BLOCO_SOLTO = 'section, p, h2, h3';
+    function marcaTermos(raizMarca) {
+      if (!raizMarca || typeof document === 'undefined' || !document.createTreeWalker) return 0;
+      const nos = []; const w = document.createTreeWalker(raizMarca, NodeFilter.SHOW_TEXT, { acceptNode: n => (n.nodeValue && n.nodeValue.trim() && !(n.parentElement && n.parentElement.closest(FORA_DA_MARCA))) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT });
+      while (w.nextNode()) nos.push(w.currentNode);
+      const porBloco = new Map(); let n = 0;
+      for (const no of nos) {
+        const pai = no.parentElement; const bloco = (pai && (pai.closest(BLOCO_DA_MARCA) || pai.closest(BLOCO_SOLTO))) || raizMarca;
+        if (!porBloco.has(bloco)) porBloco.set(bloco, new Set());
+        const seg = M.segmentosComTermos(no.nodeValue, porBloco.get(bloco)); if (!seg) continue;
+        const frag = document.createDocumentFragment();
+        for (const p of seg) {
+          const v = p.termo ? M.verbeteDe(p.termo) : null;
+          if (!v) { frag.appendChild(document.createTextNode(p.texto)); continue; }
+          frag.appendChild(h('dfn', { class: 'pn-termo', tabindex: '0', dataset: { termo: v.id } }, p.texto)); n++;
+        }
+        // num pai flex ou grid, cada pedaço viraria um item próprio e a frase quebraria em linhas ("sem dados neste / recorte");
+        // embrulhados num span, os pedaços continuam um item só, como o texto era
+        const disp = pai && typeof getComputedStyle === 'function' ? getComputedStyle(pai).display : '';
+        no.parentNode.replaceChild(/flex|grid/.test(disp) ? h('span', { class: 'pn-termos' }, frag) : frag, no);
+      }
+      return n;
+    }
+    const balao = { el: null, dono: null, abreT: 0, fechaT: 0 };
+    function fechaBalao({ devolveFoco = false } = {}) {
+      clearTimeout(balao.abreT); clearTimeout(balao.fechaT);
+      if (balao.el) balao.el.remove();
+      const dono = balao.dono; balao.el = null; balao.dono = null;
+      if (dono) { dono.removeAttribute('data-aberto'); dono.removeAttribute('aria-describedby'); if (devolveFoco && dono.isConnected) dono.focus(); }
+    }
+    function abreBalao(dfn) {
+      const v = M.verbeteDe(dfn.dataset.termo); if (!v) return;
+      if (balao.dono === dfn && balao.el) return;
+      fechaBalao();
+      const ver = Button('Ver no glossário', { variant: 'ghost', icone: 'livro', id: 'pn-balao-ver', onClick: () => { const t = v.termo; fechaBalao(); abre('glossario', { termo: t }); } });
+      const el = h('div', { class: 'ds-surface ds-surface--raised pn-balao', id: 'pn-balao', role: 'dialog', 'aria-modal': 'false', 'aria-label': v.termo, dataset: { termo: v.id, sobrepoe: 'true' } },
+        h('p', { class: 'pn-balao__termo ds-text ds-text--lg ds-text--display' }, v.termo),
+        h('p', { class: 'pn-balao__def ds-text ds-text--sm', id: 'pn-balao-def' }, v.def),
+        h('p', { class: 'pn-balao__ler ds-text ds-text--sm ds-text--muted' }, h('strong', {}, 'Como ler: '), v.ler),
+        ver);
+      el.addEventListener('pointerenter', () => clearTimeout(balao.fechaT));
+      el.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') balao.fechaT = setTimeout(fechaBalao, 220); });
+      document.body.appendChild(el); balao.el = el; balao.dono = dfn; dfn.setAttribute('data-aberto', 'true'); dfn.setAttribute('aria-describedby', 'pn-balao-def');
+      // embaixo do termo; se não couber, em cima; nunca fora da tela (16 px de margem) nem por cima do termo tocado
+      const r = dfn.getBoundingClientRect(), vw = document.documentElement.clientWidth, vh = window.innerHeight, m = 16;
+      const larg = Math.min(320, vw - 2 * m); el.style.width = larg + 'px';
+      const alt = el.getBoundingClientRect().height;
+      const esq = Math.min(Math.max(m, r.left + r.width / 2 - larg / 2), vw - m - larg);
+      const embaixo = r.bottom + 8 + alt <= vh - m || r.top - 8 - alt < m;
+      el.style.left = esq + 'px'; el.style.top = Math.max(m, embaixo ? r.bottom + 8 : r.top - 8 - alt) + 'px';
+      el.dataset.lado = embaixo ? 'embaixo' : 'em-cima';
+    }
+    if (typeof document !== 'undefined' && document.addEventListener) {
+      const alvo = e => e.target && e.target.closest ? e.target.closest('dfn.pn-termo') : null;
+      document.addEventListener('pointerover', e => { const d = alvo(e); if (!d || e.pointerType !== 'mouse') return; clearTimeout(balao.fechaT); clearTimeout(balao.abreT); balao.abreT = setTimeout(() => abreBalao(d), 140); });
+      document.addEventListener('pointerout', e => { const d = alvo(e); if (!d || e.pointerType !== 'mouse') return; clearTimeout(balao.abreT); balao.fechaT = setTimeout(fechaBalao, 220); });
+      // tocar abre (e mantém); fecha ao tocar fora, com Esc ou ao rolar
+      document.addEventListener('click', e => { const d = alvo(e); if (d) { e.preventDefault(); clearTimeout(balao.fechaT); abreBalao(d); return; } if (balao.el && !balao.el.contains(e.target)) fechaBalao(); });
+      document.addEventListener('focusin', e => { const d = alvo(e); if (d) { abreBalao(d); return; } if (balao.el && !balao.el.contains(e.target)) fechaBalao(); });
+      document.addEventListener('keydown', e => { if (e.key === 'Escape' && balao.el) { e.preventDefault(); fechaBalao({ devolveFoco: true }); } else if ((e.key === 'Enter' || e.key === ' ') && alvo(e)) { e.preventDefault(); abreBalao(alvo(e)); const b = document.getElementById('pn-balao-ver'); if (b) b.focus(); } });
+      window.addEventListener('scroll', () => { if (balao.el) fechaBalao(); }, { passive: true });
+      window.addEventListener('resize', () => { if (balao.el) fechaBalao(); });
+    }
     function desenha() {
+      fechaBalao();
       clear(raiz); if (est.sessao) raiz.append(...telaPainel()); else raiz.append(telaEntrar());
       // R-35 · cada redesenho recria a faixa de abas com a rolagem no começo: centraliza a aba ativa (com 15 abas, a do fim ficava fora da vista)
       const abas = raiz.querySelector('#pn-abas'), ativa = abas && abas.querySelector('[aria-selected="true"]');
       if (abas && ativa && abas.getBoundingClientRect) { const ra = abas.getBoundingClientRect(), rt = ativa.getBoundingClientRect(); abas.scrollLeft = Math.max(0, rt.left - ra.left - (ra.width - rt.width) / 2); }
+      // R-36 · termos técnicos marcados no que está à vista (o Glossário fica de fora: lá o termo já é o título)
+      if (est.sessao && est.aba !== 'glossario') { marcaTermos(raiz.querySelector('#pn-conteudo')); marcaTermos(raiz.querySelector('#pn-faixa')); }
     }
 
     desenha();
