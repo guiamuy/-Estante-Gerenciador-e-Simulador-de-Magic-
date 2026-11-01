@@ -1,7 +1,7 @@
 {
  "versao": 1,
  "formato": "brawl",
- "geradoEm": "2026-10-31T13:05:30.964Z",
+ "geradoEm": "2026-11-01T13:53:30.398Z",
  "motor": 112,
  "fonte": "api.scryfall.com/cards/collection",
  "listas": 9,
@@ -11,8 +11,8 @@
  "lotesComFalha": 0,
  "porClasse": {
   "texto-mudou": 1,
-  "lida": 58,
-  "nova": 279,
+  "lida": 60,
+  "nova": 277,
   "parcial": 0,
   "sem-dados": 0
  },
@@ -1052,12 +1052,23 @@
   },
   {
    "name": "Crow of Dark Tidings",
-   "classe": "nova",
-   "nivel": "parcial",
-   "motivo": "parte do texto o motor não resolve",
+   "classe": "lida",
+   "nivel": "lida",
+   "motivo": "lida pelo motor, em revisão",
    "listas": 1,
    "gulosa": 9,
-   "texto": null
+   "texto": {
+    "mana_cost": "{2}{B}",
+    "type_line": "Creature — Zombie Bird",
+    "oracle_text": "Flying\nWhen this creature enters or dies, mill two cards. (Put the top two cards of your library into your graveyard.)",
+    "keywords": [
+     "Flying",
+     "Mill"
+    ],
+    "layout": "normal",
+    "power": "2",
+    "toughness": "1"
+   }
   },
   {
    "name": "Crush Dissent",
@@ -3105,12 +3116,22 @@
   },
   {
    "name": "Stitcher's Supplier",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "texto que o motor não resolve",
+   "classe": "lida",
+   "nivel": "lida",
+   "motivo": "lida pelo motor, em revisão",
    "listas": 1,
    "gulosa": 9,
-   "texto": null
+   "texto": {
+    "mana_cost": "{B}",
+    "type_line": "Creature — Zombie",
+    "oracle_text": "When this creature enters or dies, mill three cards. (Put the top three cards of your library into your graveyard.)",
+    "keywords": [
+     "Mill"
+    ],
+    "layout": "normal",
+    "power": "1",
+    "toughness": "1"
+   }
   },
   {
    "name": "Sulfurous Mire",

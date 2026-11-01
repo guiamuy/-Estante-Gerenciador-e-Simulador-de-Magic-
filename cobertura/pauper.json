@@ -1,98 +1,52 @@
 {
  "versao": 1,
  "formato": "pauper",
- "geradoEm": "2026-10-31T13:00:23.620Z",
+ "geradoEm": "2026-11-01T13:47:31.035Z",
  "motor": 112,
  "fonte": "api.scryfall.com/cards/collection",
- "listas": 620,
- "listas100": 616,
- "cartasPendentes": 4,
+ "listas": 628,
+ "listas100": 627,
+ "cartasPendentes": 1,
  "parcial": false,
  "lotesComFalha": 0,
  "porClasse": {
   "texto-mudou": 0,
-  "lida": 2,
-  "nova": 2,
+  "lida": 1,
+  "nova": 0,
   "parcial": 0,
   "sem-dados": 0
  },
- "novasDesdeAnterior": [],
- "resolvidasDesdeAnterior": [],
+ "novasDesdeAnterior": [
+  "Dreams of Laguna"
+ ],
+ "resolvidasDesdeAnterior": [
+  "Angelsong",
+  "Colossal Dreadmask",
+  "Tectonic Hazard",
+  "Unstable Experiment"
+ ],
  "curva": [
   {
-   "listas": 617,
+   "listas": 628,
    "cartas": 1
-  },
-  {
-   "listas": 620,
-   "cartas": 4
   }
  ],
  "textos": null,
  "pendentes": [
   {
-   "name": "Angelsong",
+   "name": "Dreams of Laguna",
    "classe": "lida",
    "nivel": "lida",
    "motivo": "lida pelo motor, em revisão",
-   "listas": 1,
-   "gulosa": 4,
-   "texto": {
-    "mana_cost": "{1}{W}",
-    "type_line": "Instant",
-    "oracle_text": "Prevent all combat damage that would be dealt this turn.\nCycling {2} ({2}, Discard this card: Draw a card.)",
-    "keywords": [
-     "Cycling"
-    ],
-    "layout": "normal"
-   }
-  },
-  {
-   "name": "Colossal Dreadmask",
-   "classe": "lida",
-   "nivel": "lida",
-   "motivo": "lida pelo motor, em revisão",
-   "listas": 1,
-   "gulosa": 3,
-   "texto": {
-    "mana_cost": "{4}{G}{G}",
-    "type_line": "Artifact — Equipment",
-    "oracle_text": "Living weapon (When this Equipment enters, create a 0/0 black Phyrexian Germ creature token, then attach this to it.)\nEquipped creature gets +6/+6 and has trample.\nEquip {3}{G}{G}",
-    "keywords": [
-     "Equip",
-     "Living weapon"
-    ],
-    "layout": "normal"
-   }
-  },
-  {
-   "name": "Tectonic Hazard",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "mágica sem script",
-   "listas": 1,
-   "gulosa": 2,
-   "texto": {
-    "mana_cost": "{R}",
-    "type_line": "Sorcery",
-    "oracle_text": "Tectonic Hazard deals 1 damage to each opponent and each creature they control.",
-    "keywords": [],
-    "layout": "normal"
-   }
-  },
-  {
-   "name": "Unstable Experiment",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "mágica sem script",
    "listas": 1,
    "gulosa": 1,
    "texto": {
     "mana_cost": "{1}{U}",
     "type_line": "Instant",
-    "oracle_text": "Target player draws a card, then up to one target creature you control connives. (Draw a card, then discard a card. If you discarded a nonland card, put a +1/+1 counter on that creature.)",
+    "oracle_text": "Surveil 1, then draw a card. (To surveil 1, look at the top card of your library. You may put it into your graveyard.)\nFlashback {3}{U} (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
     "keywords": [
-     "Connive"
+     "Surveil",
+     "Flashback"
     ],
     "layout": "normal"
    }
@@ -100,31 +54,10 @@
  ],
  "listasIncompletas": [
   {
-   "id": "topdeck-lyonpauper-jeudi-29-octobre-2026-4",
-   "nome": "Dimir Baleful Strix",
+   "id": "mtgo-pauper-challenge-16-2026-10-3112857391-4",
+   "nome": "Izzet Galvanic Discharge",
    "faltam": [
-    "Unstable Experiment"
-   ]
-  },
-  {
-   "id": "topdeck-lyonpauper-jeudi-29-octobre-2026-7",
-   "nome": "Gruul Burning-Tree Emissary",
-   "faltam": [
-    "Tectonic Hazard"
-   ]
-  },
-  {
-   "id": "topdeck-lyonpauper-jeudi-29-octobre-2026-5",
-   "nome": "Gruul Eldrazi Repurposer",
-   "faltam": [
-    "Colossal Dreadmask"
-   ]
-  },
-  {
-   "id": "mtgo-pauper-league-2026-10-2711153-3",
-   "nome": "Jeskai Skred",
-   "faltam": [
-    "Angelsong"
+    "Dreams of Laguna"
    ]
   }
  ]
