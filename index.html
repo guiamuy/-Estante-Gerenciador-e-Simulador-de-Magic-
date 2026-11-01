@@ -12166,6 +12166,7 @@ function monarcaErrosT(sc) {
   if (sc && sc.self && sc.self.soEmCombate != null && sc.self.soEmCombate !== true) errs.push('self.soEmCombate só vale como true');
   if (sc && sc.self && sc.self.travaAtivadasDeArtefato != null && !['todos', 'oponentes'].includes(sc.self.travaAtivadasDeArtefato)) errs.push("self.travaAtivadasDeArtefato é 'todos' ou 'oponentes'"); // M-589 · 602.5
   if (sc && sc.self && sc.self.magiasNaoAnulaveis != null && sc.self.magiasNaoAnulaveis !== true) errs.push('self.magiasNaoAnulaveis só vale como true'); // M-596
+  if (sc && sc.self && sc.self.terrenosK != null && !(sc.self.terrenosK && sc.self.terrenosK.quais === 'nao-basicos' && ['Plains', 'Island', 'Swamp', 'Mountain', 'Forest'].includes(sc.self.terrenosK.subtipo) && Object.keys(sc.self.terrenosK).every(k => ['quais', 'subtipo'].includes(k)))) errs.push("self.terrenosK: { quais: 'nao-basicos', subtipo: um tipo básico de terreno } (K-87 · 305.7)");
   if (sc && sc.self && sc.self.naoAnulavel != null && sc.self.naoAnulavel !== true) errs.push('self.naoAnulavel só vale como true'); // M-579 // T-92 · "Cast this spell only during combat"
   for (const ab of ((sc && sc.abilities) || [])) if (ab && ab.soNoSeuTurno != null && (ab.soNoSeuTurno !== true || ab.kind !== 'activated')) errs.push('soNoSeuTurno só vale como true, numa habilidade ativada'); // T-92 · "Activate only during your turn"
   if (sc && sc.self && sc.self.radGanhaVida != null && sc.self.radGanhaVida !== true) errs.push('self.radGanhaVida só vale como true'); // T-91 · CR 728.1a
@@ -21506,6 +21507,7 @@ const __m42 = (function () {
         if (per) { topo.reduzPor = { generic: +rp[1], per }; frases.push({ texto: linha, lida: true }); continue; } }
       if (kc0) { Object.assign(topo, kc0); frases.push({ texto: linha, lida: true }); continue; }
       { const ma = /^activated abilities of artifacts( your opponents control)? can't be activated$/i.exec(linha.replace(/\.$/, '')); if (ma) { topo.self = { ...(topo.self || {}), travaAtivadasDeArtefato: ma[1] ? 'oponentes' : 'todos' }; frases.push({ texto: linha, lida: true }); continue; } } // M-589 · 602.5 · Null Rod, Stony Silence, Karn, the Great Creator
+      { const nb = /^nonbasic lands are (Plains|Islands|Swamps|Mountains|Forests)$/i.exec(linha.replace(/\.$/, '')); if (nb && !magica) { const SUB = { plains: 'Plains', islands: 'Island', swamps: 'Swamp', mountains: 'Mountain', forests: 'Forest' }; topo.self = { ...(topo.self || {}), terrenosK: { quais: 'nao-basicos', subtipo: SUB[nb[1].toLowerCase()] } }; frases.push({ texto: linha, lida: true }); continue; } } // K-87 · 305.7 / 613.1d · Blood Moon, Magus of the Moon, Harbinger of the Seas
       if (/^(?:this spell|~) can't be countered$/i.test(linha.replace(/\.$/, ''))) { topo.self = { ...(topo.self || {}), naoAnulavel: true }; frases.push({ texto: linha, lida: true }); continue; } // M-579 · 701.6a: anular é tirar a mágica da pilha; "can't be countered" faz a anulação não acontecer (a mágica continua alvo legal) — Abrupt Decay, Supreme Verdict, Dovin's Veto, Carnage Tyrant
       if (!magica && gatModos) { const bp = linha.match(/^•\s*(.+)$/); // M-527 · os modos do gatilho modal
         if (bp) { const semNome = bp[1].replace(/^[A-Z][A-Za-z'’ ,-]{1,40} — (?=[A-Z])/, ''); const sub = [], e = leParagrafo(semNome, nome, sub); frases.push(...sub); if (e && e.length) gatModos.modes.push({ label: bp[1].replace(/\.$/, ''), effects: e }); else gatModos.falhou = true; continue; }
@@ -22026,6 +22028,7 @@ function redefinicoesDe(s, o) {
   const out = [];
   for (const x of attachedTo(s, o)) for (const e of continuosDaFonte(s, x)) if (e.afetados === 'anexada' && e.redefine) out.push({ ts: x.anexadaEm || 0, b: e.redefine });
   for (const v of o.vira || []) if (vigente(s, v)) out.push({ ts: v.ts || 0, b: v }); // CR2-G R6 · "torna" com duração
+  for (const k of redefinicoesDosTerrenosK(s, o)) out.push(k); // K-87 · 305.7 · "Nonbasic lands are Mountains", com o carimbo da fonte (Toca ponto comum: redefinicoesDe)
   for (const b of redefinicoesDaTrilhaT(s, o)) out.push({ ts: -1, b }); // T-43 · CR 702.151b · e a reconfigurada anexada deixa de ser criatura // T-37 · CR 721.2b · a faixa de estação alcançada torna a permanente criatura com o P/R dela (habilidade estática própria: carimbo de quando entrou) (Toca ponto comum: redefinicoesDe)
   return out.sort((x, y) => x.ts - y.ts);
 }
@@ -22033,19 +22036,20 @@ function redefinicoesDe(s, o) {
 const ORDEM_DOS_TIPOS = ['kindred', 'tribal', 'artifact', 'enchantment', 'land', 'creature', 'planeswalker', 'battle', 'instant', 'sorcery'];
 const ordenaTipos = ts => ts.slice().sort((a, b) => (ORDEM_DOS_TIPOS.indexOf(a) + 1 || 99) - (ORDEM_DOS_TIPOS.indexOf(b) + 1 || 99));
 function mutacao(s, o) {
-  if (!o || o.zone !== 'battlefield' || (!o.mutavel && !o.faceDown && !mutaPelaTrilhaT(s, o))) return null; // T-43 · e a reconfigurada anexada // T-37 · a nave com marcador de carga também (Toca ponto comum: mutacao) · atalho: só quem já recebeu uma Aura dessas, ou está virada para baixo (o cálculo é chamado a cada consulta de habilidade)
+  if (!o || o.zone !== 'battlefield' || (!o.mutavel && !o.faceDown && !mutaPelaTrilhaT(s, o) && !terrenoAfetadoK(s, o))) return null; // T-43 · e a reconfigurada anexada // T-37 · a nave com marcador de carga também (Toca ponto comum: mutacao) · atalho: só quem já recebeu uma Aura dessas, ou está virada para baixo (o cálculo é chamado a cada consulta de habilidade)
   // CR2d.2 · também "this land becomes a N/N <tipo> creature until end of turn. It's still a land" (o.vira, com carimbo próprio)
-  const efeitos = o.mutavel || mutaPelaTrilhaT(s, o) ? redefinicoesDe(s, o) : []; // T-37 · T-43
+  const efeitos = o.mutavel || mutaPelaTrilhaT(s, o) || terrenoAfetadoK(s, o) ? redefinicoesDe(s, o) : []; // T-37 · T-43 · K-87 · e o terreno sob "Nonbasic lands are Mountains" (Toca ponto comum: mutacao)
   if (!efeitos.length && !o.faceDown) return null;
   const f = s.facts[o.name], subImpressos = String(f.typeText || '').split('—')[1] ? String(f.typeText).split('—')[1].trim().split(/\s+/) : [];
   // CR2d.12 · 613.2b / 708.2: virada para baixo, a camada 1b dá uma criatura 2/2 sem subtipo; o que vem depois vale por cima
   let m = o.faceDown ? { types: ['creature'], subtypes: [], base: [2, 2], perde: false, corte: -1, keywords: [] }
     : { types: f.types, subtypes: subImpressos, base: null, perde: false, corte: -1, keywords: [] };
-  for (const { ts, b } of efeitos) {
+  for (const { ts, b } of efeitos) { const antK = m;
     m = { types: b.addTypes ? ordenaTipos([...new Set([...m.types, ...(b.types || [])])]) : (b.types || m.types),
       subtypes: b.addTypes ? [...new Set([...m.subtypes, ...(b.subtypes || [])])] : (b.subtypes || m.subtypes), base: b.base || m.base,
       perde: !!b.loseAbilities || m.perde, corte: b.loseAbilities ? ts : m.corte, keywords: [...(b.loseAbilities ? [] : m.keywords), ...(b.keywords || [])],
       subtiposDefinidos: (b.subtypes && !b.addTypes) || m.subtiposDefinidos, todosTiposK: b.todosOsTiposK ? true : (b.subtypes && !b.addTypes) ? false : m.todosTiposK }; // K-76 · 205.3m: "all creature types" com carimbo (o que redefine os subtipos depois vence, 613.7) // CR2d.12 · 613.3: redefinir os subtipos depois sobrepõe o metamorfo
+    if (b.trocaTerrenoK) { m.subtypes = [...antK.subtypes.filter(x => !TIPOS_DE_TERRENO_M.includes(x)), b.trocaTerrenoK]; m.types = ordenaTipos(m.types); m.intrinsecaK = true; } else if (antK.intrinsecaK && !b.loseAbilities) m.intrinsecaK = true; // K-87 · 305.7: troca só os subtipos de terreno (Dryad Arbor fica Dryad) e a mana intrínseca do subtipo básico vale apesar da perda das habilidades do texto
   }
   return m;
 }
@@ -22462,7 +22466,7 @@ const destinoLegado = (s, o, fromZone, to) => to === 'graveyard' && !(fromZone =
 function entraViradaPorEfeito(s, o) { o.tapped = true; if ((s.queuedChoices || []).length) s.queuedChoices = s.queuedChoices.filter(c => !(c.kind === 'paga_vida_entrada' && c.oid === o.oid)); }
 function entradaModificada(s, o, xPago) {
   const { entra } = substituicoesPara(s, o, null);
-  const ordem = entra.filter(e => !e.propria).concat(entra.filter(e => e.propria));
+  const ordem = entra.filter(e => !e.propria).concat(entra.filter(e => e.propria && !entraComoTerrenoAfetadoK(s, o))); // K-87 · 614.12: o terreno não básico que entra sob "Nonbasic lands are Mountains" não tem as próprias substituições de entrada (Toca ponto comum: entradaModificada)
   let virada, pagaVida = 0; const marcadores = {};
   for (const { r } of ordem) {
     if (r.virada === true) virada = true;
@@ -22995,6 +22999,7 @@ function productions(s, o, visto) {
   let opts = perde ? [] : spec.length ? spec.flatMap(x => expandProduction(s, o, x, visto)) : (s.facts[o.name].produces || []).flatMap(x => expandProduction(s, o, x, visto));
   if (!perde && o.ganhasK && (o.ganhasK.produz || []).length) opts = opts.concat(o.ganhasK.produz.flatMap(x => expandProduction(s, o, x, visto))); // K-85 · a habilidade de mana ganha ("This Saga gains '{T}: Add {C}.'")
   if (mu && !perde && tiposDe(s, o).includes('land')) { const imp = String(s.facts[o.name].typeText || '').split('—')[1] || ''; const BAS = { Plains: 'W', Island: 'U', Swamp: 'B', Mountain: 'R', Forest: 'G' }; for (const t of mu.subtypes) if (BAS[t] && !new RegExp('\\b' + t + '\\b').test(imp) && !opts.some(x => x.length === 1 && x[0] === BAS[t])) opts.push([BAS[t]]); } // M-388 · 305.6/305.7: o tipo básico ganho traz a habilidade de mana dele
+  if (mu && perde && mu.intrinsecaK && tiposDe(s, o).includes('land')) { const BAS = { Plains: 'W', Island: 'U', Swamp: 'B', Mountain: 'R', Forest: 'G' }; for (const t of mu.subtypes) if (BAS[t] && !opts.some(x => x.length === 1 && x[0] === BAS[t])) opts.push([BAS[t]]); } // K-87 · 305.6/305.7: sob "Nonbasic lands are Mountains", só a mana intrínseca do subtipo (Toca ponto comum: productions)
   // R9 · primeiro toda a produção concedida (Abundant Growth), depois o mana extra (Utopia Sprawl): ele vale
   // para qualquer mana que o terreno gere, não só para as opções que existiam quando a Aura entrou
   const anexos = attachedTo(s, o).filter(x => !perde || (x.anexadaEm || 0) > mu.corte).map(x => [x, grantsOf(s, x)]).filter(([, g]) => g);
@@ -29693,6 +29698,30 @@ function invariants(s, expectedObjects) {
 
 const EXPORTS_K = {}, EXPORTS_V = {}, EXPORTS_T = {}; // ↓ cada trilha preenche o seu (Object.assign) logo abaixo da sua âncora
 /* ↓ K · exportações de core.js da trilha keywords */
+/* K-87 · 305.7 / 613.1d · "Nonbasic lands are Mountains." (Blood Moon, Magus of the Moon, Harbinger of the Seas): `self.terrenosK =
+   { quais: 'nao-basicos', subtipo }`. Camada 4, com o carimbo da fonte: o terreno não básico perde os subtipos de terreno e ganha o
+   subtipo; perde as habilidades do texto e ganha a de mana intrínseca do subtipo básico (305.6). Fonte: permanente no campo, com a
+   face para cima e com as habilidades. O cálculo olha os tipos impressos (não chama `tiposDe`, que passa pela própria `mutacao`). */
+const TERRENOS_K_CACHE = new WeakMap();
+function temTerrenosK(s) { // atalho: só a partida que tem a carta paga a busca no campo
+  let tem = TERRENOS_K_CACHE.get(s.facts);
+  if (tem === undefined) { tem = Object.values(s.facts || {}).some(f => !!(f && f.script && f.script.self && f.script.self.terrenosK)); TERRENOS_K_CACHE.set(s.facts, tem); }
+  return tem;
+}
+function fontesDeTerrenosK(s) {
+  if (!temTerrenosK(s)) return SEM_CONTINUOS;
+  return battlefield(s).filter(x => { const sc = (s.facts[x.name] || {}).script; return !x.faceDown && sc && sc.self && sc.self.terrenosK && !(s.facts[x.name].types || []).includes('land') && !semImpressas(s, x); });
+}
+const terrenoNaoBasicoK = (s, o) => !!o && !o.faceDown && ((s.facts[o.name] || {}).types || []).includes('land') && !/\bBasic\b/.test(String((s.facts[o.name] || {}).typeText || '').split('—')[0]);
+/** As redefinições de camada 4 que valem para este terreno agora (com o carimbo de cada fonte). */
+function redefinicoesDosTerrenosK(s, o) {
+  if (!temTerrenosK(s) || !terrenoNaoBasicoK(s, o)) return SEM_CONTINUOS; // o atalho da partida sem a carta; depois, só terreno não básico (a fonte que não é terreno não entra aqui: sem laço com `semImpressas`)
+  const fs = fontesDeTerrenosK(s); if (!fs.length) return SEM_CONTINUOS;
+  return fs.filter(x => x.oid !== o.oid && s.facts[x.name].script.self.terrenosK.quais === 'nao-basicos').map(x => ({ ts: x.ts || 0, b: { subtypes: [s.facts[x.name].script.self.terrenosK.subtipo], trocaTerrenoK: s.facts[x.name].script.self.terrenosK.subtipo, loseAbilities: true } }));
+}
+const terrenoAfetadoK = (s, o) => redefinicoesDosTerrenosK(s, o).length > 0;
+/** 614.12 · na entrada, o terreno é visto como ficará no campo: as substituições impressas nele ("enters tapped", "you may pay 2 life") não valem. */
+const entraComoTerrenoAfetadoK = (s, o) => terrenoAfetadoK(s, o);
 /* K-1 · 702.73 metamorfo e 702.114 desprovido: habilidades que definem característica (604.3a), lidas da palavra-chave impressa
    (Scryfall `keywords`) ou da marca do script (sem rede); valem em toda zona, até fora da partida (702.73a, 702.114a). */
 const TIPOS_DE_CRIATURA_K = SC.TIPOS_DE_CRIATURA_SCK; // K-24 · a lista (205.3m) mora em scripts.js: a cobertura da proteção usa a mesma
