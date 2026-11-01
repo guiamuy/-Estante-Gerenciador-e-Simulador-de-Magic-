@@ -6482,8 +6482,8 @@ test('e2e · Leva 136 · Elves: Winding Way entrega as cartas sem pergunta e diz
   assert.equal(e.pend, null, 'nenhuma pergunta: a carta diz "all"');
   assert.equal(e.mao.length, antes.mao.length - 1 + criaturas.length, 'as criaturas reveladas foram para a mão');
   assert.equal(e.cemiterio.length, antes.cemiterio.length + 1 + (4 - criaturas.length), 'o resto e a própria carta no cemitério');
-  await page.waitForSelector('#ds-toast[data-open="true"]');
-  assert.equal(await page.innerText('#ds-toast'), `Winding Way revelou: ${topo.join(', ')}`, 'a mesa diz o que foi revelado');
+  await page.waitForSelector('#tb-aviso'); // J-30 · relato #37 · na partida o aviso mora na faixa de vez
+  assert.equal(await page.textContent('#tb-aviso'), `Winding Way revelou: ${topo.join(', ')}`, 'a mesa diz o que foi revelado');
   await auditaTela(page, 'Winding Way resolvida');
   // Lead the Stampede: o aviso diz o que pode ir para a mão
   await M.proximo(); await floresta136(M, e => e.campo.filter(x => x === 'Forest').length >= 3 && e.mao.includes('Lead the Stampede'));
@@ -14371,34 +14371,16 @@ test('e2e · MJ2 avisos fora do campo: na partida o aviso fica no alto, numa lin
       linha: tx.getBoundingClientRect().height, corta: tx.scrollWidth > tx.clientWidth + 1,
       mais: mais ? { h: R(mais).height, w: R(mais).width, nome: mais.getAttribute('aria-label'), texto: mais.textContent } : null };
   });
-  const alterna = async aberta => { if ((await page.getAttribute('#tb-hand-toggle', 'aria-expanded')) !== String(aberta)) await page.click('#tb-hand-toggle'); await page.waitForTimeout(450); };
-  for (const [w, hgt] of [[360, 780], [384, 832], [390, 844], [412, 891]]) for (const tema of ['dark', 'light']) for (const aberta of [false, true]) {
-    await page.setViewportSize({ width: w, height: hgt }); await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema);
-    await page.evaluate(() => __m3.fechaToast({ tudo: true })); await alterna(aberta);
-    for (const [k, texto] of [['curto', 'Desfeito'], ['longo', LONGO]]) {
-      await page.evaluate(x => __m3.toast(x, 8000), texto); await page.waitForTimeout(350);
-      const m = await mede(), nome = `${w}×${hgt} ${tema}, mão ${aberta ? 'aberta' : 'recolhida'}, aviso ${k}`;
-      assert.equal(m.cartas + m.mao + m.vida + m.chips, 0, `${nome}: o aviso não cobre carta, mão, vida nem contador ${JSON.stringify(m)}`);
-      assert.ok(m.y >= 0 && m.fim <= m.ladoOpp, `${nome}: o aviso fica acima do campo (${m.fim} ≤ ${m.ladoOpp})`);
-      assert.ok(m.h >= 44 && m.linha <= 24, `${nome}: faixa de 44 px com uma linha de texto (${m.h}, ${m.linha})`);
-      assert.ok(m.esq >= 0 && m.dir <= m.tela, `${nome}: dentro da tela`);
-      if (k === 'curto') assert.equal(m.mais, null, `${nome}: aviso que cabe não ganha botão`);
-      else { assert.ok(m.mais && m.mais.h >= 44 && m.mais.w >= 44 && m.mais.nome === 'Ler o aviso inteiro' && m.mais.texto === '', `${nome}: o texto que não cabe ganha o botão de 44 px, só ícone ${JSON.stringify(m.mais)}`); }
-      await auditaTela(page, `MJ2 · ${nome}`);
-    }
+  // J-30 · relato #37 · expectativa mudada com motivo: na partida o aviso sem botão deixou de ser a faixa por cima da linha
+  // de cima (cobria Sair, faixa de vez e ferramentas) e mora dentro da faixa de vez — o teste "J-30" mede isso (sem cobrir
+  // carta, vida, contador, mão nem controle; até duas linhas; inteiro nos detalhes). Aqui fica a garantia de sempre: o aviso
+  // flutuante não aparece por cima do campo, da mão nem da linha de cima.
+  for (const [w, hgt] of [[360, 780], [412, 891]]) {
+    await page.setViewportSize({ width: w, height: hgt });
+    await page.evaluate(x => __m3.toast(x, 8000), LONGO); await page.waitForSelector('#tb-aviso');
+    const m = await mede(); assert.equal(m.h, 0, `${w}×${hgt}: na partida o aviso flutuante não ocupa a tela ${JSON.stringify(m)}`);
+    await auditaTela(page, `MJ2 · ${w}×${hgt} aviso na faixa`);
   }
-  // ler tudo: um toque abre o aviso inteiro, o segundo fecha
-  await page.setViewportSize({ width: 360, height: 780 }); await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark')); await alterna(false);
-  // com o aviso à vista, o toque passa para as ferramentas da linha de cima (só o botão do aviso recebe toque)
-  await page.evaluate(x => __m3.toast(x, 8000), LONGO); await page.waitForSelector('#ds-toast .ds-toast__mais');
-  await page.click('#tb-log', { timeout: 3000 }); await page.waitForSelector('.ds-dialog'); await page.keyboard.press('Escape'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
-  await page.evaluate(x => __m3.toast(x, 8000), LONGO); await page.waitForSelector('#ds-toast .ds-toast__mais');
-  assert.equal(await page.innerText('#ds-toast'), LONGO, 'o texto do aviso continua inteiro para quem lê (o botão é só ícone)');
-  await page.click('#ds-toast .ds-toast__mais'); await page.waitForSelector('#ds-toast[data-inteiro="true"]');
-  const inteiro = await mede(); assert.equal(inteiro.corta, false, 'aberto, o aviso mostra o texto inteiro');
-  assert.equal(inteiro.mais.nome, 'Fechar o aviso'); assert.ok(inteiro.mais.h >= 44);
-  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/mj2-aviso-inteiro.png', clip: { x: 0, y: 0, width: 360, height: 220 } });
-  await page.click('#ds-toast .ds-toast__mais'); await page.waitForSelector('#ds-toast[data-open="false"]');
   // fora da partida: o aviso usa a largura da tela (antes ficava preso a metade: 180 px em 360)
   await page.goto(base + '#/listas'); await page.waitForFunction(() => document.body.dataset.mesaCheia !== 'true');
   await page.evaluate(x => __m3.toast(x, 8000), LONGO); await page.waitForTimeout(350);
@@ -14406,6 +14388,60 @@ test('e2e · MJ2 avisos fora do campo: na partida o aviso fica no alto, numa lin
     return { w: r.width, esq: r.left, dir: r.right, linhas: Math.round(tx.getBoundingClientRect().height / parseFloat(getComputedStyle(tx).lineHeight || '18')), mais: !!e.querySelector('.ds-toast__mais'), tela: innerWidth }; });
   assert.ok(fora.w > fora.tela * 0.8 && fora.esq >= 0 && fora.dir <= fora.tela, `fora da partida o aviso longo usa a largura da tela ${JSON.stringify(fora)}`);
   assert.ok(fora.linhas <= 3 && !fora.mais, `fora da partida o texto quebra em poucas linhas, sem botão ${JSON.stringify(fora)}`);
+  assert.deepEqual(errors, []);
+});
+
+// J-30 · relato #37 (impede o uso): o aviso de uma ação cobria Sair, a faixa de vez e as ferramentas da linha de cima enquanto
+// estava à vista (até 6 s no "revelou"), e o toque não chegava ao que estava por baixo. Na partida o aviso passa a morar
+// dentro da faixa de vez: a faixa mostra o aviso por alguns segundos (até duas linhas), nada mais da linha de cima é coberto,
+// e o toque na faixa abre os detalhes do turno com o aviso inteiro no topo. Aviso com botão de ação continua no aviso de sempre.
+test('e2e · J-30 aviso da partida dentro da faixa de vez: não cobre Sair nem ferramentas, o toque passa, texto longo em até duas linhas e inteiro nos detalhes; some sozinho', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start');
+  await page.fill('#mesa-seed', '4'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  await page.waitForSelector('#tb-pass');
+  const LONGO = 'Shark revelou: Lightning Bolt, Chain Lightning e Fireblast — o alvo é você e a sua criatura de 3/3';
+  const mede = () => page.evaluate(() => {
+    const R = e => e.getBoundingClientRect(), vis = e => !!e && e.offsetParent !== null && R(e).width > 0 && getComputedStyle(e).visibility !== 'hidden' && getComputedStyle(e).display !== 'none';
+    const ds = document.querySelector('#ds-toast'), av = document.querySelector('#tb-aviso'), vez = document.querySelector('#tb-vez');
+    // cada controle da linha de cima continua sendo o que está no ponto do meio dele (nada por cima)
+    const ctl = [...document.querySelectorAll('.tb-top > #tb-sair, .tb-top__actions button')].filter(vis);
+    const tapados = ctl.filter(b => { const r = R(b), x = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2); return !(x === b || b.contains(x)); }).map(b => b.id || b.getAttribute('aria-label'));
+    const tx = av && av.querySelector('.tb-vez__aviso-texto');
+    return { dsVisivel: vis(ds), aviso: vis(av) ? av.textContent : null, dentroDaFaixa: !!(av && vez && vez.contains(av)), alturaFaixa: R(vez).height, controles: ctl.length, tapados,
+      linhas: tx ? Math.round(R(tx).height / parseFloat(getComputedStyle(tx).lineHeight)) : 0, cabe: av ? R(av).right <= R(vez).right + 1 && R(av).left >= R(vez).left - 1 : null };
+  });
+  for (const [w, hgt] of [[360, 780], [412, 891]]) for (const tema of ['dark', 'light']) {
+    await page.setViewportSize({ width: w, height: hgt }); await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema);
+    const antes = await page.evaluate(() => document.querySelector('#tb-vez').getBoundingClientRect().height);
+    for (const [k, texto] of [['curto', 'Land Grant revelou: Forest'], ['longo', LONGO]]) {
+      await page.evaluate(x => __m3.toast(x, 6000), texto); await page.waitForSelector('#tb-aviso'); await page.waitForTimeout(350);
+      const m = await mede(), nome = `${w}×${hgt} ${tema}, aviso ${k}`;
+      assert.equal(m.dsVisivel, false, `${nome}: o aviso flutuante não aparece por cima da linha de cima`);
+      assert.equal(m.aviso, texto, `${nome}: o aviso está na faixa de vez`); assert.ok(m.dentroDaFaixa && m.cabe, `${nome}: dentro da faixa ${JSON.stringify(m)}`);
+      assert.deepEqual(m.tapados, [], `${nome}: Sair e ferramentas à vista e tocáveis ${JSON.stringify(m)}`); assert.ok(m.controles >= 3);
+      assert.ok(Math.abs(m.alturaFaixa - antes) <= 1, `${nome}: a faixa não muda de altura (${antes} → ${m.alturaFaixa})`);
+      assert.ok(m.linhas >= 1 && m.linhas <= 2, `${nome}: até duas linhas (${m.linhas})`);
+      await auditaTela(page, `J-30 · ${nome}`);
+    }
+  }
+  // com o aviso à vista, o toque chega às ferramentas (Registro abre) e a faixa abre os detalhes com o aviso inteiro no topo
+  await page.setViewportSize({ width: 360, height: 780 }); await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  await page.evaluate(x => __m3.toast(x, 8000), LONGO); await page.waitForSelector('#tb-aviso');
+  await page.click('#tb-log', { timeout: 3000 }); await page.waitForSelector('.ds-dialog'); await page.keyboard.press('Escape'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
+  await page.evaluate(x => __m3.toast(x, 8000), LONGO); await page.waitForSelector('#tb-aviso');
+  await page.click('#tb-vez-btn'); await page.waitForSelector('#tb-vez-pop:not([hidden]) #tb-vez-aviso');
+  assert.equal(await page.textContent('#tb-vez-aviso'), LONGO, 'nos detalhes do turno, o aviso inteiro');
+  await auditaTela(page, 'J-30 · detalhes do turno com o aviso');
+  await page.click('#tb-vez-fechar'); await page.waitForSelector('#tb-vez-pop', { state: 'hidden' });
+  // some sozinho no tempo do aviso
+  await page.evaluate(() => __m3.toast('Desfeito', 600)); await page.waitForSelector('#tb-aviso');
+  await page.waitForSelector('#tb-aviso', { state: 'detached', timeout: 3000 });
+  // aviso com botão de ação continua no aviso de sempre (o botão precisa de toque)
+  await page.evaluate(() => __m3.toast('Nova versão pronta', 4000, { acao: { rotulo: 'Atualizar', onClick: () => {} } }));
+  await page.waitForSelector('#ds-toast[data-open="true"] .ds-toast__acao'); assert.equal(await page.locator('#tb-aviso').count(), 0);
   assert.deepEqual(errors, []);
 });
 

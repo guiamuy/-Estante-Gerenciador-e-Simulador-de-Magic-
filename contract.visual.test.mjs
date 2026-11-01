@@ -281,7 +281,7 @@ test('D12 · todo componente visual exportado pelo DS aparece no catálogo /ds, 
   assert.ok(exportacao, 'linha de exportação do DS');
   const nomes = exportacao[0].replace(/^return \{|\};$/g, '').split(',').map(x => x.trim()).filter(Boolean);
   // o que não é visual (utilitários, símbolos de mana parseados, fechamento) fica fora da exigência
-  const NAO_VISUAL = new Set(['h', 'seguro', /* P-1 · monta HTML seguro, não desenha */ 'usaRelatar', /* Y1 · liga o item Relatar, não desenha */ 'clear', 'mount', 'closeDialog', 'fechaToast', 'reservaDoca', 'analisaSimbolos', 'SIMBOLO_RX', 'nomeDoSimbolo', 'simbolizar', 'srcsetDaCarta', 'ICONES', 'ImagemCarta',
+  const NAO_VISUAL = new Set(['h', 'seguro', /* P-1 · monta HTML seguro, não desenha */ 'usaRelatar', /* Y1 · liga o item Relatar, não desenha */ 'clear', 'mount', 'closeDialog', 'fechaToast', 'usaDestinoDoAviso', /* J-30 · liga o aviso da partida à faixa de vez, não desenha */ 'reservaDoca', 'analisaSimbolos', 'SIMBOLO_RX', 'nomeDoSimbolo', 'simbolizar', 'srcsetDaCarta', 'ICONES', 'ImagemCarta',
     'deveAncorar', 'instalaAncora', 'levaAte', 'levaSeEscondido', 'oQueEsconde', 'RECEITAS_DE_ANIMACAO' /* DS-K · dados das receitas; o catálogo as desenha em ds-receitas */]); // J1 · comportamento de rolagem, sem desenho próprio
   const i = html.indexOf('const Section = (title, ...kids)'); const j = html.indexOf('\n}\n', html.indexOf('function renderDS()')); const catalogo = html.slice(i, j); // o módulo do catálogo inteiro (Section usa Surface)
   const faltam = nomes.filter(n => !NAO_VISUAL.has(n)).filter(n => !new RegExp(`\\b${n}\\(`).test(catalogo) && !catalogo.includes(`${n}(`));

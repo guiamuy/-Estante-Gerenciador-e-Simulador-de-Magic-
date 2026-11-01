@@ -1417,6 +1417,24 @@ body[data-mesa-cheia="true"] .ds-toast[data-open="true"] { transform: none; }
 /* o aviso cobre a linha de cima só à vista: o toque passa para Sair, faixa de vez e ferramentas; só os botões do aviso
    (ler tudo, ação) recebem toque (antes do ajuste, um aviso com botão segurava o toque no Registro e na faixa) */
 body[data-mesa-cheia="true"] .ds-toast { pointer-events: none; }
+body[data-mesa-cheia="true"] .ds-toast[data-destino="mesa"] { display: none; } /* J-30 · o aviso está na faixa de vez */
+/* J-30 · relato #37 · o aviso da partida dentro da faixa de vez: cobre só a própria faixa (ébano, filete de latão à esquerda),
+   até duas linhas, e entrega o toque à faixa (que abre os detalhes com o aviso inteiro). Chega com um fade curto e sai igual;
+   menos movimento: aparece e some no lugar. */
+.tb-vez { position: relative; }
+.tb-vez__aviso { position: absolute; inset: 0; z-index: 1; display: flex; align-items: center; gap: var(--space-2); padding: 0 var(--space-3) 0 var(--space-4);
+  border-radius: inherit; background: var(--bg-elev-0); color: var(--fg); box-shadow: inset 3px 0 0 var(--accent), var(--shadow-1); pointer-events: none;
+  animation: tb-aviso-entra var(--dur-2) var(--ease-out) both; }
+.tb-vez__aviso[data-saindo="true"] { animation: tb-aviso-sai var(--dur-2) var(--ease-out) both; }
+body[data-mesa-cheia="true"] .tb > .tb-top > .tb-vez:has(> .tb-vez__aviso) { flex: 1 1 auto; } /* com o aviso, a faixa ocupa todo o vão entre o Sair e as ferramentas */
+.tb-vez:has(> .tb-vez__aviso:not([data-saindo="true"])) .tb-vez__btn > * { visibility: hidden; } /* o rótulo da vez cede o lugar ao aviso; o botão continua tocável */
+.tb-vez__aviso-texto { min-width: 0; font-size: var(--text-sm); line-height: var(--lh-sm); font-weight: var(--weight-medium);
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+@keyframes tb-aviso-entra { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@keyframes tb-aviso-sai { from { opacity: 1; } to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .tb-vez__aviso, .tb-vez__aviso[data-saindo="true"] { animation: none; } }
+.tb-vez-pop__aviso { margin: 0 0 var(--space-2); padding: var(--space-2) var(--space-3); border-radius: var(--radius-1); background: var(--bg-elev-0);
+  box-shadow: inset 3px 0 0 var(--accent); font-size: var(--text-sm); line-height: var(--lh-sm); overflow-wrap: anywhere; }
 body[data-mesa-cheia="true"] .ds-toast button { pointer-events: auto; }
 body[data-mesa-cheia="true"] .ds-toast:not([data-inteiro="true"]) .ds-toast__texto { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 body[data-mesa-cheia="true"] .ds-toast[data-inteiro="true"] { padding-top: var(--space-2); padding-bottom: var(--space-2); }
@@ -4359,7 +4377,7 @@ function Dialog({ title, body, actions }) {
   return dlg;
 }
 /** D1 · ao trocar de tela, o aviso da tela anterior some; aviso com ação (ex.: nova versão) fica. */
-function fechaToast({ tudo = false } = {}) { if (toastEl && toastEl.dataset.open === 'true' && (tudo || toastEl.dataset.acao !== 'true')) { toastEl.dataset.open = 'false'; clearTimeout(toastTimer); } }
+function fechaToast({ tudo = false } = {}) { if (toastEl && toastEl.dataset.open === 'true' && (tudo || toastEl.dataset.acao !== 'true')) { toastEl.dataset.open = 'false'; clearTimeout(toastTimer); if (toastEl.dataset.destino === 'mesa' && destinoDoAviso) destinoDoAviso(null, 0); } }
 /** DS-K F4.5 · "segue o dedo" (receita folha): puxar a folha para baixo pelo cabeçalho a leva junto com o dedo; soltar
     depois de um quarto da altura (no máximo 96 px) ou num gesto rápido para baixo fecha — e a saída parte de onde a
     folha está; soltar antes volta com a mola. Para cima ela quase não sai do lugar (resiste). Com menos movimento a
@@ -4414,6 +4432,11 @@ function closeDialog() {
 }
 
 let toastEl = null, toastTimer = null;
+/* J-30 · relato #37 · na partida, o aviso sem botão mora dentro da faixa de vez (a mesa registra o destino): a linha de
+   cima (Sair, faixa, ferramentas) nunca fica coberta. O aviso de sempre guarda o mesmo texto e o estado (data-open), sem
+   aparecer nem falar duas vezes (aria-hidden), para quem lê o estado do aviso. */
+let destinoDoAviso = null;
+function usaDestinoDoAviso(fn) { destinoDoAviso = fn; return () => { if (destinoDoAviso === fn) destinoDoAviso = null; }; }
 /** leva 123 · toda doca inferior (bandeja da mesa, botões do scanner, rodapé das trocas) reserva a própria altura em
     `--doca-h`, e o aviso flutuante sobe para ficar acima dela em vez de cobri-la. Vale enquanto a doca estiver na tela. */
 function reservaDoca(el) {
@@ -4434,7 +4457,10 @@ function toast(message, ms = 2400, { acao = null } = {}) {
     acao.icone ? Icone(acao.icone, { tamanho: 18 }) : null, h('span', {}, acao.rotulo)));
   toastEl.dataset.open = 'true'; toastEl.dataset.acao = String(!!acao); toastEl.dataset.inteiro = 'false'; toastEl.dataset.mais = 'false';
   clearTimeout(toastTimer);
+  const naFaixa = !acao && !!destinoDoAviso && typeof document !== 'undefined' && document.body.dataset.mesaCheia === 'true' && destinoDoAviso(message, ms) === true;
+  toastEl.dataset.destino = naFaixa ? 'mesa' : ''; if (naFaixa) toastEl.setAttribute('aria-hidden', 'true'); else toastEl.removeAttribute('aria-hidden');
   if (ms > 0) toastTimer = setTimeout(() => { toastEl.dataset.open = 'false'; }, ms);
+  if (naFaixa) return;
   // MJ2 (J-8) · na partida o aviso é uma linha só (por cima da linha de cima da mesa); o texto que não cabe ganha um botão
   // de ícone que abre o aviso inteiro (e depois fecha). Fora da partida o texto quebra e o botão nunca aparece.
   const vez = ++toastVez;
@@ -4467,7 +4493,7 @@ const RECEITAS_DE_ANIMACAO = Object.freeze([
   { id: 'comprar', nome: 'Comprar', evento: 'carta sai do grimório para a mão', dona: 'jogabilidade', plano: 'objeto: vira do verso para a face em 3D enquanto voa e cresce 35 % · sombra: cresce no meio do voo', luz: 'não', curva: '--ease-out', etapas: 'uma etapa (--dur-4); a compra do oponente voa de verso, sem virar (informação oculta)', reduzido: 'a carta aparece na mão' },
   { id: 'vida', nome: 'Vida', evento: 'o marcador de vida muda', dona: 'jogabilidade', plano: 'objeto: odômetro — dezena e unidade rolam separadas, na cor do dono', luz: 'não', curva: '--ease-spring', etapas: 'uma etapa (--dur-4); dano e cura usam o mesmo rolo, só o sentido muda', reduzido: 'o número troca' }
 ]);
-return { h, seguro, Text, Button, Field, Select, Chip, ManaPips, Tabs, CardFace, EsperaDaCarta, Dialog, closeDialog, toast, fechaToast, reservaDoca, Avatar, clear, mount, Stack, Row, Surface, Input, Textarea, Badge, List, ListItem, ListGroup, Empty, Note, Spinner, CardGrid,
+return { h, seguro, Text, Button, Field, Select, Chip, ManaPips, Tabs, CardFace, EsperaDaCarta, Dialog, closeDialog, toast, fechaToast, usaDestinoDoAviso, reservaDoca, Avatar, clear, mount, Stack, Row, Surface, Input, Textarea, Badge, List, ListItem, ListGroup, Empty, Note, Spinner, CardGrid,
   analisaSimbolos, SIMBOLO_RX, nomeDoSimbolo, Simbolo, ComSimbolos, simbolizar, srcsetDaCarta, ImagemCarta, ICONES, Icone, IconButton, Atalho, NavBotao, AvisoRede, AnelProgresso, Expansivel, Range, LinhaEstado, confirmaBotao, Dica, rotuloDeCampo, deveAncorar, instalaAncora, levaAte, levaSeEscondido, oQueEsconde, Carregando, Esqueleto, ArteDeEspera, Transicao, BotaoDeAcao, usaRelatar, Bandeira, Chave, RECEITAS_DE_ANIMACAO, Cabecalho };
 })();
 
@@ -39857,11 +39883,50 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   const escDaVez = e => { if (e.key === 'Escape') abreVez(false); };
   function abreVez(sim) {
     vezAberto = !!sim;
+    if (vezAberto) pintaAvisoNosDetalhes(); // J-30 · o aviso inteiro no topo dos detalhes
     if (vezPop) vezPop.hidden = !vezAberto;
     const btn = vezEl && vezEl.querySelector('.tb-vez__btn'); if (btn) btn.setAttribute('aria-expanded', String(vezAberto));
     document.removeEventListener('pointerdown', foraDaVez, true); document.removeEventListener('keydown', escDaVez);
     if (vezAberto) { document.addEventListener('pointerdown', foraDaVez, true); document.addEventListener('keydown', escDaVez); }
   }
+  /* J-30 · relato #37 · o aviso de uma ação mora dentro da faixa de vez, por cima só dela: Sair e ferramentas continuam à
+     vista e tocáveis. O toque passa para a faixa, que abre os detalhes com o aviso inteiro no topo (enquanto ele é recente). */
+  let avisoDaMesa = null, avisoEl = null, avisoTimer = null;
+  const AVISO_NOS_DETALHES_MS = 20000;
+  function pintaAviso() {
+    if (!vezEl) return;
+    const ativo = avisoDaMesa && avisoDaMesa.ate > Date.now();
+    if (!ativo) { if (avisoEl) avisoEl.remove(); avisoEl = null; return; }
+    if (!avisoEl || avisoEl.dataset.chave !== avisoDaMesa.chave) {
+      if (avisoEl) avisoEl.remove();
+      avisoEl = h('div', { class: 'tb-vez__aviso', id: 'tb-aviso', 'aria-hidden': 'true', dataset: { chave: avisoDaMesa.chave } },
+        h('span', { class: 'tb-vez__aviso-texto' }, avisoDaMesa.texto));
+    }
+    if (avisoEl.parentNode !== vezEl) vezEl.appendChild(avisoEl);
+  }
+  function avisoNaFaixa(texto, ms) {
+    clearTimeout(avisoTimer);
+    if (texto == null) { // o aviso foi fechado
+      if (avisoDaMesa) avisoDaMesa.ate = 0;
+      if (avisoEl) { const el = avisoEl; avisoEl = null; if (menosMovimento()) el.remove(); else { el.dataset.saindo = 'true'; setTimeout(() => el.remove(), durFx('--dur-2') + 40); } }
+      return true;
+    }
+    if (!root.isConnected) { soltaDestino(); return false; } // saiu da mesa: o aviso de sempre
+    if (!vezEl || !vezEl.isConnected) return false; // sem a faixa à vista (cortina, fim de jogo): o aviso de sempre
+    const dura = ms > 0 ? ms : 4000;
+    avisoDaMesa = { texto: String(texto), ate: Date.now() + dura, em: Date.now(), chave: String(Date.now()) + Math.random().toString(36).slice(2, 6) };
+    pintaAviso(); if (vezAberto) pintaAvisoNosDetalhes();
+    // o leitor de tela ouve o aviso pela faixa (role=status), uma vez
+    const fala = h('span', { class: 'ds-sr-only' }, String(texto)); vezEl.appendChild(fala); setTimeout(() => fala.remove(), 1500);
+    avisoTimer = setTimeout(() => avisoNaFaixa(null), dura);
+    return true;
+  }
+  function pintaAvisoNosDetalhes() {
+    if (!vezPop) return;
+    const velho = vezPop.querySelector('#tb-vez-aviso'); if (velho) velho.remove();
+    if (avisoDaMesa && Date.now() - avisoDaMesa.em < AVISO_NOS_DETALHES_MS) vezPop.prepend(h('p', { class: 'tb-vez-pop__aviso', id: 'tb-vez-aviso' }, avisoDaMesa.texto));
+  }
+  const soltaDestino = __m3.usaDestinoDoAviso(avisoNaFaixa);
   function vezBox(s, v, { anima = true } = {}) {
     const vz = T.vezDaMesa(s, v, { bot: table.options && table.options.bot ? table.options.bot.seat : null, serie: anima ? serie : null });
     const troca = anima && ultimoTurno !== null && vz.turno !== ultimoTurno;
@@ -39886,11 +39951,13 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       vezEl.replaceChildren(h('button', { class: 'tb-vez__btn', type: 'button', id: 'tb-vez-btn', disabled: !temDetalhe, 'aria-expanded': String(vezAberto && temDetalhe),
         'aria-controls': 'tb-vez-pop', title: temDetalhe ? 'Detalhes do turno' : null, onClick: () => abreVez(!vezAberto) }, ...miolo()));
     }
+    pintaAviso(); // J-30 · o aviso atravessa o redesenho da faixa
     if (!temDetalhe && vezAberto) abreVez(false);
     if (!vezPop) vezPop = h('div', { class: 'tb-vez-pop', id: 'tb-vez-pop', role: 'dialog', 'aria-label': 'Detalhes do turno', hidden: true, dataset: { sobrepoe: 'true' } });
     vezPop.replaceChildren(
       h('dl', { class: 'tb-vez-pop__lista' }, ...vz.detalhes.flatMap(d => [h('dt', {}, d.rotulo), h('dd', { id: d.k === 'serie' ? 'tb-serie' : null, dataset: { k: d.k, meu: String(d.valor === 'Você') } }, d.valor)])),
       IconButton('fechar', 'Fechar', { variant: 'ghost', id: 'tb-vez-fechar', onClick: () => abreVez(false) }));
+    pintaAvisoNosDetalhes(); // J-30
     // G4 · som da partida a um toque da faixa (a linha da faixa não comporta um quarto ícone em 360 px)
     if (som) { const ligado = som.prefs.ligado;
       const c = Chip('Som', { icone: ligado ? 'som' : 'somMudo', pressed: ligado, id: 'tb-som', onClick: async () => { const p = await som.ajusta({ ligado: !som.prefs.ligado }); if (p.ligado) { som.destrava(); som.toca('suaVez'); } semSentidos = true; paint(); toast(p.ligado ? 'Som ligado' : 'Som desligado'); } });
