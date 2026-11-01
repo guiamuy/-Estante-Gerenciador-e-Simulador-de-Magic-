@@ -167,6 +167,8 @@ export async function gera({ saida, limite = 0, autoteste = 0, idiomas = [], pau
   X = X || await scanner();
   await mkdir(saida, { recursive: true });
   const meta = await busca(fetchFn, BULK);
+  console.log('DIAG BULK', JSON.stringify(meta).slice(0, 800));
+  try { console.log('DIAG TODAS', JSON.stringify(await busca(fetchFn, BULK_TODAS)).slice(0, 800)); } catch (e) { console.log('DIAG TODAS erro', e.message); }
   if (!meta || typeof meta.download_uri !== 'string' || !/^https:\/\/data\.scryfall\.io\//.test(meta.download_uri)) throw new Error('dados em massa sem endereço da Scryfall');
   let cartas = cartasDaBase(await busca(fetchFn, meta.download_uri, 'json', { ms: 600000 }));
   cartas.sort((a, b) => a.nome.localeCompare(b.nome) || a.set.localeCompare(b.set) || a.numero.localeCompare(b.numero, undefined, { numeric: true }));
