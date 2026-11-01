@@ -14738,6 +14738,56 @@ test('e2e · MJ1f a mão aberta fica por cima da mesa: abrir e recolher não mex
   assert.deepEqual(errors, []);
 });
 
+// J-32 · relato #38 · com a mesa cheia, a mão aberta escondia o seu campo inteiro (360×697: o seu lado ia de 366 a 666 px e a
+// bandeja começava em 495). Agora, com a mão aberta, as cartas do campo dos dois lados encolhem juntas (mesma escala, terrenos
+// e permanentes) até a mesa inteira caber acima da mão; os cabeçalhos (vida, contadores) ficam na altura de toque (44 px), numa
+// linha. Recolhida, tudo volta ao tamanho de sempre. Mesa que já cabe não muda (MJ1f continua valendo).
+test('e2e · J-32 mão aberta com a mesa cheia: as cartas dos dois lados encolhem juntas até a mesa caber acima da mão; cabeçalhos com 44 px e numa linha; recolher volta ao normal', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await createDeck(page, base, 'Cheia', '30 Island\n20 Delver of Secrets\n10 Counterspell');
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start'); await page.fill('#mesa-seed', '4');
+  await page.click('[data-opponent="shark"]'); await page.waitForSelector('#mesa-bot-deck');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-pass');
+  await page.evaluate(() => { const M = window.__estanteMesa;
+    for (const p of [0, 1]) { const os = Object.values(M.estado().objects).filter(o => o.owner === p && o.zone === 'library'), terreno = o => /^(Island|Forest|Mountain|Swamp|Plains)$/.test(o.name);
+      for (const o of [...os.filter(terreno).slice(0, 6), ...os.filter(o => !terreno(o)).slice(0, 5)]) { try { M.act({ t: 'move', p, oid: o.oid, to: 'battlefield' }); } catch (e) { /* carta que o modo não move */ } } } });
+  await page.waitForSelector('.tb-side--me [data-zone="lands"] .tb-card');
+  const mede = () => page.evaluate(() => {
+    const R = e => e.getBoundingClientRect(), doca = document.querySelector('#tb-dock'), topo = R(doca).top;
+    const cartas = [...document.querySelectorAll('.tb-board .tb-side .tb-card')].filter(c => c.offsetParent);
+    const larg = sel => { const c = document.querySelector(sel); return c ? Math.round(R(c).width) : 0; };
+    const vidas = ['#tb-life-me', '#tb-life-opp'].map(s => document.querySelector(s)).filter(Boolean).map(e => ({ h: Math.round(R(e).height), topo: R(e).top, fim: R(e).bottom }));
+    return { topo, cobertas: cartas.filter(c => R(c).bottom > topo + 1 || R(c).top < 0).length, total: cartas.length,
+      campo: larg('.tb-side--me [data-zone]:not([data-zone="lands"]) .tb-card'), campoOpp: larg('.tb-side:not(.tb-side--me) [data-zone]:not([data-zone="lands"]) .tb-card'),
+      terreno: larg('.tb-side--me [data-zone="lands"] .tb-card'), vidas, rola: document.documentElement.scrollHeight - innerHeight,
+      aberta: document.querySelector('#tb-hand-toggle').getAttribute('aria-expanded') };
+  });
+  const alterna = async aberta => { if ((await page.getAttribute('#tb-hand-toggle', 'aria-expanded')) !== String(aberta)) await page.click('#tb-hand-toggle'); await page.waitForTimeout(500); };
+  for (const [w, hgt] of [[360, 697], [360, 780], [412, 891]]) for (const tema of ['dark', 'light']) {
+    await page.setViewportSize({ width: w, height: hgt }); await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema);
+    const nome = `${w}×${hgt} ${tema}`;
+    await alterna(false); await page.evaluate(() => scrollTo(0, 0)); const fechada = await mede();
+    await alterna(true); await page.evaluate(() => scrollTo(0, 0)); await page.waitForTimeout(150); const aberta = await mede();
+    assert.equal(aberta.aberta, 'true');
+    assert.equal(aberta.cobertas, 0, `${nome}: com a mão aberta, nenhuma carta do campo atrás da mão ${JSON.stringify(aberta)}`);
+    assert.ok(aberta.vidas.length === 2 && aberta.vidas.every(v => v.h >= 44 && v.fim <= aberta.topo), `${nome}: as duas vidas à vista, com 44 px ${JSON.stringify(aberta.vidas)}`);
+    if (aberta.campo < fechada.campo) {
+      const k = aberta.campo / fechada.campo;
+      assert.ok((!fechada.campoOpp || Math.abs(aberta.campoOpp / fechada.campoOpp - k) < 0.03) && Math.abs(aberta.terreno / fechada.terreno - k) < 0.03, `${nome}: os dois lados e os terrenos na mesma escala ${JSON.stringify({ fechada, aberta })}`);
+      assert.ok(k >= 0.59, `${nome}: a carta não encolhe abaixo de 60% (${k.toFixed(2)})`);
+    }
+    await auditaTela(page, `J-32 · mão aberta ${nome}`);
+    await alterna(false); const de_novo = await mede();
+    assert.deepEqual([de_novo.campo, de_novo.terreno], [fechada.campo, fechada.terreno], `${nome}: recolhida, tudo no tamanho de sempre`);
+  }
+  // na medida do aparelho do relato, a mesa cheia precisa encolher
+  await page.setViewportSize({ width: 360, height: 697 }); await alterna(false); const f = await mede(); await alterna(true); const a = await mede();
+  assert.ok(a.campo < f.campo, `360×697: a mesa cheia encolhe para caber (${f.campo} → ${a.campo})`);
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/j32-mao-aberta.png' });
+  assert.deepEqual(errors, []);
+});
+
 // MJ1e (leva J-7, trilha jogabilidade) · na partida online a Conversa vira um selo colado à faixa de vez e o Desfazer
 // (que online nunca funciona) sai: o rótulo da faixa tem online o mesmo espaço que fora dele (em 360 px eram 48 px para o
 // rótulo e "Seu turno" cortava; agora 98)
