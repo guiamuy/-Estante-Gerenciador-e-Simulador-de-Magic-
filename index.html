@@ -7127,7 +7127,7 @@ function gatilhoErros(w, tag) {
   if (EVENTOS_DE_LOTE.includes(w.evento)) { if (w.a != null && !['oponente', 'jogador'].includes(w.a)) errs.push(`${tag}: "a" precisa ser oponente ou jogador`); if (w.quem != null && !['voce', 'oponente', 'qualquer'].includes(w.quem)) errs.push(`${tag}: "quem" precisa ser voce, oponente ou qualquer`); return errs; } // M-258 · M-449
   if (EVENTOS_DE_JOGADOR.includes(w.evento)) { // de um jogador: `quem` é quem descarta/compra, relativo a você
     if (w.quem != null && !['voce', 'oponente', 'qualquer'].includes(w.quem)) errs.push(`${tag}: "quem" precisa ser voce, oponente ou qualquer`);
-    if (w.evento === 'compra' && !(Number.isInteger(w.n) && w.n >= 1) && w.n !== 'exceto-primeira-do-passo' /* M-565 */) errs.push(`${tag}: "n" (qual compra do turno) precisa ser inteiro a partir de 1`);
+    if (w.evento === 'compra' && !(Number.isInteger(w.n) && w.n >= 1) && w.n !== 'exceto-primeira-do-passo' /* M-565 */ && w.n !== 'toda' /* M-591 · toda compra */) errs.push(`${tag}: "n" (qual compra do turno) precisa ser inteiro a partir de 1`);
     return errs;
   }
   if (w.evento === 'causa-dano' && w.a != null && !['qualquer', 'jogador', 'oponente'].includes(w.a)) errs.push(`${tag}: "a" precisa ser qualquer, jogador ou oponente`);
@@ -7170,7 +7170,7 @@ function descreveGatilho(w, como = {}) { // M-401 · como.equipada: "a criatura 
   if (ev.evento !== 'zona') {
     const jogador = ev.quem === 'oponente' ? 'um oponente' : ev.quem === 'qualquer' ? 'um jogador' : 'você';
     if (ev.evento === 'descarta') return `quando ${jogador} descarta uma carta`;
-    if (ev.evento === 'compra') return ev.n === 'exceto-primeira-do-passo' ? `quando ${jogador} compra uma carta (menos a primeira no passo de compra dele)` /* M-565 */ : `quando ${jogador} compra a ${ORDINAL_PT[ev.n] || ev.n + 'ª'} carta do turno`;
+    if (ev.evento === 'compra') return ev.n === 'toda' ? `quando ${jogador} compra uma carta` /* M-591 */ : ev.n === 'exceto-primeira-do-passo' ? `quando ${jogador} compra uma carta (menos a primeira no passo de compra dele)` /* M-565 */ : `quando ${jogador} compra a ${ORDINAL_PT[ev.n] || ev.n + 'ª'} carta do turno`;
     if (ev.evento === 'sacrifica') return `quando ${jogador} sacrifica ${ev.quem === 'oponente' ? 'uma' : 'outra'} ${perm}`;
     if (ev.evento === 'conjurar') return ev.objeto !== 'outra' ? 'quando você conjura esta mágica' : `quando ${jogador} conjura uma mágica`;
     const a = { jogador: ' a um jogador', oponente: ' a um oponente' }[ev.a] || '';
@@ -20676,6 +20676,7 @@ const __m42 = (function () {
     [new RegExp(`^target player draws ${N} cards?$`, 'i'), m => [{ do: 'draw', amount: num(m[1]), target: 'player' }]],
     [new RegExp(`^you gain ${N} life$`, 'i'), m => [{ do: 'gain', amount: num(m[1]) }]],
     [new RegExp(`^(each opponent|target opponent|target player) loses ${N} life and you gain ${N} life$`, 'i'), m => [com({ do: 'lose', amount: num(m[2]) }, alvo(m[1])), { do: 'gain', amount: num(m[3]) }]],
+    [new RegExp(`^they lose ${N} life$`, 'i'), m => [{ do: 'lose', amount: num(m[1]), target: 'that-player' }]], // M-591 · Sheoldred, the Apocalypse: "they" é o jogador do gatilho (o que comprou)
     [new RegExp(`^(each opponent|target opponent|target player) loses ${N} life$`, 'i'), m => [com({ do: 'lose', amount: num(m[2]) }, alvo(m[1]))]],
     [new RegExp(`^(each opponent|target opponent|target player) gets ${N} poison counters?$`, 'i'), m => [com({ do: 'veneno', amount: num(m[2]) }, alvo(m[1]))]], // M-432 · 122.1f
     [new RegExp(`^you draw ${N} cards? and (?:you )?lose ${N} life$`, 'i'), m => [{ do: 'draw', amount: num(m[1]) }, { do: 'lose', amount: num(m[2]) }]], // M-432 · Infectious Inquiry · M-509: "you draw a card and lose 1 life" (Phyrexian Arena)
@@ -20973,6 +20974,8 @@ const __m42 = (function () {
     [/^at the beginning of your upkeep$/i, 'upkeep'],
     [/^whenever (?:~|this (?:land|artifact|creature|permanent)) becomes tapped$/i, { evento: 'vira' }], // M-559 · City of Brass (qualquer jeito de virar; virar ao entrar não é "tornar-se virada")
     [/^at the beginning of your draw step$/i, 'draw-step'],
+    [/^whenever you draw a card$/i, { evento: 'compra', n: 'toda', quem: 'voce' }], // M-591 · Sheoldred, the Apocalypse (toda compra, 121.1)
+    [/^whenever an opponent draws a card$/i, { evento: 'compra', n: 'toda', quem: 'oponente' }], // M-591
     [/^whenever an opponent draws a card except the first one they draw in each of their draw steps$/i, { evento: 'compra', n: 'exceto-primeira-do-passo', quem: 'oponente' }], // M-565 · Orcish Bowmasters // M-558 · Mana Vault (500.6)
     [/^at the beginning of your end step$/i, 'end-step'],
     [/^at the beginning of combat on your turn$/i, 'begin-combat'],
@@ -23553,7 +23556,7 @@ function gatilhosDeJogador(s, evento, p, n) {
       const c = w.zone === 'battlefield' ? w.controller : q;
       for (const ab of abilitiesOf(s, w)) {
         const d = ab.kind === 'triggered' && SC.gatilhoDoEvento(ab.when);
-        if (!SC.falaDe(d, evento) || (evento === 'compra' && d.n !== n && !(d.n === 'exceto-primeira-do-passo' && !s.primeiraDoPassoDeCompraM)) || !quemCasa(d, c, p)) continue; // M-565 · Orcish Bowmasters
+        if (!SC.falaDe(d, evento) || (evento === 'compra' && d.n !== n && d.n !== 'toda' /* M-591 · Sheoldred, the Apocalypse */ && !(d.n === 'exceto-primeira-do-passo' && !s.primeiraDoPassoDeCompraM)) || !quemCasa(d, c, p)) continue; // M-565 · Orcish Bowmasters
         if (w.zone === 'graveyard' && !ab.fromGraveyard) continue; // S33 · do cemitério só o que diz que funciona de lá
         if (!triggerConditionMet(s, w, ab.condition)) continue;
         s.queued.push({ source: w.oid, name: w.name, controller: c, effects: ab.effects, when: ab.when, ...((d.quem || 'voce') !== 'voce' ? { jogador: p } : {}), ...(evento === 'ganha-vida' || evento === 'atacou' ? { value: n } : {}), ...marcasDaHabilidade(ab) });
