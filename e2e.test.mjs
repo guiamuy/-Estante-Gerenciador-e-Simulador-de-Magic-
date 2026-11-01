@@ -8949,7 +8949,7 @@ test('e2e · G-301 selo do motor em toda listagem: Minhas listas e as escolhas d
 });
 
 /* G-311 · relato #36, fatia 1 · o Jogar só abre o formato em que o motor joga todas as listas prontas dele */
-test('e2e · G-311 Jogar só com formato pronto: Commander e Livre apagados com a ampulheta, o toque explica com a medida e não troca; o Pauper abre; sem formato pronto, o estado vazio leva às Listas prontas', { skip }, async t => {
+test('e2e · G-311 Jogar só com formato pronto: Commander e Livre apagados com a ampulheta, o toque explica com a medida e não troca; o Pauper abre — e segue aberto por decisão mesmo com a medida abaixo de todas (G-317)', { skip }, async t => {
   const { page, errors, base } = await open(t, { dev: false });
   await page.setViewportSize({ width: 360, height: 780 });
   let motor = { versao: 1, geradoEm: '2026-10-27T06:23:00Z', pct: {}, formatos: {
@@ -8974,14 +8974,56 @@ test('e2e · G-311 Jogar só com formato pronto: Commander e Livre apagados com 
   assert.equal(await page.getAttribute('[data-table-format="pauper"]', 'aria-pressed'), 'true', 'o formato não trocou');
   await page.waitForFunction(() => { const b = document.querySelector('#mesa-start'); return b && !b.disabled; }, null, { timeout: 8000 });
   await auditaTela(page, 'Jogar com formatos fechados');
-  // 3 · nenhum formato pronto (o Pauper perdeu uma lista): estado vazio que leva às Listas prontas
+  // 3 · o Pauper perdeu uma lista na medida: G-317 (decisão do dono, 01/11) — o Pauper continua aberto, por decisão de produto;
+  // a expectativa antiga (estado vazio que fechava o Jogar inteiro) mudou de propósito: foi ela que fechou o Jogar em produção com 616 de 620
   motor = { ...motor, formatos: { ...motor.formatos, pauper: { ...motor.formatos.pauper, listas100: 593 } } };
   await page.evaluate(async () => { const r = indexedDB.open('mtg'); await new Promise(ok => { r.onsuccess = ok; }); const tx = r.result.transaction('kv', 'readwrite'); tx.objectStore('kv').delete('catalogo.motor'); await new Promise(ok => { tx.oncomplete = ok; }); });
-  await page.goto(base + '#/mesa'); await page.reload(); await page.waitForSelector('#mesa-sem-formato'); // app novo: lê o aparelho sem a cópia
-  assert.match(await page.innerText('#mesa-sem-formato'), /O motor ainda não joga todas as listas prontas de nenhum formato/);
-  assert.equal(await page.locator('#mesa-start').count(), 0);
-  await auditaTela(page, 'Jogar sem formato pronto');
-  await page.click('#mesa-starter'); await page.waitForFunction(() => location.hash.startsWith('#/listas/prontas'));
+  await page.goto(base + '#/mesa'); await page.reload(); await page.waitForSelector('[data-table-format="pauper"][data-formato-estado="aberto"]'); // app novo: lê o aparelho sem a cópia
+  assert.equal(await page.locator('#mesa-sem-formato').count(), 0, 'o Jogar não fecha mais');
+  await page.waitForFunction(() => { const b = document.querySelector('#mesa-start'); return b && !b.disabled; }, null, { timeout: 8000 });
+  await page.click('[data-table-format="commander"]'); await page.waitForSelector('#mesa-formato-fechado');
+  assert.match(await page.innerText('#mesa-formato-fechado'), /Hoje jogam inteiros: Pauper\./); // o aberto por decisão aparece mesmo com a medida abaixo de todas
+  await page.keyboard.press('Escape'); await page.waitForSelector('#mesa-formato-fechado', { state: 'detached' });
+  assert.deepEqual(errors, []);
+});
+
+/* G-317 · DS-K2 J1 · decisão do dono (01/11/2026): o Pauper é o formato aberto por produto; a medida informa, não fecha */
+test('e2e · DS-K2 J1 · o Jogar abre sempre no Pauper: com a medida real (616 de 620) a tela abre com o cabeçalho e Começar partida; sem lista sua de Pauper, as prontas do formato ficam à mão e um toque adiciona e escolhe; sem lista nenhuma não há estado vazio', { skip }, async t => {
+  const { page, errors, base } = await open(t, { dev: false });
+  await page.setViewportSize({ width: 360, height: 780 });
+  const motor = { versao: 1, geradoEm: '2026-11-01T03:00:00Z', pct: {}, formatos: {
+    pauper: { geradoEm: '2026-11-01T03:00:00Z', motor: 112, listas: 620, medidas: 620, listas100: 616 },
+    commander: { geradoEm: '2026-11-01T03:00:00Z', motor: 112, listas: 552, medidas: 552, listas100: 0 } } };
+  await rotaCatalogo(page, { motor });
+  await page.route(/^https:\/\/raw\.githubusercontent\.com\/.*\/catalogo\/listas\/topdeck-copa-teste-1-1\.json/, r => r.fulfill({ json: { ...CATALOGO_Z2.listas.find(x => x.id === 'topdeck-copa-teste-1-1'), entradas: [{ name: 'Island', qty: 30, zone: 'main' }, { name: 'Counterspell', qty: 30, zone: 'main' }] }, headers: { 'access-control-allow-origin': '*' } }));
+  const cab = () => page.evaluate(() => { const c = document.querySelector('#outlet .ds-cabecalho'), tt = c.querySelector('.ds-cabecalho__titulo'), r = document.createRange(); r.selectNodeContents(tt); const x = r.getBoundingClientRect();
+    return { titulo: tt.textContent, centro: Math.abs(x.left + x.width / 2 - innerWidth / 2) <= 1, lados: [...c.querySelectorAll('.ds-cabecalho__lado')].map(l => Math.round(l.getBoundingClientRect().width)) }; });
+  // 1 · sem lista nenhuma na estante: nada de estado vazio — Pauper aberto, as prontas de Pauper à mão
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-prontas-lista .cat-item');
+  assert.deepEqual(await cab(), { titulo: 'Jogar', centro: true, lados: [44, 44] });
+  assert.equal(await page.locator('#mesa-sem-formato, #mesa-starter.ds-btn--primary').count(), 0, 'sem o estado vazio antigo');
+  const chips = await page.$$eval('#mesa-format [data-table-format]', cs => cs.map(c => [c.dataset.tableFormat, c.dataset.formatoEstado, c.getAttribute('aria-pressed')]));
+  assert.deepEqual(chips, [['pauper', 'aberto', 'true']], 'só o formato aberto, sem lista de outro formato');
+  assert.match(await page.innerText('#mesa-prontas-titulo'), /Você ainda não tem lista de Pauper na estante/);
+  assert.deepEqual(await page.$$eval('#mesa-prontas-lista .cat-item', xs => xs.map(x => x.dataset.formato)), ['pauper'], 'só listas prontas do formato aberto');
+  await auditaTela(page, 'DS-K2 J1 · Jogar sem lista nenhuma');
+  // 2 · um toque adiciona a lista pronta à estante e ela já é a sua lista; a partida pode começar
+  await page.click('#mesa-prontas-lista [data-catalogo-add]'); await page.waitForSelector('#mesa-mine');
+  assert.match(await page.getAttribute('#mesa-mine', 'aria-label'), /^Sua lista: 1º · Copa Teste/);
+  await page.waitForFunction(() => { const b = document.querySelector('#mesa-start'); return b && !b.disabled; }, null, { timeout: 8000 });
+  await page.goto(base + '#/listas'); await page.waitForSelector('#decks-list .ds-list__item'); assert.match(await page.innerText('#decks-list'), /Copa Teste/);
+  // 3 · só lista de Commander (fechado): o Jogar abre no Pauper com as prontas, e o Commander aparece apagado com o porquê
+  await page.evaluate(async () => { const r = indexedDB.open('mtg'); await new Promise(ok => { r.onsuccess = ok; }); const tx = r.result.transaction('kv', 'readwrite'); const st = tx.objectStore('kv'); const ids = await new Promise(ok => { const q = st.get('deck.__ids'); q.onsuccess = () => ok(q.result || []); }); for (const id of ids) st.delete('deck.' + id); st.delete('deck.__ids'); await new Promise(ok => { tx.oncomplete = ok; }); });
+  await createDeck(page, base, 'Do Comandante', '1 Sol Ring\n99 Island', 'commander');
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-prontas-lista .cat-item');
+  const chips2 = await page.$$eval('#mesa-format [data-table-format]', cs => cs.map(c => [c.dataset.tableFormat, c.dataset.formatoEstado, c.getAttribute('aria-pressed')]));
+  assert.deepEqual(chips2, [['pauper', 'aberto', 'true'], ['commander', 'fechado', 'false']]);
+  assert.match(await page.getAttribute('[data-table-format="commander"]', 'aria-label'), /O motor joga 0 de 552 listas prontas de Commander .*como no Pauper\./);
+  await auditaTela(page, 'DS-K2 J1 · Jogar só com lista de Commander');
+  // 4 · com a medida real o Pauper diz quantas prontas jogam, sem fechar: a folha do Commander lista o Pauper como aberto
+  await page.click('[data-table-format="commander"]'); await page.waitForSelector('#mesa-formato-fechado');
+  assert.match(await page.innerText('#mesa-formato-fechado'), /Hoje jogam inteiros: Pauper\./);
+  await page.keyboard.press('Escape'); await page.waitForSelector('#mesa-formato-fechado', { state: 'detached' });
   assert.deepEqual(errors, []);
 });
 

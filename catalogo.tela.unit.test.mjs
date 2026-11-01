@@ -267,7 +267,27 @@ test('G-311 · estadoDoFormato: pronto só com todas as listas medidas a 100%; f
   assert.deepEqual(J(K.formatosProntos(m)), ['pauper']);
   // arquivo de antes da contagem (nenhum formato com listas100) e arquivo ausente: a tela fica como era
   assert.equal(K.estadoDoFormato(K.leMotorDoCatalogo({ versao: 1, formatos: { pauper: { geradoEm: 'x', listas: 2, medidas: 2 } }, pct: {} }), 'livre'), null);
-  assert.equal(K.estadoDoFormato(null, 'pauper'), null); assert.equal(K.formatosProntos(null), null);
+  assert.equal(K.estadoDoFormato(null, 'livre'), null); assert.deepEqual(J(K.formatosProntos(null)), ['pauper']); // G-317 · o aberto por decisão aparece mesmo sem a contagem
+});
+
+/* G-317 · DS-K2 J1 · decisão do dono (01/11/2026): o formato abre por decisão de produto, não pela medida. A G-311 fechou o
+   Jogar inteiro quando a medida real do Pauper ficou em 616 de 620 (quatro na fila da sentinela). */
+test('G-317 · formato aberto por decisão: o Pauper é "pronto" mesmo abaixo de 100% e sem a contagem; a medida continua no estado (para o medidor); os outros formatos seguem pela medida', () => {
+  assert.deepEqual(J(K.FORMATOS_ABERTOS), ['pauper']);
+  const m = K.leMotorDoCatalogo({ versao: 1, pct: {}, formatos: { pauper: { geradoEm: '2026-11-01T03:00:00Z', motor: 112, listas: 620, medidas: 620, listas100: 616 },
+    commander: { geradoEm: '2026-11-01T03:00:00Z', motor: 112, listas: 552, medidas: 552, listas100: 0 } } });
+  const p = K.estadoDoFormato(m, 'pauper');
+  assert.deepEqual([p.estado, p.motivo, p.aberto, p.listas, p.listas100], ['pronto', null, 'decisao', 620, 616]);
+  assert.equal(p.medidoEm, new Date('2026-11-01T03:00:00Z').toLocaleDateString('pt-BR'));
+  assert.deepEqual([K.estadoDoFormato(m, 'commander').estado, K.estadoDoFormato(m, 'commander').motivo], ['fechado', 'incompleto']);
+  assert.deepEqual(J(K.formatosProntos(m)), ['pauper']);
+  // sem arquivo e com arquivo de antes da contagem: o Pauper abre do mesmo jeito, com a medida zerada
+  for (const mot of [null, K.leMotorDoCatalogo({ versao: 1, formatos: { pauper: { geradoEm: 'x', listas: 2, medidas: 2 } }, pct: {} })]) {
+    const q = K.estadoDoFormato(mot, 'pauper');
+    assert.deepEqual([q.estado, q.aberto, q.listas, q.listas100], ['pronto', 'decisao', 0, 0]);
+    assert.equal(K.estadoDoFormato(mot, 'commander'), null, 'o resto fica como era sem a contagem');
+  }
+  assert.ok(Object.isFrozen(K.FORMATOS_ABERTOS));
 });
 
 test('Q10-7b · serviço: o arquivo do motor é guardado por uma hora; sem rede, o guardado; ausente ou ilegível, sem selo (null)', async () => {
