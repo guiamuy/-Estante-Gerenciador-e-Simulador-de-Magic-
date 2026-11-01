@@ -2746,6 +2746,16 @@ body[data-mesa-cheia="true"] .tb-steps__list li { padding: 0 0 1px; border-botto
 
 .tb-handoff { min-height: 70vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-3); text-align: center; padding: var(--space-5); }
 /* Leva 125 · a coluna tinha 64 px de mínimo e a carta, 76 a 92: as cartas do cemitério ficavam umas por cima das outras */
+/* J-31 · relato #39 · na zona aberta, a carta que dá para usar dali agora: anel de latão, selo com o raio no canto e a linha
+   que diz quantas (com o mesmo ponto do chip da zona). O selo pousa uma vez; menos movimento: no lugar. */
+.tb-zona { display: grid; gap: var(--space-3); }
+.tb-zona-usa { margin: 0; display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--fg-muted); }
+.tb-zona-usa__ponto { flex: none; width: 8px; height: 8px; border-radius: var(--radius-full); background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.tb-zonegrid > [data-usa-agora="true"] { position: relative; border-radius: var(--radius-card); box-shadow: 0 0 0 2px var(--accent), 0 0 0 5px var(--accent-soft); }
+.tb-card__usa { position: absolute; top: -6px; right: -6px; z-index: 2; width: 22px; height: 22px; border-radius: var(--radius-full); display: grid; place-items: center;
+  color: var(--accent-fg); background: linear-gradient(160deg, var(--accent-hi), var(--accent) 55%, var(--accent-lo)); box-shadow: 0 0 0 2px var(--bg-elev-1), var(--shadow-1); pointer-events: none; }
+@media (prefers-reduced-motion: no-preference) { .tb-card__usa { animation: tb-usa-pousa var(--dur-3) var(--ease-spring, var(--ease-out)) both; } }
+@keyframes tb-usa-pousa { from { transform: scale(.4); opacity: 0; } to { transform: none; opacity: 1; } }
 .tb-zonegrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--carta-campo), 1fr)); gap: var(--space-3) var(--space-2); justify-items: center; align-items: end; }
 .tb-sheet__img { width: 100%; max-width: 240px; margin: 0 auto; display: block; border-radius: var(--radius-card); }
 .tb-sheet__actions { display: flex; flex-direction: column; gap: var(--space-2); }
@@ -41021,9 +41031,21 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   function openZone(p, zone, label) {
     const s = table.state;
     const ids = s.zones[p][zone];
-    Dialog({ title: `${label} de ${s.players[p].name}`, body: ids.length
-      ? h('div', { class: 'tb-zonegrid' }, ...ids.slice().reverse().map(oid => ocultaDe(s, s.objects[oid]) ? TableCard({ ...s.objects[oid], name: VERSO_NOME, image: null, images: null }, { verso: true }) : TableCard({ ...s.objects[oid], image: imgOf(s.objects[oid]), images: imagensOf(s.objects[oid]) }, { onClick: () => { closeDialog(); openObject(oid); }, ...comPeek(oid),
-        ...(zone === 'exile' && s.objects[oid].plotted != null ? { estado: T.estadoDaCarta(s, s.objects[oid]) } : {}) })))
+    // J-31 · relato #39 · a carta que dá para usar daqui agora (a mesma conta do ponto no chip: ações legais de quem olha, com
+    // a carta da zona; no exílio, a tramada fica de fora porque já mostra o estado dela) vem primeiro, com anel e selo de latão
+    const usaveis = new Set(legaisDe(s, table.viewer()).filter(a => a.oid != null && ids.includes(a.oid) && !(zone === 'exile' && s.objects[a.oid].plotted != null)).map(a => a.oid));
+    const ordem = ids.slice().reverse(), naOrdem = [...ordem.filter(o => usaveis.has(o)), ...ordem.filter(o => !usaveis.has(o))];
+    const marca = (el, oid) => { if (!usaveis.has(oid) || !el) return el;
+      el.dataset.usaAgora = 'true'; el.setAttribute('aria-label', `${el.getAttribute('aria-label') || s.objects[oid].name}, pode ser usada daqui agora`);
+      el.appendChild(h('span', { class: 'tb-card__usa', 'aria-hidden': 'true' }, Icone('raio', { tamanho: 12 }))); return el; };
+    const aviso = usaveis.size ? h('p', { class: 'tb-zona-usa', id: 'tb-zona-usa' }, h('span', { class: 'tb-zona-usa__ponto', 'aria-hidden': 'true' }),
+      `${usaveis.size === 1 ? '1 carta pode ser usada' : `${usaveis.size} cartas podem ser usadas`} daqui agora · toque para ver o que fazer`) : null;
+    // J-31 · "Cemitério de Você" virava título quando o seu nome na mesa é "Você": a sua zona é "Seu cemitério"
+    const SUA = { 'Cemitério': 'Seu cemitério', 'Exílio': 'Seu exílio', 'Grimório': 'Seu grimório', 'Zona de comando': 'Sua zona de comando', 'Companheiro': 'Seu companheiro' };
+    const titulo = s.players[p].name === 'Você' && SUA[label] ? SUA[label] : `${label} de ${s.players[p].name}`;
+    Dialog({ title: titulo, body: ids.length
+      ? h('div', { class: 'tb-zona' }, aviso, h('div', { class: 'tb-zonegrid' }, ...naOrdem.map(oid => marca( ocultaDe(s, s.objects[oid]) ? TableCard({ ...s.objects[oid], name: VERSO_NOME, image: null, images: null }, { verso: true }) : TableCard({ ...s.objects[oid], image: imgOf(s.objects[oid]), images: imagensOf(s.objects[oid]) }, { onClick: () => { closeDialog(); openObject(oid); }, ...comPeek(oid),
+        ...(zone === 'exile' && s.objects[oid].plotted != null ? { estado: T.estadoDaCarta(s, s.objects[oid]) } : {}) }), oid))))
       : Empty('Vazio.'), actions: [Button('Fechar', { onClick: closeDialog })] });
   }
 
