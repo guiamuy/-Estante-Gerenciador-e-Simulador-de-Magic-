@@ -29,6 +29,17 @@ test('P-6 · cada serviço diz o que vai, quando e como evitar; cada link diz o 
   assert.match(S.DESTINOS.find(d => d.id === 'leitor').vai, /imagens da câmera não saem do aparelho/);
 });
 
+test('G-320 · o que sai pelo navegador (sem endereço do app) também está na tela: o ditado do relato', () => {
+  assert.equal(JSON.stringify(S.PELO_NAVEGADOR.map(d => d.id)), '["fala"]');
+  for (const d of S.PELO_NAVEGADOR) {
+    for (const k of ['nome', 'icone', 'vai', 'quando', 'evitar']) assert.ok(typeof d[k] === 'string' && d[k].length >= 3, `${d.id}.${k}`);
+    assert.equal(d.origens.length, 0, 'é o navegador que fala com o serviço dele; a política de conteúdo não muda');
+  }
+  const fala = S.PELO_NAVEGADOR[0];
+  assert.match(fala.vai, /Só quando você toca em Ditar/); assert.match(fala.vai, /não grava nem guarda áudio/);
+  assert.match(FONTE, /PLATFORM_CONTRACT = \{[\s\S]*?fala: \['available'/, 'quem lista o ditado é quem tem o ditado (G-319)');
+});
+
 test('P-6 · a rota e o atalho do Perfil existem', () => {
   assert.match(FONTE, /path: '\/perfil\/saida', title: 'O que sai do aparelho'/);
   assert.match(FONTE, /id: 'perfil-saida', onClick: \(\) => go\('\/perfil\/saida'\)/);

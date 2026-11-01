@@ -16636,6 +16636,14 @@ const LINKS = [
   { id: 'apoio', nome: 'Apoiar a Estante (Ko-fi)', icone: 'vida', origens: ['https://ko-fi.com'],
     vai: 'Ao tocar em Doar: a página da Estante no Ko-fi abre noutra aba. O pagamento acontece lá; o app não envia nada.' }
 ];
+/** G-320 · o que sai pelo próprio navegador, sem endereço do app (a política de conteúdo não vê): o app pede, o
+    navegador fala com o serviço dele. Só ao toque da pessoa. */
+const PELO_NAVEGADOR = [
+  { id: 'fala', nome: 'Ditado do relato', icone: 'microfone', origens: [],
+    vai: 'Só quando você toca em Ditar: sua voz vai para o reconhecimento de fala do navegador (no Chrome, um serviço do Google, o mesmo do ditado do teclado), que devolve o texto para o campo. A Estante não grava nem guarda áudio.',
+    quando: 'Enquanto o Ditar está ligado no formulário de relato. Ele desliga em Parar, depois de três silêncios, em três minutos ou ao fechar o formulário.',
+    evitar: 'Digitar o relato. Aparelho sem reconhecimento de fala nem mostra o botão.' }
+];
 const ORIGENS = [...DESTINOS, ...LINKS].flatMap(d => d.origens);
 
 /** G-286 · BI2-2b · o cartão do uso agregado opt-in: a chave (desligada por padrão), o que vai, quando e como evitar,
@@ -16669,20 +16677,22 @@ function cartaoDeUso({ uso, conectada }) {
 function createSaidaScreen({ config = {}, uso = null, conectada = () => false } = {}) {
   const ligado = d => !d.liga || !!config[d.liga];
   const linha = (rotulo, texto) => h('p', { class: 'saida-linha' }, h('b', {}, rotulo + ' '), texto);
-  const cartao = (d, link) => Surface({ class: 'ds-surface--pad saida-item', id: 'saida-' + d.id, dataset: { destino: d.id, estado: link ? 'link' : (ligado(d) ? 'ligado' : 'desligado') } }, Stack({ style: { gap: 'var(--space-2)' } },
+  const cartao = (d, link) => Surface({ class: 'ds-surface--pad saida-item', id: 'saida-' + d.id, dataset: { destino: d.id, estado: link ? 'link' : d.origens.length ? (ligado(d) ? 'ligado' : 'desligado') : 'ao-tocar' } }, Stack({ style: { gap: 'var(--space-2)' } },
     h('div', { class: 'saida-item__cabeca' }, h('span', { class: 'saida-item__selo' }, Icone(d.icone, { tamanho: 20 })),
       h('h2', { class: 'saida-item__nome' }, d.nome),
-      link ? null : Badge(ligado(d) ? 'Em uso' : 'Desligado', { tone: ligado(d) ? 'accent' : undefined })),
+      link ? null : d.origens.length ? Badge(ligado(d) ? 'Em uso' : 'Desligado', { tone: ligado(d) ? 'accent' : undefined }) : Badge('Ao tocar')),
     linha('Vai:', d.vai),
     d.quando ? linha('Quando:', d.quando) : null,
     d.evitar ? linha('Para evitar:', d.evitar) : null,
-    h('p', { class: 'saida-item__origens', lang: 'en' }, [...new Set(d.origens.map(o => o.replace(/^(https|wss):\/\//, '')))].join(' · '))));
+    d.origens.length ? h('p', { class: 'saida-item__origens', lang: 'en' }, [...new Set(d.origens.map(o => o.replace(/^(https|wss):\/\//, '')))].join(' · ')) : null));
   return Stack({ class: 'ds-wrap', style: { paddingTop: 'var(--space-5)', paddingBottom: 'var(--space-8)' } },
     __m3.Cabecalho('O que sai do aparelho', { esquerda: IconButton('voltar', 'Voltar ao perfil', { id: 'saida-voltar', onClick: () => go('/perfil') }) }) /* DS-K F4.2 · cabeçalho 44 · 1fr · 44 */,
     Text('Suas listas, coleção, perfil e partidas ficam neste aparelho. Estes são os únicos serviços com que o app conversa, o que vai para cada um, quando, e como evitar.', { size: 'sm', tone: 'muted' }),
     h('div', { class: 'saida-lista', id: 'saida-destinos' }, ...DESTINOS.map(d => cartao(d, false))),
     uso && config.firebase ? Text('Você escolhe', { size: 'lg', display: true, as: 'h2' }) : null,
     uso && config.firebase ? h('div', { class: 'saida-lista', id: 'saida-opcionais' }, cartaoDeUso({ uso, conectada })) : null,
+    Text('Pelo navegador, quando você toca', { size: 'lg', display: true, as: 'h2' }),
+    h('div', { class: 'saida-lista', id: 'saida-navegador' }, ...PELO_NAVEGADOR.map(d => cartao(d, false))),
     Text('Links que o app só abre', { size: 'lg', display: true, as: 'h2' }),
     h('div', { class: 'saida-lista', id: 'saida-links' }, ...LINKS.map(d => cartao(d, true))));
 }
@@ -16848,7 +16858,7 @@ function createApoioScreen({ dados = APOIO, regiao = regiaoDoAparelho(), copiar 
     h('div', { class: 'apoio-lista', id: 'apoio-outras' }, ...outras.map(f => cartao(f, false))),
     Text('O app não guarda nem envia nada sobre a sua doação: o pagamento acontece no seu banco ou no site da plataforma.', { size: 'xs', tone: 'muted', attrs: { id: 'apoio-privacidade' } }));
 }
-return { DESTINOS, LINKS, ORIGENS, TEXTO_USO, createSaidaScreen, apagaTudoDoAparelho, apagaTudoComNuvem, APOIO, regiaoProvavel, ordemDoApoio, crc16, cabeNoBr, pixCopiaECola, apoioPronto, acaoDaForma, origensDoApoio, createApoioScreen };
+return { DESTINOS, LINKS, PELO_NAVEGADOR, ORIGENS, TEXTO_USO, createSaidaScreen, apagaTudoDoAparelho, apagaTudoComNuvem, APOIO, regiaoProvavel, ordemDoApoio, crc16, cabeNoBr, pixCopiaECola, apoioPronto, acaoDaForma, origensDoApoio, createApoioScreen };
 })();
 
 /* ==== src/app/relatos.js ==== */

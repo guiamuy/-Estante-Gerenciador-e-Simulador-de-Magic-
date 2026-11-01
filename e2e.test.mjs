@@ -4375,6 +4375,9 @@ test('e2e · P-6 O que sai do aparelho: do Perfil (Dados) abre a lista dos servi
   assert.equal(await page.locator('h1').innerText(), 'O que sai do aparelho');
   assert.deepEqual(await page.$$eval('#saida-destinos .saida-item', es => es.map(e => e.dataset.destino)), ['scryfall', 'github', 'cambio', 'leitor', 'google', 'firebase']);
   assert.deepEqual(await page.$$eval('#saida-links .saida-item', es => es.map(e => e.dataset.destino)), ['relatos', 'sites', 'apoio']);
+  assert.deepEqual(await page.$$eval('#saida-navegador .saida-item', es => es.map(e => [e.dataset.destino, e.dataset.estado])), [['fala', 'ao-tocar']]); // G-320 · ditado do relato
+  assert.match(await page.innerText('#saida-fala'), /Ao tocar[\s\S]*Vai: Só quando você toca em Ditar[\s\S]*Para evitar:/);
+  assert.equal(await page.locator('#saida-fala .saida-item__origens').count(), 0, 'sem endereço do app');
   // sem Client ID e sem banco (o publicado hoje): conta e online desligados, o resto em uso
   assert.equal(await page.getAttribute('#saida-google', 'data-estado'), 'desligado');
   assert.equal(await page.getAttribute('#saida-firebase', 'data-estado'), 'desligado');
