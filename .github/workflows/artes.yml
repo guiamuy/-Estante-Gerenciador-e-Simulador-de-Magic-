@@ -46,7 +46,7 @@ jobs:
           fi
       - name: Gerar
         id: gera
-        run: node artes.mjs --saida saida --autoteste 400
+        run: node artes.mjs --saida saida --autoteste 400 --idiomas pt   # S-597 · nomes impressos em português (nomes-pt.json)
       - name: Publicar no ramo artes
         if: steps.gera.conclusion == 'success'
         run: |
