@@ -60,15 +60,23 @@ function molduraDaFoto(f) {
 }
 const cantosDe = r => [{ x: r.x, y: r.y }, { x: r.x + r.w, y: r.y }, { x: r.x + r.w, y: r.y + r.h }, { x: r.x, y: r.y + r.h }];
 /** Uma leitura do nome por um caminho (contorno ou moldura), exatamente como lerUmaVez() no app. */
-async function leNome(worker, index, img, cantosFr) {
+async function leNome(worker, index, img, cantosFr, { podeAfiar = true } = {}) {
   const rec = X.recorteDaFaixa(cantosFr, X.FAIXA_NOME, img.width, img.height);
   if (!rec) return null;
   const pr = X.preparaNome(pedaco(img, rec), rec.w, rec.h, rec.cantos);
   if (!pr) return null;
   if (process.env.FOTOS_DEBUG) (await import('node:fs')).writeFileSync(join(process.env.FOTOS_DEBUG, 'nome-' + nomeDebug + '-' + Math.round(cantosFr[0].x * 1000) + '.png'), paraPng(pr));
   await worker.setParameters(X.OCR_MODES.linha);
-  const texto = (await worker.recognize(paraPng(pr))).data.text || '';
-  return { texto, found: X.matchName(index, texto), nitidez: pr.nitidez };
+  let texto = (await worker.recognize(paraPng(pr))).data.text || '', found = X.matchName(index, texto), afiada = false;
+  // S-594 · como lerUmaVez: linha borrada que não deu nome é lida de novo, realçada (uma vez por passada)
+  if (podeAfiar && !(found[0] && found[0].score >= X.ACCEPT) && pr.nitidez < X.LIMIARES_LINHA.borrada) {
+    const p2 = X.preparaNome(pedaco(img, rec), rec.w, rec.h, rec.cantos, { afia: true });
+    if (p2) {
+      const t2 = (await worker.recognize(paraPng(p2))).data.text || '', f2 = X.matchName(index, t2);
+      if ((f2[0] ? f2[0].score : 0) > (found[0] ? found[0].score : 0)) { texto = t2; found = f2; afiada = true; }
+    }
+  }
+  return { texto, found, nitidez: pr.nitidez, afiada, tentouAfiar: podeAfiar && pr.nitidez < X.LIMIARES_LINHA.borrada };
 }
 /** A linha de coleção, como identify() no app: preparaColecao (retifica, acha o bloco, binariza) e OCR em bloco. */
 let nomeDebug = '';
@@ -93,7 +101,7 @@ function baseDeNomes() {
 }
 
 /* ---------------- a medição ---------------- */
-async function mede(fotos = manifest.fotos) {
+async function mede(fotos = manifest.fotos, { degrada = null } = {}) {
   const index = X.buildIndex(baseDeNomes());
   const worker = await deps.tesseract.createWorker('eng', 1, { langPath: deps.langPath, gzip: true, cacheMethod: 'none' });
   const linhas = [];
@@ -104,7 +112,8 @@ async function mede(fotos = manifest.fotos) {
       const arquivo = join(dir, f.arquivo);
       const linha = { foto: f.arquivo, esperado: f.nome };
       if (!existsSync(arquivo)) { linha.erro = 'arquivo ausente'; linhas.push(linha); continue; }
-      const img = decodifica(arquivo);
+      let img = decodifica(arquivo);
+      if (degrada) img = degrada(img, f);
       const q = cinzaReduzido(img);
       const quad = X.achaQuadrilatero(q.cinza, q.w, q.h);
       const moldura = molduraDaFoto(f);
@@ -113,16 +122,19 @@ async function mede(fotos = manifest.fotos) {
       nomeDebug = f.arquivo.replace(/\.\w+$/, '');
       const caminhos = [...(quad ? [['carta', quad.cantos]] : []), ...(moldura ? [['moldura', cantosDe(moldura)]] : [])];
       if (!caminhos.length) { linha.erro = 'carta não encontrada no quadro e foto sem moldura'; linhas.push(linha); continue; }
-      let melhor = null;
+      let melhor = null, afiou = false;
       for (const [nome, cantos] of caminhos) {
-        const r = await leNome(worker, index, img, cantos);
+        const r = await leNome(worker, index, img, cantos, { podeAfiar: !afiou });
+        if (r && r.tentouAfiar) afiou = true;
         if (r && (!melhor || nota(r) > nota(melhor))) melhor = { ...r, caminho: nome, cantos };
         if (nota(r) >= X.ACCEPT) break;
       }
       if (!melhor) { linha.erro = 'sem linha de nome'; linhas.push(linha); continue; }
       const cand = melhor.found;
       linha.caminho = melhor.caminho; linha.nitidez = Math.round(melhor.nitidez * 10) / 10;
-      if (melhor.nitidez < X.LIMIARES_LINHA.nitidezMin) linha.pulada = true;
+      // S-594 · a régua que pulava a leitura saiu (LIMIARES_LINHA.nitidezMin): se voltar, conta aqui como foto pulada
+      if (X.LIMIARES_LINHA.nitidezMin != null && melhor.nitidez < X.LIMIARES_LINHA.nitidezMin) linha.pulada = true;
+      linha.afiada = !!melhor.afiada;
       linha.lido = melhor.texto.trim(); linha.melhor = cand[0] ? `${cand[0].name} (${Math.round(cand[0].score * 100)}%)` : '—';
       linha.nomeOk = !!cand[0] && cand[0].name === f.nome && cand[0].score >= X.ACCEPT && !linha.pulada;
       if (linha.nomeOk) nomeOk++;
@@ -138,7 +150,8 @@ async function mede(fotos = manifest.fotos) {
       linhas.push(linha);
     }
   } finally { await worker.terminate(); }
-  return { linhas, n: fotos.length, nomeOk, edOk, detectadas, puladas: linhas.filter(l => l.pulada).length };
+  const erradas = linhas.filter(l => !l.erro && !l.pulada && !l.nomeOk && /\((\d+)%\)$/.test(l.melhor || '') && +/\((\d+)%\)$/.exec(l.melhor)[1] >= X.ACCEPT * 100 && !l.melhor.startsWith(l.esperado + ' ('));
+  return { linhas, n: fotos.length, nomeOk, edOk, detectadas, puladas: linhas.filter(l => l.pulada).length, erradas: erradas.length, afiadas: linhas.filter(l => l.afiada).length };
 }
 
 function relatorio(r) {
@@ -166,4 +179,38 @@ test('X10 · o conjunto declara a origem de cada foto e as reais têm o que o le
     assert.ok(Array.isArray(f.impressoes) && f.impressoes.some(i => i.set === f.set && i.number === f.numero), `${f.arquivo}: impressoes precisa incluir a esperada`);
     assert.ok(existsSync(join(dir, f.arquivo)), `${f.arquivo}: arquivo ausente na pasta fotos/`);
   }
+});
+
+/* ---------------- S-594 · foto um pouco borrada e carta com protetor ---------------- */
+/** Desfoque gaussiano (separável) com sigma em px de uma carta de 600 px de altura: a mesma conta da medida da leva. */
+function borra(img, f, sigmaCarta) {
+  const alt = (f.alturaCarta || 0.6) * Math.max(img.width, img.height), s = sigmaCarta * alt / 600;
+  const r = Math.ceil(s * 3), k = []; let soma = 0; for (let i = -r; i <= r; i++) { const v = Math.exp(-i * i / (2 * s * s)); k.push(v); soma += v; } for (let i = 0; i < k.length; i++) k[i] /= soma;
+  const { width: w, height: h } = img, a = img.data, t = new Float32Array(w * h * 3), o = new Uint8ClampedArray(w * h * 4);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) for (let c = 0; c < 3; c++) { let v = 0; for (let i = -r; i <= r; i++) v += a[(y * w + Math.min(w - 1, Math.max(0, x + i))) * 4 + c] * k[i + r]; t[(y * w + x) * 3 + c] = v; }
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { for (let c = 0; c < 3; c++) { let v = 0; for (let i = -r; i <= r; i++) v += t[(Math.min(h - 1, Math.max(0, y + i)) * w + x) * 3 + c] * k[i + r]; o[(y * w + x) * 4 + c] = v; } o[(y * w + x) * 4 + 3] = 255; }
+  return { data: o, width: w, height: h };
+}
+/** Protetor: véu claro sobre o quadro todo e um reflexo em faixa no alto da foto (onde fica o nome). */
+function protetor(img) {
+  const { width: w, height: h } = img, o = new Uint8ClampedArray(img.data);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const i = (y * w + x) * 4, faixa = Math.exp(-(((y / h + x / w * 0.3) - 0.32) ** 2) / (2 * 0.04 ** 2)); for (let c = 0; c < 3; c++) { let v = o[i + c]; v += (235 - v) * 0.16; v += (255 - v) * 0.45 * faixa; o[i + c] = v; } }
+  return { data: o, width: w, height: h };
+}
+const AMOSTRA = manifest.fotos.filter((f, i) => i % 3 === 0);   // 9 fotos, das duas famílias do conjunto
+
+test('S-594 · foto um pouco borrada (desfoque de 1,5 px numa carta de 600 px) é lida: nenhuma pulada, nenhum nome errado', { skip, timeout: 240000 }, async () => {
+  const r = await mede(AMOSTRA, { degrada: (img, f) => borra(img, f, 1.5) });
+  console.log('S-594 · borrada · ' + relatorio(r));
+  assert.equal(r.puladas, 0, 'a régua de nitidez não pode pular foto borrada que o leitor lê');
+  assert.ok(r.nomeOk >= AMOSTRA.length - 1, `nome ${r.nomeOk}/${AMOSTRA.length} (antes da S-594: a régua pulava 2 de cada 3)\n${relatorio(r)}`);
+  assert.equal(r.erradas, 0, 'nenhum nome errado com nota de aceite');
+});
+
+test('S-594 · protetor com reflexo e desfoque de 2 px: a segunda leitura realçada devolve o nome, sem nome errado', { skip, timeout: 240000 }, async () => {
+  const r = await mede(AMOSTRA, { degrada: (img, f) => borra(protetor(img), f, 2) });
+  console.log('S-594 · protetor + borrada · ' + relatorio(r));
+  assert.equal(r.puladas, 0);
+  assert.ok(r.nomeOk >= AMOSTRA.length - 2, `nome ${r.nomeOk}/${AMOSTRA.length}\n${relatorio(r)}`);
+  assert.equal(r.erradas, 0, 'nenhum nome errado com nota de aceite');
 });

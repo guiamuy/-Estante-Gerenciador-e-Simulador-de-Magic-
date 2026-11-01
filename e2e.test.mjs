@@ -3735,7 +3735,7 @@ test('e2e · leva 112 scanner: cabe sem rolar num S25, não registra leitura inc
   assert.match(diag, /nit [\d.]+ · mov \d+/); assert.match(diag, /Sol Ring \+1/); assert.match(diag, /repetida|espera/);
   await page.click('#scan-diag-copiar');
   const copiado = await page.evaluate(() => navigator.clipboard.readText());
-  assert.match(copiado, /aparelho: /); assert.match(copiado, /foco: /); assert.match(copiado, /limiares: nitidez/);
+  assert.match(copiado, /aparelho: /); assert.match(copiado, /foco: /); assert.match(copiado, /limiares: borrada/);
   await page.click('#ds-dialog-close');
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/scanner.png' });
   assert.deepEqual(errors, []);
@@ -4006,11 +4006,12 @@ test('e2e · X13 câmera no máximo: sobe a resolução, lanterna, zoom que volt
   await page.click('[data-lanterna]');
   await page.waitForFunction(() => document.querySelector('[data-lanterna]').getAttribute('aria-pressed') === 'true');
   assert.equal(await page.evaluate(() => window.__pedidos.at(-1).advanced[0].torch), true);
-  assert.match(await page.innerText('[data-zoom]'), /Zoom 1×/);
+  // S-594 · sem zoom escolhido, a câmera começa em 2× (em 1× a carta que enche a moldura fica perto demais para focar)
+  assert.match(await page.innerText('[data-zoom]'), /Zoom 2×/);
   await page.click('[data-zoom]');
-  await page.waitForFunction(() => /Zoom 1,5×/.test(document.querySelector('[data-zoom]').innerText));
+  await page.waitForFunction(() => /Zoom 3×/.test(document.querySelector('[data-zoom]').innerText));
   const z = await page.evaluate(() => window.__pedidos.at(-1).advanced[0]);
-  assert.equal(z.zoom, 1.5); assert.equal(z.torch, true, 'o zoom não desliga a lanterna');
+  assert.equal(z.zoom, 3); assert.equal(z.torch, true, 'o zoom não desliga a lanterna');
   assert.match(await page.innerText('[data-lente]'), /Lente 1 de 2/);
   await page.click('[data-lente]');
   await page.waitForFunction(() => /Lente 2 de 2/.test(document.querySelector('[data-lente]').innerText), null, { timeout: 6000 });
@@ -4019,7 +4020,7 @@ test('e2e · X13 câmera no máximo: sobe a resolução, lanterna, zoom que volt
   await page.click('[data-diag]');
   await page.waitForSelector('#scan-diag .scan-diag__linha');
   // a lente nova sobe a resolução de novo e recebe o zoom guardado
-  await page.waitForFunction(() => /máximo 3840×2160; subida: 3840×2160 ✓\) · zoom 1\.5×/.test(document.querySelector('#scan-diag-camera').innerText), null, { timeout: 8000 });
+  await page.waitForFunction(() => /máximo 3840×2160; subida: 3840×2160 ✓\) · zoom 3\.0×/.test(document.querySelector('#scan-diag-camera').innerText), null, { timeout: 8000 });
   assert.match(await page.innerText('#scan-diag-tempo'), /Até aceitar: .*confirmação \d+ ms \(1 carta/);
   assert.match(await page.innerText('#scan-diag'), /det \d+ · prep \d+ · ocr \d+ · casa \d+/);
   assert.match(await page.innerText('#scan-diag'), /Counterspell \+1 \(1ª leitura\) · \d+ ms até aceitar/);
@@ -4031,13 +4032,60 @@ test('e2e · X13 câmera no máximo: sobe a resolução, lanterna, zoom que volt
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
   await page.click('#scan-diag-copiar');
   const copiado = await page.evaluate(() => navigator.clipboard.readText());
-  assert.match(copiado, /leitor_versao: X1\d/); assert.match(copiado, /subida: 3840×2160 ✓/); assert.match(copiado, /ate_aceitar: .*confirmação \d+ ms/); assert.match(copiado, /zoom: 1\.5×/);
+  assert.match(copiado, /leitor_versao: S-\d+/); assert.match(copiado, /subida: 3840×2160 ✓/); assert.match(copiado, /ate_aceitar: .*confirmação \d+ ms/); assert.match(copiado, /zoom: 3\.0×/);
   await page.click('#ds-dialog-close');
   // reabrir o scanner: a lente e o zoom escolhidos voltam sozinhos
   await page.reload();
   await page.waitForSelector('#scan-read:not([disabled])');
-  await page.waitForFunction(() => window.__aberturas.length && window.__pedidos.some(p => p.advanced && p.advanced[0].zoom === 1.5), null, { timeout: 10000 });
+  await page.waitForFunction(() => window.__aberturas.length && window.__pedidos.some(p => p.advanced && p.advanced[0].zoom === 3), null, { timeout: 10000 });
   assert.deepEqual(await page.evaluate(() => window.__aberturas[0].deviceId), { exact: 'cam-b' }, 'abre na lente guardada');
+  assert.deepEqual(errors, []);
+});
+
+// S-594 · celular em que "traseira" abre a grande-angular de foco fixo: o app troca sozinho para a lente que foca,
+// guarda essa lente e começa em 2× (sem zoom escolhido); o diagnóstico diz que trocou.
+const CAMERA_LENTE_FIXA = `
+  window.__aberturas = []; window.__pedidos = [];
+  {
+    const gumFoto = navigator.mediaDevices.getUserMedia;
+    const focos = { larga: ['manual'], principal: ['manual', 'single-shot', 'continuous'] };
+    navigator.mediaDevices.getUserMedia = async c => {
+      const id = (c.video.deviceId && c.video.deviceId.exact) || 'larga';
+      window.__aberturas.push(id);
+      const st = await gumFoto(c), t = st.getVideoTracks()[0], real = t.getSettings.bind(t); let extra = {};
+      t.getCapabilities = () => ({ width: { min: 1, max: 1920 }, height: { min: 1, max: 1080 }, zoom: { min: 1, max: 8, step: 0.1 }, focusMode: focos[id] });
+      t.getSettings = () => ({ ...real(), ...extra, deviceId: id });
+      t.applyConstraints = async k => { window.__pedidos.push(JSON.parse(JSON.stringify(k))); for (const a of (k.advanced || [])) extra = { ...extra, ...a }; };
+      return st;
+    };
+    navigator.mediaDevices.getSupportedConstraints = () => ({ zoom: true });
+    navigator.mediaDevices.enumerateDevices = async () => [{ kind: 'videoinput', deviceId: 'larga', label: 'camera2 2, facing back' }, { kind: 'videoinput', deviceId: 'frente', label: 'camera2 1, facing front' }, { kind: 'videoinput', deviceId: 'principal', label: 'camera2 0, facing back' }];
+  }
+`;
+test('e2e · S-594 lente que foca: a grande-angular de foco fixo é trocada pela principal, a escolha fica guardada e o zoom começa em 2×', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  const foto = readFileSync(join(ROOT, 'fotos', 'real-counterspell-playmat.jpg'));
+  await page.addInitScript(FAKE_PHOTO_CAM('data:image/jpeg;base64,' + foto.toString('base64'), false, 30));
+  await page.addInitScript(CAMERA_LENTE_FIXA);
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base + '#/scanner');
+  await page.waitForSelector('#scan-read:not([disabled])');
+  assert.deepEqual(await page.evaluate(() => window.__aberturas), ['larga', 'principal'], 'abriu a padrão, viu que não foca e passou para a principal (sem provar a frontal)');
+  await page.waitForFunction(() => window.__pedidos.some(p => p.advanced && p.advanced[0].zoom === 2), null, { timeout: 8000 });
+  await page.click('#scan-more');
+  await page.waitForSelector('#scan-camera-controles');
+  assert.match(await page.innerText('[data-zoom]'), /Zoom 2×/);
+  await page.click('[data-diag]');
+  await page.waitForSelector('#scan-diag .scan-diag__linha');
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.click('#scan-diag-copiar');
+  const copiado = await page.evaluate(() => navigator.clipboard.readText());
+  assert.match(copiado, /lente: .*trocada: a anterior não focava/); assert.match(copiado, /zoom: 2\.0×/);
+  await page.click('#ds-dialog-close');
+  // reabrir: vai direto na principal, sem provar a grande-angular de novo
+  await page.reload();
+  await page.waitForSelector('#scan-read:not([disabled])');
+  assert.deepEqual(await page.evaluate(() => window.__aberturas), ['principal']);
   assert.deepEqual(errors, []);
 });
 
