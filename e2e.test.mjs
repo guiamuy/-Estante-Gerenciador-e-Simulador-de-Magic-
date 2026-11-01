@@ -4103,6 +4103,55 @@ test('e2e · S-594 lente que foca: a grande-angular de foco fixo é trocada pela
   assert.deepEqual(errors, []);
 });
 
+// S-596 · reconhecimento pela arte: a base (ramo `artes`) é servida com a impressão da carta da foto no meio de 300 artes
+// sorteadas. O leitor de nome não lê nada: a arte da carta achada responde, a carta entra e a edição vem da arte.
+test('e2e · S-596 reconhece pela arte: sem nome legível, a arte da carta achada responde, a carta entra e a edição vem da arte', { skip }, async t => {
+  const { createRequire } = await import('node:module'); const req = createRequire(import.meta.url);
+  const jpeg = req('jpeg-js'), { scanner: X } = (await import('./_load.mjs')).loadModules();
+  const foto = readFileSync(join(ROOT, 'fotos', 'real-counterspell-playmat.jpg'));
+  const img = jpeg.decode(foto, { useTArray: true, formatAsRGBA: true });
+  // o quadro de 320 px em cinza, como o app olha, para achar os cantos
+  const e = 320 / Math.max(img.width, img.height), w = Math.round(img.width * e), h = Math.round(img.height * e), g = new Uint8ClampedArray(w * h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { let s = 0, n = 0; for (let yy = Math.floor(y / e); yy < Math.min(img.height, Math.floor((y + 1) / e)); yy++) for (let xx = Math.floor(x / e); xx < Math.min(img.width, Math.floor((x + 1) / e)); xx++) { const i = (yy * img.width + xx) * 4; s += 0.299 * img.data[i] + 0.587 * img.data[i + 1] + 0.114 * img.data[i + 2]; n++; } g[y * w + x] = n ? s / n : 0; }
+  const quad = X.achaQuadrilatero(g, w, h);
+  assert.ok(quad, 'a foto tem contorno');
+  const alvo = X.impressaoDaArte(img.data, img.width, img.height, quad.cantos.map(c => ({ x: c.x * img.width, y: c.y * img.height })));
+  let semente = 99; const rnd = () => (semente = (semente * 1103515245 + 12345) >>> 0);
+  const lista = [], cartas = [];
+  for (let i = 0; i < 300; i++) { lista.push(Uint32Array.from({ length: 6 }, rnd)); cartas.push(['Carta ' + i, 'tst', String(i + 1), 'il' + i, '1']); }
+  lista.splice(137, 0, alvo); cartas.splice(137, 0, ['Counterspell', 'mh2', '267', 'il-cs', '1']);
+  const bin = Buffer.from(X.binDasArtes(lista));
+  const indice = { versao: 1, geradoEm: '2026-11-02T08:00:00Z', bits: 192, campos: ['nome', 'set', 'numero', 'ilustracao', 'versao'], cartas };
+  const pedidosArtes = [];
+  const { page, errors, base } = await open(t);
+  await page.route(/^https:\/\/raw\.githubusercontent\.com\/[^/]+\/[^/]+\/artes\/artes\.(json|bin)$/, r => { pedidosArtes.push(r.request().url()); return /json$/.test(r.request().url()) ? r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(indice) }) : r.fulfill({ status: 200, contentType: 'application/octet-stream', body: bin }); });
+  await page.addInitScript(FAKE_PHOTO_CAM('data:image/jpeg;base64,' + foto.toString('base64'), false, 30));
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base + '#/scanner');
+  await page.waitForSelector('#scan-read:not([disabled])');
+  await page.waitForFunction(() => document.querySelector('[data-auto]').getAttribute('aria-pressed') === 'true', null, { timeout: 12000 });
+  // o leitor de nome não lê nada (fila vazia): só a arte pode responder
+  await page.waitForSelector('#scan-ok:not([hidden])', { timeout: 15000 });
+  assert.match(await page.innerText('#scan-ok'), /Counterspell/);
+  assert.equal(pedidosArtes.length, 2, 'a base foi baixada uma vez: índice e impressões');
+  const aceite = (await page.evaluate(() => window.__scanDiario.lista())).find(x => /Counterspell \+1/.test(x.decisao));
+  assert.match(aceite.decisao, /arte \d+/, 'a decisão diz que foi pela arte: ' + aceite.decisao);
+  assert.equal(aceite.texto, '', 'o nome não foi lido');
+  // a edição vem da arte (a linha de coleção também não foi lida)
+  await page.waitForSelector('#scan-edition', { timeout: 8000 });
+  assert.match(await page.innerText('#scan-edition'), /MH2 #267/);
+  // a base fica no aparelho: reabrir sem rede usa a guardada
+  await page.unroute(/^https:\/\/raw\.githubusercontent\.com\/[^/]+\/[^/]+\/artes\/artes\.(json|bin)$/);
+  await page.reload();
+  await page.waitForSelector('#scan-read:not([disabled])');
+  await page.click('#scan-more'); await page.click('[data-diag]');
+  await page.waitForSelector('#scan-diag .scan-diag__linha');
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.click('#scan-diag-copiar');
+  assert.match(await page.evaluate(() => navigator.clipboard.readText()), /artes: 301 artes/);
+  assert.deepEqual(errors, []);
+});
+
 // Leva 110 · cinco ajustes de mesa e listas: alvo de qualquer coisa pela insanidade, selo de anexo no lugar do nome,
 // bandeja com o momento em ícone, linha da lista em símbolos.
 test('e2e · leva 110 Fiery Temper mira você e o oponente; Utopia Sprawl vira selo na Floresta; momento da bandeja em ícone', { skip }, async t => {
