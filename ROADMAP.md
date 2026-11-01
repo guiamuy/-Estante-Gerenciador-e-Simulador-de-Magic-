@@ -8747,11 +8747,15 @@ X14 ataca. Sobre imagem: acima de 1440p o **nome** não ganha (a linha é lida e
      baixa só as de escrita latina (`IDIOMAS_DOS_NOMES`), uma chave por língua (`names.<idioma>`, derivado), cada uma
      com a sua validade de 30 dias, e uma língua que falha não impede as outras. Diagnóstico mostra quantos nomes há por
      língua (`nomes_idiomas`).
-  3. **S-599** · japonês e chinês (simplificado e tradicional): o leitor de hoje só conhece letras latinas; precisa dos
+  - **S-599** · correção achada pela fila (G-242 vermelho com as levas S-596..I-313): os nomes impressos só são baixados
+     quando o scanner abre ou no preparo para usar sem internet (`ensure({ impressos: true })`), não em toda tela que
+     consulta a base de nomes; língua cujo arquivo falhou só é pedida de novo depois de uma hora. O teste G-242 ganhou
+     a resposta do ramo `artes` (arquivo válido, sem pares) no servidor falso, como o real responderá.
+  3. **S-600** · japonês e chinês (simplificado e tradicional): o leitor de hoje só conhece letras latinas; precisa dos
      dados de leitura de cada escrita (baixados uma vez, guardados para usar sem internet; origem a revisar pela
      `protecao`). Os nomes já saem do fluxo desde a S-598. Até lá, a carta japonesa ou chinesa entra pela arte (X12).
-  4. **S-600** · coreano e russo, no mesmo molde.
-- **Parcial, e o que falta:** fatias 3 e 4; os nomes só chegam ao aparelho depois da primeira corrida do fluxo com
+  4. **S-601** · coreano e russo, no mesmo molde.
+- **Parcial, e o que falta:** fatias 3 e 4 (S-600, S-601); os nomes só chegam ao aparelho depois da primeira corrida do fluxo com
   `--idiomas` (I-312/I-313); não testado no aparelho. Fora: traduzir a interface, mostrar o nome impresso na coleção.
 - **Testes:** U (`artes.unit`: sem os nomes em português o print não casa — o defeito —, com eles casa exato, com troca de
   OCR e sem acento; a base baixa, guarda, abre sem rede e recusa arquivo estranho; régua de movimento com 7%, 11%, 20%,

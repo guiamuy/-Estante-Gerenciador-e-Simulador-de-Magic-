@@ -42762,7 +42762,7 @@ const chaveDosNomes = idioma => 'names.' + idioma;
 const URL_NOMES = idioma => `https://raw.githubusercontent.com/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-/artes/nomes-${idioma}.json`;
 function createNameIndex({ store, scryfall, now = () => Date.now(), fetchFn = (typeof fetch === 'function' ? fetch.bind(globalThis) : null), idiomas = IDIOMAS_DOS_NOMES }) {
   let index = null, meta = null, lista = [];
-  const porIdioma = new Map();   // idioma → { pares, ts }
+  const porIdioma = new Map(), tentadas = new Map();   // idioma → { pares, ts } · idioma → quando foi pedido nesta sessão
   const apelidos = () => [...porIdioma.values()].flatMap(x => x.pares);
   const refaz = () => { if (lista.length) index = buildIndex(lista, apelidos()); };
   const leApelidos = async () => {
@@ -42798,13 +42798,17 @@ function createNameIndex({ store, scryfall, now = () => Date.now(), fetchFn = (t
       return meta;
     },
     /** Garante a base: baixa se não existe; atualiza se velha e houver rede. */
-    async ensure({ online = true } = {}) {
+    /** `impressos`: baixa também os nomes impressos em outras línguas (só o scanner e o preparo para usar sem internet
+        pedem; as outras telas usam os que já estiverem guardados). */
+    async ensure({ online = true, impressos = false } = {}) {
       await api.load();
       if (!index) { if (!online) return null; await api.refresh(); }
       else if (online && now() - meta.ts > MAX_AGE) { try { await api.refresh(); } catch (e) { /* segue com a antiga */ } }
-      if (online) {
-        // uma língua que falha não impede as outras; as que chegaram entram na base de uma vez
-        const velhas = idiomas.filter(i => { const x = porIdioma.get(i); return !x || !x.pares.length || now() - x.ts > MAX_AGE; });
+      if (online && impressos) {
+        // uma língua que falha não impede as outras; as que chegaram entram na base de uma vez; a que falhou só é
+        // pedida de novo depois de uma hora (arquivo que ainda não existe não vira um pedido a cada leitura)
+        const velhas = idiomas.filter(i => { const x = porIdioma.get(i); return (!x || !x.pares.length || now() - x.ts > MAX_AGE) && !(now() - (tentadas.get(i) || -Infinity) < 3600000); });
+        for (const i of velhas) tentadas.set(i, now());
         const chegaram = await Promise.all(velhas.map(i => baixaApelidos(i).catch(() => false)));
         if (chegaram.some(Boolean)) refaz();
       }
@@ -43915,7 +43919,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     paintStatus(); paintDock(); paintEstado();
     state.base = 'loading'; paintStatus(); marca();
     state.ocrReady = !!(await store.get('ocr.ready'));
-    try { const m = await names.ensure({ online: online() }); state.base = m ? 'ready' : 'missing'; }
+    try { const m = await names.ensure({ online: online(), impressos: true }); state.base = m ? 'ready' : 'missing'; }
     catch (e) { state.base = 'missing'; }
     artes.carrega({ online: online() }).catch(() => {});   // S-596 · a base de artes vem em segundo plano: sem ela, só o nome
     paintStatus(); marca();
@@ -44718,7 +44722,7 @@ function createOfflineKeeper({ cardRepo, decks, collection, images, names, ocr, 
         const rel = { rede: online(), nomes: false, leitor: false, listas: { fixadas: 0, faltando: [], prontas: 0, total: 0 }, colecao: { fixadas: 0, faltando: [] }, imagens: 0 };
         if (!online()) { return rel; }
         onProgress({ etapa: 'nomes', texto: 'Baixando a base de nomes…' });
-        rel.nomes = !!(await semFalha(() => names.ensure({ online: true }), null));
+        rel.nomes = !!(await semFalha(() => names.ensure({ online: true, impressos: true }), null));
         onProgress({ etapa: 'leitor', texto: 'Baixando o leitor do scanner…' });
         if (ocr && ocr.warm) { rel.leitor = await semFalha(async () => { await ocr.warm(); if (store) await store.set('ocr.ready', agora()); return true; }, false); }
         const todas = await decks.list();
@@ -44761,7 +44765,7 @@ function createOfflineKeeper({ cardRepo, decks, collection, images, names, ocr, 
         for (const d of await decks.list()) { const r = await semFalha(() => api.guardarLista(d), null); if (r) rel.listas += r.fixadas.length; }
         const c = await semFalha(() => api.guardarColecao(), null); if (c) rel.colecao = c.fixadas.length;
         // base de nomes do scanner (e do "adicionar por nome"): pequena, entra sempre
-        if (names && names.ensure) rel.nomes = !!(await semFalha(() => names.ensure({ online: true }), null));
+        if (names && names.ensure) rel.nomes = !!(await semFalha(() => names.ensure({ online: true, impressos: true }), null));
         // leitor do scanner: pesado; só reaquece o que a pessoa já tinha preparado e o navegador apagou
         if (ocr && ocr.warm && ocr.guardado && store) {
           const preparado = await semFalha(() => store.get('ocr.ready'), null);
