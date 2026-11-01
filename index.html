@@ -1991,6 +1991,17 @@ body:has(#outlet .ds-fab[data-acoes="1"]) #outlet { padding-bottom: calc(56px + 
 .relato__par { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
 .relato__par .ds-select { width: 100%; min-width: 0; }
 .relato__texto { min-height: 140px; resize: vertical; font-family: var(--font-ui); }
+.relato__ditado { display: flex; flex-direction: column; gap: var(--space-2); }
+.relato__ditado-barra { display: flex; align-items: center; gap: var(--space-2); }
+.relato__ditar { flex: none; }
+.relato__ditar[data-ouvindo="true"] { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+.relato__ditar[data-ouvindo="true"] .ds-icon { animation: relato-ouve var(--dur-pulso) var(--ease-out) infinite alternate; }
+@keyframes relato-ouve { from { opacity: 1; } to { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) { .relato__ditar[data-ouvindo="true"] .ds-icon { animation: none; } }
+.relato__idiomas { flex: 1 1 auto; max-width: 168px; margin-left: auto; }
+.relato__ouvindo { margin: 0; font-size: var(--text-sm); color: var(--fg-muted); overflow-wrap: anywhere; }
+.relato__ouvindo[data-tom="erro"] { color: var(--negative); }
+.relato__ouvindo[data-tom="aviso"] { color: var(--warning); }
 .relato__conta { display: block; text-align: right; font-size: var(--text-xs); color: var(--fg-subtle); font-variant-numeric: tabular-nums; }
 .relato__carimbo { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: var(--space-2); row-gap: var(--space-1); align-items: center; padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-2); background: var(--bg-elev-1); border: 1px solid var(--border); font-size: var(--text-sm); color: var(--fg-muted); }
@@ -3183,7 +3194,8 @@ const PLATFORM_CONTRACT = {
   camera: ['available', 'start', 'capture', 'stop'],
   files: ['save', 'readText'],
   share: ['available', 'text', 'copy'],
-  persistence: ['status', 'request', 'estimate']
+  persistence: ['status', 'request', 'estimate'],
+  fala: ['available', 'start', 'stop', 'ouvindo'] // G-319 · ditado
 };
 
 /* ---------------- leva 123 · Vibração ----------------
@@ -3203,6 +3215,74 @@ function webHaptics(nav) {
 const EVENTOS_HAPTICOS = { toque: 8, confirmacao: 12, alerta: 30, turno: [12, 40, 12] };
 /** Instância padrão para módulos que não recebem a plataforma (gestos, mesa, scanner). */
 const haptics = webHaptics(typeof navigator !== 'undefined' ? navigator : null);
+
+/* ---------------- G-319 · Fala (ditado, relato #43) ----------------
+   Reconhecimento de fala do próprio aparelho (Web Speech API): custo zero para o dono, sem chave e sem servidor da
+   Estante. No Chrome do Android o áudio vai ao serviço de fala do sistema, como no ditado do teclado; o texto volta só
+   para o campo e o app não guarda áudio. Uma frase por sessão (`continuous: false`, porque no Android o modo contínuo
+   repete o que já foi reconhecido): para continuar ouvindo, o adaptador abre a sessão seguinte sozinho até a pessoa
+   tocar em Parar, até `silencios` sessões seguidas sem fala ou até `limiteMs`. Parar entrega o que já foi ouvido.
+   Nunca lança; sem suporte, `available()` é falso e a tela nem mostra o botão. */
+function webFala(win, relogio = {}) {
+  const R = (win && (win.SpeechRecognition || win.webkitSpeechRecognition)) || null;
+  const espera = relogio.setTimeout || ((fn, ms) => setTimeout(fn, ms));
+  let atual = null;
+  return {
+    available() { return !!R; },
+    start({ idioma = 'pt-BR', aoParcial, aoFinal, aoFim, aoErro, agora = () => Date.now(), limiteMs = 180000, silencios = 3 } = {}) {
+      if (!R) { if (aoErro) aoErro('sem-suporte'); return false; }
+      this.stop();
+      const sessao = { ativa: true, parando: false, vazias: 0, inicio: agora(), rec: null };
+      atual = sessao;
+      const fim = motivo => {
+        if (!sessao.ativa) return;
+        sessao.ativa = false; if (atual === sessao) atual = null;
+        try { if (sessao.rec) sessao.rec.abort(); } catch (e) { /* já parou */ }
+        if (aoFim) aoFim(motivo);
+      };
+      sessao.para = () => {
+        if (!sessao.ativa || sessao.parando) return;
+        sessao.parando = true;
+        try { sessao.rec.stop(); } catch (e) { fim('parou'); return; }
+        espera(() => fim('parou'), 1500); // sem o fim da sessão, o microfone não fica preso
+      };
+      const abre = () => {
+        let rec;
+        try { rec = new R(); } catch (e) { if (aoErro) aoErro('falhou'); fim('erro'); return; }
+        sessao.rec = rec;
+        rec.lang = idioma; rec.continuous = false; rec.interimResults = true; rec.maxAlternatives = 1;
+        let ouviu = false, erro = null, pendente = '';
+        rec.onresult = ev => {
+          if (!sessao.ativa) return;
+          let parcial = '';
+          for (let i = ev.resultIndex || 0; i < ev.results.length; i++) {
+            const r = ev.results[i]; const t = String((r[0] && r[0].transcript) || '');
+            if (r.isFinal) { if (t.trim()) { ouviu = true; if (aoFinal) aoFinal(t.trim()); } }
+            else parcial += t;
+          }
+          pendente = parcial.trim();
+          if (aoParcial) aoParcial(pendente);
+        };
+        rec.onerror = ev => { erro = (ev && ev.error) || 'falhou'; };
+        rec.onend = () => {
+          if (!sessao.ativa) return;
+          if (pendente) { ouviu = true; if (aoFinal) aoFinal(pendente); pendente = ''; if (aoParcial) aoParcial(''); } // o que estava no ar não se perde
+          if (sessao.parando) { fim('parou'); return; }
+          if (erro && erro !== 'no-speech' && erro !== 'aborted') { if (aoErro) aoErro(erro); fim('erro'); return; }
+          sessao.vazias = ouviu ? 0 : sessao.vazias + 1;
+          if (sessao.vazias >= silencios) { fim('silencio'); return; }
+          if (agora() - sessao.inicio >= limiteMs) { fim('tempo'); return; }
+          abre();
+        };
+        try { rec.start(); } catch (e) { if (aoErro) aoErro('falhou'); fim('erro'); }
+      };
+      abre();
+      return true;
+    },
+    stop() { if (atual) atual.para(); },
+    ouvindo() { return !!atual; }
+  };
+}
 
 /* ---------------- C5 · Persistência ----------------
    Pede ao navegador para não apagar os dados do app sob pressão de espaço. */
@@ -3563,10 +3643,11 @@ function createPlatform(env = {}) {
     files: env.files || webFiles(doc, G('URL'), G('Blob'), G('FileReader')),
     share: env.share || webShare(nav),
     persistence: env.persistence || webPersistence(nav),
-    haptics: env.haptics || webHaptics(nav)
+    haptics: env.haptics || webHaptics(nav),
+    fala: env.fala || webFala(win)
   };
 }
-return { memoryStore, createPlatform, PLATFORM_CONTRACT, webPersistence, descreveEspaco, webCamera, degrausDeResolucao, medeFpsDoVideo, FPS_MINIMO, webHaptics, haptics, EVENTOS_HAPTICOS };
+return { memoryStore, createPlatform, PLATFORM_CONTRACT, webFala, webPersistence, descreveEspaco, webCamera, degrausDeResolucao, medeFpsDoVideo, FPS_MINIMO, webHaptics, haptics, EVENTOS_HAPTICOS };
 })();
 
 /* ==== src/ui/theme.js ==== */
@@ -3903,6 +3984,7 @@ const ICONES = {
   tubarao: '<path d="M2.5 17.5c3-.6 5.2-2 6.8-4.2L14 5.5c.6 3.6 2.3 7.3 7.5 12"/><path d="M2.5 17.5h19"/><path d="M5 20.5c2-.7 4-.7 6 0s4 .7 6 0"/>',
   pessoas: '<circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19.5c.6-3.3 2.8-5.2 5.5-5.2s4.9 1.9 5.5 5.2"/><circle cx="16.5" cy="9.5" r="2.6"/><path d="M15.8 14.4c2.3.1 4.1 1.8 4.7 4.6"/>',
   meia: '<circle cx="12" cy="12" r="8"/><path d="M12 4v16a8 8 0 0 0 0-16z" fill="currentColor"/>',
+  microfone: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5V21"/><path d="M8.5 21h7"/>', // G-319 · ditar
   pausa: '<rect x="6.5" y="5" width="3.6" height="14" rx="1.2"/><rect x="13.9" y="5" width="3.6" height="14" rx="1.2"/>',
   virar: '<path d="M4.5 10a7.5 7.5 0 0 1 13.4-3.6L20 8.5"/><path d="M20 4v4.5h-4.5"/><path d="M19.5 14a7.5 7.5 0 0 1-13.4 3.6L4 15.5"/><path d="M4 20v-4.5h4.5"/>',
   conversa: '<path d="M4.5 6.5A2 2 0 0 1 6.5 4.5h11a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H10l-4.2 3.2a.5.5 0 0 1-.8-.4V15.5a2 2 0 0 1-.5-1.3z"/><path d="M8.5 9h7"/><path d="M8.5 12h4.5"/>',
@@ -4408,7 +4490,10 @@ let overlayEl = null;
 /** leva 123 · controles que recebem foco dentro do diálogo, na ordem do documento. */
 const FOCAVEIS = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 let abriuDe = null; // quem tinha o foco antes do diálogo abrir; recebe o foco de volta ao fechar
-function Dialog({ title, body, actions }) {
+let aoFecharDialogo = null; // G-319 · quem abriu fica sabendo que o diálogo fechou (o ditado desliga o microfone)
+function avisaFechou() { const f = aoFecharDialogo; aoFecharDialogo = null; if (f) { try { f(); } catch (e) { console.error(e); } } }
+function Dialog({ title, body, actions, aoFechar = null }) {
+  avisaFechou(); aoFecharDialogo = aoFechar;
   if (!overlayEl) {
     overlayEl = h('div', { class: 'ds-overlay', id: 'ds-overlay', role: 'dialog', 'aria-modal': 'true' });
     document.body.appendChild(overlayEl);
@@ -4494,6 +4579,7 @@ function saidaDaFolha(dlg) {
 }
 function closeDialog() {
   if (!overlayEl || overlayEl.dataset.open !== 'true') return;
+  avisaFechou();
   saidaDaFolha(overlayEl.querySelector('.ds-dialog'));
   overlayEl.dataset.open = 'false'; clear(overlayEl);
   // leva 123 · o foco volta para quem abriu, se ainda estiver na tela
@@ -16774,7 +16860,7 @@ const __m38 = (function () {
    tamanho da tela, internet). Fica no aparelho (`relatos.itens`, vai no backup) e sai como texto para colar na conversa
    de correção. O modelo é puro e tem teste sem navegador; o formulário e a tela só desenham.
    ===================================================================== */
-const { h, mount, Stack, Row, Text, Button, IconButton, Field, Select, Textarea, Dialog, closeDialog, toast, Empty, Badge, Icone, Note } = __m3;
+const { h, mount, Stack, Row, Text, Button, IconButton, Field, Select, Textarea, Dialog, closeDialog, toast, Empty, Badge, Icone, Note, Chip } = __m3;
 const CHAVE = 'relatos.itens';
 const DESCRICAO_MIN = 5, DESCRICAO_MAX = 2000, RELATOS_MAX = 500;
 // Y5 · Melhoria e Infraestrutura entram (relato de 09/10/2026)
@@ -16790,6 +16876,47 @@ function areaDaRota(hash) {
   const a = AREAS.find(([p]) => (p === '/' ? rota === '/' : rota === p || rota.startsWith(p + '/')));
   return { rota, nome: a ? a[1] : 'Outra tela' };
 }
+/* ---------------- G-319 · ditado (relato #43) ----------------
+   O relato pode ser falado em português, inglês ou espanhol, pelo reconhecimento de fala do aparelho (a plataforma diz se
+   há). O idioma começa pelo do aparelho e a escolha vale até fechar o app. O texto falado entra onde está o cursor. */
+const IDIOMAS_DO_DITADO = [['pt-BR', 'PT', 'Português'], ['en-US', 'EN', 'Inglês'], ['es-ES', 'ES', 'Espanhol']];
+/** Idioma inicial do ditado pelo idioma do aparelho; o que não é inglês nem espanhol fica em português. */
+function idiomaDoDitado(lang) {
+  const l = String(lang || '').toLowerCase();
+  return l.startsWith('en') ? 'en-US' : l.startsWith('es') ? 'es-ES' : 'pt-BR';
+}
+/** Põe o texto falado no ponto do cursor: espaço de cada lado quando falta, maiúscula no começo de frase, sem passar do
+    limite do relato. Devolve { texto, cursor, cortado }. Puro. */
+function juntaDitado(texto, cursor, falado, max = DESCRICAO_MAX) {
+  const t = String(texto || '');
+  const c = Math.max(0, Math.min(t.length, Number.isFinite(cursor) ? cursor : t.length));
+  let f = String(falado || '').replace(/\s+/g, ' ').trim();
+  if (!f) return { texto: t, cursor: c, cortado: false };
+  const antes = t.slice(0, c), depois = t.slice(c);
+  const semEspaco = antes.replace(/[ \t]+$/, '');
+  if (!semEspaco.trim() || /[.!?…\n]$/.test(semEspaco)) f = f.charAt(0).toLocaleUpperCase() + f.slice(1);
+  const sep = antes && !/\s$/.test(antes) ? ' ' : '';
+  const pos = depois && !/^[\s.,;:!?…]/.test(depois) ? ' ' : '';
+  const sobra = max - (antes.length + sep.length + pos.length + depois.length);
+  if (sobra <= 0) return { texto: t, cursor: c, cortado: true };
+  const cortado = f.length > sobra;
+  if (cortado) f = f.slice(0, sobra).trimEnd();
+  const ate = antes + sep + f;
+  return { texto: ate + pos + depois, cursor: ate.length, cortado };
+}
+const FALHAS_DO_DITADO = {
+  'not-allowed': 'Libere o microfone para a Estante nas permissões do navegador.',
+  'service-not-allowed': 'Libere o microfone para a Estante nas permissões do navegador.',
+  'audio-capture': 'Não achei um microfone neste aparelho.',
+  network: 'O ditado precisa de internet neste aparelho. O que já está escrito continua valendo.',
+  'language-not-supported': 'Este aparelho não reconhece esse idioma. Escolha outro.'
+};
+/** Frase curta para cada falha do reconhecimento de fala (a de sempre para o que não está na lista). */
+const textoDaFalhaDoDitado = codigo => FALHAS_DO_DITADO[codigo] || 'O ditado parou. Toque em Ditar para continuar.';
+let fala = null, idiomaEscolhido = null;
+/** A plataforma entrega o reconhecimento de fala do aparelho (ou nada). */
+function usaFala(f) { fala = f || null; }
+
 /** Confere o que o usuário preencheu. Devolve os erros por campo (vazio quando está tudo certo). */
 function confere({ tipo, urgencia, descricao } = {}) {
   const erros = {};
@@ -17024,11 +17151,12 @@ function abreRelato(editando = null) {
   const desc = Textarea({ id: 'relato-descricao', value: rascunho.descricao, placeholder: 'O que aconteceu, onde e o que você esperava', onInput: e => { rascunho.descricao = e.target.value; pintaConta(); limpa('descricao'); } });
   desc.setAttribute('spellcheck', 'true'); desc.setAttribute('maxlength', String(DESCRICAO_MAX)); desc.classList.add('relato__texto');
   const pintaConta = () => { conta.textContent = `${rascunho.descricao.length}/${DESCRICAO_MAX}`; };
+  const ditado = criaDitado(desc, rascunho, () => { pintaConta(); limpa('descricao'); });
   const campos = { tipo: h('div', { class: 'relato__campo', dataset: { campo: 'tipo' } }), urgencia: h('div', { class: 'relato__campo', dataset: { campo: 'urgencia' } }), descricao: h('div', { class: 'relato__campo', dataset: { campo: 'descricao' } }) };
   const pintaCampos = () => {
     mount(campos.tipo, Field('Tipo', tipo, { invalid: !!erros.tipo, hint: erros.tipo }));
     mount(campos.urgencia, Field('Urgência', urg, { invalid: !!erros.urgencia, hint: erros.urgencia }));
-    mount(campos.descricao, Field('O que aconteceu', desc, { invalid: !!erros.descricao, hint: erros.descricao }), conta);
+    mount(campos.descricao, Field('O que aconteceu', desc, { invalid: !!erros.descricao, hint: erros.descricao }), ditado ? ditado.el : null, conta);
   };
   function limpa(k) { if (erros[k]) { delete erros[k]; pintaCampos(); } }
   pintaConta(); pintaCampos();
@@ -17058,7 +17186,68 @@ function abreRelato(editando = null) {
     closeDialog();
     toast(`Relato salvo · ${quando(r.relato.criadoEm)}`, 4200, { acao: { rotulo: 'Ver', icone: 'relato', onClick: () => { location.hash = '#/perfil/relatos'; } } });
   } });
-  Dialog({ title: editando ? 'Editar relato' : 'Relatar', body: corpo, actions: [Button('Cancelar', { variant: 'ghost', id: 'relato-cancelar', onClick: closeDialog }), salvar] });
+  Dialog({ title: editando ? 'Editar relato' : 'Relatar', body: corpo, actions: [Button('Cancelar', { variant: 'ghost', id: 'relato-cancelar', onClick: closeDialog }), salvar],
+    aoFechar: ditado ? ditado.desliga : null });
+}
+/** G-319 · linha do ditado sob o texto do relato: Ditar/Parar, idioma (PT, EN, ES) e o que está sendo ouvido. Sem
+    reconhecimento de fala no aparelho, devolve null e o formulário fica como era. */
+function criaDitado(desc, rascunho, aoMudar) {
+  if (!fala || !fala.available()) return null;
+  if (!idiomaEscolhido) idiomaEscolhido = idiomaDoDitado(typeof navigator !== 'undefined' ? navigator.language : '');
+  let ouvindo = false, retoma = false, cursor = null;
+  // o cursor do texto: o toque em Ditar ou no idioma tira o foco do campo, e o navegador nem sempre guarda a seleção
+  desc.addEventListener('blur', () => { cursor = desc.selectionStart; });
+  desc.addEventListener('focus', () => { cursor = null; });
+  const rotulo = h('span', { class: 'ds-btn__rotulo' }, 'Ditar');
+  const botao = h('button', { class: 'ds-btn ds-btn--ghost relato__ditar', type: 'button', id: 'relato-ditar', 'aria-pressed': 'false',
+    title: 'Falar o relato em vez de digitar. O reconhecimento é do aparelho; o app não guarda áudio.', onClick: () => (ouvindo ? fala.stop() : liga()) }, Icone('microfone', { tamanho: 20 }), rotulo);
+  const chips = IDIOMAS_DO_DITADO.map(([v, sigla, nome]) => {
+    const c = Chip(sigla, { pressed: v === idiomaEscolhido, dataset: { idioma: v }, onClick: () => escolhe(v) });
+    c.setAttribute('aria-label', `Ditar em ${nome}`); c.title = nome;
+    return c;
+  });
+  const idiomas = h('div', { class: 'ds-segmentado relato__idiomas', role: 'group', 'aria-label': 'Idioma do ditado', id: 'relato-idiomas' }, ...chips);
+  const linha = h('p', { class: 'relato__ouvindo', id: 'relato-ouvindo', 'aria-live': 'polite', hidden: true });
+  const el = h('div', { class: 'relato__ditado', id: 'relato-ditado' }, h('div', { class: 'relato__ditado-barra' }, botao, idiomas), linha);
+  const diz = (texto, tom = '') => { linha.textContent = texto; linha.hidden = !texto; linha.dataset.tom = tom; };
+  const pinta = () => {
+    botao.setAttribute('aria-pressed', String(ouvindo)); botao.dataset.ouvindo = String(ouvindo);
+    rotulo.textContent = ouvindo ? 'Parar' : 'Ditar';
+    el.dataset.ouvindo = String(ouvindo);
+  };
+  function escolhe(v) {
+    idiomaEscolhido = v;
+    chips.forEach(c => c.setAttribute('aria-pressed', String(c.dataset.idioma === v)));
+    if (ouvindo) { retoma = true; fala.stop(); } // trocar o idioma no meio: entrega o que ouviu e recomeça no idioma novo
+  }
+  function poe(falado) {
+    const aqui = document.activeElement === desc ? desc.selectionStart : cursor;
+    const r = juntaDitado(desc.value, aqui ?? desc.value.length, falado);
+    if (r.texto === desc.value) { if (r.cortado) diz(`Chegou ao limite de ${DESCRICAO_MAX} caracteres.`, 'aviso'); return; }
+    desc.value = r.texto; rascunho.descricao = r.texto; cursor = r.cursor;
+    try { desc.setSelectionRange(r.cursor, r.cursor); } catch (e) { /* campo fora da tela */ }
+    aoMudar();
+    if (r.cortado) { diz(`Chegou ao limite de ${DESCRICAO_MAX} caracteres.`, 'aviso'); fala.stop(); }
+  }
+  function liga() {
+    if (ouvindo || !desc.isConnected) return;
+    ouvindo = true; pinta(); diz('Ouvindo… fale o relato.');
+    const ok = fala.start({
+      idioma: idiomaEscolhido,
+      aoParcial: t => { if (ouvindo) diz(t ? `“${t}”` : 'Ouvindo… fale o relato.'); },
+      aoFinal: t => { if (desc.isConnected) poe(t); },
+      aoErro: codigo => diz(textoDaFalhaDoDitado(codigo), 'erro'),
+      aoFim: motivo => {
+        ouvindo = false; pinta();
+        if (retoma) { retoma = false; if (motivo === 'parou') { liga(); return; } }
+        if (motivo === 'silencio' || motivo === 'tempo') diz('Parei de ouvir. Toque em Ditar para continuar.');
+        else if (motivo === 'parou' && linha.dataset.tom !== 'aviso') diz('');
+      }
+    });
+    if (!ok) { ouvindo = false; pinta(); }
+  }
+  pinta();
+  return { el, desliga: () => { retoma = false; if (ouvindo) fala.stop(); } };
 }
 /** Contexto que uma tela acrescenta enquanto está aberta (a mesa diz turno, fase e a partida). */
 function usaContexto(fn) { contextoExtra = fn || null; }
@@ -17362,7 +17551,7 @@ function abrePedidoDeCobertura({ cobertura, lista, motor, aoMudar = () => {} }) 
   pinta();
 }
 
-return { relatoDeCobertura, pedidosDeCobertura, pedidoDaLista, etapaDoPedido, ETAPAS_DO_PEDIDO, createCobertura, abrePedidoDeCobertura, situacaoDoEnvio, foiEnviado, textoDaFalha, PRAZO_FILA, URL_FILA_LIGADA, FILA_MEMORIA_MS, filaLigada, relatoParaFila, createEnvioPelaFila, AREAS, URL_SITUACAO, BUSCA_SITUACAO_MS, urlDoRegistro, situacaoDosRegistros, concilia, EDITAR_JANELA_MS, podeEditar, editavelAte, editaRelato, REPOSITORIO, MARCA, dadosDoRelato, enderecoDoRegistro, limpaTela, nomeDaTela, FILTRO_VAZIO, filtra, contaFiltros, areasDe, csvDosRelatos, jsonDosRelatos, partidaAbrivel, contextoDaPartida, CHAVE, TIPOS, URGENCIAS, DESCRICAO_MIN, DESCRICAO_MAX, RELATOS_MAX, areaDaRota, confere, novoRelato, ordena, textoDoRelato, textoDosRelatos, createRelatos, usa, usaContexto, abreRelato, BotaoRelatar, createRelatosScreen, rotuloDe };
+return { IDIOMAS_DO_DITADO, idiomaDoDitado, juntaDitado, textoDaFalhaDoDitado, usaFala, relatoDeCobertura, pedidosDeCobertura, pedidoDaLista, etapaDoPedido, ETAPAS_DO_PEDIDO, createCobertura, abrePedidoDeCobertura, situacaoDoEnvio, foiEnviado, textoDaFalha, PRAZO_FILA, URL_FILA_LIGADA, FILA_MEMORIA_MS, filaLigada, relatoParaFila, createEnvioPelaFila, AREAS, URL_SITUACAO, BUSCA_SITUACAO_MS, urlDoRegistro, situacaoDosRegistros, concilia, EDITAR_JANELA_MS, podeEditar, editavelAte, editaRelato, REPOSITORIO, MARCA, dadosDoRelato, enderecoDoRegistro, limpaTela, nomeDaTela, FILTRO_VAZIO, filtra, contaFiltros, areasDe, csvDosRelatos, jsonDosRelatos, partidaAbrivel, contextoDaPartida, CHAVE, TIPOS, URGENCIAS, DESCRICAO_MIN, DESCRICAO_MAX, RELATOS_MAX, areaDaRota, confere, novoRelato, ordena, textoDoRelato, textoDosRelatos, createRelatos, usa, usaContexto, abreRelato, BotaoRelatar, createRelatosScreen, rotuloDe };
 })();
 
 /* ==== src/app/catalogo.js ==== */
@@ -44715,7 +44904,7 @@ const noticias = __m37.createNoticias({ store: platform.store, scryfall }); // N
 const partidas = __m35.createPartidas({ store: platform.store }); // I5
 const relatos = __m38.createRelatos({ store: platform.store }); // Y1 · relatos do usuário
 const catalogo = __m39.createCatalogo({ store: platform.store }); // Z2 · listas oficiais do ramo `catalogo`
-__m38.usa(relatos); __m3.usaRelatar(() => __m38.abreRelato());
+__m38.usa(relatos); __m38.usaFala(platform.fala); __m3.usaRelatar(() => __m38.abreRelato());
 // G-243 · relato enviado e ainda aberto: a situação do registro volta do GitHub pouco depois de abrir o app (o Perfil conta os abertos)
 setTimeout(() => { relatos.todos().then(l => { if (l.some(r => (r.enviadoEm || r.registro) && r.status !== 'resolvido')) return relatos.sincroniza(); }).catch(() => {}); }, 4000);
 const som = __m33.createSom({ store: platform.store }); som.init(); // G4 · som da partida
