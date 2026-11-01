@@ -8807,6 +8807,27 @@ X14 ataca. Sobre imagem: acima de 1440p o **nome** não ganha (a linha é lida e
 - **Custo:** a linha que antes era pulada agora vai ao leitor (uma leitura a mais por passada com carta borrada, e no máximo uma segunda, realçada); com a carta nítida nada muda. A troca de lente custa uma abertura de câmera a mais, uma vez, só no aparelho que abre a lente de foco fixo. `index.html` +5 KB.
 - **Fora:** reconhecimento pela arte (X12); contorno do protetor (próxima fatia da trilha); a tela nova (X16).
 
+**X20 · Carta impressa em português e carta na mão** 🟡 (leva S-597; aguardando a base de nomes e o teste no aparelho)
+- **Relato (01/11/2026, print do aparelho):** depois de ler várias cartas, o scanner não leu "Beledros Murchaflor":
+  contorno achado, aviso "Segure firme.", sugestão "É uma destas? Melee".
+- **Causas:**
+  1. **A carta está em português e a base de nomes só tem inglês** (`/catalog/card-names` da Scryfall). "Beledros
+     Murchaflor" não casa com "Beledros Witherbloom" por mais nítida que esteja a leitura: nenhuma régua de imagem
+     resolveria. As cartas lidas antes eram em inglês.
+  2. **"Segure firme" com a carta na mão:** a régua de movimento pulava a leitura a partir de 5% do quadro entre duas
+     passadas. Com o zoom em 2× (S-594), o tremor da mão dobra no quadro e passava disso: o scanner ficava pulando.
+- **Entregue (S-597):** a base de nomes ganha os **nomes impressos em português** (par nome impresso → nome em inglês),
+  gerados pelo fluxo "Artes do scanner" (`artes.mjs --idiomas pt`: busca `lang:pt` da Scryfall, uma página a cada
+  600 ms) e publicados como `nomes-pt.json` no ramo `artes`; o app baixa, guarda (`names.pt`, derivado) e junta à base
+  (`buildIndex(nomes, apelidos)`); o nome casado é o inglês, e a edição e o idioma continuam vindo da linha de coleção
+  ("STX • PT"). Régua de movimento: pula só acima de 12% do quadro (`pulaPorMovimento`); entre 5% e 12% lê, sem contar
+  como parada (nada entra na primeira passada). A arte (X12, S-596) também reconhece carta em outro idioma.
+- **Parcial, e o que falta:** só português (espanhol, japonês e outros ficam para quando houver pedido); os nomes em
+  português só chegam ao aparelho depois da primeira corrida do fluxo com `--idiomas pt` (I-312); não testado no aparelho.
+- **Testes:** U (`artes.unit`: sem os nomes em português o print não casa — o defeito —, com eles casa exato, com troca de
+  OCR e sem acento; a base baixa, guarda, abre sem rede e recusa arquivo estranho; régua de movimento com 7%, 11%, 20%,
+  manual e sem contorno; gerador lê páginas seguidas, as duas faces e não repete).
+
 **X13 · Câmera no máximo e cronômetro de leitura** 🟡 (leva 120; aguardando teste no aparelho)
 - **Valor:** o scanner usa tudo o que a câmera do aparelho entrega, e passa a dizer quanto demora, por etapa.
 - **Aceite:**
