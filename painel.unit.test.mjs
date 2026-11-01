@@ -178,11 +178,11 @@ test('R-2 · fonte sem rede ou com a cota esgotada devolve o que havia guardado 
 });
 
 /* ---------- modelo puro ---------- */
-test('R-2/R-21/R-27/R-33/R-35 · modelo: quinze sub-abas (a 15ª, Glossário, é da R-35 e não tem fonte) na ordem das fatias (Pipeline antes da Eficiência; Jogo depois do Motor; Custo, Acervo, Experiência e Pessoas no fim), todas com a leva e o que trazem; prontas: Pipeline (R-4), Eficiência (R-5), Roadmap (R-6), Motor (R-7), Jogo (R-18), Qualidade (R-8), Em curso (R-9), Skills (R-10), Modelos (R-11), Custo (R-19), Acervo (R-20) e Experiência (R-21): todas', () => {
+test('R-2/R-21/R-27/R-33/R-35/R-38 · modelo: dezesseis sub-abas (a Visão geral, da R-38, é a primeira — é onde quem gerencia abre o painel; a 16ª, Glossário, é da R-35 e não tem fonte) na ordem das fatias (Pipeline antes da Eficiência; Jogo depois do Motor; Custo, Acervo, Experiência e Pessoas no fim), todas com a leva e o que trazem; prontas: Pipeline (R-4), Eficiência (R-5), Roadmap (R-6), Motor (R-7), Jogo (R-18), Qualidade (R-8), Em curso (R-9), Skills (R-10), Modelos (R-11), Custo (R-19), Acervo (R-20) e Experiência (R-21): todas', () => {
   const { modelo, app } = loadPainel();
-  assert.deepEqual(modelo.SUBABAS.map(a => a.id), ['pipeline', 'eficiencia', 'roadmap', 'motor', 'jogo', 'qualidade', 'curso', 'skills', 'modelos', 'custo', 'acervo', 'experiencia', 'pessoas', 'negocio', 'glossario']);
+  assert.deepEqual(modelo.SUBABAS.map(a => a.id), ['resumo', 'pipeline', 'eficiencia', 'roadmap', 'motor', 'jogo', 'qualidade', 'curso', 'skills', 'modelos', 'custo', 'acervo', 'experiencia', 'pessoas', 'negocio', 'glossario']);   // R-38: expectativa ajustada com justificativa — sub-aba nova na frente
   for (const a of modelo.SUBABAS) { assert.match(a.leva, /^R-\d+$/); assert.ok(a.traz.length > 20); assert.equal(!!a.pronta, true, a.id + ' pronta'); assert.equal(!!app.VISOES[a.id], !!a.pronta, 'toda sub-aba pronta tem a visão que a desenha'); }
-  assert.deepEqual(modelo.SUBABAS.map(a => a.leva), ['R-4', 'R-5', 'R-6', 'R-7', 'R-18', 'R-8', 'R-9', 'R-10', 'R-11', 'R-19', 'R-20', 'R-21', 'R-27', 'R-33', 'R-35']);
+  assert.deepEqual(modelo.SUBABAS.map(a => a.leva), ['R-38', 'R-4', 'R-5', 'R-6', 'R-7', 'R-18', 'R-8', 'R-9', 'R-10', 'R-11', 'R-19', 'R-20', 'R-21', 'R-27', 'R-33', 'R-35']);
 });
 
 test('R-2 · modelo: carimbo dos dados, idade e farol com limiar declarado', () => {
@@ -1107,4 +1107,33 @@ test('R-37 · "como ler" e farol de gestor: toda sub-aba com dados tem pergunta 
   assert.deepEqual(M.alvoEmPalavras('auditoria do mapa na versão do motor em uso: igual · de outra versão').faixas.map(f => f.cor), ['verde', 'vermelho']);
   assert.equal(M.alvoEmPalavras('só uma faixa'), null);
   assert.equal(M.alvoEmPalavras(''), null);
+});
+
+test('R-38 · Visão geral: o placar conta os faróis dos cartões de cada aba, guarda os nomes do que está fora do alvo e em atenção, ordena da pior aba para a melhor (vermelhos, depois amarelos, depois a ordem das abas), põe no fim a aba que não carregou e soma os totais', async () => {
+  const { modelo: M, app } = loadPainel();
+  const p = M.placarDasAbas([
+    { id: 'pipeline', rotulo: 'Pipeline', cartoes: [{ rotulo: 'Na fila agora', farol: 'verde' }, { rotulo: 'Recusadas agora', farol: 'amarelo' }] },
+    { id: 'jogo', rotulo: 'Jogo', cartoes: [{ rotulo: 'Pior jogada', farol: 'vermelho' }, { rotulo: 'Listas que jogam', farol: 'verde' }, { rotulo: 'Falhas', farol: 'cinza' }] },
+    { id: 'motor', rotulo: 'Motor', erro: 'sem internet', cartoes: [] },
+    { id: 'custo', rotulo: 'Custo', cartoes: [{ rotulo: 'Minutos', farol: 'amarelo' }, { rotulo: 'Tamanho', farol: 'amarelo' }, { rotulo: 'x', farol: 'roxo' }] },
+    { id: 'roadmap', rotulo: 'Roadmap', cartoes: [] }
+  ]);
+  assert.deepEqual(p.linhas.map(l => l.id), ['jogo', 'custo', 'pipeline', 'roadmap', 'motor']);
+  assert.deepEqual(p.linhas[0].fora, ['Pior jogada']);
+  assert.deepEqual(p.linhas[1].atencao, ['Minutos', 'Tamanho']);
+  assert.equal(p.linhas[1].conta.cinza, 1, 'farol desconhecido conta como sem dados');
+  assert.deepEqual(p.totais, { verde: 2, amarelo: 3, vermelho: 1, cinza: 2 });
+  assert.equal(p.comErro, 1); assert.equal(p.linhas[4].erro, 'sem internet');
+  // a visão carrega toda aba com dados (menos a própria e o Glossário), uma vez cada, com o período padrão dela; uma que falha não derruba as outras
+  const chamadas = [];
+  const orig = {};
+  for (const id of Object.keys(app.VISOES)) { if (id === 'resumo' || id === 'glossario') continue; orig[id] = app.VISOES[id].carrega; app.VISOES[id].carrega = async (fonte, forcar, filtros) => { chamadas.push([id, filtros.periodo]); if (id === 'motor') throw new Error('sem-rede'); return { em: 1 }; }; }
+  const progresso = [];
+  const d = await app.VISOES.resumo.carrega({}, false, {}, { aCada: id => progresso.push(id) });
+  for (const id of Object.keys(orig)) app.VISOES[id].carrega = orig[id];
+  assert.deepEqual(chamadas.map(c => c[0]), M.SUBABAS.filter(a => a.id !== 'resumo' && a.id !== 'glossario').map(a => a.id));
+  assert.equal(chamadas.find(c => c[0] === 'modelos')[1], app.VISOES.modelos.periodoPadrao);
+  assert.equal(d.erros.motor, 'sem internet'); assert.ok(!d.porAba.motor); assert.ok(d.porAba.jogo);
+  assert.equal(progresso.length, chamadas.length, 'o progresso conta cada aba lida');
+  assert.equal(app.VISOES.resumo.semFiltros, true, 'a Visão geral não tem barra de filtros (cada aba tem o seu período)');
 });

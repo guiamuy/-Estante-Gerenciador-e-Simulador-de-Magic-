@@ -590,6 +590,7 @@ body {
 .ds-text--negative { color: var(--negative); }
 @media (prefers-reduced-motion: reduce) { .ficha-opcao__quadro > .ficha-opcao__img { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .ds-relatar { transition: none; } .ds-relatar:active { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .relato__ditar[data-ouvindo="true"] .ds-icon { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .tb-relatar__aba { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .troca-carta.is-chegou { animation: none; } .troca-carta { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .tb-vez-selo--troca { animation: none; } }
@@ -604,6 +605,7 @@ body {
 @media (prefers-reduced-motion: reduce) { .tb-desfecho[data-entra="true"], .tb-desfecho[data-entra="true"] .tb-desfecho__selo, .tb-desfecho[data-entra="true"] .tb-desfecho__selo::after { animation: none; } }
 .ds-icon { display: inline-flex; line-height: 0; }
 @media (prefers-reduced-motion: reduce) { .tb-hand__body, .tb-hand__chevron, .tb-dock, .tb-hand__toggle { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .tb-board[data-anima="true"] .tb-card, .tb-board[data-anima="true"] .tb-leque, .tb-board[data-anima="true"] .tb-leque__camada { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .tb-peek__brilho { display: none; } .tb-peek__arte { transform: none !important; } }
 @media (prefers-reduced-motion: reduce) { .tb-resumo__painel { animation: none; } .tb-resumo__faixa > .tb-resumo__seta { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .tb-card, .tb-card__face { transition: none; } }
@@ -749,6 +751,30 @@ button.pn-barras__linha[aria-pressed="true"] { background: var(--accent-soft); }
 .pn-balao__faixas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
 .pn-balao__faixas [data-atual="true"] { color: var(--fg); font-weight: 600; }
 .pn-balao__alvo strong { font-weight: 600; }
+
+/* R-38 · Visão geral: quatro totais (fora do alvo, atenção, no alvo, sem dados) e uma linha por aba, da pior para a melhor,
+   com a barra da proporção dos faróis (2 px de fundo entre os segmentos) e os nomes do que está fora do alvo; a linha inteira abre a aba */
+.pn-placar { display: flex; flex-direction: column; gap: var(--space-3); }
+.pn-placar__totais { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
+.pn-placar__total { padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
+.pn-placar__total[data-farol="vermelho"] .pn-placar__num { color: var(--negative); }
+.pn-placar__nota { margin: 0; overflow-wrap: anywhere; }
+.pn-placar__lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.pn-placar__linha { width: 100%; min-height: var(--tap-min); padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-2); text-align: left; color: inherit; font: inherit; cursor: pointer; border: 1px solid var(--border); border-radius: var(--radius-3); }
+.pn-placar__linha:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (hover: hover) { .pn-placar__linha:hover { border-color: var(--border-strong); } }
+.pn-placar__linha[data-erro="true"] { opacity: 0.8; }
+.pn-placar__topo { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2); min-width: 0; flex-wrap: wrap; }
+.pn-placar__nome { color: var(--fg); }
+.pn-placar__conta { overflow-wrap: anywhere; }
+.pn-placar__barra { display: flex; gap: 2px; height: 8px; border-radius: var(--radius-full); overflow: hidden; background: var(--bg-elev-2); }
+.pn-placar__seg { display: block; min-width: 6px; background: var(--fg-subtle); }
+.pn-placar__seg[data-farol="verde"] { background: var(--positive); }
+.pn-placar__seg[data-farol="amarelo"] { background: var(--warning); }
+.pn-placar__seg[data-farol="vermelho"] { background: var(--negative); }
+.pn-placar__fora, .pn-placar__atencao { overflow-wrap: anywhere; color: var(--fg); }
+.pn-placar__atencao { color: var(--fg-muted); }
+.pn-placar__fora strong, .pn-placar__atencao strong { font-weight: 600; }
 
 </style>
 </head>
@@ -1078,6 +1104,7 @@ const __p2 = (function () {
   /** Sub-abas da aba Evolução & Entrega, na ordem das fatias. `leva` diz quando cada uma chega; sem `pronta`, a tela mostra
       "em breve" com o que a visão vai trazer. Incremento 1 (13/10): Pipeline entra antes da Eficiência. */
   const SUBABAS = [
+    { id: 'resumo', rotulo: 'Visão geral', titulo: 'Visão geral', leva: 'R-38', pronta: true, traz: 'todas as abas de uma vez: quantos cartões estão no alvo, em atenção, fora do alvo e sem dados em cada uma, da pior para a melhor' },
     { id: 'pipeline', rotulo: 'Pipeline', titulo: 'Pipeline de publicação', leva: 'R-4', pronta: true, traz: 'a fila agora (levas na fila, recusadas e o motivo, rodada em curso), entregue, recusado e reprocessando por período, e o filtro que vale para todas as visões' },
     { id: 'eficiencia', rotulo: 'Eficiência', titulo: 'Eficiência', leva: 'R-5', pronta: true, traz: 'levas por dia e por semana por trilha, intervalo entre publicações, portão verde na primeira, duração do portão e retrabalho' },
     { id: 'roadmap', rotulo: 'Roadmap', titulo: 'Roadmap', leva: 'R-6', pronta: true, traz: 'histórias por status, por épico e por tema, % concluído por épico e o burn-up semanal' },
@@ -1097,6 +1124,7 @@ const __p2 = (function () {
   /* ---------- R-37 · painel didático, fatia 3: cada sub-aba diz a pergunta que responde e como ler; o farol fala a língua de quem gerencia ---------- */
   /** `pergunta`: a pergunta de gestão que a sub-aba responde. `ler`: o que olhar primeiro e o que é bom ou ruim (os termos são marcados com balão). */
   const COMO_LER = {
+    resumo: { pergunta: 'Onde está o problema agora?', ler: 'Cada linha é uma aba do painel, da que tem mais cartões fora do alvo para a que tem menos. A barra mostra a proporção dos faróis da aba: verde no alvo, amarelo atenção, vermelho fora do alvo, cinza sem dados; embaixo vêm os nomes do que está fora do alvo. Toque numa linha para abrir a aba e ver o detalhe.' },
     pipeline: { pergunta: 'O que está saindo agora e o que travou?', ler: 'Olhe primeiro "Na fila agora" e "Recusadas agora": levas esperando há muito tempo ou recusadas são o que pede ação. A rodada em curso é a volta da fila que está testando e publicando agora; o histórico embaixo mostra o que foi entregue, recusado e reprocessado no período.' },
     eficiencia: { pergunta: 'Estamos entregando no ritmo e sem retrabalho?', ler: 'Levas por dia mostram o ritmo; o intervalo entre publicações, o fôlego da esteira. "Portão verde na primeira" é a qualidade de quem entrega: quanto mais alto, menos retrabalho. Recusas e reenvios são custo que não aparece para o usuário.' },
     roadmap: { pergunta: 'Quanto do plano já foi feito, e onde?', ler: 'Cada história do ROADMAP tem um status. O percentual por épico mostra quais frentes avançaram; o burn-up semanal mostra se o concluído cresce mais rápido que o escopo. História parcial tem o que falta escrito.' },
@@ -1114,6 +1142,23 @@ const __p2 = (function () {
   };
   /** O farol na língua de quem gerencia (a cor continua no ponto; o texto diz o que a cor quer dizer). */
   const FAROL_EM_PALAVRAS = { verde: 'no alvo', amarelo: 'atenção', vermelho: 'fora do alvo', cinza: 'sem dados' };
+  /** R-38 · placar da Visão geral: para cada aba, quantos cartões em cada farol e os nomes dos que estão fora do alvo e em atenção;
+      da pior aba para a melhor (mais vermelhos, depois mais amarelos, depois a ordem das abas). Aba que não carregou vai para o fim, marcada. */
+  function placarDasAbas(abas) {
+    const linhas = (abas || []).map((a, i) => {
+      const conta = { verde: 0, amarelo: 0, vermelho: 0, cinza: 0 }, fora = [], atencao = [];
+      for (const c of a.cartoes || []) {
+        const f = conta[c.farol] != null ? c.farol : 'cinza';
+        conta[f]++;
+        if (f === 'vermelho') fora.push(c.rotulo); else if (f === 'amarelo') atencao.push(c.rotulo);
+      }
+      const total = conta.verde + conta.amarelo + conta.vermelho + conta.cinza;
+      return { id: a.id, rotulo: a.rotulo, ordem: i, erro: a.erro || null, conta, total, fora, atencao };
+    });
+    linhas.sort((x, y) => (!!x.erro - !!y.erro) || (y.conta.vermelho - x.conta.vermelho) || (y.conta.amarelo - x.conta.amarelo) || (x.ordem - y.ordem));
+    const totais = linhas.reduce((t, l) => { for (const k of Object.keys(t)) t[k] += l.conta[k]; return t; }, { verde: 0, amarelo: 0, vermelho: 0, cinza: 0 });
+    return { linhas, totais, comErro: linhas.filter(l => l.erro).length };
+  }
   /** Lê o texto de um limiar ("medida: verde · amarelo · vermelho", ou só as faixas) e devolve as faixas em palavras de gestor; null se não tiver duas ou três faixas. */
   function alvoEmPalavras(texto) {
     if (!texto || typeof texto !== 'string') return null;
@@ -1879,7 +1924,7 @@ const __p2 = (function () {
     coleta: 'raw · catalogo/coleta.json (saúde e contagens da última coleta; gravado pelo fluxo Catálogo)',
     indice: 'raw · catalogo/indice.json (só o cabeçalho: fontes, formatos, total, pendentes; lido uma vez por coleta e guardado por carimbo)'
   };
-  return { centavosDe, reaisDe, mesDe, rotuloDoMes, linhasDoNegocio, resumoDoNegocio, SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, linhasDosCommits, levasPorRodada, compactaCommits, MAIN_URL, intervalos, diasDoPeriodo, porSemana, parseRoadmap, resumoDoMapa, linhasDosPlacares, sharkPorVersao, minutosDasRodadas, serieDeTamanho, kb, cabecalhoDoIndice, resumoDoCatalogo, experienciaDasLevas, linhasDasRodadasCI, experienciaDasRodadas, instaveisPorNome, linhasDasPessoas, resumoDasPessoas, linhasDoUso, resumoDoUso, linhasDaForca, resumoDaForca, GLOSSARIO, GRUPOS_GLOSSARIO, buscaGlossario, nomeBate, verbeteDe, MARCAVEIS, segmentosComTermos, COMO_LER, FAROL_EM_PALAVRAS, alvoEmPalavras, glossarioPorGrupo, semAcento, medidaDoScanner, linhasDosRelatos, linhasDasTrilhas, resumoDoFluxo, fraseDoCron, linhasDosFluxos, linhasDasRotinas, porModelo, SECOES_CR, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
+  return { centavosDe, reaisDe, mesDe, rotuloDoMes, linhasDoNegocio, resumoDoNegocio, SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, linhasDosCommits, levasPorRodada, compactaCommits, MAIN_URL, intervalos, diasDoPeriodo, porSemana, parseRoadmap, resumoDoMapa, linhasDosPlacares, sharkPorVersao, minutosDasRodadas, serieDeTamanho, kb, cabecalhoDoIndice, resumoDoCatalogo, experienciaDasLevas, linhasDasRodadasCI, experienciaDasRodadas, instaveisPorNome, linhasDasPessoas, resumoDasPessoas, linhasDoUso, resumoDoUso, linhasDaForca, resumoDaForca, GLOSSARIO, GRUPOS_GLOSSARIO, buscaGlossario, nomeBate, verbeteDe, MARCAVEIS, segmentosComTermos, COMO_LER, FAROL_EM_PALAVRAS, alvoEmPalavras, placarDasAbas, glossarioPorGrupo, semAcento, medidaDoScanner, linhasDosRelatos, linhasDasTrilhas, resumoDoFluxo, fraseDoCron, linhasDosFluxos, linhasDasRotinas, porModelo, SECOES_CR, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
 })();
 
 /* ==== src/painel/ui.js ==== */
@@ -2003,6 +2048,24 @@ const __p4 = (function () {
 
   /* ---------- visões (uma por sub-aba pronta): carrega(fonte, forcar) → dados; desenha(dados, filtros, api) → nós ---------- */
   const VISOES = {
+    /* R-38 · Visão geral: carrega as abas com dados (na ordem, com o mesmo cache e o retrato de cada uma) e desenha cada uma fora da tela
+       só para contar os faróis dos cartões — o placar usa exatamente os cartões e os limiares que a aba mostra, nada calculado à parte */
+    resumo: {
+      filtros: [], semFiltros: true,
+      linhas: () => [],
+      async carrega(fonte, forcar, filtros, extra = {}) {
+        const porAba = {}, erros = {};
+        for (const a of SUBABAS) {
+          if (a.id === 'resumo' || a.semDados || !VISOES[a.id] || VISOES[a.id].semFonte) continue;
+          const v = VISOES[a.id];
+          try { porAba[a.id] = await v.carrega(fonte, forcar, { periodo: v.periodoPadrao }); }
+          catch (e) { erros[a.id] = e && e.message === 'sem-rede' ? 'sem internet' : 'não carregou'; }
+          if (extra.aCada) extra.aCada(a.id);
+        }
+        return { em: Date.now(), porAba, erros, avisos: [], sem: {} };
+      },
+      desenha(d, filtros, api) { return [api.visaoGeral(d)]; }
+    },
     modelos: {
       filtros: ['periodo', 'modelo', 'trilha', 'conversa', 'portao'], periodoPadrao: '30d',
       linhas: d => M.linhasDasLevas(d.levas || []),
@@ -2766,7 +2829,8 @@ const __p4 = (function () {
     const fonte = createFonte({ fetch: W.__PAINEL_FETCH_GITHUB || null, guarda, token: tokenGuardado });
     const inicial = filtrosDaUrl(typeof location !== 'undefined' ? location.hash : '');
     const termoDaUrl = hash => { const m = /[?&]termo=([^&]*)/.exec(String(hash || '')); return m ? decodeURIComponent(m[1]) : ''; };   // R-35 · #glossario?termo=…
-    const est = { sessao: null, erro: null, carregando: false, aba: (SUBABAS.find(a => a.id === inicial.aba) ? inicial.aba : null) || guarda.ler('painel.aba') || SUBABAS[0].id, filtros: inicial.filtros, maisFiltros: false, comoLerFechado: guarda.ler('painel.comoLer') || {}, busca: termoDaUrl(typeof location !== 'undefined' ? location.hash : ''), main: null, em: null, aviso: null, atualizando: false, dados: {}, pedidosDaVez: 0, tema: guarda.ler('painel.tema') || 'dark' };
+    // R-38 · a Visão geral é a primeira aba, mas não a de abertura: ela lê todas as abas de uma vez; sem aba guardada, o painel abre na Pipeline (orçamento de pedidos)
+    const est = { sessao: null, erro: null, carregando: false, aba: (SUBABAS.find(a => a.id === inicial.aba) ? inicial.aba : null) || guarda.ler('painel.aba') || 'pipeline', filtros: inicial.filtros, maisFiltros: false, progresso: 0, comoLerFechado: guarda.ler('painel.comoLer') || {}, busca: termoDaUrl(typeof location !== 'undefined' ? location.hash : ''), main: null, em: null, aviso: null, atualizando: false, dados: {}, pedidosDaVez: 0, tema: guarda.ler('painel.tema') || 'dark' };
     document.documentElement.setAttribute('data-theme', est.tema);
     const online = () => typeof navigator === 'undefined' || navigator.onLine !== false;
     const visao = () => VISOES[est.aba] || null;
@@ -2783,7 +2847,8 @@ const __p4 = (function () {
         else if (r.cotaEsgotada) est.aviso = { tipo: 'cota', texto: motivo('cota') };
         else if (r.falhou) est.aviso = { tipo: 'api', texto: motivo('api') + ' Mostrando o que havia guardado.' };
         const v = visao();
-        if (v) { est.dados[est.aba] = await v.carrega(fonte, forcar, est.filtros); if (est.aba === 'modelos') await lePlano(); if (est.aba === 'negocio') await leNegocio(); if (est.dados[est.aba].sem && (est.dados[est.aba].sem.ramos || est.dados[est.aba].sem.rodadas) && !est.aviso) est.aviso = { tipo: 'rede', texto: 'Parte dos dados veio do que estava guardado (sem rede ou cota).' }; }
+        if (v && est.aba === 'resumo') { est.progresso = 0; await lePlano(); await leNegocio(); const d = await v.carrega(fonte, forcar, est.filtros, { aCada: () => { est.progresso++; const el = typeof document !== 'undefined' && document.getElementById('pn-carregando-n'); if (el) el.textContent = `${est.progresso} de ${M.SUBABAS.filter(a => a.id !== 'resumo' && !a.semDados).length}`; } }); est.dados.resumo = d; for (const [id, dd] of Object.entries(d.porAba)) est.dados[id] = dd; }
+        else if (v) { est.dados[est.aba] = await v.carrega(fonte, forcar, est.filtros); if (est.aba === 'modelos') await lePlano(); if (est.aba === 'negocio') await leNegocio(); if (est.dados[est.aba].sem && (est.dados[est.aba].sem.ramos || est.dados[est.aba].sem.rodadas) && !est.aviso) est.aviso = { tipo: 'rede', texto: 'Parte dos dados veio do que estava guardado (sem rede ou cota).' }; }
       } catch (e) {
         est.aviso = { tipo: e.message === 'sem-rede' ? 'rede' : 'api', texto: e.message === 'sem-rede' ? 'Sem internet. Nenhum dado guardado ainda.' : motivo(e.message) };
       }
@@ -2808,7 +2873,7 @@ const __p4 = (function () {
     const planoBanco = createPlano({ fetch: W.__PAINEL_FETCH_DB || W.__PAINEL_FETCH || null, dbUrl: FIREBASE_DB_URL, token: () => sessao.token(), uid: () => est.sessao && est.sessao.uid, guarda, chave: PLANO });
     let rascunho = null;
     const MOTIVO_PLANO = { 'sem-rede': 'Sem internet: o plano ficou guardado neste aparelho e vai para o banco no próximo Salvar com rede.', recusado: 'O banco recusou a gravação do plano (regra /painel ainda não publicada no Firebase?). Ficou guardado neste aparelho.', fora: 'O banco não respondeu. O plano ficou guardado neste aparelho.', conferencia: 'O banco devolveu um registro diferente do enviado. O plano ficou guardado neste aparelho.', 'sem-sessao': 'Sem sessão: o plano ficou guardado neste aparelho.', 'sem-banco': null, pendente: 'O plano guardado neste aparelho ainda não chegou ao banco. Toque em Salvar para enviar.', vazio: 'O banco ainda não tem o plano. Toque em Salvar para enviar o que está neste aparelho.', 'mais-novo': null };
-    const api = { filtra, glossario: () => telaGlossario(), plano: () => rascunho || guarda.ler(PLANO) || {}, mudaPlano(p) { rascunho = { ...(rascunho || guarda.ler(PLANO) || {}), ...p }; }, get salvando() { return !!est.salvandoPlano; },
+    const api = { filtra, glossario: () => telaGlossario(), visaoGeral: d => telaVisaoGeral(d), plano: () => rascunho || guarda.ler(PLANO) || {}, mudaPlano(p) { rascunho = { ...(rascunho || guarda.ler(PLANO) || {}), ...p }; }, get salvando() { return !!est.salvandoPlano; },
       async salvaPlano() {
         const p = { kind: 'estante.painel.plano', version: 1, ...(rascunho || guarda.ler(PLANO) || {}), atualizadoEm: Date.now() };
         if (p.consumoPct != null && (Number.isNaN(p.consumoPct) || p.consumoPct < 0 || p.consumoPct > 100)) { est.aviso = { tipo: 'api', texto: 'Consumo precisa ser um número de 0 a 100.' }; desenha(); return; }
@@ -2940,8 +3005,39 @@ const __p4 = (function () {
         h('div', { class: 'pn-glossario__busca' }, Field('Buscar', campo, { id: 'pn-glossario-busca' })),
         lista);
     }
+    /** R-38 · a Visão geral: desenha cada aba num contêiner fora da tela, lê os cartões (rótulo e farol) e monta o placar */
+    function cartoesDaAba(id, d) {
+      const v = VISOES[id]; if (!v || !d) return null;
+      const caixa = h('div', {});
+      try { for (const n of v.desenha(d, { periodo: v.periodoPadrao }, api)) if (n) caixa.appendChild(n); } catch (e) { return null; }
+      return [...caixa.querySelectorAll('.pn-cartao')].map(c => { const f = c.querySelector('.pn-farol'); return { rotulo: c.getAttribute('aria-label') || '', farol: f ? f.dataset.farol : null }; }).filter(c => c.farol);
+    }
+    function telaVisaoGeral(d) {
+      const abas = M.SUBABAS.filter(a => a.id !== 'resumo' && !a.semDados).map(a => {
+        const cartoes = d.erros && d.erros[a.id] ? null : cartoesDaAba(a.id, d.porAba && d.porAba[a.id]);
+        return { id: a.id, rotulo: a.rotulo, cartoes: cartoes || [], erro: cartoes ? null : ((d.erros && d.erros[a.id]) || 'não carregou') };
+      });
+      const p = M.placarDasAbas(abas);
+      const ORDEM = ['vermelho', 'amarelo', 'verde', 'cinza'];
+      const totalGeral = ORDEM.reduce((n, k) => n + p.totais[k], 0);
+      const contaTexto = conta => ORDEM.filter(k => conta[k]).map(k => `${conta[k]} ${M.FAROL_EM_PALAVRAS[k]}`).join(' · ') || 'nenhum cartão com farol';
+      return h('div', { class: 'pn-placar', id: 'pn-placar' },
+        h('div', { class: 'pn-placar__totais', id: 'pn-placar-totais', role: 'list', 'aria-label': 'faróis de todo o painel' },
+          ...ORDEM.map(k => h('div', { class: 'ds-surface pn-placar__total', role: 'listitem', dataset: { farol: k }, id: 'pn-placar-total-' + k },
+            h('span', { class: 'pn-placar__num ds-text ds-text--2xl ds-text--display' }, String(p.totais[k])),
+            h('span', { class: 'pn-farol ds-text ds-text--sm ds-text--muted', dataset: { farol: k } }, M.FAROL_EM_PALAVRAS[k])))),
+        h('p', { class: 'ds-text ds-text--xs ds-text--subtle pn-placar__nota' }, `${totalGeral} cartões com farol em ${p.linhas.length - p.comErro} abas` + (p.comErro ? ` · ${p.comErro} aba(s) não carregaram` : '') + ` · ${d.em ? M.carimbo(d.em) : ''}`),
+        h('ul', { class: 'pn-placar__lista', id: 'pn-placar-lista' }, ...p.linhas.map(l => h('li', { class: 'pn-placar__item' },
+          h('button', { type: 'button', class: 'ds-surface pn-placar__linha', id: 'pn-placar-' + l.id, dataset: { aba: l.id, vermelhos: String(l.conta.vermelho), erro: l.erro ? 'true' : 'false' }, 'aria-label': `${l.rotulo}: ${l.erro ? l.erro : contaTexto(l.conta)}. Abrir a aba.`, onClick: () => abre(l.id) },
+            h('span', { class: 'pn-placar__topo' },
+              h('span', { class: 'pn-placar__nome ds-text ds-text--md ds-text--display' }, l.rotulo),
+              h('span', { class: 'pn-placar__conta ds-text ds-text--xs ds-text--muted' }, l.erro ? l.erro : contaTexto(l.conta))),
+            l.erro || !l.total ? null : h('span', { class: 'pn-placar__barra', 'aria-hidden': 'true' }, ...ORDEM.filter(k => l.conta[k]).map(k => h('span', { class: 'pn-placar__seg', dataset: { farol: k }, style: { flexGrow: String(l.conta[k]) } }))),
+            l.fora.length ? h('span', { class: 'pn-placar__fora ds-text ds-text--xs' }, h('strong', {}, 'Fora do alvo: '), l.fora.join(' · ')) : null,
+            !l.fora.length && l.atencao.length ? h('span', { class: 'pn-placar__atencao ds-text ds-text--xs ds-text--muted' }, h('strong', {}, 'Atenção: '), l.atencao.join(' · ')) : null)))));
+    }
     function conteudo() {
-      const aba = SUBABAS.find(a => a.id === est.aba) || SUBABAS[0];
+      const aba = SUBABAS.find(a => a.id === est.aba) || SUBABAS.find(a => a.id === 'pipeline');
       const v = visao();
       const partes = [];
       if (est.aviso) partes.push(est.aviso.tipo === 'rede' ? AvisoRede(est.aviso.texto, { id: 'pn-aviso' }) : Note(est.aviso.texto, 'warning', { id: 'pn-aviso' }));
@@ -2957,8 +3053,8 @@ const __p4 = (function () {
       else if (!aba.pronta || !v) partes.push(Empty(`Esta visão chega na leva ${aba.leva} e vai trazer ${aba.traz}.`, null, { icone: 'ampulheta', titulo: `${aba.titulo} · em breve`, hero: true, id: 'pn-em-breve' }));
       else {
         const d = est.dados[est.aba];
-        partes.push(barraDeFiltros(v, d));
-        if (!d) partes.push(est.atualizando ? h('div', { class: 'pn-carregando', id: 'pn-carregando' }, Spinner(), h('span', {}, 'Lendo a fila e as rodadas…')) : Empty('Toque em Atualizar para ler a fila e as rodadas.', null, { icone: 'atualizar', titulo: 'Sem dados ainda', id: 'pn-sem-dados' }));
+        if (!v.semFiltros) partes.push(barraDeFiltros(v, d));
+        if (!d) partes.push(est.atualizando ? h('div', { class: 'pn-carregando', id: 'pn-carregando' }, Spinner(), h('span', {}, est.aba === 'resumo' ? 'Lendo as abas… ' : 'Lendo a fila e as rodadas…'), est.aba === 'resumo' ? h('span', { id: 'pn-carregando-n' }, `${est.progresso || 0} de ${M.SUBABAS.filter(a => a.id !== 'resumo' && !a.semDados).length}`) : null) : Empty('Toque em Atualizar para ler a fila e as rodadas.', null, { icone: 'atualizar', titulo: 'Sem dados ainda', id: 'pn-sem-dados' }));
         else partes.push(h('div', { class: 'pn-visao', id: 'pn-visao-' + est.aba }, ...v.desenha(d, est.filtros, api)));
       }
       return h('section', { class: 'pn-conteudo', id: 'pn-conteudo', role: 'tabpanel', 'aria-label': aba.titulo }, ...partes);

@@ -13725,8 +13725,8 @@ test('e2e · R-2 Painel Estante: outro e-mail é recusado e desconectado; o dono
   assert.match(await page.innerText('#pn-main'), /main: G-264 · há 2 h/);
   assert.equal(await page.getAttribute('#pn-carimbo', 'data-farol'), 'verde');
   assert.match(await page.innerText('#pn-cota'), /57 de 60/);
-  assert.equal(await page.locator('#pn-abas .ds-tab').count(), 15);   // R-27 · Pessoas · R-33 · Negócio · R-35 · Glossário
-  assert.deepEqual(await page.$$eval('#pn-abas .ds-tab', es => es.map(e => e.dataset.tab)), ['pipeline', 'eficiencia', 'roadmap', 'motor', 'jogo', 'qualidade', 'curso', 'skills', 'modelos', 'custo', 'acervo', 'experiencia', 'pessoas', 'negocio', 'glossario']);
+  assert.equal(await page.locator('#pn-abas .ds-tab').count(), 16);   // R-27 · Pessoas · R-33 · Negócio · R-35 · Glossário · R-38 · Visão geral (a primeira; expectativa ajustada com justificativa)
+  assert.deepEqual(await page.$$eval('#pn-abas .ds-tab', es => es.map(e => e.dataset.tab)), ['resumo', 'pipeline', 'eficiencia', 'roadmap', 'motor', 'jogo', 'qualidade', 'curso', 'skills', 'modelos', 'custo', 'acervo', 'experiencia', 'pessoas', 'negocio', 'glossario']);
   await page.waitForSelector('#pn-visao-pipeline, #pn-sem-dados, #pn-em-breve');
   for (const id of ['#pn-atualizar', '#pn-sair', '#pn-tema', '#pn-voltar']) assert.ok((await page.locator(id).boundingBox()).height >= 44, id + ' com 44 px');
   // abrir outra sub-aba: dentro do prazo do cache não há pedido novo; o conteúdo diz a leva dela
@@ -13930,6 +13930,60 @@ test('e2e · R-36 Painel · termos marcados: os termos técnicos da sub-aba e da
   await page.click('#pn-abas [role="tab"]:has-text("Pipeline")'); await page.waitForSelector('.pn-cartao dfn.pn-termo');
   await emTodasAsMedidas(page, 'termos marcados');
   if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.locator('.pn-cartao dfn.pn-termo[data-termo="fila"]').first().dispatchEvent('click'); await page.waitForSelector('#pn-balao'); await page.waitForTimeout(400); await page.screenshot({ path: process.env.SHOTS + '/r36-balao.png', fullPage: false }); }
+  assert.deepEqual(errors, []);
+});
+
+/* ---------- R-38 · painel didático, fatia 4: Visão geral (placar de gestão) ---------- */
+test('e2e · R-38 Painel · Visão geral: é a primeira aba e abre o placar de todas as abas com dados — quatro totais (fora do alvo, atenção, no alvo, sem dados) e uma linha por aba da pior para a melhor, com a barra dos faróis e os nomes do que está fora do alvo; os números batem com os faróis das próprias abas; tocar a linha abre a aba; sem barra de filtros; o primeiro acesso sem aba guardada continua na Pipeline; sem sobreposição nos dois temas', { timeout: 150000 }, async t => {
+  const { page, errors, base } = await open(t);
+  const painel = base.replace('index.html', 'painel.html');
+  await page.setViewportSize({ width: 360, height: 780 });
+  const h = n => new Date(Date.now() - n * 3600000).toISOString();
+  const json = (r, corpo) => r.fulfill({ json: corpo, headers: { 'content-type': 'application/json', 'x-ratelimit-remaining': '50', 'x-ratelimit-limit': '60', 'access-control-expose-headers': 'etag, x-ratelimit-remaining, x-ratelimit-limit' } });
+  await page.route('https://api.github.com/**', r => {
+    const u = r.request().url();
+    if (/commits\?sha=main/.test(u)) return json(r, [{ sha: 'abc1234def0', commit: { message: 'Leva R-38 · x', committer: { date: new Date().toISOString() } } }]);
+    if (/\/branches\?/.test(u)) return json(r, [{ name: 'main', commit: { sha: 'm' } }, { name: 'recusada/M-1', commit: { sha: 'r1' } }, { name: 'recusada/M-2', commit: { sha: 'r2' } }, { name: 'recusada/M-3', commit: { sha: 'r3' } }]);
+    if (/\/branches\/recusada/.test(u)) return json(r, { commit: { message: 'RECUSADA pela fila · M-1\n\nCONFLITO.', committer: { date: h(1) } } });
+    if (/\/runs/.test(u)) return json(r, { workflow_runs: [], total_count: 0 });
+    return json(r, []);
+  });
+  await page.route('https://raw.githubusercontent.com/**', r => r.fulfill({ body: '', headers: { 'content-type': 'text/plain', 'access-control-allow-origin': '*' } }));
+  await page.addInitScript(() => {
+    const jwt = email => 'h.' + btoa(JSON.stringify({ email })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') + '.s';
+    window.__PAINEL_FETCH = async (url) => new Response(JSON.stringify(url.includes('securetoken') ? { user_id: 'uidE2E', id_token: jwt('gui.amuy@gmail.com'), refresh_token: 'ref-e2e', expires_in: '3600' } : { localId: 'uidE2E', idToken: jwt('gui.amuy@gmail.com'), refreshToken: 'ref-e2e', expiresIn: '3600', email: 'gui.amuy@gmail.com' }), { status: 200, headers: { 'content-type': 'application/json' } });
+    window.__PAINEL_GOOGLE = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }), revoke: (tk, cb) => cb && cb() } } };
+  });
+  // sem aba guardada, o painel abre na Pipeline; a Visão geral é a primeira aba
+  await page.goto(painel); await page.waitForSelector('#pn-entrar'); await page.click('#pn-entrar');
+  await page.waitForSelector('#pn-visao-pipeline');
+  assert.equal(await page.locator('#pn-abas .ds-tab').first().getAttribute('data-tab'), 'resumo');
+  await page.click('#pn-abas [data-tab="resumo"]');
+  await page.waitForSelector('#pn-placar', { timeout: 60000 });
+  assert.equal(await page.locator('.pn-filtros__grupo').count(), 0, 'a Visão geral não tem barra de filtros');
+  assert.match(await page.innerText('#pn-como-ler'), /Onde está o problema agora\?/);
+  // quatro totais, na ordem de quem pede ação
+  assert.deepEqual(await page.$$eval('#pn-placar-totais [role="listitem"]', ts => ts.map(t => t.dataset.farol)), ['vermelho', 'amarelo', 'verde', 'cinza']);
+  const linhas = await page.$$eval('.pn-placar__linha', ls => ls.map(l => ({ aba: l.dataset.aba, v: +l.dataset.vermelhos, erro: l.dataset.erro, altura: l.getBoundingClientRect().height, texto: l.textContent })));
+  assert.equal(linhas.length, 14, 'uma linha por aba com dados (o Glossário e a própria Visão geral ficam de fora)');
+  assert.equal(linhas[0].aba, 'pipeline', 'a pior aba primeiro: três recusadas deixam a Pipeline fora do alvo');
+  assert.match(linhas[0].texto, /Fora do alvo: [^]*Recusadas agora/);
+  for (let i = 1; i < linhas.length; i++) if (linhas[i].erro === 'false' && linhas[i - 1].erro === 'false') assert.ok(linhas[i - 1].v >= linhas[i].v, 'da pior para a melhor');
+  assert.ok(linhas.every(l => l.altura >= 44), 'a linha inteira é alvo de toque');
+  const totalVermelho = +(await page.innerText('#pn-placar-total-vermelho .pn-placar__num'));
+  assert.equal(totalVermelho, linhas.reduce((n, l) => n + l.v, 0), 'o total soma as linhas');
+  await auditaTela(page, 'visão geral');
+  // tocar a linha abre a aba; o farol de "Recusadas agora" lá é o mesmo que o placar contou
+  await page.click('#pn-placar-pipeline'); await page.waitForSelector('#pn-visao-pipeline #pn-k-recusadas');
+  assert.equal(await page.getAttribute('#pn-abas [data-tab="pipeline"]', 'aria-selected'), 'true');
+  assert.equal(await page.getAttribute('#pn-k-recusadas .pn-farol', 'data-farol'), 'vermelho');
+  const vermelhosNaAba = await page.locator('#pn-visao-pipeline .pn-cartao .pn-farol[data-farol="vermelho"]').count();
+  assert.equal(vermelhosNaAba, linhas[0].v, 'o placar conta exatamente os faróis vermelhos da aba');
+  // de volta à Visão geral: guardada como aba de abertura
+  await page.click('#pn-abas [data-tab="resumo"]'); await page.waitForSelector('#pn-placar', { timeout: 60000 });
+  await page.reload(); await page.waitForSelector('#pn-placar', { timeout: 60000 });
+  await emTodasAsMedidas(page, 'visão geral');
+  if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.waitForTimeout(400); await page.screenshot({ path: process.env.SHOTS + '/r38-visao-geral.png', fullPage: true }); }
   assert.deepEqual(errors, []);
 });
 
