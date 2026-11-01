@@ -404,6 +404,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-sa 🟡 | B22 Shark profissional com cinco listas: fatia 1 ✅ (B-173) listas de torneio embutidas e seletor do Shark só com elas; fatia 2 ✅ (B-174) linha de base: Madness 75% · Elves 63% · Faeries 50% · Control 38% · Terror 25% contra o campo; fatia 3 ✅ (B-175) perfil do Terror + o terreno que falta (pareado 50% × 38% em 32 pares: dentro da margem); fatia 4 (B-176) ameaças do campo no Control: sem ganho (41% × 42% em 64 pares), desligada; fatia 5 (B-177) mulligan por fontes e cores: neutro em força (79 × 81 em 160 pares), ligado pelo comportamento; fatia 6 (B-178) prazo da decisão: p95 430 → 366 ms, pior 4,3 → 0,8 s, força 48 × 47; fatia 7 (B-179) quando anular: a resposta é lida primeiro e a anulação guardada tem valor, neutro em força (38 × 39 em 96 pares), ligado pelo comportamento; fatias 8–9 viraram a B23 (16º-sd); força final (B-185, 208 decididas por lista, Shark × Shark): Madness 66% · Terror 59% · Elfos 50% · Faeries 47% · Control 29% — o aceite "nenhuma abaixo de 45%" fica aberto pelo Control (B24, 16º-se) | B22 | 9 | 16º-z2 |
 | 16º-sd ✅ | B23 o Shark usa bem cada carta das cinco listas: fatia 1 ✅ (B-180) auditoria carta a carta (`bot.cartas.mjs`, 76 cartas, 40 partidas): 6 cartas ficam na mão, 5 com alvo no próprio lado por erro; fatia 2 ✅ (B-181) alvo no próprio lado + avaliaV6 (o −3/−0 na própria criatura dava +4), neutro em força (47 × 48), ligado; fatia 3 ✅ (B-182) loucura e descarte conferidos (Fiery Temper 14/20 contando a loucura), sem mudança no Shark; fatia 4 ✅ (B-183) a decisão do outro na resolução (Deem Inferior 1/13 → 13/14), 49 × 47, ligado; fatia 5 ✅ (B-184) jogar em volta: o outro responde com a mágica do Shark na pilha (anula, tira o alvo), 51 × 47, ligado; fatia 6 ✅ (B-185) fechamento: reserva pelo alvo (29 × 24) e resposta no meu turno (o Dispel na Counterspell que anulava a minha ameaça; 48 × 46), auditoria final sem "não usa" (69 usam, 5 a revisar declaradas), força por lista com 208 decididas no painel, p95 dentro do orçamento | B23 | 6 | 16º-sa |
 | 16º-se 🔲 | B24 o Shark pilota o Dimir Control acima de 45% contra o campo (hoje 29% em 208 decididas): partida narrada das derrotas do Control, plano de controle (vantagem de cartas, monarca do Thorn of the Black Rose, quando virar o jogo) | B24 | 3–5 | 16º-sd |
+| 16º-sh 🟡 | B25 Shark profissional com as cinco listas (pedido do dono de 01/11): quatro réguas — força absoluta × `shark-v12` ≥ 60%, nenhuma lista < 45% contra o campo, bateria profissional ≥ 85%, higiene (zero ilegais, p95 ≤ 400 ms); fases 0 réguas (B-186, B-187) · 1 diagnóstico (B-188) · 2 avaliação aprendida (B-189…B-191) · 3 busca no próprio turno (B-192, B-193) · 4 correções (B-194…B-196, absorve a B24) · 5 fechamento (B-197) | B25 | 12 | 16º-sd |
 | 16º-y ✅ | Shark: olhar o turno seguinte (simulação até o próximo turno) — medido, não pagou, fica desligado; achado: a força está no plano de cada baralho (leva 131) | B15 | 1 | — |
 | 16º-w ✅ | Shark: pesos da avaliação postos à prova por torneio — nenhum paga; achado: o limite é a profundidade, não o peso (leva 126) | B20 | 1 | — |
 | 16º-j3 🟡 | Scanner de referência (E52): X14 resposta imediata (leva 127) | E52 | 2 de 6 a 7 | teste no aparelho: "até aceitar" no diagnóstico |
@@ -7895,6 +7896,54 @@ fatias 1–6 nas levas B-180…B-185)
 - **Testes:** posições no `bot.unit` para cada erro achado nas partidas narradas do Control.
 - **Depende de:** B23 (16º-sd).
 - **Fora:** trocar a lista do Control (só se o Shark jogando bem continuar abaixo, com decisão do dono); reserva.
+
+**B25 · Shark profissional com as cinco listas** 🟡 (pedido do dono de 01/11/2026: "plano de melhoria consistente e bem
+estruturado para tornarmos o Shark um jogador de nível profissional com as suas listas"; absorve a B24 como fase 4)
+- **Valor:** quem enfrenta o Shark, com qualquer uma das cinco listas, encontra um oponente que joga como um profissional:
+  sabe o papel do baralho, sequencia o turno, gasta as respostas no lugar certo e fecha a partida.
+- **Por que um programa novo:** as sete levas da B22/B23 (B-179…B-185) corrigiram erros visíveis e ficaram neutras em
+  força. O próprio histórico diz por quê: mudar pesos "no olho" não move nada (B20) e rolar o turno seguinte com política
+  fraca também não (B15); o que pagou foi mudar **o que** o Shark simula (levas 115 e 118). E Shark × Shark mede quais
+  listas são fortes entre si, não se o Shark ficou mais forte. A B25 troca a régua e ataca as duas alavancas que faltam.
+- **Aceite (quatro réguas, linha de base antes de qualquer mudança):**
+  1. **força absoluta:** Shark novo × `shark-v12` congelado (o Shark de antes da B22/B23), as cinco listas nos dois
+     lados, 200+ decididas, ≥ 60% (ganho só fora da margem de ±7);
+  2. **equilíbrio:** nenhuma das cinco abaixo de 45% contra o campo (`forca.mjs`, 200+ decididas por lista) — fecha a B24;
+  3. **bateria profissional:** posições montadas com a jogada certa conhecida e o raciocínio escrito, por lista e por
+     classe de decisão (papel, corrida e letal, sequência do turno, jogar em volta, recurso e anulação, combate,
+     mulligan), ≥ 85% de acerto;
+  4. **higiene:** zero ações ilegais, p95 ≤ 400 ms, não vazamento verde, nível anterior congelado a cada salto.
+- **Linha de base (B-186, 01/11/2026 — o Shark publicado com a B-185, motor v112, 400 ms):**
+  - **força absoluta: 49%** — `shark` × `shark-v12` frente a frente, as cinco listas nos dois lados e nos dois assentos,
+    103–107 em 210 decididas (`torneio.listas.mjs shark shark-v12 7 31000`, `LISTAS=shark`, duas fatias), zero ilegais.
+    **As sete levas da B22/B23 depois da `shark-v12` não deixaram o Shark mais forte que ela** (margem ±7).
+  - **por piloto, pareado** (a mesma partida com o Shark novo e com o `shark-v12` pilotando a lista, contra o `shark-v12`,
+    16 pares por lista): Madness 11 × 10 · Control **4 × 7** · Faeries 8 × 7 · Terror 11 × 11 · Elfos **10 × 13**; só o
+    novo ganhou 5, só o antigo 8. Pequeno demais para concluir, mas a direção no Control e nos Elfos é **para baixo**:
+    é a primeira pergunta da fase 1 (qual das peças ligadas depois da v12 custa vitórias a esses dois pilotos).
+  - **equilíbrio** (B-185): Madness 65,9 · Terror 58,7 · Elfos 49,5 · Faeries 46,6 · **Control 29,3** — o Control
+    abaixo de 45%.
+  - **higiene** (B-185): zero ilegais, p95 368 ms; nesta medição, com quatro processos em dois núcleos, a pior jogada
+    passou de 2,6 s (máquina carregada; o p95 é medido de novo no fechamento com a máquina livre).
+  - **bateria profissional:** nasce na B-187.
+- **Fases:**
+  - **0 · réguas** — B-186 régua absoluta e linha de base das quatro; B-187 bateria profissional (30+ posições).
+  - **1 · diagnóstico** — B-188 partidas narradas das derrotas (Control e Faeries primeiro), cada erro classificado e
+    custeado em vitórias: é a fila de trabalho das fases 2–4.
+  - **2 · avaliação aprendida** — B-189 posições de partidas reais com o resultado; B-190 ajuste dos pesos pelo resultado
+    (todos juntos, por arquétipo, treino e prova separados — a B20 só testou um peso por vez, ×0,5 ou ×2); B-191 o
+    avaliador aprendido no Shark, medido nas quatro réguas.
+  - **3 · busca no próprio turno** — B-192 sequências de duas ou três jogadas no turno (a isca da B-184 generalizada),
+    dentro do prazo; B-193 simulação mais barata para caber mais leitura em 400 ms (se tocar `apply`/`cloneEstado`, com
+    o `motor`).
+  - **4 · correções do diagnóstico** — B-194…B-196, os erros mais caros da fase 1, o Control primeiro.
+  - **5 · fechamento** — B-197 as quatro réguas de novo, no painel.
+- **Regras do programa:** toda técnica entra atrás de opção e passa por ablação; a que não se paga sai, com o número
+  registrado aqui; cada leva reporta as quatro réguas (as que mudaram), levas e horas restantes.
+- **Testes:** posições de cada erro no `bot.unit`; a bateria profissional como teste próprio; não vazamento.
+- **Depende de:** B23 (16º-sd).
+- **Fora:** trocar as listas; reserva e melhor de três; blefe e leitura de comportamento; regra de jogo (vai ao
+  `motor`); medir contra jogadores humanos (não é medível aqui: declarado).
 
 **B15 · Olhar o turno seguinte** ✅ (leva 132, 03/10/2026) — fechada com resultado negativo; **o Shark não mudou de jogo.**
 - **Pergunta:** simular o resto do turno e o turno inteiro do oponente (em vez de um lance) deixa o Shark mais forte?
