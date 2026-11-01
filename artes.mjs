@@ -23,6 +23,8 @@ import { existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
+import { Readable } from 'node:stream';
+import { createGunzip } from 'node:zlib';
 
 const RAIZ = dirname(fileURLToPath(import.meta.url));
 const BULK = 'https://api.scryfall.com/bulk-data/unique-artwork';
@@ -135,31 +137,56 @@ export function separaObjetos() {
   };
 }
 
-/** { idioma: [[impresso, nome], …] } das línguas pedidas, lidas dos dados em massa All Cards. */
-export async function nomesDosDadosEmMassa(fetchFn, idiomas, { log = () => {}, ms = 45 * 60000 } = {}) {
-  const quer = new Set(idiomas), pares = new Map(idiomas.map(i => [i, new Map()]));
-  const meta = await busca(fetchFn, BULK_TODAS);
-  if (!meta || typeof meta.download_uri !== 'string' || !/^https:\/\/data\.scryfall\.io\//.test(meta.download_uri)) throw new Error('dados em massa sem endereço da Scryfall');
+/* S-600 · a Scryfall passou a anunciar os dados em massa só em JSON Lines comprimido (`jsonl_download_uri`, .jsonl.gz;
+   01/11/2026, sem `download_uri`): a primeira corrida do fluxo parou em "sem endereço". Aceita os dois formatos — lista JSON
+   ou uma carta por linha, com ou sem gzip (reconhecido pelos dois primeiros bytes) — e lê sempre em fluxo. */
+/** O endereço do arquivo de dados em massa, só se for da Scryfall. */
+export function enderecoDaMassa(meta) {
+  for (const u of [meta && meta.jsonl_download_uri, meta && meta.download_uri]) if (typeof u === 'string' && /^https:\/\/data\.scryfall\.io\//.test(u)) return u;
+  throw new Error('dados em massa sem endereço da Scryfall');
+}
+
+/** O corpo de uma resposta como texto, pedaço a pedaço; descomprime se vier em gzip. */
+export async function* textoDoCorpo(body) {
+  const it = body[Symbol.asyncIterator]();
+  const primeiro = await it.next();
+  if (primeiro.done) return;
+  const bytes = v => (typeof v === 'string' ? Buffer.from(v) : v);
+  const p0 = bytes(primeiro.value);
+  const resto = (async function* () { yield p0; for (let x = await it.next(); !x.done; x = await it.next()) yield bytes(x.value); })();
+  const fonte = p0[0] === 0x1f && p0[1] === 0x8b ? Readable.from(resto, { objectMode: false }).pipe(createGunzip()) : resto;
+  const texto = new TextDecoder();
+  for await (const p of fonte) yield texto.decode(p, { stream: true });
+  const fim = texto.decode(); if (fim) yield fim;
+}
+
+/** Baixa um arquivo de dados em massa e entrega cada objeto (texto JSON cru) a `usa`; devolve quantos leu. */
+async function lerMassa(fetchFn, url, usa, { ms, log = () => {} } = {}) {
   const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), ms);
   let lidos = 0;
   try {
-    const r = await fetchFn(meta.download_uri, { headers: CABECALHOS, signal: ctl.signal });
+    const r = await fetchFn(url, { headers: CABECALHOS, signal: ctl.signal });
     if (!r.ok || !r.body) throw new Error('HTTP ' + r.status);
-    const separa = separaObjetos(), texto = new TextDecoder();
-    const usa = obj => {
-      lidos++;
-      const m = /"lang"\s*:\s*"([a-z]+)"/.exec(obj);   // só abre (JSON.parse) o objeto de uma língua pedida
-      if (!m || !quer.has(m[1])) return;
-      let c; try { c = JSON.parse(obj); } catch (e) { return; }
-      if (c && c.lang === m[1]) juntaPares(pares.get(m[1]), c);
-    };
-    for await (const pedaco of r.body) {
-      for (const obj of separa(typeof pedaco === 'string' ? pedaco : texto.decode(pedaco, { stream: true }))) usa(obj);
+    const separa = separaObjetos();
+    for await (const pedaco of textoDoCorpo(r.body)) {
+      for (const obj of separa(pedaco)) { lidos++; usa(obj); }
       if (lidos && lidos % 100000 < 50) log(`  dados em massa: ${lidos} impressões lidas`);
     }
-    for (const obj of separa(texto.decode())) usa(obj);
   } finally { clearTimeout(timer); }
   if (!lidos) throw new Error('dados em massa vazios');
+  return lidos;
+}
+
+/** { idioma: [[impresso, nome], …] } das línguas pedidas, lidas dos dados em massa All Cards. */
+export async function nomesDosDadosEmMassa(fetchFn, idiomas, { log = () => {}, ms = 45 * 60000 } = {}) {
+  const quer = new Set(idiomas), pares = new Map(idiomas.map(i => [i, new Map()]));
+  const url = enderecoDaMassa(await busca(fetchFn, BULK_TODAS));
+  await lerMassa(fetchFn, url, obj => {
+    const m = /"lang"\s*:\s*"([a-z]+)"/.exec(obj);   // só abre (JSON.parse) o objeto de uma língua pedida
+    if (!m || !quer.has(m[1])) return;
+    let c; try { c = JSON.parse(obj); } catch (e) { return; }
+    if (c && c.lang === m[1]) juntaPares(pares.get(m[1]), c);
+  }, { ms, log });
   return Object.fromEntries([...pares].map(([i, m]) => [i, [...m].sort((a, b) => a[0].localeCompare(b[0]))]));
 }
 
@@ -167,8 +194,12 @@ export async function gera({ saida, limite = 0, autoteste = 0, idiomas = [], pau
   X = X || await scanner();
   await mkdir(saida, { recursive: true });
   const meta = await busca(fetchFn, BULK);
-  if (!meta || typeof meta.download_uri !== 'string' || !/^https:\/\/data\.scryfall\.io\//.test(meta.download_uri)) throw new Error('dados em massa sem endereço da Scryfall');
-  let cartas = cartasDaBase(await busca(fetchFn, meta.download_uri, 'json', { ms: 600000 }));
+  const endereco = enderecoDaMassa(meta);
+  let cartas;
+  for (let t = 0; ; t++) {   // três tentativas, como as outras leituras
+    try { cartas = []; await lerMassa(fetchFn, endereco, obj => { try { cartas.push(...cartasDaBase([JSON.parse(obj)])); } catch (e) {} }, { ms: 600000 }); break; }
+    catch (e) { if (t >= 2) throw e; await new Promise(ok => setTimeout(ok, 3000)); }
+  }
   cartas.sort((a, b) => a.nome.localeCompare(b.nome) || a.set.localeCompare(b.set) || a.numero.localeCompare(b.numero, undefined, { numeric: true }));
   if (limite > 0) cartas = cartas.slice(0, limite);
   const antes = await baseAnterior(saida, X);
