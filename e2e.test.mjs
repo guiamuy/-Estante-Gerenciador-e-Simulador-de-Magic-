@@ -11482,6 +11482,8 @@ test('e2e · G-242 Perfil › Fichas com o catálogo: todas as fichas do jogo nu
   let fora = false;
   await page.route('https://raw.githubusercontent.com/**', r => { const nome = r.request().url().split('/').pop(); if (fora) return r.abort('failed');
     return nome === 'fichas.json' ? r.fulfill({ json: { versao: 1, geradoEm: '2026-10-10T00:00:00.000Z', fonte: 'scryfall', total: fichas.length, fichas }, headers: { 'access-control-allow-origin': '*' } }) : r.fulfill({ status: 404, body: '' }); });
+  // S-598 · o preparo sem internet também guarda os nomes impressos do scanner: o ramo artes responde como responderá no ar (arquivo válido, sem pares)
+  await page.route('https://raw.githubusercontent.com/**/artes/nomes-*.json', r => { if (fora) return r.abort('failed'); const idioma = /nomes-([a-z]+)\.json$/.exec(r.request().url())[1]; return r.fulfill({ json: { versao: 1, idioma, pares: [] }, headers: { 'access-control-allow-origin': '*' } }); });
   const buscas = [];
   const zumbi = (id, set) => ({ object: 'card', id, name: 'Zombie', type_line: 'Token Creature — Zombie', layout: 'token', power: '2', toughness: '2', colors: ['B'], color_identity: ['B'], cmc: 0, keywords: [], set, set_name: 'Edição ' + set, collector_number: '1',
     image_uris: Object.fromEntries(['small', 'normal', 'large', 'art_crop'].map(k => [k, `https://cards.scryfall.io/${k}/front/x/${id}.png`])) });
