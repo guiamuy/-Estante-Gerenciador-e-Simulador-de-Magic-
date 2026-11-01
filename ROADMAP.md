@@ -8676,7 +8676,7 @@ X14 ataca. Sobre imagem: acima de 1440p o **nome** não ganha (a linha é lida e
 - **Custo:** a linha que antes era pulada agora vai ao leitor (uma leitura a mais por passada com carta borrada, e no máximo uma segunda, realçada); com a carta nítida nada muda. A troca de lente custa uma abertura de câmera a mais, uma vez, só no aparelho que abre a lente de foco fixo. `index.html` +5 KB.
 - **Fora:** reconhecimento pela arte (X12); contorno do protetor (próxima fatia da trilha); a tela nova (X16).
 
-**X20 · Carta impressa em português e carta na mão** 🟡 (leva S-597; aguardando a base de nomes e o teste no aparelho)
+**X20 · Carta em qualquer língua e carta na mão** 🟡 (levas S-597, S-598; aguardando a base de nomes e o teste no aparelho)
 - **Relato (01/11/2026, print do aparelho):** depois de ler várias cartas, o scanner não leu "Beledros Murchaflor":
   contorno achado, aviso "Segure firme.", sugestão "É uma destas? Melee".
 - **Causas:**
@@ -8691,11 +8691,33 @@ X14 ataca. Sobre imagem: acima de 1440p o **nome** não ganha (a linha é lida e
   (`buildIndex(nomes, apelidos)`); o nome casado é o inglês, e a edição e o idioma continuam vindo da linha de coleção
   ("STX • PT"). Régua de movimento: pula só acima de 12% do quadro (`pulaPorMovimento`); entre 5% e 12% lê, sem contar
   como parada (nada entra na primeira passada). A arte (X12, S-596) também reconhece carta em outro idioma.
-- **Parcial, e o que falta:** só português (espanhol, japonês e outros ficam para quando houver pedido); os nomes em
-  português só chegam ao aparelho depois da primeira corrida do fluxo com `--idiomas pt` (I-312); não testado no aparelho.
+- **Pedido do dono (01/11/2026):** "a leitura precisa contemplar todas as línguas em que o Magic é impresso": português,
+  italiano e espanhol primeiro; depois japonês e chinês; depois alemão e as demais.
+- **Valor:** a carta é reconhecida qualquer que seja a língua impressa, e a coleção grava a carta certa (o nome em inglês).
+- **Fatias:**
+  1. **S-597** · português (acima).
+  2. **S-598** · espanhol, italiano, francês e alemão (escrita latina: o leitor de hoje, com os dados do inglês, lê o
+     nome; acento lido sem acento, "ñ" como "n", "ß" como "b" ainda casam). O gerador passa a ler os nomes de **todas** as
+     línguas dos dados em massa **All Cards** da Scryfall (um download, lido em fluxo; a política da Scryfall pede dados
+     em massa para muitos dados), em vez de centenas de páginas de busca por língua (a busca fica de reserva se o
+     download falhar). O fluxo publica `nomes-<idioma>.json` de pt, es, it, fr, de, ja, zhs, zht, ko, ru (I-313); o app
+     baixa só as de escrita latina (`IDIOMAS_DOS_NOMES`), uma chave por língua (`names.<idioma>`, derivado), cada uma
+     com a sua validade de 30 dias, e uma língua que falha não impede as outras. Diagnóstico mostra quantos nomes há por
+     língua (`nomes_idiomas`).
+  3. **S-599** · japonês e chinês (simplificado e tradicional): o leitor de hoje só conhece letras latinas; precisa dos
+     dados de leitura de cada escrita (baixados uma vez, guardados para usar sem internet; origem a revisar pela
+     `protecao`). Os nomes já saem do fluxo desde a S-598. Até lá, a carta japonesa ou chinesa entra pela arte (X12).
+  4. **S-600** · coreano e russo, no mesmo molde.
+- **Parcial, e o que falta:** fatias 3 e 4; os nomes só chegam ao aparelho depois da primeira corrida do fluxo com
+  `--idiomas` (I-312/I-313); não testado no aparelho. Fora: traduzir a interface, mostrar o nome impresso na coleção.
 - **Testes:** U (`artes.unit`: sem os nomes em português o print não casa — o defeito —, com eles casa exato, com troca de
   OCR e sem acento; a base baixa, guarda, abre sem rede e recusa arquivo estranho; régua de movimento com 7%, 11%, 20%,
   manual e sem contorno; gerador lê páginas seguidas, as duas faces e não repete).
+  S-598: U (`artes.unit`: só com o português a carta em espanhol não casa — o defeito —; com as cinco línguas casa,
+  inclusive lida sem acento, "ñ" e "ß"; uma língua fora do ar não impede as outras, arquivo de outra língua não entra,
+  só a língua velha é baixada de novo; o separador do fluxo acha os objetos em qualquer corte, com chaves e aspas
+  dentro de texto; os dados em massa dão os nomes de seis línguas num download só, ignoram o inglês e a letra partida
+  entre pedaços; o gerador grava um arquivo por língua e, sem os dados em massa, volta à busca).
 
 **X13 · Câmera no máximo e cronômetro de leitura** 🟡 (leva 120; aguardando teste no aparelho)
 - **Valor:** o scanner usa tudo o que a câmera do aparelho entrega, e passa a dizer quanto demora, por etapa.

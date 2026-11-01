@@ -11,7 +11,7 @@
    mesmo assim, no máximo 8 imagens ao mesmo tempo e cabeçalho identificando
    o app. As imagens não são guardadas: só a impressão e o nome/edição.
 
-     node artes.mjs --saida <pasta> [--limite N] [--autoteste N] [--idiomas pt]
+     node artes.mjs --saida <pasta> [--limite N] [--autoteste N] [--idiomas pt,es,it,fr,de,ja,zhs,zht,ko,ru]
 
    Escreve na pasta: artes.json (índice), artes.bin (impressões) e
    medida.json (autoteste: a base reconhece as próprias imagens degradadas
@@ -90,23 +90,77 @@ async function busca(fetchFn, url, tipo = 'json', { tentativas = 3, ms = 30000 }
    ("Beledros Murchaflor") não casava com nada. A busca da Scryfall com lang:pt devolve cada impressão em português com o
    nome impresso (`printed_name`) e o nome em inglês (`name`); o par vai para nomes-pt.json, que o app junta à base de
    nomes. Política da Scryfall (rate-limits, 01/11/2026): busca a no máximo 2 por segundo — aqui, uma página a cada 600 ms. */
+/** Os pares (nome impresso → nome em inglês) de uma carta, faces das duplas incluídas. */
+export function juntaPares(pares, c) {
+  const faces = Array.isArray(c.card_faces) && c.card_faces.length ? c.card_faces : [c];
+  for (const f of faces) {
+    const impresso = String(f.printed_name || '').trim().slice(0, 160), nome = String(c.name || '').trim().slice(0, 160);
+    if (impresso && nome && impresso.toLowerCase() !== String(f.name || nome).toLowerCase() && !pares.has(impresso)) pares.set(impresso, nome);
+  }
+}
+
 export async function nomesNoIdioma(fetchFn, idioma = 'pt', { pausa = 600, maxPaginas = 400, log = () => {} } = {}) {
   const pares = new Map();
   let url = 'https://api.scryfall.com/cards/search?' + new URLSearchParams({ q: 'lang:' + idioma, unique: 'prints', include_multilingual: 'true', order: 'name' }).toString();
   for (let pag = 0; url && pag < maxPaginas; pag++) {
     const r = await busca(fetchFn, url);
-    for (const c of (r && r.data) || []) {
-      const faces = Array.isArray(c.card_faces) && c.card_faces.length ? c.card_faces : [c];
-      for (const f of faces) {
-        const impresso = String(f.printed_name || '').trim().slice(0, 160), nome = String(c.name || '').trim().slice(0, 160);
-        if (impresso && nome && impresso.toLowerCase() !== (f.name || nome).toLowerCase() && !pares.has(impresso)) pares.set(impresso, nome);
-      }
-    }
+    for (const c of (r && r.data) || []) juntaPares(pares, c);
     url = r && r.has_more && typeof r.next_page === 'string' && r.next_page.startsWith('https://api.scryfall.com/') ? r.next_page : null;
     if (url && pausa) await new Promise(ok => setTimeout(ok, pausa));
     if (pag % 50 === 49) log(`  nomes em ${idioma}: ${pares.size} (página ${pag + 1})`);
   }
   return [...pares].sort((a, b) => a[0].localeCompare(b[0]));
+}
+
+/* S-598 · os nomes de TODAS as línguas num download só: os dados em massa "All Cards" da Scryfall trazem cada impressão em
+   cada língua, com `lang`, `printed_name` e `name`. É o caminho que a política da Scryfall pede para muitos dados (em vez de
+   centenas de páginas de busca por língua) e cobre também japonês, chinês, coreano e russo, que o app vai ler depois (X20).
+   O arquivo é grande (gigabytes sem compressão): é lido em fluxo, um objeto por vez, sem guardar o arquivo. */
+const BULK_TODAS = 'https://api.scryfall.com/bulk-data/all-cards';
+
+/** Separa um fluxo de texto JSON (lista de objetos) em objetos, pedaço a pedaço, sem depender de quebra de linha. */
+export function separaObjetos() {
+  let prof = 0, emTexto = false, escape = false, atual = '';
+  return pedaco => {
+    const out = []; let ini = prof > 0 ? 0 : -1;
+    for (let i = 0; i < pedaco.length; i++) {
+      const ch = pedaco.charCodeAt(i);
+      if (emTexto) { if (escape) escape = false; else if (ch === 92) escape = true; else if (ch === 34) emTexto = false; continue; }
+      if (ch === 34) { if (prof > 0) emTexto = true; }
+      else if (ch === 123) { if (prof++ === 0) ini = i; }
+      else if (ch === 125 && prof > 0 && --prof === 0) { out.push(atual + pedaco.slice(ini, i + 1)); atual = ''; ini = -1; }
+    }
+    if (prof > 0) atual += pedaco.slice(ini);
+    return out;
+  };
+}
+
+/** { idioma: [[impresso, nome], …] } das línguas pedidas, lidas dos dados em massa All Cards. */
+export async function nomesDosDadosEmMassa(fetchFn, idiomas, { log = () => {}, ms = 45 * 60000 } = {}) {
+  const quer = new Set(idiomas), pares = new Map(idiomas.map(i => [i, new Map()]));
+  const meta = await busca(fetchFn, BULK_TODAS);
+  if (!meta || typeof meta.download_uri !== 'string' || !/^https:\/\/data\.scryfall\.io\//.test(meta.download_uri)) throw new Error('dados em massa sem endereço da Scryfall');
+  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), ms);
+  let lidos = 0;
+  try {
+    const r = await fetchFn(meta.download_uri, { headers: CABECALHOS, signal: ctl.signal });
+    if (!r.ok || !r.body) throw new Error('HTTP ' + r.status);
+    const separa = separaObjetos(), texto = new TextDecoder();
+    const usa = obj => {
+      lidos++;
+      const m = /"lang"\s*:\s*"([a-z]+)"/.exec(obj);   // só abre (JSON.parse) o objeto de uma língua pedida
+      if (!m || !quer.has(m[1])) return;
+      let c; try { c = JSON.parse(obj); } catch (e) { return; }
+      if (c && c.lang === m[1]) juntaPares(pares.get(m[1]), c);
+    };
+    for await (const pedaco of r.body) {
+      for (const obj of separa(typeof pedaco === 'string' ? pedaco : texto.decode(pedaco, { stream: true }))) usa(obj);
+      if (lidos && lidos % 100000 < 50) log(`  dados em massa: ${lidos} impressões lidas`);
+    }
+    for (const obj of separa(texto.decode())) usa(obj);
+  } finally { clearTimeout(timer); }
+  if (!lidos) throw new Error('dados em massa vazios');
+  return Object.fromEntries([...pares].map(([i, m]) => [i, [...m].sort((a, b) => a[0].localeCompare(b[0]))]));
 }
 
 export async function gera({ saida, limite = 0, autoteste = 0, idiomas = [], pausaNomes = 600, fetchFn = globalThis.fetch, paralelo = 8, log = console.log, X = null } = {}) {
@@ -158,12 +212,16 @@ export async function gera({ saida, limite = 0, autoteste = 0, idiomas = [], pau
     await writeFile(join(saida, 'medida.json'), JSON.stringify({ geradoEm: indice.geradoEm, total: ok.length, ...medida }, null, 1) + '\n');
   }
   log(`base: ${ok.length} artes (novas ${novas}, reaproveitadas ${reaproveitadas}, falhas ${falhas})${igual ? ' · igual à publicada' : ''}`);
-  // S-597 · nomes impressos em outros idiomas (uma falha aqui não derruba a base de artes)
+  // S-597 · S-598 · nomes impressos em outras línguas (uma falha aqui não derruba a base de artes). Primeiro pelos dados em
+  // massa (todas as línguas num download); se falharem, pela busca, uma língua por vez.
   const nomes = {};
+  let todas = null, fonte = 'Scryfall · dados em massa All Cards';
+  if (idiomas.length) { try { todas = await nomesDosDadosEmMassa(fetchFn, idiomas, { log }); } catch (e) { log(`dados em massa dos nomes: falhou (${String(e && e.message || e).slice(0, 80)}); segue pela busca`); } }
   for (const idioma of idiomas) {
     try {
-      const pares = await nomesNoIdioma(fetchFn, idioma, { log, pausa: pausaNomes });
-      if (pares.length) { await writeFile(join(saida, `nomes-${idioma}.json`), JSON.stringify({ versao: 1, idioma, geradoEm: new Date().toISOString(), fonte: 'Scryfall · busca lang:' + idioma, total: pares.length, pares }) + '\n'); nomes[idioma] = pares.length; }
+      const pares = todas && todas[idioma] && todas[idioma].length ? todas[idioma] : await nomesNoIdioma(fetchFn, idioma, { log, pausa: pausaNomes });
+      const de = todas && todas[idioma] && todas[idioma].length ? fonte : 'Scryfall · busca lang:' + idioma;
+      if (pares.length) { await writeFile(join(saida, `nomes-${idioma}.json`), JSON.stringify({ versao: 1, idioma, geradoEm: new Date().toISOString(), fonte: de, total: pares.length, pares }) + '\n'); nomes[idioma] = pares.length; }
       log(`nomes em ${idioma}: ${pares.length}`);
     } catch (e) { log(`nomes em ${idioma}: falhou (${String(e && e.message || e).slice(0, 80)})`); }
   }
