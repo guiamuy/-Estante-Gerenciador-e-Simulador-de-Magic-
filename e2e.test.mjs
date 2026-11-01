@@ -832,8 +832,11 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
   // U2 · sem internet os ícones continuam desenhados (SVG no próprio arquivo, nada de fonte externa)
   assert.equal(await page.locator('#nav-offline svg').count(), 1, 'chip com o ícone de nuvem cortada');
   assert.match(await page.getAttribute('#nav-offline', 'aria-label'), /Sem internet/);
-  const desenhados = await page.$$eval('.ds-appbar button:not(.ds-hidden) .ds-icon', s => s.filter(x => getComputedStyle(x).display !== 'none').map(x => x.getBoundingClientRect().width > 0 && !!x.querySelector('path, rect, circle')));
-  assert.ok(desenhados.length >= 5 && desenhados.every(Boolean), 'ícones da barra desenhados: ' + JSON.stringify(desenhados));
+  // G-322 · os destinos moram na barra de baixo, que some no scanner (N3): aqui conta a barra de cima à vista e, da de
+  // baixo, que os cinco ícones estão desenhados (SVG com forma, do próprio arquivo); a barra de baixo à vista é do e2e N1
+  const desenhados = await page.$$eval('.ds-appbar button:not(.ds-hidden) .ds-icon', s => s.filter(x => getComputedStyle(x).display !== 'none' && x.getClientRects().length).map(x => x.getBoundingClientRect().width > 0 && !!x.querySelector('path, rect, circle')));
+  const deBaixo = await page.$$eval('.ds-navbar button .ds-icon', s => s.map(x => !!x.querySelector('path, rect, circle')));
+  assert.ok(desenhados.length >= 2 && desenhados.every(Boolean) && deBaixo.length === 5 && deBaixo.every(Boolean), 'ícones das barras desenhados: ' + JSON.stringify({ desenhados, deBaixo }));
   // coleção: adicionar pelo nome confere pela base de nomes
   await page.goto(base + '#/colecao');
   await digitaCarta(page, 'Preordain'); await page.click('#col-add-btn');
@@ -2801,8 +2804,8 @@ test('e2e · U2 ícones, profundidade e CTAs enxutos: barra, início e topo da m
   const [jogar, listas, colecao, buscar] = [await caixa('#go-play'), await caixa('#go-decks'), await caixa('#go-collection'), await caixa('#go-cards')];
   assert.ok(jogar.width > listas.width * 1.8, 'Jogar em destaque, largura toda');
   assert.ok(Math.abs(listas.y - colecao.y) < 2 && Math.abs(listas.y - buscar.y) < 2 && colecao.x > listas.x + listas.width - 1, 'Listas, Coleção, Escanear e Buscar na mesma linha');
-  // nada marcado na barra no início; marcado ao entrar
-  assert.equal(await page.locator('.ds-appbar [aria-current="page"]').count(), 0);
+  // na Início só o Início está marcado na barra de baixo (G-322); a de cima não marca nada
+  assert.equal(await page.locator('.ds-appbar [aria-current="page"]').count(), 0); assert.equal(await page.locator('.ds-navbar [aria-current="page"]').count(), 1);
   // profundidade: em repouso tem sombra; pressionado afunda (encolhe e sombra interna); solto, volta
   const estilo = sel => page.$eval(sel, el => ({ sombra: getComputedStyle(el).boxShadow, transf: getComputedStyle(el).transform })); // K4 (leva G-216) · mede no Jogar: os quatro destinos da Início ficaram leves (sem caixa)
   const repouso = await estilo('#go-play');
@@ -2828,7 +2831,7 @@ test('e2e · U2 ícones, profundidade e CTAs enxutos: barra, início e topo da m
   assert.equal((await estilo('#go-ds')).sombra, 'none');
   // barra marca o destino atual
   await page.click('#nav-collection'); await page.waitForSelector('#nav-collection[aria-current="page"]');
-  assert.equal(await page.locator('.ds-appbar [aria-current="page"]').count(), 1);
+  assert.equal(await page.locator('.ds-navbar [aria-current="page"]').count(), 1); // G-322 · os destinos moram na barra de baixo
   await page.click('#nav-decks'); await page.waitForSelector('#nav-decks[aria-current="page"]');
   // mesa: prepara uma partida contra o goldfish
   await adicionaPronta(page, base, 'Pauper Elves'); // G-262 · pelo texto (a Estante não oferece mais listas próprias)
@@ -9090,6 +9093,60 @@ test('e2e · DS-K2 J1 · o Jogar abre sempre no Pauper: com a medida real (616 d
 });
 
 /* G-318 · DS-K2 J2 · o Jogar como mesa de preparação no DS-K */
+/* G-322 · DS-K2 N1 · a barra de navegação da proposta K, embaixo, com o Jogar no centro */
+test('e2e · DS-K2 N1 · barra de navegação embaixo: cinco destinos de 44 px com o Jogar em latão no centro, o atual marcado; toda tela reserva a altura dela (nada por baixo, Relatar e doca acima); some na partida, no scanner e na porta de entrada; a barra de cima fica com marca, avatar e tema; 360 e 390, dois temas, AA', { skip }, async t => {
+  const { page, errors, base } = await open(t, { dev: false });
+  await createDeck(page, base, 'Mono Azul Delver', PAUPER, 'pauper');
+  const mede = () => page.evaluate(() => {
+    const nb = document.querySelector('#ds-navbar'), r = nb.getBoundingClientRect(), itens = [...nb.querySelectorAll('.ds-nav')];
+    const cv = document.createElement('canvas'); cv.width = cv.height = 1; const cx = cv.getContext('2d');
+    const rgb = k => { cx.clearRect(0, 0, 1, 1); cx.fillStyle = k; cx.fillRect(0, 0, 1, 1); return [...cx.getImageData(0, 0, 1, 1).data].slice(0, 3); };
+    const lum = k => rgb(k).map(v => v / 255).map(v => v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4).reduce((a, v, i) => a + v * [0.2126, 0.7152, 0.0722][i], 0);
+    const ctr = (p, q) => { const [m, n] = [lum(p), lum(q)].sort((u, v) => v - u); return (m + 0.05) / (n + 0.05); };
+    const fundo = getComputedStyle(nb).backgroundColor;
+    const ruins = itens.map(i => [i.id, ctr(getComputedStyle(i.querySelector('.ds-nav__rotulo')).color, fundo)]).filter(x => x[1] < 4.5);
+    const latao = nb.querySelector('.ds-nav--jogar .ds-navbar__latao'), lr = latao.getBoundingClientRect();
+    const rel = document.querySelector('#relatar-abrir'), rr = rel ? rel.getBoundingClientRect() : null;
+    const ultimo = [...document.querySelectorAll('#outlet *')].filter(e => e.getClientRects().length).map(e => e.getBoundingClientRect().bottom + window.scrollY).reduce((a, b) => Math.max(a, b), 0);
+    return { noPe: Math.abs(r.bottom - innerHeight) <= 1, largura: Math.round(r.width) === innerWidth, ids: itens.map(i => i.id), alvos: itens.every(i => i.getBoundingClientRect().height >= 44 && i.getBoundingClientRect().width >= 44),
+      atual: itens.filter(i => i.getAttribute('aria-current') === 'page').map(i => i.id), latao: Math.round(lr.width) === 48 && lr.top < r.top, ruins,
+      topo: [...document.querySelectorAll('.ds-appbar .ds-nav')].map(i => i.id), navbarH: getComputedStyle(document.body).getPropertyValue('--navbar-h').trim(),
+      relatarAcima: rr ? rr.bottom <= r.top + 1 : true, conteudoAcima: ultimo <= document.documentElement.scrollHeight - r.height + 1 }; });
+  for (const [w, hh] of [[360, 780], [390, 844]]) {
+    await page.setViewportSize({ width: w, height: hh });
+    for (const [rota, espera, atual] of [['#/', '#home-titulo', 'nav-home'], ['#/listas', '#decks-list', 'nav-decks'], ['#/colecao', '#outlet .ds-cabecalho', 'nav-collection'], ['#/cartas', '#cards-q', 'nav-collection'], ['#/mesa', '#mesa-doca', 'nav-play'], ['#/perfil', '.perfil-topo', null]]) {
+      await page.goto(base + rota); await page.waitForSelector(espera); await page.waitForTimeout(300);
+      for (const tema of (w === 360 ? ['dark', 'light'] : ['dark'])) {
+        await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(450);
+        const m = await mede();
+        assert.deepEqual([m.noPe, m.largura, m.ids, m.alvos, m.atual, m.latao, m.ruins, m.topo, m.relatarAcima, m.conteudoAcima],
+          [true, true, ['nav-home', 'nav-decks', 'nav-play', 'nav-collection', 'nav-scanner'], true, atual ? [atual] : [], true, [], ['nav-perfil', 'btn-install', 'nav-offline', 'theme-toggle'].filter(x => m.topo.includes(x)), true, true], `${rota} ${w} ${tema}: ${JSON.stringify(m)}`);
+        assert.notEqual(m.navbarH, '0px', 'a tela reserva a barra');
+        if (rota === '#/mesa') assert.ok(await page.evaluate(() => Math.abs(document.querySelector('#mesa-doca').getBoundingClientRect().bottom - document.querySelector('#ds-navbar').getBoundingClientRect().top) <= 1), 'a doca do Jogar senta em cima da barra');
+        await auditaTela(page, `DS-K2 N1 · ${rota} ${w} ${tema}`);
+        if (process.env.SHOTS && w === 360 && rota === '#/') await page.screenshot({ path: process.env.SHOTS + `/ds-k2-n1-inicio-${tema}.png` });
+      }
+    }
+  }
+  // o fim de uma tela longa não fica atrás da barra: rola até o fim e o último elemento termina acima dela
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base + '#/perfil'); await page.waitForSelector('.perfil-topo'); await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight)); await page.waitForTimeout(200);
+  const fim = await page.evaluate(() => { const r = document.querySelector('#ds-navbar').getBoundingClientRect(); const u = [...document.querySelectorAll('#outlet *')].filter(e => e.getClientRects().length).map(e => e.getBoundingClientRect().bottom).reduce((a, b) => Math.max(a, b), 0); return { u: Math.round(u), topo: Math.round(r.top) }; });
+  assert.ok(fim.u <= fim.topo + 1, `último elemento acima da barra: ${JSON.stringify(fim)}`);
+  // navegar pela barra
+  await page.click('#nav-decks'); await page.waitForSelector('#decks-list'); await page.click('#nav-scanner'); await page.waitForFunction(() => location.hash === '#/scanner');
+  // a tela do scanner monta depois da troca do endereço (no CI, mais devagar): espera a tela antes de olhar a barra
+  await page.waitForSelector('#scan-read'); await page.waitForFunction(() => getComputedStyle(document.querySelector('#ds-navbar')).display === 'none', null, { timeout: 5000 }).catch(() => {});
+  assert.equal(await page.$eval('#ds-navbar', n => getComputedStyle(n).display), 'none', 'no scanner a barra some');
+  await page.click('#scan-colecao'); await page.waitForSelector('#outlet .ds-cabecalho'); assert.equal(await page.$eval('#ds-navbar', n => getComputedStyle(n).display), 'grid');
+  await page.click('#nav-play'); await page.waitForSelector('#mesa-doca #mesa-start');
+  await page.waitForFunction(() => { const b = document.querySelector('#mesa-start'); return b && !b.disabled; }, null, { timeout: 8000 });
+  await page.click('#mesa-start'); await page.waitForSelector('#tb');
+  await page.waitForFunction(() => getComputedStyle(document.querySelector('#ds-navbar')).display === 'none', null, { timeout: 4000 });
+  assert.equal(await page.evaluate(() => getComputedStyle(document.body).getPropertyValue('--navbar-h').trim()), '0px', 'na partida a tela não reserva a barra');
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · DS-K2 J2 · Jogar como mesa de preparação: a sua lista é um cartão com a carta-chave dentro do destaque em ébano (um só), a do Shark também; Começar partida mora numa doca sempre à vista com o resumo "lista × oponente · formato"; o Relatar sobe acima da doca; 360 e 390, dois temas, AA', { skip }, async t => {
   const { page, errors, base } = await open(t, { dev: false });
   await page.setViewportSize({ width: 360, height: 780 });
@@ -9106,7 +9163,7 @@ test('e2e · DS-K2 J2 · Jogar como mesa de preparação: a sua lista é um cart
     while (wk.nextNode()) { const el = wk.currentNode.parentElement; if (!wk.currentNode.textContent.trim() || el.getBoundingClientRect().width <= 1 || el.closest('[aria-pressed="false"].ds-chip')) continue; const k = r(getComputedStyle(el).color, fundoDe(el)); if (k < 4.5) ruins.push(`${wk.currentNode.textContent.trim().slice(0, 20)} ${k.toFixed(2)}`); }
     const d = doca.getBoundingClientRect(), rr = rel ? rel.getBoundingClientRect() : null;
     return { ebano: getComputedStyle(hero).backgroundColor === funda, destaques: document.querySelectorAll('#outlet .ds-destaque').length, ruins,
-      heroMine: !!document.querySelector('#mesa-hero #mesa-mine.deck-picker--hero .deck-hero__arte'), docaNoPe: Math.abs(d.bottom - innerHeight) <= 1, docaH: getComputedStyle(document.documentElement).getPropertyValue('--doca-h').trim(),
+      heroMine: !!document.querySelector('#mesa-hero #mesa-mine.deck-picker--hero .deck-hero__arte'), docaNoPe: Math.abs(d.bottom - (innerHeight - (document.querySelector('#ds-navbar') && getComputedStyle(document.querySelector('#ds-navbar')).display !== 'none' ? document.querySelector('#ds-navbar').getBoundingClientRect().height : 0))) <= 1, /* G-322 · em cima da barra de baixo */ docaH: getComputedStyle(document.documentElement).getPropertyValue('--doca-h').trim(),
       comecarNaDoca: !!doca.querySelector('#mesa-start'), relatarAcima: rr ? rr.bottom <= d.top + 1 : true, resumo: document.querySelector('#mesa-doca-resumo').innerText, altura: document.documentElement.scrollHeight > innerHeight }; });
   for (const [w, hh] of [[360, 780], [390, 844]]) {
     await page.setViewportSize({ width: w, height: hh });
@@ -9129,7 +9186,7 @@ test('e2e · DS-K2 J2 · Jogar como mesa de preparação: a sua lista é um cart
   await page.waitForFunction(() => /× Shark · Pauper$/.test(document.querySelector('#mesa-doca-resumo').innerText), null, { timeout: 8000 });
   // as opções continuam à mão (Série, Paradas, Semente) e o Começar continua na doca ao rolar até o fim
   await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight)); await page.waitForTimeout(300);
-  assert.deepEqual(await page.evaluate(() => [!!document.querySelector('#mesa-opcoes [data-serie="3"]'), !!document.querySelector('#mesa-opcoes [data-stopall]'), !!document.querySelector('#mesa-opcoes #mesa-seed'), Math.abs(document.querySelector('#mesa-doca').getBoundingClientRect().bottom - innerHeight) <= 1]), [true, true, true, true]);
+  assert.deepEqual(await page.evaluate(() => [!!document.querySelector('#mesa-opcoes [data-serie="3"]'), !!document.querySelector('#mesa-opcoes [data-stopall]'), !!document.querySelector('#mesa-opcoes #mesa-seed'), Math.abs(document.querySelector('#mesa-doca').getBoundingClientRect().bottom - document.querySelector('#ds-navbar').getBoundingClientRect().top) <= 1]), [true, true, true, true]);
   await auditaTela(page, 'DS-K2 J2 · Jogar com o Shark, no fim da página');
   assert.deepEqual(errors, []);
 });
@@ -9465,7 +9522,7 @@ test('e2e · I5 Perfil › Partidas: a partida que termina entra no histórico (
   assert.equal(await page.locator('#partidas-oponentes').count(), 0); assert.equal(await page.locator('#partidas-lista .pt-linha').count(), 3);
   // J7 · com partidas no histórico, a ação da tela é jogar a próxima: botão de ação único, 56 px no canto, sem cobrir o fim da página
   assert.equal(await page.locator('.ds-btn--primary:visible').count(), 1, 'um primário: o botão de ação');
-  assert.deepEqual(await page.evaluate(() => { const b = document.querySelector('#partidas-fab .ds-fab__principal'); const r = b.getBoundingClientRect(); return { id: b.id, nome: b.getAttribute('aria-label'), icone: !!b.querySelector('svg'), w: Math.round(r.width), h: Math.round(r.height), direita: Math.round(innerWidth - r.right), baixo: Math.round(innerHeight - r.bottom) }; }),
+  assert.deepEqual(await page.evaluate(() => { const b = document.querySelector('#partidas-fab .ds-fab__principal'); const r = b.getBoundingClientRect(); /* G-322 */ return { id: b.id, nome: b.getAttribute('aria-label'), icone: !!b.querySelector('svg'), w: Math.round(r.width), h: Math.round(r.height), direita: Math.round(innerWidth - r.right), baixo: Math.round(innerHeight - (document.querySelector('#ds-navbar') && getComputedStyle(document.querySelector('#ds-navbar')).display !== 'none' ? document.querySelector('#ds-navbar').getBoundingClientRect().height : 0) - r.bottom) }; }),
     { id: 'partidas-jogar', nome: 'Jogar', icone: true, w: 56, h: 56, direita: 16, baixo: 16 });
   const pe = await page.evaluate(() => { window.scrollTo(0, document.documentElement.scrollHeight); return { limpar: Math.round(document.querySelector('#partidas-limpar').getBoundingClientRect().bottom), botao: Math.round(document.querySelector('#partidas-jogar').getBoundingClientRect().top) }; });
   assert.ok(pe.limpar <= pe.botao, 'Limpar histórico fica acima do botão: ' + JSON.stringify(pe));
@@ -9642,8 +9699,8 @@ test('e2e · Y1 relatar de qualquer tela: botão discreto onde não há botão d
   await page.setViewportSize({ width: 360, height: 780 });
   await page.goto(base + '#/'); await page.waitForSelector('#go-play');
   // 1 · Início não tem botão de ação: o Relatar discreto fica no canto, 48 px, sem ser primário
-  const geo = sel => page.$eval(sel, b => { const r = b.getBoundingClientRect(); return { w: Math.round(r.width), h: Math.round(r.height), direita: Math.round(innerWidth - r.right), baixo: Math.round(innerHeight - r.bottom), top: Math.round(r.top), left: Math.round(r.left) }; });
-  assert.deepEqual(await geo('#relatar-abrir'), { w: 48, h: 48, direita: 16, baixo: 16, top: 780 - 16 - 48, left: 360 - 16 - 48 });
+  const geo = sel => page.$eval(sel, b => { const r = b.getBoundingClientRect(); /* G-322 · medido a partir da barra de baixo */ return { w: Math.round(r.width), h: Math.round(r.height), direita: Math.round(innerWidth - r.right), baixo: Math.round(innerHeight - (document.querySelector('#ds-navbar') && getComputedStyle(document.querySelector('#ds-navbar')).display !== 'none' ? document.querySelector('#ds-navbar').getBoundingClientRect().height : 0) - r.bottom), top: Math.round(r.top), left: Math.round(r.left) }; });
+  assert.deepEqual(await geo('#relatar-abrir'), { w: 48, h: 48, direita: 16, baixo: 16, top: 780 - 60 - 16 - 48, left: 360 - 16 - 48 }); // G-322 · acima da barra de baixo (60 px)
   assert.equal(await page.getAttribute('#relatar-abrir', 'aria-label'), 'Relatar um problema ou uma ideia');
   assert.equal(await page.locator('.ds-btn--primary:visible').count(), 1, 'continua um primário: Jogar');
   await auditaTela(page, 'início com relatar');
@@ -9673,6 +9730,7 @@ test('e2e · Y1 relatar de qualquer tela: botão discreto onde não há botão d
   assert.match(await page.innerText('#ds-toast'), /Relato salvo · \d{2}\/\d{2}\/\d{4} \d{2}:\d{2}/);
   await page.click('#relatar-abrir'); await page.waitForSelector('#relato-form'); assert.equal(await page.inputValue('#relato-descricao'), ''); await page.keyboard.press('Escape');
   // 5 · lista com quatro ações: o discreto sai e Relatar é o último item do menu; a área vai junto
+  await page.waitForSelector('#ds-toast[data-open="false"]', { timeout: 8000 }); // G-322 · o aviso "Relato salvo" (com ação) flutua acima da barra de baixo, sobre o Criar lista em 360×780: espera ele ir embora
   await createDeck(page, base, 'Delver', PAUPER);
   await page.waitForSelector('#deck-fab-abrir'); assert.equal(await page.locator('#relatar-abrir').isVisible(), false);
   await acaoJ6(page, 'deck-fab', '#deck-fab-relatar'); await page.waitForSelector('#relato-form');
@@ -10666,7 +10724,7 @@ async function semSalto(page, { ignora = '', tolerancia = 2, max = 60 } = {}) {
   const chaves = await page.evaluate(({ sel, ignora }) => {
     window.__chaveJ1 = el => el.id ? '#' + el.id : [el.tagName, ...[...el.attributes].filter(a => a.name.startsWith('data-') && !/estado|carregando/.test(a.name)).map(a => a.name + '=' + a.value), (el.getAttribute('aria-label') || el.textContent || '').trim().slice(0, 40)].join('|');
     window.__achaJ1 = (sel, chave) => [...document.querySelectorAll(sel)].find(e => window.__chaveJ1(e) === chave && e.getClientRects().length && !e.closest('.ds-dialog, .ds-overlay'));
-    const vis = e => e.getClientRects().length && !e.disabled && !e.closest('.ds-dialog, .ds-overlay, .ds-appbar') && (!ignora || !e.closest(ignora));
+    const vis = e => e.getClientRects().length && !e.disabled && !e.closest('.ds-dialog, .ds-overlay, .ds-appbar, .ds-navbar') && (!ignora || !e.closest(ignora)); // G-322 · a barra de baixo navega, como a de cima
     return [...new Set([...document.querySelectorAll(sel)].filter(vis).map(window.__chaveJ1))];
   }, { sel: CONTROLES_J1, ignora });
   const saltos = []; let medidos = 0;
@@ -11168,7 +11226,7 @@ test('e2e · J6 botão de ação: no canto inferior direito de Listas e Coleçã
   await page.goto(base + '#/listas/editar'); await page.fill('#deck-name', 'Longa'); await page.selectOption('#deck-format', 'livre'); await page.fill('#deck-text', LISTA_J1); await page.click('[data-ownall]'); await page.click('#deck-save'); await page.waitForSelector('.deck-summary');
   await createDeck(page, base, 'Outra', PAUPER);
   await page.goto(base + '#/listas'); await page.waitForSelector('#decks-fab-abrir'); await page.waitForTimeout(350);
-  const geo = () => page.evaluate(() => { const b = document.querySelector('.ds-fab__principal').getBoundingClientRect(); return { w: Math.round(b.width), h: Math.round(b.height), direita: Math.round(innerWidth - b.right), baixo: Math.round(innerHeight - b.bottom) }; });
+  const geo = () => page.evaluate(() => { const b = document.querySelector('.ds-fab__principal').getBoundingClientRect(); return { w: Math.round(b.width), h: Math.round(b.height), direita: Math.round(innerWidth - b.right), baixo: Math.round(innerHeight - (document.querySelector('#ds-navbar') && getComputedStyle(document.querySelector('#ds-navbar')).display !== 'none' ? document.querySelector('#ds-navbar').getBoundingClientRect().height : 0) - b.bottom) }; }); // G-322 · a partir da barra de baixo
   // 2 · onde fica e o que é: 56 px, 16 px das bordas, o único primário da tela; as ações saíram do topo
   assert.deepEqual(await geo(), { w: 56, h: 56, direita: 16, baixo: 16 });
   assert.equal(await page.locator('.ds-btn--primary:visible').count(), 1, 'um primário: o botão de ação');
@@ -11237,7 +11295,7 @@ test('e2e · J7 botão de ação da Lista: Jogar, Editar e Exportar no canto inf
   assert.ok(idLonga && idOutra && idLonga !== idOutra);
   const abre = async id => { await page.goto(base + '#/lista?id=' + id); await page.waitForSelector('#deck-fab-abrir'); await page.waitForTimeout(350); };
   await abre(idLonga);
-  const geo = () => page.evaluate(() => { const b = document.querySelector('.ds-fab__principal').getBoundingClientRect(); return { w: Math.round(b.width), h: Math.round(b.height), direita: Math.round(innerWidth - b.right), baixo: Math.round(innerHeight - b.bottom) }; });
+  const geo = () => page.evaluate(() => { const b = document.querySelector('.ds-fab__principal').getBoundingClientRect(); return { w: Math.round(b.width), h: Math.round(b.height), direita: Math.round(innerWidth - b.right), baixo: Math.round(innerHeight - (document.querySelector('#ds-navbar') && getComputedStyle(document.querySelector('#ds-navbar')).display !== 'none' ? document.querySelector('#ds-navbar').getBoundingClientRect().height : 0) - b.bottom) }; }); // G-322 · a partir da barra de baixo
   // 1 · onde fica e o que é
   assert.deepEqual(await geo(), { w: 56, h: 56, direita: 16, baixo: 16 });
   assert.equal(await page.locator('.ds-btn--primary:visible').count(), 1, 'um primário: o botão de ação');
@@ -15017,6 +15075,9 @@ test('e2e · MJ1e Conversa no selo da faixa de vez: colado à faixa, mesma cor, 
   });
   for (const [w, hgt] of [[360, 780], [384, 832], [390, 844], [412, 891]]) for (const tema of ['dark', 'light']) for (const [p, quem] of [[A, 'anfitrião'], [B, 'convidado']]) {
     await p.setViewportSize({ width: w, height: hgt }); await p.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await p.waitForTimeout(200);
+    // a cor do selo muda de tema com transição (botão do DS): sob carga, 200 ms não bastavam e o selo era lido ainda na cor
+    // do tema anterior (instável no CI e na sessão, também no main sem outra leva). Espera as cores assentarem; a asserção abaixo continua valendo
+    await p.waitForFunction(() => { const v = document.querySelector('#tb-vez'), s = document.querySelector('#tb-chat'); return !v || !s || getComputedStyle(v).backgroundColor === getComputedStyle(s).backgroundColor; }, null, { timeout: 3000 }).catch(() => {});
     const m = await mede(p), nome = `${w}×${hgt} ${tema} (${quem})`;
     assert.equal(m.desfazer, 0, `${nome}: online não há Desfazer (antes aparecia sempre apagado)`);
     assert.equal(m.naFerramenta, false, `${nome}: a Conversa saiu das ferramentas`);

@@ -833,13 +833,13 @@ a { color: var(--accent); }
 .inicio-nt #noticias-nota:empty { display: none; } /* a nota só ocupa lugar quando diz algo */
 .inicio-nt .nt-idiomas [data-idioma] { flex: 1 1 0; min-width: 0; justify-content: center; }
 /* T2 · Topo: pílula no canto inferior esquerdo (o Relatar fica no direito), entra subindo */
-.nt-topo.ds-btn { position: fixed; left: var(--space-4); bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px)); z-index: var(--z-overlay); min-height: 48px; padding: 0 var(--space-4) 0 var(--space-3);
+.nt-topo.ds-btn { position: fixed; left: var(--space-4); bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px) + var(--navbar-h, 0px)); /* G-322 · acima da barra de baixo */ z-index: var(--z-overlay); min-height: 48px; padding: 0 var(--space-4) 0 var(--space-3);
   border-radius: var(--radius-full); border-color: var(--border-strong); box-shadow: var(--btn-rest), var(--shadow-2); animation: nt-topo-entra var(--dur-2) var(--ease-out); }
 .nt-topo[hidden] { display: none; }
 @keyframes nt-topo-entra { from { opacity: 0; transform: translateY(var(--space-2)); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .nt-topo.ds-btn { animation: none; } }
 /* G-273 · Topo das listas prontas: o mesmo desenho do Topo das Notícias (regras próprias: as do .nt-topo são espelhadas no painel) */
-.cat-topo.ds-btn { position: fixed; left: var(--space-4); bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px)); z-index: var(--z-overlay); min-height: 48px; padding: 0 var(--space-4) 0 var(--space-3);
+.cat-topo.ds-btn { position: fixed; left: var(--space-4); bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px) + var(--navbar-h, 0px)); /* G-322 */ z-index: var(--z-overlay); min-height: 48px; padding: 0 var(--space-4) 0 var(--space-3);
   border-radius: var(--radius-full); border-color: var(--border-strong); box-shadow: var(--btn-rest), var(--shadow-2); animation: nt-topo-entra var(--dur-2) var(--ease-out); }
 .cat-topo[hidden] { display: none; }
 @media (prefers-reduced-motion: reduce) { .cat-topo.ds-btn { animation: none; } }
@@ -1048,6 +1048,28 @@ body[data-tela="entrar"] .ds-appbar { display: none; }
 .ds-nav__rotulo { font-size: var(--text-xs); line-height: 1.1; font-weight: var(--weight-medium); letter-spacing: .01em; white-space: nowrap; }
 .ds-nav[aria-current="page"] { color: var(--accent); }
 .ds-nav[aria-current="page"]::after { content: ''; position: absolute; left: 30%; right: 30%; bottom: -1px; height: 2px; border-radius: var(--radius-0); background: currentColor; }
+/* DS-K2 N1 (G-322) · a barra de navegação da proposta K mora embaixo, ao alcance do polegar: cinco destinos, o Jogar no
+   centro como botão de latão elevado. A barra de cima fica com a marca, o avatar, instalar, sem rede e o tema. Toda tela
+   reserva a altura dela (--navbar-h) no pé: o Relatar, o botão de ação, o aviso flutuante e as docas sobem junto. Na
+   partida, no scanner e na porta de entrada ela some (a mesa tem a bandeja dela; a câmera ocupa a tela). */
+:root { --navbar-h: 0px; }
+body:not([data-tela="partida"]):not([data-tela="scanner"]):not([data-tela="entrar"]):not([data-mesa-cheia="true"]) { --navbar-h: calc(60px + env(safe-area-inset-bottom, 0px)); }
+.ds-navbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: calc(var(--z-sticky) + 1); display: grid; grid-template-columns: repeat(5, 1fr); align-items: end;
+  height: var(--navbar-h); padding: 0 var(--space-2) env(safe-area-inset-bottom, 0px); background: var(--bg-elev-0); border-top: 1px solid color-mix(in srgb, var(--accent-lo) 40%, var(--border));
+  box-shadow: var(--shadow-up), inset 0 1px 0 var(--latao-luz); }
+body:is([data-tela="partida"], [data-tela="scanner"], [data-tela="entrar"], [data-mesa-cheia="true"]) .ds-navbar { display: none; }
+.ds-navbar .ds-nav { width: 100%; min-width: 0; height: 60px; border-radius: 0; gap: 3px; padding: 6px 0 8px; }
+.ds-navbar .ds-nav[aria-current="page"]::after { display: none; }
+.ds-navbar .ds-nav[aria-current="page"] { color: var(--accent-lo); }
+.ds-navbar .ds-nav:active { background: transparent; }
+.ds-navbar .ds-nav--jogar { gap: 2px; padding-top: 0; justify-content: flex-end; color: var(--accent-lo); }
+.ds-navbar .ds-nav--jogar .ds-navbar__latao { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; margin-top: -14px; border-radius: var(--radius-full);
+  background-color: var(--accent); background-image: linear-gradient(160deg, var(--accent-hi), var(--accent) 55%, var(--accent-lo)); color: var(--accent-fg);
+  box-shadow: var(--shadow-2), inset 0 1px 0 var(--latao-luz); transition: transform var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out); }
+.ds-navbar .ds-nav--jogar:active .ds-navbar__latao { transform: translateY(1px) scale(.96); box-shadow: var(--btn-pressed); }
+.ds-navbar .ds-nav--jogar[aria-current="page"] .ds-navbar__latao { box-shadow: var(--shadow-2), 0 0 0 3px color-mix(in srgb, var(--accent-lo) 45%, transparent), inset 0 1px 0 var(--latao-luz); }
+@media (prefers-reduced-motion: reduce) { .ds-navbar .ds-nav--jogar:active .ds-navbar__latao { transform: none; } }
+#outlet { padding-bottom: var(--navbar-h); }
 @media (hover: hover) { .ds-nav:hover { color: var(--fg); background: var(--bg-elev-2); } }
 .ds-nav:active { transform: scale(.94); background: var(--bg-elev-2); }
 .ds-nav--alerta { color: var(--warning); }
@@ -1386,7 +1408,7 @@ body[data-tela="entrar"] .ds-appbar { display: none; }
 
 /* ---------------- toast ---------------- */
 .ds-toast {
-  position: fixed; left: 50%; bottom: calc(var(--space-5) + var(--doca-h, 0px) + var(--relatar-h, 0px) + env(safe-area-inset-bottom, 0px)); z-index: var(--z-toast); max-width: calc(100vw - 2 * var(--space-4)); /* U6b · acima da bandeja da mesa */
+  position: fixed; left: 50%; bottom: calc(var(--space-5) + var(--doca-h, 0px) + var(--relatar-h, 0px) + var(--navbar-h, 0px) + env(safe-area-inset-bottom, 0px)); z-index: var(--z-toast); max-width: calc(100vw - 2 * var(--space-4)); /* U6b · acima da bandeja da mesa */
   transform: translateX(-50%) translateY(10px);
   background: var(--fg); color: var(--bg);
   padding: var(--space-2) var(--space-4); border-radius: var(--radius-2);
@@ -1401,7 +1423,8 @@ body[data-tela="entrar"] .ds-appbar { display: none; }
 .ds-toast { transform: translateX(-50%) translateY(14px); }
 .ds-toast[data-open="true"] { transform: translateX(-50%) translateY(0); transition: opacity var(--dur-2) var(--ease-out), transform var(--dur-3) var(--ease-spring); }
 /* leva 123 · aviso com ação ("Nova versão pronta · Atualizar"): o botão herda a cor invertida do aviso */
-.ds-toast[data-acao="true"] { display: flex; align-items: center; gap: var(--space-3); pointer-events: auto; padding-right: var(--space-2); width: max-content; }
+.ds-toast[data-acao="true"] { display: flex; align-items: center; gap: var(--space-3); padding-right: var(--space-2); width: max-content; }
+.ds-toast[data-acao="true"][data-open="true"] { pointer-events: auto; } /* G-322 · achado do N3: o aviso com ação, já fechado e invisível, continuava engolindo o toque no que estava atrás dele */
 .ds-toast__texto { flex: 1 1 auto; }
 /* MJ2 (J-8) · com left: 50% a caixa encolhia até metade da tela (180 px em 360) e o texto longo virava uma torre de linhas */
 .ds-toast { width: max-content; }
@@ -1612,7 +1635,7 @@ body[data-mesa-cheia="true"] .ds-toast[data-inteiro="true"] { padding-top: var(-
 /* J6 · botão de ação: a ação principal da tela ao alcance do polegar, no canto inferior direito. Uma ação: toca e faz.
    Várias: abre para cima uma lista curta de ícone + rótulo. É o primário da tela (usa o desenho do botão primário).
    Fica acima do conteúdo e abaixo de diálogos e avisos; a página ganha respiro no fim para ele não cobrir a última linha. */
-.ds-fab { position: fixed; right: var(--space-4); bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px)); z-index: var(--z-overlay); display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-3); pointer-events: none; }
+.ds-fab { position: fixed; right: var(--space-4); bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px) + var(--navbar-h, 0px)); z-index: var(--z-overlay); display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-3); pointer-events: none; }
 .ds-fab > * { pointer-events: auto; }
 .ds-fab__principal.ds-btn { width: var(--fab); min-width: var(--fab); height: var(--fab); padding: 0; border-radius: var(--radius-3); box-shadow: var(--btn-rest), var(--shadow-2); }
 .ds-fab { --fab: 56px; }
@@ -1983,7 +2006,7 @@ a.perfil-atalho { text-decoration: none; } /* R-15 · a entrada do painel é um 
 .deck-slot__passo .ds-btn { min-width: 0; width: 100%; padding-inline: 0; }
 .deck-slot--passo .deck-slot__flag { bottom: calc(var(--tap-min) + var(--space-1) + var(--space-2)); }   /* o selo "falta" fica sobre a carta, não sobre os botões */
 /* Y1 · relatar: botão discreto (telas sem botão de ação), formulário e lista de relatos */
-.ds-relatar { position: fixed; right: var(--space-4); bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px)); z-index: var(--z-overlay); width: 48px; height: 48px; border-radius: var(--radius-full);
+.ds-relatar { position: fixed; right: var(--space-4); bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px) + var(--navbar-h, 0px)); z-index: var(--z-overlay); width: 48px; height: 48px; border-radius: var(--radius-full);
   display: inline-flex; align-items: center; justify-content: center; padding: 0; background: var(--bg-elev-2); color: var(--fg-muted); border: 1px solid var(--border-strong); box-shadow: var(--shadow-2);
   transition: transform var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out); }
 .ds-relatar:active { transform: translateY(1px) scale(.97); }
@@ -1992,7 +2015,7 @@ a.perfil-atalho { text-decoration: none; } /* R-15 · a entrada do painel é um 
 @media (prefers-reduced-motion: reduce) { .ds-relatar { transition: none; } .ds-relatar:active { transform: none; } }
 body:has(#outlet .ds-fab:not([data-acoes="1"])) #relatar-abrir,
 body:is([data-tela="partida"], [data-tela="scanner"], [data-tela="perfil-relatos"], [data-tela="entrar"]) #relatar-abrir { display: none; }
-body:has(#outlet .ds-fab[data-acoes="1"]) #relatar-abrir { right: calc(var(--space-4) + 4px); bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px) + 56px + var(--space-3)); }
+body:has(#outlet .ds-fab[data-acoes="1"]) #relatar-abrir { right: calc(var(--space-4) + 4px); bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px) + 56px + var(--space-3) + var(--navbar-h, 0px)); }
 body:not([data-tela="partida"]):not([data-tela="scanner"]) #outlet:not(:has(.ds-fab)) { padding-bottom: calc(48px + var(--space-6)); }
 /* o aviso flutuante sobe para cima do Relatar visível (como sobe para cima do botão de ação: --doca-h) */
 body:has(#relatar-abrir):not([data-tela="partida"]):not([data-tela="scanner"]):not([data-tela="perfil-relatos"]):not(:has(#outlet .ds-fab:not([data-acoes="1"]))) { --relatar-h: calc(48px + var(--space-3)); }
@@ -2274,12 +2297,12 @@ body:has(#outlet .ds-fab[data-acoes="1"]) #outlet { padding-bottom: calc(56px + 
 .deck-picker--hero .deck-item__meta { margin-top: var(--space-1); }
 .deck-picker--hero .ds-list__seta { justify-self: end; }
 .ds-destaque .deck-picker--hero { background: var(--bg-elev-1); }
-.mesa-doca { position: sticky; bottom: 0; z-index: 2; margin: 0 calc(-1 * var(--space-4)); padding: var(--space-3) var(--space-4) calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
+.mesa-doca { position: sticky; bottom: var(--navbar-h, 0px); z-index: 2; margin: 0 calc(-1 * var(--space-4)); padding: var(--space-3) var(--space-4) calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
   background: var(--bg-elev-1); border-top: 1px solid color-mix(in srgb, var(--accent-lo) 40%, var(--border)); box-shadow: var(--shadow-up); display: grid; gap: var(--space-2); }
 .mesa-doca .ds-btn { width: 100%; }
 .mesa-doca__resumo { font-size: var(--text-sm); color: var(--fg-muted); text-align: center; text-wrap: balance; min-height: 1.25em; }
 .mesa-doca__resumo b { color: var(--fg); font-weight: 600; }
-body[data-tela="mesa"] .ds-relatar { bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px) + var(--doca-h, 0px)); }
+body[data-tela="mesa"] .ds-relatar { bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px) + var(--doca-h, 0px) + var(--navbar-h, 0px)); }
 .deck-picker__lista .deck-item { width: 100%; border: none; border-bottom: 1px solid var(--border); background: none; color: inherit; font: inherit; cursor: pointer; }
 .deck-picker__lista .deck-item[aria-checked="true"] { background: var(--accent-soft); }
 .deck-picker__lista .deck-item__ja { width: 24px; height: 24px; }
@@ -4039,6 +4062,7 @@ const ICONES = {
   tramar: '<rect x="5.5" y="3.5" width="13" height="17" rx="1.8"/><path d="M9.5 3.5v8l2.5-1.9 2.5 1.9v-8"/>',
   terreno: '<path d="M2.5 19.5l6.5-11 3.6 6 2.4-3.5 6.5 8.5z"/><path d="M7.2 11.6l1.8 1.5 1.6-1.2"/>',
   // Leva 149 · blocos da coleção: painel (barras sobre a base) e adicionar carta (carta com o sinal de mais)
+  estante: '<path d="M4.5 4v16M19.5 4v16M4.5 20h15"/><rect x="7.5" y="9" width="2.8" height="11" rx=".7"/><rect x="11.3" y="6.5" width="2.8" height="13.5" rx=".7"/><path d="M14.6 9.6l2.6-.7 2.6 9.8-2.6.7z"/>', // DS-K2 N1 · Início na barra de baixo: a estante com três livros, um tombado
   painel: '<path d="M4 20h16"/><rect x="5.5" y="11" width="3.5" height="6" rx="1"/><rect x="10.25" y="5" width="3.5" height="12" rx="1"/><rect x="15" y="8.5" width="3.5" height="8.5" rx="1"/>',
   cartaMais: '<path d="M15.5 11V5.3a1.8 1.8 0 0 0-1.8-1.8H6.3a1.8 1.8 0 0 0-1.8 1.8v11.9A1.8 1.8 0 0 0 6.3 19h4.2"/><path d="M17 14v6.5M13.75 17.25h6.5"/>',
   som: '<path d="M4.5 9.5h3l4.5-3.8v12.6l-4.5-3.8h-3z"/><path d="M15.5 9.2a4 4 0 0 1 0 5.6"/><path d="M18 6.7a7.5 7.5 0 0 1 0 10.6"/>', // G4 · som da partida ligado
@@ -45462,13 +45486,23 @@ function appBar() {
       h('a', { class: 'ds-appbar__brand', href: '#/', html: logoLockup(30) }),
       perfilBotao(),
       h('div', { class: 'ds-grow' }),
-      // U2 · destinos com ícone e legenda de uma palavra; o destino atual fica marcado
-      NavBotao('Jogar', { icone: 'jogar', id: 'nav-play', rota: '/mesa /partida', onClick: () => { location.hash = '#/mesa'; } }),
-      NavBotao('Listas', { icone: 'listas', id: 'nav-decks', rota: '/listas /lista', onClick: () => { location.hash = '#/listas'; } }),
-      NavBotao('Coleção', { icone: 'colecao', id: 'nav-collection', rota: '/colecao', onClick: () => { location.hash = '#/colecao'; } }),
+      // DS-K2 N1 (G-322) · os destinos saíram daqui para a barra de baixo (`navBar`); aqui ficam marca, avatar, instalar, sem rede e tema
       installButton(),
       offlineChip(),
       temaBotao()));
+}
+/** DS-K2 N1 (G-322) · a barra de navegação da proposta K: embaixo, cinco destinos, o Jogar no centro em latão. Os ids
+    `nav-play`, `nav-decks` e `nav-collection` são os de sempre (a barra de cima os tinha); `marcaNav` marca o atual. */
+function navBar() {
+  const jogar = NavBotao('Jogar', { icone: 'jogar', id: 'nav-play', rota: '/mesa /partida', onClick: () => { location.hash = '#/mesa'; } });
+  jogar.classList.add('ds-nav--jogar');
+  const ic = jogar.querySelector('.ds-icon'); const latao = h('span', { class: 'ds-navbar__latao', 'aria-hidden': 'true' }); if (ic) ic.replaceWith(latao); latao.appendChild(Icone('jogar', { tamanho: 24 }));
+  return h('nav', { class: 'ds-navbar', id: 'ds-navbar', 'aria-label': 'Navegação principal' },
+    NavBotao('Início', { icone: 'estante', id: 'nav-home', rota: '/ /noticias', onClick: () => { location.hash = '#/'; } }),
+    NavBotao('Listas', { icone: 'listas', id: 'nav-decks', rota: '/listas /lista', onClick: () => { location.hash = '#/listas'; } }),
+    jogar,
+    NavBotao('Coleção', { icone: 'colecao', id: 'nav-collection', rota: '/colecao /cartas', onClick: () => { location.hash = '#/colecao'; } }),
+    NavBotao('Scanner', { icone: 'scanner', id: 'nav-scanner', rota: '/scanner', onClick: () => { location.hash = '#/scanner'; } }));
 }
 /** Leva 128 · avatar na barra: foto ou inicial do perfil; sem perfil, o ícone de pessoa apagado. Toque abre o perfil. */
 function perfilBotao() {
@@ -45525,9 +45559,9 @@ async function boot(root) {
     // a tela de cartas relê o ambiente ao ser montada de novo
     if (location.hash.startsWith('#/cartas')) { location.hash = '#/'; location.hash = '#/cartas'; }
   });
-  const bar = appBar();
+  const bar = appBar(), navbar = navBar();
   const outlet = h('main', { id: 'outlet' });
-  mount(root, bar, outlet);
+  mount(root, bar, outlet, navbar);
   __m3.instalaAncora(outlet); // J1 · quem toca num controle fica onde está
   const router = createRouter(ROUTES, ({ route }) => {
     __m3.fechaToast(); // D1 · o aviso da tela anterior não atravessa para esta
@@ -45536,7 +45570,7 @@ async function boot(root) {
     delete document.body.dataset.mesaCheia; // MJ1a · o cabeçalho do app volta em toda tela; a mesa remarca ao se desenhar
     mount(outlet, route.render());
     if (!document.getElementById('relatar-abrir')) document.body.appendChild(__m38.BotaoRelatar()); // Y1 · Relatar das telas sem botão de ação
-    marcaNav(bar, location.hash.replace(/^#/, '').split('?')[0] || '/');
+    marcaNav(bar, location.hash.replace(/^#/, '').split('?')[0] || '/'); marcaNav(navbar, location.hash.replace(/^#/, '').split('?')[0] || '/');
     window.scrollTo(0, 0);
   });
   // E51 · listas prontas salvas antes da separação da reserva: separa sozinho, uma vez

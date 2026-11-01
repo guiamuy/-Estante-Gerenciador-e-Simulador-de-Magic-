@@ -549,12 +549,25 @@ test('DS-K · F5.2 endereço inexistente e lista inexistente têm cabeçalho com
   assert.match(HTML, /__m3\.Cabecalho\('Lista', \{ esquerda: IconButton\('voltar', 'Voltar para Minhas listas', \{ id: 'deck-voltar'/);
 });
 
+/* ---------------- DS-K2 (G-322) · N1 barra de navegação embaixo ---------------- */
+test('DS-K2 · N1 a barra de navegação mora embaixo com cinco destinos e o Jogar em latão; toda tela reserva --navbar-h; a barra some na partida, no scanner e na porta de entrada; a de cima fica sem destinos', () => {
+  assert.match(componentCss, /\.ds-navbar \{ position: fixed; left: 0; right: 0; bottom: 0;[^}]*grid-template-columns: repeat\(5, 1fr\);/);
+  assert.match(componentCss, /body:not\(\[data-tela="partida"\]\):not\(\[data-tela="scanner"\]\):not\(\[data-tela="entrar"\]\):not\(\[data-mesa-cheia="true"\]\) \{ --navbar-h: calc\(60px \+ env\(safe-area-inset-bottom, 0px\)\); \}/);
+  assert.match(componentCss, /body:is\(\[data-tela="partida"\], \[data-tela="scanner"\], \[data-tela="entrar"\], \[data-mesa-cheia="true"\]\) \.ds-navbar \{ display: none; \}/);
+  assert.match(componentCss, /#outlet \{ padding-bottom: var\(--navbar-h\); \}/);
+  for (const sel of ['.ds-fab { position: fixed;', '.ds-relatar { position: fixed;', '.mesa-doca { position: sticky;']) { const i = componentCss.indexOf(sel); assert.ok(i >= 0 && /--navbar-h/.test(componentCss.slice(i, i + 400)), sel + ' sobe com a barra'); }
+  assert.match(HTML, /function navBar\(\) \{[\s\S]*?NavBotao\('Início', \{ icone: 'estante', id: 'nav-home'[\s\S]*?NavBotao\('Listas', \{ icone: 'listas', id: 'nav-decks'[\s\S]*?NavBotao\('Coleção', \{ icone: 'colecao', id: 'nav-collection'[\s\S]*?NavBotao\('Scanner', \{ icone: 'scanner', id: 'nav-scanner'/);
+  const appbar = HTML.slice(HTML.indexOf('function appBar() {'), HTML.indexOf('function navBar() {'));
+  assert.ok(!/NavBotao\('(Jogar|Listas|Coleção)'/.test(appbar), 'a barra de cima não tem mais os destinos');
+  assert.ok(HTML.includes("estante: '<path d=\"M4.5 4v16M19.5 4v16M4.5 20h15\"/>"), 'ícone da estante para o Início');
+});
+
 /* ---------------- DS-K2 (G-318) · J2 Jogar como mesa de preparação ---------------- */
 test('DS-K2 · J2 o Jogar tem a sua lista como cartão com a carta-chave dentro do destaque, a doca do Começar reserva a altura e o Relatar sobe acima dela', () => {
   assert.match(componentCss, /\.deck-picker--hero > \.deck-item \{ display: grid; grid-template-columns: 64px minmax\(0, 1fr\) 24px;/);
   assert.match(componentCss, /\.deck-hero__arte \{ width: 64px; aspect-ratio: 488 \/ 680;/);
-  assert.match(componentCss, /\.mesa-doca \{ position: sticky; bottom: 0;/);
-  assert.match(componentCss, /body\[data-tela="mesa"\] \.ds-relatar \{ bottom: calc\(var\(--space-4\) \+ env\(safe-area-inset-bottom, 0px\) \+ var\(--doca-h, 0px\)\); \}/);
+  assert.match(componentCss, /\.mesa-doca \{ position: sticky; bottom: var\(--navbar-h, 0px\);/); // G-322 · a doca senta em cima da barra de baixo
+  assert.match(componentCss, /body\[data-tela="mesa"\] \.ds-relatar \{ bottom: calc\(var\(--space-4\) \+ env\(safe-area-inset-bottom, 0px\) \+ var\(--doca-h, 0px\) \+ var\(--navbar-h, 0px\)\); \}/);
   assert.ok(HTML.includes("Surface({ class: 'ds-surface--pad ds-destaque mesa-hero', id: 'mesa-hero' }"), 'o destaque da tela é a sua lista');
   assert.ok(HTML.includes("__m3.reservaDoca(h('div', { class: 'mesa-doca', id: 'mesa-doca' }, resumoDaDoca, startBtn))"), 'o Começar mora na doca');
   assert.ok(!HTML.includes("ChipField('Formato', formatBox),\n        mineField,\n        covBox,\n        ChipField('Oponente'"), 'o formulário único saiu');
