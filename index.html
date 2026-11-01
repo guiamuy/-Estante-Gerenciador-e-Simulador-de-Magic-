@@ -20592,6 +20592,7 @@ const __m42 = (function () {
     if (k === 'target creature or planeswalker') return { target: { tipos: ['creature', 'planeswalker'] } }; // M-337 · seletor (Erode, Sear)
     if (k === 'target creature, planeswalker, or battle') return { target: { tipos: ['creature', 'planeswalker', 'battle'] } }; // M-569 · Volcanic Spite (310.5)
     if (k === 'target nonland permanent an opponent controls') return { target: { de: 'opponent' }, targetNotLand: true }; // M-341 · Banishing Light, Cast Out
+    if (k === 'target artifact, enchantment, or nonbasic land an opponent controls') return { target: { ou: [{ tipos: ['artifact', 'enchantment'], de: 'opponent' }, { tipos: ['land'], terrenoBasico: false, de: 'opponent' }] } }; // M-583 · Boseiju, Who Endures (205.4: "nonbasic" vale só para o terreno)
     if (k === 'target creature, enchantment, or planeswalker') return { target: { tipos: ['creature', 'enchantment', 'planeswalker'] } }; // M-341 · Get Lost
     if (k === 'target player or planeswalker') return { target: { tipos: ['planeswalker'], jogadores: 'any' } }; // M-343 · Lava Axe (seletor)
     if (k === 'target opponent or planeswalker') return { target: { tipos: ['planeswalker'], jogadores: 'opponent' } }; // M-343
@@ -20693,7 +20694,7 @@ const __m42 = (function () {
     [new RegExp(`^~ deals ${N} damage to (.+)$`, 'i'), m => [com({ do: 'damage', amount: num(m[1]) }, alvo(m[2]))]],
     [/^destroy target creature with total power and toughness (\d+) or less$/i, m => [{ do: 'destroy', target: 'creature', targetPTTotalMax: +m[1] }]], // M-331 · Cut Down
     [/^exile that creature$/i, () => [{ do: 'exile', target: 'first-target' }]], // M-331 · "Tap target creature. … exile that creature." (Dispatch)
-    [/^destroy (target [a-z ']+)$/i, m => [com({ do: 'destroy' }, alvo(m[1]))]],
+    [/^destroy (target [a-z ,']+)$/i, m => [com({ do: 'destroy' }, alvo(m[1]))]],
     [/^destroy (up to one target [a-z ']+)$/i, m => [com({ do: 'destroy' }, alvo(m[1]))]], // M-580 · Curious Farm Animals (115.3: "up to one" aceita zero alvos; alvo() devolve upTo)
     [/^destroy (target creature, enchantment, or planeswalker)$/i, m => [com({ do: 'destroy' }, alvo(m[1]))]], // M-341 · Get Lost
     [/^destroy (target nonartifact, non(?:white|blue|black|red|green) creature)$/i, m => [com({ do: 'destroy' }, alvo(m[1]))]], // M-524 · Terror (a vírgula ficava fora do padrão geral)
@@ -20875,6 +20876,7 @@ const __m42 = (function () {
     [/^its controller gains life equal to its power$/i, () => [{ do: 'gain', amount: { per: 'power-of-target' }, target: 'target-controller' }]], // M-335 · Swords to Plowshares (608.2h: o poder como era no campo)
     [/^each attacking creature doesn't untap during its controller's next untap step$/i, () => [{ do: 'nao_desvira', cada: { tipos: ['creature'], atacando: true } }]], // M-361 · Tangle (502.3, 506.4)
     [/^put target creature on top of its owner's library$/i, () => [{ do: 'mover', para: 'library', posicao: 'topo', target: 'creature' }]], // M-516 · Time Ebb (a carta vai para o grimório do dono, 400.3)
+    [/^that player may search their library for a land card with a basic land type, put it onto the battlefield(?:, then shuffle)?$/i, () => [{ do: 'search', amount: 1, target: 'target-controller', optional: true, filter: { types: ['land'], subtypes: ['Plains', 'Island', 'Swamp', 'Mountain', 'Forest'] }, to: 'battlefield' }]], // M-583 · Boseiju: o controlador da permanente destruída pode buscar (701.23b; buscar e não achar ainda embaralha)
     [/^put target instant or sorcery card from your graveyard on top of your library$/i, () => [{ do: 'mover', para: 'library', posicao: 'topo', target: { zona: 'graveyard', de: 'you', tipos: ['instant', 'sorcery'] } }]], // M-582 · Mystic Sanctuary
     [/^put target creature card from your graveyard on top of your library$/i, () => [{ do: 'mover', para: 'library', posicao: 'topo', target: 'creature-in-your-graveyard' }]], // M-361 · Witch's Cottage, Mortuary Mire
     [/^if that (?:creature|creature or planeswalker|planeswalker) would die this turn, exile it instead$/i, () => [{ do: 'exila_se_morrer', target: 'first-target' }]], // M-384 · Suplex (614.1a) · M-415 · Fanged Flames: "that creature or planeswalker" (700.4: o planeswalker também morre)
