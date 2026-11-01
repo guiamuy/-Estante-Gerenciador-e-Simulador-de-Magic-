@@ -12251,7 +12251,7 @@ test('e2e · T-5 · CR 715.3 · carta de aventura: a folha oferece a carta norma
   await page.locator(`#tb-hand .tb-card[aria-label^="Foulmire Knight"]`).first().click(); await page.waitForSelector('.ds-dialog'); await page.waitForTimeout(400); // a folha termina de abrir antes de medir
   const botoes = (await page.locator('.ds-dialog .tb-sheet__actions button').allInnerTexts()).map(x => x.replace(/\s+/g, ' ').trim());
   assert.ok(botoes.some(b => /^Conjurar · \{B\}$/.test(b)), 'a carta normal: ' + JSON.stringify(botoes));
-  assert.ok(botoes.includes('Aventura · Profane Insight · {2}{B}'), 'a Aventura, com nome e custo: ' + JSON.stringify(botoes));
+  assert.deepEqual(botoes.filter(b => /^Aventura/.test(b)), ['Aventura · Profane Insight · {2}{B}'], 'a Aventura, com nome e custo, um botão só (J-33 · relato #40): ' + JSON.stringify(botoes));
   assert.ok(!botoes.some(b => /Presságio/.test(b)), 'não aparece como presságio');
   for (const b of await page.locator('.ds-dialog .tb-sheet__actions button', { hasText: /^(Conjurar|Aventura)/ }).all()) { const cx = await b.boundingBox(); assert.ok(cx && cx.height >= 44, 'botão com 44 px de altura ou mais: ' + JSON.stringify(cx)); }
   await auditaTela(page, 'folha da carta de aventura');
@@ -12263,6 +12263,44 @@ test('e2e · T-5 · CR 715.3 · carta de aventura: a folha oferece a carta norma
   assert.ok(fim.doExilio.every(x => x === false), 'do exílio, só a carta normal: ' + JSON.stringify(fim.doExilio));
   const linhas = await page.evaluate(() => (window.__estanteMesa.registro ? window.__estanteMesa.registro() : []).map(String));
   if (linhas.length) assert.ok(linhas.some(l => /conjurou Foulmire Knight como a aventura Profane Insight/.test(l)), 'registro: ' + JSON.stringify(linhas.slice(-6)));
+  assert.deepEqual(M.errors, []);
+});
+
+test('e2e · J-33 · relato #40 · CR 720 · presságio: sem mana para a criatura, "Conjurar" vem apagado com o motivo e só o Presságio conjura; com mana, cada lado tem um botão só e "Conjurar" põe a criatura na pilha', { skip }, async t => {
+  // Sagu Wildling {4}{G} // Roost Seek {G} (Sorcery — Omen). Texto oficial em .listas/oficiais.json (Oracle do Forge conferido, 30/09/2026).
+  // Antes: a ação do presságio caía também no botão genérico "Conjurar · {4}{G}" (ativo sem mana) e o toque conjurava o feitiço.
+  const M = await comLista125(t, '20 Forest\n20 Sagu Wildling', ['Forest', 'Sagu Wildling'], '4');
+  const { page } = M;
+  const prepara = n => page.evaluate(n => { const s = window.__estanteMesa.estado(), z = s.zones[0];
+    const tira = (nome, de) => { const i = z[de].findIndex(o => s.objects[o].name === nome); return i < 0 ? null : z[de].splice(i, 1)[0]; };
+    for (const oid of z.battlefield.filter(o => s.objects[o].name === 'Forest')) s.objects[oid].tapped = true; // as florestas de antes ficam viradas
+    for (let i = 0; i < n; i++) { const oid = tira('Forest', 'library') || tira('Forest', 'hand'); Object.assign(s.objects[oid], { zone: 'battlefield', controller: 0, tapped: false, sick: false, damage: 0, counters: {} }); z.battlefield.push(oid); }
+    for (const c of 'WUBRGC') s.players[0].pool[c] = 0;
+    const sg = tira('Sagu Wildling', 'library'); s.objects[sg].zone = 'hand'; z.hand.push(sg);
+    window.__estanteMesa.repinta(); return sg; }, n);
+  const folha = async () => { await page.locator(`#tb-hand .tb-card[aria-label^="Sagu Wildling"]`).last().click(); await page.waitForSelector('.ds-dialog'); await page.waitForTimeout(400);
+    return page.locator('.ds-dialog .tb-sheet__actions button').evaluateAll(bs => bs.map(b => ({ t: b.innerText.replace(/\s+/g, ' ').trim(), off: b.disabled || b.getAttribute('aria-disabled') === 'true' }))); };
+  // 1) com cinco Florestas: um botão para cada lado, e "Conjurar" põe a criatura (não o presságio) na pilha
+  let sg = await prepara(5);
+  let bs = await folha();
+  const conj = bs.filter(b => /^Conjurar/.test(b.t)), pres = bs.filter(b => /^Presságio/.test(b.t));
+  assert.equal(conj.length, 1, 'um botão Conjurar só: ' + JSON.stringify(bs));
+  assert.equal(pres.length, 1, 'um botão Presságio só: ' + JSON.stringify(bs));
+  assert.equal(conj[0].t, 'Conjurar · {4}{G}'); assert.equal(conj[0].off, false); assert.equal(pres[0].t, 'Presságio · {G}');
+  await page.locator('.ds-dialog .tb-sheet__actions button', { hasText: /^Conjurar/ }).click(); await page.waitForTimeout(300);
+  let topo = await page.evaluate(sg => { const s = window.__estanteMesa.estado(), o = s.objects[sg]; return { zona: o.zone, nome: o.name, omen: !!o.omen }; }, sg);
+  assert.ok(topo.nome === 'Sagu Wildling' && !topo.omen && ['stack', 'battlefield'].includes(topo.zona), 'tocar em Conjurar conjura a criatura (na pilha ou já no campo): ' + JSON.stringify(topo));
+  await M.resolve();
+  // 2) com uma Floresta: "Conjurar" apagado com o motivo; o Presságio conjura o feitiço
+  sg = await prepara(1);
+  bs = await folha();
+  const ativos = bs.filter(b => !b.off).map(b => b.t);
+  assert.ok(!ativos.some(t => /^Conjurar/.test(t)), 'sem mana, nenhum Conjurar ativo: ' + JSON.stringify(bs));
+  assert.ok(bs.some(b => b.off && b.t === 'Conjurar · {4}{G} — mana insuficiente'), 'Conjurar apagado com o motivo: ' + JSON.stringify(bs));
+  assert.deepEqual(ativos.filter(t => /^Presságio/.test(t)), ['Presságio · {G}']);
+  await page.locator('.ds-dialog .tb-sheet__actions button', { hasText: /^Presságio/ }).click(); await page.waitForTimeout(300);
+  topo = await page.evaluate(sg => { const s = window.__estanteMesa.estado(), o = s.objects[sg]; return { zona: o.zone, omen: !!o.omen }; }, sg);
+  assert.ok((topo.zona === 'stack' && topo.omen) || topo.zona === 'library', 'o Presságio vai à pilha como presságio (ou já resolveu e voltou embaralhado ao grimório, 720.3c): ' + JSON.stringify(topo));
   assert.deepEqual(M.errors, []);
 });
 
