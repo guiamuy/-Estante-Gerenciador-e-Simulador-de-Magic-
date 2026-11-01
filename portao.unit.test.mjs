@@ -6,7 +6,7 @@ import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { arquivosDaFase, falhasDoTap, padraoExato, pushSemFiltro, navegadorDeTela, fatiasDeTela, fatiar, conferirFatias, resumoDoTap, juntaResumo, divisaoDaRapida, PESADOS_DA_RAPIDA, ARQUIVO_DE_TELA } from './portao.mjs';
+import { arquivosDaFase, falhasDoTap, padraoExato, pushSemFiltro, navegadorDeTela, fatiasDeTela, fatiar, conferirFatias, resumoDoTap, juntaResumo, divisaoDaRapida, PESADOS_DA_RAPIDA, fatiasDaParte, ARQUIVO_DE_TELA } from './portao.mjs';
 const RAIZ = dirname(fileURLToPath(import.meta.url));
 
 test('Q14 · as duas fases cobrem todos os arquivos de teste, sem repetir nenhum; o navegador fica sozinho na segunda', () => {
@@ -152,6 +152,25 @@ test('Q25 · os pesados existem e estão na fase rápida; renomear um deles sem 
   const rapida = arquivosDaFase('rapido');
   for (const n of PESADOS_DA_RAPIDA) assert.ok(rapida.includes(n), `${n} está em PESADOS_DA_RAPIDA mas não na fase rápida: atualize a lista em portao.mjs`);
   assert.match(readFileSync(join(RAIZ, 'portao.mjs'), 'utf8'), /divisaoDaRapida\(arquivos\)/, 'a fase rápida usa a divisão');
+});
+
+test('Q26 · a tela dividida entre jobs: cada parte roda as suas fatias numa conta só; as partes juntas cobrem todas, uma vez cada; sem parte, nada muda', () => {
+  assert.deepEqual(fatiasDaParte(2, '1/2'), ['1/4', '2/4']); assert.deepEqual(fatiasDaParte(2, '2/2'), ['3/4', '4/4']);
+  assert.deepEqual(fatiasDaParte(1, '2/2'), ['2/2'], 'com dois núcleos por job, uma fatia por parte');
+  for (const [f, m] of [[1, 2], [2, 2], [2, 3], [4, 2]]) {
+    const todas = Array.from({ length: m }, (_, k) => fatiasDaParte(f, `${k + 1}/${m}`)).flat();
+    assert.deepEqual(todas, Array.from({ length: f * m }, (_, i) => `${i + 1}/${f * m}`), `${f} fatias × ${m} partes`);
+  }
+  assert.deepEqual(fatiasDaParte(2, ''), ['1/2', '2/2'], 'sem parte: as fatias de sempre');
+  assert.deepEqual(fatiasDaParte(1, ''), [], 'sem parte e uma fatia: um processo só, sem fatia');
+  for (const ruim of ['3/2', '0/2', '1/1', 'x', '1/']) assert.deepEqual(fatiasDaParte(2, ruim), ['1/2', '2/2'], `parte inválida "${ruim}" vale como sem parte`);
+  // de verdade: as quatro fatias de duas partes, pelo mesmo `fatiar` da fase de tela, executam cada teste uma vez
+  const nomes = Array.from({ length: 11 }, (_, i) => `t${i}`), vezes = new Map();
+  for (const parte of ['1/2', '2/2']) for (const f of fatiasDaParte(2, parte)) {
+    const t = fatiar((nome, ...resto) => { const o = resto.length > 1 ? resto[0] : {}; if (!o.skip) vezes.set(nome, (vezes.get(nome) || 0) + 1); }, f);
+    for (const n of nomes) t(n, () => {});
+  }
+  assert.deepEqual(nomes.map((n) => vezes.get(n)), nomes.map(() => 1));
 });
 
 test('Q21 · os fluxos que rodam o portão fixam a versão do sistema (ubuntu-latest troca de versão sem aviso e o Playwright instala dependências do sistema)', () => {

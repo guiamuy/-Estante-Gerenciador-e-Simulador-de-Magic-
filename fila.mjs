@@ -142,12 +142,14 @@ export const sondaDoAviso = (aviso, base) => (aviso && aviso.base === base && av
 
 /* ---------- Q23 · portão em dois jobs paralelos ---------- */
 
-/** Resultado do portão a partir dos dois jobs (rápida e tela): verde só com os dois verdes; qualquer queda é vermelho; os dois pulados
-    (nada a testar, ou pré-sonda "caem") é "skipped"; o resto (cancelado, um pulado e outro não, job que não existiu) não publica. */
-export function resultadoDoPortao(rapida, tela) {
-  if (rapida === 'success' && tela === 'success') return 'success';
-  if (rapida === 'failure' || tela === 'failure') return 'failure';
-  if (rapida === 'skipped' && tela === 'skipped') return 'skipped';
+/** Resultado do portão a partir dos jobs (rápida, tela e, desde a Q26, a segunda metade da tela): verde só com todos verdes; qualquer
+    queda é vermelho; todos pulados (nada a testar, ou pré-sonda "caem") é "skipped"; o resto (cancelado, um pulado e outro não, job que
+    não existiu) não publica. */
+export function resultadoDoPortao(...jobs) {
+  if (jobs.length < 2) return 'cancelled';
+  if (jobs.every((j) => j === 'success')) return 'success';
+  if (jobs.some((j) => j === 'failure')) return 'failure';
+  if (jobs.every((j) => j === 'skipped')) return 'skipped';
   return 'cancelled';
 }
 
@@ -161,11 +163,24 @@ export function juntarHerdadas(jobs) {
   return { base: hs[0].base, total: hs.reduce((t, h) => t + h.total, 0), quedas: hs.flatMap((h) => h.quedas) };
 }
 
-/** Junta o resumo das duas fases (cada job grava só a sua) no formato que a telemetria da rodada já lê. */
+/** Junta o resumo das fases (cada job grava só a sua) no formato que a telemetria da rodada já lê. Q26 · a tela em dois jobs vira
+    uma tela só: testes, telas e instáveis somados, a duração da metade mais lenta (a que a rodada esperou), medidas juntas. */
 export function juntarResumos(...textos) {
   const rs = textos.map((t) => { try { const v = JSON.parse(String(t || '')); return v && typeof v === 'object' ? v : null; } catch (e) { return null; } }).filter(Boolean);
   if (!rs.length) return '';
-  return JSON.stringify({ kind: (rs.find((r) => r.kind) || {}).kind || 'estante.portao', rapido: (rs.find((r) => r.rapido) || {}).rapido || null, tela: (rs.find((r) => r.tela) || {}).tela || null });
+  const telas = rs.map((r) => r.tela).filter((t) => t && typeof t === 'object');
+  return JSON.stringify({ kind: (rs.find((r) => r.kind) || {}).kind || 'estante.portao', rapido: (rs.find((r) => r.rapido) || {}).rapido || null, tela: telas.length > 1 ? juntarTelas(telas) : telas[0] || null });
+}
+function juntarTelas(telas) {
+  const nums = (k) => telas.map((t) => t[k]).filter((v) => typeof v === 'number');
+  const listas = (k) => [...new Set(telas.flatMap((t) => (Array.isArray(t[k]) ? t[k] : [])))];
+  const t = { ...telas[0] };
+  if (nums('passaram').length) t.passaram = nums('passaram').reduce((a, b) => a + b, 0);
+  if (nums('minutos').length) t.minutos = Math.max(...nums('minutos'));
+  if (nums('telas').length) t.telas = nums('telas').reduce((a, b) => a + b, 0);
+  for (const k of ['quedasOrcamento', 'instaveis']) if (telas.some((x) => Array.isArray(x[k]))) t[k] = listas(k);
+  if (telas.some((x) => x.medidas && typeof x.medidas === 'object')) t.medidas = Object.assign({}, ...telas.map((x) => (x.medidas && typeof x.medidas === 'object' ? x.medidas : {})));
+  return t;
 }
 
 /** I-308 · as quedas de uma fase do portão: `e2e` fica com as do arquivo de tela, `rapido` com as demais; sem fase, todas. */
@@ -491,14 +506,17 @@ function principal(argv) {
     const valida = (h) => (h && Array.isArray(h.quedas) && typeof h.total === 'number' ? h : null);
     // Q23 · dois jobs de portão: o resultado e as quedas de cada um se juntam aqui (com o fila.mjs do main); a forma de um job só continua aceita
     const doisJobs = process.env.FILA_PORTAO_RAPIDA !== undefined || process.env.FILA_PORTAO_TELA !== undefined;
-    const portao = doisJobs ? resultadoDoPortao(process.env.FILA_PORTAO_RAPIDA || '', process.env.FILA_PORTAO_TELA || '') : opc('--portao');
+    // Q26 · a tela em dois jobs: a segunda metade chega com o sufixo TELA2 e entra igual às outras
+    const sufixos = ['', '_TELA', ...(process.env.FILA_PORTAO_TELA2 !== undefined ? ['_TELA2'] : [])];
+    const resultadoDe = (x) => process.env[x === '' ? 'FILA_PORTAO_RAPIDA' : `FILA_PORTAO${x}`] || '';
+    const portao = doisJobs ? resultadoDoPortao(...sufixos.map(resultadoDe)) : opc('--portao');
     const herdadas = doisJobs
-      ? juntarHerdadas([{ resultado: process.env.FILA_PORTAO_RAPIDA, herdadas: valida(json(process.env.FILA_HERDADAS)) }, { resultado: process.env.FILA_PORTAO_TELA, herdadas: valida(json(process.env.FILA_HERDADAS_TELA)) }])
+      ? juntarHerdadas(sufixos.map((x) => ({ resultado: resultadoDe(x), herdadas: valida(json(process.env[`FILA_HERDADAS${x}`])) })))
       : valida(json(process.env.FILA_HERDADAS));
     const lista = (v) => { const x = json(v); return Array.isArray(x) ? x : (v ? [v] : []); };
-    const motivo = doisJobs ? JSON.stringify([...lista(process.env.FILA_MOTIVO), ...lista(process.env.FILA_MOTIVO_TELA)]) : (process.env.FILA_MOTIVO || opc('--motivo'));
+    const motivo = doisJobs ? JSON.stringify([...new Set(sufixos.flatMap((x) => lista(process.env[`FILA_MOTIVO${x}`])))]) : (process.env.FILA_MOTIVO || opc('--motivo'));
     // o resultado juntado e o resumo saem antes de qualquer passo que possa falhar: a telemetria da rodada depende deles
-    saidaDoFluxo({ portao, resumo: doisJobs ? juntarResumos(process.env.FILA_RESUMO_RAPIDA, process.env.FILA_RESUMO_TELA) : (process.env.FILA_RESUMO || '') });
+    saidaDoFluxo({ portao, resumo: doisJobs ? juntarResumos(...sufixos.map((x) => process.env[x === '' ? 'FILA_RESUMO_RAPIDA' : `FILA_RESUMO${x}`])) : (process.env.FILA_RESUMO || '') });
     const r = avancar({ cwd, plano, portao, motivo, presonda: process.env.FILA_PRESONDA || '', herdadas });
     const velhos = tenta(gitEm(cwd), ['fetch', '--quiet', '--depth=200', 'origin', 'main']) === null ? [] : limparAvisos({ cwd });
     const nomes = plano.aceitos.map((a) => `\`${a.nome}\``).join(' + ');
