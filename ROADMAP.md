@@ -5692,6 +5692,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Conferido:** o leitor antes e depois sobre as cartas revisadas e os pendentes dos competitivos: nenhuma leitura já completa mudou.
 - **Teste:** `lt278.unit` (4 testes; falham no motor anterior).
 
+**M-598 · LT256 · Sentinela do Pauper: Dreams of Laguna (628 de 628 listas Pauper a 100% no app na próxima coleta)** ✅ (leva M-598, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** fecha a sentinela de 01/11/2026 (`cobertura/pauper.json` de 13:47 UTC: 627 de 628). Texto da API da Scryfall de 01/11/2026 em `.listas/oficiais-revisadas.json`.
+- **Regra:** a carta já era lida por inteiro (vigiar 1 → comprar 1, 701.42; flashback {3}{U}, 702.34) e só faltava a revisão.
+- **Revisão independente:** aprovada, sem divergência (ordem vigiar antes de comprar; flashback paga {3}{U} do cemitério e exila ao resolver ou ao sair da pilha por outro motivo, 702.34a).
+- **Fora (declarado):** nada.
+- **Teste:** `lt279.unit` (4 testes; 3 falham no motor anterior).
+
 **M-584 · LT241 · Sentinela do Pauper: Nettle Sentinel (593 → 594 de 594 listas)** ✅ (leva M-584, motor v112 sem mudança de forma; goldens intactos)
 - **Valor:** a sentinela (`cobertura/pauper.json` de 26/10/2026 13:27 UTC) mostrava 593 de 594 listas Pauper a 100% no app, com uma carta `nova` (Nettle Sentinel, 1 lista). Aprovada, 594 de 594 na próxima coleta. Texto da API da Scryfall de 26/10/2026 (campo `texto` do relatório), gravado em `.listas/oficiais-revisadas.json`.
 - **Regra:** triagem A — o leitor `__m42` lê "Whenever you cast a/an <cor> spell" com uma cor só (gatilho `other-cast`, `filter.anyColors`; 105.2: multicolorida com verde conta); "doesn't untap during your untap step" (502.3, M-558) e o "you may" do gatilho (603.5, pergunta na resolução) já existiam. Núcleo intacto; numerada M-584 porque a M-583 está reservada pela conversa dos competitivos.
