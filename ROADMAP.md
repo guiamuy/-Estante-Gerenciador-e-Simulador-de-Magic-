@@ -5623,6 +5623,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Conferido:** o leitor antes e depois sobre as cartas revisadas e os pendentes dos competitivos: nenhuma leitura já completa mudou; a única nova lida é a Boseiju.
 - **Teste:** `lt268.unit` (3 testes; falham no motor anterior).
 
+**M-588 · LT246 · leitor, competitivos na ordem gulosa da sentinela: Sink into Stupor (mágica ou permanente não terreno do oponente) e Merchant Scroll (busca por cor e tipo)** ✅ (leva M-588, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** passam a ser **lidas por inteiro** Sink into Stupor // Soporific Springs (186 listas competitivas) e Merchant Scroll (24). Texto da Scryfall de 25/10/2026 (`cobertura/resumo.json`). Jogam no app depois da aprovação (homologacao).
+- **Regra:** alvo "target spell or nonland permanent an opponent controls" (115.1: a mágica na pilha também é alvo; 608.2b: volta à mão do dono e não resolve; seletor `ou` com a pilha e `semTipos: ['land']`, só do oponente); "Search your library for a [cor] [tipo] card, reveal that card, put it into your hand" (cor e tipo no filtro; 701.20a: a carta achada é revelada). A face de terreno da Sink into Stupor já era lida. Núcleo intacto.
+- **Conferido:** o leitor antes e depois sobre as cartas revisadas e os pendentes dos competitivos: nenhuma leitura já completa mudou.
+- **Teste:** `lt269.unit` (4 testes; falham no motor anterior).
+
 **M-584 · LT241 · Sentinela do Pauper: Nettle Sentinel (593 → 594 de 594 listas)** ✅ (leva M-584, motor v112 sem mudança de forma; goldens intactos)
 - **Valor:** a sentinela (`cobertura/pauper.json` de 26/10/2026 13:27 UTC) mostrava 593 de 594 listas Pauper a 100% no app, com uma carta `nova` (Nettle Sentinel, 1 lista). Aprovada, 594 de 594 na próxima coleta. Texto da API da Scryfall de 26/10/2026 (campo `texto` do relatório), gravado em `.listas/oficiais-revisadas.json`.
 - **Regra:** triagem A — o leitor `__m42` lê "Whenever you cast a/an <cor> spell" com uma cor só (gatilho `other-cast`, `filter.anyColors`; 105.2: multicolorida com verde conta); "doesn't untap during your untap step" (502.3, M-558) e o "you may" do gatilho (603.5, pergunta na resolução) já existiam. Núcleo intacto; numerada M-584 porque a M-583 está reservada pela conversa dos competitivos.
