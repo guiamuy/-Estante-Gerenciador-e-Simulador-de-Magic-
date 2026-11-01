@@ -42923,7 +42923,31 @@ function buildIndex(names, apelidos = []) {
   }
   Object.defineProperty(index, 'exatos', { value: exatos, enumerable: false });
   Object.defineProperty(index, 'prefixos', { value: prefixos, enumerable: false });
+  // S-603 · índice invertido por bigrama: com os nomes impressos de cinco línguas a base passa de 180 mil entradas e
+  // percorrer todas a cada leitura custava ~30 ms em Node (várias vezes isso no celular). Só entra no cálculo quem
+  // divide ao menos um bigrama com a leitura, que é exatamente quem o filtro de bigramas já deixava passar.
+  const nb = new Int32Array(16384);   // bigrama comum ("e ") passa de 65 mil entradas
+  for (const e of index) for (const g of e.bg) nb[g]++;
+  const inicio = new Int32Array(16385);
+  for (let g = 0; g < 16384; g++) inicio[g + 1] = inicio[g] + nb[g];
+  const lista = new Int32Array(inicio[16384]), pos = inicio.slice(0, 16384);
+  const tam = new Uint16Array(index.length), nbg = new Uint16Array(index.length);   // tamanho da chave e bigramas distintos
+  index.forEach((e, i) => { tam[i] = e.key.length; nbg[i] = e.bg.length; for (const g of e.bg) lista[pos[g]++] = i; });
+  Object.defineProperty(index, 'invertido', { value: { inicio, lista, tam, nbg, conta: new Uint16Array(index.length), tocadas: new Int32Array(index.length) }, enumerable: false });
   return index;
+}
+/** S-603 · as entradas que dividem bigramas com a leitura `q` e passam no filtro de tamanho e de bigramas em comum,
+    em ordem do índice (a mesma ordem da varredura antiga, para o desempate sair igual). */
+function candidatosDoIndice(index, q, qb = bigrams(q)) {
+  const inv = index.invertido;
+  const passa = e => !(e.key.length < q.length * 0.4 || e.key.length > q.length * 1.6 + 2);
+  if (!inv) { const out = []; index.forEach((e, i) => { if (!passa(e)) return; let c = 0; for (const g of e.bg) if (qb.has(g)) c++; if (c >= e.bg.length * 0.4) out.push(i); }); return out; }
+  const { inicio, lista, tam, nbg, conta, tocadas } = inv, min = q.length * 0.4, max = q.length * 1.6 + 2;
+  let n = 0;
+  for (const g of qb) { if (g >= 16384) continue; for (let k = inicio[g], f = inicio[g + 1]; k < f; k++) { const i = lista[k]; if (conta[i]++ === 0) tocadas[n++] = i; } }
+  const out = [];
+  for (let j = 0; j < n; j++) { const i = tocadas[j]; if (tam[i] >= min && tam[i] <= max && conta[i] >= nbg[i] * 0.4) out.push(i); conta[i] = 0; }
+  return out.sort((a, b) => a - b);
 }
 
 /** Melhores nomes para um texto de OCR, com nota de 0 a 1. O OCR costuma
@@ -42942,13 +42966,9 @@ function matchName(index, text, { limit = 3 } = {}) {
 }
 function matchInto(best, index, q) {
   const { floor, min, max } = Math;
-  const qb = bigrams(q);
-  for (const e of index) {
-    const len = e.key.length;
-    if (len < q.length * 0.4 || len > q.length * 1.6 + 2) continue;
-    // filtro barato antes da distância de edição: bigramas em comum
-    let common = 0; for (const g of e.bg) if (qb.has(g)) common++;
-    if (common < e.bg.length * 0.4) continue;
+  // filtro barato antes da distância de edição: tamanho parecido e bigramas em comum (pelo índice invertido)
+  for (const i of candidatosDoIndice(index, q)) {
+    const e = index[i], len = e.key.length;
     const maxEdits = floor(len * (1 - SUGGEST)) + 1;
     const full = lev(q, e.key, maxEdits);
     const pre = q.length > len ? lev(q.slice(0, len), e.key, maxEdits) : maxEdits + 1;
@@ -44122,7 +44142,7 @@ const LIMIARES_LINHA = { borrada: 0.5, deslocamentoMax: 0.05, correndo: 0.12, al
     mas a carta não conta como parada (nada entra na primeira passada; o porteiro pede repetição). */
 function pulaPorMovimento(mov, { via = 'auto', contorno = true } = {}) { return via !== 'manual' && contorno && mov > LIMIARES_LINHA.correndo; }
 
-return { cleanOcr, matchName, matchLines, criaVotacao, criaPorteiro, PORTEIRO, leituraConfiavel, nitidezDaFaixa, movimentoEntre, LIMIARES_FAIXA, criaDiario, criaCronometro, EXATA, buildIndex, createNameIndex, IDIOMAS_DOS_NOMES, createLot, coverRegion, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, ACCEPT, ALTA, SUGGEST, lev,
+return { cleanOcr, matchName, matchLines, criaVotacao, criaPorteiro, PORTEIRO, leituraConfiavel, nitidezDaFaixa, movimentoEntre, LIMIARES_FAIXA, criaDiario, criaCronometro, EXATA, buildIndex, candidatosDoIndice, createNameIndex, IDIOMAS_DOS_NOMES, createLot, coverRegion, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, ACCEPT, ALTA, SUGGEST, lev,
   detectaCarta, detectaEmEscalas, ESCALAS_DETECTOR, brilho, nitidez, prontoParaLer, criaDetector, paradaEm, screenRect, LIMIARES, PROPORCAO_CARTA, realcaTexto, trechoEscuroEmbaixo, limpaBordas, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, faixaDaCarta, escalaOcr,
   retasDoQuadro, achaQuadrilatero, ordenaCantos, homografia, cantosDaFaixa, retifica, FAIXA_NOME, FAIXA_COLECAO, LARGURA_NOME, linhaDoNome, binarizaLinha, limpaLinha, nitidezDaLinha, afiaLinha, FAIXA_ARTE, BITS_ARTE, impressaoDaArte, distanciaDaArte, buscaArte, abreBaseDeArtes, binDasArtes, criaBaseDeArtes, decideArte, LIMIAR_ARTE, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, alturaDaCarta, deslocamento, LIMIARES_LINHA, pulaPorMovimento, QUAD };
 })();

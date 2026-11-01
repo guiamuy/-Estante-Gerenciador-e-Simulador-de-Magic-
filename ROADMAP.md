@@ -8864,12 +8864,25 @@ X14 ataca. Sobre imagem: acima de 1440p o **nome** não ganha (a linha é lida e
      só em JSON Lines comprimido (`jsonl_download_uri`, `.jsonl.gz`, sem `download_uri`) e o fluxo parou em "dados em
      massa sem endereço da Scryfall" antes de gerar a base de artes e os nomes. O gerador aceita os dois formatos
      (lista JSON ou uma carta por linha, com ou sem gzip) e lê sempre em fluxo, inclusive o Unique Artwork.
+     **Primeira base no ar** (run 41360170779, 01/11/2026 23:08 UTC, 5 min): 51.309 artes (1,9 MB + 1,2 MB comprimidos),
+     nomes impressos pt 25.577 · es 30.854 · it 30.634 · fr 31.383 · de 31.222 · ja 31.792 · zhs 22.135 · zht 13.074 ·
+     ko 11.175 · ru 16.535; as cinco latinas somam ~2,2 MB comprimidos, baixados só pelo scanner. Autoteste da arte
+     (`medida.json`, 400 por variação): acerto 98–99,8 %; mesma carta degradada a 28–34 bits (mediana), carta errada
+     mais parecida a 54 (p5). Nomes impressos iguais para duas cartas: 2–3 por língua (ex.: fr "Exterminer" = Cut Down e
+     Exterminate!), e 1–9 por língua iguais ao nome inglês de outra carta (ex.: pt "Vigor" = Stamina): fica o nome
+     mais curto; a arte (X12) aponta a divergência. Limite declarado.
+  - **S-603** · leitura do nome rápida com a base de cinco línguas: medida na base real, a busca aproximada percorria
+     as 184.829 entradas a cada leitura (62 ms por leitura ruidosa em Node; várias vezes isso no celular). Índice
+     invertido de bigramas: só entram no cálculo as entradas que já passavam no filtro de bigramas. 6,1 ms por leitura
+     (10×), resultado idêntico em 3.000 leituras ruidosas da base real. Montar a base continua em ~0,7 s em Node uma
+     vez por abertura do scanner (no celular, alguns segundos): fica para a próxima leva da trilha, com medida no aparelho.
   3. **S-601** · japonês e chinês (simplificado e tradicional): o leitor de hoje só conhece letras latinas; precisa dos
      dados de leitura de cada escrita (baixados uma vez, guardados para usar sem internet; origem a revisar pela
      `protecao`). Os nomes já saem do fluxo desde a S-598. Até lá, a carta japonesa ou chinesa entra pela arte (X12).
   4. **S-602** · coreano e russo, no mesmo molde.
-- **Parcial, e o que falta:** fatias 3 e 4 (S-601, S-602); os nomes só chegam ao aparelho depois da primeira corrida do fluxo com
-  `--idiomas` (I-312/I-313); não testado no aparelho. Fora: traduzir a interface, mostrar o nome impresso na coleção.
+- **Parcial, e o que falta:** fatias 3 e 4 (S-601, S-602); calibração dos limiares de arte com dados reais (S-604: o
+  autoteste precisa gravar a distribuição inteira, não só mediana e p95); montar a base de nomes sem travar a tela;
+  não testado no aparelho. Fora: traduzir a interface, mostrar o nome impresso na coleção.
 - **Testes:** U (`artes.unit`: sem os nomes em português o print não casa — o defeito —, com eles casa exato, com troca de
   OCR e sem acento; a base baixa, guarda, abre sem rede e recusa arquivo estranho; régua de movimento com 7%, 11%, 20%,
   manual e sem contorno; gerador lê páginas seguidas, as duas faces e não repete).
@@ -8881,6 +8894,9 @@ X14 ataca. Sobre imagem: acima de 1440p o **nome** não ganha (a linha é lida e
   S-600: U (`artes.unit`: a Scryfall falsa do gerador anuncia só `jsonl_download_uri` com gzip — o formato real, que a
   versão anterior recusava —; All Cards em JSON Lines comprimido, em pedaços de 7 bytes, dá os mesmos nomes; endereço
   fora de data.scryfall.io é recusado; o formato antigo continua aceito).
+  S-603: U (`scanner.unit`: o índice invertido devolve exatamente o que a varredura antiga devolve em 150 leituras
+  ruidosas com apelidos; candidatos em ordem do índice; bigrama em mais de 65 mil entradas não estoura a contagem —
+  defeito achado na medida, o teste falha sem a correção).
 
 **X13 · Câmera no máximo e cronômetro de leitura** 🟡 (leva 120; aguardando teste no aparelho)
 - **Valor:** o scanner usa tudo o que a câmera do aparelho entrega, e passa a dizer quanto demora, por etapa.
