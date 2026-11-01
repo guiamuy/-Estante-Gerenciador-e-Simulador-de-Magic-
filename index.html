@@ -35229,6 +35229,11 @@ const __m25 = (function () {
    não mata (`contraAtaque`). Antes só o contra-ataque letal pesava, e o Control atacava com os dois Baleful Strix contra
    16 de poder do outro lado. Medida pareada com os cinco pilotos (400 ms, 120 pares): 73 × 65 (14 pares só do novo, 6 só
    do antigo); o Madness, agressor puro, foi o único a cair (16 × 18). 'shark-v18' é o Shark da B-185, congelado.
+   MOTOR DE MANA (B25, leva B-191): a fonte que produz uma quantidade contada (o Priest of Titania, um {G} por Elfo no campo)
+   vale na avaliação pela mana que dá, não como uma fonte só (`av7`, `avaliaV7`, `manaContada` — lê o `produces` com `per`
+   do script; contagem que o bot não conhece vale 1). Os Elfos deixam de mandar o Priest e o Timberwatch atacar contra dois
+   Baleful Strix. Medida pareada: Elfos 28 × 27 (48 pares), Control 16 × 16 (24): neutra em força, ligada pelo
+   comportamento. 'shark-v19' é o Shark da B-190, congelado.
    LIMITES DE HOJE: um lance à frente + resposta do oponente (na pilha e depois dela) + combate; sem plano
    de vários turnos, sem blefe; não joga em volta do truque de combate nem da varredura; na pilha não responde à resposta
    dele (guerra de anulação); não troca reserva na melhor de três; esquece o que a vidência
@@ -36596,6 +36601,33 @@ function avaliaV6(s, p) {
   }
   return avaliaV5(objetos ? { ...s, objects: objetos } : s, p);
 }
+/** B-191 · motor de mana (B25, fase 4, Elfos): a fonte que produz uma quantidade contada (Priest of Titania: um {G} por
+    Elfo no campo) vale pela mana que dá, não como uma fonte só. Sem isso o Priest com quatro Elfos valia o mesmo que um
+    Llanowar Elves, e o Shark o mandava atacar contra o Baleful Strix desvirado. Lê o script da carta (`produces` com
+    `per`); contagem que o bot não conhece vale 1 (como antes). */
+const ehElfoNoCampo = (s, o) => !o.faceDown && /\bElf\b|Changeling/i.test(E.linhaDeTipo(s, o) + ' ' + (s.facts[o.name].kw || []).join(' '));
+function manaContada(s, o) {
+  const pr = ((s.facts[o.name].script || {}).produces) || [];
+  let n = 0;
+  for (const x of pr) {
+    if (!x || Array.isArray(x) || !x.per) continue;
+    const campo = s.zones.flatMap(z => z.battlefield).map(oid => s.objects[oid]);
+    const k = x.per === 'elves-on-battlefield' ? campo.filter(c => ehElfoNoCampo(s, c)).length
+      : x.per === 'elves-you-control' ? campo.filter(c => c.controller === o.controller && ehElfoNoCampo(s, c)).length : 1;
+    n = Math.max(n, k);
+  }
+  return n;
+}
+/** `av7` liga em cima do avaliador que as outras opções escolheram (V6 no Shark publicado). */
+const comMotores = de => (s, p) => avaliaV7(s, p, de);
+function avaliaV7(s, p, de = avaliaV6) {
+  const base = de(s, p);
+  if (base.parcelas.vitoria) return base;
+  const d = oponenteDe(s, p);
+  const extra = q => { let n = 0; for (const oid of s.zones[q].battlefield) { const o = s.objects[oid]; const k = manaContada(s, o); if (k > 1) n += k - 1; } return n; };
+  const parcelas = { ...base.parcelas, mana: (base.parcelas.mana || 0) + (extra(p) - extra(d)) * PESOS.mana };
+  return { nota: Object.values(parcelas).reduce((a, b) => a + b, 0), parcelas };
+}
 const manaNaReserva = (s, p) => Object.values(s.players[p].pool || {}).reduce((a, b) => a + b, 0);
 /** Plano "abro mana com habilidades → faço uma jogada que antes não dava". Busca curta (até 3 habilidades de mana
     em sequência, 40 simulações) sobre um mundo possível. Devolve { nota, caminho: [ações] } ou null. */
@@ -36756,16 +36788,17 @@ const NOVO15 = { ...NOVO14, alvoProprio: true, av6: true }; // congelado como 's
 const NOVO16 = { ...NOVO15, decideOOutro: true }; // congelado como 'shark-v16' (B-184) · B-183 · na simulação, a decisão que a resolução pede ao outro jogador é tomada por ele do jeito pior para quem simula (Deem Inferior, Lose Focus); 49 × 47 em 80 pares, os cinco pilotos
 const NOVO17 = { ...NOVO16, respostaNaPilha: true }; // congelado como 'shark-v17' (B-185) · B-184 · jogar em volta: com a minha mágica na pilha, o outro responde no mundo possível (anula, tira o alvo) do jeito pior para mim; 51 × 47 em 80 pares (7 pares só do novo, 3 só do antigo), os cinco pilotos. `isca` (a mágica seguinte no mesmo turno) mediu 49 × 48 e fica desligada
 const NOVO18 = { ...NOVO17, reservaPorAlvo: true, respondeNoMeuTurno: true }; // congelado como 'shark-v18' (B-190) · B-185 · a reserva de cada anulação é medida pelo que ela pode pegar (o Dispel, só instantâneas): 29 × 24 em 48 pares (Control, Faeries, Terror); a instantânea que responde à mágica do oponente no meu turno não paga o pedágio de "guardar" (o Dispel na Counterspell que anulava o meu Mystic): 48 × 46 em 80 pares, os cinco pilotos
-const NOVO = { ...NOVO18, contraAtaque: true }; // B-190 · B25 · o contra-ataque entra na nota do ataque pelo dano (danoDeVolta), não só quando é letal: 73 × 65 em 120 pares, os cinco pilotos (Control 16 × 13, Elfos 16 × 12, Faeries 10 × 9, Madness 16 × 18, Terror 15 × 13)
+const NOVO19 = { ...NOVO18, contraAtaque: true }; // congelado como 'shark-v19' (B-191) · B-190 · B25 · o contra-ataque entra na nota do ataque pelo dano (danoDeVolta), não só quando é letal: 73 × 65 em 120 pares, os cinco pilotos (Control 16 × 13, Elfos 16 × 12, Faeries 10 × 9, Madness 16 × 18, Terror 15 × 13)
+const NOVO = { ...NOVO19, av7: true }; // B-191 · B25 · o motor de mana vale pela mana que dá (avaliaV7: o Priest of Titania com quatro Elfos vale quatro fontes): neutro em força (Elfos 28 × 27 em 48 pares, Control 16 × 16 em 24), ligado porque os Elfos deixam de atacar com os motores contra o Baleful Strix
 // B-176 · `ameacas` (ameaças do campo no perfil do Dimir Control) foi medida e fica desligada: 26 de 64 contra 27 de 64 pilotando o Control
 function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date.now(), mundos: mundosN = 0, extra: extraOpts = null, pesos = null } = {}) {
   // Leva 117 · 'profissional' e 'shark' são o Shark atual (v4: o v3 com informação justa). 'shark-v3', 'shark-v2'
   // e 'shark-v1' são as versões anteriores, congeladas, só para o torneio — elas simulam sobre o estado real.
-  const v1 = nivel === 'shark-v1', v2 = nivel === 'shark-v2', v3 = nivel === 'shark-v3', v4 = nivel === 'shark-v4', v5 = nivel === 'shark-v5', v6 = nivel === 'shark-v6', v7 = nivel === 'shark-v7', v8 = nivel === 'shark-v8', v9 = nivel === 'shark-v9', v10 = nivel === 'shark-v10', v11 = nivel === 'shark-v11', v12 = nivel === 'shark-v12', v13 = nivel === 'shark-v13', v14 = nivel === 'shark-v14', v15 = nivel === 'shark-v15', v16 = nivel === 'shark-v16', v17 = nivel === 'shark-v17', v18 = nivel === 'shark-v18';
-  const atual = nivel === 'profissional' || nivel === 'shark' || v4 || v5 || v6 || v7 || v8 || v9 || v10 || v11 || v12 || v13 || v14 || v15 || v16 || v17 || v18 || !!extraOpts || !!pesos;
-  const ligadas = { ...(v4 ? {} : v5 ? NOVO5 : v6 ? NOVO6 : v7 ? NOVO7 : v8 ? NOVO8 : v9 ? NOVO9 : v10 ? NOVO10 : v11 ? NOVO11 : v12 ? NOVO12 : v13 ? NOVO13 : v14 ? NOVO14 : v15 ? NOVO15 : v16 ? NOVO16 : v17 ? NOVO17 : v18 ? NOVO18 : NOVO), ...(extraOpts || {}) };
+  const v1 = nivel === 'shark-v1', v2 = nivel === 'shark-v2', v3 = nivel === 'shark-v3', v4 = nivel === 'shark-v4', v5 = nivel === 'shark-v5', v6 = nivel === 'shark-v6', v7 = nivel === 'shark-v7', v8 = nivel === 'shark-v8', v9 = nivel === 'shark-v9', v10 = nivel === 'shark-v10', v11 = nivel === 'shark-v11', v12 = nivel === 'shark-v12', v13 = nivel === 'shark-v13', v14 = nivel === 'shark-v14', v15 = nivel === 'shark-v15', v16 = nivel === 'shark-v16', v17 = nivel === 'shark-v17', v18 = nivel === 'shark-v18', v19 = nivel === 'shark-v19';
+  const atual = nivel === 'profissional' || nivel === 'shark' || v4 || v5 || v6 || v7 || v8 || v9 || v10 || v11 || v12 || v13 || v14 || v15 || v16 || v17 || v18 || v19 || !!extraOpts || !!pesos;
+  const ligadas = { ...(v4 ? {} : v5 ? NOVO5 : v6 ? NOVO6 : v7 ? NOVO7 : v8 ? NOVO8 : v9 ? NOVO9 : v10 ? NOVO10 : v11 ? NOVO11 : v12 ? NOVO12 : v13 ? NOVO13 : v14 ? NOVO14 : v15 ? NOVO15 : v16 ? NOVO16 : v17 ? NOVO17 : v18 ? NOVO18 : v19 ? NOVO19 : NOVO), ...(extraOpts || {}) };
   let perfil, avPlano = null, passosCombo = 0, turnoCombo = -1; // B9 · perfil do meu baralho, lido na primeira jogada
-  const avAtual = ligadas.av4 || ligadas.av5 || ligadas.av6 || pesos ? avaliadorCom({ ...PESOS_ATUAIS, ...(pesos || {}) }, ligadas.av6 ? avaliaV6 : ligadas.av5 ? avaliaV5 : ligadas.av4 ? avaliaV4 : avaliaV3) : null;
+  const avAtual = ligadas.av4 || ligadas.av5 || ligadas.av6 || ligadas.av7 || pesos ? avaliadorCom({ ...PESOS_ATUAIS, ...(pesos || {}) }, (de => ligadas.av7 ? comMotores(de) : de)(ligadas.av6 ? avaliaV6 : ligadas.av5 ? avaliaV5 : ligadas.av4 ? avaliaV4 : avaliaV3)) : null;
   let plano = []; // leva 143 · ações que faltam do plano de mana em curso
   const profissional = v1 || v2 || v3 || atual;
   const extra = v1 ? {} : v2 ? { av: avaliaV2, bloqueioForte: true, duplo: true }

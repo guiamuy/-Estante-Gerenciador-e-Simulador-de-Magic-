@@ -6,7 +6,7 @@ import { loadModules } from './_load.mjs';
 import { POSICOES, pontua } from './bot.bateria.mjs';
 const { engine: E, bot: B } = loadModules();
 
-const PISO = 24; // B-190 · 24 de 25 com o contra-ataque na nota do ataque (erra só a isca: `volta-isca`, a isca de dois lances que mediu 49 × 48 na B-184). Era 22 (B-188)
+const PISO = 25; // B-191 · 25 de 26 com o motor de mana na avaliação (erra só a isca: `volta-isca`, a isca de dois lances que mediu 49 × 48 na B-184). Era 24 (B-190), 22 (B-188)
 
 test('B-188 · toda posição da bateria monta, tem classe, porquê, e a jogada certa está entre as legais', () => {
   const ids = new Set();
@@ -33,4 +33,10 @@ test('B-190 · contra-ataque: com Tolarian Terror e Serpentes (ou o Avenging Hun
     const novo = joga('shark'), v18 = joga('shark-v18');
     assert.ok(novo.ok, id + ' · publicado: ' + novo.j.motivo); assert.ok(!v18.ok, id + ' · v18: ' + v18.j.motivo);
   }
+});
+
+test('B-191 · motor de mana: com quatro Elfos, o Shark publicado não manda o Priest of Titania nem o Timberwatch atacar contra dois Baleful Strix; o shark-v19 congelado mandava', () => {
+  const P = POSICOES.find(x => x.id === 'papel-elfos-motor-em-casa'), joga = nivel => { const { s } = P.monta(); const j = B.criaBot({ nivel, agora: () => 0 }).jogada(s, 0); return { ok: P.certo(s, j), j }; };
+  const novo = joga('shark'), v19 = joga('shark-v19');
+  assert.ok(novo.ok, 'publicado: ' + novo.j.motivo); assert.ok(!v19.ok, 'v19: ' + v19.j.motivo);
 });

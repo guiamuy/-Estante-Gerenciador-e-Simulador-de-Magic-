@@ -8069,6 +8069,15 @@ estruturado para tornarmos o Shark um jogador de nível profissional com as suas
   como pergunta para a fase 2 (o peso do contra-ataque por papel). Bateria: **24 de 25** (as duas posições `papel-strix`
   passam; erra só a isca). Promovida: `NOVO = { ...NOVO18, contraAtaque: true }`; **`shark-v18` é o Shark da B-185,
   congelado**; piso da bateria 22 → 24.
+- **Fase 4 · B-191 · Elfos: o motor de mana vale pela mana que dá (01/11/2026).** Nas partidas narradas da B-189 os Elfos
+  mandavam os motores (Priest of Titania, Timberwatch Elf) atacar contra bloqueador desvirado. Causa: na avaliação toda fonte
+  de mana valia uma fonte, e o Priest com quatro Elfos (quatro {G} por turno) valia o mesmo que um Llanowar Elves. Agora a
+  fonte que produz uma quantidade contada vale pelo que produz (`av7`: `avaliaV7` lê o `produces` com `per` do script;
+  contagem que o bot não conhece vale 1). Posição nova na bateria: `papel-elfos-motor-em-casa` (dois Baleful Strix do outro
+  lado: quem ataca é o Avenging Hunter). **Medida pareada** (400 ms, contra o Shark da B-190): Elfos **28 × 27** em 48 pares
+  (3 só do novo, 2 só do antigo), Control 16 × 16 em 24 (o Control vê o Priest do outro lado); zero ilegais. **Neutra em força,
+  ligada pelo comportamento**, como o mulligan da B-177. Bateria **25 de 26** (erra só a isca); piso 24 → 25. **`shark-v19` é
+  o Shark da B-190, congelado.** Fica para a próxima: o bloqueio duplo contra ameaçar com pouca vida.
 - **Fases:**
   - **0 · réguas** — B-187 régua absoluta e linha de base das quatro; B-188 bateria profissional (30+ posições).
   - **1 · diagnóstico** — B-189 partidas narradas das derrotas (Control e Faeries primeiro), cada erro classificado e

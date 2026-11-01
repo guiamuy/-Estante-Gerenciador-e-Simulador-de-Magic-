@@ -154,6 +154,10 @@ export const POSICOES = [
   { id: 'papel-strix-segura-hunter', classe: 'papel', lista: CONTROLE, porque: 'o Baleful Strix é o único que troca com o Avenging Hunter 5/4: atacar por 1 deixa o Hunter bater 5 livre',
     monta: () => { const m = monta(CONTROLE, ELFOS, { p0: { campo: ['Contaminated Aquifer', 'Contaminated Aquifer', 'Island', 'Baleful Strix'], mao: ['Counterspell', 'Thorn of the Black Rose'] }, p1: { campo: ['Forest', 'Forest', 'Forest', 'Elvish Mystic', 'Llanowar Elves', 'Avenging Hunter', 'Quirion Ranger'] } }); return { ...m, s: passaAte(m.s, 'combat_attackers') }; },
     certo: (s, j) => !(j.acao.attackers || []).some(o => nomeDe(s, o) === 'Baleful Strix') },
+  // B-191 · Elfos (partidas narradas da B-189): os motores atacavam contra bloqueador desvirado — 5 vezes em 5 derrotas.
+  { id: 'papel-elfos-motor-em-casa', classe: 'papel', lista: ELFOS, porque: 'Priest of Titania com quatro Elfos dá quatro manas por turno e o Timberwatch dá +4/+4: atacar com eles por 1 contra dois Baleful Strix (toque mortal) entrega os motores; quem ataca é o Avenging Hunter',
+    monta: () => { const m = monta(ELFOS, CONTROLE, { p0: { campo: ['Forest', 'Forest', 'Forest', 'Priest of Titania', 'Timberwatch Elf', 'Llanowar Elves', 'Avenging Hunter'] }, p1: { campo: ['Island', 'Island', 'Swamp', 'Baleful Strix', 'Baleful Strix'] } }); return { ...m, s: passaAte(m.s, 'combat_attackers') }; },
+    certo: (s, j) => !(j.acao.attackers || []).some(o => ['Priest of Titania', 'Timberwatch Elf'].includes(nomeDe(s, o))) },
   // ---- mulligan
   { id: 'mull-sete-terrenos', classe: 'mulligan', lista: TERROR, porque: 'sete terrenos não jogam: mulligan',
     mulligan: true, monta: () => maoInicial(TERROR, MADNESS, ['Island', 'Island', 'Island', 'Island', 'Island', 'Island', 'Island']),
