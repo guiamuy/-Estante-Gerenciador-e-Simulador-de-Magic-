@@ -9494,6 +9494,74 @@ test('e2e · Y1 relatar de qualquer tela: botão discreto onde não há botão d
   assert.deepEqual(errors, []);
 });
 
+/* ---------------- G-319 · relato #43: ditar o relato ---------------- */
+test('e2e · G-319 relato #43: ditar o relato em PT, EN ou ES pelo reconhecimento do aparelho; o falado entra no cursor, Parar entrega o que estava no ar, falha vira frase, fechar desliga o microfone; sem reconhecimento, nada muda', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  // reconhecimento de mentira: guarda cada sessão aberta, com o idioma; o teste dita os eventos
+  await page.addInitScript(() => {
+    window.__falas = [];
+    window.SpeechRecognition = class {
+      constructor() { window.__falas.push(this); this.estado = 'novo'; }
+      start() { this.estado = 'ouvindo'; } stop() { this.estado = 'parando'; } abort() { this.estado = 'abortado'; }
+    };
+    window.__dita = (textos, final = true) => { const r = window.__falas.at(-1); r.onresult({ resultIndex: 0, results: textos.map(t => Object.assign([{ transcript: t }], { isFinal: final })) }); };
+    window.__acaba = erro => { const r = window.__falas.at(-1); if (erro) r.onerror({ error: erro }); r.onend(); };
+  });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base + '#/'); await page.waitForSelector('#go-play');
+  await page.click('#relatar-abrir'); await page.waitForSelector('#relato-form');
+  // 1 · a linha do ditado: Ditar (44 px) e o idioma em três, o do aparelho já escolhido (o Chromium de teste fala inglês)
+  assert.equal(await page.innerText('#relato-ditar'), 'Ditar');
+  const doAparelho = await page.evaluate(() => navigator.language.toLowerCase().startsWith('es') ? 'ES' : navigator.language.toLowerCase().startsWith('en') ? 'EN' : 'PT');
+  assert.deepEqual(await page.$$eval('#relato-idiomas .ds-chip', cs => cs.map(c => [c.textContent, c.getAttribute('aria-label')])),
+    [['PT', 'Ditar em Português'], ['EN', 'Ditar em Inglês'], ['ES', 'Ditar em Espanhol']]);
+  assert.deepEqual(await page.$$eval('#relato-idiomas .ds-chip[aria-pressed="true"]', cs => cs.map(c => c.textContent)), [doAparelho]);
+  await page.click('#relato-idiomas [data-idioma="pt-BR"]'); assert.equal(await page.getAttribute('#relato-idiomas [data-idioma="pt-BR"]', 'aria-pressed'), 'true');
+  assert.ok((await page.$eval('#relato-ditar', b => b.getBoundingClientRect().height)) >= 44);
+  assert.equal(await page.locator('#relato-ouvindo').isVisible(), false);
+  for (const tema of ['dark', 'light']) { await page.evaluate(x => document.documentElement.setAttribute('data-theme', x), tema); await auditaTela(page, 'relato com ditado ' + tema); }
+  // 2 · ditar: o parcial aparece na hora; o final entra no texto com maiúscula; a sessão seguinte abre sozinha
+  await page.fill('#relato-descricao', 'Na mesa.'); await page.$eval('#relato-descricao', el => el.setSelectionRange(8, 8));
+  await page.click('#relato-ditar');
+  assert.equal(await page.getAttribute('#relato-ditar', 'aria-pressed'), 'true'); assert.equal(await page.innerText('#relato-ditar'), 'Parar');
+  assert.equal(await page.evaluate(() => window.__falas[0].lang), 'pt-BR');
+  await page.evaluate(() => window.__dita(['a carta'], false));
+  assert.equal(await page.innerText('#relato-ouvindo'), '“a carta”');
+  await page.evaluate(() => { window.__dita(['a carta não virou']); window.__acaba(); });
+  assert.equal(await page.inputValue('#relato-descricao'), 'Na mesa. A carta não virou');
+  assert.equal(await page.innerText('#relato-conta'), '26/2000');
+  assert.equal(await page.evaluate(() => window.__falas.length), 2, 'continua ouvindo');
+  // 3 · trocar o idioma no meio recomeça em inglês; Parar entrega o que estava no ar
+  await page.click('#relato-idiomas [data-idioma="en-US"]');
+  assert.equal(await page.evaluate(() => window.__falas.at(-1).estado), 'parando', 'entrega o que ouviu antes de trocar');
+  await page.evaluate(() => window.__acaba());
+  await page.waitForFunction(() => window.__falas.at(-1).lang === 'en-US' && window.__falas.at(-1).estado === 'ouvindo');
+  await page.evaluate(() => window.__dita(['after blocking'], false));
+  await page.click('#relato-ditar');
+  assert.equal(await page.evaluate(() => window.__falas.at(-1).estado), 'parando');
+  await page.evaluate(() => window.__acaba());
+  assert.equal(await page.inputValue('#relato-descricao'), 'Na mesa. A carta não virou after blocking');
+  assert.equal(await page.getAttribute('#relato-ditar', 'aria-pressed'), 'false'); assert.equal(await page.innerText('#relato-ditar'), 'Ditar');
+  // 4 · microfone negado vira frase; o texto fica
+  await page.click('#relato-ditar'); await page.evaluate(() => window.__acaba('not-allowed'));
+  assert.equal(await page.innerText('#relato-ouvindo'), 'Libere o microfone para a Estante nas permissões do navegador.');
+  assert.equal(await page.getAttribute('#relato-ditar', 'aria-pressed'), 'false');
+  // 5 · fechar o formulário ouvindo desliga o microfone; o idioma escolhido continua na próxima vez
+  await page.click('#relato-ditar'); await page.keyboard.press('Escape');
+  await page.waitForSelector('#relato-form', { state: 'detached' });
+  assert.equal(await page.evaluate(() => window.__falas.at(-1).estado), 'parando');
+  await page.click('#relatar-abrir'); await page.waitForSelector('#relato-form');
+  assert.equal(await page.getAttribute('#relato-idiomas [data-idioma="en-US"]', 'aria-pressed'), 'true');
+  assert.equal(await page.inputValue('#relato-descricao'), 'Na mesa. A carta não virou after blocking', 'rascunho guardado');
+  await page.keyboard.press('Escape');
+  // 6 · sem reconhecimento de fala no aparelho, o formulário fica como era
+  await page.addInitScript(() => { delete window.SpeechRecognition; delete window.webkitSpeechRecognition; });
+  await page.reload(); await page.waitForSelector('#go-play');
+  await page.click('#relatar-abrir'); await page.waitForSelector('#relato-form');
+  assert.equal(await page.locator('#relato-ditado').count(), 0);
+  assert.deepEqual(errors, []);
+});
+
 /* ---------------- Y2 · relatar na partida ---------------- */
 test('e2e · Y2 relatar na partida: aba discreta na borda (44 px de toque, 28 à vista) que arrasta e lembra a posição, some na cena; também no balão da faixa; o relato leva turno, etapa, últimas jogadas e a partida anexada', { skip }, async t => {
   const { page, errors, base } = await open(t, { cena: true }); // com a cena do oponente ligada, para conferir que a aba sai dela
