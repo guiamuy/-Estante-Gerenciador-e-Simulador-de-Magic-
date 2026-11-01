@@ -94,19 +94,24 @@ export function limparQueda(q) {
     Sem repetição (a segunda chance da fase de tela repete o nome); linhas de arquivo (`x.test.mjs`) não contam. */
 export function quedasComArquivo(log, max = MAX_REEXECUCOES) {
   const linhas = String(log || '').split('\n');
-  const saida = [], vistos = new Set();
+  const saida = [];
   for (let i = 0; i < linhas.length && saida.length < max; i++) {
     const m = linhas[i].match(/^not ok \d+ - (.+?)\s*(?:# .*)?$/);
     if (!m || /\.test\.mjs$/.test(m[1].trim())) continue;
     let arquivo = '';
     for (let j = i + 1; j < linhas.length && j < i + 80 && !/^(not )?ok \d+ - /.test(linhas[j]); j++) {
-      const l = linhas[j].match(/^\s+location: '(?:.*[\\/])?([^\\/:']+\.test\.mjs):\d+:\d+'/);
-      if (l) { arquivo = l[1]; break; }
+      const l = linhas[j].match(/^\s+location: '(?:.*[\\/])?([^\\/:']+\.(?:test\.)?mjs):\d+:\d+'/);
+      // I-318 · com a fase de tela em fatias (Q19, sempre no CI) o teste é registrado pelo `fatiar` do portão: a linha `location:`
+      // aponta o portao.mjs, não o arquivo de tela. Sem isto a queda saía sem arquivo, a reexecução no main dava "?" e o main
+      // vermelho nunca era provado na tela (recusa de inocentes em 01/11 pelo DS-K2 N1).
+      if (l) { arquivo = l[1] === 'portao.mjs' ? 'e2e.test.mjs' : l[1]; break; }
     }
     const q = limparQueda({ nome: m[1].trim(), arquivo });
-    const k = `${q.arquivo}|${q.nome}`;
-    if (!q.nome || vistos.has(k)) continue;
-    vistos.add(k); saida.push(q);
+    if (!q.nome) continue;
+    // a mesma queda duas vezes (fase inteira e repetição sozinha): uma só, com o arquivo quando alguma das duas o tem
+    const ja = saida.findIndex((x) => x.nome === q.nome && (x.arquivo === q.arquivo || !x.arquivo || !q.arquivo));
+    if (ja >= 0) { if (!saida[ja].arquivo && q.arquivo) saida[ja] = q; continue; }
+    saida.push(q);
   }
   return saida;
 }

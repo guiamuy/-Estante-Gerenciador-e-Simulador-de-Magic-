@@ -657,3 +657,22 @@ test('Q26 · o passo que avança com a segunda metade da tela vermelha recusa a 
     assert.match(c.git('log', '-1', '--format=%B', 'origin/recusada/B-185'), /Testes que caíram \(1\):\n- e2e · N1 barra de navegação/);
   } finally { m.fim(); }
 });
+
+test('I-318 · queda da fase de tela em fatias (location no portao.mjs, pelo `fatiar`) sai com o arquivo de tela; a mesma queda da repetição sozinha não vira uma segunda sem arquivo', () => {
+  const raiz = '/home/runner/work/x/x';
+  const log = [
+    'not ok 178 - e2e · DS-K2 N1 · barra embaixo', '  ---', `  location: '${raiz}/portao.mjs:135:23'`, '  ...',
+    'not ok 341 - e2e · DS-K FA.1 · orçamento', '  ---', `  location: '${raiz}/portao.mjs:135:23'`, '  ...',
+    'not ok 1 - e2e · DS-K2 N1 · barra embaixo', '  ---', `  location: '${raiz}/e2e.test.mjs:9219:1'`, '  ...',
+    'not ok 2 - regra · x', '  ---', `  location: '${raiz}/engine.unit.test.mjs:10:1'`, '  ...',
+    'not ok 3 - sem lugar', '  ---', '  ...',
+    'not ok 4 - sem lugar', '  ---', `  location: '${raiz}/engine.unit.test.mjs:12:1'`, '  ...',
+  ].join('\n');
+  assert.deepEqual(quedasComArquivo(log), [
+    { nome: 'e2e · DS-K2 N1 · barra embaixo', arquivo: 'e2e.test.mjs' },
+    { nome: 'e2e · DS-K FA.1 · orçamento', arquivo: 'e2e.test.mjs' },
+    { nome: 'regra · x', arquivo: 'engine.unit.test.mjs' },
+    { nome: 'sem lugar', arquivo: 'engine.unit.test.mjs' },
+  ]);
+  assert.equal(quedasComArquivo(`not ok 1 - x\n  location: '${raiz}/outro.mjs:1:1'`)[0].arquivo, '', 'outro .mjs que não é teste nem o portão continua sem arquivo');
+});
