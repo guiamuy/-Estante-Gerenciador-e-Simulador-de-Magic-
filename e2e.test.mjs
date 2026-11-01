@@ -9093,6 +9093,42 @@ test('e2e · DS-K2 J1 · o Jogar abre sempre no Pauper: com a medida real (616 d
 });
 
 /* G-318 · DS-K2 J2 · o Jogar como mesa de preparação no DS-K */
+/* G-323 · DS-K2 I1 · Início como na proposta K: "N listas prontas para jogar" e "Últimas listas" */
+test('e2e · DS-K2 I1 · Início: sob o título, quantas listas de Pauper jogam inteiras; "Últimas listas" com as três mais recentes (ladrilho nas cores, nome, formato, contagem, posse e selo do motor), toque abre a lista, "Ver todas" vai à estante; sem lista o grupo não existe; 360 e 390, dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t, { dev: false });
+  await page.setViewportSize({ width: 360, height: 780 });
+  // sem lista: nem o grupo nem a contagem
+  await page.goto(base + '#/'); await page.waitForSelector('#home-atalhos'); await page.waitForTimeout(600);
+  assert.deepEqual(await page.evaluate(() => [document.querySelector('#home-ultimas') === null, document.querySelector('#home-prontas').classList.contains('ds-hidden')]), [true, true]);
+  // quatro listas: três de Pauper que jogam, uma de Commander com carta sem regra; as três mais recentes aparecem
+  await createDeck(page, base, 'Antiga', '30 Island\n30 Counterspell', 'pauper');
+  await createDeck(page, base, 'Mono Azul Delver', PAUPER, 'pauper');
+  await createDeck(page, base, 'Ursos', '20 Forest\n20 Grizzly Bear', 'pauper');
+  await createDeck(page, base, 'Do Comandante', '1 Sol Ring\n99 Island', 'commander');
+  for (const [w, hh] of [[360, 780], [390, 844]]) {
+    await page.setViewportSize({ width: w, height: hh });
+    await page.goto(base + '#/'); await page.waitForSelector('#home-ultimas .deck-item'); await page.waitForFunction(() => !document.querySelector('#home-prontas').classList.contains('ds-hidden'));
+    for (const tema of (w === 360 ? ['dark', 'light'] : ['dark'])) {
+      await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(450);
+      const m = await page.evaluate(() => {
+        const itens = [...document.querySelectorAll('#home-ultimas .deck-item')];
+        return { prontas: document.querySelector('#home-prontas').innerText.replace(/\s+/g, ' ').trim(), nomes: itens.map(i => i.querySelector('.deck-item__nome').textContent),
+          ladrilhos: itens.map(i => { const l = i.querySelector('.home-lista__ladrilho'); return l ? Math.round(l.getBoundingClientRect().width) : 0; }),
+          posse: itens.map(i => !!i.querySelector('.deck-item__posse')), selo: itens.map(i => !!i.querySelector('.deck-item__meta .ds-badge, .deck-item__meta [class*="selo"]')),
+          ordem: [...document.querySelectorAll('#home > *')].map(e => e.id || e.className.split(' ')[0]), todas: !!document.querySelector('#home-ultimas-todas') }; });
+      assert.equal(m.prontas, '3 listas prontas para jogar · Pauper', `${w} ${tema}`);
+      assert.deepEqual([m.nomes, m.ladrilhos, m.posse, m.todas], [['Do Comandante', 'Ursos', 'Mono Azul Delver'], [40, 40, 40], [true, true, true], true], `${w} ${tema}: ${JSON.stringify(m)}`);
+      const i = m.ordem.indexOf('home-atalhos'); assert.ok(m.ordem[i + 1] === 'home-ultimas-slot', 'o grupo vem logo depois dos atalhos: ' + m.ordem.join(' > '));
+      await auditaTela(page, `DS-K2 I1 · Início ${w} ${tema}`);
+      if (process.env.SHOTS && w === 360) await page.screenshot({ path: process.env.SHOTS + `/ds-k2-i1-${tema}.png` });
+    }
+  }
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.click('#home-ultimas [data-home-lista] >> nth=1'); await page.waitForSelector('.deck-summary'); assert.match(await page.innerText('#deck-topo'), /Ursos/);
+  await page.goto(base + '#/'); await page.waitForSelector('#home-ultimas-todas'); await page.click('#home-ultimas-todas'); await page.waitForSelector('#decks-list .ds-list__item');
+  assert.deepEqual(errors, []);
+});
+
 /* G-322 · DS-K2 N1 · a barra de navegação da proposta K, embaixo, com o Jogar no centro */
 test('e2e · DS-K2 N1 · barra de navegação embaixo: cinco destinos de 44 px com o Jogar em latão no centro, o atual marcado; toda tela reserva a altura dela (nada por baixo, Relatar e doca acima); some na partida, no scanner e na porta de entrada; a barra de cima fica com marca, avatar e tema; 360 e 390, dois temas, AA', { skip }, async t => {
   const { page, errors, base } = await open(t, { dev: false });

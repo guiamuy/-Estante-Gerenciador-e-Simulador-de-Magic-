@@ -13189,7 +13189,7 @@ sentinela do Pauper mantém as novas jogando. Outro formato entra quando chegar 
 | N1 | barra de navegação embaixo com Jogar no centro; a barra de cima fica só com marca, avatar, instalar, sem rede e tema | todas as telas com a barra nova; FAB, Relatar, aviso e docas acima dela; some na partida, no scanner e na porta | geral | ✅ G-322 |
 | N2 | telas de gestão ajustadas à barra de baixo (rolagem, fim da página, botões fixos) | nenhum controle coberto; e2e por tela | geral | coberta pela N1 (`#outlet` reserva `--navbar-h`; o teste rola o Perfil até o fim) — fica como leva de ajuste se o aparelho mostrar algo |
 | N3 | a barra de baixo some na partida e volta ao sair (a mesa usa a bandeja dela) | e2e da mesa | geral | ✅ G-322 (por `data-tela`, sem tocar a mesa) |
-| I1 | Início: "Últimas listas" com ladrilho de cor e posse; "N listas prontas para jogar" na saudação | e2e | geral | a fazer |
+| I1 | Início: "Últimas listas" com ladrilho de cor e posse; "N listas prontas para jogar" sob o título | e2e | geral | ✅ G-323 |
 | I2 | Início: a faixa de offline de uma linha (anel + "faltam N itens" + Ver), o painel inteiro vira folha | e2e | geral | a fazer |
 | L1 | Lista: hero com a arte da carta-chave e a posse na coleção | e2e | geral | a fazer |
 | M1 | Mesa: cartas do campo com arte na fila, tamanho e raio da proposta | e2e, contrato visual | jogabilidade | a fazer |
@@ -13229,6 +13229,20 @@ sentinela do Pauper mantém as novas jogando. Outro formato entra quando chegar 
   para a fileira rolar como antes; o que ele prova (o redesenho não devolve a fileira ao começo) é o mesmo.
 - **Fora:** leque na mão do oponente; reordenar a mão arrastando; profundidade ao espiar; M1, M3 e M4. A foto que **chega**
   à mão (voltar para a mão) mira a caixa da carta girada (até ~10% maior que a carta), sem girar junto.
+**I1 · Início: últimas listas e quantas jogam** ✅ (leva G-323, 01/11/2026)
+- **Valor:** a Início responde de cara "quantas das minhas listas de Pauper jogam inteiras" e mostra as três listas mais
+  recentes como na proposta — ladrilho nas cores da lista, nome, formato, contagem, posse na coleção e o selo do motor —
+  com "Ver todas" para a estante. Sem lista, nada disso aparece.
+- **Entregue:** `painelUltimasListas()` em `src/app/main.js` (só dados do aparelho: `decks.list`, `cardRepo.cached`,
+  `collection.all`, `contaMotor`); `#home-prontas` sob o título; `#home-ultimas` depois dos atalhos, com `DeckLinha` e o
+  ladrilho `home-lista__ladrilho` (gradiente dos tokens `--mana-*`).
+- **Decisão de desenho:** a saudação continua "Olá, Nome" (a proposta tinha "Boa noite": depende da hora, e três testes
+  fixam o texto); o cartão Jogar continua (decisão K4 do dono), mesmo com o Jogar na barra de baixo.
+- **Testes:** e2e "DS-K2 I1" (sem lista: nada; com quatro listas: contagem "3 listas prontas para jogar · Pauper", as três
+  mais recentes na ordem, ladrilhos de 40 px, posse, "Ver todas"; posição logo após os atalhos; toque abre a lista; 360 e
+  390, dois temas, `auditaTela`); D3, K4, U2, Leva 128 verdes.
+- **Fora:** I2 (a faixa de offline de uma linha).
+
 **N1 · Barra de navegação embaixo** ✅ (leva G-322, 01/11/2026)
 - **Valor:** os cinco destinos ficam ao alcance do polegar, como na proposta: Início, Listas, **Jogar** (botão de latão
   elevado no centro), Coleção, Scanner; o destino atual fica marcado. A barra de cima enxuga para marca, avatar,
