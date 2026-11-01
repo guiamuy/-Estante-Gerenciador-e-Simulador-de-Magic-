@@ -13199,9 +13199,33 @@ sentinela do Pauper mantém as novas jogando. Outro formato entra quando chegar 
 | I2 | Início: a faixa de offline de uma linha (anel + "faltam N itens" + Ver), o painel inteiro vira folha | e2e | geral | a fazer |
 | L1 | Lista: hero com a arte da carta-chave e a posse na coleção | e2e | geral | ✅ G-324 |
 | M1 | Mesa: cartas do campo com arte na fila, tamanho e raio da proposta | e2e, contrato visual | jogabilidade | a fazer |
+| L1 | Lista: hero com a arte da carta-chave e a posse na coleção | e2e | geral | a fazer |
+| M1 | Mesa: cartas do campo com arte na fila, tamanho e raio da proposta | e2e, contrato visual | jogabilidade | ✅ J-38 |
 | M2 | Mesa: mão em leque com arte e rotação, a carta tocada sobe | e2e, 60 quadros | jogabilidade | ✅ J-37 |
 | M3 | Mesa: barra vida · fase com os pontos do turno · vida | e2e | jogabilidade | a fazer |
 | M4 | Mesa: bandeja com a ação primária em latão e o resto em segundo plano | e2e | jogabilidade | a fazer |
+
+**M1 · Carta do campo na moldura K** ✅ (leva J-38, trilha `jogabilidade`, 01/11/2026)
+- **Valor:** no campo, cada carta se lê de longe como na proposta K: o nome em faixa própria, legível (antes, o nome
+  passava numa tarja translúcida por cima do nome impresso, ilegível a 76 px), a arte da carta no meio e o P/T no pé; a
+  fila do campo fica no centro da mesa.
+- **Regra:** carta do campo no tamanho padrão e com imagem (`TableCard` sem `size`, sem verso) → `data-moldura`. A arte é a
+  **janela da arte da própria imagem da carta** (mesmo endereço, a mesma imagem guardada para jogar sem internet; nenhum
+  download novo): a imagem cresce pela altura até a janela da arte da moldura de 2015 (8,2–91,8% × 11,2–55,4%, tokens
+  `--arte-topo` e `--arte-alto`) encher a caixa, centralizada. O nome continua fora da face (a carta virada não leva o nome
+  junto), agora como faixa opaca `--bg-elev-1`; o pé (`--moldura-ft`) só existe com P/T; sem P/T a arte desce até a borda
+  de 3 px. Largura e raio já eram os da proposta (76 px em 360, 84 em 390, 92 de 400 em diante; raio 4,75%). A fila do
+  campo centraliza (`justify-content: safe center`): com mais cartas do que a largura, a rolagem começa na primeira.
+  Carta deitada: o selo de enjoo vai para o pé da carta deitada, sem cobrir o nome. Cópias em leque mostram a borda da moldura.
+- **Fora:** a linha de tipo do pé da proposta (a 76 px só caberia a 7,5 px ou cortada; o tipo continua no espiar e no nome
+  falado) e o custo de mana na faixa do nome (já pago no campo; com 3 símbolos o nome perderia metade da faixa). Moldura
+  antiga (antes de 2003) e arte estendida usam a mesma janela: no máximo uma lasca da moldura impressa na borda da caixa.
+  Mão, pilha, decisões e verso seguem com a carta inteira.
+- **Testes:** e2e "DS-K2 M1" (360 e 390, dois temas: a caixa da arte mostra só a janela da arte, medida sem giro; nome
+  cabe na faixa e não gira; P/T no pé, sem pé no terreno; fila centralizada; com muitas cartas rola desde a primeira;
+  auditaTela; `/ds` › Carta do campo) e contrato visual "DS-K2 · M1" (tokens, regra da imagem, contraste do nome sobre a
+  faixa ≥ 4,5 nos dois temas).
+- **Pixels de campo em 360×780:** zero (a carta mantém largura e proporção).
 
 **M2 · Mão em leque** ✅ (leva J-37, trilha `jogabilidade`, 01/11/2026)
 - **Valor:** a mão parece uma mão de cartas: abre em arco, cabe inteira na tela sem arrastar para o lado (até 7 cartas a

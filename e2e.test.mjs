@@ -9257,6 +9257,91 @@ test('e2e · DS-K2 J2 · Jogar como mesa de preparação: a sua lista é um cart
 // mão caber sem rolar; uma carta cobre no máximo 40% da vizinha, então o centro de cada carta é dela (é ali que o dedo e o
 // teste tocam); as pontas giram até 10° e descem em arco; a carta segurada endireita, sobe e fica por cima. Com 8 cartas em
 // 360 px a mão rola de lado e continua em leque. A fileira não ganha rolagem vertical por causa do giro.
+test('e2e · DS-K2 M1 carta do campo na moldura K: a caixa da arte mostra só a janela da arte da imagem, nome em faixa opaca, P/T no pé (e sem pé quando não há P/T), largura e raio da proposta, fila centralizada e rolando desde a primeira com muitas cartas, virada com o nome de pé; 360 e 390, dois temas, auditaTela; /ds', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  // as imagens dos dados de teste não existem: aqui elas viram uma carta desenhada com a janela da arte da moldura de 2015 (x 40–448, y 76–377)
+  await page.route('https://cards.scryfall.io/**', r => r.fulfill({ status: 200, contentType: 'image/svg+xml', headers: { 'access-control-allow-origin': '*' },
+    body: '<svg xmlns="http://www.w3.org/2000/svg" width="488" height="680"><rect width="488" height="680" fill="#111"/><rect x="40" y="30" width="408" height="38" fill="#ddd"/><rect x="40" y="76" width="408" height="301" fill="#3e6f8f"/><rect x="40" y="384" width="408" height="30" fill="#ddd"/><rect x="40" y="422" width="408" height="200" fill="#eee"/></svg>' }));
+  await createDeck(page, base, 'Moldura', '24 Mountain\n16 Delver of Secrets\n20 Grizzly Bear');
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start'); await page.fill('#mesa-seed', '3');
+  await page.click('[data-opponent="goldfish"]');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-pass');
+  const poe = (nome, n, virar = false) => page.evaluate(([nome, n, virar]) => { const M = window.__estanteMesa, s = M.estado(), p = s.turn.active;
+    const oids = Object.values(s.objects).filter(o => o.owner === p && o.name === nome && o.zone === 'library').slice(0, n).map(o => o.oid);
+    for (const oid of oids) { M.act({ t: 'move', p, oid, to: 'battlefield' }); if (virar) M.act({ t: 'tap', p, oid }); } return oids; }, [nome, n, virar]);
+  const [delver] = await poe('Delver of Secrets', 1); await poe('Mountain', 2); const [virado] = await poe('Delver of Secrets', 1, true);
+  const fechaMao = async () => { await page.evaluate(() => document.querySelector('#tb').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))); await page.waitForTimeout(300);
+    if ((await page.getAttribute('#tb-hand-toggle', 'aria-expanded')) === 'true') { await page.click('#tb-hand-toggle'); await page.waitForTimeout(450); } };
+  await fechaMao();
+  await page.waitForFunction(() => [...document.querySelectorAll('.tb-side--me .tb-card[data-moldura="true"] .tb-card__arte img')].every(i => i.complete && i.naturalWidth > 0), null, { timeout: 8000 });
+  const mede = () => page.evaluate(([delver, virado]) => {
+    const raiz = getComputedStyle(document.documentElement), largura = parseFloat(raiz.getPropertyValue('--carta-campo'));
+    const caixa = el => { const r = el.getBoundingClientRect(); return { l: r.left, r: r.right, t: r.top, b: r.bottom, w: r.width, h: r.height }; };
+    const cartas = [...document.querySelectorAll('.tb-side--me .tb-card[data-moldura="true"]')].map(c => {
+      const arte = c.querySelector('.tb-card__arte'), img = arte.querySelector('img'), a = caixa(arte), k = caixa(c), lab = c.querySelector('.tb-card__label'), pt = c.querySelector('.tb-card__pt');
+      // a janela da arte dentro da imagem (como foi desenhada: 40–448 × 76–377 de 488 × 680), nas medidas da caixa sem giro
+      // (offset*: a carta virada gira a face inteira); a imagem centraliza com translateX(-50%) da própria largura
+      const iw = img.offsetWidth, ih = img.offsetHeight, il = img.offsetLeft - iw / 2, it = img.offsetTop;
+      const jan = { l: il + iw * 40 / 488, r: il + iw * 448 / 488, t: it + ih * 76 / 680, b: it + ih * 377 / 680 }, aw = arte.offsetWidth, ah = arte.offsetHeight;
+      const l = caixa(lab);
+      return { oid: c.dataset.oid, zona: c.closest('[data-zone]').dataset.zone, tapped: c.dataset.tapped === 'true', pe: c.dataset.molduraPe === 'true', w: Math.round(parseFloat(getComputedStyle(c).width)), h: Math.round(parseFloat(getComputedStyle(c).height)),
+        raio: getComputedStyle(c.querySelector('.tb-card__face')).borderTopLeftRadius, so: jan.l <= 1 && jan.r >= aw - 1 && jan.t <= 1 && jan.b >= ah - 1 && ah > 30,
+        nomeCabe: lab.scrollHeight <= lab.clientHeight + 1 && lab.scrollWidth <= lab.clientWidth + 1, nomeDentro: l.l >= k.l - 0.5 && l.r <= k.r + 0.5 && l.t >= k.t - 0.5,
+        nomeDePe: getComputedStyle(lab).transform === 'none', fundoNome: getComputedStyle(lab).backgroundColor,
+        ptNoPe: pt ? caixa(pt).t >= a.b - 1 && caixa(pt).b <= k.b + 0.5 : null, seloLivre: !c.querySelector('.tb-card__sick') || caixa(c.querySelector('.tb-card__sick')).t >= l.b - 0.5 || caixa(c.querySelector('.tb-card__sick')).b <= l.t + 0.5, arteAteABorda: k.b - a.b };
+    });
+    const fila = document.querySelector('.tb-side--me [data-zone="permanents"] .tb-row'), fr = fila.getBoundingClientRect(), fs = getComputedStyle(fila), filhos = [...fila.children];
+    const ult = filhos[filhos.length - 1]; // a carta virada leva a margem dos lados (deita), que conta como parte dela
+    const ini = filhos[0].getBoundingClientRect().left - parseFloat(getComputedStyle(filhos[0]).marginLeft) - fr.left - parseFloat(fs.paddingLeft), fim = fr.right - parseFloat(fs.paddingRight) - ult.getBoundingClientRect().right - parseFloat(getComputedStyle(ult).marginRight);
+    return { largura, cartas, rola: fila.scrollWidth - fila.clientWidth, ini, fim, larguraDoc: document.documentElement.scrollWidth - innerWidth, delver, virado };
+  }, [delver, virado]);
+  for (const [w, hgt, esperada] of [[360, 780, 76], [390, 844, 84]]) for (const tema of ['dark', 'light']) {
+    await page.setViewportSize({ width: w, height: hgt }); await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(350);
+    const m = await mede(), onde = `${w} ${tema}`;
+    assert.equal(m.largura, esperada, `${onde}: a carta do campo tem a largura da proposta`);
+    const cri = m.cartas.find(c => c.oid === delver), vir = m.cartas.find(c => c.oid === virado), terra = m.cartas.find(c => c.zona === 'lands');
+    assert.ok(cri && vir && terra, `${onde}: criatura, criatura virada e terreno na moldura ` + JSON.stringify(m.cartas.map(c => c.oid)));
+    assert.equal(cri.w, esperada, `${onde}: largura`); assert.ok(Math.abs(cri.h - esperada * 680 / 488) <= 1, `${onde}: proporção da carta (${cri.h})`);
+    for (const c of m.cartas) {
+      assert.equal(c.raio, '4.75%', `${onde}: raio da carta de Magic (${c.oid})`);
+      assert.ok(c.so, `${onde}: a caixa da arte mostra só a janela da arte, sem a moldura impressa ` + JSON.stringify(c));
+      assert.ok(c.nomeCabe && c.nomeDentro, `${onde}: o nome cabe inteiro na faixa e a faixa fica dentro da carta (${c.oid})`);
+      assert.ok(c.nomeDePe, `${onde}: o nome não gira (${c.oid})`);
+      assert.notEqual(c.fundoNome, 'rgba(0, 0, 0, 0)', `${onde}: a faixa do nome é opaca`);
+    }
+    assert.ok(cri.pe && cri.ptNoPe, `${onde}: a criatura tem pé e o P/T mora nele, abaixo da arte`);
+    assert.ok(!terra.pe && terra.arteAteABorda <= 4.5, `${onde}: sem P/T, sem pé: a arte desce até a borda (${terra.arteAteABorda.toFixed(1)} px)`);
+    assert.ok(vir.tapped && vir.nomeDePe, `${onde}: a criatura virada deita, o nome continua de pé`);
+    assert.ok(vir.seloLivre, `${onde}: na carta deitada, o selo de enjoo não cobre o nome`);
+    assert.equal(m.rola, 0, `${onde}: poucas cartas cabem sem rolar`);
+    assert.ok(Math.abs(m.ini - m.fim) <= 2, `${onde}: a fila do campo fica no centro (${m.ini.toFixed(1)} × ${m.fim.toFixed(1)})`);
+    assert.equal(m.larguraDoc, 0, `${onde}: nada rola de lado na página`);
+    await auditaTela(page, `DS-K2 M1 · campo ${onde}`);
+    if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + `/ds-k2-m1-campo-${w}-${tema}.png` });
+  }
+  // muitas cartas: a fila rola, e a rolagem começa na primeira (centralizar não esconde a carta da ponta)
+  await page.setViewportSize({ width: 360, height: 780 }); await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  for (let i = 0; i < 6; i++) await poe('Grizzly Bear', 1, i % 2 === 1);
+  await poe('Delver of Secrets', 2, true);
+  await fechaMao(); await page.waitForTimeout(300);
+  const muitas = await page.evaluate(() => { const f = document.querySelector('.tb-side--me [data-zone="permanents"] .tb-row'); f.scrollLeft = 0; const fr = f.getBoundingClientRect();
+    return { rola: f.scrollWidth - f.clientWidth, primeira: f.firstElementChild.getBoundingClientRect().left - fr.left }; });
+  assert.ok(muitas.rola > 0, 'com muitas cartas a fila rola ' + JSON.stringify(muitas));
+  assert.ok(muitas.primeira >= 0, 'e a primeira carta aparece inteira no começo da rolagem ' + JSON.stringify(muitas));
+  await auditaTela(page, 'DS-K2 M1 · campo cheio 360');
+  // /ds: a carta do campo no catálogo, com a imagem de exemplo
+  await page.goto(base + '#/ds'); await page.waitForSelector('#ds-campo');
+  const ds = await page.evaluate(() => { const cs = [...document.querySelectorAll('#ds-campo .tb-card')];
+    return { n: cs.length, moldura: cs.filter(c => c.dataset.moldura === 'true').length, pe: cs.filter(c => c.dataset.molduraPe === 'true').map(c => c.dataset.oid), leque: !!document.querySelector('#ds-campo .tb-leque[data-moldura="true"]'), tokens: (document.querySelector('#ds-campo-tokens') || {}).textContent || '' }; });
+  assert.deepEqual([ds.n, ds.moldura, ds.leque], [5, 5, true], '/ds mostra cinco cartas na moldura, uma em leque ' + JSON.stringify(ds));
+  assert.deepEqual(ds.pe, ['ds-campo-1', 'ds-campo-2', 'ds-campo-3'], 'só as criaturas têm pé');
+  assert.ok(/--moldura-hd/.test(ds.tokens) && /--arte-alto/.test(ds.tokens), 'os tokens estão escritos no catálogo');
+  for (const tema of ['dark', 'light']) { await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.$eval('#ds-campo', el => el.scrollIntoView()); await auditaTela(page, `DS-K2 M1 · /ds ${tema}`);
+    if (process.env.SHOTS) await (await page.$('#ds-campo')).screenshot({ path: process.env.SHOTS + `/ds-k2-m1-ds-${tema}.png` }); }
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · DS-K2 M2 mão em leque: até 7 cartas cabem sem rolar em 360 e 390, o centro de cada carta toca aquela carta, sobreposição ≤ 40%, pontas giradas de 8° a 10°, segurar endireita e põe por cima; 8 cartas em 360 rolam e continuam em leque; dois temas, auditaTela', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.addInitScript(() => { window.__MTG_TEST = true; });
@@ -17696,3 +17781,4 @@ test('e2e · J-34 · relato #41 · CR 601.2c/601.2h · lampejo do Dread Return: 
   assert.deepEqual(fim.alvos, ['battlefield', 'graveyard', 'graveyard', 'graveyard', 'graveyard'], 'a criatura escolhida volta ao campo');
   assert.deepEqual(M.errors, []);
 });
+

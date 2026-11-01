@@ -2577,6 +2577,21 @@ body[data-mesa-cheia="true"] .tb-steps__list li { padding: 0 0 1px; border-botto
   transition: transform var(--dur-2) var(--ease-out);
 }
 .tb-card__face img { width: 100%; height: 100%; object-fit: cover; }
+/* DS-K2 M1 (J-38) · moldura K na carta do campo: a face é o papel da carta (elev-2 com fio forte); o nome (fora da face, como
+   sempre, para a carta virada não levar o nome junto) vira a faixa opaca de cima; a arte fica numa janela com 3 px de borda */
+.tb-card[data-moldura="true"] .tb-card__face { background: var(--bg-elev-2); border-color: var(--border-strong); }
+.tb-card__arte { position: absolute; top: var(--moldura-hd); left: var(--moldura-borda); right: var(--moldura-borda); bottom: var(--moldura-borda);
+  overflow: hidden; border-radius: var(--radius-1); background: var(--bg-elev-3); box-shadow: inset 0 0 0 1px var(--border); }
+.tb-card[data-moldura-pe="true"] .tb-card__arte { bottom: var(--moldura-ft); }
+.tb-card__face .tb-card__arte img { position: absolute; left: 50%; top: calc(100% * var(--arte-topo) / var(--arte-alto) * -1); height: calc(100% / var(--arte-alto));
+  width: auto; min-width: 100%; max-width: none; object-fit: cover; transform: translateX(-50%); }
+.tb-card[data-moldura="true"] > .tb-card__label { top: 1px; left: 1px; right: 1px; background: var(--bg-elev-1); font-weight: 600; padding: 2px var(--space-1) 3px;
+  border-radius: calc(var(--carta-campo) * .0475) calc(var(--carta-campo) * .0475) 0 0; box-shadow: 0 1px 0 var(--border); }
+.tb-card[data-moldura="true"][data-tapped="true"] > .tb-card__label { top: 22%; left: 0; right: 0; border-radius: 0; }
+.tb-card[data-moldura="true"][data-tapped="true"] .tb-card__sick { top: auto; bottom: 22%; } /* deitada, a faixa do nome desce a 22%: o selo vai para o pé da carta deitada */
+.tb-card[data-moldura="true"] .tb-card__pt { background: var(--bg-elev-1); }
+/* a fileira do campo centraliza como a fila da proposta; com mais cartas que a largura, rola desde a primeira (safe) */
+.tb-side .tb-row { justify-content: safe center; }
 .tb-card__face img[data-falhou="true"], .tb-leque__camada img[data-falhou="true"] { visibility: hidden; }   /* H7 · imagem que falhou não mostra ícone quebrado; volta sozinha */
 .tb-card img, .tb-stack__card img { -webkit-touch-callout: none; pointer-events: none; }   /* H10 · o toque é da carta, não da imagem */
 .tb-card__name { position: absolute; inset: 0; display: grid; place-items: center; padding: var(--space-1); text-align: center; font-family: var(--font-display); font-size: var(--text-xs); color: var(--fg); }
@@ -2588,6 +2603,7 @@ body[data-mesa-cheia="true"] .tb-steps__list li { padding: 0 0 1px; border-botto
 .tb-leque__camada { position: absolute; top: 0; left: calc(var(--i) * var(--passo)); width: var(--carta-campo); aspect-ratio: 488 / 680; overflow: hidden; pointer-events: none;
   border-radius: var(--radius-card); background: var(--bg-elev-3); border: 1px solid var(--border); box-shadow: var(--sombra-carta); filter: brightness(.82); }
 .tb-leque__camada img { width: 100%; height: 100%; object-fit: cover; -webkit-touch-callout: none; }
+.tb-leque[data-moldura="true"] .tb-leque__camada { background: var(--bg-elev-2); border-color: var(--border-strong); } /* DS-K2 M1 · as cópias de trás mostram a borda da moldura */
 .tb-leque[data-tapped="true"] { margin: 0 calc(var(--carta-campo) * .2); }
 .tb-leque[data-tapped="true"] > .tb-card { margin: 0; }
 .tb-leque[data-tapped="true"] .tb-leque__camada { transform: rotate(90deg) scale(.78); }
@@ -3196,6 +3212,12 @@ button.col-dash__bar:active, .col-dash__bar--on { background: var(--accent-soft)
 /* DS-K2 M2 (J-37) · a mão em leque: a carta da mão encolhe até --carta-mao-min para a mão caber sem rolar; uma carta cobre
    no máximo --leque-sobrepoe da vizinha (o centro de cada carta fica sempre à vista, e é ali que se toca) */
 :root { --carta-mao-min: 66px; --leque-sobrepoe: 0.4; }
+/* DS-K2 M1 (J-38) · a carta do campo na moldura da proposta K: faixa do nome em cima, a janela da arte no meio, o pé com P/T
+   embaixo (só quem tem P/T). A arte é a janela da própria imagem da carta (mesmo endereço, a mesma imagem guardada para jogar
+   sem internet): a imagem cresce até a janela da arte encher a caixa. Janela da arte na moldura de 2015: 8,2–91,8% da largura,
+   11,2–55,4% da altura da carta. */
+:root { --moldura-hd: calc(var(--text-2xs) * 1.2 + 6px); --moldura-ft: calc(var(--text-xs) * 1.4 + 6px); --moldura-borda: 3px;
+  --arte-topo: 0.112; --arte-alto: 0.442; }
 @media (max-width: 374px) {
   :root { --carta-campo: 76px; --carta-mao: 92px; --carta-pilha: 52px; --carta-terreno: 56px; }
   .tb-steps__longo { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } /* o leitor de tela ainda lê o nome inteiro */
@@ -5139,6 +5161,24 @@ function renderDS() {
             h('span', { class: 'ds-material__item' }, quadro, Button('Virar', { icone: 'virar', id: 'ds-virar', onClick: vira })));
         })(),
         Text('Tokens: --sombra-carta (espessura) · --sombra-carta-alta (levantada) · --mesa-luz e --mesa-penumbra (luz do feltro, só na partida) · --latao-luz e --latao-labio (fio de luz e lábio do latão: faixa de vez, vida de quem joga, selos).', { size: 'xs', tone: 'muted', attrs: { id: 'ds-material-tokens' } }),
+        // DS-K2 M1 (J-38) · a carta do campo na moldura K, com uma imagem de exemplo desenhada aqui (a janela da arte no lugar da
+        // moldura de 2015): criatura com P/T, a mesma virada, um terreno no tamanho de terreno e um leque de três cópias
+        Text('Carta do campo', { size: 'sm', caps: true, as: 'h3' }),
+        (() => {
+          const svg = cor => 'data:image/svg+xml,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="488" height="680"><rect width="488" height="680" fill="#16130f"/><rect x="18" y="18" width="452" height="644" rx="14" fill="#3b3226"/><rect x="40" y="30" width="408" height="38" rx="6" fill="#d9ccb2"/><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${cor[0]}"/><stop offset="1" stop-color="${cor[1]}"/></linearGradient></defs><rect x="40" y="76" width="408" height="301" fill="url(#g)"/><circle cx="330" cy="160" r="42" fill="#f3e3b5" opacity=".85"/><path d="M40 377 L150 250 L230 320 L330 220 L448 330 L448 377 Z" fill="#000" opacity=".35"/><rect x="40" y="384" width="408" height="30" rx="6" fill="#d9ccb2"/><rect x="40" y="422" width="408" height="200" rx="6" fill="#e8dfcc"/></svg>`);
+          const arte = { azul: svg(['#3e6f8f', '#1c3346']), verde: svg(['#5a7250', '#1b2b22']) };
+          const pt = (p, t) => ({ pt: { p, t }, mod: null, marcas: [], sick: false, anel: '' });
+          const campo = (...cs) => h('div', { class: 'tb-row' }, ...cs);
+          return h('div', { class: 'tb-side ds-campo', id: 'ds-campo' },
+            h('div', { dataset: { zone: 'permanents' } }, campo(
+              M.TableCard(demo('Spellstutter Sprite', { oid: 'ds-campo-1', image: arte.azul }), { estado: pt(1, 1) }),
+              M.TableCard(demo('Delver of Secrets', { oid: 'ds-campo-2', image: arte.azul, tapped: true }), { estado: pt(1, 1) }),
+              M.TableCard(demo('Ninja of the Deep Hours', { oid: 'ds-campo-3', image: arte.azul }), { estado: { ...pt(3, 2), anel: 'ataca' } }))),
+            h('div', { dataset: { zone: 'lands' } }, campo(
+              M.TableCard(demo('Island', { oid: 'ds-campo-4', image: arte.azul }), { pilha: { total: 3, viradas: 0 } }),
+              M.TableCard(demo('Forest', { oid: 'ds-campo-5', image: arte.verde })))));
+        })(),
+        Text('Tokens: --carta-campo e --carta-terreno (largura) · --moldura-hd (faixa do nome) · --moldura-ft (pé com P/T) · --moldura-borda · --arte-topo e --arte-alto (onde fica a janela da arte na imagem da carta).', { size: 'xs', tone: 'muted', attrs: { id: 'ds-campo-tokens' } }),
         // DS-K2 M2 (J-37) · a mão em leque com 3, 5 e 7 cartas, com o mesmo modelo (lequeDaMao) e o mesmo CSS da partida
         Text('Mão em leque', { size: 'sm', caps: true, as: 'h3' }),
         h('div', { class: 'ds-stack', id: 'ds-leque' }, ...[3, 5, 7].map(n => {
@@ -36830,6 +36870,8 @@ function TableCard(card, opts = {}) {
   const mod = est && est.mod;
   const ptEl = pt ? h('span', { class: 'tb-card__pt', dataset: { pt, ...(mod && (mod.p || mod.t) ? { mod: mod.p && mod.t && mod.p !== mod.t ? 'misto' : mod.p || mod.t } : {}) } },
     h('span', { dataset: { mod: (mod && mod.p) || '' } }, String(est.pt.p)), '/', h('span', { dataset: { mod: (mod && mod.t) || '' } }, String(est.pt.t))) : null;
+  // DS-K2 M1 (J-38) · carta do campo (tamanho padrão) com imagem: moldura K, com a janela da arte; mão, pilha e verso seguem com a carta inteira
+  const moldura = !opts.size && !opts.verso && !!card.image;
   const fala = [card.name, opts.pilha && opts.pilha.total > 1 ? `${opts.pilha.total} cópias` : null, tapped ? 'virada' : null, sick ? 'com enjoo' : null, pt ? (mod && mod.base && (mod.p || mod.t) ? `${pt}, base ${mod.base.p}/${mod.base.t}` : pt) : null,
     ...(est ? est.marcas.filter(m => m.k !== 'dano' && m.k !== 'marcador').map(m => m.rotulo || m.texto) : [])].filter(Boolean).join(', ');
   const el = h('button', {
@@ -36837,11 +36879,12 @@ function TableCard(card, opts = {}) {
     'aria-label': fala,
     dataset: { tapped: String(tapped), sick: String(sick), selected: String(!!opts.selected), eligible: String(!!opts.eligible), oid: card.oid || '', ...(card.attachedTo && card.zone === 'battlefield' ? { anexo: 'true' } : {}),
       estado: est && est.anel ? est.anel : '', ...(opts.pilha ? { pilhaTotal: String(opts.pilha.total), pilhaViradas: String(opts.pilha.viradas) } : {}),
-      ...(opts.pilha && opts.pilha.oids && opts.pilha.oids.length > 1 ? { oids: opts.pilha.oids.join(' ') } : {}) }, // MJ3a · quem chega a um leque acha o grupo
+      ...(opts.pilha && opts.pilha.oids && opts.pilha.oids.length > 1 ? { oids: opts.pilha.oids.join(' ') } : {}), // MJ3a · quem chega a um leque acha o grupo
+      ...(moldura ? { moldura: 'true', ...(ptEl ? { molduraPe: 'true' } : {}) } : {}) },
     onClick: opts.onClick
   },
   h('span', { class: 'tb-card__face' + (opts.verso ? ' tb-card__face--verso' : '') },
-    opts.verso ? h('span', { class: 'ds-verso' }) : card.image ? imgDaMesa(card, opts.size) : h('span', { class: 'tb-card__name' }, card.name), // D7 · verso escolhido na Aparência
+    opts.verso ? h('span', { class: 'ds-verso' }) : moldura ? h('span', { class: 'tb-card__arte' }, imgDaMesa(card, opts.size)) : card.image ? imgDaMesa(card, opts.size) : h('span', { class: 'tb-card__name' }, card.name), // D7 · verso escolhido na Aparência
     ptEl),
   // Leva 110 · o nome fica fora da face: carta virada não leva o nome junto na rotação (antes saía de pé, cortado)
   (card.image || opts.verso) && opts.size !== 'sm' ? h('span', { class: 'tb-card__label' }, card.name) : null,
@@ -36854,8 +36897,8 @@ function TableCard(card, opts = {}) {
   const atras = opts.pilha ? Math.min(LEQUE_MAX, opts.pilha.total - 1) : 0;
   if (atras <= 0) return el;
   const camadas = Array.from({ length: atras }, (_, i) => h('span', { class: 'tb-leque__camada', 'aria-hidden': 'true', style: { '--i': String(i + 1), zIndex: String(atras - i) } },
-    card.image ? imgDaMesa(card, opts.size) : null));
-  return h('span', { class: 'tb-leque', dataset: { leque: String(opts.pilha.total), tapped: String(tapped) }, style: { '--atras': String(atras) } }, el, ...camadas);
+    card.image && !moldura ? imgDaMesa(card, opts.size) : null));
+  return h('span', { class: 'tb-leque', dataset: { leque: String(opts.pilha.total), tapped: String(tapped), ...(moldura ? { moldura: 'true' } : {}) }, style: { '--atras': String(atras) } }, el, ...camadas);
 }
 const LEQUE_MAX = 3;
 /** MJ7 (J-17) · a carta de duas faces vira em 3D curto. `novo` é a carta já com a face nova; `foto` (opcional) é a cópia
