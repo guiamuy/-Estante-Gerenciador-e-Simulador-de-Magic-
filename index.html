@@ -6431,7 +6431,7 @@ const EFFECTS = {
   tap_or_untap: { fields: [], targets: ['creature', 'permanent'] },
   // M-250 · "untap up to N lands" (Frantic Search): sem alvo, escolha na resolução entre os virados de qualquer jogador; aceita zero
   untap_chosen: { fields: ['amount'], targets: ['self'] },
-  exile_graveyard: { fields: [], targets: ['player', 'opponent', 'self', 'all', 'each-opponent'] },
+  exile_graveyard: { fields: [], targets: ['player', 'opponent', 'self', 'all', 'each-opponent', 'first-target'] }, // M-593 · first-target: "…and their graveyard" (Strategic Betrayal)
   // S37 · o oponente revela a mão e você escolhe o que ele descarta
   discard_chosen: { fields: ['amount'], targets: ['opponent', 'player'] },
   attach: { fields: [], targets: ['creature-you-control', 'permanent-you-control'] },
@@ -7494,6 +7494,7 @@ function effectErrors(effects, label, opcional) {
     if (e.exilaSeMorrer != null && !(e.do === 'damage' && e.exilaSeMorrer === true)) errs.push(`${label} ${i + 1}: "exilaSeMorrer" é uma marca (true) do dano`); // M-384 · Torch the Tower
     if (e.marcaFonteM != null && !(e.marcaFonteM === true && e.do === 'exila_ate_final')) errs.push(`${label} ${i + 1}: "marcaFonteM" é uma marca (true) da exila_ate_final`); // M-548 · Phelia
     if (e.semGanharVidaM != null && !(e.semGanharVidaM === true && e.do === 'damage')) errs.push(`${label} ${i + 1}: "semGanharVidaM" é uma marca (true) do dano`); // M-550 · Screaming Nemesis
+    if (e.exilar != null && (e.do !== 'edict' || e.exilar !== true)) errs.push(`${label} ${i + 1}: "exilar" só no edito, como true`); // M-593
     if (e.do === 'search' && e.zona != null && e.zona !== 'graveyard') errs.push(`${label} ${i + 1}: busca: "zona" só 'graveyard'`); // M-590
     if (e.do === 'exile_top_playable' && ((e.de != null && e.de !== 'that-player') || (e.soConjurar != null && e.soConjurar !== true))) errs.push(`${label} ${i + 1}: exílio do topo: "de" só that-player e "soConjurar" só true`); // M-566
     if (e.lembraExiladas != null && !(e.lembraExiladas === true && (e.do === 'exile_top_playable' || e.do === 'delayed'))) errs.push(`${label} ${i + 1}: "lembraExiladas" é uma marca (true) do exílio do topo e do gatilho atrasado`); // M-386 (o \`lembra\` do \`mover\` é outra coisa — achado da revisão: Leonin Relic-Warder)
@@ -20864,6 +20865,7 @@ const __m42 = (function () {
     [new RegExp(`^~ deals ${N} damage to each opponent and each creature and planeswalker they control$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'each-opponent' }, { do: 'damage', amount: num(m[1]), target: 'each-opponent-creature-planeswalker' }]], // LT12
     [new RegExp(`^~ deals ${N} damage to each creature with flying$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'each-flying-creature' }]], // LT9
     [/^venture into the dungeon$/i, () => [{ do: 'venture' }]], // LT9 · 701.49
+    [/^target opponent exiles a creature they control and their graveyard$/i, () => [{ do: 'edict', types: ['creature'], target: 'opponent', exilar: true }, { do: 'exile_graveyard', target: 'first-target' }]], // M-593 · Strategic Betrayal (o oponente escolhe a criatura; exilar não é sacrificar)
     [/^(target player|target opponent) sacrifices an? (creature|artifact|enchantment|planeswalker)(?: of their choice)?$/i, m => [{ do: 'edict', types: [m[2].toLowerCase()], target: m[1].toLowerCase() === 'target player' ? 'player' : 'opponent' }]], // M-337 · 701.21a (Diabolic Edict, Gatekeeper of Malakir)
     [/^each player sacrifices an? (creature|artifact|enchantment|planeswalker)(?: of their choice)?$/i, m => [{ do: 'sacrifice_each', types: [m[1].toLowerCase()] }]], // M-337 · 701.21a (a mesma forma dos scripts à mão: Benalish Sleeper)
     [/^sacrifice (?:~|this (?:land|creature|artifact|enchantment|permanent))$/i, () => [{ do: 'sacrifice_it', target: 'self-source' }]], // M-342 · City of Traitors (sem alvo)
@@ -24521,7 +24523,7 @@ function sacrificarJogadores(s, src, spec, quem, events, note) {
   if (q == null && (s.players[quem].lost || !sacrificeOptions(s, quem, spec.tipos).length)) { note({ amount: 0 }); return; } // a linha do registro só aparece quando não há o que sacrificar
   const vez = s.turn.active, ordem = [vez, ...s.players.map((_, i) => i).filter(i => i !== vez)];
   const fila = q == null ? [quem] : ordem.filter(i => !s.players[i].lost && (q === 'cada' || i !== ctrl));
-  s.edito = { fila, escolhidas: [], types: spec.tipos, nontoken: !!spec.naoFicha, name: src.name, ...(spec.soFicha ? { soFicha: true } : {}), ...(spec.maiorPoder ? { maiorPoder: true } : {}) }; // M-351 · "a creature with the greatest power among creatures they control"
+  s.edito = { fila, escolhidas: [], types: spec.tipos, nontoken: !!spec.naoFicha, name: src.name, ...(spec.soFicha ? { soFicha: true } : {}), ...(spec.exilar ? { exilar: true } : {}), ...(spec.maiorPoder ? { maiorPoder: true } : {}) }; // M-351 · "a creature with the greatest power among creatures they control"
   continuaEdito(s, events);
 }
 /** CR2-G R4a · 400.7/701 · move um objeto para outra zona. `de`: a zona (ou zonas) onde ele precisa estar — se já saiu, é
@@ -25412,7 +25414,7 @@ function applyEffectM449(s, src, eff, tgt, events) {
       note({ amount: antes.length, nomes: antes }); break;
     }
     case 'edict': { // CR2c.2 · "target opponent sacrifices a creature of their choice": o próprio jogador escolhe (701.21a)
-      sacrificarJogadores(s, src, { tipos: eff.types }, playerOf(), events, note); break; // CR2-G R4c · atalho
+      sacrificarJogadores(s, src, { tipos: eff.types, ...(eff.exilar ? { exilar: true } : {}) }, playerOf(), events, note); break; // CR2-G R4c · atalho · M-593 · "exiles a creature they control": o jogador escolhe e exila (não é sacrifício)
     }
     case 'sacrifice_own': { // S60 · você escolhe o que sacrificar, dentro do tipo pedido
       sacrificarJogadores(s, src, { tipos: eff.types, jogadores: 'voce' }, null, events, note); break; // CR2-G R4c · atalho
@@ -26376,7 +26378,7 @@ function continuaEdito(s, events) {
     ed.fila.shift();
   }
   s.edito = null; s.saindoJuntas = ed.escolhidas.slice();
-  for (const oid of ed.escolhidas) { const o = s.objects[oid]; if (!o || o.zone !== 'battlefield') continue; const nome = o.name; sacrifice(s, oid, events); events.push({ kind: 'effect', do: 'sacrifice_own', name: ed.name, target: nome }); }
+  for (const oid of ed.escolhidas) { const o = s.objects[oid]; if (!o || o.zone !== 'battlefield') continue; const nome = o.name; if (ed.exilar) { moveObject(s, oid, 'exile'); events.push({ kind: 'effect', do: 'exile', name: ed.name, target: nome }); continue; } /* M-593 */ sacrifice(s, oid, events); events.push({ kind: 'effect', do: 'sacrifice_own', name: ed.name, target: nome }); }
   delete s.saindoJuntas;
   return false;
 }
