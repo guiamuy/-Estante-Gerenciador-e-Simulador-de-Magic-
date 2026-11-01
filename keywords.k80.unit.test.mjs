@@ -13,7 +13,7 @@ const ALVO = { zona: 'graveyard', de: 'you', tipos: ['instant', 'sorcery'] };
 
 test('K-80 · 702.34a · o leitor lê a frase de conceder lampejo nas três', () => {
   for (const n of ['Snapcaster Mage', 'Stingcaster Mage', 'Flashback']) {
-    const l = S.leitura(of(n)); assert.ok(l, `${n}: leitura completa`); assert.equal(l.aprovada, false); assert.equal(S.coverage(of(n)).level, 'lida', n);
+    const l = S.leitura(of(n)); assert.ok(l, `${n}: leitura completa`); /* a aprovação é da homologacao (H-23): aprovada se e só se está em APROVADAS */ const aprov = !!S.APROVADAS[n]; assert.equal(l.aprovada, aprov, n); assert.equal(S.coverage(of(n)).level, aprov ? 'completo' : 'lida', n);
     const efs = J(l.script.effects || l.script.abilities.find(a => a.kind === 'triggered' && a.when === 'etb').effects);
     assert.deepEqual(efs, [{ do: 'concede_flashback_k', target: ALVO }], n);
   }

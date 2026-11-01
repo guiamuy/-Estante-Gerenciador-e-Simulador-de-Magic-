@@ -12,7 +12,7 @@ const of = n => { const c = OF.find(x => x.name === n); assert.ok(c, 'sem texto 
 const PH = "Phlage, Titan of Fire's Fury", URO = "Uro, Titan of Nature's Wrath";
 
 test('K-81 · 702.138 · o leitor lê "sacrifice it unless it escaped" e "escapes with a +1/+1 counter"', () => {
-  for (const n of [PH, URO, 'Ox of Agonas']) { const l = S.leitura(of(n)); assert.ok(l, `${n}: leitura completa`); assert.equal(l.aprovada, false); assert.equal(S.coverage(of(n)).level, 'lida', n); }
+  for (const n of [PH, URO, 'Ox of Agonas']) { const l = S.leitura(of(n)); assert.ok(l, `${n}: leitura completa`); /* a aprovação é da homologacao (H-23): aprovada se e só se está em APROVADAS */ const aprov = !!S.APROVADAS[n]; assert.equal(l.aprovada, aprov, n); assert.equal(S.coverage(of(n)).level, aprov ? 'completo' : 'lida', n); }
   const ph = S.leitura(of(PH)).script;
   assert.ok(ph.abilities.some(a => a.kind === 'triggered' && a.when === 'etb' && J(a.effects).length === 1 && a.effects[0].do === 'sacrifica_sem_fuga_k'), 'gatilho de entrada que sacrifica sem fuga');
   assert.deepEqual(J(S.leitura(of('Ox of Agonas')).script.escape), { mana: '{R}{R}', exileGraveyard: 8, comMarcadoresT: { p1p1: 1 } });
