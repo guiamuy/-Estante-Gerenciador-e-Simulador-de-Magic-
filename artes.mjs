@@ -11,7 +11,7 @@
    mesmo assim, no máximo 8 imagens ao mesmo tempo e cabeçalho identificando
    o app. As imagens não são guardadas: só a impressão e o nome/edição.
 
-     node artes.mjs --saida <pasta> [--limite N] [--autoteste N]
+     node artes.mjs --saida <pasta> [--limite N] [--autoteste N] [--idiomas pt]
 
    Escreve na pasta: artes.json (índice), artes.bin (impressões) e
    medida.json (autoteste: a base reconhece as próprias imagens degradadas
@@ -86,7 +86,30 @@ async function busca(fetchFn, url, tipo = 'json', { tentativas = 3, ms = 30000 }
 }
 
 /** Gera a base. Devolve { total, novas, reaproveitadas, falhas, medida }. */
-export async function gera({ saida, limite = 0, autoteste = 0, fetchFn = globalThis.fetch, paralelo = 8, log = console.log, X = null } = {}) {
+/* S-597 · nomes impressos em outro idioma. A base de nomes do app é a da Scryfall, em inglês: carta impressa em português
+   ("Beledros Murchaflor") não casava com nada. A busca da Scryfall com lang:pt devolve cada impressão em português com o
+   nome impresso (`printed_name`) e o nome em inglês (`name`); o par vai para nomes-pt.json, que o app junta à base de
+   nomes. Política da Scryfall (rate-limits, 01/11/2026): busca a no máximo 2 por segundo — aqui, uma página a cada 600 ms. */
+export async function nomesNoIdioma(fetchFn, idioma = 'pt', { pausa = 600, maxPaginas = 400, log = () => {} } = {}) {
+  const pares = new Map();
+  let url = 'https://api.scryfall.com/cards/search?' + new URLSearchParams({ q: 'lang:' + idioma, unique: 'prints', include_multilingual: 'true', order: 'name' }).toString();
+  for (let pag = 0; url && pag < maxPaginas; pag++) {
+    const r = await busca(fetchFn, url);
+    for (const c of (r && r.data) || []) {
+      const faces = Array.isArray(c.card_faces) && c.card_faces.length ? c.card_faces : [c];
+      for (const f of faces) {
+        const impresso = String(f.printed_name || '').trim().slice(0, 160), nome = String(c.name || '').trim().slice(0, 160);
+        if (impresso && nome && impresso.toLowerCase() !== (f.name || nome).toLowerCase() && !pares.has(impresso)) pares.set(impresso, nome);
+      }
+    }
+    url = r && r.has_more && typeof r.next_page === 'string' && r.next_page.startsWith('https://api.scryfall.com/') ? r.next_page : null;
+    if (url && pausa) await new Promise(ok => setTimeout(ok, pausa));
+    if (pag % 50 === 49) log(`  nomes em ${idioma}: ${pares.size} (página ${pag + 1})`);
+  }
+  return [...pares].sort((a, b) => a[0].localeCompare(b[0]));
+}
+
+export async function gera({ saida, limite = 0, autoteste = 0, idiomas = [], pausaNomes = 600, fetchFn = globalThis.fetch, paralelo = 8, log = console.log, X = null } = {}) {
   X = X || await scanner();
   await mkdir(saida, { recursive: true });
   const meta = await busca(fetchFn, BULK);
@@ -135,7 +158,16 @@ export async function gera({ saida, limite = 0, autoteste = 0, fetchFn = globalT
     await writeFile(join(saida, 'medida.json'), JSON.stringify({ geradoEm: indice.geradoEm, total: ok.length, ...medida }, null, 1) + '\n');
   }
   log(`base: ${ok.length} artes (novas ${novas}, reaproveitadas ${reaproveitadas}, falhas ${falhas})${igual ? ' · igual à publicada' : ''}`);
-  return { total: ok.length, novas, reaproveitadas, falhas, medida, igual };
+  // S-597 · nomes impressos em outros idiomas (uma falha aqui não derruba a base de artes)
+  const nomes = {};
+  for (const idioma of idiomas) {
+    try {
+      const pares = await nomesNoIdioma(fetchFn, idioma, { log, pausa: pausaNomes });
+      if (pares.length) { await writeFile(join(saida, `nomes-${idioma}.json`), JSON.stringify({ versao: 1, idioma, geradoEm: new Date().toISOString(), fonte: 'Scryfall · busca lang:' + idioma, total: pares.length, pares }) + '\n'); nomes[idioma] = pares.length; }
+      log(`nomes em ${idioma}: ${pares.length}`);
+    } catch (e) { log(`nomes em ${idioma}: falhou (${String(e && e.message || e).slice(0, 80)})`); }
+  }
+  return { total: ok.length, novas, reaproveitadas, falhas, medida, igual, nomes };
 }
 
 /* ---------------- autoteste: a base reconhece as próprias cartas degradadas como a câmera degrada ---------------- */
@@ -185,7 +217,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d; };
   const saida = arg('--saida', null);
   if (!saida) { console.error('uso: node artes.mjs --saida <pasta> [--limite N] [--autoteste N]'); process.exit(2); }
-  gera({ saida, limite: +arg('--limite', 0), autoteste: +arg('--autoteste', 0) })
+  gera({ saida, limite: +arg('--limite', 0), autoteste: +arg('--autoteste', 0), idiomas: String(arg('--idiomas', '')).split(',').filter(Boolean) })
     .then(r => { if (r.medida) console.log(JSON.stringify(r.medida)); if (r.total === 0) process.exit(1); })
     .catch(e => { console.error('::error::' + String(e && e.message || e).slice(0, 200)); process.exit(1); });
 }

@@ -13851,7 +13851,7 @@ const REGISTRO = [
   ['ui.entrada', 'aparelho', false], // G-274 · a porta de entrada já foi atravessada neste aparelho (com conta ou sem)
   ['uso.compartilhar', 'aparelho', false], ['uso.envio', 'aparelho', false], ['uso.scanner', 'aparelho', false], // G-286 · uso agregado opt-in: consentimento deste aparelho, último envio e leituras do scanner
   // derivado
-  ['card.', 'derivado', false], ['rulings.', 'derivado', false], ['scanner.artes', 'derivado', false], /* S-596 · base de artes do scanner (ramo artes) */ ['cambio.usd', 'derivado', false], ['names.catalog', 'derivado', false],
+  ['card.', 'derivado', false], ['rulings.', 'derivado', false], ['scanner.artes', 'derivado', false], /* S-596 · base de artes do scanner (ramo artes) */ ['names.pt', 'derivado', false], /* S-597 · nomes impressos em português */ ['cambio.usd', 'derivado', false], ['names.catalog', 'derivado', false],
   ['catalogo.indice', 'derivado', false], ['catalogo.lista.', 'derivado', false], ['catalogo.fichas', 'derivado', false], ['catalogo.motor', 'derivado', false], ['notificacoes', 'aparelho', false], // G-314 · a leitura é deste aparelho; a de cobertura nasce de novo dos pedidos (que vão no backup)
  
   ['fichas.opcoes', 'derivado', false], ['fichas.opcoes.fila', 'derivado', false], ['fichas.partes', 'derivado', false],
@@ -16603,7 +16603,7 @@ const DESTINOS = [
     quando: 'Ao abrir listas, buscar cartas e jogar com cartas que ainda não estão guardadas.',
     evitar: 'Carta guardada não volta à Scryfall. Sem internet, o app usa só o que já guardou.' },
   { id: 'github', nome: 'GitHub (arquivos do app)', icone: 'jornal', origens: ['https://raw.githubusercontent.com'],
-    vai: 'Só o pedido dos arquivos: notícias, listas prontas do catálogo, fichas, a base de artes do scanner e a situação dos seus relatos.',
+    vai: 'Só o pedido dos arquivos: notícias, listas prontas do catálogo, fichas, a base de artes e os nomes em português do scanner e a situação dos seus relatos.',
     quando: 'Ao abrir Início, Catálogo, Fichas, Scanner e Relatos com internet.',
     evitar: 'Sem internet, ficam as últimas versões guardadas.' },
   { id: 'cambio', nome: 'Cotação do dólar', icone: 'globo', origens: ['https://economia.awesomeapi.com.br', 'https://api.frankfurter.dev', 'https://open.er-api.com'],
@@ -42552,12 +42552,14 @@ const bigrams = s => { const out = new Set(); for (let i = 0; i < s.length - 1; 
 
 /** Índice de busca aproximada. Nomes divididos ("Fire // Ice") também
     respondem pela primeira metade, que é o que aparece no topo da carta. */
-function buildIndex(names) {
+function buildIndex(names, apelidos = []) {
   const entries = [];
   for (const full of names) {
     entries.push({ key: simple(full), name: full });
     if (full.includes(' // ')) entries.push({ key: simple(full.split(' // ')[0]), name: full });
   }
+  // S-597 · nome impresso em outro idioma ("Beledros Murchaflor") responde pelo nome em inglês da base ("Beledros Witherbloom")
+  for (const [impresso, nome] of apelidos || []) if (impresso && nome) entries.push({ key: simple(impresso), name: nome });
   const index = entries.filter(e => e.key.length >= 2).map(e => ({ ...e, bg: [...bigrams(e.key)] }));
   // X14 · nome lido exatamente como está na base é achado por consulta direta, sem percorrer os 30 mil
   // chave repetida (nome inteiro de uma carta = primeira metade de outra): fica o nome mais curto, que é o da carta lida
@@ -42751,13 +42753,29 @@ function criaDiario({ maximo = 30, agora = () => Date.now() } = {}) {
 }
 
 /* ---------------- C6 · catálogo de nomes ---------------- */
-function createNameIndex({ store, scryfall, now = () => Date.now() }) {
-  let index = null, meta = null, lista = [];
+/* S-597 · nomes impressos em português: gerados pelo fluxo "Artes do scanner" (artes.mjs --idiomas pt) no ramo `artes`,
+   guardados no aparelho (names.pt, derivado) e somados à base de nomes. Sem eles, a carta em português não casa. */
+const NOMES_PT_KEY = 'names.pt', URL_NOMES_PT = 'https://raw.githubusercontent.com/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-/artes/nomes-pt.json';
+function createNameIndex({ store, scryfall, now = () => Date.now(), fetchFn = (typeof fetch === 'function' ? fetch.bind(globalThis) : null) }) {
+  let index = null, meta = null, lista = [], apelidos = [], apelidosEm = 0;
+  const refaz = () => { if (lista.length) index = buildIndex(lista, apelidos); };
+  const leApelidos = async () => { try { const g = await store.get(NOMES_PT_KEY); if (g && Array.isArray(g.pares)) { apelidos = g.pares; apelidosEm = g.ts || 0; } } catch (e) { /* sem apelidos */ } };
+  /** Baixa os nomes em português quando faltam ou têm mais de 30 dias; base cortada ou estranha não entra. */
+  const baixaApelidos = async () => {
+    if (!fetchFn) return false;
+    const r = await fetchFn(URL_NOMES_PT, { cache: 'no-cache' }); if (!r.ok) return false;
+    const j = await r.json();
+    if (!j || j.versao !== 1 || !Array.isArray(j.pares) || !j.pares.every(p => Array.isArray(p) && typeof p[0] === 'string' && typeof p[1] === 'string')) return false;
+    apelidos = j.pares.map(([a, b]) => [a.slice(0, 160), b.slice(0, 160)]); apelidosEm = now();
+    try { await store.set(NOMES_PT_KEY, { ts: apelidosEm, pares: apelidos }); } catch (e) { /* vale nesta sessão */ }
+    refaz(); return true;
+  };
   const api = {
     async load() {
       if (index) return index;
       const saved = await store.get(NAMES_KEY);
-      if (saved && Array.isArray(saved.names)) { meta = { ts: saved.ts, count: saved.names.length, bytes: saved.bytes || 0 }; index = buildIndex(saved.names); lista = saved.names; }
+      await leApelidos();
+      if (saved && Array.isArray(saved.names)) { meta = { ts: saved.ts, count: saved.names.length, bytes: saved.bytes || 0 }; lista = saved.names; refaz(); }
       return index;
     },
     async refresh() {
@@ -42765,7 +42783,7 @@ function createNameIndex({ store, scryfall, now = () => Date.now() }) {
       if (!names.length) throw new Error('catalogo-vazio');
       const bytes = JSON.stringify(names).length;
       await store.set(NAMES_KEY, { ts: now(), names, bytes });
-      meta = { ts: now(), count: names.length, bytes }; index = buildIndex(names); lista = names;
+      meta = { ts: now(), count: names.length, bytes }; lista = names; refaz();
       return meta;
     },
     /** Garante a base: baixa se não existe; atualiza se velha e houver rede. */
@@ -42773,9 +42791,10 @@ function createNameIndex({ store, scryfall, now = () => Date.now() }) {
       await api.load();
       if (!index) { if (!online) return null; await api.refresh(); }
       else if (online && now() - meta.ts > MAX_AGE) { try { await api.refresh(); } catch (e) { /* segue com a antiga */ } }
+      if (online && (!apelidos.length || now() - apelidosEm > MAX_AGE)) { try { await baixaApelidos(); } catch (e) { /* segue só em inglês */ } }
       return meta;
     },
-    info() { return meta; },
+    info() { return meta && { ...meta, apelidos: apelidos.length }; },
     /** L7 · os nomes guardados, para sugerir enquanto se digita (lista vazia sem a base). */
     nomes() { return lista; },
     match(text, opts) { return index ? matchName(index, text, opts) : []; },
@@ -43724,11 +43743,16 @@ function deslocamento(a, b) {
    S-594 · a régua `nitidezMin` (0,3) que pulava a leitura saiu: o leitor lê linha de 0,04 (desfoque leve, protetor)
    e a medida não separa o que ele lê do que não lê. `borrada` (0,5) só decide a segunda leitura realçada e o aviso
    de foco; nas 27 fotos nítidas a menor é 0,42 e lê de primeira, sem segunda leitura. */
-const LIMIARES_LINHA = { borrada: 0.5, deslocamentoMax: 0.05, alturaMin: 0.30 };
+const LIMIARES_LINHA = { borrada: 0.5, deslocamentoMax: 0.05, correndo: 0.12, alturaMin: 0.30 };
+/** S-597 · a passada pula a leitura por movimento só com a carta correndo pelo quadro (entrando, saindo, mão em gesto):
+    mais de 12% do quadro entre duas passadas. Antes pulava a partir de 5%: com a carta na mão e o zoom em 2× (S-594), o
+    tremor natural da mão passava disso e o scanner ficava em "Segure firme" sem ler. Entre 5% e 12% a leitura acontece,
+    mas a carta não conta como parada (nada entra na primeira passada; o porteiro pede repetição). */
+function pulaPorMovimento(mov, { via = 'auto', contorno = true } = {}) { return via !== 'manual' && contorno && mov > LIMIARES_LINHA.correndo; }
 
 return { cleanOcr, matchName, matchLines, criaVotacao, criaPorteiro, PORTEIRO, leituraConfiavel, nitidezDaFaixa, movimentoEntre, LIMIARES_FAIXA, criaDiario, criaCronometro, EXATA, buildIndex, createNameIndex, createLot, coverRegion, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, ACCEPT, ALTA, SUGGEST, lev,
   detectaCarta, detectaEmEscalas, ESCALAS_DETECTOR, brilho, nitidez, prontoParaLer, criaDetector, paradaEm, screenRect, LIMIARES, PROPORCAO_CARTA, realcaTexto, trechoEscuroEmbaixo, limpaBordas, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, faixaDaCarta, escalaOcr,
-  retasDoQuadro, achaQuadrilatero, ordenaCantos, homografia, cantosDaFaixa, retifica, FAIXA_NOME, FAIXA_COLECAO, LARGURA_NOME, linhaDoNome, binarizaLinha, limpaLinha, nitidezDaLinha, afiaLinha, FAIXA_ARTE, BITS_ARTE, impressaoDaArte, distanciaDaArte, buscaArte, abreBaseDeArtes, binDasArtes, criaBaseDeArtes, decideArte, LIMIAR_ARTE, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, alturaDaCarta, deslocamento, LIMIARES_LINHA, QUAD };
+  retasDoQuadro, achaQuadrilatero, ordenaCantos, homografia, cantosDaFaixa, retifica, FAIXA_NOME, FAIXA_COLECAO, LARGURA_NOME, linhaDoNome, binarizaLinha, limpaLinha, nitidezDaLinha, afiaLinha, FAIXA_ARTE, BITS_ARTE, impressaoDaArte, distanciaDaArte, buscaArte, abreBaseDeArtes, binDasArtes, criaBaseDeArtes, decideArte, LIMIAR_ARTE, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, alturaDaCarta, deslocamento, LIMIARES_LINHA, pulaPorMovimento, QUAD };
 })();
 
 
@@ -43742,7 +43766,7 @@ const __m22 = (function () {
    ===================================================================== */
 const { h, mount, Stack, Row, Surface, Text, Button, Field, Input, Select, Badge, Chip, Empty, Note, Spinner, Dialog, closeDialog, toast, reservaDoca, Simbolo, Icone, IconButton, AvisoRede } = __m3;
 const { createLot, coverRegion, screenRect, parseCollectorLine, resolvePrinting, ACCEPT, EXATA, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, criaPorteiro, PORTEIRO, leituraConfiavel, criaDiario, criaCronometro, realcaTexto,
-  achaQuadrilatero, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, FAIXA_NOME, FAIXA_COLECAO, alturaDaCarta, deslocamento, LIMIARES_LINHA, brilho,
+  achaQuadrilatero, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, FAIXA_NOME, FAIXA_COLECAO, alturaDaCarta, deslocamento, LIMIARES_LINHA, pulaPorMovimento, brilho,
   FAIXA_ARTE, impressaoDaArte, criaBaseDeArtes, decideArte, LIMIAR_ARTE } = __m21;
 const { pulse } = __m20;
 const TESSERACT_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
@@ -44027,7 +44051,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     // não serve para a leitura, mas não impede a moldura guia
     const longe = !!quad && alturaDaCarta(quad.cantos, vw, vh) < LIMIARES_LINHA.alturaMin * Math.max(vw, vh);
     const base = { luz, movimento: mov * 100, parado: visto && mov <= LIMIARES_LINHA.deslocamentoMax, contorno: !!quad && !longe, longe, tempos, inicio: Date.now() - Math.round(relogio() - t0) };
-    if (via !== 'manual' && quad && !longe && mov > LIMIARES_LINHA.deslocamentoMax) { dicaTexto(DICAS.tremida); return { pulou: 'tremida', ms: 0, nitidez: 0, ...base }; }
+    if (pulaPorMovimento(mov, { via, contorno: !!quad && !longe })) { dicaTexto(DICAS.tremida); return { pulou: 'tremida', ms: 0, nitidez: 0, ...base }; }
     const caminhos = [];
     if (quad && !longe) caminhos.push({ nome: 'carta', cantos: state.invertida ? viraCantos(quad.cantos) : quad.cantos });
     caminhos.push({ nome: 'moldura', cantos: cantosDe(molduraNoQuadro()) });
@@ -44243,7 +44267,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
   function infoAparelho() {
     const LEITOR = { idle: 'parado', loading: 'carregando', ready: 'pronto', failed: 'falhou' };
     const cam = camera.info ? camera.info() : {};
-    return { leitor_versao: 'S-596 (nome + arte; lente que foca, 2×)', artes: (artes.info() ? `${artes.info().total} artes` : 'sem base'), aparelho: (navigator.userAgent || '').slice(0, 80), video: `${cam.width || video.videoWidth || 0}×${cam.height || video.videoHeight || 0}${cam.fps ? ` @${Math.round(cam.fps)}` : ''}`, foco: cam.foco || '?', camera_maximo: cam.maximo || '?', subida: cam.subida || '—', zoom: `${(+(cam.zoom || 1)).toFixed(1)}×`, lanterna: cam.lanterna ? 'ligada' : 'desligada', lente: (cam.rotulo || '?').slice(0, 40) + (cam.lenteAuto ? ' (trocada: a anterior não focava)' : ''), ate_aceitar: (r => r.n ? (r.nEntrada ? `mediana ${r.desdeEntrada} ms desde a entrada (${r.nEntrada} carta(s)); ` : '') + `confirmação ${r.confirmacao} ms (${r.n} carta(s))` : 'sem cartas ainda')(cronometro.resumo()), base: (names.info() || {}).count || 0, leitor: LEITOR[state.engine] || state.engine, automatico: state.auto ? 'ligado' : 'pausado', limiares: `borrada < ${LIMIARES_LINHA.borrada} (lê de novo realçada), movimento ≤ ${Math.round(LIMIARES_LINHA.deslocamentoMax * 100)}, carta ≥ ${Math.round(LIMIARES_LINHA.alturaMin * 100)}% do quadro` };
+    return { leitor_versao: 'S-597 (nome em inglês e português + arte; lente que foca, 2×)', nomes_pt: ((names.info() || {}).apelidos || 0), artes: (artes.info() ? `${artes.info().total} artes` : 'sem base'), aparelho: (navigator.userAgent || '').slice(0, 80), video: `${cam.width || video.videoWidth || 0}×${cam.height || video.videoHeight || 0}${cam.fps ? ` @${Math.round(cam.fps)}` : ''}`, foco: cam.foco || '?', camera_maximo: cam.maximo || '?', subida: cam.subida || '—', zoom: `${(+(cam.zoom || 1)).toFixed(1)}×`, lanterna: cam.lanterna ? 'ligada' : 'desligada', lente: (cam.rotulo || '?').slice(0, 40) + (cam.lenteAuto ? ' (trocada: a anterior não focava)' : ''), ate_aceitar: (r => r.n ? (r.nEntrada ? `mediana ${r.desdeEntrada} ms desde a entrada (${r.nEntrada} carta(s)); ` : '') + `confirmação ${r.confirmacao} ms (${r.n} carta(s))` : 'sem cartas ainda')(cronometro.resumo()), base: (names.info() || {}).count || 0, leitor: LEITOR[state.engine] || state.engine, automatico: state.auto ? 'ligado' : 'pausado', limiares: `borrada < ${LIMIARES_LINHA.borrada} (lê de novo realçada), movimento ≤ ${Math.round(LIMIARES_LINHA.deslocamentoMax * 100)}, carta ≥ ${Math.round(LIMIARES_LINHA.alturaMin * 100)}% do quadro` };
   }
   function paintEstado() {
     const txt = state.camera !== 'on' ? '' : state.engine === 'loading' ? 'Preparando o leitor…' : state.engine === 'failed' ? 'Leitor indisponível' : state.auto ? 'Automático' : 'Pausado';
