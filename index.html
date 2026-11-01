@@ -20656,6 +20656,8 @@ const __m42 = (function () {
     if (k === 'target nonbasic land') return { target: 'land', targetNotBasic: true }; // M-335 · Wasteland
     if (k === 'target creature or planeswalker') return { target: { tipos: ['creature', 'planeswalker'] } }; // M-337 · seletor (Erode, Sear)
     if (k === 'target creature, planeswalker, or battle') return { target: { tipos: ['creature', 'planeswalker', 'battle'] } }; // M-569 · Volcanic Spite (310.5)
+    if (k === 'target noncreature artifact or noncreature enchantment') return { target: { ou: [{ tipos: ['artifact'], semTipos: ['creature'] }, { tipos: ['enchantment'], semTipos: ['creature'] }] } }; // M-597 · Haywire Mite
+    if (k === 'target nonland permanent an opponent controls with mana value 2 or less') return { target: { de: 'opponent', semTipos: ['land'], mvMax: 2 } }; // M-597 · Portable Hole
     if (k === 'target nonland permanent an opponent controls') return { target: { de: 'opponent' }, targetNotLand: true }; // M-341 · Banishing Light, Cast Out
     if (k === 'target spell or nonland permanent an opponent controls') return { target: { ou: [{ zona: 'stack', de: 'opponent' }, { semTipos: ['land'], de: 'opponent' }] } }; // M-588 · Sink into Stupor
     if (k === 'target artifact, enchantment, or nonbasic land an opponent controls') return { target: { ou: [{ tipos: ['artifact', 'enchantment'], de: 'opponent' }, { tipos: ['land'], terrenoBasico: false, de: 'opponent' }] } }; // M-583 · Boseiju, Who Endures (205.4: "nonbasic" vale só para o terreno)
@@ -20765,7 +20767,7 @@ const __m42 = (function () {
     [/^destroy (up to one target [a-z ']+)$/i, m => [com({ do: 'destroy' }, alvo(m[1]))]], // M-580 · Curious Farm Animals (115.3: "up to one" aceita zero alvos; alvo() devolve upTo)
     [/^destroy (target creature, enchantment, or planeswalker)$/i, m => [com({ do: 'destroy' }, alvo(m[1]))]], // M-341 · Get Lost
     [/^destroy (target nonartifact, non(?:white|blue|black|red|green) creature)$/i, m => [com({ do: 'destroy' }, alvo(m[1]))]], // M-524 · Terror (a vírgula ficava fora do padrão geral)
-    [/^exile (target [a-z ']+) until ~ leaves the battlefield$/i, m => [com({ do: 'exile', ate: 'fonte-sair' }, alvo(m[1]))]], // CR2d.1 · 610.3
+    [/^exile (target [a-z0-9 ,']+) until ~ leaves the battlefield$/i, m => [com({ do: 'exile', ate: 'fonte-sair' }, alvo(m[1]))]], // CR2d.1 · 610.3 · M-597: dígito e vírgula no alvo (Portable Hole)
     [/^exile (target [a-z ']+)$/i, m => [com({ do: 'exile' }, alvo(m[1]))]],
     [/^counter (target [a-z ']+) unless its controller pays (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => [com({ do: 'counter', unless: { mana: m[2] } }, alvo(m[1]))]],
     [/^counter target spell with mana value (\d+)$/i, m => [{ do: 'counter', target: 'spell', targetMv: +m[1] }]], // LT13
@@ -21586,7 +21588,7 @@ const __m42 = (function () {
           if (gmd && GATILHOS.some(([re]) => re.test(gmd[1].split(', ')[0]))) { const g = leGatilho(`${gmd[1]}, draw a card`, nome, []);
             if (g && Array.isArray(g.effects) && g.effects.length === 1 && g.effects[0].do === 'draw') { delete g.effects; g.modes = []; (topo.abilities = topo.abilities || []).push(g); gatModos = g; frases.push({ texto: linha, lida: true }); continue; } } }
         if (GATILHOS.some(([re]) => re.test(lp.split(', ')[0]))) { const g = leGatilho(lp, nome, frases); if (g) (topo.abilities = topo.abilities || []).push(g); continue; } // gatilho (as frases do corpo já ficaram anotadas)
-        if (/^(\{[^}]+\}|Sacrifice |Discard a card|Discard (?:~|this card)|Discard your hand|Exile (?:~|this card) from your hand|Exile (?:two|three|four|five) cards from your graveyard|Remove an? [a-z]+ counter from ~|Put an? [+-]\d\/[+-]\d counter on ~)/.test(lp) && lp.includes(': ')) { const a = leAtivada(lp, nome, frases); if (a) (topo.abilities = topo.abilities || []).push(a); continue; } // LT4 · ativada
+        if (/^(\{[^}]+\}|Pay \d+ life|Sacrifice |Discard a card|Discard (?:~|this card)|Discard your hand|Exile (?:~|this card) from your hand|Exile (?:two|three|four|five) cards from your graveyard|Remove an? [a-z]+ counter from ~|Put an? [+-]\d\/[+-]\d counter on ~)/.test(lp) && lp.includes(': ')) { const a = leAtivada(lp, nome, frases); if (a) (topo.abilities = topo.abilities || []).push(a); continue; } // LT4 · ativada
         const qg = lp.match(/^(?:enchanted|equipped) creature (?:gets ([+-]\d+)\/([+-]\d+) and )?has "(.+?)\.?"$/i); // M-519 · "Enchanted creature gets +2/+0 and has 'When this creature dies, draw a card.'" (Infernal Scarring)
         if (qg) { const sub = [], g = leGatilho(qg[3], nome, sub), txt = JSON.stringify(g || {});
           // só os gatilhos que a criatura concedida dispara por si (morrer, atacar, dano de combate a jogador) e sem efeito que fale de "it"/"~" (a fonte seria ambígua: a criatura ou a Aura)

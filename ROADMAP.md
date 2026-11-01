@@ -5684,6 +5684,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Conferido:** o leitor antes e depois sobre as cartas revisadas e os pendentes dos competitivos: nenhuma leitura já completa mudou.
 - **Teste:** `lt277.unit` (3 testes; falham no motor anterior).
 
+**M-597 · LT255 · Haywire Mite, Griselbrand, Portable Hole e Seam Rip** ✅ (leva M-597, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** passam a ser **lidas por inteiro** Haywire Mite (99 listas competitivas), Portable Hole (62), Griselbrand (30) e Seam Rip. Texto da Scryfall de 25/10/2026. Jogam no app depois da aprovação (homologacao).
+- **Regra:** alvo "target noncreature artifact or noncreature enchantment" (seletor `ou` com `semTipos`); habilidade ativada que começa por "Pay N life" (119.4; o custo já existia, faltava o leitor reconhecer a linha); "exile target nonland permanent an opponent controls with mana value 2 or less until ~ leaves the battlefield" (610.3; `mvMax` no seletor; o padrão de exílio até sair aceita dígito e vírgula no alvo).
+- **Conferido:** o leitor antes e depois sobre as cartas revisadas e os pendentes dos competitivos: nenhuma leitura já completa mudou.
+- **Teste:** `lt278.unit` (4 testes; falham no motor anterior).
+
 **M-584 · LT241 · Sentinela do Pauper: Nettle Sentinel (593 → 594 de 594 listas)** ✅ (leva M-584, motor v112 sem mudança de forma; goldens intactos)
 - **Valor:** a sentinela (`cobertura/pauper.json` de 26/10/2026 13:27 UTC) mostrava 593 de 594 listas Pauper a 100% no app, com uma carta `nova` (Nettle Sentinel, 1 lista). Aprovada, 594 de 594 na próxima coleta. Texto da API da Scryfall de 26/10/2026 (campo `texto` do relatório), gravado em `.listas/oficiais-revisadas.json`.
 - **Regra:** triagem A — o leitor `__m42` lê "Whenever you cast a/an <cor> spell" com uma cor só (gatilho `other-cast`, `filter.anyColors`; 105.2: multicolorida com verde conta); "doesn't untap during your untap step" (502.3, M-558) e o "you may" do gatilho (603.5, pergunta na resolução) já existiam. Núcleo intacto; numerada M-584 porque a M-583 está reservada pela conversa dos competitivos.
