@@ -12505,7 +12505,7 @@ prevista no fim para medir quadros no Galaxy S e corrigir o que o portão pegar.
 | F3 | mesa como layout | barra e bandeja em ébano; tokens novos disponíveis para a `jogabilidade` desenhar as receitas da mesa em `#tb-fx` | pixels de campo em 360×780 (não perde); contrato visual |
 | FA (FA.1 ✅ G-298 · FA.2 ✅ G-299) | leva de ajuste | medir quadros no aparelho (CPU 4×) nas receitas e na mesa cheia; remedir AA do que a F1/F2 tocou; corrigir o que o portão e o aparelho mostrarem | teste de orçamento; capturas |
 | F4 (F4.1 ✅ G-307 · F4.2 ✅ G-308 · F4.3 ✅ G-309 · F4.5 ✅ G-310) | telas restantes | Listas prontas e Lista oficial, Perfil e subtelas, Cartas, Notícias guardadas e Série no cabeçalho 44 · 1fr · 44 com um destaque de ébano por tela; "segue o dedo" na folha | e2e por tela (centro, lados, gutter, AA no ébano, `auditaTela`, 360 e 390, dois temas) |
-| F5 (F5.1 ✅ G-315) | últimas telas de gestão | Nova/Editar lista e as telas sem saída (rota inexistente, lista inexistente) no cabeçalho, com caminho de volta | e2e por tela, como na F4 |
+| F5 (F5.1 ✅ G-315 · F5.2 ✅ G-316) | últimas telas de gestão | Nova/Editar lista e as telas sem saída (rota inexistente, lista inexistente) no cabeçalho, com caminho de volta | e2e por tela, como na F4 |
 
 **F4 · Telas restantes — fatias** (pedido do dono de 25/10: "evoluir com o roadmap de design system")
 
@@ -12571,7 +12571,7 @@ prevista no fim para medir quadros no Galaxy S e corrigir o que o portão pegar.
 | Fatia | Valor para o usuário | Termina quando | Situação |
 |---|---|---|---|
 | F5.1 | Nova e Editar lista iguais às outras telas | cabeçalho com voltar (editar → a lista; nova → Minhas listas); caixa de colar em ébano | ✅ G-315 |
-| F5.2 | nenhuma tela sem saída | rota inexistente e lista inexistente com cabeçalho, texto sem jargão e botão de volta | a fazer |
+| F5.2 | nenhuma tela sem saída | rota inexistente e lista inexistente com cabeçalho, texto sem jargão e botão de volta | ✅ G-316 |
 
 **F5.1 · Nova e Editar lista** ✅ (leva G-315, 01/11/2026)
 - **Valor:** o editor de lista ganha a seta de voltar no cabeçalho — quem está editando volta para a lista, quem está
@@ -12581,6 +12581,19 @@ prevista no fim para medir quadros no Galaxy S e corrigir o que o portão pegar.
 - **Testes:** e2e "DS-K F5.1" (nova lista com prévia em 360 e 390 nos dois temas: centro, lados de 44 px, gutter, voltar,
   ébano, um destaque, AA, `auditaTela`; o voltar da nova vai a Minhas listas; editar uma lista criada: título, voltar
   "Voltar para a lista" e o destino); contrato "DS-K · F5.1"; e2e do editor verdes.
+
+**F5.2 · Nenhuma tela sem saída** ✅ (leva G-316, 01/11/2026)
+- **Valor:** um link antigo ou digitado errado não deixa mais a pessoa presa: a tela diz "Página não encontrada", explica
+  em português de gente e tem a seta de voltar e o botão "Ir para o Início"; a lista que não existe mais (excluída, ou
+  link de outro aparelho) mostra o motivo provável, a seta de voltar e "Ver Minhas listas".
+- **Entregue:** rota `*` com `Cabecalho('Página não encontrada', { esquerda: voltar })` (`#nao-encontrado-voltar`) e
+  estado vazio com ícone e `#nao-encontrado-inicio` (saiu "Rota não encontrada."); `/lista` sem lista com
+  `Cabecalho('Lista', { esquerda: voltar })` (`#deck-voltar`) e estado vazio "Lista não encontrada" com
+  `#deck-nao-encontrada-listas`.
+- **Testes:** e2e "DS-K F5.2" (as duas telas em 360 e 390, dois temas: centro, lados, gutter, voltar, motivo, sem
+  "rota", `auditaTela`; os quatro caminhos de volta levam ao destino); contrato "DS-K · F5.2".
+- **Fecha a F5:** toda tela de gestão do app está no cabeçalho 44 · 1fr · 44. Fora: Início e porta de entrada (desenho
+  próprio, com saudação e marca); Jogar, Mesa e Série (trilha `jogabilidade`).
 
 **FA · Ajuste — fatias**
 

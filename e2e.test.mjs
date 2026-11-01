@@ -16765,6 +16765,36 @@ test('e2e · DS-K F5.1 · Nova e Editar lista: cabeçalho 44 · 1fr · 44 com o 
   assert.deepEqual(errors, []);
 });
 
+test('e2e · DS-K F5.2 · nenhuma tela sem saída: endereço que não existe e lista que não existe têm cabeçalho com voltar, o motivo em português de gente e um botão de volta; 360 e 390, dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(FAKE_DEVICE(false));
+  const mede = () => page.evaluate(() => {
+    const c = document.querySelector('#outlet .ds-cabecalho'), tt = c.querySelector('.ds-cabecalho__titulo'), rg = document.createRange(); rg.selectNodeContents(tt); const x = rg.getBoundingClientRect(), b = c.getBoundingClientRect();
+    return { titulo: tt.textContent, centro: x.left + x.width / 2, largura: innerWidth, lados: [...c.querySelectorAll('.ds-cabecalho__lado')].map(l => Math.round(l.getBoundingClientRect().width)), gutter: [Math.round(b.left), Math.round(innerWidth - b.right)],
+      voltar: c.querySelector('.ds-cabecalho__lado:first-child [aria-label^="Voltar"]')?.id || null, texto: document.querySelector('#outlet .ds-empty')?.innerText || '' };
+  });
+  const telas = [['#/endereco-que-nao-existe', 'Página não encontrada', 'nao-encontrado-voltar', /não existe na Estante/], ['#/lista?id=nao-existe', 'Lista', 'deck-voltar', /Lista não encontrada[\s\S]*excluída/]];
+  for (const [w, hh] of [[360, 780], [390, 844]]) {
+    await page.setViewportSize({ width: w, height: hh });
+    for (const [rota, titulo, voltar, motivo] of telas) {
+      await page.goto(base + rota); await page.waitForSelector('#outlet .ds-cabecalho'); await page.waitForSelector('#outlet .ds-empty');
+      for (const tema of ['dark', 'light']) {
+        await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(450);
+        const m = await mede();
+        assert.ok(Math.abs(m.centro - m.largura / 2) <= 1, `${titulo} ${w} ${tema}: título no centro (${m.centro.toFixed(1)})`);
+        assert.deepEqual([m.titulo, m.lados, m.gutter, m.voltar], [titulo, [44, 44], [16, 16], voltar], `${titulo} ${w} ${tema}`);
+        assert.match(m.texto, motivo); assert.doesNotMatch(m.texto, /rota/i, 'sem jargão');
+        await auditaTela(page, `DS-K F5.2 · ${titulo} ${w} ${tema}`);
+      }
+    }
+  }
+  await page.goto(base + '#/endereco-que-nao-existe'); await page.click('#nao-encontrado-inicio'); await page.waitForSelector('#home-titulo');
+  await page.goto(base + '#/endereco-que-nao-existe'); await page.click('#nao-encontrado-voltar'); await page.waitForSelector('#home-titulo');
+  await page.goto(base + '#/lista?id=nao-existe'); await page.click('#deck-nao-encontrada-listas'); await page.waitForFunction(() => location.hash === '#/listas');
+  await page.goto(base + '#/lista?id=nao-existe'); await page.click('#deck-voltar'); await page.waitForFunction(() => location.hash === '#/listas');
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · DS-K F2.1 · a abertura monta o ícone em três planos (luz acende, a cena da estante se monta em 3D e o ladrilho esmaece por cima sem girar — G-306, relato #35 —, sombra assenta), passa a varredura e revela o nome; com menos movimento tudo já no lugar', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.setViewportSize({ width: 360, height: 780 });

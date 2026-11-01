@@ -541,6 +541,14 @@ test('DS-K · F5.1 Nova e Editar lista usam o cabeçalho com voltar e a caixa de
   assert.ok(!HTML.includes("Text(d ? 'Editar lista' : 'Nova lista', { size: '2xl'"), 'o título solto saiu');
 });
 
+/* ---------------- DS-K (G-316) · F5.2 telas sem saída ---------------- */
+test('DS-K · F5.2 endereço inexistente e lista inexistente têm cabeçalho com voltar e botão de volta, sem a palavra "rota"', () => {
+  assert.match(HTML, /path: '\*', title: 'Não encontrado', render: \(\) => h\('div'[^\n]*\n\s*__m3\.Cabecalho\('Página não encontrada', \{ esquerda: __m3\.IconButton\('voltar', 'Voltar para o Início', \{ id: 'nao-encontrado-voltar'/);
+  assert.ok(HTML.includes("id: 'nao-encontrado-inicio'"), 'botão de volta no estado vazio');
+  assert.ok(!HTML.includes("Empty('Rota não encontrada.')"), 'o texto com jargão saiu');
+  assert.match(HTML, /__m3\.Cabecalho\('Lista', \{ esquerda: IconButton\('voltar', 'Voltar para Minhas listas', \{ id: 'deck-voltar'/);
+});
+
 /* ---------------- DS-K (G-295) · F2.3 topo da Lista em ébano ---------------- */
 test('DS-K · F2.3 o topo da Lista é o destaque em ébano (nome, formato em latão, contagens) e o latão em texto pequeno sobre o ébano usa --accent-lo', () => {
   assert.match(HTML, /Surface\(\{ class: 'ds-destaque ds-surface--pad deck-topo', id: 'deck-topo' \}/);

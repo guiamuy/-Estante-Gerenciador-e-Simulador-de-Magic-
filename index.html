@@ -19262,7 +19262,9 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files, s
   async function load() {
     state.deck = await decks.get(id);
     if (etiquetas) { try { state.etq = await etiquetas.estado(); } catch (e) { /* sem armazenamento: sem etiquetas */ } }
-    if (!state.deck) return mount(root, Empty('Lista não encontrada.', Button('Ver listas', { icone: 'voltar', onClick: () => go('/listas') })));
+    // DS-K F5.2 · lista que não existe (excluída, ou link de outro aparelho): cabeçalho com voltar e o motivo provável
+    if (!state.deck) return mount(root, __m3.Cabecalho('Lista', { esquerda: IconButton('voltar', 'Voltar para Minhas listas', { id: 'deck-voltar', onClick: () => go('/listas') }) }),
+      Empty('Ela não está neste aparelho: pode ter sido excluída, ou o link veio de outro aparelho.', Button('Ver Minhas listas', { variant: 'primary', icone: 'listas', id: 'deck-nao-encontrada-listas', onClick: () => go('/listas') }), { icone: 'caixa', titulo: 'Lista não encontrada', id: 'deck-nao-encontrada' }));
     if (store) store.set('ui.ultimaLista', { id, nome: state.deck.name, em: Date.now() }).catch(() => {}); // D3 · a tela inicial oferece "continuar" nesta lista
     state.owned = await collection.all();
     if (store) { try { state.stats = (await store.get('decks.estatisticas')) === true; } catch (e) { /* sem armazenamento: fechado */ } } // L8 · aberto ou fechado, lembrado no aparelho
@@ -44309,7 +44311,9 @@ const ROUTES = [
       proteger: () => platform.persistence.request() } }) },
   { path: '/entrar', title: 'Entrar', render: () => createPortaDeEntrada({ conta, perfil, haptics: platform.haptics, aoEntrar: () => saiDaPorta('conta'), aoPular: () => saiDaPorta('sem-conta') }) }, // G-274 · relato #22
   { path: '/ds', title: 'Design system', render: renderDS },
-  { path: '*', title: 'Não encontrado', render: () => h('div', { class: 'ds-wrap', style: { paddingTop: 'var(--space-6)' } }, Empty('Rota não encontrada.')) }
+  { path: '*', title: 'Não encontrado', render: () => h('div', { class: 'ds-wrap', style: { paddingTop: 'var(--space-5)' } }, /* DS-K F5.2 · cabeçalho e caminho de volta; texto sem jargão */
+    __m3.Cabecalho('Página não encontrada', { esquerda: __m3.IconButton('voltar', 'Voltar para o Início', { id: 'nao-encontrado-voltar', onClick: () => { location.hash = '#/'; } }) }),
+    Empty('Este endereço não existe na Estante. Pode ser um link antigo ou digitado errado.', Button('Ir para o Início', { variant: 'primary', icone: 'voltar', id: 'nao-encontrado-inicio', onClick: () => { location.hash = '#/'; } }), { icone: 'caixa', id: 'nao-encontrado' })) }
 ];
 
 /* D4b · apresentação de primeira abertura: três passos, pulável, uma vez só (chave `ui.apresentacao` no aparelho).
