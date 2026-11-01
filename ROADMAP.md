@@ -407,7 +407,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-sd ✅ | B23 o Shark usa bem cada carta das cinco listas: fatia 1 ✅ (B-180) auditoria carta a carta (`bot.cartas.mjs`, 76 cartas, 40 partidas): 6 cartas ficam na mão, 5 com alvo no próprio lado por erro; fatia 2 ✅ (B-181) alvo no próprio lado + avaliaV6 (o −3/−0 na própria criatura dava +4), neutro em força (47 × 48), ligado; fatia 3 ✅ (B-182) loucura e descarte conferidos (Fiery Temper 14/20 contando a loucura), sem mudança no Shark; fatia 4 ✅ (B-183) a decisão do outro na resolução (Deem Inferior 1/13 → 13/14), 49 × 47, ligado; fatia 5 ✅ (B-184) jogar em volta: o outro responde com a mágica do Shark na pilha (anula, tira o alvo), 51 × 47, ligado; fatia 6 ✅ (B-185) fechamento: reserva pelo alvo (29 × 24) e resposta no meu turno (o Dispel na Counterspell que anulava a minha ameaça; 48 × 46), auditoria final sem "não usa" (69 usam, 5 a revisar declaradas), força por lista com 208 decididas no painel, p95 dentro do orçamento | B23 | 6 | 16º-sa |
 | 16º-sz ✅ | B6 estável: o torneio Shark × sparring mede força por trabalho feito (relógio de contas), não pelo relógio da máquina — caía no CI (mais lento) e passava no clone, deixando o `main` vermelho e a fila parada (B-186, 01/11/2026) | B | 1 | 16º-sd |
 | 16º-se 🔲 | B24 o Shark pilota o Dimir Control acima de 45% contra o campo (hoje 29% em 208 decididas): partida narrada das derrotas do Control, plano de controle (vantagem de cartas, monarca do Thorn of the Black Rose, quando virar o jogo) | B24 | 3–5 | 16º-sd |
-| 16º-sq 🟡 | B25 Shark profissional com as cinco listas (pedido do dono de 01/11): quatro réguas — força absoluta × `shark-v12` ≥ 60%, nenhuma lista < 45% contra o campo, bateria profissional ≥ 85%, higiene (zero ilegais, p95 ≤ 400 ms); fases 0 réguas (B-186, B-187) · 1 diagnóstico (B-188) · 2 avaliação aprendida (B-189…B-191) · 3 busca no próprio turno (B-192, B-193) · 4 correções (B-194…B-196, absorve a B24) · 5 fechamento (B-197) | B25 | 12 | 16º-sd |
+| 16º-sq 🟡 | B25 Shark profissional com as cinco listas (pedido do dono de 01/11): quatro réguas — força absoluta × `shark-v12` ≥ 60%, nenhuma lista < 45% contra o campo, bateria profissional ≥ 85%, higiene (zero ilegais, p95 ≤ 400 ms); fases 0 réguas (B-187, B-188) · 1 diagnóstico (B-189) · 2 avaliação aprendida (B-190…B-192) · 3 busca no próprio turno (B-193, B-194) · 4 correções (B-195…B-197, absorve a B24) · 5 fechamento (B-198) | B25 | 12 | 16º-sd |
 | 16º-y ✅ | Shark: olhar o turno seguinte (simulação até o próximo turno) — medido, não pagou, fica desligado; achado: a força está no plano de cada baralho (leva 131) | B15 | 1 | — |
 | 16º-w ✅ | Shark: pesos da avaliação postos à prova por torneio — nenhum paga; achado: o limite é a profundidade, não o peso (leva 126) | B20 | 1 | — |
 | 16º-j3 🟡 | Scanner de referência (E52): X14 resposta imediata (leva 127) | E52 | 2 de 6 a 7 | teste no aparelho: "até aceitar" no diagnóstico |
@@ -7984,7 +7984,7 @@ estruturado para tornarmos o Shark um jogador de nível profissional com as suas
      classe de decisão (papel, corrida e letal, sequência do turno, jogar em volta, recurso e anulação, combate,
      mulligan), ≥ 85% de acerto;
   4. **higiene:** zero ações ilegais, p95 ≤ 400 ms, não vazamento verde, nível anterior congelado a cada salto.
-- **Linha de base (B-186, 01/11/2026 — o Shark publicado com a B-185, motor v112, 400 ms):**
+- **Linha de base (B-187, 01/11/2026 — o Shark publicado com a B-185, motor v112, 400 ms):**
   - **força absoluta: 49%** — `shark` × `shark-v12` frente a frente, as cinco listas nos dois lados e nos dois assentos,
     103–107 em 210 decididas (`torneio.listas.mjs shark shark-v12 7 31000`, `LISTAS=shark`, duas fatias), zero ilegais.
     **As sete levas da B22/B23 depois da `shark-v12` não deixaram o Shark mais forte que ela** (margem ±7).
@@ -7996,19 +7996,27 @@ estruturado para tornarmos o Shark um jogador de nível profissional com as suas
     abaixo de 45%.
   - **higiene** (B-185): zero ilegais, p95 368 ms; nesta medição, com quatro processos em dois núcleos, a pior jogada
     passou de 2,6 s (máquina carregada; o p95 é medido de novo no fechamento com a máquina livre).
-  - **bateria profissional:** nasce na B-187.
+  - **bateria profissional (B-188):** `bot.bateria.mjs`, 23 posições com as cinco listas, cada uma com a jogada do
+    profissional e o porquê, em oito classes (letal, remoção, anulação, jogar em volta, sequência, recurso, combate,
+    mulligan): **Shark 22 de 23 (95,7%)**, `shark-v12` 18 de 23. **Leitura honesta:** esta primeira bateria nasceu das
+    posições que a B22/B23 já tinha achado e corrigido; a nota alta não diz que o Shark joga como profissional, diz que
+    os erros conhecidos não voltaram. A régua só vale com as posições novas que a fase 1 trouxer das partidas narradas
+    (as derrotas do Control e dos Elfos); o alvo de 85% é sobre a bateria inteira no fechamento. Erra hoje: a isca de
+    dois lances (`volta-isca`). Achado no caminho: o `montaShark` do `bot.unit` grava `landPlayed`, campo que o motor
+    não lê (o motor conta `landsPlayed`) — nas posições dele o Shark ainda pode baixar terreno; a bateria usa o campo
+    certo; o `bot.unit` é conferido na B-189.
 - **Fases:**
-  - **0 · réguas** — B-186 régua absoluta e linha de base das quatro; B-187 bateria profissional (30+ posições).
-  - **1 · diagnóstico** — B-188 partidas narradas das derrotas (Control e Faeries primeiro), cada erro classificado e
+  - **0 · réguas** — B-187 régua absoluta e linha de base das quatro; B-188 bateria profissional (30+ posições).
+  - **1 · diagnóstico** — B-189 partidas narradas das derrotas (Control e Faeries primeiro), cada erro classificado e
     custeado em vitórias: é a fila de trabalho das fases 2–4.
-  - **2 · avaliação aprendida** — B-189 posições de partidas reais com o resultado; B-190 ajuste dos pesos pelo resultado
-    (todos juntos, por arquétipo, treino e prova separados — a B20 só testou um peso por vez, ×0,5 ou ×2); B-191 o
+  - **2 · avaliação aprendida** — B-190 posições de partidas reais com o resultado; B-191 ajuste dos pesos pelo resultado
+    (todos juntos, por arquétipo, treino e prova separados — a B20 só testou um peso por vez, ×0,5 ou ×2); B-192 o
     avaliador aprendido no Shark, medido nas quatro réguas.
-  - **3 · busca no próprio turno** — B-192 sequências de duas ou três jogadas no turno (a isca da B-184 generalizada),
-    dentro do prazo; B-193 simulação mais barata para caber mais leitura em 400 ms (se tocar `apply`/`cloneEstado`, com
+  - **3 · busca no próprio turno** — B-193 sequências de duas ou três jogadas no turno (a isca da B-184 generalizada),
+    dentro do prazo; B-194 simulação mais barata para caber mais leitura em 400 ms (se tocar `apply`/`cloneEstado`, com
     o `motor`).
-  - **4 · correções do diagnóstico** — B-194…B-196, os erros mais caros da fase 1, o Control primeiro.
-  - **5 · fechamento** — B-197 as quatro réguas de novo, no painel.
+  - **4 · correções do diagnóstico** — B-195…B-197, os erros mais caros da fase 1, o Control primeiro.
+  - **5 · fechamento** — B-198 as quatro réguas de novo, no painel.
 - **Regras do programa:** toda técnica entra atrás de opção e passa por ablação; a que não se paga sai, com o número
   registrado aqui; cada leva reporta as quatro réguas (as que mudaram), levas e horas restantes.
 - **Testes:** posições de cada erro no `bot.unit`; a bateria profissional como teste próprio; não vazamento.
