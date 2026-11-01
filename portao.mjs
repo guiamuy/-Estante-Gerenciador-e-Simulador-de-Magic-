@@ -115,6 +115,14 @@ export function fatiasDeTela(nucleos = availableParallelism(), env = process.env
   if (Number.isInteger(pedido) && pedido >= 1) return Math.min(pedido, 8);
   return Math.max(1, Math.min(4, Math.floor(nucleos / 2)));
 }
+/** Q26 · a fase de tela dividida entre jobs do CI: com `parte` = "k/m", este processo roda só as fatias da parte k numa conta de
+    fatias × m no total (cada job tem os seus núcleos e o seu Chromium). Devolve a lista de "i/n" para `E2E_FATIA`; vazia quando a
+    fase roda num processo só, sem fatia (o caso das conversas de nuvem sem parte). Parte inválida vale como sem parte. */
+export function fatiasDaParte(fatias, parte) {
+  const [, k, m] = String(parte || '').match(/^(\d+)\/(\d+)$/) || [];
+  if (!m || +m < 2 || +k < 1 || +k > +m) return fatias > 1 ? Array.from({ length: fatias }, (_, i) => `${i + 1}/${fatias}`) : [];
+  return Array.from({ length: fatias }, (_, i) => `${(+k - 1) * fatias + i + 1}/${fatias * +m}`);
+}
 /** Embrulha o `test` do Node: com `fatia` = "i/n", o teste de ordem k (pela ordem em que o arquivo os registra) só roda quando
     k % n === i - 1; os outros saem como pulados, com o motivo. Sem fatia (ou com fatia inválida), devolve o `test` como veio.
     Cada teste de tela abre o seu servidor e o seu navegador, então não há estado entre eles para a divisão quebrar. */
@@ -200,19 +208,23 @@ async function principal() {
   }
   if (fase === 'tudo' || fase === 'e2e') {
     const t0 = Date.now();
-    const fatias = fatiasDeTela();
-    titulo(fatias > 1 ? `fase 2 · tela (navegador, sozinha) em ${fatias} fatias, um Chromium por fatia` : 'fase 2 · tela (navegador, sozinha)');
+    const fatias = fatiasDeTela(), parte = process.env.PORTAO_TELA_PARTE || '';
+    const lista = fatiasDaParte(fatias, parte), emParte = lista.length > 0 && !lista.every((f, i) => f === `${i + 1}/${fatias}`);
+    titulo(emParte ? `fase 2 · tela (navegador, sozinha) · parte ${parte}: fatias ${lista.join(', ')}, um Chromium por fatia`
+      : fatias > 1 ? `fase 2 · tela (navegador, sozinha) em ${fatias} fatias, um Chromium por fatia` : 'fase 2 · tela (navegador, sozinha)');
     let r;
-    if (fatias === 1) r = await roda(['--test', ...arquivosDaFase('e2e')]);
+    if (!lista.length) r = await roda(['--test', ...arquivosDaFase('e2e')]);
     else {
       // Q19 · o mesmo arquivo, uma vez por fatia; a primeira aparece ao vivo e as outras em seguida, inteiras
-      const partes = await Promise.all(Array.from({ length: fatias }, (_, i) => roda(['--test', ...arquivosDaFase('e2e')], { eco: i === 0, env: { ...process.env, E2E_FATIA: `${i + 1}/${fatias}` } })));
-      partes.slice(1).forEach((p, i) => { console.log(`\n# ── fatia ${i + 2}/${fatias}`); process.stdout.write(p.saida); });
+      const partes = await Promise.all(lista.map((f, i) => roda(['--test', ...arquivosDaFase('e2e')], { eco: i === 0, env: { ...process.env, E2E_FATIA: f } })));
+      partes.slice(1).forEach((p, i) => { console.log(`\n# ── fatia ${lista[i + 1]}`); process.stdout.write(p.saida); });
       r = { ok: partes.every((p) => p.ok), saida: partes.map((p) => p.saida).join('\n') };
       const c = conferirFatias(partes.map((p) => p.saida));
-      console.log(`# fatias: ${c.total} testes, cada um numa fatia só`);
-      if (c.faltando.length || c.repetidos.length) {
-        console.error(`\n✗ A divisão em fatias deixou teste de fora ou repetiu teste:${c.faltando.map((n) => `\n  não rodou: ${n}`).join('')}${c.repetidos.map((n) => `\n  rodou mais de uma vez: ${n}`).join('')}`);
+      // Q26 · numa parte, os testes das fatias do outro job saem pulados aqui: só "rodou duas vezes" é erro dentro do job
+      const faltando = emParte ? [] : c.faltando;
+      console.log(emParte ? `# parte ${parte}: ${c.total - c.faltando.length} de ${c.total} testes rodaram neste job, cada um numa fatia só` : `# fatias: ${c.total} testes, cada um numa fatia só`);
+      if (faltando.length || c.repetidos.length) {
+        console.error(`\n✗ A divisão em fatias deixou teste de fora ou repetiu teste:${faltando.map((n) => `\n  não rodou: ${n}`).join('')}${c.repetidos.map((n) => `\n  rodou mais de uma vez: ${n}`).join('')}`);
         process.exit(1);
       }
     }

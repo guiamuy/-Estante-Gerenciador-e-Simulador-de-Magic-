@@ -212,28 +212,31 @@ test('Q17 · o fluxo da fila: só o job que avança tem escrita e ele não execu
   assert.match(yml, /^on:\n  push:\n    branches: \['fila\/\*\*'\]\n  workflow_dispatch:/m);
   assert.match(yml, /^concurrency:\n  group: \S+\n  cancel-in-progress: false$/m);
   assert.match(yml, /^permissions:\n  contents: read$/m, 'padrão do fluxo: só leitura');
-  const job = (nome) => (yml.match(new RegExp(`\\n  ${nome}:\\n([\\s\\S]*?)(?=\\n  [a-z]+:\\n|$)`)) || [])[1] || '';
-  const monta = job('monta'), portao = job('portao'), tela = job('tela'), avanca = job('avanca');
-  assert.ok(monta && portao && tela && avanca, 'quatro jobs (Q23: o portão em dois, rápida e tela; I-308: a pré-sonda da Q22 é passo de cada um)');
+  const job = (nome) => (yml.match(new RegExp(`\\n  ${nome}:\\n([\\s\\S]*?)(?=\\n  [a-z][a-z0-9]*:\\n|$)`)) || [])[1] || '';
+  const monta = job('monta'), portao = job('portao'), tela = job('tela'), tela2 = job('tela2'), avanca = job('avanca');
+  assert.ok(monta && portao && tela && tela2 && avanca, 'cinco jobs (Q23: o portão em rápida e tela; Q26: a tela em duas metades; I-308: a pré-sonda da Q22 é passo de cada um)');
   assert.equal(job('presonda'), '', 'sem job de pré-sonda à parte (I-308: ela roda no ambiente da própria fase)');
-  for (const [nome, j] of [['monta', monta], ['portao', portao], ['tela', tela]]) {
+  for (const [nome, j] of [['monta', monta], ['portao', portao], ['tela', tela], ['tela2', tela2]]) {
     assert.doesNotMatch(j, /write/, `${nome} não escreve em nada`);
     assert.match(j, /persist-credentials: false/, `${nome} não deixa credencial no disco`);
     assert.doesNotMatch(j, /github\.token|secrets\./, `${nome} não recebe token nem segredo`);
   }
   // Q23 · a fase rápida no job `portao`, a de tela no job `tela`, em paralelo; cada uma com o seu npm ci, só a de tela instala navegador
   assert.match(portao, /npm ci\b/); assert.match(portao, /npm run (-s )?test:rapido/); assert.doesNotMatch(portao, /test:e2e|playwright install/);
-  assert.match(tela, /npm ci\b/); assert.match(tela, /npm run (-s )?test:e2e/); assert.match(tela, /playwright install/); assert.doesNotMatch(tela, /test:rapido/);
-  for (const j of [portao, tela]) {
+  for (const t of [tela, tela2]) { assert.match(t, /npm ci\b/); assert.match(t, /npm run (-s )?test:e2e/); assert.match(t, /playwright install/); assert.doesNotMatch(t, /test:rapido/); }
+  // Q26 · as duas metades da tela são o mesmo job, cada uma com a sua parte (e o seu log)
+  assert.match(tela, /PORTAO_TELA_PARTE: '1\/2'/); assert.match(tela2, /PORTAO_TELA_PARTE: '2\/2'/);
+  assert.equal(tela2.replace(/'2\/2'.*\n/, '').replace('portao-log-tela2', 'portao-log-tela').replace(/timeout-minutes: 40 .*\n/, ''), tela.replace(/'1\/2'.*\n/, '').replace(/timeout-minutes: 40 .*\n/, ''), 'tela2 = tela, menos a parte, o nome do log e o comentário');
+  for (const j of [portao, tela, tela2]) {
     assert.match(j, /needs: monta\n    if: needs\.monta\.outputs\.portao == 'sim'\n/);
   }
   assert.match(avanca, /contents: write/);
   assert.doesNotMatch(avanca, /npm (ci|install|run|test)|npx |playwright/, 'o job com escrita não instala nem roda nada da leva');
   assert.match(avanca, /cp fila\.mjs agregacao\.mjs "\$RUNNER_TEMP\/"/, 'o código que avança o main é copiado do main antes de a árvore mudar');
-  assert.match(avanca, /needs: \[monta, portao, tela\]/);
+  assert.match(avanca, /needs: \[monta, portao, tela, tela2\]/);
   assert.match(avanca, /FILA_PORTAO_RAPIDA: \$\{\{ needs\.portao\.result \}\}/, 'quem diz se o portão passou é o resultado dos jobs, não uma saída que o código testado escreve');
-  assert.match(avanca, /FILA_PORTAO_TELA: \$\{\{ needs\.tela\.result \}\}/);
-  for (const j of [monta, portao, tela, avanca]) assert.match(j, /ref: main/, 'todo job parte do main');
+  assert.match(avanca, /FILA_PORTAO_TELA: \$\{\{ needs\.tela\.result \}\}/); assert.match(avanca, /FILA_PORTAO_TELA2: \$\{\{ needs\.tela2\.result \}\}/);
+  for (const j of [monta, portao, tela, tela2, avanca]) assert.match(j, /ref: main/, 'todo job parte do main');
   assert.doesNotMatch(yml, /--force(?!-)|push -f\b/, 'nenhum push forçado no fluxo');
 });
 
@@ -254,9 +257,9 @@ test('I-291 · a cada avanço do main, a fila dispara "Relatos pela fila" (o age
 
 test('I-292 · telemetria da rodada: o portão entrega só um resumo agregado como saída do job; o avanca grava a rodada com o telemetria.mjs do main, copiado antes de a árvore virar a soma, tudo pelo ambiente, sem permissão nova e sem derrubar a rodada', () => {
   const yml = readFileSync(join(RAIZ, '.github/workflows/fila.yml'), 'utf8');
-  const job = (nome) => (yml.match(new RegExp(`\\n  ${nome}:\\n([\\s\\S]*?)(?=\\n  [a-z]+:\\n|$)`)) || [])[1] || '';
-  const portao = job('portao'), tela = job('tela'), avanca = job('avanca');
-  for (const j of [portao, tela]) {   // Q23 · cada job do portão entrega o resumo da sua fase
+  const job = (nome) => (yml.match(new RegExp(`\\n  ${nome}:\\n([\\s\\S]*?)(?=\\n  [a-z][a-z0-9]*:\\n|$)`)) || [])[1] || '';
+  const portao = job('portao'), tela = job('tela'), tela2 = job('tela2'), avanca = job('avanca');
+  for (const j of [portao, tela, tela2]) {   // Q23 · cada job do portão entrega o resumo da sua fase
     assert.match(j, /outputs:\n(?:      \w+: .*\n)*      resumo: \$\{\{ steps\.resumo\.outputs\.resumo \}\}/, 'o job expõe o resumo como saída');
     assert.ok(j.split('\n      - ').some(p => /^name: Resumo do portão[\s\S]*if: always\(\)/.test(p)), 'resumo da fase, verde ou vermelha');
   }
@@ -272,10 +275,10 @@ test('I-292 · telemetria da rodada: o portão entrega só um resumo agregado co
   assert.match(passos[iGuarda], /cp telemetria\.mjs "\$RUNNER_TEMP\/"/);
   assert.ok(iTel > passos.findIndex(p => /Marcar o commit publicado/.test(p)), 'depois de marcar o commit publicado');
   const tel = passos[iTel];
-  assert.match(tel, /if: always\(\) && !\(needs\.portao\.result == 'skipped' && needs\.tela\.result == 'skipped'\)/, 'grava verde ou vermelho; sem portão (nada para testar) não há rodada');
+  assert.match(tel, /if: always\(\) && !\(needs\.portao\.result == 'skipped' && needs\.tela\.result == 'skipped' && needs\.tela2\.result == 'skipped'\)/, 'grava verde ou vermelho; sem portão (nada para testar) não há rodada');
   // Q23 · o resultado das duas fases em expressão do fluxo; o resumo chega juntado pelo passo que avança (o fila.mjs do main junta)
-  for (const v of ['FILA_PLANO: ${{ needs.monta.outputs.plano }}', "FILA_PORTAO: ${{ (needs.portao.result == 'success' && needs.tela.result == 'success')", 'FILA_RESUMO: ${{ steps.avanca.outputs.resumo }}', 'FILA_PUBLICADO: ${{ steps.avanca.outputs.publicado }}', 'GH_TOKEN: ${{ github.token }}']) assert.ok(tel.includes(v), `ambiente: ${v}`);
-  for (const v of ['FILA_RESUMO_RAPIDA: ${{ needs.portao.outputs.resumo }}', 'FILA_RESUMO_TELA: ${{ needs.tela.outputs.resumo }}']) assert.ok(passos[iAvanca].includes(v), `o passo que avança recebe ${v}`);
+  for (const v of ['FILA_PLANO: ${{ needs.monta.outputs.plano }}', "FILA_PORTAO: ${{ (needs.portao.result == 'success' && needs.tela.result == 'success' && needs.tela2.result == 'success')", 'FILA_RESUMO: ${{ steps.avanca.outputs.resumo }}', 'FILA_PUBLICADO: ${{ steps.avanca.outputs.publicado }}', 'GH_TOKEN: ${{ github.token }}']) assert.ok(tel.includes(v), `ambiente: ${v}`);
+  for (const v of ['FILA_RESUMO_RAPIDA: ${{ needs.portao.outputs.resumo }}', 'FILA_RESUMO_TELA: ${{ needs.tela.outputs.resumo }}', 'FILA_RESUMO_TELA2: ${{ needs.tela2.outputs.resumo }}']) assert.ok(passos[iAvanca].includes(v), `o passo que avança recebe ${v}`);
   assert.doesNotMatch(tel.split('run: |')[1] || '', /\$\{\{/, 'nada do plano ou do resumo interpolado no shell: tudo pelo ambiente');
   assert.match(tel, /cd "\$RUNNER_TEMP" && node telemetria\.mjs rodada --ci --remoto "\$\{GITHUB_SERVER_URL\}\/\$\{GITHUB_REPOSITORY\}\.git"/, 'roda a cópia do main, fora da árvore, e a URL do remoto não leva o token');
   assert.match(tel, /git config --global "http\.\$\{GITHUB_SERVER_URL\}\/\.extraheader"/, 'o token vai pelo cabeçalho do git do runner (como o checkout faz)');
@@ -501,11 +504,11 @@ test('Q22 · culpa da leva continua recusando: a queda que passa no main sozinho
 
 test('Q22 · o fluxo: pré-sonda dentro de cada job do portão, no ambiente da própria fase (que não roda com "caem"), reexecução no main sem credencial, aviso lido no monta, nenhuma permissão nova', () => {
   const yml = readFileSync(join(RAIZ, '.github/workflows/fila.yml'), 'utf8');
-  const job = (nome) => (yml.match(new RegExp(`\\n  ${nome}:\\n([\\s\\S]*?)(?=\\n  [a-z]+:\\n|$)`)) || [])[1] || '';
-  const monta = job('monta'), portao = job('portao'), tela = job('tela'), avanca = job('avanca');
+  const job = (nome) => (yml.match(new RegExp(`\\n  ${nome}:\\n([\\s\\S]*?)(?=\\n  [a-z][a-z0-9]*:\\n|$)`)) || [])[1] || '';
+  const monta = job('monta'), portao = job('portao'), tela = job('tela'), tela2 = job('tela2'), avanca = job('avanca');
   assert.match(monta, /sonda: \$\{\{ steps\.monta\.outputs\.sonda \}\}/);
   assert.match(monta, /'\+refs\/heads\/aviso\/\*:refs\/remotes\/origin\/aviso\/\*'/, 'o monta busca o aviso');
-  for (const [j, fase] of [[portao, 'rapido'], [tela, 'e2e']]) {
+  for (const [j, fase] of [[portao, 'rapido'], [tela, 'e2e'], [tela2, 'e2e']]) {
     const passos = j.split('\n      - ');
     const i = (rx) => passos.findIndex((x) => rx.test(x));
     const iPre = i(/^name: Pré-sonda/), iFase = i(/^name: Fase /), iQue = i(/^name: Testes que caíram/), iHer = i(/^name: As quedas caem também no main/);
@@ -520,10 +523,10 @@ test('Q22 · o fluxo: pré-sonda dentro de cada job do portão, no ambiente da p
     for (const o of ['herdadas: ${{ steps.herdadas.outputs.herdadas }}', 'presonda: ${{ steps.presonda.outputs.presonda }}']) assert.ok(j.includes(o), o);
     assert.doesNotMatch(j, /write|github\.token|secrets\./, 'o portão continua sem escrita e sem token');
   }
-  assert.ok(passosDe(tela).findIndex((x) => /playwright install/.test(x)) < passosDe(tela).findIndex((x) => /^name: Pré-sonda/.test(x)), 'a pré-sonda de tela já tem o navegador');
+  for (const t of [tela, tela2]) assert.ok(passosDe(t).findIndex((x) => /playwright install/.test(x)) < passosDe(t).findIndex((x) => /^name: Pré-sonda/.test(x)), 'a pré-sonda de tela já tem o navegador');
   assert.doesNotMatch(portao, /playwright install/, 'a pré-sonda da rápida roda sem navegador, como a fase');
-  for (const s of ["FILA_PRESONDA: ${{ (needs.portao.outputs.presonda == 'caem' || needs.tela.outputs.presonda == 'caem') && 'caem' || '' }}", 'FILA_HERDADAS: ${{ needs.portao.outputs.herdadas }}', 'FILA_HERDADAS_TELA: ${{ needs.tela.outputs.herdadas }}', 'FILA_MOTIVO_TELA: ${{ needs.tela.outputs.quedas }}']) assert.ok(avanca.includes(s), `pelo ambiente: ${s}`);
-  assert.match(avanca, /name: Telemetria da rodada\n        if: always\(\) && !\(needs\.portao\.result == 'skipped' && needs\.tela\.result == 'skipped'\) && needs\.portao\.outputs\.presonda != 'caem' && needs\.tela\.outputs\.presonda != 'caem'/, 'rodada que parou na pré-sonda não é portão');
+  for (const s of ["FILA_PRESONDA: ${{ (needs.portao.outputs.presonda == 'caem' || needs.tela.outputs.presonda == 'caem' || needs.tela2.outputs.presonda == 'caem') && 'caem' || '' }}", 'FILA_HERDADAS: ${{ needs.portao.outputs.herdadas }}', 'FILA_HERDADAS_TELA: ${{ needs.tela.outputs.herdadas }}', 'FILA_HERDADAS_TELA2: ${{ needs.tela2.outputs.herdadas }}', 'FILA_MOTIVO_TELA: ${{ needs.tela.outputs.quedas }}', 'FILA_MOTIVO_TELA2: ${{ needs.tela2.outputs.quedas }}']) assert.ok(avanca.includes(s), `pelo ambiente: ${s}`);
+  assert.match(avanca, /name: Telemetria da rodada\n        if: always\(\) && !\(needs\.portao\.result == 'skipped' && needs\.tela\.result == 'skipped' && needs\.tela2\.result == 'skipped'\) && needs\.portao\.outputs\.presonda != 'caem' && needs\.tela\.outputs\.presonda != 'caem' && needs\.tela2\.outputs\.presonda != 'caem'/, 'rodada que parou na pré-sonda não é portão');
   assert.doesNotMatch(avanca, /npm (ci|install|run|test)|npx |playwright|--test/, 'o job com escrita continua sem rodar nada da leva (a reexecução é no portão)');
 });
 const passosDe = (j) => j.split('\n      - ');
@@ -596,7 +599,46 @@ test('Q23 · a expressão do fluxo que junta os dois jobs dá o mesmo resultado 
   const yml = readFileSync(join(RAIZ, '.github/workflows/fila.yml'), 'utf8');
   const exprs = [...yml.matchAll(/FILA_PORTAO: \$\{\{ (.+) \}\}$/gm)].map((m) => m[1]);
   assert.equal(exprs.length, 2, 'no passo que avança e na telemetria'); assert.equal(exprs[0], exprs[1], 'a mesma expressão nos dois lugares');
-  const avalia = (rapida, tela) => Function(`return (${exprs[0].replace(/needs\.portao\.result/g, JSON.stringify(rapida)).replace(/needs\.tela\.result/g, JSON.stringify(tela)).replace(/==/g, '===').replace(/'/g, '"')});`)();
+  // Q26 · três jobs (rápida e as duas metades da tela); a expressão e o fila.mjs concordam em todas as 125 combinações
+  const avalia = (rapida, tela, tela2) => Function(`return (${exprs[0].replace(/needs\.portao\.result/g, JSON.stringify(rapida)).replace(/needs\.tela2\.result/g, JSON.stringify(tela2)).replace(/needs\.tela\.result/g, JSON.stringify(tela)).replace(/==/g, '===').replace(/'/g, '"')});`)();
   const valores = ['success', 'failure', 'cancelled', 'skipped', ''];
-  for (const a of valores) for (const b of valores) assert.equal(avalia(a, b), resultadoDoPortao(a, b), `${a || '(vazio)'}/${b || '(vazio)'}`);
+  for (const a of valores) for (const b of valores) for (const c of valores) assert.equal(avalia(a, b, c), resultadoDoPortao(a, b, c), `${a || '(vazio)'}/${b || '(vazio)'}/${c || '(vazio)'}`);
+});
+
+test('Q26 · a tela em dois jobs: o portão é verde só com os três verdes; o resumo junta as metades numa tela só (testes somados, a duração da mais lenta)', () => {
+  assert.equal(resultadoDoPortao('success', 'success', 'success'), 'success');
+  assert.equal(resultadoDoPortao('success', 'success', 'failure'), 'failure', 'a segunda metade vermelha derruba o portão');
+  assert.equal(resultadoDoPortao('success', 'success', 'skipped'), 'cancelled', 'metade pulada e as outras verdes não publica');
+  assert.equal(resultadoDoPortao('success', 'success', ''), 'cancelled', 'metade que não existiu não publica');
+  assert.equal(resultadoDoPortao('skipped', 'skipped', 'skipped'), 'skipped');
+  assert.equal(resultadoDoPortao('success'), 'cancelled', 'um job só nunca é o portão inteiro');
+  const r = JSON.parse(juntarResumos(
+    JSON.stringify({ kind: 'estante.portao', rapido: { passaram: 4284, minutos: 12.4 }, tela: null }),
+    JSON.stringify({ kind: 'estante.portao', rapido: null, tela: { passaram: 170, minutos: 8.1, instaveis: ['e2e · H7'], telas: 400, quedasOrcamento: [], medidas: { scanner: { detector_ms: 88 } } } }),
+    JSON.stringify({ kind: 'estante.portao', rapido: null, tela: { passaram: 169, minutos: 8.6, instaveis: ['e2e · I7'], telas: 418, quedasOrcamento: [], medidas: { mesa: { quadro_ms: 12 } } } })));
+  assert.equal(r.rapido.passaram, 4284);
+  assert.deepEqual(r.tela, { passaram: 339, minutos: 8.6, instaveis: ['e2e · H7', 'e2e · I7'], telas: 818, quedasOrcamento: [], medidas: { scanner: { detector_ms: 88 }, mesa: { quadro_ms: 12 } } });
+  assert.deepEqual(JSON.parse(juntarResumos(JSON.stringify({ tela: { passaram: 3 } }), '', 'lixo')).tela, { passaram: 3 }, 'uma metade só passa como veio');
+});
+
+test('Q26 · o passo que avança com a segunda metade da tela vermelha recusa a leva com a queda dela; sem as variáveis TELA2 (fluxo antigo do main), tudo como antes', () => {
+  const m = mundo();
+  try {
+    const a = m.clone('a');
+    a.enfileira('B-185', 'Leva B-185 · bot\n\nTrilha: bot', () => a.escreve('bot.js', ['const bot = shark.joga(estado);']));
+    const c = ci(m), p = plano(c);
+    const saida = join(m.raiz, 'saida.txt'); writeFileSync(saida, '');
+    const resumo = (tela) => JSON.stringify({ kind: 'estante.portao', rapido: null, tela });
+    const r = spawnSync(process.execPath, [join(RAIZ, 'fila.mjs'), 'avanca', '--cwd', c.dir], { encoding: 'utf8', env: { ...process.env, GITHUB_OUTPUT: saida, GITHUB_STEP_SUMMARY: '',
+      FILA_PLANO: JSON.stringify(p), FILA_PORTAO_RAPIDA: 'success', FILA_PORTAO_TELA: 'success', FILA_PORTAO_TELA2: 'failure',
+      FILA_MOTIVO: '', FILA_MOTIVO_TELA: '', FILA_MOTIVO_TELA2: JSON.stringify(['e2e · N1 barra de navegação']),
+      FILA_HERDADAS: '', FILA_HERDADAS_TELA: '', FILA_HERDADAS_TELA2: '', FILA_PRESONDA: '',
+      FILA_RESUMO_RAPIDA: JSON.stringify({ kind: 'estante.portao', rapido: { passaram: 4284 }, tela: null }), FILA_RESUMO_TELA: resumo({ passaram: 170, minutos: 8 }), FILA_RESUMO_TELA2: resumo({ passaram: 168, minutos: 9 }) } });
+    assert.equal(r.status, 0, r.stderr);
+    const out = readFileSync(saida, 'utf8');
+    assert.match(out, /^portao=failure$/m);
+    assert.deepEqual(JSON.parse(out.match(/^resumo=(.*)$/m)[1]).tela, { passaram: 338, minutos: 9 });
+    c.busca();
+    assert.match(c.git('log', '-1', '--format=%B', 'origin/recusada/B-185'), /Testes que caíram \(1\):\n- e2e · N1 barra de navegação/);
+  } finally { m.fim(); }
 });
