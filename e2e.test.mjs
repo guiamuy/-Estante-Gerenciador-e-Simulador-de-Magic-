@@ -12967,6 +12967,56 @@ test('e2e · P-21 Apoiar a Estante: do Perfil abre a tela; Brasil: Pix primeiro,
   assert.deepEqual(errors, []);
 });
 
+/* ---------------- G-325 · Convidar amigos (Perfil › Convidar amigos) ---------------- */
+test('e2e · G-325 Convidar amigos: do Perfil abre em um toque; QR em papel claro nos dois temas; Compartilhar leva o convite com o endereço; Copiar link copia; no iPhone o passo a passo do iPhone vem primeiro; sem rede a tela abre igual; sem sobreposição nas quatro medidas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  const URL_APP = 'https://guiamuy.github.io/-Estante-Gerenciador-e-Simulador-de-Magic-/';
+  await page.addInitScript(() => {
+    window.__copias = []; window.__envios = [];
+    navigator.clipboard.writeText = async t => { window.__copias.push(t); };
+    navigator.share = async d => { window.__envios.push(d); };
+    Object.defineProperty(navigator, 'userAgent', { get: () => 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1' });
+  });
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-convidar');
+  assert.match(await page.innerText('#perfil-convidar'), /Convidar amigos/);
+  await page.click('#perfil-convidar'); await page.waitForSelector('#convidar');
+  assert.equal(await page.locator('h1').innerText(), 'Convidar amigos');
+  assert.equal(await page.getAttribute('#convidar', 'data-aparelho'), 'iphone');
+  assert.deepEqual(await page.$$eval('#convidar-instalar .apoio-item', es => es.map(e => e.dataset.aparelho)), ['iphone', 'android'], 'o do aparelho primeiro');
+  assert.match(await page.innerText('#convidar-iphone'), /Este aparelho[\s\S]*Safari[\s\S]*Adicionar à Tela de Início/);
+  assert.equal(await page.innerText('#convidar-endereco'), URL_APP);
+  assert.equal(await page.locator('.ds-btn--primary:visible').count(), 1, 'um primário: Compartilhar');
+  for (const id of ['#convidar-compartilhar', '#convidar-copiar', '#convidar-voltar']) assert.ok((await page.locator(id).boundingBox()).height >= 44, id + ' com 44 px');
+  // o QR: quadrado, largo o bastante para a câmera, tinta escura sobre papel claro nos dois temas
+  for (const tema of ['dark', 'light']) {
+    await page.evaluate(t => document.documentElement.setAttribute('data-theme', t), tema);
+    const qr = await page.$eval('#convidar-qr-desenho', el => { const r = el.getBoundingClientRect(), cs = getComputedStyle(el), p = getComputedStyle(el.querySelector('path'));
+      const lum = c => { const [r2, g, b] = c.match(/\d+/g).slice(0, 3).map(Number).map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r2 + 0.7152 * g + 0.0722 * b; };
+      const a = lum(cs.backgroundColor), b = lum(p.fill); return { w: r.width, h: r.height, contraste: (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05), papelClaro: a > b, vb: el.getAttribute('viewBox'), d: el.querySelector('path').getAttribute('d').length }; });
+    assert.ok(qr.w >= 200 && Math.abs(qr.w - qr.h) < 1, tema + ' QR quadrado e largo: ' + JSON.stringify(qr));
+    assert.ok(qr.papelClaro && qr.contraste >= 7, tema + ' tinta escura sobre papel claro: ' + JSON.stringify(qr));
+    assert.equal(qr.vb, '0 0 45 45', 'zona de silêncio de 4 módulos'); assert.ok(qr.d > 500);
+    if (process.env.SHOTS) await page.locator('#convidar-qr-desenho').screenshot({ path: `${process.env.SHOTS}/g325-qr-${tema}.png` });
+  }
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  await page.click('#convidar-compartilhar'); await page.waitForFunction(() => window.__envios.length === 1);
+  const envio = await page.evaluate(() => window.__envios[0]);
+  assert.equal(envio.title, 'Estante'); assert.ok(envio.text.endsWith(URL_APP), 'o convite termina no endereço: ' + envio.text);
+  await page.click('#convidar-copiar'); await page.waitForFunction(() => document.querySelector('#ds-toast')?.innerText.includes('Link copiado'));
+  assert.deepEqual(await page.evaluate(() => window.__copias), [URL_APP]);
+  await emTodasAsMedidas(page, 'convidar amigos');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/g325-convidar.png', fullPage: true });
+  // sem rede: a tela é toda do código; o aviso diz que o convite sai assim mesmo
+  await page.context().setOffline(true);
+  await page.goto(base + '#/perfil'); await page.goto(base + '#/perfil/convidar'); await page.waitForSelector('#convidar-sem-rede');
+  assert.match(await page.innerText('#convidar-sem-rede'), /o convite sai assim mesmo/);
+  assert.equal(await page.locator('#convidar-qr-desenho path').count(), 1);
+  await page.context().setOffline(false);
+  await page.click('#convidar-voltar'); await page.waitForSelector('#perfil-convidar');
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · T-34 · CR 702.102 · fundir: a folha da carta dividida com fundir tem um botão por metade e o "Fundir" pelo custo das duas; os alvos vêm aos pares e as duas metades resolvem', { skip }, async t => {
   // Texto oficial: Wear // Tear em .listas/oficiais-tipos.json (Oracle do Forge, 13/10/2026); Relic of Progenitus e Makeshift Munitions em .listas/oficiais.json.
   const extras = JSON.parse(readFileSync(join(ROOT, '.listas', 'oficiais-tipos.json'), 'utf8')).cartas.filter(c => c.name === 'Wear // Tear');

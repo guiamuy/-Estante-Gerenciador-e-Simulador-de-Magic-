@@ -1868,6 +1868,15 @@ body[data-tela="partida"] {
 .apoio-item__chave { margin: 0; font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--fg); font-family: var(--font-mono); overflow-wrap: anywhere; user-select: all; }
 .apoio-item__rotulo { font-family: var(--font-ui); color: var(--fg-muted); user-select: none; }
 .apoio-item__acoes { gap: var(--space-2); }
+/* G-325 · Convidar amigos: o QR é tinta sobre papel nos dois temas (os tons de mana W e B não mudam com o tema; 7,5:1),
+   com a zona de silêncio de 4 módulos dentro do próprio desenho; a largura cabe em 360 sem rolagem */
+.convidar-qr { display: grid; justify-items: center; gap: var(--space-3); }
+.convidar-qr__papel { display: block; width: min(232px, 100%); aspect-ratio: 1; border-radius: var(--radius-2); background: var(--mana-w); color: var(--mana-b); box-shadow: var(--shadow-1); }
+.convidar-qr__papel path { fill: currentColor; }
+.convidar__endereco { margin: 0; text-align: center; font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--fg); font-family: var(--font-mono); overflow-wrap: anywhere; user-select: all; }
+.convidar__acoes { gap: var(--space-2); justify-content: center; }
+.convidar-passos { margin: 0; padding-left: var(--space-5); display: grid; gap: var(--space-2); font-size: var(--text-md); line-height: var(--lh-md); color: var(--fg); }
+.convidar-passos--lista { list-style: disc; }
 .pt-ladrilhos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
 .pt-ladrilho { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: var(--space-3) var(--space-2); border-radius: var(--radius-2); background: var(--bg-elev-1); border: 1px solid var(--border); min-width: 0; }
 .pt-ladrilho__valor { display: inline-flex; align-items: center; gap: var(--space-1); font-family: var(--font-display); font-size: var(--text-xl); line-height: var(--lh-xl); color: var(--fg); font-variant-numeric: tabular-nums; text-align: center; }
@@ -16893,7 +16902,112 @@ function createApoioScreen({ dados = APOIO, regiao = regiaoDoAparelho(), copiar 
     h('div', { class: 'apoio-lista', id: 'apoio-outras' }, ...outras.map(f => cartao(f, false))),
     Text('O app não guarda nem envia nada sobre a sua doação: o pagamento acontece no seu banco ou no site da plataforma.', { size: 'xs', tone: 'muted', attrs: { id: 'apoio-privacidade' } }));
 }
-return { DESTINOS, LINKS, PELO_NAVEGADOR, ORIGENS, TEXTO_USO, createSaidaScreen, apagaTudoDoAparelho, apagaTudoComNuvem, APOIO, regiaoProvavel, ordemDoApoio, crc16, cabeNoBr, pixCopiaECola, apoioPronto, acaoDaForma, origensDoApoio, createApoioScreen };
+/* =====================================================================
+   G-325 · CONVIDAR AMIGOS (Perfil › Convidar amigos)
+   O endereço do app, Compartilhar (folha do sistema; sem ela, copia), Copiar link, o QR do endereço e o passo a passo
+   de instalar no Android e no iPhone. Tudo fixo no código: a tela funciona sem internet e não fala com nenhum serviço.
+   ===================================================================== */
+const ENDERECO_DO_APP = 'https://guiamuy.github.io/-Estante-Gerenciador-e-Simulador-de-Magic-/';
+/** QR do endereço: versão 5, correção M, máscara 6, 37 × 37 módulos, uma linha em hexadecimal por fileira (bit mais alto
+ *  à esquerda). Gerado e lido de volta por um leitor de QR em 01/11/2026. Endereço novo → gerar o QR de novo: o teste
+ *  `convidar.unit` confere que o endereço guardado aqui é o mesmo que a tela compartilha e a forma do QR. */
+const QR_DO_APP = { endereco: ENDERECO_DO_APP, lado: 37, linhas: [
+    '1fd57b557f', '105842c041', '175e42b95d', '174e0dd95d', '1758c60c5d', '1049a02441',
+    '1fd555557f', '00006e5800', '13f4627497', '0d8d1ce63a', '1ef87b6b75', '0981db361f',
+    '0975b85061', '15a934af98', '08fc661e9f', '1108f224ed', '1fceee9a45', '198208ca24',
+    '06cb92af49', '16863369f1', '1d6d9a96f8', '099fae7214', '1a7920b369', '1a0f64547d',
+    '08e80bf553', '119a462f1c', '19dde08e07', '16331215ef', '13cd637bfd', '0018ab8916',
+    '1fda6f2951', '105a128b13', '175df79ff0', '1750816fcd', '174e442691', '104fac2017',
+    '1fd7d201e9'] };
+/** Matriz de módulos (true = escuro). */
+function modulosDoQr(qr = QR_DO_APP) {
+  return qr.linhas.map(hx => { const bits = BigInt('0x' + hx).toString(2).padStart(qr.lado, '0').slice(-qr.lado); return [...bits].map(b => b === '1'); });
+}
+/** Um caminho SVG só: cada sequência de módulos escuros de uma fileira vira um retângulo; `margem` é a zona de silêncio. */
+function caminhoDoQr(qr = QR_DO_APP, margem = 4) {
+  let d = '';
+  modulosDoQr(qr).forEach((fileira, y) => {
+    let x = 0;
+    while (x < fileira.length) {
+      if (!fileira[x]) { x++; continue; }
+      let n = 0; while (x + n < fileira.length && fileira[x + n]) n++;
+      d += `M${x + margem} ${y + margem}h${n}v1h-${n}z`; x += n;
+    }
+  });
+  return d;
+}
+/** Qual passo a passo vem primeiro: o do aparelho em que a tela está aberta. */
+function aparelhoProvavel(ua = typeof navigator !== 'undefined' ? navigator.userAgent || '' : '') {
+  if (/iPhone|iPad|iPod/i.test(ua) || (/Macintosh/i.test(ua) && /Mobile/i.test(ua))) return 'iphone';
+  if (/Android/i.test(ua)) return 'android';
+  return 'outro';
+}
+/** Passos conferidos em 01/11/2026 (Chrome no Android; Safari no iOS 26, em que Compartilhar mora no menu ⋯). */
+const PASSOS_DE_INSTALAR = {
+  android: { titulo: 'Android', icone: 'instalar', passos: [
+    'Abra o link no Chrome.',
+    'Toque em Instalar, na barra da Estante. Se não aparecer, use o menu ⋮ › Instalar app (ou Adicionar à tela inicial).',
+    'Confirme. A Estante fica na tela inicial e abre como app.'] },
+  iphone: { titulo: 'iPhone', icone: 'instalar', passos: [
+    'Abra o link no Safari.',
+    'Toque em ⋯ e depois em Compartilhar. Em versões mais antigas do iOS, Compartilhar fica direto na barra de baixo.',
+    'Toque em Adicionar à Tela de Início (role a lista se não aparecer).',
+    'Se aparecer a opção de abrir como app, deixe ligada e toque em Adicionar.'] }
+};
+const PRIMEIRO_USO = [
+  'A estante começa vazia: cada aparelho guarda as próprias listas e coleção.',
+  'Para guardar na nuvem e jogar online, entre com a conta no Perfil.',
+  'Para jogar com você: um cria a sala online e passa o código para o outro.',
+  'No simulador, por enquanto, só o Pauper.'];
+/** Ordem dos cartões: o do aparelho primeiro; fora de celular, Android e depois iPhone. */
+const ordemDeInstalar = aparelho => aparelho === 'iphone' ? ['iphone', 'android'] : ['android', 'iphone'];
+const mensagemDoConvite = (endereco = ENDERECO_DO_APP) => 'Instala a Estante, meu app de Magic: ' + endereco;
+
+function createConvidarScreen({ share = null, aparelho = aparelhoProvavel(), online = () => typeof navigator === 'undefined' || navigator.onLine !== false, endereco = ENDERECO_DO_APP } = {}) {
+  const { Button, AvisoRede } = __m3;
+  const daCasa = () => typeof navigator !== 'undefined' && !!navigator.share;
+  const copia = async e => {
+    const botao = e && e.currentTarget;
+    const ok = share && share.copy ? await share.copy(endereco) : false;
+    if (ok && botao) __m3.confirmaBotao(botao, { texto: 'Copiado' });
+    toast(ok ? 'Link copiado' : 'Não foi possível copiar. Toque e segure no endereço para copiar à mão.', ok ? 2200 : 3600);
+  };
+  const compartilha = async () => {
+    const casa = daCasa();
+    try {
+      const ok = share && share.text ? await share.text('Estante', mensagemDoConvite(endereco)) : false;
+      if (!casa) toast(ok ? 'Convite copiado: cole na conversa com seu amigo.' : 'Não foi possível compartilhar. Toque e segure no endereço para copiar à mão.', 3600);
+    } catch (err) { if (!err || err.name !== 'AbortError') toast('Não foi possível compartilhar. Use Copiar link.', 3200); } // quem fecha a folha do sistema não vê erro
+  };
+  const cartao = (qual, destaque) => {
+    const p = PASSOS_DE_INSTALAR[qual];
+    return Surface({ class: 'ds-surface--pad apoio-item' + (destaque ? ' apoio-item--destaque' : ''), id: 'convidar-' + qual, dataset: { aparelho: qual } }, Stack({ style: { gap: 'var(--space-2)' } },
+      h('div', { class: 'apoio-item__cabeca' }, h('span', { class: 'apoio-item__selo' }, Icone(p.icone, { tamanho: 20 })),
+        h('h2', { class: 'apoio-item__nome' }, p.titulo), destaque ? Badge('Este aparelho', { tone: 'accent' }) : null),
+      h('ol', { class: 'convidar-passos' }, ...p.passos.map(t => h('li', {}, t)))));
+  };
+  const desenhoDoQr = () => { // SVG pede o espaço de nomes próprio (o h() cria HTML)
+    const NS = 'http://www.w3.org/2000/svg', lado = QR_DO_APP.lado + 8, svg = document.createElementNS(NS, 'svg'), path = document.createElementNS(NS, 'path');
+    for (const [k, v] of Object.entries({ class: 'convidar-qr__papel', id: 'convidar-qr-desenho', viewBox: `0 0 ${lado} ${lado}`, role: 'img', 'aria-label': 'QR code com o endereço da Estante', 'shape-rendering': 'crispEdges' })) svg.setAttribute(k, v);
+    path.setAttribute('d', caminhoDoQr()); svg.appendChild(path); return svg;
+  };
+  return Stack({ class: 'ds-wrap', id: 'convidar', dataset: { aparelho }, style: { paddingTop: 'var(--space-5)', paddingBottom: 'var(--space-8)' } },
+    __m3.Cabecalho('Convidar amigos', { esquerda: IconButton('voltar', 'Voltar ao perfil', { id: 'convidar-voltar', onClick: () => go('/perfil') }) }),
+    Text('Mande o endereço da Estante: seus amigos abrem no celular e instalam como app, sem loja.', { size: 'sm', tone: 'muted' }),
+    online() ? null : AvisoRede('Sem internet: o convite sai assim mesmo; seu amigo abre quando tiver conexão.', { id: 'convidar-sem-rede' }),
+    Surface({ class: 'ds-surface--pad convidar-qr', id: 'convidar-qr' },
+      desenhoDoQr(),
+      Text('Aponte a câmera de outro celular para o código.', { size: 'sm', tone: 'muted', attrs: { id: 'convidar-qr-dica' } }),
+      h('p', { class: 'convidar__endereco', id: 'convidar-endereco', lang: 'en' }, endereco),
+      Row({ class: 'ds-row--wrap convidar__acoes' },
+        Button('Compartilhar', { variant: 'primary', icone: 'compartilhar', id: 'convidar-compartilhar', title: 'Compartilhar o convite', onClick: compartilha }),
+        Button('Copiar link', { variant: 'ghost', icone: 'copiar', id: 'convidar-copiar', title: 'Copiar o endereço da Estante', onClick: copia }))),
+    Text('Como instalar', { size: 'lg', display: true, as: 'h2' }),
+    h('div', { class: 'apoio-lista', id: 'convidar-instalar' }, ...ordemDeInstalar(aparelho).map((q, i) => cartao(q, i === 0 && aparelho !== 'outro'))),
+    Text('No primeiro uso', { size: 'lg', display: true, as: 'h2' }),
+    Surface({ class: 'ds-surface--pad', id: 'convidar-primeiro-uso' }, h('ul', { class: 'convidar-passos convidar-passos--lista' }, ...PRIMEIRO_USO.map(t => h('li', {}, t)))));
+}
+return { DESTINOS, LINKS, PELO_NAVEGADOR, ORIGENS, TEXTO_USO, createSaidaScreen, apagaTudoDoAparelho, apagaTudoComNuvem, APOIO, regiaoProvavel, ordemDoApoio, crc16, cabeNoBr, pixCopiaECola, apoioPronto, acaoDaForma, origensDoApoio, createApoioScreen, ENDERECO_DO_APP, QR_DO_APP, modulosDoQr, caminhoDoQr, aparelhoProvavel, PASSOS_DE_INSTALAR, PRIMEIRO_USO, ordemDeInstalar, mensagemDoConvite, createConvidarScreen };
 })();
 
 /* ==== src/app/relatos.js ==== */
@@ -19133,6 +19247,10 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
       st.conta && st.conta.email && PAINEL_DONOS.includes(String(st.conta.email).toLowerCase()) ? h('a', { class: 'ds-surface ds-expansivel__cabeca perfil-atalho', id: 'perfil-painel', href: 'painel.html' },
         h('span', { class: 'ds-expansivel__selo' }, Icone('painel', { tamanho: 20 })), h('span', { class: 'ds-expansivel__titulo' }, 'Painel Estante'),
         h('span', { class: 'ds-expansivel__resumo' }, 'Evolução, fila e qualidade · só você vê'), Icone('seguir', { tamanho: 20 })) : null,
+      // G-325 · Convidar amigos: link, QR e o passo a passo de instalar no celular de quem recebe
+      h('button', { class: 'ds-surface ds-expansivel__cabeca perfil-atalho', type: 'button', id: 'perfil-convidar', onClick: () => go('/perfil/convidar') },
+        h('span', { class: 'ds-expansivel__selo' }, Icone('pessoas', { tamanho: 20 })), h('span', { class: 'ds-expansivel__titulo' }, 'Convidar amigos'),
+        h('span', { class: 'ds-expansivel__resumo' }, 'Link, QR e como instalar'), Icone('seguir', { tamanho: 20 })),
       // P-20 · MON1 · Apoiar a Estante: a entrada só aparece com os dados reais (com dados de exemplo é prévia, por endereço)
       __m41.apoioPronto() ? h('button', { class: 'ds-surface ds-expansivel__cabeca perfil-atalho', type: 'button', id: 'perfil-apoiar', onClick: () => go('/perfil/apoiar') },
         h('span', { class: 'ds-expansivel__selo' }, Icone('vida', { tamanho: 20 })), h('span', { class: 'ds-expansivel__titulo' }, 'Apoiar a Estante'),
@@ -45078,6 +45196,7 @@ const ROUTES = [
   { path: '/noticias', title: 'Notícias', render: () => renderHome({ ancora: true }) }, // N2 · T2: a Início, aberta nas notícias
   { path: '/noticias/guardadas', title: 'Guardadas', render: () => __m37.createGuardadasScreen({ noticias, share: platform.share }) }, // N4
   { path: '/perfil/partidas', title: 'Partidas', render: () => createPartidasScreen({ partidas }) }, // I5
+  { path: '/perfil/convidar', title: 'Convidar amigos', render: () => __m41.createConvidarScreen({ share: platform.share }) }, // G-325
   { path: '/perfil/apoiar', title: 'Apoiar a Estante', render: () => __m41.createApoioScreen() }, // P-20 · MON1 (com dados de exemplo: só por este endereço, como prévia)
   { path: '/perfil/saida', title: 'O que sai do aparelho', render: () => __m41.createSaidaScreen({ config: { google: !!((typeof window !== 'undefined' && window.__GOOGLE_CLIENT_ID) || GOOGLE_CLIENT_ID), firebase: !!((typeof window !== 'undefined' && window.__FIREBASE_DB_URL) || FIREBASE_DB_URL) }, uso, conectada: () => { try { return online.modo === 'firebase' && conta.estante().estado === 'conectada' && !!conta.sessao.uid(); } catch (e) { return false; } } }) }, // P-6 · SEG5 · G-286 · a chave do uso opt-in
   { path: '/perfil/relatos', title: 'Relatos', render: () => __m38.createRelatosScreen({ relatos, share: platform.share, files: platform.files, fila: envioPelaFila, // T6e-2
