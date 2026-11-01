@@ -6,7 +6,7 @@ import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { arquivosDaFase, falhasDoTap, padraoExato, pushSemFiltro, navegadorDeTela, fatiasDeTela, fatiar, conferirFatias, resumoDoTap, juntaResumo, ARQUIVO_DE_TELA } from './portao.mjs';
+import { arquivosDaFase, falhasDoTap, padraoExato, pushSemFiltro, navegadorDeTela, fatiasDeTela, fatiar, conferirFatias, resumoDoTap, juntaResumo, divisaoDaRapida, PESADOS_DA_RAPIDA, ARQUIVO_DE_TELA } from './portao.mjs';
 const RAIZ = dirname(fileURLToPath(import.meta.url));
 
 test('Q14 · as duas fases cobrem todos os arquivos de teste, sem repetir nenhum; o navegador fica sozinho na segunda', () => {
@@ -129,6 +129,31 @@ test('Q19 · de verdade: um arquivo de teste rodado em duas fatias executa cada 
 });
 
 // Q21 · o portão não muda de sistema sozinho
+test('Q25 · com quatro núcleos os pesados da fase rápida saem num processo próprio desde o início, sem usar núcleo a mais; com dois nada muda', () => {
+  const arquivos = ['a.unit.test.mjs', 'bot.torneio.test.mjs', 'c.unit.test.mjs', 'scripts.unit.test.mjs', 'z.unit.test.mjs'];
+  const ci = divisaoDaRapida(arquivos, 4, {});
+  assert.deepEqual(ci, [
+    { arquivos: ['bot.torneio.test.mjs', 'scripts.unit.test.mjs'], concorrencia: 2 },
+    { arquivos: ['a.unit.test.mjs', 'c.unit.test.mjs', 'z.unit.test.mjs'], concorrencia: 2 },
+  ]);
+  for (const nucleos of [4, 6, 8]) {
+    const d = divisaoDaRapida(arquivos, nucleos, {});
+    assert.deepEqual(d.flatMap((p) => p.arquivos).sort(), [...arquivos].sort(), 'cada arquivo roda uma vez');
+    assert.equal(d.reduce((t, p) => t + p.concorrencia, 0), nucleos, 'os dois processos juntos usam os núcleos que um só usava');
+  }
+  assert.deepEqual(divisaoDaRapida(arquivos, 2, {}), [{ arquivos, concorrencia: 2 }], 'conversas de nuvem: um processo, como antes');
+  assert.deepEqual(divisaoDaRapida(arquivos, 4, { PORTAO_PESADOS: '0' }), [{ arquivos, concorrencia: 4 }], 'PORTAO_PESADOS=0 desliga');
+  assert.deepEqual(divisaoDaRapida(arquivos, 2, { PORTAO_PESADOS: '1' }).map((p) => p.concorrencia), [2, 1], 'PORTAO_PESADOS=1 liga para medir: o resto fica com pelo menos um núcleo');
+  assert.deepEqual(divisaoDaRapida(['a.unit.test.mjs'], 4, {}), [{ arquivos: ['a.unit.test.mjs'], concorrencia: 4 }], 'sem pesado, nada muda');
+  assert.deepEqual(divisaoDaRapida(['bot.torneio.test.mjs'], 4, {}), [{ arquivos: ['bot.torneio.test.mjs'], concorrencia: 4 }], 'só pesado, um processo');
+});
+
+test('Q25 · os pesados existem e estão na fase rápida; renomear um deles sem atualizar a lista devolve a cauda', () => {
+  const rapida = arquivosDaFase('rapido');
+  for (const n of PESADOS_DA_RAPIDA) assert.ok(rapida.includes(n), `${n} está em PESADOS_DA_RAPIDA mas não na fase rápida: atualize a lista em portao.mjs`);
+  assert.match(readFileSync(join(RAIZ, 'portao.mjs'), 'utf8'), /divisaoDaRapida\(arquivos\)/, 'a fase rápida usa a divisão');
+});
+
 test('Q21 · os fluxos que rodam o portão fixam a versão do sistema (ubuntu-latest troca de versão sem aviso e o Playwright instala dependências do sistema)', () => {
   for (const nome of ['gate.yml', 'fila.yml']) {
     const yml = readFileSync(join(FLUXOS, nome), 'utf8');
