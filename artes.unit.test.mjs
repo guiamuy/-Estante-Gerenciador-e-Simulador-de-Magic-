@@ -234,14 +234,15 @@ test('S-597 · nome impresso em português responde pelo nome da base em inglês
 test('S-597 · base de nomes: os nomes em português vêm do ramo artes, ficam guardados, e base estranha não entra', async () => {
   const store = lojaMemoria(); let t = Date.UTC(2026, 10, 2), pedidos = 0;
   const scryfall = { catalogNames: async () => ['Beledros Witherbloom', 'Counterspell'] };
-  const fetchBom = async url => { pedidos++; assert.match(url, /\/artes\/nomes-pt\.json$/); return { ok: true, json: async () => ({ versao: 1, idioma: 'pt', pares: [['Beledros Murchaflor', 'Beledros Witherbloom']] }) }; };
+  const fetchBom = async url => { pedidos++; assert.match(url, /\/artes\/nomes-[a-z]+\.json$/); if (!/nomes-pt\.json$/.test(url)) return { ok: false, status: 404 }; return { ok: true, json: async () => ({ versao: 1, idioma: 'pt', pares: [['Beledros Murchaflor', 'Beledros Witherbloom']] }) }; };
   const n1 = X.createNameIndex({ store, scryfall, now: () => t, fetchFn: fetchBom });
   await n1.ensure({ online: true });
   assert.equal(n1.match('Beledros Murchaflor')[0].name, 'Beledros Witherbloom'); assert.equal(n1.info().apelidos, 1);
+  const feitos = pedidos;
   // sem rede, outra sessão: abre os guardados
   const n2 = X.createNameIndex({ store, scryfall, now: () => t, fetchFn: async () => { throw new Error('sem rede'); } });
   await n2.ensure({ online: false });
-  assert.equal(n2.match('Beledros Murchaflor')[0].name, 'Beledros Witherbloom'); assert.equal(pedidos, 1);
+  assert.equal(n2.match('Beledros Murchaflor')[0].name, 'Beledros Witherbloom'); assert.equal(pedidos, feitos);
   // arquivo estranho: ignorado, a base em inglês segue
   const loja2 = lojaMemoria();
   const n3 = X.createNameIndex({ store: loja2, scryfall, now: () => t, fetchFn: async () => ({ ok: true, json: async () => ({ versao: 1, pares: [['<b>x</b>', 5]] }) }) });
@@ -270,4 +271,124 @@ test('S-597 · gerador: nomes em português pela busca da Scryfall (lang:pt), p�
   const pares = await nomesNoIdioma(fetchFn, 'pt', { pausa: 0 });
   assert.equal(urls.length, 2);
   assert.equal(JSON.stringify(pares), JSON.stringify([['Beledros Murchaflor', 'Beledros Witherbloom'], ['Fogo', 'Fire // Ice'], ['Gelo', 'Fire // Ice']]), 'nome igual ao inglês não entra; repetido entra uma vez');
+});
+
+/* ---------------- S-598 · X20 fatia 2: espanhol, italiano, francês e alemão ---------------- */
+/** Arquivos de nomes por língua, como o fluxo publica no ramo artes (pares de teste, não cartas reais). */
+const NOMES_TESTE = {
+  pt: [['Anular Feitiço', 'Counterspell']],
+  es: [['Contrahechizo Prueba', 'Counterspell'], ['Señor de Prueba', 'Test Lord']],
+  it: [['Controincantesimo Prova', 'Counterspell'], ['Città di Prova', 'Test City']],
+  fr: [['Contresort Épreuve', 'Counterspell']],
+  de: [['Gegenzauber Prüfung', 'Counterspell'], ['Straße der Probe', 'Test City']]
+};
+const fetchDosNomes = (pedidos = [], { falha = new Set(), idiomaErrado = new Set() } = {}) => async url => {
+  const m = /\/artes\/nomes-([a-z]+)\.json$/.exec(url); assert.ok(m, 'só o ramo artes: ' + url);
+  pedidos.push(m[1]);
+  if (falha.has(m[1])) throw new Error('rede caiu');
+  if (!NOMES_TESTE[m[1]]) return { ok: false, status: 404 };
+  return { ok: true, json: async () => ({ versao: 1, idioma: idiomaErrado.has(m[1]) ? 'xx' : m[1], pares: NOMES_TESTE[m[1]] }) };
+};
+
+test('S-598 · nome impresso em espanhol, italiano, francês ou alemão responde pelo nome em inglês; sem a língua, não casa', async () => {
+  const scryfall = { catalogNames: async () => ['Counterspell', 'Test Lord', 'Test City', 'Island'] };
+  const so = X.createNameIndex({ store: lojaMemoria(), scryfall, fetchFn: fetchDosNomes(), idiomas: ['pt'] });
+  await so.ensure({ online: true });
+  assert.ok(!(so.match('Señor de Prueba')[0]?.score >= X.ACCEPT), 'só com o português, a carta em espanhol não casa (o defeito)');
+  const loja = lojaMemoria();
+  const n = X.createNameIndex({ store: loja, scryfall, fetchFn: fetchDosNomes() });
+  await n.ensure({ online: true });
+  assert.equal(n.match('Señor de Prueba')[0].name, 'Test Lord'); assert.equal(n.match('Senor de Prueba')[0].name, 'Test Lord', 'ñ lido como n');
+  assert.equal(n.match('Citta di Prova')[0].name, 'Test City', 'à lido sem acento');
+  assert.equal(n.match('Contresort Epreuve')[0].name, 'Counterspell');
+  assert.equal(n.match('Gegenzauber Prufung')[0].name, 'Counterspell', 'ü lido como u');
+  assert.equal(n.match('Strabe der Probe')[0].name, 'Test City', 'ß lido como b pelo leitor em inglês também casa');
+  assert.equal(n.match('Anular Feitico')[0].name, 'Counterspell'); assert.equal(n.match('Island')[0].name, 'Island', 'o inglês continua');
+  assert.equal(JSON.stringify(n.info().idiomas), JSON.stringify({ pt: 1, es: 2, it: 2, fr: 1, de: 2 }));
+  for (const l of ['pt', 'es', 'it', 'fr', 'de']) assert.ok(loja.m.has('names.' + l), 'guardado por língua: names.' + l);
+  assert.equal(X.IDIOMAS_DOS_NOMES.join(','), 'pt,es,it,fr,de', 'só escrita latina: o leitor de hoje lê; ja/zh/ko/ru vêm com leitor próprio');
+});
+
+test('S-598 · uma língua que falha não impede as outras; arquivo de outra língua não entra; só baixa de novo a língua velha', async () => {
+  const scryfall = { catalogNames: async () => ['Counterspell', 'Test Lord', 'Test City'] };
+  const loja = lojaMemoria(); let t = Date.UTC(2026, 10, 2); const pedidos = [];
+  const n = X.createNameIndex({ store: loja, scryfall, now: () => t, fetchFn: fetchDosNomes(pedidos, { falha: new Set(['it']), idiomaErrado: new Set(['fr']) }) });
+  await n.ensure({ online: true });
+  assert.equal(n.match('Señor de Prueba')[0].name, 'Test Lord', 'o espanhol entrou mesmo com o italiano fora do ar');
+  assert.equal(JSON.stringify(n.info().idiomas), JSON.stringify({ pt: 1, es: 2, de: 2 }), 'italiano falhou, francês veio com a língua errada');
+  assert.equal(loja.m.has('names.fr'), false);
+  // dia seguinte: só as que faltam são pedidas de novo
+  t += 86400000; pedidos.length = 0;
+  const n2 = X.createNameIndex({ store: loja, scryfall, now: () => t, fetchFn: fetchDosNomes(pedidos) });
+  await n2.ensure({ online: true });
+  assert.equal(pedidos.sort().join(','), 'fr,it');
+  assert.equal(n2.match('Citta di Prova')[0].name, 'Test City');
+  // 31 dias depois: todas velhas, todas pedidas de novo
+  t += 31 * 86400000; pedidos.length = 0;
+  const n3 = X.createNameIndex({ store: loja, scryfall, now: () => t, fetchFn: fetchDosNomes(pedidos) });
+  await n3.ensure({ online: true });
+  assert.equal(pedidos.length, 5);
+});
+
+test('S-598 · gerador: separa os objetos do fluxo dos dados em massa em qualquer corte (chaves e aspas dentro de texto)', async () => {
+  const { separaObjetos } = await import('./artes.mjs');
+  const objs = [{ a: 'x}{"', b: { c: [1, { d: '\\' }] } }, { lang: 'pt', printed_name: 'Feitiço {Ç}' }, { e: '' }];
+  const texto = '[\n' + objs.map(o => JSON.stringify(o)).join(',\n') + '\n]';
+  for (const passo of [1, 2, 3, 7, 50, texto.length]) {
+    const f = separaObjetos(), out = [];
+    for (let i = 0; i < texto.length; i += passo) out.push(...f(texto.slice(i, i + passo)));
+    assert.equal(JSON.stringify(out.map(o => JSON.parse(o))), JSON.stringify(objs), 'corte de ' + passo);
+  }
+});
+
+test('S-598 · gerador: nomes de todas as línguas num download só (All Cards), inglês ignorado, faces das duplas, letra partida entre pedaços', async () => {
+  const { nomesDosDadosEmMassa, gera } = await import('./artes.mjs');
+  const cartas = [
+    { lang: 'en', name: 'Counterspell', printed_name: 'Counterspell' },
+    { lang: 'pt', name: 'Counterspell', printed_name: 'Anular Feitiço' },
+    { lang: 'it', name: 'Counterspell', printed_name: 'Controincantesimo Prova' },
+    { lang: 'es', name: 'Fire // Ice', card_faces: [{ name: 'Fire', printed_name: 'Fuego' }, { name: 'Ice', printed_name: 'Hielo' }] },
+    { lang: 'ja', name: 'Counterspell', printed_name: '対抗呪文' },
+    { lang: 'pt', name: 'Counterspell', printed_name: 'Anular Feitiço' },
+    { lang: 'de', name: 'Island', printed_name: 'Insel' },
+    { lang: 'ru', name: 'Island', printed_name: 'Остров' }
+  ];
+  const bytes = new TextEncoder().encode(JSON.stringify(cartas, null, 0).replace(/},{/g, '},\n{'));
+  const pedidas = [];
+  const fetchFn = async (url, opts) => {
+    pedidas.push(url); assert.match(opts.headers['User-Agent'], /^Estante\//);
+    if (url === 'https://api.scryfall.com/bulk-data/all-cards') return { ok: true, json: async () => ({ download_uri: 'https://data.scryfall.io/all-cards/x.json' }) };
+    if (url === 'https://data.scryfall.io/all-cards/x.json') {
+      // pedaços de 5 bytes: "ç", "対" e "О" ficam partidos entre dois pedaços
+      return { ok: true, body: (async function* () { for (let i = 0; i < bytes.length; i += 5) yield bytes.slice(i, i + 5); })() };
+    }
+    throw new Error('url inesperada ' + url);
+  };
+  const r = await nomesDosDadosEmMassa(fetchFn, ['pt', 'es', 'it', 'de', 'ja', 'ru']);
+  assert.equal(JSON.stringify(r), JSON.stringify({
+    pt: [['Anular Feitiço', 'Counterspell']], es: [['Fuego', 'Fire // Ice'], ['Hielo', 'Fire // Ice']], it: [['Controincantesimo Prova', 'Counterspell']],
+    de: [['Insel', 'Island']], ja: [['対抗呪文', 'Counterspell']], ru: [['Остров', 'Island']] }));
+  assert.equal(pedidas.length, 2, 'um pedido de endereço e um download: nenhuma busca paginada');
+  // o gerador grava um arquivo por língua a partir dele
+  const pasta = await mkdtemp(join(tmpdir(), 'artes-'));
+  const art = scryfallFalsa(3);
+  const tudo = async (url, opts) => (/all-cards/.test(url) ? fetchFn(url, opts) : art.fetchFn(url, opts));
+  const g = await gera({ saida: pasta, fetchFn: tudo, X, log: () => {}, idiomas: ['pt', 'it', 'ja'] });
+  assert.equal(JSON.stringify(g.nomes), JSON.stringify({ pt: 1, it: 1, ja: 1 }));
+  const it = JSON.parse(await readFile(join(pasta, 'nomes-it.json'), 'utf8'));
+  assert.equal(it.idioma, 'it'); assert.equal(it.versao, 1); assert.match(it.fonte, /All Cards/); assert.equal(it.pares[0][0], 'Controincantesimo Prova');
+});
+
+test('S-598 · gerador: dados em massa fora do ar → segue pela busca, uma língua por vez', async () => {
+  const { gera } = await import('./artes.mjs');
+  const pasta = await mkdtemp(join(tmpdir(), 'artes-'));
+  const art = scryfallFalsa(3); const buscas = [];
+  const fetchFn = async (url, opts) => {
+    if (/bulk-data\/all-cards/.test(url)) return { ok: false, status: 503 };
+    if (/cards\/search/.test(url)) { buscas.push(url); return { ok: true, json: async () => ({ data: [{ name: 'Island', printed_name: /lang%3Ait/.test(url) ? 'Isola' : 'Ilha' }], has_more: false }) }; }
+    return art.fetchFn(url, opts);
+  };
+  const g = await gera({ saida: pasta, fetchFn, X, log: () => {}, idiomas: ['pt', 'it'], pausaNomes: 0 });
+  assert.equal(buscas.length, 2); assert.equal(JSON.stringify(g.nomes), JSON.stringify({ pt: 1, it: 1 }));
+  assert.match(JSON.parse(await readFile(join(pasta, 'nomes-it.json'), 'utf8')).fonte, /busca lang:it/);
 });
