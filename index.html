@@ -2241,6 +2241,25 @@ body:has(#outlet .ds-fab[data-acoes="1"]) #outlet { padding-bottom: calc(56px + 
 .mesa-formato-medida__conta { font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--fg-muted); }
 .mesa-formato-medida__conta b { color: var(--fg); font-weight: 700; }
 .deck-picker > .deck-item { display: flex; border-bottom: none; }
+/* DS-K2 J2 (G-318) · Jogar como mesa de preparação: a sua lista e a do oponente são cartões com a carta-chave em arte,
+   o nome em Cormorant e a meta embaixo; o Começar mora numa doca que fica à vista o tempo todo (reserva --doca-h, como
+   as outras docas: o aviso flutuante e o Relatar sobem). Um destaque de ébano por tela: o bloco da sua lista. */
+.mesa-setup { display: grid; gap: var(--space-4); }
+.mesa-hero .ds-field + .ds-field { margin-top: var(--space-1); }
+.deck-picker--hero { border-color: color-mix(in srgb, var(--accent-lo) 35%, var(--border)); }
+.deck-picker--hero > .deck-item { display: grid; grid-template-columns: 64px minmax(0, 1fr) 24px; gap: var(--space-3); align-items: center; padding: var(--space-3); }
+.deck-hero__arte { width: 64px; aspect-ratio: 488 / 680; border-radius: var(--radius-card); overflow: hidden; background: var(--bg-elev-2); box-shadow: var(--shadow-1); display: flex; align-items: center; justify-content: center; color: var(--fg-subtle); }
+.deck-hero__arte img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.deck-picker--hero .deck-item__nome { font-family: var(--font-display); font-weight: 600; font-size: var(--text-xl); line-height: var(--lh-xl); text-wrap: balance; }
+.deck-picker--hero .deck-item__meta { margin-top: var(--space-1); }
+.deck-picker--hero .ds-list__seta { justify-self: end; }
+.ds-destaque .deck-picker--hero { background: var(--bg-elev-1); }
+.mesa-doca { position: sticky; bottom: 0; z-index: 2; margin: 0 calc(-1 * var(--space-4)); padding: var(--space-3) var(--space-4) calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
+  background: var(--bg-elev-1); border-top: 1px solid color-mix(in srgb, var(--accent-lo) 40%, var(--border)); box-shadow: var(--shadow-up); display: grid; gap: var(--space-2); }
+.mesa-doca .ds-btn { width: 100%; }
+.mesa-doca__resumo { font-size: var(--text-sm); color: var(--fg-muted); text-align: center; text-wrap: balance; min-height: 1.25em; }
+.mesa-doca__resumo b { color: var(--fg); font-weight: 600; }
+body[data-tela="mesa"] .ds-relatar { bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px) + var(--doca-h, 0px)); }
 .deck-picker__lista .deck-item { width: 100%; border: none; border-bottom: 1px solid var(--border); background: none; color: inherit; font: inherit; cursor: pointer; }
 .deck-picker__lista .deck-item[aria-checked="true"] { background: var(--accent-soft); }
 .deck-picker__lista .deck-item__ja { width: 24px; height: 24px; }
@@ -38899,9 +38918,27 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
     let guardadas = new Map();
     try { if (cardRepo && cardRepo.cached) guardadas = await cardRepo.cached([...all, ...doShark].flatMap(d => d.entries.map(e => e.name))); } catch (e) { /* sem cache: sem cores */ }
     const linhaDe = (d, extra) => { const c = contaDeck(d); return __m15.DeckLinha({ nome: d.name, formato: d.format, cores: coresDaLista(d.entries, guardadas), main: c.main, side: c.side, motor: { lista: d, cards: guardadas }, ...extra }); }; // G-301 · relato #32: o selo do motor em toda escolha de lista
+    /* DS-K2 J2 (G-318) · a carta-chave de uma lista: o comandante; senão a carta que não é terreno com mais cópias (empate:
+       a de maior custo) que tem imagem guardada. Sem imagem no aparelho, o ladrilho mostra o ícone do baralho. */
+    const cartaChave = d => {
+      const cmd = d.entries.find(e => e.zone === 'commander'); if (cmd && guardadas.get(norm(cmd.name))) return guardadas.get(norm(cmd.name));
+      const cands = d.entries.filter(e => e.zone !== 'side').map(e => ({ e, c: guardadas.get(norm(e.name)) })).filter(x => x.c && !/\bLand\b/.test(x.c.type_line || ''))
+        .sort((a, b) => b.e.qty - a.e.qty || (b.c.cmc || 0) - (a.c.cmc || 0));
+      return cands.length ? cands[0].c : null;
+    };
+    const heroDe = (d, extra) => {
+      const el = linhaDe(d, extra);
+      const c = cartaChave(d), im = c && (c.images || (c.faces && c.faces[0] && c.faces[0].images));
+      const arte = h('span', { class: 'deck-hero__arte', 'aria-hidden': 'true' });
+      const img = im ? __m3.ImagemCarta(im, { alt: '', sizes: '64px', classe: 'deck-hero__img', onFalha: i => { i.remove(); arte.appendChild(Icone('baralho', { tamanho: 24 })); } }) : null;
+      arte.appendChild(img || Icone('baralho', { tamanho: 24 }));
+      el.prepend(arte);
+      return el;
+    };
     // B-22 · a linha de uma lista do Shark diz de onde ela veio (torneio, colocação, jogador, data)
     const origemDoShark = l => `${l.origem} · ${l.jogador} · ${l.data.split('-').reverse().join('/')}`;
     const linhaDoShark = (d, extra) => { const el = linhaDe(d, extra); el.querySelector('.deck-item__corpo').append(h('span', { class: 'deck-item__origem ds-text ds-text--sm ds-text--muted' }, origemDoShark(d.shark))); return el; };
+    const heroDoShark = (d, extra) => { const el = heroDe(d, extra); el.querySelector('.deck-item__corpo').append(h('span', { class: 'deck-item__origem ds-text ds-text--sm ds-text--muted' }, origemDoShark(d.shark))); return el; };
     /* G-312 · relato #36 · uma lista só é escolha para jogar se joga: válida no formato (as regras do editor, `validateDeck`) e
        100% no motor (a mesma conta do selo, `contaMotor`, com as cartas guardadas no aparelho). As outras aparecem à parte, com
        o motivo, sem ser escolhidas. A conta fica guardada por lista (cache do selo); DEV joga tudo (testes de mesa). */
@@ -38921,9 +38958,9 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
     /** G-312 · as duas listas valem no formato (a do Shark é do bot e já vale); a cobertura é conferida à parte. */
     const validaParaJogar = () => situacaoDaLista(byId(state.mine)).motivo !== 'formato'
       && !(state.opponent === 'hotseat' && situacaoDaLista(byId(state.theirs)).motivo === 'formato');
-    function seletor(id, rotulo, valor, aoEscolher, fonte = visiveis, acha = byId, linha = linhaDe, classifica = null) {
+    function seletor(id, rotulo, valor, aoEscolher, fonte = visiveis, acha = byId, linha = linhaDe, classifica = null, hero = linha === linhaDoShark ? heroDoShark : heroDe) {
       const d = acha(valor);
-      const botao = h('button', { class: 'deck-picker', id, type: 'button', 'aria-haspopup': 'dialog', 'aria-label': `${rotulo}: ${d ? d.name : 'nenhuma'}. Trocar`,
+      const botao = h('button', { class: 'deck-picker deck-picker--hero', id, type: 'button', 'aria-haspopup': 'dialog', 'aria-label': `${rotulo}: ${d ? d.name : 'nenhuma'}. Trocar`,
         onClick: () => {
           const todas = fonte(), sit = classifica ? new Map(todas.map(x => [x.id, classifica(x)])) : null;
           const jogam = sit ? todas.filter(x => sit.get(x.id).joga) : todas, nao = sit ? todas.filter(x => !sit.get(x.id).joga) : [];
@@ -38944,7 +38981,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
               h('div', { class: 'ds-list__group' }, `Ainda não jogam · ${nao.length}`), ...nao.map(naoJoga)) : null),
             actions: [Button('Voltar', { onClick: closeDialog })] });
         } },
-        d ? linha(d, { tag: 'span', fim: Icone('descer', { tamanho: 18, classe: 'ds-list__seta' }) }) : Text('Escolha uma lista', { tone: 'muted' }));
+        d ? hero(d, { tag: 'span', fim: Icone('descer', { tamanho: 18, classe: 'ds-list__seta' }) }) : Text('Escolha uma lista', { tone: 'muted' }));
       return ChipField(rotulo, botao);
     }
     const mineField = h('div', {});
@@ -39143,11 +39180,23 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
       return __m3.LinhaEstado([item], { id: 'mesa-estado-dele', titulo, ladrilhos: true });
     }
     let startBtn = null;
+    const resumoDaDoca = h('p', { class: 'mesa-doca__resumo', id: 'mesa-doca-resumo', 'aria-live': 'polite' });
+    /** DS-K2 J2 · a linha da doca diz o que vai começar: "Mono Azul Delver × Shark · Pauper", ou o que falta para começar. */
+    function pintaResumo(ok) {
+      const mine = byId(state.mine), dele = deckDoOponente();
+      const quem = state.opponent === 'goldfish' ? 'Goldfish' : ehBot() ? __m25.NOME_DO_BOT : state.opponent === 'online' ? 'Online' : (dele ? dele.name : 'Oponente');
+      const t = x => document.createTextNode(x);
+      if (!mine) return mount(resumoDaDoca, t('Escolha uma lista para começar.'));
+      if (state.opponent === 'online') return mount(resumoDaDoca, h('b', {}, mine.name), t(' · a partida começa pela sala'));
+      if (ok) return mount(resumoDaDoca, h('b', {}, mine.name), t(' × '), h('b', {}, quem), t(` · ${FORMATS[state.format] || state.format}`));
+      mount(resumoDaDoca, t(ehBot() && !dele ? 'O Shark não tem lista neste formato.' : state.coverage < 100 || state.coberturaDele < 100 ? 'Uma das listas ainda não joga inteira no motor.' : 'Conferindo as listas…'));
+    }
     function paintStart() {
       if (!startBtn) return;
       const ok = (DEV || (state.coverage === 100 && state.coberturaDele === 100 && aberto(state.format) && validaParaJogar())) && !(ehBot() && !deckDoOponente()); // B-22 · Shark sem lista no formato: nada pela metade; G-311 · formato fechado não começa
       startBtn.disabled = !ok || state.busy;
       startBtn.classList.toggle('ds-hidden', state.opponent === 'online'); // leva 133 · online começa pela sala
+      pintaResumo(ok);
       const xs = state.faltamDele;
       const deleFora = !DEV && state.opponent === 'hotseat' && byId(state.theirs) && situacaoDaLista(byId(state.theirs)).motivo === 'formato' // G-312
         ? Note(__m3.seguro`<b>A lista do oponente não vale no ${FORMATS[state.format] || state.format}.</b> ${situacaoDaLista(byId(state.theirs)).texto}`, 'warning') : null;
@@ -39411,12 +39460,18 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
           Button(saved.options && saved.options.online ? 'Encerrar por abandono' : 'Descartar', { variant: 'danger', icone: 'lixeira', id: 'mesa-descartar', onClick: async () => {
             if (saved.options && saved.options.online && online) { try { await online.sala.encerrar(saved.options.online.codigo, 'abandonou'); } catch (e) { /* sala já foi */ } }
             await store.remove(T.SAVE_KEY); await store.remove(T.SERIE_KEY); toast('Partida descartada'); go('/'); go('/mesa'); } })))) : null,
-      Surface({ class: 'ds-surface--pad ds-surface--shelf' }, Stack({},
+      h('div', { class: 'mesa-setup', id: 'mesa-setup' },
+      // DS-K2 J2 (G-318) · o destaque em ébano da tela é a sua lista (formato, cartão, estado); o oponente vem numa superfície
+      // comum; Série, Paradas e Semente ficam juntas em "Opções da partida" (abertas: 94 testes e o uso diário dependem delas à mão); o Começar mora na doca, sempre à vista
+      Surface({ class: 'ds-surface--pad ds-destaque mesa-hero', id: 'mesa-hero' }, Stack({},
         ChipField('Formato', formatBox),
         mineField,
-        covBox,
+        covBox)),
+      Surface({ class: 'ds-surface--pad' }, Stack({},
         ChipField('Oponente', oppChips), oppNota,
-        theirsField, bloqueioDele,
+        theirsField, bloqueioDele)),
+      Surface({ class: 'ds-surface--pad mesa-opcoes', id: 'mesa-opcoes' }, Stack({},
+        Text('Opções da partida', { size: 'lg', display: true, as: 'h2' }),
         ChipField('Série', serieChips, '', { dica: 'Melhor de 3: vence quem ganhar duas. Entre as partidas você troca cartas do deck com a reserva. Online, vale a escolha de quem cria a sala.' }),
         DEV ? ChipField('Modo (teste)', modeBox) : null,
         DEV ? ChipField('Mana (teste)', (() => { const c = Chip('Cobrar mana', { pressed: true, dataset: { mana: '1' } });
@@ -39425,8 +39480,9 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
           c.addEventListener('click', () => { state.stopAll = !state.stopAll; c.setAttribute('aria-pressed', String(state.stopAll)); }); return c; })(),
           '', { dica: 'Ligado: a mesa para em todos os passos. Desligado: passa sozinha onde não há decisão, como no Arena.' }),
         Field('Semente', Input({ id: 'mesa-seed', value: String(state.seed), inputmode: 'numeric', onInput: e => { state.seed = parseInt(e.target.value, 10) || 0; } }),
-          { dica: 'A mesma semente com as mesmas jogadas reproduz a partida.' }),
-        Row({}, startBtn))));
+          { dica: 'A mesma semente com as mesmas jogadas reproduz a partida.' }))),
+      __m3.reservaDoca(h('div', { class: 'mesa-doca', id: 'mesa-doca' }, resumoDaDoca, startBtn))));
+    paintStart();
     // leva 133 · saiu da tela esperando alguém: para de ouvir (a sala continua e pode ser cancelada ao voltar)
     const vigia = setInterval(() => { if (!root.isConnected) { clearInterval(vigia); if (on.parar) { on.parar(); on.parar = null; } } }, 1000);
   })();

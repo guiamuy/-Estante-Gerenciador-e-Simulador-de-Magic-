@@ -549,6 +549,17 @@ test('DS-K · F5.2 endereço inexistente e lista inexistente têm cabeçalho com
   assert.match(HTML, /__m3\.Cabecalho\('Lista', \{ esquerda: IconButton\('voltar', 'Voltar para Minhas listas', \{ id: 'deck-voltar'/);
 });
 
+/* ---------------- DS-K2 (G-318) · J2 Jogar como mesa de preparação ---------------- */
+test('DS-K2 · J2 o Jogar tem a sua lista como cartão com a carta-chave dentro do destaque, a doca do Começar reserva a altura e o Relatar sobe acima dela', () => {
+  assert.match(componentCss, /\.deck-picker--hero > \.deck-item \{ display: grid; grid-template-columns: 64px minmax\(0, 1fr\) 24px;/);
+  assert.match(componentCss, /\.deck-hero__arte \{ width: 64px; aspect-ratio: 488 \/ 680;/);
+  assert.match(componentCss, /\.mesa-doca \{ position: sticky; bottom: 0;/);
+  assert.match(componentCss, /body\[data-tela="mesa"\] \.ds-relatar \{ bottom: calc\(var\(--space-4\) \+ env\(safe-area-inset-bottom, 0px\) \+ var\(--doca-h, 0px\)\); \}/);
+  assert.ok(HTML.includes("Surface({ class: 'ds-surface--pad ds-destaque mesa-hero', id: 'mesa-hero' }"), 'o destaque da tela é a sua lista');
+  assert.ok(HTML.includes("__m3.reservaDoca(h('div', { class: 'mesa-doca', id: 'mesa-doca' }, resumoDaDoca, startBtn))"), 'o Começar mora na doca');
+  assert.ok(!HTML.includes("ChipField('Formato', formatBox),\n        mineField,\n        covBox,\n        ChipField('Oponente'"), 'o formulário único saiu');
+});
+
 /* ---------------- DS-K (G-295) · F2.3 topo da Lista em ébano ---------------- */
 test('DS-K · F2.3 o topo da Lista é o destaque em ébano (nome, formato em latão, contagens) e o latão em texto pequeno sobre o ébano usa --accent-lo', () => {
   assert.match(HTML, /Surface\(\{ class: 'ds-destaque ds-surface--pad deck-topo', id: 'deck-topo' \}/);

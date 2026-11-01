@@ -8851,18 +8851,19 @@ test('e2e · I3 tela Jogar: o estado da lista é uma linha de ícones com folha 
   await auditaTela(page, 'folha do estado da lista');
   await page.keyboard.press('Escape'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
   // 4 · dicas: três "i" de 44 px; um toque abre o texto logo abaixo do rótulo, outro fecha; toque fora e Esc também
-  const dicas = await page.$$eval('.ds-surface--shelf .ds-dica', bs => bs.map(b => ({ fala: b.getAttribute('aria-label'), w: Math.round(b.getBoundingClientRect().width), h: Math.round(b.getBoundingClientRect().height), aberto: b.getAttribute('aria-expanded'), icone: (b.querySelector('.ds-icon') || { dataset: {} }).dataset.icone })));
+  // G-318 · as três dicas moram em "Opções da partida" (antes: a prateleira única do formulário)
+  const dicas = await page.$$eval('#mesa-opcoes .ds-dica', bs => bs.map(b => ({ fala: b.getAttribute('aria-label'), w: Math.round(b.getBoundingClientRect().width), h: Math.round(b.getBoundingClientRect().height), aberto: b.getAttribute('aria-expanded'), icone: (b.querySelector('.ds-icon') || { dataset: {} }).dataset.icone })));
   assert.deepEqual(dicas.map(d => d.fala), ['Sobre Série', 'Sobre Paradas', 'Sobre Semente']);
   assert.ok(dicas.every(d => d.w >= 44 && d.h >= 44 && d.aberto === 'false' && d.icone === 'info'), JSON.stringify(dicas));
   const serie = page.locator('.ds-dica[aria-label="Sobre Série"]');
-  const antes = await page.$eval('#mesa-serie', e => Math.round(e.getBoundingClientRect().top));
+  const antes = await page.$eval('#mesa-serie', e => Math.round(e.getBoundingClientRect().top + window.scrollY)); // G-318 · posição na página: a Série fica abaixo da dobra e o toque na dica rola até ela
   await serie.click();
   const balao = page.locator('.ds-dica[aria-label="Sobre Série"] + .ds-dica__balao');
   await balao.waitFor({ state: 'visible' }); await page.waitForTimeout(300); // a dica entra com movimento curto: mede depois dele
   assert.match(await balao.innerText(), /vence quem ganhar duas/); assert.equal(await serie.getAttribute('aria-expanded'), 'true');
-  const geo = await page.evaluate(() => { const b = document.querySelector('.ds-dica[aria-label="Sobre Série"] + .ds-dica__balao').getBoundingClientRect(), c = document.querySelector('#mesa-serie').getBoundingClientRect(); return { baixo: Math.round(b.bottom), chips: Math.round(c.top), esq: Math.round(b.left), dir: Math.round(b.right), tela: innerWidth }; });
+  const geo = await page.evaluate(() => { const b = document.querySelector('.ds-dica[aria-label="Sobre Série"] + .ds-dica__balao').getBoundingClientRect(), c = document.querySelector('#mesa-serie').getBoundingClientRect(); return { baixo: Math.round(b.bottom), chips: Math.round(c.top), chipsPagina: Math.round(c.top + window.scrollY), esq: Math.round(b.left), dir: Math.round(b.right), tela: innerWidth }; });
   assert.ok(geo.baixo <= geo.chips + 1 && geo.esq >= 0 && geo.dir <= geo.tela, 'a dica abre entre o rótulo e o controle, dentro da tela: ' + JSON.stringify(geo));
-  assert.ok(geo.chips > antes, 'em fluxo: empurra o controle, não cobre');
+  assert.ok(geo.chipsPagina > antes, 'em fluxo: empurra o controle, não cobre');
   await auditaTela(page, 'Jogar com a dica aberta');
   await serie.click(); await balao.waitFor({ state: 'hidden' });
   await serie.click(); await balao.waitFor({ state: 'visible' }); await page.locator('h1').dispatchEvent('pointerdown'); await balao.waitFor({ state: 'hidden' });
@@ -9024,6 +9025,51 @@ test('e2e · DS-K2 J1 · o Jogar abre sempre no Pauper: com a medida real (616 d
   await page.click('[data-table-format="commander"]'); await page.waitForSelector('#mesa-formato-fechado');
   assert.match(await page.innerText('#mesa-formato-fechado'), /Hoje jogam inteiros: Pauper\./);
   await page.keyboard.press('Escape'); await page.waitForSelector('#mesa-formato-fechado', { state: 'detached' });
+  assert.deepEqual(errors, []);
+});
+
+/* G-318 · DS-K2 J2 · o Jogar como mesa de preparação no DS-K */
+test('e2e · DS-K2 J2 · Jogar como mesa de preparação: a sua lista é um cartão com a carta-chave dentro do destaque em ébano (um só), a do Shark também; Começar partida mora numa doca sempre à vista com o resumo "lista × oponente · formato"; o Relatar sobe acima da doca; 360 e 390, dois temas, AA', { skip }, async t => {
+  const { page, errors, base } = await open(t, { dev: false });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'Mono Azul Delver', PAUPER, 'pauper');
+  const mede = () => page.evaluate(() => {
+    const hero = document.querySelector('#mesa-hero'), doca = document.querySelector('#mesa-doca'), rel = document.querySelector('#relatar-abrir');
+    const probe = document.createElement('span'); probe.style.color = getComputedStyle(document.documentElement).getPropertyValue('--bg-elev-0'); document.body.appendChild(probe); const funda = getComputedStyle(probe).color; probe.remove();
+    const cv = document.createElement('canvas'); cv.width = cv.height = 1; const cx = cv.getContext('2d');
+    const rgb = k => { cx.clearRect(0, 0, 1, 1); cx.fillStyle = k; cx.fillRect(0, 0, 1, 1); return [...cx.getImageData(0, 0, 1, 1).data].slice(0, 3); };
+    const lum = k => rgb(k).map(v => v / 255).map(v => v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4).reduce((a, v, i) => a + v * [0.2126, 0.7152, 0.0722][i], 0);
+    const r = (p, q) => { const [m, n] = [lum(p), lum(q)].sort((u, v) => v - u); return (m + 0.05) / (n + 0.05); };
+    const fundoDe = el => { for (let p = el; p; p = p.parentElement) { const bg = getComputedStyle(p).backgroundColor; if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') return bg; } return 'white'; };
+    const ruins = []; const wk = document.createTreeWalker(hero, NodeFilter.SHOW_TEXT);
+    while (wk.nextNode()) { const el = wk.currentNode.parentElement; if (!wk.currentNode.textContent.trim() || el.getBoundingClientRect().width <= 1 || el.closest('[aria-pressed="false"].ds-chip')) continue; const k = r(getComputedStyle(el).color, fundoDe(el)); if (k < 4.5) ruins.push(`${wk.currentNode.textContent.trim().slice(0, 20)} ${k.toFixed(2)}`); }
+    const d = doca.getBoundingClientRect(), rr = rel ? rel.getBoundingClientRect() : null;
+    return { ebano: getComputedStyle(hero).backgroundColor === funda, destaques: document.querySelectorAll('#outlet .ds-destaque').length, ruins,
+      heroMine: !!document.querySelector('#mesa-hero #mesa-mine.deck-picker--hero .deck-hero__arte'), docaNoPe: Math.abs(d.bottom - innerHeight) <= 1, docaH: getComputedStyle(document.documentElement).getPropertyValue('--doca-h').trim(),
+      comecarNaDoca: !!doca.querySelector('#mesa-start'), relatarAcima: rr ? rr.bottom <= d.top + 1 : true, resumo: document.querySelector('#mesa-doca-resumo').innerText, altura: document.documentElement.scrollHeight > innerHeight }; });
+  for (const [w, hh] of [[360, 780], [390, 844]]) {
+    await page.setViewportSize({ width: w, height: hh });
+    await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-doca #mesa-start');
+    await page.waitForFunction(() => { const b = document.querySelector('#mesa-start'); return b && !b.disabled; }, null, { timeout: 8000 });
+    for (const tema of ['dark', 'light']) {
+      await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(450);
+      const m = await mede();
+      assert.deepEqual([m.ebano, m.destaques, m.heroMine, m.docaNoPe, m.comecarNaDoca, m.relatarAcima, m.altura, m.ruins], [true, 1, true, true, true, true, true, []], `${w} ${tema}: ${JSON.stringify(m)}`);
+      assert.match(m.docaH, /^\d+px$/, 'a doca reserva a própria altura');
+      assert.match(m.resumo, /^Mono Azul Delver × Goldfish · Pauper$/);
+      await auditaTela(page, `DS-K2 J2 · Jogar ${w} ${tema}`);
+      if (process.env.SHOTS && w === 360) await page.screenshot({ path: process.env.SHOTS + `/ds-k2-j2-${tema}.png` });
+    }
+  }
+  // o Shark: o cartão dele também é hero, com a origem; o resumo troca o oponente
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.click('[data-opponent="shark"]'); await page.waitForSelector('#mesa-bot-deck.deck-picker--hero .deck-hero__arte');
+  assert.match(await page.innerText('#mesa-bot-deck .deck-item__origem'), /Magic Online|TopDeck|Pauper/);
+  await page.waitForFunction(() => /× Shark · Pauper$/.test(document.querySelector('#mesa-doca-resumo').innerText), null, { timeout: 8000 });
+  // as opções continuam à mão (Série, Paradas, Semente) e o Começar continua na doca ao rolar até o fim
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight)); await page.waitForTimeout(300);
+  assert.deepEqual(await page.evaluate(() => [!!document.querySelector('#mesa-opcoes [data-serie="3"]'), !!document.querySelector('#mesa-opcoes [data-stopall]'), !!document.querySelector('#mesa-opcoes #mesa-seed'), Math.abs(document.querySelector('#mesa-doca').getBoundingClientRect().bottom - innerHeight) <= 1]), [true, true, true, true]);
+  await auditaTela(page, 'DS-K2 J2 · Jogar com o Shark, no fim da página');
   assert.deepEqual(errors, []);
 });
 

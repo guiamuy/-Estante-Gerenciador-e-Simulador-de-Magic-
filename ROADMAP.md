@@ -401,7 +401,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-z9 🟡 | Shark: plano do baralho — Walls Combo fecha a mana infinita; vitórias pilotando a lista 18% → 33% (leva 147) | B9 | 1 | Elves e os outros perfis |
 | 16º-z2 ✅ | Shark usa todas as mecânicas, inclusive as dos terrenos: estoura o terreno que busca básico, abre mana com habilidades, ordena antes do corte do relógio; auditoria de uso (leva 143) | B21 | 1 | — |
 | 16º-sc 🟡 | DS-K · Ébano e Ouro, design system de patamar (direção K do volume 3, decisão do dono de 24/10): F0.1 ✅ (G-287) tokens de ébano e latão nos três blocos, receitas de animação no `/ds` como contrato da jogabilidade, guarda de contenção de texto no portão; F0.2 fontes self-hosted (sw.js, `armazem`); F1 componentes; F2 telas de gestão; F3 mesa como layout; FA leva de ajuste no aparelho | DS-K | 1 de 11 a 13 | — |
-| 16º-sf 🟡 | DS-K2 · Ébano e Ouro, a proposta inteira (pedido do dono de 01/11): auditoria tela-modelo × app; J1 ✅ (G-317) o Jogar abre sempre no Pauper por decisão de produto, com as listas prontas à mão; J2 Jogar como mesa de preparação; N1–N3 barra de navegação embaixo com o Jogar no centro; I1–I2 Início (últimas listas, faixa de offline); L1 hero da Lista; M1–M4 mesa e mão com arte (`jogabilidade`) | DS-K2 | 1 de 14 a 18 | 16º-sc, 16º-js |
+| 16º-sh 🟡 | DS-K2 · Ébano e Ouro, a proposta inteira (pedido do dono de 01/11): auditoria tela-modelo × app; J1 ✅ (G-317) o Jogar abre sempre no Pauper por decisão de produto, com as listas prontas à mão; J2 Jogar como mesa de preparação; N1–N3 barra de navegação embaixo com o Jogar no centro; I1–I2 Início (últimas listas, faixa de offline); L1 hero da Lista; M1–M4 mesa e mão com arte (`jogabilidade`) | DS-K2 | 1 de 14 a 18 | 16º-sc, 16º-js |
 | 16º-sa 🟡 | B22 Shark profissional com cinco listas: fatia 1 ✅ (B-173) listas de torneio embutidas e seletor do Shark só com elas; fatia 2 ✅ (B-174) linha de base: Madness 75% · Elves 63% · Faeries 50% · Control 38% · Terror 25% contra o campo; fatia 3 ✅ (B-175) perfil do Terror + o terreno que falta (pareado 50% × 38% em 32 pares: dentro da margem); fatia 4 (B-176) ameaças do campo no Control: sem ganho (41% × 42% em 64 pares), desligada; fatia 5 (B-177) mulligan por fontes e cores: neutro em força (79 × 81 em 160 pares), ligado pelo comportamento; fatia 6 (B-178) prazo da decisão: p95 430 → 366 ms, pior 4,3 → 0,8 s, força 48 × 47; fatia 7 (B-179) quando anular: a resposta é lida primeiro e a anulação guardada tem valor, neutro em força (38 × 39 em 96 pares), ligado pelo comportamento; fatias 8–9 viraram a B23 (16º-sd); força final (B-185, 208 decididas por lista, Shark × Shark): Madness 66% · Terror 59% · Elfos 50% · Faeries 47% · Control 29% — o aceite "nenhuma abaixo de 45%" fica aberto pelo Control (B24, 16º-se) | B22 | 9 | 16º-z2 |
 | 16º-sd ✅ | B23 o Shark usa bem cada carta das cinco listas: fatia 1 ✅ (B-180) auditoria carta a carta (`bot.cartas.mjs`, 76 cartas, 40 partidas): 6 cartas ficam na mão, 5 com alvo no próprio lado por erro; fatia 2 ✅ (B-181) alvo no próprio lado + avaliaV6 (o −3/−0 na própria criatura dava +4), neutro em força (47 × 48), ligado; fatia 3 ✅ (B-182) loucura e descarte conferidos (Fiery Temper 14/20 contando a loucura), sem mudança no Shark; fatia 4 ✅ (B-183) a decisão do outro na resolução (Deem Inferior 1/13 → 13/14), 49 × 47, ligado; fatia 5 ✅ (B-184) jogar em volta: o outro responde com a mágica do Shark na pilha (anula, tira o alvo), 51 × 47, ligado; fatia 6 ✅ (B-185) fechamento: reserva pelo alvo (29 × 24) e resposta no meu turno (o Dispel na Counterspell que anulava a minha ameaça; 48 × 46), auditoria final sem "não usa" (69 usam, 5 a revisar declaradas), força por lista com 208 decididas no painel, p95 dentro do orçamento | B23 | 6 | 16º-sa |
 | 16º-se 🔲 | B24 o Shark pilota o Dimir Control acima de 45% contra o campo (hoje 29% em 208 decididas): partida narrada das derrotas do Control, plano de controle (vantagem de cartas, monarca do Thorn of the Black Rose, quando virar o jogo) | B24 | 3–5 | 16º-sd |
@@ -12932,7 +12932,7 @@ sentinela do Pauper mantém as novas jogando. Outro formato entra quando chegar 
 | Fatia | Valor para o usuário | Termina quando | Trilha | Situação |
 |---|---|---|---|---|
 | J1 | o Jogar abre sempre no Pauper, com cabeçalho; sem lista do formato, as prontas à mão para adicionar e jogar num toque | sem estado vazio; medida informa e não fecha; e2e | geral | ✅ G-317 |
-| J2 | Jogar como mesa de preparação K: sua lista e a do Shark como cartões com arte; modo de jogo em segmentos; Série, Paradas e Semente em "Opções"; Começar sempre à vista numa doca | e2e 360/390, dois temas, `auditaTela` | geral | a fazer |
+| J2 | Jogar como mesa de preparação K: sua lista e a do Shark como cartões com arte; modo de jogo em segmentos; Série, Paradas e Semente em "Opções da partida"; Começar sempre à vista numa doca | e2e 360/390, dois temas, `auditaTela` | geral | ✅ G-318 |
 | N1 | barra de navegação embaixo com Jogar no centro (componente, tokens, `--doca-h`); a barra de cima fica só com marca, avatar e tema | todas as telas com a barra nova; FAB e docas acima dela | geral | a fazer |
 | N2 | telas de gestão ajustadas à barra de baixo (rolagem, fim da página, botões fixos) | nenhum controle coberto; e2e por tela | geral | a fazer |
 | N3 | a barra de baixo some na partida e volta ao sair (a mesa usa a bandeja dela) | e2e da mesa | jogabilidade | a fazer |
@@ -12943,6 +12943,23 @@ sentinela do Pauper mantém as novas jogando. Outro formato entra quando chegar 
 | M2 | Mesa: mão em leque com arte e rotação, a carta tocada sobe | e2e, 60 quadros | jogabilidade | a fazer |
 | M3 | Mesa: barra vida · fase com os pontos do turno · vida | e2e | jogabilidade | a fazer |
 | M4 | Mesa: bandeja com a ação primária em latão e o resto em segundo plano | e2e | jogabilidade | a fazer |
+
+**J2 · Jogar como mesa de preparação** ✅ (leva G-318, 01/11/2026)
+- **Valor:** preparar a partida parece preparar a partida: a sua lista é um cartão com a carta-chave em arte, o nome em
+  Cormorant e o estado (motor, offline) logo abaixo, no destaque em ébano da tela; o oponente vem em segmentos e a lista do
+  Shark é outro cartão, com a origem do torneio; Série, Paradas e Semente ficam juntas em "Opções da partida"; e **Começar
+  partida fica sempre à vista**, numa doca no pé da tela que diz o que vai começar ("Mono Azul Delver × Shark · Pauper")
+  ou o que falta.
+- **Entregue:** `heroDe`/`heroDoShark` (carta-chave: o comandante; senão a carta que não é terreno com mais cópias e
+  imagem guardada; sem imagem, o ícone do baralho) no botão do seletor (`.deck-picker--hero`, a folha de escolha continua
+  em linhas); `#mesa-hero` (`ds-destaque`), `#mesa-opcoes`, `#mesa-doca` (sticky, `reservaDoca`: o aviso flutuante e o
+  Relatar sobem); `#mesa-doca-resumo` atualizado com o Começar.
+- **Decisão de desenho:** as opções não foram recolhidas num expansível — "Parar sempre" e a Série são de uso diário (e
+  94 testes de mesa dependem delas à mão); ficaram abertas, numa superfície secundária.
+- **Testes:** e2e "DS-K2 J2" (360 e 390, dois temas: hero em ébano e único destaque, cartão com arte, doca colada no pé
+  com `--doca-h`, Relatar acima da doca, Começar na doca, AA do destaque, `auditaTela`; Shark com a origem e o resumo;
+  opções à mão; doca no pé mesmo rolando até o fim); contrato "DS-K2 · J2"; os e2e da mesa passam pela tela nova.
+- **Fora:** arte recortada (art crop): a Scryfall guardada tem só a carta inteira; o ladrilho mostra a carta.
 
 **J1 · O Jogar abre sempre no Pauper** ✅ (leva G-317, 01/11/2026)
 - **Valor:** quem toca em Jogar vê a tela de preparação, não um estado vazio: Pauper aberto, sua lista (ou as listas prontas
