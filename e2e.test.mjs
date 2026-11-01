@@ -5106,6 +5106,39 @@ test('e2e · Leva 125 · Rakdos: a pergunta de cada decisão fica escrita na ban
   assert.deepEqual(M.errors, []);
 });
 
+// J-31 · relato #39: o chip do cemitério (ou do exílio) já acendia quando havia carta com ação dali; aberta a zona, não se
+// sabia qual. Agora a carta que tem ação agora ganha o anel e o selo de latão, vem primeiro, e a folha diz quantas e o que fazer.
+test('e2e · J-31 zona aberta marca as cartas que dá para usar dali: anel e selo de latão, primeiro na grade, nome falado; a que não tem ação fica como antes', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await comOficiais(page, ['Mountain', 'Faithless Looting']);
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'Lampejo', '30 Mountain\n30 Faithless Looting', 'livre');
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start');
+  await page.fill('#mesa-seed', '4'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  await page.waitForSelector('#tb-pass');
+  // três montanhas no campo; no cemitério, duas Faithless Looting (lampejo {2}{R}) e uma montanha (sem ação dali)
+  await page.evaluate(() => { const M = window.__estanteMesa, p = M.estado().turn.active, livres = nm => Object.values(M.estado().objects).filter(o => o.owner === p && o.name === nm && o.zone !== 'battlefield' && o.zone !== 'graveyard');
+    for (const o of livres('Mountain').slice(0, 3)) M.act({ t: 'move', p, oid: o.oid, to: 'battlefield' });
+    for (const o of livres('Faithless Looting').slice(0, 2)) M.act({ t: 'move', p, oid: o.oid, to: 'graveyard' });
+    M.act({ t: 'move', p, oid: livres('Mountain')[0].oid, to: 'graveyard' }); });
+  await page.waitForSelector('#tb-cemiterio-me[data-jogaveis="2"]');
+  await page.click('#tb-cemiterio-me'); await page.waitForSelector('.ds-dialog .tb-zonegrid');
+  const cartas = await page.$$eval('.ds-dialog .tb-zonegrid > *', cs => cs.map(c => ({ nome: (c.getAttribute('aria-label') || '').split(/[,.]/)[0], usa: c.dataset.usaAgora || null,
+    selo: !!c.querySelector('.tb-card__usa'), fala: c.getAttribute('aria-label') || '' })));
+  assert.deepEqual(cartas.map(c => [c.nome, c.usa, c.selo]), [['Faithless Looting', 'true', true], ['Faithless Looting', 'true', true], ['Mountain', null, false]], 'as que têm ação primeiro, marcadas: ' + JSON.stringify(cartas));
+  assert.match(cartas[0].fala, /pode ser usada daqui agora/); assert.doesNotMatch(cartas[2].fala, /pode ser usada/);
+  assert.match(await page.textContent('#tb-zona-usa'), /^2 cartas podem ser usadas daqui agora/);
+  assert.equal(await page.textContent('.ds-dialog .ds-dialog__title'), 'Seu cemitério', 'antes: "Cemitério de Você"');
+  const anel = await page.$eval('.ds-dialog .tb-zonegrid > [data-usa-agora="true"]', c => getComputedStyle(c).boxShadow);
+  assert.notEqual(anel, 'none', 'o anel de latão aparece');
+  await auditaTela(page, 'J-31 · cemitério com as cartas que dá para usar');
+  // tocar na marcada abre a folha com o lampejo
+  await page.locator('.ds-dialog .tb-zonegrid > [data-usa-agora="true"]').first().click();
+  await page.waitForSelector('.ds-dialog .tb-sheet__actions'); assert.match(await page.innerText('.ds-dialog .tb-sheet__actions'), /Lampejo do passado/);
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · Leva 125 · Rakdos: escolher a carta do custo é tocar na carta (cópias iguais juntas), e a insanidade sem mana explica', { skip }, async t => {
   const M = await comLista125(t, '14 Mountain\n6 Swamp\n16 Grab the Prize\n12 Kitchen Imp\n12 Fiery Temper', ['Mountain', 'Swamp', 'Grab the Prize', 'Kitchen Imp', 'Fiery Temper'], '7');
   const { page } = M; let e;
