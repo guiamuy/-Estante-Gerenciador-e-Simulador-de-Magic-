@@ -8004,7 +8004,31 @@ estruturado para tornarmos o Shark um jogador de nível profissional com as suas
     (as derrotas do Control e dos Elfos); o alvo de 85% é sobre a bateria inteira no fechamento. Erra hoje: a isca de
     dois lances (`volta-isca`). Achado no caminho: o `montaShark` do `bot.unit` grava `landPlayed`, campo que o motor
     não lê (o motor conta `landsPlayed`) — nas posições dele o Shark ainda pode baixar terreno; a bateria usa o campo
-    certo; o `bot.unit` é conferido na B-189.
+    certo; **B-189:** o `montaShark` do `bot.unit` passou a gravar `landsPlayed` (as 91 posições continuam verdes); o
+    `monta` antigo (leva 132, B10b) fica com o campo morto porque os testes dele contam com o terreno do turno livre.
+- **Fase 1 · diagnóstico (B-189, 01/11/2026).** Três perguntas, medidas:
+  1. **O Shark perde por falta de tempo?** Não. Com 4× o orçamento (`t:1600` × `shark`, pareado, 32 pares por piloto):
+     Control 17 × 19, Elfos 20 × 18. Pensar mais do mesmo jeito não muda o resultado; acelerar a simulação sozinha não é
+     alavanca (a fase 3 perde prioridade).
+  2. **Alguma peça ligada depois da v12 custa vitórias?** O corte no prazo (B-178) não: sem ele, Control 13 × 14 e Elfos
+     16 × 16 (24 pares cada) — e a pior jogada sobe para 7,2 s. As outras peças ficam para a régua do fechamento: com 24 pares
+     a margem engole efeitos menores que ~15 pontos.
+  3. **O que um profissional faria diferente?** Partidas narradas (`bot.narra.mjs`, 8 por piloto, 400 ms; Control 1–7,
+     Elfos 3–5), lidas por um revisor separado:
+     - **Control ataca com o bloqueador de que precisa** (Baleful Strix, Thorn, Trinket Mage, Mystic) — **14 vezes, nas 7
+       derrotas, decisivo**: "contei o bloqueio provável e o dano compensa", e o contra-ataque do turno seguinte passa
+       livre (1002 T12: os dois Strix atacam por 2 contra duas Cryptic Serpent e um Tolarian Terror; no turno dele, 20 → 9).
+       Causa no código: a nota do ataque desconta o contra-ataque só quando ele **mata** (`riscoDeVolta`: 400 ou 0).
+     - Control vira a mana no próprio turno com instantânea na mão (8×, 6 derrotas) e gasta remoção ou anulação em alvo
+       fraco (7×, 3 derrotas); o Viridian Longbow nunca é equipado (4 partidas).
+     - **Elfos** atacam com os motores (Priest, Timberwatch) contra bloqueador desvirado (5×), **nunca ativam o Timberwatch
+       Elf** (o lado de lá, que é o mesmo Shark, ativa) e não bloqueiam em dupla o atacante com ameaçar com 1–3 de vida
+       (3×, decisivo em 2).
+     As duas posições decisivas do Control entram na bateria (`papel-strix-segura-serpentes`, `papel-strix-segura-hunter`,
+     classe nova **papel**): **Shark 22 de 25**, v12 18 de 25; as dos Elfos (ameaçar, Timberwatch) ficam para a fase 4.
+  **Replanejamento:** a fase 4 começa pelo erro decisivo — **o contra-ataque entra na nota do ataque pelo dano que causa,
+  não só quando mata** (B-190) —, depois a fase 2 (avaliação aprendida: as 14.247 posições de 224 partidas já coletadas por
+  `bot.aprende.mjs`) e os erros dos Elfos.
 - **Fases:**
   - **0 · réguas** — B-187 régua absoluta e linha de base das quatro; B-188 bateria profissional (30+ posições).
   - **1 · diagnóstico** — B-189 partidas narradas das derrotas (Control e Faeries primeiro), cada erro classificado e

@@ -146,6 +146,14 @@ export const POSICOES = [
   { id: 'combate-nao-ataca-para-morte', classe: 'combate', lista: TERROR, porque: 'com 2 de vida contra Kessig Flamebreather e Voldaren Epicure (2 de poder), a Delver virada no ataque abre o letal de volta: fica para bloquear',
     monta: () => { const m = monta(TERROR, MADNESS, { p0: { campo: ['Island', 'Delver of Secrets'], vida: 2 }, p1: { campo: ['Mountain', 'Kessig Flamebreather', 'Voldaren Epicure'] } }); return { ...m, s: passaAte(m.s, 'combat_attackers') }; },
     certo: (s, j) => (j.acao.attackers || []).length === 0 },
+  // B-189 · posições das partidas narradas (derrotas do Control, sementes 1002 e 951 da `bot.narra.mjs`): o Control atacava
+  // com o bloqueador de que precisava ("o dano compensa") e o contra-ataque passava por cima — 14 vezes em 7 derrotas.
+  { id: 'papel-strix-segura-serpentes', classe: 'papel', lista: CONTROLE, porque: 'dois Baleful Strix (voar e toque mortal) contra Tolarian Terror e duas Cryptic Serpent: atacar por 2 vira os Strix e os 16 de poder do outro lado passam livres no turno dele',
+    monta: () => { const m = monta(CONTROLE, TERROR, { p0: { campo: ['Contaminated Aquifer', 'Island', 'Island', 'Baleful Strix', 'Baleful Strix'], vida: 18 }, p1: { campo: ['Island', 'Island', 'Island', 'Island', 'Cryptic Serpent', 'Cryptic Serpent', 'Tolarian Terror'] } }); return { ...m, s: passaAte(m.s, 'combat_attackers') }; },
+    certo: (s, j) => !(j.acao.attackers || []).some(o => nomeDe(s, o) === 'Baleful Strix') },
+  { id: 'papel-strix-segura-hunter', classe: 'papel', lista: CONTROLE, porque: 'o Baleful Strix é o único que troca com o Avenging Hunter 5/4: atacar por 1 deixa o Hunter bater 5 livre',
+    monta: () => { const m = monta(CONTROLE, ELFOS, { p0: { campo: ['Contaminated Aquifer', 'Contaminated Aquifer', 'Island', 'Baleful Strix'], mao: ['Counterspell', 'Thorn of the Black Rose'] }, p1: { campo: ['Forest', 'Forest', 'Forest', 'Elvish Mystic', 'Llanowar Elves', 'Avenging Hunter', 'Quirion Ranger'] } }); return { ...m, s: passaAte(m.s, 'combat_attackers') }; },
+    certo: (s, j) => !(j.acao.attackers || []).some(o => nomeDe(s, o) === 'Baleful Strix') },
   // ---- mulligan
   { id: 'mull-sete-terrenos', classe: 'mulligan', lista: TERROR, porque: 'sete terrenos não jogam: mulligan',
     mulligan: true, monta: () => maoInicial(TERROR, MADNESS, ['Island', 'Island', 'Island', 'Island', 'Island', 'Island', 'Island']),

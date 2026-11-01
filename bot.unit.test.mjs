@@ -1107,7 +1107,7 @@ async function montaShark(a, b, { ativo = 0, vez = 0, passo = 'main1', p0 = {}, 
     for (const n of cfg.mao || []) ids[p][n] = tira(n, 'hand');
     for (const n of cfg.cemiterio || []) ids[p][n] = tira(n, 'graveyard');
     for (const n of [...(cfg.topo || [])].reverse()) { const oid = z.library.find(o => s.objects[o].name === n); assert.ok(oid, 'a lista tem ' + n); z.library.splice(z.library.indexOf(oid), 1); z.library.unshift(oid); } // B-182 · `topo`: as próximas compras, na ordem
-    s.players[p].landPlayed = p === ativo;
+    s.players[p].landsPlayed = p === ativo ? 1 : 0; // B-189 · o motor conta `landsPlayed`; o `landPlayed` de antes não fazia nada
   });
   Object.assign(s.turn, { active: ativo, priority: vez, step: passo });
   s.stack = []; s.pending = null;
