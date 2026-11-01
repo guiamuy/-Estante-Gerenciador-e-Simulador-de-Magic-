@@ -16684,6 +16684,51 @@ test('e2e · DS-K F4.5 · segue o dedo: puxar a folha pelo cabeçalho a leva jun
   assert.deepEqual(errors, []);
 });
 
+test('e2e · DS-K F5.1 · Nova e Editar lista: cabeçalho 44 · 1fr · 44 com o voltar à esquerda (nova volta para Minhas listas, editar volta para a lista); a caixa de colar é o destaque em ébano com texto em AA; 360 e 390, dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(FAKE_DEVICE(false));
+  const mede = () => page.evaluate(() => {
+    const c = document.querySelector('#outlet .ds-cabecalho'), tt = c.querySelector('.ds-cabecalho__titulo'), rg = document.createRange(); rg.selectNodeContents(tt); const x = rg.getBoundingClientRect(), b = c.getBoundingClientRect();
+    const cv = document.createElement('canvas'); cv.width = cv.height = 1; const cx = cv.getContext('2d');
+    const rgb = k => { cx.clearRect(0, 0, 1, 1); cx.fillStyle = k; cx.fillRect(0, 0, 1, 1); return [...cx.getImageData(0, 0, 1, 1).data].slice(0, 3); };
+    const lum = k => rgb(k).map(v => v / 255).map(v => v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4).reduce((a, v, i) => a + v * [0.2126, 0.7152, 0.0722][i], 0);
+    const r = (p, q) => { const [m, n] = [lum(p), lum(q)].sort((u, v) => v - u); return (m + 0.05) / (n + 0.05); };
+    const fundoDe = el => { for (let p = el; p; p = p.parentElement) { const bg = getComputedStyle(p).backgroundColor; if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') return bg; } return 'white'; };
+    const caixa = document.querySelector('.deck-form');
+    const probe = document.createElement('span'); probe.style.color = getComputedStyle(document.documentElement).getPropertyValue('--bg-elev-0'); document.body.appendChild(probe); const funda = getComputedStyle(probe).color; probe.remove();
+    const ruins = []; const wk = document.createTreeWalker(caixa, NodeFilter.SHOW_TEXT);
+    while (wk.nextNode()) { const el = wk.currentNode.parentElement; if (!wk.currentNode.textContent.trim() || el.getBoundingClientRect().width <= 1 || el.closest('option, textarea, [disabled]')) continue; const k = r(getComputedStyle(el).color, fundoDe(el)); if (k < 4.5) ruins.push(`${wk.currentNode.textContent.trim().slice(0, 20)} ${k.toFixed(2)}`); }
+    return { titulo: tt.textContent, centro: x.left + x.width / 2, largura: innerWidth, lados: [...c.querySelectorAll('.ds-cabecalho__lado')].map(l => Math.round(l.getBoundingClientRect().width)), gutter: [Math.round(b.left), Math.round(innerWidth - b.right)],
+      voltar: c.querySelector('.ds-cabecalho__lado:first-child [aria-label^="Voltar"]')?.getAttribute('aria-label') || null, ebano: getComputedStyle(caixa).backgroundColor === funda, destaques: document.querySelectorAll('#outlet .ds-destaque').length, ruins };
+  });
+  for (const [w, hh] of [[360, 780], [390, 844]]) {
+    await page.setViewportSize({ width: w, height: hh });
+    await page.goto(base + '#/listas/editar'); await page.waitForSelector('#deck-text');
+    await page.fill('#deck-text', '1 Sol Ring\n1 Carta Que Nao Existe'); await page.waitForTimeout(300); // a prévia aparece dentro da caixa
+    for (const tema of ['dark', 'light']) {
+      await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(450);
+      const d = await mede();
+      assert.ok(Math.abs(d.centro - d.largura / 2) <= 1, `Nova lista ${w} ${tema}: título no centro (${d.centro.toFixed(1)})`);
+      assert.deepEqual([d.titulo, d.lados, d.gutter, d.voltar, d.ebano, d.destaques, d.ruins], ['Nova lista', [44, 44], [16, 16], 'Voltar para Minhas listas', true, 1, []], `Nova lista ${w} ${tema}`);
+      await auditaTela(page, `DS-K F5.1 · Nova lista ${w} ${tema}`);
+      if (process.env.SHOTS && w === 360) await page.screenshot({ path: process.env.SHOTS + `/ds-k-f51-nova-${tema}.png`, clip: { x: 0, y: 0, width: 360, height: 640 } });
+    }
+  }
+  await page.click('#deck-editor-voltar'); await page.waitForSelector('#decks-list, #outlet .ds-cabecalho');
+  assert.match(page.url(), /#\/listas$/, 'nova volta para Minhas listas');
+  // editar: cria uma lista e abre o editor dela
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base + '#/listas/editar'); await page.fill('#deck-name', 'Ébano'); await page.fill('#deck-text', '1 Sol Ring'); await page.click('#deck-save'); await page.waitForSelector('.deck-summary');
+  const id = new URL(page.url().replace('#', '')).searchParams.get('id');
+  await page.goto(base + '#/listas/editar?id=' + id); await page.waitForSelector('#deck-text');
+  await page.waitForFunction(() => document.querySelector('#deck-text').value.includes('Sol Ring'));
+  const e = await mede();
+  assert.deepEqual([e.titulo, e.voltar, e.ebano, e.ruins], ['Editar lista', 'Voltar para a lista', true, []], 'Editar lista');
+  await page.click('#deck-editor-voltar'); await page.waitForSelector('.deck-summary');
+  assert.ok(page.url().endsWith('#/lista?id=' + id), 'editar volta para a lista: ' + page.url());
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · DS-K F2.1 · a abertura monta o ícone em três planos (luz acende, a cena da estante se monta em 3D e o ladrilho esmaece por cima sem girar — G-306, relato #35 —, sombra assenta), passa a varredura e revela o nome; com menos movimento tudo já no lugar', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.setViewportSize({ width: 360, height: 780 });

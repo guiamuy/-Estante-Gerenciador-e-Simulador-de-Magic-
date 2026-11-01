@@ -19164,9 +19164,10 @@ function createDeckEditor({ decks, collection }) {
     }
 
     mount(root,
-      Text(d ? 'Editar lista' : 'Nova lista', { size: '2xl', display: true, as: 'h1' }),
+      // DS-K F5.1 · cabeçalho 44 · 1fr · 44: editar volta para a lista; nova volta para Minhas listas
+      __m3.Cabecalho(d ? 'Editar lista' : 'Nova lista', { esquerda: IconButton('voltar', d ? 'Voltar para a lista' : 'Voltar para Minhas listas', { id: 'deck-editor-voltar', onClick: () => go(d ? '/lista?id=' + d.id : '/listas') }) }),
       Text('Cole a lista no formato de exportação do Moxfield, Archidekt, Arena ou MTGO. Uma carta por linha, quantidade na frente. Use o cabeçalho "Commander" ou a marca *CMDR* para o comandante, "Companion" para o companheiro e "Sideboard" para a reserva.', { tone: 'muted', size: 'sm' }),
-      Surface({ class: 'ds-surface--pad ds-surface--shelf' }, Stack({},
+      Surface({ class: 'ds-surface--pad ds-destaque deck-form' }, Stack({}, // DS-K F5.1 · a caixa de colar é o destaque em ébano da tela
         Row({ class: 'ds-row--wrap' },
           Field('Nome', nameIn),
           Field('Formato', Select(FORMAT_OPTS, { id: 'deck-format', value: state.format, onChange: e => { state.format = e.target.value; } }))),

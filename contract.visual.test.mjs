@@ -534,6 +534,13 @@ test('DS-K · F4.5 a folha fecha puxando pelo cabeçalho: pega sem seleção nem
   assert.match(componentCss, /:root\[data-movimento="reduzido"\] \.ds-dialog--volta \{ transition: none; \}/);
 });
 
+/* ---------------- DS-K (G-315) · F5.1 Nova e Editar lista ---------------- */
+test('DS-K · F5.1 Nova e Editar lista usam o cabeçalho com voltar e a caixa de colar é o destaque', () => {
+  assert.match(HTML, /__m3\.Cabecalho\(d \? 'Editar lista' : 'Nova lista', \{ esquerda: IconButton\('voltar', d \? 'Voltar para a lista' : 'Voltar para Minhas listas', \{ id: 'deck-editor-voltar'/);
+  assert.match(HTML, /Surface\(\{ class: 'ds-surface--pad ds-destaque deck-form' \}/);
+  assert.ok(!HTML.includes("Text(d ? 'Editar lista' : 'Nova lista', { size: '2xl'"), 'o título solto saiu');
+});
+
 /* ---------------- DS-K (G-295) · F2.3 topo da Lista em ébano ---------------- */
 test('DS-K · F2.3 o topo da Lista é o destaque em ébano (nome, formato em latão, contagens) e o latão em texto pequeno sobre o ébano usa --accent-lo', () => {
   assert.match(HTML, /Surface\(\{ class: 'ds-destaque ds-surface--pad deck-topo', id: 'deck-topo' \}/);
