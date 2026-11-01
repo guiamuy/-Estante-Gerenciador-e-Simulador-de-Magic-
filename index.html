@@ -7562,6 +7562,7 @@ function effectErrors(effects, label, opcional) {
       if (e.jogadores != null && e.target != null) errs.push(`${L}: sacrificar é de "jogadores" ou do jogador alvo, não dos dois`);
       if (e.jogadores != null && !JOGADORES_QUANT.includes(e.jogadores)) errs.push(`${L}: "jogadores" precisa ser cada, cada-oponente ou voce`);
       if (e.naoFicha && (e.jogadores || 'voce') === 'voce' && e.target == null && !e.alvosJogadores) errs.push(`${L}: "naoFicha" só vale quando cada jogador ou o alvo escolhe`);
+      if (e.soFicha != null && (e.soFicha !== true || e.naoFicha || (e.jogadores || 'voce') === 'voce')) errs.push(`${L}: "soFicha" só vale como true, sem naoFicha, quando cada jogador escolhe`); // M-592
       if (e.alvosJogadores != null && (e.alvosJogadores !== 'anteriores' || e.jogadores != null || e.target != null)) errs.push(`${L}: "alvosJogadores" só vale como anteriores, sem jogadores nem alvo`); // M-264
     }
     if (e.do === 'jogar_escondida' && e.seAtacouCom != null && !(Number.isInteger(e.seAtacouCom) && e.seAtacouCom > 0)) errs.push(`${label} ${i + 1}: "se atacou com" precisa de um inteiro positivo`); // M-268
@@ -20866,6 +20867,7 @@ const __m42 = (function () {
     [/^(target player|target opponent) sacrifices an? (creature|artifact|enchantment|planeswalker)(?: of their choice)?$/i, m => [{ do: 'edict', types: [m[2].toLowerCase()], target: m[1].toLowerCase() === 'target player' ? 'player' : 'opponent' }]], // M-337 · 701.21a (Diabolic Edict, Gatekeeper of Malakir)
     [/^each player sacrifices an? (creature|artifact|enchantment|planeswalker)(?: of their choice)?$/i, m => [{ do: 'sacrifice_each', types: [m[1].toLowerCase()] }]], // M-337 · 701.21a (a mesma forma dos scripts à mão: Benalish Sleeper)
     [/^sacrifice (?:~|this (?:land|creature|artifact|enchantment|permanent))$/i, () => [{ do: 'sacrifice_it', target: 'self-source' }]], // M-342 · City of Traitors (sem alvo)
+    [/^each opponent sacrifices a (nontoken creature|creature token)(?: of their choice)?$/i, m => [{ do: 'sacrificar', tipos: ['creature'], jogadores: 'cada-oponente', ...(/^non/i.test(m[1]) ? { naoFicha: true } : { soFicha: true }) }]], // M-592 · Sheoldred's Edict (111.1: ficha)
     [/^each opponent sacrifices an? (creature|artifact|enchantment|planeswalker)(?: of their choice)?$/i, m => [{ do: 'sacrificar', tipos: [m[1].toLowerCase()], jogadores: 'cada-oponente' }]], // M-337 · 701.21a
     [/^target creature with power (\d+) or less can't be blocked this turn$/i, m => [{ do: 'imbloqueavel', target: 'creature', targetPowerMax: +m[1] }]], // M-341 · Goblin Tunneler, Access Tunnel
     [/^target creature can't be blocked this turn$/i, () => [{ do: 'imbloqueavel', target: 'creature' }]], // M-336 · Rogue's Passage
@@ -24519,7 +24521,7 @@ function sacrificarJogadores(s, src, spec, quem, events, note) {
   if (q == null && (s.players[quem].lost || !sacrificeOptions(s, quem, spec.tipos).length)) { note({ amount: 0 }); return; } // a linha do registro só aparece quando não há o que sacrificar
   const vez = s.turn.active, ordem = [vez, ...s.players.map((_, i) => i).filter(i => i !== vez)];
   const fila = q == null ? [quem] : ordem.filter(i => !s.players[i].lost && (q === 'cada' || i !== ctrl));
-  s.edito = { fila, escolhidas: [], types: spec.tipos, nontoken: !!spec.naoFicha, name: src.name, ...(spec.maiorPoder ? { maiorPoder: true } : {}) }; // M-351 · "a creature with the greatest power among creatures they control"
+  s.edito = { fila, escolhidas: [], types: spec.tipos, nontoken: !!spec.naoFicha, name: src.name, ...(spec.soFicha ? { soFicha: true } : {}), ...(spec.maiorPoder ? { maiorPoder: true } : {}) }; // M-351 · "a creature with the greatest power among creatures they control"
   continuaEdito(s, events);
 }
 /** CR2-G R4a · 400.7/701 · move um objeto para outra zona. `de`: a zona (ou zonas) onde ele precisa estar — se já saiu, é
@@ -26366,7 +26368,7 @@ function continuaEdito(s, events) {
   const ed = s.edito; if (!ed) return false;
   while (ed.fila.length) {
     const p = ed.fila[0];
-    const opts = sacrificeOptions(s, p, ed.types).filter(oid => !(ed.nontoken && s.objects[oid].token));
+    const opts = sacrificeOptions(s, p, ed.types).filter(oid => !(ed.nontoken && s.objects[oid].token) && !(ed.soFicha && !s.objects[oid].token)); // M-592 · "a creature token"
     if (ed.diferentesK) { const resto = opts.filter(oid => !ed.escolhidas.includes(oid)); opts.length = 0; opts.push(...resto); } // K-40
     if (ed.maiorPoder && opts.length > 1) { const pw = oid => power(s, s.objects[oid]); const max = Math.max(...opts.map(pw)); const top = opts.filter(oid => pw(oid) === max); opts.length = 0; opts.push(...top); } // M-351 · só as de maior poder; empate: o jogador escolhe entre elas · 702.86a: "sacrifices N permanents" são N diferentes (Toca ponto comum: continuaEdito)
     if (opts.length > 1) { s.pending = { kind: 'sacrifice', p, options: opts, types: ed.types, name: ed.name, edito: true }; return true; }
@@ -37851,7 +37853,7 @@ function descreveEfeito(e) {
     case 'sacrificar': { // CR2-G R4c
       const nomes = { creature: 'uma criatura', artifact: 'um artefato', enchantment: 'um encantamento', land: 'um terreno', planeswalker: 'um planeswalker' };
       const coisa = (e.tipos || []).length === 1 ? (nomes[e.tipos[0]] || 'uma permanente') : (e.tipos || []).map(x => (nomes[x] || x).replace(/^uma? /, '')).join(' ou ').replace(/^/, 'um(a) ');
-      const ficha = (e.naoFicha ? ' que não seja ficha' : '') + (e.maiorPoder ? ' com o maior poder entre as que controla' : ''); // M-351 · Extract a Confession
+      const ficha = (e.naoFicha ? ' que não seja ficha' : '') + (e.soFicha ? ' que seja ficha' : '') /* M-592 */ + (e.maiorPoder ? ' com o maior poder entre as que controla' : ''); // M-351 · Extract a Confession
       if (e.target) return `${alvo || 'o jogador alvo'} sacrifica ${coisa}${ficha} à escolha dele`;
       const quem = { cada: 'cada jogador', 'cada-oponente': 'cada oponente' }[e.jogadores];
       return quem ? `${quem} sacrifica ${coisa}${ficha} à sua escolha` : `sacrifica ${coisa}`;
