@@ -21,7 +21,7 @@ concurrency:
 jobs:
   base:
     runs-on: ubuntu-latest
-    timeout-minutes: 120   # primeira geração: ~50 mil imagens pequenas; as semanais só baixam a ilustração nova ou mudada
+    timeout-minutes: 150   # primeira geração: ~50 mil imagens pequenas + All Cards (gigabytes, lido em fluxo); as semanais só baixam a ilustração nova ou mudada
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09   # v5 (fixada por SHA; roda em Node 24)
         with:
@@ -46,7 +46,7 @@ jobs:
           fi
       - name: Gerar
         id: gera
-        run: node artes.mjs --saida saida --autoteste 400 --idiomas pt   # S-597 · nomes impressos em português (nomes-pt.json)
+        run: node artes.mjs --saida saida --autoteste 400 --idiomas pt,es,it,fr,de,ja,zhs,zht,ko,ru   # S-597/S-598 · nomes impressos por língua (nomes-<idioma>.json), lidos dos dados em massa All Cards
       - name: Publicar no ramo artes
         if: steps.gera.conclusion == 'success'
         run: |
