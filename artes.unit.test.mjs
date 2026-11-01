@@ -218,3 +218,56 @@ test('S-596 · base no aparelho: baixa uma vez e guarda; abre da guardada sem re
   assert.equal(await b4.carrega(), null); assert.equal(loja2.m.size, 0);
   assert.equal(b4.doNome(imp(cartas[0]), 'Sol Ring'), null); assert.equal(b4.top(imp(cartas[0])).length, 0);
 });
+
+/* ---------------- S-597 · carta impressa em português e carta na mão ---------------- */
+test('S-597 · nome impresso em português responde pelo nome da base em inglês (o caso do print: "Beledros Murchaflor")', () => {
+  const sem = X.buildIndex(['Beledros Witherbloom', 'Melee', 'Counterspell']);
+  assert.ok(!(X.matchName(sem, 'Beledros Murchaflor')[0]?.score >= X.ACCEPT), 'sem os nomes em português, a carta não casa (o defeito)');
+  const com = X.buildIndex(['Beledros Witherbloom', 'Melee', 'Counterspell'], [['Beledros Murchaflor', 'Beledros Witherbloom'], ['Anular Feitiço', 'Counterspell']]);
+  const r = X.matchName(com, 'Beledros Murchaflor');
+  assert.equal(r[0].name, 'Beledros Witherbloom'); assert.equal(r[0].score, 1); assert.equal(r[0].exata, true);
+  assert.equal(X.matchName(com, 'Beledros Murchafl0r')[0].name, 'Beledros Witherbloom', 'troca típica do OCR também casa');
+  assert.equal(X.matchName(com, 'Anular Feitico')[0].name, 'Counterspell', 'acento lido sem acento');
+  assert.equal(X.matchName(com, 'Counterspell')[0].name, 'Counterspell', 'o inglês continua');
+});
+
+test('S-597 · base de nomes: os nomes em português vêm do ramo artes, ficam guardados, e base estranha não entra', async () => {
+  const store = lojaMemoria(); let t = Date.UTC(2026, 10, 2), pedidos = 0;
+  const scryfall = { catalogNames: async () => ['Beledros Witherbloom', 'Counterspell'] };
+  const fetchBom = async url => { pedidos++; assert.match(url, /\/artes\/nomes-pt\.json$/); return { ok: true, json: async () => ({ versao: 1, idioma: 'pt', pares: [['Beledros Murchaflor', 'Beledros Witherbloom']] }) }; };
+  const n1 = X.createNameIndex({ store, scryfall, now: () => t, fetchFn: fetchBom });
+  await n1.ensure({ online: true });
+  assert.equal(n1.match('Beledros Murchaflor')[0].name, 'Beledros Witherbloom'); assert.equal(n1.info().apelidos, 1);
+  // sem rede, outra sessão: abre os guardados
+  const n2 = X.createNameIndex({ store, scryfall, now: () => t, fetchFn: async () => { throw new Error('sem rede'); } });
+  await n2.ensure({ online: false });
+  assert.equal(n2.match('Beledros Murchaflor')[0].name, 'Beledros Witherbloom'); assert.equal(pedidos, 1);
+  // arquivo estranho: ignorado, a base em inglês segue
+  const loja2 = lojaMemoria();
+  const n3 = X.createNameIndex({ store: loja2, scryfall, now: () => t, fetchFn: async () => ({ ok: true, json: async () => ({ versao: 1, pares: [['<b>x</b>', 5]] }) }) });
+  await n3.ensure({ online: true });
+  assert.equal(n3.info().apelidos, 0); assert.equal(n3.match('Counterspell')[0].name, 'Counterspell'); assert.equal(loja2.m.has('names.pt'), false);
+});
+
+test('S-597 · carta na mão: tremor de até 12% do quadro não pula a leitura (antes, 5% já virava "Segure firme"); carta correndo pula; "Ler agora" nunca pula', () => {
+  assert.equal(X.pulaPorMovimento(0.07), false, 'tremor da mão com zoom 2×: lê');
+  assert.equal(X.pulaPorMovimento(0.11), false);
+  assert.equal(X.pulaPorMovimento(0.2), true, 'carta entrando ou saindo: pula');
+  assert.equal(X.pulaPorMovimento(0.2, { via: 'manual' }), false);
+  assert.equal(X.pulaPorMovimento(0.2, { contorno: false }), false, 'sem contorno, não há como medir');
+  assert.ok(X.LIMIARES_LINHA.deslocamentoMax < X.LIMIARES_LINHA.correndo, 'entre os dois a carta é lida, mas não conta como parada (nada entra na primeira)');
+});
+
+test('S-597 · gerador: nomes em português pela busca da Scryfall (lang:pt), páginas seguidas, faces das duplas, sem repetir', async () => {
+  const { nomesNoIdioma } = await import('./artes.mjs');
+  const urls = [];
+  const fetchFn = async (url, opts) => {
+    urls.push(url); assert.match(opts.headers['User-Agent'], /^Estante\//);
+    if (urls.length === 1) { assert.match(url, /q=lang%3Apt/); assert.match(url, /include_multilingual=true/);
+      return { ok: true, json: async () => ({ data: [{ name: 'Beledros Witherbloom', printed_name: 'Beledros Murchaflor', lang: 'pt' }, { name: 'Fire // Ice', card_faces: [{ name: 'Fire', printed_name: 'Fogo' }, { name: 'Ice', printed_name: 'Gelo' }] }], has_more: true, next_page: 'https://api.scryfall.com/cards/search?page=2' }) }; }
+    return { ok: true, json: async () => ({ data: [{ name: 'Beledros Witherbloom', printed_name: 'Beledros Murchaflor' }, { name: 'Island', printed_name: 'Island' }], has_more: false }) };
+  };
+  const pares = await nomesNoIdioma(fetchFn, 'pt', { pausa: 0 });
+  assert.equal(urls.length, 2);
+  assert.equal(JSON.stringify(pares), JSON.stringify([['Beledros Murchaflor', 'Beledros Witherbloom'], ['Fogo', 'Fire // Ice'], ['Gelo', 'Fire // Ice']]), 'nome igual ao inglês não entra; repetido entra uma vez');
+});
