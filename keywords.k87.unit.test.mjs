@@ -19,7 +19,7 @@ test('K-87 · leitura: Blood Moon e Magus viram Mountain, Harbinger vira Island;
     assert.deepEqual(J(S.validateScript({ ...l.script, example: EX })), []);
   }
   assert.ok(S.validateScript({ name: 'X', self: { terrenosK: { quais: 'nao-basicos', subtipo: 'Desert' } }, example: EX }).length, 'só tipo básico');
-  assert.ok(S.validateScript({ name: 'X', self: { terrenosK: { quais: 'todos', subtipo: 'Swamp' } }, example: EX }).length, '"todos" não é desta leva');
+  assert.ok(S.validateScript({ name: 'X', self: { terrenosK: { quais: 'todos', subtipo: 'Swamp' } }, example: EX }).length, '"todos" sem soma não vale (K-88: soma)');
 });
 
 const ilha = { name: 'Island', type_line: 'Basic Land — Island', mana_cost: '', cmc: 0, keywords: [], oracle_text: '({T}: Add {U}.)', colors: [] };
