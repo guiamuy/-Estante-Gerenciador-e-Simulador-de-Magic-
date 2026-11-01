@@ -13974,7 +13974,7 @@ const REGISTRO = [
   ['ui.entrada', 'aparelho', false], // G-274 · a porta de entrada já foi atravessada neste aparelho (com conta ou sem)
   ['uso.compartilhar', 'aparelho', false], ['uso.envio', 'aparelho', false], ['uso.scanner', 'aparelho', false], // G-286 · uso agregado opt-in: consentimento deste aparelho, último envio e leituras do scanner
   // derivado
-  ['card.', 'derivado', false], ['rulings.', 'derivado', false], ['scanner.artes', 'derivado', false], /* S-596 · base de artes do scanner (ramo artes) */ ['names.pt', 'derivado', false], /* S-597 · nomes impressos em português */ ['cambio.usd', 'derivado', false], ['names.catalog', 'derivado', false],
+  ['card.', 'derivado', false], ['rulings.', 'derivado', false], ['scanner.artes', 'derivado', false], /* S-596 · base de artes do scanner (ramo artes) */ ['names.pt', 'derivado', false], ['names.es', 'derivado', false], ['names.it', 'derivado', false], ['names.fr', 'derivado', false], ['names.de', 'derivado', false], /* S-597 · S-598 · nomes impressos em outras línguas */ ['cambio.usd', 'derivado', false], ['names.catalog', 'derivado', false],
   ['catalogo.indice', 'derivado', false], ['catalogo.lista.', 'derivado', false], ['catalogo.fichas', 'derivado', false], ['catalogo.motor', 'derivado', false], ['notificacoes', 'aparelho', false], // G-314 · a leitura é deste aparelho; a de cobertura nasce de novo dos pedidos (que vão no backup)
  
   ['fichas.opcoes', 'derivado', false], ['fichas.opcoes.fila', 'derivado', false], ['fichas.partes', 'derivado', false],
@@ -16726,7 +16726,7 @@ const DESTINOS = [
     quando: 'Ao abrir listas, buscar cartas e jogar com cartas que ainda não estão guardadas.',
     evitar: 'Carta guardada não volta à Scryfall. Sem internet, o app usa só o que já guardou.' },
   { id: 'github', nome: 'GitHub (arquivos do app)', icone: 'jornal', origens: ['https://raw.githubusercontent.com'],
-    vai: 'Só o pedido dos arquivos: notícias, listas prontas do catálogo, fichas, a base de artes e os nomes em português do scanner e a situação dos seus relatos.',
+    vai: 'Só o pedido dos arquivos: notícias, listas prontas do catálogo, fichas, a base de artes e os nomes impressos em outras línguas do scanner e a situação dos seus relatos.',
     quando: 'Ao abrir Início, Catálogo, Fichas, Scanner e Relatos com internet.',
     evitar: 'Sem internet, ficam as últimas versões guardadas.' },
   { id: 'cambio', nome: 'Cotação do dólar', icone: 'globo', origens: ['https://economia.awesomeapi.com.br', 'https://api.frankfurter.dev', 'https://open.er-api.com'],
@@ -43033,22 +43033,33 @@ function criaDiario({ maximo = 30, agora = () => Date.now() } = {}) {
 }
 
 /* ---------------- C6 · catálogo de nomes ---------------- */
-/* S-597 · nomes impressos em português: gerados pelo fluxo "Artes do scanner" (artes.mjs --idiomas pt) no ramo `artes`,
-   guardados no aparelho (names.pt, derivado) e somados à base de nomes. Sem eles, a carta em português não casa. */
-const NOMES_PT_KEY = 'names.pt', URL_NOMES_PT = 'https://raw.githubusercontent.com/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-/artes/nomes-pt.json';
-function createNameIndex({ store, scryfall, now = () => Date.now(), fetchFn = (typeof fetch === 'function' ? fetch.bind(globalThis) : null) }) {
-  let index = null, meta = null, lista = [], apelidos = [], apelidosEm = 0;
-  const refaz = () => { if (lista.length) index = buildIndex(lista, apelidos); };
-  const leApelidos = async () => { try { const g = await store.get(NOMES_PT_KEY); if (g && Array.isArray(g.pares)) { apelidos = g.pares; apelidosEm = g.ts || 0; } } catch (e) { /* sem apelidos */ } };
-  /** Baixa os nomes em português quando faltam ou têm mais de 30 dias; base cortada ou estranha não entra. */
-  const baixaApelidos = async () => {
+/* S-597 · S-598 · nomes impressos em outras línguas: gerados pelo fluxo "Artes do scanner" (artes.mjs --idiomas …) no ramo
+   `artes`, um arquivo por língua (nomes-<idioma>.json), guardados no aparelho (names.<idioma>, derivado) e somados à base de
+   nomes. Sem eles, a carta impressa em outra língua não casa. Só as de escrita latina: o leitor de hoje (dados do inglês) lê
+   o nome delas; japonês, chinês, coreano e russo pedem leitor próprio (X20, fatias 3 e 4) e, até lá, entram pela arte (X12). */
+const IDIOMAS_DOS_NOMES = ['pt', 'es', 'it', 'fr', 'de'];
+const chaveDosNomes = idioma => 'names.' + idioma;
+const URL_NOMES = idioma => `https://raw.githubusercontent.com/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-/artes/nomes-${idioma}.json`;
+function createNameIndex({ store, scryfall, now = () => Date.now(), fetchFn = (typeof fetch === 'function' ? fetch.bind(globalThis) : null), idiomas = IDIOMAS_DOS_NOMES }) {
+  let index = null, meta = null, lista = [];
+  const porIdioma = new Map();   // idioma → { pares, ts }
+  const apelidos = () => [...porIdioma.values()].flatMap(x => x.pares);
+  const refaz = () => { if (lista.length) index = buildIndex(lista, apelidos()); };
+  const leApelidos = async () => {
+    for (const idioma of idiomas) {
+      try { const g = await store.get(chaveDosNomes(idioma)); if (g && Array.isArray(g.pares)) porIdioma.set(idioma, { pares: g.pares, ts: g.ts || 0 }); } catch (e) { /* sem esta língua */ }
+    }
+  };
+  /** Baixa os nomes de uma língua quando faltam ou têm mais de 30 dias; base cortada, estranha ou de outra língua não entra. */
+  const baixaApelidos = async idioma => {
     if (!fetchFn) return false;
-    const r = await fetchFn(URL_NOMES_PT, { cache: 'no-cache' }); if (!r.ok) return false;
+    const r = await fetchFn(URL_NOMES(idioma), { cache: 'no-cache' }); if (!r.ok) return false;
     const j = await r.json();
-    if (!j || j.versao !== 1 || !Array.isArray(j.pares) || !j.pares.every(p => Array.isArray(p) && typeof p[0] === 'string' && typeof p[1] === 'string')) return false;
-    apelidos = j.pares.map(([a, b]) => [a.slice(0, 160), b.slice(0, 160)]); apelidosEm = now();
-    try { await store.set(NOMES_PT_KEY, { ts: apelidosEm, pares: apelidos }); } catch (e) { /* vale nesta sessão */ }
-    refaz(); return true;
+    if (!j || j.versao !== 1 || (j.idioma && j.idioma !== idioma) || !Array.isArray(j.pares) || !j.pares.every(p => Array.isArray(p) && typeof p[0] === 'string' && typeof p[1] === 'string')) return false;
+    const item = { ts: now(), pares: j.pares.map(([a, b]) => [a.slice(0, 160), b.slice(0, 160)]) };
+    porIdioma.set(idioma, item);
+    try { await store.set(chaveDosNomes(idioma), item); } catch (e) { /* vale nesta sessão */ }
+    return true;
   };
   const api = {
     async load() {
@@ -43071,10 +43082,15 @@ function createNameIndex({ store, scryfall, now = () => Date.now(), fetchFn = (t
       await api.load();
       if (!index) { if (!online) return null; await api.refresh(); }
       else if (online && now() - meta.ts > MAX_AGE) { try { await api.refresh(); } catch (e) { /* segue com a antiga */ } }
-      if (online && (!apelidos.length || now() - apelidosEm > MAX_AGE)) { try { await baixaApelidos(); } catch (e) { /* segue só em inglês */ } }
+      if (online) {
+        // uma língua que falha não impede as outras; as que chegaram entram na base de uma vez
+        const velhas = idiomas.filter(i => { const x = porIdioma.get(i); return !x || !x.pares.length || now() - x.ts > MAX_AGE; });
+        const chegaram = await Promise.all(velhas.map(i => baixaApelidos(i).catch(() => false)));
+        if (chegaram.some(Boolean)) refaz();
+      }
       return meta;
     },
-    info() { return meta && { ...meta, apelidos: apelidos.length }; },
+    info() { return meta && { ...meta, apelidos: apelidos().length, idiomas: Object.fromEntries([...porIdioma].map(([i, x]) => [i, x.pares.length])) }; },
     /** L7 · os nomes guardados, para sugerir enquanto se digita (lista vazia sem a base). */
     nomes() { return lista; },
     match(text, opts) { return index ? matchName(index, text, opts) : []; },
@@ -44030,7 +44046,7 @@ const LIMIARES_LINHA = { borrada: 0.5, deslocamentoMax: 0.05, correndo: 0.12, al
     mas a carta não conta como parada (nada entra na primeira passada; o porteiro pede repetição). */
 function pulaPorMovimento(mov, { via = 'auto', contorno = true } = {}) { return via !== 'manual' && contorno && mov > LIMIARES_LINHA.correndo; }
 
-return { cleanOcr, matchName, matchLines, criaVotacao, criaPorteiro, PORTEIRO, leituraConfiavel, nitidezDaFaixa, movimentoEntre, LIMIARES_FAIXA, criaDiario, criaCronometro, EXATA, buildIndex, createNameIndex, createLot, coverRegion, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, ACCEPT, ALTA, SUGGEST, lev,
+return { cleanOcr, matchName, matchLines, criaVotacao, criaPorteiro, PORTEIRO, leituraConfiavel, nitidezDaFaixa, movimentoEntre, LIMIARES_FAIXA, criaDiario, criaCronometro, EXATA, buildIndex, createNameIndex, IDIOMAS_DOS_NOMES, createLot, coverRegion, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, ACCEPT, ALTA, SUGGEST, lev,
   detectaCarta, detectaEmEscalas, ESCALAS_DETECTOR, brilho, nitidez, prontoParaLer, criaDetector, paradaEm, screenRect, LIMIARES, PROPORCAO_CARTA, realcaTexto, trechoEscuroEmbaixo, limpaBordas, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, faixaDaCarta, escalaOcr,
   retasDoQuadro, achaQuadrilatero, ordenaCantos, homografia, cantosDaFaixa, retifica, FAIXA_NOME, FAIXA_COLECAO, LARGURA_NOME, linhaDoNome, binarizaLinha, limpaLinha, nitidezDaLinha, afiaLinha, FAIXA_ARTE, BITS_ARTE, impressaoDaArte, distanciaDaArte, buscaArte, abreBaseDeArtes, binDasArtes, criaBaseDeArtes, decideArte, LIMIAR_ARTE, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, alturaDaCarta, deslocamento, LIMIARES_LINHA, pulaPorMovimento, QUAD };
 })();
@@ -44547,7 +44563,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
   function infoAparelho() {
     const LEITOR = { idle: 'parado', loading: 'carregando', ready: 'pronto', failed: 'falhou' };
     const cam = camera.info ? camera.info() : {};
-    return { leitor_versao: 'S-597 (nome em inglês e português + arte; lente que foca, 2×)', nomes_pt: ((names.info() || {}).apelidos || 0), artes: (artes.info() ? `${artes.info().total} artes` : 'sem base'), aparelho: (navigator.userAgent || '').slice(0, 80), video: `${cam.width || video.videoWidth || 0}×${cam.height || video.videoHeight || 0}${cam.fps ? ` @${Math.round(cam.fps)}` : ''}`, foco: cam.foco || '?', camera_maximo: cam.maximo || '?', subida: cam.subida || '—', zoom: `${(+(cam.zoom || 1)).toFixed(1)}×`, lanterna: cam.lanterna ? 'ligada' : 'desligada', lente: (cam.rotulo || '?').slice(0, 40) + (cam.lenteAuto ? ' (trocada: a anterior não focava)' : ''), ate_aceitar: (r => r.n ? (r.nEntrada ? `mediana ${r.desdeEntrada} ms desde a entrada (${r.nEntrada} carta(s)); ` : '') + `confirmação ${r.confirmacao} ms (${r.n} carta(s))` : 'sem cartas ainda')(cronometro.resumo()), base: (names.info() || {}).count || 0, leitor: LEITOR[state.engine] || state.engine, automatico: state.auto ? 'ligado' : 'pausado', limiares: `borrada < ${LIMIARES_LINHA.borrada} (lê de novo realçada), movimento ≤ ${Math.round(LIMIARES_LINHA.deslocamentoMax * 100)}, carta ≥ ${Math.round(LIMIARES_LINHA.alturaMin * 100)}% do quadro` };
+    return { leitor_versao: 'S-598 (nome em inglês, português, espanhol, italiano, francês e alemão + arte; lente que foca, 2×)', nomes_idiomas: (Object.entries((names.info() || {}).idiomas || {}).map(([l, n]) => `${l} ${n}`).join(' · ') || 'nenhuma'), artes: (artes.info() ? `${artes.info().total} artes` : 'sem base'), aparelho: (navigator.userAgent || '').slice(0, 80), video: `${cam.width || video.videoWidth || 0}×${cam.height || video.videoHeight || 0}${cam.fps ? ` @${Math.round(cam.fps)}` : ''}`, foco: cam.foco || '?', camera_maximo: cam.maximo || '?', subida: cam.subida || '—', zoom: `${(+(cam.zoom || 1)).toFixed(1)}×`, lanterna: cam.lanterna ? 'ligada' : 'desligada', lente: (cam.rotulo || '?').slice(0, 40) + (cam.lenteAuto ? ' (trocada: a anterior não focava)' : ''), ate_aceitar: (r => r.n ? (r.nEntrada ? `mediana ${r.desdeEntrada} ms desde a entrada (${r.nEntrada} carta(s)); ` : '') + `confirmação ${r.confirmacao} ms (${r.n} carta(s))` : 'sem cartas ainda')(cronometro.resumo()), base: (names.info() || {}).count || 0, leitor: LEITOR[state.engine] || state.engine, automatico: state.auto ? 'ligado' : 'pausado', limiares: `borrada < ${LIMIARES_LINHA.borrada} (lê de novo realçada), movimento ≤ ${Math.round(LIMIARES_LINHA.deslocamentoMax * 100)}, carta ≥ ${Math.round(LIMIARES_LINHA.alturaMin * 100)}% do quadro` };
   }
   function paintEstado() {
     const txt = state.camera !== 'on' ? '' : state.engine === 'loading' ? 'Preparando o leitor…' : state.engine === 'failed' ? 'Leitor indisponível' : state.auto ? 'Automático' : 'Pausado';
