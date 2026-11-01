@@ -6,7 +6,7 @@ import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { arquivosDaFase, falhasDoTap, padraoExato, pushSemFiltro, navegadorDeTela, fatiasDeTela, fatiar, conferirFatias, resumoDoTap, juntaResumo, divisaoDaRapida, PESADOS_DA_RAPIDA, fatiasDaParte, ARQUIVO_DE_TELA } from './portao.mjs';
+import { arquivosDaFase, falhasDoTap, padraoExato, pushSemFiltro, navegadorDeTela, fatiasDeTela, fatiar, conferirFatias, resumoDoTap, juntaResumo, ordemDaRapida, PESADOS_DA_RAPIDA, fatiasDaParte, ARQUIVO_DE_TELA } from './portao.mjs';
 const RAIZ = dirname(fileURLToPath(import.meta.url));
 
 test('Q14 · as duas fases cobrem todos os arquivos de teste, sem repetir nenhum; o navegador fica sozinho na segunda', () => {
@@ -129,29 +129,39 @@ test('Q19 · de verdade: um arquivo de teste rodado em duas fatias executa cada 
 });
 
 // Q21 · o portão não muda de sistema sozinho
-test('Q25 · com quatro núcleos os pesados da fase rápida saem num processo próprio desde o início, sem usar núcleo a mais; com dois nada muda', () => {
-  const arquivos = ['a.unit.test.mjs', 'bot.torneio.test.mjs', 'c.unit.test.mjs', 'scripts.unit.test.mjs', 'z.unit.test.mjs'];
-  const ci = divisaoDaRapida(arquivos, 4, {});
-  assert.deepEqual(ci, [
-    { arquivos: ['bot.torneio.test.mjs', 'scripts.unit.test.mjs'], concorrencia: 2 },
-    { arquivos: ['a.unit.test.mjs', 'c.unit.test.mjs', 'z.unit.test.mjs'], concorrencia: 2 },
-  ]);
-  for (const nucleos of [4, 6, 8]) {
-    const d = divisaoDaRapida(arquivos, nucleos, {});
-    assert.deepEqual(d.flatMap((p) => p.arquivos).sort(), [...arquivos].sort(), 'cada arquivo roda uma vez');
-    assert.equal(d.reduce((t, p) => t + p.concorrencia, 0), nucleos, 'os dois processos juntos usam os núcleos que um só usava');
-  }
-  assert.deepEqual(divisaoDaRapida(arquivos, 2, {}), [{ arquivos, concorrencia: 2 }], 'conversas de nuvem: um processo, como antes');
-  assert.deepEqual(divisaoDaRapida(arquivos, 4, { PORTAO_PESADOS: '0' }), [{ arquivos, concorrencia: 4 }], 'PORTAO_PESADOS=0 desliga');
-  assert.deepEqual(divisaoDaRapida(arquivos, 2, { PORTAO_PESADOS: '1' }).map((p) => p.concorrencia), [2, 1], 'PORTAO_PESADOS=1 liga para medir: o resto fica com pelo menos um núcleo');
-  assert.deepEqual(divisaoDaRapida(['a.unit.test.mjs'], 4, {}), [{ arquivos: ['a.unit.test.mjs'], concorrencia: 4 }], 'sem pesado, nada muda');
-  assert.deepEqual(divisaoDaRapida(['bot.torneio.test.mjs'], 4, {}), [{ arquivos: ['bot.torneio.test.mjs'], concorrencia: 4 }], 'só pesado, um processo');
+test('Q25 · a fase rápida começa pelos pesados, no mesmo grupo de processos; cada arquivo uma vez, o resto em ordem alfabética', () => {
+  const arquivos = ['z.unit.test.mjs', 'scripts.unit.test.mjs', 'a.unit.test.mjs', 'bot.torneio.test.mjs', 'c.unit.test.mjs'];
+  assert.deepEqual(ordemDaRapida(arquivos), ['bot.torneio.test.mjs', 'scripts.unit.test.mjs', 'a.unit.test.mjs', 'c.unit.test.mjs', 'z.unit.test.mjs']);
+  assert.deepEqual(ordemDaRapida(['b.unit.test.mjs', 'a.unit.test.mjs']), ['a.unit.test.mjs', 'b.unit.test.mjs'], 'sem pesado, a ordem de sempre');
+  const real = arquivosDaFase('rapido');
+  assert.deepEqual([...ordemDaRapida(real)].sort(), [...real].sort(), 'nenhum arquivo some nem repete');
+  // I-317 · expectativa mudada com justificativa: a I-314 punha os pesados num processo à parte com núcleos fixos e a fase rápida foi
+  // de 18,5 para 24 min no CI (os núcleos dele ficavam parados). Agora um grupo só; o que se garante é a ordem.
+  assert.doesNotMatch(readFileSync(join(RAIZ, 'portao.mjs'), 'utf8'), /divisaoDaRapida/, 'sem o processo à parte da I-314');
+});
+
+test('Q25 · de verdade: o executor em ordem começa os arquivos na ordem dada (a linha de comando do Node os reordena por nome) e devolve TAP com o resumo e o código de saída', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'estante-q25-'));
+  try {
+    const arq = (nome, ms, cai) => writeFileSync(join(dir, nome), `import { test } from 'node:test';\ntest('${nome}', async () => { console.error('inicio ${nome}'); await new Promise((r) => setTimeout(r, ${ms}));${cai ? " throw new Error('caiu');" : ''} });\n`);
+    arq('a.test.mjs', 50); arq('b.test.mjs', 50); arq('z.test.mjs', 600);
+    const { NODE_TEST_CONTEXT, ...semContexto } = process.env;   // dentro do `node --test`, o filho deixaria de escrever TAP
+    const roda = (args) => spawnSync(process.execPath, [join(RAIZ, 'portao.mjs'), 'em-ordem', '1', ...args.map((n) => join(dir, n))], { encoding: 'utf8', env: semContexto });
+    const r = roda(['z.test.mjs', 'a.test.mjs', 'b.test.mjs']);
+    assert.equal(r.status, 0, r.stderr);
+    const inicios = [...(r.stdout + r.stderr).matchAll(/inicio (\w)\.test\.mjs/g)].map((m) => m[1]);
+    assert.deepEqual(inicios, ['z', 'a', 'b'], 'o mais longo começa primeiro');
+    assert.match(r.stdout, /^# pass 3$/m); assert.match(r.stdout, /^# fail 0$/m);
+    arq('c.test.mjs', 10, true);
+    const v = roda(['c.test.mjs']);
+    assert.equal(v.status, 1, 'queda vira código de saída 1'); assert.match(v.stdout, /^not ok 1 - c\.test\.mjs$/m); assert.match(v.stdout, /location: '.*c\.test\.mjs:\d+:\d+'/, 'com o arquivo, para a fila');
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
 test('Q25 · os pesados existem e estão na fase rápida; renomear um deles sem atualizar a lista devolve a cauda', () => {
   const rapida = arquivosDaFase('rapido');
   for (const n of PESADOS_DA_RAPIDA) assert.ok(rapida.includes(n), `${n} está em PESADOS_DA_RAPIDA mas não na fase rápida: atualize a lista em portao.mjs`);
-  assert.match(readFileSync(join(RAIZ, 'portao.mjs'), 'utf8'), /divisaoDaRapida\(arquivos\)/, 'a fase rápida usa a divisão');
+  assert.match(readFileSync(join(RAIZ, 'portao.mjs'), 'utf8'), /ordemDaRapida\(arquivos\)/, 'a fase rápida usa a ordem');
 });
 
 test('Q26 · a tela dividida entre jobs: cada parte roda as suas fatias numa conta só; as partes juntas cobrem todas, uma vez cada; sem parte, nada muda', () => {

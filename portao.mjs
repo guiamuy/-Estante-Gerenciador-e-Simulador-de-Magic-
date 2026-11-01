@@ -20,7 +20,7 @@
    ===================================================================== */
 import { spawn } from 'node:child_process';
 import { readdirSync, appendFileSync, existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { availableParallelism } from 'node:os';
 
@@ -93,17 +93,25 @@ export function pushSemFiltro(yml) {
 
 /* ---------- Q25 · fase rápida sem cauda ---------- */
 
-/** Arquivos da fase rápida que, sozinhos, levam vários minutos (medido no CI em 01/11/2026: `bot.torneio` ~12 min, `scripts.unit`
-    ~4 min, numa fase de 18,5). O Node roda os arquivos em ordem alfabética, seja qual for a ordem passada: o pesado que começa tarde
-    vira cauda, com os outros núcleos parados esperando por ele. */
-export const PESADOS_DA_RAPIDA = ['bot.torneio.test.mjs', 'scripts.unit.test.mjs'];
-/** Com quatro núcleos ou mais (CI), os pesados saem num processo só deles, um núcleo cada, que começa junto com o processo do resto;
-    a soma dos dois processos usa os mesmos núcleos de antes. Com dois núcleos (conversas de nuvem) nada muda: três processos em dois
-    núcleos atrasariam os testes que medem tempo. `PORTAO_PESADOS=0` desliga; `PORTAO_PESADOS=1` liga com qualquer número de núcleos (para medir). Devolve [{ arquivos, concorrencia }], cada arquivo uma vez. */
-export function divisaoDaRapida(arquivos, nucleos = availableParallelism(), env = process.env) {
+/** Arquivos da fase rápida que levam minutos, do mais longo ao mais curto (CI, 01/11/2026). A linha de comando do Node (`--test`)
+    roda os arquivos em ordem alfabética, seja qual for a ordem passada: o pesado que começa tarde vira cauda, com os outros núcleos
+    parados esperando por ele. A API `run()` respeita a ordem dada (conferido): os pesados começam primeiro, no mesmo grupo de
+    processos do resto, e quem termina pega o próximo arquivo. */
+export const PESADOS_DA_RAPIDA = ['bot.torneio.test.mjs', 'scripts.unit.test.mjs', 'engine.fuzz.test.mjs', 'online.unit.test.mjs', 'bot.unit.test.mjs', 'jogadores.equivalencia.unit.test.mjs', 'mover.equivalencia.unit.test.mjs'];
+/** A ordem em que a fase rápida começa os arquivos: os pesados presentes primeiro (na ordem da lista), o resto em ordem alfabética;
+    cada arquivo uma vez. I-317 · a primeira versão (I-314) punha os pesados num processo à parte com núcleos fixos: os dois núcleos
+    dele ficavam parados depois de ~8 min e a fase foi de 18,5 para 24 min no CI. */
+export function ordemDaRapida(arquivos) {
   const pesados = PESADOS_DA_RAPIDA.filter((n) => arquivos.includes(n));
-  if (env.PORTAO_PESADOS === '0' || (nucleos < 4 && env.PORTAO_PESADOS !== '1') || !pesados.length || pesados.length >= arquivos.length) return [{ arquivos, concorrencia: Math.max(2, nucleos) }];
-  return [{ arquivos: pesados, concorrencia: pesados.length }, { arquivos: arquivos.filter((n) => !pesados.includes(n)), concorrencia: Math.max(1, nucleos - pesados.length) }];
+  return [...pesados, ...arquivos.filter((n) => !pesados.includes(n)).sort()];
+}
+/** Roda os arquivos pela API `run()` do Node, na ordem dada, com saída TAP igual à do `node --test` (o portão e a fila leem dela). */
+async function rodarEmOrdem(concorrencia, arquivos) {
+  const { run } = await import('node:test');
+  const { tap } = await import('node:test/reporters');
+  const corrida = run({ files: arquivos.map((n) => resolve(RAIZ, n)), concurrency: concorrencia });
+  corrida.on('test:fail', () => { process.exitCode = 1; });
+  corrida.compose(tap).pipe(process.stdout);
 }
 
 /* ---------- Q19 · fase de tela em fatias ---------- */
@@ -196,12 +204,11 @@ async function principal() {
     const arquivos = arquivosDaFase('rapido');
     titulo(`fase 1 · rápida (${arquivos.length} arquivos, sem navegador)`);
     // um processo por núcleo (o padrão do Node deixa um núcleo livre: em máquina de dois núcleos os arquivos rodavam em fila);
-    // Q25 · com quatro núcleos, os pesados num processo próprio desde o início (o do resto aparece ao vivo, o dos pesados em seguida)
-    const partes = divisaoDaRapida(arquivos);
-    if (partes.length > 1) console.log(`# pesados desde o início, num processo próprio: ${partes[0].arquivos.join(', ')}`);
-    const rs = await Promise.all(partes.map((p, i) => roda(['--test', `--test-concurrency=${p.concorrencia}`, ...p.arquivos], { eco: i === partes.length - 1 })));
-    rs.slice(0, -1).forEach((p) => { console.log('\n# ── pesados'); process.stdout.write(p.saida); });
-    const r = { ok: rs.every((p) => p.ok), saida: rs.map((p) => p.saida).join('\n') };
+    // Q25 · os pesados começam primeiro, no mesmo grupo de processos (`PORTAO_PESADOS=0`: a linha de comando, em ordem alfabética)
+    const concorrencia = Math.max(2, availableParallelism());
+    const r = process.env.PORTAO_PESADOS === '0'
+      ? await roda(['--test', `--test-concurrency=${concorrencia}`, ...arquivos])
+      : await roda([fileURLToPath(import.meta.url), 'em-ordem', String(concorrencia), ...ordemDaRapida(arquivos)]);
     console.log(`# fase 1 em ${minutos(Date.now() - inicio)}`);
     gravaResumo({ fase: 'rapido', verde: r.ok, minutos: Math.round((Date.now() - inicio) / 6000) / 10, ...resumoDoTap(r.saida) });
     if (!r.ok) { console.error('\n✗ Fase rápida vermelha: a fase de tela nem começou.'); process.exit(1); }
@@ -258,4 +265,7 @@ async function principal() {
   console.log(`\n# portão verde em ${minutos(Date.now() - inicio)}`);
 }
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) principal();
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  if (process.argv[2] === 'em-ordem') rodarEmOrdem(Math.max(1, Number(process.argv[3]) || 1), process.argv.slice(4));
+  else principal();
+}
