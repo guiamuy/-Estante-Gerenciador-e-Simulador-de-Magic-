@@ -8860,11 +8860,15 @@ X14 ataca. Sobre imagem: acima de 1440p o **nome** não ganha (a linha é lida e
      quando o scanner abre ou no preparo para usar sem internet (`ensure({ impressos: true })`), não em toda tela que
      consulta a base de nomes; língua cujo arquivo falhou só é pedida de novo depois de uma hora. O teste G-242 ganhou
      a resposta do ramo `artes` (arquivo válido, sem pares) no servidor falso, como o real responderá.
-  3. **S-600** · japonês e chinês (simplificado e tradicional): o leitor de hoje só conhece letras latinas; precisa dos
+  - **S-600** · correção achada na primeira corrida do fluxo (01/11/2026): a Scryfall passou a anunciar os dados em massa
+     só em JSON Lines comprimido (`jsonl_download_uri`, `.jsonl.gz`, sem `download_uri`) e o fluxo parou em "dados em
+     massa sem endereço da Scryfall" antes de gerar a base de artes e os nomes. O gerador aceita os dois formatos
+     (lista JSON ou uma carta por linha, com ou sem gzip) e lê sempre em fluxo, inclusive o Unique Artwork.
+  3. **S-601** · japonês e chinês (simplificado e tradicional): o leitor de hoje só conhece letras latinas; precisa dos
      dados de leitura de cada escrita (baixados uma vez, guardados para usar sem internet; origem a revisar pela
      `protecao`). Os nomes já saem do fluxo desde a S-598. Até lá, a carta japonesa ou chinesa entra pela arte (X12).
-  4. **S-601** · coreano e russo, no mesmo molde.
-- **Parcial, e o que falta:** fatias 3 e 4 (S-600, S-601); os nomes só chegam ao aparelho depois da primeira corrida do fluxo com
+  4. **S-602** · coreano e russo, no mesmo molde.
+- **Parcial, e o que falta:** fatias 3 e 4 (S-601, S-602); os nomes só chegam ao aparelho depois da primeira corrida do fluxo com
   `--idiomas` (I-312/I-313); não testado no aparelho. Fora: traduzir a interface, mostrar o nome impresso na coleção.
 - **Testes:** U (`artes.unit`: sem os nomes em português o print não casa — o defeito —, com eles casa exato, com troca de
   OCR e sem acento; a base baixa, guarda, abre sem rede e recusa arquivo estranho; régua de movimento com 7%, 11%, 20%,
@@ -8874,6 +8878,9 @@ X14 ataca. Sobre imagem: acima de 1440p o **nome** não ganha (a linha é lida e
   só a língua velha é baixada de novo; o separador do fluxo acha os objetos em qualquer corte, com chaves e aspas
   dentro de texto; os dados em massa dão os nomes de seis línguas num download só, ignoram o inglês e a letra partida
   entre pedaços; o gerador grava um arquivo por língua e, sem os dados em massa, volta à busca).
+  S-600: U (`artes.unit`: a Scryfall falsa do gerador anuncia só `jsonl_download_uri` com gzip — o formato real, que a
+  versão anterior recusava —; All Cards em JSON Lines comprimido, em pedaços de 7 bytes, dá os mesmos nomes; endereço
+  fora de data.scryfall.io é recusado; o formato antigo continua aceito).
 
 **X13 · Câmera no máximo e cronômetro de leitura** 🟡 (leva 120; aguardando teste no aparelho)
 - **Valor:** o scanner usa tudo o que a câmera do aparelho entrega, e passa a dizer quanto demora, por etapa.

@@ -5,6 +5,7 @@ import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
+import { gzipSync } from 'node:zlib';
 import { loadModules } from './_load.mjs';
 import { gera, cartasDaBase, autotesteDaBase } from './artes.mjs';
 
@@ -104,6 +105,9 @@ test('S-595 · quais cartas entram: papel, com imagem pequena da frente na Scryf
   assert.equal(c[0].versao, '1625'); assert.equal(c[1].ilustracao, 'il-2');
 });
 
+/** Um corpo de resposta em pedaços de `n` bytes. */
+const pedacos = (buf, n) => (async function* () { for (let i = 0; i < buf.length; i += n) yield new Uint8Array(buf.subarray(i, i + n)); })();
+
 /** Scryfall falsa: os dados em massa com `n` cartas e as imagens JPEG desenhadas; conta as imagens pedidas. */
 function scryfallFalsa(n, { falha = new Set(), versao = () => '1' } = {}) {
   const pedidas = [];
@@ -111,8 +115,9 @@ function scryfallFalsa(n, { falha = new Set(), versao = () => '1' } = {}) {
   const resp = (corpo, tipo) => ({ ok: true, status: 200, json: async () => corpo, arrayBuffer: async () => corpo });
   const fetchFn = async (url, opts) => {
     assert.match(opts.headers['User-Agent'], /^Estante\//, 'identifica o app para a Scryfall');
-    if (url === 'https://api.scryfall.com/bulk-data/unique-artwork') return resp({ download_uri: 'https://data.scryfall.io/unique-artwork/x.json', updated_at: '2026-11-01T09:00:00Z' });
-    if (url === 'https://data.scryfall.io/unique-artwork/x.json') return resp(cartas);
+    // S-600 · o formato que a Scryfall anuncia desde 01/11/2026: só jsonl_download_uri, uma carta por linha, em gzip
+    if (url === 'https://api.scryfall.com/bulk-data/unique-artwork') return resp({ jsonl_download_uri: 'https://data.scryfall.io/unique-artwork/x.jsonl.gz', updated_at: '2026-11-01T09:00:00Z' });
+    if (url === 'https://data.scryfall.io/unique-artwork/x.jsonl.gz') return { ok: true, status: 200, body: pedacos(gzipSync(cartas.map(c => JSON.stringify(c)).join('\n')), 4096) };
     const m = /\/small\/(\d+)\.jpg/.exec(url); if (!m) throw new Error('url inesperada ' + url);
     const i = +m[1]; pedidas.push(i);
     if (falha.has(i)) return { ok: false, status: 404 };
@@ -405,4 +410,25 @@ test('S-598 · os nomes impressos só são baixados quando o scanner (ou o prepa
   assert.equal(pedidos.length, 5, 'na mesma hora, o italiano que falhou não é pedido de novo a cada leitura');
   t += 3600001; await n.ensure({ online: true, impressos: true });
   assert.equal(pedidos.join(','), 'pt,es,it,fr,de,it', 'uma hora depois, só ele');
+});
+
+test('S-600 · dados em massa no formato de 01/11/2026 (só jsonl_download_uri, uma carta por linha, gzip em pedaços pequenos): os nomes saem iguais; endereço fora da Scryfall é recusado', async () => {
+  const { nomesDosDadosEmMassa, enderecoDaMassa } = await import('./artes.mjs');
+  const cartas = [
+    { lang: 'en', name: 'Counterspell' },
+    { lang: 'pt', name: 'Counterspell', printed_name: 'Anular Feitiço', card_faces: undefined },
+    { lang: 'ja', name: 'Counterspell', printed_name: '対抗呪文', oracle_text: 'Counter target spell. {U}{U} } { "' },
+    { lang: 'es', name: 'Fire // Ice', card_faces: [{ name: 'Fire', printed_name: 'Fuego' }, { name: 'Ice', printed_name: 'Hielo' }] }
+  ];
+  const gz = gzipSync(cartas.map(c => JSON.stringify(c)).join('\n') + '\n');
+  const fetchFn = async url => {
+    if (url === 'https://api.scryfall.com/bulk-data/all-cards') return { ok: true, json: async () => ({ object: 'bulk_data', type: 'all_cards', jsonl_download_uri: 'https://data.scryfall.io/all-cards/all-cards-1.jsonl.gz' }) };
+    if (url === 'https://data.scryfall.io/all-cards/all-cards-1.jsonl.gz') return { ok: true, body: pedacos(gz, 7) };
+    throw new Error('url inesperada ' + url);
+  };
+  const r = await nomesDosDadosEmMassa(fetchFn, ['pt', 'ja', 'es']);
+  assert.equal(JSON.stringify(r), JSON.stringify({ pt: [['Anular Feitiço', 'Counterspell']], ja: [['対抗呪文', 'Counterspell']], es: [['Fuego', 'Fire // Ice'], ['Hielo', 'Fire // Ice']] }));
+  assert.equal(enderecoDaMassa({ download_uri: 'https://data.scryfall.io/a.json' }), 'https://data.scryfall.io/a.json', 'o formato antigo continua valendo');
+  assert.throws(() => enderecoDaMassa({ jsonl_download_uri: 'https://exemplo.com/a.jsonl.gz' }), /sem endereço da Scryfall/);
+  assert.throws(() => enderecoDaMassa({}), /sem endereço da Scryfall/);
 });
