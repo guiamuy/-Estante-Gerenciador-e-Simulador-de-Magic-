@@ -7494,6 +7494,7 @@ function effectErrors(effects, label, opcional) {
     if (e.exilaSeMorrer != null && !(e.do === 'damage' && e.exilaSeMorrer === true)) errs.push(`${label} ${i + 1}: "exilaSeMorrer" é uma marca (true) do dano`); // M-384 · Torch the Tower
     if (e.marcaFonteM != null && !(e.marcaFonteM === true && e.do === 'exila_ate_final')) errs.push(`${label} ${i + 1}: "marcaFonteM" é uma marca (true) da exila_ate_final`); // M-548 · Phelia
     if (e.semGanharVidaM != null && !(e.semGanharVidaM === true && e.do === 'damage')) errs.push(`${label} ${i + 1}: "semGanharVidaM" é uma marca (true) do dano`); // M-550 · Screaming Nemesis
+    if (e.do === 'search' && e.zona != null && e.zona !== 'graveyard') errs.push(`${label} ${i + 1}: busca: "zona" só 'graveyard'`); // M-590
     if (e.do === 'exile_top_playable' && ((e.de != null && e.de !== 'that-player') || (e.soConjurar != null && e.soConjurar !== true))) errs.push(`${label} ${i + 1}: exílio do topo: "de" só that-player e "soConjurar" só true`); // M-566
     if (e.lembraExiladas != null && !(e.lembraExiladas === true && (e.do === 'exile_top_playable' || e.do === 'delayed'))) errs.push(`${label} ${i + 1}: "lembraExiladas" é uma marca (true) do exílio do topo e do gatilho atrasado`); // M-386 (o \`lembra\` do \`mover\` é outra coisa — achado da revisão: Leonin Relic-Warder)
     if (e.seRestar != null && !(e.seRestar === true && e.do === 'delayed' && e.lembraExiladas)) errs.push(`${label} ${i + 1}: "seRestar" é do gatilho atrasado que lembra as exiladas`); // M-386 · 603.4
@@ -20820,6 +20821,7 @@ const __m42 = (function () {
     [/^the owner of (target nonland permanent) puts it on the top or bottom of their library$/i, m => { const a = alvo(m[1]); return a ? [{ do: 'topo_ou_fundo_do_dono', target: { semTipos: ['land'] } }] : null; }], // M-352 · a forma sem "segundo" (canalizar de Moonsnare Prototype e afins)
     [new RegExp(`^impulso ${N} ate o proximo final$`, 'i'), m => [{ do: 'exile_top_playable', amount: num(m[1]), ate: 'proximo-final' }]], // M-541 · Seek the Beast
     [new RegExp(`^impulso ${N} ate o proximo turno$`, 'i'), m => [{ do: 'exile_top_playable', amount: num(m[1]), ate: 'proximo-turno' }]], // M-349 · Wrenn's Resolve, Reckless Impulse, Clockwork Percussionist (frase juntada em leParagrafo)
+    [/^return an? (creature|artifact|enchantment|land|instant|sorcery|planeswalker)(?: or (creature|artifact|enchantment|land|instant|sorcery|planeswalker))? card from your graveyard to your hand$/i, m => [{ do: 'search', amount: 1, zona: 'graveyard', filter: { types: [m[1], m[2]].filter(Boolean).map(x => x.toLowerCase()) }, to: 'hand' }]], // M-590 · Takenuma: escolha na resolução, sem alvo (o cemitério é zona pública: achando, devolve)
     [/^return target instant or sorcery card from your graveyard to your hand$/i, () => [{ do: 'to_hand', target: { zona: 'graveyard', de: 'you', tipos: ['instant', 'sorcery'] } }]], // M-348 · Archaeomancer
     [/^return up to (two|three) target land cards from your graveyard to your hand$/i, m => Array.from({ length: { two: 2, three: 3 }[m[1].toLowerCase()] }, () => ({ do: 'to_hand', target: { zona: 'graveyard', de: 'you', tipos: ['land'] }, upTo: true }))], // M-582 · Life from the Loam (115.3: aceita de zero a três; cada carta um alvo diferente, 601.2c)
     [/^return target land card from your graveyard to your hand$/i, () => [{ do: 'to_hand', target: { zona: 'graveyard', de: 'you', tipos: ['land'] } }]], // M-513 · Circle of the Land Druid
@@ -21482,6 +21484,8 @@ const __m42 = (function () {
         if (etv) { topo.entersTappedUnless = { anyPlayerLifeAtMost: +etv[1] }; frases.push({ texto: linha, lida: true }); continue; }
         const om = lp.match(/^whenever (?:this creature|~) or another creature( or planeswalker)? you control dies, (.+)$/i); // M-324 · ela ou outra sua morre: dois gatilhos (outra · ela)
         if (om) { const g1 = leGatilho(`Whenever another creature you control dies, ${om[2]}`, nome, frases), g2 = leGatilho(`When ~ dies, ${om[2]}`, nome, []); if (g1 && g2) { if (om[1]) g1.filter = { anyTypes: ['creature', 'planeswalker'] }; (topo.abilities = topo.abilities || []).push(g1, g2); } continue; }
+        { const ed = lp.match(/^when (?:~|this creature) enters or dies, (.+)$/i); // M-590 · Stitcher's Supplier: dois gatilhos com o mesmo efeito
+          if (ed) { const g1 = leGatilho(`When ~ enters, ${ed[1]}`, nome, frases), g2 = leGatilho(`When ~ dies, ${ed[1]}`, nome, []); if (g1 && g2) { (topo.abilities = topo.abilities || []).push(g1, g2); continue; } } }
         const ea = lp.match(/^whenever (?:~|this creature) enters or attacks, (.+)$/i); // M-378 · Inferno Titan: dois gatilhos com o mesmo efeito
         if (ea) { const g1 = leGatilho(`When ~ enters, ${ea[1]}`, nome, frases), g2 = leGatilho(`Whenever ~ attacks, ${ea[1]}`, nome, []); if (g1 && g2) (topo.abilities = topo.abilities || []).push(g1, g2); continue; }
         { const ew = lp.match(/^when (?:~|this enchantment|this artifact|this creature|this permanent) enters and (whenever (?:you cast|an opponent draws) [^,]+), (.+)$/i); // M-565 · também Orcish Bowmasters // M-556 · Up the Beanstalk: dois gatilhos com o mesmo efeito
@@ -24756,6 +24760,12 @@ function applyEffectM449(s, src, eff, tgt, events) {
       // S46 · a busca pode ser do controlador do alvo, e pode ser opcional ("pode vasculhar")
       const who = eff.target === 'target-controller' ? playerOf() : ctrl;
       const filtroM = eff.filter && eff.filter.mvMax != null && typeof eff.filter.mvMax === 'object' ? { ...eff.filter, mvMax: amountOf(s, src, eff.filter.mvMax) } : eff.filter; // M-562 · "with mana value X or less": o X anunciado (107.3a)
+      if (eff.zona === 'graveyard') { // M-590 · "return a [tipo] card from your graveyard to your hand" (Takenuma): escolha na resolução, sem alvo; zona pública, então achando é obrigatório e não embaralha
+        const gy = s.zones[who].graveyard.filter(oid => matchesFilter(s, s.objects[oid], filtroM));
+        if (!gy.length) { note({ amount: 0 }); break; }
+        startPick(s, { p: who, from: gy, min: eff.optional ? 0 : Math.min(eff.amount, gy.length), max: eff.amount, to: eff.to || 'hand', rest: 'stay', filter: filtroM, label: 'escolher no cemitério', source: src.name }, events);
+        break;
+      }
       const from = s.zones[who].library.filter(oid => matchesFilter(s, s.objects[oid], filtroM));
       // Leva 108 · "then shuffle": buscar sem achar nada ainda embaralha (buscas opcionais contam como feitas)
       if (!from.length) { shuffle(s, s.zones[who].library); note({ amount: 0 }); break; }
