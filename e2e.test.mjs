@@ -5106,6 +5106,44 @@ test('e2e · Leva 125 · Rakdos: a pergunta de cada decisão fica escrita na ban
   assert.deepEqual(M.errors, []);
 });
 
+test('e2e · J-35 · relato #39 · na lista do seu cemitério, a carta que dá para usar dali agora vem primeiro, com moldura e selo em ouro e o verbo ("Lampejo"); as outras ficam sem marca', { skip }, async t => {
+  // Dread Return {2}{B}{B} Sorcery: "Return target creature card from your graveyard to the battlefield. Flashback—Sacrifice three creatures."
+  // Texto oficial em .listas/oficiais-cartas.json (consulta de 12/10/2026; o mesmo da J-34). A bolinha do contador já dizia "tem
+  // carta para usar aqui"; a lista aberta não dizia qual (antes: nenhuma carta com data-usavel e a ordem era só a do cemitério).
+  const DREAD = { name: 'Dread Return', mana_cost: '{2}{B}{B}', type_line: 'Sorcery', oracle_text: 'Return target creature card from your graveyard to the battlefield.\nFlashback—Sacrifice three creatures. (You may cast this card from your graveyard for its flashback cost. Then exile it.)' };
+  const M = await comLista125(t, '20 Swamp\n16 Llanowar Elves\n4 Dread Return', ['Swamp', 'Llanowar Elves', 'Dread Return'], '4', { extras: [DREAD] });
+  const { page } = M;
+  await page.evaluate(() => { const s = window.__estanteMesa.estado(), z = s.zones[0];
+    const tira = nome => { for (const de of ['library', 'hand']) { const i = z[de].findIndex(o => s.objects[o].name === nome); if (i >= 0) return z[de].splice(i, 1)[0]; } return null; };
+    const poe = (nome, zona) => { const oid = tira(nome); Object.assign(s.objects[oid], { zone: zona, controller: 0, tapped: false, sick: false, damage: 0, counters: {} }); z[zona].push(oid); return oid; };
+    poe('Dread Return', 'graveyard'); for (let i = 0; i < 3; i++) poe('Llanowar Elves', 'graveyard'); // o Dread Return entra primeiro: na ordem do cemitério ficaria por último
+    for (let i = 0; i < 3; i++) poe('Llanowar Elves', 'battlefield');
+    window.__estanteMesa.repinta(); });
+  assert.equal(await page.getAttribute('#tb-cemiterio-me', 'data-jogaveis'), '1', 'a bolinha do contador acende para uma carta');
+  await page.click('#tb-cemiterio-me'); await page.waitForSelector('.ds-dialog .tb-zonegrid');
+  const cartas = await page.locator('.ds-dialog .tb-zonegrid .tb-card').evaluateAll(cs => cs.map(c => ({ nome: (c.getAttribute('aria-label') || '').split(',')[0], usavel: c.dataset.usavel === 'true', selo: (c.querySelector('.tb-card__usavel') || {}).textContent || '', fala: c.getAttribute('aria-label') })));
+  assert.equal(cartas.length, 4);
+  assert.deepEqual(cartas.map(c => [c.nome, c.usavel, c.selo]), [['Dread Return', true, 'Lampejo'], ['Llanowar Elves', false, ''], ['Llanowar Elves', false, ''], ['Llanowar Elves', false, '']], 'a usável vem primeiro, com o selo; as outras sem marca');
+  assert.match(cartas[0].fala, /dá para usar agora: Lampejo$/, 'o leitor de tela também diz');
+  assert.equal(await page.innerText('#tb-zona-usaveis'), 'Em ouro, a carta que você pode usar daqui agora.');
+  const ouro = await page.evaluate(() => { const c = document.querySelector('.ds-dialog .tb-card[data-usavel="true"]'), cs = getComputedStyle(c), acc = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+    const sel = c.querySelector('.tb-card__usavel').getBoundingClientRect(), r = c.getBoundingClientRect();
+    const tmp = document.createElement('i'); tmp.style.color = acc; document.body.append(tmp); const accRgb = getComputedStyle(tmp).color; tmp.remove();
+    return { contorno: cs.outlineColor, accRgb, estilo: cs.outlineStyle, seloUmaLinha: sel.height < 24, seloDentro: sel.left >= r.left - 1 && sel.right <= r.right + 1 }; });
+  assert.equal(ouro.estilo, 'solid'); assert.equal(ouro.contorno, ouro.accRgb, 'moldura na cor de destaque (ouro do DS-K)');
+  assert.ok(ouro.seloUmaLinha, 'o selo não quebra linha'); assert.ok(ouro.seloDentro, 'o selo cabe na largura da carta');
+  await auditaTela(page, 'cemitério aberto com carta usável marcada');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/J-35-cemiterio.png' });
+  // o toque continua abrindo a folha da carta, com o lampejo
+  await page.locator('.ds-dialog .tb-card[data-usavel="true"]').click(); await page.waitForTimeout(300);
+  assert.match(await page.locator('.ds-dialog .tb-sheet__actions').innerText(), /Lampejo do passado/);
+  await page.click('#ds-dialog-close'); await page.waitForTimeout(150);
+  // a zona do oponente não ganha marca (a ação é sua)
+  await page.click('.tb-side--opp .tb-chip[data-zona="graveyard"]'); await page.waitForSelector('.ds-dialog');
+  assert.equal(await page.locator('.ds-dialog [data-usavel]').count(), 0); assert.equal(await page.locator('#tb-zona-usaveis').count(), 0);
+  assert.deepEqual(M.errors, []);
+});
+
 test('e2e · Leva 125 · Rakdos: escolher a carta do custo é tocar na carta (cópias iguais juntas), e a insanidade sem mana explica', { skip }, async t => {
   const M = await comLista125(t, '14 Mountain\n6 Swamp\n16 Grab the Prize\n12 Kitchen Imp\n12 Fiery Temper', ['Mountain', 'Swamp', 'Grab the Prize', 'Kitchen Imp', 'Fiery Temper'], '7');
   const { page } = M; let e;
