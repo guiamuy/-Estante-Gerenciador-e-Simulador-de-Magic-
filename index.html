@@ -400,6 +400,10 @@ a { color: var(--accent); }
 .deck-topo > .ds-row > .ds-stack { flex: 1 1 auto; min-width: 0; }
 .deck-topo > .ds-row > .ds-grow { display: none; }
 .deck-topo h1 { text-wrap: balance; }
+/* DS-K2 L1 (G-324) · hero da lista: carta-chave à esquerda (72 px), nome e meta ao lado, posse embaixo */
+.deck-hero__arte.deck-topo__arte { width: 72px; flex: none; }
+.deck-topo__posse { display: grid; gap: var(--space-1); margin-top: var(--space-1); max-width: 260px; }
+.deck-topo__posse .deck-item__posse { height: 4px; }
 .ds-destaque .ds-expansivel__selo { background-color: var(--accent); background-image: linear-gradient(160deg, var(--accent-hi), var(--accent) 55%, var(--accent-lo)); color: var(--accent-fg);
   box-shadow: inset 0 1px 0 var(--latao-luz), inset 0 -1px 0 var(--latao-labio); } /* DS-K F2.4 · o selo do bloco em destaque é latão */
 .ds-destaque .col-dash__tile { background: var(--bg-elev-1); box-shadow: inset 0 1px 0 var(--latao-luz); } /* placas um degrau acima do ébano */
@@ -18400,6 +18404,23 @@ function SeloMotorDa(d, cards) {
   naOciosa(() => { const novo = SeloMotor(contaMotor(d, cards)); if (el.parentNode) el.replaceWith(novo); });
   return el;
 }
+/** DS-K2 L1 (G-324) · a carta-chave de uma lista: o comandante; senão a carta que não é terreno com mais cópias (empate: a de
+    maior custo) com dado guardado. `cards` é o mapa por nome normalizado (`cardRepo.cached`/`byNames`). Sem dado: null. */
+function cartaChaveDaLista(d, cards) {
+  if (!d || !cards) return null;
+  const cmd = d.entries.find(e => e.zone === 'commander'); if (cmd && cards.get(norm(cmd.name))) return cards.get(norm(cmd.name));
+  const cands = d.entries.filter(e => e.zone !== 'side').map(e => ({ e, c: cards.get(norm(e.name)) })).filter(x => x.c && !/\bLand\b/.test(x.c.type_line || ''))
+    .sort((a, b) => b.e.qty - a.e.qty || (b.c.cmc || 0) - (a.c.cmc || 0));
+  return cands.length ? cands[0].c : null;
+}
+/** DS-K2 L1 · o ladrilho da carta-chave (carta inteira, 488×680): a imagem guardada ou o ícone do baralho. */
+function LadrilhoDaCarta(c, { classe = 'deck-hero__arte', tamanho = '64px' } = {}) {
+  const im = c && (c.images || (c.faces && c.faces[0] && c.faces[0].images));
+  const arte = h('span', { class: classe, 'aria-hidden': 'true' });
+  const img = im ? __m3.ImagemCarta(im, { alt: '', sizes: tamanho, classe: 'deck-hero__img', onFalha: i => { i.remove(); arte.appendChild(Icone('baralho', { tamanho: 24 })); } }) : null;
+  arte.appendChild(img || Icone('baralho', { tamanho: 24 }));
+  return arte;
+}
 function DeckLinha({ nome, formato, cores, main, side, posse, fim, onClick, dataset, tag = 'div', attrs = {}, etiquetas = null, valor = null, motor = null }) {
   const conta = (icone, n, fala, classe) => h('span', { class: 'deck-item__conta ' + classe, role: 'img', 'aria-label': fala, title: fala }, Icone(icone, { tamanho: 16 }), h('b', {}, String(n)));
   const corpo = [
@@ -20162,10 +20183,16 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files, s
     mount(root,
       // DS-K F2.3 (G-295) · o topo da lista é o destaque em ébano da tela: nome em Cormorant, formato em latão, contagens
       Surface({ class: 'ds-destaque ds-surface--pad deck-topo', id: 'deck-topo' }, Row({ class: 'ds-row--wrap' },
+        // DS-K2 L1 (G-324) · a carta-chave da lista em arte ao lado do nome, como na proposta; a posse na coleção numa barra fina
+        LadrilhoDaCarta(cartaChaveDaLista(d, state.cards), { classe: 'deck-hero__arte deck-topo__arte', tamanho: '72px' }),
         Stack({ style: { gap: 'var(--space-1)' } },
           Text(d.name, { size: '2xl', display: true, as: 'h1' }),
           Row({ class: 'ds-row--wrap' }, Badge(FORMATS[d.format] || d.format, { tone: 'accent' }), identity ? ManaPips(identity) : null,
             Text(`${stats.main} no deck` + (stats.companion ? ' · + companheiro' : '') + (stats.side ? ` · ${stats.side} na reserva` : ''), { size: 'sm', tone: 'muted', attrs: { id: 'deck-counts' } })),
+          stats.need ? h('div', { class: 'deck-topo__posse', id: 'deck-posse' },
+            h('span', { class: 'deck-item__posse', role: 'meter', 'aria-valuemin': '0', 'aria-valuemax': String(stats.need), 'aria-valuenow': String(stats.have), 'aria-label': `tenho ${stats.have} de ${stats.need}`, dataset: { completa: String(stats.have === stats.need) } },
+              h('span', { class: 'deck-item__posse-barra', style: { width: `${Math.round(stats.have / stats.need * 100)}%` } })),
+            Text(stats.have === stats.need ? 'Tudo na coleção' : `${Math.round(stats.have / stats.need * 100)}% na coleção · ${stats.missing === 1 ? 'falta 1 carta' : `faltam ${stats.missing} cartas`}`, { size: 'xs', tone: 'muted', attrs: { id: 'deck-posse-texto' } })) : null,
           // G2 · etiquetas da lista e o botão que as muda, juntos sob o título (na linha de Editar/Exportar/Excluir o
           // quarto botão derrubava o Excluir para a linha de baixo com a fonte larga do CI — leva 170)
           etiquetas ? Row({ class: 'ds-row--wrap deck-etq' }, __m32.Pilulas(__m32.de(state.etq, 'listas', d.id), { id: 'deck-etiquetas-da-lista' }),
@@ -21061,7 +21088,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
 }
 
 
-return { createPortaDeEntrada, dialogoEntrarComEmail, PainelEstatisticas, createDecksHome, createStarterDecks, createDeckEditor, createDeckScreen, createCollectionScreen, createPerfilScreen, createFichasScreen, createTerrenosScreen, createPartidasScreen, DeckLinha, motorDaLista, SeloMotor, contaMotor };
+return { cartaChaveDaLista, LadrilhoDaCarta, createPortaDeEntrada, dialogoEntrarComEmail, PainelEstatisticas, createDecksHome, createStarterDecks, createDeckEditor, createDeckScreen, createCollectionScreen, createPerfilScreen, createFichasScreen, createTerrenosScreen, createPartidasScreen, DeckLinha, motorDaLista, SeloMotor, contaMotor };
 })();
 
 
@@ -39458,21 +39485,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
     const linhaDe = (d, extra) => { const c = contaDeck(d); return __m15.DeckLinha({ nome: d.name, formato: d.format, cores: coresDaLista(d.entries, guardadas), main: c.main, side: c.side, motor: { lista: d, cards: guardadas }, ...extra }); }; // G-301 · relato #32: o selo do motor em toda escolha de lista
     /* DS-K2 J2 (G-318) · a carta-chave de uma lista: o comandante; senão a carta que não é terreno com mais cópias (empate:
        a de maior custo) que tem imagem guardada. Sem imagem no aparelho, o ladrilho mostra o ícone do baralho. */
-    const cartaChave = d => {
-      const cmd = d.entries.find(e => e.zone === 'commander'); if (cmd && guardadas.get(norm(cmd.name))) return guardadas.get(norm(cmd.name));
-      const cands = d.entries.filter(e => e.zone !== 'side').map(e => ({ e, c: guardadas.get(norm(e.name)) })).filter(x => x.c && !/\bLand\b/.test(x.c.type_line || ''))
-        .sort((a, b) => b.e.qty - a.e.qty || (b.c.cmc || 0) - (a.c.cmc || 0));
-      return cands.length ? cands[0].c : null;
-    };
-    const heroDe = (d, extra) => {
-      const el = linhaDe(d, extra);
-      const c = cartaChave(d), im = c && (c.images || (c.faces && c.faces[0] && c.faces[0].images));
-      const arte = h('span', { class: 'deck-hero__arte', 'aria-hidden': 'true' });
-      const img = im ? __m3.ImagemCarta(im, { alt: '', sizes: '64px', classe: 'deck-hero__img', onFalha: i => { i.remove(); arte.appendChild(Icone('baralho', { tamanho: 24 })); } }) : null;
-      arte.appendChild(img || Icone('baralho', { tamanho: 24 }));
-      el.prepend(arte);
-      return el;
-    };
+    const heroDe = (d, extra) => { const el = linhaDe(d, extra); el.prepend(__m15.LadrilhoDaCarta(__m15.cartaChaveDaLista(d, guardadas))); return el; }; // DS-K2 L1 · helper compartilhado
     // B-22 · a linha de uma lista do Shark diz de onde ela veio (torneio, colocação, jogador, data)
     const origemDoShark = l => `${l.origem} · ${l.jogador} · ${l.data.split('-').reverse().join('/')}`;
     const linhaDoShark = (d, extra) => { const el = linhaDe(d, extra); el.querySelector('.deck-item__corpo').append(h('span', { class: 'deck-item__origem ds-text ds-text--sm ds-text--muted' }, origemDoShark(d.shark))); return el; };

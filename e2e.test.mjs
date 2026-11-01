@@ -9093,6 +9093,32 @@ test('e2e · DS-K2 J1 · o Jogar abre sempre no Pauper: com a medida real (616 d
 });
 
 /* G-318 · DS-K2 J2 · o Jogar como mesa de preparação no DS-K */
+/* G-324 · DS-K2 L1 · o topo da Lista com a carta-chave em arte e a posse na coleção */
+test('e2e · DS-K2 L1 · Lista: o topo em ébano mostra a carta-chave (72 px) ao lado do nome e a posse na coleção numa barra ("N% na coleção · faltam M cartas", "Tudo na coleção" quando completa); o Jogar mostra a mesma carta no cartão da lista; 360 e 390, dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t, { dev: false });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'Mono Azul Delver', PAUPER, 'pauper');
+  for (const [w, hh] of [[360, 780], [390, 844]]) {
+    await page.setViewportSize({ width: w, height: hh });
+    await page.goto(base + '#/listas'); await page.waitForSelector('#decks-list .ds-list__item'); await page.click('#decks-list .ds-list__item'); await page.waitForSelector('#deck-posse');
+    for (const tema of (w === 360 ? ['dark', 'light'] : ['dark'])) {
+      await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(450);
+      const m = await page.evaluate(() => { const a = document.querySelector('#deck-topo .deck-topo__arte'), h1 = document.querySelector('#deck-topo h1'), p = document.querySelector('#deck-posse [role="meter"]');
+        return { arte: Math.round(a.getBoundingClientRect().width), ladoALado: Math.abs(a.getBoundingClientRect().top - h1.getBoundingClientRect().top) < 24 && a.getBoundingClientRect().right <= h1.getBoundingClientRect().left + 1,
+          posse: [p.getAttribute('aria-valuenow'), p.getAttribute('aria-valuemax'), p.dataset.completa], texto: document.querySelector('#deck-posse-texto').textContent }; });
+      assert.deepEqual([m.arte, m.ladoALado, m.posse, m.texto], [72, true, ['0', '32', 'false'], '0% na coleção · faltam 32 cartas'], `${w} ${tema}: ${JSON.stringify(m)}`);
+      await auditaTela(page, `DS-K2 L1 · Lista ${w} ${tema}`);
+      if (process.env.SHOTS && w === 360) await page.screenshot({ path: process.env.SHOTS + `/ds-k2-l1-${tema}.png`, clip: { x: 0, y: 0, width: 360, height: 420 } });
+    }
+  }
+  // marcar uma carta como minha: a barra e o texto acompanham
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.click('#deck-mark'); await page.locator('.deck-slot').first().click();
+  await page.waitForFunction(() => document.querySelector('#deck-posse [role="meter"]').getAttribute('aria-valuenow') !== '0', null, { timeout: 15000 });
+  assert.match(await page.textContent('#deck-posse-texto'), /^\d+% na coleção · faltam \d+ cartas$/);
+  assert.deepEqual(errors, []);
+});
+
 /* G-323 · DS-K2 I1 · Início como na proposta K: "N listas prontas para jogar" e "Últimas listas" */
 test('e2e · DS-K2 I1 · Início: sob o título, quantas listas de Pauper jogam inteiras; "Últimas listas" com as três mais recentes (ladrilho nas cores, nome, formato, contagem, posse e selo do motor), toque abre a lista, "Ver todas" vai à estante; sem lista o grupo não existe; 360 e 390, dois temas', { skip }, async t => {
   const { page, errors, base } = await open(t, { dev: false });

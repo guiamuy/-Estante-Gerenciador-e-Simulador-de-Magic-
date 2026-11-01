@@ -13191,7 +13191,7 @@ sentinela do Pauper mantém as novas jogando. Outro formato entra quando chegar 
 | N3 | a barra de baixo some na partida e volta ao sair (a mesa usa a bandeja dela) | e2e da mesa | geral | ✅ G-322 (por `data-tela`, sem tocar a mesa) |
 | I1 | Início: "Últimas listas" com ladrilho de cor e posse; "N listas prontas para jogar" sob o título | e2e | geral | ✅ G-323 |
 | I2 | Início: a faixa de offline de uma linha (anel + "faltam N itens" + Ver), o painel inteiro vira folha | e2e | geral | a fazer |
-| L1 | Lista: hero com a arte da carta-chave e a posse na coleção | e2e | geral | a fazer |
+| L1 | Lista: hero com a arte da carta-chave e a posse na coleção | e2e | geral | ✅ G-324 |
 | M1 | Mesa: cartas do campo com arte na fila, tamanho e raio da proposta | e2e, contrato visual | jogabilidade | a fazer |
 | M2 | Mesa: mão em leque com arte e rotação, a carta tocada sobe | e2e, 60 quadros | jogabilidade | ✅ J-37 |
 | M3 | Mesa: barra vida · fase com os pontos do turno · vida | e2e | jogabilidade | a fazer |
@@ -13229,6 +13229,15 @@ sentinela do Pauper mantém as novas jogando. Outro formato entra quando chegar 
   para a fileira rolar como antes; o que ele prova (o redesenho não devolve a fileira ao começo) é o mesmo.
 - **Fora:** leque na mão do oponente; reordenar a mão arrastando; profundidade ao espiar; M1, M3 e M4. A foto que **chega**
   à mão (voltar para a mão) mira a caixa da carta girada (até ~10% maior que a carta), sem girar junto.
+**L1 · Lista: carta-chave e posse no topo** ✅ (leva G-324, 01/11/2026)
+- **Valor:** o topo da lista mostra a carta que define a lista (o comandante, ou a carta com mais cópias) em arte ao lado
+  do nome, e uma barra fina diz quanto da lista já está na coleção ("38% na coleção · faltam 20 cartas", "Tudo na coleção").
+- **Entregue:** `cartaChaveDaLista(d, cards)` e `LadrilhoDaCarta(c)` em `src/app/decks.js`, exportados e usados também pelo
+  Jogar (o helper da J2 saiu do `createTableSetup`); `.deck-topo__arte` (72 px) e `#deck-posse` com `role="meter"`.
+- **Testes:** e2e "DS-K2 L1" (360 e 390, dois temas: arte de 72 px ao lado do nome, meter 0/32 e texto; marcar uma carta
+  mexe a barra; `auditaTela`); contrato "DS-K2 · L1"; os e2e da lista (criar/galeria, J7, L8, F2.3) e DS-K2 J2 verdes.
+- **Fora:** arte recortada (art crop) — a Scryfall guardada tem só a carta inteira.
+
 **I1 · Início: últimas listas e quantas jogam** ✅ (leva G-323, 01/11/2026)
 - **Valor:** a Início responde de cara "quantas das minhas listas de Pauper jogam inteiras" e mostra as três listas mais
   recentes como na proposta — ladrilho nas cores da lista, nome, formato, contagem, posse na coleção e o selo do motor —

@@ -549,6 +549,16 @@ test('DS-K · F5.2 endereço inexistente e lista inexistente têm cabeçalho com
   assert.match(HTML, /__m3\.Cabecalho\('Lista', \{ esquerda: IconButton\('voltar', 'Voltar para Minhas listas', \{ id: 'deck-voltar'/);
 });
 
+/* ---------------- DS-K2 (G-324) · L1 hero da Lista ---------------- */
+test('DS-K2 · L1 o topo da Lista tem a carta-chave (helper compartilhado com o Jogar) e a posse na coleção', () => {
+  assert.ok(HTML.includes('function cartaChaveDaLista(d, cards) {') && HTML.includes('function LadrilhoDaCarta(c, {'), 'helpers em decks.js');
+  assert.ok(HTML.includes("return { cartaChaveDaLista, LadrilhoDaCarta, createPortaDeEntrada"), 'exportados');
+  assert.ok(HTML.includes("LadrilhoDaCarta(cartaChaveDaLista(d, state.cards), { classe: 'deck-hero__arte deck-topo__arte', tamanho: '72px' })"), 'o topo da lista usa a carta-chave');
+  assert.ok(HTML.includes("el.prepend(__m15.LadrilhoDaCarta(__m15.cartaChaveDaLista(d, guardadas)))"), 'o Jogar usa o mesmo helper');
+  assert.match(componentCss, /\.deck-hero__arte\.deck-topo__arte \{ width: 72px; flex: none; \}/);
+  assert.ok(HTML.includes("id: 'deck-posse' }"), 'barra de posse no topo');
+});
+
 /* ---------------- DS-K2 (G-322) · N1 barra de navegação embaixo ---------------- */
 test('DS-K2 · N1 a barra de navegação mora embaixo com cinco destinos e o Jogar em latão; toda tela reserva --navbar-h; a barra some na partida, no scanner e na porta de entrada; a de cima fica sem destinos', () => {
   assert.match(componentCss, /\.ds-navbar \{ position: fixed; left: 0; right: 0; bottom: 0;[^}]*grid-template-columns: repeat\(5, 1fr\);/);
