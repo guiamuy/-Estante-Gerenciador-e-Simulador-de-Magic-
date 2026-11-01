@@ -8,7 +8,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { EPOCA } from './agregacao.mjs';
 import { chave, nomeDoRamo, ordemDaFila, decisao, limparMotivo, quedasDoLog, planoValido, NOME_VALIDO, montar, avancar, ramosDaFila, commitsDa, publicados, situacao, formatarQuedas, limparAvisos,
-  AVISO_MAIN, limparQueda, quedasComArquivo, reexecutar, mainVermelho, resultadoDaPresonda, sondaDoAviso, lerAvisoMain, herdadasNoMain,
+  AVISO_MAIN, TETO_DO_NOME, limparQueda, quedasComArquivo, reexecutar, mainVermelho, resultadoDaPresonda, sondaDoAviso, lerAvisoMain, herdadasNoMain,
   resultadoDoPortao, juntarHerdadas, juntarResumos, quedasDaFase } from './fila.mjs';
 
 const RAIZ = dirname(fileURLToPath(import.meta.url));
@@ -418,6 +418,21 @@ test('Q22 · parte pura: quedas com o arquivo lidas do TAP, sem repetição; mai
   assert.equal(decisao({ aceitos: dois, portao: 'failure' }).acao, 'isolar', 'sem reexecução, como antes');
   const aviso = { base: 'a'.repeat(40), quedas: [{ nome: 'x', arquivo: 'e2e.test.mjs' }] };
   assert.equal(sondaDoAviso(aviso, 'a'.repeat(40)).length, 1); assert.equal(sondaDoAviso(aviso, 'b'.repeat(40)).length, 0, 'aviso de outro main é velho'); assert.equal(sondaDoAviso(null, 'a'.repeat(40)).length, 0);
+});
+
+test('I-316 · queda com nome longo (um terço dos testes de tela passa de 200 caracteres) é reexecutada de verdade: cai ou passa, nunca "?"', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'estante-i316-'));
+  try {
+    const longo = (x) => `e2e · ${x} · ${'barra de navegação embaixo, cinco destinos de 44 px; '.repeat(8)}fim`;
+    const enorme = `e2e · enorme · ${'x'.repeat(TETO_DO_NOME + 50)}`;
+    assert.ok(longo('cai').length > 400 && longo('cai').length < TETO_DO_NOME);
+    writeFileSync(join(dir, 'a.test.mjs'), TESTE_QUE_CAI(longo('cai')).join('\n') + '\n');
+    writeFileSync(join(dir, 'b.test.mjs'), TESTE_QUE_PASSA(longo('passa')).join('\n') + '\n');
+    writeFileSync(join(dir, 'c.test.mjs'), TESTE_QUE_PASSA(enorme).join('\n') + '\n');
+    const r = reexecutar({ cwd: dir, quedas: [{ nome: longo('cai'), arquivo: 'a.test.mjs' }, { nome: longo('passa'), arquivo: 'b.test.mjs' }, { nome: enorme, arquivo: 'c.test.mjs' }] });
+    assert.deepEqual(r.map((x) => x.resultado), ['cai', 'passa', 'passa'], 'o nome acima do teto vale pelo começo');
+    assert.equal(limparQueda({ nome: enorme, arquivo: 'c.test.mjs' }).nome.length, TETO_DO_NOME);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
 test('Q22 · reexecutar roda cada queda sozinha no arquivo dela: cai, passa ou "?" (nome que não existe, arquivo que sumiu)', () => {

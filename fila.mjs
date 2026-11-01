@@ -79,9 +79,13 @@ export const AVISO_MAIN = 'aviso/main-vermelho';
 export const MAX_REEXECUCOES = 12;
 const ARQUIVO_DE_TESTE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,80}\.test\.mjs$/;
 
+/** Teto do nome de teste que entra em comando. I-316 · era 200, e um terço dos testes de tela tem nome maior (o maior, 470): o nome
+    cortado não casava com nada e a reexecução no main dava "?" — o `main` vermelho nunca era provado e a leva inocente era recusada
+    (I-312 em 01/11, pelo DS-K2 N1). Nome no teto vale como começo de nome. */
+export const TETO_DO_NOME = 600;
 /** Queda que entra em comando: nome sem caractere de controle e com teto; arquivo só com forma de arquivo de teste da raiz. */
 export function limparQueda(q) {
-  const nome = String((q && q.nome) || '').replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, 200);
+  const nome = String((q && q.nome) || '').replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, TETO_DO_NOME);
   const arquivo = ARQUIVO_DE_TESTE.test(String((q && q.arquivo) || '')) ? q.arquivo : '';
   return { nome, arquivo };
 }
@@ -117,9 +121,9 @@ export function reexecutar({ cwd, quedas, env = process.env, tempoMs = 4 * 60000
   return quedas.map(limparQueda).map((q) => {
     const resta = fim - agora();
     if (!q.nome || !q.arquivo || resta < 5000) return { ...q, resultado: '?' };
-    const r = spawnSync(process.execPath, ['--test', '--test-reporter=tap', `--test-name-pattern=^${escapa(q.nome)}$`, q.arquivo], { cwd, env: limpo, encoding: 'utf8', maxBuffer: 1 << 28, timeout: Math.min(tempoMs, resta) });
+    const nome = escapa(q.nome) + (q.nome.length >= TETO_DO_NOME ? '.*' : '');   // cortado no teto: o começo do nome
+    const r = spawnSync(process.execPath, ['--test', '--test-reporter=tap', `--test-name-pattern=^${nome}$`, q.arquivo], { cwd, env: limpo, encoding: 'utf8', maxBuffer: 1 << 28, timeout: Math.min(tempoMs, resta) });
     const saida = String(r.stdout || '');
-    const nome = escapa(q.nome);
     if (new RegExp(`^not ok \\d+ - ${nome}\\s*$`, 'm').test(saida)) return { ...q, resultado: 'cai' };
     if (new RegExp(`^ok \\d+ - ${nome}\\s*$`, 'm').test(saida) && r.status === 0) return { ...q, resultado: 'passa' };
     return { ...q, resultado: '?' };
