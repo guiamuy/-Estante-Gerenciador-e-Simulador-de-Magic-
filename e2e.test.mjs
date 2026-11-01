@@ -864,9 +864,13 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
   await page.keyboard.press('Escape');
   await page.evaluate(async () => { const c = await caches.open('estante-img-v1'); const png = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='), c2 => c2.charCodeAt(0));
     await c.put('https://cards.scryfall.io/large/front/x/sol.jpg', new Response(png, { headers: { 'Content-Type': 'image/png' } })); });
+  // I-310 · desde o Chromium 153 a normal da abertura anterior sai da memória do navegador, sem pedido: para medir a ordem dos
+  // pedidos (a do primeiro uso no aparelho), o teste desliga o cache do navegador neste trecho
+  await cdp.send('Network.enable'); await cdp.send('Network.setCacheDisabled', { cacheDisabled: true });
   const antes = pedidasScryfall.length;
   await page.click('.col-row[data-name="Sol Ring"] .col-row__thumb');
   await page.waitForSelector('#card-viewer img[data-nitida="true"]', { timeout: 8000 });
+  await cdp.send('Network.setCacheDisabled', { cacheDisabled: false });
   assert.match(await page.evaluate(() => document.querySelector('#card-viewer img').currentSrc), /\/large\//, 'a nítida trocou a normal');
   assert.deepEqual(pedidasScryfall.slice(antes).map(u => u.replace(/^.*\/\/cards\.scryfall\.io\//, '').split('/')[0]), ['normal', 'large'], 'primeiro a guardada, depois a nítida; nunca o PNG');
   await page.keyboard.press('Escape');
@@ -3524,11 +3528,15 @@ test('e2e · G-282 carta com a espera desenhada: enquanto a imagem não chega, a
   assert.equal(depois.animacao, 'none', 'carregou: sem brilho');
   assert.equal(await page.$eval('.col-card[data-name="Sol Ring"] .ds-carta-espera', e => getComputedStyle(e).display), 'none', 'carregou: a prateleira some');
   // 2 · visor: a mesma espera na carta grande, por baixo do brilho da moldura (os dois somem juntos)
+  // I-310 · desde o Chromium 153 o visor reaproveita da memória a imagem que a galeria acabou de baixar e abre já pronta (sem espera,
+  // o certo para quem usa); para medir a espera, o teste desliga o cache do navegador e a imagem passa pela rede lenta de novo
+  const semCache = await page.context().newCDPSession(page); await semCache.send('Network.enable'); await semCache.send('Network.setCacheDisabled', { cacheDisabled: true });
   await page.click('.col-card[data-name="Sol Ring"] .ds-card'); await page.waitForSelector('#card-viewer .ds-visor__moldura img.ds-carta-img');
   const visor = await estado('#card-viewer .ds-visor__moldura img.ds-carta-img'); assert.equal(visor.animacao, 'none'); assert.equal(await page.$eval('#card-viewer .ds-visor__moldura .ds-carta-espera', e => getComputedStyle(e, '::before').display), 'none', 'no visor o brilho é o da moldura (D10), não dobra');
   assert.equal(await page.$eval('#card-viewer .ds-visor__moldura .ds-carta-espera', e => getComputedStyle(e).display), 'flex', 'a prateleira no visor');
   await page.waitForSelector('#card-viewer img.ds-carta-img[data-carregada="true"]', { timeout: 8000 });
   await page.waitForSelector('#card-viewer .ds-visor__moldura[data-carregando="false"]');
+  await semCache.send('Network.setCacheDisabled', { cacheDisabled: false });
   assert.equal((await estado('#card-viewer .ds-visor__moldura img.ds-carta-img')).animacao, 'none');
   assert.equal(await page.$eval('#card-viewer .ds-visor__moldura .ds-carta-espera', e => getComputedStyle(e).display), 'none');
   await auditaTela(page, 'visor com a carta carregada');
