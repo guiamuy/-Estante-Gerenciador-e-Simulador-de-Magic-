@@ -13392,6 +13392,69 @@ test('e2e · R-36 Painel · termos marcados: os termos técnicos da sub-aba e da
   assert.deepEqual(errors, []);
 });
 
+/* ---------- R-37 · painel didático, fatia 3: "como ler esta aba" e o farol em palavras de gestor ---------- */
+test('e2e · R-37 Painel · como ler e farol de gestor: cada sub-aba abre com a pergunta que responde, o texto de leitura e a legenda dos faróis (recolhível, lembrado por aba no aparelho); o farol do cartão diz "no alvo / atenção / fora do alvo / sem dados" e, tocado, abre o balão com as faixas do alvo daquele cartão (a faixa atual em destaque); Esc fecha e devolve o foco; o Glossário não tem "como ler"; sem sobreposição nos dois temas', { timeout: 120000 }, async t => {
+  const { page, errors, base } = await open(t);
+  const painel = base.replace('index.html', 'painel.html');
+  await page.setViewportSize({ width: 360, height: 780 });
+  const json = (r, corpo) => r.fulfill({ json: corpo, headers: { 'content-type': 'application/json', 'x-ratelimit-remaining': '50', 'x-ratelimit-limit': '60', 'access-control-expose-headers': 'etag, x-ratelimit-remaining, x-ratelimit-limit' } });
+  await page.route('https://api.github.com/**', r => json(r, /commits\?sha=main/.test(r.request().url()) ? [{ sha: 'abc1234def0', commit: { message: 'Leva R-37 · x', committer: { date: new Date().toISOString() } } }] : /\/runs/.test(r.request().url()) ? { workflow_runs: [], total_count: 0 } : []));
+  await page.route('https://raw.githubusercontent.com/**', r => r.fulfill({ body: '', headers: { 'content-type': 'text/plain', 'access-control-allow-origin': '*' } }));
+  await page.addInitScript(() => {
+    const jwt = email => 'h.' + btoa(JSON.stringify({ email })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') + '.s';
+    window.__PAINEL_FETCH = async (url) => new Response(JSON.stringify(url.includes('securetoken') ? { user_id: 'uidE2E', id_token: jwt('gui.amuy@gmail.com'), refresh_token: 'ref-e2e', expires_in: '3600' } : { localId: 'uidE2E', idToken: jwt('gui.amuy@gmail.com'), refreshToken: 'ref-e2e', expiresIn: '3600', email: 'gui.amuy@gmail.com' }), { status: 200, headers: { 'content-type': 'application/json' } });
+    window.__PAINEL_GOOGLE = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }), revoke: (tk, cb) => cb && cb() } } };
+  });
+  await page.goto(painel + '#pipeline'); await page.waitForSelector('#pn-entrar'); await page.click('#pn-entrar');
+  await page.waitForFunction(() => { const f = document.querySelector('#pn-faixa'); return f && !f.querySelector('.ds-spinner') && document.querySelector('#pn-k-recusadas .pn-farol'); });
+  // "como ler": aberto na primeira vez, com a pergunta, o texto e a legenda dos quatro faróis
+  assert.equal(await page.evaluate(() => document.querySelector('#pn-como-ler').open), true);
+  assert.match(await page.innerText('#pn-como-ler'), /Como ler esta aba[\s\S]*O que está saindo agora e o que travou\?[\s\S]*Recusadas agora/i);
+  assert.deepEqual(await page.$$eval('#pn-como-ler .pn-como-ler__legenda li', ls => ls.map(l => [l.dataset.farol, l.textContent])), [['verde', 'no alvo'], ['amarelo', 'atenção'], ['vermelho', 'fora do alvo'], ['cinza', 'sem dados']]);
+  // o farol dos cartões fala em palavras, nunca o nome da cor
+  const textos = await page.$$eval('.pn-cartao .pn-farol', fs => fs.map(f => f.textContent.trim()));
+  assert.ok(textos.length >= 3, `faróis nos cartões: ${textos.length}`);
+  assert.ok(textos.every(x => ['no alvo', 'atenção', 'fora do alvo', 'sem dados'].includes(x)), `farol em palavras: ${textos.join(', ')}`);
+  await auditaTela(page, 'pipeline com como ler');
+  // tocar o farol de "Recusadas agora" (0 → no alvo) abre o balão com as faixas deste cartão
+  const farol = page.locator('#pn-k-recusadas .pn-farol--explica');
+  assert.equal(await farol.getAttribute('data-farol'), 'verde');
+  await farol.dispatchEvent('click'); await page.waitForSelector('#pn-balao-alvo');
+  assert.equal(await page.getAttribute('#pn-balao', 'data-termo'), 'farol');
+  assert.match(await page.innerText('#pn-balao'), /^farol: no alvo[\s\S]*Neste cartão \(recusadas agora\):[\s\S]*no alvo: 0[\s\S]*atenção: até 2[\s\S]*fora do alvo: 3 ou mais[\s\S]*Como ler:[\s\S]*Ver no glossário/);
+  assert.deepEqual(await page.$$eval('#pn-balao-alvo li[data-atual="true"]', ls => ls.map(l => l.dataset.farol)), ['verde'], 'a faixa em que o cartão está fica em destaque');
+  const dentro = await page.evaluate(() => { const r = document.querySelector('#pn-balao').getBoundingClientRect(), w = document.documentElement.clientWidth; return r.left >= 16 - 0.5 && r.right <= w - 16 + 0.5 && r.top >= 0 && r.bottom <= innerHeight; });
+  assert.ok(dentro, 'o balão fica dentro da tela');
+  await auditaTela(page, 'balão do farol');
+  await page.keyboard.press('Escape'); await page.waitForSelector('#pn-balao', { state: 'detached' });
+  await page.waitForTimeout(250); assert.equal(await page.locator('#pn-balao').count(), 0, 'devolver o foco ao farol não reabre o balão');
+  // Enter no farol leva ao botão do balão; Esc fecha e não reabre (correção da R-36: o foco devolvido reabria)
+  await page.keyboard.press('Enter'); await page.waitForSelector('#pn-balao-ver:focus');
+  await page.keyboard.press('Escape'); await page.waitForSelector('#pn-balao', { state: 'detached' });
+  await page.waitForTimeout(250); assert.equal(await page.locator('#pn-balao').count(), 0, 'Esc depois do Enter não reabre o balão');
+  await page.locator('#pn-k-recusadas .pn-farol--explica').evaluate(el => el.blur());
+  await farol.focus(); await page.waitForSelector('#pn-balao-alvo');
+  await page.keyboard.press('Escape'); await page.waitForSelector('#pn-balao', { state: 'detached' });
+  assert.equal(await page.evaluate(() => document.activeElement && document.activeElement.closest('#pn-k-recusadas') && document.activeElement.dataset.termo), 'farol', 'Esc devolve o foco ao farol');
+  // o termo marcado dentro do texto de leitura também explica
+  assert.ok(await page.locator('#pn-como-ler dfn.pn-termo').count() >= 1, 'o "como ler" tem termos marcados');
+  // recolher fica lembrado por aba, depois de recarregar; outra aba abre o seu
+  await page.click('#pn-como-ler summary');
+  await page.waitForFunction(() => !document.querySelector('#pn-como-ler').open);
+  await page.reload(); await page.waitForFunction(() => document.querySelector('#pn-como-ler') && document.querySelector('#pn-k-recusadas'));
+  assert.equal(await page.evaluate(() => document.querySelector('#pn-como-ler').open), false, 'recolhido continua recolhido');
+  await page.click('#pn-abas [role="tab"]:has-text("Jogo")'); await page.waitForFunction(() => /O simulador|partidas terminam/.test((document.querySelector('#pn-como-ler') || {}).textContent || ''));
+  assert.equal(await page.evaluate(() => document.querySelector('#pn-como-ler').open), true, 'cada aba guarda o seu');
+  assert.match(await page.innerText('#pn-como-ler'), /As partidas terminam bem e o oponente automático joga bem\?/);
+  await page.click('#pn-abas [role="tab"]:has-text("Glossário")'); await page.waitForSelector('#pn-glossario-busca');
+  assert.equal(await page.locator('#pn-como-ler').count(), 0, 'o Glossário não tem "como ler"');
+  await page.click('#pn-abas [role="tab"]:has-text("Pipeline")'); await page.waitForSelector('#pn-k-recusadas .pn-farol');
+  await page.click('#pn-como-ler summary'); await page.waitForFunction(() => document.querySelector('#pn-como-ler').open);
+  await emTodasAsMedidas(page, 'como ler e farol');
+  if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.screenshot({ path: process.env.SHOTS + '/r37-como-ler.png' }); await page.locator('#pn-k-recusadas .pn-farol--explica').dispatchEvent('click'); await page.waitForSelector('#pn-balao-alvo'); await page.waitForTimeout(400); await page.screenshot({ path: process.env.SHOTS + '/r37-balao-farol.png' }); }
+  assert.deepEqual(errors, []);
+});
+
 /* ---------- R-4 · BI1-2b · Pipeline + filtros em tudo (incremento 1) ---------- */
 test('e2e · R-4 Painel · Pipeline: fila agora com espera e recusas com motivo, rodada em curso, rodadas verdes e Pages; chips filtram tudo e vão para o endereço; toque numa barra filtra; recorte vazio diz "sem dados"; reabrir pelo endereço mantém o filtro; barra de filtros em até três linhas no 360; sem sobreposição nas quatro medidas e dois temas', { skip }, async t => {
   const { page, errors, base } = await open(t);

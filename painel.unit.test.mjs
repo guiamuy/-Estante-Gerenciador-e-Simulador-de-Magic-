@@ -1084,3 +1084,27 @@ test('R-36 · termos marcados: toda expressão marcável aponta para um verbete 
   assert.equal(pedacos.map(p => p.texto).join(''), 'Shark até o fim · pior jogada', 'os pedaços remontam o texto inteiro');
   assert.equal(seg(''), null); assert.equal(seg('   '), null);
 });
+
+test('R-37 · "como ler" e farol de gestor: toda sub-aba com dados tem pergunta e texto de leitura; o farol diz "no alvo / atenção / fora do alvo / sem dados"; todo limiar do painel vira duas ou três faixas em palavras', () => {
+  const { modelo: M } = loadPainel();
+  for (const a of M.SUBABAS.filter(x => x.id !== 'glossario')) {
+    const c = M.COMO_LER[a.id];
+    assert.ok(c, `sub-aba ${a.id} sem "como ler"`);
+    assert.match(c.pergunta, /\?$/, `${a.id}: a pergunta termina em "?"`);
+    assert.ok(c.ler.length >= 80 && c.ler.length <= 420, `${a.id}: texto de leitura com ${c.ler.length} caracteres (80 a 420)`);
+  }
+  assert.equal(Object.keys(M.COMO_LER).length, M.SUBABAS.length - 1, 'nenhum "como ler" de sub-aba que não existe');
+  assert.deepEqual(M.FAROL_EM_PALAVRAS, { verde: 'no alvo', amarelo: 'atenção', vermelho: 'fora do alvo', cinza: 'sem dados' });
+  for (const [id, l] of Object.entries(M.LIMIARES)) {
+    const a = M.alvoEmPalavras(l.texto);
+    assert.ok(a, `limiar ${id} não se lê em faixas: «${l.texto}»`);
+    assert.ok(a.faixas.every(f => f.texto && f.rotulo), id);
+  }
+  assert.deepEqual(M.alvoEmPalavras('pior espera na fila: ≤ 30 min · ≤ 90 min · mais'), { medida: 'pior espera na fila', faixas: [
+    { cor: 'verde', rotulo: 'no alvo', texto: '≤ 30 min' }, { cor: 'amarelo', rotulo: 'atenção', texto: '≤ 90 min' }, { cor: 'vermelho', rotulo: 'fora do alvo', texto: 'mais' }] });
+  assert.equal(M.alvoEmPalavras('dados de até 1 h · até 24 h · mais velhos').medida, null, 'sem dois-pontos antes da primeira faixa: não há medida');
+  assert.equal(M.alvoEmPalavras('tamanho do index.html — ≤ 3,5 MB · ≤ 4 MB · mais').medida, 'tamanho do index.html');
+  assert.deepEqual(M.alvoEmPalavras('auditoria do mapa na versão do motor em uso: igual · de outra versão').faixas.map(f => f.cor), ['verde', 'vermelho']);
+  assert.equal(M.alvoEmPalavras('só uma faixa'), null);
+  assert.equal(M.alvoEmPalavras(''), null);
+});

@@ -731,6 +731,25 @@ button.pn-barras__linha[aria-pressed="true"] { background: var(--accent-soft); }
 @media (prefers-reduced-motion: reduce) { .pn-balao { animation: none; } }
 :root[data-movimento="reduzido"] .pn-balao { animation: none; }
 
+/* R-37 · "Como ler esta aba": a pergunta da sub-aba em serifada, o texto e a legenda dos faróis; recolhível (lembrado no aparelho).
+   O farol do cartão diz em palavras o que a cor quer dizer e é tocável (abre as faixas do alvo do cartão no balão). */
+.pn-como-ler { padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-2); }
+.pn-como-ler__resumo { display: flex; flex-direction: column; gap: var(--space-1); min-height: var(--tap-min); justify-content: center; cursor: pointer; list-style: none; }
+.pn-como-ler__resumo::-webkit-details-marker { display: none; }
+.pn-como-ler__resumo::after { content: "mostrar"; align-self: flex-start; font-size: var(--text-xs); color: var(--fg-subtle); text-decoration: underline dotted; text-underline-offset: 3px; }
+.pn-como-ler[open] .pn-como-ler__resumo::after { content: "recolher"; }
+.pn-como-ler__pergunta { color: var(--fg); }
+.pn-como-ler__texto, .pn-como-ler__dica { margin: var(--space-2) 0 0; overflow-wrap: anywhere; }
+.pn-como-ler__legenda { list-style: none; margin: var(--space-2) 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); }
+.pn-farol--explica { cursor: help; text-decoration: underline dotted; text-decoration-thickness: 1px; text-underline-offset: 3px; border-radius: var(--radius-1); }
+.pn-farol--explica[data-aberto="true"] { background: var(--accent-soft); }
+.pn-farol--explica:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pn-balao__alvo { margin: 0; color: var(--fg); display: flex; flex-direction: column; gap: var(--space-1); }
+.pn-balao__alvo p { margin: 0; }
+.pn-balao__faixas { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.pn-balao__faixas [data-atual="true"] { color: var(--fg); font-weight: 600; }
+.pn-balao__alvo strong { font-weight: 600; }
+
 </style>
 </head>
 <body>
@@ -1075,6 +1094,39 @@ const __p2 = (function () {
     { id: 'negocio', rotulo: 'Negócio', titulo: 'Negócio', leva: 'R-33', pronta: true, traz: 'quanto entrou de doação por mês no Pix e no Ko-fi, o custo do mês que você informa e o saldo dos últimos 12 meses' },
     { id: 'glossario', rotulo: 'Glossário', titulo: 'Glossário', leva: 'R-35', pronta: true, traz: 'o que cada termo do painel quer dizer e como ler, com busca', semDados: true },
   ];
+  /* ---------- R-37 · painel didático, fatia 3: cada sub-aba diz a pergunta que responde e como ler; o farol fala a língua de quem gerencia ---------- */
+  /** `pergunta`: a pergunta de gestão que a sub-aba responde. `ler`: o que olhar primeiro e o que é bom ou ruim (os termos são marcados com balão). */
+  const COMO_LER = {
+    pipeline: { pergunta: 'O que está saindo agora e o que travou?', ler: 'Olhe primeiro "Na fila agora" e "Recusadas agora": levas esperando há muito tempo ou recusadas são o que pede ação. A rodada em curso é a volta da fila que está testando e publicando agora; o histórico embaixo mostra o que foi entregue, recusado e reprocessado no período.' },
+    eficiencia: { pergunta: 'Estamos entregando no ritmo e sem retrabalho?', ler: 'Levas por dia mostram o ritmo; o intervalo entre publicações, o fôlego da esteira. "Portão verde na primeira" é a qualidade de quem entrega: quanto mais alto, menos retrabalho. Recusas e reenvios são custo que não aparece para o usuário.' },
+    roadmap: { pergunta: 'Quanto do plano já foi feito, e onde?', ler: 'Cada história do ROADMAP tem um status. O percentual por épico mostra quais frentes avançaram; o burn-up semanal mostra se o concluído cresce mais rápido que o escopo. História parcial tem o que falta escrito.' },
+    motor: { pergunta: 'O simulador conhece as regras do jogo?', ler: 'A versão do motor muda quando uma regra altera o resultado das partidas. Regras cobertas (do mapa de regras) e listas que jogam por formato são os dois termômetros: subindo, o app joga mais partidas reais do jeito certo.' },
+    jogo: { pergunta: 'As partidas terminam bem e o oponente automático joga bem?', ler: 'A prova de partida joga cada lista do catálogo: listas que jogam e falhas dizem se o motor aguenta partidas reais. "Shark até o fim" e a pior jogada medem o oponente automático; a força por lista diz com quais baralhos ele já joga no nível pedido (45 % ou mais contra o campo).' },
+    qualidade: { pergunta: 'O que está chegando de problema e com que rapidez resolvemos?', ler: 'Relatos abertos contra fechados por semana dizem se o atendimento acompanha o uso; o tempo até a correção mede a agilidade. Testes instáveis e defeitos por leva mostram a saúde da base de testes.' },
+    curso: { pergunta: 'Quem está fazendo o quê, agora?', ler: 'Cada conversa ativa, com a história que pegou, as skills em uso e a última atualização. Reserva parada há mais de 48 h pode ser assumida por outra conversa; dependência ainda não publicada é risco de atraso.' },
+    skills: { pergunta: 'Quais especialistas e robôs estão trabalhando?', ler: 'O catálogo de skills e quantas levas cada uma tocou; os fluxos do GitHub (os robôs da fila, do catálogo e do retrato) e as rotinas agendadas, com a última e a próxima execução. Fluxo ou rotina que falhou é o que pede atenção.' },
+    modelos: { pergunta: 'Qual versão do Claude entrega melhor, e quanto do plano já foi usado?', ler: 'Levas, tempo e portão verde na primeira por modelo comparam custo e qualidade. O consumo do plano é o que você informa aqui (rotulado "estimado"): o painel não mede a assinatura.' },
+    custo: { pergunta: 'Quanto a operação gasta de máquina e de peso?', ler: 'Minutos de Actions são o tempo dos robôs do GitHub no mês (o repositório público não paga, mas o painel acompanha contra a referência de 2.000 minutos). O tamanho do index.html por leva mostra o peso do app que cada pessoa baixa.' },
+    acervo: { pergunta: 'De onde vêm as listas e o que as pessoas fazem no app?', ler: 'O catálogo de listas reais por formato e por fonte, com a saúde da última coleta. O uso opt-in só aparece de quem ligou a chave de compartilhar números, e só como totais por dia.' },
+    experiencia: { pergunta: 'Os testes são confiáveis e as telas estão no padrão?', ler: 'O que o portão mediu em cada leva: testes instáveis (caem e passam sem ninguém mexer), quedas de orçamento (limites de tempo ou de peso estourados) e telas auditadas (toque, sobreposição, contraste). Números subindo aqui são dívida técnica.' },
+    pessoas: { pergunta: 'Quantas pessoas usam a Estante?', ler: 'Contas criadas por dia, perfis sincronizados, salas online e relatos por conta — só totais, ninguém identificado. É a base para decidir produto e monetização.' },
+    negocio: { pergunta: 'A Estante se paga?', ler: 'Doações por mês (Pix e Ko-fi, como você informa) contra o custo do mês, e o saldo dos últimos 12 meses. Tudo aqui é informado por você e está rotulado assim.' }
+  };
+  /** O farol na língua de quem gerencia (a cor continua no ponto; o texto diz o que a cor quer dizer). */
+  const FAROL_EM_PALAVRAS = { verde: 'no alvo', amarelo: 'atenção', vermelho: 'fora do alvo', cinza: 'sem dados' };
+  /** Lê o texto de um limiar ("medida: verde · amarelo · vermelho", ou só as faixas) e devolve as faixas em palavras de gestor; null se não tiver duas ou três faixas. */
+  function alvoEmPalavras(texto) {
+    if (!texto || typeof texto !== 'string') return null;
+    const sep = texto.search(/: | — /);
+    const antes = sep >= 0 ? texto.slice(0, sep) : '';
+    const temMedida = sep >= 0 && !antes.includes(' · ');
+    const medida = temMedida ? antes.trim() : null;
+    const resto = temMedida ? texto.slice(sep + (texto[sep] === ':' ? 2 : 3)) : texto;
+    const partes = resto.split(' · ').map(t => t.trim()).filter(Boolean);
+    if (partes.length < 2 || partes.length > 3) return null;
+    const cores = partes.length === 3 ? ['verde', 'amarelo', 'vermelho'] : ['verde', 'vermelho'];
+    return { medida, faixas: partes.map((t, i) => ({ cor: cores[i], rotulo: FAROL_EM_PALAVRAS[cores[i]], texto: t })) };
+  }
   /** Limiares dos faróis (doc BI-painel-epicos.md, seção 3): editáveis aqui, exibidos em cada cartão. */
   const LIMIARES = {
     dadosHa: { verde: 60 * 60000, amarelo: 24 * 3600000, unidade: 'ms', texto: 'dados de até 1 h · até 24 h · mais velhos' },
@@ -1689,7 +1741,7 @@ const __p2 = (function () {
     { id: 'cota', termo: 'cota da API', tambem: ['cota', 'pedidos nesta hora', 'API GitHub', 'token do GitHub', '60 pedidos'], grupo: 'dados', def: 'O GitHub permite 60 consultas por hora sem identificação (5.000 com um token pessoal). O painel conta cada consulta, lê do retrato e do raw sempre que pode, e guarda respostas no aparelho para não repetir.', ler: '"GitHub: 12 de 60 pedidos nesta hora" no rodapé. Perto do limite, o painel passa a mostrar o que estava guardado.', onde: ['custo', 'pipeline'] },
     { id: 'cache', termo: 'guardado', tambem: ['cache', 'de cache', 'o que estava guardado', 'carimbo'], grupo: 'dados', def: 'Resposta que o painel salvou neste aparelho para reaproveitar: por alguns minutos (dados vivos) ou para sempre (o que não muda, como o tamanho de uma versão antiga). O "carimbo" é a hora em que o dado foi lido.', ler: 'Sem internet, o painel mostra o guardado e avisa. "Dados de hoje às HH:MM" na faixa é o carimbo da última leitura.', onde: ['pipeline', 'custo'] },
     // como ler o painel
-    { id: 'farol', termo: 'farol', tambem: ['faróis', 'verde', 'amarelo', 'vermelho', 'cinza'], grupo: 'painel', def: 'A bolinha colorida de cada cartão: verde = dentro do alvo; amarelo = atenção, perto do limite; vermelho = fora do alvo; cinza = sem dados para julgar. O limite de cada cor está escrito no próprio cartão (passe o mouse ou toque na linha de origem).', ler: 'Olhe primeiro os vermelhos, depois os amarelos. Cinza não é problema: é falta de dado (ainda não medido ou fora do recorte).', onde: ['pipeline', 'eficiencia', 'roadmap', 'motor', 'jogo', 'qualidade', 'curso', 'skills', 'modelos', 'custo', 'acervo', 'experiencia', 'pessoas'] },
+    { id: 'farol', termo: 'farol', tambem: ['faróis', 'verde', 'amarelo', 'vermelho', 'cinza'], grupo: 'painel', def: 'A bolinha colorida de cada cartão: verde = dentro do alvo; amarelo = atenção, perto do limite; vermelho = fora do alvo; cinza = sem dados para julgar. O limite de cada cor aparece ao tocar no farol do cartão (ou passar o mouse sobre ele).', ler: 'Olhe primeiro os vermelhos, depois os amarelos. Cinza não é problema: é falta de dado (ainda não medido ou fora do recorte).', onde: ['pipeline', 'eficiencia', 'roadmap', 'motor', 'jogo', 'qualidade', 'curso', 'skills', 'modelos', 'custo', 'acervo', 'experiencia', 'pessoas'] },
     { id: 'limiar', termo: 'limiar', tambem: ['limiares', 'alvo', 'limite do farol'], grupo: 'painel', def: 'O número que separa as cores do farol: por exemplo, "falhas na prova: 0 · até 2 · mais" quer dizer verde com zero, amarelo até duas, vermelho acima. Cada limiar foi declarado na entrega da sub-aba e pode ser revisto.', ler: 'Se um farol parece severo ou frouxo demais, é o limiar que se discute, não o número.', onde: ['pipeline', 'experiencia', 'jogo'] },
     { id: 'recorte', termo: 'recorte', tambem: ['período', '24 horas', '7 dias', '30 dias', 'tudo', 'neste recorte'], grupo: 'painel', def: 'O conjunto de dados que os filtros deixam passar: o período (24 h, 7 dias, 30 dias, tudo) mais trilha, formato, situação etc. Todo número do painel é "no recorte"; "sem dados neste recorte" = nada caiu no filtro, não que não exista.', ler: 'Tocar numa barra filtra; tocar de novo desfaz. "Limpar" volta ao recorte padrão da sub-aba.', onde: ['pipeline', 'eficiencia', 'qualidade', 'jogo'] },
     { id: 'fonte', termo: 'fonte', tambem: ['fonte do dado', 'fórmula', 'origem'], grupo: 'painel', def: 'De onde o número saiu (API do GitHub, ramo de telemetria, catálogo) e a conta feita com ele (a fórmula). Está escrito, em letra pequena, no pé de cada cartão. Regra do painel: nenhum número sem fonte; o que não tem fonte aparece como lacuna.', ler: 'Desconfiou de um número? Leia a fonte e a fórmula no cartão antes de questionar o dado.', onde: ['pipeline'] },
@@ -1827,7 +1879,7 @@ const __p2 = (function () {
     coleta: 'raw · catalogo/coleta.json (saúde e contagens da última coleta; gravado pelo fluxo Catálogo)',
     indice: 'raw · catalogo/indice.json (só o cabeçalho: fontes, formatos, total, pendentes; lido uma vez por coleta e guardado por carimbo)'
   };
-  return { centavosDe, reaisDe, mesDe, rotuloDoMes, linhasDoNegocio, resumoDoNegocio, SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, linhasDosCommits, levasPorRodada, compactaCommits, MAIN_URL, intervalos, diasDoPeriodo, porSemana, parseRoadmap, resumoDoMapa, linhasDosPlacares, sharkPorVersao, minutosDasRodadas, serieDeTamanho, kb, cabecalhoDoIndice, resumoDoCatalogo, experienciaDasLevas, linhasDasRodadasCI, experienciaDasRodadas, instaveisPorNome, linhasDasPessoas, resumoDasPessoas, linhasDoUso, resumoDoUso, linhasDaForca, resumoDaForca, GLOSSARIO, GRUPOS_GLOSSARIO, buscaGlossario, nomeBate, verbeteDe, MARCAVEIS, segmentosComTermos, glossarioPorGrupo, semAcento, medidaDoScanner, linhasDosRelatos, linhasDasTrilhas, resumoDoFluxo, fraseDoCron, linhasDosFluxos, linhasDasRotinas, porModelo, SECOES_CR, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
+  return { centavosDe, reaisDe, mesDe, rotuloDoMes, linhasDoNegocio, resumoDoNegocio, SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, linhasDosCommits, levasPorRodada, compactaCommits, MAIN_URL, intervalos, diasDoPeriodo, porSemana, parseRoadmap, resumoDoMapa, linhasDosPlacares, sharkPorVersao, minutosDasRodadas, serieDeTamanho, kb, cabecalhoDoIndice, resumoDoCatalogo, experienciaDasLevas, linhasDasRodadasCI, experienciaDasRodadas, instaveisPorNome, linhasDasPessoas, resumoDasPessoas, linhasDoUso, resumoDoUso, linhasDaForca, resumoDaForca, GLOSSARIO, GRUPOS_GLOSSARIO, buscaGlossario, nomeBate, verbeteDe, MARCAVEIS, segmentosComTermos, COMO_LER, FAROL_EM_PALAVRAS, alvoEmPalavras, glossarioPorGrupo, semAcento, medidaDoScanner, linhasDosRelatos, linhasDasTrilhas, resumoDoFluxo, fraseDoCron, linhasDosFluxos, linhasDasRotinas, porModelo, SECOES_CR, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
 })();
 
 /* ==== src/painel/ui.js ==== */
@@ -1883,6 +1935,8 @@ const __p3 = (function () {
       ...items.map(it => h('button', { class: 'ds-tab', role: 'tab', type: 'button', 'aria-selected': String(it.id === active), 'aria-label': it.titulo || it.rotulo, dataset: { tab: it.id }, onClick: () => onSelect && onSelect(it.id) }, it.rotulo)));
   }
   const Farol = (situacao, texto, { id } = {}) => h('span', { class: 'pn-farol ds-text ds-text--sm ds-text--muted', dataset: { farol: situacao }, id: id || null }, texto);
+  /** R-37 · o farol do cartão diz em palavras o que a cor quer dizer e, tocado (ou com o mouse, ou no foco), abre o balão com o alvo deste cartão. */
+  const FarolDoCartao = (situacao, limiar, rotulo) => h('span', { class: 'pn-farol pn-farol--explica ds-text ds-text--sm ds-text--muted', tabindex: '0', dataset: { farol: situacao, termo: 'farol', alvo: (limiar && limiar.texto) || '', cartao: rotulo || '' }, 'aria-label': `farol: ${__p2.FAROL_EM_PALAVRAS[situacao] || situacao}${limiar && limiar.texto ? ' · alvo: ' + limiar.texto : ''}` }, __p2.FAROL_EM_PALAVRAS[situacao] || situacao);
 
   /* ---------- R-4 · chips de filtro, cartão de KPI, barras ---------- */
   const Chip = (rotulo, { ativo = false, onClick, id, dataset, title } = {}) => h('button', { class: 'ds-chip', type: 'button', 'aria-pressed': String(!!ativo), id, dataset, onClick, title }, rotulo);
@@ -1890,7 +1944,7 @@ const __p3 = (function () {
       `semDados` escreve "sem dados neste recorte" no lugar do valor; `totalSemFiltro` aparece em cinza quando há filtro. */
   function Cartao({ id, rotulo, valor, unidade = '', farol: situacao = null, limiar = null, fonte = '', formula = '', em = null, semDados = false, totalSemFiltro = null, nota = null }) {
     return h('article', { class: 'ds-surface pn-cartao', id, 'aria-label': rotulo },
-      h('div', { class: 'pn-cartao__topo' }, h('span', { class: 'ds-text ds-text--caps' }, rotulo), situacao ? Farol(situacao, situacao, { }) : null),
+      h('div', { class: 'pn-cartao__topo' }, h('span', { class: 'ds-text ds-text--caps' }, rotulo), situacao ? FarolDoCartao(situacao, limiar, rotulo) : null),
       semDados ? h('p', { class: 'ds-text ds-text--md ds-text--muted pn-cartao__vazio' }, 'sem dados neste recorte')
         : h('p', { class: 'ds-text ds-text--2xl ds-text--display pn-cartao__valor' }, String(valor), unidade ? h('span', { class: 'ds-text ds-text--sm ds-text--muted pn-cartao__unidade' }, ' ' + unidade) : null, totalSemFiltro != null ? h('span', { class: 'ds-text ds-text--sm ds-text--subtle pn-cartao__total', title: 'sem filtro' }, ` / ${totalSemFiltro}`) : null),
       nota ? h('p', { class: 'ds-text ds-text--sm ds-text--muted' }, nota) : null,
@@ -2712,7 +2766,7 @@ const __p4 = (function () {
     const fonte = createFonte({ fetch: W.__PAINEL_FETCH_GITHUB || null, guarda, token: tokenGuardado });
     const inicial = filtrosDaUrl(typeof location !== 'undefined' ? location.hash : '');
     const termoDaUrl = hash => { const m = /[?&]termo=([^&]*)/.exec(String(hash || '')); return m ? decodeURIComponent(m[1]) : ''; };   // R-35 · #glossario?termo=…
-    const est = { sessao: null, erro: null, carregando: false, aba: (SUBABAS.find(a => a.id === inicial.aba) ? inicial.aba : null) || guarda.ler('painel.aba') || SUBABAS[0].id, filtros: inicial.filtros, maisFiltros: false, busca: termoDaUrl(typeof location !== 'undefined' ? location.hash : ''), main: null, em: null, aviso: null, atualizando: false, dados: {}, pedidosDaVez: 0, tema: guarda.ler('painel.tema') || 'dark' };
+    const est = { sessao: null, erro: null, carregando: false, aba: (SUBABAS.find(a => a.id === inicial.aba) ? inicial.aba : null) || guarda.ler('painel.aba') || SUBABAS[0].id, filtros: inicial.filtros, maisFiltros: false, comoLerFechado: guarda.ler('painel.comoLer') || {}, busca: termoDaUrl(typeof location !== 'undefined' ? location.hash : ''), main: null, em: null, aviso: null, atualizando: false, dados: {}, pedidosDaVez: 0, tema: guarda.ler('painel.tema') || 'dark' };
     document.documentElement.setAttribute('data-theme', est.tema);
     const online = () => typeof navigator === 'undefined' || navigator.onLine !== false;
     const visao = () => VISOES[est.aba] || null;
@@ -2891,6 +2945,14 @@ const __p4 = (function () {
       const v = visao();
       const partes = [];
       if (est.aviso) partes.push(est.aviso.tipo === 'rede' ? AvisoRede(est.aviso.texto, { id: 'pn-aviso' }) : Note(est.aviso.texto, 'warning', { id: 'pn-aviso' }));
+      // R-37 · cada sub-aba abre dizendo a pergunta que responde e como ler, com a legenda dos faróis (recolhível; lembrado no aparelho)
+      const comoLer = M.COMO_LER[aba.id];
+      if (comoLer) partes.push(h('details', { class: 'ds-surface pn-como-ler', id: 'pn-como-ler', open: est.comoLerFechado[aba.id] ? null : true },
+        // grava no toque (o evento toggle chega depois, numa tarefa à parte: recarregar logo em seguida perderia a escolha); Enter e Espaço no resumo também chegam como clique
+        h('summary', { class: 'pn-como-ler__resumo', onClick: e => { const d = e.currentTarget.parentElement; est.comoLerFechado = { ...est.comoLerFechado, [aba.id]: !!d.open }; guarda.gravar('painel.comoLer', est.comoLerFechado); } }, h('span', { class: 'ds-text ds-text--caps ds-text--muted' }, 'Como ler esta aba'), h('span', { class: 'pn-como-ler__pergunta ds-text ds-text--md ds-text--display' }, comoLer.pergunta)),
+        h('p', { class: 'pn-como-ler__texto ds-text ds-text--sm' }, comoLer.ler),
+        h('ul', { class: 'pn-como-ler__legenda', 'aria-label': 'legenda dos faróis' }, ...['verde', 'amarelo', 'vermelho', 'cinza'].map(c => h('li', { class: 'pn-farol ds-text ds-text--xs ds-text--muted', dataset: { farol: c } }, M.FAROL_EM_PALAVRAS[c]))),
+        h('p', { class: 'pn-como-ler__dica ds-text ds-text--xs ds-text--subtle' }, 'Toque no farol de um cartão para ver o alvo dele; toque num termo sublinhado para ver o que ele quer dizer.')));
       if (v && v.semFonte) partes.push(...v.desenha(est.dados[est.aba] || {}, est.filtros, api));   // R-35 · o Glossário não tem fonte nem filtros
       else if (!aba.pronta || !v) partes.push(Empty(`Esta visão chega na leva ${aba.leva} e vai trazer ${aba.traz}.`, null, { icone: 'ampulheta', titulo: `${aba.titulo} · em breve`, hero: true, id: 'pn-em-breve' }));
       else {
@@ -2952,7 +3014,7 @@ const __p4 = (function () {
 
     /* ---------- R-36 · termos marcados e o balão: a primeira ocorrência de cada termo por bloco ganha cor do DS e sublinhado
        pontilhado; passar o mouse, tocar ou focar abre um balão com o que é, como ler e "Ver no glossário" ---------- */
-    const FORA_DA_MARCA = 'button, a, input, select, textarea, label, .ds-chip, .ds-tab, dfn, svg, .pn-glossario, #pn-balao, [aria-hidden="true"], .pn-farol';
+    const FORA_DA_MARCA = 'button, a, input, select, textarea, label, summary, .ds-chip, .ds-tab, dfn, svg, .pn-glossario, #pn-balao, [aria-hidden="true"], .pn-farol';
     // o bloco é o cartão, o gráfico, a nota ou a linha inteira (o termo marca uma vez ali); fora deles, o parágrafo ou o título
     const BLOCO_DA_MARCA = '.pn-cartao, .pn-barras, .ds-note, .ds-empty, .pn-faixa__item, .pn-linha, li', BLOCO_SOLTO = 'section, p, h2, h3';
     function marcaTermos(raizMarca) {
@@ -2977,20 +3039,26 @@ const __p4 = (function () {
       }
       return n;
     }
-    const balao = { el: null, dono: null, abreT: 0, fechaT: 0 };
+    const balao = { el: null, dono: null, abreT: 0, fechaT: 0, devolvendo: false };
     function fechaBalao({ devolveFoco = false } = {}) {
       clearTimeout(balao.abreT); clearTimeout(balao.fechaT);
       if (balao.el) balao.el.remove();
       const dono = balao.dono; balao.el = null; balao.dono = null;
-      if (dono) { dono.removeAttribute('data-aberto'); dono.removeAttribute('aria-describedby'); if (devolveFoco && dono.isConnected) dono.focus(); }
+      if (dono) { dono.removeAttribute('data-aberto'); dono.removeAttribute('aria-describedby'); if (devolveFoco && dono.isConnected) { balao.devolvendo = true; try { dono.focus(); } finally { balao.devolvendo = false; } } }   // R-37 · correção da R-36: devolver o foco não reabre o balão (o foco no termo abriria de novo depois do Esc)
     }
     function abreBalao(dfn) {
       const v = M.verbeteDe(dfn.dataset.termo); if (!v) return;
       if (balao.dono === dfn && balao.el) return;
       fechaBalao();
       const ver = Button('Ver no glossário', { variant: 'ghost', icone: 'livro', id: 'pn-balao-ver', onClick: () => { const t = v.termo; fechaBalao(); abre('glossario', { termo: t }); } });
+      const ehFarol = dfn.classList.contains('pn-farol--explica');
+      const faixas = ehFarol ? M.alvoEmPalavras(dfn.dataset.alvo) : null;
+      const alvoDoCartao = faixas ? h('div', { class: 'pn-balao__alvo', id: 'pn-balao-alvo' },
+        h('p', { class: 'ds-text ds-text--sm' }, h('strong', {}, 'Neste cartão'), ` (${(dfn.dataset.cartao || '').toLowerCase()})${faixas.medida && faixas.medida.toLowerCase() !== (dfn.dataset.cartao || '').toLowerCase() ? ' — ' + faixas.medida : ''}:`),
+        h('ul', { class: 'pn-balao__faixas' }, ...faixas.faixas.map(f => h('li', { class: 'pn-farol ds-text ds-text--sm', dataset: { farol: f.cor, atual: String(f.cor === dfn.dataset.farol) } }, h('span', {}, h('strong', {}, f.rotulo + ': '), f.texto))))) : null;
       const el = h('div', { class: 'ds-surface ds-surface--raised pn-balao', id: 'pn-balao', role: 'dialog', 'aria-modal': 'false', 'aria-label': v.termo, dataset: { termo: v.id, sobrepoe: 'true' } },
-        h('p', { class: 'pn-balao__termo ds-text ds-text--lg ds-text--display' }, v.termo),
+        h('p', { class: 'pn-balao__termo ds-text ds-text--lg ds-text--display' }, ehFarol ? `farol: ${M.FAROL_EM_PALAVRAS[dfn.dataset.farol] || dfn.dataset.farol}` : v.termo),
+        alvoDoCartao,
         h('p', { class: 'pn-balao__def ds-text ds-text--sm', id: 'pn-balao-def' }, v.def),
         h('p', { class: 'pn-balao__ler ds-text ds-text--sm ds-text--muted' }, h('strong', {}, 'Como ler: '), v.ler),
         ver);
@@ -3007,12 +3075,12 @@ const __p4 = (function () {
       el.dataset.lado = embaixo ? 'embaixo' : 'em-cima';
     }
     if (typeof document !== 'undefined' && document.addEventListener) {
-      const alvo = e => e.target && e.target.closest ? e.target.closest('dfn.pn-termo') : null;
+      const alvo = e => e.target && e.target.closest ? e.target.closest('dfn.pn-termo, .pn-farol--explica') : null;   // R-37 · o farol do cartão também explica
       document.addEventListener('pointerover', e => { const d = alvo(e); if (!d || e.pointerType !== 'mouse') return; clearTimeout(balao.fechaT); clearTimeout(balao.abreT); balao.abreT = setTimeout(() => abreBalao(d), 140); });
       document.addEventListener('pointerout', e => { const d = alvo(e); if (!d || e.pointerType !== 'mouse') return; clearTimeout(balao.abreT); balao.fechaT = setTimeout(fechaBalao, 220); });
       // tocar abre (e mantém); fecha ao tocar fora, com Esc ou ao rolar
       document.addEventListener('click', e => { const d = alvo(e); if (d) { e.preventDefault(); clearTimeout(balao.fechaT); abreBalao(d); return; } if (balao.el && !balao.el.contains(e.target)) fechaBalao(); });
-      document.addEventListener('focusin', e => { const d = alvo(e); if (d) { abreBalao(d); return; } if (balao.el && !balao.el.contains(e.target)) fechaBalao(); });
+      document.addEventListener('focusin', e => { const d = alvo(e); if (d) { if (!balao.devolvendo) abreBalao(d); return; } if (balao.el && !balao.el.contains(e.target)) fechaBalao(); });
       document.addEventListener('keydown', e => { if (e.key === 'Escape' && balao.el) { e.preventDefault(); fechaBalao({ devolveFoco: true }); } else if ((e.key === 'Enter' || e.key === ' ') && alvo(e)) { e.preventDefault(); abreBalao(alvo(e)); const b = document.getElementById('pn-balao-ver'); if (b) b.focus(); } });
       window.addEventListener('scroll', () => { if (balao.el) fechaBalao(); }, { passive: true });
       window.addEventListener('resize', () => { if (balao.el) fechaBalao(); });
