@@ -1,63 +1,86 @@
 {
  "versao": 1,
  "formato": "pauper",
- "geradoEm": "2026-11-01T13:47:31.035Z",
+ "geradoEm": "2026-11-02T16:34:58.819Z",
  "motor": 112,
  "fonte": "api.scryfall.com/cards/collection",
- "listas": 628,
- "listas100": 627,
- "cartasPendentes": 1,
+ "listas": 644,
+ "listas100": 642,
+ "cartasPendentes": 2,
  "parcial": false,
  "lotesComFalha": 0,
  "porClasse": {
   "texto-mudou": 0,
   "lida": 1,
-  "nova": 0,
+  "nova": 1,
   "parcial": 0,
   "sem-dados": 0
  },
  "novasDesdeAnterior": [
-  "Dreams of Laguna"
+  "Dawnbringer Cleric",
+  "Geothermal Bog"
  ],
  "resolvidasDesdeAnterior": [
-  "Angelsong",
-  "Colossal Dreadmask",
-  "Tectonic Hazard",
-  "Unstable Experiment"
+  "Dreams of Laguna"
  ],
  "curva": [
   {
-   "listas": 628,
+   "listas": 643,
    "cartas": 1
+  },
+  {
+   "listas": 644,
+   "cartas": 2
   }
  ],
  "textos": null,
  "pendentes": [
   {
-   "name": "Dreams of Laguna",
+   "name": "Dawnbringer Cleric",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
+   "listas": 1,
+   "gulosa": 2,
+   "texto": {
+    "mana_cost": "{1}{W}",
+    "type_line": "Creature — Human Cleric",
+    "oracle_text": "When this creature enters, choose one —\n• Cure Wounds — You gain 2 life.\n• Dispel Magic — Destroy target enchantment.\n• Gentle Repose — Exile target card from a graveyard.",
+    "keywords": [],
+    "layout": "normal",
+    "power": "1",
+    "toughness": "3"
+   }
+  },
+  {
+   "name": "Geothermal Bog",
    "classe": "lida",
    "nivel": "lida",
    "motivo": "lida pelo motor, em revisão",
    "listas": 1,
    "gulosa": 1,
    "texto": {
-    "mana_cost": "{1}{U}",
-    "type_line": "Instant",
-    "oracle_text": "Surveil 1, then draw a card. (To surveil 1, look at the top card of your library. You may put it into your graveyard.)\nFlashback {3}{U} (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
-    "keywords": [
-     "Surveil",
-     "Flashback"
-    ],
+    "mana_cost": "",
+    "type_line": "Land — Swamp Mountain",
+    "oracle_text": "({T}: Add {B} or {R}.)\nThis land enters tapped.",
+    "keywords": [],
     "layout": "normal"
    }
   }
  ],
  "listasIncompletas": [
   {
-   "id": "mtgo-pauper-challenge-16-2026-10-3112857391-4",
-   "nome": "Izzet Galvanic Discharge",
+   "id": "mtgo-pauper-challenge-32-2026-11-0112857406-3",
+   "nome": "Dimir Baleful Strix",
    "faltam": [
-    "Dreams of Laguna"
+    "Geothermal Bog"
+   ]
+  },
+  {
+   "id": "mtgo-pauper-league-2026-11-0111153-2",
+   "nome": "Naya Dawnbringer Cleric",
+   "faltam": [
+    "Dawnbringer Cleric"
    ]
   }
  ]
