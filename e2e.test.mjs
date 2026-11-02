@@ -9546,6 +9546,50 @@ test('e2e · DS-K2 J2 · Jogar como mesa de preparação: a sua lista é um cart
 // DS-K2 M2 (J-37) · a mão em leque, como na proposta K: a carta da mão encolhe (de --carta-mao até --carta-mao-min) para a
 // mão caber sem rolar; uma carta cobre no máximo 40% da vizinha, então o centro de cada carta é dela (é ali que o dedo e o
 // teste tocam); as pontas giram até 10° e descem em arco; a carta segurada endireita, sobe e fica por cima. Com 8 cartas em
+// J-47 (decisão do dono, 02/11/2026) · contadores de mão, grimório, cemitério e exílio menores: a caixa pintada tem 34 px e o
+// número letra menor, o toque continua com 44 px e a linha do lado mede 34 px — o campo ganha 10 px por lado.
+test('e2e · J-47 contadores de zona menores: caixa de 34 px, toque de 44 px, linha do lado com 34 px, ícone de 16; zero sem caixa; nas quatro medidas e nos dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await createDeck(page, base, 'Contadores', '30 Island\n30 Delver of Secrets');
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start'); await page.fill('#mesa-seed', '3');
+  await page.click('[data-opponent="goldfish"]');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-pass');
+  await page.evaluate(() => { const M = window.__estanteMesa, s = M.estado(), p = s.turn.active; const o = Object.values(s.objects).find(x => x.owner === p && x.zone === 'library'); M.act({ t: 'move', p, oid: o.oid, to: 'battlefield' }); });
+  await page.waitForSelector('.tb-side--me .tb-card');
+  const mede = () => page.evaluate(() => {
+    const R = e => e.getBoundingClientRect(), token = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--chip-zona-h'));
+    return { token, lados: [...document.querySelectorAll('.tb-board .tb-side')].map(l => { const cab = l.querySelector('.tb-side__head'), carta = l.querySelector('.tb-card');
+      // a fileira, não a carta (a carta pode estar no meio de uma transição de entrada ou de toque)
+      return { lado: l.className, cab: R(cab).height, cartaAbaixo: carta ? R(carta.closest('.tb-row')).top + parseFloat(getComputedStyle(carta.closest('.tb-row')).paddingTop) - R(l).top : null,
+        chips: [...l.querySelectorAll('.tb-chip')].map(c => { const b = R(c), ps = getComputedStyle(c, '::before'), icone = c.querySelector('.ds-icon svg');
+          const caixaT = b.top + parseFloat(ps.top), caixaB = b.bottom - parseFloat(ps.bottom), cabR = R(cab);
+          return { nome: c.getAttribute('aria-label'), w: b.width, h: b.height, zero: c.dataset.zero === 'true', caixa: ps.content !== 'none' ? caixaB - caixaT : 0, fundo: ps.backgroundColor, icone: icone ? R(icone).width : 0, numero: parseFloat(getComputedStyle(c.querySelector('b')).fontSize),
+            caixaNaLinha: ps.content === 'none' || (caixaT >= cabR.top - 0.5 && caixaB <= cabR.bottom + 0.5), conteudoNaCaixa: (() => { const i = c.querySelector('.ds-icon'); return !i || (R(i).top >= caixaT - 0.5 && R(i).bottom <= caixaB + 0.5); })(),
+            sobraParaCima: b.top < cabR.top - 0.5, sobraParaBaixo: b.bottom > cabR.bottom + 0.5 }; }) }; }) };
+  });
+  for (const [w, hgt] of [[360, 780], [384, 832], [390, 844], [412, 891]]) for (const tema of ['dark', 'light']) {
+    await page.setViewportSize({ width: w, height: hgt }); await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(250);
+    const m = await mede(), onde = `${w} ${tema}`;
+    assert.equal(m.token, 34, `${onde}: a caixa do contador é token de 34 px`);
+    for (const l of m.lados) {
+      assert.ok(l.cab >= 34 && l.cab <= 40, `${onde} ${l.lado}: a linha do lado mede 34 px (${l.cab})`);
+      assert.ok(l.chips.length >= 2, `${onde} ${l.lado}: contadores à vista`);
+      for (const c of l.chips) {
+        assert.ok(c.w >= 44 && c.h >= 44, `${onde} ${l.lado}: ${c.nome} continua tocável (${Math.round(c.w)}×${Math.round(c.h)})`);
+        if (c.zero) assert.equal(c.caixa, 0, `${onde} ${l.lado}: ${c.nome} zerado fica sem caixa`);
+        else { assert.ok(Math.abs(c.caixa - 34) <= 1, `${onde} ${l.lado}: ${c.nome} com a caixa de 34 px (${c.caixa})`); assert.notEqual(c.fundo, 'rgba(0, 0, 0, 0)', `${onde} ${l.lado}: ${c.nome} com a caixa pintada`); }
+        assert.ok(c.icone >= 15 && c.icone <= 17 && c.numero <= 14, `${onde} ${l.lado}: ${c.nome} com ícone de 16 e número menor ` + JSON.stringify(c));
+      }
+      if (l.cartaAbaixo != null) assert.ok(l.cartaAbaixo <= 66, `${onde} ${l.lado}: a primeira fileira começa a ${Math.round(l.cartaAbaixo)} px do topo do lado (eram ≈ 76 com a linha de 44)`);
+    }
+    await auditaTela(page, `J-47 · contadores ${onde}`);
+  }
+  await page.click('#tb-cemiterio-me'); await page.waitForSelector('.ds-dialog'); // o contador continua abrindo a zona
+  if (process.env.SHOTS) { await page.keyboard.press('Escape'); await page.setViewportSize({ width: 360, height: 780 }); await page.waitForTimeout(300); await page.screenshot({ path: process.env.SHOTS + '/j47-contadores.png' }); }
+  assert.deepEqual(errors, []);
+});
+
 // J-46 (decisão do dono, 02/11/2026) · o nome da carta do campo nunca é abreviado: a letra da faixa encolhe até o piso e, se ainda
 // não couber, o nome vai para duas linhas no piso com a faixa crescendo sobre a janela da arte; e as cópias de trás de uma pilha
 // ×N mostram a própria arte na janela (antes ficavam vazias).
@@ -9585,6 +9629,9 @@ test('e2e · J-46 nome inteiro na faixa (letra que encolhe até o piso; duas lin
     assert.ok(delver.linhas === 1 && !delver.duas, `${onde}: Delver numa linha ` + JSON.stringify(delver));
     // em 390 (carta de 84 px) o nome médio cabe numa linha com a letra menor; em 360 (76 px) nem no piso cabe e vai para duas linhas
     if (w >= 375) assert.ok(+kessig.escala < 1 && +kessig.escala >= m.piso && !kessig.duas && kessig.linhas === 1, `${onde}: nome médio encolhe a letra numa linha ` + JSON.stringify(kessig));
+        assert.ok(c.caixaNaLinha && c.conteudoNaCaixa, `${onde} ${l.lado}: ${c.nome} com a caixa pintada dentro da linha e o ícone dentro da caixa ` + JSON.stringify(c));
+        // a sobra de toque vai para o lado onde não pousa a faixa da pilha: para baixo no seu lado, para cima no do oponente
+        if (!c.zero) assert.ok(/--opp/.test(l.lado) ? c.sobraParaCima && !c.sobraParaBaixo : c.sobraParaBaixo && !c.sobraParaCima, `${onde} ${l.lado}: ${c.nome} com a sobra de toque do lado certo ` + JSON.stringify(c));
     else assert.ok(kessig.duas && kessig.linhas === 2, `${onde}: nome médio em duas linhas na carta estreita ` + JSON.stringify(kessig));
     assert.ok(ulamog.duas && Math.abs(ulamog.fonte - curta.fonte * m.piso) < 0.3 && ulamog.linhas === 2 && ulamog.arteH < delver.arteH, `${onde}: nome comprido vai para duas linhas no piso, a arte encurta ` + JSON.stringify({ ulamog, delverArte: delver.arteH }));
     // achado da leva: a carta sozinha na fileira saía 6 px mais alta que a da pilha (o botão em linha dentro do leque deixava um vão e a fileira esticava as vizinhas)
@@ -15859,7 +15906,8 @@ test('e2e · MJ1b faixa compacta por lado: vida e contadores numa linha de 44 px
     const lados = await page.$$eval('.tb-board .tb-side', ls => ls.map(l => {
       // DS-K2 M3 (J-39) · a vida foi para a barra de cima: na linha do lado ficam o nome do outro (e notas) e os contadores
       const r = e => e.getBoundingClientRect(), cab = l.querySelector('.tb-side__head'), vida = l.querySelector('.tb-side__info') || cab;
-      const chips = [...l.querySelectorAll('.tb-chip')].map(c => ({ ...(b => ({ x: b.left, r: b.right, y: b.top, h: b.height, w: b.width, meio: b.top + b.height / 2 }))(r(c)), nome: c.getAttribute('aria-label'), icone: !!c.querySelector('.ds-icon svg') }));
+      // J-47 · o meio é o da caixa (sem a sobra de toque do botão de 44 px, que fica fora da linha de 34)
+      const chips = [...l.querySelectorAll('.tb-chip')].map(c => ({ ...((b, cs) => ({ x: b.left, r: b.right, y: b.top, h: b.height, w: b.width, meio: (b.top + parseFloat(cs.paddingTop) + b.bottom - parseFloat(cs.paddingBottom)) / 2 }))(r(c), getComputedStyle(c)), nome: c.getAttribute('aria-label'), icone: !!c.querySelector('.ds-icon svg') }));
       const carta = l.querySelector('.tb-card'), rotulos = [...l.querySelectorAll('.tb-zone__label')];
       return { lado: l.className, cab: r(cab).height, vida: { r: vida === cab ? r(cab).left : r(vida).right, meio: r(cab).top + r(cab).height / 2, h: r(cab).height }, chips,
         cartaAbaixo: carta ? r(carta).top - r(l).top : null, rotulosVisiveis: rotulos.filter(x => r(x).width > 1).length, rotulosTexto: rotulos.map(x => x.textContent).join(' | ') };
@@ -15868,7 +15916,7 @@ test('e2e · MJ1b faixa compacta por lado: vida e contadores numa linha de 44 px
     for (const l of lados) {
       const quem = `${nome} ${/--me/.test(l.lado) ? 'meu lado' : 'oponente'}`;
       assert.ok(l.cab <= 52, `${quem}: faixa da vida e contadores com ≤ 52 px (mediu ${Math.round(l.cab)}; eram ≈ 106 no oponente)`);
-      assert.ok(l.vida.h >= 44 && l.vida.h <= 48, `${quem}: linha do lado com 44 px`);
+      assert.ok(l.vida.h >= 34 && l.vida.h <= 40, `${quem}: linha do lado com 34 px (J-47: a caixa do contador encolheu; o toque de 44 px sai pelas margens; era 44)`);
       assert.ok(l.chips.length >= 3, `${quem}: contadores à vista`);
       for (const c of l.chips) {
         assert.ok(c.h >= 44 && c.w >= 44, `${quem}: ${c.nome} tocável (${Math.round(c.w)}×${Math.round(c.h)})`);
@@ -15886,8 +15934,9 @@ test('e2e · MJ1b faixa compacta por lado: vida e contadores numa linha de 44 px
   // guarda-corpo de fonte larga (a do CI): em 360 a vida encolhe com reticências e os contadores não descem de linha
   await page.setViewportSize({ width: 360, height: 780 });
   await page.addStyleTag({ content: ':root{--font-ui:"DejaVu Sans",sans-serif !important}' }); await page.waitForTimeout(150);
-  const larga = await page.$$eval('.tb-board .tb-side', ls => ls.map(l => { const cab = l.querySelector('.tb-side__head').getBoundingClientRect(), i = l.querySelector('.tb-side__info'), v = i ? i.getBoundingClientRect() : { right: cab.left }, cs = [...l.querySelectorAll('.tb-chip')].map(c => c.getBoundingClientRect());
-    return { cab: cab.height, junto: cs.every(c => Math.abs((c.top + c.height / 2) - (cab.top + cab.height / 2)) < 4 && c.left >= v.right) }; }));
+  const larga = await page.$$eval('.tb-board .tb-side', ls => ls.map(l => { const cab = l.querySelector('.tb-side__head').getBoundingClientRect(), i = l.querySelector('.tb-side__info'), v = i ? i.getBoundingClientRect() : { right: cab.left };
+    const cs = [...l.querySelectorAll('.tb-chip')].map(c => { const b = c.getBoundingClientRect(), st = getComputedStyle(c); return { left: b.left, meio: (b.top + parseFloat(st.paddingTop) + b.bottom - parseFloat(st.paddingBottom)) / 2 }; }); // J-47 · meio da caixa (sem a sobra de toque)
+    return { cab: cab.height, junto: cs.every(c => Math.abs(c.meio - (cab.top + cab.height / 2)) < 4 && c.left >= v.right) }; }));
   for (const l of larga) { assert.ok(l.cab <= 52, `fonte larga: faixa com ${Math.round(l.cab)} px`); assert.ok(l.junto, 'fonte larga: contadores na linha do lado, sem encostar no nome'); }
   await auditaTela(page, 'MJ1b · mesa 360 com fonte larga');
   // o contador continua abrindo a zona

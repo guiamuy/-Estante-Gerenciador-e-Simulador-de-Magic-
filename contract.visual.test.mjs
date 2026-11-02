@@ -658,6 +658,16 @@ test('DS-K2 · M1 a carta do campo na moldura K: janela da arte por token sobre 
   }
 });
 
+/* ---------------- J-47 · contadores de zona menores ---------------- */
+test('J-47 · o contador de zona pinta uma caixa de 34 px (token) por dentro de um toque de 44 px; o número usa --text-sm; a linha do lado mede pela caixa', () => {
+  assert.match(css, /:root \{ --chip-zona-h: 34px; \}/, 'a altura da caixa é token');
+  assert.match(componentCss, /\.tb-chip \{[^}]*min-height: var\(--tap-min\); min-width: var\(--tap-min\);\s*margin: 0 0 calc\(var\(--chip-zona-h\) - var\(--tap-min\)\); padding: 0 var\(--space-2\) calc\(var\(--tap-min\) - var\(--chip-zona-h\)\) 6px;/, 'o botão tem 44 px; a sobra de toque fica embaixo (nunca para cima, onde pousa a faixa da pilha) e a linha mede 34');
+  assert.match(componentCss, /\.tb-chip::before \{[^}]*top: 0; bottom: calc\(var\(--tap-min\) - var\(--chip-zona-h\)\);[^}]*background: var\(--bg-elev-2\);/, 'a caixa pintada é o ::before, colada em cima, com a borda e o papel do contador');
+  assert.match(componentCss, /\.tb-chip b \{ color: var\(--fg\); font-size: var\(--text-sm\);/);
+  assert.match(componentCss, /\.tb-side__head \{[^}]*min-height: var\(--chip-zona-h\);/);
+  assert.match(HTML, /Icone\(ICONE_DA_ZONA\[label\], \{ tamanho: 16, classe: 'tb-chip__icone' \}\)/, 'ícone de 16');
+});
+
 /* ---------------- DS-K (G-295) · F2.3 topo da Lista em ébano ---------------- */
 test('DS-K · F2.3 o topo da Lista é o destaque em ébano (nome, formato em latão, contagens) e o latão em texto pequeno sobre o ébano usa --accent-lo', () => {
   assert.match(HTML, /Surface\(\{ class: 'ds-destaque ds-surface--pad deck-topo', id: 'deck-topo' \}/);

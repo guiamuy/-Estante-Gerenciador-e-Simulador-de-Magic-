@@ -2630,21 +2630,33 @@ body[data-mesa-cheia="true"] .tb-steps__list > li::after { inset: 0; height: aut
 @media (prefers-reduced-motion: reduce) { .tb-vez--troca { animation: none; } .tb-side { transition: none; } }
 /* MJ1b (leva J-3) · faixa compacta por lado: vida à esquerda e contadores (ícone + número) à direita numa linha de 44 px
    em todas as larguras; com cinco contadores ou mais (Commander, mana flutuando, partida online) eles descem de linha */
-.tb-side__head { display: flex; align-items: center; gap: var(--space-2); flex-wrap: nowrap; min-height: var(--tap-min); }
+.tb-side__head { display: flex; align-items: center; gap: var(--space-2); flex-wrap: nowrap; min-height: var(--chip-zona-h); } /* J-47 · a linha do lado mede pela caixa do contador (34 px); o toque de 44 px sai pelas margens negativas do chip */
 .tb-side__head:has(.tb-chips > :nth-child(5)) { flex-wrap: wrap; }
 .tb-chips { display: flex; flex-wrap: nowrap; gap: var(--space-1); flex: 0 0 auto; margin-left: auto; }
 .tb-chips:has(> :nth-child(5)) { flex: 1 1 100%; flex-wrap: wrap; }
-.tb-chip[data-jogaveis] { position: relative; border-color: var(--accent); color: var(--fg); }
-.tb-chip__ponto { position: absolute; top: 4px; right: 4px; width: 8px; height: 8px; border-radius: var(--radius-full); background: var(--accent); }
+.tb-chip[data-jogaveis] { position: relative; color: var(--fg); }
+.tb-chip__ponto { position: absolute; top: 3px; right: 3px; width: 7px; height: 7px; border-radius: var(--radius-full); background: var(--accent); }
+/* J-47 (decisão do dono, 02/11/2026) · contadores de zona menores: a caixa pintada tem --chip-zona-h (34 px) e o número --text-sm; o alvo
+   de toque continua com 44 px (o botão é 44 e a caixa é o ::before por dentro), e as margens negativas deixam a linha do lado com
+   34 px — 10 px a mais de campo por lado em 360×780. Zero continua apagado e sem caixa. */
+:root { --chip-zona-h: 34px; }
 .tb-chip {
-  position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 2px; min-height: var(--tap-min); min-width: var(--tap-min);
-  padding: 0 var(--space-2) 0 6px; border: 1px solid var(--border); border-radius: var(--radius-2); background: var(--bg-elev-2);
+  position: relative; isolation: isolate; display: inline-flex; align-items: center; justify-content: center; gap: 2px; min-height: var(--tap-min); min-width: var(--tap-min);
+  margin: 0 0 calc(var(--chip-zona-h) - var(--tap-min)); padding: 0 var(--space-2) calc(var(--tap-min) - var(--chip-zona-h)) 6px; border: none; border-radius: var(--radius-2); background: transparent;
   color: var(--fg-muted); white-space: nowrap;
 }
-.tb-chip b { color: var(--fg); font-size: var(--text-md); font-variant-numeric: tabular-nums; }
+.tb-chip::before { content: ''; position: absolute; z-index: -1; left: 0; right: 0; top: 0; bottom: calc(var(--tap-min) - var(--chip-zona-h));
+  border: 1px solid var(--border); border-radius: var(--radius-2); background: var(--bg-elev-2); }
+.tb-chip[data-jogaveis]::before { border-color: var(--accent); }
+.tb-chip b { color: var(--fg); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
 .tb-chip__icone { flex: none; }
 .tb-chip__rotulo { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 /* J-40 · relato #45 · masmorra na mesa: o selo de 44 px com a miniatura do mapa (a sala de quem é o lado acesa na cor dele:
+/* no lado do oponente a sobra de toque vai para cima (acima do lado há 24 px livres); embaixo dele pousa a faixa da pilha quando o
+   campo está vazio (MJ1c: a faixa ocupa exatamente os 15 px do pé do lado de cima, o vão e os 13 px do topo do seu lado) */
+.tb-side--opp .tb-chip { margin: calc(var(--chip-zona-h) - var(--tap-min)) 0 0; padding: calc(var(--tap-min) - var(--chip-zona-h)) var(--space-2) 0 6px; }
+.tb-side--opp .tb-chip::before { top: calc(var(--tap-min) - var(--chip-zona-h)); bottom: 0; }
+.tb-side--opp .tb-chip__ponto { top: calc(var(--tap-min) - var(--chip-zona-h) + 3px); }
    latão para você, a cor do oponente para ele) e a bandeira da iniciativa no canto; nenhum texto na mesa, o nome inteiro
    fica no nome falado e na folha. A folha desenha a carta da masmorra como mapa de salas. */
 .tb-masmorra { --marca: var(--accent); position: relative; flex: none; display: inline-flex; align-items: center; justify-content: center;
@@ -2717,7 +2729,8 @@ body[data-mesa-cheia="true"] .tb-steps__list > li::after { inset: 0; height: aut
 .tb-zone__empty { font-size: var(--text-xs); color: var(--fg-subtle); }
 .tb-zone--empty { flex-direction: row; gap: var(--space-2); align-items: baseline; line-height: var(--lh-xs); }
 /* D6 · relance: zeros apagados (o número some do olho, o alvo de toque fica), campo vazio numa linha */
-.tb-chip[data-zero="true"] { color: var(--fg-subtle); border-color: transparent; background: transparent; padding: 0 var(--space-1); }
+.tb-chip[data-zero="true"] { color: var(--fg-subtle); padding-left: var(--space-1); padding-right: var(--space-1); } /* J-47 · só o lado: a sobra de toque (padding vertical) fica */
+.tb-chip[data-zero="true"]::before { content: none; }
 .tb-chip[data-zero="true"] b { color: var(--fg-subtle); font-weight: var(--weight-regular); }
 /* (D6) o lado com campo vazio só se declara pelo nome falado e por data-campo */
 .tb-row { display: flex; gap: var(--space-2); overflow-x: auto; padding: var(--space-2) var(--space-1) var(--space-2); scroll-snap-type: x proximity; }
@@ -37681,7 +37694,7 @@ function LifeCounter({ name, life, active, sub, onClick, id, lado = null }) {
 const ICONE_DA_ZONA = { 'Mão': 'mao', 'Grimório': 'baralho', 'Cemitério': 'cemiterio', 'Exílio': 'exilio', 'Comando': 'comando', 'Companheiro': 'companheiro' };
 const ZoneChip = (label, n, onClick, id, jogaveis = 0) => h('button', { class: 'tb-chip', type: 'button', onClick, id, title: label, dataset: { ...(jogaveis ? { jogaveis: String(jogaveis) } : {}), ...(!n ? { zero: 'true' } : {}) }, // D6 · zero apagado
   'aria-label': `${label}: ${n}` + (jogaveis ? `, ${jogaveis === 1 ? 'uma carta pode ser jogada' : jogaveis + ' cartas podem ser jogadas'} agora` : '') },
-  ICONE_DA_ZONA[label] ? Icone(ICONE_DA_ZONA[label], { tamanho: 18, classe: 'tb-chip__icone' }) : null,
+  ICONE_DA_ZONA[label] ? Icone(ICONE_DA_ZONA[label], { tamanho: 16, classe: 'tb-chip__icone' }) : null, // J-47 · ícone 18 → 16
   h('span', { class: 'tb-chip__rotulo' }, label), h('b', {}, String(n)), jogaveis ? h('span', { class: 'tb-chip__ponto', 'aria-hidden': 'true' }) : null);
 
 const PHASES = [['início', ['untap', 'upkeep', 'draw']], ['principal 1', ['main1']],
