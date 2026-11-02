@@ -1,5 +1,5 @@
 {
-  "_leia": "X10 · conjunto de medição do scanner. Cada foto diz o que o leitor deveria encontrar. origem: 'sintetica' = gerada por fotos/gerar.mjs (código de edição e número são ilustrativos); 'real' = foto de celular de uma carta de verdade. Para acrescentar uma real: copie o arquivo para esta pasta e adicione uma linha com nome, set e numero. impressoes: as impressões que a Scryfall devolveria para a carta (sintéticas: a esperada e duas outras); a edição conta como certa quando resolvePrinting escolhe a esperada, como o app faz. X11 · estilo: 'real' = carta sintética com o desenho de uma carta de verdade (borda preta, barra do título, custo de mana, arte, regras, linha de coleção em duas linhas) em cena de uso real: papel pautado, playmat, pano preto, pilha, protetor, sombra, inclinação e perspectiva. moldura (opcional, frações do quadro): onde a pessoa enquadraria a carta, usada quando o contorno não é achado; nas sintéticas sai da posição em que a carta foi desenhada.",
+  "_leia": "X10 · conjunto de medição do scanner. Cada foto diz o que o leitor deveria encontrar. origem: 'sintetica' = gerada por fotos/gerar.mjs (código de edição e número são ilustrativos); 'real' = foto de celular de uma carta de verdade. Para acrescentar uma real: copie o arquivo para esta pasta e adicione uma linha com nome, set e numero. impressoes: as impressões que a Scryfall devolveria para a carta (sintéticas: a esperada e duas outras); a edição conta como certa quando resolvePrinting escolhe a esperada, como o app faz. X11 · estilo: 'real' = carta sintética com o desenho de uma carta de verdade (borda preta, barra do título, custo de mana, arte, regras, linha de coleção em duas linhas) em cena de uso real: papel pautado, playmat, pano preto, pilha, protetor, sombra, inclinação e perspectiva. moldura (opcional, frações do quadro): onde a pessoa enquadraria a carta, usada quando o contorno não é achado; nas sintéticas sai da posição em que a carta foi desenhada. S-604 · estilo \"semBorda\": carta sem borda (arte na carta inteira, linha de coleção clara sobre a arte, formato de 2023 em diante); as impressões trazem artista e ilustração, como a Scryfall, para a edição por evidências.",
   "nomesExtras": [
     "Soul Ring",
     "Sol Talisman",
@@ -843,6 +843,84 @@
         {
           "set": "dmr",
           "number": "45"
+        }
+      ]
+    },
+    {
+      "arquivo": "semborda-malcolm-playmat.jpg",
+      "nome": "Malcolm, Keen-Eyed Navigator",
+      "set": "spg",
+      "numero": "2",
+      "raridade": "U",
+      "artista": "Pintora Dois",
+      "largura": 1080,
+      "altura": 1920,
+      "fundo": "playmat",
+      "rot": 4,
+      "alturaCarta": 0.58,
+      "origem": "sintetica",
+      "estilo": "semBorda",
+      "impressoes": [
+        {
+          "set": "cmr",
+          "number": "79",
+          "artist": "Artista Um",
+          "illustration_id": "ilu-cmr"
+        },
+        {
+          "set": "cmr",
+          "number": "436",
+          "artist": "Artista Um",
+          "illustration_id": "ilu-cmr"
+        },
+        {
+          "set": "spg",
+          "number": "2",
+          "artist": "Pintora Dois",
+          "illustration_id": "ilu-spg"
+        }
+      ]
+    },
+    {
+      "arquivo": "semborda-brainstorm-mesa.jpg",
+      "nome": "Brainstorm",
+      "set": "sta",
+      "numero": "13",
+      "raridade": "R",
+      "artista": "Lia Amarela",
+      "tipo": "Instant",
+      "regras": "Draw three cards, then put two cards from your hand on top of your library in any order.",
+      "largura": 1080,
+      "altura": 1920,
+      "fundo": "mesa",
+      "rot": -3,
+      "alturaCarta": 0.56,
+      "origem": "sintetica",
+      "estilo": "semBorda",
+      "impressoes": [
+        {
+          "set": "sta",
+          "number": "13",
+          "artist": "Lia Amarela",
+          "illustration_id": "ilu-sta"
+        },
+        {
+          "set": "sta",
+          "number": "76",
+          "artist": "Lia Amarela",
+          "illustration_id": "ilu-sta"
+        },
+        {
+          "set": "ice",
+          "number": "61",
+          "artist": "Outro Nome",
+          "illustration_id": "ilu-ice"
+        },
+        {
+          "set": "mh2",
+          "number": "267",
+          "artist": "Outro Nome",
+          "illustration_id": "ilu-mh2"
         }
       ]
     }
