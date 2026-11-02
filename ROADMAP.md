@@ -5789,6 +5789,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Conferido:** o leitor antes e depois sobre as cartas revisadas e os pendentes dos competitivos de 01/11: nenhuma leitura já completa mudou.
 - **Teste:** `lt285.unit` (3 testes; falham no motor anterior).
 
+**M-605 · LT263 · Once Upon a Time (de graça se for a primeira mágica que você conjura na partida)** ✅ (leva M-605, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** passa a ser **lida por inteiro** Once Upon a Time (54 listas competitivas). Texto da Scryfall de 01/11/2026 (`cobertura/<formato>.json`). Joga no app depois da aprovação (homologacao).
+- **Regra:** "If this spell is the first spell you've cast this game, you may cast it without paying its mana cost" vira custo alternativo de graça com a condição nova `primeiraMagiaDoJogo` (118.9). O motor conta, por jogador, as mágicas conjuradas na partida (`magiasNoJogoM`, no mesmo ponto da contagem do surto); a própria mágica só entra na conta quando fica conjurada (601.2i); as do oponente não contam. A contagem só existe em partida que tem a carta, como a do surto: o estado das outras partidas e das partidas-referência não muda. O "olhar cinco, pegar criatura ou terreno" o leitor já lia.
+- **Conferido:** o leitor antes e depois sobre as cartas revisadas e os pendentes dos competitivos de 01/11: nenhuma leitura já completa mudou; goldens e testes de custo alternativo verdes.
+- **Teste:** `lt286.unit` (4 testes; falham no motor anterior).
+
 **M-584 · LT241 · Sentinela do Pauper: Nettle Sentinel (593 → 594 de 594 listas)** ✅ (leva M-584, motor v112 sem mudança de forma; goldens intactos)
 - **Valor:** a sentinela (`cobertura/pauper.json` de 26/10/2026 13:27 UTC) mostrava 593 de 594 listas Pauper a 100% no app, com uma carta `nova` (Nettle Sentinel, 1 lista). Aprovada, 594 de 594 na próxima coleta. Texto da API da Scryfall de 26/10/2026 (campo `texto` do relatório), gravado em `.listas/oficiais-revisadas.json`.
 - **Regra:** triagem A — o leitor `__m42` lê "Whenever you cast a/an <cor> spell" com uma cor só (gatilho `other-cast`, `filter.anyColors`; 105.2: multicolorida com verde conta); "doesn't untap during your untap step" (502.3, M-558) e o "you may" do gatilho (603.5, pergunta na resolução) já existiam. Núcleo intacto; numerada M-584 porque a M-583 está reservada pela conversa dos competitivos.
