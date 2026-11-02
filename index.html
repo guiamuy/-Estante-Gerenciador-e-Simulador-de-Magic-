@@ -2053,6 +2053,19 @@ body:has(#outlet .ds-fab[data-acoes="1"]) #outlet { padding-bottom: calc(56px + 
 .relato__idiomas { flex: 1 1 auto; max-width: 168px; margin-left: auto; }
 .relato__ouvindo { margin: 0; font-size: var(--text-sm); color: var(--fg-muted); overflow-wrap: anywhere; }
 .relato__ouvindo[data-tom="erro"] { color: var(--negative); }
+.relato__ouvindo[data-tom="parcial"] { font-style: italic; } /* G-333 · o parcial, trocado pelo final */
+.relato__onda { display: none; align-items: center; gap: 2px; height: 16px; }
+.relato__ditar[data-ouvindo="true"] .relato__onda { display: inline-flex; }
+.relato__onda i { display: block; width: 3px; height: 4px; border-radius: var(--radius-full); background: currentColor; transition: height var(--dur-2) var(--ease-out); }
+.relato__ditado[data-voz="true"] .relato__onda i { animation: relato-onda var(--dur-3) var(--ease-out) infinite alternate; }
+.relato__ditado[data-voz="true"] .relato__onda i:nth-child(2) { animation-delay: var(--dur-1); }
+.relato__ditado[data-voz="true"] .relato__onda i:nth-child(3) { animation-delay: var(--dur-2); }
+@keyframes relato-onda { from { height: 4px; } to { height: 14px; } }
+@media (prefers-reduced-motion: reduce) { .relato__ditado[data-voz="true"] .relato__onda i { animation: none; height: 12px; } }
+.relato__dica-texto { margin: 0; font-size: var(--text-sm); color: var(--fg-muted); }
+.relato__sinais { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-1) var(--space-3); }
+.relato__sinais li { display: flex; justify-content: space-between; gap: var(--space-2); padding: var(--space-1) 0; border-bottom: 1px solid var(--border); min-width: 0; }
+.relato__sinais b { color: var(--accent); font-weight: var(--weight-bold); }
 .relato__ouvindo[data-tom="aviso"] { color: var(--warning); }
 .relato__conta { display: block; text-align: right; font-size: var(--text-xs); color: var(--fg-subtle); font-variant-numeric: tabular-nums; }
 .relato__carimbo { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: var(--space-2); row-gap: var(--space-1); align-items: center; padding: var(--space-2) var(--space-3);
@@ -3414,55 +3427,100 @@ const haptics = webHaptics(typeof navigator !== 'undefined' ? navigator : null);
 /* ---------------- G-319 · Fala (ditado, relato #43) ----------------
    Reconhecimento de fala do próprio aparelho (Web Speech API): custo zero para o dono, sem chave e sem servidor da
    Estante. No Chrome do Android o áudio vai ao serviço de fala do sistema, como no ditado do teclado; o texto volta só
-   para o campo e o app não guarda áudio. Uma frase por sessão (`continuous: false`, porque no Android o modo contínuo
-   repete o que já foi reconhecido): para continuar ouvindo, o adaptador abre a sessão seguinte sozinho até a pessoa
-   tocar em Parar, até `silencios` sessões seguidas sem fala ou até `limiteMs`. Parar entrega o que já foi ouvido.
-   Nunca lança; sem suporte, `available()` é falso e a tela nem mostra o botão. */
+   para o campo e o app não guarda áudio. G-333 (relato #49): sessão contínua (`continuous: true`, menos cortes na fala
+   corrida); cada final entra uma vez só (por posição na sessão) e o final cumulativo de alguns Android entra só com o
+   trecho novo (`trechoNovo`). Quando o navegador encerra a sessão, o adaptador abre a seguinte sozinho até a pessoa
+   tocar em Parar, até `silencios` sessões seguidas sem fala, três quedas de rede seguidas ou `limiteMs`; queda de rede
+   e sessão abortada pelo navegador reabrem. Parar entrega o que já foi ouvido. Se o navegador diz que reconhece o
+   idioma no próprio aparelho (`available({ processLocally })`), as sessões seguintes usam isso. Nunca lança; sem
+   suporte, `available()` é falso. */
+/** G-333 · o que um final acrescenta ao que a sessão já entregou. Alguns Android repetem no final seguinte tudo o que já
+    foi dito: se o final começa com o acumulado (duas palavras ou mais) e é maior, entra só o resto. Puro. */
+function trechoNovo(acumulado, final) {
+  const a = String(acumulado || '').replace(/\s+/g, ' ').trim();
+  const t = String(final || '').replace(/\s+/g, ' ').trim();
+  if (!t) return { novo: '', acumulado: a };
+  if (a.split(' ').length >= 2 && t.length > a.length && t.toLowerCase().startsWith(a.toLowerCase() + ' ')) {
+    const novo = t.slice(a.length).trim();
+    return { novo, acumulado: a + ' ' + novo };
+  }
+  return { novo: t, acumulado: a ? a + ' ' + t : t };
+}
 function webFala(win, relogio = {}) {
   const R = (win && (win.SpeechRecognition || win.webkitSpeechRecognition)) || null;
   const espera = relogio.setTimeout || ((fn, ms) => setTimeout(fn, ms));
+  const locais = {}; // idioma → o aparelho reconhece sem mandar a voz para fora
   let atual = null;
+  const consultaLocal = idioma => {
+    if (!R || typeof R.available !== 'function' || idioma in locais) return;
+    locais[idioma] = false;
+    try { Promise.resolve(R.available({ langs: [idioma], processLocally: true })).then(s => { locais[idioma] = s === 'available'; }, () => {}); } catch (e) { /* sem o recurso */ }
+  };
   return {
     available() { return !!R; },
-    start({ idioma = 'pt-BR', aoParcial, aoFinal, aoFim, aoErro, agora = () => Date.now(), limiteMs = 180000, silencios = 3 } = {}) {
+    start({ idioma = 'pt-BR', aoParcial, aoFinal, aoFim, aoErro, aoVoz, agora = () => Date.now(), limiteMs = 180000, silencios = 3 } = {}) {
       if (!R) { if (aoErro) aoErro('sem-suporte'); return false; }
       this.stop();
-      const sessao = { ativa: true, parando: false, vazias: 0, inicio: agora(), rec: null };
+      consultaLocal(idioma);
+      const sessao = { ativa: true, parando: false, vazias: 0, redes: 0, inicio: agora(), rec: null };
       atual = sessao;
+      const voz = v => { if (aoVoz) aoVoz(v); };
       const fim = motivo => {
         if (!sessao.ativa) return;
         sessao.ativa = false; if (atual === sessao) atual = null;
         try { if (sessao.rec) sessao.rec.abort(); } catch (e) { /* já parou */ }
+        voz(false);
         if (aoFim) aoFim(motivo);
       };
+      const motivoDoFim = () => (sessao.porTempo ? 'tempo' : 'parou');
       sessao.para = () => {
         if (!sessao.ativa || sessao.parando) return;
         sessao.parando = true;
-        try { sessao.rec.stop(); } catch (e) { fim('parou'); return; }
-        espera(() => fim('parou'), 1500); // sem o fim da sessão, o microfone não fica preso
+        try { sessao.rec.stop(); } catch (e) { fim(motivoDoFim()); return; }
+        espera(() => fim(motivoDoFim()), 1500); // sem o fim da sessão, o microfone não fica preso
       };
+      // G-333 · teto de tempo também no meio de uma sessão contínua longa: o microfone não fica aberto além de limiteMs
+      espera(() => { if (sessao.ativa && !sessao.parando) { sessao.porTempo = true; sessao.para(); } }, limiteMs);
       const abre = () => {
+        if (!sessao.ativa) return;
+        if (sessao.parando) { fim(motivoDoFim()); return; } // Parar durante a espera da queda de rede
         let rec;
         try { rec = new R(); } catch (e) { if (aoErro) aoErro('falhou'); fim('erro'); return; }
         sessao.rec = rec;
-        rec.lang = idioma; rec.continuous = false; rec.interimResults = true; rec.maxAlternatives = 1;
-        let ouviu = false, erro = null, pendente = '';
+        rec.lang = idioma; rec.continuous = true; rec.interimResults = true; rec.maxAlternatives = 1;
+        if (locais[idioma] && 'processLocally' in rec) { try { rec.processLocally = true; } catch (e) { /* fica na nuvem do navegador */ } }
+        let ouviu = false, erro = null, pendente = '', acumulado = '';
+        const feitos = new Set();
+        rec.onspeechstart = () => voz(true);
+        rec.onspeechend = () => voz(false);
         rec.onresult = ev => {
           if (!sessao.ativa) return;
           let parcial = '';
-          for (let i = ev.resultIndex || 0; i < ev.results.length; i++) {
+          for (let i = 0; i < ev.results.length; i++) {
+            if (feitos.has(i)) continue;
             const r = ev.results[i]; const t = String((r[0] && r[0].transcript) || '');
-            if (r.isFinal) { if (t.trim()) { ouviu = true; if (aoFinal) aoFinal(t.trim()); } }
-            else parcial += t;
+            if (r.isFinal) {
+              feitos.add(i);
+              const n = trechoNovo(acumulado, t); acumulado = n.acumulado;
+              if (n.novo) { ouviu = true; sessao.redes = 0; if (aoFinal) aoFinal(n.novo); }
+            } else parcial += t;
           }
-          pendente = parcial.trim();
+          pendente = parcial.trim() ? trechoNovo(acumulado, parcial).novo : '';
+          if (pendente) sessao.redes = 0;
           if (aoParcial) aoParcial(pendente);
         };
         rec.onerror = ev => { erro = (ev && ev.error) || 'falhou'; };
         rec.onend = () => {
-          if (!sessao.ativa) return;
+          if (!sessao.ativa || sessao.rec !== rec) return;
+          voz(false);
           if (pendente) { ouviu = true; if (aoFinal) aoFinal(pendente); pendente = ''; if (aoParcial) aoParcial(''); } // o que estava no ar não se perde
-          if (sessao.parando) { fim('parou'); return; }
+          if (sessao.parando) { fim(motivoDoFim()); return; }
+          if (erro === 'network') { // queda passageira: tenta de novo em instantes; três seguidas param
+            sessao.redes += 1;
+            if (sessao.redes >= 3) { if (aoErro) aoErro('network'); fim('erro'); return; }
+            espera(abre, 400); return;
+          }
+          sessao.redes = 0;
           if (erro && erro !== 'no-speech' && erro !== 'aborted') { if (aoErro) aoErro(erro); fim('erro'); return; }
           sessao.vazias = ouviu ? 0 : sessao.vazias + 1;
           if (sessao.vazias >= silencios) { fim('silencio'); return; }
@@ -3842,7 +3900,7 @@ function createPlatform(env = {}) {
     fala: env.fala || webFala(win)
   };
 }
-return { memoryStore, createPlatform, PLATFORM_CONTRACT, webFala, webPersistence, descreveEspaco, webCamera, degrausDeResolucao, medeFpsDoVideo, FPS_MINIMO, webHaptics, haptics, EVENTOS_HAPTICOS };
+return { memoryStore, createPlatform, PLATFORM_CONTRACT, webFala, trechoNovo, webPersistence, descreveEspaco, webCamera, degrausDeResolucao, medeFpsDoVideo, FPS_MINIMO, webHaptics, haptics, EVENTOS_HAPTICOS };
 })();
 
 /* ==== src/ui/theme.js ==== */
@@ -16971,9 +17029,9 @@ const LINKS = [
     navegador fala com o serviço dele. Só ao toque da pessoa. */
 const PELO_NAVEGADOR = [
   { id: 'fala', nome: 'Ditado do relato', icone: 'microfone', origens: [],
-    vai: 'Só quando você toca em Ditar: sua voz vai para o reconhecimento de fala do navegador (no Chrome, um serviço do Google, o mesmo do ditado do teclado), que devolve o texto para o campo. A Estante não grava nem guarda áudio.',
-    quando: 'Enquanto o Ditar está ligado no formulário de relato. Ele desliga em Parar, depois de três silêncios, em três minutos ou ao fechar o formulário.',
-    evitar: 'Digitar o relato. Aparelho sem reconhecimento de fala nem mostra o botão.' }
+    vai: 'Só quando você toca em Ditar: sua voz vai para o reconhecimento de fala do navegador (no Chrome, um serviço do Google, o mesmo do ditado do teclado), que devolve o texto para o campo. Se o aparelho reconhece o idioma sem internet, a voz fica nele. A pontuação é feita no aparelho. A Estante não grava nem guarda áudio.',
+    quando: 'Enquanto o Ditar está ligado no formulário de relato. Ele desliga em Parar, depois de três silêncios seguidos, em três minutos ou ao fechar o formulário.',
+    evitar: 'Digitar o relato. Sem reconhecimento de fala no aparelho, Ditar não liga o microfone.' }
 ];
 const ORIGENS = [...DESTINOS, ...LINKS].flatMap(d => d.origens);
 
@@ -17331,18 +17389,74 @@ function idiomaDoDitado(lang) {
   const l = String(lang || '').toLowerCase();
   return l.startsWith('en') ? 'en-US' : l.startsWith('es') ? 'es-ES' : 'pt-BR';
 }
-/** Põe o texto falado no ponto do cursor: espaço de cada lado quando falta, maiúscula no começo de frase, sem passar do
-    limite do relato. Devolve { texto, cursor, cortado }. Puro. */
+/* G-333 · relato #49: pontuação falada. Cada idioma tem as palavras que viram sinal (as longas antes das curtas). "ponto",
+   "dois pontos", "punto", "period" seguidos de "de/do/da/of/del" continuam palavra ("ponto de vida"). */
+const SINAIS_FALADOS = {
+  pt: [['ponto de interrogação', '?'], ['ponto de exclamação', '!'], ['interrogação', '?'], ['exclamação', '!'], ['ponto e vírgula', ';'],
+    ['dois pontos', ':', 1], ['reticências', '…'], ['ponto final', '.'], ['vírgula', ','], ['ponto', '.', 1], ['novo parágrafo', '\n\n'],
+    ['parágrafo', '\n\n'], ['nova linha', '\n'], ['linha nova', '\n']],
+  en: [['question mark', '?'], ['exclamation mark', '!'], ['exclamation point', '!'], ['semicolon', ';'], ['colon', ':', 1],
+    ['ellipsis', '…'], ['full stop', '.'], ['period', '.', 1], ['comma', ','], ['new paragraph', '\n\n'], ['new line', '\n']],
+  es: [['signo de interrogación', '?'], ['signo de exclamación', '!'], ['interrogación', '?'], ['exclamación', '!'], ['punto y coma', ';'],
+    ['dos puntos', ':', 1], ['puntos suspensivos', '…'], ['punto final', '.'], ['coma', ','], ['punto', '.', 1], ['nuevo párrafo', '\n\n'],
+    ['párrafo', '\n\n'], ['nueva línea', '\n']]
+};
+/** O que a dica mostra em cada idioma: a palavra inteira e o sinal. */
+const DICA_DE_PONTUACAO = {
+  'pt-BR': [['vírgula', ','], ['ponto', '.'], ['ponto de interrogação', '?'], ['exclamação', '!'], ['dois pontos', ':'], ['nova linha', '↵'], ['parágrafo', '¶']],
+  'en-US': [['comma', ','], ['period', '.'], ['question mark', '?'], ['exclamation mark', '!'], ['colon', ':'], ['new line', '↵'], ['new paragraph', '¶']],
+  'es-ES': [['coma', ','], ['punto', '.'], ['signo de interrogación', '?'], ['exclamación', '!'], ['dos puntos', ':'], ['nueva línea', '↵'], ['párrafo', '¶']]
+};
+const ACENTOS = { a: '[aáàâã]', e: '[eéê]', i: '[ií]', o: '[oóôõ]', u: '[uúü]', c: '[cç]', n: '[nñ]' };
+const regrasDePontuacao = {};
+function regrasDe(lingua) {
+  const k = String(lingua || 'pt').slice(0, 2).toLowerCase();
+  const l = SINAIS_FALADOS[k] ? k : 'pt';
+  if (!regrasDePontuacao[l]) {
+    const solta = l === 'en' ? 'of' : l === 'es' ? 'de|del' : 'de|do|da|dos|das';
+    regrasDePontuacao[l] = SINAIS_FALADOS[l].map(([fala, sinal, palavra]) => {
+      const corpo = fala.normalize('NFD').replace(/[̀-ͯ]/g, '').split('').map(ch => ch === ' ' ? '\\s+' : (ACENTOS[ch] || ch)).join('');
+      return [new RegExp(`(?<![\\p{L}\\p{N}])${corpo}(?![\\p{L}\\p{N}])${palavra ? `(?!\\s+(?:${solta})(?![\\p{L}\\p{N}]))` : ''}`, 'giu'), sinal];
+    });
+  }
+  return regrasDePontuacao[l];
+}
+const FORCA_DO_SINAL = ['?', '!', '.', '…', ';', ':', ','];
+/** G-333 · texto falado → texto pontuado: comandos de pontuação do idioma viram sinais, sem espaço antes e com um depois,
+    sinais seguidos viram um (o mais forte), maiúscula depois de . ? ! e em linha nova. A primeira letra fica como veio
+    (quem decide é `juntaDitado`, pelo que está antes do cursor). Números e palavras normais não mudam. Puro. */
+function pontuaDitado(texto, lingua = 'pt-BR') {
+  let t = String(texto || '');
+  if (!t.trim()) return '';
+  for (const [re, sinal] of regrasDe(lingua)) t = t.replace(re, ` ${sinal} `);
+  t = t.replace(/[ \t]+/g, ' ')
+    .replace(/ +([,.;:!?…])/g, '$1')
+    .replace(/[,.;:!?…]{2,}/g, run => FORCA_DO_SINAL.find(x => run.includes(x)))
+    .replace(/(^|[^\d])([,.;:!?…])(?=\p{L})/gu, '$1$2 ')
+    .replace(/(^|[^\d])([,;:!?…])(?=\d)/gu, '$1$2 ')
+    .replace(/ *\n */g, '\n')
+    .replace(/^[ \t]+|[ \t]+$/g, '')
+    .replace(/([.!?…] +|\n)(\p{Ll})/gu, (m, a, b) => a + b.toLocaleUpperCase());
+  return t;
+}
+const SINAL_NO_COMECO = /^[,.;:!?…]+/;
+/** Põe o texto falado no ponto do cursor: espaço de cada lado quando falta (nunca antes de sinal), maiúscula no começo
+    de frase, sem pontuação dupla, sem passar do limite do relato. Devolve { texto, cursor, cortado }. Puro. */
 function juntaDitado(texto, cursor, falado, max = DESCRICAO_MAX) {
   const t = String(texto || '');
   const c = Math.max(0, Math.min(t.length, Number.isFinite(cursor) ? cursor : t.length));
-  let f = String(falado || '').replace(/\s+/g, ' ').trim();
+  let f = String(falado || '').replace(/[ \t]+/g, ' ').replace(/ *\n */g, '\n').replace(/^ +| +$/g, '');
   if (!f) return { texto: t, cursor: c, cortado: false };
-  const antes = t.slice(0, c), depois = t.slice(c);
+  let antes = t.slice(0, c); const depois = t.slice(c);
   const semEspaco = antes.replace(/[ \t]+$/, '');
-  if (!semEspaco.trim() || /[.!?…\n]$/.test(semEspaco)) f = f.charAt(0).toLocaleUpperCase() + f.slice(1);
-  const sep = antes && !/\s$/.test(antes) ? ' ' : '';
-  const pos = depois && !/^[\s.,;:!?…]/.test(depois) ? ' ' : '';
+  if (SINAL_NO_COMECO.test(f) || f.startsWith('\n')) {
+    antes = semEspaco;
+    if (/[,.;:!?…]$/.test(semEspaco)) f = f.replace(SINAL_NO_COMECO, '').replace(/^ +/, '');
+    if (!f) return { texto: t, cursor: c, cortado: false };
+  }
+  if (!semEspaco.trim() || /[.!?…\n]$/.test(semEspaco) || /^[.!?…\n]/.test(f)) f = f.replace(/^([^\p{L}\p{N}]*)(\p{Ll})/u, (m, x, y) => x + y.toLocaleUpperCase());
+  const sep = antes && !/\s$/.test(antes) && !SINAL_NO_COMECO.test(f) && !f.startsWith('\n') ? ' ' : '';
+  const pos = depois && !/^[\s.,;:!?…]/.test(depois) && !f.endsWith('\n') ? ' ' : '';
   const sobra = max - (antes.length + sep.length + pos.length + depois.length);
   if (sobra <= 0) return { texto: t, cursor: c, cortado: true };
   const cortado = f.length > sobra;
@@ -17350,15 +17464,26 @@ function juntaDitado(texto, cursor, falado, max = DESCRICAO_MAX) {
   const ate = antes + sep + f;
   return { texto: ate + pos + depois, cursor: ate.length, cortado };
 }
+/** G-333 · ao parar o ditado: ponto final quando a frase ditada não terminou em sinal e o texto acaba ali (fim do campo
+    ou linha nova). Ditado no meio de uma frase não ganha ponto. Devolve { texto, cursor }. Puro. */
+function fechaDitado(texto, cursor) {
+  const t = String(texto || '');
+  const c = Math.max(0, Math.min(t.length, Number.isFinite(cursor) ? cursor : t.length));
+  const antes = t.slice(0, c).replace(/[ \t]+$/, ''), depois = t.slice(c);
+  if (!/[\p{L}\p{N})"'”]$/u.test(antes) || !/^[ \t]*(\n|$)/.test(depois)) return { texto: t, cursor: c };
+  return { texto: antes + '.' + t.slice(antes.length), cursor: c + 1 };
+}
+/* G-333 · frases curtas, cada uma com o caminho para digitar (o campo recebe o foco) */
 const FALHAS_DO_DITADO = {
-  'not-allowed': 'Libere o microfone para a Estante nas permissões do navegador.',
-  'service-not-allowed': 'Libere o microfone para a Estante nas permissões do navegador.',
-  'audio-capture': 'Não achei um microfone neste aparelho.',
-  network: 'O ditado precisa de internet neste aparelho. O que já está escrito continua valendo.',
-  'language-not-supported': 'Este aparelho não reconhece esse idioma. Escolha outro.'
+  'not-allowed': 'Libere o microfone no navegador ou digite.',
+  'service-not-allowed': 'Libere o microfone no navegador ou digite.',
+  'audio-capture': 'Sem microfone neste aparelho. Digite o relato.',
+  network: 'Sem internet para o ditado. Digite ou tente de novo.',
+  'language-not-supported': 'Idioma indisponível aqui. Escolha outro ou digite.',
+  'sem-suporte': 'Este navegador não dita. Use o microfone do teclado.'
 };
 /** Frase curta para cada falha do reconhecimento de fala (a de sempre para o que não está na lista). */
-const textoDaFalhaDoDitado = codigo => FALHAS_DO_DITADO[codigo] || 'O ditado parou. Toque em Ditar para continuar.';
+const textoDaFalhaDoDitado = codigo => FALHAS_DO_DITADO[codigo] || 'O ditado parou. Toque em Ditar ou digite.';
 let fala = null, idiomaEscolhido = null;
 /** A plataforma entrega o reconhecimento de fala do aparelho (ou nada). */
 function usaFala(f) { fala = f || null; }
@@ -17635,58 +17760,87 @@ function abreRelato(editando = null) {
   Dialog({ title: editando ? 'Editar relato' : 'Relatar', body: corpo, actions: [Button('Cancelar', { variant: 'ghost', id: 'relato-cancelar', onClick: closeDialog }), salvar],
     aoFechar: ditado ? ditado.desliga : null });
 }
-/** G-319 · linha do ditado sob o texto do relato: Ditar/Parar, idioma (PT, EN, ES) e o que está sendo ouvido. Sem
-    reconhecimento de fala no aparelho, devolve null e o formulário fica como era. */
+/** G-319 · linha do ditado sob o texto do relato: Ditar/Parar, idioma (PT, EN, ES) e o que está sendo ouvido. G-333 ·
+    o falado chega pontuado (`pontuaDitado`), o parcial aparece em itálico e é trocado pelo final, a onda pulsa quando há
+    voz, a dica mostra as palavras de pontuação do idioma e Parar fecha a frase com ponto. Sem reconhecimento no aparelho,
+    Ditar só diz como ditar pelo teclado e põe o foco no campo. */
 function criaDitado(desc, rascunho, aoMudar) {
-  if (!fala || !fala.available()) return null;
+  if (!fala) return null;
+  const tem = fala.available();
   if (!idiomaEscolhido) idiomaEscolhido = idiomaDoDitado(typeof navigator !== 'undefined' ? navigator.language : '');
-  let ouvindo = false, retoma = false, cursor = null;
+  let ouvindo = false, retoma = false, cursor = null, escreveu = false;
   // o cursor do texto: o toque em Ditar ou no idioma tira o foco do campo, e o navegador nem sempre guarda a seleção
   desc.addEventListener('blur', () => { cursor = desc.selectionStart; });
   desc.addEventListener('focus', () => { cursor = null; });
   const rotulo = h('span', { class: 'ds-btn__rotulo' }, 'Ditar');
+  const onda = h('span', { class: 'relato__onda', 'aria-hidden': 'true' }, h('i'), h('i'), h('i'));
   const botao = h('button', { class: 'ds-btn ds-btn--ghost relato__ditar', type: 'button', id: 'relato-ditar', 'aria-pressed': 'false',
-    title: 'Falar o relato em vez de digitar. O reconhecimento é do aparelho; o app não guarda áudio.', onClick: () => (ouvindo ? fala.stop() : liga()) }, Icone('microfone', { tamanho: 20 }), rotulo);
+    title: 'Falar o relato em vez de digitar. O app não guarda áudio.', onClick: () => (!tem ? semDitado() : ouvindo ? fala.stop() : liga()) }, Icone('microfone', { tamanho: 20 }), rotulo, onda);
+  const linha = h('p', { class: 'relato__ouvindo', id: 'relato-ouvindo', 'aria-live': 'polite', hidden: true });
+  const diz = (texto, tom = '') => { linha.textContent = texto; linha.hidden = !texto; linha.dataset.tom = tom; };
+  function semDitado() { diz(textoDaFalhaDoDitado('sem-suporte'), 'erro'); desc.focus(); }
+  if (!tem) return { el: h('div', { class: 'relato__ditado', id: 'relato-ditado', dataset: { suporte: 'nao' } }, h('div', { class: 'relato__ditado-barra' }, botao), linha), desliga: () => {} };
   const chips = IDIOMAS_DO_DITADO.map(([v, sigla, nome]) => {
     const c = Chip(sigla, { pressed: v === idiomaEscolhido, dataset: { idioma: v }, onClick: () => escolhe(v) });
     c.setAttribute('aria-label', `Ditar em ${nome}`); c.title = nome;
     return c;
   });
   const idiomas = h('div', { class: 'ds-segmentado relato__idiomas', role: 'group', 'aria-label': 'Idioma do ditado', id: 'relato-idiomas' }, ...chips);
-  const linha = h('p', { class: 'relato__ouvindo', id: 'relato-ouvindo', 'aria-live': 'polite', hidden: true });
-  const el = h('div', { class: 'relato__ditado', id: 'relato-ditado' }, h('div', { class: 'relato__ditado-barra' }, botao, idiomas), linha);
-  const diz = (texto, tom = '') => { linha.textContent = texto; linha.hidden = !texto; linha.dataset.tom = tom; };
+  // a dica das palavras de pontuação, recolhida (Expansivel do DS); muda com o idioma
+  const dica = h('div', { class: 'relato__dica' });
+  let dicaAberta = false;
+  const pintaDica = () => {
+    const lista = h('ul', { class: 'relato__sinais', lang: idiomaEscolhido.slice(0, 2) },
+      ...DICA_DE_PONTUACAO[idiomaEscolhido].map(([palavra, sinal]) => h('li', {}, h('span', {}, palavra), h('b', { 'aria-hidden': 'true' }, sinal))));
+    mount(dica, __m3.Expansivel({ titulo: 'Pontuação falada', icone: 'info', aberto: dicaAberta, id: 'relato-dica', toggleId: 'relato-dica-abrir',
+      onToggle: () => { dicaAberta = !dicaAberta; pintaDica(); } }, h('p', { class: 'relato__dica-texto' }, 'Diga a palavra para pôr o sinal.'), lista));
+  };
+  pintaDica();
+  const el = h('div', { class: 'relato__ditado', id: 'relato-ditado' }, h('div', { class: 'relato__ditado-barra' }, botao, idiomas), linha, dica);
   const pinta = () => {
     botao.setAttribute('aria-pressed', String(ouvindo)); botao.dataset.ouvindo = String(ouvindo);
     rotulo.textContent = ouvindo ? 'Parar' : 'Ditar';
     el.dataset.ouvindo = String(ouvindo);
+    if (!ouvindo) el.dataset.voz = 'false';
   };
   function escolhe(v) {
     idiomaEscolhido = v;
     chips.forEach(c => c.setAttribute('aria-pressed', String(c.dataset.idioma === v)));
+    pintaDica();
     if (ouvindo) { retoma = true; fala.stop(); } // trocar o idioma no meio: entrega o que ouviu e recomeça no idioma novo
   }
-  function poe(falado) {
-    const aqui = document.activeElement === desc ? desc.selectionStart : cursor;
-    const r = juntaDitado(desc.value, aqui ?? desc.value.length, falado);
-    if (r.texto === desc.value) { if (r.cortado) diz(`Chegou ao limite de ${DESCRICAO_MAX} caracteres.`, 'aviso'); return; }
+  const ondeEsta = () => (document.activeElement === desc ? desc.selectionStart : cursor) ?? desc.value.length;
+  function grava(r) {
     desc.value = r.texto; rascunho.descricao = r.texto; cursor = r.cursor;
     try { desc.setSelectionRange(r.cursor, r.cursor); } catch (e) { /* campo fora da tela */ }
     aoMudar();
+  }
+  function poe(falado) {
+    const r = juntaDitado(desc.value, ondeEsta(), pontuaDitado(falado, idiomaEscolhido));
+    if (r.texto === desc.value) { if (r.cortado) diz(`Chegou ao limite de ${DESCRICAO_MAX} caracteres.`, 'aviso'); return; }
+    grava(r); escreveu = true;
     if (r.cortado) { diz(`Chegou ao limite de ${DESCRICAO_MAX} caracteres.`, 'aviso'); fala.stop(); }
+  }
+  function fecha() {
+    if (!escreveu || !desc.isConnected) return;
+    escreveu = false;
+    const r = fechaDitado(desc.value, ondeEsta());
+    if (r.texto !== desc.value && r.texto.length <= DESCRICAO_MAX) grava(r);
   }
   function liga() {
     if (ouvindo || !desc.isConnected) return;
-    ouvindo = true; pinta(); diz('Ouvindo… fale o relato.');
+    ouvindo = true; pinta(); diz('Ouvindo…');
     const ok = fala.start({
       idioma: idiomaEscolhido,
-      aoParcial: t => { if (ouvindo) diz(t ? `“${t}”` : 'Ouvindo… fale o relato.'); },
+      aoParcial: t => { if (ouvindo) diz(t ? `“${pontuaDitado(t, idiomaEscolhido)}”` : 'Ouvindo…', t ? 'parcial' : ''); },
       aoFinal: t => { if (desc.isConnected) poe(t); },
-      aoErro: codigo => diz(textoDaFalhaDoDitado(codigo), 'erro'),
+      aoVoz: v => { el.dataset.voz = String(!!v && ouvindo); },
+      aoErro: codigo => { diz(textoDaFalhaDoDitado(codigo), 'erro'); if (desc.isConnected) desc.focus(); },
       aoFim: motivo => {
         ouvindo = false; pinta();
         if (retoma) { retoma = false; if (motivo === 'parou') { liga(); return; } }
-        if (motivo === 'silencio' || motivo === 'tempo') diz('Parei de ouvir. Toque em Ditar para continuar.');
+        if (motivo !== 'erro') fecha();
+        if (motivo === 'silencio' || motivo === 'tempo') diz('Pausado. Toque em Ditar para seguir.');
         else if (motivo === 'parou' && linha.dataset.tom !== 'aviso') diz('');
       }
     });
@@ -18013,7 +18167,7 @@ function abrePedidoDeCobertura({ cobertura, lista, motor, aoMudar = () => {} }) 
   pinta();
 }
 
-return { estadoDoEnvio, motivoCurto, IDIOMAS_DO_DITADO, idiomaDoDitado, juntaDitado, textoDaFalhaDoDitado, usaFala, relatoDeCobertura, pedidosDeCobertura, pedidoDaLista, etapaDoPedido, ETAPAS_DO_PEDIDO, createCobertura, abrePedidoDeCobertura, situacaoDoEnvio, foiEnviado, textoDaFalha, PRAZO_FILA, URL_FILA_LIGADA, FILA_MEMORIA_MS, filaLigada, relatoParaFila, createEnvioPelaFila, AREAS, URL_SITUACAO, BUSCA_SITUACAO_MS, urlDoRegistro, situacaoDosRegistros, concilia, EDITAR_JANELA_MS, podeEditar, editavelAte, editaRelato, REPOSITORIO, MARCA, dadosDoRelato, enderecoDoRegistro, limpaTela, nomeDaTela, FILTRO_VAZIO, filtra, contaFiltros, areasDe, csvDosRelatos, jsonDosRelatos, partidaAbrivel, contextoDaPartida, CHAVE, TIPOS, URGENCIAS, DESCRICAO_MIN, DESCRICAO_MAX, RELATOS_MAX, areaDaRota, confere, novoRelato, ordena, textoDoRelato, textoDosRelatos, createRelatos, usa, usaContexto, abreRelato, BotaoRelatar, createRelatosScreen, rotuloDe };
+return { estadoDoEnvio, motivoCurto, IDIOMAS_DO_DITADO, idiomaDoDitado, juntaDitado, pontuaDitado, fechaDitado, DICA_DE_PONTUACAO, textoDaFalhaDoDitado, usaFala, relatoDeCobertura, pedidosDeCobertura, pedidoDaLista, etapaDoPedido, ETAPAS_DO_PEDIDO, createCobertura, abrePedidoDeCobertura, situacaoDoEnvio, foiEnviado, textoDaFalha, PRAZO_FILA, URL_FILA_LIGADA, FILA_MEMORIA_MS, filaLigada, relatoParaFila, createEnvioPelaFila, AREAS, URL_SITUACAO, BUSCA_SITUACAO_MS, urlDoRegistro, situacaoDosRegistros, concilia, EDITAR_JANELA_MS, podeEditar, editavelAte, editaRelato, REPOSITORIO, MARCA, dadosDoRelato, enderecoDoRegistro, limpaTela, nomeDaTela, FILTRO_VAZIO, filtra, contaFiltros, areasDe, csvDosRelatos, jsonDosRelatos, partidaAbrivel, contextoDaPartida, CHAVE, TIPOS, URGENCIAS, DESCRICAO_MIN, DESCRICAO_MAX, RELATOS_MAX, areaDaRota, confere, novoRelato, ordena, textoDoRelato, textoDosRelatos, createRelatos, usa, usaContexto, abreRelato, BotaoRelatar, createRelatosScreen, rotuloDe };
 })();
 
 /* ==== src/app/catalogo.js ==== */

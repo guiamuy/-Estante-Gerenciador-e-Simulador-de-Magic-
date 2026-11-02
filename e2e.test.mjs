@@ -10223,7 +10223,7 @@ test('e2e · Y1 relatar de qualquer tela: botão discreto onde não há botão d
 });
 
 /* ---------------- G-319 · relato #43: ditar o relato ---------------- */
-test('e2e · G-319 relato #43: ditar o relato em PT, EN ou ES pelo reconhecimento do aparelho; o falado entra no cursor, Parar entrega o que estava no ar, falha vira frase, fechar desliga o microfone; sem reconhecimento, nada muda', { skip }, async t => {
+test('e2e · G-319 relato #43: ditar o relato em PT, EN ou ES pelo reconhecimento do aparelho; o falado entra no cursor, Parar entrega o que estava no ar, falha vira frase, fechar desliga o microfone; sem reconhecimento, Ditar aponta o teclado', { skip }, async t => {
   const { page, errors, base } = await open(t);
   // reconhecimento de mentira: guarda cada sessão aberta, com o idioma; o teste dita os eventos
   await page.addInitScript(() => {
@@ -10268,11 +10268,12 @@ test('e2e · G-319 relato #43: ditar o relato em PT, EN ou ES pelo reconheciment
   await page.click('#relato-ditar');
   assert.equal(await page.evaluate(() => window.__falas.at(-1).estado), 'parando');
   await page.evaluate(() => window.__acaba());
-  assert.equal(await page.inputValue('#relato-descricao'), 'Na mesa. A carta não virou after blocking');
+  assert.equal(await page.inputValue('#relato-descricao'), 'Na mesa. A carta não virou after blocking.', 'G-333: Parar fecha a frase com ponto');
   assert.equal(await page.getAttribute('#relato-ditar', 'aria-pressed'), 'false'); assert.equal(await page.innerText('#relato-ditar'), 'Ditar');
   // 4 · microfone negado vira frase; o texto fica
   await page.click('#relato-ditar'); await page.evaluate(() => window.__acaba('not-allowed'));
-  assert.equal(await page.innerText('#relato-ouvindo'), 'Libere o microfone para a Estante nas permissões do navegador.');
+  assert.equal(await page.innerText('#relato-ouvindo'), 'Libere o microfone no navegador ou digite.'); // G-333 · curta, com o caminho para digitar
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'relato-descricao');
   assert.equal(await page.getAttribute('#relato-ditar', 'aria-pressed'), 'false');
   // 5 · fechar o formulário ouvindo desliga o microfone; o idioma escolhido continua na próxima vez
   await page.click('#relato-ditar'); await page.keyboard.press('Escape');
@@ -10280,13 +10281,80 @@ test('e2e · G-319 relato #43: ditar o relato em PT, EN ou ES pelo reconheciment
   assert.equal(await page.evaluate(() => window.__falas.at(-1).estado), 'parando');
   await page.click('#relatar-abrir'); await page.waitForSelector('#relato-form');
   assert.equal(await page.getAttribute('#relato-idiomas [data-idioma="en-US"]', 'aria-pressed'), 'true');
-  assert.equal(await page.inputValue('#relato-descricao'), 'Na mesa. A carta não virou after blocking', 'rascunho guardado');
+  assert.equal(await page.inputValue('#relato-descricao'), 'Na mesa. A carta não virou after blocking.', 'rascunho guardado');
   await page.keyboard.press('Escape');
-  // 6 · sem reconhecimento de fala no aparelho, o formulário fica como era
+  // 6 · sem reconhecimento de fala no aparelho (G-333): Ditar diz em uma linha como ditar pelo teclado e põe o foco no campo; sem idiomas nem dica
   await page.addInitScript(() => { delete window.SpeechRecognition; delete window.webkitSpeechRecognition; });
   await page.reload(); await page.waitForSelector('#go-play');
   await page.click('#relatar-abrir'); await page.waitForSelector('#relato-form');
-  assert.equal(await page.locator('#relato-ditado').count(), 0);
+  assert.equal(await page.locator('#relato-idiomas, #relato-dica').count(), 0);
+  await page.click('#relato-ditar');
+  assert.equal(await page.innerText('#relato-ouvindo'), 'Este navegador não dita. Use o microfone do teclado.');
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'relato-descricao');
+  assert.equal(await page.getAttribute('#relato-ditar', 'aria-pressed'), 'false');
+  assert.deepEqual(errors, []);
+});
+
+/* ---------------- G-333 · relato #49: fala corrida sem perda, texto pontuado ---------------- */
+test('e2e · G-333 relato #49: ditado contínuo que reabre sozinho quando o navegador corta (fim de sessão, rede, aborto) sem perder nem duplicar; pontuação falada vira sinal; parcial em itálico; onda com voz; dica dos sinais por idioma; Parar fecha com ponto', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => {
+    window.__falas = [];
+    window.SpeechRecognition = class {
+      constructor() { window.__falas.push(this); this.estado = 'novo'; this.lista = []; }
+      start() { this.estado = 'ouvindo'; } stop() { this.estado = 'parando'; } abort() { this.estado = 'abortado'; }
+    };
+    // o navegador manda a lista inteira de resultados da sessão a cada evento (contínuo)
+    window.__ev = itens => { const r = window.__falas.at(-1); r.lista = itens; r.onresult({ resultIndex: 0, results: itens.map(([t, f]) => Object.assign([{ transcript: t }], { isFinal: f })) }); };
+    window.__acaba = erro => { const r = window.__falas.at(-1); if (erro) r.onerror({ error: erro }); r.onend(); };
+  });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base + '#/'); await page.waitForSelector('#go-play');
+  await page.click('#relatar-abrir'); await page.waitForSelector('#relato-form');
+  await page.click('#relato-idiomas [data-idioma="pt-BR"]');
+  // dica recolhida; aberta, mostra as palavras inteiras do idioma e troca com ele
+  assert.equal(await page.locator('#relato-dica .relato__sinais').count(), 0);
+  assert.ok((await page.$eval('#relato-dica-abrir', b => b.getBoundingClientRect().height)) >= 44);
+  await page.click('#relato-dica-abrir');
+  assert.deepEqual(await page.$$eval('#relato-dica .relato__sinais li span', ls => ls.map(l => l.textContent)).then(x => x.slice(0, 3)), ['vírgula', 'ponto', 'ponto de interrogação']);
+  for (const tema of ['dark', 'light']) { await page.evaluate(x => document.documentElement.setAttribute('data-theme', x), tema); await auditaTela(page, 'relato com ditado e dica ' + tema); }
+  await page.click('#relato-idiomas [data-idioma="es-ES"]');
+  assert.equal(await page.$eval('#relato-dica .relato__sinais li span', l => l.textContent), 'coma');
+  await page.click('#relato-idiomas [data-idioma="pt-BR"]');
+  // 1 · contínuo; o parcial aparece em itálico, pontuado, e a onda pulsa com voz
+  await page.click('#relato-ditar');
+  assert.equal(await page.evaluate(() => window.__falas[0].continuous), true);
+  await page.evaluate(() => { window.__falas[0].onspeechstart(); window.__ev([['a carta não virou vírgula', false]]); });
+  assert.equal(await page.innerText('#relato-ouvindo'), '“a carta não virou,”');
+  assert.equal(await page.getAttribute('#relato-ouvindo', 'data-tom'), 'parcial');
+  assert.equal(await page.$eval('#relato-ouvindo', e => getComputedStyle(e).fontStyle), 'italic');
+  assert.equal(await page.getAttribute('#relato-ditado', 'data-voz'), 'true');
+  // 2 · o navegador encerra a sessão no meio da fala: o que estava no ar entra e a sessão seguinte abre sozinha
+  await page.evaluate(() => window.__acaba());
+  assert.equal(await page.inputValue('#relato-descricao'), 'A carta não virou,');
+  assert.equal(await page.evaluate(() => window.__falas.length), 2);
+  // 3 · final repetido no mesmo evento e final cumulativo (Android) não duplicam
+  await page.evaluate(() => { window.__ev([['depois voltou', true]]); window.__ev([['depois voltou', true], ['depois voltou ponto de interrogação', true]]); });
+  assert.equal(await page.inputValue('#relato-descricao'), 'A carta não virou, depois voltou?');
+  // 4 · queda de rede passageira: reabre em instantes, sem frase de erro, e segue
+  await page.evaluate(() => { window.__ev([['depois voltou', true], ['depois voltou ponto de interrogação', true], ['sim', false]]); window.__acaba('network'); });
+  await page.waitForFunction(() => window.__falas.length === 3 && window.__falas[2].estado === 'ouvindo');
+  assert.notEqual(await page.getAttribute('#relato-ouvindo', 'data-tom'), 'erro');
+  assert.equal(await page.getAttribute('#relato-ditar', 'aria-pressed'), 'true');
+  await page.evaluate(() => window.__ev([['nova linha travou de novo', true]]));
+  assert.equal(await page.inputValue('#relato-descricao'), 'A carta não virou, depois voltou? Sim\nTravou de novo');
+  // 5 · Parar: fecha a frase com ponto, sem ponto duplo
+  await page.click('#relato-ditar'); await page.evaluate(() => window.__acaba());
+  assert.equal(await page.inputValue('#relato-descricao'), 'A carta não virou, depois voltou? Sim\nTravou de novo.');
+  assert.equal(await page.getAttribute('#relato-ditado', 'data-voz'), 'false');
+  await page.click('#relato-ditar'); await page.evaluate(() => { window.__ev([['ponto', true]]); window.__acaba(); });
+  await page.click('#relato-ditar'); await page.evaluate(() => window.__acaba());
+  assert.equal(await page.inputValue('#relato-descricao'), 'A carta não virou, depois voltou? Sim\nTravou de novo.');
+  // 6 · três sessões mudas: pausa, com caminho de volta
+  await page.click('#relato-ditar');
+  for (let i = 0; i < 3; i++) await page.evaluate(() => window.__acaba('no-speech'));
+  assert.equal(await page.innerText('#relato-ouvindo'), 'Pausado. Toque em Ditar para seguir.');
+  assert.equal(await page.getAttribute('#relato-ditar', 'aria-pressed'), 'false');
   assert.deepEqual(errors, []);
 });
 
