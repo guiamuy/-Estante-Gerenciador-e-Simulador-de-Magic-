@@ -598,6 +598,13 @@ test('DS-K2 · M2 a mão em leque: largura e passo por conta de CSS sobre a larg
   assert.ok(!/tb-mao-na-decisao'[^\n]*tb-row--leque|tb-pick-cards'[^\n]*tb-row--leque/.test(HTML), 'as fileiras de decisão continuam fileiras (cada carta inteira)');
 });
 
+test('DS-K2 · M4 a bandeja: a primária cresce até ocupar o que sobra (com teto), as outras ficam sem fundo; com três ações ou mais vale a quebra de antes', () => {
+  assert.match(componentCss, /\.tb-dock__bar \.tb-banner__actions:has\(> \.ds-btn--primary\):not\(:has\(> :nth-child\(3\)\)\) \{ flex: 1 1 0%; min-width: min-content; flex-wrap: nowrap; justify-content: flex-end; \}/);
+  assert.match(componentCss, /\.tb-dock__bar \.tb-banner__actions > \.ds-btn--primary \{ flex: 1 1 auto; min-width: 72px; max-width: 220px; \}/);
+  assert.match(componentCss, /\.tb-dock__bar \.tb-banner__actions:has\(> \.ds-btn--primary\) > \.ds-btn:not\(\.ds-btn--primary\):not\(\.ds-btn--danger\) \{ background-color: transparent; background-image: none; box-shadow: none; \}/);
+  assert.match(componentCss, /\.tb-dock__bar \.tb-banner:has\(\.tb-banner__actions > :nth-child\(3\)\) \.tb-banner__actions \{ flex: 1 1 100%;/, 'decisões com muitas opções continuam quebrando linha');
+});
+
 test('DS-K2 · M3 a barra da mesa: vidas na barra na cor de cada um (texto e borda; fundo suave por token), ⋯ com menu declarado por cima da mesa, trilho em pontos, o que acompanhava a vida fica no lado', () => {
   assert.match(HTML, /if \(lado\) return h\('button', \{ class: 'tb-life tb-life--barra'/, 'a vida da barra é só o número, com o nome falado');
   assert.match(componentCss, /\.tb-top > \.tb-life--barra\[data-lado="oponente"\] \{[^}]*color: var\(--player-opp\); border-color: var\(--player-opp\); background-color: var\(--player-opp-soft\);/);

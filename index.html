@@ -2882,6 +2882,11 @@ body[data-mesa-cheia="true"] .tb-steps__list > li::after { inset: 0; height: aut
 .tb-dock__bar .tb-banner__text[data-compacto="true"]:active { transform: translateY(1px); box-shadow: none; }
 .tb-dock__bar .tb-banner:has(.tb-banner__text[data-compacto="true"]) { flex-wrap: wrap; row-gap: var(--space-2); }
 .tb-dock__bar .tb-banner:has(.tb-banner__text[data-compacto="true"]) .tb-banner__actions { margin-left: auto; min-width: 0; flex-wrap: wrap; }
+/* DS-K2 M4 (J-41) · bandeja da proposta K: a ação primária (latão, DS-K F1.1) é o alvo dominante — cresce até ocupar o que sobra
+   da linha, até 220 px; as outras ficam em segundo plano (sem fundo, só o fio). Uma primária por vez (o e2e confere). */
+.tb-dock__bar .tb-banner__actions:has(> .ds-btn--primary):not(:has(> :nth-child(3))) { flex: 1 1 0%; min-width: min-content; flex-wrap: nowrap; justify-content: flex-end; }
+.tb-dock__bar .tb-banner__actions > .ds-btn--primary { flex: 1 1 auto; min-width: 72px; max-width: 220px; }
+.tb-dock__bar .tb-banner__actions:has(> .ds-btn--primary) > .ds-btn:not(.ds-btn--primary):not(.ds-btn--danger) { background-color: transparent; background-image: none; box-shadow: none; }
 .tb-banner__completo { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .tb-momento { display: inline-flex; align-items: center; gap: 6px; color: var(--fg); font-size: var(--text-sm); font-weight: var(--weight-medium); line-height: 1.15; }
 .tb-momento__rotulo { white-space: normal; overflow-wrap: normal; }

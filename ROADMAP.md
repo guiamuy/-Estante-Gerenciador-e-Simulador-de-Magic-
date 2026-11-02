@@ -13406,7 +13406,17 @@ sentinela do Pauper mantém as novas jogando. Outro formato entra quando chegar 
 | M1 | Mesa: cartas do campo com arte na fila, tamanho e raio da proposta | e2e, contrato visual | jogabilidade | ✅ J-38 |
 | M2 | Mesa: mão em leque com arte e rotação, a carta tocada sobe | e2e, 60 quadros | jogabilidade | ✅ J-37 |
 | M3 | Mesa: barra vida · fase com os pontos do turno · vida | e2e | jogabilidade | ✅ J-39 |
-| M4 | Mesa: bandeja com a ação primária em latão e o resto em segundo plano | e2e | jogabilidade | a fazer |
+| M4 | Mesa: bandeja com a ação primária em latão e o resto em segundo plano | e2e | jogabilidade | ✅ J-41 |
+
+**M4 · Bandeja: a ação primária manda** ✅ (leva J-41, trilha `jogabilidade`, 02/11/2026)
+- **Valor:** na bandeja, a ação que você quer quase sempre (Passar, Manter, Conjurar, Confirmar…) é o botão grande de latão
+  da linha, fácil de achar com o polegar; as outras (Mulligan, passar o turno) ficam em segundo plano, só com o fio.
+- **Regra:** com uma primária e até duas ações, o grupo de ações ocupa o que sobra da linha e a primária cresce até 220 px
+  (mínimo 72 px), numa linha só; as outras ficam sem fundo. Com três ações ou mais, a quebra de linha de antes continua.
+  O latão da primária já era do DS-K (F1.1). Uma primária por vez na bandeja (e2e confere na mão inicial e na principal).
+- **Medida em 360×780:** Manter 59 → 80 px; Passar 55 → 104 px.
+- **Testes:** e2e "DS-K2 M4" (360 e 390, dois temas, mão inicial e principal, auditaTela) e contrato "DS-K2 · M4".
+- **Fora:** o ícone "Pilha e registro" da proposta (o Registro foi para o ⋯ na M3; a pilha já tem a faixa própria).
 
 **M3 · Barra da mesa: vida · vez · vida** ✅ (leva J-39, trilha `jogabilidade`, 01/11/2026)
 - **Valor:** as duas vidas ficam lado a lado no alto da mesa, como na proposta K: a dele à esquerda na cor do oponente, a

@@ -9369,6 +9369,44 @@ test('e2e · DS-K2 J2 · Jogar como mesa de preparação: a sua lista é um cart
 // mão caber sem rolar; uma carta cobre no máximo 40% da vizinha, então o centro de cada carta é dela (é ali que o dedo e o
 // teste tocam); as pontas giram até 10° e descem em arco; a carta segurada endireita, sobe e fica por cima. Com 8 cartas em
 // 360 px a mão rola de lado e continua em leque. A fileira não ganha rolagem vertical por causa do giro.
+test('e2e · DS-K2 M4 bandeja: uma ação primária por vez, em latão e a maior da linha; as outras em segundo plano (sem fundo), tudo numa linha e dentro da tela; mão inicial e principal, 360 e 390, dois temas, auditaTela', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await createDeck(page, base, 'Bandeja', PAUPER);
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start'); await page.fill('#mesa-seed', '4');
+  await page.click('[data-opponent="goldfish"]');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep');
+  const mede = () => page.evaluate(() => {
+    const bs = [...document.querySelectorAll('#tb-dock .tb-dock__bar .tb-banner__actions > .ds-btn')].filter(b => b.getBoundingClientRect().width > 0);
+    const r = b => b.getBoundingClientRect(), pri = bs.filter(b => b.classList.contains('ds-btn--primary'));
+    return { n: bs.length, primarias: pri.map(b => b.id), larguras: bs.map(b => [b.id, Math.round(r(b).width), b.classList.contains('ds-btn--primary')]),
+      linha: bs.every(b => Math.abs((r(b).top + r(b).height / 2) - (r(bs[0]).top + r(bs[0]).height / 2)) < 4), dentro: bs.every(b => r(b).left >= 0 && r(b).right <= innerWidth),
+      fundoDosOutros: bs.filter(b => !b.classList.contains('ds-btn--primary') && !b.classList.contains('ds-btn--danger')).map(b => getComputedStyle(b).backgroundColor),
+      latao: pri.map(b => getComputedStyle(b).backgroundImage)[0] || '', alturas: bs.map(b => Math.round(r(b).height)) };
+  });
+  const confere = async onde => {
+    const m = await mede();
+    assert.equal(m.primarias.length, 1, `${onde}: uma primária só ` + JSON.stringify(m.larguras));
+    const p = m.larguras.find(x => x[2]); assert.ok(p[1] >= 72 && m.larguras.every(x => x[2] || x[1] <= p[1]), `${onde}: a primária é a maior da linha ` + JSON.stringify(m.larguras));
+    assert.ok(/linear-gradient/.test(m.latao), `${onde}: a primária é latão`);
+    assert.ok(m.fundoDosOutros.every(c => c === 'rgba(0, 0, 0, 0)'), `${onde}: as outras sem fundo ` + JSON.stringify(m.fundoDosOutros));
+    assert.ok(m.linha && m.dentro && m.alturas.every(h => h >= 44), `${onde}: numa linha, dentro da tela, 44 px ` + JSON.stringify(m));
+    await auditaTela(page, `DS-K2 M4 · ${onde}`);
+  };
+  for (const [w, hgt] of [[360, 780], [390, 844]]) for (const tema of ['dark', 'light']) {
+    await page.setViewportSize({ width: w, height: hgt }); await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(300);
+    await confere(`mão inicial ${w} ${tema}`);
+    if (process.env.SHOTS) await (await page.$('#tb-dock')).screenshot({ path: process.env.SHOTS + `/ds-k2-m4-mao-inicial-${w}-${tema}.png` });
+  }
+  await page.click('#tb-keep'); await page.waitForSelector('#tb-pass');
+  for (const [w, hgt] of [[360, 780], [390, 844]]) for (const tema of ['dark', 'light']) {
+    await page.setViewportSize({ width: w, height: hgt }); await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(300);
+    await confere(`principal ${w} ${tema}`);
+    if (process.env.SHOTS) await (await page.$('#tb-dock')).screenshot({ path: process.env.SHOTS + `/ds-k2-m4-principal-${w}-${tema}.png` });
+  }
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · DS-K2 M3 barra da mesa: Sair · vida dele · faixa de vez · sua vida · ⋯ numa linha, vidas na cor de cada um e tocáveis, trilho em cinco pontos, ⋯ abre Desfazer/Registro/Desistir e fecha no toque fora e no Esc, o lado guarda o que acompanhava a vida; 360 e 390, dois temas, auditaTela', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.addInitScript(() => { window.__MTG_TEST = true; });
