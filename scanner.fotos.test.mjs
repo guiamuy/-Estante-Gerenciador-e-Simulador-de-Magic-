@@ -2,8 +2,8 @@
 // Quadro em 320 px → achaQuadrilatero (quatro cantos) → recorteDaFaixa (o pedaço do quadro com o nome)
 // → preparaNome (retifica, acha a linha do nome, binariza, limpa) → OCR de verdade (tesseract.js, modo
 // "linha") → matchName. Sem contorno, vale a moldura guia, como no app. A edição sai da carta retificada
-// (preparaColecao → OCR em bloco, modo "colecao" → parseCollectorLine → resolvePrinting).
-// Alvos: nome ≥ 90%, edição ≥ 70%. Falhas saem no relatório, uma por foto.
+// (preparaColecao → OCR em bloco, modo "colecao" → resolveEdicao, S-604).
+// Alvos: nome ≥ 90%, edição ≥ 90% (S-604; era 70%). Falhas saem no relatório, uma por foto.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
@@ -80,10 +80,10 @@ async function leNome(worker, index, img, cantosFr, { podeAfiar = true } = {}) {
 }
 /** A linha de coleção, como identify() no app: preparaColecao (retifica, acha o bloco, binariza) e OCR em bloco. */
 let nomeDebug = '';
-async function leColecao(worker, img, cantosFr) {
+async function leColecao(worker, img, cantosFr, op = {}) {
   const rec = X.recorteDaFaixa(cantosFr, X.FAIXA_COLECAO, img.width, img.height);
   if (!rec) return '';
-  const pr = X.preparaColecao(pedaco(img, rec), rec.w, rec.h, rec.cantos, X.larguraColecao(X.alturaDaCarta(cantosFr, img.width, img.height)));
+  const pr = X.preparaColecao(pedaco(img, rec), rec.w, rec.h, rec.cantos, X.larguraColecao(X.alturaDaCarta(cantosFr, img.width, img.height)), op);
   if (!pr) return '';
   if (process.env.FOTOS_DEBUG) (await import('node:fs')).writeFileSync(join(process.env.FOTOS_DEBUG, 'col-' + nomeDebug + '.png'), paraPng(pr));
   await worker.setParameters(X.OCR_MODES.colecao);
@@ -139,11 +139,17 @@ async function mede(fotos = manifest.fotos, { degrada = null } = {}) {
       linha.nomeOk = !!cand[0] && cand[0].name === f.nome && cand[0].score >= X.ACCEPT && !linha.pulada;
       if (linha.nomeOk) nomeOk++;
       nomeDebug = f.arquivo.replace(/\.\w+$/, '');
-      const col = await leColecao(worker, img, melhor.cantos);
-      const p = X.parseCollectorLine(col);
-      // como no app: a leitura é casada com as impressões conhecidas da carta (identify → resolvePrinting)
-      const res = X.resolvePrinting(f.impressoes || [], p);
-      linha.colecao = col.trim().replace(/\s+/g, ' '); linha.edicao = `${p.set || '?'} ${p.number || '?'}` + (res.exact ? ` → ${res.exact.set} ${res.exact.number}` : ' → sem impressão');
+      // S-604 · como identify() no app: as variantes da leitura (de sempre, "livre", contraste invertido) sobre a mesma
+      // cópia do quadro, somadas e casadas com as impressões da carta por evidências (resolveEdicao), até uma se separar
+      const textos = [];
+      let res = { exact: null, por: [] };
+      for (const op of [{}, { livre: true }, { inverte: true }]) {
+        textos.push(await leColecao(worker, img, melhor.cantos, op));
+        res = X.resolveEdicao(f.impressoes || [], { textos });
+        if (res.exact) break;
+      }
+      const col = textos.join(' | '), p = X.parseCollectorLine(textos[0]);
+      linha.colecao = col.trim().replace(/\s+/g, ' '); linha.edicao = `${p.set || '?'} ${p.number || '?'}` + (res.exact ? ` → ${res.exact.set} ${res.exact.number} (${res.por.join(' + ')})` : ' → sem impressão');
       const semZero = v => String(v).toLowerCase().replace(/^0+(?=\d)/, '');
       linha.edOk = !!res.exact && res.exact.set === String(f.set).toLowerCase() && semZero(res.exact.number) === semZero(f.numero);
       if (linha.edOk) edOk++;
@@ -162,14 +168,24 @@ function relatorio(r) {
   return [cab, ...corpo].join('\n');
 }
 
-test('X10 · o scanner acerta o nome em ≥ 90% e a edição em ≥ 70% das fotos do conjunto', { skip, timeout: 240000 }, async () => {
+test('X10 · o scanner acerta o nome em ≥ 90% e a edição em ≥ 90% das fotos do conjunto', { skip, timeout: 240000 }, async () => {
   assert.ok(manifest.fotos.length >= 10, 'o conjunto precisa de pelo menos 10 fotos para a medida valer alguma coisa');
   const r = await mede();
   console.log(relatorio(r));
   assert.ok(r.nomeOk / r.n >= 0.9, `nome: ${r.nomeOk}/${r.n} (alvo ≥ 90%)\n${relatorio(r)}`);
   // Leva 112 · a régua de nitidez não descarta foto que o OCR lê certo
   assert.equal(r.puladas, 0, 'nenhuma foto legível descartada por nitidez: ' + JSON.stringify(r.linhas.map(l => [l.foto, l.nitidez])));
-  assert.ok(r.edOk / r.n >= 0.7, `edição: ${r.edOk}/${r.n} (alvo ≥ 70%)\n${relatorio(r)}`);
+  // S-604 · alvo 70% → 90%: antes da edição por evidências o conjunto (com as duas sem borda) dava 24/29 (83%); com ela, 27/29
+  assert.ok(r.edOk / r.n >= 0.9, `edição: ${r.edOk}/${r.n} (alvo ≥ 90%)\n${relatorio(r)}`);
+});
+
+test('S-604 · carta sem borda (texto claro sobre a arte, como o Malcolm SPG #2 do dono): a edição sai da linha de coleção', { skip, timeout: 240000 }, async () => {
+  const semBorda = manifest.fotos.filter(f => f.estilo === 'semBorda');
+  assert.ok(semBorda.length >= 2, 'o conjunto precisa das cartas sem borda');
+  const r = await mede(semBorda);
+  console.log('S-604 · sem borda · ' + relatorio(r));
+  // antes: a leitura só procurava a linha sobre a borda preta e as duas saíam sem edição (0/2)
+  assert.equal(r.edOk, semBorda.length, relatorio(r));
 });
 
 test('X10 · o conjunto declara a origem de cada foto e as reais têm o que o leitor deve achar', () => {
@@ -197,7 +213,9 @@ function protetor(img) {
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const i = (y * w + x) * 4, faixa = Math.exp(-(((y / h + x / w * 0.3) - 0.32) ** 2) / (2 * 0.04 ** 2)); for (let c = 0; c < 3; c++) { let v = o[i + c]; v += (235 - v) * 0.16; v += (255 - v) * 0.45 * faixa; o[i + c] = v; } }
   return { data: o, width: w, height: h };
 }
-const AMOSTRA = manifest.fotos.filter((f, i) => i % 3 === 0);   // 9 fotos, das duas famílias do conjunto
+// S-604 · as cartas sem borda ficam fora da amostra: com elas no fim do conjunto, "uma em cada três" passou a pegar o Malcolm
+// sem borda e mudou a amostra (9 → 10 fotos) sem ninguém pedir; a amostra continua sendo as mesmas 9 da S-594
+const AMOSTRA = manifest.fotos.filter(f => f.estilo !== 'semBorda').filter((f, i) => i % 3 === 0);   // 9 fotos, das duas famílias do conjunto
 
 test('S-594 · foto um pouco borrada (desfoque de 1,5 px numa carta de 600 px) é lida: nenhuma pulada, nenhum nome errado', { skip, timeout: 240000 }, async () => {
   const r = await mede(AMOSTRA, { degrada: (img, f) => borra(img, f, 1.5) });
