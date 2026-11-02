@@ -7556,6 +7556,60 @@ test('e2e · G-331 tour de boas-vindas: seis capítulos ilustrados em tela cheia
   assert.deepEqual(errors, []);
 });
 
+/* G-335 · relato #51 fatia 2 · as ilustrações do tour se animam em três planos (luz · objeto · sombra) com as receitas do /ds;
+   movimento reduzido (do sistema ou do Perfil) mostra direto o estado final, sem nenhuma animação nos planos */
+test('e2e · G-335 tour animado: a luz acende, o objeto pousa de trás, a sombra assenta, os detalhes surgem e o título se revela; termina no estado final, recomeça a cada capítulo; movimento reduzido mostra o estado final sem animar', { skip }, async t => {
+  const { page, errors, base } = await open(t, { apresentacao: true });
+  await page.setViewportSize({ width: 360, height: 697 });
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.goto(base + '#/'); await page.waitForSelector('#tutorial[data-capitulo="1"]');
+  const planos = () => page.evaluate(() => {
+    const q = s => document.querySelector('#tutorial ' + s), nomes = el => el.getAnimations().map(a => a.animationName).sort();
+    const palco = q('.tutorial__palco'), cena = q('.tutorial__cena'), obj = q('.tutorial__objeto'), sombra = q('.tutorial__sombra'), luz = q('.tutorial__luz'), tit = q('#tutorial-titulo');
+    const det = [...obj.querySelectorAll('.tut-selo, .tut-destaque, .tut-feixe, .tut-mira, .tut-anel')];
+    const id = v => v === 'none' || /^matrix\(1, 0, 0, 1, 0, 0\)$/.test(v) || /^matrix3d\(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1\)$/.test(v);
+    const cs = el => getComputedStyle(el);
+    return {
+      ordem: [...palco.children].map(e => e.className).concat([...cena.children].map(e => e.className)),
+      anims: { luz: nomes(luz), sombra: nomes(sombra), objeto: nomes(obj), titulo: nomes(tit), detalhes: det.flatMap(nomes).length },
+      total: document.getElementById('tutorial').getAnimations({ subtree: true }).filter(a => a.playState === 'running').length,
+      final: { objeto: id(cs(obj).transform) && cs(obj).opacity === '1', luz: id(cs(luz).transform) && cs(luz).opacity === '1', sombra: id(cs(sombra).transform) && Math.abs(parseFloat(cs(sombra).opacity) - .55) < .01,
+        titulo: cs(tit).opacity === '1' && cs(tit).clipPath === 'none', detalhes: det.every(d => id(cs(d).transform) && cs(d).opacity === '1') },
+      sombraDentro: (() => { const a = sombra.getBoundingClientRect(), b = cena.getBoundingClientRect(); return a.width > 20 && a.left >= b.left - 1 && a.right <= b.right + 1 && a.bottom <= b.bottom + 1; })()
+    };
+  });
+  const espera = () => page.evaluate(() => Promise.all(document.getElementById('tutorial').getAnimations({ subtree: true }).map(a => a.finished.catch(() => null))));
+  // 1 · três planos na ordem (luz ao fundo, sombra no chão, objeto por cima) e cada um com a sua receita
+  const m1 = await planos();
+  assert.deepEqual(m1.ordem, ['tutorial__luz', 'tutorial__cena', 'tutorial__sombra', 'tutorial__objeto'], JSON.stringify(m1.ordem));
+  assert.deepEqual([m1.anims.luz, m1.anims.sombra, m1.anims.objeto, m1.anims.titulo], [['tut-acende'], ['tut-sombra-pousa'], ['ds-pousa'], ['tut-revela']], JSON.stringify(m1.anims));
+  assert.ok(m1.anims.detalhes >= 1, 'os detalhes de latão surgem depois do pouso');
+  // 2 · a cena termina no estado final e para (nada em laço)
+  await espera(); const m2 = await planos();
+  assert.deepEqual(m2.final, { objeto: true, luz: true, sombra: true, titulo: true, detalhes: true }, JSON.stringify(m2.final));
+  assert.equal(m2.total, 0, 'nada fica animando depois do pouso'); assert.ok(m2.sombraDentro, 'a sombra fica no chão da cena');
+  for (const tema of ['dark', 'light']) { await page.evaluate(x => document.documentElement.setAttribute('data-theme', x), tema); await page.waitForTimeout(300); await auditaTela(page, `G-335 · tour pousado ${tema}`); }
+  // 3 · cada capítulo pousa de novo
+  await page.click('#tutorial-proximo'); await page.waitForSelector('#tutorial[data-capitulo="2"]');
+  assert.deepEqual((await planos()).anims.objeto, ['ds-pousa'], 'o capítulo 2 pousa de novo');
+  await espera(); assert.ok((await planos()).sombraDentro);
+  // 4 · movimento reduzido do sistema: o capítulo seguinte já aparece pronto, sem animação nos planos
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.click('#tutorial-proximo'); await page.waitForSelector('#tutorial[data-capitulo="3"]');
+  const m4 = await planos();
+  assert.deepEqual(m4.anims, { luz: [], sombra: [], objeto: [], titulo: [], detalhes: 0 }, JSON.stringify(m4.anims));
+  assert.deepEqual(m4.final, { objeto: true, luz: true, sombra: true, titulo: true, detalhes: true }, JSON.stringify(m4.final));
+  await auditaTela(page, 'G-335 · tour com movimento reduzido');
+  // 5 · "menos movimento" do Perfil (data-movimento) vale do mesmo jeito, mesmo com o sistema pedindo movimento
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.evaluate(() => document.documentElement.setAttribute('data-movimento', 'reduzido'));
+  await page.click('#tutorial-proximo'); await page.waitForSelector('#tutorial[data-capitulo="4"]');
+  const m5 = await planos();
+  assert.deepEqual(m5.anims, { luz: [], sombra: [], objeto: [], titulo: [], detalhes: 0 }, JSON.stringify(m5.anims));
+  assert.deepEqual(m5.final, { objeto: true, luz: true, sombra: true, titulo: true, detalhes: true }, JSON.stringify(m5.final));
+  assert.deepEqual(errors, []);
+});
+
 /* ---------------- Leva 149 · blocos expansíveis da coleção, formato obrigatório em Jogar, enquadrar a foto ---------------- */
 const MEDIDAS_149 = [[360, 780], [384, 832], [390, 844], [412, 891]];
 async function emTodasAsMedidas(page, nome) {

@@ -1436,9 +1436,27 @@ body[data-tutorial="true"] { overflow: hidden; }
 .tutorial__passo[data-feito="true"] { background: var(--accent); }
 .tutorial__palco { position: relative; align-self: center; justify-self: center; width: min(100%, 320px); aspect-ratio: 10 / 7; border-radius: var(--radius-3); background: var(--bg-elev-0); border: 1px solid var(--border); overflow: hidden; isolation: isolate; display: grid; place-items: center; }
 .tutorial__luz { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 62%, var(--accent-soft), transparent 64%); }
-.tutorial__objeto { position: relative; width: 70%; max-width: 220px; color: var(--accent); animation: ds-rise var(--dur-3) var(--ease-out) both; }
+/* G-335 · relato #51 fatia 2 · os três planos do palco se animam com as receitas do /ds: a luz acende (acende), o objeto pousa de
+   trás com a mola (pousar), a sombra encolhe e escurece ao assentar, os detalhes de latão surgem depois e o título se revela
+   (revela). Só keyframes "from" com preenchimento both: sem animação, cada plano já está no estado final — é o que o movimento
+   reduzido (do sistema ou do Perfil) mostra. Toca uma vez por capítulo; nada fica em laço. */
+.tutorial__cena { position: relative; width: 70%; max-width: 220px; aspect-ratio: 200 / 140; perspective: 640px; }
+.tutorial__sombra { position: absolute; border-radius: 50%; background: var(--overlay); opacity: .55; transform-origin: 50% 50%;
+  animation: tut-sombra-pousa var(--dur-abertura) var(--ease-out) var(--dur-1) both; }
+.tutorial__objeto { position: relative; width: 100%; height: 100%; color: var(--accent); transform-origin: 50% 85%;
+  animation: ds-pousa var(--dur-abertura) var(--ease-spring) var(--dur-1) both; }
 .tutorial__objeto svg { width: 100%; height: auto; display: block; }
-.tut-sombra { fill: var(--overlay); opacity: .55; }
+.tutorial__luz { animation: tut-acende var(--dur-4) var(--ease-out) both; }
+.tutorial__objeto :is(.tut-selo, .tut-selo-traco, .tut-destaque, .tut-feixe, .tut-mira, .tut-anel) { transform-box: fill-box; transform-origin: 50% 50%;
+  animation: tut-surge var(--dur-3) var(--ease-spring) calc(var(--dur-abertura) * .55) both; }
+.tutorial__objeto :is(.tut-selo-traco, .tut-feixe) { animation-delay: calc(var(--dur-abertura) * .55 + var(--dur-1)); }
+.tutorial__titulo { animation: tut-revela var(--dur-4) var(--ease-out) var(--dur-2) both; }
+@keyframes tut-acende { from { opacity: 0; transform: scale(.82); } }
+@keyframes tut-sombra-pousa { from { opacity: 0; transform: scale(2.2, 1.6); } }
+@keyframes tut-surge { from { opacity: 0; transform: scale(.55); } }
+@keyframes tut-revela { from { opacity: 0; clip-path: inset(0 0 100% 0); } }
+@media (prefers-reduced-motion: reduce) { .tutorial__luz, .tutorial__sombra, .tutorial__objeto, .tutorial__objeto *, .tutorial__titulo { animation: none; } }
+:root[data-movimento="reduzido"] :is(.tutorial__luz, .tutorial__sombra, .tutorial__objeto, .tutorial__objeto *, .tutorial__titulo, .tutorial__corpo) { animation: none !important; }
 .tut-carta { fill: var(--bg-elev-2); stroke: var(--border-strong); stroke-width: 1.5; }
 .tut-carta--latao { fill: var(--accent-soft); stroke: var(--accent); }
 .tut-folha { fill: var(--bg-elev-1); stroke: var(--border-strong); stroke-width: 1.5; }
@@ -46237,18 +46255,32 @@ const CAPITULOS = [
 ];
 /** Texto do progresso ("Capítulo 2 de 6") e se é o último. Puro. */
 const progresso = (i, n = CAPITULOS.length) => ({ texto: `Capítulo ${i + 1} de ${n}`, ultimo: i === n - 1, primeiro: i === 0 });
-/** Ilustrações: SVG inline por capítulo, em três planos (luz do fundo, objeto, sombra), nas cores dos tokens. Estáticas nesta
-    fatia; a fatia 2 anima. `currentColor` é o latão; as classes pegam os tokens pelo CSS. */
+/** Ilustrações: SVG inline por capítulo, o plano do meio (o objeto) dos três planos do palco — luz ao fundo, objeto, sombra
+    no chão —, nas cores dos tokens. G-335 (fatia 2): os três planos se animam com as receitas do /ds (a luz acende, o objeto
+    pousa de trás com a mola, a sombra encolhe e escurece ao assentar, os detalhes de latão surgem depois e o título se revela);
+    movimento reduzido mostra direto o estado final. `currentColor` é o latão; as classes pegam os tokens pelo CSS. */
 const svgDoTour = (corpo) => `<svg viewBox="0 0 200 140" width="200" height="140" aria-hidden="true" focusable="false">${corpo}</svg>`;
 const cartaDoTour = (x, y, r, cls = '') => `<rect class="tut-carta ${cls}" x="${x}" y="${y}" width="46" height="64" rx="5" transform="rotate(${r} ${x + 23} ${y + 32})"/>`;
 const ILUSTRACOES = {
-  jogar: svgDoTour(`<ellipse class="tut-sombra" cx="100" cy="118" rx="62" ry="8"/>${cartaDoTour(58, 36, -10)}${cartaDoTour(96, 32, 8, 'tut-carta--latao')}<circle class="tut-selo" cx="100" cy="100" r="16"/><path class="tut-selo-traco" d="M95 92.5v15l12-7.5z"/>`),
-  listas: svgDoTour(`<ellipse class="tut-sombra" cx="100" cy="118" rx="58" ry="8"/><rect class="tut-folha" x="52" y="24" width="96" height="88" rx="8"/><rect class="tut-linha" x="66" y="42" width="52" height="6" rx="3"/><rect class="tut-linha" x="66" y="58" width="68" height="6" rx="3"/><rect class="tut-linha" x="66" y="74" width="44" height="6" rx="3"/><rect class="tut-linha" x="66" y="90" width="60" height="6" rx="3"/><circle class="tut-selo" cx="138" cy="34" r="14"/><path class="tut-selo-traco" d="M131 34.5l5 5 10-10"/>`),
-  colecao: svgDoTour(`<ellipse class="tut-sombra" cx="100" cy="120" rx="66" ry="8"/>${cartaDoTour(38, 22, 0)}${cartaDoTour(77, 22, 0, 'tut-carta--latao')}${cartaDoTour(116, 22, 0)}<rect class="tut-carta" x="57" y="60" width="46" height="52" rx="5"/><rect class="tut-carta" x="97" y="60" width="46" height="52" rx="5"/>`),
-  scanner: svgDoTour(`<ellipse class="tut-sombra" cx="100" cy="122" rx="54" ry="7"/>${cartaDoTour(77, 36, 0)}<path class="tut-mira" d="M44 48V32h16M156 48V32h-16M44 92v16h16M156 92v16h-16"/><rect class="tut-feixe" x="48" y="66" width="104" height="3" rx="1.5"/>`),
-  noticias: svgDoTour(`<ellipse class="tut-sombra" cx="100" cy="120" rx="60" ry="8"/><rect class="tut-folha" x="46" y="24" width="108" height="90" rx="8"/><rect class="tut-destaque" x="58" y="36" width="42" height="32" rx="4"/><rect class="tut-linha" x="108" y="38" width="34" height="6" rx="3"/><rect class="tut-linha" x="108" y="52" width="34" height="6" rx="3"/><rect class="tut-linha" x="58" y="80" width="84" height="6" rx="3"/><rect class="tut-linha" x="58" y="94" width="64" height="6" rx="3"/>`),
-  perfil: svgDoTour(`<ellipse class="tut-sombra" cx="100" cy="122" rx="48" ry="7"/><circle class="tut-anel" cx="100" cy="68" r="40"/><circle class="tut-folha" cx="100" cy="68" r="32"/><circle class="tut-destaque" cx="100" cy="58" r="11"/><path class="tut-destaque" d="M78 92c4-12 12-18 22-18s18 6 22 18a32 32 0 0 1-44 0z"/><circle class="tut-selo" cx="134" cy="38" r="12"/><path class="tut-selo-traco" d="M134 31v3M134 42v3M127 38h3M138 38h3M129 33l2 2M137 41l2 2M129 43l2-2M137 35l2-2"/>`)
+  jogar: svgDoTour(`${cartaDoTour(58, 36, -10)}${cartaDoTour(96, 32, 8, 'tut-carta--latao')}<circle class="tut-selo" cx="100" cy="100" r="16"/><path class="tut-selo-traco" d="M95 92.5v15l12-7.5z"/>`),
+  listas: svgDoTour(`<rect class="tut-folha" x="52" y="24" width="96" height="88" rx="8"/><rect class="tut-linha" x="66" y="42" width="52" height="6" rx="3"/><rect class="tut-linha" x="66" y="58" width="68" height="6" rx="3"/><rect class="tut-linha" x="66" y="74" width="44" height="6" rx="3"/><rect class="tut-linha" x="66" y="90" width="60" height="6" rx="3"/><circle class="tut-selo" cx="138" cy="34" r="14"/><path class="tut-selo-traco" d="M131 34.5l5 5 10-10"/>`),
+  colecao: svgDoTour(`${cartaDoTour(38, 22, 0)}${cartaDoTour(77, 22, 0, 'tut-carta--latao')}${cartaDoTour(116, 22, 0)}<rect class="tut-carta" x="57" y="60" width="46" height="52" rx="5"/><rect class="tut-carta" x="97" y="60" width="46" height="52" rx="5"/>`),
+  scanner: svgDoTour(`${cartaDoTour(77, 36, 0)}<path class="tut-mira" d="M44 48V32h16M156 48V32h-16M44 92v16h16M156 92v16h-16"/><rect class="tut-feixe" x="48" y="66" width="104" height="3" rx="1.5"/>`),
+  noticias: svgDoTour(`<rect class="tut-folha" x="46" y="24" width="108" height="90" rx="8"/><rect class="tut-destaque" x="58" y="36" width="42" height="32" rx="4"/><rect class="tut-linha" x="108" y="38" width="34" height="6" rx="3"/><rect class="tut-linha" x="108" y="52" width="34" height="6" rx="3"/><rect class="tut-linha" x="58" y="80" width="84" height="6" rx="3"/><rect class="tut-linha" x="58" y="94" width="64" height="6" rx="3"/>`),
+  perfil: svgDoTour(`<circle class="tut-anel" cx="100" cy="68" r="40"/><circle class="tut-folha" cx="100" cy="68" r="32"/><circle class="tut-destaque" cx="100" cy="58" r="11"/><path class="tut-destaque" d="M78 92c4-12 12-18 22-18s18 6 22 18a32 32 0 0 1-44 0z"/><circle class="tut-selo" cx="134" cy="38" r="12"/><path class="tut-selo-traco" d="M134 31v3M134 42v3M127 38h3M138 38h3M129 33l2 2M137 41l2 2M129 43l2-2M137 35l2-2"/>`)
 };
+/** G-335 · a sombra de cada ilustração, no chão do palco (coordenadas do viewBox 200×140 do objeto): é um plano próprio, fora
+    do SVG, para encolher e escurecer enquanto o objeto pousa por cima dela em 3D. */
+const SOMBRAS = {
+  jogar: { cy: 118, rx: 62, ry: 8 },
+  listas: { cy: 118, rx: 58, ry: 8 },
+  colecao: { cy: 120, rx: 66, ry: 8 },
+  scanner: { cy: 122, rx: 54, ry: 7 },
+  noticias: { cy: 120, rx: 60, ry: 8 },
+  perfil: { cy: 122, rx: 48, ry: 7 }
+};
+/** Posição da sombra em porcentagem da cena (a cena tem a mesma proporção do viewBox). Puro. */
+const sombraDoTour = ({ cy, rx, ry }) => ({ left: `${(100 - rx) / 2}%`, top: `${(cy - ry) / 1.4}%`, width: `${rx}%`, height: `${(2 * ry) / 1.4}%` });
 /** Abre o tour em tela cheia. `store` grava a marca ao abrir (fechar de qualquer jeito conta como visto: a apresentação
     não insiste); `go(rota)` é a navegação do app; `aoFechar` avisa quem chamou. Devolve o elemento, para os testes. */
 function abreTutorial({ store, go, aoFechar = null, inicio = 0 } = {}) {
@@ -46277,7 +46309,10 @@ function abreTutorial({ store, go, aoFechar = null, inicio = 0 } = {}) {
   function pinta() {
     const c = CAPITULOS[i], p = progresso(i);
     el.dataset.capitulo = String(i + 1); el.dataset.id = c.id;
-    const palco = h('div', { class: 'tutorial__palco', 'aria-hidden': 'true' }, h('div', { class: 'tutorial__luz' }), h('div', { class: 'tutorial__objeto' }));
+    // G-335 · três planos: a luz ao fundo, a sombra no chão e o objeto por cima; a troca de capítulo redesenha e a cena pousa de novo
+    const sombra = h('div', { class: 'tutorial__sombra' }); Object.assign(sombra.style, sombraDoTour(SOMBRAS[c.id]));
+    const palco = h('div', { class: 'tutorial__palco', 'aria-hidden': 'true' }, h('div', { class: 'tutorial__luz' }),
+      h('div', { class: 'tutorial__cena' }, sombra, h('div', { class: 'tutorial__objeto' })));
     palco.querySelector('.tutorial__objeto').innerHTML = ILUSTRACOES[c.id]; // SVG fixo do próprio app (dado do código, não de fora)
     const corpo = h('div', { class: 'tutorial__corpo' },
       h('p', { class: 'tutorial__capitulo' }, h('span', { class: 'tutorial__capitulo-icone' }, Icone(c.icone, { tamanho: 16 })), h('span', {}, c.nome)),
@@ -46304,7 +46339,7 @@ function abreTutorial({ store, go, aoFechar = null, inicio = 0 } = {}) {
   pinta();
   return el;
 }
-return { CAPITULOS, progresso, ILUSTRACOES, abreTutorial, CHAVE };
+return { CAPITULOS, progresso, ILUSTRACOES, SOMBRAS, sombraDoTour, abreTutorial, CHAVE };
 })();
 
 /* ==== src/app/main.js ==== */
