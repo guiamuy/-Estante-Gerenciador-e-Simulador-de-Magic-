@@ -161,7 +161,10 @@ test('Q25 · de verdade: o executor em ordem começa os arquivos na ordem dada (
 test('Q25 · os pesados existem e estão na fase rápida; renomear um deles sem atualizar a lista devolve a cauda', () => {
   const rapida = arquivosDaFase('rapido');
   for (const n of PESADOS_DA_RAPIDA) assert.ok(rapida.includes(n), `${n} está em PESADOS_DA_RAPIDA mas não na fase rápida: atualize a lista em portao.mjs`);
-  assert.match(readFileSync(join(RAIZ, 'portao.mjs'), 'utf8'), /ordemDaRapida\(arquivos\)/, 'a fase rápida usa a ordem');
+  const fonte = readFileSync(join(RAIZ, 'portao.mjs'), 'utf8');
+  assert.match(fonte, /ordemDaRapida\(arquivos\)/, 'a ordem continua disponível para medir');
+  // I-320 · expectativa mudada com medida: a ordem não encurtou a fase no CI; a linha de comando volta a ser o padrão
+  assert.match(fonte, /process\.env\.PORTAO_PESADOS !== '1'\s*\n?\s*\? await roda\(\['--test', `--test-concurrency=\$\{concorrencia\}`, \.\.\.arquivos\]\)/, 'sem PORTAO_PESADOS=1, a fase rápida roda pela linha de comando');
 });
 
 test('Q26 · a tela dividida entre jobs: cada parte roda as suas fatias numa conta só; as partes juntas cobrem todas, uma vez cada; sem parte, nada muda', () => {

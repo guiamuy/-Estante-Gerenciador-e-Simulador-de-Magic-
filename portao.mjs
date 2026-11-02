@@ -204,9 +204,10 @@ async function principal() {
     const arquivos = arquivosDaFase('rapido');
     titulo(`fase 1 · rápida (${arquivos.length} arquivos, sem navegador)`);
     // um processo por núcleo (o padrão do Node deixa um núcleo livre: em máquina de dois núcleos os arquivos rodavam em fila);
-    // Q25 · os pesados começam primeiro, no mesmo grupo de processos (`PORTAO_PESADOS=0`: a linha de comando, em ordem alfabética)
+    // Q25 · I-320: a ordem com os pesados primeiro não encurtou a fase no CI (medido 01–02/11: 17,9–21,7 min, contra 13,7–18,3 antes);
+    // volta a linha de comando do Node como padrão. `PORTAO_PESADOS=1` liga a ordem, para medir de novo.
     const concorrencia = Math.max(2, availableParallelism());
-    const r = process.env.PORTAO_PESADOS === '0'
+    const r = process.env.PORTAO_PESADOS !== '1'
       ? await roda(['--test', `--test-concurrency=${concorrencia}`, ...arquivos])
       : await roda([fileURLToPath(import.meta.url), 'em-ordem', String(concorrencia), ...ordemDaRapida(arquivos)]);
     console.log(`# fase 1 em ${minutos(Date.now() - inicio)}`);
