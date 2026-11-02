@@ -408,7 +408,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-sd ✅ | B23 o Shark usa bem cada carta das cinco listas: fatia 1 ✅ (B-180) auditoria carta a carta (`bot.cartas.mjs`, 76 cartas, 40 partidas): 6 cartas ficam na mão, 5 com alvo no próprio lado por erro; fatia 2 ✅ (B-181) alvo no próprio lado + avaliaV6 (o −3/−0 na própria criatura dava +4), neutro em força (47 × 48), ligado; fatia 3 ✅ (B-182) loucura e descarte conferidos (Fiery Temper 14/20 contando a loucura), sem mudança no Shark; fatia 4 ✅ (B-183) a decisão do outro na resolução (Deem Inferior 1/13 → 13/14), 49 × 47, ligado; fatia 5 ✅ (B-184) jogar em volta: o outro responde com a mágica do Shark na pilha (anula, tira o alvo), 51 × 47, ligado; fatia 6 ✅ (B-185) fechamento: reserva pelo alvo (29 × 24) e resposta no meu turno (o Dispel na Counterspell que anulava a minha ameaça; 48 × 46), auditoria final sem "não usa" (69 usam, 5 a revisar declaradas), força por lista com 208 decididas no painel, p95 dentro do orçamento | B23 | 6 | 16º-sa |
 | 16º-sz ✅ | B6 estável: o torneio Shark × sparring mede força por trabalho feito (relógio de contas), não pelo relógio da máquina — caía no CI (mais lento) e passava no clone, deixando o `main` vermelho e a fila parada (B-186, 01/11/2026) | B | 1 | 16º-sd |
 | 16º-se 🔲 | B24 o Shark pilota o Dimir Control acima de 45% contra o campo (hoje 29% em 208 decididas): partida narrada das derrotas do Control, plano de controle (vantagem de cartas, monarca do Thorn of the Black Rose, quando virar o jogo) | B24 | 3–5 | 16º-sd |
-| 16º-sq 🟡 | B25 Shark profissional com as cinco listas (pedido do dono de 01/11): quatro réguas — força absoluta × `shark-v12` ≥ 60%, nenhuma lista < 45% contra o campo, bateria profissional ≥ 85%, higiene (zero ilegais, p95 ≤ 400 ms); fases 0 réguas (B-187 ✅, B-188 ✅) · 1 diagnóstico (B-189 ✅) · 4 correções primeiro (B-190 contra-ataque, B-191 Elfos, B-192 Control; absorve a B24) · 2 avaliação aprendida (B-193, B-194) · 3 busca no próprio turno (rebaixada pela B-189) · 5 fechamento (B-198) | B25 | 12 | 16º-sd |
+| 16º-sq 🟡 | B25 Shark profissional com as cinco listas (pedido do dono de 01/11): quatro réguas — força absoluta × `shark-v12` ≥ 60%, nenhuma lista < 45% contra o campo, bateria profissional ≥ 85%, higiene (zero ilegais, p95 ≤ 400 ms); fases 0 réguas (B-187 ✅, B-188 ✅) · 1 diagnóstico (B-189 ✅) · 4 correções primeiro (B-190 contra-ataque, B-191 Elfos, B-192 Control; absorve a B24) · 2 avaliação aprendida (B-193, B-194) · 3 busca no próprio turno (rebaixada pela B-189) · 5 fechamento (B-198) · **balanço B-201 (02/11):** força 55% ✗ · equilíbrio ✗ só Faeries 32,5% (Control 50%) · bateria 30/31 ✓ · higiene ✓; falta o Faeries (~4 levas) | B25 | 12 | 16º-sd |
 | 16º-y ✅ | Shark: olhar o turno seguinte (simulação até o próximo turno) — medido, não pagou, fica desligado; achado: a força está no plano de cada baralho (leva 131) | B15 | 1 | — |
 | 16º-w ✅ | Shark: pesos da avaliação postos à prova por torneio — nenhum paga; achado: o limite é a profundidade, não o peso (leva 126) | B20 | 1 | — |
 | 16º-j3 🟡 | Scanner de referência (E52): X14 resposta imediata (leva 127) | E52 | 2 de 6 a 7 | teste no aparelho: "até aceitar" no diagnóstico |
@@ -8227,6 +8227,23 @@ estruturado para tornarmos o Shark um jogador de nível profissional com as suas
   custa 6. Posição nova `seq-ninja-pelo-ataque`. **Medida pareada** no piloto Faeries (400 ms, 32 pares, contra o Shark da
   B-199): **13 × 10** (5 só do novo, 2 só do antigo); zero ilegais. Bateria **30 de 31**; piso 29 → 30. **`shark-v24` é o
   Shark da B-199, congelado.**
+- **Fase 5 · B-201 · balanço das quatro réguas (02/11/2026).** Com o Shark da B-200 (motor v112, 400 ms):
+  - **1 · força absoluta: 55% ✗** (alvo 60%). Medida da B-199 (Shark da B-198 × `shark-v12`, 210 decididas); a B-200 só mexe
+    no ninjútsu das Faeries e não foi remedida aqui. Faltam ~5 pontos; Faeries (40%) e Elfos (48%) seguram o total.
+  - **2 · equilíbrio: ✗ só no Faeries.** `forca.mjs` Shark × Shark, duas metades em dois núcleos (sementes 100 e 5000,
+    5 rodadas cada), **200 decididas, 80 por lista** — abaixo das 200 por lista do aceite; margem por lista ±11. Madness
+    **45–35 (56%)** · Terror **46–34 (57,5%)** · Elfos **43–37 (54%)** · Control **40–40 (50%)** · **Faeries 26–54 (32,5%)**.
+    Contra a B-185 (208 decididas): Control **29 → 50** (o `segura` e o Longbow; sobe fora da margem, mas a B24 só fecha com
+    200+ decididas da lista), Elfos 50 → 54, Madness 66 → 56, Terror 59 → 57,5 e **Faeries 47 → 32,5** — a queda das Faeries
+    é o reverso da subida do Control e do Terror (os dois passaram a segurar anulação contra elas) e passa da margem.
+  - **3 · bateria profissional: 30 de 31 (97%) ✓** (alvo 85%); só erra `volta-isca`.
+  - **4 · higiene: ✓** p95 374 ms, pior 862 ms com a máquina livre (B-199); zero ilegais nas 410 partidas desta leva e da
+    B-199; não vazamento verde; `shark-v24` congelado. Com dois processos em dois núcleos, a pior jogada foi 1.047 ms.
+  - **Veredito:** duas réguas cumpridas (bateria, higiene), duas não (força, equilíbrio), e as duas falham no mesmo lugar:
+    **o Faeries**. A B25 continua 🟡. Plano do que falta (~4 levas): classe **(B)** remoção e anulação em alvo barato
+    (posição montada no F1251 T3: passar e dar Snuff Out no Priest of Titania na pilha), classe **(A)** mana do Counterspell
+    no próprio turno com outra regra que não o `segura` (que mediu 8 × 11), classes **(D)** e **(E)** juntas; depois a
+    régua absoluta e o equilíbrio de novo, com 200+ decididas por lista (≈ 4 h em dois núcleos).
 - **Fase 2 · B-194 · avaliação aprendida, primeira medida (02/11/2026) — negativa, desligada.** `bot.aprende.mjs` (novo, fora
   do portão): `coleta` joga Shark × Shark com as cinco listas e grava as parcelas da `avaliaV6` de posições sorteadas e
   quem venceu; `ajusta` faz regressão logística (L2, treino e prova separados por partida) da vitória sobre as parcelas,
