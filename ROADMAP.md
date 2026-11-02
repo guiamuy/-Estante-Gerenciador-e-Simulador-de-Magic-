@@ -8880,11 +8880,21 @@ X14 ataca. Sobre imagem: acima de 1440p o **nome** não ganha (a linha é lida e
      invertido de bigramas: só entram no cálculo as entradas que já passavam no filtro de bigramas. 6,1 ms por leitura
      (10×), resultado idêntico em 3.000 leituras ruidosas da base real. Montar a base continua em ~0,7 s em Node uma
      vez por abertura do scanner (no celular, alguns segundos): fica para a próxima leva da trilha, com medida no aparelho.
-  3. **S-601** · japonês e chinês (simplificado e tradicional): o leitor de hoje só conhece letras latinas; precisa dos
-     dados de leitura de cada escrita (baixados uma vez, guardados para usar sem internet; origem a revisar pela
-     `protecao`). Os nomes já saem do fluxo desde a S-598. Até lá, a carta japonesa ou chinesa entra pela arte (X12).
-  4. **S-602** · coreano e russo, no mesmo molde.
-- **Parcial, e o que falta:** fatias 3 e 4 (S-601, S-602); calibração dos limiares de arte com dados reais (S-604: o
+  3. **S-601** ✅ · japonês e chinês (simplificado e tradicional). Scanner › ⋯ › **Idioma impresso**: Latino (inglês,
+     português, espanhol, italiano, francês, alemão) · Japonês · Chinês simpl. · Chinês trad. A escolha fica no aparelho
+     (`scanner.idioma`). O leitor do nome sobe com os dados da escrita (`jpn`, `chi_sim`, `chi_tra`, ~1,7–2 MB cada, do mesmo
+     `cdn.jsdelivr.net/npm/@tesseract.js-data` do leitor em inglês: nenhuma origem nova; o service worker guarda), sem a
+     lista de letras latinas; o da edição continua em inglês (a linha de coleção é latina). Os nomes da língua
+     (`names.ja`/`zhs`/`zht`, derivados) só são baixados depois da escolha. Casamento próprio da escrita (`indiceCjk`,
+     `matchCjk`): chave NFKC sem espaço nem pontuação, filtro por ideograma em comum, mesma régua de nota do latino.
+     **Medida com o leitor de verdade** (01/11/2026, 60 nomes sorteados de cada arquivo, desenhados em Noto Sans CJK, limpo
+     e borrado 1,2 px): japonês 58–59 certos (55 acima do aceite), chinês simplificado 57–58 (48–50), tradicional 58–59
+     (53). Erros: um ideograma trocado que deixa a leitura a uma troca de duas cartas (不撓/不動のアジャニ; 至尊魔戒 e
+     至尊魔戒锢余众) — as duas vêm coladas e o porteiro não aceita nenhuma (margem); a arte decide ou a pessoa confere.
+     Fonte desenhada não é carta fotografada: falta medir no aparelho. Fora: detectar o idioma sozinho (seriam dois
+     leitores por quadro), nome em vertical.
+  4. **S-602** · coreano e russo, no mesmo molde (o casamento da escrita já aceita hangul; o russo pede chave cirílica).
+- **Parcial, e o que falta:** fatia 4 (S-602); calibração dos limiares de arte com dados reais (S-604: o
   autoteste precisa gravar a distribuição inteira, não só mediana e p95); montar a base de nomes sem travar a tela;
   não testado no aparelho. Fora: traduzir a interface, mostrar o nome impresso na coleção.
 - **Testes:** U (`artes.unit`: sem os nomes em português o print não casa — o defeito —, com eles casa exato, com troca de
@@ -8901,6 +8911,12 @@ X14 ataca. Sobre imagem: acima de 1440p o **nome** não ganha (a linha é lida e
   S-603: U (`scanner.unit`: o índice invertido devolve exatamente o que a varredura antiga devolve em 150 leituras
   ruidosas com apelidos; candidatos em ordem do índice; bigrama em mais de 65 mil entradas não estoura a contagem —
   defeito achado na medida, o teste falha sem a correção).
+  S-601: U (`artes.unit`: japonês e chinês casam pela escrita com espaço entre ideogramas, kana de meia largura, custo de
+  mana no fim e um ideograma trocado; o caso medido 不擁のアジャニ devolve os dois Ajani colados, abaixo da margem do
+  porteiro; sem escolher a língua nada de japonês é baixado e a leitura não casa — o defeito —; escolhida, só ela é
+  baixada, guarda, volta sem rede; o latino segue igual). E2E (folha com os quatro idiomas sem estouro; "Japonês" sobe o
+  leitor `jpn` sem lista de letras, pede `nomes-ja.json`, mantém o automático pausado e 対抗呪文 entra como Counterspell;
+  reabrir já sobe o japonês).
 
 **X13 · Câmera no máximo e cronômetro de leitura** 🟡 (leva 120; aguardando teste no aparelho)
 - **Valor:** o scanner usa tudo o que a câmera do aparelho entrega, e passa a dizer quanto demora, por etapa.

@@ -432,3 +432,65 @@ test('S-600 · dados em massa no formato de 01/11/2026 (só jsonl_download_uri, 
   assert.throws(() => enderecoDaMassa({ jsonl_download_uri: 'https://exemplo.com/a.jsonl.gz' }), /sem endereço da Scryfall/);
   assert.throws(() => enderecoDaMassa({}), /sem endereço da Scryfall/);
 });
+
+/* ---------------- S-601 · X20 fatia 3: japonês e chinês ---------------- */
+// Pares tirados dos arquivos nomes-ja/zhs/zht.json gerados pelo fluxo em 01/11/2026 (Scryfall, dados em massa All Cards).
+const NOMES_CJK = {
+  ja: [['稲妻', 'Lightning Bolt'], ['対抗呪文', 'Counterspell'], ['不動のアジャニ', 'Ajani Steadfast'], ['不撓のアジャニ', 'Ajani Unyielding'], ['ラノワールのエルフ', 'Llanowar Elves']],
+  zhs: [['闪电击', 'Lightning Bolt'], ['反击咒语', 'Counterspell'], ['罗堰妖精', 'Llanowar Elves'], ['坚定的阿耶尼', 'Ajani Steadfast']],
+  zht: [['閃電擊', 'Lightning Bolt'], ['反擊咒語', 'Counterspell'], ['羅堰妖精', 'Llanowar Elves']]
+};
+
+test('S-601 · nome impresso em japonês e chinês: casa pela escrita, com leitura partida, ruído e um ideograma trocado', () => {
+  const ix = X.indiceCjk([...NOMES_CJK.ja, ...NOMES_CJK.zhs, ...NOMES_CJK.zht, ['Anular Feitiço', 'Counterspell']]);
+  assert.equal(ix.entradas.length, 12, 'par latino não entra no índice da escrita');
+  const top = t => X.matchCjk(ix, t)[0] || {};
+  assert.deepEqual([top('稲妻').name, top('稲妻').exata], ['Lightning Bolt', true]);
+  assert.equal(top('稲 妻').name, 'Lightning Bolt', 'o leitor põe espaço entre os ideogramas');
+  assert.equal(top('ラノワール の エルフ\n').name, 'Llanowar Elves');
+  assert.equal(top('ﾗﾉﾜｰﾙのｴﾙﾌ').name, 'Llanowar Elves', 'kana de meia largura (NFKC)');
+  assert.equal(top('閃電擊').name, 'Lightning Bolt'); assert.equal(top('闪电击').name, 'Lightning Bolt');
+  assert.equal(top('対抗呪文 1U').name, 'Counterspell', 'custo de mana lido como texto no fim');
+  const um = X.matchCjk(ix, '坚定的阿耶尸')[0];
+  assert.equal(um.name, 'Ajani Steadfast'); assert.ok(um.score >= X.ACCEPT && um.score < 1, 'um ideograma trocado em seis: aproximado, acima do aceite');
+  // medida com o leitor de verdade (01/11/2026): 不撓 lido como 不擁 fica a uma troca dos dois Ajani — os dois vêm juntos, colados,
+  // e o porteiro (margem) não deixa entrar nenhum: a arte decide ou a pessoa confere
+  const dois = X.matchCjk(ix, '不擁のアジャニ');
+  assert.deepEqual([...dois].map(d => d.name).sort(), ['Ajani Steadfast', 'Ajani Unyielding']);
+  assert.ok(dois[0].score - dois[1].score < X.PORTEIRO.margem);
+  assert.equal(X.matchCjk(ix, '稲').length, 0, 'um caractere só não basta');
+  assert.equal(X.matchCjk(ix, 'Lightning Bolt').length, 0, 'texto latino não passa por aqui');
+  assert.ok(X.temCjk('不撓') && !X.temCjk('Beledros'));
+});
+
+test('S-601 · a língua do leitor pede os nomes da sua escrita; o latino segue igual; sem pedir, nada de japonês é baixado', async () => {
+  const scryfall = { catalogNames: async () => ['Counterspell', 'Lightning Bolt', 'Llanowar Elves', 'Ajani Steadfast', 'Ajani Unyielding'] };
+  const pedidos = [], todos = { ...NOMES_TESTE, ...NOMES_CJK };
+  const fetchFn = async url => {
+    const m = /\/artes\/nomes-([a-z]+)\.json$/.exec(url); assert.ok(m, 'só o ramo artes: ' + url); pedidos.push(m[1]);
+    return todos[m[1]] ? { ok: true, json: async () => ({ versao: 1, idioma: m[1], pares: todos[m[1]] }) } : { ok: false, status: 404 };
+  };
+  const loja = lojaMemoria(); let t = Date.UTC(2026, 10, 2);
+  const n = X.createNameIndex({ store: loja, scryfall, now: () => t, fetchFn });
+  await n.ensure({ online: true, impressos: true });
+  assert.deepEqual(pedidos.sort(), ['de', 'es', 'fr', 'it', 'pt'], 'sem escolher japonês ou chinês, só as latinas');
+  assert.equal(n.match('稲妻').length, 0, 'sem os nomes japoneses, a leitura em japonês não casa (o defeito)');
+  n.usaLingua('ja'); pedidos.length = 0;
+  await n.ensure({ online: true, impressos: true });
+  assert.deepEqual(pedidos, ['ja'], 'só a língua nova é baixada');
+  assert.equal(n.match('稲妻')[0].name, 'Lightning Bolt'); assert.equal(n.match('ラノワールのエルフ')[0].name, 'Llanowar Elves');
+  assert.equal(n.match('Anular Feitico')[0].name, 'Counterspell', 'o latino continua'); assert.equal(n.match('Counterspell')[0].name, 'Counterspell');
+  assert.equal(n.info().idiomas.ja, 5); assert.ok(loja.m.has('names.ja'));
+  assert.ok(!n.match('闪电击')[0], 'chinês não veio junto');
+  // reabrindo sem rede: os nomes japoneses guardados voltam com a base
+  const n2 = X.createNameIndex({ store: loja, scryfall, now: () => t, fetchFn: async () => { throw new Error('sem rede'); } });
+  await n2.ensure({ online: false, impressos: true });
+  assert.equal(n2.match('稲妻')[0].name, 'Lightning Bolt');
+  n.usaLingua('zht'); pedidos.length = 0; await n.ensure({ online: true, impressos: true });
+  assert.deepEqual(pedidos, ['zht']); assert.equal(n.match('羅堰妖精')[0].name, 'Llanowar Elves');
+  assert.equal(n.match('稲妻')[0].name, 'Lightning Bolt', 'o japonês já guardado continua valendo');
+  n.usaLingua('xx'); pedidos.length = 0; await n.ensure({ online: true, impressos: true });
+  assert.deepEqual(pedidos, [], 'língua desconhecida vira latino: nada novo');
+  assert.equal(X.linguaDoLeitor('ja'), 'ja'); assert.equal(X.linguaDoLeitor('toString'), 'latino'); assert.equal(X.linguaDoLeitor(undefined), 'latino');
+  assert.deepEqual(Object.fromEntries(Object.entries(X.LINGUAS_DO_LEITOR).map(([k, v]) => [k, v.ocr])), { latino: 'eng', ja: 'jpn', zhs: 'chi_sim', zht: 'chi_tra' });
+});
