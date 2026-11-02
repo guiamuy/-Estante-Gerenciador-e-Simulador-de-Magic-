@@ -9548,6 +9548,42 @@ test('e2e · DS-K2 J2 · Jogar como mesa de preparação: a sua lista é um cart
 // DS-K2 M2 (J-37) · a mão em leque, como na proposta K: a carta da mão encolhe (de --carta-mao até --carta-mao-min) para a
 // mão caber sem rolar; uma carta cobre no máximo 40% da vizinha, então o centro de cada carta é dela (é ali que o dedo e o
 // teste tocam); as pontas giram até 10° e descem em arco; a carta segurada endireita, sobe e fica por cima. Com 8 cartas em
+// J-49 (decisão do dono, 02/11/2026) · na folha da carta, entre a linha "jogador · zona · P/R" e o texto, os estados viram
+// chips com o ícone da mesa, o rótulo e a explicação, na cor da família; carta sem estado não ganha a fileira.
+test('e2e · J-49 chips de estado na folha da carta: ícone + rótulo + explicação na cor da família, entre a linha de quem é e o texto; sem estado, nada; 360 e 390, dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await createDeck(page, base, 'Folha', '24 Mountain\n36 Delver of Secrets');
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start'); await page.fill('#mesa-seed', '3');
+  await page.click('[data-opponent="goldfish"]');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-pass');
+  const oids = await page.evaluate(() => { const M = window.__estanteMesa, s = M.estado(), p = s.turn.active;
+    const d = Object.values(s.objects).find(o => o.owner === p && o.name === 'Delver of Secrets' && o.zone === 'library').oid, m = Object.values(s.objects).find(o => o.owner === p && o.name === 'Mountain' && o.zone === 'library').oid;
+    for (const oid of [d, m]) M.act({ t: 'move', p, oid, to: 'battlefield' });
+    M.act({ t: 'counter', p, oid: d, kind: 'p1p1', delta: 2 }); M.act({ t: 'damage', p, oid: d, delta: 1 }); return { d, m }; });
+  const abre = async oid => { await page.click(`.tb-side--me .tb-card[data-oid="${oid}"]`); await page.waitForSelector('.ds-dialog'); await page.waitForTimeout(250); };
+  const le = () => page.evaluate(() => { const d = document.querySelector('.ds-dialog'), R = e => e.getBoundingClientRect(), hex = c => { const m = c.match(/^#([0-9a-f]{6})$/i); return m ? `rgb(${parseInt(m[1].slice(0, 2), 16)}, ${parseInt(m[1].slice(2, 4), 16)}, ${parseInt(m[1].slice(4, 6), 16)})` : c; };
+    const tok = n => hex(getComputedStyle(document.documentElement).getPropertyValue(n).trim());
+    const quem = d.querySelector('.tb-sheet__quem > p'), fila = d.querySelector('#tb-sheet-estados'), texto = d.querySelector('.tb-adj__oracle, .tb-sheet__texto');
+    return { quem: quem && quem.textContent, chips: fila ? [...fila.querySelectorAll('.tb-estado-chip')].map(c => ({ marca: c.dataset.marca, familia: c.dataset.familia, svg: !!c.querySelector('svg'), rotulo: c.querySelector('b').textContent, explica: (c.querySelector('small') || {}).textContent || '', cor: getComputedStyle(c.querySelector('.tb-estado-chip__icone')).color, h: R(c).height, dentro: R(c).right <= R(d).right + 0.5 })) : null,
+      ordem: fila && quem && texto ? R(quem).bottom <= R(fila).top + 0.5 && R(fila).bottom <= R(texto).top + 0.5 : null, cores: { enjoo: tok('--estado-enjoo'), ganho: tok('--positive'), perda: tok('--negative') }, larguraDoc: document.documentElement.scrollWidth - innerWidth }; });
+  for (const [w, hgt] of [[360, 780], [390, 844]]) for (const tema of ['dark', 'light']) {
+    await page.setViewportSize({ width: w, height: hgt }); await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(200);
+    const onde = `${w} ${tema}`;
+    await abre(oids.d); const f = await le();
+    assert.match(f.quem, /Você · campo · 3\/3/, `${onde}: a linha de quem é continua (${f.quem})`);
+    assert.deepEqual(f.chips.map(c => [c.marca, c.familia, c.svg, c.rotulo].join('|')), ['enjoo|enjoo|true|Enjoo', 'marcador|ganho|true|+2/+2', 'dano|perda|true|1 dano'], `${onde}: três chips com ícone e rótulo ` + JSON.stringify(f.chips));
+    assert.deepEqual(f.chips.map(c => c.cor), [f.cores.enjoo, f.cores.ganho, f.cores.perda], `${onde}: a cor da família`);
+    assert.ok(f.chips.every(c => c.explica && c.h >= 36 && c.dentro), `${onde}: cada chip explica, tem 36 px e cabe na folha ` + JSON.stringify(f.chips));
+    assert.ok(f.ordem, `${onde}: os chips ficam entre a linha de quem é e o texto da carta`); assert.equal(f.larguraDoc, 0, `${onde}: nada rola de lado`);
+    await auditaTela(page, `J-49 · folha com estados ${onde}`);
+    if (process.env.SHOTS && w === 360 && tema === 'dark') await page.screenshot({ path: process.env.SHOTS + '/j49-folha.png' });
+    await page.keyboard.press('Escape'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
+    await abre(oids.m); const g = await le(); assert.equal(g.chips, null, `${onde}: carta sem estado não ganha a fileira`); await page.keyboard.press('Escape'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
+  }
+  assert.deepEqual(errors, []);
+});
+
 // J-48 (decisão do dono, 02/11/2026) · os estados da carta (enjoo, marcadores, dano, combate, anexos…) deixam de ser pílulas
 // e selos por cima da arte: viram ícones flat na barra de P/R, à esquerda, com a cor da família por token; até três e "+N".
 test('e2e · J-48 estados como ícones na barra de P/R: nada por cima da arte, ícones à esquerda do P/R com cor por família, até três e "+N", nome falado inteiro; carta virada leva a barra junto; 360 e 390, dois temas', { skip }, async t => {
