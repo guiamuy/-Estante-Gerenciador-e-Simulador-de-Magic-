@@ -35698,8 +35698,8 @@ const __m25 = (function () {
    cada): neutra em força (dentro do ruído), ligada pelo comportamento. 'shark-v21' é o Shark da B-192, congelado.
    A ANULAÇÃO ABERTA DO CONTROL (B25, leva B-196): o perfil `controle` liga o pedágio de deixar a anulação sem mana no turno
    do outro (`segura`, B10b) e a regra de não gastar essa mana "porque ia sobrar" (`guardaNaSobra`, B-193); o terreno que
-   ainda dá para baixar no turno conta como fonte. Medida pareada: Control 27 × 23 (48 pares). As Faeries perdem com o
-   pedágio (8 × 11) e o Terror ficou dentro do ruído (15 × 12): os outros perfis não ligam. 'shark-v22' é o Shark da
+   ainda dá para baixar no turno conta como fonte. Medida pareada: Control 27 × 23 (48 pares). O perfil `terror` liga
+   também (B-197): Terror 35 × 28 (48 pares). As Faeries perdem com o pedágio (8 × 11) e não ligam. 'shark-v22' é o Shark da
    B-195, congelado.
    LIMITES DE HOJE: um lance à frente + resposta do oponente (na pilha e depois dela) + combate; sem plano
    de vários turnos, sem blefe; não joga em volta do truque de combate nem da varredura; na pilha não responde à resposta
@@ -37190,8 +37190,10 @@ const PERFIS = [
   // in your graveyard", texto da Scryfall em .listas/oficiais-revisadas.json, 23/10/2026). Cada instantânea ou feitiço no
   // próprio cemitério vale `valorPorCarta`, até `teto` cartas, enquanto houver uma das `enquanto` na mão — é o que faz o Shark
   // conjurar os cantrips cedo (inclusive no fim do turno do oponente) em vez de guardá-los.
+  // B-197 · `segura` também no Terror (o pedágio de deixar a anulação sem mana no turno do outro, ligado pelo perfil, B-196):
+  // Terror 35 × 28 em 48 pares (11 só do novo, 4 só do antigo); com o pedágio sozinho, 15 × 12 em 24. As Faeries continuam sem.
   { id: 'terror', nome: 'Mono Blue Terror', exige: ['Tolarian Terror', 'Cryptic Serpent'],
-    cemiterio: { tipos: ['instant', 'sorcery'], valorPorCarta: 1.2, teto: 6, enquanto: ['Tolarian Terror', 'Cryptic Serpent'] } },
+    cemiterio: { tipos: ['instant', 'sorcery'], valorPorCarta: 1.2, teto: 6, enquanto: ['Tolarian Terror', 'Cryptic Serpent'] }, segura: true },
   // B-176 · Dimir Control (lista do Shark `shark-controle`): plano de remoção, anulação e vantagem de cartas; com a opção
   // `ameacas` (desligada: medida sem ganho), a remoção vai primeiro nas ameaças do campo, não no corpo maior.
   // B-196 · `segura` (o pedágio de deixar a anulação sem mana no turno do outro, B10b) vale para o Control e não para os

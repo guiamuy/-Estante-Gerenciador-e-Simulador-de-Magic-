@@ -62,3 +62,9 @@ test('B-196 · anulação aberta do Control: com a Counterspell na mão, o Shark
   const L = POSICOES.find(x => x.id === 'recurso-lorien-ciclar'), { s } = L.monta(), j = B.criaBot({ nivel: 'shark', agora: () => 0 }).jogada(s, 0);
   assert.ok(L.certo(s, j), 'o terreno que ainda dá para baixar conta como fonte: ' + j.motivo);
 });
+
+test('B-197 · o pedágio de segurar a anulação vem do perfil: Control e Terror ligam, Faeries não (dado em PERFIS)', () => {
+  const pf = id => B.PERFIS.find(x => x.id === id) || {};
+  assert.equal(pf('controle').segura, true); assert.equal(pf('terror').segura, true);
+  assert.ok(!B.PERFIS.some(x => /faer/i.test(x.id) && x.segura), 'as Faeries perdem com o pedágio (8 × 11)');
+});

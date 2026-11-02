@@ -8162,6 +8162,19 @@ estruturado para tornarmos o Shark um jogador de nível profissional com as suas
   **Medida pareada** do Control com o perfil: **27 × 23 em 48 pares** (8 só do novo, 4 só do antigo); zero ilegais. Os outros
   perfis não mudam. As duas posições da B-193 passam: bateria **29 de 30** (erra só a isca); piso 27 → 29. **`shark-v22` é o
   Shark da B-195, congelado.** O Terror (15 × 12) fica como candidato, com medida própria.
+- **Fase 4 · B-197 · o Terror também segura a anulação (02/11/2026).** O perfil `terror` ganha `segura: true` (dado). **Medida
+  pareada** do Terror pilotado com e sem o perfil ligado (400 ms, 48 pares, contra o Shark da B-196): **35 × 28** (11 só do
+  novo, 4 só do antigo); zero ilegais. Somada à medida do pedágio sozinho (15 × 12 em 24): 50 × 40 em 72. A pior jogada
+  passou de 4 s com o envio de uma leva rodando o portão na mesma máquina de dois núcleos: o p95 é medido de novo com a
+  máquina livre no fechamento. Sem nível congelado novo (é dado do perfil; a comparação foi `z:!seguraNoPerfil`).
+- **Régua absoluta, medida intermediária (02/11/2026, Shark da B-197 × `shark-v12`, as mesmas sementes da B-187:
+  `torneio.listas.mjs shark shark-v12 7 31000`, `LISTAS=shark`, 400 ms):** **107–103 em 210 decididas · 51%** (linha de base
+  49%; dentro da margem de ±7); zero ilegais. Por lista do Shark novo: Madness 26–16 (62%) · Control 23–19 (55%) · Terror
+  23–19 (55%) · Elfos 19–23 (45%) · **Faeries 16–26 (38%)**. **Leitura honesta:** os ganhos pareados das B-190…B-197 foram
+  medidos contra o Shark da leva anterior e somam pouco contra a v12; as Faeries pilotadas pelo Shark novo estão **piores**
+  que pela v12 — alguma peça ligada depois da v12 custa às Faeries (que jogam no turno do outro, com lampejo). É a próxima
+  pergunta (ablação com o piloto Faeries). A pior jogada passou de 3 s (5 s numa fatia) com dois processos em dois
+  núcleos: o tempo por decisão volta à régua de higiene com a máquina livre.
 - **Fase 2 · B-194 · avaliação aprendida, primeira medida (02/11/2026) — negativa, desligada.** `bot.aprende.mjs` (novo, fora
   do portão): `coleta` joga Shark × Shark com as cinco listas e grava as parcelas da `avaliaV6` de posições sorteadas e
   quem venceu; `ajusta` faz regressão logística (L2, treino e prova separados por partida) da vitória sobre as parcelas,
