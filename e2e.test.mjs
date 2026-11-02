@@ -4281,12 +4281,14 @@ test('e2e · leva 110 Fiery Temper mira você e o oponente; Utopia Sprawl vira s
   // toda pílula de toda carta cabe na carta
   const fora = await page.evaluate(() => [...document.querySelectorAll('.tb-card')].flatMap(c => [...c.querySelectorAll('.tb-pill')].filter(x => { const a = c.getBoundingClientRect(), b = x.getBoundingClientRect(); return b.width > a.width + 1; }).map(x => x.textContent)));
   assert.deepEqual(fora, [], 'nenhuma pílula passa da largura da carta');
-  // carta virada: o nome continua deitado na horizontal e inteiro (antes girava junto e saía "Razortrap Go…" de pé)
+  // carta virada: o nome continua inteiro (antes girava junto e saía "Razortrap Go…" de pé). J-54 (decisão do dono, 02/11/2026): na carta
+  // com moldura a faixa do nome é parte da face e gira junto — fica de pé (mais alta que larga), inteira e dentro da carta deitada
   await page.evaluate(p => { const M = window.__estanteMesa, s = M.estado(); const m = s.zones[p].battlefield.find(o => s.objects[o].name === 'Mountain'); M.act({ t: 'tap', p, oid: m }); }, p);
   await page.waitForSelector('.tb-side--me .tb-card[data-tapped="true"] .tb-card__label');
   const rot = await page.evaluate(() => { const c = document.querySelector('.tb-side--me .tb-card[data-tapped="true"]'), l = c.querySelector('.tb-card__label'); const b = l.getBoundingClientRect();
-    return { deitado: b.width > b.height, inteiro: l.scrollHeight <= l.clientHeight + 1, dentro: l.closest('.tb-card__face') === null }; });
-  assert.deepEqual(rot, { deitado: true, inteiro: true, dentro: true }, 'nome da carta virada na horizontal');
+    const f = c.querySelector('.tb-card__face').getBoundingClientRect();
+    return { giraJunto: b.height > b.width, inteiro: l.scrollHeight <= l.clientHeight + 1 && l.scrollWidth <= l.clientWidth + 1, naFace: !!l.closest('.tb-card__face'), dentro: b.left >= f.left - 0.5 && b.right <= f.right + 0.5 && b.top >= f.top - 0.5 && b.bottom <= f.bottom + 0.5 }; });
+  assert.deepEqual(rot, { giraJunto: true, inteiro: true, naFace: true, dentro: true }, 'nome da carta virada gira com ela, inteiro e dentro da face');
   if (process.env.SHOTS) { await page.click('#tb-hand-toggle'); await page.waitForTimeout(350);
     await page.evaluate(() => document.querySelector('.tb-side--me .tb-card[data-tapped="true"]').scrollIntoView({ block: 'center' })); await page.waitForTimeout(150);
     await page.screenshot({ path: process.env.SHOTS + '/carta-virada.png' }); await page.click('#tb-hand-toggle'); await page.waitForTimeout(300); }
@@ -9636,6 +9638,59 @@ test('e2e · J-48 estados como ícones na barra de P/R: nada por cima da arte, �
   assert.deepEqual(errors, []);
 });
 
+// J-54 (decisão do dono, 02/11/2026, print com o Overgrown Battlement virado) · o nome da carta deitada ficava fora dela, em duas
+// linhas acima da carta. Agora a faixa do nome é parte da face: na carta virada gira junto, continua a faixa de cima da carta (à
+// direita, deitada), inteira, do mesmo tamanho relativo, simétrica à moldura, sem cobrir a arte e dentro da carta.
+test('e2e · J-54 o nome gira com a carta virada: faixa na face, inteira, no topo da carta deitada (à direita), centrada, sem cobrir a arte; mesma escala de pé e deitada; quatro medidas, dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.route('https://cards.scryfall.io/**', r => r.fulfill({ status: 200, contentType: 'image/svg+xml', headers: { 'access-control-allow-origin': '*' },
+    body: '<svg xmlns="http://www.w3.org/2000/svg" width="488" height="680"><rect width="488" height="680" fill="#111"/><rect x="40" y="76" width="408" height="301" fill="#3e6f8f"/></svg>' }));
+  await createDeck(page, base, 'Nomes deitados', '24 Mountain\n12 Kessig Flamebreather\n12 Ulamog, the Ceaseless Hunger\n12 Delver of Secrets');
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start'); await page.fill('#mesa-seed', '3');
+  await page.click('[data-opponent="goldfish"]');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-pass');
+  const pares = await page.evaluate(() => { const M = window.__estanteMesa, s = M.estado(), p = s.turn.active, out = {};
+    for (const nome of ['Kessig Flamebreather', 'Ulamog, the Ceaseless Hunger', 'Delver of Secrets']) {
+      const [a, b] = Object.values(s.objects).filter(o => o.owner === p && o.name === nome && o.zone === 'library').slice(0, 2).map(o => o.oid);
+      const lenda = nome.startsWith('Ulamog'); // lendária: uma só no campo (704.5j), deitada
+      for (const x of [lenda ? null : { t: 'move', p, oid: a, to: 'battlefield' }, { t: 'move', p, oid: b, to: 'battlefield' }, { t: 'tap', p, oid: b }].filter(Boolean)) try { M.act(x); } catch (e) { out.erros = (out.erros || []).concat(nome + ' ' + x.t + ': ' + e.message); }
+      try { M.act({ t: 'counter', p, oid: b, kind: 'p1p1', delta: 1 }); } catch (e) { out.erros = (out.erros || []).concat(nome + ' counter: ' + e.message); } // a deitada fica diferente da de pé (não vira leque)
+      out[nome] = { pe: lenda ? null : a, deitada: b }; const n = M.estado(); if (n.pending) out.erros = (out.erros || []).concat(nome + ' pendente: ' + JSON.stringify(n.pending).slice(0, 200)); }
+    return out; });
+  assert.equal(pares.erros, undefined, JSON.stringify(pares.erros));
+  await page.waitForFunction(ps => Object.values(ps).every(x => document.querySelector(`.tb-side--me .tb-card[data-oid="${x.deitada}"][data-tapped="true"]`) && (!x.pe || document.querySelector(`.tb-side--me .tb-card[data-oid="${x.pe}"]`))), pares, { timeout: 8000 });
+  await page.waitForFunction(() => [...document.querySelectorAll('.tb-side--me .tb-card__arte img')].every(i => i.complete && i.naturalWidth > 0), null, { timeout: 8000 });
+  const mede = () => page.evaluate(async pares => {
+    await document.fonts.ready;
+    const R = e => e.getBoundingClientRect();
+    const lê = oid => { const c = document.querySelector(`.tb-side--me .tb-card[data-oid="${oid}"]`); if (!c) throw new Error('sem carta ' + oid + ' · ' + [...document.querySelectorAll('.tb-side--me .tb-card')].map(x => x.dataset.oid + ':' + (x.dataset.oids || '') + ':' + x.getAttribute('aria-label')).join(' | '));
+      const lab = c.querySelector('.tb-card__label'), face = c.querySelector('.tb-card__face'), arte = c.querySelector('.tb-card__arte');
+      const l = R(lab), f = R(face), a = R(arte);
+      return { virada: c.dataset.tapped, naFace: lab.parentNode === face, texto: lab.textContent, escala: lab.style.getPropertyValue('--nome-escala') || '1', duas: c.dataset.nomeDuas === 'true',
+        transborda: Math.max(lab.scrollWidth - lab.clientWidth, lab.scrollHeight - lab.clientHeight), cobre: Math.max(0, Math.min(l.right, a.right) - Math.max(l.left, a.left)) * Math.max(0, Math.min(l.bottom, a.bottom) - Math.max(l.top, a.top)),
+        l: { x: l.left, y: l.top, w: l.width, h: l.height }, f: { x: f.left, y: f.top, w: f.width, h: f.height }, a: { x: a.left, w: a.width } }; };
+    return Object.fromEntries(Object.entries(pares).map(([n, p]) => [n, { pe: p.pe ? lê(p.pe) : null, deitada: lê(p.deitada) }]));
+  }, pares);
+  for (const [w, hgt] of [[360, 780], [384, 832], [390, 844], [412, 891]]) for (const tema of ['dark', 'light']) {
+    await page.setViewportSize({ width: w, height: hgt }); await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(350);
+    const m = await mede(), onde = `${w} ${tema}`;
+    for (const [nome, { pe, deitada }] of Object.entries(m)) {
+      const ctx = `${onde} ${nome}: ` + JSON.stringify({ pe, deitada });
+      assert.ok((!pe || (pe.virada === 'false' && pe.naFace)) && deitada.virada === 'true' && deitada.naFace, `a faixa do nome mora na face (${ctx})`);
+      assert.ok(deitada.texto === nome && deitada.transborda <= 1 && deitada.cobre === 0, `deitada: nome inteiro, sem cobrir a arte (${ctx})`);
+      if (pe) assert.ok(deitada.escala === pe.escala && deitada.duas === pe.duas, `deitada e de pé com a mesma letra (${ctx})`);
+      const L = deitada.l, F = deitada.f;
+      assert.ok(L.h > L.w && F.w > F.h, `deitada: a faixa fica de pé ao longo da borda de cima da carta deitada (${ctx})`);
+      assert.ok(L.x >= deitada.a.x + deitada.a.w - 0.5 && L.x + L.w <= F.x + F.w + 0.5 && L.y >= F.y - 0.5 && L.y + L.h <= F.y + F.h + 0.5, `deitada: a faixa fica no topo da carta deitada (à direita da arte) e dentro da carta (${ctx})`);
+      assert.ok(Math.abs((L.y + L.h / 2) - (F.y + F.h / 2)) <= 1.5, `deitada: a faixa centrada na borda (${ctx})`);
+    }
+    await auditaTela(page, `J-54 · nome deitado ${onde}`);
+  }
+  if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark')); await page.waitForTimeout(300); await page.screenshot({ path: process.env.SHOTS + '/j54-nome-deitado.png' }); }
+  assert.deepEqual(errors, []);
+});
+
 // J-53 (decisão do dono, 02/11/2026, print com Mesmeric Fiend e Nyxborn Hydra) · com muitos estados os ícones se empilhavam e o número
 // do marcador cobria o vizinho e o P/R. Agora o pé da carta é uma fileira: os ícones ocupam só o que sobra ao lado do P/R, com tamanho
 // entre o piso e a altura do pé, e o que não cabe vira "+N"; e a barra de rolagem da fileira que rola fica a uma folga da carta.
@@ -9925,7 +9980,7 @@ test('e2e · DS-K2 M1 carta do campo na moldura K: a caixa da arte mostra só a 
         raio: getComputedStyle(c.querySelector('.tb-card__face')).borderTopLeftRadius, so: jan.l <= 1 && jan.r >= aw - 1 && jan.t <= 1 && jan.b >= ah - 1 && ah > 30,
         // J-42 (relato #48) · o nome longo termina em reticências numa linha (antes: duas linhas, que desciam sobre a arte); o nome
         // inteiro continua no nome falado da carta e no espiar
-        nomeCabe: lab.scrollHeight <= lab.clientHeight + 1 && c.getAttribute('aria-label').startsWith(lab.textContent), nomeDentro: l.l >= k.l - 0.5 && l.r <= k.r + 0.5 && l.t >= k.t - 0.5,
+        nomeCabe: lab.scrollHeight <= lab.clientHeight + 1 && c.getAttribute('aria-label').startsWith(lab.textContent), nomeDentro: (f => l.l >= f.l - 0.5 && l.r <= f.r + 0.5 && l.t >= f.t - 0.5)(caixa(c.querySelector('.tb-card__face'))), // J-54 · a faixa mora na face (na carta virada, a face deitada)
         nomeDePe: getComputedStyle(lab).transform === 'none', fundoNome: getComputedStyle(lab).backgroundColor,
         ptNoPe: pt ? caixa(pt).t >= a.b - 1 && caixa(pt).b <= k.b + 0.5 : null, seloLivre: !c.querySelector('.tb-card__sick') || caixa(c.querySelector('.tb-card__sick')).t >= l.b - 0.5 || caixa(c.querySelector('.tb-card__sick')).b <= l.t + 0.5, arteAteABorda: k.b - a.b };
     });
@@ -10014,7 +10069,7 @@ test('e2e · J-42 relato #48 parte 1 · arte inteira no campo: nos dois lados (d
       const lab = c.querySelector('.tb-card__label'), arte = c.querySelector('.tb-card__arte'), cs = getComputedStyle(lab), l = cx(lab.getBoundingClientRect()), a = cx(arte.getBoundingClientRect());
       const linha = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.2;
       return { oid: c.dataset.oid, lado: c.closest('.tb-side--me') ? 'eu' : 'ele', zona: c.closest('[data-zone]').dataset.zone, virada: c.dataset.tapped === 'true', nome: lab.textContent,
-        cobre: +inter(l, a).toFixed(2), umaLinha: lab.clientHeight <= linha * 1.5 + 6, duas: c.dataset.nomeDuas === 'true', transborda: lab.scrollWidth - lab.clientWidth, hifen: cs.hyphens, quebra: cs.whiteSpace, fim: cs.textOverflow, arteH: a.h, dentro: l.l >= c.getBoundingClientRect().left - 0.5 && l.r <= c.getBoundingClientRect().right + 0.5 };
+        cobre: +inter(l, a).toFixed(2), umaLinha: lab.clientHeight <= linha * 1.5 + 6, duas: c.dataset.nomeDuas === 'true', transborda: lab.scrollWidth - lab.clientWidth, hifen: cs.hyphens, quebra: cs.whiteSpace, fim: cs.textOverflow, arteH: a.h, dentro: (f => l.l >= f.left - 0.5 && l.r <= f.right + 0.5 && l.t >= f.top - 0.5 && l.b <= f.bottom + 0.5)(c.querySelector('.tb-card__face').getBoundingClientRect()) }; // J-54 · a faixa mora na face (na carta deitada, a caixa da face é a deitada)
     });
     const semMoldura = [...document.querySelectorAll('.tb-side .tb-card__name')].map(n => ({ nome: n.textContent, hifen: getComputedStyle(n).hyphens, transborda: n.scrollWidth - n.clientWidth }));
     const ilha = document.querySelector(`.tb-side--me .tb-card[data-oid="${sem}"]`);

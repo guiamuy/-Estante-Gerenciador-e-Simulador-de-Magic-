@@ -634,15 +634,16 @@ test('DS-K2 · M1 a carta do campo na moldura K: janela da arte por token sobre 
   assert.ok(0.112 >= 76 / 680 - 0.0005 && 0.112 + 0.442 <= 377 / 680 + 0.0005, 'a caixa da arte nunca mostra a moldura impressa em cima nem embaixo');
   assert.match(componentCss, /\.tb-card__face \.tb-card__arte img \{ position: absolute; left: 50%; top: calc\(100% \* var\(--arte-topo\) \/ var\(--arte-alto\) \* -1\); height: calc\(100% \/ var\(--arte-alto\)\);\s*width: auto; min-width: 100%; max-width: none; object-fit: cover; transform: translateX\(-50%\); \}/);
   assert.match(componentCss, /\.tb-card\[data-moldura-pe="true"\] \.tb-card__arte \{ bottom: var\(--moldura-ft\); \}/, 'o pé só existe quando há P/T');
-  assert.match(componentCss, /\.tb-card\[data-moldura="true"\] > \.tb-card__label \{[^}]*background: var\(--bg-elev-1\);/, 'o nome vira faixa opaca (fora da face: a carta virada não leva o nome junto)');
+  assert.match(componentCss, /\.tb-card\[data-moldura="true"\] \.tb-card__face > \.tb-card__label \{[^}]*background: var\(--bg-elev-1\);/, 'o nome vira faixa opaca (J-54: dentro da face, gira com a carta virada)');
   // J-42 (relato #48) · a faixa do nome numa linha, com a letra da faixa (--text-3xs, a mesma do --moldura-hd), reticências e sem hífen:
   // duas linhas desciam sobre a arte e "Moun-tain" quebrava o nome do terreno
   // J-46 · o nome nunca é abreviado: a letra encolhe por --nome-escala (medida pela mesa) até --nome-piso, depois duas linhas no piso; sem reticências
-  assert.match(componentCss, /\.tb-card\[data-moldura="true"\] > \.tb-card__label \{[^}]*font-size: calc\(var\(--text-3xs\) \* var\(--nome-escala, 1\)\); line-height: 1\.2; display: block; white-space: nowrap; text-overflow: clip; hyphens: manual;/);
+  assert.match(componentCss, /\.tb-card\[data-moldura="true"\] \.tb-card__face > \.tb-card__label \{[^}]*font-size: calc\(var\(--text-3xs\) \* var\(--nome-escala, 1\)\); line-height: 1\.2; display: block; white-space: nowrap; text-overflow: clip; hyphens: manual;/);
   assert.match(css, /:root \{ --nome-piso: 0\.78; \}/, 'o piso da letra do nome é token');
   assert.match(componentCss, /\.tb-card\[data-nome-duas="true"\], \.tb-leque\[data-nome-duas="true"\] \{ --moldura-hd: calc\(var\(--text-3xs\) \* var\(--nome-piso\) \* 1\.15 \* 2 \+ 6px\); \}/, 'em duas linhas a faixa cresce e a janela da arte encurta, na carta e nas cópias de trás');
   assert.match(componentCss, /\.tb-leque__camada \.tb-card__arte img \{ position: absolute; left: 50%;/, 'as cópias de trás da pilha levam a arte na mesma janela');
-  assert.match(componentCss, /\.tb-card\[data-moldura="true"\]\[data-tapped="true"\] > \.tb-card__label \{ top: auto; bottom: 78%;/, 'deitada, a faixa fica acima da carta, fora da arte');
+  // J-54 (decisão do dono, 02/11/2026) · deitada, a faixa gira com a face (não há mais regra que a ponha acima da carta deitada)
+  assert.ok(!/\.tb-card\[data-moldura="true"\]\[data-tapped="true"\] > \.tb-card__label/.test(componentCss), 'deitada, a faixa não sai da face');
   assert.match(css, /:root \{ --vida-disco: 34px; \}/, 'o disco da vida é token');
   // J-43 (relato #48 parte 2) · os dois lados com o mesmo playmat, por token nos três blocos de tema; nenhum lado transparente
   assert.match(css, /:root \{ --playmat: var\(--bg-elev-1\); \}/, 'o playmat é o papel do lado, que muda com o tema (vale nos dois temas e no claro automático)');

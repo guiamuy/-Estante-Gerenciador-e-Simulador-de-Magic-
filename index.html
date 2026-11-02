@@ -2770,8 +2770,8 @@ body[data-mesa-cheia="true"] .tb-steps__list > li::after { inset: 0; height: aut
   /* Leva 110 · até duas linhas, nunca reticências no meio de um nome comum */
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 /* virada: o nome continua na horizontal, colado à borda de cima da carta deitada (a face gira 90° e encolhe a .78) */
-.tb-card[data-tapped="true"] .tb-card__label { top: 22%; border-radius: 0; }
-.tb-card[data-selected="true"] .tb-card__label { transform: translateY(calc(var(--space-2) * -1)); }
+.tb-card[data-tapped="true"] > .tb-card__label { top: 22%; border-radius: 0; }
+.tb-card[data-selected="true"] > .tb-card__label { transform: translateY(calc(var(--space-2) * -1)); }
 .tb-card__pt { position: absolute; right: 2px; bottom: 2px; padding: 0 var(--space-1); border-radius: var(--radius-1); font-family: var(--font-display); font-size: var(--text-xs); line-height: 1.4; color: var(--fg); background: var(--scrim); border: 1px solid var(--border); }
 /* R5 · Aura ou Equipamento colado em quem o carrega: sem o vão entre as cartas e com um filete do lado de onde vem */
 .tb-row > .tb-card[data-anexo="true"] { margin-left: calc(var(--space-2) * -1); }
@@ -2801,15 +2801,16 @@ body[data-mesa-cheia="true"] .tb-steps__list > li::after { inset: 0; height: aut
   width: auto; min-width: 100%; max-width: none; object-fit: cover; transform: translateX(-50%); }
 /* J-42 (relato #48) · a faixa do nome cabe na faixa de cima da moldura (--moldura-hd) e nunca desce sobre a arte: uma linha, letra
    menor, reticências no fim, sem hífen; o nome inteiro fica no nome falado e no espiar */
-.tb-card[data-moldura="true"] > .tb-card__label { top: 1px; left: 1px; right: 1px; background: var(--bg-elev-1); font-weight: 600; padding: 2px var(--space-1);
+.tb-card[data-moldura="true"] .tb-card__face > .tb-card__label { top: 0; left: 0; right: 0; background: var(--bg-elev-1); font-weight: 600; padding: 2px var(--space-1);
   font-size: calc(var(--text-3xs) * var(--nome-escala, 1)); line-height: 1.2; display: block; white-space: nowrap; text-overflow: clip; hyphens: manual; -webkit-line-clamp: none;
   border-radius: calc(var(--carta-campo) * .0475) calc(var(--carta-campo) * .0475) 0 0; box-shadow: 0 1px 0 var(--border); }
 /* J-46 (decisão do dono, 02/11/2026) · o nome nunca é abreviado: a letra da faixa encolhe (--nome-escala, medida pela mesa) até o piso
    (--nome-piso); o que não cabe nem no piso vai para duas linhas no piso, e a faixa cresce para baixo (a janela da arte encurta) */
 .tb-card[data-nome-duas="true"], .tb-leque[data-nome-duas="true"] { --moldura-hd: calc(var(--text-3xs) * var(--nome-piso) * 1.15 * 2 + 6px); }
-.tb-card[data-nome-duas="true"] > .tb-card__label { white-space: normal; line-height: 1.15; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: anywhere; }
-/* deitada: a faixa fica logo acima da carta deitada (que começa a 22% da caixa), sem cobrir a arte que gira junto com a face */
-.tb-card[data-moldura="true"][data-tapped="true"] > .tb-card__label { top: auto; bottom: 78%; left: 0; right: 0; border-radius: 0; }
+.tb-card[data-nome-duas="true"] .tb-card__face > .tb-card__label { white-space: normal; line-height: 1.15; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: anywhere; }
+/* J-54 (decisão do dono, 02/11/2026) · a faixa do nome mora dentro da face: na carta virada ela gira junto, continua a faixa de
+   cima da carta (agora à direita, deitada), do mesmo tamanho relativo e simétrica à moldura, e nunca sai do retângulo da carta.
+   Desfaz a Leva 110 (nome deitado fora da face), que valia para a carta sem moldura: a moldura tem a faixa própria */
 .tb-card[data-moldura="true"] .tb-card__pt { background: var(--bg-elev-1); }
 /* J-48 (decisão do dono, 02/11/2026) · os estados da carta são ícones flat na barra de P/R, à esquerda, e nunca cobrem a arte:
    cada ícone com a cor da família (token nos dois temas); até três, o resto vira "+N"; o nome falado e a folha da carta dizem tudo.
@@ -37728,6 +37729,7 @@ function TableCard(card, opts = {}) {
   const barra = opts.verso ? null : BarraDeEstados(estados); // J-48 · à esquerda do P/R, na mesma barra; o pé da moldura existe quando há P/T ou estado
   // DS-K2 M1 (J-38) · carta do campo (tamanho padrão) com imagem: moldura K, com a janela da arte; mão, pilha e verso seguem com a carta inteira
   const moldura = !opts.size && !opts.verso && !!card.image;
+  const rotulo = (card.image || opts.verso) && opts.size !== 'sm' ? h('span', { class: 'tb-card__label' }, card.name) : null;
   // J-48 · o nome falado diz todos os estados (inclusive marcadores e dano, que antes ficavam só na pílula): é o texto dos ícones
   const fala = [card.name, opts.pilha && opts.pilha.total > 1 ? `${opts.pilha.total} cópias` : null, tapped ? 'virada' : null, sick ? 'com enjoo' : null, pt ? (mod && mod.base && (mod.p || mod.t) ? `${pt}, base ${mod.base.p}/${mod.base.t}` : pt) : null,
     ...estadosDaCarta(est, card, { ...opts, ordenar: false }).filter(e => e.k !== 'enjoo' && e.k !== 'virada').map(e => e.explica || e.rotulo)].filter(Boolean).join(', ');
@@ -37741,13 +37743,14 @@ function TableCard(card, opts = {}) {
     onClick: opts.onClick
   },
   h('span', { class: 'tb-card__face' + (opts.verso ? ' tb-card__face--verso' : '') },
+    moldura ? rotulo : null, // J-54 · na moldura, a faixa do nome é parte da face (gira com a carta virada)
     // J-42 · a arte do terreno básico tem o símbolo de mana por baixo: se a imagem não chega, o símbolo aparece (nunca a janela vazia);
     // sem imagem nenhuma, a carta desenhada leva o símbolo e o nome numa linha
     opts.verso ? h('span', { class: 'ds-verso' }) : moldura ? h('span', { class: 'tb-card__arte' }, SimboloDoBasico(card.name), imgDaMesa(card, opts.size)) : card.image ? imgDaMesa(card, opts.size)
       : !opts.size && manaDoBasico(card.name) ? [SimboloDoBasico(card.name), h('span', { class: 'tb-card__name tb-card__name--basico' }, card.name)] : h('span', { class: 'tb-card__name' }, card.name), // J-43 · só no campo: a mão não muda (relato #48) // D7 · verso escolhido na Aparência
     barra || ptEl ? h('span', { class: 'tb-card__pe' }, barra, ptEl) : null), // J-53 · o pé: estados à esquerda, P/R à direita, numa fileira só
-  // Leva 110 · o nome fica fora da face: carta virada não leva o nome junto na rotação (antes saía de pé, cortado)
-  (card.image || opts.verso) && opts.size !== 'sm' ? h('span', { class: 'tb-card__label' }, card.name) : null,
+  // Leva 110 · sem moldura (mão), o nome fica fora da face
+  moldura ? null : rotulo,
   pills.length ? h('span', { class: 'tb-card__pills' }, ...pills) : null);
   // A15 · segurar espia a carta; soltar fecha (quem monta a tela passa start/end)
   // MJ7 · enquanto segura, a carta se levanta (data-segurando: a sombra cresce por baixo dela)
@@ -43546,12 +43549,12 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
      a letra fica no piso e o nome vai para duas linhas, com a faixa crescendo sobre a janela da arte (data-nome-duas na carta e
      no leque, para as cópias de trás acompanharem). O nome inteiro continua no nome falado e no espiar. */
   function ajustaNomes() {
-    const faixas = [...root.querySelectorAll('.tb-card[data-moldura="true"] > .tb-card__label')];
+    const faixas = [...root.querySelectorAll('.tb-card[data-moldura="true"] .tb-card__face > .tb-card__label')];
     if (!faixas.length) return;
     // a fonte do app pode chegar depois do primeiro desenho (primeira abertura, CI): medida com a fonte de reserva não vale para a
     // fonte definitiva; quando ela terminar de carregar, mede tudo de novo do zero (uma vez por desenho)
     if (document.fonts && document.fonts.status !== 'loaded' && !ajustaNomes.esperando) { ajustaNomes.esperando = true;
-      document.fonts.ready.then(() => { ajustaNomes.esperando = false; if (!root.isConnected) return; for (const f of root.querySelectorAll('.tb-card[data-moldura="true"] > .tb-card__label')) { f.style.removeProperty('--nome-escala'); delete f.parentNode.dataset.nomeDuas; const q = f.parentNode.closest('.tb-leque'); if (q) delete q.dataset.nomeDuas; } ajustaNomes(); ajustaPes(); }); }
+      document.fonts.ready.then(() => { ajustaNomes.esperando = false; if (!root.isConnected) return; for (const f of root.querySelectorAll('.tb-card[data-moldura="true"] .tb-card__face > .tb-card__label')) { f.style.removeProperty('--nome-escala'); delete f.closest('.tb-card').dataset.nomeDuas; const q = f.closest('.tb-leque'); if (q) delete q.dataset.nomeDuas; } ajustaNomes(); ajustaPes(); }); }
     const piso = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--nome-piso')) || 0.78;
     // até três passadas: a largura do texto não encolhe na mesma proporção da letra (o aparelho e o CI arredondam o avanço de
     // cada glifo em letra pequena), então depois de aplicar a escala mede de novo e aperta o que ainda sobra; cada passada é
@@ -43562,7 +43565,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       pendentes = [];
       for (const x of medidas) {
         if (x.k >= 0.999) continue;
-        const carta = x.f.parentNode, leque = carta.closest('.tb-leque');
+        const carta = x.f.closest('.tb-card'), leque = carta.closest('.tb-leque');
         if (carta.dataset.nomeDuas === 'true') continue; // em duas linhas o texto quebra: nada mais a apertar
         const alvo = Math.floor(x.escala * x.k * 0.98 * 100) / 100; // 2% de folga contra o arredondamento
         if (alvo >= piso) { x.f.style.setProperty('--nome-escala', alvo.toFixed(2)); pendentes.push({ f: x.f, escala: alvo }); }
@@ -43580,7 +43583,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   // a largura da carta muda com a janela (girar o aparelho): mede de novo, do zero. Observa a raiz da mesa: solta sozinho ao sair.
   if (typeof ResizeObserver !== 'undefined') { let largura = 0;
     const ro = new ResizeObserver(() => { if (!root.isConnected) { ro.disconnect(); return; } if (innerWidth === largura) return; const primeira = !largura; largura = innerWidth; if (primeira) return;
-      for (const f of root.querySelectorAll('.tb-card[data-moldura="true"] > .tb-card__label')) { f.style.removeProperty('--nome-escala'); delete f.parentNode.dataset.nomeDuas; const q = f.parentNode.closest('.tb-leque'); if (q) delete q.dataset.nomeDuas; }
+      for (const f of root.querySelectorAll('.tb-card[data-moldura="true"] .tb-card__face > .tb-card__label')) { f.style.removeProperty('--nome-escala'); delete f.closest('.tb-card').dataset.nomeDuas; const q = f.closest('.tb-leque'); if (q) delete q.dataset.nomeDuas; }
       ajustaNomes(); ajustaPes(); });
     ro.observe(root); }
 
