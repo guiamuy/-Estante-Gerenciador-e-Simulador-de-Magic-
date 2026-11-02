@@ -175,6 +175,10 @@ export const POSICOES = [
   { id: 'recurso-campfire-reembaralha', classe: 'recurso', lista: CONTROLE, porque: 'duas cartas no grimório, vinte no cemitério, Campfire e Sewer-veillance Cam em jogo, o Madness a 5 sem mão: reembaralhar o cemitério com o Campfire, nada de comprar nem de ganhar 2 de vida',
     monta: () => monta(CONTROLE, MADNESS, { p0: { campo: ['Island', 'Island', 'Island', 'Island', 'Island', 'Contaminated Aquifer', 'Campfire', 'Sewer-veillance Cam'], vida: 17, cemiterio: ['Counterspell', 'Counterspell', 'Preordain', 'Preordain', 'Preordain', 'Cast Down', 'Cut Down', 'Snuff Out', 'Snuff Out', "Lórien Revealed", "Lórien Revealed", 'Baleful Strix', 'Baleful Strix', 'Island', 'Island', 'Murmuring Mystic', 'Trinket Mage', 'Grim Bauble', 'Nihil Spellbomb', 'Plunder the Trollshaws'], soNoGrimorio: ['Dispel', 'Swamp'] }, p1: { campo: ['Mountain', 'Mountain', 'Mountain'], vida: 5 } }),
     certo: (s, j) => j.acao.t === 'activate' && nomeDe(s, j.acao.oid) === 'Campfire' && j.acao.index === 1 },
+  // B-200 · Faeries (partidas narradas de 02/11, 1200 T4, 1268 T8 e T10): o ninja era conjurado da mão antes do combate.
+  { id: 'seq-ninja-pelo-ataque', classe: 'sequencia', lista: FAERIES, porque: 'Augur desvirado, o outro lado sem bloqueador, Ninja of the Deep Hours na mão e quatro terras: o ninja entra pelo ninjútsu depois do ataque (2 manas, compra), não pela mão por 4',
+    monta: () => monta(FAERIES, MADNESS, { p0: { campo: ['Contaminated Aquifer', 'Swamp', 'Island', 'Island', 'Augur of Bolas'], mao: ['Ninja of the Deep Hours', 'Counterspell', 'Cast Down'], vida: 13 }, p1: { campo: ['Mountain', 'Mountain', 'Mountain', 'Sneaky Snacker'], viradas: ['Mountain', 'Mountain', 'Mountain', 'Sneaky Snacker'] } }),
+    certo: (s, j) => !(j.acao.t === 'cast' && nomeDe(s, j.acao.oid) === 'Ninja of the Deep Hours') },
   // ---- mulligan
   { id: 'mull-sete-terrenos', classe: 'mulligan', lista: TERROR, porque: 'sete terrenos não jogam: mulligan',
     mulligan: true, monta: () => maoInicial(TERROR, MADNESS, ['Island', 'Island', 'Island', 'Island', 'Island', 'Island', 'Island']),

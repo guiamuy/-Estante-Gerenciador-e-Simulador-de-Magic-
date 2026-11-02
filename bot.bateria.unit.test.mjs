@@ -6,7 +6,7 @@ import { loadModules } from './_load.mjs';
 import { POSICOES, pontua } from './bot.bateria.mjs';
 const { engine: E, bot: B } = loadModules();
 
-const PISO = 29; // B-196 · 29 de 30 com a anulação aberta do Control (erra só a isca `volta-isca`). Era 27 (B-195), 26 (B-192), 25 (B-191), 24 (B-190), 22 (B-188)
+const PISO = 30; // B-200 · 30 de 31 com o ninja pelo ataque (erra só a isca `volta-isca`). Era 29 (B-196), 27 (B-195), 26 (B-192), 25 (B-191), 24 (B-190), 22 (B-188)
 
 test('B-188 · toda posição da bateria monta, tem classe, porquê, e a jogada certa está entre as legais', () => {
   const ids = new Set();
@@ -74,4 +74,10 @@ test('B-198 · o perfil desliga: as Faeries não ligam `respondeNoMeuTurno` (dad
   assert.deepEqual([...pf('faeries').desliga], ['respondeNoMeuTurno']);
   assert.ok(!(pf('controle').desliga || []).length && !(pf('terror').desliga || []).length);
   assert.deepEqual([...pf('faeries').exige], ['Spellstutter Sprite', 'Ninja of the Deep Hours']);
+});
+
+test('B-200 · o ninja pelo ataque: com o Augur desvirado e o outro lado sem bloqueador, o Shark publicado não conjura o Ninja of the Deep Hours pela mão; o shark-v24 congelado conjurava', () => {
+  const P = POSICOES.find(x => x.id === 'seq-ninja-pelo-ataque'), joga = nivel => { const { s } = P.monta(); const j = B.criaBot({ nivel, agora: () => 0 }).jogada(s, 0); return { ok: P.certo(s, j), j }; };
+  const novo = joga('shark'), v24 = joga('shark-v24');
+  assert.ok(novo.ok, 'publicado: ' + novo.j.motivo); assert.ok(!v24.ok, 'v24: ' + v24.j.motivo);
 });

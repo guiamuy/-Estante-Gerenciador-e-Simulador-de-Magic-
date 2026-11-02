@@ -8208,6 +8208,18 @@ estruturado para tornarmos o Shark um jogador de nível profissional com as suas
     **p95 374 ms · p99 397 · pior 862 ms** (10.924 decisões, 0,9% acima do orçamento), zero ilegais — o patamar da B-178.
     Na régua com dois processos em dois núcleos a pior jogada chegou a 9 s: é carga da máquina de medida, não do celular, e
     fica registrado.
+- **Fase 1c + 4 · B-200 · o ninja pelo ataque (02/11/2026).** Diagnóstico novo com o Shark da B-198 (partidas narradas,
+  400 ms): Faeries **5–7**, Elfos 7–3; revisor separado nas 10 derrotas. Classes: **(A)** gasta a mana no próprio turno e chega
+  sem Counterspell ao turno do outro (2 derrotas decisivas; o `segura` nas Faeries mediu 8 × 11 na B-196 e segue desligado);
+  **(B)** Snuff Out ou Counterspell em alvo barato (elfo de mana, Hydra 1/2; 2 prováveis); **(C)** ninjútsu ignorado — o ninja
+  conjurado pela mão antes do combate com atacante passando livre (3 derrotas, 1 decisiva); **(D)** landcycling buscando Island
+  com a mão toda preta; **(E)** Spellstutter Sprite no próprio turno sem alvo; **(F)** Brainstorm e Lead the Stampede guardados
+  com mana sobrando; **(J)** Elfos: Nyxborn Hydra X=1 no lugar do Priest no turno 2. O Shark já usa o ninjútsu quando a mana está
+  livre no bloqueio; o erro é na primeira fase principal. **Correção (C):** `ninjaDepois` — com carta de ninjútsu na mão que a
+  mana paga e uma criatura que pode atacar, conjurar o ninja pela mão custa 8 e a jogada que deixa a mana abaixo do ninjútsu
+  custa 6. Posição nova `seq-ninja-pelo-ataque`. **Medida pareada** no piloto Faeries (400 ms, 32 pares, contra o Shark da
+  B-199): **13 × 10** (5 só do novo, 2 só do antigo); zero ilegais. Bateria **30 de 31**; piso 29 → 30. **`shark-v24` é o
+  Shark da B-199, congelado.**
 - **Fase 2 · B-194 · avaliação aprendida, primeira medida (02/11/2026) — negativa, desligada.** `bot.aprende.mjs` (novo, fora
   do portão): `coleta` joga Shark × Shark com as cinco listas e grava as parcelas da `avaliaV6` de posições sorteadas e
   quem venceu; `ajusta` faz regressão logística (L2, treino e prova separados por partida) da vitória sobre as parcelas,
