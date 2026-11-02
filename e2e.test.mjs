@@ -3421,11 +3421,13 @@ test('e2e · U8 disposições por aparelho: Galaxy S, S+, Ultra e iPhone sem rol
     const m = await page.evaluate(() => ({
       campo: getComputedStyle(document.documentElement).getPropertyValue('--carta-campo').trim(),
       carta: Math.round(document.querySelector('.tb-side--me .tb-card').getBoundingClientRect().width),
+      // J-57 · a fileira com folga faz a carta crescer: a carta desenhada tem a largura da própria fileira (o token é a base dela)
+      daFila: Math.round(parseFloat(getComputedStyle(document.querySelector('.tb-side--me .tb-card').closest('.tb-row')).getPropertyValue('--carta-campo'))),
       passosCortados: [...document.querySelectorAll('.tb-steps__list li')].filter(l => l.scrollWidth > l.clientWidth + 1).length,
       chipsY: [...document.querySelectorAll('.tb-side--me .tb-chip')].map(c => Math.round(c.getBoundingClientRect().y)),
       cabecalho: getComputedStyle(document.querySelector('.tb-steps__head')).position }));
     assert.equal(m.campo, campo, `${nome}: carta do campo`);
-    assert.equal(m.carta, parseInt(campo), `${nome}: carta desenhada no tamanho da faixa`);
+    assert.ok(m.carta === m.daFila && m.daFila >= parseInt(campo) && m.daFila <= Math.floor(parseInt(campo) * 1.4), `${nome}: carta desenhada no tamanho da fileira, a partir do token da faixa (${m.carta} · ${m.daFila} · ${campo})`); // J-57
     assert.equal(m.passosCortados, 0, `${nome}: nomes das fases inteiros`);
     if (w < 400) assert.equal(new Set(m.chipsY).size, 1, `${nome}: contadores de zona numa linha só: ${m.chipsY}`);
     // MJ1a (leva J-2) · expectativa mudou de propósito: a linha "Turno N · Fulano … Principal 1" repetia a faixa de vez e a
@@ -9667,6 +9669,51 @@ test('e2e · J-48 estados como ícones na barra de P/R: nada por cima da arte, �
   assert.deepEqual(errors, []);
 });
 
+// J-57 (decisão do dono, 02/11/2026, print da mesa com cartas pequenas e muito vão) · com folga na fileira as cartas crescem juntas até
+// o maior tamanho que cabe (teto --campo-cresce × o token) e a sobra vira vãos iguais, simétricos; sem folga, tamanho de sempre e rolagem.
+test('e2e · J-57 a fileira usa o espaço: poucas cartas crescem (até o teto) com vãos iguais e pontas simétricas, sem encostar; muitas ficam no tamanho do token e rolam; quatro medidas, dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.route('https://cards.scryfall.io/**', r => r.fulfill({ status: 200, contentType: 'image/svg+xml', headers: { 'access-control-allow-origin': '*' },
+    body: '<svg xmlns="http://www.w3.org/2000/svg" width="488" height="680"><rect width="488" height="680" fill="#111"/><rect x="40" y="76" width="408" height="301" fill="#3e6f8f"/></svg>' }));
+  await createDeck(page, base, 'Espaço', '24 Mountain\n36 Delver of Secrets');
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start'); await page.fill('#mesa-seed', '3');
+  await page.click('[data-opponent="goldfish"]');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-pass');
+  const poe = (n, de = 0) => page.evaluate(([n, de]) => { const M = window.__estanteMesa, s = M.estado(), p = s.turn.active;
+    const ds = Object.values(s.objects).filter(o => o.owner === p && o.name === 'Delver of Secrets' && o.zone === 'library').slice(0, n).map(o => o.oid);
+    ds.forEach((oid, i) => { M.act({ t: 'move', p, oid, to: 'battlefield' }); if (i + de) M.act({ t: 'counter', p, oid, kind: 'p1p1', delta: i + de }); }); // cada uma diferente: nada vira leque
+    if (n === 2) M.act({ t: 'tap', p, oid: ds[1] }); return ds; }, [n, de]);
+  const mede = () => page.evaluate(() => {
+    const fila = document.querySelector('.tb-side--me .tb-card[data-oid]').closest('.tb-row'), cs = getComputedStyle(fila), R = e => e.getBoundingClientRect();
+    const base = parseFloat(getComputedStyle(fila.parentNode).getPropertyValue('--carta-campo')), teto = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--campo-cresce'));
+    const f = R(fila), ini = f.left + parseFloat(cs.paddingLeft), fim = f.right - parseFloat(cs.paddingRight);
+    // a caixa visual de cada item (a carta deitada ocupa a largura da face girada, centrada no seu lugar)
+    const itens = [...fila.children].map(c => { const k = c.dataset.tapped === 'true' ? R(c.querySelector('.tb-card__face')) : R(c); return { l: k.left, r: k.right, w: c.offsetWidth, lugar: (() => { const b = R(c), m = parseFloat(getComputedStyle(c).marginLeft) || 0, n = parseFloat(getComputedStyle(c).marginRight) || 0; return { l: b.left - m, r: b.right + n }; })() }; });
+    const vaos = [itens[0].lugar.l - ini, ...itens.slice(1).map((x, i) => x.lugar.l - itens[i].lugar.r), fim - itens[itens.length - 1].lugar.r];
+    const encostam = itens.some((a, i) => itens.some((b, j) => j > i && Math.min(a.r, b.r) - Math.max(a.l, b.l) > -2));
+    return { base, teto, larguras: [...fila.querySelectorAll(':scope > .tb-card')].map(c => c.offsetWidth), vaos, encostam, cresce: fila.dataset.cresce || null, rola: fila.scrollWidth > fila.clientWidth + 1 };
+  });
+  await poe(2);
+  await page.waitForFunction(() => document.querySelectorAll('.tb-side--me .tb-card[data-oid]').length >= 2);
+  for (const [w, hgt] of [[360, 780], [384, 832], [390, 844], [412, 891]]) for (const tema of ['dark', 'light']) {
+    await page.setViewportSize({ width: w, height: hgt }); await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(300);
+    const m = await mede(), onde = `${w} ${tema}`;
+    assert.ok(m.cresce === 'true' && m.larguras.every(x => x > m.base + 1 && x <= Math.floor(m.base * m.teto) + 0.5), `${onde}: duas cartas crescem até o teto (${m.base} → ${m.larguras}) ` + JSON.stringify(m));
+    assert.ok(Math.max(...m.vaos) - Math.min(...m.vaos) <= 1.5 && Math.min(...m.vaos) >= 4 && !m.encostam, `${onde}: vãos iguais, pontas simétricas, nada encosta ` + JSON.stringify(m.vaos));
+    await auditaTela(page, `J-57 · poucas ${onde}`);
+  }
+  if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark')); await page.waitForTimeout(300); await page.screenshot({ path: process.env.SHOTS + '/j57-espaco.png' }); }
+  await poe(8, 10);
+  await page.waitForFunction(() => document.querySelectorAll('.tb-side--me .tb-card[data-oid]').length >= 10);
+  for (const [w, hgt] of [[360, 780], [412, 891]]) {
+    await page.setViewportSize({ width: w, height: hgt }); await page.waitForTimeout(300);
+    const m = await mede();
+    assert.ok(!m.cresce && m.rola && m.larguras.every(x => Math.abs(x - m.base) <= 0.5), `${w}: muitas cartas ficam no tamanho do token e a fileira rola ` + JSON.stringify(m));
+  }
+  assert.deepEqual(errors, []);
+});
+
 // J-54 (decisão do dono, 02/11/2026, print com o Overgrown Battlement virado) · o nome da carta deitada ficava fora dela, em duas
 // linhas acima da carta. Agora a faixa do nome é parte da face: na carta virada gira junto, continua a faixa de cima da carta (à
 // direita, deitada), inteira, do mesmo tamanho relativo, simétrica à moldura, sem cobrir a arte e dentro da carta.
@@ -10005,7 +10052,7 @@ test('e2e · DS-K2 M1 carta do campo na moldura K: a caixa da arte mostra só a 
       const iw = img.offsetWidth, ih = img.offsetHeight, il = img.offsetLeft - iw / 2, it = img.offsetTop;
       const jan = { l: il + iw * 40 / 488, r: il + iw * 448 / 488, t: it + ih * 76 / 680, b: it + ih * 377 / 680 }, aw = arte.offsetWidth, ah = arte.offsetHeight;
       const l = caixa(lab);
-      return { oid: c.dataset.oid, zona: c.closest('[data-zone]').dataset.zone, tapped: c.dataset.tapped === 'true', pe: c.dataset.molduraPe === 'true', w: Math.round(parseFloat(getComputedStyle(c).width)), h: Math.round(parseFloat(getComputedStyle(c).height)),
+      return { oid: c.dataset.oid, zona: c.closest('[data-zone]').dataset.zone, tapped: c.dataset.tapped === 'true', pe: c.dataset.molduraPe === 'true', w: Math.round(parseFloat(getComputedStyle(c).width)), fila: Math.round(parseFloat(getComputedStyle(c.closest('.tb-row')).getPropertyValue('--carta-campo'))), h: Math.round(parseFloat(getComputedStyle(c).height)),
         raio: getComputedStyle(c.querySelector('.tb-card__face')).borderTopLeftRadius, so: jan.l <= 1 && jan.r >= aw - 1 && jan.t <= 1 && jan.b >= ah - 1 && ah > 30,
         // J-42 (relato #48) · o nome longo termina em reticências numa linha (antes: duas linhas, que desciam sobre a arte); o nome
         // inteiro continua no nome falado da carta e no espiar
@@ -10024,7 +10071,8 @@ test('e2e · DS-K2 M1 carta do campo na moldura K: a caixa da arte mostra só a 
     assert.equal(m.largura, esperada, `${onde}: a carta do campo tem a largura da proposta`);
     const cri = m.cartas.find(c => c.oid === delver), vir = m.cartas.find(c => c.oid === virado), terra = m.cartas.find(c => c.zona === 'lands');
     assert.ok(cri && vir && terra, `${onde}: criatura, criatura virada e terreno na moldura ` + JSON.stringify(m.cartas.map(c => c.oid)));
-    assert.equal(cri.w, esperada, `${onde}: largura`); assert.ok(Math.abs(cri.h - esperada * 680 / 488) <= 1, `${onde}: proporção da carta (${cri.h})`);
+    // J-57 · com folga a fileira faz a carta crescer a partir do token (até 1,4×): a largura é a da fileira
+    assert.ok(cri.w === cri.fila && cri.fila >= esperada && cri.fila <= Math.floor(esperada * 1.4), `${onde}: largura (${cri.w} · fileira ${cri.fila} · token ${esperada})`); assert.ok(Math.abs(cri.h - cri.w * 680 / 488) <= 1, `${onde}: proporção da carta (${cri.h})`);
     for (const c of m.cartas) {
       assert.equal(c.raio, '4.75%', `${onde}: raio da carta de Magic (${c.oid})`);
       assert.ok(c.so, `${onde}: a caixa da arte mostra só a janela da arte, sem a moldura impressa ` + JSON.stringify(c));
@@ -10112,6 +10160,7 @@ test('e2e · J-42 relato #48 parte 1 · arte inteira no campo: nos dois lados (d
   for (const [w, hgt] of [[360, 697], [360, 780], [390, 844]]) for (const tema of ['dark', 'light']) {
     await page.setViewportSize({ width: w, height: hgt }); await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(350);
     await page.waitForFunction(() => [...document.querySelectorAll('.tb-side .tb-card[data-moldura="true"] .tb-card__arte img')].every(i => i.complete), null, { timeout: 8000 });
+    await page.evaluate(() => scrollTo(0, 0)); await page.waitForTimeout(100); // J-57 · com as cartas maiores a página rola mais; a captura do disco da vida é na barra de cima
     const m = await mede(), onde = `${w}×${hgt} ${tema}`;
     // o centro da tinta do número (os pixels que não são o fundo do disco), lido na captura do disco: a caixa da fonte não serve,
     // porque os algarismos da Cormorant descem abaixo da linha (era o "número descentralizado" do relato)
@@ -11962,7 +12011,7 @@ test('e2e · J3 leque das viradas: terrenos virados e atacantes iguais ficam em 
   }
   assert.ok(await prontas() >= 4, 'quatro Sky Pike prontas');
   const fileira = zona => page.evaluate(z => { const r = document.querySelector(`.tb-side--me [data-zone="${z}"] .tb-row`); if (!r) return null;
-    return { cabe: r.scrollWidth <= r.clientWidth + 1, largura: r.clientWidth, itens: [...r.children].map(e => { const c = e.classList.contains('tb-leque') ? e.querySelector('.tb-card') : e; const b = e.getBoundingClientRect();
+    return { cabe: r.scrollWidth <= r.clientWidth + 1, largura: r.clientWidth, cresce: (parseFloat(getComputedStyle(r).getPropertyValue('--carta-campo')) || 1) / (parseFloat(getComputedStyle(r.parentNode).getPropertyValue('--carta-campo')) || 1), itens: [...r.children].map(e => { const c = e.classList.contains('tb-leque') ? e.querySelector('.tb-card') : e; const b = e.getBoundingClientRect();
       return { leque: e.dataset.leque ? Number(e.dataset.leque) : 1, virada: c.dataset.tapped === 'true', w: Math.round(b.width + parseFloat(getComputedStyle(e).marginLeft) + parseFloat(getComputedStyle(e).marginRight)), bordas: e.querySelectorAll('.tb-leque__camada').length, selo: (e.querySelector('[data-marca="pilha"]') || {}).textContent || '', fala: c.getAttribute('aria-label') }; }) }; }, zona);
   // 1 · terrenos: viro todos; viradas e desviradas da mesma carta são dois leques vizinhos, depois um só
   const ilhas = (await M.est()).campo.filter(n => n === 'Island').length; assert.ok(ilhas >= 4);
@@ -11973,7 +12022,8 @@ test('e2e · J3 leque das viradas: terrenos virados e atacantes iguais ficam em 
   f = await fileira('lands');
   assert.equal(f.itens.length, 1); assert.deepEqual([f.itens[0].leque, f.itens[0].virada, f.itens[0].bordas, f.itens[0].selo.trim()], [ilhas, true, 3, '×' + ilhas]);
   assert.match(f.itens[0].fala, new RegExp(`Island, ${ilhas} cópias, virada`));
-  assert.ok(f.itens[0].w <= 160 && f.cabe, `${ilhas} terrenos virados ocupam ${f.itens[0].w} px`);
+  // J-57 · a fileira com folga faz as cartas crescerem (até 1,4×): o leque continua compacto na escala da fileira
+  assert.ok(f.itens[0].w <= 160 * f.cresce && f.cabe, `${ilhas} terrenos virados ocupam ${f.itens[0].w} px (fileira ${f.cresce.toFixed(2)}×)`);
   // 2 · ataque: enquanto escolho, cada atacante tem o seu toque; declarado, as quatro viram um leque só
   for (let i = 0; i < 6; i++) { const e = await M.est(); if (e.pend === 'attackers') break; await page.locator('#tb-pass').click().catch(() => {}); await page.waitForTimeout(120); }
   assert.equal((await M.est()).pend, 'attackers');
@@ -11984,7 +12034,7 @@ test('e2e · J3 leque das viradas: terrenos virados e atacantes iguais ficam em 
   f = await fileira('permanents');
   const ataque = f.itens.find(x => x.virada); assert.ok(ataque, JSON.stringify(f.itens));
   assert.equal(ataque.leque, quantas, 'as atacantes juntas: ' + JSON.stringify(f.itens)); assert.equal(ataque.bordas, Math.min(3, quantas - 1)); assert.equal(ataque.selo.trim(), '×' + quantas);
-  assert.ok(ataque.w <= 160 && f.cabe, `${quantas} atacantes ocupam ${ataque.w} px e a fileira não rola`);
+  assert.ok(ataque.w <= 160 * f.cresce && f.cabe, `${quantas} atacantes ocupam ${ataque.w} px (fileira ${f.cresce.toFixed(2)}×) e a fileira não rola`); // J-57
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/j3-ataque.png' });
   await auditaTela(page, 'mesa com leque de atacantes');
   // tocar no leque abre a carta da frente
@@ -16540,13 +16590,15 @@ test('e2e · MJ1d terrenos compactos: a fileira dos terrenos usa a carta menor d
     const m = await page.evaluate(() => {
       const q = s => document.querySelector(s), r = el => el.getBoundingClientRect();
       const terra = q('.tb-side--me [data-zone="lands"] .tb-card'), cria = q('.tb-side--me [data-zone="permanents"] .tb-card');
-      return { terra: Math.round(r(terra).width), cria: Math.round(r(cria).width),
+      // J-57 · com folga a fileira faz as cartas crescerem: o token é a base da zona, a carta tem a largura da fileira
+      const base = el => Math.round(parseFloat(getComputedStyle(el.closest('.tb-row').parentNode).getPropertyValue('--carta-campo'))), daFila = el => Math.round(parseFloat(getComputedStyle(el.closest('.tb-row')).getPropertyValue('--carta-campo')));
+      return { terra: Math.round(r(terra).width), cria: Math.round(r(cria).width), baseTerra: base(terra), baseCria: base(cria), filaT: daFila(terra), filaC: daFila(cria),
         filaTerra: Math.round(r(q('.tb-side--me [data-zone="lands"] .tb-row')).height), filaCria: Math.round(r(q('.tb-side--me [data-zone="permanents"] .tb-row')).height),
       };
     });
     const nome = `${w}×${hgt} ${tema}`;
-    assert.equal(m.terra, terreno, `${nome}: terreno com ${terreno} px (era ${campo})`);
-    assert.equal(m.cria, campo, `${nome}: criatura no tamanho do campo`);
+    assert.ok(m.baseTerra === terreno && m.terra === m.filaT && m.terra >= terreno, `${nome}: terreno a partir de ${terreno} px (era ${campo}) ` + JSON.stringify(m));
+    assert.ok(m.baseCria === campo && m.cria === m.filaC && m.cria >= campo && m.terra < m.cria, `${nome}: criatura a partir do tamanho do campo, maior que o terreno ` + JSON.stringify(m));
     assert.ok(m.filaCria - m.filaTerra >= 20, `${nome}: a fileira dos terrenos é mais baixa (${m.filaTerra} × ${m.filaCria})`);
     await auditaTela(page, `MJ1d · terrenos compactos ${nome}`);
   }

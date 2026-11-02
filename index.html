@@ -2840,6 +2840,8 @@ body[data-mesa-cheia="true"] .tb-steps__list > li::after { inset: 0; height: aut
 .tb-card--sm .tb-card__pe { height: 13px; }
 /* a fileira do campo centraliza como a fila da proposta; com mais cartas que a largura, rola desde a primeira (safe) */
 .tb-side .tb-row { justify-content: safe center; }
+/* J-57 · a fileira que cresceu espalha a sobra em vãos iguais: a mesma distância entre as cartas e nas pontas */
+.tb-side .tb-row[data-cresce="true"] { justify-content: space-evenly; column-gap: 0; } /* o vão mínimo já está na conta do tamanho */
 .tb-card__face img[data-falhou="true"], .tb-leque__camada img[data-falhou="true"] { visibility: hidden; }   /* H7 · imagem que falhou não mostra ícone quebrado; volta sozinha */
 .tb-card img, .tb-stack__card img { -webkit-touch-callout: none; pointer-events: none; }   /* H10 · o toque é da carta, não da imagem */
 .tb-card__name { position: absolute; inset: 0; display: grid; place-items: center; padding: var(--space-1); text-align: center; font-family: var(--font-display); font-size: var(--text-xs); color: var(--fg);
@@ -3491,7 +3493,7 @@ button.col-dash__bar:active, .col-dash__bar--on { background: var(--accent-soft)
    Galaxy S25+ e S25 Ultra 412×891 (DPR 3,5); as capturas do aparelho do usuário (1080×2340) dão 360×780.
    Faixas: estreita ≤ 374 (Galaxy S), padrão 375–399 (iPhone 390, S+ com zoom de tela), larga ≥ 400 (S+ e Ultra).
    Altura: com a barra do navegador, o 780 vira ~700 úteis; abaixo de 740 a mão encolhe para a mesa caber. */
-:root { --estado-piso: 13px; --rolagem-folga: 12px; --decisao-origem: 48px; } /* J-53 · piso do ícone de estado; folga entre a carta e a barra de rolagem */
+:root { --estado-piso: 13px; --rolagem-folga: 12px; --decisao-origem: 48px; --campo-cresce: 1.4; } /* J-53 · piso do ícone de estado; folga entre a carta e a barra de rolagem */
 :root { --carta-campo: 84px; --carta-mao: 100px; --carta-pilha: 56px; --carta-terreno: 60px; } /* MJ1d (J-5) · terreno ≈ 72% da carta do campo */
 /* DS-K2 M2 (J-37) · a mão em leque: a carta da mão encolhe até --carta-mao-min para a mão caber sem rolar; uma carta cobre
    no máximo --leque-sobrepoe da vizinha (o centro de cada carta fica sempre à vista, e é ali que se toca) */
@@ -43617,6 +43619,29 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       }
     }
   }
+  /** J-57 (decisão do dono, 02/11/2026) · a fileira usa o espaço que sobra: com folga na largura, as cartas crescem juntas até o
+      maior tamanho que cabe (no máximo --campo-cresce × o tamanho do token) e a sobra vira vãos iguais (space-evenly), simétricos;
+      sem folga, o tamanho de sempre e a rolagem. Nunca encolhe abaixo do token. A carta deitada conta com a margem dela (1,4×), o
+      leque com o passo das cópias de trás, o anexo sem o vão. Leitura em lote (a base vem da zona, que não leva o ajuste), escrita depois. */
+  function ajustaCampo() {
+    const filas = [...root.querySelectorAll('.tb-side .tb-row')]; if (!filas.length) return;
+    const teto = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--campo-cresce')) || 1.4;
+    const medidas = filas.map(r => {
+      const cs = getComputedStyle(r), base = parseFloat(getComputedStyle(r.parentNode).getPropertyValue('--carta-campo')) || 0;
+      const livre = r.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight), vao = parseFloat(cs.columnGap) || 0;
+      // os vãos são n + 1 (entre as cartas e nas duas pontas), cada um com pelo menos o vão de sempre; fileira com anexo (colado em
+      // quem o carrega) fica como era
+      let unidades = 0, fixo = 0; const itens = [...r.children];
+      if (itens.some(c => c.dataset.anexo === 'true')) return { r, base, w: 0 };
+      for (const c of itens) { unidades += c.dataset.tapped === 'true' ? 1.4 : 1; if (c.classList.contains('tb-leque')) fixo += (parseFloat(c.style.getPropertyValue('--atras')) || 0) * 14; }
+      const cabe = unidades ? Math.floor((livre - fixo - (itens.length + 1) * vao) / unidades) : 0;
+      return { r, base, w: base && cabe > base + 1 ? Math.min(cabe, Math.floor(base * teto)) : 0 };
+    });
+    for (const { r, w } of medidas) {
+      if (w) { r.style.setProperty('--carta-campo', `${w}px`); r.dataset.cresce = 'true'; }
+      else if (r.dataset.cresce) { r.style.removeProperty('--carta-campo'); delete r.dataset.cresce; }
+    }
+  }
   /** J-53 · o pé de cada carta (quantos ícones de estado cabem e de que tamanho) e as fileiras que rolam (ganham a folga da barra
       de rolagem): leituras em lote, escritas depois. Volta a medir quando a largura muda e quando a fonte chega. */
   function ajustaPes() {
@@ -43628,7 +43653,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   if (typeof ResizeObserver !== 'undefined') { let largura = 0;
     const ro = new ResizeObserver(() => { if (!root.isConnected) { ro.disconnect(); return; } if (innerWidth === largura) return; const primeira = !largura; largura = innerWidth; if (primeira) return;
       for (const f of root.querySelectorAll('.tb-card[data-moldura="true"] .tb-card__face > .tb-card__label')) { f.style.removeProperty('--nome-escala'); delete f.closest('.tb-card').dataset.nomeDuas; const q = f.closest('.tb-leque'); if (q) delete q.dataset.nomeDuas; }
-      ajustaNomes(); ajustaPes(); });
+      ajustaCampo(); ajustaNomes(); ajustaPes(); redesenhaSetas(); }); // J-57 · as cartas mudaram de tamanho: as setas do combate acompanham
     ro.observe(root); }
 
   /* ---- J-45 · a mesa não encolhe com a mão aberta: a página desce até o seu campo ----
@@ -43799,7 +43824,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
         painelPilha ? h('div', { class: 'tb-camada', dataset: { sobrepoe: 'true' } }, h('div', { class: 'tb-camada__linha' }, painelPilha)) : null,
         meuLado),
       dock(s, v));
-    ajustaNomes(); ajustaPes(); // J-53 · ícones de estado e rolagem medidos depois do nome // J-46 · o nome inteiro na faixa: a letra encolhe até o piso e depois quebra em duas linhas (medido, nunca reticências)
+    ajustaCampo(); ajustaNomes(); ajustaPes(); // J-57 · o tamanho das cartas primeiro // J-53 · ícones de estado e rolagem medidos depois do nome // J-46 · o nome inteiro na faixa: a letra encolhe até o piso e depois quebra em duas linhas (medido, nunca reticências)
     devolveFileiras(fileiras); mostraNovidade(s, v); // J2
     simbolizar(root); // U3 · custos, habilidades e textos da mesa em símbolos
     armaMiras(s, v); // MJ6a · arrastar a mágica da mão até o alvo
