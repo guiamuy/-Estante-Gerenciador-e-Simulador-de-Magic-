@@ -18497,3 +18497,83 @@ test('e2e · J-40 masmorra na mesa: o selo com o mapa ao lado da vida (sem texto
   assert.equal(await page.locator('#ds-masmorra .tb-masmorra__sala').count(), 9);
   assert.deepEqual(errors, []);
 });
+
+// J-44 · relato #54 (Visual · Alta · Mesa): "qualidade gráfica do efeito da cidade baixa toda desconfigurada. Texto quebrado,
+// falta de imagens representando o efeito na cartinha (deveria ser a imagem da carta cidade baixa), elementos e texto bem
+// descentralizados e quebrando/sobrepondo o perímetro das formas". Antes: a habilidade da sala ("Cidade Baixa: Entrada
+// Secreta") entrava na pilha como carta sem imagem — o nome escrito cortado no cartão de 56 px, a etiqueta "habilidade"
+// passando da borda, a miniatura da faixa vazia, o texto "procura 1 carta no grimório" e o toque sem destino.
+// Agora: a face é a carta da masmorra desenhada (o mapa com a sala acesa), o título é a sala, a etiqueta "Sala · Cidade
+// Baixa" mora na linha de quem é, o texto é o efeito da sala por extenso e o toque abre o mapa da masmorra.
+test('e2e · J-44 a sala da masmorra na pilha: face com o mapa da Cidade Baixa e a sala acesa, título e efeito da sala, nada passa da moldura, a faixa mostra o mapa e o toque abre a masmorra', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  // uma instantânea com mana em campo segura a prioridade com a habilidade na pilha (sem ela, a mesa passa sozinha)
+  await createDeck(page, base, 'Iniciativa e raio', '12 Plains\n12 Mountain\n26 Goliath Paladin\n10 Lightning Bolt');
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start'); await page.fill('#mesa-seed', '7');
+  await page.click('[data-opponent="goldfish"]');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-pass');
+  const r = await page.evaluate(async () => {
+    const M = window.__estanteMesa, s = M.estado(), p = s.turn.priority;
+    const pega = n => Object.values(M.estado().objects).find(o => o.owner === p && o.name === n && o.zone === 'library');
+    for (const n of ['Mountain', 'Mountain']) M.act({ t: 'move', p, oid: pega(n).oid, to: 'battlefield' });
+    M.act({ t: 'move', p, oid: pega('Lightning Bolt').oid, to: 'hand' });
+    const g = pega('Goliath Paladin'); M.act({ t: 'move', p, oid: g.oid, to: 'hand' }); M.act({ t: 'cast', p, oid: g.oid, free: true });
+    for (let i = 0; i < 40; i++) {
+      const e = M.estado(), topo = e.stack.length ? e.objects[e.stack[e.stack.length - 1]] : null;
+      if (topo && /^Cidade Baixa: /.test(topo.name)) return { nome: topo.name };
+      const L = M.legais(), a = L.find(x => x.t === 'pass'); if (!a) { await new Promise(res => setTimeout(res, 50)); continue; }
+      M.act(a); await new Promise(res => setTimeout(res, 20));
+    }
+    return { nome: null };
+  });
+  assert.equal(r.nome, 'Cidade Baixa: Entrada Secreta', 'tomou a iniciativa: a habilidade da Entrada Secreta está na pilha');
+  await page.evaluate(() => window.__estanteMesa.repinta());
+  await page.waitForSelector('#tb-stack-btn');
+  for (const [w, hgt] of [[360, 697], [390, 844]]) for (const tema of ['dark', 'light']) {
+    await page.setViewportSize({ width: w, height: hgt }); await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema);
+    const onde = `${w}px ${tema}`;
+    const faixa = await page.evaluate(() => { const b = document.querySelector('#tb-stack-btn'), mini = b.querySelector('.tb-stack__mini');
+      return { topo: b.querySelector('.tb-stack__topo').textContent, rotulo: b.getAttribute('aria-label'), origem: mini.dataset.origem, mapa: !!mini.querySelector('.tb-origem .tb-origem__mapa'),
+        dentro: (() => { const m = mini.getBoundingClientRect(), f = mini.querySelector('.tb-origem').getBoundingClientRect(); return f.left >= m.left - 0.5 && f.right <= m.right + 0.5 && f.top >= m.top - 0.5 && f.bottom <= m.bottom + 0.5; })() }; });
+    assert.equal(faixa.topo, 'Entrada Secreta · Cidade Baixa', `${onde}: a faixa diz a sala e a masmorra (antes: "Habilidade de Cidade Baixa: Entrada Secreta")`);
+    assert.equal(faixa.origem, 'masmorra'); assert.ok(faixa.mapa, `${onde}: a miniatura da faixa é o mapa (antes: vazia)`); assert.ok(faixa.dentro, `${onde}: o mapa cabe na miniatura`);
+    if (await page.getAttribute('#tb-stack-btn', 'aria-expanded') !== 'true') await page.click('#tb-stack-btn');
+    await page.waitForSelector('#tb-stack-painel:not([hidden]) .tb-stack__card[data-origem="masmorra"]');
+    const c = await page.evaluate(() => {
+      const b = document.querySelector('#tb-stack-painel .tb-stack__card[data-origem="masmorra"]'), carta = b.querySelector('.tb-card'), caixa = el => el.getBoundingClientRect();
+      const cc = caixa(carta), fora = [...carta.querySelectorAll('*')].filter(el => { const x = caixa(el); return x.width && (x.left < cc.left - 0.5 || x.right > cc.right + 0.5 || x.top < cc.top - 0.5 || x.bottom > cc.bottom + 0.5); }).map(el => el.getAttribute('class'));
+      const texto = b.querySelector('.tb-stack__text'), tx = caixa(texto), hab = b.querySelector('.tb-stack__hab'), hx = caixa(hab);
+      const mapa = carta.querySelector('.tb-origem__mapa'), mx = caixa(mapa), centro = Math.abs((mx.left + mx.right) / 2 - (cc.left + cc.right) / 2);
+      return { fora, centro, nomeNaFace: !!carta.querySelector('.tb-card__name'), acesas: mapa.querySelectorAll('.tb-masmorra__no[data-dono="true"]').length, salas: mapa.querySelectorAll('.tb-masmorra__no').length,
+        titulo: b.querySelector('.tb-stack__title').firstChild.textContent, hab: hab.textContent, habDentro: hx.left >= tx.left - 0.5 && hx.right <= tx.right + 0.5 && hx.right <= innerWidth,
+        habForaDaCarta: hx.left >= cc.right, what: b.querySelector('.tb-stack__what').textContent, lang: b.querySelector('.tb-stack__what').getAttribute('lang'),
+        titleCorta: (() => { const el = b.querySelector('.tb-stack__title'); return el.scrollWidth > el.clientWidth + 1; })(), rotulo: b.getAttribute('aria-label') };
+    });
+    assert.deepEqual(c.fora, [], `${onde}: nada passa da moldura da carta (antes: a etiqueta "habilidade" e o nome)`);
+    assert.ok(c.centro <= 1, `${onde}: o mapa fica no eixo da carta (${c.centro} px)`);
+    assert.ok(!c.nomeNaFace, `${onde}: no lugar do nome escrito, a carta da masmorra desenhada`);
+    assert.equal(c.salas, 9, `${onde}: as nove salas da Cidade Baixa`); assert.equal(c.acesas, 1, `${onde}: a sala do gatilho acesa`);
+    assert.equal(c.titulo, 'Entrada Secreta'); assert.match(c.hab, /^Sala · Cidade Baixa$/); assert.ok(c.habDentro && c.habForaDaCarta, `${onde}: a etiqueta mora no texto, fora da carta`);
+    assert.equal(c.what, 'Procure no seu grimório uma carta de terreno básico, revele-a, coloque-a na sua mão e depois embaralhe.', `${onde}: o efeito da sala por extenso (antes: "procura 1 carta no grimório")`);
+    assert.equal(c.lang, null); assert.ok(!c.titleCorta, `${onde}: o título não é cortado`);
+    assert.match(c.rotulo, /^Sala · Cidade Baixa: Entrada Secreta, de Você: Procure/);
+    await auditaTela(page, `J-44 · sala da masmorra na pilha ${onde}`);
+  }
+  await page.click('#tb-stack-painel .tb-stack__card[data-origem="masmorra"]');
+  await page.waitForSelector('#tb-masmorra-folha'); await page.waitForSelector('#tb-masmorra-mapa[data-desenhado="true"]');
+  assert.equal(await page.textContent('#ds-dialog-title'), 'Cidade Baixa', 'o toque abre o mapa da masmorra');
+  // a carta sem imagem (nome escrito no lugar da arte) também cabe: três linhas, sem passar da moldura, "habilidade" no texto
+  const g = await page.evaluate(() => {
+    const s = JSON.parse(JSON.stringify(window.__estanteMesa.estado())), src = Object.values(s.objects).find(o => o.name === 'Goliath Paladin');
+    s.objects.abx = { oid: 'abx', ability: true, name: 'Goliath Paladin', source: src.oid, effects: [], controller: src.controller, targets: [], zone: 'stack' }; s.stack = ['abx'];
+    const p = __m18.explicaPilha(s, {}), el = __m17.StackPanel({ itens: p.itens, prioridade: p.prioridade, imgOf: () => null });
+    const box = document.createElement('div'); box.style.cssText = 'position:fixed;left:0;top:0;width:360px;z-index:99999'; box.className = 'tb'; box.appendChild(el); document.body.appendChild(box);
+    const carta = el.querySelector('.tb-card'), nome = carta.querySelector('.tb-card__name'), cc = carta.getBoundingClientRect(), nx = nome.getBoundingClientRect();
+    const r2 = { cabe: nome.scrollHeight <= nome.clientHeight + 1 || getComputedStyle(nome).webkitLineClamp === '3', dentro: nx.left >= cc.left - 0.5 && nx.right <= cc.right + 0.5 && nx.bottom <= cc.bottom + 0.5,
+      habNaCarta: !!carta.querySelector('.tb-stack__hab'), hab: (el.querySelector('.tb-stack__text .tb-stack__hab') || {}).textContent };
+    box.remove(); return r2;
+  });
+  assert.ok(g.cabe && g.dentro, 'o nome escrito cabe na carta'); assert.ok(!g.habNaCarta); assert.equal(g.hab, 'habilidade');
+  assert.deepEqual(errors, []);
+});

@@ -3139,8 +3139,29 @@ body[data-mesa-cheia="true"] .tb-steps__list > li::after { inset: 0; height: aut
 .tb-stack__what { font-size: var(--text-sm); color: var(--fg); }
 .tb-stack__what--oficial { white-space: pre-line; }
 .tb-stack__card .tb-card { position: relative; }
-.tb-stack__hab { position: absolute; left: 50%; bottom: 4px; transform: translateX(-50%); font-size: var(--text-2xs); line-height: 1.2; padding: 1px 6px; border-radius: var(--radius-full);
+/* J-44 · relato #54 · "habilidade" (e a sala da masmorra) ficam na linha de quem é, dentro do texto: em cima da carta de 56 px
+   a etiqueta passava da borda. O nome escrito no lugar da arte cabe em três linhas, centrado, sem passar da moldura. */
+.tb-stack__meta { display: flex; align-items: center; gap: var(--space-1); min-width: 0; }
+.tb-stack__meta > .tb-stack__who { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tb-stack__hab { flex: none; display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--text-2xs); line-height: 1.2; padding: 2px var(--space-2); border-radius: var(--radius-full);
   background: var(--accent); color: var(--accent-fg); font-weight: var(--weight-medium); white-space: nowrap; }
+.tb-stack__hab--origem { background: var(--accent-soft); color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.tb-stack__hab > .ds-icon { flex: none; }
+.tb-stack__card .tb-card__face:has(> .tb-stack__nome) { display: flex; align-items: center; justify-content: center; }
+.tb-stack__nome { position: static; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; max-height: 100%; padding: 0 var(--space-1); line-height: 1.15; overflow-wrap: normal; word-break: normal; hyphens: none; }
+/* J-44 · a face da carta que não é carta: a masmorra desenhada como carta (mapa com a sala acesa) ou a bandeira da iniciativa */
+.tb-origem { --marca: var(--accent); position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  padding: var(--space-1); background: radial-gradient(120% 80% at 50% 30%, var(--bg-elev-2), var(--bg)); box-shadow: inset 0 0 0 1px var(--accent-soft), inset 0 0 0 3px var(--bg), inset 0 0 0 4px var(--border-strong); color: var(--accent); }
+.tb-origem[data-lado="oponente"] { --marca: var(--player-opp); }
+.tb-origem__mapa { display: block; flex: 1 1 auto; width: 84%; min-height: 0; overflow: visible; }
+.tb-origem__mapa .tb-masmorra__no[data-dono="true"] { fill: var(--marca); stroke: var(--fg); transform-box: fill-box; transform-origin: center; }
+.tb-origem[data-novo="true"] .tb-origem__mapa .tb-masmorra__no[data-dono="true"] { animation: tb-origem-acende var(--dur-3) var(--ease-out) both; }
+.tb-origem__selo { flex: none; color: var(--accent); }
+.tb-origem__icone { flex: none; }
+.tb-origem--mini { padding: 0; box-shadow: inset 0 0 0 1px var(--border-strong); }
+.tb-origem--mini > .tb-origem__mapa { width: 100%; }
+@keyframes tb-origem-acende { from { transform: scale(.4); opacity: .3; } to { transform: scale(1); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .tb-origem[data-novo="true"] .tb-origem__mapa .tb-masmorra__no[data-dono="true"] { animation: none; } }
 .tb-stack__target { font-size: var(--text-xs); color: var(--fg-muted); }
 @media (prefers-reduced-motion: reduce) { .tb-card, .tb-card__face { transition: none; } }
 
@@ -37612,17 +37633,25 @@ function StackStrip(items) {
 // e o nome do topo; um toque abre o detalhe por cima (o mesmo cartão explicado de antes). Sem `onToggle`, a pilha inteira.
 // MJ5 (leva J-14) · o ícone da faixa vira o monte: até três miniaturas, de baixo para cima, com o topo levantado; `sobe`
 // (o topo mudou desde o desenho anterior) faz o topo novo subir num movimento curto
-function StackPanel({ itens, prioridade, imgOf, onOpen, onPeek, aberto = true, onToggle = null, sobe = false }) {
+function StackPanel({ itens, prioridade, imgOf, onOpen, onPeek, aberto = true, onToggle = null, sobe = false, origemDe = null }) {
   if (!itens.length) return null;
+  // J-44 · relato #54 · item que não vem de carta (sala da masmorra, iniciativa): a face é a carta da masmorra desenhada
+  // (o mapa com a sala acesa) ou a bandeira, o título é a sala e o texto é o efeito dela por extenso
+  const org = it => (origemDe && origemDe(it.oid)) || null;
   const cartao = it => {
-    const b = h('button', { class: 'tb-stack__card', type: 'button', 'aria-label': `${it.nome}, de ${it.quem}: ${it.oQueFaz}${it.alvos.length ? '. Alvo: ' + it.alvos.join(', ') : ''}`, onClick: () => onOpen && onOpen(it) },
+    const o = org(it), titulo = o ? o.titulo : it.nome, oQueFaz = o && o.texto ? o.texto : it.oQueFaz, oficial = o && o.texto ? false : it.oficial;
+    const b = h('button', { class: 'tb-stack__card', type: 'button', dataset: o ? { origem: o.tipo } : {}, 'aria-label': `${o ? o.rotulo + ': ' : ''}${titulo}, de ${it.quem}: ${oQueFaz}${it.alvos.length ? '. Alvo: ' + it.alvos.join(', ') : ''}${o && o.tipo === 'masmorra' ? '. Toque para ver o mapa' : ''}`, onClick: () => onOpen && onOpen(it) },
       // E50 P6 · a habilidade mostra a carta de onde veio (antes: um cartão escrito "hab.")
-      h('span', { class: 'tb-card tb-card--sm' }, h('span', { class: 'tb-card__face' }, imgOf && imgOf(it.imagemDe) ? imgDaMesa({ image: imgOf(it.imagemDe), images: null }, 'sm') : h('span', { class: 'tb-card__name' }, it.imagemDe || it.nome)),
-        it.habilidade ? h('span', { class: 'tb-card__pill tb-stack__hab' }, 'habilidade') : null),
+      h('span', { class: 'tb-card tb-card--sm' }, h('span', { class: 'tb-card__face' }, o ? FaceDaOrigem(o)
+        : imgOf && imgOf(it.imagemDe) ? imgDaMesa({ image: imgOf(it.imagemDe), images: null }, 'sm') : h('span', { class: 'tb-card__name tb-stack__nome' }, it.imagemDe || it.nome))),
       h('span', { class: 'tb-stack__text' },
-        h('span', { class: 'tb-stack__title' }, it.nome, it.topo ? h('span', { class: 'tb-pill tb-pill--estado' }, 'resolve a seguir') : null),
-        h('span', { class: 'tb-stack__who' }, `de ${it.quem}`),
-        h('span', { class: 'tb-stack__what' + (it.oficial ? ' tb-stack__what--oficial' : ''), lang: it.oficial ? 'en' : null }, it.oQueFaz),
+        // J-44 · "habilidade" sai de cima da carta (passava da borda) e vai para a linha de quem é, ao lado do dono
+        h('span', { class: 'tb-stack__meta' },
+          o ? h('span', { class: 'tb-stack__hab tb-stack__hab--origem' }, Icone(o.tipo === 'masmorra' ? 'masmorra' : 'iniciativa', { tamanho: 12 }), o.rotulo)
+            : it.habilidade ? h('span', { class: 'tb-stack__hab' }, 'habilidade') : null,
+          h('span', { class: 'tb-stack__who' }, `de ${it.quem}`)),
+        h('span', { class: 'tb-stack__title' }, titulo, it.topo ? h('span', { class: 'tb-pill tb-pill--estado' }, 'resolve a seguir') : null),
+        h('span', { class: 'tb-stack__what' + (oficial ? ' tb-stack__what--oficial' : ''), lang: oficial ? 'en' : null }, oQueFaz),
         it.alvos.length ? h('span', { class: 'tb-stack__target' }, `→ ${it.alvos.join(', ')}`) : null));
     // A15 · segurar espia a carta da pilha também
     if (onPeek) __m20.onLongPress(b, { start: () => onPeek(it, true), end: () => onPeek(it, false) });
@@ -37633,14 +37662,14 @@ function StackPanel({ itens, prioridade, imgOf, onOpen, onPeek, aberto = true, o
     prioridade ? h('span', { class: 'tb-stack__prio', id: 'tb-stack-prio' }, `Prioridade: ${prioridade}`) : null);
   const lista = h('ol', { class: 'tb-stack__list' }, ...itens.map(it => h('li', { class: 'tb-stack__item', dataset: { top: String(it.topo), oid: it.oid } }, cartao(it))));
   if (!onToggle) return h('section', { class: 'tb-stack', id: 'tb-stack', 'aria-label': 'pilha' }, cabeca, lista);
-  const topo = itens.find(it => it.topo) || itens[0];
+  const topo = itens.find(it => it.topo) || itens[0], oTopo = org(topo), nomeTopo = oTopo ? `${oTopo.titulo} · ${oTopo.de}` : topo.nome;
   const faixa = h('button', { class: 'tb-stack__faixa', type: 'button', id: 'tb-stack-btn', 'aria-expanded': String(aberto), 'aria-controls': 'tb-stack-painel',
-    'aria-label': `Pilha, ${itens.length}: ${topo.nome}, de ${topo.quem}${topo.alvos.length ? ', alvo ' + topo.alvos.join(', ') : ''}${prioridade ? '. Prioridade: ' + prioridade : ''}`, onClick: () => onToggle(!aberto) },
+    'aria-label': `Pilha, ${itens.length}: ${nomeTopo}, de ${topo.quem}${topo.alvos.length ? ', alvo ' + topo.alvos.join(', ') : ''}${prioridade ? '. Prioridade: ' + prioridade : ''}`, onClick: () => onToggle(!aberto) },
     h('span', { class: 'tb-stack__monte' + (sobe ? ' tb-stack__monte--sobe' : ''), 'aria-hidden': 'true', dataset: { sobrepoe: 'true' } },
-      ...__m33.monteDaPilha(itens).map(m => h('span', { class: 'tb-stack__mini', dataset: { oid: m.oid, ...(m.topo ? { topo: 'true' } : {}) } },
-        m.imagemDe && imgOf && imgOf(m.imagemDe) ? imgDaMesa({ image: imgOf(m.imagemDe), images: null }, 'sm') : m.imagemDe ? null : h('span', { class: 'ds-verso' })))),
+      ...__m33.monteDaPilha(itens).map(m => { const om = origemDe && origemDe(m.oid); return h('span', { class: 'tb-stack__mini', dataset: { oid: m.oid, ...(m.topo ? { topo: 'true' } : {}), ...(om ? { origem: om.tipo } : {}) } },
+        om ? FaceDaOrigem(om, { mini: true }) : m.imagemDe && imgOf && imgOf(m.imagemDe) ? imgDaMesa({ image: imgOf(m.imagemDe), images: null }, 'sm') : m.imagemDe ? null : h('span', { class: 'ds-verso' })); })),
     h('b', { class: 'tb-stack__conta' }, String(itens.length)),
-    h('span', { class: 'tb-stack__topo' }, topo.nome), Icone('descer', { tamanho: 18, classe: 'tb-stack__seta' }));
+    h('span', { class: 'tb-stack__topo' }, nomeTopo), Icone('descer', { tamanho: 18, classe: 'tb-stack__seta' }));
   return h('section', { class: 'tb-stack tb-stack--faixa', id: 'tb-stack', 'aria-label': 'pilha', dataset: { aberto: String(aberto) } },
     faixa, h('div', { class: 'tb-stack__painel', id: 'tb-stack-painel', hidden: !aberto, dataset: { sobrepoe: 'true' } }, cabeca, lista));
 }
@@ -37843,14 +37872,39 @@ function SeloDaMasmorra(m, { onClick, id, lado = 'eu' } = {}) {
   const fala = falaDaMasmorra(m);
   const el = h('button', { class: 'tb-masmorra', type: 'button', id, onClick, title: fala, 'aria-label': fala + '. Toque para ver o mapa', dataset: { lado, iniciativa: String(!!(m && m.dono && m.dono.iniciativa)), completa: String(!!(m && m.dono && m.dono.completa)) } });
   if (!m || m.erro) { el.appendChild(Icone('masmorra', { tamanho: 20, classe: 'tb-masmorra__icone' })); return el; }
-  const alto = 28, y = n => m.niveis > 1 ? 3 + n * ((alto - 6) / (m.niveis - 1)) : alto / 2;
-  const pos = Object.fromEntries(m.salas.map(r => [r.id, { x: r.x * 2, y: y(r.nivel) }]));
-  const svg = svgM('svg', { class: 'tb-masmorra__mini', viewBox: `0 0 24 ${alto}`, 'aria-hidden': 'true', focusable: 'false' });
-  for (const via of m.vias) svg.appendChild(svgM('line', { class: 'tb-masmorra__via', 'data-feita': String(via.feita), x1: pos[via.de].x, y1: pos[via.de].y, x2: pos[via.para].x, y2: pos[via.para].y }));
-  for (const r of m.salas) svg.appendChild(svgM('circle', { class: 'tb-masmorra__no', 'data-estado': r.estado, 'data-dono': String(!!(m.dono && m.dono.sala === r.id)), cx: pos[r.id].x, cy: pos[r.id].y, r: m.dono && m.dono.sala === r.id ? 3.2 : 1.8 }));
-  el.appendChild(svg);
+  el.appendChild(miniDaMasmorra(m));
   if (m.dono && m.dono.iniciativa) el.appendChild(h('span', { class: 'tb-masmorra__bandeira', 'aria-hidden': 'true' }, Icone('iniciativa', { tamanho: 12 })));
   return el;
+}
+/** A miniatura do mapa (24 × 28): caminhos e salas; `acesa` é a sala em destaque (no selo, a de quem é o lado). */
+function miniDaMasmorra(m, { acesa = m.dono && m.dono.sala, classe = 'tb-masmorra__mini' } = {}) {
+  const alto = 28, y = n => m.niveis > 1 ? 3 + n * ((alto - 6) / (m.niveis - 1)) : alto / 2;
+  const pos = Object.fromEntries(m.salas.map(r => [r.id, { x: r.x * 2, y: y(r.nivel) }]));
+  const svg = svgM('svg', { class: classe, viewBox: `0 0 24 ${alto}`, 'aria-hidden': 'true', focusable: 'false' });
+  for (const via of m.vias) svg.appendChild(svgM('line', { class: 'tb-masmorra__via', 'data-feita': String(via.feita), x1: pos[via.de].x, y1: pos[via.de].y, x2: pos[via.para].x, y2: pos[via.para].y }));
+  for (const r of m.salas) svg.appendChild(svgM('circle', { class: 'tb-masmorra__no', 'data-estado': r.estado, 'data-dono': String(!!acesa && acesa === r.id), cx: pos[r.id].x, cy: pos[r.id].y, r: acesa === r.id ? 3.2 : 1.8 }));
+  return svg;
+}
+/** J-44 · relato #54 · de onde vem um item da pilha que não é carta: a sala da masmorra (a habilidade "Cidade Baixa: Esconderijo"
+    que o motor põe na pilha ao entrar na sala, 309.4c) ou a iniciativa (726.2, sem fonte). Carta: null. Só leitura do estado. */
+function origemDaPilha(s, oid, v, entradas = []) {
+  const o = s && s.objects && s.objects[oid]; if (!o || !o.ability) return null;
+  const p = o.controller, lado = p === v ? 'eu' : 'oponente';
+  if (o.name === 'Iniciativa' && o.source == null) return { tipo: 'iniciativa', p, lado, titulo: 'Iniciativa', de: 'designação', rotulo: 'Iniciativa', texto: null };
+  const nome = String(o.name || ''), k = nome.indexOf(': '); if (k < 0) return null;
+  const d = (__m23.DUNGEONS || []).find(x => (x.pt || x.name) === nome.slice(0, k)); if (!d) return null;
+  const sala = d.rooms.find(r => r.pt === nome.slice(k + 2)); if (!sala) return null;
+  const m = modeloDaMasmorra(s, p, v, typeof entradas === 'function' ? entradas() : entradas);
+  return { tipo: 'masmorra', p, lado, masmorra: d.name, sala: sala.id, titulo: sala.pt, de: d.pt || d.name, rotulo: `Sala · ${d.pt || d.name}`,
+    texto: (TEXTO_DAS_SALAS[d.name] || {})[sala.id] || null, modelo: m && !m.erro ? m : null };
+}
+/** J-44 · a face do cartão da pilha para `origemDaPilha`: a carta da masmorra (moldura de ébano, o mapa com a sala acesa na cor
+    de quem a controla, o selo da masmorra) ou a bandeira da iniciativa. `mini`: a versão de 26 px da faixa da pilha. */
+function FaceDaOrigem(o, { mini = false } = {}) {
+  const corpo = o.tipo === 'masmorra' && o.modelo ? miniDaMasmorra(o.modelo, { acesa: o.sala, classe: 'tb-origem__mapa' })
+    : Icone(o.tipo === 'masmorra' ? 'masmorra' : 'iniciativa', { tamanho: mini ? 14 : 22, classe: 'tb-origem__icone' });
+  return h('span', { class: 'tb-origem' + (mini ? ' tb-origem--mini' : ''), 'aria-hidden': 'true', dataset: { tipo: o.tipo, lado: o.lado, ...(o.novo ? { novo: 'true' } : {}) } },
+    corpo, !mini && o.tipo === 'masmorra' && o.modelo ? Icone('masmorra', { tamanho: 12, classe: 'tb-origem__selo' }) : null);
 }
 /** Folha da masmorra: quem está onde, o mapa (salas em grade, caminhos desenhados por cima da medida das salas) e a lista
     das salas com o efeito por extenso. Sem modelo: estado de erro com o que se sabe. */
@@ -37900,7 +37954,7 @@ function MapaDaMasmorra(m) {
     m.textoDaIniciativa ? h('p', { class: 'tb-masmorra__nota' }, h('b', {}, 'Iniciativa. '), m.textoDaIniciativa) : null);
 }
 
-return { QuadroDeBloqueios, retemImagem, retemImagemDaCarta, imagensRetidas, fonteParaLargura, animaVirada, faseDoPasso, TableCard, ZoneRow, LifeCounter, ZoneChip, StepBar, StackStrip, StackPanel, CardPeek, PriorityBanner, Desfecho, AdjudicationPanel, Icone, IconButton, gestoDeBandeja, ligaGestoDeBandeja, modeloDaMasmorra, caminhoNaMasmorra, falaDaMasmorra, SeloDaMasmorra, MapaDaMasmorra, TEXTO_DAS_SALAS };
+return { QuadroDeBloqueios, retemImagem, retemImagemDaCarta, imagensRetidas, fonteParaLargura, animaVirada, faseDoPasso, TableCard, ZoneRow, LifeCounter, ZoneChip, StepBar, StackStrip, StackPanel, CardPeek, PriorityBanner, Desfecho, AdjudicationPanel, Icone, IconButton, gestoDeBandeja, ligaGestoDeBandeja, modeloDaMasmorra, caminhoNaMasmorra, falaDaMasmorra, SeloDaMasmorra, MapaDaMasmorra, TEXTO_DAS_SALAS, origemDaPilha, FaceDaOrigem, miniDaMasmorra };
 })();
 
 
@@ -41614,6 +41668,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   // MJ1c (leva J-4) · a pilha mora numa faixa de 44 px por cima da mesa, como o resumo: um toque abre o detalhe por cima,
   // toque fora ou Esc fecham; a pilha vazia fecha sozinha. O campo dos dois lados não se mexe quando algo vai para a pilha.
   let pilhaAberta = false;
+  const origensVistas = new Set(); // J-44 · a sala acende só na primeira pintura do item (a mesa redesenha a cada jogada)
   const foraDaPilha = e => { const el = root.querySelector('#tb-stack'); if (el && !el.contains(e.target)) abrePilha(false); };
   const escDaPilha = e => { if (e.key === 'Escape') abrePilha(false); };
   function abrePilha(sim) {
@@ -43347,7 +43402,18 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     // MJ5 · o topo novo sobe no monte (não na primeira pintura, nem ao desfazer)
     const topoAgora = pilha.itens.length ? String(pilha.itens[0].oid) : null, sobe = !!topoAgora && !!voo && topoAgora !== topoDaPilha; // sem voo: abrir, desfazer, movimento reduzido
     topoDaPilha = topoAgora;
-    const painelPilha = StackPanel({ itens: pilha.itens, prioridade: pilha.prioridade, imgOf, aberto: pilhaAberta, onToggle: abrePilha, sobe, onOpen: it => { const alvo = it.origem && s.objects[it.origem] ? it.origem : it.oid; openObject(alvo); }, onPeek: (it, aberto) => peek(it.origem && s.objects[it.origem] ? it.origem : it.oid, aberto) });
+    // J-44 · relato #54 · uma vez por pintura e por item (painel, faixa e toque usam a mesma); o registro (cópia) só é lido
+    // quando o item é mesmo uma sala de masmorra
+    const origens = new Map(); let ents = null;
+    const origemDe = oid => {
+      if (!origens.has(oid)) {
+        const o = s.objects[oid] && s.objects[oid].ability ? __m17.origemDaPilha(s, oid, table.viewer(), () => (ents = ents || table.entradas || [])) : null;
+        if (o) { o.novo = !origensVistas.has(oid); origensVistas.add(oid); }
+        origens.set(oid, o);
+      }
+      return origens.get(oid);
+    };
+    const painelPilha = StackPanel({ itens: pilha.itens, prioridade: pilha.prioridade, imgOf, origemDe, aberto: pilhaAberta, onToggle: abrePilha, sobe, onOpen: it => { const o = origemDe(it.oid); if (o && o.tipo === 'masmorra') return abreMasmorra(o.p); const alvo = it.origem && s.objects[it.origem] ? it.origem : it.oid; openObject(alvo); }, onPeek: (it, aberto) => peek(it.origem && s.objects[it.origem] ? it.origem : it.oid, aberto) });
     const adj = adjudicating && s.status !== 'over' ? AdjudicationPanel({
       name: adjudicating.name, image: imgOf(adjudicating.name), oracle: oracleOf(adjudicating.name),
       controls: hasPriority(v) ? [Button('Comprar 1', { onClick: () => act({ t: 'draw', p: v, target: v, n: 1 }) })] : [],
