@@ -629,15 +629,21 @@ test('DS-K2 · M3 a barra da mesa: vidas na barra na cor de cada um (texto e bor
 });
 
 test('DS-K2 · M1 a carta do campo na moldura K: janela da arte por token sobre a mesma imagem, faixa do nome opaca, pé só com P/T, fileira centralizada sem perder a rolagem', () => {
-  assert.match(css, /:root \{ --moldura-hd: calc\(var\(--text-2xs\) \* 1\.2 \+ 6px\); --moldura-ft: calc\(var\(--text-xs\) \* 1\.4 \+ 6px\); --moldura-borda: 3px;\s*--arte-topo: 0\.112; --arte-alto: 0\.442; \}/, 'a moldura e a janela da arte são tokens, iguais nos dois temas');
+  assert.match(css, /:root \{ --moldura-hd: calc\(var\(--text-3xs\) \* 1\.2 \+ 6px\); --moldura-ft: calc\(var\(--text-xs\) \* 1\.4 \+ 6px\); --moldura-borda: 3px;\s*--arte-topo: 0\.112; --arte-alto: 0\.442; \}/, 'a moldura e a janela da arte são tokens, iguais nos dois temas');
   // a janela da arte da moldura de 2015 (8,2–91,8% × 11,18–55,44%) cobre a caixa: a imagem cresce pela altura e centraliza
   assert.ok(0.112 >= 76 / 680 - 0.0005 && 0.112 + 0.442 <= 377 / 680 + 0.0005, 'a caixa da arte nunca mostra a moldura impressa em cima nem embaixo');
   assert.match(componentCss, /\.tb-card__face \.tb-card__arte img \{ position: absolute; left: 50%; top: calc\(100% \* var\(--arte-topo\) \/ var\(--arte-alto\) \* -1\); height: calc\(100% \/ var\(--arte-alto\)\);\s*width: auto; min-width: 100%; max-width: none; object-fit: cover; transform: translateX\(-50%\); \}/);
   assert.match(componentCss, /\.tb-card\[data-moldura-pe="true"\] \.tb-card__arte \{ bottom: var\(--moldura-ft\); \}/, 'o pé só existe quando há P/T');
   assert.match(componentCss, /\.tb-card\[data-moldura="true"\] > \.tb-card__label \{[^}]*background: var\(--bg-elev-1\);/, 'o nome vira faixa opaca (fora da face: a carta virada não leva o nome junto)');
+  // J-42 (relato #48) · a faixa do nome numa linha, com a letra da faixa (--text-3xs, a mesma do --moldura-hd), reticências e sem hífen:
+  // duas linhas desciam sobre a arte e "Moun-tain" quebrava o nome do terreno
+  assert.match(componentCss, /\.tb-card\[data-moldura="true"\] > \.tb-card__label \{[^}]*font-size: var\(--text-3xs\); line-height: 1\.2; display: block; white-space: nowrap; text-overflow: ellipsis; hyphens: manual;/);
+  assert.match(componentCss, /\.tb-card\[data-moldura="true"\]\[data-tapped="true"\] > \.tb-card__label \{ top: auto; bottom: 78%;/, 'deitada, a faixa fica acima da carta, fora da arte');
+  assert.match(css, /:root \{ --vida-disco: 34px; \}/, 'o disco da vida é token');
+  assert.match(componentCss, /\.tb-top > \.tb-life--barra \{[^}]*padding: calc\(\(var\(--tap-min\) - var\(--vida-disco\)\) \/ 2\);[^}]*background-clip: content-box;/, 'o alvo continua com 44 px; só o disco é pintado');
   assert.match(componentCss, /\.tb-side \.tb-row \{ justify-content: safe center; \}/, 'a fila do campo centraliza; com muitas cartas a rolagem começa na primeira');
   assert.match(HTML, /const moldura = !opts\.size && !opts\.verso && !!card\.image;/, 'só a carta do campo: mão, pilha e verso seguem com a carta inteira');
-  assert.match(HTML, /moldura \? h\('span', \{ class: 'tb-card__arte' \}, imgDaMesa\(card, opts\.size\)\)/, 'a arte é a mesma imagem guardada da carta (sem endereço novo: joga sem internet do mesmo jeito)');
+  assert.match(HTML, /moldura \? h\('span', \{ class: 'tb-card__arte' \}, SimboloDoBasico\(card\.name\), imgDaMesa\(card, opts\.size\)\)/, 'a arte é a mesma imagem guardada da carta (sem endereço novo: joga sem internet do mesmo jeito)');
   for (const [nome, t] of [['escuro', DARK], ['claro', LIGHT]]) {
     assert.ok(ratio(t['--fg'], t['--bg-elev-1']) >= 4.5, `nome e P/T sobre a faixa (${nome}): ${ratio(t['--fg'], t['--bg-elev-1']).toFixed(2)}`);
     assert.ok(ratio(t['--border-strong'], t['--bg-elev-0']) >= 1.3, `a borda da moldura se separa do feltro (${nome})`);

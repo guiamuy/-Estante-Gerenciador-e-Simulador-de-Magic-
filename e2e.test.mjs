@@ -8,6 +8,7 @@ import { fatiar } from './portao.mjs';
 // Sem a variável, tudo roda como sempre. Regra para teste novo: nenhum teste depende de outro (cada um abre a sua página).
 const test = fatiar(testeDoNode, process.env.E2E_FATIA);
 import assert from 'node:assert/strict';
+import { PNG as PNGjs } from 'pngjs';
 import { createServer } from 'node:http';
 import { readFileSync, existsSync } from 'node:fs';
 import { join, extname } from 'node:path';
@@ -9559,7 +9560,9 @@ test('e2e · DS-K2 M1 carta do campo na moldura K: a caixa da arte mostra só a 
       const l = caixa(lab);
       return { oid: c.dataset.oid, zona: c.closest('[data-zone]').dataset.zone, tapped: c.dataset.tapped === 'true', pe: c.dataset.molduraPe === 'true', w: Math.round(parseFloat(getComputedStyle(c).width)), h: Math.round(parseFloat(getComputedStyle(c).height)),
         raio: getComputedStyle(c.querySelector('.tb-card__face')).borderTopLeftRadius, so: jan.l <= 1 && jan.r >= aw - 1 && jan.t <= 1 && jan.b >= ah - 1 && ah > 30,
-        nomeCabe: lab.scrollHeight <= lab.clientHeight + 1 && lab.scrollWidth <= lab.clientWidth + 1, nomeDentro: l.l >= k.l - 0.5 && l.r <= k.r + 0.5 && l.t >= k.t - 0.5,
+        // J-42 (relato #48) · o nome longo termina em reticências numa linha (antes: duas linhas, que desciam sobre a arte); o nome
+        // inteiro continua no nome falado da carta e no espiar
+        nomeCabe: lab.scrollHeight <= lab.clientHeight + 1 && c.getAttribute('aria-label').startsWith(lab.textContent), nomeDentro: l.l >= k.l - 0.5 && l.r <= k.r + 0.5 && l.t >= k.t - 0.5,
         nomeDePe: getComputedStyle(lab).transform === 'none', fundoNome: getComputedStyle(lab).backgroundColor,
         ptNoPe: pt ? caixa(pt).t >= a.b - 1 && caixa(pt).b <= k.b + 0.5 : null, seloLivre: !c.querySelector('.tb-card__sick') || caixa(c.querySelector('.tb-card__sick')).t >= l.b - 0.5 || caixa(c.querySelector('.tb-card__sick')).b <= l.t + 0.5, arteAteABorda: k.b - a.b };
     });
@@ -9578,7 +9581,7 @@ test('e2e · DS-K2 M1 carta do campo na moldura K: a caixa da arte mostra só a 
     for (const c of m.cartas) {
       assert.equal(c.raio, '4.75%', `${onde}: raio da carta de Magic (${c.oid})`);
       assert.ok(c.so, `${onde}: a caixa da arte mostra só a janela da arte, sem a moldura impressa ` + JSON.stringify(c));
-      assert.ok(c.nomeCabe && c.nomeDentro, `${onde}: o nome cabe inteiro na faixa e a faixa fica dentro da carta (${c.oid})`);
+      assert.ok(c.nomeCabe && c.nomeDentro, `${onde}: o nome cabe na faixa (uma linha; inteiro no nome falado) e a faixa fica dentro da carta (${c.oid})`);
       assert.ok(c.nomeDePe, `${onde}: o nome não gira (${c.oid})`);
       assert.notEqual(c.fundoNome, 'rgba(0, 0, 0, 0)', `${onde}: a faixa do nome é opaca`);
     }
@@ -9611,6 +9614,97 @@ test('e2e · DS-K2 M1 carta do campo na moldura K: a caixa da arte mostra só a 
   assert.ok(/--moldura-hd/.test(ds.tokens) && /--arte-alto/.test(ds.tokens), 'os tokens estão escritos no catálogo');
   for (const tema of ['dark', 'light']) { await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.$eval('#ds-campo', el => el.scrollIntoView()); await auditaTela(page, `DS-K2 M1 · /ds ${tema}`);
     if (process.env.SHOTS) await (await page.$('#ds-campo')).screenshot({ path: process.env.SHOTS + `/ds-k2-m1-ds-${tema}.png` }); }
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · J-42 relato #48 parte 1 · arte inteira no campo: nos dois lados (de pé e virada) a faixa do nome não cobre a arte (interseção zero), nome numa linha sem hífen e com reticências no fim, terreno sem imagem mostra o símbolo de mana; vida num disco de até 34 px com o número no centro (±1 px) e alvo de 44 px; 360×697, 360×780 e 390×844, dois temas, auditaTela', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  // as imagens viram a carta desenhada (janela da arte da moldura de 2015); a de Forest falha de propósito: o terreno sem imagem
+  await page.route('https://cards.scryfall.io/**', r => r.fulfill({ status: 200, contentType: 'image/svg+xml', headers: { 'access-control-allow-origin': '*' },
+    body: '<svg xmlns="http://www.w3.org/2000/svg" width="488" height="680"><rect width="488" height="680" fill="#111"/><rect x="40" y="30" width="408" height="38" fill="#ddd"/><rect x="40" y="76" width="408" height="301" fill="#3e6f8f"/><rect x="40" y="384" width="408" height="30" fill="#ddd"/><rect x="40" y="422" width="408" height="200" fill="#eee"/></svg>' }));
+  await createDeck(page, base, 'Arte', '20 Mountain\n30 Delver of Secrets\n9 Island\n1 Forest');
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start'); await page.fill('#mesa-seed', '5');
+  await page.click('[data-opponent="shark"]');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-pass');
+  // nos dois lados: um terreno, uma criatura de nome longo, uma virada; e um terreno básico sem imagem do seu lado
+  // do seu lado a sua lista; do outro, a do Shark (Kessig Flamebreather é o nome longo)
+  const poe = (dono, nome, virar = false) => page.evaluate(([dono, nome, virar]) => { const M = window.__estanteMesa, s = M.estado();
+    const o = Object.values(s.objects).find(o => o.owner === dono && o.zone === 'library' && o.name === nome);
+    if (!o) return null; const p = s.turn.priority; M.act({ t: 'move', p, oid: o.oid, to: 'battlefield' }); if (virar) M.act({ t: 'tap', p, oid: o.oid }); return o.oid; }, [dono, nome, virar]);
+  const eu = await page.evaluate(() => window.__estanteMesa.estado().turn.active), ele = 1 - eu;
+  await poe(eu, 'Mountain'); await poe(eu, 'Delver of Secrets'); await poe(eu, 'Delver of Secrets', true);
+  await poe(ele, 'Mountain'); await poe(ele, 'Kessig Flamebreather'); await poe(ele, 'Guttersnipe', true);
+  // a Forest deste lado não tem imagem que chegue (como no aparelho sem rede): a resposta da imagem dela falha antes de ela entrar
+  const forest = await page.evaluate(() => { const M = window.__estanteMesa, s = M.estado(), p = s.turn.active, o = Object.values(s.objects).find(o => o.owner === p && o.name === 'Forest' && o.zone === 'library');
+    return { oid: o.oid, image: o.image || null, images: o.images || null }; });
+  for (const u of [forest.image, ...Object.values(forest.images || {})].filter(x => typeof x === 'string')) await page.route(u, r => r.fulfill({ status: 404, body: '' }));
+  const semImagem = forest.oid;
+  await page.evaluate(oid => { const M = window.__estanteMesa, s = M.estado(); M.act({ t: 'move', p: s.turn.active, oid, to: 'battlefield' }); }, semImagem);
+  await page.evaluate(() => document.querySelector('#tb').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))); await page.waitForTimeout(300);
+  if ((await page.getAttribute('#tb-hand-toggle', 'aria-expanded')) === 'true') { await page.click('#tb-hand-toggle'); await page.waitForTimeout(450); }
+  const mede = () => page.evaluate(async sem => {
+    await document.fonts.ready;
+    const cx = r => ({ l: r.left, r: r.right, t: r.top, b: r.bottom, w: r.width, h: r.height });
+    const inter = (a, b) => Math.max(0, Math.min(a.r, b.r) - Math.max(a.l, b.l)) * Math.max(0, Math.min(a.b, b.b) - Math.max(a.t, b.t));
+    const cartas = [...document.querySelectorAll('.tb-side .tb-card[data-moldura="true"]')].map(c => {
+      const lab = c.querySelector('.tb-card__label'), arte = c.querySelector('.tb-card__arte'), cs = getComputedStyle(lab), l = cx(lab.getBoundingClientRect()), a = cx(arte.getBoundingClientRect());
+      const linha = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.2;
+      return { oid: c.dataset.oid, lado: c.closest('.tb-side--me') ? 'eu' : 'ele', zona: c.closest('[data-zone]').dataset.zone, virada: c.dataset.tapped === 'true', nome: lab.textContent,
+        cobre: +inter(l, a).toFixed(2), umaLinha: lab.clientHeight <= linha * 1.5 + 6, hifen: cs.hyphens, quebra: cs.whiteSpace, fim: cs.textOverflow, arteH: a.h, dentro: l.l >= c.getBoundingClientRect().left - 0.5 && l.r <= c.getBoundingClientRect().right + 0.5 };
+    });
+    const semMoldura = [...document.querySelectorAll('.tb-side .tb-card__name')].map(n => ({ nome: n.textContent, hifen: getComputedStyle(n).hyphens, transborda: n.scrollWidth - n.clientWidth }));
+    const ilha = document.querySelector(`.tb-side--me .tb-card[data-oid="${sem}"]`);
+    const ilhaInfo = ilha ? { simbolo: (() => { const y = ilha.querySelector('.tb-card__face .tb-card__simbolo'); return !!y && y.getBoundingClientRect().width >= 16 && getComputedStyle(y).visibility !== 'hidden'; })(), falhou: (ilha.querySelector('img') || {}).dataset?.falhou || null, nome: (ilha.querySelector('.tb-card__name') || {}).textContent || '', hifen: ilha.querySelector('.tb-card__name') ? getComputedStyle(ilha.querySelector('.tb-card__name')).hyphens : null } : null;
+    const vidas = ['tb-life-opp', 'tb-life-me'].map(id => {
+      const b = document.getElementById(id), n = b.querySelector('.tb-life__n'), d = cx((b.querySelector('.tb-life__disco') || b).getBoundingClientRect()), bb = cx(b.getBoundingClientRect());
+      return { id, diam: Math.max(d.w, d.h), redondo: Math.abs(d.w - d.h) <= 1, disco: d, alvo: [bb.w, bb.h] };
+    });
+    return { cartas, semMoldura, ilha: ilhaInfo, vidas, doc: document.documentElement.scrollWidth - innerWidth };
+  }, semImagem);
+  for (const [w, hgt] of [[360, 697], [360, 780], [390, 844]]) for (const tema of ['dark', 'light']) {
+    await page.setViewportSize({ width: w, height: hgt }); await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(350);
+    await page.waitForFunction(() => [...document.querySelectorAll('.tb-side .tb-card[data-moldura="true"] .tb-card__arte img')].every(i => i.complete), null, { timeout: 8000 });
+    const m = await mede(), onde = `${w}×${hgt} ${tema}`;
+    // o centro da tinta do número (os pixels que não são o fundo do disco), lido na captura do disco: a caixa da fonte não serve,
+    // porque os algarismos da Cormorant descem abaixo da linha (era o "número descentralizado" do relato)
+    for (const v of m.vidas) { const d = v.disco, png = PNGjs.sync.read(await page.screenshot({ clip: { x: d.l, y: d.t, width: d.w, height: d.h } })), k = png.width / d.w;
+      const px = (x, y) => { const i = (y * png.width + x) * 4; return [png.data[i], png.data[i + 1], png.data[i + 2]]; };
+      const cx0 = png.width / 2, cy0 = png.height / 2, raio = png.width / 2 - 4 * k, fundo = px(Math.round(cx0), Math.round(cy0 - raio + k));
+      let l = Infinity, r = -Infinity, t = Infinity, b = -Infinity;
+      for (let y = 0; y < png.height; y++) for (let x = 0; x < png.width; x++) { if ((x + .5 - cx0) ** 2 + (y + .5 - cy0) ** 2 > raio ** 2) continue;
+        const c = px(x, y); if (Math.abs(c[0] - fundo[0]) + Math.abs(c[1] - fundo[1]) + Math.abs(c[2] - fundo[2]) < 120) continue;
+        l = Math.min(l, x); r = Math.max(r, x + 1); t = Math.min(t, y); b = Math.max(b, y + 1); }
+      v.dx = +(((l + r) / 2 - cx0) / k).toFixed(2); v.dy = +(((t + b) / 2 - cy0) / k).toFixed(2); v.tinta = [(r - l) / k, (b - t) / k]; }
+    for (const lado of ['eu', 'ele']) { const cs = m.cartas.filter(c => c.lado === lado);
+      assert.ok(cs.some(c => c.zona === 'lands'), `${onde}: ${lado}: terreno na moldura ` + JSON.stringify(cs.map(c => [c.zona, c.virada]))); }
+    assert.ok(m.cartas.some(c => c.lado === 'eu' && c.zona !== 'lands' && !c.virada) && m.cartas.some(c => c.lado === 'eu' && c.virada), `${onde}: permanente de pé e virada na moldura`);
+    assert.ok(m.semMoldura.length >= 2, `${onde}: as cartas sem imagem do Shark estão no campo`);
+    for (const n of m.semMoldura) assert.ok(n.hifen !== 'auto' && n.transborda <= 1, `${onde}: carta sem imagem: o nome sem hífen e sem sair da carta ` + JSON.stringify(n));
+    for (const c of m.cartas) {
+      assert.equal(c.cobre, 0, `${onde}: a faixa do nome não cobre a arte (${c.lado} ${c.zona}${c.virada ? ' virada' : ''} ${c.nome}: ${c.cobre} px²)`);
+      assert.ok(c.umaLinha && c.quebra === 'nowrap' && c.fim === 'ellipsis', `${onde}: o nome numa linha, com reticências no fim (${c.nome}) ` + JSON.stringify(c));
+      assert.notEqual(c.hifen, 'auto', `${onde}: o nome não quebra com hífen (${c.nome})`);
+      assert.ok(c.dentro && c.arteH > 20, `${onde}: a faixa dentro da carta e a arte à vista (${c.nome}, arte ${c.arteH.toFixed(1)} px)`);
+    }
+    assert.ok(m.ilha && m.ilha.simbolo, `${onde}: o terreno básico sem imagem mostra o símbolo de mana ` + JSON.stringify(m.ilha));
+    assert.notEqual(m.ilha.hifen, 'auto', `${onde}: e o nome dele não quebra com hífen`);
+    for (const v of m.vidas) {
+      assert.ok(v.diam <= 34 && v.redondo, `${onde}: ${v.id} num disco de até 34 px (${v.diam.toFixed(1)})`);
+      assert.ok(v.tinta[0] > 4 && v.tinta[1] > 4, `${onde}: ${v.id}: o número aparece no disco (${v.tinta})`);
+      assert.ok(Math.abs(v.dx) <= 1 && Math.abs(v.dy) <= 1, `${onde}: ${v.id}: o número no centro do disco (dx ${v.dx}, dy ${v.dy})`);
+      assert.ok(v.alvo[0] >= 44 && v.alvo[1] >= 44, `${onde}: ${v.id}: o toque continua com 44 px (${v.alvo})`);
+    }
+    assert.equal(m.doc, 0, `${onde}: nada rola de lado`);
+    await auditaTela(page, `J-42 · arte inteira ${onde}`);
+    if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + `/j-42-mesa-${w}x${hgt}-${tema}.png` });
+  }
+  // /ds: o terreno básico sem imagem e o disco da vida no catálogo
+  await page.goto(base + '#/ds'); await page.waitForSelector('#ds-basico-sem-arte');
+  const ds = await page.evaluate(() => ({ simbolo: !!document.querySelector('#ds-basico-sem-arte .tb-card__simbolo .ds-sym[data-sym="U"]'), nome: (document.querySelector('#ds-basico-sem-arte .tb-card__name') || {}).textContent,
+    discos: [...document.querySelectorAll('#ds-barra .tb-life__disco')].map(d => Math.round(d.getBoundingClientRect().width)), token: (document.querySelector('#ds-vida-disco') || {}).textContent || '' }));
+  assert.deepEqual([ds.simbolo, ds.nome, ds.discos], [true, 'Island', [34, 34]], '/ds: Island sem imagem com o símbolo azul; as vidas da barra em disco de 34 px ' + JSON.stringify(ds));
+  assert.match(ds.token, /--vida-disco/);
   assert.deepEqual(errors, []);
 });
 

@@ -402,6 +402,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-z2 ✅ | Shark usa todas as mecânicas, inclusive as dos terrenos: estoura o terreno que busca básico, abre mana com habilidades, ordena antes do corte do relógio; auditoria de uso (leva 143) | B21 | 1 | — |
 | 16º-sc 🟡 | DS-K · Ébano e Ouro, design system de patamar (direção K do volume 3, decisão do dono de 24/10): F0.1 ✅ (G-287) tokens de ébano e latão nos três blocos, receitas de animação no `/ds` como contrato da jogabilidade, guarda de contenção de texto no portão; F0.2 fontes self-hosted (sw.js, `armazem`); F1 componentes; F2 telas de gestão; F3 mesa como layout; FA leva de ajuste no aparelho | DS-K | 1 de 11 a 13 | — |
 | 16º-sh 🟡 | DS-K2 · Ébano e Ouro, a proposta inteira (pedido do dono de 01/11): auditoria tela-modelo × app; J1 ✅ (G-317) o Jogar abre sempre no Pauper por decisão de produto, com as listas prontas à mão; J2 Jogar como mesa de preparação; N1–N3 barra de navegação embaixo com o Jogar no centro; I1–I2 Início (últimas listas, faixa de offline); L1 hero da Lista; M1–M4 mesa e mão com arte (`jogabilidade`) | DS-K2 | 1 de 14 a 18 | 16º-sc, 16º-js |
+| 16º-tj 🟡 | Relato #48 · mesa com a arte inteira: parte 1 ✅ (J-42) faixa do nome numa linha fora da arte nos dois lados, terreno básico com o símbolo de mana, vida em disco de 34 px centrado; parte 2 playmat dos dois lados | DS-K2 | 1 de 2 | 16º-sh |
 | 16º-si ✅ | CONV1 Convidar amigos (pedido do dono de 01/11: "como compartilho para meus amigos baixarem e começarem a usar?"): ✅ (G-325) Perfil › Convidar amigos com o endereço, Compartilhar, Copiar link, QR lido de volta no teste e o passo a passo de instalar no Android e no iPhone (o do aparelho primeiro) | CONV1 | 1 | — |
 | 16º-sa 🟡 | B22 Shark profissional com cinco listas: fatia 1 ✅ (B-173) listas de torneio embutidas e seletor do Shark só com elas; fatia 2 ✅ (B-174) linha de base: Madness 75% · Elves 63% · Faeries 50% · Control 38% · Terror 25% contra o campo; fatia 3 ✅ (B-175) perfil do Terror + o terreno que falta (pareado 50% × 38% em 32 pares: dentro da margem); fatia 4 (B-176) ameaças do campo no Control: sem ganho (41% × 42% em 64 pares), desligada; fatia 5 (B-177) mulligan por fontes e cores: neutro em força (79 × 81 em 160 pares), ligado pelo comportamento; fatia 6 (B-178) prazo da decisão: p95 430 → 366 ms, pior 4,3 → 0,8 s, força 48 × 47; fatia 7 (B-179) quando anular: a resposta é lida primeiro e a anulação guardada tem valor, neutro em força (38 × 39 em 96 pares), ligado pelo comportamento; fatias 8–9 viraram a B23 (16º-sd); força final (B-185, 208 decididas por lista, Shark × Shark): Madness 66% · Terror 59% · Elfos 50% · Faeries 47% · Control 29% — o aceite "nenhuma abaixo de 45%" fica aberto pelo Control (B24, 16º-se) | B22 | 9 | 16º-z2 |
 | 16º-sd ✅ | B23 o Shark usa bem cada carta das cinco listas: fatia 1 ✅ (B-180) auditoria carta a carta (`bot.cartas.mjs`, 76 cartas, 40 partidas): 6 cartas ficam na mão, 5 com alvo no próprio lado por erro; fatia 2 ✅ (B-181) alvo no próprio lado + avaliaV6 (o −3/−0 na própria criatura dava +4), neutro em força (47 × 48), ligado; fatia 3 ✅ (B-182) loucura e descarte conferidos (Fiery Temper 14/20 contando a loucura), sem mudança no Shark; fatia 4 ✅ (B-183) a decisão do outro na resolução (Deem Inferior 1/13 → 13/14), 49 × 47, ligado; fatia 5 ✅ (B-184) jogar em volta: o outro responde com a mágica do Shark na pilha (anula, tira o alvo), 51 × 47, ligado; fatia 6 ✅ (B-185) fechamento: reserva pelo alvo (29 × 24) e resposta no meu turno (o Dispel na Counterspell que anulava a minha ameaça; 48 × 46), auditoria final sem "não usa" (69 usam, 5 a revisar declaradas), força por lista com 208 decididas no painel, p95 dentro do orçamento | B23 | 6 | 16º-sa |
@@ -13469,6 +13470,34 @@ sentinela do Pauper mantém as novas jogando. Outro formato entra quando chegar 
 | M2 | Mesa: mão em leque com arte e rotação, a carta tocada sobe | e2e, 60 quadros | jogabilidade | ✅ J-37 |
 | M3 | Mesa: barra vida · fase com os pontos do turno · vida | e2e | jogabilidade | ✅ J-39 |
 | M4 | Mesa: bandeja com a ação primária em latão e o resto em segundo plano | e2e | jogabilidade | ✅ J-41 |
+| M5 | Mesa (relato #48, parte 1): arte inteira no campo — faixa do nome numa linha fora da arte, terreno básico com o símbolo de mana, vida em disco menor e centrado | e2e 360×697/780 e 390, dois temas, contrato visual | jogabilidade | ✅ J-42 |
+| M6 | Mesa (relato #48, parte 2): playmat dos dois lados, o mesmo material, base para escolher playmat | e2e, contrato visual | jogabilidade | a fazer |
+
+**M5 · Arte inteira no campo** ✅ (leva J-42, trilha `jogabilidade`, 02/11/2026, relato #48 parte 1 de 2, `16º-tj`)
+- **Valor:** nas cartas da mesa (terrenos e permanentes, dos dois lados) a arte aparece inteira: o nome fica na faixa de
+  cima da moldura, numa linha, em letra menor e com reticências no fim, e nunca desce sobre a ilustração nem quebra com
+  hífen ("Moun-tain"). Terreno básico cuja imagem não chega mostra o símbolo de mana desenhado. A vida na barra é um disco
+  menor (34 px) com o número no centro de verdade.
+- **Causa medida (360×697, antes):** a faixa do nome tinha até duas linhas com `hyphens: auto` e cobria 748 px² da arte
+  de "Delver of Secrets" (1.301 px² virada, onde a faixa ficava sobre a face girada); a vida era um círculo de 44 px com os
+  algarismos da Cormorant (de texto, que descem) 2,5 px abaixo do centro.
+- **Regra:** faixa do nome em `--text-3xs`, uma linha, `text-overflow: ellipsis`, `hyphens: manual`; `--moldura-hd` passa
+  a ser a altura dessa linha (a arte ganha ~1 px). Deitada, a faixa fica logo acima da carta deitada (`bottom: 78%`), fora
+  da arte. Terreno básico (pelo nome, inclusive Snow-Covered): símbolo de mana por baixo da arte (aparece se a imagem
+  falha) ou, sem imagem, no meio da carta com o nome numa linha no pé. Carta sem imagem: palavra inteira, sem hífen.
+  Vida: token novo `--vida-disco` (34 px); o botão continua com 44 px (pinta só o miolo, `background-clip`), o anel e o
+  anel da vez ficam no disco; número em `--text-lg`, algarismos de linha (`lining-nums`) e `text-box: trim-both cap
+  alphabetic`. Mão, bandeja, masmorra e motor intocados.
+- **Pixels de campo em 360×780:** zero (a barra continua com 44 px por causa dos alvos); a arte de cada carta ganha a
+  altura que a segunda linha do nome tomava.
+- **Testes:** e2e "J-42 relato #48 parte 1" (falhava no `main`: nome em duas linhas com hífen, faixa sobre a arte, disco de
+  44 px, número 2,5 px abaixo; mede interseção faixa × arte = 0 nos dois lados, de pé e virada, nome numa linha sem hífen,
+  carta sem imagem sem transbordar, símbolo do básico cuja imagem falhou, disco ≤ 34 px com a tinta do número no centro
+  ±1 px lida na captura, alvo de 44 px; 360×697, 360×780, 390×844, dois temas, auditaTela; `/ds`); contrato visual "DS-K2 ·
+  M1" com `--moldura-hd` e a faixa novos (expectativa mudada pelo relato #48) e o disco por token.
+- **Fora (parte 2, M6):** playmat dos dois lados (hoje o feltro marcado é só o seu lado), com o mesmo material, como base
+  para escolher playmat. Também fora: terreno não básico sem imagem continua só com o nome (não há cor confiável no objeto
+  da mesa); os outros marcadores da faixa do lado (grimório, cemitério, exílio) não mudaram de tamanho nesta parte.
 
 **I2 · Início: a faixa "sem internet" de uma linha** ✅ (leva G-332, trilha `geral`, 02/11/2026)
 - **Valor:** o Início fica mais leve: o painel "Sem internet" é sempre uma faixa de uma linha — anel do quanto já está

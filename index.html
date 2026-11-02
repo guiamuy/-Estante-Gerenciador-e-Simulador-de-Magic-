@@ -2446,11 +2446,14 @@ body[data-mesa-cheia="true"] .tb-steps__list li { padding: 0 0 1px; border-botto
 /* DS-K2 M3 (J-39) · a barra da proposta K numa linha: Sair · vida dele · faixa de vez · sua vida · ⋯; o trilho de fases vira
    cinco pontos embaixo (o atual em latão). A soma de larguras fixas é a mesma de antes (Sair + 3 ferramentas = Sair + 2 vidas + ⋯):
    a faixa tem o mesmo teto; online, o selo da Conversa custa um alvo a mais à faixa, como antes custava o Desfazer. */
-.tb-top > .tb-life--barra { flex: none; order: 0; justify-content: center; gap: 0; min-width: var(--tap-min); padding: 0 var(--space-2); border-radius: var(--radius-full); }
+/* J-42 (relato #48) · a vida é um disco de --vida-disco no meio do alvo de 44 px: o botão pinta só o miolo (background-clip) e o
+   anel é do disco; o número se centra pela altura das maiúsculas (text-box), não pela caixa da fonte, que o puxava 2,5 px para baixo */
+.tb-top > .tb-life--barra { flex: none; order: 0; justify-content: center; gap: 0; min-width: var(--tap-min); padding: calc((var(--tap-min) - var(--vida-disco)) / 2); border-width: 0; background-clip: content-box; border-radius: var(--radius-full); }
 .tb-top > .tb-life--barra[data-lado="oponente"] { margin-right: auto; color: var(--player-opp); border-color: var(--player-opp); background-color: var(--player-opp-soft); }
 .tb-top > .tb-life--barra[data-lado="eu"] { margin-left: auto; color: var(--accent); border-color: var(--accent); background-color: var(--accent-soft); }
-.tb-life--barra .tb-life__n { font-size: var(--text-xl); min-width: 2ch; }
-.tb-top > .tb-life--barra[data-active="true"] { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px currentColor; }
+.tb-life__disco { display: grid; place-items: center; width: var(--vida-disco); height: var(--vida-disco); border: 1.5px solid currentColor; border-radius: var(--radius-full); }
+.tb-life--barra .tb-life__n { display: block; font-size: var(--text-lg); min-width: 0; text-box: trim-both cap alphabetic; font-variant-numeric: lining-nums tabular-nums; }
+.tb-top > .tb-life--barra[data-active="true"] .tb-life__disco { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px currentColor; }
 .tb-top > #tb-mais { flex: none; order: 0; color: var(--fg-muted); }
 .tb-mais { position: absolute; z-index: var(--z-overlay); top: calc(100% + var(--space-1)); right: var(--space-2); display: grid; gap: 2px; min-width: 176px; padding: var(--space-1);
   background: var(--bg-elev-1); border: 1px solid var(--border-strong); border-radius: var(--radius-2); box-shadow: var(--shadow-2); }
@@ -2722,16 +2725,25 @@ body[data-mesa-cheia="true"] .tb-steps__list > li::after { inset: 0; height: aut
 .tb-card[data-moldura-pe="true"] .tb-card__arte { bottom: var(--moldura-ft); }
 .tb-card__face .tb-card__arte img { position: absolute; left: 50%; top: calc(100% * var(--arte-topo) / var(--arte-alto) * -1); height: calc(100% / var(--arte-alto));
   width: auto; min-width: 100%; max-width: none; object-fit: cover; transform: translateX(-50%); }
-.tb-card[data-moldura="true"] > .tb-card__label { top: 1px; left: 1px; right: 1px; background: var(--bg-elev-1); font-weight: 600; padding: 2px var(--space-1) 3px;
+/* J-42 (relato #48) · a faixa do nome cabe na faixa de cima da moldura (--moldura-hd) e nunca desce sobre a arte: uma linha, letra
+   menor, reticências no fim, sem hífen; o nome inteiro fica no nome falado e no espiar */
+.tb-card[data-moldura="true"] > .tb-card__label { top: 1px; left: 1px; right: 1px; background: var(--bg-elev-1); font-weight: 600; padding: 2px var(--space-1);
+  font-size: var(--text-3xs); line-height: 1.2; display: block; white-space: nowrap; text-overflow: ellipsis; hyphens: manual; -webkit-line-clamp: none;
   border-radius: calc(var(--carta-campo) * .0475) calc(var(--carta-campo) * .0475) 0 0; box-shadow: 0 1px 0 var(--border); }
-.tb-card[data-moldura="true"][data-tapped="true"] > .tb-card__label { top: 22%; left: 0; right: 0; border-radius: 0; }
+/* deitada: a faixa fica logo acima da carta deitada (que começa a 22% da caixa), sem cobrir a arte que gira junto com a face */
+.tb-card[data-moldura="true"][data-tapped="true"] > .tb-card__label { top: auto; bottom: 78%; left: 0; right: 0; border-radius: 0; }
 .tb-card[data-moldura="true"][data-tapped="true"] .tb-card__sick { top: auto; bottom: 22%; } /* deitada, a faixa do nome desce a 22%: o selo vai para o pé da carta deitada */
 .tb-card[data-moldura="true"] .tb-card__pt { background: var(--bg-elev-1); }
 /* a fileira do campo centraliza como a fila da proposta; com mais cartas que a largura, rola desde a primeira (safe) */
 .tb-side .tb-row { justify-content: safe center; }
 .tb-card__face img[data-falhou="true"], .tb-leque__camada img[data-falhou="true"] { visibility: hidden; }   /* H7 · imagem que falhou não mostra ícone quebrado; volta sozinha */
 .tb-card img, .tb-stack__card img { -webkit-touch-callout: none; pointer-events: none; }   /* H10 · o toque é da carta, não da imagem */
-.tb-card__name { position: absolute; inset: 0; display: grid; place-items: center; padding: var(--space-1); text-align: center; font-family: var(--font-display); font-size: var(--text-xs); color: var(--fg); }
+.tb-card__name { position: absolute; inset: 0; display: grid; place-items: center; padding: var(--space-1); text-align: center; font-family: var(--font-display); font-size: var(--text-2xs); color: var(--fg);
+  overflow: hidden; overflow-wrap: normal; word-break: normal; hyphens: manual; } /* J-42 · carta sem imagem: palavra inteira, nunca "Moun-tain" */
+/* J-42 · o símbolo de mana do terreno básico: por baixo da arte (aparece se a imagem não chega) ou, sem imagem, no meio da carta com o nome no pé */
+.tb-card__simbolo { position: absolute; inset: 0; display: grid; place-items: center; font-size: calc(var(--carta-campo) * .38); pointer-events: none; }
+.tb-card__simbolo .ds-sym { top: 0; margin: 0; }
+.tb-card__name--basico { inset: auto 0 0; display: block; padding: 2px var(--space-1); white-space: nowrap; text-overflow: ellipsis; font-size: var(--text-3xs); }
 .tb-card[data-tapped="true"] { margin: 0 calc(var(--carta-campo) * .2); }
 .tb-fx-camada > .tb-card[data-tapped="true"] { margin: 0; } /* J-20 · a foto da camada de efeitos é posta pela caixa medida (sem margem): a carta virada levava a margem do campo junto e a foto nascia e pousava 15 px fora (achado da B-175) */
 /* U5 · leque de cópias iguais: a carta da frente é o botão; as de trás mostram só a borda */
@@ -3358,8 +3370,9 @@ button.col-dash__bar:active, .col-dash__bar--on { background: var(--accent-soft)
    embaixo (só quem tem P/T). A arte é a janela da própria imagem da carta (mesmo endereço, a mesma imagem guardada para jogar
    sem internet): a imagem cresce até a janela da arte encher a caixa. Janela da arte na moldura de 2015: 8,2–91,8% da largura,
    11,2–55,4% da altura da carta. */
-:root { --moldura-hd: calc(var(--text-2xs) * 1.2 + 6px); --moldura-ft: calc(var(--text-xs) * 1.4 + 6px); --moldura-borda: 3px;
+:root { --moldura-hd: calc(var(--text-3xs) * 1.2 + 6px); --moldura-ft: calc(var(--text-xs) * 1.4 + 6px); --moldura-borda: 3px;
   --arte-topo: 0.112; --arte-alto: 0.442; }
+:root { --vida-disco: 34px; } /* J-42 (relato #48) · o disco da vida na barra; o alvo de toque continua --tap-min */
 @media (max-width: 374px) {
   :root { --carta-campo: 76px; --carta-mao: 92px; --carta-pilha: 52px; --carta-terreno: 56px; }
   .tb-steps__longo { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } /* o leitor de tela ainda lê o nome inteiro */
@@ -5320,7 +5333,10 @@ function renderDS() {
           M.LifeCounter({ name: 'Goldfish', life: 20, sub: 'goldfish' }),
           // DS-K2 M3 (J-39) · as vidas da barra da mesa: a dele na cor do oponente, a sua em latão
           h('span', { class: 'tb-top ds-campo-barra', id: 'ds-barra' }, M.LifeCounter({ name: 'Shark', life: 11, lado: 'oponente' }), M.LifeCounter({ name: 'Você', life: 14, active: true, lado: 'eu' })),
+          // J-42 (relato #48) · o terreno básico sem imagem: o símbolo de mana desenhado e o nome numa linha (nunca "Is-land")
+          h('span', { id: 'ds-basico-sem-arte' }, M.TableCard(demo('Island'))),
           M.ZoneChip('Cemitério', 4, () => toast('Cemitério'))),
+        Text('Tokens: --vida-disco (o disco da vida na barra, 34 px, no meio do alvo de 44 px; o número centrado pela altura das maiúsculas, algarismos de linha).', { size: 'xs', tone: 'muted', attrs: { id: 'ds-vida-disco' } }),
         // J-40 · relato #45 · a masmorra na mesa: o selo (miniatura do mapa, bandeira da iniciativa) e a folha com o mapa da carta
         (() => {
           const st = { iniciativa: 0, players: [{ name: 'Você', dungeon: { name: 'Undercity', room: 'poco-perdido', done: false } }, { name: 'Shark', dungeon: { name: 'Undercity', room: 'entrada-secreta', done: false } }] };
@@ -37268,7 +37284,12 @@ const __m17 = (function () {
    Mesmas regras do F5: fábricas sem framework, só tokens, alvo de toque
    de 44px. Documentados no catálogo /ds.
    ===================================================================== */
-const { h, Text, Button, Row, Badge, Icone, srcsetDaCarta } = __m3;
+const { h, Text, Button, Row, Badge, Icone, srcsetDaCarta, Simbolo } = __m3;
+/** J-42 (relato #48) · o terreno básico se reconhece pelo nome: a cor de mana dele, para desenhar o símbolo quando a arte não
+    chega (sem rede, imagem que falhou ou carta sem imagem). Outros nomes: null (a carta fica só com o nome). */
+const MANA_DO_BASICO = { Plains: 'W', Island: 'U', Swamp: 'B', Mountain: 'R', Forest: 'G', Wastes: 'C' };
+const manaDoBasico = nome => { const n = String(nome || '').replace(/^Snow-Covered /, ''); return MANA_DO_BASICO[n] || null; };
+const SimboloDoBasico = nome => { const c = manaDoBasico(nome); return c ? h('span', { class: 'tb-card__simbolo', 'aria-hidden': 'true' }, Simbolo(c)) : null; };
 /** leva 123 · largura em CSS px com que a carta aparece, por tamanho; o navegador multiplica pela densidade e escolhe a fonte. */
 const SIZES_DA_MESA = { sm: '60px', hand: '110px', campo: '92px' };
 /** <img> da carta na mesa: com `card.images` (o objeto da Scryfall) leva srcset; sem ele, só o src. Se o srcset falhar, cai no src. */
@@ -37399,7 +37420,10 @@ function TableCard(card, opts = {}) {
     onClick: opts.onClick
   },
   h('span', { class: 'tb-card__face' + (opts.verso ? ' tb-card__face--verso' : '') },
-    opts.verso ? h('span', { class: 'ds-verso' }) : moldura ? h('span', { class: 'tb-card__arte' }, imgDaMesa(card, opts.size)) : card.image ? imgDaMesa(card, opts.size) : h('span', { class: 'tb-card__name' }, card.name), // D7 · verso escolhido na Aparência
+    // J-42 · a arte do terreno básico tem o símbolo de mana por baixo: se a imagem não chega, o símbolo aparece (nunca a janela vazia);
+    // sem imagem nenhuma, a carta desenhada leva o símbolo e o nome numa linha
+    opts.verso ? h('span', { class: 'ds-verso' }) : moldura ? h('span', { class: 'tb-card__arte' }, SimboloDoBasico(card.name), imgDaMesa(card, opts.size)) : card.image ? imgDaMesa(card, opts.size)
+      : manaDoBasico(card.name) ? [SimboloDoBasico(card.name), h('span', { class: 'tb-card__name tb-card__name--basico' }, card.name)] : h('span', { class: 'tb-card__name' }, card.name), // D7 · verso escolhido na Aparência
     ptEl),
   // Leva 110 · o nome fica fora da face: carta virada não leva o nome junto na rotação (antes saía de pé, cortado)
   (card.image || opts.verso) && opts.size !== 'sm' ? h('span', { class: 'tb-card__label' }, card.name) : null,
@@ -37504,8 +37528,9 @@ function ZoneRow(label, cards, opts = {}) {
 function LifeCounter({ name, life, active, sub, onClick, id, lado = null }) {
   // DS-K2 M3 (J-39) · `lado` ('eu' | 'oponente'): a vida mora na barra de cima, como na proposta K — só o número, na cor de
   // quem é (latão para você, a cor do oponente para ele); o nome e o resto ficam no nome falado (e no lado da mesa)
+  // J-42 (relato #48) · o número mora num disco menor (--vida-disco) no meio do alvo de 44 px, centrado pela altura das maiúsculas
   if (lado) return h('button', { class: 'tb-life tb-life--barra', type: 'button', id, title: name, dataset: { active: String(!!active), lado }, onClick, 'aria-label': `${name}: ${life} de vida` + (sub ? `, ${sub}` : '') },
-    h('span', { class: 'tb-life__n' }, String(life)));
+    h('span', { class: 'tb-life__disco' }, h('span', { class: 'tb-life__n' }, String(life))));
   return h('button', { class: 'tb-life', type: 'button', id, dataset: { active: String(!!active) }, onClick, 'aria-label': `${name}: ${life} de vida` },
     h('span', { class: 'tb-life__n' }, String(life)),
     h('span', { class: 'tb-life__who' }, name, sub ? h('small', {}, sub) : null));
