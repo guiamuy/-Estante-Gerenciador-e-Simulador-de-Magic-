@@ -68,3 +68,10 @@ test('B-197 · o pedágio de segurar a anulação vem do perfil: Control e Terro
   assert.equal(pf('controle').segura, true); assert.equal(pf('terror').segura, true);
   assert.ok(!B.PERFIS.some(x => /faer/i.test(x.id) && x.segura), 'as Faeries perdem com o pedágio (8 × 11)');
 });
+
+test('B-198 · o perfil desliga: as Faeries não ligam `respondeNoMeuTurno` (dado em PERFIS); o Control e o Terror continuam com ela', () => {
+  const pf = id => B.PERFIS.find(x => x.id === id) || {};
+  assert.deepEqual([...pf('faeries').desliga], ['respondeNoMeuTurno']);
+  assert.ok(!(pf('controle').desliga || []).length && !(pf('terror').desliga || []).length);
+  assert.deepEqual([...pf('faeries').exige], ['Spellstutter Sprite', 'Ninja of the Deep Hours']);
+});

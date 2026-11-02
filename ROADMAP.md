@@ -8181,6 +8181,14 @@ estruturado para tornarmos o Shark um jogador de nível profissional com as suas
   que pela v12 — alguma peça ligada depois da v12 custa às Faeries (que jogam no turno do outro, com lampejo). É a próxima
   pergunta (ablação com o piloto Faeries). A pior jogada passou de 3 s (5 s numa fatia) com dois processos em dois
   núcleos: o tempo por decisão volta à régua de higiene com a máquina livre.
+- **Fase 4 · B-198 · o perfil desliga o que custa ao baralho (02/11/2026).** Ablação das peças ligadas depois da v12 no
+  piloto Faeries (400 ms, 24 pares cada, contra o Shark da B-197): `!respostaNaPilha` 8 × 9 · `!reservaPorAlvo,!respondeNoMeuTurno`
+  **12 × 8** · `!reservaPorAlvo` 8 × 8 · **`!respondeNoMeuTurno` 11 × 8** (4 só do novo, 1 só do antigo) · `!contraAtaque` 4 × 5
+  (metade; a outra metade e o `!decideOOutro` não chegaram a rodar no limite de 2 h). O perfil `faeries` (novo: exige Spellstutter
+  Sprite e Ninja of the Deep Hours) ganha `desliga: ['respondeNoMeuTurno']`, aplicado pela opção `desligaNoPerfil` — dado do
+  perfil, como o `segura` do Control e do Terror. Leitura: as Faeries respondem no turno do outro; com a instantânea na mão no
+  próprio turno, a regra da B-185 fazia o Shark gastá-la como resposta e chegar sem ela ao turno do outro. **`shark-v23` é o
+  Shark da B-197, congelado.**
 - **Fase 2 · B-194 · avaliação aprendida, primeira medida (02/11/2026) — negativa, desligada.** `bot.aprende.mjs` (novo, fora
   do portão): `coleta` joga Shark × Shark com as cinco listas e grava as parcelas da `avaliaV6` de posições sorteadas e
   quem venceu; `ajusta` faz regressão logística (L2, treino e prova separados por partida) da vitória sobre as parcelas,

@@ -906,8 +906,8 @@ test('B9 · perfil: o Shark reconhece o Walls Combo pela própria lista; as outr
   assert.equal(B.perfilDe(walls.s, 0).id, 'walls-combo');
   assert.equal(B.perfilDe(walls.s, 1), null, 'Boros Bully');
   // B-175/B-176 · um perfil tem plano de combo (motor, desvira, finalizadores), de cemitério (tipos, enquanto) ou de
-  // ameaças a responder (nomes, peso); nunca nenhum dos três
-  for (const pf of B.PERFIS) assert.ok(pf.exige.length && ((pf.combo && pf.combo.motor && pf.combo.desvira && pf.combo.finalizadores.length) || (pf.cemiterio && pf.cemiterio.tipos.length && pf.cemiterio.enquanto.length) || (pf.ameacas && pf.ameacas.nomes.length && pf.ameacas.peso > 0)), pf.id);
+  // ameaças a responder (nomes, peso); nunca nenhum dos três. B-198 · ou opções que o perfil desliga no baralho dele (`desliga`)
+  for (const pf of B.PERFIS) assert.ok(pf.exige.length && ((pf.desliga && pf.desliga.length) || (pf.combo && pf.combo.motor && pf.combo.desvira && pf.combo.finalizadores.length) || (pf.cemiterio && pf.cemiterio.tipos.length && pf.cemiterio.enquanto.length) || (pf.ameacas && pf.ameacas.nomes.length && pf.ameacas.peso > 0)), pf.id);
 });
 
 test('B9 · terreno na mão vale menos que terreno em campo: a Quirion Ranger não devolve a Floresta à toa', async () => {
