@@ -926,11 +926,15 @@ body[data-tela="entrar"] .ds-appbar { display: none; }
 .inicio-jogar--brilho::after { animation: jogar-brilho var(--dur-4) var(--ease-out); }
 @keyframes jogar-brilho { 0% { opacity: 1; background-position: 160% 0; } 100% { opacity: 1; background-position: -60% 0; } }
 @media (prefers-reduced-motion: reduce) { .inicio-jogar.ds-btn:active:not([disabled]), .inicio-jogar.ds-btn:active .ds-atalho__icone, .inicio-jogar.ds-btn:active .inicio-jogar__seta { transform: none; } .inicio-jogar--brilho::after { animation: none; } }
-/* D3 · painel offline recolhido quando está tudo guardado e há rede: uma linha com anel; "Detalhes" abre o resto no lugar */
+/* D3 · painel offline recolhido: uma linha com anel. DS-K2 I2 (G-332) · sempre recolhido no Início; "Ver" abre o corpo numa folha */
 #home-offline[data-compacto="true"] { padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4); }
 #home-offline[data-compacto="true"] .ds-offline__corpo { display: none; }
 #home-offline[data-compacto="true"] .ds-offline__titulo .ds-text { font-size: var(--text-md); line-height: var(--lh-md); }
 .ds-offline__topo .ds-offline__abrir { margin-left: auto; }
+#home-offline .ds-offline__topo { flex-wrap: nowrap; }
+#home-offline .ds-offline__titulo { min-width: 0; }
+#home-offline .ds-offline__estado-geral { overflow-wrap: anywhere; }
+.ds-offline--folha .ds-offline__corpo { display: block; }
 /* D3 · Continuar: o que você estava fazendo, uma linha por coisa, toque na linha inteira */
 .home-continuar { overflow: hidden; }
 .home-continuar__rotulo { padding: var(--space-3) var(--space-4) 0; }
@@ -45849,7 +45853,7 @@ const __m13 = (function () {
 const { createPlatform, descreveEspaco } = __m0;
 const { createTheme } = __m1;
 const { createRouter } = __m2;
-const { h, mount, Button, Text, Empty, toast, Surface, Row, Stack, Spinner, Note, Icone, Atalho, NavBotao, AvisoRede, Avatar } = __m3;
+const { h, mount, Button, Text, Empty, toast, Surface, Row, Stack, Spinner, Note, Icone, Atalho, NavBotao, AvisoRede, Avatar, Dialog, closeDialog } = __m3; // DS-K2 I2 · a folha do "Ver" do painel sem internet
 const { renderDS } = __m5;
 const { logoLockup, installFavicon } = __m4;
 const { createScryfall } = __m6;
@@ -46278,7 +46282,10 @@ async function painelContinuar() {
 /* O1 · o que já funciona sem internet, e o botão que prepara o resto */
 function offlinePanel() {
   const box = Surface({ class: 'ds-surface--pad', id: 'home-offline' }, __m3.Carregando('Conferindo o que já está guardado…', { tamanho: 'linha' }));
-  let aberto = false; // D3 · com tudo guardado e rede, o painel é uma linha; "Detalhes" abre o resto no lugar
+  /* DS-K2 I2 (G-332) · o painel do Início é sempre uma faixa de uma linha: anel, quanto falta e "Ver"; o painel inteiro (itens,
+     espaço, avisos, Preparar tudo agora) abre numa folha. O corpo é um nó só: mora escondido na faixa e vai para a folha ao abrir
+     (os ids continuam únicos; quem espera o corpo no documento o acha), e volta ao fechar. */
+  let folhaAberta = false;
   // U4 · cada item com ícone e estado desenhado; o anel resume o quanto já está guardado
   const ESTADO = { pronto: ['marcar', 'pronto'], parcial: ['meia', 'em parte'], falta: ['baixar', 'falta baixar'], vazio: ['menos', 'nada a guardar'] };
   const linha = it => h('div', { class: 'ds-offline__linha', dataset: { item: it.id, estado: it.estado, pronto: String(it.estado === 'pronto') } },
@@ -46302,22 +46309,11 @@ function offlinePanel() {
     const proteger = st.protecao === 'vulneravel' ? Button('Proteger armazenamento', { id: 'home-offline-protect', icone: 'proteger', onClick: async () => {
       const r = await platform.persistence.request(); toast(r === 'protegido' ? 'Armazenamento protegido' : 'O navegador não liberou a proteção. Instale o app e mantenha backups em dia.', 3600); paint(); } }) : null;
     box.dataset.rede = String(!!st.rede); box.dataset.pronto = String(tudoPronto);
-    const recolhivel = !!st.rede && tudoPronto && !extra;
-    const compacto = recolhivel && !aberto;
-    box.dataset.compacto = String(compacto);
-    const abrir = recolhivel ? Button(compacto ? 'Detalhes' : 'Recolher', { variant: 'ghost', icone: compacto ? 'mais' : 'menos', id: 'home-offline-detalhes', classe: 'ds-offline__abrir',
-      onClick: () => { aberto = !aberto; paint(); } }) : null;
-    if (abrir) { abrir.setAttribute('aria-expanded', String(!compacto)); abrir.setAttribute('aria-controls', 'home-offline-corpo'); }
-    mount(box, Stack({},
-      h('div', { class: 'ds-offline__topo' },
-        __m3.AnelProgresso(tudoPronto ? 100 : rs.pct, { id: 'home-offline-ring', rotulo: 'guardado para jogar sem internet', tamanho: compacto ? 44 : 64 }),
-        h('div', { class: 'ds-offline__titulo' },
-          Text('Sem internet', { size: 'lg', display: true }),
-          h('span', { class: 'ds-offline__estado-geral', id: 'home-offline-state', dataset: { tom: st.rede ? (tudoPronto ? 'pronto' : 'falta') : 'offline' } },
-            st.rede ? null : Icone('semRede', { tamanho: 16 }),
-            st.rede ? (tudoPronto ? 'Tudo pronto' : rs.faltam === 1 ? 'Falta preparar 1 item' : `Falta preparar ${rs.faltam} itens`) : 'Você está sem internet agora')),
-        abrir),
-      h('div', { class: 'ds-offline__corpo', id: 'home-offline-corpo' }, Stack({},
+    box.dataset.compacto = 'true';
+    const estadoTxt = st.rede ? (tudoPronto ? 'Tudo pronto' : rs.faltam === 1 ? 'Falta preparar 1 item' : `Falta preparar ${rs.faltam} itens`) : 'Sem conexão agora'; // DS-K2 I2 · cabe numa linha da faixa em 360 px (a frase longa ia a duas linhas)
+    const ver = Button('Ver', { variant: 'ghost', icone: 'seguir', id: 'home-offline-detalhes', classe: 'ds-offline__abrir', onClick: abreFolha });
+    ver.setAttribute('aria-haspopup', 'dialog'); ver.setAttribute('aria-expanded', String(folhaAberta)); ver.setAttribute('aria-label', `Ver o que funciona sem internet · ${estadoTxt}`);
+    const corpo = h('div', { class: 'ds-offline__corpo', id: 'home-offline-corpo' }, Stack({},
         h('div', { id: 'home-offline-lines', class: 'ds-offline__lista' }, ...rs.itens.map(linha)),
         linhaEspaco,
         esp && esp.apertado ? Note(__m3.seguro`<b>O espaço do app está quase no limite.</b> Faça um backup da coleção; se continuar crescendo, o app nativo passa a valer a pena (gatilho G1 do plano).`, 'warning') : null,
@@ -46325,11 +46321,29 @@ function offlinePanel() {
         !st.rede ? AvisoRede('Tudo que está marcado funciona agora; o resto baixa quando a internet voltar.', { id: 'home-offline-aviso' }) : null,
         Row({ class: 'ds-row--wrap' },
           st.rede ? Button(tudoPronto ? 'Conferir de novo' : 'Preparar tudo agora', { icone: tudoPronto ? 'conferir' : 'baixar', id: 'home-offline-prep', onClick: preparar }) : null,
-          proteger)))));
+          proteger)));
+    const folha = folhaAberta ? document.getElementById('home-offline-folha') : null;
+    mount(box, Stack({},
+      h('div', { class: 'ds-offline__topo' },
+        __m3.AnelProgresso(tudoPronto ? 100 : rs.pct, { id: 'home-offline-ring', rotulo: 'guardado para jogar sem internet', tamanho: 44 }),
+        h('div', { class: 'ds-offline__titulo' },
+          Text('Sem internet', { size: 'lg', display: true }),
+          h('span', { class: 'ds-offline__estado-geral', id: 'home-offline-state', dataset: { tom: st.rede ? (tudoPronto ? 'pronto' : 'falta') : 'offline' } },
+            st.rede ? null : Icone('semRede', { tamanho: 16 }), estadoTxt)),
+        ver),
+      folha ? null : corpo));
+    if (folha) mount(folha, corpo);
+  }
+  function abreFolha() {
+    const corpo = document.getElementById('home-offline-corpo'); if (!corpo) return;
+    folhaAberta = true;
+    const btn = document.getElementById('home-offline-detalhes'); if (btn) btn.setAttribute('aria-expanded', 'true');
+    Dialog({ title: 'Jogar sem internet', body: h('div', { class: 'ds-offline ds-offline--folha', id: 'home-offline-folha' }, corpo),
+      actions: [Button('Fechar', { onClick: closeDialog })], aoFechar: () => { folhaAberta = false; paint(); } });
   }
   async function preparar() {
     const prog = Text('Preparando…', { size: 'sm', attrs: { id: 'home-offline-progress' } });
-    mount(box, Stack({}, Row({}, Spinner(), prog)));
+    mount(document.getElementById('home-offline-folha') || box, Stack({}, Row({}, Spinner(), prog))); // DS-K2 I2 · o progresso aparece na folha, onde o botão está
     const rel = await keeper.prepararTudo(p => { prog.textContent = p.texto; });
     const partes = [`${rel.listas.prontas} de ${rel.listas.total} lista(s) prontas`, `${rel.colecao.fixadas} carta(s) da coleção guardadas`];
     if (rel.listas.faltando.length || rel.colecao.faltando.length) partes.push(`a rede não trouxe ${rel.listas.faltando.length + rel.colecao.faltando.length} carta(s)`);

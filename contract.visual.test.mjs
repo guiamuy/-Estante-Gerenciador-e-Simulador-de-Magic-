@@ -598,6 +598,15 @@ test('DS-K2 · M2 a mão em leque: largura e passo por conta de CSS sobre a larg
   assert.ok(!/tb-mao-na-decisao'[^\n]*tb-row--leque|tb-pick-cards'[^\n]*tb-row--leque/.test(HTML), 'as fileiras de decisão continuam fileiras (cada carta inteira)');
 });
 
+test('DS-K2 · I2 o painel sem internet do Início é sempre a faixa de uma linha; o corpo vai para a folha do Ver e volta ao fechar', () => {
+  assert.match(HTML, /box\.dataset\.compacto = 'true';/, 'a faixa é sempre compacta');
+  assert.match(HTML, /const ver = Button\('Ver', \{ variant: 'ghost', icone: 'seguir', id: 'home-offline-detalhes'/);
+  assert.match(HTML, /Dialog\(\{ title: 'Jogar sem internet', body: h\('div', \{ class: 'ds-offline ds-offline--folha', id: 'home-offline-folha' \}, corpo\)/, 'o painel inteiro abre numa folha');
+  assert.match(HTML, /aoFechar: \(\) => \{ folhaAberta = false; paint\(\); \}/, 'ao fechar, o corpo volta à faixa');
+  assert.match(componentCss + css, /#home-offline\[data-compacto="true"\] \.ds-offline__corpo \{ display: none; \}/);
+  assert.ok(!/'Detalhes' : 'Recolher'/.test(HTML), 'o abre-no-lugar saiu');
+});
+
 test('DS-K2 · M4 a bandeja: a primária cresce até ocupar o que sobra (com teto), as outras ficam sem fundo; com três ações ou mais vale a quebra de antes', () => {
   assert.match(componentCss, /\.tb-dock__bar \.tb-banner__actions:has\(> \.ds-btn--primary\):not\(:has\(> :nth-child\(3\)\)\) \{ flex: 1 1 0%; min-width: min-content; flex-wrap: nowrap; justify-content: flex-end; \}/);
   assert.match(componentCss, /\.tb-dock__bar \.tb-banner__actions > \.ds-btn--primary \{ flex: 1 1 auto; min-width: 72px; max-width: 220px; \}/);

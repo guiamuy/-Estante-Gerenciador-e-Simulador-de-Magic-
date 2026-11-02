@@ -582,7 +582,7 @@ test('e2e · U12 imagens do jogo baixam sozinhas: ao salvar a lista e quando a i
   assert.equal(voltou, true, 'a internet voltou: o app baixou sozinho');
   // e o painel conta
   await page.goto(base + '#/');
-  await page.waitForFunction(() => /Imagens do jogo\s+2 de 2/.test((document.querySelector('#home-offline-lines') || {}).innerText || ''), null, { timeout: 8000 });
+  await page.waitForFunction(() => /Imagens do jogo\s*2 de 2/.test((document.querySelector('#home-offline-lines') || {}).textContent || ''), null, { timeout: 8000 }); // DS-K2 I2 · o corpo fica escondido na faixa: lê o texto, não o que está à vista
   // Q10 · começar uma partida também guarda as imagens das listas em jogo (o cache tinha sido apagado)
   await page.evaluate(() => caches.delete('estante-img-v1'));
   await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start');
@@ -662,9 +662,12 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
   await page.route('https://**.scryfall.io/**', r => { pedidasAoCdn.push(r.request().url()); return r.fulfill({ status: 200, contentType: 'image/png', body: PNG, headers: { 'access-control-allow-origin': '*' } }); });
   // com rede: o painel diz o que falta e "Preparar tudo" resolve
   await page.goto(base + '#/');
-  await page.waitForSelector('#home-offline-prep');
+  // DS-K2 I2 (G-332) · expectativa mudou de propósito: o painel do Início é sempre a faixa de uma linha; "Preparar tudo agora" mora na folha do "Ver"
+  await page.waitForSelector('#home-offline-detalhes'); await page.click('#home-offline-detalhes');
+  await page.waitForSelector('#home-offline-folha #home-offline-prep');
   await page.click('#home-offline-prep');
   await page.waitForFunction(() => /Tudo pronto/.test((document.querySelector('#home-offline-state') || {}).innerText || ''), null, { timeout: 15000 });
+  await page.keyboard.press('Escape'); await page.waitForSelector('#home-offline-folha', { state: 'detached' });
   // D3 (leva 141) · expectativa mudou: com tudo guardado e rede, o painel é uma linha (anel, estado e "Detalhes");
   // as linhas por item continuam no lugar e aparecem ao abrir
   assert.equal(await page.getAttribute('#home-offline', 'data-compacto'), 'true');
@@ -692,7 +695,7 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
   assert.ok(pedidasAoCdn.includes('https://cards.scryfall.io/small/front/x/delver.png') && pedidasAoCdn.includes('https://cards.scryfall.io/normal/front/x/delver.png'), 'as duas foram pedidas ao CDN');
   // Q10 · o navegador apagou o cache do leitor: o painel diz, e ao voltar para a tela inicial com rede o app baixa de novo sozinho
   await page.evaluate(() => caches.delete('estante-ocr-v1'));
-  await page.reload(); await page.waitForSelector('#home-offline-lines');
+  await page.reload(); await page.waitForSelector('#home-offline-lines', { state: 'attached' }); // DS-K2 I2 · o corpo mora escondido na faixa
   await page.waitForFunction(() => (document.querySelector('#home-offline-lines [data-item="leitor"]') || {}).dataset?.estado === 'falta', null, { timeout: 8000 });
   assert.ok(Number(await page.getAttribute('#home-offline-ring', 'data-pct')) < 100, 'anel abaixo de 100 com o leitor faltando');
   // a manutenção silenciosa roda 4 s depois de abrir o app; ao voltar à tela inicial, o painel já diz ✓
@@ -711,11 +714,16 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
   await page.route('https://**.scryfall.io/**', r => r.abort('internetdisconnected'));
   await page.context().setOffline(true);
   await page.goto(base + '#/listas'); await page.goto(base + '#/');   // sai e volta: o painel é pintado de novo
-  await page.waitForFunction(() => /sem internet agora/.test((document.querySelector('#home-offline-state') || {}).innerText || ''));
+  // DS-K2 I2 · expectativa mudou de propósito: na faixa de uma linha, "Você está sem internet agora" virou "Sem conexão agora" (cabe em 360 px)
+  await page.waitForFunction(() => /Sem conexão agora/.test((document.querySelector('#home-offline-state') || {}).innerText || ''));
   // U4 · sem internet: o estado geral tem o ícone da nuvem cortada, o aviso é uma linha só, o chip da barra pulsa
   assert.equal(await page.locator('#home-offline-state svg').count(), 1);
+  // DS-K2 I2 · o aviso de rede mora na folha do "Ver"; a faixa continua com uma linha
+  assert.ok((await page.locator('#home-offline').boundingBox()).height <= 72, 'sem internet, a faixa continua numa linha');
+  await page.click('#home-offline-detalhes'); await page.waitForSelector('#home-offline-folha #home-offline-aviso');
   assert.equal(await page.locator('#home-offline-aviso svg').count(), 1);
   assert.ok((await page.locator('#home-offline-aviso').boundingBox()).height <= 64, 'aviso curto');
+  await page.keyboard.press('Escape'); await page.waitForSelector('#home-offline-folha', { state: 'detached' });
   assert.equal(await page.locator('#nav-offline').isVisible(), true);
   assert.notEqual(await page.$eval('#nav-offline', el => getComputedStyle(el, '::before').animationName), 'none', 'o ponto do chip pulsa');
 
@@ -9232,6 +9240,42 @@ test('e2e · DS-K2 L1 · Lista: o topo em ébano mostra a carta-chave (72 px) ao
 /* G-323 · DS-K2 I1 · Início como na proposta K: "Últimas listas". G-328 · relato #47 · expectativa mudada com motivo: a linha
    "N listas prontas para jogar" sob o título saiu (contava só as suas listas de Pauper que o motor joga e lia-se como o catálogo;
    não batia com o total da estante). O teste confere que ela não existe mais. */
+test('e2e · DS-K2 I2 · Início: o painel sem internet é uma faixa de uma linha (anel, quanto falta, Ver) e o painel inteiro abre numa folha que fecha no Esc e no Fechar, com o foco de volta no Ver; 360 e 390, dois temas, auditaTela', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await createDeck(page, base, 'Faixa', PAUPER);
+  await page.goto(base + '#/'); await page.waitForSelector('#home-offline-detalhes');
+  for (const [w, hgt] of [[360, 780], [390, 844]]) for (const tema of ['dark', 'light']) {
+    await page.setViewportSize({ width: w, height: hgt }); await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(300);
+    const onde = `${w} ${tema}`;
+    const m = await page.evaluate(() => { const b = document.querySelector('#home-offline'), r = e => e.getBoundingClientRect(), ring = document.querySelector('#home-offline-ring'), st = document.querySelector('#home-offline-state'), ver = document.querySelector('#home-offline-detalhes');
+      const meio = e => r(e).top + r(e).height / 2;
+      return { altura: r(b).height, compacto: b.dataset.compacto, linha: Math.abs(meio(ring) - meio(ver)) < 6 && Math.abs(meio(st) - meio(ver)) < 14, corpoVisivel: r(document.querySelector('#home-offline-corpo')).height > 0,
+        estado: st.textContent, cabe: st.scrollHeight <= st.clientHeight + 1, verAltura: r(ver).height, nomeDoVer: ver.getAttribute('aria-label'), popup: ver.getAttribute('aria-haspopup') }; });
+    assert.ok(m.altura <= 72 && m.compacto === 'true' && !m.corpoVisivel, `${onde}: uma faixa de uma linha (${m.altura} px), corpo escondido`);
+    assert.ok(m.linha && m.verAltura >= 44, `${onde}: anel, estado e Ver na mesma linha, Ver com 44 px`);
+    assert.match(m.estado, /Falta preparar \d+ ite(m|ns)|Tudo pronto/, `${onde}: a faixa diz quanto falta`);
+    assert.ok(/Ver o que funciona sem internet · /.test(m.nomeDoVer) && m.popup === 'dialog', `${onde}: o Ver diz o que abre`);
+    await auditaTela(page, `DS-K2 I2 · faixa ${onde}`);
+    if (process.env.SHOTS) { await page.$eval('#home-offline', e => e.scrollIntoView({ block: 'center' })); await page.waitForTimeout(200); await page.screenshot({ path: process.env.SHOTS + `/ds-k2-i2-faixa-${w}-${tema}.png` }); }
+  }
+  // a folha: o painel inteiro (itens, espaço, Preparar tudo agora)
+  await page.setViewportSize({ width: 360, height: 780 }); await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  await page.click('#home-offline-detalhes'); await page.waitForSelector('#home-offline-folha #home-offline-lines');
+  const f = await page.evaluate(() => ({ itens: [...document.querySelectorAll('#home-offline-folha [data-item]')].map(l => l.dataset.item), prep: !!document.querySelector('#home-offline-folha #home-offline-prep'),
+    titulo: (document.querySelector('.ds-overlay[data-open="true"] h2, .ds-overlay[data-open="true"] .ds-dialog__title') || {}).textContent || '', expandido: document.querySelector('#home-offline-detalhes').getAttribute('aria-expanded'),
+    naFaixa: !!document.querySelector('#home-offline #home-offline-corpo') }));
+  assert.ok(f.itens.length >= 4 && f.prep, 'a folha mostra os itens e o Preparar ' + JSON.stringify(f));
+  assert.match(f.titulo, /Jogar sem internet/); assert.equal(f.expandido, 'true'); assert.equal(f.naFaixa, false, 'o corpo saiu da faixa (ids únicos)');
+  await auditaTela(page, 'DS-K2 I2 · folha');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/ds-k2-i2-folha.png' });
+  await page.keyboard.press('Escape'); await page.waitForSelector('#home-offline-folha', { state: 'detached' });
+  await page.waitForSelector('#home-offline #home-offline-corpo', { state: 'attached' });
+  assert.equal(await page.getAttribute('#home-offline-detalhes', 'aria-expanded'), 'false', 'fechou: o corpo voltou à faixa');
+  await page.click('#home-offline-detalhes'); await page.waitForSelector('#home-offline-folha');
+  await page.click('.ds-overlay[data-open="true"] >> text=Fechar'); await page.waitForSelector('#home-offline-folha', { state: 'detached' });
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · DS-K2 I1 · Início: sem contagem sob o título (G-328); "Últimas listas" com as três mais recentes (ladrilho nas cores, nome, formato, contagem, posse e selo do motor), toque abre a lista, "Ver todas" vai à estante; sem lista o grupo não existe; 360 e 390, dois temas', { skip }, async t => {
   const { page, errors, base } = await open(t, { dev: false });
   await page.setViewportSize({ width: 360, height: 780 });
