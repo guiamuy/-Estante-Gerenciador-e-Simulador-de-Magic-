@@ -40039,25 +40039,29 @@ function eventosSensoriais(antes, depois, { eventos = [], stats = null, tipos = 
 /* ---------------- sons ----------------
    Cada som é uma lista de vozes curtas. Voz de oscilador: { o: forma, f: [início, fim] em Hz }. Voz de ruído:
    { r: 1, filtro: [tipo, início, fim] }. Comuns: t (atraso, s), d (duração, s), g (ganho de pico, 0–1). */
+/* J-50 (decisão do dono, 02/11/2026) · sons que se ouvem no celular: o alto-falante do aparelho não reproduz quase nada abaixo
+   de ~250 Hz, e "baixar terreno" (120→70 Hz), "entrar no campo" (196 Hz), "dano" e "remoção global" viviam ali — saíam
+   imperceptíveis. Cada som passa a ter corpo na faixa que o aparelho reproduz (300–3000 Hz) e um ataque curto de ruído (o
+   "toque" da carta no feltro), e o contrato `audibilidade` (abaixo) fixa o piso por som: som novo que nasça baixo cai no portão. */
 const RECEITAS = {
-  compra:        [{ r: 1, filtro: ['bandpass', 1800, 3800], d: 0.1, g: 1 }],
+  compra:        [{ r: 1, filtro: ['bandpass', 1800, 3800], d: 0.1, g: 1 }, { r: 1, filtro: ['bandpass', 900, 2400], t: 0.03, d: 0.08, g: 0.5 }],
   descarte:      [{ r: 1, filtro: ['bandpass', 1500, 500], d: 0.16, g: 1 }],
-  terreno:       [{ o: 'sine', f: [120, 70], d: 0.22, g: 0.6 }, { r: 1, filtro: ['lowpass', 400, 200], d: 0.08, g: 0.3 }],
-  conjura:       [{ o: 'triangle', f: [392, 784], d: 0.24, g: 0.3 }, { o: 'sine', f: [588, 1176], t: 0.06, d: 0.26, g: 0.18 }],
-  entra:         [{ o: 'sine', f: [196, 196], d: 0.2, g: 0.45 }, { o: 'sine', f: [294, 294], d: 0.26, g: 0.25 }],
+  terreno:       [{ r: 1, filtro: ['lowpass', 1600, 500], d: 0.07, g: 0.9 }, { o: 'sine', f: [360, 180], d: 0.18, g: 0.7 }, { r: 1, filtro: ['highpass', 2600, 2600], d: 0.03, g: 0.35 }],
+  conjura:       [{ o: 'triangle', f: [392, 784], d: 0.24, g: 0.42 }, { o: 'sine', f: [588, 1176], t: 0.06, d: 0.26, g: 0.26 }],
+  entra:         [{ r: 1, filtro: ['lowpass', 1400, 600], d: 0.06, g: 0.8 }, { o: 'sine', f: [330, 330], d: 0.2, g: 0.6 }, { o: 'sine', f: [495, 495], t: 0.02, d: 0.24, g: 0.32 }],
   aprimora:      [{ o: 'triangle', f: [523, 523], d: 0.09, g: 0.3 }, { o: 'triangle', f: [659, 659], t: 0.08, d: 0.09, g: 0.3 }, { o: 'triangle', f: [784, 784], t: 0.16, d: 0.2, g: 0.3 }],
-  enfraquece:    [{ o: 'triangle', f: [466, 466], d: 0.1, g: 0.28 }, { o: 'triangle', f: [370, 370], t: 0.09, d: 0.1, g: 0.28 }, { o: 'triangle', f: [277, 277], t: 0.18, d: 0.22, g: 0.28 }],
+  enfraquece:    [{ o: 'triangle', f: [466, 466], d: 0.1, g: 0.4 }, { o: 'triangle', f: [370, 370], t: 0.09, d: 0.1, g: 0.4 }, { o: 'triangle', f: [277, 277], t: 0.18, d: 0.22, g: 0.4 }],
   ataque:        [{ r: 1, filtro: ['bandpass', 500, 3200], d: 0.18, g: 1 }, { o: 'sawtooth', f: [240, 110], t: 0.11, d: 0.1, g: 0.3 }],
-  bloqueio:      [{ o: 'square', f: [190, 140], d: 0.08, g: 0.22 }, { r: 1, filtro: ['highpass', 2200, 2200], d: 0.05, g: 0.3 }],
-  golpe:         [{ r: 1, filtro: ['lowpass', 900, 300], d: 0.1, g: 0.55 }, { o: 'sine', f: [170, 60], d: 0.14, g: 0.55 }],
-  dano:          [{ o: 'sine', f: [150, 42], d: 0.32, g: 0.8 }, { r: 1, filtro: ['lowpass', 600, 150], d: 0.14, g: 0.5 }],
+  bloqueio:      [{ r: 1, filtro: ['lowpass', 1400, 400], d: 0.05, g: 0.7 }, { o: 'square', f: [260, 180], d: 0.12, g: 0.55 }, { r: 1, filtro: ['highpass', 2200, 2200], d: 0.06, g: 0.6 }],
+  golpe:         [{ r: 1, filtro: ['lowpass', 1200, 300], d: 0.1, g: 0.8 }, { o: 'sine', f: [260, 90], d: 0.16, g: 0.7 }],
+  dano:          [{ o: 'sine', f: [150, 42], d: 0.32, g: 0.8 }, { o: 'sine', f: [520, 160], d: 0.2, g: 0.55 }, { r: 1, filtro: ['lowpass', 900, 150], d: 0.14, g: 0.7 }],
   cura:          [{ o: 'sine', f: [523, 523], d: 0.2, g: 0.28 }, { o: 'sine', f: [784, 784], t: 0.1, d: 0.3, g: 0.26 }, { o: 'sine', f: [1047, 1047], t: 0.2, d: 0.36, g: 0.2 }],
   anula:         [{ o: 'sawtooth', f: [880, 110], d: 0.3, g: 0.26 }, { r: 1, filtro: ['bandpass', 3000, 600], t: 0.05, d: 0.2, g: 0.2 }],
-  morre:         [{ o: 'triangle', f: [220, 92], d: 0.36, g: 0.4 }, { r: 1, filtro: ['lowpass', 500, 150], t: 0.05, d: 0.2, g: 0.25 }],
-  exila:         [{ o: 'sine', f: [1100, 2300], d: 0.3, g: 0.18 }, { r: 1, filtro: ['highpass', 3000, 5000], d: 0.26, g: 0.14 }],
+  morre:         [{ o: 'triangle', f: [520, 140], d: 0.36, g: 0.42 }, { r: 1, filtro: ['lowpass', 500, 150], t: 0.05, d: 0.2, g: 0.25 }],
+  exila:         [{ o: 'sine', f: [1100, 2300], d: 0.3, g: 0.26 }, { r: 1, filtro: ['highpass', 3000, 5000], d: 0.26, g: 0.14 }],
   devolve:       [{ r: 1, filtro: ['bandpass', 3200, 900], d: 0.16, g: 1 }],
-  remocaoGlobal: [{ r: 1, filtro: ['lowpass', 2400, 110], d: 0.75, g: 0.5 }, { o: 'sine', f: [95, 34], d: 0.75, g: 0.5 }, { o: 'sawtooth', f: [180, 50], t: 0.04, d: 0.4, g: 0.14 }],
-  suaVez:        [{ o: 'sine', f: [659, 659], d: 0.12, g: 0.24 }, { o: 'sine', f: [988, 988], t: 0.12, d: 0.26, g: 0.24 }],
+  remocaoGlobal: [{ r: 1, filtro: ['lowpass', 2400, 110], d: 0.75, g: 0.7 }, { o: 'sine', f: [95, 34], d: 0.75, g: 0.5 }, { o: 'sawtooth', f: [320, 70], t: 0.04, d: 0.45, g: 0.22 }],
+  suaVez:        [{ o: 'sine', f: [659, 659], d: 0.12, g: 0.3 }, { o: 'sine', f: [988, 988], t: 0.12, d: 0.26, g: 0.3 }],
   vitoria:       [{ o: 'triangle', f: [523, 523], d: 0.14, g: 0.3 }, { o: 'triangle', f: [659, 659], t: 0.13, d: 0.14, g: 0.3 }, { o: 'triangle', f: [784, 784], t: 0.26, d: 0.14, g: 0.3 }, { o: 'triangle', f: [1047, 1047], t: 0.39, d: 0.5, g: 0.32 }],
   derrota:       [{ o: 'triangle', f: [392, 392], d: 0.2, g: 0.3 }, { o: 'triangle', f: [311, 311], t: 0.19, d: 0.2, g: 0.3 }, { o: 'triangle', f: [233, 196], t: 0.38, d: 0.6, g: 0.32 }]
 };
@@ -40067,6 +40071,17 @@ const NOMES = { compra: 'Comprar carta', descarte: 'Descartar', terreno: 'Baixar
   remocaoGlobal: 'Remoção global', suaVez: 'Sua vez', vitoria: 'Vitória', derrota: 'Derrota' };
 const SOM_DO_TIPO = { ficha: 'entra', destroi: 'morre', danoCriatura: 'golpe' };
 const duracaoDe = nome => Math.max(0, ...(RECEITAS[nome] || []).map(v => (v.t || 0) + v.d));
+/** J-50 · quanto um som se ouve num alto-falante de celular, em número: soma de ganho × duração útil (até 0,3 s) × peso da faixa.
+    O peso diz o que o aparelho reproduz: ≥ 300 Hz vale 1; 150–300 Hz vale 0,35; abaixo de 150 Hz quase nada (0,08). Oscilador pesa
+    pela frequência média; ruído, pelo centro do filtro (passa-baixa: metade do corte). Puro: é o contrato dos sons. */
+const PESO_DA_FAIXA = hz => (hz >= 300 ? 1 : hz >= 150 ? 0.35 : 0.08);
+const AUDIBILIDADE_MINIMA = 0.09;
+function audibilidade(nome) {
+  return (RECEITAS[nome] || []).reduce((soma, v) => {
+    const hz = v.o ? (v.f[0] + v.f[1]) / 2 : v.filtro[0] === 'lowpass' ? (v.filtro[1] + v.filtro[2]) / 4 : (v.filtro[1] + v.filtro[2]) / 2;
+    return soma + v.g * Math.min(v.d, 0.3) * PESO_DA_FAIXA(hz);
+  }, 0);
+}
 
 /** Dos eventos de uma jogada, quais sons tocar e quando (s). Poucos, sem repetir, na ordem da jogada. */
 function planoDeSom(eventos, { espectador = null, max = 4, passo = 0.14 } = {}) {
@@ -40356,7 +40371,7 @@ function roteiroDaJogada(passos, { eu = 0, stats = null, tipos = null, teto = 12
   if (total > teto) { const f = teto / total; for (const q of corte) q.ms = Math.max(300, Math.round(q.ms * f)); }
   return corte;
 }
-const limpaPrefs = p => ({ ligado: !(p && p.ligado === false), volume: p && typeof p.volume === 'number' && Number.isFinite(p.volume) ? Math.min(1, Math.max(0, p.volume)) : 0.6 });
+const limpaPrefs = p => ({ ligado: !(p && p.ligado === false), volume: p && typeof p.volume === 'number' && Number.isFinite(p.volume) ? Math.min(1, Math.max(0, p.volume)) : 0.75 }); // J-50 · padrão 0,6 → 0,75 (quem já ajustou o volume fica como está)
 
 function createSom({ store = null, criaContexto = null } = {}) {
   let prefs = limpaPrefs(null), ctx = null, mestre = null, ruido = null;
@@ -40420,7 +40435,7 @@ function createSom({ store = null, criaContexto = null } = {}) {
     get tocados() { return tocados.slice(); }
   };
 }
-return { eventosSensoriais, planoDeSom, planoDeEfeitos, RECEITAS_DA_MESA, receitaDoEfeito, rolosDaVida, planoDeVoo, ondePousa, planoDeSaida, monteDaPilha, saidasDaPilha, virasDeFace, fasesQueAcendem, alvosDoArrasto, origensDaMira, gestoDeMira, setasDoCombate, curvaDaSeta, marcasDaPrevia, roteiroDaJogada, createSom, limpaPrefs, duracaoDe, RECEITAS, NOMES, ORDEM, SOM_DO_TIPO, CHAVE, GLOBAL_A_PARTIR_DE };
+return { eventosSensoriais, planoDeSom, planoDeEfeitos, RECEITAS_DA_MESA, receitaDoEfeito, rolosDaVida, planoDeVoo, ondePousa, planoDeSaida, monteDaPilha, saidasDaPilha, virasDeFace, fasesQueAcendem, alvosDoArrasto, origensDaMira, gestoDeMira, setasDoCombate, curvaDaSeta, marcasDaPrevia, roteiroDaJogada, createSom, limpaPrefs, duracaoDe, audibilidade, AUDIBILIDADE_MINIMA, PESO_DA_FAIXA, RECEITAS, NOMES, ORDEM, SOM_DO_TIPO, CHAVE, GLOBAL_A_PARTIR_DE };
 })();
 
 /* ==== src/app/table.js ==== */

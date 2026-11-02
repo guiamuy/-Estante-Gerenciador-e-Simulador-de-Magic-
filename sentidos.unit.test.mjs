@@ -93,6 +93,25 @@ test('G4 · plano de som: poucos sons, sem repetir, na ordem da jogada; "sua vez
   assert.deepEqual(p([{ tipo: 'tipo-que-nao-existe' }]), []);
 });
 
+// J-50 (decisão do dono, 02/11/2026) · sons perceptíveis no celular: o alto-falante do aparelho não reproduz o grave, e "baixar
+// terreno", "entrar no campo", "dano" e "remoção global" viviam abaixo de 200 Hz. A audibilidade (ganho × duração útil × peso da
+// faixa) vira contrato: todo som tem corpo na faixa que o aparelho reproduz e um piso que não baixa.
+test('J-50 · audibilidade: todo som fica acima do piso num alto-falante de celular; baixar terreno e entrar no campo têm o toque da carta (ruído curto) e corpo acima de 250 Hz; o peso da faixa penaliza o grave', () => {
+  assert.equal(S.AUDIBILIDADE_MINIMA, 0.09);
+  assert.deepEqual([S.PESO_DA_FAIXA(1000), S.PESO_DA_FAIXA(300), S.PESO_DA_FAIXA(200), S.PESO_DA_FAIXA(100)].join(' '), '1 1 0.35 0.08');
+  for (const nome of Object.keys(S.RECEITAS)) assert.ok(S.audibilidade(nome) >= S.AUDIBILIDADE_MINIMA, `${nome} fica abaixo do piso: ${S.audibilidade(nome).toFixed(3)}`);
+  for (const nome of ['terreno', 'entra']) {
+    const vozes = S.RECEITAS[nome];
+    assert.ok(vozes.some(v => v.r && v.d <= 0.08), `${nome}: o toque da carta (ruído curto)`);
+    assert.ok(vozes.some(v => v.o && (v.f[0] + v.f[1]) / 2 >= 250), `${nome}: corpo acima de 250 Hz`);
+    assert.ok(!vozes.some(v => v.o && (v.f[0] + v.f[1]) / 2 < 150), `${nome}: nada só no grave`);
+  }
+  // um som "só grave" nunca passa o piso: é o que o contrato existe para barrar
+  const soGrave = [{ o: 'sine', f: [120, 70], d: 0.22, g: 0.6 }, { r: 1, filtro: ['lowpass', 400, 200], d: 0.08, g: 0.3 }];
+  const medida = soGrave.reduce((soma, v) => soma + v.g * Math.min(v.d, 0.3) * S.PESO_DA_FAIXA(v.o ? (v.f[0] + v.f[1]) / 2 : (v.filtro[1] + v.filtro[2]) / 4), 0);
+  assert.ok(medida < S.AUDIBILIDADE_MINIMA, `o "baixar terreno" de antes media ${medida.toFixed(3)}`);
+});
+
 test('G4 · receitas: todo evento tem som, todo som tem nome, cada um é curto e não estoura; preferências saneadas, guardadas e no backup', async () => {
   for (const tipo of S.ORDEM.filter(t => t !== 'turno' && t !== 'fim')) assert.ok(S.RECEITAS[S.SOM_DO_TIPO[tipo] || tipo], `sem som para ${tipo}`);
   for (const [nome, vozes] of Object.entries(S.RECEITAS)) {
@@ -100,8 +119,9 @@ test('G4 · receitas: todo evento tem som, todo som tem nome, cada um é curto e
     assert.ok(S.duracaoDe(nome) <= 1, `${nome} passa de um segundo`);
     for (const v of vozes) { assert.ok(v.g > 0 && v.g <= (v.o ? 0.8 : 1), `${nome}: ganho`); assert.ok(v.d > 0); assert.ok(v.o ? v.f.every(f => f >= 20 && f <= 6000) : v.filtro.slice(1).every(f => f >= 20 && f <= 6000), `${nome}: frequência`); }
   }
-  assert.deepEqual(J(S.limpaPrefs(null)), { ligado: true, volume: 0.6 }); assert.deepEqual(J(S.limpaPrefs({ ligado: false, volume: 7 })), { ligado: false, volume: 1 });
-  assert.deepEqual(J(S.limpaPrefs({ volume: 'alto' })), { ligado: true, volume: 0.6 }); assert.equal(S.limpaPrefs({ volume: -1 }).volume, 0);
+  // J-50 · o volume padrão subiu de 0,6 para 0,75 (os sons saíam baixos no celular); quem já ajustou fica como está
+  assert.deepEqual(J(S.limpaPrefs(null)), { ligado: true, volume: 0.75 }); assert.deepEqual(J(S.limpaPrefs({ ligado: false, volume: 7 })), { ligado: false, volume: 1 });
+  assert.deepEqual(J(S.limpaPrefs({ volume: 'alto' })), { ligado: true, volume: 0.75 }); assert.equal(S.limpaPrefs({ volume: -1 }).volume, 0);
   assert.ok(PF.PREFERENCIAS.includes(S.CHAVE));
   // serviço com um contexto de áudio de mentira: conta os nós criados, respeita desligado e volume
   const m = new Map(); const store = { get: async k => m.get(k), set: async (k, v) => { m.set(k, J(v)); } };
@@ -112,8 +132,8 @@ test('G4 · receitas: todo evento tem som, todo som tem nome, cada um é curto e
     createBufferSource() { ruido++; return { connect() {}, start() {}, stop() {} }; }, createBiquadFilter() { return { frequency: param(), connect() {} }; },
     createBuffer(c, n) { return { getChannelData: () => new Float32Array(n) }; } };
   const som = S.createSom({ store, criaContexto: () => ctx });
-  assert.deepEqual(J(await som.init()), { ligado: true, volume: 0.6 });
-  assert.equal(som.toca('dano'), true); assert.equal(osc, 1); assert.equal(ruido, 1); assert.equal(mestres[0].gain.value, 0.6);
+  assert.deepEqual(J(await som.init()), { ligado: true, volume: 0.75 });
+  assert.equal(som.toca('dano'), true); assert.equal(osc, 2); assert.equal(ruido, 1); assert.equal(mestres[0].gain.value, 0.75); // J-50 · o dano ganhou um corpo médio (dois osciladores) e o padrão é 0,75
   assert.equal(som.toca('nao-existe'), false);
   assert.deepEqual(J(som.tocaEventos([{ tipo: 'compra' }, { tipo: 'cura' }])), [{ som: 'compra', quando: 0 }, { som: 'cura', quando: 0.14 }]);
   assert.deepEqual(J(som.tocados), ['dano', 'compra', 'cura']);

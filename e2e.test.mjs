@@ -8460,7 +8460,7 @@ test('e2e · G4 som na partida: a jogada vira evento e som (terreno, sua vez, co
   // Perfil › Aparência: chip, volume e a escuta de cada som
   await page.goto(page.url().replace(/#.*/, '#/perfil')); await page.waitForSelector('#aparencia-som');
   assert.equal(await page.getAttribute('#aparencia-som [data-som]', 'aria-pressed'), 'true');
-  assert.equal(await page.inputValue('#aparencia-volume'), '60');
+  assert.equal(await page.inputValue('#aparencia-volume'), '75'); // J-50 · padrão 0,6 → 0,75
   await page.locator('#aparencia-som').scrollIntoViewIfNeeded(); await auditaTela(page, 'perfil com som da partida');
   await page.click('#aparencia-ouvir'); await page.waitForSelector('#aparencia-sons');
   const nomes = await page.$$eval('#aparencia-sons [data-ouvir]', cs => cs.map(c => c.textContent.trim()));
