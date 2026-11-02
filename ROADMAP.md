@@ -5752,6 +5752,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Teste:** `lt281.unit` (3 testes; falham no motor anterior).
 - **Fora:** Paradoxical Outcome ("any number of target … you control" + compra por carta devolvida) fica para leva própria.
 
+**M-601 · LT259 · Floodpits Drowner (virar e atordoar; embaralhar as duas) e Thundertrap Trainer (olhar quatro, pegar a que não é criatura nem terreno)** ✅ (leva M-601, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** passam a ser **lidas por inteiro** Floodpits Drowner (64 listas competitivas) e Thundertrap Trainer (63). Texto da Scryfall de 01/11/2026 (`cobertura/<formato>.json`). Jogam no app depois da aprovação (homologacao).
+- **Regra:** "tap target creature an opponent controls and put a stun counter on it" (122.1d: virar e o marcador de atordoamento no mesmo alvo); "Shuffle this creature and target creature with a stun counter on it into their owners' libraries" (`mover` para o grimório do dono, embaralhado, das duas; alvo novo `comMarcador: 'stun'`; se o alvo perdeu o marcador, a habilidade não faz nada, nem com a fonte — 608.2b; fonte que saiu e voltou fica — 400.7); "look at the top four … You may reveal a noncreature, nonland card from among them and put it into your hand. Put the rest on the bottom … in a random order" (o filtro do padrão de olhar o topo ganha "noncreature, nonland"). A prole (offspring) da Thundertrap o motor já lia da carta (K-53).
+- **Conferido:** o leitor antes e depois sobre as cartas revisadas e os pendentes dos competitivos de 01/11: nenhuma leitura já completa mudou.
+- **Teste:** `lt282.unit` (4 testes; falham no motor anterior).
+- **Fora:** Paradoxical Outcome continua para leva própria.
+
 **M-584 · LT241 · Sentinela do Pauper: Nettle Sentinel (593 → 594 de 594 listas)** ✅ (leva M-584, motor v112 sem mudança de forma; goldens intactos)
 - **Valor:** a sentinela (`cobertura/pauper.json` de 26/10/2026 13:27 UTC) mostrava 593 de 594 listas Pauper a 100% no app, com uma carta `nova` (Nettle Sentinel, 1 lista). Aprovada, 594 de 594 na próxima coleta. Texto da API da Scryfall de 26/10/2026 (campo `texto` do relatório), gravado em `.listas/oficiais-revisadas.json`.
 - **Regra:** triagem A — o leitor `__m42` lê "Whenever you cast a/an <cor> spell" com uma cor só (gatilho `other-cast`, `filter.anyColors`; 105.2: multicolorida com verde conta); "doesn't untap during your untap step" (502.3, M-558) e o "you may" do gatilho (603.5, pergunta na resolução) já existiam. Núcleo intacto; numerada M-584 porque a M-583 está reservada pela conversa dos competitivos.

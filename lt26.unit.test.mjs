@@ -79,8 +79,13 @@ test('LT26 · Greedy Freebooter: ao morrer, vidência 1 e um Tesouro', () => {
 test('LT26 · X sem {X} no custo não é lido (107.3); duas ações com pronome na segunda não se dividem', () => {
   const r = L.ler({ name: 'Teste X', type_line: 'Creature — Elemental', mana_cost: '{3}{R}', oracle_text: 'When Teste X enters, it deals X damage to any target.' });
   assert.equal(r.completa, false);
+  // Expectativa ajustada na M-601 (Floodpits Drowner): "tap target … and put a stun counter on it" passou a ter padrão próprio, que liga o
+  // "it" ao alvo da primeira metade (`first-target`, 122.1d) — a frase não é dividida às cegas, que é o que este teste guarda. A divisão
+  // ingênua continua barrada para o pronome sem padrão (marcador +1/+1).
   const q = L.ler({ name: 'Teste E', type_line: 'Instant', mana_cost: '{1}{U}', oracle_text: 'Tap target creature and put a stun counter on it.' });
-  assert.equal(q.completa, false, 'o "it" da segunda metade depende da primeira');
+  assert.equal(q.completa, true); assert.equal(q.script.effects[1].target, 'first-target', 'o "it" da segunda metade é o alvo da primeira');
+  const q2 = L.ler({ name: 'Teste F', type_line: 'Instant', mana_cost: '{1}{U}', oracle_text: 'Tap target creature and put a +1/+1 counter on it.' });
+  assert.equal(q2.completa, false, 'o "it" da segunda metade depende da primeira');
 });
 
 test('M-343 · as 12 do lote XVII revisadas jogam (decisão A)', () => {

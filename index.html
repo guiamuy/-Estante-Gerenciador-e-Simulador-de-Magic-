@@ -21429,6 +21429,7 @@ const __m42 = (function () {
     if (k === 'target creature or vehicle') return { target: { ou: [{ tipos: ['creature'] }, { subtipos: ['Vehicle'] }] } }; // M-383 · Ride's End
     if (k === 'target attacking or blocking creature') return { target: { tipos: ['creature'], emCombate: true } }; // M-599 · Eiganjo (506.4: atacante ou bloqueadora)
     if (k === 'target non-outlaw creature') return { target: { tipos: ['creature'], foraDaLei: false } }; // M-599 · Shoot the Sheriff (700.13: fora da lei = Assassin, Mercenary, Pirate, Rogue, Warlock)
+    if (k === 'target creature with a stun counter on it') return { target: { tipos: ['creature'], comMarcador: 'stun' } }; // M-601 · Floodpits Drowner (122.1d)
     if (k === 'another target artifact') return { target: { tipos: ['artifact'], outra: true } }; // M-599 · Manifold Key
     if (k === 'target attacking creature') return { target: { tipos: ['creature'], atacando: true } }; // M-377 · Desert (seletor atacando, M-361)
     if (k === 'up to one target card from a graveyard') return { target: 'card-in-any-graveyard', upTo: true }; // M-373 · Heritage Reclamation (115.3: aceita zero)
@@ -21563,6 +21564,8 @@ const __m42 = (function () {
     [new RegExp(`^(target player|target opponent) mills ${N} cards?$`, 'i'), m => [com({ do: 'mill', amount: num(m[2]) }, alvo(m[1]))]],
     [new RegExp(`^mill ${N} cards?$`, 'i'), m => [{ do: 'mill', amount: num(m[1]) }]],
     [/^tap (target [a-z ']+)$/i, m => [com({ do: 'tap' }, alvo(m[1]))]],
+    [/^tap (target [a-z ']+) and put a stun counter on it$/i, m => { let a = alvo(m[1]); if (a && a.target === 'creature-opponent-controls') a = { ...a, target: { tipos: ['creature'], de: 'opponent' } }; return a ? [com({ do: 'tap' }, a), { do: 'counters', tipo: 'stun', amount: 1, target: 'first-target' }] : null; }], // M-601 · Floodpits Drowner (122.1d: o marcador vai no mesmo alvo)
+    [/^shuffle ~ and (target [a-z ']+) into their owners' libraries$/i, m => { const a = alvo(m[1]); return a ? [{ do: 'mover', target: 'self-source', de: 'battlefield', para: 'library', posicao: 'embaralhado' }, com({ do: 'mover', de: 'battlefield', para: 'library', posicao: 'embaralhado' }, a)] : null; }], // M-601 · Floodpits Drowner: as duas vão para o grimório do dono, embaralhadas (400.7: a fonte que saiu e voltou fica)
     [/^tap enchanted creature$/i, () => [{ do: 'tap', target: 'enchanted' }]],
     [/^untap enchanted creature$/i, () => [{ do: 'untap', target: 'enchanted' }]],
     [/^return (?:this aura|~) to its owner's hand$/i, () => [{ do: 'to_hand', target: 'self-source', from: 'battlefield' }]],
@@ -22026,7 +22029,7 @@ const __m42 = (function () {
   /** Um parágrafo de efeito de mágica → { efeitos, frases }. */
   /** M-335 · orações em sequência que formam um efeito só (no começo do parágrafo): revelar a mão e escolher o descarte; olhar o topo e pegar. */
   const FILTRO_DESCARTE = { card: {} /* M-516 · Coercion: qualquer carta */, 'nonland card': { notTypes: ['land'] }, 'noncreature, nonland card': { notTypes: ['creature', 'land'] }, 'nonland, noncreature card': { notTypes: ['creature', 'land'] } };
-  const FILTRO_TOPO = { colorless: { incolor: true }, 'instant or sorcery': { types: ['instant', 'sorcery'] }, creature: { types: ['creature'] }, artifact: { types: ['artifact'] }, land: { types: ['land'] }, 'creature or land': { types: ['creature', 'land'] } };
+  const FILTRO_TOPO = { colorless: { incolor: true }, 'instant or sorcery': { types: ['instant', 'sorcery'] }, creature: { types: ['creature'] }, artifact: { types: ['artifact'] }, land: { types: ['land'] }, 'creature or land': { types: ['creature', 'land'] }, 'noncreature, nonland': { notTypes: ['creature', 'land'] } /* M-601 · Thundertrap Trainer */ };
   const PRE_PARAGRAFO = [
     [/^search your library for an? (artifact|creature|enchantment|land) card with mana cost ((?:\{[0-9WUBRGC]+\})+) or ((?:\{[0-9WUBRGC]+\})+), (?:reveal it, )?put it (into your hand|onto the battlefield(?: tapped)?), then shuffle(?:\.\s*|$)/i, m => [{ do: 'search', amount: 1, filter: { types: [m[1].toLowerCase()], custosDeManaK: [m[2].toUpperCase(), m[3].toUpperCase()] }, to: DESTINO[m[4].toLowerCase()] }]], // K-86 · 202.1 (Urza's Saga): o custo de mana impresso exato; o "then shuffle" é da busca
     [new RegExp(`^create ${N} (\\d+)/(\\d+) colorless ([A-Z][a-z]+) artifact creature tokens? with ['"‘“]this (?:token|creature) gets \\+1/\\+1 for each artifact you control\\.?['"’”](?:\\.\\s*|$)`, 'i'), m => { const q = num(m[1]); return q ? [{ do: 'token', amount: q, token: { name: m[4], types: ['artifact', 'creature'], subtypes: [m[4]], colors: [], power: +m[2], toughness: +m[3], self: { per: 'artifacts-you-control', perPower: 1, perToughness: 1 } } }] : null; }], // K-86 · a ficha Construct (Urza's Saga, Karn): bônus estático 613.4c
@@ -22056,7 +22059,7 @@ const __m42 = (function () {
       m => [{ do: 'voto_m', filter: { types: m[1].toLowerCase().match(/artifact|creature|enchantment|instant|sorcery|land|planeswalker/g) } }]], // M-586 · Custodi Squire (701.38, Will of the council)
     [new RegExp(`^look at the top ${N} cards of your library\\. put ${N} of them into your hand and the (other|rest) into your graveyard(?:\\.\\s*|$)`, 'i'), m => { // M-585 · Visionary's Dance (701.20: olhar é privado; "the other" só com uma sobrando)
       const c = num(m[1]), k = num(m[2]); return c && k && k < c && (m[3].toLowerCase() === 'rest' || c - k === 1) ? [{ do: 'look', count: c, amount: k, min: k, to: 'hand', rest: 'graveyard' }] : null; }],
-    [new RegExp(`^look at the top ${N} cards of your library\\. you may reveal an? (instant or sorcery|creature|artifact|land|creature or land|colorless) card from among them and put it into your hand\\. (?:then )?put the rest on the bottom of your library in (any|a random) order(?:\\.\\s*|$)`, 'i'), m => {
+    [new RegExp(`^look at the top ${N} cards of your library\\. you may reveal an? (instant or sorcery|creature|artifact|land|creature or land|colorless|noncreature, nonland) card from among them and put it into your hand\\. (?:then )?put the rest on the bottom of your library in (any|a random) order(?:\\.\\s*|$)`, 'i'), m => {
       const c = num(m[1]); return c ? [{ do: 'look', count: c, amount: 1, min: 0, to: 'hand', rest: /random/i.test(m[3]) ? 'library-bottom-random' : 'library-bottom', revelaEscolhida: true, filter: FILTRO_TOPO[m[2].toLowerCase()] }] : null; }],
     [new RegExp(`^look at the top ${N} cards of your library\\. you may reveal a creature card with power (\\d+) or less from among them and put it into your hand\\. (?:then )?put the rest on the bottom of your library in (any|a random) order(?:\\.\\s*|$)`, 'i'), m => { // M-420 · Militia Bugler
       const c = num(m[1]); return c ? [{ do: 'look', count: c, amount: 1, min: 0, to: 'hand', rest: /random/i.test(m[3]) ? 'library-bottom-random' : 'library-bottom', revelaEscolhida: true, filter: { types: ['creature'], powerMax: +m[2] } }] : null; }],
@@ -38680,7 +38683,7 @@ function descreveSeletor(sel) {
   const dono = zona === 'graveyard' ? (sel.de === 'you' ? ' do seu cemitério' : sel.de === 'opponent' ? ' do cemitério de um oponente' : ' de um cemitério')
     : sel.de === 'you' ? ' que você controla' : sel.de === 'opponent' ? ' que um oponente controla' : sel.dono === 'you' ? ' que é sua' : '';
   const vmM = Number.isInteger(sel.mvMax) ? ` de valor de mana ${sel.mvMax} ou menos` : Number.isInteger(sel.mvMin) ? ` de valor de mana ${sel.mvMin} ou mais` : ''; // M-549 · achado da revisão (Witherbloom Charm)
-  return `${coisa}${predicadosPT_T(sel)}${sem}${vmM}${dono}${sel.comToxico ? ' com tóxico' : ''}${sel.comMarcador === 'p1p1' ? ' com marcador +1/+1' : ''}${jog ? ' ou ' + jog : ''}`; // M-253 // T-59 · histórica, fora da lei, modificada
+  return `${coisa}${predicadosPT_T(sel)}${sem}${vmM}${dono}${sel.comToxico ? ' com tóxico' : ''}${sel.comMarcador === 'p1p1' ? ' com marcador +1/+1' : sel.comMarcador === 'stun' ? ' com marcador de atordoamento' : ''}${jog ? ' ou ' + jog : ''}`; // M-253 // T-59 · histórica, fora da lei, modificada
 }
 /** CR2-G R3a · efeito contínuo estático em português: quem é afetado, o +N/+N (fixo ou por contagem) e as palavras-chave. */
 const PER_PT = { 'setes-no-seu-cemiterio': 'grupo de sete cartas no seu cemitério' /* M-595 */, 'creatures-you-control': 'criatura que você controla', 'other-creatures-you-control': 'outra criatura que você controla', 'enchantments-you-control': 'encantamento que você controla',
