@@ -640,6 +640,10 @@ test('DS-K2 · M1 a carta do campo na moldura K: janela da arte por token sobre 
   assert.match(componentCss, /\.tb-card\[data-moldura="true"\] > \.tb-card__label \{[^}]*font-size: var\(--text-3xs\); line-height: 1\.2; display: block; white-space: nowrap; text-overflow: ellipsis; hyphens: manual;/);
   assert.match(componentCss, /\.tb-card\[data-moldura="true"\]\[data-tapped="true"\] > \.tb-card__label \{ top: auto; bottom: 78%;/, 'deitada, a faixa fica acima da carta, fora da arte');
   assert.match(css, /:root \{ --vida-disco: 34px; \}/, 'o disco da vida é token');
+  // J-43 (relato #48 parte 2) · os dois lados com o mesmo playmat, por token nos três blocos de tema; nenhum lado transparente
+  assert.match(css, /:root \{ --playmat: var\(--bg-elev-1\); \}/, 'o playmat é o papel do lado, que muda com o tema (vale nos dois temas e no claro automático)');
+  assert.match(componentCss, /\.tb-side \{[^}]*background: var\(--playmat\);/);
+  assert.ok(!/\.tb-side--opp \{ background: transparent; \}/.test(componentCss), 'o lado do outro não é mais transparente');
   assert.match(componentCss, /\.tb-top > \.tb-life--barra \{[^}]*padding: calc\(\(var\(--tap-min\) - var\(--vida-disco\)\) \/ 2\);[^}]*background-clip: content-box;/, 'o alvo continua com 44 px; só o disco é pintado');
   assert.match(componentCss, /\.tb-side \.tb-row \{ justify-content: safe center; \}/, 'a fila do campo centraliza; com muitas cartas a rolagem começa na primeira');
   assert.match(HTML, /const moldura = !opts\.size && !opts\.verso && !!card\.image;/, 'só a carta do campo: mão, pilha e verso seguem com a carta inteira');

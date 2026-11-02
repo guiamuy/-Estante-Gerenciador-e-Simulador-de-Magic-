@@ -402,7 +402,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-z2 ✅ | Shark usa todas as mecânicas, inclusive as dos terrenos: estoura o terreno que busca básico, abre mana com habilidades, ordena antes do corte do relógio; auditoria de uso (leva 143) | B21 | 1 | — |
 | 16º-sc 🟡 | DS-K · Ébano e Ouro, design system de patamar (direção K do volume 3, decisão do dono de 24/10): F0.1 ✅ (G-287) tokens de ébano e latão nos três blocos, receitas de animação no `/ds` como contrato da jogabilidade, guarda de contenção de texto no portão; F0.2 fontes self-hosted (sw.js, `armazem`); F1 componentes; F2 telas de gestão; F3 mesa como layout; FA leva de ajuste no aparelho | DS-K | 1 de 11 a 13 | — |
 | 16º-sh 🟡 | DS-K2 · Ébano e Ouro, a proposta inteira (pedido do dono de 01/11): auditoria tela-modelo × app; J1 ✅ (G-317) o Jogar abre sempre no Pauper por decisão de produto, com as listas prontas à mão; J2 Jogar como mesa de preparação; N1–N3 barra de navegação embaixo com o Jogar no centro; I1–I2 Início (últimas listas, faixa de offline); L1 hero da Lista; M1–M4 mesa e mão com arte (`jogabilidade`) | DS-K2 | 1 de 14 a 18 | 16º-sc, 16º-js |
-| 16º-tj 🟡 | Relato #48 · mesa com a arte inteira: parte 1 ✅ (J-42) faixa do nome numa linha fora da arte nos dois lados, terreno básico com o símbolo de mana, vida em disco de 34 px centrado; parte 2 playmat dos dois lados | DS-K2 | 1 de 2 | 16º-sh |
+| 16º-tj ✅ | Relato #48 · mesa com a arte inteira: parte 1 ✅ (J-42) faixa do nome numa linha fora da arte nos dois lados, terreno básico com o símbolo de mana, vida em disco de 34 px centrado; parte 2 ✅ (J-43) o mesmo playmat dos dois lados (`--playmat`, `data-playmat`) | DS-K2 | 2 de 2 | 16º-sh |
 | 16º-si ✅ | CONV1 Convidar amigos (pedido do dono de 01/11: "como compartilho para meus amigos baixarem e começarem a usar?"): ✅ (G-325) Perfil › Convidar amigos com o endereço, Compartilhar, Copiar link, QR lido de volta no teste e o passo a passo de instalar no Android e no iPhone (o do aparelho primeiro) | CONV1 | 1 | — |
 | 16º-sa 🟡 | B22 Shark profissional com cinco listas: fatia 1 ✅ (B-173) listas de torneio embutidas e seletor do Shark só com elas; fatia 2 ✅ (B-174) linha de base: Madness 75% · Elves 63% · Faeries 50% · Control 38% · Terror 25% contra o campo; fatia 3 ✅ (B-175) perfil do Terror + o terreno que falta (pareado 50% × 38% em 32 pares: dentro da margem); fatia 4 (B-176) ameaças do campo no Control: sem ganho (41% × 42% em 64 pares), desligada; fatia 5 (B-177) mulligan por fontes e cores: neutro em força (79 × 81 em 160 pares), ligado pelo comportamento; fatia 6 (B-178) prazo da decisão: p95 430 → 366 ms, pior 4,3 → 0,8 s, força 48 × 47; fatia 7 (B-179) quando anular: a resposta é lida primeiro e a anulação guardada tem valor, neutro em força (38 × 39 em 96 pares), ligado pelo comportamento; fatias 8–9 viraram a B23 (16º-sd); força final (B-185, 208 decididas por lista, Shark × Shark): Madness 66% · Terror 59% · Elfos 50% · Faeries 47% · Control 29% — o aceite "nenhuma abaixo de 45%" fica aberto pelo Control (B24, 16º-se) | B22 | 9 | 16º-z2 |
 | 16º-sd ✅ | B23 o Shark usa bem cada carta das cinco listas: fatia 1 ✅ (B-180) auditoria carta a carta (`bot.cartas.mjs`, 76 cartas, 40 partidas): 6 cartas ficam na mão, 5 com alvo no próprio lado por erro; fatia 2 ✅ (B-181) alvo no próprio lado + avaliaV6 (o −3/−0 na própria criatura dava +4), neutro em força (47 × 48), ligado; fatia 3 ✅ (B-182) loucura e descarte conferidos (Fiery Temper 14/20 contando a loucura), sem mudança no Shark; fatia 4 ✅ (B-183) a decisão do outro na resolução (Deem Inferior 1/13 → 13/14), 49 × 47, ligado; fatia 5 ✅ (B-184) jogar em volta: o outro responde com a mágica do Shark na pilha (anula, tira o alvo), 51 × 47, ligado; fatia 6 ✅ (B-185) fechamento: reserva pelo alvo (29 × 24) e resposta no meu turno (o Dispel na Counterspell que anulava a minha ameaça; 48 × 46), auditoria final sem "não usa" (69 usam, 5 a revisar declaradas), força por lista com 208 decididas no painel, p95 dentro do orçamento | B23 | 6 | 16º-sa |
@@ -13495,7 +13495,24 @@ sentinela do Pauper mantém as novas jogando. Outro formato entra quando chegar 
 | M3 | Mesa: barra vida · fase com os pontos do turno · vida | e2e | jogabilidade | ✅ J-39 |
 | M4 | Mesa: bandeja com a ação primária em latão e o resto em segundo plano | e2e | jogabilidade | ✅ J-41 |
 | M5 | Mesa (relato #48, parte 1): arte inteira no campo — faixa do nome numa linha fora da arte, terreno básico com o símbolo de mana, vida em disco menor e centrado | e2e 360×697/780 e 390, dois temas, contrato visual | jogabilidade | ✅ J-42 |
-| M6 | Mesa (relato #48, parte 2): playmat dos dois lados, o mesmo material, base para escolher playmat | e2e, contrato visual | jogabilidade | a fazer |
+| M6 | Mesa (relato #48, parte 2): playmat dos dois lados, o mesmo material, base para escolher playmat | e2e, contrato visual | jogabilidade | ✅ J-43 |
+
+**M6 · Playmat dos dois lados** ✅ (leva J-43, trilha `jogabilidade`, 02/11/2026, relato #48 parte 2 de 2, `16º-tj`)
+- **Valor:** o seu lado e o do oponente têm o mesmo playmat: antes só o seu lado tinha o fundo (o do outro era transparente
+  sobre o feltro, decisão da MJ7), e a mesa parecia ter playmat só embaixo.
+- **Regra:** token novo `--playmat` (hoje o papel do lado, `var(--bg-elev-1)`, que já muda com o tema; definido junto da mesa, fora
+  do bloco F4 que o painel espelha); `.tb-side`
+  pinta `var(--playmat)` nos dois lados; cada lado diz `data-playmat="padrao"`, que é o gancho da escolha de playmat (outro
+  playmat troca só o token sob esse atributo). O feltro (veio e luz) continua em volta, no vão entre os lados. A borda que
+  acende no lado da vez não mudou.
+- **Pixels de campo em 360×780:** zero.
+- **Testes:** e2e "J-43 relato #48 parte 2" (falhava no `main`: lado do oponente `rgba(0, 0, 0, 0)`; mede o mesmo fundo,
+  imagem e raio nos dois lados e o `data-playmat`, 360×697 e 390×844, dois temas, auditaTela; `/ds`); e2e "MJ7 material"
+  com a expectativa mudada pelo relato (o lado do outro deixava o feltro aparecer; agora tem o mesmo playmat); contrato
+  visual (token nos três blocos, nenhum lado transparente).
+- **Correção (da J-42, achada na captura):** a carta sem imagem da mão também ganhava o símbolo do básico e a letra
+  menor; agora isso é só do campo e a mão fica como era (e2e J-43 confere a Island da mão).
+- **Fora:** a escolha de playmat em si (Aparência), playmats com arte.
 
 **M5 · Arte inteira no campo** ✅ (leva J-42, trilha `jogabilidade`, 02/11/2026, relato #48 parte 1 de 2, `16º-tj`)
 - **Valor:** nas cartas da mesa (terrenos e permanentes, dos dois lados) a arte aparece inteira: o nome fica na faixa de
@@ -13519,8 +13536,7 @@ sentinela do Pauper mantém as novas jogando. Outro formato entra quando chegar 
   carta sem imagem sem transbordar, símbolo do básico cuja imagem falhou, disco ≤ 34 px com a tinta do número no centro
   ±1 px lida na captura, alvo de 44 px; 360×697, 360×780, 390×844, dois temas, auditaTela; `/ds`); contrato visual "DS-K2 ·
   M1" com `--moldura-hd` e a faixa novos (expectativa mudada pelo relato #48) e o disco por token.
-- **Fora (parte 2, M6):** playmat dos dois lados (hoje o feltro marcado é só o seu lado), com o mesmo material, como base
-  para escolher playmat. Também fora: terreno não básico sem imagem continua só com o nome (não há cor confiável no objeto
+- **Fora:** playmat dos dois lados ficou para a M6 (J-43). Também fora: terreno não básico sem imagem continua só com o nome (não há cor confiável no objeto
   da mesa); os outros marcadores da faixa do lado (grimório, cemitério, exílio) não mudaram de tamanho nesta parte.
 
 **I2 · Início: a faixa "sem internet" de uma linha** ✅ (leva G-332, trilha `geral`, 02/11/2026)

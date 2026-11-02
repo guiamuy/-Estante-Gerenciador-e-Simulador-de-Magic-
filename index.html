@@ -2502,10 +2502,14 @@ body[data-mesa-cheia="true"] .tb-steps__list > li::after { inset: 0; height: aut
 .tb-board { display: flex; flex-direction: column; gap: var(--space-4); padding-top: var(--space-3); } /* MJ1c (J-4) · vão de 16 px: com o fundo do lado de cima (12 + 3) e o topo do de baixo (12 + 1), a faixa da pilha (44 px) cabe sem cobrir nada */
 .tb-side {
   display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3);
-  background: var(--bg-elev-1); border: 1px solid var(--border); border-radius: var(--radius-2);
+  background: var(--playmat); border: 1px solid var(--border); border-radius: var(--radius-2);
   border-bottom: 3px solid var(--shelf-edge);
 }
-.tb-side--opp { background: transparent; } /* MJ7 · o feltro (veio e luz) aparece no lado do outro; a borda e o ombro continuam separando o lado */
+/* J-43 (relato #48) · token do playmat: o papel do lado (--bg-elev-1), que já muda com o tema, então vale nos dois temas e no
+   claro automático; outro playmat troca só este token (sob o data-playmat do lado). Fica aqui, fora do bloco F4, que o painel espelha */
+:root { --playmat: var(--bg-elev-1); }
+/* J-43 (relato #48) · os dois lados com o mesmo playmat (antes o do outro era transparente e só o seu parecia ter playmat);
+   o feltro (veio e luz) continua em volta, no vão entre os lados. Cada lado diz o playmat em data-playmat, para a escolha futura */
 /* U7 · o lado de quem tem o turno acende na cor do jogador (a sua é o acento; a do outro, azul) */
 .tb-side { transition: border-color var(--dur-3) var(--ease-out), box-shadow var(--dur-3) var(--ease-out); }
 .tb-side[data-ativo="true"] { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft), 0 0 20px var(--accent-soft); }
@@ -2738,12 +2742,13 @@ body[data-mesa-cheia="true"] .tb-steps__list > li::after { inset: 0; height: aut
 .tb-side .tb-row { justify-content: safe center; }
 .tb-card__face img[data-falhou="true"], .tb-leque__camada img[data-falhou="true"] { visibility: hidden; }   /* H7 · imagem que falhou não mostra ícone quebrado; volta sozinha */
 .tb-card img, .tb-stack__card img { -webkit-touch-callout: none; pointer-events: none; }   /* H10 · o toque é da carta, não da imagem */
-.tb-card__name { position: absolute; inset: 0; display: grid; place-items: center; padding: var(--space-1); text-align: center; font-family: var(--font-display); font-size: var(--text-2xs); color: var(--fg);
+.tb-card__name { position: absolute; inset: 0; display: grid; place-items: center; padding: var(--space-1); text-align: center; font-family: var(--font-display); font-size: var(--text-xs); color: var(--fg);
   overflow: hidden; overflow-wrap: normal; word-break: normal; hyphens: manual; } /* J-42 · carta sem imagem: palavra inteira, nunca "Moun-tain" */
+.tb-side .tb-card__name { font-size: var(--text-2xs); } /* J-43 · a letra menor só no campo; a mão fica como era (relato #48: "a mão está boa") */
 /* J-42 · o símbolo de mana do terreno básico: por baixo da arte (aparece se a imagem não chega) ou, sem imagem, no meio da carta com o nome no pé */
 .tb-card__simbolo { position: absolute; inset: 0; display: grid; place-items: center; font-size: calc(var(--carta-campo) * .38); pointer-events: none; }
 .tb-card__simbolo .ds-sym { top: 0; margin: 0; }
-.tb-card__name--basico { inset: auto 0 0; display: block; padding: 2px var(--space-1); white-space: nowrap; text-overflow: ellipsis; font-size: var(--text-3xs); }
+.tb-card .tb-card__name--basico { inset: auto 0 0; display: block; padding: 2px var(--space-1); white-space: nowrap; text-overflow: ellipsis; font-size: var(--text-3xs); }
 .tb-card[data-tapped="true"] { margin: 0 calc(var(--carta-campo) * .2); }
 .tb-fx-camada > .tb-card[data-tapped="true"] { margin: 0; } /* J-20 · a foto da camada de efeitos é posta pela caixa medida (sem margem): a carta virada levava a margem do campo junto e a foto nascia e pousava 15 px fora (achado da B-175) */
 /* U5 · leque de cópias iguais: a carta da frente é o botão; as de trás mostram só a borda */
@@ -5336,6 +5341,7 @@ function renderDS() {
           // J-42 (relato #48) · o terreno básico sem imagem: o símbolo de mana desenhado e o nome numa linha (nunca "Is-land")
           h('span', { id: 'ds-basico-sem-arte' }, M.TableCard(demo('Island'))),
           M.ZoneChip('Cemitério', 4, () => toast('Cemitério'))),
+        Text('Tokens: --playmat (o playmat dos dois lados da mesa, o mesmo para você e para o oponente; hoje o padrão, o papel do lado).', { size: 'xs', tone: 'muted', attrs: { id: 'ds-playmat' } }),
         Text('Tokens: --vida-disco (o disco da vida na barra, 34 px, no meio do alvo de 44 px; o número centrado pela altura das maiúsculas, algarismos de linha).', { size: 'xs', tone: 'muted', attrs: { id: 'ds-vida-disco' } }),
         // J-40 · relato #45 · a masmorra na mesa: o selo (miniatura do mapa, bandeira da iniciativa) e a folha com o mapa da carta
         (() => {
@@ -37453,7 +37459,7 @@ function TableCard(card, opts = {}) {
     // J-42 · a arte do terreno básico tem o símbolo de mana por baixo: se a imagem não chega, o símbolo aparece (nunca a janela vazia);
     // sem imagem nenhuma, a carta desenhada leva o símbolo e o nome numa linha
     opts.verso ? h('span', { class: 'ds-verso' }) : moldura ? h('span', { class: 'tb-card__arte' }, SimboloDoBasico(card.name), imgDaMesa(card, opts.size)) : card.image ? imgDaMesa(card, opts.size)
-      : manaDoBasico(card.name) ? [SimboloDoBasico(card.name), h('span', { class: 'tb-card__name tb-card__name--basico' }, card.name)] : h('span', { class: 'tb-card__name' }, card.name), // D7 · verso escolhido na Aparência
+      : !opts.size && manaDoBasico(card.name) ? [SimboloDoBasico(card.name), h('span', { class: 'tb-card__name tb-card__name--basico' }, card.name)] : h('span', { class: 'tb-card__name' }, card.name), // J-43 · só no campo: a mão não muda (relato #48) // D7 · verso escolhido na Aparência
     ptEl),
   // Leva 110 · o nome fica fora da face: carta virada não leva o nome junto na rotação (antes saía de pé, cortado)
   (card.image || opts.verso) && opts.size !== 'sm' ? h('span', { class: 'tb-card__label' }, card.name) : null,
@@ -42695,7 +42701,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const field = campoVazio ? []
       : [ZoneRow('Permanentes', landPiles(s, others, openObject), { zone: 'permanents', empty: 'nenhuma', count: others.length }), ZoneRow('Terrenos', landPiles(s, lands, openObject), { zone: 'lands', empty: 'nenhum', count: lands.filter(o => isLand(s, o)).length })];
     const ativo = s.status === 'playing' && s.turn.active === p;   // U7 · o lado de quem joga acende
-    return h('section', { class: ['tb-side', mine ? 'tb-side--me' : 'tb-side--opp'].join(' '), dataset: { ativo: String(ativo), campo: campoVazio ? 'vazio' : 'ocupado', p: String(p) },
+    return h('section', { class: ['tb-side', mine ? 'tb-side--me' : 'tb-side--opp'].join(' '), dataset: { ativo: String(ativo), campo: campoVazio ? 'vazio' : 'ocupado', p: String(p), playmat: 'padrao' },
       'aria-label': (mine ? 'seu lado' : 'lado do oponente') + (ativo ? ', turno ativo' : '') + (campoVazio ? ', campo vazio' : '') },
       h('div', { class: 'tb-side__head' }, life, selo, chips),
       ...(mine ? field : field.reverse()));

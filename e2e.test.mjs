@@ -9708,6 +9708,33 @@ test('e2e · J-42 relato #48 parte 1 · arte inteira no campo: nos dois lados (d
   assert.deepEqual(errors, []);
 });
 
+test('e2e · J-43 relato #48 parte 2 · playmat dos dois lados: o seu lado e o do oponente com o mesmo playmat (mesmo fundo opaco, mesma borda, mesmo raio), marcado com data-playmat para a escolha futura; 360×697 e 390×844, dois temas, auditaTela; /ds', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await createDeck(page, base, 'Playmat', PAUPER);
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start'); await page.fill('#mesa-seed', '4');
+  await page.click('[data-opponent="goldfish"]');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-pass');
+  for (const [w, hgt] of [[360, 697], [390, 844]]) for (const tema of ['dark', 'light']) {
+    await page.setViewportSize({ width: w, height: hgt }); await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(350);
+    const lados = await page.evaluate(() => ['.tb-side--opp', '.tb-side--me'].map(sel => { const e = document.querySelector(sel), cs = getComputedStyle(e);
+      return { fundo: cs.backgroundColor, imagem: cs.backgroundImage, borda: cs.borderTopColor + ' ' + cs.borderTopWidth, raio: cs.borderTopLeftRadius, ativo: e.dataset.ativo, playmat: e.dataset.playmat || null }; }));
+    const onde = `${w}×${hgt} ${tema}`, [ele, eu] = lados;
+    assert.notEqual(ele.fundo, 'rgba(0, 0, 0, 0)', `${onde}: o lado do oponente tem playmat (não é só o feltro) ` + JSON.stringify(lados));
+    assert.deepEqual([ele.fundo, ele.imagem, ele.raio], [eu.fundo, eu.imagem, eu.raio], `${onde}: os dois lados com o mesmo playmat ` + JSON.stringify(lados));
+    assert.deepEqual([ele.playmat, eu.playmat], ['padrao', 'padrao'], `${onde}: cada lado diz qual playmat usa`);
+    await auditaTela(page, `J-43 · playmat ${onde}`);
+    if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + `/j-43-playmat-${w}x${hgt}-${tema}.png` });
+  }
+  // a mão não muda (relato #48: "a mão está boa"): a Island sem imagem da mão continua só com o nome, na letra de antes
+  const mao = await page.evaluate(() => [...document.querySelectorAll('.tb-card--hand')].filter(c => /^Island/.test(c.getAttribute('aria-label') || ''))
+    .map(c => ({ simbolo: !!c.querySelector('.tb-card__simbolo'), letra: getComputedStyle(c.querySelector('.tb-card__name')).fontSize })));
+  assert.ok(mao.length && mao.every(c => !c.simbolo && c.letra === '11px'), 'a mão sem o símbolo do campo e com a letra de antes ' + JSON.stringify(mao));
+  await page.goto(base + '#/ds'); await page.waitForSelector('#ds-playmat');
+  assert.match(await page.textContent('#ds-playmat'), /--playmat/);
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · DS-K2 M2 mão em leque: até 7 cartas cabem sem rolar em 360 e 390, o centro de cada carta toca aquela carta, sobreposição ≤ 40%, pontas giradas de 8° a 10°, segurar endireita e põe por cima; 8 cartas em 360 rolam e continuam em leque; dois temas, auditaTela', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.addInitScript(() => { window.__MTG_TEST = true; });
@@ -16905,7 +16932,8 @@ test('e2e · MJ7 material: sombra que cresce ao segurar, luz do feltro só na pa
   await page.waitForSelector('#tb-pass');
   const toca = () => page.evaluate(() => document.querySelector('#tb').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
   assert.equal(await temLuz(), true, 'na partida o fundo tem a luz e a penumbra do feltro');
-  assert.equal(await page.$eval('.tb-side--opp', el => getComputedStyle(el).backgroundColor), 'rgba(0, 0, 0, 0)', 'o lado do outro deixa o feltro aparecer');
+  // J-43 (relato #48) · expectativa mudada: o dono pediu o mesmo playmat dos dois lados; o feltro fica em volta, não sob o lado do outro
+  assert.equal(await page.$eval('.tb-side--opp', el => getComputedStyle(el).backgroundColor), await page.$eval('.tb-side--me', el => getComputedStyle(el).backgroundColor), 'os dois lados com o mesmo playmat');
   const latao = await page.$eval('#tb-vez', el => ({ shadow: getComputedStyle(el).boxShadow, img: getComputedStyle(el).backgroundImage }));
   assert.ok(/inset/.test(latao.shadow) && /linear-gradient/.test(latao.img), 'a faixa de vez é latão com fio de luz e lábio ' + JSON.stringify(latao));
   // mesa assistida: Ilhas e um Delver no campo, uma Counterspell no topo do grimório (o gatilho do Delver vai transformá-lo)
