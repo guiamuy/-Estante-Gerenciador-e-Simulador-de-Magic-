@@ -5765,16 +5765,16 @@ test('e2e · G-274 porta de entrada sem conta ligada no app: só Continuar sem c
   assert.match(await page.innerText('#porta-acoes'), /A conta ainda não está ligada neste app/);
   assert.equal(await page.$eval('#porta-pular', b => b.classList.contains('ds-btn--primary')), true);
   assert.ok((await page.locator('#porta-pular').boundingBox()).height >= 44);
-  assert.equal(await page.locator('#apresentacao').count(), 0, 'a apresentação espera a porta');
+  assert.equal(await page.locator('#tutorial').count(), 0, 'o tour espera a porta'); // G-331 · a apresentação virou o tour
   await auditaTela(page, 'porta de entrada sem conta no app');
   await page.click('#porta-pular');
-  await page.waitForSelector('#apresentacao'); assert.equal(await page.evaluate(() => location.hash), '#/');
-  await page.click('#apresentacao-pular'); await page.waitForSelector('#home');
+  await page.waitForSelector('#tutorial'); assert.equal(await page.evaluate(() => location.hash), '#/');
+  await page.click('#tutorial-pular'); await page.waitForSelector('#home');
   await page.reload(); await page.waitForSelector('#home');
-  assert.equal(await page.locator('#porta').count(), 0); assert.equal(await page.locator('#apresentacao').count(), 0);
+  assert.equal(await page.locator('#porta').count(), 0); assert.equal(await page.locator('#tutorial').count(), 0);
   // o endereço da porta aberto à mão mostra a porta; sair por ela não repete a apresentação
   await page.goto(base + '#/entrar'); await page.waitForSelector('#porta'); await page.click('#porta-pular'); await page.waitForSelector('#home');
-  assert.equal(await page.locator('#apresentacao').count(), 0);
+  assert.equal(await page.locator('#tutorial').count(), 0);
   assert.deepEqual(errors, []);
 });
 
@@ -7508,39 +7508,50 @@ test('e2e · D4a estados vazios de Listas e Coleção: ícone grande, título, u
   assert.deepEqual(errors, []);
 });
 
-test('e2e · D4b apresentação de primeira abertura: três passos com Pular, aparece uma vez só, "Começar" devolve o foco à tela e o Perfil deixa rever', { skip }, async t => {
+/* G-331 · relato #51 · o tour de boas-vindas em tela cheia (expectativa da D4b mudada com motivo: o diálogo de três passos
+   deu lugar ao tour; as mesmas garantias — primeira abertura, uma vez só, Pular, Rever no Perfil — valem para ele) */
+test('e2e · G-331 tour de boas-vindas: seis capítulos ilustrados em tela cheia com progresso, Pular sempre à mão, voltar, Experimentar abre a tela, Começar fecha e devolve o foco; aparece uma vez só; Esc também conta; o Perfil deixa rever; 360×697 e 390×844 nos dois temas', { skip }, async t => {
   const { page, errors, base } = await open(t, { apresentacao: true });
-  await page.setViewportSize({ width: 360, height: 780 });
-  await page.goto(base + '#/'); await page.waitForSelector('#apresentacao[data-passo="1"]');
-  assert.match(await page.innerText('#apresentacao-titulo'), /Tudo fica no aparelho/);
-  assert.equal(await page.getAttribute('.apresentacao__pontos', 'aria-label'), 'Passo 1 de 3');
-  assert.equal(await page.locator('#apresentacao-pular').isVisible(), true, 'dá para pular desde o primeiro passo');
-  assert.equal(await page.locator('.ds-dialog .ds-btn--primary').count(), 1, 'um primário por passo');
-  await auditaTela(page, 'apresentação passo 1');
-  await page.click('#apresentacao-proximo'); await page.waitForSelector('#apresentacao[data-passo="2"]');
-  assert.match(await page.innerText('#apresentacao-titulo'), /regras de verdade/);
-  await page.click('#apresentacao-proximo'); await page.waitForSelector('#apresentacao[data-passo="3"]');
-  assert.equal(await page.locator('#apresentacao-pular').count(), 0, 'no último passo, Começar e Abrir perfil');
-  assert.equal(await page.locator('#apresentacao-perfil').isVisible(), true);
-  await page.click('#apresentacao-comecar'); await page.waitForSelector('#ds-overlay[data-open="false"]', { state: 'attached' });
-  assert.equal(await page.locator('#home-atalhos').isVisible(), true);
-  // uma vez só: recarregar não mostra de novo
+  await page.setViewportSize({ width: 360, height: 697 });
+  await page.goto(base + '#/'); await page.waitForSelector('#tutorial[data-capitulo="1"]');
+  // 1 · capítulo 1: progresso, Pular, sem voltar, um primário; o foco começa no primário
+  const m1 = await page.evaluate(() => ({ titulo: document.getElementById('tutorial-titulo').textContent, prog: document.querySelector('.tutorial__progresso').getAttribute('aria-label'),
+    feitos: [...document.querySelectorAll('.tutorial__passo')].map(p => p.dataset.feito), anterior: !!document.getElementById('tutorial-anterior'), foco: document.activeElement.id,
+    primarios: document.querySelectorAll('#tutorial .ds-btn--primary').length, nav: getComputedStyle(document.getElementById('ds-navbar')).display, cobre: document.getElementById('tutorial').getBoundingClientRect().height }));
+  assert.deepEqual([m1.titulo, m1.prog, m1.feitos, m1.anterior, m1.foco, m1.primarios, m1.cobre], ['Jogue com regras de verdade', 'Capítulo 1 de 6', ['true', 'false', 'false', 'false', 'false', 'false'], false, 'tutorial-proximo', 1, 697], JSON.stringify(m1));
+  for (const id of ['tutorial-pular', 'tutorial-experimentar', 'tutorial-proximo']) assert.ok((await page.locator('#' + id).boundingBox()).height >= 44, id + ' com 44 px');
+  for (const tema of ['dark', 'light']) { await page.evaluate(x => document.documentElement.setAttribute('data-theme', x), tema); await page.waitForTimeout(350); await auditaTela(page, `G-331 · tour capítulo 1 ${tema}`); }
+  await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(300); await auditaTela(page, 'G-331 · tour 390'); await page.setViewportSize({ width: 360, height: 697 });
+  // 2 · os seis capítulos, com texto de até duas linhas e título inteiro; voltar e seta do teclado
+  const titulos = [];
+  for (let k = 1; k <= 6; k++) {
+    await page.waitForSelector(`#tutorial[data-capitulo="${k}"]`);
+    const m = await page.evaluate(() => { const t = document.getElementById('tutorial-texto'), h = document.getElementById('tutorial-titulo'), lh = parseFloat(getComputedStyle(t).lineHeight);
+      return { titulo: h.textContent, linhas: Math.round(t.getBoundingClientRect().height / lh), largo: h.scrollWidth <= h.clientWidth + 1 && t.scrollWidth <= t.clientWidth + 1, svg: !!document.querySelector('.tutorial__objeto svg'), prog: document.querySelector('.tutorial__progresso').getAttribute('aria-valuenow') }; });
+    titulos.push(m.titulo); assert.ok(m.linhas <= 2, `capítulo ${k}: texto em ${m.linhas} linhas`); assert.ok(m.largo && m.svg, `capítulo ${k}: título inteiro e ilustração`); assert.equal(m.prog, String(k));
+    if (k < 6) await page.click('#tutorial-proximo');
+  }
+  assert.deepEqual(titulos, ['Jogue com regras de verdade', 'Suas listas, prontas', 'Sua coleção na mão', 'Aponte a câmera, pronto', 'O que está acontecendo', 'Do seu jeito']);
+  assert.equal(await page.locator('#tutorial-proximo').count(), 0); assert.equal(await page.locator('#tutorial-pular').count(), 1, 'Pular continua no último capítulo');
+  await auditaTela(page, 'G-331 · tour capítulo 6');
+  await page.click('#tutorial-anterior'); await page.waitForSelector('#tutorial[data-capitulo="5"]'); await page.keyboard.press('ArrowRight'); await page.waitForSelector('#tutorial[data-capitulo="6"]');
+  // 3 · Começar fecha, a Início fica, o tour não volta na segunda abertura
+  await page.click('#tutorial-comecar'); await page.waitForSelector('#tutorial', { state: 'detached' });
+  assert.equal(await page.locator('#home-atalhos').isVisible(), true); assert.equal(await page.evaluate(() => document.body.dataset.tutorial), undefined);
   await page.reload(); await page.waitForSelector('#home-atalhos'); await page.waitForTimeout(600);
-  assert.equal(await page.locator('#ds-overlay[data-open="true"]').count(), 0, 'não volta na segunda abertura');
-  assert.equal(await page.locator('#apresentacao').count(), 0);
-  // Pular também marca como vista (em outro contexto limpo)
-  const B = await page.context().browser().newContext({ viewport: { width: 360, height: 780 }, serviceWorkers: 'block' });
-  await B.addInitScript(() => { window.__SEM_PORTA = true; }); // G-274 · contexto limpo agora para na porta de entrada antes; aqui só a apresentação (a porta tem o teste "G-274")
-  const p2 = await B.newPage(); await p2.goto(base + '#/listas'); await p2.waitForSelector('#apresentacao-pular'); await p2.keyboard.press('Escape'); // fechar de qualquer jeito conta como vista
-  await p2.waitForSelector('#ds-overlay[data-open="false"]', { state: 'attached' }); await p2.waitForTimeout(300); await p2.reload(); await p2.waitForSelector('#decks-vazio'); await p2.waitForTimeout(600);
-  assert.equal(await p2.locator('#apresentacao').count(), 0, 'pulou: não insiste');
+  assert.equal(await page.locator('#tutorial').count(), 0, 'não volta na segunda abertura');
+  // 4 · Esc também marca como visto (em outro contexto limpo)
+  const B = await page.context().browser().newContext({ viewport: { width: 360, height: 697 }, serviceWorkers: 'block' });
+  await B.addInitScript(() => { window.__SEM_PORTA = true; });
+  const p2 = await B.newPage(); await p2.goto(base + '#/listas'); await p2.waitForSelector('#tutorial-pular'); await p2.keyboard.press('Escape');
+  await p2.waitForSelector('#tutorial', { state: 'detached' }); await p2.waitForTimeout(300); await p2.reload(); await p2.waitForSelector('#decks-vazio'); await p2.waitForTimeout(600);
+  assert.equal(await p2.locator('#tutorial').count(), 0, 'fechou: não insiste');
   await B.close();
-  // Perfil: rever apresentação, e "Abrir perfil" do último passo leva ao perfil
-  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-apresentacao'); await page.click('#perfil-apresentacao');
-  await page.waitForSelector('#apresentacao[data-passo="1"]');
-  await page.click('#apresentacao-proximo'); await page.click('#apresentacao-proximo'); await page.waitForSelector('#apresentacao-perfil');
-  await page.click('#apresentacao-perfil'); await page.waitForSelector('#ds-overlay[data-open="false"]', { state: 'attached' });
-  assert.match(page.url(), /#\/perfil$/);
+  // 5 · Perfil: Rever o tour; Experimentar abre a tela do capítulo (Listas)
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-apresentacao'); assert.equal(await page.innerText('#perfil-apresentacao'), 'Rever o tour');
+  await page.click('#perfil-apresentacao'); await page.waitForSelector('#tutorial[data-capitulo="1"]');
+  await page.click('#tutorial-proximo'); await page.waitForSelector('#tutorial[data-capitulo="2"]'); await page.click('#tutorial-experimentar');
+  await page.waitForSelector('#tutorial', { state: 'detached' }); await page.waitForSelector('#decks-vazio'); assert.match(page.url(), /#\/listas$/);
   assert.deepEqual(errors, []);
 });
 
@@ -7958,7 +7969,7 @@ test('e2e · D11 acessibilidade medida: axe-core sem achados (WCAG 2.1 A/AA + bo
     ['preparar partida', async () => { await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start'); }],
     ['partida', async () => { await page.fill('#mesa-seed', '3'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep', { timeout: 15000 }); await page.click('#tb-keep'); await page.waitForTimeout(400); }],
     ['perfil', async () => { await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-aparencia'); }],
-    ['apresentação', async () => { await page.click('#perfil-apresentacao'); await page.waitForSelector('#apresentacao'); }],
+    ['apresentação', async () => { await page.click('#perfil-apresentacao'); await page.waitForSelector('#tutorial'); await page.keyboard.press('Escape'); await page.waitForSelector('#tutorial', { state: 'detached' }); }], // G-331 · o tour em tela cheia
     ['catálogo', async () => { await page.goto(base + '#/ds'); await page.waitForSelector('#ds-table'); }]
   ];
   const achados = [];

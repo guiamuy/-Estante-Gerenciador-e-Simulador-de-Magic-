@@ -1413,14 +1413,41 @@ body:is([data-tela="partida"], [data-tela="scanner"], [data-tela="entrar"], [dat
 .ds-dialog__fechar { flex: none; margin-top: -2px; }
 .ds-dialog__actions { display: flex; gap: var(--space-2); justify-content: flex-end; flex-wrap: wrap; margin-top: var(--space-4); }
 /* D4b · apresentação de primeira abertura: um passo por vez, ícone grande, pontos de progresso, sempre dá para pular */
-.apresentacao { display: flex; flex-direction: column; align-items: center; text-align: center; gap: var(--space-3); padding: var(--space-2) 0; }
-.apresentacao__icone { width: 88px; height: 88px; border-radius: var(--radius-full); display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
-.apresentacao__titulo { margin: 0; color: var(--fg); }
-.apresentacao__texto { margin: 0; color: var(--fg-muted); max-width: 32ch; }
-.apresentacao__pontos { display: flex; gap: var(--space-2); margin-top: var(--space-1); }
-.apresentacao__ponto { width: 8px; height: 8px; border-radius: var(--radius-full); background: var(--bg-elev-3); }
-.apresentacao__ponto[data-atual="true"] { background: var(--accent); }
-.apresentacao-acoes { justify-content: space-between; }
+/* G-331 · relato #51 · tour de boas-vindas em tela cheia (src/app/tutorial.js): topo com voltar · progresso · Pular; palco em
+   ébano com a luz de latão, a ilustração e a sombra (três planos); capítulo, título em Cormorant e uma frase; Experimentar e
+   Próximo no pé. Cobre a barra de navegação; o corpo não rola por baixo. Movimento reduzido: tudo no lugar. */
+body[data-tutorial="true"] { overflow: hidden; }
+.tutorial { position: fixed; inset: 0; z-index: calc(var(--z-modal) + 1); display: grid; grid-template-rows: auto 1fr auto auto; gap: var(--space-4);
+  padding: calc(var(--space-3) + env(safe-area-inset-top, 0px)) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom, 0px)); background: var(--bg); color: var(--fg); overflow: hidden; box-shadow: 0 0 0 100vmax var(--bg); /* sangria: a camada cobre além da caixa quando a barra do navegador recolhe (I7) */ }
+.tutorial__topo { display: grid; grid-template-columns: var(--tap-min) minmax(0, 1fr) auto; align-items: center; gap: var(--space-3); }
+.tutorial__vazio { width: var(--tap-min); height: var(--tap-min); }
+.tutorial__progresso { display: flex; gap: 4px; }
+.tutorial__passo { flex: 1 1 0; height: 4px; border-radius: var(--radius-full); background: var(--bg-elev-3); transition: background var(--dur-2) var(--ease-out); }
+.tutorial__passo[data-feito="true"] { background: var(--accent); }
+.tutorial__palco { position: relative; align-self: center; justify-self: center; width: min(100%, 320px); aspect-ratio: 10 / 7; border-radius: var(--radius-3); background: var(--bg-elev-0); border: 1px solid var(--border); overflow: hidden; isolation: isolate; display: grid; place-items: center; }
+.tutorial__luz { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 62%, var(--accent-soft), transparent 64%); }
+.tutorial__objeto { position: relative; width: 70%; max-width: 220px; color: var(--accent); animation: ds-rise var(--dur-3) var(--ease-out) both; }
+.tutorial__objeto svg { width: 100%; height: auto; display: block; }
+.tut-sombra { fill: var(--overlay); opacity: .55; }
+.tut-carta { fill: var(--bg-elev-2); stroke: var(--border-strong); stroke-width: 1.5; }
+.tut-carta--latao { fill: var(--accent-soft); stroke: var(--accent); }
+.tut-folha { fill: var(--bg-elev-1); stroke: var(--border-strong); stroke-width: 1.5; }
+.tut-linha { fill: var(--fg-subtle); }
+.tut-destaque { fill: var(--accent); }
+.tut-selo { fill: var(--accent); }
+.tut-selo-traco { fill: none; stroke: var(--accent-fg); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.tut-mira { fill: none; stroke: var(--accent); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.tut-feixe { fill: var(--accent); }
+.tut-anel { fill: none; stroke: var(--accent); stroke-width: 2.5; }
+.tutorial__corpo { display: grid; gap: var(--space-2); text-align: center; justify-items: center; animation: ds-rise var(--dur-3) var(--ease-out) var(--dur-1) both; }
+.tutorial__capitulo { margin: 0; display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--text-xs); line-height: var(--lh-xs); letter-spacing: .08em; text-transform: uppercase; color: var(--accent-lo); }
+.tutorial__capitulo-icone { display: inline-grid; place-items: center; }
+.tutorial__titulo { margin: 0; font-family: var(--font-display); font-weight: var(--weight-bold); font-size: var(--text-2xl); line-height: var(--lh-2xl); color: var(--fg); text-wrap: balance; max-width: 18ch; }
+.tutorial__texto { margin: 0; font-size: var(--text-md); line-height: var(--lh-md); color: var(--fg-muted); max-width: 34ch; text-wrap: pretty; }
+.tutorial__acoes { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
+.tutorial__acoes .ds-btn { width: 100%; min-width: 0; }
+@media (prefers-reduced-motion: reduce) { .tutorial__objeto, .tutorial__corpo { animation: none; } .tutorial__passo { transition: none; } }
+@media (max-height: 640px) { .tutorial { gap: var(--space-3); } .tutorial__palco { width: min(100%, 240px); } }
 @keyframes ds-fade { from { opacity: 0 } to { opacity: 1 } }
 @keyframes ds-rise { from { opacity: 0; transform: translateY(12px) scale(.985) } to { opacity: 1; transform: none } }
 
@@ -19739,7 +19766,7 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
         Text('Listas, coleção, perfil, partidas, preferências e as cartas e imagens guardadas saem deste aparelho. O app volta como recém-instalado.', { size: 'sm', tone: 'muted' }),
         Row({ class: 'ds-row--wrap' }, Button('Apagar tudo', { variant: 'danger', icone: 'lixeira', id: 'perfil-apagar-tudo', onClick: confirmaApagar })))) : null,
       // D4b · a apresentação de primeira abertura pode ser revista daqui
-      apresentacao ? Row({ style: { justifyContent: 'center' } }, Button('Rever apresentação', { variant: 'ghost', icone: 'seguir', id: 'perfil-apresentacao', onClick: apresentacao })) : null);
+      apresentacao ? Row({ style: { justifyContent: 'center' } }, Button('Rever o tour', { variant: 'ghost', icone: 'seguir', id: 'perfil-apresentacao', onClick: apresentacao })) : null);
   }
   /** P-14 · SEG8 · contas bloqueadas na partida online: aparece só quando há alguma; Desbloquear devolve a conta às salas. */
   function secaoBloqueios() {
@@ -46034,6 +46061,99 @@ function createNotificacoesScreen({ notificacoes, go }) {
 return { CHAVE, MAX, TIPOS, FILTROS, valida, contaNaoLidas, filtra, diaDe, notificacaoDeCobertura, createNotificacoes, confereCoberturas, BotaoNotificacoes, createNotificacoesScreen };
 })();
 
+/* ==== src/app/tutorial.js ==== */
+const __m45 = (function () {
+/* =====================================================================
+   G-331 · relato #51 · TOUR DE BOAS-VINDAS (épico Tutorial, fatia 1)
+   Na primeira abertura (depois da porta de entrada), um tour em tela cheia: um capítulo por função da Estante — Jogar,
+   Listas, Coleção, Scanner, Notícias, Perfil —, cada um com ilustração, título curto e uma frase; progresso à vista,
+   Pular sempre à mão, "Experimentar" abre a tela de verdade. Substitui a apresentação D4b (diálogo de três passos).
+   Fatias seguintes: ilustrações animadas em três planos, destaque guiado nas telas, progresso na conta.
+   O conteúdo é dado puro (CAPITULOS); a tela só desenha. Nada de rede: funciona offline.
+   ===================================================================== */
+const { h, Icone, Button, IconButton } = __m3;
+const CHAVE = 'ui.apresentacao'; // a mesma marca "vista" da D4b: quem já viu a apresentação antiga não vê o tour de novo
+/** Os capítulos do tour: id · título (até 4 palavras) · uma frase (até duas linhas em 360 px) · a rota de "Experimentar". */
+const CAPITULOS = [
+  { id: 'jogar', nome: 'Jogar', titulo: 'Jogue com regras de verdade', texto: 'Contra o Shark, a dois no aparelho ou online. O motor cuida do turno, da pilha e da vida.', rota: '/mesa', icone: 'jogar' },
+  { id: 'listas', nome: 'Listas', titulo: 'Suas listas, prontas', texto: 'Cole uma lista, pegue uma pronta ou monte a sua. O selo do motor diz se ela joga.', rota: '/listas', icone: 'listas' },
+  { id: 'colecao', nome: 'Coleção', titulo: 'Sua coleção na mão', texto: 'Guarde o que você tem, filtre por cor e veja o que falta para montar cada lista.', rota: '/colecao', icone: 'colecao' },
+  { id: 'scanner', nome: 'Scanner', titulo: 'Aponte a câmera, pronto', texto: 'O scanner lê o nome da carta e soma na coleção, sem digitar nada.', rota: '/scanner', icone: 'scanner' },
+  { id: 'noticias', nome: 'Notícias', titulo: 'O que está acontecendo', texto: 'Lançamentos, listas de torneio e artigos de Magic, num só lugar.', rota: '/noticias', icone: 'jornal' },
+  { id: 'perfil', nome: 'Perfil', titulo: 'Do seu jeito', texto: 'Nome e foto na mesa, tema e cor. Tudo fica no aparelho; a nuvem é opcional.', rota: '/perfil', icone: 'pessoa' }
+];
+/** Texto do progresso ("Capítulo 2 de 6") e se é o último. Puro. */
+const progresso = (i, n = CAPITULOS.length) => ({ texto: `Capítulo ${i + 1} de ${n}`, ultimo: i === n - 1, primeiro: i === 0 });
+/** Ilustrações: SVG inline por capítulo, em três planos (luz do fundo, objeto, sombra), nas cores dos tokens. Estáticas nesta
+    fatia; a fatia 2 anima. `currentColor` é o latão; as classes pegam os tokens pelo CSS. */
+const svgDoTour = (corpo) => `<svg viewBox="0 0 200 140" width="200" height="140" aria-hidden="true" focusable="false">${corpo}</svg>`;
+const cartaDoTour = (x, y, r, cls = '') => `<rect class="tut-carta ${cls}" x="${x}" y="${y}" width="46" height="64" rx="5" transform="rotate(${r} ${x + 23} ${y + 32})"/>`;
+const ILUSTRACOES = {
+  jogar: svgDoTour(`<ellipse class="tut-sombra" cx="100" cy="118" rx="62" ry="8"/>${cartaDoTour(58, 36, -10)}${cartaDoTour(96, 32, 8, 'tut-carta--latao')}<circle class="tut-selo" cx="100" cy="100" r="16"/><path class="tut-selo-traco" d="M95 92.5v15l12-7.5z"/>`),
+  listas: svgDoTour(`<ellipse class="tut-sombra" cx="100" cy="118" rx="58" ry="8"/><rect class="tut-folha" x="52" y="24" width="96" height="88" rx="8"/><rect class="tut-linha" x="66" y="42" width="52" height="6" rx="3"/><rect class="tut-linha" x="66" y="58" width="68" height="6" rx="3"/><rect class="tut-linha" x="66" y="74" width="44" height="6" rx="3"/><rect class="tut-linha" x="66" y="90" width="60" height="6" rx="3"/><circle class="tut-selo" cx="138" cy="34" r="14"/><path class="tut-selo-traco" d="M131 34.5l5 5 10-10"/>`),
+  colecao: svgDoTour(`<ellipse class="tut-sombra" cx="100" cy="120" rx="66" ry="8"/>${cartaDoTour(38, 22, 0)}${cartaDoTour(77, 22, 0, 'tut-carta--latao')}${cartaDoTour(116, 22, 0)}<rect class="tut-carta" x="57" y="60" width="46" height="52" rx="5"/><rect class="tut-carta" x="97" y="60" width="46" height="52" rx="5"/>`),
+  scanner: svgDoTour(`<ellipse class="tut-sombra" cx="100" cy="122" rx="54" ry="7"/>${cartaDoTour(77, 36, 0)}<path class="tut-mira" d="M44 48V32h16M156 48V32h-16M44 92v16h16M156 92v16h-16"/><rect class="tut-feixe" x="48" y="66" width="104" height="3" rx="1.5"/>`),
+  noticias: svgDoTour(`<ellipse class="tut-sombra" cx="100" cy="120" rx="60" ry="8"/><rect class="tut-folha" x="46" y="24" width="108" height="90" rx="8"/><rect class="tut-destaque" x="58" y="36" width="42" height="32" rx="4"/><rect class="tut-linha" x="108" y="38" width="34" height="6" rx="3"/><rect class="tut-linha" x="108" y="52" width="34" height="6" rx="3"/><rect class="tut-linha" x="58" y="80" width="84" height="6" rx="3"/><rect class="tut-linha" x="58" y="94" width="64" height="6" rx="3"/>`),
+  perfil: svgDoTour(`<ellipse class="tut-sombra" cx="100" cy="122" rx="48" ry="7"/><circle class="tut-anel" cx="100" cy="68" r="40"/><circle class="tut-folha" cx="100" cy="68" r="32"/><circle class="tut-destaque" cx="100" cy="58" r="11"/><path class="tut-destaque" d="M78 92c4-12 12-18 22-18s18 6 22 18a32 32 0 0 1-44 0z"/><circle class="tut-selo" cx="134" cy="38" r="12"/><path class="tut-selo-traco" d="M134 31v3M134 42v3M127 38h3M138 38h3M129 33l2 2M137 41l2 2M129 43l2-2M137 35l2-2"/>`)
+};
+/** Abre o tour em tela cheia. `store` grava a marca ao abrir (fechar de qualquer jeito conta como visto: a apresentação
+    não insiste); `go(rota)` é a navegação do app; `aoFechar` avisa quem chamou. Devolve o elemento, para os testes. */
+function abreTutorial({ store, go, aoFechar = null, inicio = 0 } = {}) {
+  if (document.getElementById('tutorial')) return document.getElementById('tutorial');
+  if (store) store.set(CHAVE, { vista: true, em: Date.now() }).catch(() => {});
+  let i = Math.max(0, Math.min(CAPITULOS.length - 1, inicio)), fechado = false, foco = document.activeElement;
+  const el = h('section', { class: 'tutorial', id: 'tutorial', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'tutorial-titulo' });
+  const fecha = (destino) => {
+    if (fechado) return; fechado = true;
+    document.removeEventListener('keydown', teclas, true);
+    el.remove(); delete document.body.dataset.tutorial;
+    if (aoFechar) { try { aoFechar(); } catch (e) { console.error(e); } }
+    if (destino && go) go(destino);
+    else if (foco && foco.isConnected && typeof foco.focus === 'function') { try { foco.focus({ preventScroll: true }); } catch (e) { /* sem foco */ } }
+  };
+  const teclas = e => {
+    if (e.key === 'Escape') { e.preventDefault(); fecha(); return; }
+    if (e.key === 'ArrowRight' && i < CAPITULOS.length - 1) { i++; pinta(); return; }
+    if (e.key === 'ArrowLeft' && i > 0) { i--; pinta(); return; }
+    if (e.key !== 'Tab') return; // o foco circula dentro do tour
+    const itens = [...el.querySelectorAll('button:not([disabled])')]; if (!itens.length) return;
+    const a = itens[0], z = itens[itens.length - 1];
+    if (e.shiftKey && document.activeElement === a) { e.preventDefault(); z.focus(); }
+    else if (!e.shiftKey && document.activeElement === z) { e.preventDefault(); a.focus(); }
+  };
+  function pinta() {
+    const c = CAPITULOS[i], p = progresso(i);
+    el.dataset.capitulo = String(i + 1); el.dataset.id = c.id;
+    const palco = h('div', { class: 'tutorial__palco', 'aria-hidden': 'true' }, h('div', { class: 'tutorial__luz' }), h('div', { class: 'tutorial__objeto' }));
+    palco.querySelector('.tutorial__objeto').innerHTML = ILUSTRACOES[c.id]; // SVG fixo do próprio app (dado do código, não de fora)
+    const corpo = h('div', { class: 'tutorial__corpo' },
+      h('p', { class: 'tutorial__capitulo' }, h('span', { class: 'tutorial__capitulo-icone' }, Icone(c.icone, { tamanho: 16 })), h('span', {}, c.nome)),
+      h('h2', { class: 'tutorial__titulo', id: 'tutorial-titulo' }, c.titulo),
+      h('p', { class: 'tutorial__texto', id: 'tutorial-texto' }, c.texto));
+    const seguir = p.ultimo
+      ? Button('Começar', { variant: 'primary', icone: 'seguir', id: 'tutorial-comecar', onClick: () => fecha() })
+      : Button('Próximo', { variant: 'primary', icone: 'seguir', id: 'tutorial-proximo', onClick: () => { i++; pinta(); } });
+    el.replaceChildren(
+      h('header', { class: 'tutorial__topo' },
+        p.primeiro ? h('span', { class: 'tutorial__vazio' }) : IconButton('voltar', 'Capítulo anterior', { id: 'tutorial-anterior', variant: 'ghost', onClick: () => { i--; pinta(); } }),
+        h('div', { class: 'tutorial__progresso', role: 'progressbar', 'aria-label': p.texto, 'aria-valuemin': '1', 'aria-valuemax': String(CAPITULOS.length), 'aria-valuenow': String(i + 1) },
+          ...CAPITULOS.map((_, k) => h('span', { class: 'tutorial__passo', dataset: { feito: String(k <= i) } }))),
+        Button('Pular', { variant: 'ghost', id: 'tutorial-pular', onClick: () => fecha() })),
+      palco, corpo,
+      h('footer', { class: 'tutorial__acoes' },
+        Button('Experimentar', { icone: c.icone, id: 'tutorial-experimentar', title: `Abrir ${c.nome}`, onClick: () => fecha(c.rota) }),
+        seguir));
+    seguir.focus({ preventScroll: true });
+  }
+  document.body.dataset.tutorial = 'true';
+  document.body.appendChild(el);
+  document.addEventListener('keydown', teclas, true);
+  pinta();
+  return el;
+}
+return { CAPITULOS, progresso, ILUSTRACOES, abreTutorial, CHAVE };
+})();
+
 /* ==== src/app/main.js ==== */
 const __m13 = (function () {
 /* Casca da aplicação. Por enquanto: barra, tema e o catálogo do design system.
@@ -46282,39 +46402,12 @@ const ROUTES = [
     Empty('Este endereço não existe na Estante. Pode ser um link antigo ou digitado errado.', Button('Ir para o Início', { variant: 'primary', icone: 'voltar', id: 'nao-encontrado-inicio', onClick: () => { location.hash = '#/'; } }), { icone: 'caixa', id: 'nao-encontrado' })) }
 ];
 
-/* D4b · apresentação de primeira abertura: três passos, pulável, uma vez só (chave `ui.apresentacao` no aparelho).
-   Testes pulam pelo gancho `window.__SEM_APRESENTACAO`; "Rever apresentação" no Perfil abre de novo. */
-const APRESENTACAO_KEY = 'ui.apresentacao';
-const PASSOS_APRESENTACAO = [
-  { icone: 'proteger', titulo: 'Tudo fica no aparelho', texto: 'Listas e coleção ficam guardadas aqui, funcionam sem internet e saem num backup quando você quiser.' },
-  { icone: 'jogar', titulo: 'Jogue com regras de verdade', texto: 'Contra o Shark, sozinho ou a dois. O motor cuida do turno, da pilha e da vida.' },
-  { icone: 'pessoa', titulo: 'Do seu jeito', texto: 'Nome e foto na mesa, tema, cor de destaque e tamanho do texto ficam no Perfil.' }
-];
+/* D4b · apresentação de primeira abertura (leva 145): uma vez só (chave `ui.apresentacao` no aparelho); testes pulam pelo gancho
+   `window.__SEM_APRESENTACAO`; "Rever o tour" no Perfil abre de novo. G-331 · relato #51: o diálogo de três passos deu lugar ao
+   tour em tela cheia de `src/app/tutorial.js` (__m45); a função e a chave ficam, para quem chama. */
+const APRESENTACAO_KEY = __m45.CHAVE;
 function mostraApresentacao({ aoFechar } = {}) {
-  let i = 0, fechada = false;
-  // a marca de "vista" é gravada ao abrir (não ao fechar): fechar de qualquer jeito — X, Escape, toque fora, até fechar a
-  // aba no meio — conta como vista, e a gravação não disputa com uma recarga logo depois
-  platform.store.set(APRESENTACAO_KEY, { vista: true, em: Date.now() }).catch(() => {});
-  const marca = () => { if (fechada) return; fechada = true; if (aoFechar) aoFechar(); };
-  const fecha = (destino) => { __m3.closeDialog(); marca(); if (destino) location.hash = destino; };
-  const pinta = () => {
-    const p = PASSOS_APRESENTACAO[i], ultimo = i === PASSOS_APRESENTACAO.length - 1;
-    const corpo = h('div', { class: 'apresentacao', id: 'apresentacao', dataset: { passo: String(i + 1) } },
-      h('span', { class: 'apresentacao__icone' }, Icone(p.icone, { tamanho: 40 })),
-      Text(p.titulo, { size: 'xl', display: true, as: 'h3', attrs: { class: 'ds-text ds-text--xl ds-text--display apresentacao__titulo', id: 'apresentacao-titulo' } }),
-      Text(p.texto, { attrs: { class: 'ds-text ds-text--md apresentacao__texto' } }),
-      h('div', { class: 'apresentacao__pontos', role: 'img', 'aria-label': `Passo ${i + 1} de ${PASSOS_APRESENTACAO.length}` },
-        ...PASSOS_APRESENTACAO.map((_, k) => h('span', { class: 'apresentacao__ponto', dataset: { atual: String(k === i) } }))));
-    const acoes = ultimo
-      ? [Button('Abrir perfil', { icone: 'pessoa', id: 'apresentacao-perfil', onClick: () => fecha('#/perfil') }), Button('Começar', { variant: 'primary', icone: 'seguir', id: 'apresentacao-comecar', onClick: () => fecha() })]
-      : [Button('Pular', { variant: 'ghost', id: 'apresentacao-pular', onClick: () => fecha() }), Button('Próximo', { variant: 'primary', icone: 'seguir', id: 'apresentacao-proximo', onClick: () => { i++; pinta(); } })];
-    __m3.Dialog({ title: 'Bem-vindo à Estante', body: corpo, actions: acoes });
-    const box = document.querySelector('.ds-dialog__actions'); if (box) box.classList.add('apresentacao-acoes');
-  };
-  pinta();
-  // fechar pelo X, por Escape ou tocando fora também conta como vista: a apresentação não insiste
-  const ov = document.getElementById('ds-overlay');
-  if (ov && typeof MutationObserver !== 'undefined') { const mo = new MutationObserver(() => { if (ov.dataset.open !== 'true') { marca(); mo.disconnect(); } }); mo.observe(ov, { attributes: true, attributeFilter: ['data-open'] }); }
+  return __m45.abreTutorial({ store: platform.store, go: r => { location.hash = '#' + r; }, aoFechar });
 }
 /** Primeira abertura de verdade: sem a marca no aparelho e fora dos testes que pedem para pular. */
 async function primeiraAbertura() {

@@ -92,7 +92,8 @@ const PERMITIDOS = [
   { onde: 'pinta · html:', vale: ['__m4.iconeDoApp({ tamanho: 88, animado: true })'], por: 'G-274 · porta de entrada: ícone do app, gerado pelo código (sem dado de fora)' },
   { onde: 'pintaNome · html:', vale: ['__m4.iconeDoApp({ tamanho: 88, animado: true })'], por: 'G-275 · porta, passo do nome: o mesmo ícone do app' },
   { onde: 'pintaContorno · innerHTML', vale: ['W.toFixed(1)', 'H.toFixed(1)', "pts.map(q => `${(q.x - x0).toFixed(1)},${(q.y - y0).toFixed(1)}`).join(' ')"], por: 'scanner: só números da moldura' },
-  { onde: 'appBar · html:', vale: ['logoLockup(30)'], por: 'marca do app na barra' }
+  { onde: 'appBar · html:', vale: ['logoLockup(30)'], por: 'marca do app na barra' },
+  { onde: 'pinta · innerHTML', vale: ['ILUSTRACOES[c.id]'], por: 'G-331 · tour de boas-vindas: ilustração SVG fixa do código (tabela ILUSTRACOES de src/app/tutorial.js), escolhida pelo id do capítulo, nenhum dado de fora' }
 ];
 
 test('P-5 · contrato: todo ponto que vira HTML está na lista fechada, com exatamente o que pode ser interpolado nele', () => {
