@@ -43485,12 +43485,21 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     if (document.fonts && document.fonts.status !== 'loaded' && !ajustaNomes.esperando) { ajustaNomes.esperando = true;
       document.fonts.ready.then(() => { ajustaNomes.esperando = false; if (!root.isConnected) return; for (const f of root.querySelectorAll('.tb-card[data-moldura="true"] > .tb-card__label')) { f.style.removeProperty('--nome-escala'); delete f.parentNode.dataset.nomeDuas; const q = f.parentNode.closest('.tb-leque'); if (q) delete q.dataset.nomeDuas; } ajustaNomes(); }); }
     const piso = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--nome-piso')) || 0.78;
-    const medidas = faixas.map(f => ({ f, k: f.clientWidth / Math.max(1, f.scrollWidth) }));
-    for (const { f, k } of medidas) {
-      if (k >= 0.999) continue;
-      const carta = f.parentNode, leque = carta.closest('.tb-leque');
-      if (k >= piso) f.style.setProperty('--nome-escala', (Math.floor(k * 100) / 100).toFixed(2));
-      else { f.style.setProperty('--nome-escala', String(piso)); carta.dataset.nomeDuas = 'true'; if (leque) leque.dataset.nomeDuas = 'true'; }
+    // até três passadas: a largura do texto não encolhe na mesma proporção da letra (o aparelho e o CI arredondam o avanço de
+    // cada glifo em letra pequena), então depois de aplicar a escala mede de novo e aperta o que ainda sobra; cada passada é
+    // leituras em lote e depois escritas (um relayout por passada, sobre poucas faixas)
+    let pendentes = faixas.map(f => ({ f, escala: 1 }));
+    for (let passada = 0; passada < 3 && pendentes.length; passada++) {
+      const medidas = pendentes.map(x => ({ ...x, k: x.f.clientWidth / Math.max(1, x.f.scrollWidth) }));
+      pendentes = [];
+      for (const x of medidas) {
+        if (x.k >= 0.999) continue;
+        const carta = x.f.parentNode, leque = carta.closest('.tb-leque');
+        if (carta.dataset.nomeDuas === 'true') continue; // em duas linhas o texto quebra: nada mais a apertar
+        const alvo = Math.floor(x.escala * x.k * 0.98 * 100) / 100; // 2% de folga contra o arredondamento
+        if (alvo >= piso) { x.f.style.setProperty('--nome-escala', alvo.toFixed(2)); pendentes.push({ f: x.f, escala: alvo }); }
+        else { x.f.style.setProperty('--nome-escala', String(piso)); carta.dataset.nomeDuas = 'true'; if (leque) leque.dataset.nomeDuas = 'true'; }
+      }
     }
   }
   // a largura da carta muda com a janela (girar o aparelho): mede de novo, do zero. Observa a raiz da mesa: solta sozinho ao sair.

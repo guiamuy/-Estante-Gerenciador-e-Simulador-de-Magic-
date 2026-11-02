@@ -12113,6 +12113,9 @@ Remoção global não foi medida à parte (as listas de teste não têm uma); o 
 - **Fora:** regra do motor e scripts de carta; bot; ilustração por efeito (o ícone flat é o padrão); animações novas além das do DS-K.
 - **Depende de:** DS-K2 M1–M6 (publicadas). **Testes:** e2e por fatia (360×697, 360×780, 412×891, dois temas, `auditaTela`), contrato visual, `sentidos.unit` na .6.
 
+**MJ24 · a letra do nome aperta até caber de verdade** ✅ (J-52, 02/11/2026)
+- No CI (e no aparelho) o avanço de cada glifo é arredondado em letra pequena: a largura do texto não encolhe na mesma proporção da letra, e "Kessig…" ainda passava 1–2 px da faixa ("J-46" e "J-42" vermelhos só na fila). `ajustaNomes` passa a fazer até três passadas (mede, aplica com 2 % de folga, mede de novo) até o nome caber ou ir para duas linhas.
+
 **MJ24 · correções do lote no portão do CI** ✅ (J-51, 02/11/2026)
 - O lote J-45…J-50 voltou da fila com cinco testes de tela vermelhos: (1) "E50 fichas" e "R5 Bogles" liam o nome falado — a ficha agora diz "É uma ficha…" (minúscula, como o teste espera) e o nome falado volta à ordem do modelo (anexos antes das habilidades ganhas; só os ícones seguem a ordem de relance); (2) "D6" lia a borda do contador zerado no próprio botão — com a J-47 a caixa é o `::before` (`border-color: transparent` no botão; o teste lê a caixa, motivo escrito); (3) "J-46" e "J-42" só no CI: a fonte do app chega depois do primeiro desenho na primeira abertura e a faixa do nome tinha sido medida com a fonte de reserva — a mesa mede de novo quando `document.fonts` termina de carregar, e o teste mede com a fonte pronta e aceita o nome médio em uma linha (letra menor) ou em duas (piso), sem corte em nenhum caso.
 
