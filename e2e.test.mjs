@@ -63,6 +63,9 @@ const DB = Object.fromEntries([
   { ...card('Grab the Prize', 'Sorcery', ['R'], 2), mana_cost: '{1}{R}', oracle_text: "As an additional cost to cast this spell, discard a card.\nDraw two cards. If the discarded card wasn't a land card, Grab the Prize deals 2 damage to each opponent." },
   { ...card('Utopia Sprawl', 'Enchantment — Aura', ['G'], 1), mana_cost: '{G}', oracle_text: 'Enchant Forest\nAs Utopia Sprawl enters the battlefield, choose a color.\nWhenever enchanted Forest is tapped for mana, its controller adds an additional one mana of the chosen color.' },
   { ...card('Mountain', 'Basic Land — Mountain', [], 0), image_uris: { small: 'https://cards.scryfall.io/small/front/x/mountain.jpg', normal: 'https://cards.scryfall.io/normal/front/x/mountain.jpg' } },
+  // J-46 · nomes compridos com imagem, para a faixa do nome da moldura (um cabe encolhendo a letra; o outro só em duas linhas)
+  { ...card('Kessig Flamebreather', 'Creature — Human Shaman', ['R']), image_uris: { small: 'https://cards.scryfall.io/small/front/x/kessig.jpg', normal: 'https://cards.scryfall.io/normal/front/x/kessig.jpg' } },
+  { ...card('Ulamog, the Ceaseless Hunger', 'Legendary Creature — Eldrazi', [], 10), image_uris: { small: 'https://cards.scryfall.io/small/front/x/ulamog.jpg', normal: 'https://cards.scryfall.io/normal/front/x/ulamog.jpg' } },
   // Leva 111 · Blood: texto da ficha (Oracle do Forge, tokenscripts, 30/09/2026) e Voldaren Epicure (.listas/oficiais.json)
   { ...card('Blood', 'Token Artifact — Blood', [], 0), id: 'tok-blood', oracle_text: '{1}, {T}, Discard a card, Sacrifice this token: Draw a card.' },
   { ...card('Voldaren Epicure', 'Creature — Vampire', ['R'], 1), mana_cost: '{R}', power: '1', toughness: '1', oracle_text: 'When this creature enters, it deals 1 damage to each opponent. Create a Blood token. (It\'s an artifact with "{1}, {T}, Discard a card, Sacrifice this artifact: Draw a card.")' },
@@ -9543,6 +9546,58 @@ test('e2e · DS-K2 J2 · Jogar como mesa de preparação: a sua lista é um cart
 // DS-K2 M2 (J-37) · a mão em leque, como na proposta K: a carta da mão encolhe (de --carta-mao até --carta-mao-min) para a
 // mão caber sem rolar; uma carta cobre no máximo 40% da vizinha, então o centro de cada carta é dela (é ali que o dedo e o
 // teste tocam); as pontas giram até 10° e descem em arco; a carta segurada endireita, sobe e fica por cima. Com 8 cartas em
+// J-46 (decisão do dono, 02/11/2026) · o nome da carta do campo nunca é abreviado: a letra da faixa encolhe até o piso e, se ainda
+// não couber, o nome vai para duas linhas no piso com a faixa crescendo sobre a janela da arte; e as cópias de trás de uma pilha
+// ×N mostram a própria arte na janela (antes ficavam vazias).
+test('e2e · J-46 nome inteiro na faixa (letra que encolhe até o piso; duas linhas no piso) e pilha ×N com arte em cada cópia; 360 e 390, dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.route('https://cards.scryfall.io/**', r => r.fulfill({ status: 200, contentType: 'image/svg+xml', headers: { 'access-control-allow-origin': '*' },
+    body: '<svg xmlns="http://www.w3.org/2000/svg" width="488" height="680"><rect width="488" height="680" fill="#111"/><rect x="40" y="76" width="408" height="301" fill="#3e6f8f"/></svg>' }));
+  await createDeck(page, base, 'Nomes', '24 Mountain\n12 Kessig Flamebreather\n12 Ulamog, the Ceaseless Hunger\n12 Delver of Secrets');
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start'); await page.fill('#mesa-seed', '3');
+  await page.click('[data-opponent="goldfish"]');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-pass');
+  const poe = (nome, n) => page.evaluate(([nome, n]) => { const M = window.__estanteMesa, s = M.estado(), p = s.turn.active;
+    const oids = Object.values(s.objects).filter(o => o.owner === p && o.name === nome && o.zone === 'library').slice(0, n).map(o => o.oid);
+    for (const oid of oids) M.act({ t: 'move', p, oid, to: 'battlefield' }); return oids; }, [nome, n]);
+  await poe('Kessig Flamebreather', 1); await poe('Ulamog, the Ceaseless Hunger', 1); await poe('Mountain', 3); await poe('Delver of Secrets', 2);
+  await page.waitForFunction(() => [...document.querySelectorAll('.tb-side--me .tb-card__arte img')].every(i => i.complete && i.naturalWidth > 0), null, { timeout: 8000 });
+  const mede = () => page.evaluate(() => {
+    const R = e => e.getBoundingClientRect();
+    const faixas = [...document.querySelectorAll('.tb-side--me .tb-card[data-moldura="true"]')].map(c => { const lab = c.querySelector('.tb-card__label'), arte = c.querySelector('.tb-card__arte'), cs = getComputedStyle(lab);
+      const l = R(lab), a = R(arte);
+      return { nome: lab.textContent, altura: R(c).height, largura: R(c).width, transborda: lab.scrollWidth - lab.clientWidth, escala: lab.style.getPropertyValue('--nome-escala') || '1', duas: c.dataset.nomeDuas === 'true', fonte: parseFloat(cs.fontSize), fim: cs.textOverflow,
+        linhas: Math.round(l.height / (parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.2)), cobre: Math.max(0, Math.min(l.right, a.right) - Math.max(l.left, a.left)) * Math.max(0, Math.min(l.bottom, a.bottom) - Math.max(l.top, a.top)), arteH: a.height, fala: c.getAttribute('aria-label') }; });
+    const leques = [...document.querySelectorAll('.tb-side--me .tb-leque')].map(q => ({ n: +q.dataset.leque, camadas: [...q.querySelectorAll('.tb-leque__camada')].map(k => { const img = k.querySelector('.tb-card__arte img'); const r = img ? R(img) : null;
+      return { arte: !!img && img.complete && img.naturalWidth > 0, visivel: !!r && r.width > 0 && getComputedStyle(img).visibility !== 'hidden', dentro: !!img && (() => { const a = R(k.querySelector('.tb-card__arte')), c = R(k); return a.left >= c.left - 0.5 && a.right <= c.right + 0.5 && a.top > c.top + 4; })() }; }) }));
+    const piso = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--nome-piso')), base = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--text-3xs'));
+    return { faixas, leques, piso, base };
+  });
+  for (const [w, hgt] of [[360, 780], [390, 844]]) for (const tema of ['dark', 'light']) {
+    await page.setViewportSize({ width: w, height: hgt }); await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(300);
+    await page.evaluate(() => window.__estanteMesa.repinta()); await page.waitForTimeout(300);
+    const m = await mede(), onde = `${w} ${tema}`;
+    const kessig = m.faixas.find(f => f.nome === 'Kessig Flamebreather'), ulamog = m.faixas.find(f => f.nome === 'Ulamog, the Ceaseless Hunger'), delver = m.faixas.find(f => f.nome === 'Delver of Secrets'), curta = m.faixas.find(f => f.nome === 'Mountain');
+    assert.ok(kessig && ulamog && delver && curta, `${onde}: as quatro cartas na moldura ` + JSON.stringify(m.faixas.map(f => f.nome)));
+    for (const f of m.faixas) { assert.ok(f.transborda <= 1 && f.fim === 'clip', `${onde}: nome inteiro, sem reticências (${f.nome}) ` + JSON.stringify(f)); assert.equal(f.cobre, 0, `${onde}: a faixa não cobre a arte (${f.nome})`); assert.ok(f.fala.startsWith(f.nome), `${onde}: nome falado inteiro`); }
+    assert.ok(curta.escala === '1' && !curta.duas, `${onde}: nome curto fica com a letra de sempre ` + JSON.stringify(curta));
+    assert.ok(delver.linhas === 1 && !delver.duas, `${onde}: Delver numa linha ` + JSON.stringify(delver));
+    // em 390 (carta de 84 px) o nome médio cabe numa linha com a letra menor; em 360 (76 px) nem no piso cabe e vai para duas linhas
+    if (w >= 375) assert.ok(+kessig.escala < 1 && +kessig.escala >= m.piso && !kessig.duas && kessig.linhas === 1, `${onde}: nome médio encolhe a letra numa linha ` + JSON.stringify(kessig));
+    else assert.ok(kessig.duas && kessig.linhas === 2, `${onde}: nome médio em duas linhas na carta estreita ` + JSON.stringify(kessig));
+    assert.ok(ulamog.duas && Math.abs(ulamog.fonte - curta.fonte * m.piso) < 0.3 && ulamog.linhas === 2 && ulamog.arteH < delver.arteH, `${onde}: nome comprido vai para duas linhas no piso, a arte encurta ` + JSON.stringify({ ulamog, delverArte: delver.arteH }));
+    // achado da leva: a carta sozinha na fileira saía 6 px mais alta que a da pilha (o botão em linha dentro do leque deixava um vão e a fileira esticava as vizinhas)
+    for (const f of m.faixas) assert.ok(Math.abs(f.altura - f.largura * 680 / 488) <= 1, `${onde}: a carta mantém a proporção 488/680 ao lado da pilha (${f.nome}: ${f.largura}×${f.altura})`);
+    const pilha = m.leques.find(q => q.n === 3), delvers = m.leques.find(q => q.n === 2);
+    assert.ok(pilha && pilha.camadas.length === 2 && pilha.camadas.every(k => k.arte && k.visivel && k.dentro), `${onde}: as duas cópias de trás da pilha de Mountain mostram a arte na janela ` + JSON.stringify(pilha));
+    assert.ok(delvers && delvers.camadas.length === 1 && delvers.camadas[0].arte && delvers.camadas[0].dentro, `${onde}: a cópia de trás do Delver (com pé) mostra a arte ` + JSON.stringify(delvers));
+    await auditaTela(page, `J-46 · nomes e pilha ${onde}`);
+  }
+  if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark')); await page.waitForTimeout(300); await page.screenshot({ path: process.env.SHOTS + '/j46-nomes-pilha.png' }); }
+  assert.deepEqual(errors, []);
+});
+
 // 360 px a mão rola de lado e continua em leque. A fileira não ganha rolagem vertical por causa do giro.
 test('e2e · DS-K2 M4 bandeja: uma ação primária por vez, em latão e a maior da linha; as outras em segundo plano (sem fundo), tudo numa linha e dentro da tela; mão inicial e principal, 360 e 390, dois temas, auditaTela', { skip }, async t => {
   const { page, errors, base } = await open(t);
@@ -9766,7 +9821,7 @@ test('e2e · J-42 relato #48 parte 1 · arte inteira no campo: nos dois lados (d
       const lab = c.querySelector('.tb-card__label'), arte = c.querySelector('.tb-card__arte'), cs = getComputedStyle(lab), l = cx(lab.getBoundingClientRect()), a = cx(arte.getBoundingClientRect());
       const linha = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.2;
       return { oid: c.dataset.oid, lado: c.closest('.tb-side--me') ? 'eu' : 'ele', zona: c.closest('[data-zone]').dataset.zone, virada: c.dataset.tapped === 'true', nome: lab.textContent,
-        cobre: +inter(l, a).toFixed(2), umaLinha: lab.clientHeight <= linha * 1.5 + 6, hifen: cs.hyphens, quebra: cs.whiteSpace, fim: cs.textOverflow, arteH: a.h, dentro: l.l >= c.getBoundingClientRect().left - 0.5 && l.r <= c.getBoundingClientRect().right + 0.5 };
+        cobre: +inter(l, a).toFixed(2), umaLinha: lab.clientHeight <= linha * 1.5 + 6, duas: c.dataset.nomeDuas === 'true', transborda: lab.scrollWidth - lab.clientWidth, hifen: cs.hyphens, quebra: cs.whiteSpace, fim: cs.textOverflow, arteH: a.h, dentro: l.l >= c.getBoundingClientRect().left - 0.5 && l.r <= c.getBoundingClientRect().right + 0.5 };
     });
     const semMoldura = [...document.querySelectorAll('.tb-side .tb-card__name')].map(n => ({ nome: n.textContent, hifen: getComputedStyle(n).hyphens, transborda: n.scrollWidth - n.clientWidth }));
     const ilha = document.querySelector(`.tb-side--me .tb-card[data-oid="${sem}"]`);
@@ -9798,7 +9853,8 @@ test('e2e · J-42 relato #48 parte 1 · arte inteira no campo: nos dois lados (d
     for (const n of m.semMoldura) assert.ok(n.hifen !== 'auto' && n.transborda <= 1, `${onde}: carta sem imagem: o nome sem hífen e sem sair da carta ` + JSON.stringify(n));
     for (const c of m.cartas) {
       assert.equal(c.cobre, 0, `${onde}: a faixa do nome não cobre a arte (${c.lado} ${c.zona}${c.virada ? ' virada' : ''} ${c.nome}: ${c.cobre} px²)`);
-      assert.ok(c.umaLinha && c.quebra === 'nowrap' && c.fim === 'ellipsis', `${onde}: o nome numa linha, com reticências no fim (${c.nome}) ` + JSON.stringify(c));
+      // J-46 · a faixa nunca abrevia: o nome fica numa linha (letra que encolhe) ou em duas no piso; nunca reticências (a J-42 esperava "ellipsis")
+      assert.ok((c.umaLinha || c.duas) && c.fim === 'clip' && c.transborda <= 1, `${onde}: o nome inteiro na faixa, sem reticências (${c.nome}) ` + JSON.stringify(c));
       assert.notEqual(c.hifen, 'auto', `${onde}: o nome não quebra com hífen (${c.nome})`);
       assert.ok(c.dentro && c.arteH > 20, `${onde}: a faixa dentro da carta e a arte à vista (${c.nome}, arte ${c.arteH.toFixed(1)} px)`);
     }

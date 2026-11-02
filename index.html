@@ -2783,8 +2783,12 @@ body[data-mesa-cheia="true"] .tb-steps__list > li::after { inset: 0; height: aut
 /* J-42 (relato #48) · a faixa do nome cabe na faixa de cima da moldura (--moldura-hd) e nunca desce sobre a arte: uma linha, letra
    menor, reticências no fim, sem hífen; o nome inteiro fica no nome falado e no espiar */
 .tb-card[data-moldura="true"] > .tb-card__label { top: 1px; left: 1px; right: 1px; background: var(--bg-elev-1); font-weight: 600; padding: 2px var(--space-1);
-  font-size: var(--text-3xs); line-height: 1.2; display: block; white-space: nowrap; text-overflow: ellipsis; hyphens: manual; -webkit-line-clamp: none;
+  font-size: calc(var(--text-3xs) * var(--nome-escala, 1)); line-height: 1.2; display: block; white-space: nowrap; text-overflow: clip; hyphens: manual; -webkit-line-clamp: none;
   border-radius: calc(var(--carta-campo) * .0475) calc(var(--carta-campo) * .0475) 0 0; box-shadow: 0 1px 0 var(--border); }
+/* J-46 (decisão do dono, 02/11/2026) · o nome nunca é abreviado: a letra da faixa encolhe (--nome-escala, medida pela mesa) até o piso
+   (--nome-piso); o que não cabe nem no piso vai para duas linhas no piso, e a faixa cresce para baixo (a janela da arte encurta) */
+.tb-card[data-nome-duas="true"], .tb-leque[data-nome-duas="true"] { --moldura-hd: calc(var(--text-3xs) * var(--nome-piso) * 1.15 * 2 + 6px); }
+.tb-card[data-nome-duas="true"] > .tb-card__label { white-space: normal; line-height: 1.15; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: anywhere; }
 /* deitada: a faixa fica logo acima da carta deitada (que começa a 22% da caixa), sem cobrir a arte que gira junto com a face */
 .tb-card[data-moldura="true"][data-tapped="true"] > .tb-card__label { top: auto; bottom: 78%; left: 0; right: 0; border-radius: 0; }
 .tb-card[data-moldura="true"][data-tapped="true"] .tb-card__sick { top: auto; bottom: 22%; } /* deitada, a faixa do nome desce a 22%: o selo vai para o pé da carta deitada */
@@ -2804,11 +2808,16 @@ body[data-mesa-cheia="true"] .tb-steps__list > li::after { inset: 0; height: aut
 .tb-fx-camada > .tb-card[data-tapped="true"] { margin: 0; } /* J-20 · a foto da camada de efeitos é posta pela caixa medida (sem margem): a carta virada levava a margem do campo junto e a foto nascia e pousava 15 px fora (achado da B-175) */
 /* U5 · leque de cópias iguais: a carta da frente é o botão; as de trás mostram só a borda */
 .tb-leque { --passo: 14px; position: relative; flex: none; display: inline-block; padding-right: calc(var(--atras) * var(--passo)); scroll-snap-align: start; }
-.tb-leque > .tb-card { z-index: 5; }
+.tb-leque > .tb-card { z-index: 5; display: block; } /* J-46 · achado: o botão em linha deixava um vão de descendente sob o leque, e a fileira esticava as cartas vizinhas 6 px além da proporção (no print do dono, a carta sozinha saía mais alta que a pilha) */
+.tb-row { align-items: flex-start; } /* J-46 · nenhuma carta da fileira estica pela altura da vizinha: a proporção 488/680 é da carta */
 .tb-leque__camada { position: absolute; top: 0; left: calc(var(--i) * var(--passo)); width: var(--carta-campo); aspect-ratio: 488 / 680; overflow: hidden; pointer-events: none;
   border-radius: var(--radius-card); background: var(--bg-elev-3); border: 1px solid var(--border); box-shadow: var(--sombra-carta); filter: brightness(.82); }
 .tb-leque__camada img { width: 100%; height: 100%; object-fit: cover; -webkit-touch-callout: none; }
 .tb-leque[data-moldura="true"] .tb-leque__camada { background: var(--bg-elev-2); border-color: var(--border-strong); } /* DS-K2 M1 · as cópias de trás mostram a borda da moldura */
+/* J-46 · as cópias de trás levam a própria arte na janela da moldura (antes ficavam vazias): mesma janela da carta da frente */
+.tb-leque__camada .tb-card__arte img { position: absolute; left: 50%; top: calc(100% * var(--arte-topo) / var(--arte-alto) * -1); height: calc(100% / var(--arte-alto));
+  width: auto; min-width: 100%; max-width: none; object-fit: cover; transform: translateX(-50%); }
+.tb-leque__camada[data-moldura-pe="true"] .tb-card__arte { bottom: var(--moldura-ft); }
 .tb-leque[data-tapped="true"] { margin: 0 calc(var(--carta-campo) * .2); }
 .tb-leque[data-tapped="true"] > .tb-card { margin: 0; }
 .tb-leque[data-tapped="true"] .tb-leque__camada { transform: rotate(90deg) scale(.78); }
@@ -3436,6 +3445,7 @@ button.col-dash__bar:active, .col-dash__bar--on { background: var(--accent-soft)
    embaixo (só quem tem P/T). A arte é a janela da própria imagem da carta (mesmo endereço, a mesma imagem guardada para jogar
    sem internet): a imagem cresce até a janela da arte encher a caixa. Janela da arte na moldura de 2015: 8,2–91,8% da largura,
    11,2–55,4% da altura da carta. */
+:root { --nome-piso: 0.78; } /* J-46 · o nome da carta do campo encolhe até 78% da letra da faixa (7 px) antes de ir para duas linhas */
 :root { --moldura-hd: calc(var(--text-3xs) * 1.2 + 6px); --moldura-ft: calc(var(--text-xs) * 1.4 + 6px); --moldura-borda: 3px;
   --arte-topo: 0.112; --arte-alto: 0.442; }
 :root { --vida-disco: 34px; } /* J-42 (relato #48) · o disco da vida na barra; o alvo de toque continua --tap-min */
@@ -37563,8 +37573,9 @@ function TableCard(card, opts = {}) {
   // U5 · cópias iguais em leque: até 3 cartas atrás aparecem deslocadas; o toque é da carta da frente
   const atras = opts.pilha ? Math.min(LEQUE_MAX, opts.pilha.total - 1) : 0;
   if (atras <= 0) return el;
-  const camadas = Array.from({ length: atras }, (_, i) => h('span', { class: 'tb-leque__camada', 'aria-hidden': 'true', style: { '--i': String(i + 1), zIndex: String(atras - i) } },
-    card.image && !moldura ? imgDaMesa(card, opts.size) : null));
+  // J-46 · na moldura, cada cópia de trás leva a própria arte na janela (antes só a borda: a pilha parecia vazia)
+  const camadas = Array.from({ length: atras }, (_, i) => h('span', { class: 'tb-leque__camada', 'aria-hidden': 'true', style: { '--i': String(i + 1), zIndex: String(atras - i) }, ...(moldura && ptEl ? { dataset: { molduraPe: 'true' } } : {}) },
+    !card.image ? null : moldura ? h('span', { class: 'tb-card__arte' }, SimboloDoBasico(card.name), imgDaMesa(card, opts.size)) : imgDaMesa(card, opts.size)));
   return h('span', { class: 'tb-leque', dataset: { leque: String(opts.pilha.total), tapped: String(tapped), ...(moldura ? { moldura: 'true' } : {}) }, style: { '--atras': String(atras) } }, el, ...camadas);
 }
 const LEQUE_MAX = 3;
@@ -43326,6 +43337,30 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     return doca;
   }
 
+  /* ---- J-46 · o nome da carta do campo nunca é abreviado (decisão do dono, 02/11/2026) ----
+     A faixa de cima da moldura tem uma linha; nomes compridos saíam com reticências ("Kessig…"). Agora a mesa mede cada faixa
+     (leituras em lote, depois escritas: um relayout só) e encolhe a letra (--nome-escala) até caber; abaixo do piso (--nome-piso),
+     a letra fica no piso e o nome vai para duas linhas, com a faixa crescendo sobre a janela da arte (data-nome-duas na carta e
+     no leque, para as cópias de trás acompanharem). O nome inteiro continua no nome falado e no espiar. */
+  function ajustaNomes() {
+    const faixas = [...root.querySelectorAll('.tb-card[data-moldura="true"] > .tb-card__label')];
+    if (!faixas.length) return;
+    const piso = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--nome-piso')) || 0.78;
+    const medidas = faixas.map(f => ({ f, k: f.clientWidth / Math.max(1, f.scrollWidth) }));
+    for (const { f, k } of medidas) {
+      if (k >= 0.999) continue;
+      const carta = f.parentNode, leque = carta.closest('.tb-leque');
+      if (k >= piso) f.style.setProperty('--nome-escala', (Math.floor(k * 100) / 100).toFixed(2));
+      else { f.style.setProperty('--nome-escala', String(piso)); carta.dataset.nomeDuas = 'true'; if (leque) leque.dataset.nomeDuas = 'true'; }
+    }
+  }
+  // a largura da carta muda com a janela (girar o aparelho): mede de novo, do zero. Observa a raiz da mesa: solta sozinho ao sair.
+  if (typeof ResizeObserver !== 'undefined') { let largura = 0;
+    const ro = new ResizeObserver(() => { if (!root.isConnected) { ro.disconnect(); return; } if (innerWidth === largura) return; const primeira = !largura; largura = innerWidth; if (primeira) return;
+      for (const f of root.querySelectorAll('.tb-card[data-moldura="true"] > .tb-card__label')) { f.style.removeProperty('--nome-escala'); delete f.parentNode.dataset.nomeDuas; const q = f.parentNode.closest('.tb-leque'); if (q) delete q.dataset.nomeDuas; }
+      ajustaNomes(); });
+    ro.observe(root); }
+
   /* ---- J-45 · a mesa não encolhe com a mão aberta: a página desce até o seu campo ----
      Decisão do dono (02/11/2026), que desfaz o encaixe da J-32 (relato #38): a mesa fica sempre no tamanho grande, com as artes,
      mesmo que seja preciso rolar. Ao abrir a mão, se o fim do seu campo ficaria atrás da bandeja aberta, a página desce o
@@ -43494,6 +43529,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
         painelPilha ? h('div', { class: 'tb-camada', dataset: { sobrepoe: 'true' } }, h('div', { class: 'tb-camada__linha' }, painelPilha)) : null,
         meuLado),
       dock(s, v));
+    ajustaNomes(); // J-46 · o nome inteiro na faixa: a letra encolhe até o piso e depois quebra em duas linhas (medido, nunca reticências)
     devolveFileiras(fileiras); mostraNovidade(s, v); // J2
     simbolizar(root); // U3 · custos, habilidades e textos da mesa em símbolos
     armaMiras(s, v); // MJ6a · arrastar a mágica da mão até o alvo

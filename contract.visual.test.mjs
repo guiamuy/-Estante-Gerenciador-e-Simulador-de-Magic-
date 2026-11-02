@@ -637,7 +637,11 @@ test('DS-K2 · M1 a carta do campo na moldura K: janela da arte por token sobre 
   assert.match(componentCss, /\.tb-card\[data-moldura="true"\] > \.tb-card__label \{[^}]*background: var\(--bg-elev-1\);/, 'o nome vira faixa opaca (fora da face: a carta virada não leva o nome junto)');
   // J-42 (relato #48) · a faixa do nome numa linha, com a letra da faixa (--text-3xs, a mesma do --moldura-hd), reticências e sem hífen:
   // duas linhas desciam sobre a arte e "Moun-tain" quebrava o nome do terreno
-  assert.match(componentCss, /\.tb-card\[data-moldura="true"\] > \.tb-card__label \{[^}]*font-size: var\(--text-3xs\); line-height: 1\.2; display: block; white-space: nowrap; text-overflow: ellipsis; hyphens: manual;/);
+  // J-46 · o nome nunca é abreviado: a letra encolhe por --nome-escala (medida pela mesa) até --nome-piso, depois duas linhas no piso; sem reticências
+  assert.match(componentCss, /\.tb-card\[data-moldura="true"\] > \.tb-card__label \{[^}]*font-size: calc\(var\(--text-3xs\) \* var\(--nome-escala, 1\)\); line-height: 1\.2; display: block; white-space: nowrap; text-overflow: clip; hyphens: manual;/);
+  assert.match(css, /:root \{ --nome-piso: 0\.78; \}/, 'o piso da letra do nome é token');
+  assert.match(componentCss, /\.tb-card\[data-nome-duas="true"\], \.tb-leque\[data-nome-duas="true"\] \{ --moldura-hd: calc\(var\(--text-3xs\) \* var\(--nome-piso\) \* 1\.15 \* 2 \+ 6px\); \}/, 'em duas linhas a faixa cresce e a janela da arte encurta, na carta e nas cópias de trás');
+  assert.match(componentCss, /\.tb-leque__camada \.tb-card__arte img \{ position: absolute; left: 50%;/, 'as cópias de trás da pilha levam a arte na mesma janela');
   assert.match(componentCss, /\.tb-card\[data-moldura="true"\]\[data-tapped="true"\] > \.tb-card__label \{ top: auto; bottom: 78%;/, 'deitada, a faixa fica acima da carta, fora da arte');
   assert.match(css, /:root \{ --vida-disco: 34px; \}/, 'o disco da vida é token');
   // J-43 (relato #48 parte 2) · os dois lados com o mesmo playmat, por token nos três blocos de tema; nenhum lado transparente
