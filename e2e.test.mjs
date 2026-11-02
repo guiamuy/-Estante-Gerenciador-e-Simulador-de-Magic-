@@ -4167,6 +4167,54 @@ test('e2e · S-596 reconhece pela arte: sem nome legível, a arte da carta achad
   assert.deepEqual(errors, []);
 });
 
+// S-601 · nome impresso em japonês: a folha do scanner escolhe o idioma impresso; o leitor do nome sobe com os dados do japonês
+// (sem a lista de letras latinas), os nomes japoneses vêm do ramo `artes` só depois da escolha, e a leitura em japonês vira a carta.
+test('e2e · S-601 idioma impresso: com "Japonês" o leitor do nome lê japonês e 対抗呪文 entra como Counterspell; a escolha volta ao reabrir', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  const pedidos = [];
+  await page.route(/^https:\/\/raw\.githubusercontent\.com\/[^/]+\/[^/]+\/artes\/nomes-[a-z]+\.json$/, r => {
+    const idioma = /nomes-([a-z]+)\.json$/.exec(r.request().url())[1]; pedidos.push(idioma);
+    return r.fulfill({ json: { versao: 1, idioma, pares: idioma === 'ja' ? [['対抗呪文', 'Counterspell'], ['稲妻', 'Lightning Bolt']] : [] }, headers: { 'access-control-allow-origin': '*' } });
+  });
+  await page.addInitScript(FAKE_DEVICE(false));
+  // o leitor falso anota com que dados cada leitor subiu e que lista de letras recebeu
+  await page.addInitScript(() => {
+    const T = window.Tesseract, cria = T.createWorker; window.__ocrLinguas = []; window.__ocrListas = [];
+    T.createWorker = async (lang, ...resto) => { window.__ocrLinguas.push(lang); const w = await cria(lang, ...resto), sp = w.setParameters;
+      w.setParameters = async p => { window.__ocrListas.push([lang, p.tessedit_char_whitelist]); return sp(p); }; return w; };
+  });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base + '#/scanner');
+  await page.waitForSelector('#scan-read:not([disabled])');
+  await pausaAuto(page);
+  assert.ok(!(await page.evaluate(() => window.__ocrLinguas)).includes('jpn'), 'abre lendo letras latinas');
+  assert.ok(!pedidos.includes('ja'), 'os nomes japoneses só vêm quando o japonês é escolhido');
+  await page.click('#scan-more');
+  await page.waitForSelector('#scan-idioma [data-lingua]');
+  assert.equal(await page.locator('#scan-idioma [data-lingua]').count(), 4);
+  assert.equal(await page.getAttribute('[data-lingua="latino"]', 'aria-pressed'), 'true');
+  await auditaTela(page, 'folha do scanner com o idioma impresso');
+  await page.click('[data-lingua="ja"]');
+  assert.equal(await page.getAttribute('[data-lingua="ja"]', 'aria-pressed'), 'true');
+  assert.equal(await page.getAttribute('[data-lingua="latino"]', 'aria-pressed'), 'false');
+  await page.waitForFunction(() => window.__ocrLinguas.includes('jpn'));
+  await page.click('#ds-dialog-close');
+  for (let i = 0; i < 50 && !pedidos.includes('ja'); i++) await page.waitForTimeout(100);
+  assert.ok(pedidos.includes('ja'), 'os nomes japoneses foram pedidos ao ramo artes');
+  await page.waitForSelector('#scan-read:not([disabled])');
+  assert.equal(await page.getAttribute('[data-auto]', 'aria-pressed'), 'false', 'o automático continua pausado');
+  await page.evaluate(() => window.__ocrQueue.push('対抗呪文'));
+  await page.click('#scan-read');
+  await esperaPilha(page, 1).catch(async e => { throw new Error('diario: ' + JSON.stringify(await page.evaluate(() => window.__scanDiario.lista().slice(0, 3)))); });
+  assert.ok((await page.evaluate(() => window.__scanDiario.lista())).some(x => /Counterspell/.test(x.decisao || '')), 'a leitura em japonês virou Counterspell');
+  assert.ok((await page.evaluate(() => window.__ocrListas)).some(([l, w]) => l === 'jpn' && w === ''), 'o leitor japonês lê sem a lista de letras latinas');
+  // a escolha fica no aparelho: reabrir já sobe o leitor japonês
+  await page.reload();
+  await page.waitForSelector('#scan-read:not([disabled])');
+  assert.deepEqual(await page.evaluate(() => window.__ocrLinguas.filter(l => l !== 'eng')), ['jpn']);
+  assert.deepEqual(errors, []);
+});
+
 // Leva 110 · cinco ajustes de mesa e listas: alvo de qualquer coisa pela insanidade, selo de anexo no lugar do nome,
 // bandeja com o momento em ícone, linha da lista em símbolos.
 test('e2e · leva 110 Fiery Temper mira você e o oponente; Utopia Sprawl vira selo na Floresta; momento da bandeja em ícone', { skip }, async t => {

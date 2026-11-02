@@ -14130,13 +14130,13 @@ const REGISTRO = [
   ['collection.names', 'conteudo', false], ['collection.items', 'conteudo', false],
   // deste aparelho
   ['perfil.carimbos', 'aparelho', false], ['conta', 'aparelho', false], ['backup.last', 'aparelho', false], ['conta.sessao', 'aparelho', false], // P-9 · sessão da conta da Estante mantida neste aparelho (fora do backup)
-  ['scanner.zoom', 'aparelho', false], ['scanner.lente', 'aparelho', false], ['scanner.lot', 'aparelho', false],
+  ['scanner.zoom', 'aparelho', false], ['scanner.lente', 'aparelho', false], ['scanner.idioma', 'aparelho', false], /* S-601 · idioma impresso que o leitor do nome lê */ ['scanner.lot', 'aparelho', false],
   ['offline.', 'aparelho', false], ['ocr.ready', 'aparelho', false], ['noticias.vista', 'aparelho', false],
   ['ui.ultimaLista', 'aparelho', false], ['collection.pending', 'aparelho', false], ['match.', 'aparelho', false],
   ['ui.entrada', 'aparelho', false], // G-274 · a porta de entrada já foi atravessada neste aparelho (com conta ou sem)
   ['uso.compartilhar', 'aparelho', false], ['uso.envio', 'aparelho', false], ['uso.scanner', 'aparelho', false], // G-286 · uso agregado opt-in: consentimento deste aparelho, último envio e leituras do scanner
   // derivado
-  ['card.', 'derivado', false], ['rulings.', 'derivado', false], ['scanner.artes', 'derivado', false], /* S-596 · base de artes do scanner (ramo artes) */ ['names.pt', 'derivado', false], ['names.es', 'derivado', false], ['names.it', 'derivado', false], ['names.fr', 'derivado', false], ['names.de', 'derivado', false], /* S-597 · S-598 · nomes impressos em outras línguas */ ['cambio.usd', 'derivado', false], ['names.catalog', 'derivado', false],
+  ['card.', 'derivado', false], ['rulings.', 'derivado', false], ['scanner.artes', 'derivado', false], /* S-596 · base de artes do scanner (ramo artes) */ ['names.pt', 'derivado', false], ['names.es', 'derivado', false], ['names.it', 'derivado', false], ['names.fr', 'derivado', false], ['names.de', 'derivado', false], ['names.ja', 'derivado', false], ['names.zhs', 'derivado', false], ['names.zht', 'derivado', false], /* S-597 · S-598 · S-601 · nomes impressos em outras línguas */ ['cambio.usd', 'derivado', false], ['names.catalog', 'derivado', false],
   ['catalogo.indice', 'derivado', false], ['catalogo.lista.', 'derivado', false], ['catalogo.fichas', 'derivado', false], ['catalogo.motor', 'derivado', false], ['notificacoes', 'aparelho', false], // G-314 · a leitura é deste aparelho; a de cobertura nasce de novo dos pedidos (que vão no backup)
  
   ['fichas.opcoes', 'derivado', false], ['fichas.opcoes.fila', 'derivado', false], ['fichas.partes', 'derivado', false],
@@ -16924,7 +16924,7 @@ const DESTINOS = [
     evitar: 'Sem internet, os preços ficam em dólar ou na última cotação guardada.' },
   { id: 'leitor', nome: 'Leitor do scanner', icone: 'scanner', origens: ['https://cdn.jsdelivr.net', 'https://tessdata.projectnaptha.com'],
     vai: 'Só o download do leitor de texto. As imagens da câmera não saem do aparelho: a leitura é feita aqui.',
-    quando: 'Na primeira vez que o scanner é aberto; depois ele fica guardado.',
+    quando: 'Na primeira vez que o scanner é aberto, e uma vez para cada idioma impresso escolhido (japonês, chinês); depois ele fica guardado.',
     evitar: 'Não abrir o scanner, ou abrir com o leitor já guardado.' },
   { id: 'google', nome: 'Conta Google', icone: 'pessoa', liga: 'google',
     origens: ['https://accounts.google.com', 'https://oauth2.googleapis.com', 'https://www.googleapis.com', 'https://*.googleusercontent.com', 'https://identitytoolkit.googleapis.com', 'https://securetoken.googleapis.com'],
@@ -43387,6 +43387,50 @@ function matchLines(index, text, { limit = 3 } = {}) {
   }
   return [...best.entries()].map(([name, score]) => ({ name, score })).sort((a, b) => b.score - a.score || a.name.length - b.name.length).slice(0, limit);
 }
+/* ---------------- X20 · S-601 · nome impresso em japonês e chinês ----------------
+   O casamento latino (`simple`, bigramas de letras) apaga ideogramas e kana. Aqui a chave guarda a escrita (NFKC: largura
+   cheia vira normal; sem espaço nem pontuação, que o leitor põe e tira entre os ideogramas) e o filtro é por ideograma em
+   comum: em japonês e chinês um caractere carrega quase o que uma palavra latina carrega. A nota tem a mesma régua do
+   latino (1 − edições/tamanho), por isso um erro num nome de três caracteres já fica abaixo do aceite e vira "confira". */
+const ESCRITA_CJK = /[\u3040-\u30ff\u3400-\u9fff\uf900-\ufaff\uac00-\ud7af]/;
+const temCjk = s => ESCRITA_CJK.test(String(s || ''));
+const chaveCjk = s => String(s || '').normalize('NFKC').toLowerCase().replace(/[^\u3040-\u30fa\u30fc-\u30ff\u3400-\u9fff\uf900-\ufaff\uac00-\ud7afa-z0-9]/g, '');
+/** Índice dos nomes impressos em escrita CJK: [[impresso, nome em inglês], …] → { entradas, exatos, porLetra }. */
+function indiceCjk(pares) {
+  const entradas = [], exatos = new Map(), porLetra = new Map();
+  for (const [impresso, nome] of pares || []) {
+    if (!nome || !temCjk(impresso)) continue;
+    const key = chaveCjk(impresso); if (key.length < 2) continue;
+    const i = entradas.length, letras = new Set(key);
+    entradas.push({ key, name: nome, n: letras.size });
+    if (!exatos.has(key) || nome.length < exatos.get(key).length) exatos.set(key, nome);
+    for (const c of letras) { let l = porLetra.get(c); if (!l) porLetra.set(c, l = []); l.push(i); }
+  }
+  return { entradas, exatos, porLetra, conta: new Uint16Array(entradas.length) };
+}
+/** Melhores nomes para uma leitura em escrita CJK, no mesmo formato de matchName ({ name, score, exata? }). */
+function matchCjk(ix, text, { limit = 3 } = {}) {
+  if (!ix || !ix.entradas.length) return [];
+  // várias linhas (o leitor às vezes parte o nome ou pega o tipo): fica a de mais caracteres da escrita
+  const conta = l => [...l].filter(c => ESCRITA_CJK.test(c)).length;
+  const q = String(text || '').split(/\r?\n/).map(chaveCjk).sort((a, b) => conta(b) - conta(a))[0] || '';
+  if (conta(q) < 2) return [];
+  if (ix.exatos.has(q)) return [{ name: ix.exatos.get(q), score: 1, exata: true }];
+  const { entradas, porLetra, conta: n } = ix, tocadas = [];
+  for (const c of new Set(q)) for (const i of porLetra.get(c) || []) if (n[i]++ === 0) tocadas.push(i);
+  const best = new Map(), { floor, min, max } = Math;
+  for (const i of tocadas.sort((a, b) => a - b)) {
+    const e = entradas[i], len = e.key.length, comum = n[i]; n[i] = 0;
+    if (comum < e.n * 0.4 || len < q.length * 0.4 || len > q.length * 1.6 + 2) continue;
+    const maxEdits = floor(len * (1 - SUGGEST)) + 1;
+    const full = lev(q, e.key, maxEdits);
+    const pre = q.length > len ? lev(q.slice(0, len), e.key, maxEdits) : maxEdits + 1;   // custo de mana lido como texto no fim
+    const score = 1 - min(full, pre + 0.5) / max(len, 1);
+    if (score >= SUGGEST && (!best.has(e.name) || best.get(e.name) < score)) best.set(e.name, score);
+  }
+  return [...best.entries()].map(([name, score]) => ({ name, score: Math.round(score * 1000) / 1000 }))
+    .sort((a, b) => b.score - a.score || a.name.length - b.name.length).slice(0, limit);
+}
 /** Leva 109 · aceite por votos, sem exigir carta parada: leitura exata (≥ EXATA) entra na hora; leitura
  * aproximada (≥ ACCEPT) precisa de duas seguidas com o mesmo nome; quadro sem nome zera a contagem.
  * Devolve o nome aceito ou null. Não soma de novo por conta própria: isso é do lote (observe). */
@@ -43529,15 +43573,31 @@ function criaDiario({ maximo = 30, agora = () => Date.now() } = {}) {
    nomes. Sem eles, a carta impressa em outra língua não casa. Só as de escrita latina: o leitor de hoje (dados do inglês) lê
    o nome delas; japonês, chinês, coreano e russo pedem leitor próprio (X20, fatias 3 e 4) e, até lá, entram pela arte (X12). */
 const IDIOMAS_DOS_NOMES = ['pt', 'es', 'it', 'fr', 'de'];
+/* S-601 · o leitor do nome por escrita: 'latino' (dados do inglês: lê as seis línguas latinas) ou japonês e chinês, cada um
+   com os dados de leitura da sua escrita (baixados uma vez do mesmo endereço do leitor, guardados para usar sem internet) e
+   com os nomes impressos da sua língua (nomes-<idioma>.json do ramo `artes`). Coreano e russo: X20 fatia 4. */
+const LINGUAS_DO_LEITOR = {
+  latino: { rotulo: 'Latino', fala: 'letras latinas', ocr: 'eng', nomes: [] },
+  ja: { rotulo: 'Japonês', fala: 'japonês', ocr: 'jpn', nomes: ['ja'] },
+  zhs: { rotulo: 'Chinês simpl.', fala: 'chinês simplificado', ocr: 'chi_sim', nomes: ['zhs'] },
+  zht: { rotulo: 'Chinês trad.', fala: 'chinês tradicional', ocr: 'chi_tra', nomes: ['zht'] }
+};
+const linguaDoLeitor = id => (Object.prototype.hasOwnProperty.call(LINGUAS_DO_LEITOR, id) ? id : 'latino');
 const chaveDosNomes = idioma => 'names.' + idioma;
 const URL_NOMES = idioma => `https://raw.githubusercontent.com/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-/artes/nomes-${idioma}.json`;
 function createNameIndex({ store, scryfall, now = () => Date.now(), fetchFn = (typeof fetch === 'function' ? fetch.bind(globalThis) : null), idiomas = IDIOMAS_DOS_NOMES }) {
-  let index = null, meta = null, lista = [];
+  let index = null, meta = null, lista = [], cjk = null;
   const porIdioma = new Map(), tentadas = new Map();   // idioma → { pares, ts } · idioma → quando foi pedido nesta sessão
+  const extras = new Set();   // S-601 · línguas de escrita CJK pedidas pelo leitor (japonês, chinês)
   const apelidos = () => [...porIdioma.values()].flatMap(x => x.pares);
-  const refaz = () => { if (lista.length) index = buildIndex(lista, apelidos()); };
+  const refaz = () => {
+    const todos = apelidos(), latinos = todos.filter(p => !temCjk(p[0]));
+    if (lista.length) index = buildIndex(lista, latinos);
+    cjk = latinos.length < todos.length ? indiceCjk(todos) : null;
+  };
+  const guardadas = () => [...new Set([...idiomas, ...Object.values(LINGUAS_DO_LEITOR).flatMap(l => l.nomes)])];
   const leApelidos = async () => {
-    for (const idioma of idiomas) {
+    for (const idioma of guardadas()) {
       try { const g = await store.get(chaveDosNomes(idioma)); if (g && Array.isArray(g.pares)) porIdioma.set(idioma, { pares: g.pares, ts: g.ts || 0 }); } catch (e) { /* sem esta língua */ }
     }
   };
@@ -43578,7 +43638,7 @@ function createNameIndex({ store, scryfall, now = () => Date.now(), fetchFn = (t
       if (online && impressos) {
         // uma língua que falha não impede as outras; as que chegaram entram na base de uma vez; a que falhou só é
         // pedida de novo depois de uma hora (arquivo que ainda não existe não vira um pedido a cada leitura)
-        const velhas = idiomas.filter(i => { const x = porIdioma.get(i); return (!x || !x.pares.length || now() - x.ts > MAX_AGE) && !(now() - (tentadas.get(i) || -Infinity) < 3600000); });
+        const velhas = [...idiomas, ...extras].filter(i => { const x = porIdioma.get(i); return (!x || !x.pares.length || now() - x.ts > MAX_AGE) && !(now() - (tentadas.get(i) || -Infinity) < 3600000); });
         for (const i of velhas) tentadas.set(i, now());
         const chegaram = await Promise.all(velhas.map(i => baixaApelidos(i).catch(() => false)));
         if (chegaram.some(Boolean)) refaz();
@@ -43588,7 +43648,9 @@ function createNameIndex({ store, scryfall, now = () => Date.now(), fetchFn = (t
     info() { return meta && { ...meta, apelidos: apelidos().length, idiomas: Object.fromEntries([...porIdioma].map(([i, x]) => [i, x.pares.length])) }; },
     /** L7 · os nomes guardados, para sugerir enquanto se digita (lista vazia sem a base). */
     nomes() { return lista; },
-    match(text, opts) { return index ? matchName(index, text, opts) : []; },
+    match(text, opts) { if (cjk && temCjk(text)) return matchCjk(cjk, text, opts); return index ? matchName(index, text, opts) : []; },
+    /** S-601 · a língua do leitor pede os nomes impressos dela (baixados no próximo ensure com impressos). */
+    usaLingua(id) { extras.clear(); for (const i of LINGUAS_DO_LEITOR[linguaDoLeitor(id)].nomes) extras.add(i); },
     /** Leva 109 · texto de várias linhas (quadro inteiro): a melhor linha manda. */
     matchLines(text, opts) { return index ? matchLines(index, text, opts) : []; }
   };
@@ -44541,7 +44603,7 @@ const LIMIARES_LINHA = { borrada: 0.5, deslocamentoMax: 0.05, correndo: 0.12, al
     mas a carta não conta como parada (nada entra na primeira passada; o porteiro pede repetição). */
 function pulaPorMovimento(mov, { via = 'auto', contorno = true } = {}) { return via !== 'manual' && contorno && mov > LIMIARES_LINHA.correndo; }
 
-return { cleanOcr, matchName, matchLines, criaVotacao, criaPorteiro, PORTEIRO, leituraConfiavel, nitidezDaFaixa, movimentoEntre, LIMIARES_FAIXA, criaDiario, criaCronometro, EXATA, buildIndex, candidatosDoIndice, createNameIndex, IDIOMAS_DOS_NOMES, createLot, coverRegion, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, ACCEPT, ALTA, SUGGEST, lev,
+return { cleanOcr, matchName, matchLines, criaVotacao, criaPorteiro, PORTEIRO, leituraConfiavel, nitidezDaFaixa, movimentoEntre, LIMIARES_FAIXA, criaDiario, criaCronometro, EXATA, buildIndex, candidatosDoIndice, createNameIndex, IDIOMAS_DOS_NOMES, LINGUAS_DO_LEITOR, linguaDoLeitor, temCjk, chaveCjk, indiceCjk, matchCjk, createLot, coverRegion, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, ACCEPT, ALTA, SUGGEST, lev,
   detectaCarta, detectaEmEscalas, ESCALAS_DETECTOR, brilho, nitidez, prontoParaLer, criaDetector, paradaEm, screenRect, LIMIARES, PROPORCAO_CARTA, realcaTexto, trechoEscuroEmbaixo, limpaBordas, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, faixaDaCarta, escalaOcr,
   retasDoQuadro, achaQuadrilatero, ordenaCantos, homografia, cantosDaFaixa, retifica, FAIXA_NOME, FAIXA_COLECAO, LARGURA_NOME, linhaDoNome, binarizaLinha, limpaLinha, nitidezDaLinha, afiaLinha, FAIXA_ARTE, BITS_ARTE, impressaoDaArte, distanciaDaArte, buscaArte, abreBaseDeArtes, binDasArtes, criaBaseDeArtes, decideArte, LIMIAR_ARTE, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, alturaDaCarta, deslocamento, LIMIARES_LINHA, pulaPorMovimento, QUAD };
 })();
@@ -44558,7 +44620,7 @@ const __m22 = (function () {
 const { h, mount, Stack, Row, Surface, Text, Button, Field, Input, Select, Badge, Chip, Empty, Note, Spinner, Dialog, closeDialog, toast, reservaDoca, Simbolo, Icone, IconButton, AvisoRede } = __m3;
 const { createLot, coverRegion, screenRect, parseCollectorLine, resolvePrinting, ACCEPT, EXATA, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, criaPorteiro, PORTEIRO, leituraConfiavel, criaDiario, criaCronometro, realcaTexto,
   achaQuadrilatero, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, FAIXA_NOME, FAIXA_COLECAO, alturaDaCarta, deslocamento, LIMIARES_LINHA, pulaPorMovimento, brilho,
-  FAIXA_ARTE, impressaoDaArte, criaBaseDeArtes, decideArte, LIMIAR_ARTE } = __m21;
+  FAIXA_ARTE, impressaoDaArte, criaBaseDeArtes, decideArte, LIMIAR_ARTE, LINGUAS_DO_LEITOR, linguaDoLeitor } = __m21;
 const { pulse } = __m20;
 const TESSERACT_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
 // Leva 109 · o laço lê uma leitura atrás da outra; estes são só os respiros entre elas
@@ -44574,7 +44636,7 @@ function createOcr(win = window, doc = document) {
   // X14 · dois leitores: o do nome e o da edição. Antes eram um só, em fila: a linha de coleção da carta que acabou
   // de entrar segurava a leitura do nome da carta seguinte. O da edição só é criado na primeira edição lida.
   const faixas = { nome: { worker: null, loading: null, mode: null, fila: Promise.resolve() }, edicao: { worker: null, loading: null, mode: null, fila: Promise.resolve() } };
-  let biblioteca = null;
+  let biblioteca = null, lingua = 'latino';   // S-601 · escrita do leitor do nome (o da edição lê sempre o inglês)
   const carrega = () => biblioteca || (biblioteca = (async () => {
     if (!win.Tesseract) await new Promise((ok, fail) => {
       const s = doc.createElement('script'); s.src = TESSERACT_URL; s.async = true;
@@ -44588,7 +44650,7 @@ function createOcr(win = window, doc = document) {
       const g = f.ger = (f.ger || 0) + 1;
       const p = f.loading = (async () => {
         await carrega();
-        const w = await win.Tesseract.createWorker('eng');
+        const w = await win.Tesseract.createWorker(qual === 'nome' ? LINGUAS_DO_LEITOR[lingua].ocr : 'eng');
         // encerrado enquanto carregava (saiu do scanner): o leitor que chega tarde não fica vivo
         if (f.ger !== g) { try { await w.terminate(); } catch (e) { /* ignora */ } throw new Error('ocr-encerrado'); }
         f.worker = w; return w;
@@ -44621,6 +44683,9 @@ function createOcr(win = window, doc = document) {
   const faixaDe = want => (want === 'colecao' || want === 'collector' ? 'edicao' : 'nome');
   return {
     warm: (qual = 'nome') => engine(qual),
+    /** S-601 · troca a escrita do leitor do nome; o leitor carregado com outra escrita sai e o próximo sobe com a nova. */
+    async idioma(id) { const l = linguaDoLeitor(id); if (l === lingua) return false; lingua = l; await encerra(faixas.nome); return true; },
+    lingua: () => lingua,
     /** Q10 · os arquivos do leitor ainda estão no aparelho? null quando o navegador não tem cache. */
     async guardado(cachesApi = (typeof caches !== 'undefined' ? caches : null)) {
       if (!cachesApi || typeof cachesApi.open !== 'function') return null;
@@ -44636,7 +44701,9 @@ function createOcr(win = window, doc = document) {
       const pronto = prepare(canvas, escala, want);   // 'linha' e 'colecao' já chegam prontas (o MESMO canvas: quem chama não o reaproveita antes de a leitura voltar)
       return serial(f, async () => {
         const w = await engine(qual);
-        if (f.mode !== want) { await w.setParameters(MODES[want]); f.mode = want; }
+        // S-601 · japonês e chinês: sem a lista de letras latinas (ela apagaria os ideogramas)
+        const cjk = qual === 'nome' && lingua !== 'latino', chave = want + (cjk ? '|' + lingua : '');
+        if (f.mode !== chave) { await w.setParameters(cjk ? { ...MODES[want], tessedit_char_whitelist: '' } : MODES[want]); f.mode = chave; }
         const r = await w.recognize(pronto); return (r && r.data && r.data.text) || '';
       });
     },
@@ -44653,7 +44720,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
      entra, a mesma carta parada não entra duas vezes (toque na tela soma outra) e a pilha abre por um botão.
      Nada rola na tela principal: num S25 (360×780) câmera, aviso e botões cabem sem rolagem. */
   const lot = createLot({ store });
-  const state = { camera: 'idle', engine: 'idle', base: 'idle', auto: false, busy: false, last: null, alive: true, edition: true, ocrReady: false,
+  const state = { camera: 'idle', engine: 'idle', base: 'idle', auto: false, busy: false, last: null, alive: true, edition: true, ocrReady: false, lingua: 'latino',
     moldura: true, cantosAntes: null, falhas: 0, invertida: false, aceitoEm: 0, diag: false, pilhaAberta: false };
   const porteiro = criaPorteiro();
   const artes = criaBaseDeArtes({ store });
@@ -44690,6 +44757,10 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     paintStatus(); paintDock(); paintEstado();
     state.base = 'loading'; paintStatus(); marca();
     state.ocrReady = !!(await store.get('ocr.ready'));
+    // S-601 · idioma impresso escolhido da última vez: o leitor do nome e os nomes impressos daquela escrita
+    try { state.lingua = linguaDoLeitor(await store.get('scanner.idioma')); } catch (e) { state.lingua = 'latino'; }
+    if (ocr.idioma) await ocr.idioma(state.lingua);
+    if (names.usaLingua) names.usaLingua(state.lingua);
     try { const m = await names.ensure({ online: online(), impressos: true }); state.base = m ? 'ready' : 'missing'; }
     catch (e) { state.base = 'missing'; }
     artes.carrega({ online: online() }).catch(() => {});   // S-596 · a base de artes vem em segundo plano: sem ela, só o nome
@@ -45223,8 +45294,26 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     Dialog({ title: 'Digitar o nome', body: Stack({}, Field('Carta', manualIn), suggest, state.base !== 'ready' ? Text('A base de nomes ainda não está no aparelho.', { size: 'sm', tone: 'muted' }) : null), actions: [Button('Fechar', { onClick: closeDialog })] });
     setTimeout(() => manualIn.focus(), 50);
   }
+  /** S-601 · troca o idioma impresso que o leitor do nome lê: guarda a escolha, pede os nomes daquela escrita e sobe o leitor dela. */
+  async function trocaLingua(id, chips) {
+    id = linguaDoLeitor(id); if (id === state.lingua) return;
+    state.lingua = id;
+    for (const c of chips) c.setAttribute('aria-pressed', String(c.dataset.lingua === id));
+    try { await store.set('scanner.idioma', id); } catch (e) { /* vale nesta sessão */ }
+    if (names.usaLingua) names.usaLingua(id);
+    if (ocr.idioma) await ocr.idioma(id);
+    names.ensure({ online: online(), impressos: true }).catch(() => {});
+    toast(`Lendo nomes em ${LINGUAS_DO_LEITOR[id].fala}`, 1600);
+    if (state.camera !== 'on' || !state.alive) return;
+    state.engine = 'loading'; paintStatus(); paintEstado(); marca();
+    // o automático fica como a pessoa deixou (pausado continua pausado)
+    ocr.warm().then(() => { if (!state.alive) return; state.engine = 'ready'; state.ocrReady = true; paintStatus(); paintDock(); paintEstado(); marca(); })
+      .catch(() => { state.engine = 'failed'; paintStatus(); paintDock(); paintEstado(); marca(); });
+  }
   async function openMore() {
     const info = names.info();
+    const linguaChips = Object.entries(LINGUAS_DO_LEITOR).map(([id, l]) => Chip(l.rotulo, { pressed: state.lingua === id, dataset: { lingua: id } }));
+    for (const c of linguaChips) c.addEventListener('click', () => { trocaLingua(c.dataset.lingua, linguaChips).catch(() => {}); });
     const edChip = Chip('Edição', { pressed: state.edition, dataset: { edition: '1' } });
     edChip.addEventListener('click', () => { state.edition = !state.edition; edChip.setAttribute('aria-pressed', String(state.edition)); });
     const molduraChip = Chip('Moldura', { pressed: state.moldura, dataset: { moldura: '1' } });
@@ -45280,6 +45369,9 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     Dialog({ title: 'Scanner', body: Stack({},
       controles.length ? Text('Câmera', { size: 'sm', tone: 'muted' }) : null,
       controles.length ? Row({ class: 'ds-row--wrap', id: 'scan-camera-controles' }, ...controles) : null,
+      Text('Idioma impresso', { size: 'sm', tone: 'muted' }),
+      Row({ class: 'ds-row--wrap', id: 'scan-idioma' }, ...linguaChips),
+      Text('Latino lê inglês, português, espanhol, italiano, francês e alemão. Japonês e chinês baixam o leitor da escrita na primeira vez (cerca de 2 MB).', { size: 'xs', tone: 'subtle' }),
       Text('Leitura', { size: 'sm', tone: 'muted' }),
       Row({ class: 'ds-row--wrap' }, edChip, molduraChip, diagChip),
       Text((info && state.base === 'ready' ? `Base: ${info.count.toLocaleString('pt-BR')} nomes · ${Math.round(info.bytes / 1024)} KB` : 'Base de nomes: ainda não baixada') + (state.ocrReady ? ' · leitor disponível offline' : ''), { size: 'xs', tone: 'subtle', attrs: { id: 'scan-base' } })),
