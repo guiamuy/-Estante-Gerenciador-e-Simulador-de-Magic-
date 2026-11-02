@@ -9669,6 +9669,42 @@ test('e2e · J-48 estados como ícones na barra de P/R: nada por cima da arte, �
   assert.deepEqual(errors, []);
 });
 
+// J-58 (decisão do dono, 02/11/2026) · paisagem: com o celular deitado, os dois lados lado a lado (o do oponente à esquerda), mesma
+// largura e mesmo topo, a barra de cima numa linha só e nada sobreposto; em retrato a mesa continua empilhada.
+test('e2e · J-58 paisagem: lados lado a lado com a mesma largura e o mesmo topo, barra de cima numa linha, cartas sem encostar, doca embaixo; retrato continua empilhado; três medidas deitadas, dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.route('https://cards.scryfall.io/**', r => r.fulfill({ status: 200, contentType: 'image/svg+xml', headers: { 'access-control-allow-origin': '*' },
+    body: '<svg xmlns="http://www.w3.org/2000/svg" width="488" height="680"><rect width="488" height="680" fill="#111"/><rect x="40" y="76" width="408" height="301" fill="#3e6f8f"/></svg>' }));
+  await createDeck(page, base, 'Deitado', '24 Mountain\n36 Delver of Secrets');
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start'); await page.fill('#mesa-seed', '3');
+  await page.click('[data-opponent="goldfish"]');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-pass');
+  await page.evaluate(() => { const M = window.__estanteMesa, s = M.estado(), p = s.turn.active;
+    const ds = Object.values(s.objects).filter(o => o.owner === p && o.name === 'Delver of Secrets' && o.zone === 'library').slice(0, 3).map(o => o.oid);
+    ds.forEach((oid, i) => { M.act({ t: 'move', p, oid, to: 'battlefield' }); if (i) M.act({ t: 'counter', p, oid, kind: 'p1p1', delta: i }); });
+    const m = Object.values(s.objects).filter(o => o.owner === p && o.name === 'Mountain' && o.zone === 'library').slice(0, 2).map(o => o.oid); m.forEach(oid => M.act({ t: 'move', p, oid, to: 'battlefield' })); });
+  await page.waitForFunction(() => document.querySelectorAll('.tb-side--me .tb-card[data-oid]').length >= 3);
+  if ((await page.getAttribute('#tb-hand-toggle', 'aria-expanded')) === 'true') { await page.click('#tb-hand-toggle'); await page.waitForTimeout(450); } // a mão recolhida: o campo à vista
+  const mede = () => page.evaluate(() => { const R = e => e.getBoundingClientRect(), opp = R(document.querySelector('.tb-side--opp')), me = R(document.querySelector('.tb-side--me'));
+    const top = document.querySelector('.tb > .tb-top'), vez = R(top.querySelector('.tb-vez') || top), passos = top.querySelector('.tb-steps'), doca = R(document.querySelector('.tb-dock'));
+    const cartas = [...document.querySelectorAll('.tb-side .tb-row > *')].map(R), cruza = (a, b) => Math.min(a.right, b.right) - Math.max(a.left, b.left) > 0.5 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 0.5;
+    return { opp: { l: opp.left, r: opp.right, t: opp.top, b: opp.bottom, w: opp.width }, me: { l: me.left, r: me.right, t: me.top, b: me.bottom, w: me.width }, umaLinha: R(top).height <= 84, /* a barra de cima numa faixa só (faixa de vez com o trilho das fases embaixo) */
+      encostam: cartas.some((a, i) => cartas.some((b, j) => j > i && cruza(a, b))), doca: doca.bottom <= innerHeight + 0.5 && doca.top < innerHeight, larg: document.documentElement.scrollWidth - innerWidth }; });
+  for (const [w, hgt] of [[780, 360], [844, 390], [891, 412]]) for (const tema of ['dark', 'light']) {
+    await page.setViewportSize({ width: w, height: hgt }); await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(350);
+    const m = await mede(), onde = `${w}×${hgt} ${tema}`;
+    assert.ok(m.opp.r <= m.me.l - 8 && Math.abs(m.opp.t - m.me.t) <= 1 && Math.abs(m.opp.w - m.me.w) <= 1, `${onde}: o oponente à esquerda, você à direita, mesma largura e mesmo topo ` + JSON.stringify(m));
+    assert.ok(m.umaLinha && !m.encostam && m.doca && m.larg <= 0, `${onde}: barra de cima numa faixa só (≤ 84 px), cartas sem encostar, doca embaixo, sem rolagem lateral ` + JSON.stringify(m));
+    await auditaTela(page, `J-58 · paisagem ${onde}`);
+  }
+  if (process.env.SHOTS) { await page.setViewportSize({ width: 780, height: 360 }); await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark')); await page.waitForTimeout(300); await page.screenshot({ path: process.env.SHOTS + '/j58-paisagem.png' }); }
+  await page.setViewportSize({ width: 360, height: 780 }); await page.waitForTimeout(300);
+  const r = await mede();
+  assert.ok(r.opp.b <= r.me.t && Math.abs(r.opp.l - r.me.l) <= 1, 'retrato: continua empilhado ' + JSON.stringify(r));
+  assert.deepEqual(errors, []);
+});
+
 // J-57 (decisão do dono, 02/11/2026, print da mesa com cartas pequenas e muito vão) · com folga na fileira as cartas crescem juntas até
 // o maior tamanho que cabe (teto --campo-cresce × o token) e a sobra vira vãos iguais, simétricos; sem folga, tamanho de sempre e rolagem.
 test('e2e · J-57 a fileira usa o espaço: poucas cartas crescem (até o teto) com vãos iguais e pontas simétricas, sem encostar; muitas ficam no tamanho do token e rolam; quatro medidas, dois temas', { skip }, async t => {

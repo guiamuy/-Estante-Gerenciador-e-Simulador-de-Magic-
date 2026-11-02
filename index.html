@@ -2889,6 +2889,21 @@ body[data-mesa-cheia="true"] .tb-steps__list > li::after { inset: 0; height: aut
 
 .tb-center { display: flex; flex-direction: column; gap: var(--space-2); }
 .tb-center:empty { display: none; }
+/* J-58 (decisão do dono, 02/11/2026) · paisagem: com o celular deitado (altura curta), os dois lados ficam lado a lado — o do
+   oponente à esquerda, o seu à direita, com a mesma largura e o mesmo topo —, a barra de cima numa linha só (o trilho das fases ao
+   lado da faixa de vez) e as cartas um pouco menores para caber na altura; a faixa da pilha e o resumo ganham uma linha própria
+   acima dos dois lados (só existem com algo na pilha ou no resumo). Em retrato nada muda; "Só retrato" em Aparência (J-59) desliga. */
+@media (orientation: landscape) and (max-height: 540px) {
+  :root:not([data-orientacao="retrato"]) { --carta-campo: 80px; --carta-terreno: 58px; --carta-mao: 76px; --campo-cresce: 1.15; } /* a mão aberta não toma a tela baixa; a carta quase não cresce (a altura é o que falta) */
+  :root:not([data-orientacao="retrato"]) .tb-board { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: var(--space-3); row-gap: var(--space-2); align-items: start; }
+  :root:not([data-orientacao="retrato"]) .tb-board > .tb-center { grid-column: 1 / -1; grid-row: 1; }
+  :root:not([data-orientacao="retrato"]) .tb-board > .tb-camada { grid-column: 1 / -1; grid-row: 2; height: auto; margin-top: 0; }
+  :root:not([data-orientacao="retrato"]) .tb-board > .tb-camada > .tb-camada__linha { position: static; }
+  :root:not([data-orientacao="retrato"]) .tb-board > .tb-side--opp { grid-column: 1; grid-row: 3; }
+  :root:not([data-orientacao="retrato"]) .tb-board > .tb-side--me { grid-column: 2; grid-row: 3; }
+  :root:not([data-orientacao="retrato"]) .tb > .tb-top { padding-top: var(--space-2); padding-bottom: var(--space-1); }
+  :root:not([data-orientacao="retrato"]) .tb-top > .tb-steps { order: 1; flex: 1 1 200px; }
+}
 /* MJ1c (leva J-4) · pilha e resumo numa camada de altura zero entre os dois lados: a faixa de 44 px fica centrada no vão
    entre os lados (sem cobrir carta nem a vida) e o detalhe abre por cima; o campo nunca desce quando algo vai para a pilha */
 .tb-camada { position: relative; z-index: var(--z-sticky); height: 0; margin-top: calc(-1 * var(--space-4)); }
