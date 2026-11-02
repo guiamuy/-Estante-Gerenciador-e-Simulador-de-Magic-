@@ -16892,6 +16892,69 @@ test('e2e · G-276 relato #27: entrar e sair cobrem a troca de tela com a transi
   assert.deepEqual(errors, []);
 });
 
+// G-334 (trilha geral) · relato #52 · Sair da conta no Início é uma porta flat: entreaberta em repouso, com a luz em
+// latão na fresta; o toque abre a porta inteira e só depois vem o diálogo; toque repetido não abre dois; Cancelar encosta
+// de novo; com menos movimento o diálogo abre na hora. A bandeira "desistir" continua nos outros lugares.
+test('e2e · G-334 relato #52: Sair da conta é uma porta entreaberta que abre no toque antes do diálogo; menos movimento abre na hora', { skip }, async t => {
+  const { page, errors, base } = await open(t, { porta: true });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.addInitScript(() => {
+    window.__GOOGLE_CLIENT_ID = 'e2e.apps.googleusercontent.com';
+    window.__FIREBASE_API_KEY = 'chave-e2e';
+    const ok = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } });
+    window.__FIREBASE_FETCH = async (url, init) => {
+      const corpo = url.includes('securetoken') ? init.body : JSON.parse(init.body);
+      if (url.includes('securetoken')) return ok({ id_token: 'id-renovado', refresh_token: 'ref-porta52-e2e', expires_in: '3600', user_id: 'uidPorta_52' });
+      if (url.includes('accounts:signUp')) return ok({ localId: 'uidPorta_52', email: corpo.email, idToken: 'id-porta52', refreshToken: 'ref-porta52-e2e', expiresIn: '3600' });
+      return ok({ error: { message: 'NOT_FOUND' } }, 404);
+    };
+  });
+  await page.goto(base); await page.waitForSelector('#porta-email:not([disabled])');
+  await page.click('#porta-email'); await page.waitForSelector('#conta-email-campo');
+  await page.click('#conta-email-modo [data-modo="criar"]'); await page.fill('#conta-email-campo', 'porta@exemplo.com'); await page.fill('#conta-senha', 'senha-certa-1');
+  await page.click('#conta-email-confirmar'); await page.waitForSelector('#home');
+  await page.waitForFunction(() => document.getElementById('transicao-conta') === null);
+  await page.waitForSelector('#home-sair');
+  // 1 · o desenho: a porta (folha opaca, maçaneta e luz em latão), não a bandeira; 44 px; nome falado
+  assert.equal(await page.locator('#home-sair [data-icone="porta"] .porta__folha').count(), 1, 'a porta no botão');
+  assert.equal(await page.locator('#home-sair [data-icone="desistir"]').count(), 0, 'a bandeira saiu do Sair da conta');
+  assert.equal(await page.getAttribute('#home-sair', 'aria-label'), 'Sair da conta');
+  const caixa = await page.locator('#home-sair').boundingBox(); assert.ok(caixa.height >= 44 && caixa.width >= 44, 'Sair da conta com 44 px');
+  const escala = () => page.evaluate(() => new DOMMatrix(getComputedStyle(document.querySelector('#home-sair .porta__folha')).transform).a);
+  const luz = () => page.evaluate(() => Number(getComputedStyle(document.querySelector('#home-sair .porta__luz')).opacity));
+  const a0 = await escala(); assert.ok(a0 > .6 && a0 < .85, `entreaberta em repouso (escala ${a0})`);
+  assert.ok(await luz() > 0 && await luz() < 1, 'a fresta mostra a luz');
+  await page.waitForTimeout(400); await auditaTela(page, 'inicio · porta do sair');
+  // 2 · toque: a porta começa a abrir na hora e o diálogo só vem depois; dois toques não abrem dois diálogos
+  await page.click('#home-sair');
+  assert.equal(await page.getAttribute('#home-sair', 'data-porta'), 'abrindo', 'retorno imediato');
+  assert.equal(await page.locator('#home-sair-confirmar').count(), 0, 'o diálogo espera a porta abrir');
+  await page.click('#home-sair');
+  await page.waitForSelector('#home-sair-confirmar');
+  assert.equal(await page.getAttribute('#home-sair', 'data-porta'), 'aberta');
+  await page.waitForFunction(() => new DOMMatrix(getComputedStyle(document.querySelector('#home-sair .porta__folha')).transform).a < .3);
+  assert.equal(await luz(), 1, 'a luz inteira com a porta aberta');
+  assert.equal(await page.locator('.ds-dialog').count(), 1, 'um diálogo só');
+  assert.equal(await page.innerText('#ds-dialog-title'), 'Sair da conta?');
+  // 3 · Cancelar encosta a porta de novo e não sai
+  await page.click('#home-sair-cancelar'); await page.waitForFunction(() => (document.querySelector('#ds-overlay') || {}).dataset.open !== 'true');
+  assert.equal(await page.getAttribute('#home-sair', 'data-porta'), 'entreaberta');
+  await page.waitForFunction(() => new DOMMatrix(getComputedStyle(document.querySelector('#home-sair .porta__folha')).transform).a > .6);
+  // 4 · menos movimento: o diálogo abre na hora, sem giro
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.click('#home-sair');
+  assert.equal(await page.locator('#home-sair-confirmar').count(), 1, 'com menos movimento o diálogo abre no toque');
+  assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('#home-sair .porta__folha')).transitionDuration), '0s');
+  await page.click('#home-sair-cancelar'); await page.waitForFunction(() => (document.querySelector('#ds-overlay') || {}).dataset.open !== 'true');
+  assert.equal(await page.getAttribute('#home-sair', 'data-porta'), 'entreaberta');
+  // 5 · o catálogo de ícones tem a porta; a bandeira continua no catálogo
+  await page.evaluate(() => { location.hash = '#/ds'; }); await page.waitForSelector('#ds-icones');
+  assert.equal(await page.locator('#ds-icones [data-icone="porta"]').count(), 1);
+  assert.equal(await page.locator('#ds-icones [data-icone="desistir"]').count(), 1);
+  if (process.env.SHOTS) { await page.evaluate(() => { location.hash = '#/'; }); await page.waitForSelector('#home-sair'); await page.locator('.inicio__cab').screenshot({ path: process.env.SHOTS + '/g334-porta.png' }); }
+  assert.deepEqual(errors, []);
+});
+
 // MJ7 (leva J-17, trilha jogabilidade) · material: a carta tem espessura e, levantada (segurada, escolhida, mirando), a sombra
 // cresce por baixo dela; o feltro tem luz (claridade no centro, penumbra nas bordas, só na partida); o latão tem fio de luz e
 // lábio; a dupla face que transforma vira em 3D curto (a face velha gira até ficar de lado, a nova vem de lado). Nada ocupa

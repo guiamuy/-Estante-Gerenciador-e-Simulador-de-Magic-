@@ -790,6 +790,16 @@ a { color: var(--accent); }
 .inicio__titulo-linha { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); min-width: 0; } /* G-276 · título e Sair da conta */
 .inicio__titulo-linha > .ds-text { min-width: 0; overflow-wrap: anywhere; }
 .inicio__titulo-linha > #home-sair { flex: none; margin-block: calc(-1 * var(--space-1)); } /* 44 px de toque sem empurrar o Jogar */
+/* G-334 · relato #52 · a porta do Sair da conta: flat, no traço dos ícones; a folha é opaca (cor do fundo) e gira na
+   dobradiça da esquerda; em repouso fica entreaberta e a fresta mostra a luz em latão; no toque abre inteira (--dur-3)
+   e só então vem o diálogo. Menos movimento: sem giro, o diálogo abre na hora. */
+.ds-icon .porta__luz { fill: var(--accent); stroke: none; opacity: .55; transition: opacity var(--dur-3) var(--ease-out); }
+.ds-icon .porta__folha { transform-box: fill-box; transform-origin: left center; transform: scaleX(.66); transition: transform var(--dur-3) var(--ease-out); }
+.ds-icon .porta__painel { fill: var(--bg); }
+.ds-icon .porta__macaneta { fill: var(--accent); stroke: none; }
+.inicio-sair[data-porta="abrindo"] .porta__folha, .inicio-sair[data-porta="aberta"] .porta__folha { transform: scaleX(.22); }
+.inicio-sair[data-porta="abrindo"] .porta__luz, .inicio-sair[data-porta="aberta"] .porta__luz { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .ds-icon .porta__folha, .ds-icon .porta__luz { transition: none; } }
 .inicio__acoes { flex: none; display: flex; align-items: center; gap: var(--space-1); margin-block: calc(-1 * var(--space-1)); } /* G-314 · sino e Sair */
 
 /* G-314 · relato #36 · central de notificações: sino com selo de latão; lista por dia; não lida com ponto e título forte */
@@ -4344,6 +4354,8 @@ const ICONES = {
   exilio: '<path d="M12 12a1.5 1.5 0 0 1 3 0a3 3 0 0 1-6 0a4.5 4.5 0 0 1 9 0a6 6 0 0 1-12 0"/>',
   comando: '<path d="M4.5 17.5 3.5 7.5l4.75 4L12 5.5l3.75 6 4.75-4-1 10z"/><path d="M5 20.5h14"/>',
   // J-40 · relato #45 · masmorra na mesa: a porta em arco da masmorra, o peão de quem está numa sala e a bandeira da iniciativa
+  // G-334 · relato #52 · Sair da conta: a porta entreaberta (a luz em latão passa pela fresta); a folha gira na dobradiça
+  porta: '<path class="porta__luz" d="M6.5 5h11v15.5h-11z"/><path d="M5 20.5V5a1.5 1.5 0 0 1 1.5-1.5h11A1.5 1.5 0 0 1 19 5v15.5"/><path d="M3.5 20.5h17"/><g class="porta__folha"><path class="porta__painel" d="M6.5 20.5V5h11v15.5z"/><circle class="porta__macaneta" cx="15" cy="12.75" r="1.1"/></g>',
   masmorra: '<path d="M5 20.5V10a7 7 0 0 1 14 0v10.5"/><path d="M3.5 20.5h17"/><path d="M9.5 20.5v-5.5a2.5 2.5 0 0 1 5 0v5.5"/>',
   peao: '<circle cx="12" cy="7" r="3"/><path d="M9.8 10.5h4.4l1.8 6.5H8z"/><path d="M6.5 20h11"/>',
   iniciativa: '<path d="M6.5 20.5V4"/><path d="M6.5 4.5h11l-2.5 4 2.5 4h-11"/>',
@@ -46583,8 +46595,8 @@ async function saiDaPorta(via) {
 }
 /** G-276 · relato #27 · Sair da conta a qualquer momento, do Início: confirma (nada se perde, mas o toque é visível no
     cabeçalho), cobre com a tela de transição e volta à porta (G-275). */
-function sairDaConta() {
-  __m3.Dialog({ title: 'Sair da conta?', body: Text('O que está no aparelho continua aqui. Para entrar de novo, a porta do app.', { tone: 'muted' }),
+function sairDaConta(aoFechar = null) {
+  __m3.Dialog({ aoFechar, title: 'Sair da conta?', body: Text('O que está no aparelho continua aqui. Para entrar de novo, a porta do app.', { tone: 'muted' }),
     actions: [Button('Cancelar', { id: 'home-sair-cancelar', onClick: __m3.closeDialog }), Button('Sair', { variant: 'primary', icone: 'desistir', id: 'home-sair-confirmar', onClick: async () => {
       __m3.closeDialog();
       const tr = __m3.Transicao('Saindo da conta…', { id: 'transicao-conta' });
@@ -46592,6 +46604,22 @@ function sairDaConta() {
       catch (e) { toast(__m29.motivoDe(e)); }
       finally { await tr.fecha(); }
     } })] });
+}
+/** G-334 · relato #52 · Sair da conta é uma porta: entreaberta em repouso e, no toque, abre inteira (--dur-3) antes do
+    diálogo; toque repetido enquanto abre não abre outro diálogo; fechar o diálogo (Cancelar, X, fora) encosta a porta de
+    novo. Com menos movimento o diálogo abre na hora. */
+const PORTA_ABRE_MS = 280; // = --dur-3
+function BotaoSairDaConta() {
+  const b = __m3.IconButton('porta', 'Sair da conta', { id: 'home-sair', variant: 'ghost', classe: 'inicio-sair', dataset: { porta: 'entreaberta' } });
+  const encosta = () => { b.dataset.porta = 'entreaberta'; };
+  b.addEventListener('click', () => {
+    if (b.dataset.porta !== 'entreaberta') return;
+    const calmo = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (calmo) { b.dataset.porta = 'aberta'; sairDaConta(encosta); return; }
+    b.dataset.porta = 'abrindo';
+    setTimeout(() => { if (!b.isConnected) return; b.dataset.porta = 'aberta'; sairDaConta(encosta); }, PORTA_ABRE_MS);
+  });
+  return b;
 }
 /** D3 · nome do perfil em memória: a tela inicial cumprimenta sem esperar o armazenamento (o botão da barra mantém). */
 let nomeDoPerfil = null;
@@ -46638,7 +46666,7 @@ function renderHome({ ancora = false } = {}) {
     titulo.textContent = nomeDoPerfil ? `Olá, ${nomeDoPerfil}` : 'Estante';
     frase.classList.toggle('ds-hidden', !!nomeDoPerfil);
   }).catch(() => {});
-  if (conta && conta.get) conta.get().then(c => { if (c && el.isConnected && !tituloLinha.querySelector('#home-sair')) acoesDoTitulo.appendChild(__m3.IconButton('desistir', 'Sair da conta', { id: 'home-sair', variant: 'ghost', onClick: sairDaConta })); }).catch(() => {});
+  if (conta && conta.get) conta.get().then(c => { if (c && el.isConnected && !tituloLinha.querySelector('#home-sair')) acoesDoTitulo.appendChild(BotaoSairDaConta()); }).catch(() => {});
   painelContinuar().then(card => { if (card) { continuar.replaceChildren(card); el.querySelector('#go-play').classList.remove('ds-btn--primary'); } }).catch(() => {});
   painelUltimasListas().then(r => { if (r && r.bloco && el.isConnected) ultimas.replaceChildren(r.bloco); }).catch(() => {});
   return el;
