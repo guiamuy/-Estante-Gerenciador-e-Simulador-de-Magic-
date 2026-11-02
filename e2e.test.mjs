@@ -15990,11 +15990,11 @@ test('e2e · MJ1f a mão aberta fica por cima da mesa: abrir e recolher não mex
   assert.deepEqual(errors, []);
 });
 
-// J-32 · relato #38 · com a mesa cheia, a mão aberta escondia o seu campo inteiro (360×697: o seu lado ia de 366 a 666 px e a
-// bandeja começava em 495). Agora, com a mão aberta, as cartas do campo dos dois lados encolhem juntas (mesma escala, terrenos
-// e permanentes) até a mesa inteira caber acima da mão; os cabeçalhos (vida, contadores) ficam na altura de toque (44 px), numa
-// linha. Recolhida, tudo volta ao tamanho de sempre. Mesa que já cabe não muda (MJ1f continua valendo).
-test('e2e · J-32 mão aberta com a mesa cheia: as cartas dos dois lados encolhem juntas até a mesa caber acima da mão; cabeçalhos com 44 px e numa linha; recolher volta ao normal', { skip }, async t => {
+// J-45 (decisão do dono, 02/11/2026) · desfaz o encaixe da J-32 (relato #38): a mesa não encolhe nem aperta mais com a mão
+// aberta. As cartas do campo e os terrenos ficam no tamanho de sempre nos dois lados; a página reserva a bandeja aberta inteira
+// e rola por trás dela até a última carta; ao abrir a mão, a página desce até o seu campo pousar logo acima da bandeja. A
+// expectativa da J-32 (encolher até 60%) mudou de propósito: o dono pediu a mesa sempre grande, mesmo que precise rolar.
+test('e2e · J-45 mão aberta com a mesa cheia: nada encolhe nem aperta; a página reserva a bandeja aberta e rola até a última carta; ao abrir, desce até o seu campo; vidas com 44 px à vista', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.addInitScript(() => { window.__MTG_TEST = true; });
   await createDeck(page, base, 'Cheia', '30 Island\n20 Delver of Secrets\n10 Counterspell');
@@ -16006,37 +16006,44 @@ test('e2e · J-32 mão aberta com a mesa cheia: as cartas dos dois lados encolhe
       for (const o of [...os.filter(terreno).slice(0, 6), ...os.filter(o => !terreno(o)).slice(0, 5)]) { try { M.act({ t: 'move', p, oid: o.oid, to: 'battlefield' }); } catch (e) { /* carta que o modo não move */ } } } });
   await page.waitForSelector('.tb-side--me [data-zone="lands"] .tb-card');
   const mede = () => page.evaluate(() => {
-    const R = e => e.getBoundingClientRect(), doca = document.querySelector('#tb-dock'), topo = R(doca).top;
+    const R = e => e.getBoundingClientRect(), doca = document.querySelector('#tb-dock'), topo = R(doca).top, board = document.querySelector('.tb-board');
     const cartas = [...document.querySelectorAll('.tb-board .tb-side .tb-card')].filter(c => c.offsetParent);
     const larg = sel => { const c = document.querySelector(sel); return c ? Math.round(R(c).width) : 0; };
     const vidas = ['#tb-life-me', '#tb-life-opp'].map(s => document.querySelector(s)).filter(Boolean).map(e => ({ h: Math.round(R(e).height), topo: R(e).top, fim: R(e).bottom }));
-    return { topo, cobertas: cartas.filter(c => R(c).bottom > topo + 1 || R(c).top < 0).length, total: cartas.length,
+    const fimDoCampo = Math.max(...cartas.map(c => R(c).bottom + scrollY)), meu = document.querySelector('.tb-side--me');
+    return { topo, docaH: R(doca).height, total: cartas.length, fimDoCampo, meuFim: R(meu).bottom, scrollY, rola: document.documentElement.scrollHeight - innerHeight,
+      reserva: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--doca-base')) || 0,
       campo: larg('.tb-side--me [data-zone]:not([data-zone="lands"]) .tb-card'), campoOpp: larg('.tb-side:not(.tb-side--me) [data-zone]:not([data-zone="lands"]) .tb-card'),
-      terreno: larg('.tb-side--me [data-zone="lands"] .tb-card'), vidas, rola: document.documentElement.scrollHeight - innerHeight,
+      terreno: larg('.tb-side--me [data-zone="lands"] .tb-card'), vidas, justa: board.dataset.justa || '', encaixe: board.dataset.encaixe || '',
       aberta: document.querySelector('#tb-hand-toggle').getAttribute('aria-expanded') };
   });
-  const alterna = async aberta => { if ((await page.getAttribute('#tb-hand-toggle', 'aria-expanded')) !== String(aberta)) await page.click('#tb-hand-toggle'); await page.waitForTimeout(500); };
+  const alterna = async aberta => { if ((await page.getAttribute('#tb-hand-toggle', 'aria-expanded')) !== String(aberta)) await page.click('#tb-hand-toggle'); await page.waitForTimeout(700); };
   for (const [w, hgt] of [[360, 697], [360, 780], [412, 891]]) for (const tema of ['dark', 'light']) {
     await page.setViewportSize({ width: w, height: hgt }); await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema);
     const nome = `${w}×${hgt} ${tema}`;
-    await alterna(false); await page.evaluate(() => scrollTo(0, 0)); const fechada = await mede();
-    await alterna(true); await page.evaluate(() => scrollTo(0, 0)); await page.waitForTimeout(150); const aberta = await mede();
+    await alterna(false); await page.evaluate(() => scrollTo(0, 0)); await page.waitForTimeout(100); const fechada = await mede();
+    await alterna(true); const aberta = await mede();
     assert.equal(aberta.aberta, 'true');
-    assert.equal(aberta.cobertas, 0, `${nome}: com a mão aberta, nenhuma carta do campo atrás da mão ${JSON.stringify(aberta)}`);
-    assert.ok(aberta.vidas.length === 2 && aberta.vidas.every(v => v.h >= 44 && v.fim <= aberta.topo), `${nome}: as duas vidas à vista, com 44 px ${JSON.stringify(aberta.vidas)}`);
-    if (aberta.campo < fechada.campo) {
-      const k = aberta.campo / fechada.campo;
-      assert.ok((!fechada.campoOpp || Math.abs(aberta.campoOpp / fechada.campoOpp - k) < 0.03) && Math.abs(aberta.terreno / fechada.terreno - k) < 0.03, `${nome}: os dois lados e os terrenos na mesma escala ${JSON.stringify({ fechada, aberta })}`);
-      assert.ok(k >= 0.59, `${nome}: a carta não encolhe abaixo de 60% (${k.toFixed(2)})`);
-    }
-    await auditaTela(page, `J-32 · mão aberta ${nome}`);
+    // nada encolhe nem aperta: as cartas dos dois lados e os terrenos com a mesma largura de antes, sem o encaixe da J-32
+    assert.deepEqual([aberta.campo, aberta.campoOpp, aberta.terreno, aberta.justa, aberta.encaixe], [fechada.campo, fechada.campoOpp, fechada.terreno, '', ''], `${nome}: com a mão aberta a mesa fica do tamanho de sempre ${JSON.stringify({ fechada, aberta })}`);
+    // a página reserva a bandeja aberta inteira: rolando até o fim, a última carta do campo fica acima da bandeja
+    assert.ok(Math.abs(aberta.reserva - aberta.docaH) <= 2, `${nome}: a reserva embaixo é a bandeja aberta (${aberta.reserva} × ${aberta.docaH})`);
+    await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight)); await page.waitForTimeout(100); const noFim = await mede();
+    assert.ok(noFim.fimDoCampo - noFim.scrollY <= noFim.topo + 1, `${nome}: rolando até o fim, a última carta fica acima da bandeja ${JSON.stringify({ fim: noFim.fimDoCampo - noFim.scrollY, topo: noFim.topo })}`);
+    // ao abrir, a página desceu até o seu campo (quando ele não cabia acima da bandeja): o fim do seu lado fica logo acima dela
+    if (fechada.meuFim + 8 > hgt - aberta.docaH) assert.ok(aberta.scrollY > 0 && aberta.meuFim <= aberta.topo + 1, `${nome}: ao abrir a mão a página desce até o seu campo ${JSON.stringify({ scrollY: aberta.scrollY, meuFim: aberta.meuFim, topo: aberta.topo })}`);
+    await page.evaluate(() => scrollTo(0, 0)); await page.waitForTimeout(100); const noTopo = await mede();
+    assert.ok(noTopo.vidas.length === 2 && noTopo.vidas.every(v => v.h >= 44 && v.fim <= noTopo.topo), `${nome}: as duas vidas à vista, com 44 px ${JSON.stringify(noTopo.vidas)}`);
+    await auditaTela(page, `J-45 · mão aberta ${nome}`);
     await alterna(false); const de_novo = await mede();
     assert.deepEqual([de_novo.campo, de_novo.terreno], [fechada.campo, fechada.terreno], `${nome}: recolhida, tudo no tamanho de sempre`);
+    assert.ok(de_novo.reserva < aberta.reserva, `${nome}: recolhida, a reserva volta a ser só o puxador e a linha de ações (${de_novo.reserva} < ${aberta.reserva})`);
   }
-  // na medida do aparelho do relato, a mesa cheia precisa encolher
+  // na medida do aparelho do relato #38 a mesa cheia não cabe acima da mão: antes encolhia; agora fica grande e a página rola
   await page.setViewportSize({ width: 360, height: 697 }); await alterna(false); const f = await mede(); await alterna(true); const a = await mede();
-  assert.ok(a.campo < f.campo, `360×697: a mesa cheia encolhe para caber (${f.campo} → ${a.campo})`);
-  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/j32-mao-aberta.png' });
+  assert.equal(a.campo, f.campo, `360×697: a mesa cheia não encolhe (${f.campo} → ${a.campo})`);
+  assert.ok(a.rola > 0, '360×697: a página rola com a mão aberta');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/j45-mao-aberta.png' });
   assert.deepEqual(errors, []);
 });
 
