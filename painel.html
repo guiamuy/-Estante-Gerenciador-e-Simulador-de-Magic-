@@ -805,6 +805,42 @@ button.pn-barras__linha[aria-pressed="true"] { background: var(--accent-soft); }
 .pn-proximos__ver { background: none; border: 0; padding: 0; color: var(--accent); font: inherit; font-size: var(--text-xs); text-decoration: underline; cursor: pointer; min-height: var(--tap-min); }
 :root[data-theme="light"] .pn-proximos__ver { color: var(--accent-lo); }
 
+/* R-41 · Grafico: SVG inline; grade recessiva, texto em token de texto, colunas com 2 px de fundo e ponta arredondada, linha de 2 px,
+   faixa do alvo em tom recessivo, anel com trilho; tooltip acima do desenho; "Ver como tabela" de 44 px; movimento só sem prefers-reduced-motion */
+.pn-grafico { position: relative; display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-3); background: var(--bg-elev-1); }
+.pn-grafico__titulo { margin: 0; }
+.pn-grafico__corpo { position: relative; }
+.pn-grafico__svg { display: block; width: 100%; height: auto; overflow: visible; }
+.pn-grafico__grade line { stroke: var(--border); stroke-width: 1; }
+.pn-grafico__grade text, .pn-grafico__rotx, .pn-grafico__faixa-rotulo { fill: var(--fg-subtle); font-size: 9px; font-family: inherit; }
+.pn-grafico__linha { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.pn-grafico__area { fill: var(--accent-soft); stroke: none; }
+.pn-grafico__faixa { fill: var(--positive); opacity: 0.08; }
+.pn-grafico__marca { stroke: var(--bg-elev-1); stroke-width: 2; }
+.pn-grafico__rotulo-direto { fill: var(--fg); font-size: 10px; font-weight: 600; font-family: inherit; }
+.pn-grafico__trilho-anel { fill: none; stroke: var(--bg-elev-2); stroke-width: 14; }
+.pn-grafico__fatia { fill: none; stroke-width: 14; }
+.pn-grafico__centro { fill: var(--fg); font-size: 18px; font-weight: 600; font-family: var(--font-display, inherit); }
+.pn-grafico__alvo { cursor: pointer; outline: none; }
+.pn-grafico__alvo:focus-visible { stroke: var(--accent); stroke-width: 2; }
+.pn-grafico__dica { position: absolute; top: var(--space-1); left: 0; width: 180px; padding: var(--space-1) var(--space-2); background: var(--bg-elev-3); color: var(--fg); border: 1px solid var(--border-strong); border-radius: var(--radius-2); box-shadow: var(--shadow-2); pointer-events: none; z-index: var(--z-overlay); overflow-wrap: anywhere; }
+.pn-grafico__legenda { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); }
+.pn-grafico__legenda li { display: inline-flex; align-items: center; gap: var(--space-1); }
+.pn-grafico__chave { width: 10px; height: 10px; border-radius: var(--radius-1); display: inline-block; }
+.pn-grafico__tabela { width: 100%; border-collapse: collapse; }
+.pn-grafico__tabela th, .pn-grafico__tabela td { padding: var(--space-1) var(--space-2); border-bottom: 1px solid var(--border); text-align: left; color: var(--fg); }
+.pn-grafico__tabela td { text-align: right; font-variant-numeric: tabular-nums; }
+.pn-grafico__tabela thead th { color: var(--fg-muted); font-weight: 600; }
+.pn-grafico__troca { align-self: flex-start; }
+.pn-grafico__nota { margin: 0; overflow-wrap: anywhere; }
+.pn-grafico__vazio { margin: 0; }
+@media (prefers-reduced-motion: no-preference) {
+  .pn-grafico__coluna { transform-box: fill-box; transform-origin: 50% 100%; animation: pn-cresce 280ms var(--ease-out) both; }
+  .pn-grafico__linha { stroke-dasharray: 1; stroke-dashoffset: 1; animation: pn-traca 300ms var(--ease-out) forwards; }
+}
+@keyframes pn-cresce { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes pn-traca { to { stroke-dashoffset: 0; } }
+
 </style>
 </head>
 <body>
@@ -1216,6 +1252,52 @@ const __p2 = (function () {
   /** Próximos passos do plano: as linhas 🟡 (parciais) da ordem por dependência do ROADMAP, na ordem em que estão, até `maximo`. */
   function proximosPassos(resumoRoadmap, { maximo = 3 } = {}) {
     return ((resumoRoadmap && resumoRoadmap.ordem) || []).filter(l => l.situacao === 'parcial').slice(0, maximo).map(l => ({ id: l.id, epico: l.epico, texto: l.texto }));
+  }
+  /* ---------- R-41 · BI4-2 · geometria dos gráficos (pura): o desenho em SVG no __p3 só traduz estes números ---------- */
+  /** Teto "redondo" e as marcas do eixo (1, 2, 2,5 ou 5 × 10^n), sempre com o zero; max ≤ 0 vira 1. */
+  function escalaRedonda(max, marcas = 4) {
+    const m = Number(max) > 0 ? Number(max) : 1;
+    const bruto = m / marcas, pot = Math.pow(10, Math.floor(Math.log10(bruto))), n = bruto / pot;
+    const passo = (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * pot;
+    const teto = Math.ceil(m / passo - 1e-9) * passo;
+    const ticks = []; for (let v = 0; v <= teto + passo / 2; v += passo) ticks.push(Math.round(v * 1e6) / 1e6);
+    return { teto, passo, ticks };
+  }
+  /** Colunas (simples ou empilhadas): uma coluna por rótulo, segmentos por série, 2 px de fundo entre segmentos e colunas. */
+  function geometriaColunas(rotulos, series, { largura = 320, altura = 140, esquerda = 28, base = 18, topo = 8, vao = 2 } = {}) {
+    const n = (rotulos || []).length;
+    const totais = (rotulos || []).map((_, i) => (series || []).reduce((t, s) => t + (Number(s.valores[i]) || 0), 0));
+    const esc = escalaRedonda(Math.max(0, ...totais));
+    const util = largura - esquerda, alt = altura - base - topo, passo = n ? util / n : util, larg = Math.max(2, Math.min(28, passo - vao * 2));
+    const y = v => topo + alt - (alt * v / esc.teto);
+    const colunas = (rotulos || []).map((r, i) => {
+      let acum = 0; const x = esquerda + i * passo + (passo - larg) / 2;
+      const segmentos = (series || []).map((s, k) => {
+        const v = Number(s.valores[i]) || 0; const y1 = y(acum), y0 = y(acum + v); acum += v;
+        return { serie: k, valor: v, x, y: y0, largura: larg, altura: Math.max(0, y1 - y0 - (v && k < series.length - 1 ? vao : 0)) };
+      }).filter(sg => sg.valor > 0);
+      return { rotulo: r, total: totais[i], x, largura: larg, centro: x + larg / 2, alvoX: esquerda + i * passo, alvoLargura: passo, segmentos };
+    });
+    return { escala: esc, colunas, y, alturaUtil: alt, topo, base, esquerda, largura, altura };
+  }
+  /** Linha: um ponto por rótulo; valor ausente (null) quebra a linha em trechos. */
+  function geometriaLinha(rotulos, valores, { largura = 320, altura = 140, esquerda = 28, base = 18, topo = 8, teto = null } = {}) {
+    const n = (rotulos || []).length, vals = (valores || []).map(v => v == null || Number.isNaN(Number(v)) ? null : Number(v));
+    const esc = escalaRedonda(teto != null ? teto : Math.max(0, ...vals.filter(v => v != null)));
+    const util = largura - esquerda - 6, alt = altura - base - topo;
+    const x = i => esquerda + 3 + (n <= 1 ? util / 2 : util * i / (n - 1)), y = v => topo + alt - (alt * v / esc.teto);
+    const pontos = vals.map((v, i) => v == null ? null : { i, x: x(i), y: y(v), valor: v, rotulo: rotulos[i] });
+    const trechos = []; let atual = [];
+    for (const p of pontos) { if (p) atual.push(p); else if (atual.length) { trechos.push(atual); atual = []; } }
+    if (atual.length) trechos.push(atual);
+    return { escala: esc, pontos, trechos, y, x, topo, base, esquerda, largura, altura };
+  }
+  /** Anel: fatias em ordem, como fração do total (traço do círculo); total 0 → sem fatias. */
+  function geometriaAnel(valores, { raio = 42 } = {}) {
+    const vals = (valores || []).map(v => Math.max(0, Number(v) || 0)), total = vals.reduce((a, b) => a + b, 0);
+    const circ = 2 * Math.PI * raio; let acum = 0;
+    const fatias = total ? vals.map((v, i) => { const f = { i, valor: v, fracao: v / total, comprimento: circ * v / total, deslocamento: -circ * acum / total }; acum += v; return f; }).filter(f => f.valor > 0) : [];
+    return { total, circunferencia: circ, raio, fatias };
   }
   /** R-38 · placar da Visão geral: para cada aba, quantos cartões em cada farol e os nomes dos que estão fora do alvo e em atenção;
       da pior aba para a melhor (mais vermelhos, depois mais amarelos, depois a ordem das abas). Aba que não carregou vai para o fim, marcada. */
@@ -1999,7 +2081,7 @@ const __p2 = (function () {
     coleta: 'raw · catalogo/coleta.json (saúde e contagens da última coleta; gravado pelo fluxo Catálogo)',
     indice: 'raw · catalogo/indice.json (só o cabeçalho: fontes, formatos, total, pendentes; lido uma vez por coleta e guardado por carimbo)'
   };
-  return { centavosDe, reaisDe, mesDe, rotuloDoMes, linhasDoNegocio, resumoDoNegocio, SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, linhasDosCommits, levasPorRodada, compactaCommits, MAIN_URL, intervalos, diasDoPeriodo, porSemana, parseRoadmap, resumoDoMapa, linhasDosPlacares, sharkPorVersao, minutosDasRodadas, serieDeTamanho, kb, cabecalhoDoIndice, resumoDoCatalogo, experienciaDasLevas, linhasDasRodadasCI, experienciaDasRodadas, instaveisPorNome, linhasDasPessoas, resumoDasPessoas, linhasDoUso, resumoDoUso, linhasDaForca, resumoDaForca, GLOSSARIO, GRUPOS_GLOSSARIO, buscaGlossario, nomeBate, verbeteDe, MARCAVEIS, segmentosComTermos, COMO_LER, FAROL_EM_PALAVRAS, alvoEmPalavras, placarDasAbas, INSIGHTS, insightsDe, proximosPassos, glossarioPorGrupo, semAcento, medidaDoScanner, linhasDosRelatos, linhasDasTrilhas, resumoDoFluxo, fraseDoCron, linhasDosFluxos, linhasDasRotinas, porModelo, SECOES_CR, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
+  return { centavosDe, reaisDe, mesDe, rotuloDoMes, linhasDoNegocio, resumoDoNegocio, SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, linhasDosCommits, levasPorRodada, compactaCommits, MAIN_URL, intervalos, diasDoPeriodo, porSemana, parseRoadmap, resumoDoMapa, linhasDosPlacares, sharkPorVersao, minutosDasRodadas, serieDeTamanho, kb, cabecalhoDoIndice, resumoDoCatalogo, experienciaDasLevas, linhasDasRodadasCI, experienciaDasRodadas, instaveisPorNome, linhasDasPessoas, resumoDasPessoas, linhasDoUso, resumoDoUso, linhasDaForca, resumoDaForca, GLOSSARIO, GRUPOS_GLOSSARIO, buscaGlossario, nomeBate, verbeteDe, MARCAVEIS, segmentosComTermos, COMO_LER, FAROL_EM_PALAVRAS, alvoEmPalavras, placarDasAbas, INSIGHTS, insightsDe, proximosPassos, escalaRedonda, geometriaColunas, geometriaLinha, geometriaAnel, glossarioPorGrupo, semAcento, medidaDoScanner, linhasDosRelatos, linhasDasTrilhas, resumoDoFluxo, fraseDoCron, linhasDosFluxos, linhasDasRotinas, porModelo, SECOES_CR, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
 })();
 
 /* ==== src/painel/ui.js ==== */
@@ -2083,6 +2165,82 @@ const __p3 = (function () {
             h('span', { class: 'pn-barras__trilho' }, h('span', { class: 'pn-barras__barra', style: { '--pn-largura': `${Math.round(100 * (i.valor || 0) / max)}%` }, dataset: { tom: i.tom || 'accent' } })),
             h('span', { class: 'pn-barras__valor ds-text ds-text--sm ds-text--muted' }, formato(i.valor)))))));
   }
+  /* ---------- R-41 · BI4-2 · Grafico: SVG inline desenhado pelo próprio painel. Cores por função (série = latão e cinza do DS na ordem fixa;
+     estado = os faróis), texto sempre em token de texto, legenda com duas séries ou mais, "Ver como tabela" troca o desenho pela tabela
+     com os mesmos números, tooltip por toque, mouse e foco. Movimento: as colunas e a linha crescem em ≤ 300 ms; nada com movimento reduzido. ---------- */
+  const NS = 'http://www.w3.org/2000/svg';
+  function sv(tag, attrs = {}, ...filhos) {
+    const el = document.createElementNS(NS, tag);
+    for (const [k, v] of Object.entries(attrs)) if (v != null && v !== false) el.setAttribute(k, String(v));
+    for (const f of filhos.flat(9)) if (f != null && f !== false) el.appendChild(typeof f === 'string' || typeof f === 'number' ? document.createTextNode(String(f)) : f);
+    return el;
+  }
+  const COR_SERIE = ['var(--accent)', 'var(--fg-subtle)', 'var(--accent-hover)'];
+  const COR_FAROL = { verde: 'var(--positive)', amarelo: 'var(--warning)', vermelho: 'var(--negative)', cinza: 'var(--fg-subtle)' };
+  function Grafico({ id, titulo, tipo = 'colunas', rotulos = [], series = [], formato = v => String(v), alvo = null, vazio = 'sem dados neste recorte', centro = null, nota = null }) {
+    const M2 = __p2;
+    const sec = h('section', { class: 'pn-grafico', id, 'aria-label': titulo, dataset: { tipo } }, h('h3', { class: 'ds-text ds-text--md pn-grafico__titulo' }, titulo));
+    const temDado = tipo === 'anel' ? series.some(s => Number(s.valor) > 0) : rotulos.length && series.some(s => (s.valores || []).some(v => v != null && Number(v) !== 0));
+    if (!temDado) { sec.appendChild(h('p', { class: 'ds-text ds-text--sm ds-text--muted pn-grafico__vazio' }, vazio)); return sec; }
+    const W = 320, H = 150;
+    const svg = sv('svg', { viewBox: `0 0 ${W} ${tipo === 'anel' ? 110 : H}`, class: 'pn-grafico__svg', role: 'img', 'aria-label': `${titulo}. Use "Ver como tabela" para ler os números.`, focusable: 'false' });
+    const dica = h('div', { class: 'pn-grafico__dica ds-text ds-text--xs', role: 'status', 'aria-live': 'polite', hidden: true, dataset: { sobrepoe: 'true' } });   // camada por cima do desenho, por intenção (como o balão)
+    const mostra = (texto, ev) => {
+      dica.textContent = texto; dica.hidden = false;
+      const r = sec.getBoundingClientRect(), x = (ev && ev.clientX != null ? ev.clientX : r.left + r.width / 2) - r.left;
+      dica.style.left = Math.max(8, Math.min(r.width - 8 - 180, x - 90)) + 'px';
+    };
+    const esconde = () => { dica.hidden = true; };
+    const alvoInterativo = (el, texto) => { el.setAttribute('tabindex', '0'); el.setAttribute('class', (el.getAttribute('class') || '') + ' pn-grafico__alvo'); el.setAttribute('aria-label', texto);
+      el.addEventListener('pointerenter', e => { if (e.pointerType === 'mouse') mostra(texto, e); }); el.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') esconde(); });
+      el.addEventListener('click', e => { e.stopPropagation(); mostra(texto, e); }); el.addEventListener('focus', () => mostra(texto)); el.addEventListener('blur', esconde); };
+    const eixo = (esc, y, esquerda) => esc.ticks.map(t => sv('g', { class: 'pn-grafico__grade' }, sv('line', { x1: esquerda, x2: W, y1: y(t), y2: y(t) }), sv('text', { x: esquerda - 4, y: y(t) + 3, 'text-anchor': 'end' }, formato(t))));
+    const rotulosX = (pts, yBase) => { const idx = pts.length <= 3 ? pts.map((_, i) => i) : [0, Math.floor((pts.length - 1) / 2), pts.length - 1]; return idx.map(i => sv('text', { class: 'pn-grafico__rotx', x: pts[i].cx, y: yBase, 'text-anchor': i === 0 && pts.length > 3 ? 'start' : i === pts.length - 1 && pts.length > 3 ? 'end' : 'middle' }, pts[i].rotulo)); };
+    if (tipo === 'colunas') {
+      const g = M2.geometriaColunas(rotulos, series, { largura: W, altura: H });
+      svg.append(...eixo(g.escala, g.y, g.esquerda));
+      for (const c of g.colunas) {
+        const col = sv('g', { class: 'pn-grafico__coluna' }, ...c.segmentos.map(sg => sv('rect', { x: sg.x, y: sg.y, width: sg.largura, height: sg.altura, rx: sg.serie === c.segmentos[c.segmentos.length - 1].serie ? 2 : 0, fill: series[sg.serie].cor || COR_SERIE[sg.serie % COR_SERIE.length] })));
+        const hit = sv('rect', { x: c.alvoX, y: g.topo, width: c.alvoLargura, height: g.alturaUtil, fill: 'transparent' });
+        alvoInterativo(hit, `${c.rotulo}: ${series.map((s, k) => `${series.length > 1 ? s.nome + ' ' : ''}${formato(Number(s.valores[rotulos.indexOf(c.rotulo)]) || 0)}`).join(' · ')}`);
+        svg.append(col, hit);
+      }
+      svg.append(...rotulosX(g.colunas.map(c => ({ cx: c.centro, rotulo: c.rotulo })), H - 4));
+    } else if (tipo === 'linha') {
+      const s0 = series[0];
+      const g = M2.geometriaLinha(rotulos, s0.valores, { largura: W, altura: H, teto: alvo && alvo.vermelho != null ? Math.max(alvo.vermelho, ...s0.valores.filter(v => v != null)) : null });
+      svg.append(...eixo(g.escala, g.y, g.esquerda));
+      if (alvo && alvo.verde != null) svg.append(sv('rect', { class: 'pn-grafico__faixa', x: g.esquerda, y: g.y(Math.min(alvo.verde, g.escala.teto)), width: W - g.esquerda, height: g.y(0) - g.y(Math.min(alvo.verde, g.escala.teto)) }), sv('text', { class: 'pn-grafico__faixa-rotulo', x: W - 2, y: g.y(Math.min(alvo.verde, g.escala.teto)) - 3, 'text-anchor': 'end' }, alvo.rotulo || 'no alvo'));
+      for (const t of g.trechos) {
+        const d = t.map((p, i) => `${i ? 'L' : 'M'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+        svg.append(sv('path', { class: 'pn-grafico__area', d: `${d} L${t[t.length - 1].x.toFixed(1)},${g.y(0)} L${t[0].x.toFixed(1)},${g.y(0)} Z` }), sv('path', { class: 'pn-grafico__linha', d, stroke: s0.cor || COR_SERIE[0], pathLength: 1 }));
+      }
+      const pts = g.pontos.filter(Boolean), ult = pts[pts.length - 1];
+      for (const p of pts) { const hit = sv('circle', { cx: p.x, cy: p.y, r: 9, fill: 'transparent' }); alvoInterativo(hit, `${p.rotulo}: ${formato(p.valor)}`); svg.append(hit); }
+      if (ult) svg.append(sv('circle', { class: 'pn-grafico__marca', cx: ult.x, cy: ult.y, r: 4, fill: s0.cor || COR_SERIE[0] }), sv('text', { class: 'pn-grafico__rotulo-direto', x: Math.min(W - 2, ult.x), y: Math.max(10, ult.y - 8), 'text-anchor': 'end' }, formato(ult.valor)));
+      svg.append(...rotulosX(g.pontos.map((p, i) => ({ cx: p ? p.x : g.x(i), rotulo: rotulos[i] })), H - 4));
+    } else if (tipo === 'anel') {
+      const g = M2.geometriaAnel(series.map(s => s.valor), { raio: 42 });
+      const cx = 160, cy = 55;
+      svg.append(sv('circle', { class: 'pn-grafico__trilho-anel', cx, cy, r: g.raio }));
+      for (const f of g.fatias) {
+        const sl = sv('circle', { class: 'pn-grafico__fatia', cx, cy, r: g.raio, stroke: series[f.i].cor || COR_SERIE[f.i % COR_SERIE.length], 'stroke-dasharray': `${Math.max(0, f.comprimento - 2).toFixed(2)} ${(g.circunferencia).toFixed(2)}`, 'stroke-dashoffset': f.deslocamento.toFixed(2), transform: `rotate(-90 ${cx} ${cy})` });
+        alvoInterativo(sl, `${series[f.i].nome}: ${formato(f.valor)} (${Math.round(100 * f.fracao)} %)`); svg.append(sl);
+      }
+      if (centro) svg.append(sv('text', { class: 'pn-grafico__centro', x: cx, y: cy + 6, 'text-anchor': 'middle' }, centro));
+    }
+    sec.addEventListener('click', esconde);
+    const corpo = h('div', { class: 'pn-grafico__corpo' }, svg, dica);
+    const legenda = (series.length > 1 || tipo === 'anel') ? h('ul', { class: 'pn-grafico__legenda', 'aria-label': 'legenda' }, ...series.map((s, k) => h('li', { class: 'ds-text ds-text--xs ds-text--muted' }, h('span', { class: 'pn-grafico__chave', style: { background: s.cor || COR_SERIE[k % COR_SERIE.length] } }), tipo === 'anel' ? `${s.nome} · ${formato(Number(s.valor) || 0)}` : s.nome))) : null;
+    const tabela = h('table', { class: 'pn-grafico__tabela ds-text ds-text--sm', hidden: true },
+      h('thead', {}, h('tr', {}, h('th', { scope: 'col' }, tipo === 'anel' ? 'Parte' : 'Quando'), ...(tipo === 'anel' ? [h('th', { scope: 'col' }, 'Valor')] : series.map(s => h('th', { scope: 'col' }, s.nome))))),
+      h('tbody', {}, ...(tipo === 'anel' ? series.map(s => h('tr', {}, h('th', { scope: 'row' }, s.nome), h('td', {}, formato(Number(s.valor) || 0))))
+        : rotulos.map((r, i) => h('tr', {}, h('th', { scope: 'row' }, r), ...series.map(s => h('td', {}, s.valores[i] == null ? '—' : formato(Number(s.valores[i])))))))));
+    const troca = Button('Ver como tabela', { variant: 'ghost', classe: 'pn-grafico__troca', onClick: e => { e.stopPropagation(); const mostrarTabela = tabela.hidden; tabela.hidden = !mostrarTabela; corpo.hidden = mostrarTabela; if (legenda) legenda.hidden = mostrarTabela; esconde(); troca.textContent = mostrarTabela ? 'Ver gráfico' : 'Ver como tabela'; troca.setAttribute('aria-pressed', String(mostrarTabela)); } });
+    troca.setAttribute('aria-pressed', 'false');
+    sec.append(corpo, legenda || '', tabela, nota ? h('p', { class: 'ds-text ds-text--xs ds-text--subtle pn-grafico__nota' }, nota) : '', troca);
+    return sec;
+  }
   /** Lista simples de linhas (fila agora, recusas): texto principal, selo e detalhe, cada uma com 44 px. */
   const Linha = ({ id, principal, selo = null, seloTom = null, detalhe = null, dataset }) => h('li', { class: 'pn-linha', id, dataset },
     h('div', { class: 'pn-linha__texto' }, h('span', { class: 'ds-text ds-text--md' }, principal), detalhe ? h('span', { class: 'ds-text ds-text--sm ds-text--muted pn-linha__detalhe' }, detalhe) : null),
@@ -2092,7 +2250,7 @@ const __p3 = (function () {
   const Field = (rotulo, controle, { id, dica } = {}) => h('label', { class: 'ds-field', for: id }, h('span', { class: 'ds-field__label' }, rotulo), controle, dica ? h('span', { class: 'ds-field__hint' }, dica) : null);
   const Input = ({ id, type = 'text', value = '', placeholder, inputmode, min, max, step, onInput, ariaLabel }) => h('input', { class: 'ds-input', id, type, value: String(value ?? ''), placeholder, inputmode, min, max, step, onInput, 'aria-label': ariaLabel || null });
   const Select = ({ id, value, opcoes, onChange }) => h('select', { class: 'ds-select', id, onChange }, ...opcoes.map(o => h('option', { value: o.valor, selected: o.valor === value ? true : null }, o.rotulo)));
-  return { ICONES, Icone, Button, IconButton, LinkBotao, Text, Empty, Note, AvisoRede, Spinner, Tabs, Farol, Chip, Cartao, Barras, Linha, Field, Input, Select };
+  return { ICONES, Icone, Button, IconButton, LinkBotao, Text, Empty, Note, AvisoRede, Spinner, Tabs, Farol, Chip, Cartao, Barras, Grafico, COR_FAROL, Linha, Field, Input, Select };
 })();
 
 /* ==== src/painel/app.js ==== */
@@ -2103,6 +2261,7 @@ const __p3 = (function () {
 const __p4 = (function () {
   const { h, clear, createGuarda, createFonte, createPlano, createNegocio } = __p0;
   const M = __p2;
+  const { Grafico, COR_FAROL } = __p3;
   const { SUBABAS, LIMIARES, FONTES, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, minutos } = M;
   const { Icone, Button, IconButton, LinkBotao, Text, Empty, Note, AvisoRede, Spinner, Tabs, Farol, Chip, Cartao, Barras, Linha, Field, Input, Select } = __p3;
   const W = typeof window !== 'undefined' ? window : {};
@@ -2798,7 +2957,9 @@ const __p4 = (function () {
             Cartao({ id: 'pn-k-tempo-leva', rotulo: 'Tempo de leva', valor: minutos(M.mediana(comFim)), unidade: comFim.length ? `mediana de ${comFim.length}` : '', farol: null, fonte: FONTES.levas, formula: 'fim − início · ' + recorteTxt, em: d.em, semDados: !comFim.length }),
             Cartao({ id: 'pn-k-lead', rotulo: 'Do fim da leva ao main', valor: minutos(M.mediana(leads)), unidade: leads.length ? `mediana de ${leads.length}` : '', farol: leads.length ? farol(M.mediana(leads), LIMIARES.leadTime) : 'cinza', limiar: LIMIARES.leadTime, fonte: FONTES.levas + ' + commits', formula: 'data do commit no main − fim · ' + recorteTxt, em: d.em, semDados: !leads.length })),
           h('div', { class: 'pn-graficos' },
-            Barras({ id: 'pn-g-levas', titulo: `Levas publicadas por ${semanal ? 'semana' : 'dia'} · ${recorteTxt}`, itens: serie, vazio: 'sem levas neste recorte' }),
+            Grafico({ id: 'pn-g-levas', tipo: 'colunas', titulo: `Levas publicadas por ${semanal ? 'semana' : 'dia'} · ${recorteTxt}`, rotulos: serie.map(i => i.rotulo), series: [{ nome: 'levas', valores: serie.map(i => i.valor) }], vazio: 'sem levas neste recorte', nota: 'Quantas levas chegaram ao main em cada ' + (semanal ? 'semana' : 'dia') + '. Ritmo estável é bom; queda brusca pede olhar a fila.' }),
+            Grafico({ id: 'pn-g-verde1', tipo: 'anel', titulo: `Rodadas da fila · verdes e vermelhas · ${recorteTxt}`, series: [{ nome: 'verdes', valor: verdes, cor: COR_FAROL.verde }, { nome: 'vermelhas', valor: total - verdes, cor: COR_FAROL.vermelho }], centro: pct == null ? '—' : `${pct} %`, vazio: 'nenhuma rodada da fila neste recorte', nota: 'Verde: tudo passou e as levas foram publicadas. Vermelha: algum teste caiu e nada daquela rodada foi publicado.' }),
+            Grafico({ id: 'pn-g-duracao', tipo: 'linha', titulo: `Duração das rodadas da fila (min) · ${recorteTxt}`, rotulos: rRod.linhas.slice().reverse().filter(r => r.duracao != null).map(r => new Date(r.data).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })), series: [{ nome: 'minutos', valores: rRod.linhas.slice().reverse().filter(r => r.duracao != null).map(r => Math.round(r.duracao / 60000)) }], alvo: { verde: Math.round(LIMIARES.rodada.verde / 60000), vermelho: Math.round(LIMIARES.rodada.amarelo / 60000), rotulo: 'no alvo' }, formato: v => `${v}`, vazio: 'nenhuma rodada concluída neste recorte', nota: 'Cada ponto é uma rodada da fila, da mais antiga para a mais nova. A faixa clara é o alvo (até 25 min).' }),
             Barras({ id: 'pn-g-trilhas', titulo: 'Levas por trilha', itens: porTrilha, onBarra: v => api.filtra('trilha', v), ativo: filtros.trilha || null, vazio: 'sem levas neste recorte' }),
             Barras({ id: 'pn-g-retrabalho', titulo: 'Retrabalho por causa (telemetria)', itens: retrabalho, onBarra: v => api.filtra('portao', v), ativo: filtros.portao || null, vazio: d.levas.length ? 'nenhuma recusa registrada neste recorte' : 'pendente de telemetria' }),
             Barras({ id: 'pn-g-tamanho', titulo: 'Tempo mediano por tamanho de leva (min)', itens: porTamanho, formato: v => `${v} min`, vazio: d.levas.length ? 'nenhuma leva com tamanho neste recorte' : 'pendente de telemetria' })),

@@ -1163,3 +1163,32 @@ test('R-40 · motor de insights: toda regra aponta para um cartão que existe nu
   assert.deepEqual(prox.map(p => p.id), ['16º-b', '16º-c', '16º-d']);
   assert.deepEqual(M.proximosPassos(null), []);
 });
+
+test('R-41 · geometria dos gráficos: escala com degraus redondos e o zero; colunas empilhadas somam e cabem no eixo, com 2 px entre segmentos; linha quebra no valor ausente; anel em frações que somam a volta inteira; total zero sem fatias', () => {
+  const { modelo: M } = loadPainel();
+  assert.deepEqual(M.escalaRedonda(7), { teto: 8, passo: 2, ticks: [0, 2, 4, 6, 8] });
+  assert.deepEqual(M.escalaRedonda(0).ticks, [0, 0.25, 0.5, 0.75, 1]);
+  assert.equal(M.escalaRedonda(37).teto, 40); assert.equal(M.escalaRedonda(1234).teto, 1500);
+  const g = M.geometriaColunas(['a', 'b', 'c'], [{ valores: [2, 0, 5] }, { valores: [1, 0, 1] }]);
+  assert.deepEqual(g.colunas.map(c => c.total), [3, 0, 6]);
+  assert.equal(g.escala.teto, 6, "total 6 → teto 6 com passo 2");
+  assert.equal(g.colunas[1].segmentos.length, 0, 'valor zero não desenha segmento');
+  const [baixo, cima] = g.colunas[0].segmentos;
+  assert.ok(Math.abs((baixo.y) - (cima.y + cima.altura) - 0) < 0.01 || baixo.y >= cima.y + cima.altura, 'segmento de cima acima do de baixo');
+  assert.ok(g.colunas.every(c => c.segmentos.every(s => s.y >= g.topo - 0.01 && s.y + s.altura <= g.altura - g.base + 0.01)), 'tudo dentro do eixo');
+  assert.ok(g.colunas.every(c => c.largura >= 2 && c.largura <= 28));
+  const l = M.geometriaLinha(['1', '2', '3', '4'], [10, null, 30, 20]);
+  assert.equal(l.trechos.length, 2, 'valor ausente quebra a linha');
+  assert.equal(l.pontos[1], null); assert.ok(l.pontos[2].y < l.pontos[0].y, 'maior valor mais alto');
+  assert.equal(M.geometriaLinha(['x'], [5]).pontos[0].x > 0, true);
+  const a = M.geometriaAnel([3, 1]);
+  assert.equal(a.total, 4); assert.deepEqual(a.fatias.map(f => f.fracao), [0.75, 0.25]);
+  assert.ok(Math.abs(a.fatias.reduce((t, f) => t + f.comprimento, 0) - a.circunferencia) < 1e-9);
+  assert.equal(a.fatias[1].deslocamento.toFixed(4), (-a.circunferencia * 0.75).toFixed(4));
+  assert.deepEqual(M.geometriaAnel([0, 0]).fatias, []);
+  // contrato: toda animação de gráfico mora dentro de prefers-reduced-motion: no-preference
+  const css = PAINEL.slice(PAINEL.indexOf('R-41 · Grafico'));
+  const bloco = css.slice(css.indexOf('@media (prefers-reduced-motion: no-preference)'), css.indexOf('@keyframes pn-cresce'));
+  assert.match(bloco, /pn-cresce 280ms/); assert.match(bloco, /pn-traca 300ms/);
+  assert.doesNotMatch(css.slice(0, css.indexOf('@media (prefers-reduced-motion: no-preference)')), /animation:/, 'nenhuma animação fora do bloco de movimento');
+});

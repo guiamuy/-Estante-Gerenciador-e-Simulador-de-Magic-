@@ -14476,6 +14476,79 @@ test('e2e · R-36 Painel · termos marcados: os termos técnicos da sub-aba e da
   assert.deepEqual(errors, []);
 });
 
+/* ---------- R-41 · BI4-2 · biblioteca de gráficos: piloto na Eficiência ---------- */
+test('e2e · R-41 Painel · gráficos na Eficiência: levas por dia em colunas SVG, rodadas verdes e vermelhas em anel com a porcentagem no centro e legenda com os números, duração das rodadas em linha com a faixa do alvo; "Ver como tabela" troca o desenho pela tabela com os mesmos números e volta; tocar numa coluna mostra o número e tocar fora esconde; com movimento reduzido nada anima; sem sobreposição nos dois temas', { timeout: 150000 }, async t => {
+  const { page, errors, base } = await open(t);
+  const painel = base.replace('index.html', 'painel.html');
+  await page.setViewportSize({ width: 360, height: 780 });
+  const agora = Date.now();
+  const iso = ms => new Date(ms).toISOString();
+  const h = n => iso(agora - n * 3600000);
+  const json = (r, corpo) => r.fulfill({ json: corpo, headers: { 'content-type': 'application/json', 'x-ratelimit-remaining': '50', 'x-ratelimit-limit': '60', 'access-control-expose-headers': 'etag, x-ratelimit-remaining, x-ratelimit-limit' } });
+  const commit = (leva, em) => ({ sha: leva.replace('-', '') + '0000000', commit: { message: `Leva ${leva} · assunto`, committer: { date: iso(em) }, author: { date: iso(em - 3600000) } } });
+  const levasDoDia = { 0: [commit('M-390', agora - 2 * 3600000), commit('R-2', agora - 3 * 3600000), commit('G-266', agora - 5 * 3600000)], 1: [commit('M-388', agora - 30 * 3600000)], 2: [commit('T-61', agora - 50 * 3600000), commit('M-384', agora - 52 * 3600000)] };
+  let pedidosCommits = 0;
+  await page.route('https://api.github.com/**', r => {
+    const u = r.request().url();
+    if (/\/commits\?sha=main&per_page=1/.test(u)) return json(r, [commit('M-390', agora - 2 * 3600000)]);
+    if (/\/commits\?sha=main&since=/.test(u)) { pedidosCommits++; const since = Date.parse(decodeURIComponent((u.match(/since=([^&]+)/) || [])[1])); const diasAtras = Math.round((new Date(agora).setHours(0, 0, 0, 0) - since) / 86400000); return json(r, levasDoDia[diasAtras] || []); }
+    if (/fila\.yml\/runs/.test(u)) return json(r, { workflow_runs: [{ id: 8, status: 'completed', conclusion: 'success', run_started_at: h(3), updated_at: iso(agora - 3 * 3600000 + 18 * 60000) }, { id: 7, status: 'completed', conclusion: 'failure', run_started_at: h(30), updated_at: iso(agora - 30 * 3600000 + 30 * 60000) }, { id: 6, status: 'completed', conclusion: 'success', run_started_at: h(52), updated_at: iso(agora - 52 * 3600000 + 20 * 60000) }] });
+    if (/\/branches/.test(u)) return json(r, []);
+    return json(r, { workflow_runs: [] });
+  });
+  await page.route('https://raw.githubusercontent.com/**', r => r.fulfill({ body: [
+    `{"id":"R-2","trilha":"radar","conversa":"radar · 13/10","situacao":"publicada","inicio":"${h(4)}","fim":"${h(3.5)}","portao":"verde","tamanho":"1","modelo":"Fable 5.1"}`,
+    `{"id":"M-390","trilha":"motor","conversa":"motor · 11/10","situacao":"publicada","inicio":"${h(5)}","fim":"${h(3)}","portao":"verde","tamanho":"1","modelo":"Fable 5.1"}`,
+    `{"id":"M-351","trilha":"motor","conversa":"motor · 11/10","situacao":"recusada","em":"${h(8)}","portao":"recusada-conflito","tentativas_fila":2,"tamanho":"2","modelo":"Fable 5.1"}`].join('\n') + '\n', headers: { 'content-type': 'text/plain', 'access-control-allow-origin': '*' } }));
+  await page.addInitScript(() => {
+    const jwt = email => 'h.' + btoa(JSON.stringify({ email })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') + '.s';
+    window.__PAINEL_FETCH = async (url) => new Response(JSON.stringify(url.includes('securetoken') ? { user_id: 'uidE2E', id_token: jwt('gui.amuy@gmail.com'), refresh_token: 'ref-e2e', expires_in: '3600' } : { localId: 'uidE2E', idToken: jwt('gui.amuy@gmail.com'), refreshToken: 'ref-e2e', expiresIn: '3600' }), { headers: { 'content-type': 'application/json' } });
+    window.__PAINEL_GOOGLE = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }), revoke: (tk, cb) => cb && cb() } } };
+  });
+  await page.goto(painel + '#eficiencia'); await page.waitForSelector('#pn-entrar'); await page.click('#pn-entrar');
+  await page.waitForSelector('#pn-visao-eficiencia');
+  // 7 dias: 6 levas (3 hoje, 1 ontem, 2 anteontem), um pedido por dia (7 dias na primeira abertura: 1 de hoje + até 4 novos; o resto avisado)
+  assert.ok(pedidosCommits <= 5, `primeira abertura lê até 5 dias: ${pedidosCommits}`);
+  assert.match(await page.innerText('#pn-notas'), /dia\(s\) ainda não lidos/);
+  await page.click('#pn-atualizar'); await page.waitForFunction(() => !/não lidos/.test(document.querySelector('#pn-notas')?.innerText || ''));
+  await page.waitForSelector('#pn-g-levas svg .pn-grafico__coluna');
+  // colunas: uma por dia com levas, sem legenda (uma série só: o título diz o que é)
+  const levas = await page.evaluate(() => { const g = document.querySelector('#pn-g-levas'); return { colunas: g.querySelectorAll('.pn-grafico__coluna').length, alvos: g.querySelectorAll('.pn-grafico__alvo').length, legenda: !!g.querySelector('.pn-grafico__legenda'), grade: g.querySelectorAll('.pn-grafico__grade').length }; });
+  assert.equal(levas.alvos, 3, 'um alvo de toque por dia com levas (hoje, ontem, anteontem)'); assert.equal(levas.colunas, 3); assert.equal(levas.legenda, false); assert.ok(levas.grade >= 3);
+  // anel: 2 verdes e 1 vermelha → 67 % no centro, legenda com os números
+  assert.equal(await page.locator('#pn-g-verde1 .pn-grafico__fatia').count(), 2);
+  assert.equal(await page.locator('#pn-g-verde1 .pn-grafico__centro').textContent(), '67 %');
+  assert.deepEqual(await page.$$eval('#pn-g-verde1 .pn-grafico__legenda li', ls => ls.map(l => l.textContent)), ['verdes · 2', 'vermelhas · 1']);
+  // linha: duração das rodadas com a faixa do alvo e o último valor escrito
+  assert.equal(await page.locator('#pn-g-duracao .pn-grafico__linha').count(), 1);
+  assert.equal(await page.locator('#pn-g-duracao .pn-grafico__faixa').count(), 1);
+  assert.match(await page.locator('#pn-g-duracao .pn-grafico__rotulo-direto').textContent(), /^\d+$/);
+  await auditaTela(page, 'eficiência com gráficos');
+  // tabela: os mesmos números, e volta
+  const troca = page.locator('#pn-g-levas .pn-grafico__troca');
+  assert.ok((await troca.boundingBox()).height >= 44);
+  await troca.click();
+  assert.equal(await page.locator('#pn-g-levas .pn-grafico__tabela').isVisible(), true); assert.equal(await page.locator('#pn-g-levas svg').isVisible(), false);
+  assert.equal(await page.locator('#pn-g-levas .pn-grafico__tabela tbody tr').count(), 3);
+  assert.equal(await page.$$eval('#pn-g-levas .pn-grafico__tabela tbody td', ts => ts.reduce((n, t) => n + (Number(t.textContent) || 0), 0)), 6, 'a tabela soma as 6 levas do recorte');
+  assert.equal(await troca.textContent(), 'Ver gráfico');
+  await troca.click(); assert.equal(await page.locator('#pn-g-levas svg').isVisible(), true);
+  // tooltip: tocar no dia de hoje mostra o número; tocar fora esconde
+  await page.locator('#pn-g-levas .pn-grafico__alvo').last().dispatchEvent('click');
+  await page.waitForSelector('#pn-g-levas .pn-grafico__dica:not([hidden])');
+  assert.match(await page.locator('#pn-g-levas .pn-grafico__dica').textContent(), /: 3$/);
+  await page.locator('#pn-g-levas .pn-grafico__titulo').click();
+  assert.equal(await page.locator('#pn-g-levas .pn-grafico__dica').isHidden(), true);
+  // movimento: com movimento reduzido, nenhuma coluna anima
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('#pn-g-levas .pn-grafico__coluna')).animationName), 'none');
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  assert.notEqual(await page.evaluate(() => getComputedStyle(document.querySelector('#pn-g-levas .pn-grafico__coluna')).animationName), 'none');
+  await emTodasAsMedidas(page, 'eficiência com gráficos');
+  if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.waitForTimeout(400); await page.screenshot({ path: process.env.SHOTS + '/r41-eficiencia.png', fullPage: true }); }
+  assert.deepEqual(errors, []);
+});
+
 /* ---------- R-40 · BI4-1 · Resumo executivo: o que pede ação agora + próximos passos ---------- */
 test('e2e · R-40 Painel · Resumo executivo: a primeira aba abre com "O que pede ação agora" — um cartão por insight (farol, o que aconteceu com o número, causa provável, ação) do mais grave para o menos, com botão que abre a aba de origem —, o placar, e "Próximos passos do plano" lidos do ROADMAP; sem sobreposição nos dois temas', { timeout: 150000 }, async t => {
   const { page, errors, base } = await open(t);
