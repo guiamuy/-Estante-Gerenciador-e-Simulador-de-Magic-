@@ -14743,6 +14743,78 @@ test('e2e · R-41 Painel · gráficos na Eficiência: levas por dia em colunas S
   assert.deepEqual(errors, []);
 });
 
+/* ---------- R-42 · BI4-3 · tendência nos cartões ---------- */
+test('e2e · R-42 Painel · tendência nos cartões da Eficiência: mini-linha dos últimos 14 dias e a variação contra os 7 dias anteriores em palavras, com o juízo pelo sentido da medida (portão verde que sobe é melhor; duração do portão que cai é melhor; tempo de leva que sobe é pior); dia não lido não compara ("sem comparação"); a seta leva a cor do juízo e o texto fica em token de texto; o farol pulsa uma vez quando a cor muda numa atualização; com movimento reduzido nada anima; sem sobreposição em todas as medidas', { timeout: 150000 }, async t => {
+  const { page, errors, base } = await open(t);
+  const painel = base.replace('index.html', 'painel.html');
+  await page.setViewportSize({ width: 360, height: 780 });
+  const agora = Date.now();
+  const iso = ms => new Date(ms).toISOString();
+  const h = n => iso(agora - n * 3600000);
+  const json = (r, corpo) => r.fulfill({ json: corpo, headers: { 'content-type': 'application/json', 'x-ratelimit-remaining': '50', 'x-ratelimit-limit': '60', 'access-control-expose-headers': 'etag, x-ratelimit-remaining, x-ratelimit-limit' } });
+  const commit = (leva, em) => ({ sha: leva.replace('-', '') + '0000000', commit: { message: `Leva ${leva} · assunto`, committer: { date: iso(em) }, author: { date: iso(em - 3600000) } } });
+  const levasDoDia = { 0: [commit('M-390', agora - 2 * 3600000), commit('R-2', agora - 3 * 3600000), commit('G-266', agora - 5 * 3600000)], 1: [commit('M-388', agora - 30 * 3600000)], 2: [commit('T-61', agora - 50 * 3600000), commit('M-384', agora - 52 * 3600000)] };
+  const rodada = (id, ok, horas, min) => ({ id, status: 'completed', conclusion: ok ? 'success' : 'failure', run_started_at: h(horas), updated_at: iso(agora - horas * 3600000 + min * 60000) });
+  // 7 dias: 2 verdes e 1 vermelha (67 %), durações 18, 30, 20 min; 7 dias anteriores: 1 verde e 2 vermelhas (33 %), 40, 35, 45 min
+  let fase = 1;
+  const rodadas = () => [rodada(8, true, 3, 18), rodada(7, fase === 2, 30, 30), rodada(6, true, 50, 20), rodada(5, false, 9 * 24, 40), rodada(4, false, 10 * 24, 35), rodada(3, true, 10 * 24 + 2, 45)];
+  await page.route('https://api.github.com/**', r => {
+    const u = r.request().url();
+    if (/\/commits\?sha=main&per_page=1/.test(u)) return json(r, [commit('M-390', agora - 2 * 3600000)]);
+    if (/\/commits\?sha=main&since=/.test(u)) { const since = Date.parse(decodeURIComponent((u.match(/since=([^&]+)/) || [])[1])); const diasAtras = Math.round((new Date(agora).setHours(0, 0, 0, 0) - since) / 86400000); return json(r, levasDoDia[diasAtras] || []); }
+    if (/fila\.yml\/runs/.test(u)) return json(r, { workflow_runs: rodadas() });
+    if (/\/branches/.test(u)) return json(r, []);
+    return json(r, { workflow_runs: [] });
+  });
+  // levas: duração 30 e 120 min agora (mediana 75) contra 60 min nove dias antes (+25 %, e tempo de leva maior é pior); a mais antiga (13 dias) abre a cobertura
+  await page.route('https://raw.githubusercontent.com/**', r => r.fulfill({ body: [
+    `{"id":"G-1","trilha":"geral","conversa":"geral · 20/10","situacao":"publicada","em":"${h(13 * 24)}","modelo":"Fable 5.1"}`,
+    `{"id":"M-300","trilha":"motor","conversa":"motor · 11/10","situacao":"publicada","inicio":"${h(9 * 24 + 1)}","fim":"${h(9 * 24)}","portao":"verde","tamanho":"1","modelo":"Fable 5.1"}`,
+    `{"id":"R-2","trilha":"radar","conversa":"radar · 13/10","situacao":"publicada","inicio":"${h(4)}","fim":"${h(3.5)}","portao":"verde","tamanho":"1","modelo":"Fable 5.1"}`,
+    `{"id":"M-390","trilha":"motor","conversa":"motor · 11/10","situacao":"publicada","inicio":"${h(5)}","fim":"${h(3)}","portao":"verde","tamanho":"1","modelo":"Fable 5.1"}`].join('\n') + '\n', headers: { 'content-type': 'text/plain', 'access-control-allow-origin': '*' } }));
+  await page.addInitScript(() => {
+    const jwt = email => 'h.' + btoa(JSON.stringify({ email })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') + '.s';
+    window.__PAINEL_FETCH = async (url) => new Response(JSON.stringify(url.includes('securetoken') ? { user_id: 'uidE2E', id_token: jwt('gui.amuy@gmail.com'), refresh_token: 'ref-e2e', expires_in: '3600' } : { localId: 'uidE2E', idToken: jwt('gui.amuy@gmail.com'), refreshToken: 'ref-e2e', expiresIn: '3600' }), { headers: { 'content-type': 'application/json' } });
+    window.__PAINEL_GOOGLE = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }), revoke: (tk, cb) => cb && cb() } } };
+  });
+  await page.goto(painel + '#eficiencia'); await page.waitForSelector('#pn-entrar'); await page.click('#pn-entrar');
+  await page.waitForSelector('#pn-visao-eficiencia');
+  await page.click('#pn-atualizar'); await page.waitForFunction(() => !/não lidos/.test(document.querySelector('#pn-notas')?.innerText || ''));
+  await page.waitForSelector('#pn-k-verde1 .pn-cartao__tendencia');
+  const tend = id => page.evaluate(id => { const c = document.querySelector(id + ' .pn-cartao__tendencia'); return c ? { juizo: c.dataset.juizo, texto: c.querySelector('.pn-cartao__variacao').textContent, titulo: c.querySelector('.pn-cartao__variacao').title, janela: c.querySelector('.pn-cartao__janela')?.textContent || '', linha: c.querySelectorAll('svg.pn-sparkline polyline').length, rotulo: c.querySelector('svg.pn-sparkline')?.getAttribute('aria-label') || '' } : null; }, id);
+  assert.equal(await page.locator('#pn-visao-eficiencia .pn-cartao__tendencia').count(), 6, 'os seis cartões da Eficiência têm tendência');
+  const verde = await tend('#pn-k-verde1');
+  assert.deepEqual([verde.juizo, verde.texto], ['melhor', '+100 % · melhor'], 'portão verde: 67 % contra 33 %, maior é melhor');
+  assert.equal(verde.titulo, '+100 % vs 7 dias anteriores · melhor', 'a frase inteira fica no título'); assert.equal(verde.janela, 'últimos 7 dias contra os 7 anteriores');
+  assert.ok(verde.linha >= 1); assert.match(verde.rotulo, /últimos 14 dias: de 0 a 100, último 100$/, "por dia: hoje só a rodada verde (100 %), o dia da vermelha 0 %");
+  const portao = await tend('#pn-k-portao');
+  assert.deepEqual([portao.juizo, portao.texto], ['melhor', '−50 % · melhor'], 'duração do portão: 20 min contra 40 min, menor é melhor');
+  const leva = await tend('#pn-k-tempo-leva');
+  assert.deepEqual([leva.juizo, leva.texto], ['pior', '+25 % · pior'], 'tempo de leva: 75 min contra 60 min, maior é pior');
+  const levas = await tend('#pn-k-levas');
+  assert.equal(levas.juizo, 'sem'); assert.equal(levas.janela, ''); assert.match(levas.texto, /^sem comparação$/, 'os 7 dias anteriores do main não foram lidos (sem retrato): não compara, não vira zero');
+  // a seta leva o juízo; o texto fica no token de texto
+  const cores = await page.evaluate(() => { const v = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim(); const cor = s => getComputedStyle(document.querySelector(s)).color; const ref = c => { const e = document.createElement('i'); e.style.color = c; document.body.appendChild(e); const x = getComputedStyle(e).color; e.remove(); return x; };
+    return { melhor: cor('#pn-k-verde1 .pn-cartao__seta') === ref(v('--positive')), pior: cor('#pn-k-tempo-leva .pn-cartao__seta') === ref(v('--negative')), texto: cor('#pn-k-verde1 .pn-cartao__variacao') === ref(v('--fg-muted')) }; });
+  assert.deepEqual(cores, { melhor: true, pior: true, texto: true });
+  // movimento: com movimento reduzido a mini-linha não anima
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('#pn-k-verde1 .pn-sparkline__linha')).animationName), 'none');
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  // o farol pulsa uma vez quando a cor muda: a rodada vermelha passa a verde (67 % → 100 %, atenção → no alvo)
+  assert.equal(await page.locator('#pn-k-verde1 .pn-farol').getAttribute('data-farol'), 'amarelo');
+  assert.equal(await page.locator('#pn-k-verde1 .pn-farol[data-mudou]').count(), 0);
+  fase = 2; await page.click('#pn-atualizar');
+  await page.waitForSelector('#pn-k-verde1 .pn-farol[data-farol="verde"]');
+  assert.equal(await page.locator('#pn-k-verde1 .pn-farol').getAttribute('data-mudou'), 'true');
+  assert.notEqual(await page.evaluate(() => getComputedStyle(document.querySelector('#pn-k-verde1 .pn-farol'), '::before').animationName), 'none');
+  assert.equal(await page.locator('#pn-k-portao .pn-farol[data-mudou]').count(), 0, 'cartão que não mudou de cor não pulsa');
+  await auditaTela(page, 'eficiência com tendência');
+  await emTodasAsMedidas(page, 'eficiência com tendência');
+  if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.waitForTimeout(400); await page.screenshot({ path: process.env.SHOTS + '/r42-tendencia.png', fullPage: true }); }
+  assert.deepEqual(errors, []);
+});
+
 /* ---------- R-40 · BI4-1 · Resumo executivo: o que pede ação agora + próximos passos ---------- */
 test('e2e · R-40 Painel · Resumo executivo: a primeira aba abre com "O que pede ação agora" — um cartão por insight (farol, o que aconteceu com o número, causa provável, ação) do mais grave para o menos, com botão que abre a aba de origem —, o placar, e "Próximos passos do plano" lidos do ROADMAP; sem sobreposição nos dois temas', { timeout: 150000 }, async t => {
   const { page, errors, base } = await open(t);

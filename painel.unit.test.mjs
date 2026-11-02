@@ -933,7 +933,9 @@ test('R-28 · fonte com o retrato do CI: Pipeline, Eficiência e Custo abrem com
   // Eficiência 7 dias: commits por dia dos arquivos, sem pendentes
   fonte.zerar(); const e = await app.VISOES.eficiencia.carrega(fonte, false, { periodo: '7d' });
   assert.equal(fonte.pedidos, 0); assert.deepEqual(e.pendentes, []); assert.equal(Object.keys(e.commits).length, 7); assert.ok(Object.values(e.commits).every(l => l.length >= 1), 'um commit por dia local: ' + JSON.stringify(Object.values(e.commits).map(l => l.length)));
-  assert.ok(chamadas.filter(u => /commits\/\d{4}/.test(u)).length <= 8, 'um arquivo por dia UTC, no máximo 8 para 7 dias locais');
+  // R-42: a tendência dos cartões lê também os 7 dias anteriores, só pelo retrato (raw, fora da cota da API): até 15 arquivos para 14 dias locais.
+  assert.ok(chamadas.filter(u => /commits\/\d{4}/.test(u)).length <= 15, 'um arquivo por dia UTC, no máximo 15 para os 14 dias locais da tendência');
+  assert.ok(Object.keys(e.commitsTendencia).length >= 1 && Object.keys(e.commitsTendencia).every(dia => fonte.emCache('commits.' + dia)), 'R-42 · os dias anteriores da tendência vêm só do que o retrato cobre, sem pedido à API');
   // Custo: tamanho por leva pelo retrato (nenhum contents/index.html)
   fonte.zerar(); const c = await app.VISOES.custo.carrega(fonte, false);
   assert.equal(fonte.pedidos, 0); assert.equal(Object.keys(c.tamanhos).length, 12); assert.ok(!chamadas.some(u => /contents\/index\.html/.test(u)));
@@ -1191,4 +1193,50 @@ test('R-41 · geometria dos gráficos: escala com degraus redondos e o zero; col
   const bloco = css.slice(css.indexOf('@media (prefers-reduced-motion: no-preference)'), css.indexOf('@keyframes pn-cresce'));
   assert.match(bloco, /pn-cresce 280ms/); assert.match(bloco, /pn-traca 300ms/);
   assert.doesNotMatch(css.slice(0, css.indexOf('@media (prefers-reduced-motion: no-preference)')), /animation:/, 'nenhuma animação fora do bloco de movimento');
+});
+
+/* ---------- R-42 · BI4-3 · tendência nos cartões ---------- */
+test('R-42 · tendência: variação no sentido da medida (menor é melhor para espera, maior é melhor para portão verde), período anterior vazio → "sem comparação", dia não lido nunca vira zero, série curta não desenha mini-linha', () => {
+  const { modelo: M } = loadPainel();
+  // sentido vem do limiar
+  assert.equal(M.sentidoDoLimiar(M.LIMIARES.intervalo), 'menor');
+  assert.equal(M.sentidoDoLimiar(M.LIMIARES.portaoVerde), 'maior');
+  assert.equal(M.sentidoDoLimiar(null), null);
+  // variação em palavras
+  assert.deepEqual(M.variacao(110, 100, { sentido: 'maior' }), { direcao: 'sobe', juizo: 'melhor', pct: 10, texto: '+10 % vs 7 dias anteriores · melhor', curto: '+10 % · melhor' });
+  assert.equal(M.variacao(110, 100, { sentido: 'menor' }).juizo, 'pior', 'espera que sobe é pior');
+  assert.equal(M.variacao(80, 100, { sentido: 'menor' }).texto, '−20 % vs 7 dias anteriores · melhor');
+  assert.equal(M.variacao(5, 0, { sentido: 'maior' }).texto, '+5 vs 7 dias anteriores · melhor', 'anterior zero: diferença absoluta');
+  assert.equal(M.variacao(7, 7).juizo, 'estavel'); assert.equal(M.variacao(7, 7).texto, 'igual aos 7 dias anteriores');
+  assert.equal(M.variacao(3, 1).juizo, 'neutro', 'sem sentido declarado não julga');
+  assert.equal(M.variacao(3, null).texto, 'sem comparação');
+  // série: 14 dias até hoje, contagem por dia
+  const agora = new Date(2026, 10, 2, 15, 0).getTime(), dia = 86400000;
+  const itens = [0, 0, 1, 3, 8, 9, 9, 9].map(n => ({ data: agora - n * dia }));
+  const t = M.tendencia(itens, { sentido: 'maior', agora });
+  assert.equal(t.serie.length, 14); assert.equal(t.dias[13], '2026-11-02');
+  assert.equal(t.serie[13], 2, 'hoje com dois itens'); assert.equal(t.serie[4], 3, 'nove dias atrás, três itens');
+  assert.equal(t.atual, 4); assert.equal(t.anterior, 4); assert.equal(t.variacao.juizo, 'estavel');
+  // período anterior vazio → sem comparação, mesmo para contagem
+  const s = M.tendencia([{ data: agora }], { sentido: 'maior', agora });
+  assert.equal(s.anterior, null); assert.equal(s.variacao.texto, 'sem comparação');
+  // dia não lido fica vazio e a janela que o contém não compara
+  const lidos = new Set(t.dias.slice(7));
+  const c = M.tendencia(itens, { sentido: 'maior', agora, coberto: d => lidos.has(d) });
+  assert.ok(c.serie.slice(0, 7).every(v => v === null), 'dias não lidos não viram zero');
+  assert.equal(c.variacao.texto, 'sem comparação');
+  // mediana por dia (menor é melhor): dia sem item é vazio, não zero
+  const m = M.tendencia([{ data: agora, v: 10 }, { data: agora - 8 * dia, v: 20 }], { agregar: g => M.mediana(g.map(x => x.v)), sentido: 'menor', agora });
+  assert.equal(m.serie.filter(v => v != null).length, 2); assert.equal(m.variacao.juizo, 'melhor'); assert.equal(m.variacao.pct, -50);
+  // mini-linha: quebra no vazio, menos de dois pontos não desenha, tudo dentro da caixa
+  assert.equal(M.geometriaSparkline([null, 3, null]), null);
+  const g = M.geometriaSparkline([1, 2, null, 4, 4]);
+  assert.equal(g.trechos.length, 2); assert.equal(g.ultimo.valor, 4); assert.equal(g.ultimo.i, 4);
+  assert.ok(g.trechos.flat().every(p => p.x >= 0 && p.x <= g.largura && p.y >= 0 && p.y <= g.altura));
+  assert.equal(M.geometriaSparkline([5, 5]).trechos[0][0].y, 12, 'série plana no meio');
+  // movimento só com no-preference
+  const css = PAINEL.slice(PAINEL.indexOf('R-42 · BI4-3 · tendência no cartão'));
+  const fim = css.indexOf('@keyframes pn-pulsa');
+  assert.doesNotMatch(css.slice(0, css.indexOf('@media (prefers-reduced-motion: no-preference)')), /animation:/);
+  assert.match(css.slice(0, fim), /pn-pulsa 900ms/);
 });
