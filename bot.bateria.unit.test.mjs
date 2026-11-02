@@ -6,7 +6,7 @@ import { loadModules } from './_load.mjs';
 import { POSICOES, pontua } from './bot.bateria.mjs';
 const { engine: E, bot: B } = loadModules();
 
-const PISO = 25; // B-191 · 25 de 26 com o motor de mana na avaliação (erra só a isca: `volta-isca`, a isca de dois lances que mediu 49 × 48 na B-184). Era 24 (B-190), 22 (B-188)
+const PISO = 26; // B-192 · 26 de 27 com a habilidade que prepara (erra só a isca: `volta-isca`, a isca de dois lances que mediu 49 × 48 na B-184). Era 25 (B-191), 24 (B-190), 22 (B-188)
 
 test('B-188 · toda posição da bateria monta, tem classe, porquê, e a jogada certa está entre as legais', () => {
   const ids = new Set();
@@ -39,4 +39,10 @@ test('B-191 · motor de mana: com quatro Elfos, o Shark publicado não manda o P
   const P = POSICOES.find(x => x.id === 'papel-elfos-motor-em-casa'), joga = nivel => { const { s } = P.monta(); const j = B.criaBot({ nivel, agora: () => 0 }).jogada(s, 0); return { ok: P.certo(s, j), j }; };
   const novo = joga('shark'), v19 = joga('shark-v19');
   assert.ok(novo.ok, 'publicado: ' + novo.j.motivo); assert.ok(!v19.ok, 'v19: ' + v19.j.motivo);
+});
+
+test('B-192 · o que a habilidade abre: com o Viridian Longbow solto e o Priest of Titania do outro lado, o Shark publicado equipa; o shark-v20 congelado passava', () => {
+  const P = POSICOES.find(x => x.id === 'recurso-longbow-equipa'), joga = nivel => { const { s } = P.monta(); const j = B.criaBot({ nivel, agora: () => 0 }).jogada(s, 0); return { ok: P.certo(s, j), j }; };
+  const novo = joga('shark'), v20 = joga('shark-v20');
+  assert.ok(novo.ok, 'publicado: ' + novo.j.motivo); assert.ok(!v20.ok, 'v20: ' + v20.j.motivo);
 });

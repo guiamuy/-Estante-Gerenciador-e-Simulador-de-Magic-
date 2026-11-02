@@ -158,6 +158,10 @@ export const POSICOES = [
   { id: 'papel-elfos-motor-em-casa', classe: 'papel', lista: ELFOS, porque: 'Priest of Titania com quatro Elfos dá quatro manas por turno e o Timberwatch dá +4/+4: atacar com eles por 1 contra dois Baleful Strix (toque mortal) entrega os motores; quem ataca é o Avenging Hunter',
     monta: () => { const m = monta(ELFOS, CONTROLE, { p0: { campo: ['Forest', 'Forest', 'Forest', 'Priest of Titania', 'Timberwatch Elf', 'Llanowar Elves', 'Avenging Hunter'] }, p1: { campo: ['Island', 'Island', 'Swamp', 'Baleful Strix', 'Baleful Strix'] } }); return { ...m, s: passaAte(m.s, 'combat_attackers') }; },
     certo: (s, j) => !(j.acao.attackers || []).some(o => ['Priest of Titania', 'Timberwatch Elf'].includes(nomeDe(s, o))) },
+  // B-192 · Control (partidas narradas da B-189): o Viridian Longbow nunca foi equipado em 4 partidas.
+  { id: 'recurso-longbow-equipa', classe: 'recurso', lista: CONTROLE, porque: 'Longbow solto, Trinket Mage desvirado e quatro manas contra Priest of Titania e dois elfos de mana 1/1: equipar e atirar no Priest no mesmo turno',
+    monta: () => monta(CONTROLE, ELFOS, { p0: { campo: ['Island', 'Island', 'Swamp', 'Island', 'Viridian Longbow', 'Trinket Mage'] }, p1: { campo: ['Forest', 'Forest', 'Llanowar Elves', 'Priest of Titania', 'Elvish Mystic'] } }),
+    certo: (s, j) => j.acao.t === 'activate' && nomeDe(s, j.acao.oid) === 'Viridian Longbow' },
   // ---- mulligan
   { id: 'mull-sete-terrenos', classe: 'mulligan', lista: TERROR, porque: 'sete terrenos não jogam: mulligan',
     mulligan: true, monta: () => maoInicial(TERROR, MADNESS, ['Island', 'Island', 'Island', 'Island', 'Island', 'Island', 'Island']),

@@ -8093,6 +8093,15 @@ estruturado para tornarmos o Shark um jogador de nível profissional com as suas
   (3 só do novo, 2 só do antigo), Control 16 × 16 em 24 (o Control vê o Priest do outro lado); zero ilegais. **Neutra em força,
   ligada pelo comportamento**, como o mulligan da B-177. Bateria **25 de 26** (erra só a isca); piso 24 → 25. **`shark-v19` é
   o Shark da B-190, congelado.** Fica para a próxima: o bloqueio duplo contra ameaçar com pouca vida.
+- **Fase 4 · B-192 · Control: o que a habilidade abre (02/11/2026).** Nas partidas narradas da B-189 o Viridian Longbow
+  nunca foi equipado (4 partidas). Causa: equipar não muda nenhum número da avaliação — o que o equipamento dá é uma
+  habilidade ("{T}: 1 de dano") — e a leitura de um lance não via o tiro depois. Agora a habilidade ativada que só prepara
+  vale pela melhor das até quatro habilidades ativadas novas que ela abre no mesmo turno, resolvida (`habilita`). Posição
+  nova na bateria: `recurso-longbow-equipa` (Longbow solto, Trinket Mage desvirado, Priest of Titania do outro lado).
+  **Medida pareada** (400 ms, contra o Shark da B-191): Control 15 × 16 · Elfos 16 × 14 (24 pares cada, 4 só do novo e 4
+  só do antigo); zero ilegais. **Neutra em força, ligada pelo comportamento.** Bateria **26 de 27** (erra só a isca);
+  piso 25 → 26. **`shark-v20` é o Shark da B-191, congelado.** Ficam do Control: segurar a mana da anulação no próprio
+  turno com a instantânea na mão e o alvo da remoção.
 - **Fases:**
   - **0 · réguas** — B-187 régua absoluta e linha de base das quatro; B-188 bateria profissional (30+ posições).
   - **1 · diagnóstico** — B-189 partidas narradas das derrotas (Control e Faeries primeiro), cada erro classificado e
