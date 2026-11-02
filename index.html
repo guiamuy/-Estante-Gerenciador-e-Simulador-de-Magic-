@@ -4124,14 +4124,16 @@ function createTheme(store, win, doc = (typeof document !== 'undefined' ? docume
   };
   // D1 · aparência além do tema: escala de texto e densidade, por atributo no <html>, guardadas no aparelho
   const APAR = 'ui.aparencia';
-  let aparencia = { escala: 'media', densidade: 'confortavel', acento: 'latao', movimento: 'sistema', vibracao: true, superficie: 'nogueira', oponente: 'azul', verso: 'estante' };
+  let aparencia = { escala: 'media', densidade: 'confortavel', acento: 'latao', movimento: 'sistema', vibracao: true, superficie: 'nogueira', oponente: 'azul', verso: 'estante', orientacao: 'automatica' };
   const ESCALAS = ['pequena', 'media', 'grande'], DENSIDADES = ['confortavel', 'compacta'], ACENTOS = ['latao', 'cobre', 'prata', 'jade'], MOVIMENTOS = ['sistema', 'reduzido'];
   // D7 · a mesa do seu jeito: superfície, cor do oponente e verso de carta
   const SUPERFICIES = ['nogueira', 'feltro', 'oceano', 'vinho', 'pedra', 'linho'], OPONENTES = ['azul', 'rubi', 'ametista'], VERSOS = ['estante', 'selo', 'trama'];
+  const ORIENTACOES = ['automatica', 'retrato']; // J-59 · a mesa segue o giro do aparelho (paisagem, J-58) ou fica sempre em retrato
   const aplicaAparencia = a => {
     aparencia = { escala: ESCALAS.includes(a && a.escala) ? a.escala : 'media', densidade: DENSIDADES.includes(a && a.densidade) ? a.densidade : 'confortavel',
       acento: ACENTOS.includes(a && a.acento) ? a.acento : 'latao', movimento: MOVIMENTOS.includes(a && a.movimento) ? a.movimento : 'sistema', vibracao: !(a && a.vibracao === false),
-      superficie: SUPERFICIES.includes(a && a.superficie) ? a.superficie : 'nogueira', oponente: OPONENTES.includes(a && a.oponente) ? a.oponente : 'azul', verso: VERSOS.includes(a && a.verso) ? a.verso : 'estante' };
+      superficie: SUPERFICIES.includes(a && a.superficie) ? a.superficie : 'nogueira', oponente: OPONENTES.includes(a && a.oponente) ? a.oponente : 'azul', verso: VERSOS.includes(a && a.verso) ? a.verso : 'estante',
+      orientacao: ORIENTACOES.includes(a && a.orientacao) ? a.orientacao : 'automatica' };
     const root = doc.documentElement;
     if (root && root.setAttribute) {
       if (aparencia.escala === 'media') root.removeAttribute('data-escala'); else root.setAttribute('data-escala', aparencia.escala);
@@ -4141,14 +4143,19 @@ function createTheme(store, win, doc = (typeof document !== 'undefined' ? docume
       if (aparencia.superficie === 'nogueira') root.removeAttribute('data-superficie'); else root.setAttribute('data-superficie', aparencia.superficie);
       if (aparencia.oponente === 'azul') root.removeAttribute('data-oponente'); else root.setAttribute('data-oponente', aparencia.oponente);
       if (aparencia.verso === 'estante') root.removeAttribute('data-verso'); else root.setAttribute('data-verso', aparencia.verso);
+      if (aparencia.orientacao === 'automatica') root.removeAttribute('data-orientacao'); else root.setAttribute('data-orientacao', aparencia.orientacao);
     }
+    // J-59 · "Só retrato": o layout de paisagem não liga (atributo acima) e, no app instalado, a tela tenta travar em retrato (o
+    // navegador só aceita travar no app instalado ou em tela cheia; fora disso a recusa é silenciosa e o layout continua retrato)
+    const tela = win && win.screen && win.screen.orientation;
+    if (tela && typeof tela.lock === 'function') { if (aparencia.orientacao === 'retrato') tela.lock('portrait').catch(() => {}); else if (typeof tela.unlock === 'function') { try { tela.unlock(); } catch (e) { /* sem trava */ } } }
     if (opts.aoAparencia) opts.aoAparencia({ ...aparencia });
     return aparencia;
   };
   return {
     get current() { return current; },
     get aparencia() { return { ...aparencia }; },
-    ESCALAS, DENSIDADES, ACENTOS, MOVIMENTOS, SUPERFICIES, OPONENTES, VERSOS,
+    ESCALAS, DENSIDADES, ACENTOS, MOVIMENTOS, SUPERFICIES, OPONENTES, VERSOS, ORIENTACOES,
     async init() {
       let saved = null; try { saved = await store.get(KEY); } catch (e) {}
       try { aplicaAparencia(await store.get(APAR)); } catch (e) { aplicaAparencia(null); }
@@ -19824,6 +19831,8 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
       Text('Mesa', { size: 'sm', as: 'h3', display: true, attrs: { id: 'aparencia-mesa' } }),
       amostras('Superfície', 'aparencia-superficie', 'superficie', [['nogueira', 'Nogueira'], ['feltro', 'Feltro'], ['oceano', 'Oceano'], ['vinho', 'Vinho'], ['pedra', 'Pedra'], ['linho', 'Linho']], a.superficie),
       amostras('Cor do oponente', 'aparencia-oponente', 'oponente', [['azul', 'Azul'], ['rubi', 'Rubi'], ['ametista', 'Ametista']], a.oponente),
+      // J-59 (decisão do dono, 02/11/2026) · celular deitado: a mesa vira o layout de paisagem (lados lado a lado) ou fica em retrato
+      seg('Orientação da mesa', 'aparencia-orientacao', [['automatica', 'Automática'], ['retrato', 'Só retrato']], a.orientacao, k => muda({ orientacao: k })),
       h('div', { class: 'ds-field' }, h('span', { class: 'ds-field__label' }, 'Verso de carta'),
         h('div', { class: 'ds-segmentado', role: 'group', 'aria-label': 'Verso de carta', id: 'aparencia-verso' },
           ...[['estante', 'Estante'], ['selo', 'Selo'], ['trama', 'Trama']].map(([k, nome]) => { const c = Chip(nome, { pressed: a.verso === k, dataset: { verso: k }, onClick: () => muda({ verso: k }) });

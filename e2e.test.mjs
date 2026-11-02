@@ -7431,7 +7431,7 @@ test('e2e · D2 aparência: tema, cor de destaque, texto, densidade, movimento e
   const [download] = await Promise.all([page.waitForEvent('download'), page.click('#perfil-backup-export')]);
   const dados = JSON.parse(await (await download.createReadStream()).toArray().then(p => Buffer.concat(p).toString('utf8')));
   // D7 (leva 151) · a aparência ganhou superfície, cor do oponente e verso: o backup leva os três no padrão
-  assert.deepEqual(dados.prefs['ui.aparencia'], { escala: 'grande', densidade: 'compacta', acento: 'jade', movimento: 'reduzido', vibracao: false, superficie: 'nogueira', oponente: 'azul', verso: 'estante' });
+  assert.deepEqual(dados.prefs['ui.aparencia'], { escala: 'grande', densidade: 'compacta', acento: 'jade', movimento: 'reduzido', vibracao: false, superficie: 'nogueira', oponente: 'azul', verso: 'estante', orientacao: 'automatica' }); // J-59 · a orientação entrou na aparência
   // de volta ao padrão
   const toque = async (sel, pronto) => { await page.click(sel); await page.waitForFunction(pronto, null, { timeout: 5000 }); };
   await toque('#aparencia-acento [data-acento="latao"]', () => !document.documentElement.getAttribute('data-acento'));
@@ -9702,6 +9702,39 @@ test('e2e · J-58 paisagem: lados lado a lado com a mesma largura e o mesmo topo
   await page.setViewportSize({ width: 360, height: 780 }); await page.waitForTimeout(300);
   const r = await mede();
   assert.ok(r.opp.b <= r.me.t && Math.abs(r.opp.l - r.me.l) <= 1, 'retrato: continua empilhado ' + JSON.stringify(r));
+  assert.deepEqual(errors, []);
+});
+
+// J-59 (decisão do dono, 02/11/2026) · quem quer jogar sempre em retrato escolhe em Perfil › Aparência › Mesa › "Orientação da mesa":
+// com "Só retrato", o celular deitado mostra a mesa de retrato (lados empilhados); a escolha fica guardada no aparelho.
+test('e2e · J-59 orientação da mesa: "Só retrato" guarda a escolha e mantém a mesa empilhada com o celular deitado; "Automática" volta ao layout de paisagem; manifesto deixa o app instalado girar', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#aparencia-orientacao');
+  assert.equal(await page.evaluate(() => document.documentElement.getAttribute('data-orientacao')), null, 'automática é o padrão e não marca o <html>');
+  const chips = await page.locator('#aparencia-orientacao .ds-chip').evaluateAll(cs => cs.map(c => ({ t: c.textContent.trim(), h: c.getBoundingClientRect().height, on: c.getAttribute('aria-pressed') })));
+  assert.deepEqual(chips.map(c => c.t), ['Automática', 'Só retrato']); assert.equal(chips[0].on, 'true'); assert.ok(chips.every(c => c.h >= 36), 'chips com altura de toque ' + JSON.stringify(chips));
+  await auditaTela(page, 'J-59 · Aparência com a orientação');
+  await page.click('#aparencia-orientacao [data-orientacao="retrato"]');
+  await page.reload(); await page.waitForSelector('#aparencia-orientacao');
+  assert.equal(await page.evaluate(() => document.documentElement.getAttribute('data-orientacao')), 'retrato', 'a escolha fica guardada no aparelho');
+  await createDeck(page, base, 'Retrato', '24 Mountain\n36 Delver of Secrets');
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start'); await page.fill('#mesa-seed', '3');
+  await page.click('[data-opponent="goldfish"]');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-pass');
+  await page.setViewportSize({ width: 780, height: 360 }); await page.waitForTimeout(350);
+  const lados = () => page.evaluate(() => { const o = document.querySelector('.tb-side--opp').getBoundingClientRect(), m = document.querySelector('.tb-side--me').getBoundingClientRect(); return { empilhados: o.bottom <= m.top, ladoALado: o.right <= m.left }; });
+  assert.deepEqual(await lados(), { empilhados: true, ladoALado: false }, 'só retrato: deitado, a mesa continua empilhada');
+  await auditaTela(page, 'J-59 · só retrato deitado');
+  await page.goto(base + '#/perfil'); await page.setViewportSize({ width: 360, height: 780 }); await page.waitForSelector('#aparencia-orientacao');
+  await page.click('#aparencia-orientacao [data-orientacao="automatica"]');
+  assert.equal(await page.evaluate(() => document.documentElement.getAttribute('data-orientacao')), null);
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-pass');
+  await page.setViewportSize({ width: 780, height: 360 }); await page.waitForTimeout(350);
+  assert.deepEqual(await lados(), { empilhados: false, ladoALado: true }, 'automática: deitado, os lados lado a lado');
+  const manifesto = JSON.parse(readFileSync(join(ROOT, 'manifest.webmanifest'), 'utf8'));
+  assert.equal(manifesto.orientation, 'any', 'o app instalado pode girar (a escolha de retrato é do usuário)');
   assert.deepEqual(errors, []);
 });
 

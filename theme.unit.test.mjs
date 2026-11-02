@@ -59,7 +59,8 @@ test('D1 · escala e densidade: atributos no <html>, valores inválidos caem no 
   const th = T.createTheme(store, janela('dark'), doc);
   await th.init();
   // D2 · a aparência ganhou acento, movimento e vibração; D7 · superfície, cor do oponente e verso (expectativa estendida de propósito)
-  const MESA = { superficie: 'nogueira', oponente: 'azul', verso: 'estante' };
+  // J-59 · a orientação da mesa (automática ou só retrato) entra na aparência (expectativa estendida de propósito)
+  const MESA = { superficie: 'nogueira', oponente: 'azul', verso: 'estante', orientacao: 'automatica' };
   assert.deepEqual(JSON.parse(JSON.stringify(th.aparencia)), { escala: 'media', densidade: 'confortavel', acento: 'latao', movimento: 'sistema', vibracao: true, ...MESA });
   assert.equal('data-escala' in d.root.attrs, false, 'padrão não marca o <html>');
   await th.setAparencia({ escala: 'grande' });
@@ -73,6 +74,18 @@ test('D1 · escala e densidade: atributos no <html>, valores inválidos caem no 
   const d2 = documento(); const th2 = T.createTheme(store, janela('dark'), { documentElement: d2.root, querySelectorAll: () => [] });
   await th2.init(); assert.equal(d2.root.attrs['data-densidade'], 'compacta'); assert.equal('data-escala' in d2.root.attrs, false);
   assert.deepEqual(JSON.parse(JSON.stringify([th.ESCALAS, th.DENSIDADES])), [['pequena', 'media', 'grande'], ['confortavel', 'compacta']]);
+});
+
+test('J-59 · orientação da mesa: "retrato" marca o <html> e pede à tela para travar em retrato (recusa silenciosa); "automática" desmarca e destrava; valor desconhecido volta a automática', async () => {
+  const store = P.memoryStore(); const d = documento(); const pedidos = [];
+  const win = { ...janela('dark'), screen: { orientation: { lock: o => { pedidos.push('lock:' + o); return Promise.reject(new Error('não instalado')); }, unlock: () => pedidos.push('unlock') } } };
+  const th = T.createTheme(store, win, { documentElement: d.root, querySelectorAll: () => [] });
+  await th.init();
+  assert.equal('data-orientacao' in d.root.attrs, false);
+  await th.setAparencia({ orientacao: 'retrato' }); assert.equal(d.root.attrs['data-orientacao'], 'retrato');
+  await th.setAparencia({ orientacao: 'deitado' }); assert.equal('data-orientacao' in d.root.attrs, false, 'valor desconhecido: automática');
+  assert.ok(pedidos.includes('lock:portrait') && pedidos.includes('unlock'), JSON.stringify(pedidos));
+  assert.deepEqual(JSON.parse(JSON.stringify(th.ORIENTACOES)), ['automatica', 'retrato']);
 });
 
 test('D2 · acento, movimento e vibração: atributos, validação, e quem ouve a aparência recebe a vibração', async () => {
