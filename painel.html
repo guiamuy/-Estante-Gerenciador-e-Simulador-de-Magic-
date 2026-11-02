@@ -460,6 +460,7 @@ a { color: var(--accent); }
 .ds-empty__acoes { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); width: 100%; margin-top: var(--space-2); }
 .ds-empty__acoes .ds-row { justify-content: center; }
 @media (prefers-reduced-motion: reduce) { #nav-offline::before { animation: none; } .ds-anel__barra { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .ds-icon .porta__folha, .ds-icon .porta__luz { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .inicio__rapidos .ds-atalho__icone { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .nt-topo.ds-btn { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .cat-topo.ds-btn { animation: none; } }
@@ -470,6 +471,7 @@ a { color: var(--accent); }
    seu fim parado (marca desenhada, nome à vista, cartas pousadas, folha aberta, faixa e véu no lugar). */
 @media (prefers-reduced-motion: reduce) { .ds-palco[data-on] * { animation: none !important; } }
 @media (prefers-reduced-motion: reduce) { .ds-palco[data-on="abertura"] .ds-palco__luz, .ds-palco[data-on="abertura"] .ds-palco__nome, .ds-palco[data-on="vez"] .ds-palco__faixa, .ds-palco[data-on="vez"] .ds-palco__veu, .ds-palco[data-on="folha"] .ds-palco__veu, .ds-palco[data-on="pousar"] .ds-palco__carta, .ds-palco[data-on="pousar"] .ds-palco__carta::after, .ds-palco[data-on="dano"] .ds-palco__numero { opacity: 1; clip-path: none; letter-spacing: 0; } .ds-palco[data-on="abertura"] .ds-palco__marca { opacity: 1; transform: none; } .ds-palco[data-on="abertura"] .ds-palco__marca path { stroke-dashoffset: 0; } .ds-palco[data-on="pousar"] .ds-palco__carta { transform: translate3d(var(--x), 0, 0); } .ds-palco[data-on="pousar"] .ds-palco__carta::after { transform: none; } .ds-palco[data-on="pousar"] .ds-palco__prateleira, .ds-palco[data-on="folha"] .ds-palco__folha { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .ds-navbar .ds-nav--jogar:active .ds-navbar__latao { transform: none; } }
 @media (prefers-reduced-motion: reduce) { .ds-nav:active { transform: none; } }
 @media (prefers-reduced-motion: reduce) { .ds-expansivel__seta { transition: none; } .ds-expansivel__corpo { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .tb-online[data-ligado="false"] { animation: none; opacity: .6; } }
@@ -526,6 +528,8 @@ a { color: var(--accent); }
 /* DS-K F1.2 (G-290) · a aba escolhida tem o fio de latão (claro no meio, escuro nas pontas) no lugar da borda lisa */
 .ds-tab[aria-selected="true"] { border-bottom-color: transparent; background: linear-gradient(90deg, var(--accent-lo), var(--accent-hi) 50%, var(--accent-lo)) bottom / 100% 2px no-repeat; }
 @media (prefers-reduced-motion: reduce) { .ds-dialog { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .tutorial__luz, .tutorial__sombra, .tutorial__objeto, .tutorial__objeto *, .tutorial__titulo { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .tutorial__objeto, .tutorial__corpo { animation: none; } .tutorial__passo { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .tb-vez__aviso, .tb-vez__aviso[data-saindo="true"] { animation: none; } }
 /* ---------------- estados ---------------- */
 .ds-empty {
@@ -591,9 +595,11 @@ body {
 @media (prefers-reduced-motion: reduce) { .ficha-opcao__quadro > .ficha-opcao__img { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .ds-relatar { transition: none; } .ds-relatar:active { transform: none; } }
 @media (prefers-reduced-motion: reduce) { .relato__ditar[data-ouvindo="true"] .ds-icon { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .relato__ditado[data-voz="true"] .relato__onda i { animation: none; height: 12px; } }
 @media (prefers-reduced-motion: reduce) { .tb-relatar__aba { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .troca-carta.is-chegou { animation: none; } .troca-carta { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .tb-vez-selo--troca { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .tb-mais:not([hidden]) { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .tb-steps__list li[data-acende]::after, .tb-steps__list li[data-acende="fica"] { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .tb-vez-pop { animation: none; } .tb-vez__btn:active:not(:disabled) { transform: none; } }
 @media (prefers-reduced-motion: reduce) { .tb-vez--troca[data-papel], .tb-vez-selo--troca[data-papel] { animation: none; } }
@@ -602,12 +608,15 @@ body {
 @media (prefers-reduced-motion: reduce) { .tb-card--entrou { animation: none; } .tb-card, .tb-card__face { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .tb-stack__monte--sobe > .tb-stack__mini[data-topo="true"] { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .tb-stack__painel { animation: none; } .tb-stack__faixa > .tb-stack__seta { transition: none; } }
+/* a carta inteira já subiu */
+@media (prefers-reduced-motion: reduce) { .tb-row--leque > .tb-card--leque { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .tb-desfecho[data-entra="true"], .tb-desfecho[data-entra="true"] .tb-desfecho__selo, .tb-desfecho[data-entra="true"] .tb-desfecho__selo::after { animation: none; } }
 .ds-icon { display: inline-flex; line-height: 0; }
 @media (prefers-reduced-motion: reduce) { .tb-hand__body, .tb-hand__chevron, .tb-dock, .tb-hand__toggle { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .tb-board[data-anima="true"] .tb-card, .tb-board[data-anima="true"] .tb-leque, .tb-board[data-anima="true"] .tb-leque__camada { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .tb-peek__brilho { display: none; } .tb-peek__arte { transform: none !important; } }
 @media (prefers-reduced-motion: reduce) { .tb-resumo__painel { animation: none; } .tb-resumo__faixa > .tb-resumo__seta { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .tb-origem[data-novo="true"] .tb-origem__mapa .tb-masmorra__no[data-dono="true"] { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .tb-card, .tb-card__face { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .deck-slot.is-pulse .ds-card { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .scan-stage.is-pulse .scan-frame, .scan-stage.is-pulse::after, .scan-ok.is-on, .scan-estado__chip[data-ligado="true"]::before { animation: none; } }
@@ -775,6 +784,26 @@ button.pn-barras__linha[aria-pressed="true"] { background: var(--accent-soft); }
 .pn-placar__fora, .pn-placar__atencao { overflow-wrap: anywhere; color: var(--fg); }
 .pn-placar__atencao { color: var(--fg-muted); }
 .pn-placar__fora strong, .pn-placar__atencao strong { font-weight: 600; }
+
+/* R-40 · Resumo executivo: "O que pede ação agora" (um cartão por insight, do mais grave; a frase em três tempos) e "Próximos passos do plano" */
+.pn-insights, .pn-proximos { display: flex; flex-direction: column; gap: var(--space-2); }
+.pn-insights__titulo { margin: 0; }
+.pn-insights__lista, .pn-proximos__lista { margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.pn-insights__lista { list-style: none; }
+.pn-proximos__lista { padding-left: var(--space-5); }
+.pn-proximos__lista li { overflow-wrap: anywhere; }
+.pn-insight { padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-1); border-left: 3px solid var(--fg-subtle); }
+.pn-insight[data-farol="vermelho"] { border-left-color: var(--negative); }
+.pn-insight[data-farol="amarelo"] { border-left-color: var(--warning); }
+.pn-insight p { margin: 0; overflow-wrap: anywhere; }
+.pn-insight__cabeca { display: flex; justify-content: space-between; gap: var(--space-2); flex-wrap: wrap; }
+.pn-insight__aconteceu { color: var(--fg); }
+.pn-insight__causa strong, .pn-insight__acao strong { font-weight: 600; }
+.pn-insight__abrir { align-self: flex-start; margin-top: var(--space-1); }
+.pn-insight__abrir svg { transform: scaleX(-1); }
+.pn-insights__nada { margin: 0; display: inline-flex; align-items: center; gap: var(--space-2); }
+.pn-proximos__ver { background: none; border: 0; padding: 0; color: var(--accent); font: inherit; font-size: var(--text-xs); text-decoration: underline; cursor: pointer; min-height: var(--tap-min); }
+:root[data-theme="light"] .pn-proximos__ver { color: var(--accent-lo); }
 
 </style>
 </head>
@@ -1104,7 +1133,7 @@ const __p2 = (function () {
   /** Sub-abas da aba Evolução & Entrega, na ordem das fatias. `leva` diz quando cada uma chega; sem `pronta`, a tela mostra
       "em breve" com o que a visão vai trazer. Incremento 1 (13/10): Pipeline entra antes da Eficiência. */
   const SUBABAS = [
-    { id: 'resumo', rotulo: 'Visão geral', titulo: 'Visão geral', leva: 'R-38', pronta: true, traz: 'todas as abas de uma vez: quantos cartões estão no alvo, em atenção, fora do alvo e sem dados em cada uma, da pior para a melhor' },
+    { id: 'resumo', rotulo: 'Resumo', titulo: 'Resumo executivo', leva: 'R-38', pronta: true, traz: 'o que pede ação agora (insights em linguagem de negócio), o placar de todas as abas da pior para a melhor e os próximos passos do plano' },
     { id: 'pipeline', rotulo: 'Pipeline', titulo: 'Pipeline de publicação', leva: 'R-4', pronta: true, traz: 'a fila agora (levas na fila, recusadas e o motivo, rodada em curso), entregue, recusado e reprocessando por período, e o filtro que vale para todas as visões' },
     { id: 'eficiencia', rotulo: 'Eficiência', titulo: 'Eficiência', leva: 'R-5', pronta: true, traz: 'levas por dia e por semana por trilha, intervalo entre publicações, portão verde na primeira, duração do portão e retrabalho' },
     { id: 'roadmap', rotulo: 'Roadmap', titulo: 'Roadmap', leva: 'R-6', pronta: true, traz: 'histórias por status, por épico e por tema, % concluído por épico e o burn-up semanal' },
@@ -1124,7 +1153,7 @@ const __p2 = (function () {
   /* ---------- R-37 · painel didático, fatia 3: cada sub-aba diz a pergunta que responde e como ler; o farol fala a língua de quem gerencia ---------- */
   /** `pergunta`: a pergunta de gestão que a sub-aba responde. `ler`: o que olhar primeiro e o que é bom ou ruim (os termos são marcados com balão). */
   const COMO_LER = {
-    resumo: { pergunta: 'Onde está o problema agora?', ler: 'Cada linha é uma aba do painel, da que tem mais cartões fora do alvo para a que tem menos. A barra mostra a proporção dos faróis da aba: verde no alvo, amarelo atenção, vermelho fora do alvo, cinza sem dados; embaixo vêm os nomes do que está fora do alvo. Toque numa linha para abrir a aba e ver o detalhe.' },
+    resumo: { pergunta: 'Onde está o problema agora?', ler: 'Comece por "O que pede ação agora": cada cartão diz o que aconteceu, a causa provável e a ação sugerida, do mais grave para o menos. Depois o placar: uma linha por aba, da que tem mais cartões fora do alvo para a que tem menos, com a barra dos faróis e os nomes do que está fora do alvo; toque numa linha para abrir a aba. No fim, os próximos passos do plano.' },
     pipeline: { pergunta: 'O que está saindo agora e o que travou?', ler: 'Olhe primeiro "Na fila agora" e "Recusadas agora": levas esperando há muito tempo ou recusadas são o que pede ação. A rodada em curso é a volta da fila que está testando e publicando agora; o histórico embaixo mostra o que foi entregue, recusado e reprocessado no período.' },
     eficiencia: { pergunta: 'Estamos entregando no ritmo e sem retrabalho?', ler: 'Levas por dia mostram o ritmo; o intervalo entre publicações, o fôlego da esteira. "Portão verde na primeira" é a qualidade de quem entrega: quanto mais alto, menos retrabalho. Recusas e reenvios são custo que não aparece para o usuário.' },
     roadmap: { pergunta: 'Quanto do plano já foi feito, e onde?', ler: 'Cada história do ROADMAP tem um status. O percentual por épico mostra quais frentes avançaram; o burn-up semanal mostra se o concluído cresce mais rápido que o escopo. História parcial tem o que falta escrito.' },
@@ -1142,6 +1171,52 @@ const __p2 = (function () {
   };
   /** O farol na língua de quem gerencia (a cor continua no ponto; o texto diz o que a cor quer dizer). */
   const FAROL_EM_PALAVRAS = { verde: 'no alvo', amarelo: 'atenção', vermelho: 'fora do alvo', cinza: 'sem dados' };
+  /* ---------- R-40 · BI4-1 · motor de insights: regras declaradas sobre os cartões que as abas já mostram (rótulo, farol, valor, nota).
+     Cada regra dispara pelo farol do cartão (o limiar é o do próprio cartão) e escreve a frase em três tempos: o que aconteceu — causa provável — ação.
+     Dado ausente (farol cinza ou cartão que não existe) nunca gera insight. ---------- */
+  const INSIGHTS = [
+    { id: 'fila-parada', aba: 'pipeline', cartao: 'pn-k-fila', verbete: 'fila', so: ['vermelho', 'amarelo'],
+      aconteceu: c => `${c.valor} ${c.unidade} na fila${c.nota ? ' · ' + c.nota : ''}`, causa: 'a rodada em curso está longa ou uma recusa prendeu quem veio atrás', acao: 'abra a Pipeline, veja a rodada em curso e trate a leva mais antiga antes de enviar outra' },
+    { id: 'recusadas', aba: 'pipeline', cartao: 'pn-k-recusadas', verbete: 'recusada', so: ['vermelho', 'amarelo'],
+      aconteceu: c => `${c.valor} ${c.unidade} recusada${c.valor === '1' ? '' : 's'} pela fila agora`, causa: 'conflito com a leva da frente, guarda de agregação ou portão vermelho', acao: 'cada recusa traz o motivo; a conversa dona corrige no clone e reenvia — até lá o main não mudou' },
+    { id: 'rodadas-vermelhas', aba: 'pipeline', cartao: 'pn-k-verdes', verbete: 'portao-vermelho', so: ['vermelho', 'amarelo'],
+      aconteceu: c => `só ${c.valor} ${c.unidade} das rodadas da fila ficaram verdes`, causa: 'um teste instável ou o main vermelho derrubando levas inocentes', acao: 'veja na Experiência quais testes caíram; instável é dívida da trilha dona do teste' },
+    { id: 'trilha-parada', aba: 'curso', cartao: 'pn-k-paradas', verbete: 'conversa', so: ['vermelho', 'amarelo'],
+      aconteceu: c => `${c.valor} ${c.unidade} sem atualização há mais de 48 h`, causa: 'a conversa parou esperando decisão sua ou perdeu o contexto', acao: 'abra Em curso: reserva parada há mais de 48 h pode ser assumida por outra conversa' },
+    { id: 'instaveis', aba: 'experiencia', cartao: 'pn-k-instaveis', verbete: 'instavel', so: ['vermelho', 'amarelo'],
+      aconteceu: c => `${c.valor} ${c.unidade} instáveis na última leva`, causa: 'teste de tela que depende de tempo ou de estado que sobra do teste anterior', acao: 'cada instável tem dona; peça a correção da causa (espera explícita) antes de ele derrubar a fila de novo' },
+    { id: 'listas-falhando', aba: 'jogo', cartao: 'pn-k-falhas-prova', verbete: 'prova', so: ['vermelho', 'amarelo'],
+      aconteceu: c => `${c.valor} ${c.unidade} falham na prova de partida`, causa: 'uma carta lida por inteiro mudou de comportamento ou uma regra nova quebrou uma lista antiga', acao: 'abra o Jogo: as cartas culpadas estão nomeadas; a trilha do motor corrige com teste' },
+    { id: 'shark-fora-do-alvo', aba: 'jogo', cartao: 'pn-k-forca-alvo', verbete: 'forca', so: ['vermelho', 'amarelo'],
+      aconteceu: c => `${c.valor} ${c.unidade} listas do Shark no alvo de 45 %`, causa: 'o piloto da lista mais fraca ainda não aprendeu o plano dela', acao: 'a trilha do bot mede por lista; a mais fraca está nomeada no Jogo' },
+    { id: 'relato-parado', aba: 'qualidade', cartao: 'pn-k-abertos', verbete: 'relato', so: ['vermelho', 'amarelo'],
+      aconteceu: c => `${c.valor} ${c.unidade} abertos, o mais antigo há mais de 2 dias`, causa: 'a rotina de relatos não pegou ou a correção espera decisão sua', acao: 'abra a Qualidade e veja qual está parado; relato seu com decisão pendente trava a rotina' },
+    { id: 'actions-no-teto', aba: 'custo', cartao: 'pn-k-minutos-mes', verbete: 'ci', so: ['vermelho', 'amarelo'],
+      aconteceu: c => `${c.valor} ${c.unidade} de Actions no mês, perto da referência`, causa: 'muitas rodadas da fila ou rodadas longas demais', acao: 'no repositório público não há cobrança; se for privado, a referência de 2.000 minutos passa a valer — veja a duração da rodada na Pipeline' },
+    { id: 'app-pesado', aba: 'custo', cartao: 'pn-k-tamanho', verbete: 'index', so: ['vermelho', 'amarelo'],
+      aconteceu: c => `o app chegou a ${c.valor} ${c.unidade}`, causa: 'levas grandes somando código sem tirar nada', acao: 'a revisão de escala decide o que sai; acima do orçamento o portão barra' },
+    { id: 'saldo-negativo', aba: 'negocio', cartao: 'pn-k-negocio-saldo', verbete: 'plano', so: ['vermelho', 'amarelo'],
+      aconteceu: c => `saldo de ${c.valor} ${c.unidade} nos últimos 12 meses`, causa: 'o custo informado supera as doações do período', acao: 'confira o custo informado no Negócio e a meta de doação' },
+    { id: 'pessoas-parada', aba: 'pessoas', cartao: 'pn-k-contas', verbete: 'telemetria', so: ['vermelho', 'amarelo'],
+      aconteceu: c => `a contagem de pessoas parou${c.nota ? ' · ' + c.nota : ''}`, causa: 'o fluxo Pessoas não rodou ou o segredo do banco sumiu', acao: 'abra Pessoas: a nota diz a idade da última contagem; a trilha infra reativa o fluxo' }
+  ];
+  const PESO_INSIGHT = { vermelho: 0, amarelo: 1 };
+  /** Roda as regras sobre os cartões por aba ({ aba: [{ id, rotulo, farol, valor, unidade, nota }] }) e devolve os insights em ordem de gravidade (vermelho antes de amarelo, depois a ordem das regras).
+      Cartão ausente ou sem farol de alerta não dispara; `maximo` limita a lista. */
+  function insightsDe(cartoesPorAba, { maximo = 5 } = {}) {
+    const saida = [];
+    INSIGHTS.forEach((r, i) => {
+      const c = ((cartoesPorAba && cartoesPorAba[r.aba]) || []).find(x => x.id === r.cartao);
+      if (!c || !r.so.includes(c.farol)) return;
+      saida.push({ regra: r.id, aba: r.aba, cartao: r.cartao, verbete: r.verbete, gravidade: c.farol, ordem: i, aconteceu: r.aconteceu(c), causa: r.causa, acao: r.acao });
+    });
+    saida.sort((a, b) => (PESO_INSIGHT[a.gravidade] - PESO_INSIGHT[b.gravidade]) || (a.ordem - b.ordem));
+    return saida.slice(0, maximo);
+  }
+  /** Próximos passos do plano: as linhas 🟡 (parciais) da ordem por dependência do ROADMAP, na ordem em que estão, até `maximo`. */
+  function proximosPassos(resumoRoadmap, { maximo = 3 } = {}) {
+    return ((resumoRoadmap && resumoRoadmap.ordem) || []).filter(l => l.situacao === 'parcial').slice(0, maximo).map(l => ({ id: l.id, epico: l.epico, texto: l.texto }));
+  }
   /** R-38 · placar da Visão geral: para cada aba, quantos cartões em cada farol e os nomes dos que estão fora do alvo e em atenção;
       da pior aba para a melhor (mais vermelhos, depois mais amarelos, depois a ordem das abas). Aba que não carregou vai para o fim, marcada. */
   function placarDasAbas(abas) {
@@ -1924,7 +1999,7 @@ const __p2 = (function () {
     coleta: 'raw · catalogo/coleta.json (saúde e contagens da última coleta; gravado pelo fluxo Catálogo)',
     indice: 'raw · catalogo/indice.json (só o cabeçalho: fontes, formatos, total, pendentes; lido uma vez por coleta e guardado por carimbo)'
   };
-  return { centavosDe, reaisDe, mesDe, rotuloDoMes, linhasDoNegocio, resumoDoNegocio, SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, linhasDosCommits, levasPorRodada, compactaCommits, MAIN_URL, intervalos, diasDoPeriodo, porSemana, parseRoadmap, resumoDoMapa, linhasDosPlacares, sharkPorVersao, minutosDasRodadas, serieDeTamanho, kb, cabecalhoDoIndice, resumoDoCatalogo, experienciaDasLevas, linhasDasRodadasCI, experienciaDasRodadas, instaveisPorNome, linhasDasPessoas, resumoDasPessoas, linhasDoUso, resumoDoUso, linhasDaForca, resumoDaForca, GLOSSARIO, GRUPOS_GLOSSARIO, buscaGlossario, nomeBate, verbeteDe, MARCAVEIS, segmentosComTermos, COMO_LER, FAROL_EM_PALAVRAS, alvoEmPalavras, placarDasAbas, glossarioPorGrupo, semAcento, medidaDoScanner, linhasDosRelatos, linhasDasTrilhas, resumoDoFluxo, fraseDoCron, linhasDosFluxos, linhasDasRotinas, porModelo, SECOES_CR, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
+  return { centavosDe, reaisDe, mesDe, rotuloDoMes, linhasDoNegocio, resumoDoNegocio, SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, linhasDosCommits, levasPorRodada, compactaCommits, MAIN_URL, intervalos, diasDoPeriodo, porSemana, parseRoadmap, resumoDoMapa, linhasDosPlacares, sharkPorVersao, minutosDasRodadas, serieDeTamanho, kb, cabecalhoDoIndice, resumoDoCatalogo, experienciaDasLevas, linhasDasRodadasCI, experienciaDasRodadas, instaveisPorNome, linhasDasPessoas, resumoDasPessoas, linhasDoUso, resumoDoUso, linhasDaForca, resumoDaForca, GLOSSARIO, GRUPOS_GLOSSARIO, buscaGlossario, nomeBate, verbeteDe, MARCAVEIS, segmentosComTermos, COMO_LER, FAROL_EM_PALAVRAS, alvoEmPalavras, placarDasAbas, INSIGHTS, insightsDe, proximosPassos, glossarioPorGrupo, semAcento, medidaDoScanner, linhasDosRelatos, linhasDasTrilhas, resumoDoFluxo, fraseDoCron, linhasDosFluxos, linhasDasRotinas, porModelo, SECOES_CR, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
 })();
 
 /* ==== src/painel/ui.js ==== */
@@ -3010,7 +3085,11 @@ const __p4 = (function () {
       const v = VISOES[id]; if (!v || !d) return null;
       const caixa = h('div', {});
       try { for (const n of v.desenha(d, { periodo: v.periodoPadrao }, api)) if (n) caixa.appendChild(n); } catch (e) { return null; }
-      return [...caixa.querySelectorAll('.pn-cartao')].map(c => { const f = c.querySelector('.pn-farol'); return { rotulo: c.getAttribute('aria-label') || '', farol: f ? f.dataset.farol : null }; }).filter(c => c.farol);
+      return [...caixa.querySelectorAll('.pn-cartao')].map(c => {
+        const f = c.querySelector('.pn-farol'), v = c.querySelector('.pn-cartao__valor'), u = c.querySelector('.pn-cartao__unidade'), n = c.querySelector('.pn-cartao__valor + p:not(.pn-cartao__origem)');
+        const valor = v ? v.childNodes[0] && v.childNodes[0].nodeType === 3 ? v.childNodes[0].nodeValue.trim() : v.textContent.replace(u ? u.textContent : '', '').trim() : '';
+        return { id: c.id || '', rotulo: c.getAttribute('aria-label') || '', farol: f ? f.dataset.farol : null, valor, unidade: u ? u.textContent.trim() : '', nota: n ? n.textContent.trim() : '' };
+      }).filter(c => c.farol);
     }
     function telaVisaoGeral(d) {
       const abas = M.SUBABAS.filter(a => a.id !== 'resumo' && !a.semDados).map(a => {
@@ -3018,10 +3097,29 @@ const __p4 = (function () {
         return { id: a.id, rotulo: a.rotulo, cartoes: cartoes || [], erro: cartoes ? null : ((d.erros && d.erros[a.id]) || 'não carregou') };
       });
       const p = M.placarDasAbas(abas);
+      // R-40 · insights sobre os mesmos cartões; próximos passos do ROADMAP já carregado pela aba Roadmap
+      const porAba = {}; for (const a of abas) porAba[a.id] = a.cartoes;
+      const insights = M.insightsDe(porAba);
+      const proximos = M.proximosPassos(d.porAba && d.porAba.roadmap && d.porAba.roadmap.resumo);
+      const blocoInsights = h('section', { class: 'pn-insights', id: 'pn-insights', 'aria-label': 'o que pede ação agora' },
+        h('h2', { class: 'ds-text ds-text--caps ds-text--muted pn-insights__titulo' }, 'O que pede ação agora'),
+        insights.length ? h('ul', { class: 'pn-insights__lista' }, ...insights.map(i => h('li', { class: 'ds-surface pn-insight', dataset: { regra: i.regra, farol: i.gravidade, aba: i.aba } },
+          h('p', { class: 'pn-insight__cabeca' }, h('span', { class: 'pn-farol ds-text ds-text--xs ds-text--muted', dataset: { farol: i.gravidade } }, M.FAROL_EM_PALAVRAS[i.gravidade]), h('span', { class: 'ds-text ds-text--xs ds-text--subtle' }, M.SUBABAS.find(a => a.id === i.aba).rotulo)),
+          h('p', { class: 'pn-insight__aconteceu ds-text ds-text--md ds-text--display' }, i.aconteceu),
+          h('p', { class: 'pn-insight__causa ds-text ds-text--sm ds-text--muted' }, h('strong', {}, 'Causa provável: '), i.causa),
+          h('p', { class: 'pn-insight__acao ds-text ds-text--sm' }, h('strong', {}, 'Ação: '), i.acao),
+          Button('Abrir ' + M.SUBABAS.find(a => a.id === i.aba).rotulo, { variant: 'ghost', icone: 'voltar', classe: 'pn-insight__abrir', onClick: () => abre(i.aba) }))))
+          : h('p', { class: 'ds-text ds-text--md pn-insights__nada', id: 'pn-insights-nada' }, h('span', { class: 'pn-farol', dataset: { farol: 'verde' } }), 'Nada pede ação agora', h('span', { class: 'ds-text ds-text--xs ds-text--subtle' }, ` · ${d.em ? M.carimbo(d.em) : ''}`)));
+      const blocoProximos = h('section', { class: 'pn-proximos', id: 'pn-proximos', 'aria-label': 'próximos passos do plano' },
+        h('h2', { class: 'ds-text ds-text--caps ds-text--muted pn-insights__titulo' }, 'Próximos passos do plano'),
+        proximos.length ? h('ol', { class: 'pn-proximos__lista' }, ...proximos.map(x => h('li', { class: 'ds-text ds-text--sm' }, h('span', { class: 'ds-text ds-text--xs ds-text--subtle' }, `${x.id} · ${x.epico} · `), x.texto)))
+          : h('p', { class: 'ds-text ds-text--sm ds-text--muted', id: 'pn-proximos-nada' }, d.erros && d.erros.roadmap ? 'o ROADMAP não carregou' : 'nenhuma história em andamento na ordem por dependência'),
+        h('p', { class: 'ds-text ds-text--xs ds-text--subtle' }, 'As primeiras histórias 🟡 da ordem por dependência do ROADMAP. ', h('button', { type: 'button', class: 'pn-proximos__ver', onClick: () => abre('roadmap') }, 'Ver o Roadmap')));
       const ORDEM = ['vermelho', 'amarelo', 'verde', 'cinza'];
       const totalGeral = ORDEM.reduce((n, k) => n + p.totais[k], 0);
       const contaTexto = conta => ORDEM.filter(k => conta[k]).map(k => `${conta[k]} ${M.FAROL_EM_PALAVRAS[k]}`).join(' · ') || 'nenhum cartão com farol';
       return h('div', { class: 'pn-placar', id: 'pn-placar' },
+        blocoInsights,
         h('div', { class: 'pn-placar__totais', id: 'pn-placar-totais', role: 'list', 'aria-label': 'faróis de todo o painel' },
           ...ORDEM.map(k => h('div', { class: 'ds-surface pn-placar__total', role: 'listitem', dataset: { farol: k }, id: 'pn-placar-total-' + k },
             h('span', { class: 'pn-placar__num ds-text ds-text--2xl ds-text--display' }, String(p.totais[k])),
@@ -3034,7 +3132,8 @@ const __p4 = (function () {
               h('span', { class: 'pn-placar__conta ds-text ds-text--xs ds-text--muted' }, l.erro ? l.erro : contaTexto(l.conta))),
             l.erro || !l.total ? null : h('span', { class: 'pn-placar__barra', 'aria-hidden': 'true' }, ...ORDEM.filter(k => l.conta[k]).map(k => h('span', { class: 'pn-placar__seg', dataset: { farol: k }, style: { flexGrow: String(l.conta[k]) } }))),
             l.fora.length ? h('span', { class: 'pn-placar__fora ds-text ds-text--xs' }, h('strong', {}, 'Fora do alvo: '), l.fora.join(' · ')) : null,
-            !l.fora.length && l.atencao.length ? h('span', { class: 'pn-placar__atencao ds-text ds-text--xs ds-text--muted' }, h('strong', {}, 'Atenção: '), l.atencao.join(' · ')) : null)))));
+            !l.fora.length && l.atencao.length ? h('span', { class: 'pn-placar__atencao ds-text ds-text--xs ds-text--muted' }, h('strong', {}, 'Atenção: '), l.atencao.join(' · ')) : null)))),
+        blocoProximos);
     }
     function conteudo() {
       const aba = SUBABAS.find(a => a.id === est.aba) || SUBABAS.find(a => a.id === 'pipeline');

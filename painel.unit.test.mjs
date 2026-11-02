@@ -1137,3 +1137,29 @@ test('R-38 · Visão geral: o placar conta os faróis dos cartões de cada aba, 
   assert.equal(progresso.length, chamadas.length, 'o progresso conta cada aba lida');
   assert.equal(app.VISOES.resumo.semFiltros, true, 'a Visão geral não tem barra de filtros (cada aba tem o seu período)');
 });
+
+test('R-40 · motor de insights: toda regra aponta para um cartão que existe numa aba que existe e para um verbete do glossário; dispara só pelo farol do cartão (cinza e verde nunca), a frase cita o número do cartão nos três tempos, a ordem é vermelho antes de amarelo e depois a ordem das regras, o máximo corta; cartão ausente não dispara; nada de e-mail; os próximos passos são as linhas 🟡 da ordem do ROADMAP', () => {
+  const { modelo: M } = loadPainel();
+  const cartoesDoPainel = new Set([...PAINEL.matchAll(/id: '(pn-k-[a-z-]+)'/g)].map(m => m[1]));
+  const ids = new Set();
+  for (const r of M.INSIGHTS) {
+    assert.ok(!ids.has(r.id), 'regra repetida: ' + r.id); ids.add(r.id);
+    assert.ok(M.SUBABAS.some(a => a.id === r.aba), `${r.id}: aba ${r.aba} existe`);
+    assert.ok(cartoesDoPainel.has(r.cartao), `${r.id}: cartão ${r.cartao} existe no painel`);
+    assert.ok(M.verbeteDe(r.verbete), `${r.id}: verbete ${r.verbete} no glossário`);
+    assert.ok(r.so.every(f => ['vermelho', 'amarelo'].includes(f)) && r.causa.length > 20 && r.acao.length > 20, r.id);
+  }
+  assert.equal(M.INSIGHTS.length, 12);
+  const c = (id, farol, valor = '3', unidade = 'levas', nota = '') => ({ id, rotulo: id, farol, valor, unidade, nota });
+  const por = { pipeline: [c('pn-k-fila', 'amarelo', '2', 'levas', 'pior espera 95 min'), c('pn-k-recusadas', 'vermelho', '3'), c('pn-k-verdes', 'verde', '100', '%')], qualidade: [c('pn-k-abertos', 'cinza')], custo: [c('pn-k-tamanho', 'vermelho', '4,2', 'MB')] };
+  const ins = M.insightsDe(por);
+  assert.deepEqual(ins.map(i => [i.regra, i.gravidade]), [['recusadas', 'vermelho'], ['app-pesado', 'vermelho'], ['fila-parada', 'amarelo']], 'vermelho antes de amarelo; verde e cinza não disparam');
+  assert.match(ins[0].aconteceu, /3 levas recusadas/); assert.match(ins[2].aconteceu, /2 levas na fila · pior espera 95 min/);
+  for (const i of ins) { assert.ok(i.causa && i.acao && i.aba && i.verbete, i.regra); assert.doesNotMatch(i.aconteceu + i.causa + i.acao, /@|uid/i); }
+  assert.deepEqual(M.insightsDe(por, { maximo: 2 }).map(i => i.regra), ['recusadas', 'app-pesado']);
+  assert.deepEqual(M.insightsDe({}), []); assert.deepEqual(M.insightsDe(null), []);
+  assert.deepEqual(M.insightsDe({ pipeline: [c('pn-k-recusadas', 'verde', '0')] }), [], 'no alvo não dispara');
+  const prox = M.proximosPassos({ ordem: [{ id: '16º-a', situacao: 'entregue', texto: 'x', epico: 'Q' }, { id: '16º-b', situacao: 'parcial', texto: 'y', epico: 'BI' }, { id: '16º-c', situacao: 'parcial', texto: 'z', epico: 'M' }, { id: '16º-d', situacao: 'parcial', texto: 'w', epico: 'M' }, { id: '16º-e', situacao: 'parcial', texto: 'v', epico: 'M' }] });
+  assert.deepEqual(prox.map(p => p.id), ['16º-b', '16º-c', '16º-d']);
+  assert.deepEqual(M.proximosPassos(null), []);
+});

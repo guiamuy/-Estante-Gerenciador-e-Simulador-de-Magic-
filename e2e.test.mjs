@@ -14415,6 +14415,54 @@ test('e2e · R-36 Painel · termos marcados: os termos técnicos da sub-aba e da
   assert.deepEqual(errors, []);
 });
 
+/* ---------- R-40 · BI4-1 · Resumo executivo: o que pede ação agora + próximos passos ---------- */
+test('e2e · R-40 Painel · Resumo executivo: a primeira aba abre com "O que pede ação agora" — um cartão por insight (farol, o que aconteceu com o número, causa provável, ação) do mais grave para o menos, com botão que abre a aba de origem —, o placar, e "Próximos passos do plano" lidos do ROADMAP; sem sobreposição nos dois temas', { timeout: 150000 }, async t => {
+  const { page, errors, base } = await open(t);
+  const painel = base.replace('index.html', 'painel.html');
+  await page.setViewportSize({ width: 360, height: 780 });
+  const h = n => new Date(Date.now() - n * 3600000).toISOString();
+  const json = (r, corpo) => r.fulfill({ json: corpo, headers: { 'content-type': 'application/json', 'x-ratelimit-remaining': '50', 'x-ratelimit-limit': '60', 'access-control-expose-headers': 'etag, x-ratelimit-remaining, x-ratelimit-limit' } });
+  await page.route('https://api.github.com/**', r => {
+    const u = r.request().url();
+    if (/commits\?sha=main/.test(u)) return json(r, [{ sha: 'abc1234def0', commit: { message: 'Leva R-40 · x', committer: { date: new Date().toISOString() } } }]);
+    if (/\/branches\?/.test(u)) return json(r, [{ name: 'main', commit: { sha: 'm' } }, { name: 'fila/T-9', commit: { sha: 'f1' } }, { name: 'recusada/M-1', commit: { sha: 'r1' } }, { name: 'recusada/M-2', commit: { sha: 'r2' } }, { name: 'recusada/M-3', commit: { sha: 'r3' } }]);
+    if (/\/branches\/fila/.test(u)) return json(r, { commit: { message: 'Leva T-9 · x', committer: { date: h(3) } } });
+    if (/\/branches\/recusada/.test(u)) return json(r, { commit: { message: 'RECUSADA pela fila · M-1\n\nCONFLITO.', committer: { date: h(1) } } });
+    if (/\/runs/.test(u)) return json(r, { workflow_runs: [], total_count: 0 });
+    return json(r, []);
+  });
+  await page.route('https://raw.githubusercontent.com/**', r => r.fulfill({ body: /ROADMAP\.md/.test(r.request().url()) ? '## 6. Ordem\n| 16º-a ✅ | feita | Q | 1 | — |\n| 16º-b 🟡 | **BI4** painel de gestão em andamento | BI | 25 | — |\n| 16º-c 🟡 | motor parcial | M | 1 | — |\n' : '', headers: { 'content-type': 'text/plain', 'access-control-allow-origin': '*' } }));
+  await page.addInitScript(() => {
+    const jwt = email => 'h.' + btoa(JSON.stringify({ email })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') + '.s';
+    window.__PAINEL_FETCH = async (url) => new Response(JSON.stringify(url.includes('securetoken') ? { user_id: 'uidE2E', id_token: jwt('gui.amuy@gmail.com'), refresh_token: 'ref-e2e', expires_in: '3600' } : { localId: 'uidE2E', idToken: jwt('gui.amuy@gmail.com'), refreshToken: 'ref-e2e', expiresIn: '3600', email: 'gui.amuy@gmail.com' }), { status: 200, headers: { 'content-type': 'application/json' } });
+    window.__PAINEL_GOOGLE = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }), revoke: (tk, cb) => cb && cb() } } };
+  });
+  await page.goto(painel + '#resumo'); await page.waitForSelector('#pn-entrar'); await page.click('#pn-entrar');
+  await page.waitForSelector('#pn-insights', { timeout: 60000 });
+  assert.equal(await page.locator('#pn-abas .ds-tab').first().innerText(), 'Resumo');
+  // insights: 3 recusadas (fora do alvo) e 1 leva na fila há 3 h (fora do alvo) — do mais grave; cada um com os três tempos e o número
+  const ins = await page.$$eval('#pn-insights .pn-insight', ls => ls.map(l => ({ regra: l.dataset.regra, farol: l.dataset.farol, texto: l.textContent, altura: l.querySelector('.pn-insight__abrir').getBoundingClientRect().height })));
+  assert.ok(ins.length >= 2, `insights: ${ins.map(i => i.regra).join(', ')}`);
+  assert.deepEqual(ins.slice(0, 2).map(i => i.regra).sort(), ['fila-parada', 'recusadas']);
+  const rec = ins.find(i => i.regra === 'recusadas');
+  assert.equal(rec.farol, 'vermelho'); assert.match(rec.texto, /fora do alvo[\s\S]*Pipeline[\s\S]*3 levas recusadas[\s\S]*Causa provável:[\s\S]*Ação:/);
+  for (let i = 1; i < ins.length; i++) assert.ok(ins[i - 1].farol !== 'amarelo' || ins[i].farol === 'amarelo', 'vermelho antes de amarelo');
+  assert.ok(ins.every(i => i.altura >= 44), 'botão de 44 px');
+  assert.equal(await page.locator('#pn-insights-nada').count(), 0);
+  // próximos passos: só as linhas 🟡, na ordem
+  assert.deepEqual(await page.$$eval('#pn-proximos li', ls => ls.map(l => l.textContent.slice(0, 5))), ['16º-b', '16º-c']);
+  assert.match(await page.innerText('#pn-proximos'), /BI4 painel de gestão/);
+  await auditaTela(page, 'resumo executivo');
+  // o botão do insight abre a aba de origem
+  await page.locator('#pn-insights .pn-insight[data-regra="recusadas"] .pn-insight__abrir').click(); await page.waitForSelector('#pn-visao-pipeline #pn-k-recusadas');
+  assert.equal(await page.getAttribute('#pn-abas [data-tab="pipeline"]', 'aria-selected'), 'true');
+  assert.equal(await page.getAttribute('#pn-k-recusadas .pn-farol', 'data-farol'), 'vermelho', 'o insight nasceu do farol deste cartão');
+  await page.click('#pn-abas [data-tab="resumo"]'); await page.waitForSelector('#pn-insights', { timeout: 60000 });
+  await emTodasAsMedidas(page, 'resumo executivo');
+  if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.waitForTimeout(400); await page.screenshot({ path: process.env.SHOTS + '/r40-resumo.png', fullPage: true }); }
+  assert.deepEqual(errors, []);
+});
+
 /* ---------- R-38 · painel didático, fatia 4: Visão geral (placar de gestão) ---------- */
 test('e2e · R-38 Painel · Visão geral: é a primeira aba e abre o placar de todas as abas com dados — quatro totais (fora do alvo, atenção, no alvo, sem dados) e uma linha por aba da pior para a melhor, com a barra dos faróis e os nomes do que está fora do alvo; os números batem com os faróis das próprias abas; tocar a linha abre a aba; sem barra de filtros; o primeiro acesso sem aba guardada continua na Pipeline; sem sobreposição nos dois temas', { timeout: 150000 }, async t => {
   const { page, errors, base } = await open(t);
