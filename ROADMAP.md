@@ -642,6 +642,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-sk ✅ | Y7 relato #47: a linha "N listas prontas para jogar" sai do Início — contava só as suas listas de Pauper que o motor joga, lia-se como o catálogo e não batia com o total da estante; o selo do motor em cada lista já diz isso (G-328, 02/11/2026) | G | 1 | — |
 | 16º-sl ✅ | Y8 relato #46: na escolha da lista do Jogar, "Adicionar lista" (Prontas já no formato · Nova lista para escrever ou colar); a doca do Começar encosta na barra de baixo ao rolar até o fim, sem vão (G-329, 02/11/2026) | G | 1 | — |
 | 16º-sm ✅ | Y9 relato #50: Perfil › Relatos fala curto — uma linha de estado por cartão (ícone · título · uma frase), sem parágrafo sob as seções, prazo da fila à vista, avisos de envio em uma frase (G-330, 02/11/2026) | G | 1 | — |
+| 16º-sn 🟡 | BI4 · Painel de gestão: insight, visual e fluidez (pedido do dono de 01/11/2026: painel mais visual, didático e fluido, com gráficos de qualidade, ícones flat, animação com propósito e insights para quem gerencia — eficiência da evolução e rentabilização). Roadmap na R-39 (seção 7, épico BI4): **M1 · Insight** R-40 resumo executivo com motor de insights (dado → frase: o que aconteceu, causa provável, ação) · R-41 biblioteca de gráficos em SVG (linha, área, barras, sparkline, anel, funil; legenda, tabela, tooltip) · R-42 tendência nos cartões · R-43 metas do dono · R-44 comparar períodos; **M2 · Visual** R-45…R-47 gráficos em todas as abas · R-48 ícones flat · R-49 movimento com propósito (≤ 300 ms, reduced-motion, orçamento de quadros) · R-50 hierarquia dos cartões (herói por aba) · R-51 contrato visual e de dados; **M3 · Negócio** R-52 custo por entrega · R-53 funil do usuário (+ G/I opt-in) · R-54 retenção · R-55 projeção e ponto de equilíbrio; **M4 · Fluidez** R-56 grupos de abas e "ir para" · R-57 filtros fixados · R-58 abertura rápida · R-59 "o que isto diz" por cartão · R-60 tour · R-61 relatório para compartilhar · R-62 modo apresentação | BI | 25 | 16º-sj | identificar usuário; gráficos por biblioteca externa; `index.html` fora dos eventos opt-in da BI4-14 |
 | 16º-ja ✅ | MJ · roadmap da mesa de patamar (leva J-1, 17/10): crítica medida da mesa em 360×780 e histórias MJ1–MJ12 | MJ | 1 | — |
 | 16º-jb ✅ | MJ1 a mesa numa tela só (MJ1a partida em tela cheia na leva J-2; MJ1b faixa compacta por lado na J-3; MJ1c pilha e resumo por cima na J-4; MJ1d terrenos compactos na J-5; MJ1f mão por cima da mesa na J-6; MJ1e Conversa no selo da faixa de vez na J-7): os dois campos visíveis sem rolar, em fatias (cabeçalho do app fora da partida, topo numa linha, faixa compacta por lado, terrenos compactos, pilha e resumo fora do fluxo, tabuleiro com a altura da tela) | MJ | 3–4 | 16º-ja; T-130 publicada (mesma região) |
 | 16º-jc ✅ | MJ2 avisos fora do campo: o aviso flutuante não cobre cartas nem a mão (leva J-8: faixa de uma linha por cima da linha de cima da mesa) | MJ | 1 | 16º-jb |
@@ -14332,6 +14333,124 @@ Visão de gestão do próprio projeto, para o dono: o que foi entregue, o que es
 - **Lacuna conhecida:** `.regras/mapa.json` declara `motor: 109` (auditoria de 06/10) com o `main` em v112; o painel mostra o mapa com farol amarelo "auditoria de outra versão" até a trilha dona o atualizar.
 
 ## 8. Como publicar e verificar
+
+### BI4 · Painel de gestão: insight, visual e fluidez (trilha `radar`, pedido do dono de 01/11/2026 23:50; refinado pela `prompt-architect`; roadmap na leva R-39)
+
+**Pedido (refinado):** o dono, gerente de produto e não desenvolvedor, quer um painel que, lido em minutos, diga onde a plataforma está e o que melhorar a seguir — processo, evolução e custo — de forma visual, didática e fluida, com gráficos de qualidade, ícones flat, animação com propósito e insights em linguagem de negócio, sem ele ler telemetria crua. **Pergunta que o épico responde:** "onde estamos, o que pede ação agora, quanto custa e o que vem a seguir?".
+
+**Princípios (valem para toda história; o `painel.unit` e o contrato BI4-12 cobram):** arquivo único sem biblioteca (CSP: gráficos em SVG inline desenhados pelo próprio painel, nunca canvas nem CDN); tokens `ds-*` do DS-K Ébano e Ouro; ícones flat SVG inline no `ICONES` do painel (grade 24, traço 1,75, `currentColor`), nenhum emoji; 360 px primeiro, toque ≥ 44 px, nenhuma sobreposição (`auditaTela` nas quatro medidas e dois temas); animação só por `transform`/`opacity`, entrada ≤ 200 ms, total ≤ 300 ms, receitas do `/ds` (três planos, varredura, mola) e `prefers-reduced-motion` sem movimento; nenhum dado identificável (o e2e confere); dado inexistente vira "sem dados" com a lacuna declarada e a fonte que faltaria, nunca número inventado; todo cartão e gráfico com fonte, fórmula, carimbo e farol; cor nunca sozinha (texto ou marcador junto); termo novo entra no `GLOSSARIO` e em `MARCAVEIS`, aba nova em `COMO_LER`; cada história verificável no celular em menos de um minuto. Não toca `index.html` nem `telemetria.mjs`: o que precisar de dado novo entra como "Depende de" de outra trilha.
+
+**Marcos (ordem por dependência e por valor ÷ custo):** **M1 · Insight** (R-40…R-44, 5 levas): o painel passa a dizer o que fazer · **M2 · Visual** (R-45…R-51, 7 levas): gráficos de verdade, ícones, movimento · **M3 · Negócio** (R-52…R-55 + G/I, 6 levas): eficiência da esteira e rentabilização · **M4 · Fluidez e didática** (R-56…R-62, 7 levas). **Total: 25 levas** (23 da `radar`, 2 de outras trilhas); no ritmo medido da radar (3 a 5 levas por dia de trabalho), 6 a 8 dias. A ordem é reavaliada ao fechar cada marco, com os números da própria aba Eficiência. Numeração: linha `16º-sn` na seção 6 (fatias dentro da linha, como a `16º-sg`); cada leva ganha o bloco "BI4-N ✅" aqui.
+
+**M1 · Insight**
+
+**BI4-1 · Resumo executivo e motor de insights** (R-40, 1 leva)
+- **Valor:** ao abrir, o dono lê em dez segundos os três problemas do momento e a ação sugerida para cada um, sem percorrer quinze abas.
+- **Como:** a Visão geral vira **Resumo executivo**: o placar (R-38) + bloco **O que pede ação agora** (até cinco insights, do mais grave) + **Próximos passos** (as próximas linhas 🟡 da seção 6 na ordem por dependência, lidas do ROADMAP). Motor declarativo `INSIGHTS` em `__p2` (dado → frase): cada regra tem id, condição sobre os cartões e linhas já carregados, gravidade (farol), texto em linguagem de negócio no formato "**o que aconteceu** — **causa provável** — **ação sugerida**" e atalho para a aba de origem; o texto cita os números. Doze regras iniciais: fila parada (pior espera > 90 min), recusas acumuladas (≥ 2), portão vermelho repetido (≥ 2 rodadas no dia), trilha parada há 48 h com reserva, instáveis subindo na semana, cobertura do motor estagnada por 7 dias, lista do Shark abaixo de 45 %, relato aberto há mais de 7 dias, minutos de Actions acima de 75 % da referência, `index.html` acima do orçamento, saldo do Negócio negativo no mês, contagem de pessoas parada há 2 dias. Cada regra tem um verbete no Glossário ("por que este insight existe").
+- **Aceite:** com dados sintéticos que disparam três regras, o Resumo mostra três cartões de insight na ordem de gravidade, cada um com farol, frase nos três tempos e botão que abre a aba certa; sem nenhuma regra disparada, "Nada pede ação agora" com o carimbo; dado ausente nunca gera insight.
+- **Testes:** `painel.unit` (uma entrada por regra: dado que dispara → frase, gravidade e aba; dado no limite → não dispara; dado ausente → nada; a ordem por gravidade; nenhuma frase com e-mail/uid), e2e "R-40" junto do "R-38" (Resumo com insights, atalho, "nada pede ação", `auditaTela`).
+- **Depende de:** R-38. **Fora:** previsão (M3); insight editável pelo dono (BI4-4 traz as metas).
+
+**BI4-2 · Biblioteca de gráficos do painel** (R-41, 1 a 2 levas)
+- **Valor:** o painel ganha gráficos de verdade — linha, área, barras verticais e empilhadas, sparkline, anel e funil — legíveis no celular, nos dois temas e por quem não enxerga cor.
+- **Como:** `__p3` ganha `Grafico` (SVG inline, `viewBox`, sem biblioteca): `linha`, `area`, `barras` (simples e empilhadas, 2 px de fundo entre segmentos), `sparkline`, `anel`, `funil`; eixo único por gráfico (nunca dois eixos y), legenda sempre que houver duas séries ou mais, rótulo direto só nos pontos que importam (último, máximo, mínimo), grade recessiva, marcador ≥ 8 px, linha 2 px, tooltip por toque e por mouse (crosshair na linha), botão **Ver como tabela** que troca o SVG pela tabela equivalente (`<table>` com os mesmos números, para leitor de tela e para copiar), cores por função (série = ordem fixa de 4 tons do DS; status = os faróis; sequencial = um tom em degrau) validadas por contraste nos dois temas, texto sempre em token de texto. Uma aba piloto (Eficiência) troca as barras HTML pelos novos gráficos.
+- **Aceite:** no 360 e nos dois temas, cada tipo desenha com os dados de teste sem estourar a caixa; a legenda e a tabela existem; a tooltip abre por toque e fecha fora; `prefers-reduced-motion` desenha sem animação.
+- **Testes:** `painel.unit` (dado → SVG: número de nós, `viewBox`, rótulos, série vazia → "sem dados", valores negativos, um ponto só; contraste de cada tom contra a superfície nos dois temas), e2e "R-41" (piloto na Eficiência, tabela, tooltip, `auditaTela`).
+- **Depende de:** nada. **Fora:** mapa de calor e gráfico de dispersão (entram quando uma história pedir).
+
+**BI4-3 · Tendência nos cartões** (R-42, 1 leva)
+- **Valor:** cada cartão diz se está melhorando ou piorando, não só onde está.
+- **Como:** todo cartão com série ganha uma sparkline de 14 pontos e a variação contra o período anterior em palavras e seta ("+12 % vs semana anterior", "melhor"/"pior" segundo o sentido da medida, que o limiar já declara); o farol pulsa uma vez quando a cor muda entre duas atualizações.
+- **Aceite:** cartões com série mostram sparkline e variação; sem série, nada muda; a variação respeita o sentido ("menor é melhor" para espera, "maior é melhor" para cobertura).
+- **Testes:** `painel.unit` (variação e sentido por cartão; série curta; período anterior vazio → "sem comparação"), e2e "R-42".
+- **Depende de:** BI4-2. **Fora:** alerta por variação (vira regra de insight na BI4-1 quando houver série suficiente).
+
+**BI4-4 · Metas do dono** (R-43, 1 leva)
+- **Valor:** o dono fixa a meta de um cartão (ex.: "cobertura do Pauper 90 % até dezembro") e o painel diz quanto falta e se o ritmo chega lá.
+- **Como:** no balão do farol, **Definir meta**: valor e data, guardados no banco do dono (`/painel/<uid>/metas`, como o plano, com cópia no aparelho e leitura de volta); o cartão mostra "faltam X · no ritmo atual chega em <data>" (projeção linear da série, rotulada "estimada"); regra de insight "meta em risco".
+- **Aceite:** meta gravada volta em outro aparelho; "quanto falta" e a projeção batem com a série de teste; sem série, só "quanto falta".
+- **Testes:** `painel.unit` (projeção linear, meta atingida, sem série, gravação e leitura de volta), `regras.unit` (nó `metas` só do dono), e2e "R-43".
+- **Depende de:** BI4-1, BI4-3; regra do banco publicada pelo CI (`regras-banco.yml`, I-298). **Fora:** meta por trilha ou por conversa.
+
+**BI4-5 · Comparar períodos** (R-44, 1 leva)
+- **Valor:** "esta semana contra a anterior" em qualquer aba, com um toque.
+- **Como:** chip **Comparar com o período anterior** na barra de filtros de toda aba com período; os cartões mostram o delta e os gráficos de linha ganham a série anterior em tom recessivo; o endereço guarda a escolha.
+- **Aceite:** com o chip ligado, cada cartão com período mostra o delta e cada gráfico de linha a segunda série; desligado, nada muda.
+- **Testes:** `painel.unit` (recorte do período anterior por dimensão), e2e "R-44".
+- **Depende de:** BI4-2, BI4-3. **Fora:** comparar dois períodos escolhidos à mão.
+
+**M2 · Visual**
+
+**BI4-6 · Gráficos nas abas de entrega** (R-45, 1 leva) — Pipeline: levas por rodada em barras empilhadas por resultado (publicada · recusada · reprocessada) e espera na fila por leva; Eficiência: levas por dia por trilha em área empilhada, intervalo entre publicações em linha, portão verde na primeira em anel; Experiência: instáveis por semana e duração do portão em linha com a faixa do alvo; Em curso: linha do tempo das conversas (barras horizontais por conversa). **Aceite:** as barras HTML dessas abas somem; cada gráfico responde a uma pergunta escrita no título ("quantas levas por dia, por trilha?"). **Testes:** `painel.unit` (dado das abas → séries), e2e "R-45" (os e2e antigos dessas abas ajustados com justificativa). **Depende de:** BI4-2.
+
+**BI4-7 · Gráficos nas abas de produto** (R-46, 1 leva) — Roadmap: burn-up em área (escopo × concluído por semana) e % por épico em barras; Motor: cobertura por formato em linhas (uma por formato, legenda) e regras do mapa em anel; Jogo: força por lista em barras com a linha do alvo de 45 % e "Shark até o fim" em linha por versão; Qualidade: relatos abertos × fechados por semana em barras pareadas e tempo até a correção em linha. **Testes e aceite:** como a BI4-6, e2e "R-46". **Depende de:** BI4-2.
+
+**BI4-8 · Gráficos nas abas de pessoas e negócio** (R-47, 1 leva) — Pessoas: contas por dia em área e funil conta → perfil → sala; Acervo: listas por formato (barras) e por fonte (anel), uso opt-in por dia; Custo: minutos de Actions por dia e por mês contra a referência (linha com faixa), tamanho do `index.html` por leva (linha com o orçamento); Negócio: saldo de 12 meses em barras com a linha do custo; Modelos: levas e portão verde por modelo em barras pareadas. **Testes e aceite:** como a BI4-6, e2e "R-47". **Depende de:** BI4-2.
+
+**BI4-9 · Ícones flat do painel** (R-48, 1 leva)
+- **Valor:** cada aba, cartão e insight tem um sinal visual reconhecível de longe, no padrão do app.
+- **Como:** o `ICONES` do painel ganha ~24 ícones (um por sub-aba; por família de cartão: fila, recusa, rodada, relógio, alvo, tendência, pessoa, moeda, motor, baralho, tubarão, escudo, régua, bandeira, gráfico, tabela, apresentação); ícone ao lado do rótulo da aba (sem substituir o texto), no título de cada aba, no cartão de insight e no cartão herói; catálogo "Ícones do painel" como verbete do Glossário (nome, conceito, onde aparece).
+- **Aceite:** toda aba e todo insight com ícone; nenhum emoji no painel; o ícone não tira pixel do rótulo no 360.
+- **Testes:** `painel.unit` (todo ícone com `viewBox` 24, `currentColor`, sem `fill` sólido; um ícone por conceito; teste estático: nenhum emoji no `painel.html`), e2e "R-48" (`auditaTela`).
+- **Depende de:** nada. **Fora:** ícones animados.
+
+**BI4-10 · Movimento com propósito** (R-49, 1 leva)
+- **Valor:** o painel parece vivo e guia o olho, sem distrair nem cansar.
+- **Como:** entrada dos cartões em cascata (40 ms entre cartões, cada um ≤ 200 ms, pela receita "folha" do DS-K), números que contam até o valor (300 ms, só na primeira pintura), barras e linhas que crescem do zero (`stroke-dashoffset`/`transform: scaleY`), troca de aba com fusão de 120 ms, varredura de latão no botão Atualizar enquanto lê, farol que pulsa uma vez ao mudar de cor; tudo desligado com `prefers-reduced-motion`; nada anima no scroll.
+- **Aceite:** nas quatro medidas, nenhuma animação passa de 300 ms e nenhuma bloqueia o toque; com movimento reduzido, o DOM final é idêntico e nada se move; orçamento de quadros sob 4× de CPU (como o teste FA do DS-K) sem queda.
+- **Testes:** `painel.unit` (toda regra `@keyframes`/`transition` do painel tem par em `prefers-reduced-motion` e duração ≤ 300 ms — contrato estático), e2e "R-49" (orçamento de quadros 4× CPU, DOM igual com e sem movimento).
+- **Depende de:** BI4-2 (gráficos que crescem). **Fora:** som e vibração.
+
+**BI4-11 · Hierarquia dos cartões** (R-50, 1 leva)
+- **Valor:** cada aba tem um número que responde à pergunta dela, em destaque, e o resto em volta — menos rolagem, mais leitura.
+- **Como:** por aba, um **cartão herói** (destaque de ébano, o único por tela, com o número grande, a tendência e o insight da aba) e cartões secundários em grade de 2 colunas no 360 (valor + rótulo + farol em palavras); grupos de cartões com título curto; a origem (fonte · fórmula · carimbo) recolhida num toque "de onde vem" para o cartão não virar parágrafo.
+- **Aceite:** cada aba com um herói e no máximo 8 cartões visíveis sem rolar no 360×780; a origem continua acessível com um toque; nenhum texto estoura a caixa.
+- **Testes:** `painel.unit` (todo `VISOES[aba]` declara o cartão herói; só um destaque por tela), e2e "R-50" (`auditaTela`, contagem de cartões acima da dobra).
+- **Depende de:** BI4-1 (insight da aba), BI4-3. **Fora:** o dono reordenar cartões (M4, se pedir).
+
+**BI4-12 · Contrato visual e de dados do painel** (R-51, 1 leva)
+- **Valor:** o portão pega regressão de gráfico, cor, ícone, animação e frase sem olho humano.
+- **Como:** `painel.contrato.unit.test.mjs` (fase rápida): nenhuma cor literal no CSS do painel, contraste AA dos pares usados, todo gráfico com legenda ou tabela, todo cartão com fonte/fórmula/carimbo/farol, nenhum emoji, nenhum ícone fora do `ICONES`, animação com par reduced-motion, insight nunca sem dado; snapshots dos SVG por tipo de gráfico com dados fixos (regravados só com justificativa).
+- **Aceite:** quebrar qualquer regra acima falha um teste nomeado; a suíte roda em menos de 5 s.
+- **Testes:** é a própria história. **Depende de:** BI4-2, BI4-9, BI4-10. **Fora:** comparação de captura de tela pixel a pixel.
+
+**M3 · Negócio**
+
+**BI4-13 · Custo por entrega** (R-52, 1 leva)
+- **Valor:** quanto custa, em média, uma leva e uma história fechada — a pergunta que decide onde investir.
+- **Como:** sub-aba Custo ganha **Custo por entrega**: minutos de Actions por leva (rodadas × duração ÷ levas da rodada) × custo de referência por minuto informado pelo dono (campo "informado", padrão 0 no plano gratuito), + tokens estimados da leva (quando a telemetria traz) × preço de referência informado, + rateio do consumo do plano informado; cartões "custo médio por leva", "custo por história fechada" (levas até a história ✅ no ROADMAP), série por semana e por trilha; tudo rotulado "estimado" e com a fórmula.
+- **Aceite:** com telemetria de teste e referência informada, os cartões mostram os valores esperados; sem referência, "informe o custo de referência" no lugar do número.
+- **Testes:** `painel.unit` (fórmulas, rateio, história sem leva, leva sem rodada), e2e "R-52".
+- **Depende de:** BI4-4 (campos informados no banco). **Fora:** cobrança real da API do GitHub (exige permissão de conta no token).
+
+**BI4-14 · Funil do usuário** (R-53 + uma leva da `geral` e uma da `infra`, 3 levas)
+- **Valor:** quantos instalam, criam conta, jogam, abrem sala e doam — o funil que diz onde o produto perde gente.
+- **Como:** o app passa a enviar, só com a chave "Compartilhar números de uso" ligada e só como contagens, os eventos do dia (instalou, primeira partida, sala criada) junto das contagens que já manda (leva da `geral`, nó `uso/<uid>/<dia>`, regras do banco); o fluxo Pessoas soma em `uso.jsonl` (leva da `infra`); a sub-aba Pessoas desenha o funil (anel ou funil) com conversão por etapa e a série por semana; doação vem do Negócio.
+- **Aceite:** com `uso.jsonl` de teste, o funil mostra as etapas e as conversões; sem os campos novos, "o app ainda não envia este evento" por etapa.
+- **Testes:** `painel.unit` (funil por etapa, etapa ausente), e2e "R-53"; na `geral`, teste do envio só com a chave ligada e sem nada identificável; na `infra`, teste do fluxo.
+- **Depende de:** G-x (eventos opt-in agregados), I-x (fluxo Pessoas). **Fora:** identificar usuário; eventos sem a chave ligada.
+
+**BI4-15 · Retenção e uso** (R-54, 1 leva) — aparelhos ativos por semana, retenção de 7 e 30 dias em totais (aparelhos que voltam), listas e cartas por aparelho ativo, tudo de `uso.jsonl` (só contagens); gráficos de área e linha; insight "retenção caiu". **Depende de:** uso.jsonl por dia (já existe, G-286/I-301). **Fora:** coorte por versão do app.
+
+**BI4-16 · Negócio v2: projeção e ponto de equilíbrio** (R-55, 1 leva) — projeção do saldo em faixa para 3 meses (média móvel de 3 meses, rotulada "estimada"), custo mensal por serviço informado (Firebase, Actions, domínio, plano do Claude), "meses de caixa", meta de doação (BI4-4) e insight "a Estante se paga em N meses se o ritmo continuar"; gráfico de barras com a faixa projetada em tom recessivo. **Depende de:** BI4-4, BI4-13. **Fora:** qualquer número que não seja informado pelo dono ou derivado dele.
+
+**M4 · Fluidez e didática**
+
+**BI4-17 · Grupos de abas e "ir para"** (R-56, 1 leva) — 16 abas em 5 grupos: **Resumo** · **Entrega** (Pipeline, Eficiência, Em curso, Skills, Modelos, Experiência) · **Produto** (Roadmap, Motor, Jogo, Qualidade, Acervo) · **Pessoas e negócio** (Pessoas, Custo, Negócio) · **Ajuda** (Glossário); seletor de grupo em cima e as abas do grupo embaixo (duas linhas no 360, sem rolagem lateral escondida); campo **Ir para…** (aba, cartão, termo, insight) com teclado e toque; o endereço continua `#aba`. **Testes:** `painel.unit` (todo id de aba em exatamente um grupo), e2e "R-56". **Fora:** o dono reordenar abas.
+
+**BI4-18 · Filtros fixados** (R-57, 1 leva) — período e trilha podem ser **fixados** (chip com pino) e atravessam as abas; "limpar tudo"; o endereço carrega o fixado; a Visão geral respeita o período fixado. **Testes:** `painel.unit` (fixado sobrepõe o padrão da aba, nunca o filtro explícito), e2e "R-57". **Depende de:** BI4-17. **Fora:** salvar conjuntos de filtros com nome.
+
+**BI4-19 · Abertura rápida** (R-58, 1 leva) — esqueleto por cartão enquanto carrega (nada "pula"), abas carregam por partes (cartões primeiro, gráficos depois), a Visão geral abre em menos de 3 s com o retrato (orçamento no e2e, 4× CPU), pré-carrega a próxima aba do grupo ao tocar no grupo; cache por aba mostrado no carimbo. **Testes:** e2e "R-58" com orçamento de tempo; `painel.unit` (ordem de carga). **Depende de:** BI4-17. **Fora:** service worker próprio do painel.
+
+**BI4-20 · "O que isto diz" por cartão** (R-59, 1 leva) — a dívida da R-37: cada cartão ganha uma frase gerada de template com os números dele ("3 levas esperam há 2 h; a mais antiga é a T-62"), visível no balão do farol e, no herói, abaixo do número; template por cartão em `__p2`, com teste dado → frase. **Depende de:** BI4-11. **Fora:** frase escrita à mão fora do template.
+
+**BI4-21 · Tour guiado** (R-60, 1 leva) — na primeira abertura (e em "Rever o tour", no rodapé), cinco passos com destaque na tela: placar, insight, farol, termo sublinhado, grupos de abas; nunca bloqueia; lembrado no aparelho. **Testes:** e2e "R-60" (passos, pular, rever, reduced-motion). **Depende de:** BI4-17. **Fora:** tour por aba.
+
+**BI4-22 · Relatório para compartilhar** (R-61, 1 leva) — **Copiar resumo** (texto do Resumo executivo: placar, insights, próximos passos, carimbo) e **Baixar relatório** (HTML autônomo com o Resumo e as abas escolhidas, gráficos em SVG e tabelas, pronto para imprimir em PDF pelo navegador); nada identificável; sem rede nova. **Testes:** `painel.unit` (texto do resumo; HTML sem script externo nem e-mail), e2e "R-61". **Depende de:** BI4-1, BI4-2. **Fora:** envio por e-mail ou agendado.
+
+**BI4-23 · Modo apresentação** (R-62, 1 leva) — tela cheia com fonte maior e um cartão herói por tela, avança por toque ou seta, para ler numa tela grande ou mostrar a alguém; sai com Esc ou toque no X. **Testes:** e2e "R-62" (entra, avança, sai, `auditaTela` em 1280×720 além das quatro medidas). **Depende de:** BI4-11. **Fora:** modo quiosque com rotação automática.
+
+**Decisões do dono (nenhuma bloqueia o M1 e o M2):** (a) custo de referência por minuto de Actions e por token para a BI4-13 (campo informado; sem ele, o cartão pede); (b) autorizar os três eventos opt-in agregados da BI4-14 (instalou, primeira partida, sala criada — só contagens, só com a chave ligada), como autorizou o uso opt-in em 23/10. **Divergência registrada:** "mais animações" foi lido como movimento com propósito e orçamento de quadros (BI4-10), não como quantidade — a DIRETRIZ-animacao do dono pede profundidade, não volume.
 
 ### Publicar a partir de uma conversa (padrão desde a leva 124)
 
