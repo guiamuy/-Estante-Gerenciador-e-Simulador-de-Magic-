@@ -8855,7 +8855,7 @@ estruturado para tornarmos o Shark um jogador de nível profissional com as suas
 - **Depende de:** X7, X10.
 - **Fora:** reconhecimento pela arte (X12); cartas de dupla face pelo verso; idiomas além do inglês.
 
-**X12 · Reconhecimento pela arte (impressão digital da imagem)** 🟡 (fatia 1 na S-595 + I-311; fatia 2 na S-596)
+**X12 · Reconhecimento pela arte (impressão digital da imagem)** 🟡 (fatia 1 na S-595 + I-311; fatia 2 na S-596; fatia 3, a edição exata, na S-604)
 - **Decisão do usuário (01/11/2026):** opção A, "pode seguir" depois da explicação das duas opções: a base é gerada por um
   fluxo do GitHub Actions a partir dos dados em massa da Scryfall e publicada no ramo `artes`.
 - **Fatia 1 · base (S-595 + I-311):**
@@ -8907,6 +8907,46 @@ estruturado para tornarmos o Shark um jogador de nível profissional com as suas
     arte, a edição MH2 #267 vem da arte, e ao reabrir sem rede o diagnóstico mostra a base guardada).
   - **Correção no caminho:** o primeiro registro da chave `scanner.artes` levava um comentário de linha que apagava as
     chaves seguintes do registro do armazenamento (`names.catalog`, `cambio.usd`); o e2e pegou ("chave sem classe").
+- **Fatia 3 · a edição exata (S-604)** 🟡 (aguardando teste no aparelho). Pedido do dono (02/11/2026): o scanner entendia
+  a carta mas não a edição; o caso dele é o **Malcolm, Keen-Eyed Navigator SPG #2** (sem borda, convidados especiais de
+  Cavernas Perdidas de Ixalan; as outras impressões são CMR #79 e a foil etched do CMR, com outra ilustração).
+  - **Diagnóstico (o que falhava):** (1) a linha de coleção só era procurada sobre a borda preta — carta sem borda, de
+    vitrine ou de borda branca saía sem ler; (2) a arte só dava a edição quando passava do limiar de "mesma carta" (≤ 44),
+    e uma arte "mais parecida que a outra ilustração do nome" não contava; (3) a edição tirada da arte entrava
+    **conferida** mesmo quando a mesma ilustração existe em várias coleções (a base é de artes únicas: aponta UMA delas);
+    (4) uma leitura só, e o Diagnóstico não dizia nada da edição.
+  - **Estratégia (veredito):** a linha de colecionador é o sinal principal (número, código e artista impressos, casados
+    com as impressões REAIS da carta, não com a coleção inteira); a arte escolhe entre as ilustrações do nome; o artista
+    desempata. **O símbolo da coleção fica de fora desta fatia:** no celular ele tem uns 20 px e mudaria só as cartas de
+    antes de 2014 (sem código impresso); entra se o Diagnóstico das cartas reais mostrar que falta.
+  - **`resolveEdicao(impressões, { textos, arte })`:** cada impressão ganha pontos — número (3), código (3; um erro de
+    leitura vale metade; promo `pXXX` com o código da origem vale pouco, para a comum ganhar o empate), artista (até 1,5)
+    e ilustração (2). Entra **conferida** só a que se separa da segunda por 1,5 ponto e tem número, código ou uma
+    ilustração só dela; o resto vira **candidatas de um toque** (até 4). Sem evidência nenhuma, a escolha aparece só
+    quando a carta tem até 4 impressões (mais que isso seria palpite). Carta de uma impressão só entra conferida.
+    O total da coleção ("067/286") não conta como número; "OOO2" vira 0002.
+  - **Leitura:** até três variantes sobre a MESMA cópia do quadro (a de sempre, a "livre" — linha em qualquer fundo — e a
+    de contraste invertido) e, se ainda não fechou e a carta segue no mesmo lugar pelo contorno, um quadro novo. Nunca
+    lê de um quadro em que a carta já pode ser a próxima. **Revisão de escala (aprovado com ressalva aplicada):** com outra
+    edição esperando o leitor (automático, uma carta por segundo), a carta faz só a leitura de sempre — a fila do leitor da
+    edição não cresce sem teto; o Diagnóstico diz "fila cheia". +3,7 KB gzip no `index.html`; nenhuma requisição nova.
+  - **Arte:** `ilustracoesDoNome` + `arteDaEdicao`: a ilustração mais parecida do nome vale com d ≤ 70 e 18 de folga para
+    a outra ilustração; todas as impressões com ela ganham os pontos.
+  - **Scryfall:** a carta passa a guardar `artist` e `illustration_id` (dois campos curtos; cache antigo sem eles: a arte
+    vira candidata, não edição conferida).
+  - **Diagnóstico:** linha "edição" com o texto lido, o resultado, quantas leituras, a borda, a distância da arte, "por
+    número + código + …" e quantas impressões a carta tem.
+  - **Medido (fotos do portão):** edição 24/29 → **27/29**; as duas cartas sem borda novas, 0/2 → 2/2 (lidas pela
+    variante "livre"). Nome 29/29 nos dois.
+  - **Fora / parcial:** promo e pré-lançamento com a mesma arte e o mesmo número da comum (o carimbo não é lido); foil ×
+    não foil; símbolo da coleção; carta sem borda cujo contorno some no fundo escuro (a leitura vai pela moldura guia);
+    carta sem borda com protetor e desfoque de 2 px: o nome não lê (medido no portão; fica fora da amostra da S-594).
+    Não testado no aparelho.
+  - **Testes:** U (`scanner.unit`: linha suja, leituras somadas, total da coleção, ilustração única × dividida — o caminho
+    antigo conferia a CMR #79 —, artista, impressão única, sem evidência; `arteDaEdicao`), fotos (`scanner.fotos`: alvo de
+    edição 70% → 90%; "S-604 · carta sem borda" exige 2/2, era 0/2), I headless ("S-604 edição por evidências": a
+    primeira variante não lê, a segunda lê, o Diagnóstico diz "2 leitura(s) · por número + código"). Ajustados com
+    motivo: X3/X5 (Island sem leitura oferece as duas impressões em chips) e S-596 (a ilustração é a da impressão).
 - **Revisão de segurança (01/11/2026):** aprovado com duas correções aplicadas antes de publicar: a geração roda sem a
   credencial de escrita no git (só o passo de publicar usa o token) e a decodificação recusa imagem acima de 4 MP. Para a
   S-596: nome vindo da base entra na tela só como texto (`h()`), e "O que sai do aparelho" passa a citar a base de artes.

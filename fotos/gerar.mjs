@@ -101,9 +101,26 @@ function htmlReal(f) {
   .reflexo{position:absolute;inset:0;background:linear-gradient(118deg,rgba(255,255,255,0) 30%,rgba(255,255,255,.5) 44%,rgba(255,255,255,0) 58%);pointer-events:none}
   .protetor{position:absolute;border-radius:3%;border:${Math.max(2, Math.round(ch * 0.004))}px solid rgba(235,240,245,.75);background:linear-gradient(105deg,rgba(255,255,255,.28),rgba(255,255,255,0) 22%,rgba(255,255,255,0) 70%,rgba(255,255,255,.22));box-shadow:0 0 0 1px rgba(120,130,140,.5)}
   .sombra{position:absolute;left:${Math.round(largura * (cx - 0.1))}px;top:${Math.round(altura * (cy + 0.02))}px;width:${Math.round(largura * 0.75)}px;height:${Math.round(altura * 0.6)}px;background:rgba(0,0,0,.42);border-radius:38% 12% 0 0;transform:rotate(-8deg);filter:blur(${Math.round(altura * 0.012)}px)}
-  </style><div class="foto"><div class="cena">${porBaixo}${cartaReal(f, cw, ch)}${capa}</div>${sombra ? '<div class="sombra"></div>' : ''}</div>`;
+  </style><div class="foto"><div class="cena">${porBaixo}${f.estilo === 'semBorda' ? cartaSemBorda(f, cw, ch) : cartaReal(f, cw, ch)}${capa}</div>${sombra ? '<div class="sombra"></div>' : ''}</div>`;
 }
 
+/* ---------------- S-604 · estilo "semBorda": carta sem borda (como o Malcolm SPG #2 do dono) ----------------
+   A arte ocupa a carta inteira; título e tipo em faixas translúcidas; a linha de coleção no formato de 2023 em diante
+   ("0002 U" e "SPG • EN  Artista") em letra clara direto sobre a arte, sem a borda preta embaixo. Era a carta que o
+   leitor da edição pulava: ele só procurava a linha sobre a borda preta. */
+function cartaSemBorda(f, cw, ch) {
+  const fsT = (ch * (String(f.nome).length > 22 ? 0.031 : 0.040)).toFixed(1), fsTipo = (ch * 0.030).toFixed(1), fsR = (ch * 0.026).toFixed(1), fsC = (ch * 0.0165).toFixed(1);
+  return `<div class="carta real" style="width:${cw}px;height:${ch}px;background:
+      radial-gradient(ellipse at 35% 28%, #f3d27a 0 7%, transparent 8%), radial-gradient(ellipse at 66% 40%, #3a2a3e 0 16%, transparent 17%),
+      radial-gradient(ellipse at 25% 78%, #6b4d2e 0 20%, transparent 21%), radial-gradient(ellipse at 80% 88%, #2f4f5f 0 22%, transparent 23%),
+      repeating-linear-gradient(115deg, rgba(255,255,255,.10) 0 3px, transparent 3px 11px),
+      linear-gradient(170deg, #4d6a8f, #6a4b3a 45%, #2e3b2c 75%, #20262b)">
+    <div class="tit" style="font-size:${fsT}px;background:rgba(240,234,214,.82)"><span>${f.nome}</span></div>
+    <div class="tipo" style="font-size:${fsTipo}px;background:rgba(240,234,214,.82)"><span>${f.tipo || 'Legendary Creature — Human Pirate'}</span></div>
+    <div class="regras" style="font-size:${fsR}px;background:rgba(246,242,230,.78);bottom:9%">${f.regras || 'Whenever one or more Pirates you control deal damage to your opponents, you create a Treasure token.'}</div>
+    <div class="colecao" style="font-size:${fsC}px;top:93.2%;text-shadow:0 0 2px rgba(0,0,0,.6)">${String(f.numero).padStart(4, '0')} ${f.raridade || 'U'}\n${f.set.toUpperCase()} • EN  ${f.artista || 'Jane Artist'}</div>
+  </div>`;
+}
 const todas = process.argv.includes('--todas');   // sem isto, só as fotos que ainda não existem (as antigas não mudam)
 const browser = await chromium.launch({ executablePath: process.env.PW_CHROMIUM || undefined });
 const page = await browser.newPage();
@@ -111,7 +128,7 @@ for (const f of manifest.fotos) {
   if (f.origem !== 'sintetica') continue;
   if (!todas && existsSync(join(dir, f.arquivo))) continue;
   await page.setViewportSize({ width: f.largura, height: f.altura });
-  await page.setContent(f.estilo === 'real' ? htmlReal(f) : html(f));
+  await page.setContent(f.estilo === 'real' || f.estilo === 'semBorda' ? htmlReal(f) : html(f));
   const buf = await page.screenshot({ type: 'jpeg', quality: 84, fullPage: false });
   writeFileSync(join(dir, f.arquivo), buf);
   console.log(`${f.arquivo} · ${buf.length} bytes`);
