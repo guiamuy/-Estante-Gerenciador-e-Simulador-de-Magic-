@@ -21708,6 +21708,7 @@ const __m42 = (function () {
     if (k === 'target attacking or blocking creature') return { target: { tipos: ['creature'], emCombate: true } }; // M-599 · Eiganjo (506.4: atacante ou bloqueadora)
     if (k === 'target non-outlaw creature') return { target: { tipos: ['creature'], foraDaLei: false } }; // M-599 · Shoot the Sheriff (700.13: fora da lei = Assassin, Mercenary, Pirate, Rogue, Warlock)
     if (k === 'target creature with a stun counter on it') return { target: { tipos: ['creature'], comMarcador: 'stun' } }; // M-601 · Floodpits Drowner (122.1d)
+    if (k === 'target nonbasic land an opponent controls') return { target: { tipos: ['land'], terrenoBasico: false, de: 'opponent' } }; // M-604 · Demolition Field (205.4)
     if (k === 'another target artifact') return { target: { tipos: ['artifact'], outra: true } }; // M-599 · Manifold Key
     if (k === 'target attacking creature') return { target: { tipos: ['creature'], atacando: true } }; // M-377 · Desert (seletor atacando, M-361)
     if (k === 'up to one target card from a graveyard') return { target: 'card-in-any-graveyard', upTo: true }; // M-373 · Heritage Reclamation (115.3: aceita zero)
@@ -21865,7 +21866,7 @@ const __m42 = (function () {
     [/^exile target player's graveyard$/i, () => [{ do: 'exile_graveyard', target: 'player' }]],
     [/^it deals (\d+) damage to (each opponent|target opponent|any target)$/i, m => [com({ do: 'damage', amount: +m[1] }, alvo(m[2]))]],
     [/^~ deals (\d+) damage to any target that was dealt damage this turn$/i, m => [{ do: 'damage', amount: +m[1], target: 'any', targetDanoNoTurno: true }]], // M-447 · Needle Drop
-    [new RegExp(`^(?:(you may|its controller may|that player may|target player may) )?search (?:your|their) library for (?:(up to) )?${N}(?: (.+?))? cards?(?: named (.+?))?(?:, reveal (?:it|them|that card))?(?:,? (?:and )?put (?:it|them|that card) (into (?:your|their) hand|onto the battlefield(?: tapped)?|on top of your library))?$`, 'i'), busca], // LT5 · 701.23
+    [new RegExp(`^(?:(you may|its controller may|that player may|target player may|that land's controller may) )?search (?:your|their) library for (?:(up to) )?${N}(?: (.+?))? cards?(?: named (.+?))?(?:, reveal (?:it|them|that card))?(?:,? (?:and )?put (?:it|them|that card) (into (?:your|their) hand|onto the battlefield(?: tapped)?|on top of your library))?$`, 'i'), busca], // LT5 · 701.23
     [/^shuffle(?: your library)?$/i, () => []],
     [new RegExp(`^create ${N} (treasure|food|blood|map|clue|lander) tokens?$`, 'i'), m => fichaPredefinida(m[1], m[2])],
     [/^create a treasure token and exile the top card of that player's library$/i, () => [...fichaPredefinida('a', 'treasure'), { do: 'exile_top_playable', amount: 1, de: 'that-player' }]], // M-566 · Ragavan (a permissão vem na frase seguinte) // LT9 · 111.10
