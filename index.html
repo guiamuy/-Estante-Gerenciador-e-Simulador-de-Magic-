@@ -36629,7 +36629,10 @@ function jogadaProfissional(s, p, opts = {}) {
       // Medida e DESLIGADA: 40 × 41 em 72 pares (Control 15 × 13, Faeries 11 × 12, Terror 14 × 16): o Terror e as Faeries perdem
       // a seleção de cartas do próprio turno. As duas posições ficam na bateria como erro aberto.
       const guarda = opts.guardaNaSobra && meu ? custoDaResposta(s, p) : null;
-      const sobra = a => { if (!guarda || guarda.oids.includes(a.oid) || fontesDeMana(W[0], p) < guarda.custo) return true; const sim = simula(W[0], a); return !sim || fontesDeMana(resolveSimulado(sim.estado, 8, null, opts.av), p) >= guarda.custo; };
+      // B-199 · a conta é pelo custo da carta, não por simulação: com 170 jogadas legais (Terror com o campo cheio) simular cada
+      // uma levava a decisão a 1,4 s, fora do orçamento. Terreno que ainda dá para baixar conta como fonte (como no `gastaAResposta`).
+      const fontesAgora = guarda ? fontesDeMana(W[0], p) + (!(s.players[p].landsPlayed > 0) && s.zones[p].hand.some(oid => ehTerreno(s, s.objects[oid])) ? 1 : 0) : 0;
+      const sobra = a => { if (!guarda || guarda.oids.includes(a.oid) || fontesAgora < guarda.custo) return true; const f = s.facts[(s.objects[a.oid] || {}).name] || {}; return fontesAgora - (f.cmc || 0) >= guarda.custo; };
       const lentas = candidatas.filter(a => a.t === 'cast' && !ehInstantanea(a) && (meu || permanente(a)) && !alvoProprio(a) && sobra(a)); // B-181 · "a mana ia sobrar" nunca vale mirar o meu lado
       const v = escolhe(lentas, a => media(w => { const sim = simula(w, a); if (!sim) return null; return notaComResposta(resolveSimulado(sim.estado, 8, opts.desdobra ? p : null, opts.av), p, opts); }) - (permanente(a) ? 0 : opts.plano ? 1.5 : 3), opts); // B9 · com o terreno na mão valendo menos, a compra que troca uma carta por um terreno lê −2,5: continua valendo a pena com mana sobrando
       if (v.acao && v.nota - base >= -4.5) return { acao: v.acao, motivo: `${motivoDe(s, p, v.acao, 0)}: a mana ia sobrar`, ganho: v.nota - base };

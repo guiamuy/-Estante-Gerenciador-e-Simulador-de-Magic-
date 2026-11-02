@@ -8195,6 +8195,18 @@ estruturado para tornarmos o Shark um jogador de nível profissional com as suas
   perfil, como o `segura` do Control e do Terror. Leitura: as Faeries respondem no turno do outro; com a instantânea na mão no
   próprio turno, a regra da B-185 fazia o Shark gastá-la como resposta e chegar sem ela ao turno do outro. **`shark-v23` é o
   Shark da B-197, congelado.**
+- **Fase 5 · B-199 · régua absoluta e higiene de fechamento (02/11/2026).**
+  - **Força absoluta** (Shark da B-198 × `shark-v12`, as sementes da B-187, 400 ms): **116–94 em 210 decididas · 55%**
+    (linha de base 49%, intermediária da B-197 51%; ganho de 6 pontos, no limite da margem de ±7); zero ilegais. Por lista:
+    Madness 27–15 (64%) · Terror 27–15 (64%) · Control 25–17 (60%) · Elfos 20–22 (48%) · **Faeries 17–25 (40%)**. **O alvo de
+    60% não foi atingido**: faltam ~5 pontos, e o Faeries e os Elfos seguram o total.
+  - **Higiene** (`bot.tempo.mjs`, 20 confrontos, máquina livre): o Shark da B-198 tinha **p95 372 ms**, mas a pior decisão em
+    **1,4 s** — as dez piores do Terror na segunda fase principal, na regra "a mana ia sobrar": a `guardaNaSobra` (B-193, ligada
+    pelo perfil na B-196) simulava cada candidata sem olhar o relógio, e o Terror com o campo cheio chega a 176 jogadas legais.
+    **Correção:** a conta passa a ser pelo custo da carta (com o terreno que ainda dá para baixar), sem simulação. Depois:
+    **p95 374 ms · p99 397 · pior 862 ms** (10.924 decisões, 0,9% acima do orçamento), zero ilegais — o patamar da B-178.
+    Na régua com dois processos em dois núcleos a pior jogada chegou a 9 s: é carga da máquina de medida, não do celular, e
+    fica registrado.
 - **Fase 2 · B-194 · avaliação aprendida, primeira medida (02/11/2026) — negativa, desligada.** `bot.aprende.mjs` (novo, fora
   do portão): `coleta` joga Shark × Shark com as cinco listas e grava as parcelas da `avaliaV6` de posições sorteadas e
   quem venceu; `ajusta` faz regressão logística (L2, treino e prova separados por partida) da vitória sobre as parcelas,
