@@ -8112,6 +8112,18 @@ estruturado para tornarmos o Shark um jogador de nível profissional com as suas
   As duas posições entram na bateria como erro aberto (`seq-guarda-anulacao-spellbomb`, `seq-guarda-anulacao-preordain`):
   **Shark 26 de 29 (89,7%)**. A pergunta certa é "quanto vale a anulação aberta contra esta mão provável", não uma regra
   — fica para a avaliação aprendida (fase 2).
+- **Fase 2 · B-194 · avaliação aprendida, primeira medida (02/11/2026) — negativa, desligada.** `bot.aprende.mjs` (novo, fora
+  do portão): `coleta` joga Shark × Shark com as cinco listas e grava as parcelas da `avaliaV6` de posições sorteadas e
+  quem venceu; `ajusta` faz regressão logística (L2, treino e prova separados por partida) da vitória sobre as parcelas,
+  no total e por lista, e devolve um multiplicador por parcela. Sobre **14.247 posições de 224 partidas**: acerto na prova
+  70,5% no total (Control 84%, Madness 74%, Terror 74%, Elfos 72%, Faeries 58%). **Medida pareada** do Shark com os
+  multiplicadores do total (presos entre 0,25 e 2,5; `p:` do torneio, 400 ms, contra o Shark da B-192): Control **12 × 16**,
+  Elfos **12 × 14** — **24 × 30 em 48 pares** (3 só do novo, 9 só do antigo); o Madness não foi medido (a direção já era
+  clara). **Fica desligada.** Leitura: a regressão aprende o que **acompanha** a vitória numa posição (quem já está na frente
+  tem mais criaturas e mais vida), não o que **causa** a vitória quando se escolhe entre duas jogadas; e os multiplicadores
+  abaixo de 1 encolhem a avaliação diante dos pedágios fixos (reserva, descarte), mudando o peso relativo deles. Próximo
+  passo da fase 2, se voltar: ajuste por diferença entre jogadas (o par "jogada escolhida × alternativa" com o resultado),
+  não por posição.
 - **Fases:**
   - **0 · réguas** — B-187 régua absoluta e linha de base das quatro; B-188 bateria profissional (30+ posições).
   - **1 · diagnóstico** — B-189 partidas narradas das derrotas (Control e Faeries primeiro), cada erro classificado e
