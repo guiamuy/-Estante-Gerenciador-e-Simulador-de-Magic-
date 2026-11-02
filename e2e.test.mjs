@@ -3222,7 +3222,7 @@ test('e2e · E50 janela do atacante depois dos bloqueios: quadro dos bloqueios, 
   // leva 110: o nome falado virou frase ("Bloqueada por Wall Guard" no lugar de "← Wall Guard"); na carta fica só o ícone
   assert.match(await page.locator('.tb-side--me .tb-card[aria-label*="Sky Pike"]').first().getAttribute('aria-label'), /Bloqueada por Wall Guard/);
   assert.match(await page.locator('.tb-side--opp .tb-card[aria-label*="Wall Guard"]').first().getAttribute('aria-label'), /Bloqueia Sky Pike/);
-  assert.equal(await page.locator('.tb-side--me .tb-card[aria-label*="Sky Pike"] .tb-pill--icone[data-marca="ataca"] [data-icone="escudo"]').count(), 1, 'atacante bloqueado: selo do escudo');
+  assert.equal(await page.locator('.tb-side--me .tb-card[aria-label*="Sky Pike"] .tb-estado[data-marca="ataca"] [data-icone="escudo"]').count(), 1, 'atacante bloqueado: ícone do escudo na barra de P/R (J-48: era selo sobre a arte)');
   const vidaAntes = await page.getAttribute('#tb-life-opp', 'aria-label');
   // resposta: Raio no bloqueador
   await handCard(page, 'Lightning Bolt').click();
@@ -4273,7 +4273,7 @@ test('e2e · leva 110 Fiery Temper mira você e o oponente; Utopia Sprawl vira s
   const selo = await page.evaluate(() => {
     const floresta = [...document.querySelectorAll('.tb-side--me .tb-card')].find(c => /Com Utopia Sprawl/.test(c.getAttribute('aria-label') || ''));
     if (!floresta) return null;
-    const pill = floresta.querySelector('.tb-pill[data-marca="encantada"]'); const cb = floresta.getBoundingClientRect(), pb = pill.getBoundingClientRect();
+    const pill = floresta.querySelector('.tb-estado[data-marca="encantada"]'); const cb = floresta.getBoundingClientRect(), pb = pill.getBoundingClientRect(); // J-48 · o anexo é ícone na barra de P/R
     return { icone: !!pill.querySelector('svg'), texto: pill.innerText.trim(), dentro: pb.left >= cb.left - 1 && pb.right <= cb.right + 1 };
   });
   assert.ok(selo, 'a Floresta fala "Com Utopia Sprawl"');
@@ -8111,7 +8111,7 @@ test('e2e · D11 acessibilidade medida: axe-core sem achados (WCAG 2.1 A/AA + bo
 });
 
 /* ---------------- T4 · carta modificada (relato #2) ---------------- */
-test('e2e · T4 carta modificada: na mesa o P/T sobe em verde e desce em vermelho número a número, habilidade ganha em pílula verde e perdida tachada, nome falado com a base; na carta grande, a base e a linha Mudou; dois temas e quatro medidas', { skip }, async t => {
+test('e2e · T4 carta modificada: na mesa o P/T sobe em verde e desce em vermelho número a número, habilidade ganha em ícone verde e perdida em ícone vermelho (J-48), nome falado com a base; na carta grande, a base e a linha Mudou; dois temas e quatro medidas', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.setViewportSize({ width: 360, height: 780 });
   await page.goto(base + '#/ds'); await page.waitForSelector('#ds-modificadas .tb-card');
@@ -8121,12 +8121,14 @@ test('e2e · T4 carta modificada: na mesa o P/T sobe em verde e desce em vermelh
       const [a, b] = document.querySelectorAll('#ds-modificadas .tb-card'), num = (c, i) => getComputedStyle(c.querySelectorAll('.tb-card__pt > span')[i]).color;
       const perdeu = b.querySelector('[data-marca="perdeu"]'), ganhou = a.querySelector('[data-marca="ganhou"]');
       return { verde: cor('--positive'), vermelho: cor('--negative'), a: [num(a, 0), num(a, 1)], b: [num(b, 0), num(b, 1)], texto: [a.querySelector('.tb-card__pt').textContent, b.querySelector('.tb-card__pt').textContent],
-        fala: [a.getAttribute('aria-label'), b.getAttribute('aria-label')], tachado: getComputedStyle(perdeu).textDecorationLine, perdeuTxt: perdeu.textContent, ganhouFundo: getComputedStyle(ganhou).backgroundColor, ganhouTxt: ganhou.textContent }; });
+        // J-48 · ganhou e perdeu viraram ícones na barra de P/R (raio verde, círculo cortado vermelho); o nome fica no title e no nome falado
+        fala: [a.getAttribute('aria-label'), b.getAttribute('aria-label')], perdeuCor: getComputedStyle(perdeu).color, perdeuTxt: perdeu.getAttribute('title'), perdeuSvg: !!perdeu.querySelector('svg'), ganhouCor: getComputedStyle(ganhou).color, ganhouTxt: ganhou.getAttribute('title'), ganhouSvg: !!ganhou.querySelector('svg') }; });
     assert.deepEqual(r.a, [r.verde, r.verde], `${tema}: 3/2 sobre 2/1, os dois em verde`);
     assert.deepEqual(r.b, [r.verde, r.vermelho], `${tema}: 1/2 sobre 0/4, misto`);
     assert.deepEqual(r.texto, ['3/2', '1/2'], 'o texto continua "p/t"');
     assert.match(r.fala[0], /3\/2, base 2\/1/); assert.match(r.fala[1], /1\/2, base 0\/4/);
-    assert.equal(r.tachado, 'line-through'); assert.equal(r.perdeuTxt, 'alcance'); assert.equal(r.ganhouTxt, '+ímpeto'); assert.equal(r.ganhouFundo, r.verde);
+    assert.equal(r.perdeuCor, r.vermelho); assert.match(r.perdeuTxt, /Perdeu alcance/); assert.ok(r.perdeuSvg); assert.match(r.ganhouTxt, /Ganhou ímpeto/); assert.equal(r.ganhouCor, r.verde); assert.ok(r.ganhouSvg);
+    assert.match(r.fala[0], /Ganhou ímpeto/); assert.match(r.fala[1], /Perdeu alcance/);
     for (const [w, hh] of MEDIDAS_149) { await page.setViewportSize({ width: w, height: hh }); await page.locator('#ds-modificadas').scrollIntoViewIfNeeded(); await auditaTela(page, `carta modificada ${w} ${tema}`); }
     await page.setViewportSize({ width: 360, height: 780 });
   }
@@ -9546,6 +9548,56 @@ test('e2e · DS-K2 J2 · Jogar como mesa de preparação: a sua lista é um cart
 // DS-K2 M2 (J-37) · a mão em leque, como na proposta K: a carta da mão encolhe (de --carta-mao até --carta-mao-min) para a
 // mão caber sem rolar; uma carta cobre no máximo 40% da vizinha, então o centro de cada carta é dela (é ali que o dedo e o
 // teste tocam); as pontas giram até 10° e descem em arco; a carta segurada endireita, sobe e fica por cima. Com 8 cartas em
+// J-48 (decisão do dono, 02/11/2026) · os estados da carta (enjoo, marcadores, dano, combate, anexos…) deixam de ser pílulas
+// e selos por cima da arte: viram ícones flat na barra de P/R, à esquerda, com a cor da família por token; até três e "+N".
+test('e2e · J-48 estados como ícones na barra de P/R: nada por cima da arte, ícones à esquerda do P/R com cor por família, até três e "+N", nome falado inteiro; carta virada leva a barra junto; 360 e 390, dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.route('https://cards.scryfall.io/**', r => r.fulfill({ status: 200, contentType: 'image/svg+xml', headers: { 'access-control-allow-origin': '*' },
+    body: '<svg xmlns="http://www.w3.org/2000/svg" width="488" height="680"><rect width="488" height="680" fill="#111"/><rect x="40" y="76" width="408" height="301" fill="#3e6f8f"/></svg>' }));
+  await createDeck(page, base, 'Estados', '24 Mountain\n36 Delver of Secrets');
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start'); await page.fill('#mesa-seed', '3');
+  await page.click('[data-opponent="goldfish"]');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-pass');
+  const oids = await page.evaluate(() => { const M = window.__estanteMesa, s = M.estado(), p = s.turn.active;
+    const d = Object.values(s.objects).filter(o => o.owner === p && o.name === 'Delver of Secrets' && o.zone === 'library').slice(0, 3).map(o => o.oid);
+    const m = Object.values(s.objects).find(o => o.owner === p && o.name === 'Mountain' && o.zone === 'library').oid;
+    for (const oid of [...d, m]) M.act({ t: 'move', p, oid, to: 'battlefield' });
+    // d0: enjoo só · d1: enjoo + +1/+1 ×2 + dano 1 (três ícones) · d2: enjoo + +1/+1 + marcador de carga + dano (quatro: vira "+2") e virada
+    M.act({ t: 'counter', p, oid: d[1], kind: 'p1p1', delta: 2 }); M.act({ t: 'damage', p, oid: d[1], delta: 1 });
+    M.act({ t: 'counter', p, oid: d[2], kind: 'p1p1', delta: 1 }); M.act({ t: 'counter', p, oid: d[2], kind: 'charge', delta: 1 }); M.act({ t: 'damage', p, oid: d[2], delta: 1 }); M.act({ t: 'tap', p, oid: d[2] }); // 2/2 com 1 de dano: fica viva (+1/+1 e −1/−1 se anulariam, 704.5q)
+    return { d, m }; });
+  await page.waitForFunction(() => [...document.querySelectorAll('.tb-side--me .tb-card__arte img')].every(i => i.complete && i.naturalWidth > 0), null, { timeout: 8000 });
+  const mede = () => page.evaluate(oids => {
+    const R = e => e.getBoundingClientRect(), raiz = getComputedStyle(document.documentElement), tok = n => raiz.getPropertyValue(n).trim();
+    const hex = c => { const m = c.match(/^#([0-9a-f]{6})$/i); return m ? `rgb(${parseInt(m[1].slice(0, 2), 16)}, ${parseInt(m[1].slice(2, 4), 16)}, ${parseInt(m[1].slice(4, 6), 16)})` : c; };
+    const inter = (a, b) => Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+    const carta = oid => document.querySelector(`.tb-side--me .tb-card[data-oid="${oid}"]`);
+    const lê = oid => { const c = carta(oid), face = c.querySelector('.tb-card__face'), arte = c.querySelector('.tb-card__arte'), barra = c.querySelector('.tb-card__estados'), pt = c.querySelector('.tb-card__pt');
+      const es = barra ? [...barra.querySelectorAll('.tb-estado')] : [];
+      return { oid, pe: c.dataset.molduraPe, selo: !!c.querySelector('.tb-card__sick'), pilulas: [...c.querySelectorAll('.tb-pill')].map(p => p.className).filter(x => !/tb-pill--qtd/.test(x)),
+        estados: es.map(e => ({ marca: e.dataset.marca, familia: e.dataset.familia, svg: !!e.querySelector('svg'), texto: e.textContent.trim(), cor: getComputedStyle(e).color, dentroDaFace: !!face && R(e).left >= R(face).left - 0.5 && R(e).right <= R(face).right + 0.5 && R(e).bottom <= R(face).bottom + 0.5, cobreArte: arte ? inter(R(e), R(arte)) : 0 })),
+        barraNaEsquerda: barra && pt ? R(barra).right <= R(pt).left + 0.5 : null, barraDentro: barra ? R(barra).right <= R(c).right + 0.5 && R(barra).left >= R(c).left - 0.5 : null, fala: c.getAttribute('aria-label'), virada: c.dataset.tapped }; };
+    return { cartas: [oids.d[0], oids.d[1], oids.d[2], oids.m].map(lê), cores: { enjoo: hex(tok('--estado-enjoo')), ganho: hex(tok('--positive')), perda: hex(tok('--negative')) } };
+  }, oids);
+  for (const [w, hgt] of [[360, 780], [390, 844]]) for (const tema of ['dark', 'light']) {
+    await page.setViewportSize({ width: w, height: hgt }); await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(300);
+    const m = await mede(), onde = `${w} ${tema}`, [d0, d1, d2, mt] = m.cartas;
+    for (const c of m.cartas) { assert.ok(!c.selo && !c.pilulas.length, `${onde}: nada por cima da arte (sem selo de enjoo nem pílula) ` + JSON.stringify(c)); for (const e of c.estados) { assert.ok((e.svg || /^\+\d+$/.test(e.texto)) && e.dentroDaFace && e.cobreArte === 0, `${onde}: ícone flat (ou "+N") na face, sem cobrir a arte ` + JSON.stringify(e)); } }
+    assert.deepEqual(d0.estados.map(e => e.marca + ':' + e.familia), ['enjoo:enjoo'], `${onde}: a criatura recém-chegada mostra só o enjoo ` + JSON.stringify(d0.estados));
+    assert.equal(d0.estados[0].cor, m.cores.enjoo, `${onde}: a cor do enjoo é o token --estado-enjoo`);
+    assert.deepEqual(d1.estados.map(e => [e.marca, e.familia, e.texto].join(':')), ['enjoo:enjoo:', 'marcador:ganho:2', 'dano:perda:1'], `${onde}: enjoo, +1/+1 ×2 (verde, com o número) e dano (vermelho) ` + JSON.stringify(d1.estados));
+    assert.equal(d1.estados[1].cor, m.cores.ganho, `${onde}: +1/+1 na cor de ganho`); assert.equal(d1.estados[2].cor, m.cores.perda, `${onde}: dano na cor de perda`);
+    assert.ok(d1.barraNaEsquerda && d1.barraDentro, `${onde}: a barra fica à esquerda do P/R e dentro da carta ` + JSON.stringify({ e: d1.barraNaEsquerda, d: d1.barraDentro }));
+    assert.deepEqual(d2.estados.map(e => e.marca + ':' + e.texto), ['enjoo:', 'marcador:1', 'undefined:+2'], `${onde}: quatro estados viram dois ícones e "+2" ` + JSON.stringify(d2.estados));
+    assert.equal(d2.virada, 'true'); assert.match(d2.fala, /com enjoo.*1 marcador \+1\/\+1, 1 marcador de carga, 1 de dano marcado/, `${onde}: o nome falado diz tudo (${d2.fala})`);
+    assert.ok(!mt.estados.length && mt.pe !== 'true', `${onde}: o terreno sem estado não ganha barra nem pé ` + JSON.stringify(mt));
+    await auditaTela(page, `J-48 · estados ${onde}`);
+  }
+  if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark')); await page.waitForTimeout(300); await page.screenshot({ path: process.env.SHOTS + '/j48-estados.png' }); }
+  assert.deepEqual(errors, []);
+});
+
 // J-47 (decisão do dono, 02/11/2026) · contadores de mão, grimório, cemitério e exílio menores: a caixa pintada tem 34 px e o
 // número letra menor, o toque continua com 44 px e a linha do lado mede 34 px — o campo ganha 10 px por lado.
 test('e2e · J-47 contadores de zona menores: caixa de 34 px, toque de 44 px, linha do lado com 34 px, ícone de 16; zero sem caixa; nas quatro medidas e nos dois temas', { skip }, async t => {
@@ -9577,6 +9629,9 @@ test('e2e · J-47 contadores de zona menores: caixa de 34 px, toque de 44 px, li
       assert.ok(l.chips.length >= 2, `${onde} ${l.lado}: contadores à vista`);
       for (const c of l.chips) {
         assert.ok(c.w >= 44 && c.h >= 44, `${onde} ${l.lado}: ${c.nome} continua tocável (${Math.round(c.w)}×${Math.round(c.h)})`);
+        assert.ok(c.caixaNaLinha && c.conteudoNaCaixa, `${onde} ${l.lado}: ${c.nome} com a caixa pintada dentro da linha e o ícone dentro da caixa ` + JSON.stringify(c));
+        // a sobra de toque vai para o lado onde não pousa a faixa da pilha: para baixo no seu lado, para cima no do oponente
+        if (!c.zero) assert.ok(/--opp/.test(l.lado) ? c.sobraParaCima && !c.sobraParaBaixo : c.sobraParaBaixo && !c.sobraParaCima, `${onde} ${l.lado}: ${c.nome} com a sobra de toque do lado certo ` + JSON.stringify(c));
         if (c.zero) assert.equal(c.caixa, 0, `${onde} ${l.lado}: ${c.nome} zerado fica sem caixa`);
         else { assert.ok(Math.abs(c.caixa - 34) <= 1, `${onde} ${l.lado}: ${c.nome} com a caixa de 34 px (${c.caixa})`); assert.notEqual(c.fundo, 'rgba(0, 0, 0, 0)', `${onde} ${l.lado}: ${c.nome} com a caixa pintada`); }
         assert.ok(c.icone >= 15 && c.icone <= 17 && c.numero <= 14, `${onde} ${l.lado}: ${c.nome} com ícone de 16 e número menor ` + JSON.stringify(c));
@@ -9629,9 +9684,6 @@ test('e2e · J-46 nome inteiro na faixa (letra que encolhe até o piso; duas lin
     assert.ok(delver.linhas === 1 && !delver.duas, `${onde}: Delver numa linha ` + JSON.stringify(delver));
     // em 390 (carta de 84 px) o nome médio cabe numa linha com a letra menor; em 360 (76 px) nem no piso cabe e vai para duas linhas
     if (w >= 375) assert.ok(+kessig.escala < 1 && +kessig.escala >= m.piso && !kessig.duas && kessig.linhas === 1, `${onde}: nome médio encolhe a letra numa linha ` + JSON.stringify(kessig));
-        assert.ok(c.caixaNaLinha && c.conteudoNaCaixa, `${onde} ${l.lado}: ${c.nome} com a caixa pintada dentro da linha e o ícone dentro da caixa ` + JSON.stringify(c));
-        // a sobra de toque vai para o lado onde não pousa a faixa da pilha: para baixo no seu lado, para cima no do oponente
-        if (!c.zero) assert.ok(/--opp/.test(l.lado) ? c.sobraParaCima && !c.sobraParaBaixo : c.sobraParaBaixo && !c.sobraParaCima, `${onde} ${l.lado}: ${c.nome} com a sobra de toque do lado certo ` + JSON.stringify(c));
     else assert.ok(kessig.duas && kessig.linhas === 2, `${onde}: nome médio em duas linhas na carta estreita ` + JSON.stringify(kessig));
     assert.ok(ulamog.duas && Math.abs(ulamog.fonte - curta.fonte * m.piso) < 0.3 && ulamog.linhas === 2 && ulamog.arteH < delver.arteH, `${onde}: nome comprido vai para duas linhas no piso, a arte encurta ` + JSON.stringify({ ulamog, delverArte: delver.arteH }));
     // achado da leva: a carta sozinha na fileira saía 6 px mais alta que a da pilha (o botão em linha dentro do leque deixava um vão e a fileira esticava as vizinhas)
@@ -13742,9 +13794,10 @@ test('e2e · T-14 · CR 310.4c / 310.9 / 310.12b · batalha: a carta mostra a de
     const i = z.library.findIndex(o => s.objects[o].name === 'Invasion of Dominaria'); const oid = z.library.splice(i, 1)[0];
     Object.assign(s.objects[oid], { zone: 'battlefield', controller: 0, tapped: false, sick: false, damage: 0, counters: { defense: 2 }, protetorT: 1 }); z.battlefield.push(oid); return oid; });
   let terra = await M.oid('Plains'); assert.equal(await M.act({ t: 'play_land', p: 0, oid: terra }), true); await page.waitForTimeout(250);
-  const pilulas = (await page.locator(`.tb-side--me .tb-card[data-oid="${cerco}"] .tb-pill`).allInnerTexts()).map(x => x.trim());
-  assert.ok(pilulas.includes('defesa 2'), 'a defesa na carta: ' + JSON.stringify(pilulas));
-  assert.ok(pilulas.some(x => /^protegida por /.test(x)), 'quem protege: ' + JSON.stringify(pilulas));
+  // J-48 · as marcas viraram ícones na barra de P/R: o texto mora no title (e no nome falado)
+  const pilulas = await page.locator(`.tb-side--me .tb-card[data-oid="${cerco}"] .tb-estado`).evaluateAll(es => es.map(e => e.getAttribute('title') + '|' + e.textContent.trim()));
+  assert.ok(pilulas.some(x => /defesa/.test(x) && /\|2$/.test(x)), 'a defesa na carta (hexágono com 2): ' + JSON.stringify(pilulas));
+  assert.ok(pilulas.some(x => /protegida por /.test(x)), 'quem protege: ' + JSON.stringify(pilulas));
   // o último marcador saiu: a habilidade intrínseca do Cerco (310.12b) vai à pilha e, ao resolver, abre a decisão
   await page.evaluate(oid => { const s = window.__estanteMesa.estado(), o = s.objects[oid]; o.counters = {};
     s.queued.push({ source: oid, name: o.name, controller: 0, effects: [{ do: 'cerco_derrotado', z: o.zc || 0 }], when: 'cerco-derrotado', batalhaZ: o.zc || 0 }); }, cerco);
@@ -17563,9 +17616,9 @@ test('e2e · J-19 bloqueadora obrigatória: já escolhida e marcada, sem "Sem bl
   // 1 · a declaração abre com o muro obrigado já escolhido e marcado; "Sem bloqueio" não existe; Bloquear já vale
   const d1 = await page.evaluate(([m0, m1]) => { const carta = oid => document.querySelector(`.tb-side--me .tb-card[data-oid="${oid}"]`);
     const b = document.querySelector('#tb-block');
-    return { semBloqueio: !!document.querySelector('#tb-no-block'), selo0: !!carta(m0).querySelector('.tb-pill--icone[data-marca="obrigada"]'), selo1: !!carta(m1).querySelector('.tb-pill--icone[data-marca="obrigada"]'),
+    return { semBloqueio: !!document.querySelector('#tb-no-block'), selo0: !!carta(m0).querySelector('.tb-estado[data-marca="obrigada"]'), selo1: !!carta(m1).querySelector('.tb-estado[data-marca="obrigada"]'),
       fala: carta(m0).getAttribute('aria-label'), escolhido: carta(m0).dataset.selected, botao: b.textContent.trim(), apagado: b.disabled,
-      dica: (document.querySelector('.tb-dock') || document.body).innerText, cor: getComputedStyle(carta(m0).querySelector('.tb-pill--icone[data-marca="obrigada"]')).color }; }, c.muros);
+      dica: (document.querySelector('.tb-dock') || document.body).innerText, cor: getComputedStyle(carta(m0).querySelector('.tb-estado[data-marca="obrigada"]')).color }; }, c.muros);
   assert.equal(d1.semBloqueio, false, '"Sem bloqueio" some com a exigência');
   assert.deepEqual([d1.selo0, d1.selo1], [true, false], 'só o muro obrigado tem o selo');
   assert.match(d1.fala, /Precisa bloquear/, 'o selo tem nome falado'); assert.equal(d1.escolhido, 'true', 'o muro já vem escolhido');

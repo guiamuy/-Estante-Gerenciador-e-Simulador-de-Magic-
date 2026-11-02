@@ -144,6 +144,7 @@
   --negative: #d4785f;
   --negative-fg: #1c0e09;
   --warning: #d9a33f;
+  --estado-enjoo: #b7a6dc;  /* J-48 · enjoo de invocação (lavanda), ícone na barra de P/R; espelhado no painel */
   --overlay: rgba(10, 7, 4, .82);
   --scrim: rgba(20, 16, 11, .95);
   --grain-1: rgba(255, 244, 222, .022);
@@ -209,6 +210,7 @@
   --negative: #92381f;
   --negative-fg: #fdf2ee;
   --warning: #7a580d;   /* leva 123 · era #8a6410 (3,9:1 sobre o fundo); agora AA sobre fundo e superfície */
+  --estado-enjoo: #5a4a8e;  /* J-48 · enjoo de invocação */
   --overlay: rgba(46, 35, 18, .5);
   --scrim: rgba(246, 238, 218, .95);
   --grain-1: rgba(90, 62, 22, .035);
@@ -263,6 +265,7 @@
     --negative: #92381f;
     --negative-fg: #fdf2ee;
     --warning: #7a580d;   /* leva 123 · era #8a6410 (3,9:1 sobre o fundo); agora AA sobre fundo e superfície */
+    --estado-enjoo: #5a4a8e;
     --overlay: rgba(46, 35, 18, .5);
     --scrim: rgba(246, 238, 218, .95);
     --grain-1: rgba(90, 62, 22, .035);
@@ -2570,7 +2573,7 @@ body[data-mesa-cheia="true"] .tb-steps__list > li::after { inset: 0; height: aut
 /* MJ7 (J-17) · latão com brilho leve: fio de luz no topo e lábio escuro embaixo na faixa de vez, no marcador de vida de
    quem joga e nos selos de latão da carta (nada de brilho que corra: é luz parada num objeto de metal) */
 .tb-life[data-active="true"] { background-image: linear-gradient(180deg, var(--latao-luz) 0, transparent 45%); }
-.tb-pill:not(.tb-pill--icone):not(.tb-pill--perdeu) { box-shadow: inset 0 1px 0 var(--latao-luz), inset 0 -1px 0 var(--latao-labio); }
+.tb-pill:not(.tb-pill--perdeu) { box-shadow: inset 0 1px 0 var(--latao-luz), inset 0 -1px 0 var(--latao-labio); }
 .tb-vez__btn { position: relative; overflow: hidden; flex: 1 1 auto; display: flex; align-items: center; gap: var(--space-2); min-height: var(--tap-min); padding: var(--space-1) var(--space-4) var(--space-1) var(--space-1);
   border: 0; border-radius: inherit; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .tb-vez__btn:disabled { cursor: default; }
@@ -2637,8 +2640,9 @@ body[data-mesa-cheia="true"] .tb-steps__list > li::after { inset: 0; height: aut
 .tb-chip[data-jogaveis] { position: relative; color: var(--fg); }
 .tb-chip__ponto { position: absolute; top: 3px; right: 3px; width: 7px; height: 7px; border-radius: var(--radius-full); background: var(--accent); }
 /* J-47 (decisão do dono, 02/11/2026) · contadores de zona menores: a caixa pintada tem --chip-zona-h (34 px) e o número --text-sm; o alvo
-   de toque continua com 44 px (o botão é 44 e a caixa é o ::before por dentro), e as margens negativas deixam a linha do lado com
-   34 px — 10 px a mais de campo por lado em 360×780. Zero continua apagado e sem caixa. */
+   de toque continua com 44 px (o botão é 44, a caixa é o ::before colado em cima e os 10 px que sobram ficam embaixo, no vão antes
+   das cartas — nunca para cima, onde a faixa da pilha pousa), e a margem negativa deixa a linha do lado com 34 px: 10 px a mais de
+   campo por lado em 360×780. Zero continua apagado e sem caixa. */
 :root { --chip-zona-h: 34px; }
 .tb-chip {
   position: relative; isolation: isolate; display: inline-flex; align-items: center; justify-content: center; gap: 2px; min-height: var(--tap-min); min-width: var(--tap-min);
@@ -2648,15 +2652,15 @@ body[data-mesa-cheia="true"] .tb-steps__list > li::after { inset: 0; height: aut
 .tb-chip::before { content: ''; position: absolute; z-index: -1; left: 0; right: 0; top: 0; bottom: calc(var(--tap-min) - var(--chip-zona-h));
   border: 1px solid var(--border); border-radius: var(--radius-2); background: var(--bg-elev-2); }
 .tb-chip[data-jogaveis]::before { border-color: var(--accent); }
-.tb-chip b { color: var(--fg); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
-.tb-chip__icone { flex: none; }
-.tb-chip__rotulo { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-/* J-40 · relato #45 · masmorra na mesa: o selo de 44 px com a miniatura do mapa (a sala de quem é o lado acesa na cor dele:
 /* no lado do oponente a sobra de toque vai para cima (acima do lado há 24 px livres); embaixo dele pousa a faixa da pilha quando o
    campo está vazio (MJ1c: a faixa ocupa exatamente os 15 px do pé do lado de cima, o vão e os 13 px do topo do seu lado) */
 .tb-side--opp .tb-chip { margin: calc(var(--chip-zona-h) - var(--tap-min)) 0 0; padding: calc(var(--tap-min) - var(--chip-zona-h)) var(--space-2) 0 6px; }
 .tb-side--opp .tb-chip::before { top: calc(var(--tap-min) - var(--chip-zona-h)); bottom: 0; }
 .tb-side--opp .tb-chip__ponto { top: calc(var(--tap-min) - var(--chip-zona-h) + 3px); }
+.tb-chip b { color: var(--fg); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+.tb-chip__icone { flex: none; }
+.tb-chip__rotulo { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* J-40 · relato #45 · masmorra na mesa: o selo de 44 px com a miniatura do mapa (a sala de quem é o lado acesa na cor dele:
    latão para você, a cor do oponente para ele) e a bandeira da iniciativa no canto; nenhum texto na mesa, o nome inteiro
    fica no nome falado e na folha. A folha desenha a carta da masmorra como mapa de salas. */
 .tb-masmorra { --marca: var(--accent); position: relative; flex: none; display: inline-flex; align-items: center; justify-content: center;
@@ -2765,7 +2769,6 @@ body[data-mesa-cheia="true"] .tb-steps__list > li::after { inset: 0; height: aut
 /* virada: o nome continua na horizontal, colado à borda de cima da carta deitada (a face gira 90° e encolhe a .78) */
 .tb-card[data-tapped="true"] .tb-card__label { top: 22%; border-radius: 0; }
 .tb-card[data-selected="true"] .tb-card__label { transform: translateY(calc(var(--space-2) * -1)); }
-.tb-card:has(.tb-card__label) .tb-card__sick { top: 28%; z-index: 1; } /* o selo de enjoo desce para não cobrir o nome */
 .tb-card__pt { position: absolute; right: 2px; bottom: 2px; padding: 0 var(--space-1); border-radius: var(--radius-1); font-family: var(--font-display); font-size: var(--text-xs); line-height: 1.4; color: var(--fg); background: var(--scrim); border: 1px solid var(--border); }
 /* R5 · Aura ou Equipamento colado em quem o carrega: sem o vão entre as cartas e com um filete do lado de onde vem */
 .tb-row > .tb-card[data-anexo="true"] { margin-left: calc(var(--space-2) * -1); }
@@ -2804,8 +2807,26 @@ body[data-mesa-cheia="true"] .tb-steps__list > li::after { inset: 0; height: aut
 .tb-card[data-nome-duas="true"] > .tb-card__label { white-space: normal; line-height: 1.15; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: anywhere; }
 /* deitada: a faixa fica logo acima da carta deitada (que começa a 22% da caixa), sem cobrir a arte que gira junto com a face */
 .tb-card[data-moldura="true"][data-tapped="true"] > .tb-card__label { top: auto; bottom: 78%; left: 0; right: 0; border-radius: 0; }
-.tb-card[data-moldura="true"][data-tapped="true"] .tb-card__sick { top: auto; bottom: 22%; } /* deitada, a faixa do nome desce a 22%: o selo vai para o pé da carta deitada */
 .tb-card[data-moldura="true"] .tb-card__pt { background: var(--bg-elev-1); }
+/* J-48 (decisão do dono, 02/11/2026) · os estados da carta são ícones flat na barra de P/R, à esquerda, e nunca cobrem a arte:
+   cada ícone com a cor da família (token nos dois temas); até três, o resto vira "+N"; o nome falado e a folha da carta dizem tudo.
+   A barra fica dentro da face (gira com a carta virada, como o P/R). Com P/R, os ícones param antes dele. */
+.tb-card__estados { position: absolute; left: 2px; bottom: 2px; z-index: 1; display: flex; align-items: center; gap: 2px; max-width: calc(100% - 4px); height: calc(var(--text-xs) * 1.4 + 2px); pointer-events: none; }
+.tb-card__face:has(.tb-card__pt) .tb-card__estados { max-width: calc(100% - 4px - 3.2ch - var(--space-2) - 2px); }
+.tb-estado { display: inline-flex; align-items: center; justify-content: center; gap: 1px; height: 100%; min-width: 15px; padding: 0 2px; border-radius: var(--radius-1); background: var(--bg-elev-1); border: 1px solid var(--border); color: var(--fg-muted); font-family: var(--font-display); font-size: var(--text-3xs); line-height: 1; white-space: nowrap; }
+.tb-estado b { font-weight: var(--weight-bold); font-size: var(--text-3xs); }
+.tb-estado .ds-icon { display: inline-flex; }
+.tb-estado[data-familia="enjoo"] { color: var(--estado-enjoo); border-color: var(--estado-enjoo); }
+.tb-estado[data-familia="ataque"] { color: var(--negative); border-color: var(--negative); }
+.tb-estado[data-familia="bloqueio"] { color: var(--accent); border-color: var(--accent); }
+.tb-estado[data-familia="alvo"] { color: var(--warning); border-color: var(--warning); }
+.tb-estado[data-familia="anexo"] { color: var(--accent); }
+.tb-estado[data-familia="ganho"] { color: var(--positive); border-color: var(--positive); }
+.tb-estado[data-familia="perda"] { color: var(--negative); border-color: var(--negative); }
+.tb-estado[data-familia="acento"] { color: var(--accent); }
+.tb-estado[data-familia="neutro"] { color: var(--fg-muted); }
+.tb-card[data-moldura="true"] .tb-estado { background: var(--bg-elev-2); }
+.tb-card--sm .tb-card__estados { height: 13px; } .tb-card--sm .tb-estado { min-width: 12px; padding: 0 1px; }
 /* a fileira do campo centraliza como a fila da proposta; com mais cartas que a largura, rola desde a primeira (safe) */
 .tb-side .tb-row { justify-content: safe center; }
 .tb-card__face img[data-falhou="true"], .tb-leque__camada img[data-falhou="true"] { visibility: hidden; }   /* H7 · imagem que falhou não mostra ícone quebrado; volta sozinha */
@@ -2852,14 +2873,6 @@ body[data-mesa-cheia="true"] .tb-steps__list > li::after { inset: 0; height: aut
 /* Leva 110 · marca que cita outra carta: selo redondo com ícone (e número). Nada de nome dentro da carta;
    o nome inteiro aparece ao espiar a carta. Guarda: nenhuma pílula passa da largura da carta. */
 .tb-pill { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
-.tb-pill--icone { display: inline-flex; align-items: center; justify-content: center; gap: 1px; min-width: 18px; height: 18px; padding: 0 3px; background: var(--bg-elev-1); color: var(--fg); border: 1px solid var(--border); box-shadow: var(--shadow-1); }
-.tb-pill--icone b { font-size: var(--text-2xs); line-height: 1; }
-.tb-pill--icone[data-marca="ataca"] { color: var(--negative); border-color: var(--negative); }
-.tb-pill--icone[data-marca="bloqueia"] { color: var(--accent); border-color: var(--accent); }
-.tb-pill--icone[data-marca="alvo"] { color: var(--warning); border-color: var(--warning); }
-.tb-pill--icone[data-marca="obrigada"] { color: var(--accent); border-color: var(--accent); } /* J-19 · dourado bloqueia: a criatura que precisa bloquear */
-.tb-pill--icone[data-marca="anexo"], .tb-pill--icone[data-marca="encantada"] { color: var(--accent); }
-.tb-card__sick { position: absolute; top: 2px; left: 50%; transform: translateX(-50%); font-size: var(--text-xs); line-height: 1.2; padding: 0 var(--space-1); border-radius: var(--radius-full); background: var(--bg-elev-3); color: var(--fg-muted); border: 1px solid var(--border); }
 
 .tb-center { display: flex; flex-direction: column; gap: var(--space-2); }
 .tb-center:empty { display: none; }
@@ -3429,7 +3442,6 @@ button.col-dash__bar:active, .col-dash__bar--on { background: var(--accent-soft)
 @media (prefers-reduced-motion: reduce) { .scan-stage.is-pulse .scan-frame, .scan-stage.is-pulse::after, .scan-ok.is-on, .scan-estado__chip[data-ligado="true"]::before { animation: none; } }
 
 /* ===================== A6 · combate e mana na mesa ===================== */
-.tb-pill--tag { background: var(--bg-elev-3); color: var(--fg); border: 1px solid var(--accent); }
 .tb-card[data-eligible="true"] .tb-card__face { outline: 2px dashed var(--accent); outline-offset: 2px; }
 .tb-pool { display: inline-flex; gap: var(--space-2); align-items: center; min-height: var(--tap-min); padding: 0 var(--space-2);
   border-radius: var(--radius-full); background: var(--bg-elev-2); border: 1px solid var(--border); font-size: var(--text-lg); }
@@ -3486,7 +3498,6 @@ button.col-dash__bar:active, .col-dash__bar--on { background: var(--accent-soft)
 /* Leva 121 · carta tramada na bandeja: contorno tracejado (está no exílio, não na mão); apagada até poder ser conjurada */
 .tb-card--tramada .tb-card__face { outline: 2px dashed var(--accent); outline-offset: -2px; }
 .tb-card--tramada[data-pronta="false"] .tb-card__face { opacity: .6; }
-.tb-pill--icone[data-marca="tramada"] { color: var(--accent); border-color: var(--accent); }
 /* Leva 121 · "descartar ou sacrificar": cabeçalho, segmentado, fileira e dois botões */
 .tb-troca { display: flex; flex-direction: column; gap: var(--space-2); }
 .tb-troca__cab { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
@@ -4406,6 +4417,12 @@ const ICONES = {
   cemiterio: '<path d="M6.5 20.5V10a5.5 5.5 0 0 1 11 0v10.5"/><path d="M4 20.5h16"/><path d="M12 8.5v6M9.6 10.9h4.8"/>',
   exilio: '<path d="M12 12a1.5 1.5 0 0 1 3 0a3 3 0 0 1-6 0a4.5 4.5 0 0 1 9 0a6 6 0 0 1-12 0"/>',
   comando: '<path d="M4.5 17.5 3.5 7.5l4.75 4L12 5.5l3.75 6 4.75-4-1 10z"/><path d="M5 20.5h14"/>',
+  // J-48 · estados da carta na mesa (barra de P/R), flat, em traço: enjoo (relógio: entrou neste turno), marcador genérico (hexágono),
+  // dano marcado (gota) e fora de fase (círculo tracejado); +1/+1 e −1/−1 usam mais e menos; ataque, bloqueio, alvo e anexo já existiam
+  enjoo: '<circle cx="12" cy="12.5" r="7.5"/><path d="M12 8.5v4l2.6 1.8"/><path d="M9.5 3h5"/>',
+  contador: '<path d="M12 3.5l7.4 4.25v8.5L12 20.5l-7.4-4.25v-8.5z"/>',
+  dano: '<path d="M12 3.5s-6 6.6-6 10.6a6 6 0 0 0 12 0C18 10.1 12 3.5 12 3.5z"/>',
+  fase: '<path d="M12 4a8 8 0 0 1 8 8" stroke-dasharray="2.6 2.6"/><path d="M20 12a8 8 0 0 1-8 8" stroke-dasharray="2.6 2.6"/><path d="M12 20a8 8 0 0 1-8-8" stroke-dasharray="2.6 2.6"/><path d="M4 12a8 8 0 0 1 8-8" stroke-dasharray="2.6 2.6"/>',
   // J-40 · relato #45 · masmorra na mesa: a porta em arco da masmorra, o peão de quem está numa sala e a bandeira da iniciativa
   // G-334 · relato #52 · Sair da conta: a porta entreaberta (a luz em latão passa pela fresta); a folha gira na dobradiça
   porta: '<path class="porta__luz" d="M6.5 5h11v15.5h-11z"/><path d="M5 20.5V5a1.5 1.5 0 0 1 1.5-1.5h11A1.5 1.5 0 0 1 19 5v15.5"/><path d="M3.5 20.5h17"/><g class="porta__folha"><path class="porta__painel" d="M6.5 20.5V5h11v15.5z"/><circle class="porta__macaneta" cx="15" cy="12.75" r="1.1"/></g>',
@@ -5429,6 +5446,10 @@ function renderDS() {
           M.ZoneChip('Cemitério', 4, () => toast('Cemitério'))),
         Text('Tokens: --playmat (o playmat dos dois lados da mesa, o mesmo para você e para o oponente; hoje o padrão, o papel do lado).', { size: 'xs', tone: 'muted', attrs: { id: 'ds-playmat' } }),
         Text('Tokens: --vida-disco (o disco da vida na barra, 34 px, no meio do alvo de 44 px; o número centrado pela altura das maiúsculas, algarismos de linha).', { size: 'xs', tone: 'muted', attrs: { id: 'ds-vida-disco' } }),
+        // J-48 · os estados da carta na mesa: um ícone por entrada da tabela ESTADOS, na cor da família, como saem na barra de P/R
+        h('div', { class: 'ds-row ds-row--wrap', id: 'ds-estados-carta' }, ...Object.entries(M.ESTADOS).map(([k, e]) => h('figure', { class: 'ds-icones__item' },
+          h('span', { class: 'tb-estado', dataset: { marca: k, familia: e.familia }, style: { height: '18px' } }, M.Icone(e.icone, { tamanho: 12 })), h('figcaption', {}, e.rotulo)))),
+        Text('Estados da carta (J-48): toda marca do modelo da mesa tem ícone, família (cor por token: --estado-enjoo, --positive, --negative, --accent, --warning) e rótulo na tabela ESTADOS; na carta do campo ficam à esquerda do P/R, até três e "+N"; o contrato estados.unit barra marca sem entrada. Token: --chip-zona-h (a caixa do contador de zona, 34 px, dentro do toque de 44 px; J-47). --nome-piso (J-46): a letra da faixa do nome encolhe até 78% antes de ir para duas linhas.', { size: 'xs', tone: 'muted', attrs: { id: 'ds-estados-nota' } }),
         // J-40 · relato #45 · a masmorra na mesa: o selo (miniatura do mapa, bandeira da iniciativa) e a folha com o mapa da carta
         (() => {
           const st = { iniciativa: 0, players: [{ name: 'Você', dungeon: { name: 'Undercity', room: 'poco-perdido', done: false } }, { name: 'Shark', dungeon: { name: 'Undercity', room: 'entrada-secreta', done: false } }] };
@@ -37530,44 +37551,111 @@ function imgDaMesa(card, size) {
   return img;
 }
 
-/** Carta na mesa. Virada gira 90°; enjoo aparece como selo; marcadores e dano como pílulas. */
+/* ---- J-48 (decisão do dono, 02/11/2026) · ESTADOS: a tabela única do que a carta mostra na mesa ----
+   Toda marca que `estadoDaCarta` (table-model) ou a tela põe numa carta tem UMA entrada aqui: ícone flat do conjunto do app,
+   família (a cor, por token, nos dois temas) e rótulo curto em português. É o que vira ícone na barra de P/R da carta do campo
+   (J-48) e chip na folha da carta (J-49). Marca sem entrada é defeito: o contrato `estados.unit` barra. `familia`:
+   enjoo (lavanda) · ataque (vermelho) · bloqueio (latão) · alvo (âmbar) · anexo (latão) · ganho (verde) · perda (vermelho) ·
+   acento (latão) · neutro (apagado). Marcador: p1p1 é ganho (+), m1m1 é perda (−), os outros são acento com o hexágono. */
+const ESTADOS = {
+  enjoo:          { icone: 'enjoo',    familia: 'enjoo',    rotulo: 'Enjoo', explica: 'Entrou neste turno: não ataca nem usa {T}' },
+  ficha:          { icone: 'ficha',    familia: 'neutro',   rotulo: 'Ficha', explica: 'Ficha: some ao sair do campo' },
+  'fora-de-fase': { icone: 'fase',     familia: 'neutro',   rotulo: 'Fora de fase', explica: 'Volta no próximo desvirar de quem a controla' },
+  'virada-baixo': { icone: 'virar',    familia: 'neutro',   rotulo: 'Face para baixo', explica: 'Virada para baixo' },
+  virada:         { icone: 'virar',    familia: 'neutro',   rotulo: 'Virada', explica: 'Virada' },
+  tramada:        { icone: 'tramar',   familia: 'acento',   rotulo: 'Tramada', explica: 'Tramada: conjure do exílio' },
+  ataca:          { icone: 'espada',   familia: 'ataque',   rotulo: 'Atacando', explica: 'Atacando' },
+  bloqueia:       { icone: 'escudo',   familia: 'bloqueio', rotulo: 'Bloqueando', explica: 'Bloqueando' },
+  obrigada:       { icone: 'alerta',   familia: 'bloqueio', rotulo: 'Precisa bloquear', explica: 'Um efeito obriga esta criatura a bloquear' },
+  alvo:           { icone: 'alvo',     familia: 'alvo',     rotulo: 'Alvo', explica: 'Alvo de algo na pilha' },
+  anexo:          { icone: 'anexo',    familia: 'anexo',    rotulo: 'Anexada', explica: 'Anexada a outra permanente' },
+  encantada:      { icone: 'anexo',    familia: 'anexo',    rotulo: 'Com anexos', explica: 'Carrega Auras ou Equipamentos' },
+  protetor:       { icone: 'proteger', familia: 'bloqueio', rotulo: 'Protegida', explica: 'Batalha protegida por um jogador' },
+  marcador:       { icone: 'contador', familia: 'acento',   rotulo: 'Marcadores', explica: 'Marcadores na carta' },
+  dano:           { icone: 'dano',     familia: 'perda',    rotulo: 'Dano', explica: 'Dano marcado neste turno' },
+  ganhou:         { icone: 'raio',     familia: 'ganho',    rotulo: 'Ganhou', explica: 'Ganhou habilidade' },
+  perdeu:         { icone: 'bloquear', familia: 'perda',    rotulo: 'Perdeu', explica: 'Perdeu habilidade' },
+};
+const FAMILIAS = ['enjoo', 'ataque', 'bloqueio', 'alvo', 'anexo', 'ganho', 'perda', 'acento', 'neutro'];
+/** Nome em português de cada tipo de marcador que o motor usa (para o nome falado e a folha); tipo sem nome sai como está. */
+const MARCADOR_NOME = { p1p1: '+1/+1', m1m1: '−1/−1', m0m1: '−0/−1', charge: 'de carga', age: 'de idade', loyalty: 'de lealdade', time: 'de tempo', lore: 'de saga', defense: 'de defesa', stun: 'de atordoamento', shield: 'de escudo', oil: 'de óleo', depletion: 'de esgotamento', poison: 'de veneno', energia: 'de energia', finality: 'de finalidade', flying: 'de voar' };
+/** Uma marca (de `estadoDaCarta`, ou `{ k }` da tela) → o estado desenhável: ícone, família, rótulo, número e explicação.
+    Marcador de +1/+1 e −1/−1 vira mais/menos nas famílias ganho/perda; os outros marcadores levam o hexágono e o tipo no rótulo.
+    Marca sem entrada vira `neutro` com o texto dela (nunca some), e o contrato acusa. Puro. */
+function estadoDesenhavel(m) {
+  const base = ESTADOS[m.k];
+  if (!base) return { k: m.k, icone: 'info', familia: 'neutro', rotulo: m.rotulo || m.texto || m.k, explica: m.rotulo || m.texto || '', qtd: m.qtd || null, texto: m.texto || '' };
+  const e = { k: m.k, ...base, qtd: m.qtd || null, texto: m.texto || '' };
+  if (m.k === 'marcador') {
+    if (m.tipo === 'p1p1') Object.assign(e, { icone: 'mais', familia: 'ganho', rotulo: `+${m.qtd}/+${m.qtd}`, explica: `${m.qtd} marcador${m.qtd > 1 ? 'es' : ''} +1/+1` });
+    else if (m.tipo === 'm1m1') Object.assign(e, { icone: 'menos', familia: 'perda', rotulo: `−${m.qtd}/−${m.qtd}`, explica: `${m.qtd} marcador${m.qtd > 1 ? 'es' : ''} −1/−1` });
+    else Object.assign(e, { rotulo: m.texto || base.rotulo, explica: m.rotulo || (m.qtd != null ? `${m.qtd} marcador${m.qtd > 1 ? 'es' : ''} ${MARCADOR_NOME[m.tipo] || m.tipo || ''}`.trim() : m.texto || base.explica) });
+  } else if (m.rotulo) e.explica = m.rotulo;
+  // atacante já bloqueado: o modelo manda o escudo ("← Wall Guard"); atacante que passou livre: só o rótulo
+  if (m.k === 'ataca' && m.icone === 'escudo') { e.icone = 'escudo'; e.rotulo = 'Bloqueada'; }
+  else if (m.k === 'ataca' && m.texto === 'livre') e.rotulo = 'Sem bloqueio';
+  if (m.k === 'dano') { e.rotulo = `${m.qtd} dano`; e.explica = `${m.qtd} de dano marcado neste turno`; }
+  if ((m.k === 'ganhou' || m.k === 'perdeu') && m.texto) e.rotulo = m.texto.replace(/^\+/, '');
+  return e;
+}
+/** Os estados de uma carta da mesa, na ordem em que importam de relance: combate e alvo, enjoo, marcadores, dano, o resto. */
+const ORDEM_DOS_ESTADOS = ['ataca', 'bloqueia', 'obrigada', 'alvo', 'enjoo', 'marcador', 'dano', 'ganhou', 'perdeu', 'anexo', 'encantada', 'protetor', 'tramada', 'virada-baixo', 'fora-de-fase', 'ficha', 'virada'];
+function estadosDaCarta(est, card, opts = {}) {
+  const marcas = est ? est.marcas : [];
+  const lista = marcas.map(estadoDesenhavel);
+  if (est ? est.sick : !!card.sick) lista.push(estadoDesenhavel({ k: 'enjoo' }));
+  for (const t of opts.tags || []) lista.push(t === 'enjoo' || t === 'virada' ? estadoDesenhavel({ k: t }) : { k: 'tag', icone: null, familia: 'acento', rotulo: t, explica: t, qtd: null, texto: t });
+  if (!est) { // sem o modelo (cartas de lista): o que a carta traz
+    for (const [k, v] of Object.entries(card.counters || {})) if (v) lista.push(estadoDesenhavel({ k: 'marcador', tipo: k, qtd: v, texto: k === 'p1p1' ? `+${v}/+${v}` : k === 'm1m1' ? `−${v}/−${v}` : `${k} ${v}` }));
+    if (card.damage) lista.push(estadoDesenhavel({ k: 'dano', qtd: card.damage, texto: `${card.damage} dano` }));
+  }
+  const pos = e => { const i = ORDEM_DOS_ESTADOS.indexOf(e.k); return i < 0 ? ORDEM_DOS_ESTADOS.length : i; };
+  return lista.sort((a, b) => pos(a) - pos(b));
+}
+/** A barra de estados da carta do campo: até `max` ícones à esquerda do P/R; o que não cabe vira "+N" (o nome falado diz tudo). */
+const ESTADOS_NA_CARTA = 3;
+function BarraDeEstados(estados, { max = ESTADOS_NA_CARTA } = {}) {
+  if (!estados.length) return null;
+  const mostra = estados.length > max ? estados.slice(0, max - 1) : estados, resto = estados.length - mostra.length;
+  return h('span', { class: 'tb-card__estados', 'aria-hidden': 'true' },
+    ...mostra.map(e => h('span', { class: 'tb-estado', dataset: { marca: e.k, familia: e.familia }, title: e.explica || e.rotulo },
+      e.icone ? Icone(e.icone, { tamanho: 11 }) : h('b', {}, e.rotulo), e.icone && e.qtd != null && (e.qtd > 1 || e.k === 'dano' || e.k === 'marcador') ? h('b', {}, String(e.qtd)) : null)),
+    resto > 0 ? h('span', { class: 'tb-estado tb-estado--mais', dataset: { familia: 'neutro' }, title: estados.slice(mostra.length).map(e => e.rotulo).join(', ') }, h('b', {}, `+${resto}`)) : null);
+}
+
+/** Carta na mesa. Virada gira 90°; os estados (enjoo, marcadores, dano, combate, anexos…) são ícones na barra de P/R (J-48). */
 /* A13 · a carta diz tudo sem toque: nome sempre legível, P/T da criatura, anel de estado
    (ataca / bloqueia / alvo), selos (enjoo, ficha) e pílulas (marcadores, dano, anexos).
    `estado` vem de estadoDaCarta (table-model); sem ele, cai no que a carta traz. */
 function TableCard(card, opts = {}) {
   const est = opts.estado || null;
   const pills = [];
-  // Leva 110 · marca com ícone: selo redondo com o desenho e, se houver mais de uma, o número; nada de nome na carta
-  if (est) for (const m of est.marcas) pills.push(m.icone
-    ? h('span', { class: 'tb-pill tb-pill--icone', dataset: { marca: m.k }, title: m.rotulo || m.texto }, Icone(m.icone, { tamanho: 12 }), m.qtd > 1 ? h('b', {}, String(m.qtd)) : null)
-    : h('span', { class: 'tb-pill' + (m.k === 'dano' ? ' tb-pill--neg' : m.k === 'ganhou' ? ' tb-pill--ganhou' : m.k === 'perdeu' ? ' tb-pill--perdeu' : m.k === 'ataca' || m.k === 'bloqueia' || m.k === 'alvo' ? ' tb-pill--estado' : ''), dataset: { marca: m.k }, title: m.rotulo || null }, m.texto));
-  else {
-    for (const [k, v] of Object.entries(card.counters || {})) pills.push(h('span', { class: 'tb-pill' },
-      k === 'p1p1' ? `+${v}/+${v}` : k === 'm1m1' ? `−${v}/−${v}` : k === 'loyalty' ? `lealdade ${v}` : k === 'age' ? `idade ${v}` : `${k} ${v}`));
-    if (card.damage) pills.push(h('span', { class: 'tb-pill tb-pill--neg' }, `${card.damage} dano`));
-  }
-  for (const t of opts.tags || []) pills.push(h('span', { class: 'tb-pill tb-pill--tag' }, t));
+  // J-48 · as marcas (ícone ou texto) e o selo de enjoo saíram de cima da arte: viram ícones flat na barra de P/R (BarraDeEstados);
+  // aqui só fica o ×N da pilha
   if (opts.pilha && opts.pilha.total > 1) pills.push(h('span', { class: 'tb-pill tb-pill--qtd', dataset: { marca: 'pilha' }, title: `${opts.pilha.total} cópias` + (opts.pilha.viradas && opts.pilha.viradas < opts.pilha.total ? `, ${opts.pilha.viradas} virada(s)` : '') }, `×${opts.pilha.total}`,
     // Leva 110 · "· 2 virada(s)" não cabia na carta: vira o ícone de virar com o número
     opts.pilha.viradas && opts.pilha.viradas < opts.pilha.total ? h('span', { class: 'tb-pill__viradas' }, Icone('virar', { tamanho: 10 }), String(opts.pilha.viradas)) : null));
   const sick = est ? est.sick : !!card.sick;
+  const estados = estadosDaCarta(est, card, opts); // J-48
   const tapped = opts.pilha ? opts.pilha.viradas === opts.pilha.total && opts.pilha.total > 0 : !!card.tapped;
   const pt = est && est.pt ? `${est.pt.p}/${est.pt.t}` : null;
   // T4 · P/T acima do impresso em verde, abaixo em vermelho, número a número; o nome falado diz a base
   const mod = est && est.mod;
   const ptEl = pt ? h('span', { class: 'tb-card__pt', dataset: { pt, ...(mod && (mod.p || mod.t) ? { mod: mod.p && mod.t && mod.p !== mod.t ? 'misto' : mod.p || mod.t } : {}) } },
     h('span', { dataset: { mod: (mod && mod.p) || '' } }, String(est.pt.p)), '/', h('span', { dataset: { mod: (mod && mod.t) || '' } }, String(est.pt.t))) : null;
+  const barra = opts.verso ? null : BarraDeEstados(estados); // J-48 · à esquerda do P/R, na mesma barra; o pé da moldura existe quando há P/T ou estado
   // DS-K2 M1 (J-38) · carta do campo (tamanho padrão) com imagem: moldura K, com a janela da arte; mão, pilha e verso seguem com a carta inteira
   const moldura = !opts.size && !opts.verso && !!card.image;
+  // J-48 · o nome falado diz todos os estados (inclusive marcadores e dano, que antes ficavam só na pílula): é o texto dos ícones
   const fala = [card.name, opts.pilha && opts.pilha.total > 1 ? `${opts.pilha.total} cópias` : null, tapped ? 'virada' : null, sick ? 'com enjoo' : null, pt ? (mod && mod.base && (mod.p || mod.t) ? `${pt}, base ${mod.base.p}/${mod.base.t}` : pt) : null,
-    ...(est ? est.marcas.filter(m => m.k !== 'dano' && m.k !== 'marcador').map(m => m.rotulo || m.texto) : [])].filter(Boolean).join(', ');
+    ...estados.filter(e => e.k !== 'enjoo' && e.k !== 'virada').map(e => e.explica || e.rotulo)].filter(Boolean).join(', ');
   const el = h('button', {
     class: ['tb-card', opts.size ? `tb-card--${opts.size}` : '', opts.entrou ? 'tb-card--entrou' : ''].filter(Boolean).join(' '), type: 'button',
     'aria-label': fala,
     dataset: { tapped: String(tapped), sick: String(sick), selected: String(!!opts.selected), eligible: String(!!opts.eligible), oid: card.oid || '', ...(card.attachedTo && card.zone === 'battlefield' ? { anexo: 'true' } : {}),
       estado: est && est.anel ? est.anel : '', ...(opts.pilha ? { pilhaTotal: String(opts.pilha.total), pilhaViradas: String(opts.pilha.viradas) } : {}),
       ...(opts.pilha && opts.pilha.oids && opts.pilha.oids.length > 1 ? { oids: opts.pilha.oids.join(' ') } : {}), // MJ3a · quem chega a um leque acha o grupo
-      ...(moldura ? { moldura: 'true', ...(ptEl ? { molduraPe: 'true' } : {}) } : {}) },
+      ...(moldura ? { moldura: 'true', ...(ptEl || barra ? { molduraPe: 'true' } : {}) } : {}) },
     onClick: opts.onClick
   },
   h('span', { class: 'tb-card__face' + (opts.verso ? ' tb-card__face--verso' : '') },
@@ -37575,11 +37663,10 @@ function TableCard(card, opts = {}) {
     // sem imagem nenhuma, a carta desenhada leva o símbolo e o nome numa linha
     opts.verso ? h('span', { class: 'ds-verso' }) : moldura ? h('span', { class: 'tb-card__arte' }, SimboloDoBasico(card.name), imgDaMesa(card, opts.size)) : card.image ? imgDaMesa(card, opts.size)
       : !opts.size && manaDoBasico(card.name) ? [SimboloDoBasico(card.name), h('span', { class: 'tb-card__name tb-card__name--basico' }, card.name)] : h('span', { class: 'tb-card__name' }, card.name), // J-43 · só no campo: a mão não muda (relato #48) // D7 · verso escolhido na Aparência
-    ptEl),
+    barra, ptEl),
   // Leva 110 · o nome fica fora da face: carta virada não leva o nome junto na rotação (antes saía de pé, cortado)
   (card.image || opts.verso) && opts.size !== 'sm' ? h('span', { class: 'tb-card__label' }, card.name) : null,
-  pills.length ? h('span', { class: 'tb-card__pills' }, ...pills) : null,
-  sick ? h('span', { class: 'tb-card__sick', title: 'enjoo de invocação' }, 'enjoo') : null);
+  pills.length ? h('span', { class: 'tb-card__pills' }, ...pills) : null);
   // A15 · segurar espia a carta; soltar fecha (quem monta a tela passa start/end)
   // MJ7 · enquanto segura, a carta se levanta (data-segurando: a sombra cresce por baixo dela)
   if (opts.onPeek) __m20.onLongPress(el, { start: e => { el.dataset.segurando = 'true'; if (e && e.pointerId != null) { try { el.setPointerCapture(e.pointerId); } catch (x) { /* ponteiro já solto */ } } opts.onPeek(true, { el, x: e ? e.clientX : null, y: e ? e.clientY : null }); }, end: () => { delete el.dataset.segurando; opts.onPeek(false); } }); // MJ10 · a carta e o dedo: o espiar sai dela e inclina com o dedo; a carta segura o ponteiro enquanto espia (o dedo pode sair dela sem fechar)
@@ -37587,7 +37674,7 @@ function TableCard(card, opts = {}) {
   const atras = opts.pilha ? Math.min(LEQUE_MAX, opts.pilha.total - 1) : 0;
   if (atras <= 0) return el;
   // J-46 · na moldura, cada cópia de trás leva a própria arte na janela (antes só a borda: a pilha parecia vazia)
-  const camadas = Array.from({ length: atras }, (_, i) => h('span', { class: 'tb-leque__camada', 'aria-hidden': 'true', style: { '--i': String(i + 1), zIndex: String(atras - i) }, ...(moldura && ptEl ? { dataset: { molduraPe: 'true' } } : {}) },
+  const camadas = Array.from({ length: atras }, (_, i) => h('span', { class: 'tb-leque__camada', 'aria-hidden': 'true', style: { '--i': String(i + 1), zIndex: String(atras - i) }, ...(moldura && (ptEl || barra) ? { dataset: { molduraPe: 'true' } } : {}) },
     !card.image ? null : moldura ? h('span', { class: 'tb-card__arte' }, SimboloDoBasico(card.name), imgDaMesa(card, opts.size)) : imgDaMesa(card, opts.size)));
   return h('span', { class: 'tb-leque', dataset: { leque: String(opts.pilha.total), tapped: String(tapped), ...(moldura ? { moldura: 'true' } : {}) }, style: { '--atras': String(atras) } }, el, ...camadas);
 }
@@ -38049,7 +38136,7 @@ function MapaDaMasmorra(m) {
     m.textoDaIniciativa ? h('p', { class: 'tb-masmorra__nota' }, h('b', {}, 'Iniciativa. '), m.textoDaIniciativa) : null);
 }
 
-return { QuadroDeBloqueios, retemImagem, retemImagemDaCarta, imagensRetidas, fonteParaLargura, animaVirada, faseDoPasso, TableCard, ZoneRow, LifeCounter, ZoneChip, StepBar, StackStrip, StackPanel, CardPeek, PriorityBanner, Desfecho, AdjudicationPanel, Icone, IconButton, gestoDeBandeja, ligaGestoDeBandeja, modeloDaMasmorra, caminhoNaMasmorra, falaDaMasmorra, SeloDaMasmorra, MapaDaMasmorra, TEXTO_DAS_SALAS, origemDaPilha, FaceDaOrigem, miniDaMasmorra };
+return { QuadroDeBloqueios, retemImagem, retemImagemDaCarta, imagensRetidas, fonteParaLargura, animaVirada, faseDoPasso, TableCard, ESTADOS, FAMILIAS, estadoDesenhavel, estadosDaCarta, BarraDeEstados, ZoneRow, LifeCounter, ZoneChip, StepBar, StackStrip, StackPanel, CardPeek, PriorityBanner, Desfecho, AdjudicationPanel, Icone, IconButton, gestoDeBandeja, ligaGestoDeBandeja, modeloDaMasmorra, caminhoNaMasmorra, falaDaMasmorra, SeloDaMasmorra, MapaDaMasmorra, TEXTO_DAS_SALAS, origemDaPilha, FaceDaOrigem, miniDaMasmorra };
 })();
 
 
@@ -38823,10 +38910,10 @@ function estadoDaCarta(s, o, plano = null) {
   // J-19 · M-567/M-572 · 509.1c: um efeito obriga esta criatura a bloquear (a mesa a escolhe de antemão; a folha só oferece quem cumpre)
   if (plano && plano.obrigadas && plano.obrigadas.has(o.oid)) marcas.push({ k: 'obrigada', texto: 'precisa bloquear', icone: 'alerta', rotulo: 'Precisa bloquear: um efeito obriga' });
   if (plano && plano.attack && plano.attack.has(o.oid)) anel = 'ataca';
-  for (const [k, v] of Object.entries(o.counters || {})) { if (!v) continue; marcas.push({ k: 'marcador', texto: k === 'p1p1' ? `+${v}/+${v}` : k === 'm1m1' ? `−${v}/−${v}` : k === 'loyalty' ? `lealdade ${v}` : k === 'age' ? `idade ${v}` : `${k} ${v}` }); }
+  for (const [k, v] of Object.entries(o.counters || {})) { if (!v) continue; marcas.push({ k: 'marcador', tipo: k, qtd: v, texto: k === 'p1p1' ? `+${v}/+${v}` : k === 'm1m1' ? `−${v}/−${v}` : k === 'loyalty' ? `lealdade ${v}` : k === 'age' ? `idade ${v}` : `${k} ${v}` }); } // J-48 · tipo e qtd para o ícone da mesa
   if ((o.counters || {}).lore) { const m = marcas.find(x => x.k === 'marcador' && x.texto === `lore ${o.counters.lore}`); if (m) { m.texto = 'capítulo ' + (['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'][o.counters.lore] || o.counters.lore); m.rotulo = `${o.counters.lore} marcador(es) de saga`; } } // T-1 · CR 714 · a Saga diz em que capítulo está
   if (o.protetorT != null || (o.counters || {}).defense) { const m = marcas.find(x => x.k === 'marcador' && x.texto === `defense ${(o.counters || {}).defense}`); if (m) { m.texto = `defesa ${o.counters.defense}`; m.rotulo = `${o.counters.defense} marcador(es) de defesa`; } if (o.protetorT != null && s.players[o.protetorT] && (s.facts[o.name].types || []).includes('battle')) marcas.push({ k: 'protetor', texto: `protegida por ${s.players[o.protetorT].name}`, rotulo: `Batalha protegida por ${s.players[o.protetorT].name}: quem não é o protetor pode atacá-la` }); } // T-14 · CR 310.4c / 310.9 · a batalha diz a defesa e quem a protege
-  if (o.damage) marcas.push({ k: 'dano', texto: `${o.damage} dano` });
+  if (o.damage) marcas.push({ k: 'dano', qtd: o.damage, texto: `${o.damage} dano` });
   // T4 · habilidades ganhas (verde) e perdidas (tachada): uma pílula para cada lado; o nome inteiro fica no rótulo
   const mod = modificacoesDaCarta(s, o, pt);
   if (mod && mod.ganhas.length) marcas.push({ k: 'ganhou', texto: mod.ganhas.length === 1 ? '+' + nomeDaPalavra(mod.ganhas[0]) : `+${mod.ganhas.length} hab.`, rotulo: 'Ganhou ' + mod.ganhas.map(nomeDaPalavra).join(', ') });

@@ -658,6 +658,21 @@ test('DS-K2 · M1 a carta do campo na moldura K: janela da arte por token sobre 
   }
 });
 
+/* ---------------- J-48 · estados como ícones na barra de P/R ---------------- */
+test('J-48 · os estados da carta são ícones na barra de P/R (dentro da face, à esquerda do P/T), com cor por família e token do enjoo nos dois temas com contraste de ícone; o selo de enjoo e as pílulas de marca saíram', () => {
+  assert.match(componentCss, /\.tb-card__estados \{ position: absolute; left: 2px; bottom: 2px;/);
+  assert.match(componentCss, /\.tb-card__face:has\(\.tb-card__pt\) \.tb-card__estados \{ max-width: calc\(100% - 4px - 3\.2ch - var\(--space-2\) - 2px\); \}/, 'com P/T, a barra para antes dele');
+  for (const [fam, tok] of [['enjoo', '--estado-enjoo'], ['ataque', '--negative'], ['bloqueio', '--accent'], ['alvo', '--warning'], ['ganho', '--positive'], ['perda', '--negative']]) assert.match(componentCss, new RegExp(`\\.tb-estado\\[data-familia="${fam}"\\] \\{ color: var\\(${tok}\\);`), `família ${fam} na cor ${tok}`);
+  assert.ok(!/\.tb-card__sick \{/.test(componentCss) && !/\.tb-pill--icone/.test(componentCss), 'selo de enjoo e pílula de marca saíram do CSS');
+  assert.ok(!/class: 'tb-card__sick'/.test(HTML) && !/tb-pill tb-pill--icone/.test(HTML), 'a carta não desenha mais selo nem pílula de marca');
+  assert.match(HTML, /const ESTADOS = \{/, 'a tabela única existe');
+  for (const [nome, t] of [['escuro', DARK], ['claro', LIGHT], ['claro automático', { ...DARK, ...AUTO_LIGHT }]]) {
+    assert.ok(t['--estado-enjoo'], `token --estado-enjoo no tema ${nome}`);
+    for (const fundo of ['--bg-elev-1', '--bg-elev-2']) assert.ok(ratio(t['--estado-enjoo'], t[fundo]) >= 3, `enjoo sobre ${fundo} (${nome}): ${ratio(t['--estado-enjoo'], t[fundo]).toFixed(2)} ≥ 3 (ícone)`);
+  }
+  assert.equal(LIGHT['--estado-enjoo'], AUTO_LIGHT['--estado-enjoo'], 'o claro automático usa a mesma cor do claro');
+});
+
 /* ---------------- J-47 · contadores de zona menores ---------------- */
 test('J-47 · o contador de zona pinta uma caixa de 34 px (token) por dentro de um toque de 44 px; o número usa --text-sm; a linha do lado mede pela caixa', () => {
   assert.match(css, /:root \{ --chip-zona-h: 34px; \}/, 'a altura da caixa é token');
