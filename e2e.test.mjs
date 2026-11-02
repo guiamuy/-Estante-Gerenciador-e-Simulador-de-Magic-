@@ -69,6 +69,8 @@ const DB = Object.fromEntries([
 ].map(c => [c.name.toLowerCase(), c]));
 // B-22 · o Shark na mesa só joga com as suas cinco listas de torneio (`LISTAS_DO_SHARK`): a Scryfall falsa precisa das cartas delas, com o
 // texto oficial de `.listas/oficiais*.json` (o mesmo do torneio). Carta que o DB acima já tem fica como está (os testes antigos contam com ela).
+// J-40 · relato #45 · a masmorra na mesa: uma criatura que toma a iniciativa (texto oficial de .listas/oficiais-revisadas.json)
+DB['goliath paladin'] = { ...card('Goliath Paladin', 'Creature — Giant Knight', ['W'], 5), mana_cost: '{4}{W}', power: '3', toughness: '6', oracle_text: 'Vigilance\nWhen Goliath Paladin enters, you take the initiative.' };
 for (const l of listasDoShark()) for (const e of [...l.entries, ...l.reserva]) { const c = l.cartas[e.name], k = e.name.toLowerCase(); if (c && !DB[k]) DB[k] = { ...card(c.name, c.type_line, c.colors, c.cmc), ...c, id: c.name }; }
 
 async function open(t, { dev = true, apresentacao = false, cena = false, porta = false, formato = false } = {}) {
@@ -17969,4 +17971,102 @@ test('e2e · J-34 · relato #41 · CR 601.2c/601.2h · lampejo do Dread Return: 
   assert.deepEqual(M.errors, []);
 });
 
-
+// J-40 · relato #45 (Visual · Impede o uso): "a carta da dungeon exibida na mesa de forma gráfica, indicado visualmente aonde
+// os jogadores se encontram". Antes: "Cidade Baixa: Poço Perdido" era texto na linha ao lado da vida, cortado em duas linhas.
+// Agora: selo de 44 px com a miniatura do mapa e a bandeira da iniciativa; tocar abre a folha com o mapa da carta (salas
+// ligadas pelos caminhos, a sala atual em ouro com o peão, por onde passou, as próximas) e o efeito de cada sala por extenso.
+test('e2e · J-40 masmorra na mesa: o selo com o mapa ao lado da vida (sem texto cortado) abre a folha com a Cidade Baixa desenhada, o peão no Poço Perdido, o caminho percorrido e o efeito de cada sala', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await createDeck(page, base, 'Iniciativa', '24 Plains\n36 Goliath Paladin');
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start'); await page.fill('#mesa-seed', '7');
+  await page.click('[data-opponent="goldfish"]');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-pass');
+  assert.equal(await page.locator('.tb-masmorra').count(), 0, 'sem masmorra nem iniciativa: nenhum selo');
+  // conjura um Goliath Paladin (toma a iniciativa: entra na Entrada Secreta) e depois outro (avança: escolhe o Poço Perdido)
+  const conjuraEResolve = () => page.evaluate(async () => {
+    const M = window.__estanteMesa, s = M.estado(), p = s.turn.priority;
+    const g = Object.values(s.objects).find(o => o.owner === p && o.name === 'Goliath Paladin' && o.zone === 'library');
+    M.act({ t: 'move', p, oid: g.oid, to: 'hand' }); M.act({ t: 'cast', p, oid: g.oid, free: true });
+    for (let i = 0; i < 60; i++) {
+      const e = M.estado(); if (!e.stack.length && !e.pending) break;
+      const L = M.legais();
+      const a = L.find(x => x.t === 'choose_room' && /Poço Perdido/.test(x.label || '')) || L.find(x => x.t === 'choose_room') || L.find(x => x.t === 'pick')
+        || L.find(x => x.t === 'pick_done') || L.find(x => x.t === 'pass');
+      if (!a) { await new Promise(r => setTimeout(r, 100)); continue; }
+      M.act(a);
+    }
+    return { sala: (M.estado().players[p].dungeon || {}).room, iniciativa: M.estado().iniciativa, p };
+  });
+  let r = await conjuraEResolve();
+  assert.equal(r.sala, 'entrada-secreta', 'tomou a iniciativa: Entrada Secreta'); assert.equal(r.iniciativa, r.p);
+  r = await conjuraEResolve();
+  assert.equal(r.sala, 'poco-perdido', 'tomou de novo: avançou para o Poço Perdido (o caso do relato)');
+  await page.evaluate(() => window.__estanteMesa.repinta());
+  await page.waitForSelector('#tb-masmorra-me');
+  for (const [w, hgt] of [[360, 697], [390, 844]]) for (const tema of ['dark', 'light']) {
+    await page.setViewportSize({ width: w, height: hgt }); await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema);
+    const onde = `${w}×${hgt} ${tema}`;
+    const m = await page.evaluate(() => {
+      const selo = document.querySelector('#tb-masmorra-me'), b = selo.getBoundingClientRect(), info = document.querySelector('#tb-info-me');
+      const cabeca = selo.closest('.tb-side__head').getBoundingClientRect();
+      return { w: b.width, h: b.height, dentro: b.right <= innerWidth && b.left >= 0, doc: document.documentElement.scrollWidth - innerWidth,
+        rotulo: selo.getAttribute('aria-label'), texto: selo.textContent.trim(), bandeira: !!selo.querySelector('.tb-masmorra__bandeira'),
+        acesa: !!selo.querySelector('.tb-masmorra__no[data-dono="true"]'), nos: selo.querySelectorAll('.tb-masmorra__no').length,
+        info: info ? info.textContent : '', naCabeca: b.top >= cabeca.top - 1 && b.bottom <= cabeca.bottom + 1,
+        semSeloDoOutro: !document.querySelector('#tb-masmorra-opp') };
+    });
+    assert.ok(m.w >= 44 && m.h >= 44, `${onde}: selo de 44 px (${m.w}×${m.h})`); assert.ok(m.dentro && m.doc <= 0, `${onde}: cabe na tela, nada rola de lado`);
+    assert.equal(m.texto, '', `${onde}: o selo não escreve nada na mesa (só desenho)`);
+    assert.equal(m.rotulo, 'Masmorra: Cidade Baixa, sala Poço Perdido. Tem a iniciativa. Toque para ver o mapa', `${onde}: o nome falado por extenso`);
+    assert.ok(m.bandeira && m.acesa && m.nos === 9, `${onde}: a miniatura com as nove salas, a sua acesa e a bandeira da iniciativa`);
+    assert.ok(!/Cidade Baixa|Poço Perdido|Iniciativa/.test(m.info), `${onde}: a masmorra saiu da linha de texto ao lado da vida («${m.info}»)`);
+    assert.ok(m.naCabeca, `${onde}: o selo mora na linha da vida e das zonas (não desce o campo)`); assert.ok(m.semSeloDoOutro, `${onde}: o goldfish não está em masmorra`);
+    await auditaTela(page, `J-40 · selo da masmorra ${onde}`);
+    if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + `/j40-selo-${w}-${tema}.png` });
+  }
+  // a folha: abre no toque, com o mapa e a lista
+  await page.setViewportSize({ width: 360, height: 697 }); await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  await page.click('#tb-masmorra-me'); await page.waitForSelector('#tb-masmorra-folha'); await page.waitForSelector('#tb-masmorra-mapa[data-desenhado="true"]');
+  const f = await page.evaluate(() => {
+    const d = document.querySelector('.ds-dialog'), mapa = document.querySelector('#tb-masmorra-mapa');
+    const salas = [...mapa.querySelectorAll('.tb-masmorra__sala')].map(el => { const b = el.getBoundingClientRect(), n = el.querySelector('.tb-masmorra__nome');
+      return { id: el.dataset.sala, estado: el.dataset.estado, nome: n.textContent, l: b.left, r: b.right, t: b.top, b: b.bottom, cortado: n.scrollWidth > n.clientWidth + 1 || el.scrollHeight > el.clientHeight + 1,
+        peoes: [...el.querySelectorAll('.tb-masmorra__peao')].map(p => p.dataset.marca) }; });
+    const sobre = []; for (const a of salas) for (const b of salas) if (a.id < b.id && a.l < b.r - 1 && b.l < a.r - 1 && a.t < b.b - 1 && b.t < a.b - 1) sobre.push(a.id + '×' + b.id);
+    const caminhos = [...mapa.querySelectorAll('.tb-masmorra__caminho')].map(c => ({ feita: c.dataset.feita, d: c.getAttribute('d') }));
+    const lista = [...document.querySelectorAll('.tb-masmorra__lista li')].map(li => ({ id: li.dataset.sala, estado: li.dataset.estado, texto: li.querySelector('p').textContent, nome: li.querySelector('b').textContent }));
+    const box = mapa.getBoundingClientRect();
+    return { titulo: document.querySelector('#ds-dialog-title').textContent, salas, sobre, caminhos, lista, quem: document.querySelector('.tb-masmorra__quem').innerText,
+      mapaDentro: box.left >= 0 && box.right <= innerWidth, folhaRola: d.scrollHeight > d.clientHeight, doc: document.documentElement.scrollWidth - innerWidth,
+      elipse: [...document.querySelectorAll('#tb-masmorra-folha *')].filter(el => getComputedStyle(el).textOverflow === 'ellipsis' || getComputedStyle(el).webkitLineClamp !== 'none').length };
+  });
+  assert.equal(f.titulo, 'Cidade Baixa', 'a folha tem o nome da masmorra');
+  assert.equal(f.salas.length, 9, 'as nove salas da Cidade Baixa no mapa'); assert.deepEqual(f.sobre, [], 'nenhuma sala sobre a outra'); assert.ok(f.mapaDentro && f.doc <= 0, 'o mapa cabe em 360');
+  assert.deepEqual(f.salas.filter(s => s.cortado).map(s => s.nome), [], 'nenhum nome de sala cortado');
+  const por = Object.fromEntries(f.salas.map(s => [s.id, s]));
+  assert.equal(por['poco-perdido'].estado, 'atual', 'a sala atual em ouro'); assert.deepEqual(por['poco-perdido'].peoes, ['eu'], 'com o seu peão');
+  assert.equal(por['entrada-secreta'].estado, 'visitada', 'a Entrada Secreta já percorrida');
+  assert.deepEqual(f.salas.filter(s => s.estado === 'proxima').map(s => s.id).sort(), ['arena', 'esconderijo'], 'as próximas salas');
+  assert.ok(por['entrada-secreta'].b < por['poco-perdido'].t && por['poco-perdido'].b < por.arena.t && por.arquivos.b < por.trono.t, 'as salas descem nível a nível até o Trono');
+  assert.equal(f.caminhos.length, 12, 'os doze caminhos da carta desenhados'); assert.equal(f.caminhos.filter(c => c.feita === 'true').length, 1, 'o caminho percorrido aceso');
+  assert.ok(f.caminhos.every(c => /^M[\d.]+ [\d.]+ C/.test(c.d)), 'caminhos medidos depois do desenho');
+  assert.equal(f.lista.length, 9);
+  assert.deepEqual(f.lista.find(l => l.id === 'poco-perdido'), { id: 'poco-perdido', estado: 'atual', texto: 'Vidência 2.', nome: 'Poço Perdido' });
+  assert.equal(f.lista.find(l => l.id === 'trono').texto, 'Revele as dez cartas do topo do seu grimório. Coloque no campo uma carta de criatura dentre elas com três marcadores +1/+1. Ela ganha resistência a magia até o seu próximo turno. Depois embaralhe.', 'o efeito por extenso, sem corte');
+  assert.ok(f.lista.every(l => l.texto && !/ainda não está no app/.test(l.texto)), 'toda sala com o efeito');
+  assert.match(f.quem, /Poço Perdido/); assert.match(f.quem, /tem a iniciativa/);
+  assert.equal(f.elipse, 0, 'nada na folha corta texto com reticências');
+  await auditaTela(page, 'J-40 · folha da masmorra 360×697');
+  if (process.env.SHOTS) { await page.screenshot({ path: process.env.SHOTS + '/j40-folha-360-dark.png' }); await page.evaluate(() => document.querySelector('.ds-dialog').scrollTo(0, 99999)); await page.screenshot({ path: process.env.SHOTS + '/j40-folha-360-dark-fim.png' }); }
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'));
+  if (process.env.SHOTS) { await page.evaluate(() => document.querySelector('.ds-dialog').scrollTo(0, 0)); await page.screenshot({ path: process.env.SHOTS + '/j40-folha-360-light.png' }); }
+  // caminho de volta: o X fecha e o foco volta ao selo
+  await page.click('#ds-dialog-close'); await page.waitForSelector('#tb-masmorra-folha', { state: 'detached' });
+  assert.equal(await page.evaluate(() => document.activeElement && document.activeElement.id), 'tb-masmorra-me', 'fechar devolve o foco ao selo');
+  // o catálogo mostra o selo e a folha
+  await page.goto(base + '#/ds'); await page.waitForSelector('#ds-masmorra .tb-masmorra');
+  assert.equal(await page.locator('#ds-masmorra .tb-masmorra').count(), 2);
+  assert.equal(await page.locator('#ds-masmorra .tb-masmorra__sala').count(), 9);
+  assert.deepEqual(errors, []);
+});

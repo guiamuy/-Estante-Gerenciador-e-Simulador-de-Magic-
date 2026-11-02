@@ -2531,6 +2531,55 @@ body[data-mesa-cheia="true"] .tb-steps__list > li::after { inset: 0; height: aut
 .tb-chip b { color: var(--fg); font-size: var(--text-md); font-variant-numeric: tabular-nums; }
 .tb-chip__icone { flex: none; }
 .tb-chip__rotulo { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* J-40 · relato #45 · masmorra na mesa: o selo de 44 px com a miniatura do mapa (a sala de quem é o lado acesa na cor dele:
+   latão para você, a cor do oponente para ele) e a bandeira da iniciativa no canto; nenhum texto na mesa, o nome inteiro
+   fica no nome falado e na folha. A folha desenha a carta da masmorra como mapa de salas. */
+.tb-masmorra { --marca: var(--accent); position: relative; flex: none; display: inline-flex; align-items: center; justify-content: center;
+  min-width: var(--tap-min); min-height: var(--tap-min); padding: 0 var(--space-1); border: 1px solid var(--border-strong); border-radius: var(--radius-2);
+  background: var(--bg-elev-2); color: var(--fg-subtle); }
+.tb-masmorra[data-lado="oponente"] { --marca: var(--player-opp); }
+.tb-masmorra[data-iniciativa="true"] { border-color: var(--accent); }
+.tb-masmorra__mini { display: block; width: 26px; height: 30px; overflow: visible; }
+.tb-masmorra__via { stroke: var(--border-strong); stroke-width: 1.2; stroke-linecap: round; }
+.tb-masmorra__via[data-feita="true"] { stroke: var(--marca); }
+.tb-masmorra__no { fill: var(--bg-elev-2); stroke: var(--fg-subtle); stroke-width: 1; }
+.tb-masmorra__no[data-estado="visitada"] { fill: var(--marca); stroke: var(--marca); opacity: .6; }
+.tb-masmorra__no[data-estado="atual"] { fill: var(--accent); stroke: var(--accent); }
+.tb-masmorra__no[data-dono="true"] { fill: var(--marca); stroke: var(--fg); stroke-width: 1.2; opacity: 1; }
+.tb-masmorra__bandeira { position: absolute; top: -6px; right: -6px; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px;
+  border-radius: var(--radius-full); background: var(--accent); color: var(--accent-fg); box-shadow: var(--shadow-1); }
+.tb-masmorra-folha { display: flex; flex-direction: column; gap: var(--space-4); }
+.tb-masmorra__quem { display: flex; flex-direction: column; gap: var(--space-2); margin: 0; padding: 0; list-style: none; font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--fg-muted); }
+.tb-masmorra__quem li { display: flex; align-items: center; gap: var(--space-2); }
+.tb-masmorra__quem b { color: var(--fg); font-weight: var(--weight-medium); }
+.tb-masmorra__peao { --marca: var(--accent); flex: none; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px;
+  border-radius: var(--radius-full); border: 2px solid var(--marca); background: var(--bg); color: var(--marca); }
+.tb-masmorra__peao[data-marca="oponente"] { --marca: var(--player-opp); }
+.tb-masmorra__peao--bandeira { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.tb-masmorra__so-leitor { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.tb-masmorra__mapa { position: relative; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); row-gap: var(--space-5); padding: var(--space-2) 0;
+  border-radius: var(--radius-3); background: var(--bg-elev-1); }
+.tb-masmorra__vias { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+.tb-masmorra__caminho { fill: none; stroke: var(--border-strong); stroke-width: 2; stroke-dasharray: 4 4; stroke-linecap: round; }
+.tb-masmorra__caminho[data-feita="true"] { stroke: var(--accent); stroke-dasharray: none; }
+.tb-masmorra__sala { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1);
+  min-height: var(--tap-min); margin: 0 var(--space-1); padding: var(--space-1) var(--space-1); border: 1px solid var(--border-strong); border-radius: var(--radius-2);
+  background: var(--bg-elev-2); color: var(--fg-muted); font-size: var(--text-xs); line-height: var(--lh-xs); text-align: center; overflow-wrap: break-word; hyphens: auto; }
+.tb-masmorra__sala[data-estado="atual"] { background: var(--accent); border-color: var(--accent-hi); color: var(--accent-fg); box-shadow: var(--focus-ring); font-weight: var(--weight-medium); }
+.tb-masmorra__sala[data-estado="visitada"] { border-color: var(--accent); background: var(--accent-soft); color: var(--fg); }
+.tb-masmorra__sala[data-estado="proxima"] { border-style: dashed; border-color: var(--accent); color: var(--fg); }
+.tb-masmorra__peoes { display: inline-flex; gap: 2px; }
+.tb-masmorra__titulo { margin: 0; font-family: var(--font-display); font-size: var(--text-md); color: var(--fg); }
+.tb-masmorra__lista { display: flex; flex-direction: column; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.tb-masmorra__lista li { padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-2); background: var(--bg-elev-2); }
+.tb-masmorra__lista li[data-estado="atual"] { border-color: var(--accent); box-shadow: var(--focus-ring); }
+.tb-masmorra__lista p { margin: var(--space-1) 0 0; color: var(--fg-muted); font-size: var(--text-sm); line-height: var(--lh-sm); }
+.tb-masmorra__item-topo { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); color: var(--fg); }
+.tb-masmorra__selo-estado { padding: 0 var(--space-2); border-radius: var(--radius-full); border: 1px solid var(--accent); color: var(--fg); font-size: var(--text-xs); line-height: var(--lh-xs); }
+.tb-masmorra__selo-estado[data-estado="atual"] { background: var(--accent); color: var(--accent-fg); }
+.tb-masmorra__selo-estado[data-estado="proxima"] { border-style: dashed; }
+.tb-masmorra__nota { margin: 0; color: var(--fg-muted); font-size: var(--text-sm); line-height: var(--lh-sm); }
+.tb-masmorra__nota b { color: var(--fg); }
 
 .tb-life {
   display: inline-flex; align-items: center; gap: var(--space-2); min-height: var(--tap-min); flex: 0 1 auto; min-width: 0;
@@ -4150,6 +4199,10 @@ const ICONES = {
   cemiterio: '<path d="M6.5 20.5V10a5.5 5.5 0 0 1 11 0v10.5"/><path d="M4 20.5h16"/><path d="M12 8.5v6M9.6 10.9h4.8"/>',
   exilio: '<path d="M12 12a1.5 1.5 0 0 1 3 0a3 3 0 0 1-6 0a4.5 4.5 0 0 1 9 0a6 6 0 0 1-12 0"/>',
   comando: '<path d="M4.5 17.5 3.5 7.5l4.75 4L12 5.5l3.75 6 4.75-4-1 10z"/><path d="M5 20.5h14"/>',
+  // J-40 · relato #45 · masmorra na mesa: a porta em arco da masmorra, o peão de quem está numa sala e a bandeira da iniciativa
+  masmorra: '<path d="M5 20.5V10a7 7 0 0 1 14 0v10.5"/><path d="M3.5 20.5h17"/><path d="M9.5 20.5v-5.5a2.5 2.5 0 0 1 5 0v5.5"/>',
+  peao: '<circle cx="12" cy="7" r="3"/><path d="M9.8 10.5h4.4l1.8 6.5H8z"/><path d="M6.5 20h11"/>',
+  iniciativa: '<path d="M6.5 20.5V4"/><path d="M6.5 4.5h11l-2.5 4 2.5 4h-11"/>',
   companheiro: '<circle cx="6.5" cy="10.5" r="1.6"/><circle cx="10" cy="6.5" r="1.6"/><circle cx="14" cy="6.5" r="1.6"/><circle cx="17.5" cy="10.5" r="1.6"/><path d="M12 11.5c-3 0-5.5 3.2-5.5 5.5 0 1.7 1.4 2.5 2.9 2.5 1.1 0 1.7-.6 2.6-.6s1.5.6 2.6.6c1.5 0 2.9-.8 2.9-2.5 0-2.3-2.5-5.5-5.5-5.5z"/>'
 };
 function Icone(nome, { tamanho = 20, classe = '' } = {}) {
@@ -5163,6 +5216,15 @@ function renderDS() {
           // DS-K2 M3 (J-39) · as vidas da barra da mesa: a dele na cor do oponente, a sua em latão
           h('span', { class: 'tb-top ds-campo-barra', id: 'ds-barra' }, M.LifeCounter({ name: 'Shark', life: 11, lado: 'oponente' }), M.LifeCounter({ name: 'Você', life: 14, active: true, lado: 'eu' })),
           M.ZoneChip('Cemitério', 4, () => toast('Cemitério'))),
+        // J-40 · relato #45 · a masmorra na mesa: o selo (miniatura do mapa, bandeira da iniciativa) e a folha com o mapa da carta
+        (() => {
+          const st = { iniciativa: 0, players: [{ name: 'Você', dungeon: { name: 'Undercity', room: 'poco-perdido', done: false } }, { name: 'Shark', dungeon: { name: 'Undercity', room: 'entrada-secreta', done: false } }] };
+          const reg = [{ texto: 'Você se aventurou na masmorra: Cidade Baixa — Entrada Secreta' }, { texto: 'Você se aventurou na masmorra: Cidade Baixa — Poço Perdido' }, { texto: 'Shark se aventurou na masmorra: Cidade Baixa — Entrada Secreta' }];
+          const meu = M.modeloDaMasmorra(st, 0, 0, reg);
+          return h('div', { class: 'ds-stack', id: 'ds-masmorra' },
+            h('div', { class: 'ds-row' }, M.SeloDaMasmorra(meu, { lado: 'eu', onClick: () => toast('Mapa da masmorra') }), M.SeloDaMasmorra(M.modeloDaMasmorra(st, 1, 0, reg), { lado: 'oponente', onClick: () => toast('Mapa da masmorra') })),
+            M.MapaDaMasmorra(meu));
+        })(),
         M.ZoneRow('Permanentes', [M.TableCard(demo('Delver of Secrets', { sick: true })), M.TableCard(demo('Spellstutter Sprite', { tapped: true, counters: { p1p1: 1 } })), M.TableCard(demo('Guardian', { damage: 2 }))]),
         // T4 · carta modificada: P/T acima do impresso em verde, abaixo em vermelho; habilidade ganha e perdida
         h('div', { id: 'ds-modificadas' }, M.ZoneRow('Modificadas', [
@@ -37269,7 +37331,161 @@ function AdjudicationPanel({ name, image, oracle, controls, onDone }) {
     h('div', { class: 'tb-adj__actions' }, ...(controls || []), Button('Efeito aplicado', { variant: 'primary', id: 'tb-adj-done', onClick: onDone })));
 }
 
-return { QuadroDeBloqueios, retemImagem, retemImagemDaCarta, imagensRetidas, fonteParaLargura, animaVirada, faseDoPasso, TableCard, ZoneRow, LifeCounter, ZoneChip, StepBar, StackStrip, StackPanel, CardPeek, PriorityBanner, Desfecho, AdjudicationPanel, Icone, IconButton, gestoDeBandeja, ligaGestoDeBandeja };
+/* ---------------- J-40 · relato #45 · a masmorra na mesa ----------------
+   Antes: "Cidade Baixa: Poço Perdido" entrava como texto na linha ao lado da vida e era cortado em duas linhas.
+   Agora: um selo de 44 px com a miniatura do mapa (a sala de cada jogador acesa na cor dele, a bandeira da iniciativa) e,
+   ao tocar, a folha com a carta da masmorra desenhada como mapa: salas ligadas pelos caminhos, quem está onde, por onde
+   já passou, as próximas, e o efeito de cada sala por extenso. Nada de regra aqui: o motor diz a sala (`dungeon.room`)
+   e a iniciativa; o caminho já percorrido vem das linhas do registro ("… se aventurou na masmorra: …"), conferido contra
+   as ligações do mapa (se não fecha, só a sala atual aparece). */
+/** Efeito de cada sala, do texto oficial (Scryfall, cartas Undercity, Lost Mine of Phandelver, Tomb of Annihilation e
+    Dungeon of the Mad Mage, consultadas em 02/11/2026), em português na voz do app. */
+const TEXTO_DAS_SALAS = {
+  'Lost Mine of Phandelver': { entrada: 'Vidência 1.', covil: 'Crie uma ficha de criatura Goblin vermelha 1/1.', tuneis: 'Crie uma ficha de Tesouro.',
+    deposito: 'Coloque um marcador +1/+1 na criatura alvo.', poco: 'Cada oponente perde 1 ponto de vida e você ganha 1 ponto de vida.',
+    fungos: 'A criatura alvo recebe −4/−0 até o seu próximo turno.', templo: 'Compre uma carta.' },
+  Undercity: { 'entrada-secreta': 'Procure no seu grimório uma carta de terreno básico, revele-a, coloque-a na sua mão e depois embaralhe.',
+    forja: 'Coloque dois marcadores +1/+1 na criatura alvo.', 'poco-perdido': 'Vidência 2.', armadilha: 'O jogador alvo perde 5 pontos de vida.',
+    arena: 'Provoque a criatura alvo.', esconderijo: 'Crie uma ficha de Tesouro.', arquivos: 'Compre uma carta.',
+    catacumbas: 'Crie uma ficha de criatura Esqueleto preta 4/1 com ameaçar.',
+    trono: 'Revele as dez cartas do topo do seu grimório. Coloque no campo uma carta de criatura dentre elas com três marcadores +1/+1. Ela ganha resistência a magia até o seu próximo turno. Depois embaralhe.' },
+  'Tomb of Annihilation': { 'entrada-armadilhada': 'Cada jogador perde 1 ponto de vida.', veus: 'Cada jogador perde 2 pontos de vida, a menos que descarte uma carta.',
+    cela: 'Cada jogador perde 2 pontos de vida, a menos que sacrifique uma criatura, um artefato ou um terreno à escolha dele.',
+    oubliette: 'Descarte uma carta e sacrifique uma criatura, um artefato e um terreno.',
+    berco: 'Crie O Atropal, uma ficha de criatura lendária Deus Horror preta 4/4 com toque mortífero.' },
+  'Dungeon of the Mad Mage': { portal: 'Você ganha 1 ponto de vida.', nivel: 'Vidência 1.', bazar: 'Crie uma ficha de Tesouro.',
+    cavernas: 'A criatura alvo não pode atacar até o seu próximo turno.', perdido: 'Vidência 2.',
+    runas: 'Exile as duas cartas do topo do seu grimório. Você pode jogá-las.', muiral: 'Crie duas fichas de criatura Esqueleto pretas 1/1.',
+    minas: 'Vidência 3.', covil: 'Compre três cartas e revele-as. Você pode conjurar uma delas sem pagar o custo de mana.' }
+};
+const NOTA_DA_MASMORRA = { Undercity: 'Você não pode entrar nesta masmorra a menos que se aventure na Cidade Baixa.' };
+const TEXTO_DA_INICIATIVA = 'Sempre que uma ou mais criaturas de um jogador causarem dano de combate a quem tem a iniciativa, esse jogador toma a iniciativa. Sempre que você tomar a iniciativa e no começo da sua manutenção, aventure-se na Cidade Baixa.';
+const RX_SALA_DO_REGISTRO = /^(.+) se aventurou na masmorra: (.+) — (.+)$/;
+/** O caminho de um jogador na masmorra `d` até a sala atual, pelas linhas do registro; só vale se cada passo é uma ligação do mapa. */
+function caminhoNaMasmorra(entradas, nome, d, atual) {
+  let run = null;
+  for (const e of entradas || []) {
+    const m = RX_SALA_DO_REGISTRO.exec(String((e && e.texto) || '')); if (!m || m[1] !== nome) continue;
+    const sala = m[2] === d.pt ? d.rooms.find(r => r.pt === m[3]) : null;
+    if (!sala) { run = null; continue; }
+    if (!run || sala.id === d.rooms[0].id) run = [];
+    run.push(sala.id);
+  }
+  if (!atual) return [];
+  if (!run || run[run.length - 1] !== atual) return [atual];
+  for (let k = 1; k < run.length; k++) { const a = d.rooms.find(r => r.id === run[k - 1]); if (!a || !(a.next || []).includes(run[k])) return [atual]; }
+  return run;
+}
+/** Modelo puro do mapa da masmorra de `p`, visto por `v`: salas em níveis (a coluna em doze avos, para a grade), caminhos,
+    quem está em qual sala, por onde passou, a iniciativa. Sem masmorra nem iniciativa: null. Masmorra desconhecida: { erro }. */
+function modeloDaMasmorra(s, p, v, entradas = []) {
+  const pl = s && s.players && s.players[p]; if (!pl) return null;
+  const nome = pl.dungeon ? pl.dungeon.name : s.iniciativa === p ? 'Undercity' : null; if (!nome) return null;
+  const d = __m23.dungeonByName(nome);
+  if (!d) return { erro: true, nome };
+  const nivel = { [d.rooms[0].id]: 0 };
+  for (let volta = 0; volta < d.rooms.length; volta++) for (const r of d.rooms) for (const n of r.next || []) nivel[n] = Math.max(nivel[n] || 0, (nivel[r.id] || 0) + 1);
+  const linhas = []; d.rooms.forEach(r => { (linhas[nivel[r.id]] = linhas[nivel[r.id]] || []).push(r); });
+  const maxC = Math.max(...linhas.map(l => l.length)), larg = Math.floor(12 / maxC), x = {};
+  const pais = id => d.rooms.filter(r => (r.next || []).includes(id)).map(r => r.id);
+  for (const linha of linhas) {
+    const medias = linha.map(r => { const ps = pais(r.id); return Math.round(ps.length ? ps.reduce((a, q) => a + x[q], 0) / ps.length : 6); });
+    const cabe = medias.every((m, k) => m - larg / 2 >= 0 && m + larg / 2 <= 12 && (k === 0 || m - medias[k - 1] >= larg));
+    linha.forEach((r, k) => { x[r.id] = cabe ? medias[k] : (k + 0.5) * 12 / linha.length; });
+  }
+  const jogadores = s.players.map((x2, i) => {
+    const dg = x2.dungeon; if (i !== p && !(dg && dg.name === nome)) return null;
+    const naMasmorra = !!(dg && dg.name === nome), completa = !!(naMasmorra && dg.done), sala = naMasmorra ? dg.room : null;
+    const caminho = naMasmorra ? caminhoNaMasmorra(entradas, x2.name, d, sala) : [];
+    return { i, nome: x2.name, marca: i === v ? 'eu' : 'oponente', sala: completa ? null : sala, completa, caminho,
+      salaNome: sala ? (d.rooms.find(r => r.id === sala) || {}).pt || null : null, iniciativa: s.iniciativa === i, feitas: x2.dungeonsDone || 0 };
+  }).filter(Boolean);
+  const atuais = new Set(jogadores.map(j => j.sala).filter(Boolean));
+  const passadas = new Set(jogadores.flatMap(j => j.completa ? j.caminho : j.caminho.slice(0, -1)));
+  const dono = jogadores.find(j => j.i === p);
+  const proximas = new Set(dono && dono.sala ? ((d.rooms.find(r => r.id === dono.sala) || {}).next || []) : dono && !dono.completa && !dono.sala ? [d.rooms[0].id] : []);
+  const feitas = new Set(jogadores.flatMap(j => j.caminho.slice(1).map((id, k) => `${j.caminho[k]}>${id}`)));
+  const textos = TEXTO_DAS_SALAS[d.name] || {};
+  return { nome: d.name, titulo: d.pt || d.name, nota: NOTA_DA_MASMORRA[d.name] || null, colunas: maxC, niveis: linhas.length, larg,
+    salas: d.rooms.map(r => ({ id: r.id, nome: r.pt, texto: textos[r.id] || null, nivel: nivel[r.id], x: x[r.id], coluna: Math.max(0, Math.min(12 - larg, Math.round(x[r.id] - larg / 2))),
+      estado: atuais.has(r.id) ? 'atual' : passadas.has(r.id) ? 'visitada' : proximas.has(r.id) ? 'proxima' : 'livre',
+      aqui: jogadores.filter(j => j.sala === r.id).map(j => ({ nome: j.nome, marca: j.marca })) })),
+    vias: d.rooms.flatMap(r => (r.next || []).map(n => ({ de: r.id, para: n, feita: feitas.has(`${r.id}>${n}`) }))),
+    jogadores, dono: dono || null, iniciativa: s.iniciativa != null && s.players[s.iniciativa] ? { nome: s.players[s.iniciativa].name, marca: s.iniciativa === v ? 'eu' : 'oponente' } : null,
+    textoDaIniciativa: s.iniciativa != null ? TEXTO_DA_INICIATIVA : null };
+}
+const SVG_NS_M = 'http://www.w3.org/2000/svg';
+const svgM = (tag, attrs = {}) => { const el = document.createElementNS(SVG_NS_M, tag); for (const [k, x] of Object.entries(attrs)) el.setAttribute(k, String(x)); return el; };
+/** A frase falada do selo e do lado: masmorra, sala e iniciativa, por extenso. */
+function falaDaMasmorra(m) {
+  if (!m || m.erro) return m ? `Masmorra ${m.nome}` : '';
+  const j = m.dono || {};
+  const onde = j.completa ? `${m.titulo} completa` : j.salaNome ? `${m.titulo}, sala ${j.salaNome}` : `${m.titulo}, ainda fora da primeira sala`;
+  return `Masmorra: ${onde}` + (j.iniciativa ? '. Tem a iniciativa' : '');
+}
+/** Selo de 44 px ao lado da vida: a miniatura do mapa (a sala de quem é o lado acesa na cor dele) e a bandeira da iniciativa. */
+function SeloDaMasmorra(m, { onClick, id, lado = 'eu' } = {}) {
+  const fala = falaDaMasmorra(m);
+  const el = h('button', { class: 'tb-masmorra', type: 'button', id, onClick, title: fala, 'aria-label': fala + '. Toque para ver o mapa', dataset: { lado, iniciativa: String(!!(m && m.dono && m.dono.iniciativa)), completa: String(!!(m && m.dono && m.dono.completa)) } });
+  if (!m || m.erro) { el.appendChild(Icone('masmorra', { tamanho: 20, classe: 'tb-masmorra__icone' })); return el; }
+  const alto = 28, y = n => m.niveis > 1 ? 3 + n * ((alto - 6) / (m.niveis - 1)) : alto / 2;
+  const pos = Object.fromEntries(m.salas.map(r => [r.id, { x: r.x * 2, y: y(r.nivel) }]));
+  const svg = svgM('svg', { class: 'tb-masmorra__mini', viewBox: `0 0 24 ${alto}`, 'aria-hidden': 'true', focusable: 'false' });
+  for (const via of m.vias) svg.appendChild(svgM('line', { class: 'tb-masmorra__via', 'data-feita': String(via.feita), x1: pos[via.de].x, y1: pos[via.de].y, x2: pos[via.para].x, y2: pos[via.para].y }));
+  for (const r of m.salas) svg.appendChild(svgM('circle', { class: 'tb-masmorra__no', 'data-estado': r.estado, 'data-dono': String(!!(m.dono && m.dono.sala === r.id)), cx: pos[r.id].x, cy: pos[r.id].y, r: m.dono && m.dono.sala === r.id ? 3.2 : 1.8 }));
+  el.appendChild(svg);
+  if (m.dono && m.dono.iniciativa) el.appendChild(h('span', { class: 'tb-masmorra__bandeira', 'aria-hidden': 'true' }, Icone('iniciativa', { tamanho: 12 })));
+  return el;
+}
+/** Folha da masmorra: quem está onde, o mapa (salas em grade, caminhos desenhados por cima da medida das salas) e a lista
+    das salas com o efeito por extenso. Sem modelo: estado de erro com o que se sabe. */
+function MapaDaMasmorra(m) {
+  if (!m || m.erro) return h('section', { class: 'tb-masmorra-folha', id: 'tb-masmorra-folha', dataset: { erro: 'true' } },
+    Text(m ? `Não foi possível desenhar a masmorra ${m.nome}: ela não está no mapa do app.` : 'Ninguém está numa masmorra agora.', { tone: 'muted' }));
+  const peao = (j, comNome = false) => h('span', { class: 'tb-masmorra__peao', dataset: { marca: j.marca }, title: j.nome },
+    Icone('peao', { tamanho: 14 }), comNome ? null : h('span', { class: 'tb-masmorra__so-leitor' }, `${j.nome} está aqui`));
+  const quem = h('ul', { class: 'tb-masmorra__quem', 'aria-label': 'Quem está na masmorra' },
+    ...m.jogadores.map(j => h('li', { dataset: { marca: j.marca } }, peao(j, true),
+      h('span', {}, h('b', {}, j.nome), ' · ', j.completa ? 'completou esta masmorra' : j.salaNome ? j.salaNome : 'ainda fora da primeira sala',
+        j.feitas ? ` · ${j.feitas === 1 ? '1 masmorra completa' : j.feitas + ' masmorras completas'}` : null))),
+    m.iniciativa ? h('li', { class: 'tb-masmorra__tem-iniciativa', dataset: { marca: m.iniciativa.marca } }, h('span', { class: 'tb-masmorra__peao tb-masmorra__peao--bandeira', dataset: { marca: m.iniciativa.marca } }, Icone('iniciativa', { tamanho: 14 })),
+      h('span', {}, h('b', {}, m.iniciativa.nome), ' tem a iniciativa')) : null);
+  const ESTADO = { atual: 'Sala atual', visitada: 'Já percorrida', proxima: 'Próxima', livre: null };
+  const salas = m.salas.map(r => h('div', { class: 'tb-masmorra__sala', dataset: { sala: r.id, estado: r.estado }, style: { gridColumn: `${r.coluna + 1} / span ${m.larg}`, gridRow: String(r.nivel + 1) } },
+    h('span', { class: 'tb-masmorra__nome' }, r.nome),
+    r.aqui.length ? h('span', { class: 'tb-masmorra__peoes' }, ...r.aqui.map(j => peao(j))) : null));
+  const vias = svgM('svg', { class: 'tb-masmorra__vias', 'aria-hidden': 'true', focusable: 'false' });
+  const mapa = h('div', { class: 'tb-masmorra__mapa', id: 'tb-masmorra-mapa', role: 'img', 'aria-label': `Mapa: ${m.titulo}, ${m.salas.length} salas em ${m.niveis} níveis`, style: { gridTemplateRows: `repeat(${m.niveis}, auto)` } }, vias, ...salas);
+  // os caminhos: mede todas as salas, depois escreve o desenho (uma leitura, uma escrita); de novo quando a folha muda de tamanho
+  const desenha = () => {
+    if (!mapa.isConnected) return false;
+    const caixa = new Map(salas.map(el => [el.dataset.sala, { x: el.offsetLeft + el.offsetWidth / 2, t: el.offsetTop, b: el.offsetTop + el.offsetHeight }]));
+    const W = mapa.clientWidth, H = mapa.clientHeight;
+    vias.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    while (vias.firstChild) vias.removeChild(vias.firstChild);
+    for (const via of m.vias) {
+      const a = caixa.get(via.de), b = caixa.get(via.para); if (!a || !b) continue;
+      const meio = (a.b + b.t) / 2;
+      vias.appendChild(svgM('path', { class: 'tb-masmorra__caminho', 'data-feita': String(via.feita), d: `M${a.x} ${a.b} C${a.x} ${meio} ${b.x} ${meio} ${b.x} ${b.t}` }));
+    }
+    mapa.dataset.desenhado = 'true';
+    return true;
+  };
+  if (typeof ResizeObserver !== 'undefined') { const ro = new ResizeObserver(() => { if (!desenha() && mapa.dataset.desenhado) ro.disconnect(); }); ro.observe(mapa); } // fechada a folha, o mapa sai da página e o observador se solta
+  else if (typeof requestAnimationFrame !== 'undefined') requestAnimationFrame(() => desenha());
+  const lista = h('ol', { class: 'tb-masmorra__lista', 'aria-label': 'Salas e efeitos' },
+    ...m.salas.map(r => h('li', { dataset: { sala: r.id, estado: r.estado } },
+      h('div', { class: 'tb-masmorra__item-topo' }, h('b', {}, r.nome), ESTADO[r.estado] ? h('span', { class: 'tb-masmorra__selo-estado', dataset: { estado: r.estado } }, ESTADO[r.estado]) : null,
+        r.aqui.length ? h('span', { class: 'tb-masmorra__peoes' }, ...r.aqui.map(j => peao(j))) : null),
+      h('p', {}, r.texto || 'O texto desta sala ainda não está no app.'))));
+  return h('section', { class: 'tb-masmorra-folha', id: 'tb-masmorra-folha', dataset: { masmorra: m.nome } },
+    quem, mapa,
+    h('h3', { class: 'tb-masmorra__titulo' }, 'Salas'), lista,
+    m.nota ? h('p', { class: 'tb-masmorra__nota' }, m.nota) : null,
+    m.textoDaIniciativa ? h('p', { class: 'tb-masmorra__nota' }, h('b', {}, 'Iniciativa. '), m.textoDaIniciativa) : null);
+}
+
+return { QuadroDeBloqueios, retemImagem, retemImagemDaCarta, imagensRetidas, fonteParaLargura, animaVirada, faseDoPasso, TableCard, ZoneRow, LifeCounter, ZoneChip, StepBar, StackStrip, StackPanel, CardPeek, PriorityBanner, Desfecho, AdjudicationPanel, Icone, IconButton, gestoDeBandeja, ligaGestoDeBandeja, modeloDaMasmorra, caminhoNaMasmorra, falaDaMasmorra, SeloDaMasmorra, MapaDaMasmorra, TEXTO_DAS_SALAS };
 })();
 
 
@@ -42034,14 +42250,19 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const energiaTxt = pl.energia ? `Energia ${pl.energia}` : null; // M-367 · marcadores de energia à vista
     const comandanteTxt = __m18.textoDoDanoDeComandante(s, p); // G-259 · relato #20: dano de comandante à vista
     const designacao = [s.monarca === p ? 'Monarca' : null, s.iniciativa === p ? 'Iniciativa' : null].filter(Boolean).join(' · ') || null; // M-332 · CR 725 / 726
-    const subVida = [designacao, subMasm, veneno, energiaTxt, pl.rad ? `Radiação ${pl.rad}` /* T-91 · CR 728.1 (Toca ponto comum: table.js, linha de vida) */ : null, E.encantamentosDoJogadorT(s, p) /* T-94 · CR 303.4b: "Encantado por …" */, comandanteTxt].filter(Boolean).join(' · ') || null;
+    const resto = [veneno, energiaTxt, pl.rad ? `Radiação ${pl.rad}` /* T-91 · CR 728.1 (Toca ponto comum: table.js, linha de vida) */ : null, E.encantamentosDoJogadorT(s, p) /* T-94 · CR 303.4b: "Encantado por …" */, comandanteTxt];
+    const subVida = [designacao, subMasm, ...resto].filter(Boolean).join(' · ') || null; // o nome falado da vida continua com tudo, por extenso
+    // J-40 · relato #45 · a masmorra e a iniciativa saem da linha de texto (cortada em duas linhas) e viram o selo com o mapa
+    const masmorra = pl.dungeon || s.iniciativa === p ? __m17.modeloDaMasmorra(s, p, table.viewer(), table.entradas || []) : null; // o registro só é lido (e copiado) quando há masmorra
+    const selo = masmorra ? __m17.SeloDaMasmorra(masmorra, { id: mine ? 'tb-masmorra-me' : 'tb-masmorra-opp', lado: mine ? 'eu' : 'oponente', onClick: () => abreMasmorra(p) }) : null;
+    const subVisivel = [s.monarca === p ? 'Monarca' : null, masmorra ? null : designacao && s.iniciativa === p ? 'Iniciativa' : null, ...resto].filter(Boolean).join(' · ') || null;
     // DS-K2 M3 (J-39) · a vida vai para a barra de cima (vidasDaBarra); o que a acompanhava (monarca, veneno, energia,
     // masmorra, radiação, encantado por, dano de comandante) fica no lado, numa linha à esquerda das zonas
     vidasDaBarra[mine ? 'eu' : 'oponente'] = LifeCounter({ name: pl.name + (pl.lost ? ' (fora)' : ''), life: pl.life, active: s.turn.active === p, sub: subVida, onClick: () => openLife(p), id: mine ? 'tb-life-me' : 'tb-life-opp', lado: mine ? 'eu' : 'oponente' });
     // o nome do outro continua à vista no lado dele (você é a vida em latão); o seu lado só ganha linha quando há o que dizer
     const nomeNoLado = mine ? null : pl.name + (pl.lost ? ' (fora)' : '');
-    const life = nomeNoLado || subVida ? h('span', { class: 'tb-side__info', id: mine ? 'tb-info-me' : 'tb-info-opp' },
-      nomeNoLado ? h('b', {}, nomeNoLado) : null, nomeNoLado && subVida ? ' · ' : null, subVida) : null;
+    const life = nomeNoLado || subVisivel ? h('span', { class: 'tb-side__info', id: mine ? 'tb-info-me' : 'tb-info-opp' },
+      nomeNoLado ? h('b', {}, nomeNoLado) : null, nomeNoLado && subVisivel ? ' · ' : null, subVisivel) : null;
     // D6 · relance: sem nada em campo, uma linha só ("Campo vazio"); com uma das duas zonas vazia, ela vira uma linha fina
     // D6 · relance: "Terrenos" e "Permanentes" só quando há; com o campo vazio o lado é só a linha de vida e zonas
     const campoVazio = !others.length && !lands.length;
@@ -42050,8 +42271,14 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const ativo = s.status === 'playing' && s.turn.active === p;   // U7 · o lado de quem joga acende
     return h('section', { class: ['tb-side', mine ? 'tb-side--me' : 'tb-side--opp'].join(' '), dataset: { ativo: String(ativo), campo: campoVazio ? 'vazio' : 'ocupado', p: String(p) },
       'aria-label': (mine ? 'seu lado' : 'lado do oponente') + (ativo ? ', turno ativo' : '') + (campoVazio ? ', campo vazio' : '') },
-      h('div', { class: 'tb-side__head' }, life, chips),
+      h('div', { class: 'tb-side__head' }, life, selo, chips),
       ...(mine ? field : field.reverse()));
+  }
+
+  /** J-40 · relato #45 · a folha da masmorra de `p`: o mapa da carta, quem está em qual sala e o efeito de cada sala. */
+  function abreMasmorra(p) {
+    const m = __m17.modeloDaMasmorra(table.state, p, table.viewer(), table.entradas || []);
+    Dialog({ title: m && !m.erro ? m.titulo : 'Masmorra', body: __m17.MapaDaMasmorra(m) });
   }
 
   function dock(s, v) {
