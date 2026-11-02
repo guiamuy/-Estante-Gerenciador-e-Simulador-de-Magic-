@@ -108,6 +108,8 @@ test('J1 · contrato: o app só move a rolagem nos pontos declarados, cada um co
     ["onClick: () => { window.scrollTo({ top: 0, behavior: parado() ? 'auto' : 'smooth' }); topo.hidden = true; }", 'notícias (T2): o botão Topo, pedido pelo toque'],
     ["alvo.scrollIntoView({ behavior: 'smooth', block: 'start' });", 'Perfil (G-281, relato #25): "Criar minha conta" leva à seção da conta, pedido pelo toque'],
     ['if (aberta && justaDaMesa && mudou) scrollTo({ top: 0 });', 'mesa (J-32, relato #38): a mão abriu e a mesa encolheu para caber acima dela; a página volta ao topo, onde a mesa inteira está'],
+    ["try { alvo.scrollIntoView({ block: 'center', inline: 'nearest' }); } catch (e) { /* sem rolagem */ }", 'tutorial (G-336, relato #51): o destaque guiado traz o elemento apontado para o meio da tela antes de desenhar o foco e o balão; pedido pelo toque em Experimentar/Avançar'],
+    ["function recentra() { if (alvo && alvo.isConnected) { try { alvo.scrollIntoView({ block: 'center', inline: 'nearest' }); } catch (e) { /* sem rolagem */ } } mede(); }", 'tutorial (G-336, relato #51): com o guia aberto, a tela mudou de tamanho (teclado, barra do navegador, giro) e o alvo volta ao meio para o balão continuar ancorado nele'],
   ];
   const linhas = html.split('\n').filter(l => /\.scrollIntoView\(|\bscrollTo\(|\bscrollBy\(|\.scrollTop\s*=[^=]/.test(l) && !/^\s*(\/\/|\*|\/\*)/.test(l) && !/lista\.scrollTop = lista\.scrollHeight/.test(l));
   const semMotivo = linhas.filter(l => !DECLARADOS.some(([trecho]) => l.includes(trecho)));

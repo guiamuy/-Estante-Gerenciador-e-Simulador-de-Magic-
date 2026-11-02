@@ -1476,6 +1476,29 @@ body[data-tutorial="true"] { overflow: hidden; }
 .tutorial__acoes .ds-btn { width: 100%; min-width: 0; }
 @media (prefers-reduced-motion: reduce) { .tutorial__objeto, .tutorial__corpo { animation: none; } .tutorial__passo { transition: none; } }
 @media (max-height: 640px) { .tutorial { gap: var(--space-3); } .tutorial__palco { width: min(100%, 240px); } }
+/* G-336 · relato #51 fatia 3 · destaque guiado (src/app/tutorial.js › abreGuia): o escudo segura o toque no resto da tela, o foco
+   recorta o elemento real (a sangria de 100vmax escurece tudo em volta, I7) e o balão ancora abaixo ou acima dele, com a seta
+   apontando o centro do alvo; a sombra só pinta fora da caixa do foco, então o alvo aparece pelo recorte sem mexer em camada
+   nenhuma da tela (data-guia-alvo é só marca, para os testes). O foco desliza entre passos; o balão chega com a receita ds-rise.
+   Movimento reduzido: a regra global desliga transição e animação. */
+.guia { position: fixed; inset: 0; z-index: calc(var(--z-modal) + 1); pointer-events: none; }
+.guia__escudo { position: absolute; inset: 0; pointer-events: auto; }
+.guia__foco { position: fixed; border-radius: var(--radius-2); box-shadow: 0 0 0 100vmax var(--scrim), 0 0 0 2px var(--accent), var(--shadow-2);
+  transition: left var(--dur-3) var(--ease-out), top var(--dur-3) var(--ease-out), width var(--dur-3) var(--ease-out), height var(--dur-3) var(--ease-out); }
+.guia[data-esperando="true"] .guia__foco, .guia[data-esperando="true"] .guia__balao { visibility: hidden; }
+.guia__balao { position: fixed; left: var(--space-4); right: var(--space-4); max-width: 420px; margin: 0 auto; pointer-events: auto; display: grid; gap: var(--space-2);
+  padding: var(--space-3) var(--space-4) var(--space-4); border-radius: var(--radius-3); background: var(--bg-elev-2); color: var(--fg); border: 1px solid var(--border-strong); box-shadow: var(--shadow-3);
+  animation: ds-rise var(--dur-3) var(--ease-out) both; }
+.guia__balao::before { content: ''; position: absolute; left: calc(var(--guia-seta, 50%) - 9px); width: 18px; height: 18px; transform: rotate(45deg); background: inherit; border: 1px solid var(--border-strong); }
+.guia__balao[data-lado="abaixo"]::before { top: -10px; border-right: 0; border-bottom: 0; }
+.guia__balao[data-lado="acima"]::before { bottom: -10px; border-left: 0; border-top: 0; }
+.guia__balao[data-lado="sobre"]::before { display: none; }
+.guia__topo { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); margin-right: calc(-1 * var(--space-2)); }
+.guia__passo { margin: 0; font-size: var(--text-xs); line-height: var(--lh-xs); letter-spacing: .08em; text-transform: uppercase; color: var(--accent-lo); }
+.guia__titulo { margin: 0; font-family: var(--font-display); font-weight: var(--weight-bold); font-size: var(--text-xl); line-height: var(--lh-xl); color: var(--fg); text-wrap: balance; }
+.guia__texto { margin: 0; font-size: var(--text-md); line-height: var(--lh-md); color: var(--fg-muted); text-wrap: pretty; }
+.guia__acoes { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); margin-top: var(--space-1); }
+.guia__acoes .ds-btn { width: 100%; min-width: 0; }
 @keyframes ds-fade { from { opacity: 0 } to { opacity: 1 } }
 @keyframes ds-rise { from { opacity: 0; transform: translateY(12px) scale(.985) } to { opacity: 1; transform: none } }
 
@@ -46293,6 +46316,136 @@ const SOMBRAS = {
 };
 /** Posição da sombra em porcentagem da cena (a cena tem a mesma proporção do viewBox). Puro. */
 const sombraDoTour = ({ cy, rx, ry }) => ({ left: `${(100 - rx) / 2}%`, top: `${(cy - ry) / 1.4}%`, width: `${rx}%`, height: `${(2 * ry) / 1.4}%` });
+/* ---------------------------------------------------------------------
+   G-336 · relato #51 · DESTAQUE GUIADO (épico Tutorial, fatia 3)
+   "Experimentar" abre a tela de verdade com um guia por cima: um foco recorta o elemento real (o resto escurece) e um balão
+   ancorado nele diz o que aquilo faz, com Voltar · Avançar · Sair; o passo que pede um gesto tem o botão que faz o gesto
+   (e o guia segue na tela seguinte). O guia é reutilizável: GUIAS tem os passos por capítulo; as fatias 4 e 5 só acrescentam.
+   --------------------------------------------------------------------- */
+/** Passos por capítulo: `alvo` é uma lista de seletores (vale o primeiro visível na tela); `espera` é o sinal de que a tela
+    chegou (depois de navegar), `quando` pula o passo quando não se aplica ao estado dela; `acao` é o botão que faz o gesto
+    (navega) em vez de Avançar. Texto até duas linhas no balão de 360 px. */
+const ESTANTE_PRONTA = '#decks-vazio, #decks-fab';
+const GUIAS = {
+  listas: [
+    { alvo: '#decks-starter-empty', espera: ESTANTE_PRONTA, quando: () => !!document.getElementById('decks-vazio'), titulo: 'Comece por uma pronta', texto: 'Listas prontas por formato, para jogar em um minuto. Dá para editar depois.' },
+    { alvo: '#decks-new-empty, #decks-fab-abrir', espera: ESTANTE_PRONTA, titulo: 'Crie sua primeira lista', texto: 'Cole uma lista do Moxfield, Archidekt ou Arena, ou escreva a sua.', acao: { rotulo: 'Nova lista', icone: 'mais', rota: '/listas/editar' } },
+    { alvo: '#deck-text', titulo: 'Cole a lista aqui', texto: 'Uma carta por linha, com a quantidade na frente. A prévia confere cada nome.' },
+    { alvo: '#deck-save', titulo: 'E é só criar', texto: 'O selo do motor diz se a lista joga no formato. Depois, é levar para a mesa.' }
+  ]
+};
+/** Puro: onde ficam o foco e o balão, dado o retângulo do alvo e a tela. O balão vai para onde cabe (abaixo, senão acima);
+    alvo alto demais para sobrar lugar (o campo da lista): o balão pousa no pé da tela, por cima do alvo, sem seta. Ocupa a
+    largura menos as calhas e a seta aponta o centro do alvo, presa dentro do balão. Medidas em px CSS. */
+const posicaoDoGuia = (alvo, tela, { margem = 6, folga = 12, balao = 200, esquerda = 16, largura = tela.width - 32 } = {}) => {
+  const foco = { left: alvo.left - margem, top: alvo.top - margem, width: alvo.width + 2 * margem, height: alvo.height + 2 * margem };
+  const abaixo = tela.height - (foco.top + foco.height), acima = foco.top;
+  const lado = abaixo >= balao + folga ? 'abaixo' : acima >= balao + folga ? 'acima' : 'sobre';
+  const seta = Math.min(Math.max(alvo.left + alvo.width / 2, esquerda + 24), esquerda + largura - 24) - esquerda; // relativa ao balão
+  return { foco, lado, seta, top: lado === 'abaixo' ? foco.top + foco.height + folga : null, bottom: lado === 'acima' ? tela.height - foco.top + folga : lado === 'sobre' ? 16 : null };
+};
+/** O primeiro alvo visível da lista de seletores (tem caixa na tela), ou null. */
+function alvoDoGuia(seletores) {
+  for (const el of document.querySelectorAll(seletores)) { const r = el.getBoundingClientRect(); if (r.width > 0 && r.height > 0) return el; }
+  return null;
+}
+/** Espera o alvo de um passo existir (a tela pode estar sendo desenhada depois de navegar); desiste depois de `ms`. */
+function esperaAlvoDoGuia(seletores, ms = 4000) {
+  return new Promise(entrega => {
+    const fim = Date.now() + ms;
+    (function tenta() { const el = alvoDoGuia(seletores); if (el || Date.now() > fim) return entrega(el); setTimeout(tenta, 80); })();
+  });
+}
+/** Abre o guia sobre a tela atual. `passos` é uma lista de GUIAS (ou outra no mesmo formato); `go` navega quando um passo
+    tem ação; `aoFechar` avisa quem chamou. Um guia por vez. Devolve o elemento (os testes olham `data-passo`). */
+function abreGuia({ passos, go, aoFechar = null } = {}) {
+  if (document.getElementById('guia')) return document.getElementById('guia');
+  const lista = (passos || []).filter(p => p && p.alvo); if (!lista.length) return null;
+  let i = -1, fechado = false, alvo = null, agendado = 0; // começa em -1: o primeiro passo também passa pelo `quando`
+  const el = h('div', { class: 'guia', id: 'guia' });
+  const escudo = h('div', { class: 'guia__escudo' }), foco = h('div', { class: 'guia__foco', 'aria-hidden': 'true' });
+  const balao = h('div', { class: 'guia__balao', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'guia-titulo' });
+  el.append(escudo, foco, balao);
+  const fecha = () => {
+    if (fechado) return; fechado = true;
+    document.removeEventListener('keydown', teclas, true); window.removeEventListener('resize', recentra); window.removeEventListener('scroll', mede, true);
+    if (alvo) delete alvo.dataset.guiaAlvo;
+    el.remove(); delete document.body.dataset.guia;
+    if (aoFechar) { try { aoFechar(); } catch (e) { console.error(e); } }
+  };
+  const teclas = e => {
+    if (e.key === 'Escape') { e.preventDefault(); fecha(); return; }
+    if (e.key === 'ArrowRight' && i >= 0 && !lista[i].acao) { e.preventDefault(); avanca(1); return; }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); avanca(-1); return; }
+    if (e.key !== 'Tab') return; // o foco circula dentro do balão
+    const itens = [...balao.querySelectorAll('button:not([disabled])')]; if (!itens.length) return;
+    const a = itens[0], z = itens[itens.length - 1];
+    if (e.shiftKey && document.activeElement === a) { e.preventDefault(); z.focus(); }
+    else if (!e.shiftKey && document.activeElement === z) { e.preventDefault(); a.focus(); }
+  };
+  /** Mede o alvo e posiciona foco e balão (também a cada rolagem e mudança de tamanho, uma vez por quadro). */
+  function mede() {
+    if (agendado || fechado) return;
+    agendado = requestAnimationFrame(() => {
+      agendado = 0; if (!alvo || !alvo.isConnected) return;
+      const b = balao.getBoundingClientRect();
+      const p = posicaoDoGuia(alvo.getBoundingClientRect(), { width: window.innerWidth, height: window.innerHeight }, { balao: b.height || 200, esquerda: b.left, largura: b.width || window.innerWidth - 32 });
+      Object.assign(foco.style, { left: `${p.foco.left}px`, top: `${p.foco.top}px`, width: `${p.foco.width}px`, height: `${p.foco.height}px` });
+      balao.dataset.lado = p.lado; balao.style.setProperty('--guia-seta', `${p.seta}px`);
+      balao.style.top = p.top == null ? '' : `${p.top}px`; balao.style.bottom = p.bottom == null ? '' : `${p.bottom}px`;
+    });
+  }
+  /** A tela mudou de tamanho (teclado, barra do navegador, giro): o alvo volta ao meio e tudo é medido de novo. */
+  function recentra() { if (alvo && alvo.isConnected) { try { alvo.scrollIntoView({ block: 'center', inline: 'nearest' }); } catch (e) { /* sem rolagem */ } } mede(); }
+  function avanca(d) {
+    const k = i + d;
+    if (k < 0) return; if (k >= lista.length) return fecha();
+    const de = i; i = k; pinta(d, de);
+  }
+  /** Desenha o passo `i`; `d` é a direção de onde veio (para pular o que não se aplica) e `de` o passo anterior. */
+  async function pinta(d = 1, de = -1) {
+    const passo = lista[i];
+    el.dataset.passo = String(i + 1); el.dataset.esperando = 'true';
+    if (passo.espera) await esperaAlvoDoGuia(passo.espera); // a tela chegou (o `quando` olha o estado dela, não o esqueleto)
+    if (fechado) return;
+    if (passo.quando && !passo.quando()) { // não se aplica aqui: segue na mesma direção; sem para onde voltar, fica onde estava
+      const k = i + d;
+      if (k >= 0 && k < lista.length) return avanca(d);
+      if (d > 0 || de < 0) return fecha();
+      i = de; el.dataset.passo = String(i + 1); delete el.dataset.esperando; return;
+    }
+    if (alvo) delete alvo.dataset.guiaAlvo;
+    alvo = await esperaAlvoDoGuia(passo.alvo);
+    if (fechado) return;
+    if (!alvo) { // a tela não tem o elemento (mudou, ou outro estado): o guia pula o passo em vez de apontar o nada
+      if (i + 1 < lista.length) return avanca(1); return fecha();
+    }
+    delete el.dataset.esperando;
+    alvo.dataset.guiaAlvo = 'true';
+    let k = i - 1; while (k >= 0 && lista[k].quando && !lista[k].quando()) k--; // Voltar só quando há passo anterior que se aplica
+    const ultimo = i === lista.length - 1, primeiro = k < 0;
+    const seguir = passo.acao
+      ? Button(passo.acao.rotulo, { variant: 'primary', icone: passo.acao.icone || 'seguir', id: 'guia-acao', onClick: () => { if (go && passo.acao.rota) go(passo.acao.rota); avanca(1); } })
+      : Button(ultimo ? 'Entendi' : 'Avançar', { variant: 'primary', icone: ultimo ? 'marcar' : 'seguir', id: 'guia-avancar', onClick: () => avanca(1) });
+    balao.replaceChildren(
+      h('div', { class: 'guia__topo' },
+        h('p', { class: 'guia__passo' }, `Passo ${i + 1} de ${lista.length}`),
+        IconButton('fechar', 'Sair do guia', { id: 'guia-sair', variant: 'ghost', onClick: () => fecha() })),
+      h('h2', { class: 'guia__titulo', id: 'guia-titulo' }, passo.titulo),
+      h('p', { class: 'guia__texto', id: 'guia-texto' }, passo.texto),
+      h('div', { class: 'guia__acoes' },
+        primeiro ? h('span') : Button('Voltar', { variant: 'ghost', icone: 'voltar', id: 'guia-voltar', onClick: () => avanca(-1) }),
+        seguir));
+    try { alvo.scrollIntoView({ block: 'center', inline: 'nearest' }); } catch (e) { /* sem rolagem */ }
+    mede(); seguir.focus({ preventScroll: true });
+    setTimeout(mede, 350); // a rolagem suave e a chegada da tela mudam a caixa do alvo
+  }
+  document.body.dataset.guia = 'true';
+  document.body.appendChild(el);
+  document.addEventListener('keydown', teclas, true); window.addEventListener('resize', recentra); window.addEventListener('scroll', mede, true);
+  avanca(1);
+  return el;
+}
 /** Abre o tour em tela cheia. `store` grava a marca ao abrir (fechar de qualquer jeito conta como visto: a apresentação
     não insiste); `go(rota)` é a navegação do app; `aoFechar` avisa quem chamou. Devolve o elemento, para os testes. */
 function abreTutorial({ store, go, aoFechar = null, inicio = 0 } = {}) {
@@ -46300,12 +46453,12 @@ function abreTutorial({ store, go, aoFechar = null, inicio = 0 } = {}) {
   if (store) store.set(CHAVE, { vista: true, em: Date.now() }).catch(() => {});
   let i = Math.max(0, Math.min(CAPITULOS.length - 1, inicio)), fechado = false, foco = document.activeElement;
   const el = h('section', { class: 'tutorial', id: 'tutorial', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'tutorial-titulo' });
-  const fecha = (destino) => {
+  const fecha = (destino, guia = null) => {
     if (fechado) return; fechado = true;
     document.removeEventListener('keydown', teclas, true);
     el.remove(); delete document.body.dataset.tutorial;
     if (aoFechar) { try { aoFechar(); } catch (e) { console.error(e); } }
-    if (destino && go) go(destino);
+    if (destino && go) { go(destino); if (guia) abreGuia({ passos: guia, go }); } // G-336 · a tela abre com o destaque guiado do capítulo
     else if (foco && foco.isConnected && typeof foco.focus === 'function') { try { foco.focus({ preventScroll: true }); } catch (e) { /* sem foco */ } }
   };
   const teclas = e => {
@@ -46341,7 +46494,7 @@ function abreTutorial({ store, go, aoFechar = null, inicio = 0 } = {}) {
         Button('Pular', { variant: 'ghost', id: 'tutorial-pular', onClick: () => fecha() })),
       palco, corpo,
       h('footer', { class: 'tutorial__acoes' },
-        Button('Experimentar', { icone: c.icone, id: 'tutorial-experimentar', title: `Abrir ${c.nome}`, onClick: () => fecha(c.rota) }),
+        Button('Experimentar', { icone: c.icone, id: 'tutorial-experimentar', title: `Abrir ${c.nome}`, onClick: () => fecha(c.rota, GUIAS[c.id] || null) }),
         seguir));
     seguir.focus({ preventScroll: true });
   }
@@ -46351,7 +46504,7 @@ function abreTutorial({ store, go, aoFechar = null, inicio = 0 } = {}) {
   pinta();
   return el;
 }
-return { CAPITULOS, progresso, ILUSTRACOES, SOMBRAS, sombraDoTour, abreTutorial, CHAVE };
+return { CAPITULOS, progresso, ILUSTRACOES, SOMBRAS, sombraDoTour, abreTutorial, CHAVE, GUIAS, posicaoDoGuia, abreGuia };
 })();
 
 /* ==== src/app/main.js ==== */

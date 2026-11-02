@@ -7610,6 +7610,67 @@ test('e2e · G-335 tour animado: a luz acende, o objeto pousa de trás, a sombra
   assert.deepEqual(errors, []);
 });
 
+/* G-336 · relato #51 fatia 3 · destaque guiado: "Experimentar" no capítulo Listas abre a estante com um guia por cima — o foco
+   recorta o elemento real, o balão ancora nele e o passo que pede o gesto tem o botão que faz o gesto; o guia segue no editor */
+test('e2e · G-336 destaque guiado em Listas: o foco envolve o botão de verdade, o balão fica ancorado abaixo ou acima com a seta no alvo, Voltar/Avançar/Sair com 44 px, "Nova lista" abre o editor e o guia continua nele, Esc sai; segue a rolagem e o tamanho; 360×697 nos dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t, { apresentacao: true });
+  await page.setViewportSize({ width: 360, height: 697 });
+  await page.goto(base + '#/'); await page.waitForSelector('#tutorial[data-capitulo="1"]');
+  await page.click('#tutorial-proximo'); await page.waitForSelector('#tutorial[data-capitulo="2"]'); await page.click('#tutorial-experimentar');
+  await page.waitForSelector('#tutorial', { state: 'detached' });
+  // 1 · passo 1 aponta "Ver prontas" na estante vazia: foco com 6 px de margem em volta do botão, balão abaixo com a seta no centro
+  await page.waitForSelector('#guia[data-passo="1"]:not([data-esperando])'); await page.waitForTimeout(500);
+  const mede = () => page.evaluate(() => {
+    const alvo = document.querySelector('[data-guia-alvo="true"]'), a = alvo.getBoundingClientRect(), f = document.querySelector('.guia__foco').getBoundingClientRect(), b = document.querySelector('.guia__balao').getBoundingClientRect();
+    const seta = parseFloat(getComputedStyle(document.querySelector('.guia__balao')).getPropertyValue('--guia-seta'));
+    return { alvo: alvo.id, passo: document.getElementById('guia').dataset.passo, titulo: document.getElementById('guia-titulo').textContent, lado: document.querySelector('.guia__balao').dataset.lado,
+      envolve: f.left <= a.left - 5 && f.top <= a.top - 5 && f.right >= a.right + 5 && f.bottom >= a.bottom + 5, separado: b.top >= f.bottom + 8 || b.bottom <= f.top - 8,
+      seta: Math.abs((b.left + seta) - (a.left + a.width / 2)) <= 1 || seta === 24 || Math.abs(seta - (b.width - 24)) <= 1,
+      dentro: b.left >= 15 && b.right <= innerWidth - 15 && b.top >= 0 && b.bottom <= innerHeight, foco: document.activeElement.id, primarios: document.querySelectorAll('.guia__balao .ds-btn--primary').length,
+      linhas: Math.round(document.getElementById('guia-texto').getBoundingClientRect().height / parseFloat(getComputedStyle(document.getElementById('guia-texto')).lineHeight)) };
+  });
+  const m1 = await mede();
+  assert.deepEqual([m1.alvo, m1.passo, m1.titulo, m1.envolve, m1.separado, m1.seta, m1.dentro, m1.foco, m1.primarios], ['decks-starter-empty', '1', 'Comece por uma pronta', true, true, true, true, 'guia-avancar', 1], JSON.stringify(m1));
+  assert.ok(m1.linhas <= 2, 'texto em até duas linhas'); assert.equal(await page.locator('#guia-voltar').count(), 0, 'sem Voltar no primeiro passo');
+  for (const id of ['guia-sair', 'guia-avancar']) assert.ok((await page.locator('#' + id).boundingBox()).height >= 44, id + ' com 44 px');
+  for (const tema of ['dark', 'light']) { await page.evaluate(x => document.documentElement.setAttribute('data-theme', x), tema); await page.waitForTimeout(350); await auditaTela(page, `G-336 · guia passo 1 ${tema}`); }
+  // o escudo segura o toque: tocar fora do balão não abre a tela de baixo nem fecha o guia
+  await page.mouse.click(180, 60); await page.waitForTimeout(200); assert.equal(await page.locator('#guia[data-passo="1"]').count(), 1); assert.match(page.url(), /#\/listas$/);
+  // 2 · Avançar: passo 2 aponta "Nova lista" e o botão do passo faz o gesto — abre o editor e o guia continua lá, no campo da lista
+  await page.click('#guia-avancar'); await page.waitForSelector('#guia[data-passo="2"]:not([data-esperando])'); await page.waitForTimeout(400);
+  const m2 = await mede(); assert.deepEqual([m2.alvo, m2.titulo, m2.envolve], ['decks-new-empty', 'Crie sua primeira lista', true], JSON.stringify(m2));
+  assert.equal(await page.innerText('#guia-acao'), 'Nova lista'); assert.equal(await page.locator('#guia-voltar').count(), 1);
+  await page.click('#guia-acao'); await page.waitForSelector('#guia[data-passo="3"]:not([data-esperando])'); await page.waitForSelector('#deck-text'); await page.waitForTimeout(500);
+  assert.match(page.url(), /#\/listas\/editar$/);
+  const m3 = await mede(); assert.deepEqual([m3.alvo, m3.titulo, m3.envolve, m3.dentro], ['deck-text', 'Cole a lista aqui', true, true], JSON.stringify(m3));
+  assert.ok(m3.separado || m3.lado === 'sobre', 'campo alto: o balão pousa no pé, por cima, ou fica separado ' + JSON.stringify(m3));
+  await auditaTela(page, 'G-336 · guia no editor');
+  // 3 · o último passo aponta Criar lista (no pé: o balão vai para cima), Voltar volta, Entendi fecha e tira a marca do alvo
+  await page.click('#guia-avancar'); await page.waitForSelector('#guia[data-passo="4"]:not([data-esperando])'); await page.waitForTimeout(500);
+  const m4 = await mede(); assert.deepEqual([m4.alvo, m4.titulo, m4.envolve, m4.separado, m4.dentro], ['deck-save', 'E é só criar', true, true, true], JSON.stringify(m4));
+  assert.equal(await page.innerText('#guia-avancar'), 'Entendi');
+  // muda o tamanho e rola: o foco acompanha o alvo
+  await page.setViewportSize({ width: 390, height: 844 }); await page.waitForTimeout(450);
+  const m4b = await mede(); assert.ok(m4b.envolve && m4b.dentro, 'depois de redimensionar: ' + JSON.stringify(m4b));
+  await page.evaluate(() => window.scrollBy(0, -120)); await page.waitForTimeout(450);
+  const m4c = await mede(); assert.ok(m4c.envolve && m4c.dentro, 'depois de rolar: ' + JSON.stringify(m4c));
+  await page.setViewportSize({ width: 360, height: 697 }); await page.waitForTimeout(450);
+  await page.click('#guia-voltar'); await page.waitForSelector('#guia[data-passo="3"]:not([data-esperando])'); await page.keyboard.press('ArrowRight'); await page.waitForSelector('#guia[data-passo="4"]:not([data-esperando])');
+  await page.click('#guia-avancar'); await page.waitForSelector('#guia', { state: 'detached' });
+  assert.equal(await page.locator('[data-guia-alvo]').count(), 0); assert.equal(await page.evaluate(() => document.body.dataset.guia), undefined);
+  assert.equal(await page.locator('#deck-text').isVisible(), true, 'o editor fica, sem o guia');
+  // 4 · com listas na estante, o passo das prontas é pulado e o guia aponta o botão de ação; Esc sai
+  await createDeck(page, base, 'Guia', PAUPER);
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-apresentacao'); await page.click('#perfil-apresentacao'); await page.waitForSelector('#tutorial[data-capitulo="1"]');
+  await page.click('#tutorial-proximo'); await page.waitForSelector('#tutorial[data-capitulo="2"]'); await page.click('#tutorial-experimentar');
+  await page.waitForSelector('#guia[data-passo="2"]:not([data-esperando])'); await page.waitForTimeout(500);
+  const m5 = await mede(); assert.deepEqual([m5.alvo, m5.titulo, m5.envolve, m5.lado], ['decks-fab-abrir', 'Crie sua primeira lista', true, 'acima'], JSON.stringify(m5));
+  assert.equal(await page.locator('#guia-voltar').count(), 0, 'sem Voltar: o passo anterior não se aplica');
+  await auditaTela(page, 'G-336 · guia sobre o botão de ação');
+  await page.keyboard.press('Escape'); await page.waitForSelector('#guia', { state: 'detached' });
+  assert.deepEqual(errors, []);
+});
+
 /* ---------------- Leva 149 · blocos expansíveis da coleção, formato obrigatório em Jogar, enquadrar a foto ---------------- */
 const MEDIDAS_149 = [[360, 780], [384, 832], [390, 844], [412, 891]];
 async function emTodasAsMedidas(page, nome) {
