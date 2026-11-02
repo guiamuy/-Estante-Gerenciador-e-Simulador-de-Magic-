@@ -2646,7 +2646,7 @@ body[data-mesa-cheia="true"] .tb-steps__list > li::after { inset: 0; height: aut
 :root { --chip-zona-h: 34px; }
 .tb-chip {
   position: relative; isolation: isolate; display: inline-flex; align-items: center; justify-content: center; gap: 2px; min-height: var(--tap-min); min-width: var(--tap-min);
-  margin: 0 0 calc(var(--chip-zona-h) - var(--tap-min)); padding: 0 var(--space-2) calc(var(--tap-min) - var(--chip-zona-h)) 6px; border: none; border-radius: var(--radius-2); background: transparent;
+  margin: 0 0 calc(var(--chip-zona-h) - var(--tap-min)); padding: 0 var(--space-2) calc(var(--tap-min) - var(--chip-zona-h)) 6px; border: none; border-color: transparent; border-radius: var(--radius-2); background: transparent;
   color: var(--fg-muted); white-space: nowrap;
 }
 .tb-chip::before { content: ''; position: absolute; z-index: -1; left: 0; right: 0; top: 0; bottom: calc(var(--tap-min) - var(--chip-zona-h));
@@ -37572,7 +37572,7 @@ function imgDaMesa(card, size) {
    acento (latão) · neutro (apagado). Marcador: p1p1 é ganho (+), m1m1 é perda (−), os outros são acento com o hexágono. */
 const ESTADOS = {
   enjoo:          { icone: 'enjoo',    familia: 'enjoo',    rotulo: 'Enjoo', explica: 'Entrou neste turno: não ataca nem usa {T}' },
-  ficha:          { icone: 'ficha',    familia: 'neutro',   rotulo: 'Ficha', explica: 'Ficha: some ao sair do campo' },
+  ficha:          { icone: 'ficha',    familia: 'neutro',   rotulo: 'Ficha', explica: 'É uma ficha: some ao sair do campo' },
   'fora-de-fase': { icone: 'fase',     familia: 'neutro',   rotulo: 'Fora de fase', explica: 'Volta no próximo desvirar de quem a controla' },
   'virada-baixo': { icone: 'virar',    familia: 'neutro',   rotulo: 'Face para baixo', explica: 'Virada para baixo' },
   virada:         { icone: 'virar',    familia: 'neutro',   rotulo: 'Virada', explica: 'Virada' },
@@ -37616,6 +37616,7 @@ const ORDEM_DOS_ESTADOS = ['ataca', 'bloqueia', 'obrigada', 'alvo', 'enjoo', 'ma
 function estadosDaCarta(est, card, opts = {}) {
   const marcas = est ? est.marcas : [];
   const lista = marcas.map(estadoDesenhavel);
+  if (opts.ordenar === false) return lista; // J-48 · o nome falado segue a ordem do modelo (anexos antes das habilidades ganhas, como sempre)
   if (est ? est.sick : !!card.sick) lista.push(estadoDesenhavel({ k: 'enjoo' }));
   for (const t of opts.tags || []) lista.push(t === 'enjoo' || t === 'virada' ? estadoDesenhavel({ k: t }) : { k: 'tag', icone: null, familia: 'acento', rotulo: t, explica: t, qtd: null, texto: t });
   if (!est) { // sem o modelo (cartas de lista): o que a carta traz
@@ -37661,7 +37662,7 @@ function TableCard(card, opts = {}) {
   const moldura = !opts.size && !opts.verso && !!card.image;
   // J-48 · o nome falado diz todos os estados (inclusive marcadores e dano, que antes ficavam só na pílula): é o texto dos ícones
   const fala = [card.name, opts.pilha && opts.pilha.total > 1 ? `${opts.pilha.total} cópias` : null, tapped ? 'virada' : null, sick ? 'com enjoo' : null, pt ? (mod && mod.base && (mod.p || mod.t) ? `${pt}, base ${mod.base.p}/${mod.base.t}` : pt) : null,
-    ...estados.filter(e => e.k !== 'enjoo' && e.k !== 'virada').map(e => e.explica || e.rotulo)].filter(Boolean).join(', ');
+    ...estadosDaCarta(est, card, { ...opts, ordenar: false }).filter(e => e.k !== 'enjoo' && e.k !== 'virada').map(e => e.explica || e.rotulo)].filter(Boolean).join(', ');
   const el = h('button', {
     class: ['tb-card', opts.size ? `tb-card--${opts.size}` : '', opts.entrou ? 'tb-card--entrou' : ''].filter(Boolean).join(' '), type: 'button',
     'aria-label': fala,
@@ -43479,6 +43480,10 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   function ajustaNomes() {
     const faixas = [...root.querySelectorAll('.tb-card[data-moldura="true"] > .tb-card__label')];
     if (!faixas.length) return;
+    // a fonte do app pode chegar depois do primeiro desenho (primeira abertura, CI): medida com a fonte de reserva não vale para a
+    // fonte definitiva; quando ela terminar de carregar, mede tudo de novo do zero (uma vez por desenho)
+    if (document.fonts && document.fonts.status !== 'loaded' && !ajustaNomes.esperando) { ajustaNomes.esperando = true;
+      document.fonts.ready.then(() => { ajustaNomes.esperando = false; if (!root.isConnected) return; for (const f of root.querySelectorAll('.tb-card[data-moldura="true"] > .tb-card__label')) { f.style.removeProperty('--nome-escala'); delete f.parentNode.dataset.nomeDuas; const q = f.parentNode.closest('.tb-leque'); if (q) delete q.dataset.nomeDuas; } ajustaNomes(); }); }
     const piso = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--nome-piso')) || 0.78;
     const medidas = faixas.map(f => ({ f, k: f.clientWidth / Math.max(1, f.scrollWidth) }));
     for (const { f, k } of medidas) {

@@ -7941,8 +7941,10 @@ test('e2e · D6 mesa de relance: no início da partida nenhuma zona vazia ocupa 
   const zero = page.locator('#tb-cemiterio-me');
   assert.equal(await zero.getAttribute('data-zero'), 'true');
   assert.ok((await zero.boundingBox()).height >= 44, 'alvo de toque mantido');
-  assert.equal(await page.$eval('#tb-cemiterio-me', el => getComputedStyle(el).borderTopColor), 'rgba(0, 0, 0, 0)', 'zero sem borda');
-  assert.notEqual(await page.$eval('#tb-lib-me', el => getComputedStyle(el).borderTopColor), 'rgba(0, 0, 0, 0)', 'o grimório (25) continua com borda');
+  // J-47 · a caixa do contador (borda e papel) é o ::before; o zero não tem caixa
+  const bordaDoChip = sel => page.$eval(sel, el => { const ps = getComputedStyle(el, '::before'); return ps.content === 'none' ? 'rgba(0, 0, 0, 0)' : ps.borderTopColor; });
+  assert.equal(await bordaDoChip('#tb-cemiterio-me'), 'rgba(0, 0, 0, 0)', 'zero sem borda');
+  assert.notEqual(await bordaDoChip('#tb-lib-me'), 'rgba(0, 0, 0, 0)', 'o grimório (25) continua com borda');
   // o primeiro terreno traz "Terrenos · 1" e "Permanentes nenhuma" numa linha fina; o lado cresce só o necessário
   const ilha = await page.evaluate(() => { const s = window.__estanteMesa.estado(); return s.zones[0].hand.find(o => s.objects[o].name === 'Island') || null; });
   assert.ok(ilha, 'há uma Island na mão com a semente 3');
@@ -9698,7 +9700,8 @@ test('e2e · J-46 nome inteiro na faixa (letra que encolhe até o piso; duas lin
     for (const oid of oids) M.act({ t: 'move', p, oid, to: 'battlefield' }); return oids; }, [nome, n]);
   await poe('Kessig Flamebreather', 1); await poe('Ulamog, the Ceaseless Hunger', 1); await poe('Mountain', 3); await poe('Delver of Secrets', 2);
   await page.waitForFunction(() => [...document.querySelectorAll('.tb-side--me .tb-card__arte img')].every(i => i.complete && i.naturalWidth > 0), null, { timeout: 8000 });
-  const mede = () => page.evaluate(() => {
+  const mede = () => page.evaluate(async () => {
+    await document.fonts.ready; // a medida vale com a fonte do app (no CI ela chega depois do primeiro desenho; a mesa mede de novo quando ela chega)
     const R = e => e.getBoundingClientRect();
     const faixas = [...document.querySelectorAll('.tb-side--me .tb-card[data-moldura="true"]')].map(c => { const lab = c.querySelector('.tb-card__label'), arte = c.querySelector('.tb-card__arte'), cs = getComputedStyle(lab);
       const l = R(lab), a = R(arte);
@@ -9718,9 +9721,8 @@ test('e2e · J-46 nome inteiro na faixa (letra que encolhe até o piso; duas lin
     for (const f of m.faixas) { assert.ok(f.transborda <= 1 && f.fim === 'clip', `${onde}: nome inteiro, sem reticências (${f.nome}) ` + JSON.stringify(f)); assert.equal(f.cobre, 0, `${onde}: a faixa não cobre a arte (${f.nome})`); assert.ok(f.fala.startsWith(f.nome), `${onde}: nome falado inteiro`); }
     assert.ok(curta.escala === '1' && !curta.duas, `${onde}: nome curto fica com a letra de sempre ` + JSON.stringify(curta));
     assert.ok(delver.linhas === 1 && !delver.duas, `${onde}: Delver numa linha ` + JSON.stringify(delver));
-    // em 390 (carta de 84 px) o nome médio cabe numa linha com a letra menor; em 360 (76 px) nem no piso cabe e vai para duas linhas
-    if (w >= 375) assert.ok(+kessig.escala < 1 && +kessig.escala >= m.piso && !kessig.duas && kessig.linhas === 1, `${onde}: nome médio encolhe a letra numa linha ` + JSON.stringify(kessig));
-    else assert.ok(kessig.duas && kessig.linhas === 2, `${onde}: nome médio em duas linhas na carta estreita ` + JSON.stringify(kessig));
+    // o nome médio ou cabe numa linha com a letra menor (carta de 84 px com a fonte do app) ou vai para duas linhas no piso (carta de 76 px, ou fonte mais larga): nunca cortado
+    assert.ok(kessig.duas ? kessig.linhas === 2 && Math.abs(kessig.fonte - curta.fonte * m.piso) < 0.3 : +kessig.escala < 1 && +kessig.escala >= m.piso && kessig.linhas === 1, `${onde}: nome médio com a letra menor numa linha, ou em duas no piso ` + JSON.stringify(kessig));
     assert.ok(ulamog.duas && Math.abs(ulamog.fonte - curta.fonte * m.piso) < 0.3 && ulamog.linhas === 2 && ulamog.arteH < delver.arteH, `${onde}: nome comprido vai para duas linhas no piso, a arte encurta ` + JSON.stringify({ ulamog, delverArte: delver.arteH }));
     // achado da leva: a carta sozinha na fileira saía 6 px mais alta que a da pilha (o botão em linha dentro do leque deixava um vão e a fileira esticava as vizinhas)
     for (const f of m.faixas) assert.ok(Math.abs(f.altura - f.largura * 680 / 488) <= 1, `${onde}: a carta mantém a proporção 488/680 ao lado da pilha (${f.nome}: ${f.largura}×${f.altura})`);
