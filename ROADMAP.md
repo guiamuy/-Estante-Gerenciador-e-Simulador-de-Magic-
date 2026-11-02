@@ -5776,6 +5776,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Teste:** `lt283.unit` (3 testes; falham no motor anterior).
 - **Fora:** Paradoxical Outcome (71 listas) fica **declarada para leva própria**: "any number of target … permanents you control" pede alvo em quantidade livre — oferta por subconjunto (hoje a oferta corta em 16 combinações, com permutações repetidas), escolha múltipla na mesa (região da jogabilidade) e o número de alvos fixado na conjuração (a contagem do campo muda até a resolução). A compra "for each card returned to your hand this way" é simples e entra junto.
 
+**M-603 · LT261 · Mossborn Hydra (entra com um marcador; dobra os marcadores a cada terreno seu)** ✅ (leva M-603, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** passa a ser **lida por inteiro** Mossborn Hydra (53 listas competitivas). Texto da Scryfall de 01/11/2026 (`cobertura/<formato>.json`). Joga no app depois da aprovação (homologacao).
+- **Regra:** a linha estática "~ enters with N +1/+1 counter(s) on it" vira `self.entersWithCounters` (122.6: a permanente entra já com os marcadores; o motor já aplicava, faltava o leitor); "double the number of +1/+1 counters on ~" vira `counters` p1p1 na própria criatura com `{ per: 'counters-on-source' }` (701.10: dobrar é pôr outros tantos, contados na resolução). A palavra de habilidade Landfall já era lida (só terrenos seus).
+- **Conferido:** o leitor antes e depois sobre as cartas revisadas e os pendentes dos competitivos de 01/11: nenhuma leitura já completa mudou.
+- **Teste:** `lt284.unit` (3 testes; falham no motor anterior).
+
 **M-584 · LT241 · Sentinela do Pauper: Nettle Sentinel (593 → 594 de 594 listas)** ✅ (leva M-584, motor v112 sem mudança de forma; goldens intactos)
 - **Valor:** a sentinela (`cobertura/pauper.json` de 26/10/2026 13:27 UTC) mostrava 593 de 594 listas Pauper a 100% no app, com uma carta `nova` (Nettle Sentinel, 1 lista). Aprovada, 594 de 594 na próxima coleta. Texto da API da Scryfall de 26/10/2026 (campo `texto` do relatório), gravado em `.listas/oficiais-revisadas.json`.
 - **Regra:** triagem A — o leitor `__m42` lê "Whenever you cast a/an <cor> spell" com uma cor só (gatilho `other-cast`, `filter.anyColors`; 105.2: multicolorida com verde conta); "doesn't untap during your untap step" (502.3, M-558) e o "you may" do gatilho (603.5, pergunta na resolução) já existiam. Núcleo intacto; numerada M-584 porque a M-583 está reservada pela conversa dos competitivos.
