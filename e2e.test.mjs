@@ -9670,8 +9670,8 @@ test('e2e · I4 Perfil › Fichas: lista com ícone e cores, artes buscadas na i
   assert.ok(linhas.length >= 15, 'todas as fichas: ' + linhas.length); assert.equal(linhas[0].chave, 'ficha:clue', 'a ficha das minhas listas vem primeiro');
   assert.deepEqual(await page.$$eval('#fichas-lista .ds-list__group', gs => gs.map(g => g.textContent)), ['Nas suas listas', 'Outras fichas']);
   assert.ok(linhas.every(l => l.icone && l.cores >= 1 && l.h >= 44 && /Padrão/.test(l.sub)), 'ícone, cores, 44 px e estado: ' + JSON.stringify(linhas.slice(0, 2)));
-  assert.equal(linhas.find(l => l.chave === 'ficha:bird 1/1').icone, 'garras'); assert.equal(linhas[0].icone, 'gema');
-  assert.match(linhas.find(l => l.chave === 'ficha:bird 1/1').fala, /Bird 1\/1, Criatura — Bird · 1\/1\. Arte padrão/);
+  assert.equal(linhas.find(l => l.chave === 'ficha:bird 1/1 · flying').icone, 'garras'); assert.equal(linhas[0].icone, 'gema'); // G-326 · a chave leva as palavras-chave
+  assert.match(linhas.find(l => l.chave === 'ficha:bird 1/1 · flying').fala, /Bird 1\/1, Criatura — Bird · 1\/1 · Voar\. Arte padrão/);
   assert.doesNotMatch(await page.innerText('#fichas-lista'), /\p{Extended_Pictographic}/u, 'sem emoji');
   await auditaTela(page, 'fichas · lista (escuro)');
   // 3 · abrir a Clue: busca as artes na internet sozinha; mesma arte não repete; o padrão está em uso
@@ -11820,6 +11820,56 @@ test('e2e · G-242 Perfil › Fichas com o catálogo: todas as fichas do jogo nu
   assert.equal(await page.locator('#fichas-catalogo .ficha-linha').count(), 40, 'sem internet: a lista guardada'); assert.equal(await page.locator('#fichas-catalogo-velho').count(), 0, 'dentro do prazo não é velha');
   await page.context().setOffline(false);
   for (const tema of ['dark', 'light']) { await page.evaluate(t => document.documentElement.setAttribute('data-theme', t), tema); for (const [w, hh] of MEDIDAS_149) { await page.setViewportSize({ width: w, height: hh }); await auditaTela(page, `fichas catálogo ${w} ${tema}`); } }
+  assert.deepEqual(errors, []);
+});
+
+/* G-326 · relato #44 · Perfil › Fichas: a mesma ficha com habilidades diferentes é uma ficha por variante */
+test('e2e · G-326 Perfil › Fichas separa as variantes (relato #44): os quatro Assassin 1/1 aparecem cada um com as habilidades inteiras na linha, cada um com as suas artes e a sua escolha', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAEAAAAAwCAIAAAAuKetIAAAAVUlEQVR4nO3PAQnAQAzAwBYm5uVMzuRPxvGQIway33t25t6e2blaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oD2g+i4AIciMsj+gAAAABJRU5ErkJggg==', 'base64');
+  await page.route('https://**.scryfall.io/**', r => r.fulfill({ status: 200, contentType: 'image/png', body: PNG, headers: { 'access-control-allow-origin': '*' } }));
+  // os quatro Assassin 1/1 pretos da Scryfall (consulta de 02/11/2026), no catálogo de fichas novo (com palavras-chave e texto)
+  const A = (keywords, texto) => ({ name: 'Assassin', types: ['creature'], subtypes: ['Assassin'], colors: ['B'], power: '1', toughness: '1', keywords, ...(texto ? { texto } : {}) });
+  const PERDE = 'Whenever this creature deals combat damage to a player, that player loses the game.';
+  const fichas = [A(['deathtouch', 'haste']), A(['deathtouch'], 'Whenever this creature deals damage to a planeswalker, destroy that planeswalker.'), A(['menace']), A([], PERDE)];
+  await page.route('https://raw.githubusercontent.com/**', r => { const nome = r.request().url().split('/').pop();
+    return nome === 'fichas.json' ? r.fulfill({ json: { versao: 1, variantes: 1, geradoEm: '2026-11-02T00:00:00.000Z', fonte: 'scryfall', total: fichas.length, fichas }, headers: { 'access-control-allow-origin': '*' } }) : r.fulfill({ status: 404, body: '' }); });
+  const carta = (id, oracle_text, keywords) => ({ object: 'card', id, name: 'Assassin', type_line: 'Token Creature — Assassin', layout: 'token', power: '1', toughness: '1', colors: ['B'], color_identity: ['B'], cmc: 0, oracle_text, keywords, set: id, set_name: 'Edição ' + id, collector_number: '1',
+    image_uris: Object.fromEntries(['small', 'normal', 'large', 'art_crop'].map(k => [k, `https://cards.scryfall.io/${k}/front/x/${id}.png`])) });
+  const buscas = [];
+  await page.route('https://api.scryfall.com/cards/search**', async r => { const q = decodeURIComponent(new URL(r.request().url()).searchParams.get('q') || ''); buscas.push(q);
+    if (/^!"Assassin" t:token/.test(q)) return r.fulfill({ json: { object: 'list', has_more: false, data: [carta('totc', 'Deathtouch, haste', ['Haste', 'Deathtouch']),
+      carta('twar', 'Deathtouch\nWhenever this creature deals damage to a planeswalker, destroy that planeswalker.', ['Deathtouch']), carta('tacr', "Menace (This creature can't be blocked except by two or more creatures.)", ['Menace']), carta('tc19', PERDE, [])] } });
+    return r.fulfill({ json: { object: 'list', has_more: false, data: [] } }); });
+  // 1 · a busca por "assassin" mostra os quatro, cada um com a sua chave e as habilidades em português (e o texto, em inglês), inteiras
+  await page.goto(base + '#/perfil/fichas'); await page.waitForSelector('#fichas-catalogo[data-estado="ok"]');
+  await page.fill('#fichas-busca', 'assassin');
+  await page.waitForFunction(() => document.querySelectorAll('.ficha-linha[data-ficha^="ficha:assassin 1/1"]').length === 4);
+  const linhas = await page.$$eval('.ficha-linha[data-ficha^="ficha:assassin 1/1"]', ls => ls.map(l => ({ chave: l.dataset.ficha, hab: [...l.querySelectorAll('.ficha-linha__hab')].map(x => ({ t: x.textContent, lang: x.getAttribute('lang'), corta: x.scrollWidth > x.clientWidth + 1 || getComputedStyle(x).textOverflow === 'ellipsis' })), h: l.getBoundingClientRect().height })));
+  assert.deepEqual(linhas.map(l => l.chave).sort(), ['ficha:assassin 1/1', 'ficha:assassin 1/1 · deathtouch', 'ficha:assassin 1/1 · deathtouch, haste', 'ficha:assassin 1/1 · menace']);
+  const de = k => linhas.find(l => l.chave === k);
+  assert.equal(de('ficha:assassin 1/1 · deathtouch, haste').hab[0].t, 'Toque mortífero, ímpeto');
+  assert.equal(de('ficha:assassin 1/1 · menace').hab[0].t, 'Ameaçar');
+  assert.deepEqual(de('ficha:assassin 1/1').hab.map(x => [x.t, x.lang]), [[PERDE, 'en']], 'a que faz perder o jogo diz o texto inteiro');
+  assert.ok(linhas.every(l => l.h >= 44 && l.hab.every(x => !x.corta)), 'nada cortado, toque de 44 px: ' + JSON.stringify(linhas));
+  await auditaTela(page, 'fichas · variantes');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/g326-variantes.png' });
+  // 2 · abrir a de ameaçar: só as artes dela; escolher fica na chave dela
+  await page.click('.ficha-linha[data-ficha="ficha:assassin 1/1 · menace"]'); await page.waitForSelector('#ficha-opcoes', { timeout: 15000 });
+  await page.waitForSelector('.ficha-opcao[data-opcao="tacr"]');
+  assert.deepEqual(await page.$$eval('.ficha-opcao[data-opcao]', os => os.map(o => o.dataset.opcao)), ['tacr'], 'só as artes do Assassin com ameaçar');
+  await page.click('.ficha-opcao[data-opcao="tacr"]');
+  await page.waitForFunction(() => { const m = document.querySelector('.ficha-opcao[data-opcao="tacr"] .ficha-opcao__marca'); return m && m.dataset.salvando === 'false'; }, null, { timeout: 12000 });
+  const esc = await page.evaluate(() => new Promise((res, rej) => { const r = indexedDB.open('mtg', 1); r.onsuccess = () => { const q = r.result.transaction('kv').objectStore('kv').get('fichas.escolhas'); q.onsuccess = () => res(q.result); q.onerror = rej; }; r.onerror = rej; }));
+  const mapa = esc && (esc.value || esc.v || esc);
+  assert.deepEqual(Object.keys(mapa).filter(k => k.startsWith('ficha:assassin')), ['ficha:assassin 1/1 · menace'], 'a escolha vale só para essa variante');
+  // 3 · pelo endereço do relato (a chave sem palavras-chave): abre a que faz perder o jogo, com as artes dela
+  await page.goto(base + '#/perfil/fichas?f=' + encodeURIComponent('ficha:assassin 1/1')); await page.waitForSelector('.ficha-opcao[data-opcao="tc19"]', { timeout: 15000 });
+  assert.deepEqual(await page.$$eval('.ficha-opcao[data-opcao]', os => os.map(o => o.dataset.opcao)), ['tc19']);
+  assert.equal(await page.textContent('#ficha-texto'), PERDE); assert.equal(await page.getAttribute('#ficha-texto', 'lang'), 'en');
+  await auditaTela(page, 'fichas · variante aberta');
   assert.deepEqual(errors, []);
 });
 

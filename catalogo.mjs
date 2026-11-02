@@ -456,10 +456,27 @@ export async function completa(pasta, resumos, { busca = globalThis.fetch, pausa
 /* ---------------- G-242 · catálogo de fichas (relato #9) ----------------
    Todos os tipos de ficha publicados, pela Scryfall (`t:token`, uma por carta-oráculo), para Perfil › Fichas listar
    qualquer ficha do jogo. O que fica no JSON é só o que a tela e a mesa precisam: nome, tipos, subtipos, P/T e cores
-   (a chave da ficha no app é nome + P/T; a primeira ocorrência de cada chave vale). Renovado uma vez por semana. */
+   (a chave da ficha no app é nome + P/T; a primeira ocorrência de cada chave vale). Renovado uma vez por semana.
+   G-326 · relato #44: a chave leva também as palavras-chave (Assassin 1/1 com toque mortífero e ímpeto, com ameaçar, …),
+   e cada ficha traz `keywords` e o texto que não é palavra-chave (`texto`). O arquivo sem `variantes: 1` é renovado. */
 export const SCRYFALL_FICHAS = 'https://api.scryfall.com/cards/search?' + new URLSearchParams({ q: 't:token -t:emblem', unique: 'cards', include_extras: 'true', order: 'name' }).toString();
 export const DIAS_FICHAS = 7;
-const chaveDaFicha = t => `${String(t.name).toLowerCase()}${t.power != null ? ` ${t.power}/${t.toughness}` : ''}`;
+const normaliza = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[’]/g, "'").replace(/\s+/g, ' ').trim();
+const comeca = (p, k) => p === k || p.startsWith(k + ' ') || p.startsWith(k + '—') || p.startsWith(k + ' —');
+/** As palavras-chave que a ficha tem: só as que aparecem numa linha só de palavras-chave ("explores" é ação). Mesma regra do app. */
+export function palavrasDaFicha(c) {
+  const kws = [...new Set((c.keywords || []).map(normaliza).filter(Boolean))];
+  if (typeof c.oracle_text !== 'string') return kws.sort();
+  const linhas = String(c.oracle_text).replace(/\([^)]*\)/g, '').split('\n').map(normaliza).filter(Boolean).map(l => l.split(/,\s*|;\s*/)).filter(ps => ps.every(p => kws.some(k => comeca(p, k))));
+  return kws.filter(k => linhas.some(ps => ps.some(p => comeca(p, k)))).sort();
+}
+/** O texto da ficha que não é palavra-chave, sem lembretes; '' quando não há. */
+export function textoDaFicha(c) {
+  if (typeof c.oracle_text !== 'string') return '';
+  const kws = palavrasDaFicha(c);
+  return String(c.oracle_text).replace(/\s*\([^)]*\)/g, '').split('\n').map(l => l.trim()).filter(l => l && !l.split(/,\s*|;\s*/).every(p => kws.some(k => comeca(normaliza(p), k)))).join('\n');
+}
+const chaveDaFicha = t => `${String(t.name).toLowerCase()}${t.power != null ? ` ${t.power}/${t.toughness}` : ''}${(t.keywords || []).length ? ' · ' + t.keywords.join(', ') : ''}`;
 /** A ficha no formato do app (o mesmo dos scripts: name, types, subtypes, power, toughness, colors), ou null. */
 export function fichaDaCarta(c) {
   if (!c || !c.name || typeof c.name !== 'string') return null;
@@ -469,13 +486,15 @@ export function fichaDaCarta(c) {
   const types = tipos.split(/\s+/).map(t => t.toLowerCase()).filter(t => ['creature', 'artifact', 'enchantment', 'land', 'planeswalker', 'battle'].includes(t));
   const out = { name: c.name.trim(), types, subtypes: sub ? sub.trim().split(/\s+/) : [], colors: [...'WUBRG'].filter(x => (c.colors || []).includes(x)) };
   if (c.power != null && c.toughness != null) { out.power = String(c.power); out.toughness = String(c.toughness); }
+  const face = c.oracle_text == null && c.card_faces && c.card_faces[0] ? { keywords: c.keywords, oracle_text: c.card_faces[0].oracle_text } : c;
+  out.keywords = palavrasDaFicha(face); const texto = textoDaFicha(face); if (texto) out.texto = texto;
   return out;
 }
-/** Todas as fichas, uma por chave (nome + P/T), em ordem de nome e de força. Puro. */
+/** Todas as fichas, uma por chave (nome + P/T + palavras-chave), em ordem de nome, de força e de palavras-chave. Puro. */
 export function fichasDasCartas(cartas) {
   const m = new Map();
   for (const c of cartas || []) { const f = fichaDaCarta(c); if (f && !m.has(chaveDaFicha(f))) m.set(chaveDaFicha(f), f); }
-  return [...m.values()].sort((a, b) => a.name.localeCompare(b.name) || Number(a.power || 0) - Number(b.power || 0) || Number(a.toughness || 0) - Number(b.toughness || 0));
+  return [...m.values()].sort((a, b) => a.name.localeCompare(b.name) || Number(a.power || 0) - Number(b.power || 0) || Number(a.toughness || 0) - Number(b.toughness || 0) || a.keywords.join().localeCompare(b.keywords.join()));
 }
 /** Busca na Scryfall, página a página (175 por vez), e devolve { fichas, paginas, falhas }. */
 export async function coletaFichas({ busca = globalThis.fetch, pausa = 150, log = () => {} } = {}) {
@@ -494,10 +513,10 @@ export async function coletaFichas({ busca = globalThis.fetch, pausa = 150, log 
 /** Grava `fichas.json` quando não existe ou tem mais de DIAS_FICHAS; falha da fonte mantém o de antes. */
 export async function publicaFichas(pasta, { busca = globalThis.fetch, agora = Date.now(), pausa = 150, log = () => {} } = {}) {
   const antes = await leJson(join(pasta, 'fichas.json'));
-  if (antes && Array.isArray(antes.fichas) && antes.fichas.length && Date.parse(antes.geradoEm || 0) > agora - DIAS_FICHAS * 86400e3) return { gravou: false, total: antes.fichas.length };
+  if (antes && antes.variantes === 1 && Array.isArray(antes.fichas) && antes.fichas.length && Date.parse(antes.geradoEm || 0) > agora - DIAS_FICHAS * 86400e3) return { gravou: false, total: antes.fichas.length };
   const r = await coletaFichas({ busca, pausa, log });
   if (r.falhas || !r.fichas.length) return { gravou: false, total: antes && Array.isArray(antes.fichas) ? antes.fichas.length : 0, falhas: r.falhas || 1 };
-  await writeFile(join(pasta, 'fichas.json'), JSON.stringify({ versao: 1, geradoEm: new Date(agora).toISOString(), fonte: 'scryfall', total: r.fichas.length, fichas: r.fichas }) + '\n');
+  await writeFile(join(pasta, 'fichas.json'), JSON.stringify({ versao: 1, variantes: 1, geradoEm: new Date(agora).toISOString(), fonte: 'scryfall', total: r.fichas.length, fichas: r.fichas }) + '\n');
   return { gravou: true, total: r.fichas.length };
 }
 

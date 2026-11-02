@@ -1988,6 +1988,8 @@ a.perfil-atalho { text-decoration: none; } /* R-15 · a entrada do painel é um 
 .ficha-linha__nome > .ds-icon { flex: none; color: var(--fg-subtle); }
 .ficha-linha__nome > span { min-width: 0; overflow-wrap: anywhere; }
 .ficha-linha__nome > b { flex: none; font-weight: var(--weight-medium); font-variant-numeric: tabular-nums; color: var(--fg-muted); }
+.ficha-linha__hab { font-size: var(--text-xs); line-height: var(--lh-xs, 1.35); color: var(--fg-muted); overflow-wrap: anywhere; } /* G-326 · inteira, quebra dentro */
+.ficha-linha__hab--texto { color: var(--fg-subtle); }
 .ficha-linha__sub { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-xs); color: var(--fg-muted); }
 .ficha-linha__cores { display: inline-flex; align-items: center; gap: 2px; }
 .ficha-linha__seta { flex: none; color: var(--fg-subtle); }
@@ -5606,6 +5608,63 @@ const BASIC_CARDS = Object.fromEntries(Object.entries(BASIC_MANA).map(([k, c]) =
     arte ao Tesouro. Carta de uma face vale se tem o nome da ficha (e a mesma força e resistência, quando a ficha é
     criatura); de duas faces, vale só a face com o nome e o P/T da ficha, como carta de uma face; opção de duas faces
     guardada antes desta leva (sem as faces) não vale. Puro. */
+/* G-326 · relato #44: fichas com o mesmo nome e P/T e habilidades diferentes são fichas diferentes (Assassin 1/1 com toque
+   mortífero e ímpeto, só com ameaçar, ou a que faz o jogador perder o jogo). A chave passa a levar as palavras-chave da
+   ficha: "ficha:assassin 1/1 · deathtouch, haste". Sem palavra-chave, a chave é a de antes ("ficha:clue"). A cor fica
+   fora da chave (mudaria a chave de quase toda ficha colorida, com escolhas e artes guardadas, por um caso raro). */
+const baseDaFicha = t => 'ficha:' + norm(t.name) + (t.power != null ? ` ${t.power}/${t.toughness}` : '');
+/** Os pedaços de uma linha de palavras-chave ("Deathtouch, haste", "Ward {2}"), sem o lembrete entre parênteses. */
+const linhasDoTexto = texto => String(texto).replace(/\([^)]*\)/g, '').split('\n').map(norm).filter(Boolean);
+/** As palavras-chave que a ficha TEM (minúsculas, em ordem). Da carta da Scryfall, só as que aparecem numa linha só de
+    palavras-chave: "explores" e "investigate" (ações) ficam de fora. Da definição do motor, as que ela traz. Puro. */
+function palavrasDaFicha(t) {
+  if (!t) return [];
+  const kws = [...new Set((t.keywords || []).map(norm).filter(Boolean))];
+  if (typeof t.oracle_text !== 'string') return kws.sort();
+  const comeca = (p, k) => p === k || p.startsWith(k + ' ') || p.startsWith(k + '—') || p.startsWith(k + ' —');
+  const linhas = linhasDoTexto(t.oracle_text).map(l => l.split(/,\s*|;\s*/)).filter(ps => ps.every(p => kws.some(k => comeca(p, k))));
+  return kws.filter(k => linhas.some(ps => ps.some(p => comeca(p, k)))).sort();
+}
+/** O texto da ficha que não é palavra-chave (a habilidade escrita), sem lembretes; '' quando não há. Puro. */
+function textoDaFicha(t) {
+  if (!t || typeof t.oracle_text !== 'string') return '';
+  const kws = palavrasDaFicha(t);
+  return String(t.oracle_text).replace(/\s*\([^)]*\)/g, '').split('\n').map(l => l.trim()).filter(l => l && !l.split(/,\s*|;\s*/).every(p => kws.some(k => { const n = norm(p); return n === k || n.startsWith(k + ' '); }))).join('\n');
+}
+/** A chave da ficha no app (escolhas, artes, cache): nome + P/T + palavras-chave. */
+const chaveDaFicha = t => { const kw = palavrasDaFicha(t); return baseDaFicha(t) + (kw.length ? ' · ' + kw.join(', ') : ''); };
+/** A chave da ficha que esta arte (carta da Scryfall guardada) mostra, a partir da chave base em que estava guardada. */
+const chaveDaArte = (o, base) => { const kw = palavrasDaFicha(o); return base + (kw.length ? ' · ' + kw.join(', ') : ''); };
+/** A arte serve à ficha? Mesmo nome, P/T e palavras-chave. Puro. */
+const arteDaVariante = (def, o) => !!o && chaveDaArte(o, baseDaFicha(def)) === chaveDaFicha(def);
+/** G-326 · escolhas e artes guardadas antes desta leva ficam na chave base ("ficha:assassin 1/1"), com qualquer variante
+    misturada. Na leitura, cada arte vai para a chave da variante que ela mostra (a escolha de uma arte de Assassin com
+    ameaçar passa a valer só para essa ficha). Escolha nova leva `chave` e não muda de lugar. `lista`: o valor é uma
+    lista de artes (opções) e não uma escolha. Puro: devolve um mapa novo. */
+function fichasPorVariante(mapa, { lista = false } = {}) {
+  if (!mapa || typeof mapa !== 'object') return mapa;
+  const out = { ...mapa };
+  for (const [k, v] of Object.entries(mapa)) {
+    if (!k.startsWith('ficha:') || k.includes(' · ') || !v) continue;
+    if (lista) {
+      if (!Array.isArray(v)) continue;
+      const fica = [];
+      for (const o of v) {
+        const k2 = o && typeof o === 'object' ? chaveDaArte(o, k) : k;
+        if (k2 === k) { fica.push(o); continue; }
+        const dest = Array.isArray(out[k2]) ? out[k2] : [];
+        if (!dest.some(x => x && x.id === o.id)) out[k2] = [...dest, o];
+      }
+      out[k] = fica;
+    } else if (typeof v === 'object' && !v.chave) {
+      const k2 = chaveDaArte(v, k);
+      if (k2 === k) continue;
+      if (!out[k2]) out[k2] = v;
+      delete out[k];
+    }
+  }
+  return out;
+}
 function faceDaFicha(carta, def) {
   if (!carta || !def || !def.name) return null;
   const alvo = norm(def.name);
@@ -5725,25 +5784,30 @@ function createCardRepo({ store, scryfall, local = null, ttlMs = 7 * 24 * 3600 *
       const out = new Map();
       // I4 · a arte que o usuário escolheu em Perfil › Fichas vale antes de tudo (fica no aparelho e no backup)
       // J6 · `padrao`: quem monta a partida pede a ficha da plataforma (a escolha do usuário entra na mesa, só do lado dele)
-      let escolhas = {}; if (!padrao) { try { escolhas = (await store.get('fichas.escolhas')) || {}; } catch (e) { /* sem armazenamento: sem escolhas */ } }
+      let escolhas = {}; if (!padrao) { try { escolhas = fichasPorVariante((await store.get('fichas.escolhas')) || {}); } catch (e) { /* sem armazenamento: sem escolhas */ } }
       for (const t of defs || []) {
-        const chave = 'ficha:' + norm(t.name) + (t.power != null ? ` ${t.power}/${t.toughness}` : '');
+        // G-326 · relato #44: a chave leva as palavras-chave (cada variante tem a sua arte); o cache da ficha continua na chave
+        // base, e a carta guardada lá só vale para a variante que ela mostra (sem rede, vale a guardada, como antes)
+        const chave = chaveDaFicha(t), base = baseDaFicha(t);
         const escolhida = faceDaFicha(escolhas[chave], t); // G-257 · escolha antiga de duas faces não vale
         if (escolhida && escolhida.images) { out.set(chave, escolhida); continue; }
-        const rec = await readCache(chave);
+        const cacheKey = chave;
+        const rec = await readCache(cacheKey) || (chave !== base ? await readCache(base) : null);
         // G-257 · a carta guardada antes desta leva pode ser a de duas faces (fixada para sempre): vale a face certa ou busca de novo
         const guardada = rec && rec.card ? faceDaFicha(rec.card, t) : null;
-        if (guardada || (rec && !rec.card && fresh(rec))) { out.set(chave, guardada); continue; }
-        if (onlineOnly) { out.set(chave, null); continue; }
+        const daVariante = guardada && (chave === base || arteDaVariante(t, guardada) || !Array.isArray(guardada.keywords));
+        if (daVariante || (rec && !rec.card && fresh(rec))) { out.set(chave, guardada); continue; }
+        if (onlineOnly) { out.set(chave, guardada || null); continue; }
         try {
           const q = `!"${t.name}" t:token` + (t.power != null ? ` pow=${t.power} tou=${t.toughness}` : '') + ((t.colors || []).length ? ` c=${t.colors.join('').toLowerCase()}` : '');
           let achadas = await scryfall.search(q, { pages: 1, unique: 'prints' });
           if (!achadas.length && (t.colors || []).length) achadas = await scryfall.search(`!"${t.name}" t:token` + (t.power != null ? ` pow=${t.power} tou=${t.toughness}` : ''), { pages: 1, unique: 'prints' });
           // G-257 · a de uma face vence; a de duas faces só pela face com o nome da ficha
-          const boas = achadas.map(c => [c, faceDaFicha(c, t)]).filter(([, f]) => f && f.images);
+          const todas = achadas.map(c => [c, faceDaFicha(c, t)]).filter(([, f]) => f && f.images);
+          const daMesma = todas.filter(([, f]) => arteDaVariante(t, f)), boas = daMesma.length ? daMesma : todas; // G-326 · a da mesma variante primeiro
           const card = ((boas.find(([c, f]) => c === f) || boas[0]) || [])[1] || null;
           const novo = { ts: now(), card, pin: !!card };
-          mem.set(chave, novo); await store.set(KEY(chave), novo);
+          mem.set(cacheKey, novo); await store.set(KEY(cacheKey), novo);
           out.set(chave, card);
         } catch (e) { stats.degraded = true; out.set(chave, rec ? rec.card : null); }
       }
@@ -5853,7 +5917,7 @@ function createRulings({ store, scryfall, agora = () => Date.now(), prazo = RULI
     lembraAberto(v) { store.set(RULINGS_ABERTO, !!v).catch(() => {}); }
   };
 }
-return { createCardRepo, faceDaFicha, norm, BASIC_CARDS, limpaRulings, temRulings, createRulings, RULINGS_PRAZO_MS };
+return { createCardRepo, faceDaFicha, baseDaFicha, palavrasDaFicha, textoDaFicha, chaveDaFicha, chaveDaArte, arteDaVariante, fichasPorVariante, norm, BASIC_CARDS, limpaRulings, temRulings, createRulings, RULINGS_PRAZO_MS };
 })();
 
 /* ==== src/data/images.js ==== */
@@ -15953,8 +16017,10 @@ const { norm } = __m7;
 const ESCOLHAS = 'fichas.escolhas', OPCOES = 'fichas.opcoes';
 const OPCOES_MAX = 36;
 const TIPO_PT = { creature: 'Criatura', artifact: 'Artefato', enchantment: 'Encantamento', land: 'Terreno' };
-/** A mesma chave que o repositório de cartas usa para a ficha. */
-const chaveDaFicha = t => 'ficha:' + norm(t.name) + (t.power != null ? ` ${t.power}/${t.toughness}` : '');
+/** A mesma chave que o repositório de cartas usa para a ficha (G-326: nome + P/T + palavras-chave). */
+const chaveDaFicha = t => __m7.chaveDaFicha(t);
+/** G-326 · as palavras-chave da ficha em português, para a linha de baixo ("toque mortífero, ímpeto"); '' sem nenhuma. */
+const habilidadesDaFicha = t => __m7.palavrasDaFicha(t).map(k => ((__m18 && __m18.PALAVRA_PT) || {})[k] || k).join(', ');
 /** O ícone que simboliza a ficha: criatura são garras, artefato é gema, o resto é a ficha genérica. */
 const iconeDaFicha = t => (t.types || []).includes('creature') ? 'garras' : (t.types || []).includes('artifact') ? 'gema' : 'ficha';
 /** Cores da ficha na ordem WUBRG; incolor vira ['C']. */
@@ -15963,7 +16029,8 @@ const coresDaFicha = t => { const cs = [...'WUBRG'].filter(c => (t.colors || [])
 function descricaoDaFicha(t) {
   const tipos = (t.types || []).map(x => TIPO_PT[x] || x).join(' ');
   const sub = (t.subtypes || []).join(' ');
-  return [tipos + (sub ? ` — ${sub}` : ''), t.power != null ? `${t.power}/${t.toughness}` : ''].filter(Boolean).join(' · ');
+  const hab = habilidadesDaFicha(t); // G-326 · a variante se diz pelas habilidades
+  return [tipos + (sub ? ` — ${sub}` : ''), t.power != null ? `${t.power}/${t.toughness}` : '', hab ? hab.charAt(0).toUpperCase() + hab.slice(1) : ''].filter(Boolean).join(' · ');
 }
 /** Todas as fichas que o app sabe criar, em ordem de nome (e de força); `nomesDasListas` marca as que as listas do
     usuário criam, que vêm primeiro. Cada item: { chave, def, nome, pt, icone, cores, descricao, suaLista }. Puro. */
@@ -15971,15 +16038,21 @@ function listaDeFichas(nomesDasListas = [], catalogo = [], dasListas = []) {
   // G-244 · relato #10: as das listas vêm do motor (scripts) e das cartas da Scryfall (partes "token")
   const minhas = new Set([...__m23.fichasDasCartas(nomesDasListas), ...(dasListas || [])].map(chaveDaFicha));
   const item = (def, doCatalogo) => ({ chave: chaveDaFicha(def), def, nome: def.name, pt: def.power != null ? `${def.power}/${def.toughness}` : '',
-    icone: iconeDaFicha(def), cores: coresDaFicha(def), descricao: descricaoDaFicha(def), suaLista: minhas.has(chaveDaFicha(def)), catalogo: doCatalogo });
+    icone: iconeDaFicha(def), cores: coresDaFicha(def), descricao: descricaoDaFicha(def), habilidades: habilidadesDaFicha(def), texto: typeof def.texto === 'string' ? def.texto : '',
+    suaLista: minhas.has(chaveDaFicha(def)), catalogo: doCatalogo });
   const doApp = __m23.fichasDasCartas(Object.keys(__m23.SCRIPTS)).map(def => item(def, false));
+  // G-326 · a ficha guardada antes desta leva (catálogo ou parte de carta sem `keywords`) não sabe a variante: se o app já
+  // tem uma ficha com o mesmo nome e P/T, é ela
+  const bases = new Set(doApp.map(x => __m7.baseDaFicha(x.def)));
+  const nova = (vistas, def) => { if (!def || !def.name) return false; const k = chaveDaFicha(def), b = __m7.baseDaFicha(def);
+    if (vistas.has(k) || (!Array.isArray(def.keywords) && bases.has(b))) return false; vistas.add(k); bases.add(b); return true; };
   const conhecidas = new Set(doApp.map(x => x.chave));
-  const dasCartas = (dasListas || []).filter(def => def && def.name && !conhecidas.has(chaveDaFicha(def)) && (conhecidas.add(chaveDaFicha(def)), true)).map(def => item(def, true));
+  const dasCartas = (dasListas || []).filter(def => nova(conhecidas, def)).map(def => item(def, true));
   doApp.push(...dasCartas);
   // G-242 · todas as fichas do jogo (catálogo da Scryfall): as que o app já conhece não entram de novo
   const vistas = new Set(doApp.map(x => x.chave));
-  const doCatalogo = (catalogo || []).filter(def => def && def.name && !vistas.has(chaveDaFicha(def)) && (vistas.add(chaveDaFicha(def)), true)).map(def => item(def, true));
-  return [...doApp, ...doCatalogo].sort((a, b) => Number(b.suaLista) - Number(a.suaLista) || Number(a.catalogo) - Number(b.catalogo) || a.nome.localeCompare(b.nome) || a.pt.localeCompare(b.pt));
+  const doCatalogo = (catalogo || []).filter(def => nova(vistas, def)).map(def => item(def, true));
+  return [...doApp, ...doCatalogo].sort((a, b) => Number(b.suaLista) - Number(a.suaLista) || Number(a.catalogo) - Number(b.catalogo) || a.nome.localeCompare(b.nome) || a.pt.localeCompare(b.pt) || a.habilidades.localeCompare(b.habilidades));
 }
 /** G-244 · a ficha que uma carta-ficha da Scryfall descreve (mesma leitura do coletor do catálogo): nome, tipos, subtipos,
     cores, força e resistência; ficha de duas faces fica de fora. Puro. */
@@ -15991,12 +16064,14 @@ function fichaDaCarta(c) {
   const types = tipos.split(/\s+/).map(t => t.toLowerCase()).filter(t => ['creature', 'artifact', 'enchantment', 'land', 'planeswalker', 'battle'].includes(t));
   const out = { name: c.name.trim(), types, subtypes: sub ? sub.trim().split(/\s+/) : [], colors: [...'WUBRG'].filter(x => (c.colors || []).includes(x)) };
   if (c.power != null && c.toughness != null) { out.power = String(c.power); out.toughness = String(c.toughness); }
+  // G-326 · relato #44: as palavras-chave e o texto da ficha separam as variantes do mesmo nome e P/T
+  out.keywords = __m7.palavrasDaFicha(c); const texto = __m7.textoDaFicha(c); if (texto) out.texto = texto;
   return out;
 }
-/** G-242 · o recorte da busca: nome, subtipo, tipo e P/T, sem acento. Puro. */
+/** G-242 · o recorte da busca: nome, subtipo, tipo, P/T e habilidades, sem acento. Puro. */
 function filtraFichas(lista, texto) {
   const q = norm(texto); if (!q) return lista;
-  return lista.filter(it => norm([it.nome, it.pt, it.descricao, ...(it.def.subtypes || [])].join(' ')).includes(q));
+  return lista.filter(it => norm([it.nome, it.pt, it.descricao, it.texto || '', ...(it.def.subtypes || []), ...__m7.palavrasDaFicha(it.def)].join(' ')).includes(q));
 }
 /** A busca na Scryfall: nome exato, tipo ficha, força/resistência quando é criatura, cor quando pedida. */
 function consultaDaFicha(def, { comCor = true } = {}) {
@@ -16032,7 +16107,7 @@ function proximoLote(baixadas, candidatas, { lote = LOTE, teto = OPCOES_MAX } = 
 }
 /** Uma galeria de artes escolhíveis (fichas, terrenos): estado guardado, lotes, escolha.
     `chave(def)` identifica o item; `candidatas(def)` busca na rede as opções possíveis (já no formato guardado). */
-function criaGaleria({ store, images = null, temRede, ESCOLHAS: K_ESCOLHAS, OPCOES: K_OPCOES, chave, candidatas, teto = OPCOES_MAX, aceita = null }) {
+function criaGaleria({ store, images = null, temRede, ESCOLHAS: K_ESCOLHAS, OPCOES: K_OPCOES, chave, candidatas, teto = OPCOES_MAX, aceita = null, migra = null, serve = null }) {
   const K_FILA = K_OPCOES + '.fila'; // I7 · as candidatas da última busca ficam guardadas: pedir mais não volta à Scryfall
   // G-257 · `aceita(opcao)`: o que foi guardado e não serve mais sai na leitura (e some do aparelho na próxima gravação)
   const filtra = (k, x) => {
@@ -16044,7 +16119,10 @@ function criaGaleria({ store, images = null, temRede, ESCOLHAS: K_ESCOLHAS, OPCO
     }
     return out;
   };
-  const le = async (k) => { try { return filtra(k, (await store.get(k)) || {}); } catch (e) { return {}; } };
+  // G-326 · `migra(k, mapa)`: o que foi guardado na chave de antes vai para a chave de agora, na leitura
+  const le = async (k) => { try { const x = filtra(k, (await store.get(k)) || {}); return migra ? migra(k, x) : x; } catch (e) { return {}; } };
+  // G-326 · `serve(def, opcao)`: das candidatas, as que mostram este item (as outras só se nenhuma servir)
+  const servem = (def, l) => { if (!serve || !Array.isArray(l)) return l; const s = l.filter(o => serve(def, o)); return s.length ? s : l; };
   const aquece = async (urls, opcoes) => { if (images && images.available) { try { await images.warm(urls.filter(Boolean), opcoes); } catch (e) { /* imagem é conforto */ } } };
   const fila = new Map(), restam = new Map(); // candidatas por item e quantas ainda não foram baixadas
   const buscando = new Map(); // G-278 · a busca de candidatas em curso por item: quem pedir no meio espera a mesma (a troca de rota abria a mesma busca duas vezes)
@@ -16064,8 +16142,8 @@ function criaGaleria({ store, images = null, temRede, ESCOLHAS: K_ESCOLHAS, OPCO
       if (!fila.has(k)) {
         if (!buscando.has(k)) buscando.set(k, (async () => {
           const guardadas = await le(K_FILA);
-          if (Array.isArray(guardadas[k]) && guardadas[k].length) fila.set(k, guardadas[k]);
-          else { const novas = (await candidatas(def)).slice(0, teto).map(enxuta); fila.set(k, novas); guardadas[k] = novas; try { await store.set(K_FILA, guardadas); } catch (e) { /* sem espaço: busca de novo na próxima */ } }
+          if (Array.isArray(guardadas[k]) && guardadas[k].length) fila.set(k, servem(def, guardadas[k]));
+          else { const novas = servem(def, await candidatas(def)).slice(0, teto).map(enxuta); fila.set(k, novas); guardadas[k] = novas; try { await store.set(K_FILA, guardadas); } catch (e) { /* sem espaço: busca de novo na próxima */ } }
         })().finally(() => buscando.delete(k)));
         await buscando.get(k);
       }
@@ -16085,7 +16163,7 @@ function criaGaleria({ store, images = null, temRede, ESCOLHAS: K_ESCOLHAS, OPCO
         desce em seguida, com prioridade sobre o que estiver na fila; `aoGuardar` avisa quando ficou no aparelho. */
     async escolher(def, opcao, { aoGuardar = null } = {}) {
       const todas = await le(K_ESCOLHAS), k = chave(def);
-      if (opcao) todas[k] = opcao; else delete todas[k];
+      if (opcao) todas[k] = migra ? { ...opcao, chave: k } : opcao; else delete todas[k]; // G-326 · a escolha nova diz de qual item é
       await store.set(K_ESCOLHAS, todas);
       const pronto = opcao ? aquece([opcao.images.normal, opcao.images.large, opcao.images.small], { ja: true }) : Promise.resolve();
       pronto.then(() => { if (aoGuardar) aoGuardar(); });
@@ -16098,6 +16176,7 @@ const temRedePadrao = () => typeof navigator === 'undefined' || navigator.onLine
 const PARTES = 'fichas.partes'; // G-244 · id da ficha na Scryfall → a ficha (ou null); derivado, fora do backup
 function createFichas({ store, scryfall, images = null, temRede = temRedePadrao }) {
   const galeria = criaGaleria({ store, images, temRede, ESCOLHAS, OPCOES, chave: chaveDaFicha, teto: OPCOES_MAX,
+    migra: (k, x) => __m7.fichasPorVariante(x, { lista: k !== ESCOLHAS }), serve: __m7.arteDaVariante,
     async candidatas(def) {
       // G-278 · relatos #29 e #30: a ficha que a pessoa abriu passa na frente do que roda por trás (as cartas das listas)
       let cartas = await scryfall.search(consultaDaFicha(def), { pages: 2, unique: 'prints', prioridade: 'alta' });
@@ -16116,7 +16195,8 @@ function createFichas({ store, scryfall, images = null, temRede = temRedePadrao 
     }
     const ids = [...new Set([...cartas.values()].flatMap(c => (c && Array.isArray(c.fichas) ? c.fichas : [])).map(p => p.id))];
     let partes = {}; try { partes = (await store.get(PARTES)) || {}; } catch (e) { partes = {}; }
-    const faltam = ids.filter(id => !Object.prototype.hasOwnProperty.call(partes, id));
+    // G-326 · a ficha guardada antes desta leva não sabe as palavras-chave: com rede, é lida de novo uma vez
+    const faltam = ids.filter(id => !Object.prototype.hasOwnProperty.call(partes, id) || (partes[id] && !Array.isArray(partes[id].keywords)));
     if (online && faltam.length && scryfall && scryfall.porIds) {
       try { const r = await scryfall.porIds(faltam); partes = { ...partes }; for (const c of r.found) partes[c.id] = fichaDaCarta(c); for (const id of r.missing) if (id) partes[id] = null; await store.set(PARTES, partes); }
       catch (e) { /* sem rede no meio: fica para a próxima */ }
@@ -16127,7 +16207,7 @@ function createFichas({ store, scryfall, images = null, temRede = temRedePadrao 
   };
   return galeria;
 }
-return { fichaDaCarta, PARTES, chaveDaFicha, iconeDaFicha, coresDaFicha, descricaoDaFicha, listaDeFichas, filtraFichas, consultaDaFicha, opcoesDeArte, rotuloDaOpcao, createFichas, OPCOES_MAX, LOTE, proximoLote, criaGaleria, temRedePadrao };
+return { fichaDaCarta, PARTES, chaveDaFicha, habilidadesDaFicha, iconeDaFicha, coresDaFicha, descricaoDaFicha, listaDeFichas, filtraFichas, consultaDaFicha, opcoesDeArte, rotuloDaOpcao, createFichas, OPCOES_MAX, LOTE, proximoLote, criaGaleria, temRedePadrao };
 })();
 
 /* ==== src/data/terrenos.js ==== */
@@ -16160,10 +16240,21 @@ function cartaComTerreno(card, escolhas) {
 }
 /** I7 · o mesmo para a ficha: a arte escolhida em Perfil › Fichas vale na partida que já começou (a chave leva força e
     resistência, como no repositório). Só mexe em carta que é ficha. */
-function cartaComFicha(card, escolhas) {
+const porVariante = new WeakMap(); // G-326 · as escolhas lidas, já com cada arte na chave da sua variante (uma vez por leitura)
+/** G-326 · relato #44: a arte escolhida para a ficha `def` (nome, P/T e palavras-chave), ou null. Puro. */
+function escolhaDaFicha(escolhas, def) {
+  if (!escolhas || !def || !def.name) return null;
+  let m = porVariante.get(escolhas); if (!m) { m = __m7.fichasPorVariante(escolhas); porVariante.set(escolhas, m); }
+  const e = m[__m7.chaveDaFicha(def)];
+  return e && e.images && !String(e.name || '').includes(' // ') ? e : null; // G-257 · escolha antiga de duas faces não vale
+}
+/** G-326 · a ficha como a partida a tem: as palavras-chave e o P/T dos fatos (o que ela é na mesa), o nome da carta. */
+const fichaDosFatos = (card, fatos) => ({ name: String((card && card.name) || '').replace(/\u200b/g, ''), power: fatos.power != null ? fatos.power : card && card.power, toughness: fatos.toughness != null ? fatos.toughness : card && card.toughness, keywords: fatos.kw || [] });
+function cartaComFicha(card, escolhas, fatos = null) {
   if (!card || !escolhas || !(/\btoken\b/i.test(card.type_line || '') || card.layout === 'token')) return card;
-  const e = escolhas['ficha:' + norm(card.name) + (card.power != null ? ` ${card.power}/${card.toughness}` : '')];
-  return e && e.images && !String(e.name || '').includes(' // ') ? { ...card, images: e.images } : card; // G-257 · escolha antiga de duas faces não vale
+  // G-326 · relato #44: a ficha da mesa acha a arte da sua variante (as palavras-chave que ela tem na partida)
+  const e = escolhaDaFicha(escolhas, fatos ? fichaDosFatos(card, fatos) : card);
+  return e ? { ...card, images: e.images } : card;
 }
 /** V5 · a impressão escolhida na lista (V1) vale na mesa: por assento, o nome da carta → a impressão da entrada da lista
     com que ele joga (a partida guarda as entradas no `setup`). Puro. */
@@ -16172,9 +16263,9 @@ function impressoesDoSetup(setup) {
 }
 /** A carta como a partida a mostra para quem escolheu a arte: a impressão da lista vale acima da arte geral do terreno
     (Perfil › Terrenos), por ser a escolha mais específica; a ficha segue a escolha de Perfil › Fichas. */
-const cartaComEscolhas = (card, { terrenos = null, fichas = null, impressoes = null } = {}) => {
+const cartaComEscolhas = (card, { terrenos = null, fichas = null, impressoes = null, fatos = null } = {}) => {
   const imp = card && impressoes && impressoes[norm(card.name)];
-  return cartaComFicha(imp ? __m14.cartaNaImpressao(card, imp) : cartaComTerreno(card, terrenos), fichas);
+  return cartaComFicha(imp ? __m14.cartaNaImpressao(card, imp) : cartaComTerreno(card, terrenos), fichas, fatos);
 };
 /** J6 · de quem é a carta decide se as artes do usuário valem: nunca para o bot (ele joga com a arte padrão da
     plataforma) nem, numa partida online, para o lado de quem está no outro aparelho. Dono desconhecido: valem. */
@@ -16192,7 +16283,7 @@ function createTerrenos({ store, scryfall, images = null, temRede = __m34.temRed
       return __m14.opcoesDeImpressao(cartas, 175).map(o => ({ id: o.id, name: def.name, set: o.set, set_name: o.set_name, collector_number: o.collector_number, images: o.images, faces: [] }));
     } });
 }
-return { TERRENOS, TETO, chaveDoTerreno, consultaDoTerreno, listaDeTerrenos, cartaComTerreno, cartaComFicha, cartaComEscolhas, impressoesDoSetup, valeArteDoUsuario, createTerrenos };
+return { TERRENOS, TETO, chaveDoTerreno, consultaDoTerreno, listaDeTerrenos, cartaComTerreno, cartaComFicha, escolhaDaFicha, fichaDosFatos, cartaComEscolhas, impressoesDoSetup, valeArteDoUsuario, createTerrenos };
 })();
 
 /* ==== src/app/noticias.js ==== */
@@ -17909,7 +18000,10 @@ function fichasDoCatalogo(dados) {
   if (!dados || dados.versao !== 1 || !Array.isArray(dados.fichas)) return [];
   return dados.fichas.filter(f => f && typeof f.name === 'string' && f.name.trim() && f.name.length <= 80 && Array.isArray(f.types) && Array.isArray(f.colors)
     && (f.power == null) === (f.toughness == null) && (f.power == null || (String(f.power).length <= 3 && String(f.toughness).length <= 3)))
-    .map(f => ({ name: f.name.trim(), types: f.types.map(String), subtypes: Array.isArray(f.subtypes) ? f.subtypes.map(String) : [], colors: f.colors.filter(c => 'WUBRG'.includes(c)), ...(f.power != null ? { power: String(f.power), toughness: String(f.toughness) } : {}) }));
+    .map(f => ({ name: f.name.trim(), types: f.types.map(String), subtypes: Array.isArray(f.subtypes) ? f.subtypes.map(String) : [], colors: f.colors.filter(c => 'WUBRG'.includes(c)), ...(f.power != null ? { power: String(f.power), toughness: String(f.toughness) } : {}),
+      // G-326 · relato #44: as palavras-chave e o texto separam as variantes (arquivo de antes não os tem: uma ficha por nome e P/T)
+      ...(Array.isArray(f.keywords) ? { keywords: f.keywords.filter(k => typeof k === 'string' && k.length <= 40).slice(0, 12).map(k => k.toLowerCase()) } : {}),
+      ...(typeof f.texto === 'string' && f.texto.trim() ? { texto: f.texto.slice(0, 600) } : {}) }));
 }
 const PRAZO_MS = 3600 * 1000; // G-249 · o coletor roda todo dia e o índice muda (listas novas, valor do dia): a cópia do aparelho vale uma hora; a busca é condicional ("não mudou" custa quase nada)
 const LOTE = 30; // lista grande desenhada em lotes
@@ -19589,11 +19683,14 @@ function telaDeArtes({ galeria: fichas, itens, atualiza = null, C, catalogo = nu
   function linha(it) {
     const escolhida = !!st.estado.escolhas[it.chave], n = (st.estado.opcoes[it.chave] || []).length;
     return h('button', { class: 'ds-list__item ficha-linha', type: 'button', dataset: { [C.id]: it.chave, escolhida: String(escolhida) },
-      'aria-label': `${it.nome}${it.pt ? ' ' + it.pt : ''}, ${it.descricao}. ${escolhida ? 'Arte escolhida por você' : n ? `${n} arte(s) baixada(s), arte padrão em uso` : 'Arte padrão'}`,
+      'aria-label': `${it.nome}${it.pt ? ' ' + it.pt : ''}, ${it.descricao}${it.texto ? '. ' + it.texto : ''}. ${escolhida ? 'Arte escolhida por você' : n ? `${n} arte(s) baixada(s), arte padrão em uso` : 'Arte padrão'}`,
       onClick: () => { st.aberta = it.chave; st.erro = ''; go(C.rota + '?f=' + encodeURIComponent(it.chave)); } },
       miniatura(it),
       h('span', { class: 'ficha-linha__texto' },
         h('span', { class: 'ficha-linha__nome' }, Icone(it.icone, { tamanho: 16 }), h('span', { lang: 'en' }, it.nome), it.pt ? h('b', {}, it.pt) : null),
+        // G-326 · relato #44: a variante se diz pelas habilidades (palavras-chave em português; o texto da ficha, em inglês), inteiras
+        it.habilidades ? h('span', { class: 'ficha-linha__hab' }, it.habilidades.charAt(0).toUpperCase() + it.habilidades.slice(1)) : null,
+        it.texto ? h('span', { class: 'ficha-linha__hab ficha-linha__hab--texto', lang: 'en' }, it.texto) : null,
         h('span', { class: 'ficha-linha__sub' }, simbolos(it.cores), h('span', {}, escolhida ? 'Sua arte' : n ? `${n} baixada(s)` : 'Padrão'))),
       escolhida ? Badge([Icone('marcar', { tamanho: 14 })], { tone: 'positive' }) : null,
       Icone('seguir', { tamanho: 18, classe: 'ficha-linha__seta' }));
@@ -19739,7 +19836,8 @@ function telaDeArtes({ galeria: fichas, itens, atualiza = null, C, catalogo = nu
     mount(root,
       Row({ class: 'ds-row--wrap' }, IconButton('voltar', C.voltar, { id: C.id + '-voltar', variant: 'ghost', onClick: () => { st.aberta = ''; st.run++; go(C.rota); } }),
         Stack({ style: { gap: '2px', minWidth: '0' } }, Text(it.nome, { size: '2xl', display: true, as: 'h1', attrs: { lang: 'en' } }),
-          Row({ class: 'ficha-cab' }, Icone(it.icone, { tamanho: 16 }), simbolos(it.cores), Text(it.descricao, { size: 'sm', tone: 'muted' })))),
+          Row({ class: 'ficha-cab' }, Icone(it.icone, { tamanho: 16 }), simbolos(it.cores), Text(it.descricao, { size: 'sm', tone: 'muted' })),
+          it.texto ? Text(it.texto, { size: 'sm', tone: 'muted', attrs: { lang: 'en', id: C.id + '-texto' } }) : null)),
       // só com internet se buscam artes novas; as já baixadas continuam à mão
       !online() ? AvisoRede(opcoes.length ? 'Sem internet: estas são as artes já baixadas. Para ver outras, conecte-se.' : C.semRedeSemArtes, { id: C.id + '-sem-rede' }) : null,
       st.erro === 'falha' ? (() => { const n = Note(__m3.seguro`<b>Não foi possível buscar as artes.</b> Confira a conexão e tente de novo.`, 'negative'); n.id = C.id + '-erro'; return n; })() : null,
@@ -39284,7 +39382,7 @@ function toquesDaContagem(grupos, conta) {
   for (const g of grupos) { let i = 0; (conta[g.chave] || []).forEach((n, k) => { for (let j = 0; j < n && i < g.oids.length; j++) out.push({ oid: g.oids[i++], option: k }); }); }
   return out;
 }
-return { textoDoCustoOpcionalM, rotulosDeCiclar, nomesDeCatalogo, LIMITE_COMANDANTE, danoDeComandante, textoDoDanoDeComandante, GRUPOS_DE_PARADA, PARADAS_PADRAO, paradasValidas, grupoDoPasso, usaParadas, paradasAtuais, iconeDaLinhaDoRegistro, donoDaLinha, iconeDaFase, trocaLegitima, cartaDaMesa, fontesDeMana, conferePagamento, planoDePagamento, gruposDeFontes, contagemDosToques, toquesDaContagem, sinaisDoResumo, iconeDaLinhaDoResumo, repeticaoDoCombo, chaveDaRepeticao, linhasDoCampo, rotulosDeAlvos, alvoSemEfeito, enxugaAlvos, LIMITE_DE_ALVOS, SAVE_KEY, SERIE_KEY, novaSerie, resultadoDaSerie, registraJogo, desfechoDaPartida, MOTIVO_DA_DERROTA, moveNaTroca, validaTroca, diffDaTroca, limitesDaTroca, proximoJogo, ZONE_PT, buildSetup, describe, revealed, shouldStop, legaisDe, esqueceEstado, createTable, restoreTable, estadoDaCarta, modificacoesDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, LEQUE, lequeDaMao, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveContinuo, descreveDano, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
+return { PALAVRA_PT, textoDoCustoOpcionalM, rotulosDeCiclar, nomesDeCatalogo, LIMITE_COMANDANTE, danoDeComandante, textoDoDanoDeComandante, GRUPOS_DE_PARADA, PARADAS_PADRAO, paradasValidas, grupoDoPasso, usaParadas, paradasAtuais, iconeDaLinhaDoRegistro, donoDaLinha, iconeDaFase, trocaLegitima, cartaDaMesa, fontesDeMana, conferePagamento, planoDePagamento, gruposDeFontes, contagemDosToques, toquesDaContagem, sinaisDoResumo, iconeDaLinhaDoResumo, repeticaoDoCombo, chaveDaRepeticao, linhasDoCampo, rotulosDeAlvos, alvoSemEfeito, enxugaAlvos, LIMITE_DE_ALVOS, SAVE_KEY, SERIE_KEY, novaSerie, resultadoDaSerie, registraJogo, desfechoDaPartida, MOTIVO_DA_DERROTA, moveNaTroca, validaTroca, diffDaTroca, limitesDaTroca, proximoJogo, ZONE_PT, buildSetup, describe, revealed, shouldStop, legaisDe, esqueceEstado, createTable, restoreTable, estadoDaCarta, modificacoesDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, LEQUE, lequeDaMao, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveContinuo, descreveDano, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
 })();
 
 
@@ -40175,7 +40273,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
       const names = [...new Set(entries.map(e => e.name))];
       const found = await cardRepo.byNames(names);
       const cards = {}; for (const n of names) { const c = found.get(norm(n)); if (c) cards[n] = c; }
-      try { const defs = __m23.fichasDasCartas(names); if (defs.length && cardRepo.fichas) { const f = await cardRepo.fichas(defs, { padrao: true, onlineOnly: typeof navigator !== 'undefined' && navigator.onLine === false }); for (const t of defs) { const c = f.get('ficha:' + norm(t.name) + (t.power != null ? ` ${t.power}/${t.toughness}` : '')); if (c) cards[c.name] = c; } } } catch (e) { /* sem ficha guardada */ }
+      try { const defs = __m23.fichasDasCartas(names); if (defs.length && cardRepo.fichas) { const f = await cardRepo.fichas(defs, { padrao: true, onlineOnly: typeof navigator !== 'undefined' && navigator.onLine === false }); for (const t of defs) { const c = f.get(__m7.chaveDaFicha(t)); if (c) cards[c.name] = c; } } } catch (e) { /* sem ficha guardada */ }
       return cards;
     }
     async function guardarEIr(setup, assento, codigo, serieDe = null) {
@@ -40320,7 +40418,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
         // E50 P3 · as fichas que essas cartas criam entram no mapa pelo nome da ficha (imagem e texto na mesa)
         try {
           const defs = __m23.fichasDasCartas(names);
-          if (defs.length && cardRepo.fichas) { const f = await cardRepo.fichas(defs, { padrao: true, onlineOnly: typeof navigator !== 'undefined' && navigator.onLine === false }); for (const t of defs) { const c = f.get('ficha:' + norm(t.name) + (t.power != null ? ` ${t.power}/${t.toughness}` : '')); if (c && !cards[t.name]) cards[t.name] = c; } }
+          if (defs.length && cardRepo.fichas) { const f = await cardRepo.fichas(defs, { padrao: true, onlineOnly: typeof navigator !== 'undefined' && navigator.onLine === false }); for (const t of defs) { const c = f.get(__m7.chaveDaFicha(t)); if (c && !cards[t.name]) cards[t.name] = c; } }
         } catch (e) { /* sem ficha guardada: a mesa mostra o nome */ }
         const format = mine.format === 'livre' ? 'livre' : mine.format;
         const seats = [{ name: state.opponent === 'hotseat' ? (state.me.trim() || 'Jogador 1') : (state.meuNome || 'Você'), deck: mine },
@@ -41145,7 +41243,13 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   // V5 · a impressão escolhida em cada lista: calculada uma vez por partida (o setup não muda durante ela)
   let impressoesDe = { setup: null, porAssento: [] };
   const impressoesDoDono = dono => { if (impressoesDe.setup !== table.setup) impressoesDe = { setup: table.setup, porAssento: __m36.impressoesDoSetup(table.setup) }; return dono == null ? null : impressoesDe.porAssento[dono] || null; };
-  const card = x => { const c = T.cartaDaMesa(table.setup.cards, typeof x === 'string' ? x : x && x.name); const dono = donoDe(x); return valeArte(dono) ? __m36.cartaComEscolhas(c, { ...artes, impressoes: impressoesDoDono(dono) }) : c; }; // H1 · o verso de uma dupla face acha a própria imagem
+  const card = x => { const nome = typeof x === 'string' ? x : x && x.name, c = T.cartaDaMesa(table.setup.cards, nome); const dono = donoDe(x);
+    if (!valeArte(dono)) return c;
+    // G-326 · relato #44: a ficha leva a arte da sua variante (as palavras-chave dela na partida); a variante que o motor
+    // separou pelo nome ("Assassin" + marca invisível) não tem carta própria: com arte escolhida, vale a carta da arte
+    const fatos = nome && artes.fichas && table.state && table.state.facts ? table.state.facts[nome] || null : null;
+    if (!c && fatos && /\u200b/.test(nome)) { const e = __m36.escolhaDaFicha(artes.fichas, __m36.fichaDosFatos({ name: nome, power: fatos.power, toughness: fatos.toughness }, fatos)); if (e) return e; }
+    return __m36.cartaComEscolhas(c, { ...artes, impressoes: impressoesDoDono(dono), fatos }); }; // H1 · o verso de uma dupla face acha a própria imagem
   // leva 102 · campo e pilha também na "normal": a carta de 84 px numa tela 3× precisa de ~250 px de imagem (a small tem 146)
   const imgOf = (name, size = 'normal') => { const c = card(name); if (!c) return null; const im = c.images || (c.faces && c.faces[0] && c.faces[0].images); return im ? (im[size] || im.normal) : null; };
   /** Leva 123 · o objeto de imagens inteiro (small/normal/large/png), para a carta da mesa levar srcset e sair nítida em tela 3×. */

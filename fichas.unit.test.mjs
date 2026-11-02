@@ -51,14 +51,15 @@ test('I4 · lista de fichas: todas as que os scripts criam, com ícone, cores e 
   const l = FX.listaDeFichas(['Thraben Inspector', 'Battle Screech']);
   assert.ok(l.length >= 15, 'todas as fichas do motor: ' + l.length);
   assert.equal(new Set(l.map(x => x.chave)).size, l.length, 'sem repetir');
-  assert.deepEqual(J(l.filter(x => x.suaLista).map(x => x.chave)), ['ficha:bird 1/1', 'ficha:clue'], 'as das suas listas vêm primeiro, por nome');
+  assert.deepEqual(J(l.filter(x => x.suaLista).map(x => x.chave)), ['ficha:bird 1/1 · flying', 'ficha:clue'], 'as das suas listas vêm primeiro, por nome (G-326: a chave leva as palavras-chave)');
   const de = k => l.find(x => x.chave === k);
   assert.deepEqual(J([de('ficha:clue').icone, de('ficha:clue').cores, de('ficha:clue').descricao]), ['gema', ['C'], 'Artefato — Clue']);
-  assert.deepEqual(J([de('ficha:bird 1/1').icone, de('ficha:bird 1/1').cores, de('ficha:bird 1/1').descricao, de('ficha:bird 1/1').pt]), ['garras', ['W'], 'Criatura — Bird · 1/1', '1/1']);
+  assert.deepEqual(J([de('ficha:bird 1/1 · flying').icone, de('ficha:bird 1/1 · flying').cores, de('ficha:bird 1/1 · flying').descricao, de('ficha:bird 1/1 · flying').pt]), ['garras', ['W'], 'Criatura — Bird · 1/1 · Voar', '1/1'], 'G-326: a descrição diz as habilidades');
   assert.deepEqual(J(de('ficha:elemental 4/4').cores), ['U', 'R'], 'duas cores, na ordem WUBRG');
   assert.equal(FX.listaDeFichas().filter(x => x.suaLista).length, 0);
   assert.equal(FX.iconeDaFicha({ types: ['enchantment'] }), 'ficha'); assert.equal(FX.iconeDaFicha({ types: ['artifact', 'creature'] }), 'garras', 'criatura artefato é criatura');
   assert.equal(FX.chaveDaFicha({ name: 'Bird', power: 1, toughness: 1 }), 'ficha:bird 1/1', 'a mesma chave do repositório de cartas');
+  assert.equal(FX.chaveDaFicha({ name: 'Bird', power: 1, toughness: 1, keywords: ['flying'] }), 'ficha:bird 1/1 · flying', 'G-326: com palavra-chave, a chave a leva');
 });
 test('I4 · consulta e opções de arte: nome exato com força e cor; só o que tem imagem, uma por arte, com teto', () => {
   assert.equal(FX.consultaDaFicha({ name: 'Bird', power: 2, toughness: 2, colors: ['U'] }), '!"Bird" t:token pow=2 tou=2 c=u');
@@ -110,10 +111,10 @@ test('G-242 · lista de fichas com o catálogo: as do app primeiro, as do catál
     { name: 'Zombie', types: ['creature'], subtypes: ['Zombie'], colors: ['B'], power: '2', toughness: '2' }, { name: 'Gold', types: ['artifact'], subtypes: ['Gold'], colors: [] },
     { name: 'Ângelo', types: ['creature'], subtypes: ['Angel'], colors: ['W'], power: '4', toughness: '4' }];
   const l = FX.listaDeFichas(['Battle Screech'], cat);
-  assert.equal(l.filter(x => x.chave === 'ficha:bird 1/1').length, 1, 'a mesma ficha do app não entra duas vezes');
+  assert.equal(l.filter(x => x.nome === 'Bird' && x.pt === '1/1').length, 1, 'a mesma ficha do app não entra duas vezes (G-326: a do catálogo de antes, sem palavras-chave, é a do app)');
   const doCat = l.filter(x => x.catalogo); assert.deepEqual(J(doCat.map(x => x.chave)), ['ficha:angelo 4/4', 'ficha:gold', 'ficha:zombie 2/2']);
   assert.ok(l.findIndex(x => x.catalogo) > l.filter(x => !x.catalogo).length - 1, 'as do app vêm antes das do catálogo');
-  assert.equal(l[0].chave, 'ficha:bird 1/1', 'as das suas listas continuam primeiro');
+  assert.equal(l[0].chave, 'ficha:bird 1/1 · flying', 'as das suas listas continuam primeiro');
   assert.deepEqual(J([doCat[2].icone, doCat[2].cores, doCat[2].descricao, doCat[2].pt]), ['garras', ['B'], 'Criatura — Zombie · 2/2', '2/2']);
   assert.deepEqual(J(FX.filtraFichas(doCat, 'zomb').map(x => x.nome)), ['Zombie']);
   assert.deepEqual(J(FX.filtraFichas(doCat, 'angel').map(x => x.nome)), ['Ângelo'], 'subtipo e nome sem acento');
@@ -132,8 +133,8 @@ test('G-244 · relato #10: as fichas que as cartas das listas criam, pela Scryfa
   assert.deepEqual(J(SF.normalizeCard(bruta).fichas), [{ id: 'tok-z', name: 'Zombie' }]);
   assert.deepEqual(J(SF.normalizeCard({ id: 'x', name: 'Island', type_line: 'Basic Land — Island' }).fichas), [], 'sem partes: lista vazia (sabe que não cria)');
   // a ficha que a carta-ficha descreve
-  assert.deepEqual(J(F.fichaDaCarta({ name: 'Zombie', type_line: 'Token Creature — Zombie', colors: ['B'], power: '2', toughness: '2' })), { name: 'Zombie', types: ['creature'], subtypes: ['Zombie'], colors: ['B'], power: '2', toughness: '2' });
-  assert.deepEqual(J(F.fichaDaCarta({ name: 'Treasure', type_line: 'Token Artifact — Treasure', colors: [] })), { name: 'Treasure', types: ['artifact'], subtypes: ['Treasure'], colors: [] });
+  assert.deepEqual(J(F.fichaDaCarta({ name: 'Zombie', type_line: 'Token Creature — Zombie', colors: ['B'], power: '2', toughness: '2' })), { name: 'Zombie', types: ['creature'], subtypes: ['Zombie'], colors: ['B'], power: '2', toughness: '2', keywords: [] }); // G-326: com as palavras-chave
+  assert.deepEqual(J(F.fichaDaCarta({ name: 'Treasure', type_line: 'Token Artifact — Treasure', colors: [] })), { name: 'Treasure', types: ['artifact'], subtypes: ['Treasure'], colors: [], keywords: [] });
   assert.equal(F.fichaDaCarta({ name: 'Incubator // Phyrexian', type_line: 'Token Artifact — Incubator // Token Artifact Creature — Phyrexian' }), null, 'duas faces fora');
   // o serviço
   const store = P.memoryStore();
@@ -231,4 +232,64 @@ test('G-257 · Perfil › Fichas e a mesa: opções de arte só da face certa; o
   // a mesa (arte escolhida na partida que já começou) também ignora a escolha antiga
   const naMesa = { name: 'Treasure', type_line: 'Token Artifact — Treasure', layout: 'token', images: { normal: 'padrao/n' } };
   assert.equal(TR257.cartaComFicha(naMesa, { 'ficha:treasure': velha }).images.normal, 'padrao/n');
+});
+
+/* ---------------- G-326 · relato #44: variantes da mesma ficha ---------------- */
+// As quatro fichas de Assassin 1/1 preta da Scryfall (consulta em api.scryfall.com, 02/11/2026): textos oficiais.
+const assassino = (id, set, oracle_text, keywords) => ({ object: 'card', id, name: 'Assassin', type_line: 'Token Creature — Assassin', layout: 'token', power: '1', toughness: '1', colors: ['B'], color_identity: ['B'],
+  oracle_text, keywords, set, set_name: set, collector_number: '1', images: { small: id + '/s', normal: id + '/n', large: id + '/l' }, faces: [] });
+const ASSASSINOS = [
+  assassino('totc', 'totc', 'Deathtouch, haste', ['Haste', 'Deathtouch']),
+  assassino('twar', 'twar', 'Deathtouch\nWhenever this creature deals damage to a planeswalker, destroy that planeswalker.', ['Deathtouch']),
+  assassino('tacr', 'tacr', "Menace (This creature can't be blocked except by two or more creatures.)", ['Menace']),
+  assassino('tc19', 'tc19', 'Whenever this creature deals combat damage to a player, that player loses the game.', [])];
+
+test('G-326 · relato #44: a chave da ficha leva as palavras-chave — os quatro Assassin 1/1 são quatro fichas, cada uma com as habilidades na linha', () => {
+  const { cards: CR } = loadModules();
+  const defs = ASSASSINOS.map(FX.fichaDaCarta);
+  assert.deepEqual(J(defs.map(FX.chaveDaFicha)), ['ficha:assassin 1/1 · deathtouch, haste', 'ficha:assassin 1/1 · deathtouch', 'ficha:assassin 1/1 · menace', 'ficha:assassin 1/1']);
+  assert.equal(defs[3].texto, 'Whenever this creature deals combat damage to a player, that player loses the game.', 'o texto que não é palavra-chave fica, inteiro');
+  assert.equal(defs[2].texto, undefined, 'só palavra-chave (o lembrete sai): sem texto');
+  // palavra-chave de ação (explore, investigate) não é habilidade da ficha
+  assert.deepEqual(J(CR.palavrasDaFicha({ keywords: ['Explore'], oracle_text: '{1}, {T}, Sacrifice this artifact: Target creature you control explores.' })), []);
+  assert.deepEqual(J(CR.palavrasDaFicha({ keywords: ['Ward'], oracle_text: 'Ward {2}' })), ['ward']);
+  // a lista: os quatro, com o rótulo das habilidades em português; a do motor (toque mortífero e ímpeto) não repete
+  const l = FX.listaDeFichas([], defs).filter(x => x.nome === 'Assassin');
+  assert.equal(l.length, 4, 'quatro Assassin: ' + JSON.stringify(J(l.map(x => x.chave))));
+  const por = k => l.find(x => x.chave === k);
+  assert.equal(por('ficha:assassin 1/1 · deathtouch, haste').habilidades, 'toque mortífero, ímpeto');
+  assert.equal(por('ficha:assassin 1/1 · menace').descricao, 'Criatura — Assassin · 1/1 · Ameaçar');
+  assert.match(por('ficha:assassin 1/1').texto, /loses the game/);
+  assert.deepEqual(J(FX.filtraFichas(l, 'ameaçar').map(x => x.chave)), ['ficha:assassin 1/1 · menace'], 'a busca acha pela habilidade');
+});
+
+test('G-326 · escolhas e artes de antes (chave sem palavras-chave) vão para a variante que a arte mostra; a mesa usa a arte da variante da ficha', async () => {
+  const { cards: CR, terrenos: TR } = loadModules();
+  const [dh, , me, perde] = ASSASSINOS;
+  // a escolha antiga era uma arte do Assassin com ameaçar: passa a valer só para ele
+  const m = CR.fichasPorVariante({ 'ficha:assassin 1/1': me, 'ficha:clue': { id: 'c', name: 'Clue', keywords: [], oracle_text: '{2}, Sacrifice this token: Draw a card.' } });
+  assert.deepEqual(J(Object.keys(m).sort()), ['ficha:assassin 1/1 · menace', 'ficha:clue']);
+  assert.deepEqual(J(CR.fichasPorVariante(m)), J(m), 'idempotente: ler de novo não muda nada');
+  assert.equal(CR.fichasPorVariante({ 'ficha:assassin 1/1': perde })['ficha:assassin 1/1'].id, 'tc19', 'a arte da variante sem palavra-chave fica onde está');
+  assert.equal(CR.fichasPorVariante({ 'ficha:assassin 1/1': { ...me, chave: 'ficha:assassin 1/1' } })['ficha:assassin 1/1'].id, 'tacr', 'escolha nova (com chave) não muda de lugar');
+  const op = CR.fichasPorVariante({ 'ficha:assassin 1/1': ASSASSINOS }, { lista: true });
+  assert.deepEqual(J(Object.keys(op).sort().map(k => [k, op[k].map(o => o.id)])), [['ficha:assassin 1/1', ['tc19']], ['ficha:assassin 1/1 · deathtouch', ['twar']], ['ficha:assassin 1/1 · deathtouch, haste', ['totc']], ['ficha:assassin 1/1 · menace', ['tacr']]]);
+  // a mesa: a ficha do motor com toque mortífero e ímpeto acha a arte dela, e não a do Assassin com ameaçar
+  const naMesa = { name: 'Assassin', type_line: 'Token Creature — Assassin', layout: 'token', power: '1', toughness: '1', images: { normal: 'padrao/n' } };
+  const escolhas = { 'ficha:assassin 1/1 · deathtouch, haste': { ...dh, chave: 'ficha:assassin 1/1 · deathtouch, haste' }, 'ficha:assassin 1/1 · menace': { ...me, chave: 'ficha:assassin 1/1 · menace' } };
+  assert.equal(TR.cartaComFicha(naMesa, escolhas, { power: 1, toughness: 1, kw: ['deathtouch', 'haste'] }).images.normal, 'totc/n');
+  assert.equal(TR.cartaComFicha(naMesa, escolhas, { power: 1, toughness: 1, kw: ['menace'] }).images.normal, 'tacr/n');
+  assert.equal(TR.cartaComFicha(naMesa, escolhas, { power: 1, toughness: 1, kw: [] }).images.normal, 'padrao/n', 'a variante sem escolha fica com a padrão');
+  // a galeria: as artes oferecidas são as da variante (a busca por nome e P/T traz as quatro)
+  const store = P.memoryStore();
+  const fx = FX.createFichas({ store, scryfall: { async search() { return ASSASSINOS; } }, temRede: () => true });
+  const defMe = FX.fichaDaCarta(me);
+  assert.deepEqual(J((await fx.mais(defMe)).map(o => o.id)), ['tacr']);
+  await fx.escolher(defMe, (await fx.estado()).opcoes['ficha:assassin 1/1 · menace'][0]);
+  assert.equal((await fx.estado()).escolhas['ficha:assassin 1/1 · menace'].chave, 'ficha:assassin 1/1 · menace', 'a escolha nova diz de qual ficha é');
+  // guardadas antes desta leva, na chave base: a leitura já as põe em cada variante
+  await store.set('fichas.escolhas', { 'ficha:assassin 1/1': dh }); await store.set('fichas.opcoes', { 'ficha:assassin 1/1': ASSASSINOS });
+  const e = await fx.estado();
+  assert.equal(e.escolhas['ficha:assassin 1/1 · deathtouch, haste'].id, 'totc'); assert.equal(e.escolhas['ficha:assassin 1/1'], undefined);
+  assert.deepEqual(J(e.opcoes['ficha:assassin 1/1 · menace'].map(o => o.id)), ['tacr']);
 });

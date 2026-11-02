@@ -197,8 +197,8 @@ test('G-241 · coleta e publicação do Magic Online: lê este mês e o anterior
 /* ---------------- G-242 · catálogo de fichas (relato #9) ---------------- */
 test('G-242 · fichas pela Scryfall: só fichas, uma por nome e P/T, tipos e subtipos lidos da linha de tipo, duas faces fora; páginas seguidas; arquivo renovado só depois de 7 dias', async () => {
   const c = (name, type_line, extra = {}) => ({ name, type_line, colors: [], ...extra });
-  assert.deepEqual(C.fichaDaCarta(c('Bird', 'Token Creature — Bird', { power: '1', toughness: '1', colors: ['U'] })), { name: 'Bird', types: ['creature'], subtypes: ['Bird'], colors: ['U'], power: '1', toughness: '1' });
-  assert.deepEqual(C.fichaDaCarta(c('Treasure', 'Token Artifact — Treasure')), { name: 'Treasure', types: ['artifact'], subtypes: ['Treasure'], colors: [] });
+  assert.deepEqual(C.fichaDaCarta(c('Bird', 'Token Creature — Bird', { power: '1', toughness: '1', colors: ['U'] })), { name: 'Bird', types: ['creature'], subtypes: ['Bird'], colors: ['U'], power: '1', toughness: '1', keywords: [] }); // G-326: com as palavras-chave
+  assert.deepEqual(C.fichaDaCarta(c('Treasure', 'Token Artifact — Treasure')), { name: 'Treasure', types: ['artifact'], subtypes: ['Treasure'], colors: [], keywords: [] });
   assert.equal(C.fichaDaCarta(c('Elspeth, Sun\'s Champion Emblem', 'Emblem — Elspeth')), null);
   assert.equal(C.fichaDaCarta(c('Incubator // Phyrexian', 'Token Artifact // Token Artifact Creature — Phyrexian')), null, 'ficha de duas faces fica de fora');
   const todas = C.fichasDasCartas([c('Soldier', 'Token Creature — Soldier', { power: '1', toughness: '1', colors: ['W'] }), c('Soldier', 'Token Creature — Soldier', { power: '1', toughness: '1', colors: ['R'] }), c('Soldier', 'Token Creature — Soldier', { power: '2', toughness: '2', colors: ['W'] }), c('Bird', 'Token Creature — Bird', { power: '1', toughness: '1', colors: ['U'] })]);

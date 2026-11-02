@@ -535,6 +535,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-eg ✅ | SEG9b sala nova sempre com 6 símbolos: o recuo para 4 ao criar saiu depois que o dono publicou as regras da P-16 no console; banco que recusa vira erro, nunca código curto (leva P-19) | SEG | ½ | regras publicadas (dono, 12/10) |
 | 16º-ei ✅ | MON1 Apoiar a Estante: Pix (chave e copia e cola), Ko-fi, PayPal e GitHub Sponsors numa tela, a forma da região primeiro; prévia com dados de exemplo travada (leva P-20); **dados reais do dono (D9) na P-21**: Pix e Ko-fi no ar, entrada no Perfil; PayPal e GitHub Sponsors fora da tela até ter link | SEG | 2 | — |
 | 16º-ej ✅ | I4c a ficha com a arte dela: ficha de duas faces da Scryfall ("Dinosaur // Treasure") só vale pela face com o nome da ficha; arte errada já guardada deixa de valer (relato #20, leva G-257) | I | 1 | teste no aparelho |
+| 16º-ta ✅ | I4d relato #44 (impede o uso): a mesma ficha com habilidades diferentes é uma ficha por variante em Perfil › Fichas (os quatro Assassin 1/1: toque mortífero e ímpeto, toque mortífero, ameaçar, o que faz perder o jogo), cada uma com as habilidades na linha, as artes dela e a escolha dela; a mesa usa a arte da variante (G-326, 02/11/2026) | I | 1 | teste no aparelho |
 | 16º-ek ✅ | M13b dano de comandante à vista: "Comandante N de 21" no selo de vida e detalhe por comandante no motor completo; o motor já contava e tirava o jogador com 21 (relato #20, leva G-259) | M | 1 | teste no aparelho |
 | 16º-el ✅ | N3b filtrar notícias pelas suas palavras: criar, ligar, desligar e apagar; com várias ligadas, só as que têm todas; fontes continuam (relato #19, leva G-260) | N | 1 | teste no aparelho |
 | 16º-em ✅ | T6e-3 relato enviado não muda mais: seções "Para enviar" e "Enviados", falha com o motivo e "Enviar de novo", sem editar, reenviar, excluir nem mudar a situação depois de enviado (relato #16, leva G-261) | T | 1 | teste no aparelho |
@@ -10804,6 +10805,38 @@ mesmo padrão de design".
 - **Fora:** a dupla face da ficha na mesa (virar a ficha) continua fora, como na G-244; conferência na Scryfall feita pelo
   dono no aparelho (a sessão não alcança a Scryfall; o formato de duas faces segue o que o coletor do catálogo já trata).
 - **Parte 2 do relato #20:** dano de comandante (M13b, leva G-259).
+
+**I4d · Uma ficha por variante (relato #44)** ✅ (leva G-326, trilha `geral`, 02/11/2026; `16º-ta`; rotina "Relatos do dono")
+- **Pedido (relato #44, erro · impede o uso, `/perfil/fichas?f=ficha:assassin 1/1`):** fichas com o mesmo nome e P/T e
+  habilidades diferentes (Assassin com toque mortífero, com ameaçar, o que faz o jogador perder o jogo) eram uma ficha só,
+  com uma arte só. Precisam ser fichas distintas, cada uma com a sua arte.
+- **Valor:** em Perfil › Fichas cada variante aparece separada, com as habilidades escritas por inteiro, e a arte escolhida
+  para uma não vai para a outra; na partida, a ficha sai com a arte da sua variante.
+- **Chave:** era `ficha:<nome> <P/T>`; passa a ser `ficha:<nome> <P/T> · <palavras-chave>` (minúsculas, em ordem; ex.:
+  `ficha:assassin 1/1 · deathtouch, haste`). Sem palavra-chave, a chave é a de antes (`ficha:clue`, `ficha:zombie 2/2`).
+  Da carta da Scryfall, só contam as palavras-chave que estão numa linha só de palavras-chave ("explores", "investigate"
+  são ações e ficam de fora). A mesa calcula a chave pelas palavras-chave que a ficha tem na partida.
+- **Escolhas de antes (decisão):** escolha e artes guardadas na chave antiga vão, na leitura, para a variante que a própria
+  arte mostra (cada arte guardada traz as palavras-chave e o texto dela). Quem tinha escolhido uma arte do Assassin com
+  ameaçar continua com ela, só nessa variante; as outras ficam na arte padrão. Nada some do aparelho nem do backup; a
+  escolha nova grava também a chave dela (`chave`) e não muda de lugar.
+- **Artes por variante:** a busca continua por nome, P/T e cor; das impressões que voltam, a tela oferece só as da variante
+  (mesmas palavras-chave); se nenhuma bater, oferece todas. A ficha padrão da mesa também prefere a da variante.
+- **Catálogo:** o coletor (`catalogo.mjs`) passa a separar por palavras-chave e grava `keywords` e `texto` em cada ficha
+  (`fichas.json` com `variantes: 1`; o arquivo antigo é renovado na próxima coleta). O catálogo antigo, sem palavras-chave,
+  continua valendo: a ficha dele que tem o mesmo nome e P/T de uma do app é a do app. As fichas das suas listas guardadas
+  antes desta leva são lidas de novo uma vez, com internet.
+- **Textos de carta:** os quatro Assassin 1/1 dos testes vêm da Scryfall (consulta em api.scryfall.com, 02/11/2026: TOTC 7,
+  TWAR 6, TACR 4, TC19 9).
+- **Testes:** U `fichas.unit` (2 novos: a chave e a linha das quatro variantes, palavra-chave de ação fora; escolhas e artes
+  de antes indo para a variante certa, a mesa achando a arte da variante pelos fatos da ficha e a galeria oferecendo só as
+  artes da variante) e expectativas ajustadas onde a chave ganhou a palavra-chave (Bird 1/1 · flying) ou a ficha ganhou
+  `keywords`; e2e "G-326" (os quatro Assassin com as habilidades inteiras, 44 px, nada cortado, escolha só na variante,
+  endereço do relato abrindo a variante sem palavra-chave) e I4 com a fala nova da linha.
+- **Fora:** a cor não entra na chave (mudaria a chave de quase toda ficha colorida por um caso raro: variantes que só
+  mudam de cor continuam juntas); variantes que diferem só por habilidade escrita, sem palavra-chave, continuam juntas
+  (ex.: o Assassin que faz perder o jogo e um Assassin 1/1 sem habilidade); a ficha padrão da mesa (sem escolha) continua
+  uma por nome na partida; motor sem mudança.
 
 **I5 · Histórico e estatísticas de partidas** ✅ (leva 188, 05/10/2026)
 - **Onde:** Perfil › **Partidas** (rota `/perfil/partidas`); o atalho no Perfil já diz "N · X% de vitória".
