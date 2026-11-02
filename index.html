@@ -2060,11 +2060,15 @@ body:has(#outlet .ds-fab[data-acoes="1"]) #outlet { padding-bottom: calc(56px + 
 .relatos-secao { display: flex; flex-direction: column; gap: var(--space-3); }
 .relatos-secao__titulo { display: flex; align-items: center; gap: var(--space-2); margin: 0; font-size: var(--text-lg); font-weight: var(--weight-bold); }
 .relatos-secao__conta { min-width: 24px; padding: 0 var(--space-2); border-radius: var(--radius-full); background: var(--bg-elev-2); color: var(--fg-muted); font-size: var(--text-sm); text-align: center; }
-.relato-item__aviso { display: flex; align-items: flex-start; gap: var(--space-2); margin: 0; font-size: var(--text-sm); color: var(--fg-muted); }
-.relato-item__aviso[data-aviso="falhou"] { color: var(--negative); }
+.relato-item__aviso { display: flex; align-items: flex-start; gap: var(--space-2); margin: 0; font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--fg-muted); }
+.relato-item__aviso .ds-icon { flex: none; margin-top: 2px; }
+.relato-item__aviso-texto { min-width: 0; overflow-wrap: anywhere; }
+.relato-item__aviso b { font-weight: var(--weight-bold); color: var(--fg); }
+/* G-330 · relato #50 · o tom da linha de estado: em andamento (latão), atenção (texto), falha (vermelho) */
+.relato-item__aviso[data-tom="andamento"] .ds-icon, .relato-item__aviso[data-tom="andamento"] b { color: var(--accent-lo); }
+.relato-item__aviso[data-tom="falha"], .relato-item__aviso[data-tom="falha"] b { color: var(--negative); }
 .relato-item__topo { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
 .relato-item__quando { font-size: var(--text-xs); color: var(--fg-muted); font-variant-numeric: tabular-nums; }
-.relato-item__enviado { display: inline-flex; align-items: center; gap: 2px; font-size: var(--text-xs); color: var(--positive); }
 .relato-item__registro { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-xs); color: var(--fg-muted); } /* G-243 · registro no GitHub e a situação de lá */
 .relato-item__numero { display: inline-flex; align-items: center; gap: 2px; min-height: var(--tap-min); padding-right: var(--space-2); color: var(--accent); font-weight: 600; text-decoration: none; }
 .relato-item__resolvido { display: inline-flex; align-items: center; gap: var(--space-1); }
@@ -17728,7 +17732,21 @@ let filtroAtual = { ...FILTRO_VAZIO }, filtrosAbertos = false; // ficam enquanto
    conta, sem rede ou com a fila desligada, Enviar abre o GitHub como antes.
    G-256 · o fluxo é agendado a cada 10 minutos, mas o GitHub atrasa agendamentos deste repositório em horas (12/10/2026:
    uma rodada em 4 horas); a tela diz o prazo real (PRAZO_FILA) e a conversa que lê relatos roda a fila antes (CLAUDE.md). */
-const PRAZO_FILA = 'O número do registro aparece aqui quando o GitHub processar a fila: de minutos a algumas horas';
+const PRAZO_FILA = 'O número do registro chega em algumas horas'; // G-330 · relato #50 · uma linha, sem "de minutos a…"
+/** G-330 · relato #50 · o motivo da falha em duas ou três palavras, para a linha de estado do cartão. Puro. */
+const MOTIVO_CURTO = { 'sem-rede': 'Sem internet', grande: 'Grande demais para a fila', 'sem-conta': 'Conecte a conta da Estante', erro: 'A fila não respondeu' };
+const motivoCurto = r => (r && r.envioFalhou && MOTIVO_CURTO[r.envioFalhou.motivo]) || 'Não deu certo';
+/** G-330 · relato #50 · a linha de estado do envio, igual em todo cartão: ícone · título curto · uma linha do que acontece ou do
+    que fazer. 'nao-enviado' e 'registrado' não têm linha (o botão Enviar e o registro já dizem). Puro: devolve dado para a tela. */
+const ESTADO_DO_ENVIO = {
+  'na-fila': { icone: 'subir', titulo: 'Na fila', linha: `${PRAZO_FILA}.`, tom: 'andamento' },
+  'no-github': { icone: 'externo', titulo: 'Aberto no GitHub', linha: 'Confirme lá, ou envie de novo.', tom: 'atencao' },
+  falhou: { icone: 'alerta', titulo: 'Não enviado', linha: null, tom: 'falha' }
+};
+function estadoDoEnvio(r) {
+  const k = situacaoDoEnvio(r), e = ESTADO_DO_ENVIO[k];
+  return e ? { ...e, situacao: k, linha: k === 'falhou' ? `${motivoCurto(r)}.` : e.linha } : null;
+}
 const URL_FILA_LIGADA = `https://raw.githubusercontent.com/${REPOSITORIO}/relatos/fila.json`;
 const FILA_MEMORIA_MS = 10 * 60 * 1000;
 /** O aviso publicado pelo fluxo vale? Puro. */
@@ -17771,9 +17789,9 @@ function createRelatosScreen({ relatos, share, files = null, partidas = null, fi
     if (foiEnviado(r)) return toast('Este relato já foi enviado'); // G-261 · relato #16: enviado não se reenvia
     if (!pelaFila) return abreGitHub();
     const x = await fila.envia(r);
-    if (x.ok) { await relatos.muda(r.id, { enviadoEm: x.enviadoEm, pelaFila: true, envioFalhou: null }); pinta(); return toast(`Relato enviado · ${PRAZO_FILA.charAt(0).toLowerCase()}${PRAZO_FILA.slice(1)}`, 5200); }
+    if (x.ok) { await relatos.muda(r.id, { enviadoEm: x.enviadoEm, pelaFila: true, envioFalhou: null }); pinta(); return toast(`Relato enviado. ${PRAZO_FILA}.`, 5200); }
     await relatos.muda(r.id, { envioFalhou: { em: new Date().toISOString(), motivo: x.motivo || 'erro' } }); pinta(); // G-261 · a falha fica no cartão, com o motivo
-    toast(x.motivo === 'sem-rede' ? 'Sem internet: o relato fica aqui e você envia depois' : x.motivo === 'grande' ? 'Relato grande demais para a fila' : 'Não foi possível enviar agora', 5000,
+    toast(x.motivo === 'sem-rede' ? 'Sem internet. O relato fica aqui para enviar depois.' : x.motivo === 'grande' ? 'Relato grande demais para a fila.' : 'Não deu para enviar agora.', 5000,
       x.motivo === 'sem-rede' ? undefined : { acao: { rotulo: 'Pelo GitHub', icone: 'externo', onClick: abreGitHub } });
   }
   const opcoes = (lista, vazio) => [{ value: '', label: vazio }, ...lista.map(([v, l]) => ({ value: v, label: l }))];
@@ -17806,22 +17824,22 @@ function createRelatosScreen({ relatos, share, files = null, partidas = null, fi
     const recorte = filtra(lista, filtroAtual), abertosDoRecorte = recorte.filter(r => r.status !== 'resolvido');
     const abertos = lista.filter(r => r.status !== 'resolvido').length;
     const muda = patch => { filtroAtual = { ...filtroAtual, ...patch }; pinta(); };
-    const linha = r => { const pa = partidaAbrivel(r, motor), envio = situacaoDoEnvio(r), enviado = foiEnviado(r);
+    const linha = r => { const pa = partidaAbrivel(r, motor), envio = situacaoDoEnvio(r), enviado = foiEnviado(r), estado = estadoDoEnvio(r);
       return h('article', { class: 'relato-item', dataset: { urgencia: r.urgencia, status: r.status, tipo: r.tipo, envio }, id: 'relato-' + r.id },
         h('div', { class: 'relato-item__topo' },
           Badge(rotuloDe(URGENCIAS, r.urgencia), { tone: r.urgencia === 'bloqueia' || r.urgencia === 'alta' ? 'negative' : r.urgencia === 'media' ? 'accent' : undefined }),
           Badge(rotuloDe(TIPOS, r.tipo)),
-          h('span', { class: 'relato-item__quando' }, `${quando(r.criadoEm)} · ${nomeDaTela(r)}`),
-          !r.registro && r.enviadoEm ? (r.pelaFila ? h('span', { class: 'relato-item__enviado', dataset: { fila: 'sim' }, title: `Enviado de dentro do app em ${quando(r.enviadoEm)}. ${PRAZO_FILA}` }, Icone('subir', { tamanho: 14 }), 'Na fila')
-            : h('span', { class: 'relato-item__enviado', title: `Enviado ao GitHub em ${quando(r.enviadoEm)}` }, Icone('externo', { tamanho: 14 }), 'Enviado')) : null),
+          h('span', { class: 'relato-item__quando' }, `${quando(r.criadoEm)} · ${nomeDaTela(r)}`)),
         h('p', { class: 'relato-item__texto' }, r.descricao),
-        // G-261 · relato #16: o que falta para chegar a quem corrige, no próprio cartão
-        envio === 'falhou' ? h('p', { class: 'relato-item__aviso', dataset: { aviso: 'falhou' }, role: 'status' }, Icone('alerta', { tamanho: 16 }), `Não foi enviado: ${textoDaFalha(r)}. Toque em Enviar de novo.`)
-          : envio === 'no-github' ? h('p', { class: 'relato-item__aviso', dataset: { aviso: 'no-github' } }, Icone('externo', { tamanho: 16 }), 'Aberto no GitHub. Se você confirmou lá, o número aparece aqui; se não, envie de novo.') : null,
+        // G-261 · relato #16: o que falta para chegar a quem corrige, no próprio cartão. G-330 · relato #50: uma linha de estado só,
+        // igual para na fila, aberto no GitHub e falhou — ícone, título curto (o selo de antes) e uma linha; o prazo da fila deixou
+        // de morar num title (que o celular não mostra)
+        estado ? h('p', { class: 'relato-item__aviso', dataset: { aviso: estado.situacao, tom: estado.tom }, role: estado.situacao === 'falhou' ? 'status' : null, title: r.enviadoEm ? `Enviado em ${quando(r.enviadoEm)}` : null },
+          Icone(estado.icone, { tamanho: 16 }), h('span', { class: 'relato-item__aviso-texto' }, h('b', { class: 'relato-item__enviado' }, estado.titulo), ' ', estado.linha)) : null,
         // G-243 · o registro achado no GitHub: o número (abre o registro) e a situação que voltou de lá
         r.registro ? h('div', { class: 'relato-item__registro', dataset: { situacao: r.status === 'resolvido' && r.resolvidoPeloRegistro ? 'resolvido' : 'aberto' } },
           h('a', { class: 'relato-item__numero', href: urlDoRegistro(r.registro.numero), target: '_blank', rel: 'noopener', title: `Abrir o registro #${r.registro.numero} no GitHub`, 'aria-label': `Registro ${r.registro.numero} no GitHub` }, Icone('externo', { tamanho: 14 }), `#${r.registro.numero}`),
-          h('span', { class: 'relato-item__resolvido' }, r.status === 'resolvido' && r.resolvidoPeloRegistro && r.resolvidoEm ? [Icone('marcar', { tamanho: 14 }), `Resolvido em ${quando(r.resolvidoEm)}`] : 'Registrado no GitHub')) : null,
+          h('span', { class: 'relato-item__resolvido' }, r.status === 'resolvido' && r.resolvidoPeloRegistro && r.resolvidoEm ? [Icone('marcar', { tamanho: 14 }), `Resolvido em ${quando(r.resolvidoEm)}`] : 'Registrado no GitHub')) : null, // G-330 · fica: curto e diz onde
         r.partida && !pa.ok && pa.motivo ? Text(pa.motivo, { size: 'xs', tone: 'subtle', attrs: { class: 'ds-text ds-text--xs relato-item__motivo' } }) : null,
         h('div', { class: 'relato-item__acoes' },
           r.partida ? Button('Partida', { variant: 'ghost', icone: 'jogar', disabled: !pa.ok, title: pa.ok ? 'Abrir a partida anexada, no ponto do relato' : pa.motivo, dataset: { acao: 'partida' }, onClick: () => abrePartida(r) }) : null,
@@ -17851,8 +17869,9 @@ function createRelatosScreen({ relatos, share, files = null, partidas = null, fi
       n ? Row({}, Button('Limpar', { variant: 'ghost', icone: 'fechar', id: 'relatos-filtros-limpar', onClick: () => muda({ tipo: '', urgencia: '', area: '' }) })) : null) : null;
     mount(root,
       __m3.Cabecalho('Relatos', { esquerda: IconButton('voltar', 'Voltar ao perfil', { id: 'relatos-voltar', onClick: () => { location.hash = '#/perfil'; } }) }) /* DS-K F4.2 · cabeçalho 44 · 1fr · 44 */,
-      Text(!lista.length ? 'Ficam neste aparelho e vão no backup.' : recorte.length === lista.length ? `${lista.length} ${lista.length === 1 ? 'relato' : 'relatos'} · ${abertos} ${abertos === 1 ? 'aberto' : 'abertos'}. Ficam neste aparelho e vão no backup.`
-        : `${recorte.length} de ${lista.length} relatos · ${abertosDoRecorte.length} ${abertosDoRecorte.length === 1 ? 'aberto' : 'abertos'} no recorte.`, { size: 'sm', tone: 'muted', attrs: { id: 'relatos-resumo' } }),
+      // G-330 · relato #50 · só os números; "ficam neste aparelho e vão no backup" mora no estado vazio
+      Text(!lista.length ? 'Ficam neste aparelho e vão no backup.' : recorte.length === lista.length ? `${lista.length} ${lista.length === 1 ? 'relato' : 'relatos'} · ${abertos} ${abertos === 1 ? 'aberto' : 'abertos'}`
+        : `${recorte.length} de ${lista.length} relatos · ${abertosDoRecorte.length} ${abertosDoRecorte.length === 1 ? 'aberto' : 'abertos'} no recorte`, { size: 'sm', tone: 'muted', attrs: { id: 'relatos-resumo' } }),
       lista.length ? h('div', { class: 'ds-segmentado', role: 'group', 'aria-label': 'Situação', id: 'relatos-situacao' },
         ...SITUACOES.map(([k, nome]) => __m3.Chip(nome, { pressed: (filtroAtual.situacao || 'todos') === k, dataset: { situacao: k }, onClick: () => muda({ situacao: k }) }))) : null,
       filtros,
@@ -17863,8 +17882,9 @@ function createRelatosScreen({ relatos, share, files = null, partidas = null, fi
           const ok = await share.copy(txt); if (ok) __m3.confirmaBotao(e.currentTarget, { texto: 'Copiado' }); toast(ok ? `${abertosDoRecorte.length} relato(s) copiado(s)` : 'Não foi possível copiar'); } }),
         files ? Button('Exportar', { icone: 'exportar', id: 'relatos-exportar-abrir', onClick: () => exportar(recorte) }) : null) : null,
       recorte.length ? Stack({ id: 'relatos-lista', style: { gap: 'var(--space-5)' } },
-        secao('relatos-para-enviar', 'Para enviar', 'Ainda não chegaram a quem corrige. Envie para valer.', recorte.filter(r => !foiEnviado(r))),
-        secao('relatos-enviados', 'Enviados', 'Já chegaram. Não mudam mais: a situação volta do registro no GitHub.', recorte.filter(foiEnviado)))
+        // G-330 · relato #50 · o título e a contagem bastam; o que cada cartão espera está na linha de estado dele
+        secao('relatos-para-enviar', 'Para enviar', null, recorte.filter(r => !foiEnviado(r))),
+        secao('relatos-enviados', 'Enviados', null, recorte.filter(foiEnviado)))
         : lista.length ? Empty('Nenhum relato com esses filtros.', Button('Ver todos', { icone: 'fechar', id: 'relatos-ver-todos', onClick: () => { filtroAtual = { ...FILTRO_VAZIO }; pinta(); } }), { icone: 'filtro', titulo: 'Nada aqui', id: 'relatos-recorte-vazio' })
         : Empty('Use Relatar em qualquer tela para guardar um erro, uma regra que não bateu ou uma ideia. A data e a tela vão junto.', null, { icone: 'relato', titulo: 'Nenhum relato', id: 'relatos-vazio' }),
       __m3.BotaoDeAcao([{ icone: 'relato', rotulo: 'Relatar', id: 'relatos-novo', onClick: () => abreRelato() }], { id: 'relatos-fab', rotulo: 'Relatar', relatar: false }));
@@ -17984,7 +18004,7 @@ function abrePedidoDeCobertura({ cobertura, lista, motor, aoMudar = () => {} }) 
   pinta();
 }
 
-return { IDIOMAS_DO_DITADO, idiomaDoDitado, juntaDitado, textoDaFalhaDoDitado, usaFala, relatoDeCobertura, pedidosDeCobertura, pedidoDaLista, etapaDoPedido, ETAPAS_DO_PEDIDO, createCobertura, abrePedidoDeCobertura, situacaoDoEnvio, foiEnviado, textoDaFalha, PRAZO_FILA, URL_FILA_LIGADA, FILA_MEMORIA_MS, filaLigada, relatoParaFila, createEnvioPelaFila, AREAS, URL_SITUACAO, BUSCA_SITUACAO_MS, urlDoRegistro, situacaoDosRegistros, concilia, EDITAR_JANELA_MS, podeEditar, editavelAte, editaRelato, REPOSITORIO, MARCA, dadosDoRelato, enderecoDoRegistro, limpaTela, nomeDaTela, FILTRO_VAZIO, filtra, contaFiltros, areasDe, csvDosRelatos, jsonDosRelatos, partidaAbrivel, contextoDaPartida, CHAVE, TIPOS, URGENCIAS, DESCRICAO_MIN, DESCRICAO_MAX, RELATOS_MAX, areaDaRota, confere, novoRelato, ordena, textoDoRelato, textoDosRelatos, createRelatos, usa, usaContexto, abreRelato, BotaoRelatar, createRelatosScreen, rotuloDe };
+return { estadoDoEnvio, motivoCurto, IDIOMAS_DO_DITADO, idiomaDoDitado, juntaDitado, textoDaFalhaDoDitado, usaFala, relatoDeCobertura, pedidosDeCobertura, pedidoDaLista, etapaDoPedido, ETAPAS_DO_PEDIDO, createCobertura, abrePedidoDeCobertura, situacaoDoEnvio, foiEnviado, textoDaFalha, PRAZO_FILA, URL_FILA_LIGADA, FILA_MEMORIA_MS, filaLigada, relatoParaFila, createEnvioPelaFila, AREAS, URL_SITUACAO, BUSCA_SITUACAO_MS, urlDoRegistro, situacaoDosRegistros, concilia, EDITAR_JANELA_MS, podeEditar, editavelAte, editaRelato, REPOSITORIO, MARCA, dadosDoRelato, enderecoDoRegistro, limpaTela, nomeDaTela, FILTRO_VAZIO, filtra, contaFiltros, areasDe, csvDosRelatos, jsonDosRelatos, partidaAbrivel, contextoDaPartida, CHAVE, TIPOS, URGENCIAS, DESCRICAO_MIN, DESCRICAO_MAX, RELATOS_MAX, areaDaRota, confere, novoRelato, ordena, textoDoRelato, textoDosRelatos, createRelatos, usa, usaContexto, abreRelato, BotaoRelatar, createRelatosScreen, rotuloDe };
 })();
 
 /* ==== src/app/catalogo.js ==== */

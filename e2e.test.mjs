@@ -10405,8 +10405,9 @@ test('e2e · T6e-2 relato enviado sem sair do app: com a conta conectada e a fil
   assert.equal(no.kind, 'estante.relato'); assert.equal(no.version, 1);
   const enviado = JSON.parse(no.dado); assert.equal(enviado.id, id); assert.equal(enviado.descricao, 'A lista de @fulano não abre no celular.'); assert.equal(enviado.partida, null);
   assert.ok(pedidos.includes(`PUT /relatos/fila/uidE2E/${id}`) && pedidos.includes(`GET /relatos/fila/uidE2E/${id}`), 'escreve e lê de volta: ' + pedidos.join(', '));
-  await page.waitForSelector('.relato-item .relato-item__enviado[data-fila="sim"]');
+  await page.waitForSelector('.relato-item [data-aviso="na-fila"]'); // G-330 · relato #50 · a linha de estado, com o prazo à vista (antes era um title)
   assert.equal(await page.innerText('.relato-item .relato-item__enviado'), 'Na fila');
+  assert.match(await page.innerText('.relato-item [data-aviso="na-fila"]'), /^Na fila O número do registro chega em algumas horas\.$/);
   for (const tema of ['dark', 'light']) { await page.evaluate(x => document.documentElement.setAttribute('data-theme', x), tema); for (const [w, hh] of MEDIDAS_149) { await page.setViewportSize({ width: w, height: hh }); await auditaTela(page, `relatos na fila ${w} ${tema}`); } }
   await page.setViewportSize({ width: 360, height: 780 }); await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   if (process.env.CAPTURA) await page.screenshot({ path: process.env.CAPTURA + '/t6e2-na-fila.png' });
@@ -10529,7 +10530,7 @@ test('e2e · Y5 relatos chegam à correção: tipos Melhoria e Infraestrutura, E
   // "Para enviar" e oferece "Enviar de novo" (expectativa mudou de propósito: era "Reenviar" sempre)
   await page.waitForSelector('.relato-item .relato-item__enviado');
   assert.equal(await page.innerText('.relato-item [data-acao="enviar"]'), 'Enviar de novo');
-  assert.match(await page.innerText('.relato-item [data-aviso="no-github"]'), /Aberto no GitHub\. Se você confirmou lá, o número aparece aqui/);
+  assert.match(await page.innerText('.relato-item [data-aviso="no-github"]'), /^Aberto no GitHub Confirme lá, ou envie de novo\.$/); // G-330 · relato #50 · linha de estado curta
   assert.equal(await page.locator('#relatos-para-enviar .relato-item').count(), 1);
   // T1 · editar antes de enviar: o formulário vem preenchido, a tela do relato fica, e o aviso lembra de enviar de novo
   await page.click('.relato-item [data-acao="editar"]'); await page.waitForSelector('#relato-form');
@@ -13721,11 +13722,11 @@ test('e2e · G-261 relato #16: o envio que falha fica em "Para enviar" com o mot
   await page.selectOption('#relato-tipo', 'erro'); await page.selectOption('#relato-urgencia', 'alta');
   await page.fill('#relato-descricao', 'A lista de @fulano não abre no celular.'); await page.click('#relato-salvar'); await page.waitForSelector('#relato-form', { state: 'detached' });
   await page.goto(base + '#/perfil/relatos'); await page.waitForSelector('#relatos-para-enviar .relato-item [data-acao="enviar"][data-via="fila"]');
-  assert.match(await page.innerText('#relatos-para-enviar'), /Para enviar[\s\S]*Ainda não chegaram a quem corrige/);
+  assert.match(await page.innerText('#relatos-para-enviar'), /^Para enviar\s*\d/); assert.doesNotMatch(await page.innerText('#relatos-para-enviar'), /Ainda não chegaram/); // G-330 · relato #50 · sem parágrafo sob o título
   // 1 · a fila não responde: o cartão diz o motivo, segue em "Para enviar" e o botão vira "Enviar de novo" (principal)
   await page.click('.relato-item [data-acao="enviar"]');
   await page.waitForSelector('.relato-item [data-aviso="falhou"]');
-  assert.match(await page.innerText('.relato-item [data-aviso="falhou"]'), /^Não foi enviado: a fila não respondeu\. Toque em Enviar de novo\.$/);
+  assert.match(await page.innerText('.relato-item [data-aviso="falhou"]'), /^Não enviado A fila não respondeu\.$/); // G-330 · relato #50 · título curto + motivo; o botão primário já diz "Enviar de novo"
   assert.equal(await page.innerText('.relato-item [data-acao="enviar"]'), 'Enviar de novo');
   assert.match(await page.getAttribute('.relato-item [data-acao="enviar"]', 'class'), /ds-btn--primary/);
   assert.deepEqual(await page.$$eval('#relatos-para-enviar .relato-item [data-acao]', bs => bs.map(b => b.dataset.acao)), ['editar', 'copiar', 'enviar', 'excluir']);
@@ -13735,9 +13736,10 @@ test('e2e · G-261 relato #16: o envio que falha fica em "Para enviar" com o mot
   falha = false; await page.click('.relato-item [data-acao="enviar"]');
   await page.waitForFunction(() => /Relato enviado/.test(document.querySelector('#ds-toast').textContent));
   await page.waitForSelector('#relatos-enviados .relato-item[data-envio="na-fila"]');
-  assert.equal(await page.locator('#relatos-para-enviar').count(), 0); assert.equal(await page.locator('.relato-item [data-aviso]').count(), 0);
+  assert.equal(await page.locator('#relatos-para-enviar').count(), 0); assert.equal(await page.locator('.relato-item [data-aviso="falhou"]').count(), 0);
+  assert.equal(await page.locator('.relato-item [data-aviso="na-fila"]').count(), 1, 'G-330 · a linha de estado "Na fila" com o prazo');
   assert.deepEqual(await page.$$eval('#relatos-enviados .relato-item [data-acao]', bs => bs.map(b => b.dataset.acao)), ['copiar']);
-  assert.match(await page.innerText('#relatos-enviados'), /Enviados[\s\S]*Já chegaram\. Não mudam mais/);
+  assert.match(await page.innerText('#relatos-enviados'), /^Enviados\s*\d/); assert.doesNotMatch(await page.innerText('#relatos-enviados'), /Já chegaram/); // G-330
   // guardado: recarregar mantém onde está
   await page.reload(); await page.waitForSelector('#relatos-enviados .relato-item[data-envio="na-fila"]');
   for (const tema of ['dark', 'light']) { await page.evaluate(x => document.documentElement.setAttribute('data-theme', x), tema); for (const [w, hh] of MEDIDAS_149) { await page.setViewportSize({ width: w, height: hh }); await auditaTela(page, `relatos enviados ${w} ${tema}`); } }

@@ -224,3 +224,19 @@ test('G-261 · relato #16: onde está o envio — registrado e na fila são envi
   // o que só o aparelho sabe não vai para a fila
   assert.equal('envioFalhou' in R.relatoParaFila({ ...base, envioFalhou: { motivo: 'erro' } }), false);
 });
+
+// G-330 · relato #50 · a linha de estado do envio: curta, igual em todo cartão, e nenhuma dentro de um title
+test('G-330 · estadoDoEnvio: título curto e uma linha por situação; sem linha para o que o botão ou o registro já dizem', () => {
+  const J = x => JSON.parse(JSON.stringify(x));
+  assert.equal(R.estadoDoEnvio({}), null, 'não enviado: o botão Enviar diz');
+  assert.equal(R.estadoDoEnvio({ registro: { numero: 41 } }), null, 'registrado: o número diz');
+  assert.deepEqual(J(R.estadoDoEnvio({ enviadoEm: 'x', pelaFila: true })), { icone: 'subir', titulo: 'Na fila', linha: 'O número do registro chega em algumas horas.', tom: 'andamento', situacao: 'na-fila' });
+  assert.deepEqual(J(R.estadoDoEnvio({ enviadoEm: 'x' })), { icone: 'externo', titulo: 'Aberto no GitHub', linha: 'Confirme lá, ou envie de novo.', tom: 'atencao', situacao: 'no-github' });
+  assert.deepEqual(J(R.estadoDoEnvio({ envioFalhou: { motivo: 'sem-rede' } })), { icone: 'alerta', titulo: 'Não enviado', linha: 'Sem internet.', tom: 'falha', situacao: 'falhou' });
+  assert.deepEqual(['sem-rede', 'grande', 'sem-conta', 'erro', 'outro'].map(m => R.motivoCurto({ envioFalhou: { motivo: m } })), ['Sem internet', 'Grande demais para a fila', 'Conecte a conta da Estante', 'A fila não respondeu', 'Não deu certo']);
+  for (const e of [R.estadoDoEnvio({ enviadoEm: 'x', pelaFila: true }), R.estadoDoEnvio({ enviadoEm: 'x' }), R.estadoDoEnvio({ envioFalhou: { motivo: 'erro' } })]) {
+    assert.ok(e.titulo.split(' ').length <= 4, 'título até 4 palavras: ' + e.titulo);
+    assert.ok(e.linha.split(' ').length <= 12, 'linha até 12 palavras: ' + e.linha);
+    assert.doesNotMatch(e.titulo + ' ' + e.linha, /fila do Firebase|workflow|sha|uid|token/i, 'sem jargão de implementação');
+  }
+});
