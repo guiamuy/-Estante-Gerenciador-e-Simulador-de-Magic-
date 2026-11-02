@@ -7935,6 +7935,8 @@ function effectErrors(effects, label, opcional) {
     if (e.exilaSeMorrer != null && !(e.do === 'damage' && e.exilaSeMorrer === true)) errs.push(`${label} ${i + 1}: "exilaSeMorrer" é uma marca (true) do dano`); // M-384 · Torch the Tower
     if (e.marcaFonteM != null && !(e.marcaFonteM === true && e.do === 'exila_ate_final')) errs.push(`${label} ${i + 1}: "marcaFonteM" é uma marca (true) da exila_ate_final`); // M-548 · Phelia
     if (e.semGanharVidaM != null && !(e.semGanharVidaM === true && e.do === 'damage')) errs.push(`${label} ${i + 1}: "semGanharVidaM" é uma marca (true) do dano`); // M-550 · Screaming Nemesis
+    if (e.dobraPoder != null && (e.do !== 'pump' || e.dobraPoder !== true)) errs.push(`${label} ${i + 1}: "dobraPoder" só no pump, como true`); // M-600
+    if (e.palavrasAteFimDoTurno != null && (e.do !== 'token' || !Array.isArray(e.palavrasAteFimDoTurno) || !e.palavrasAteFimDoTurno.length || e.palavrasAteFimDoTurno.some(k => !KEYWORDS.includes(k)))) errs.push(`${label} ${i + 1}: "palavrasAteFimDoTurno" só na ficha, com palavras-chave conhecidas`); // M-600
     if (e.exilar != null && (e.do !== 'edict' || e.exilar !== true)) errs.push(`${label} ${i + 1}: "exilar" só no edito, como true`); // M-593
     if (e.do === 'search' && e.zona != null && e.zona !== 'graveyard') errs.push(`${label} ${i + 1}: busca: "zona" só 'graveyard'`); // M-590
     if (e.do === 'exile_top_playable' && ((e.de != null && e.de !== 'that-player') || (e.soConjurar != null && e.soConjurar !== true))) errs.push(`${label} ${i + 1}: exílio do topo: "de" só that-player e "soConjurar" só true`); // M-566
@@ -21539,6 +21541,7 @@ const __m42 = (function () {
     [/^you gain that much life$/i, () => [{ do: 'gain', amount: { per: 'trigger-value' } }]],
     [/^add an amount of \{([WUBRGC])\} equal to the sacrificed creature's mana value$/i, m => [{ do: 'add_mana', symbols: [m[1].toUpperCase()], porContagem: 'sacrificed-mv' }]], // M-464 · Soldevi Adnate (608.2h: o valor de mana como era no campo)
     [/^~ deals that much damage to each opponent$/i, () => [{ do: 'damage', amount: { per: 'trigger-value' }, target: 'each-opponent' }]], // M-462 · "that much": o valor do gatilho
+    [/^double the power of (target creature(?: you control)?) until end of turn$/i, m => [com({ do: 'pump', power: 0, toughness: 0, dobraPoder: true }, alvo(m[1]))]], // M-600 · 701.10e · Mightform Harmonizer
     [/^untap ((?:another )?target [a-z ']+)$/i, m => [com({ do: 'untap' }, alvo(m[1]))]], // M-599 · "another target artifact" (Manifold Key)
     [new RegExp(`^put ${N} \\+1/\\+1 counters? on (this creature|~)$`, 'i'), m => [{ do: 'counters', amount: num(m[1]), target: 'self-source' }]],
     [/^exile target player's graveyard$/i, () => [{ do: 'exile_graveyard', target: 'player' }]],
@@ -22067,6 +22070,8 @@ const __m42 = (function () {
     const partes = texto.replace(/, then shuffle and put that card on top(\.|$)/i, ', put that card on top of your library, then shuffle$1').split(/\.\s+|,\s+then\s+|\.$/).map(x => x.replace(/\.$/, '').trim()).filter(Boolean);
     let ok = true;
     for (const p of partes) {
+      { const tg = p.match(/^they gain ((?:haste|trample|flying|vigilance|lifelink|menace|deathtouch|first strike)(?:(?:,| and) (?:haste|trample|flying|vigilance|lifelink|menace|deathtouch|first strike))*) until end of turn$/i); // M-600 · Sokenzan: as fichas criadas pela frase anterior (611.2a)
+        if (tg && efeitos.length && efeitos[efeitos.length - 1].do === 'token') { efeitos[efeitos.length - 1].palavrasAteFimDoTurno = tg[1].split(/,\s*| and /).map(x => x.trim().toLowerCase()).filter(Boolean); frases.push({ texto: p, lida: true }); continue; } }
       if (/^if that spell is countered this way, put it on top of its owner's library instead of into that player's graveyard$/i.test(p) && efeitos.length && efeitos[efeitos.length - 1].do === 'counter') { efeitos[efeitos.length - 1].topo = true; frases.push({ texto: p, lida: true }); continue; } // M-395 · Memory Lapse
       if (/^if that spell is countered this way, exile it instead of putting it into its owner's graveyard$/i.test(p) && efeitos.length && efeitos[efeitos.length - 1].do === 'counter') { efeitos[efeitos.length - 1].exila = true; frases.push({ texto: p, lida: true }); continue; } // M-338 · Force of Negation
       if (/^if evidence was collected, instead each opponent sacrifices a creature with the greatest power among creatures they control$/i.test(p) && efeitos.length && !efeitos[efeitos.length - 1].onlyIf) { efeitos[efeitos.length - 1].onlyIf = 'not-evidenced'; efeitos.push({ do: 'sacrificar', tipos: ['creature'], jogadores: 'cada-oponente', maiorPoder: true, onlyIf: 'evidenced' }); frases.push({ texto: p, lida: true }); continue; } // M-351 · Extract a Confession (701.59; "instead" troca a frase anterior)
@@ -25540,7 +25545,7 @@ function applyEffectM449(s, src, eff, tgt, events) {
       if (moverObjeto(s, src, alvo, { para: 'battlefield', de: 'graveyard', virada: true, semRegistro: true, ...(eff.controle === 'dono' ? { controle: 'dono' } : {}) }, ctrl)) note({ name: alvo.name }); // CR2-G R4a · atalho de mover · M-429 · "under its owner's control"
       break;
     }
-    case 'pump': { const pw = amountOf(s, src, eff.power), tg = amountOf(s, src, eff.toughness); // CR2-G R3b · atalho de continuo
+    case 'pump': { const pw = eff.dobraPoder ? (obj && obj.zone === 'battlefield' ? power(s, obj) : 0) /* M-600 · 701.10e: dobrar o poder é ganhar +X/+0, X = o poder dela agora */ : amountOf(s, src, eff.power), tg = amountOf(s, src, eff.toughness); // CR2-G R3b · atalho de continuo
       aplicaTemporario(s, obj, { poder: pw, resistencia: tg, ate: eff.until === 'your-next-turn' ? 'seu-proximo-turno' : 'fim-do-turno' }, ctrl); // S57 · Caverna dos Fungos
       note({ power: pw, toughness: tg }); } break;
     case 'continuo': { // CR2-G R3b · "+N/+N e ganha … até o fim do turno / até o seu próximo turno", num efeito só
@@ -25728,7 +25733,7 @@ function applyEffectM449(s, src, eff, tgt, events) {
       note({ amount: n, pending: true }); break;
     }
     case 'attach': if (!anexoBarradoT(s, src, obj, events)) attachTo(s, src.ability ? s.objects[src.source] : src, obj.oid, events); break; // T-16 · CR 301.5b: o Equipamento que não pode equipar o alvo não se move · Toca ponto comum: applyEffect attach
-    case 'token': { const n = fichasAoCriar(s, playerOf(), amountOf(s, src, eff.amount)); for (let i = 0; i < n; i++) { const t = createToken(s, eff.token, playerOf(), events); if (eff.virada && s.objects[t]) entraViradaPorEfeito(s, s.objects[t]); } } break; // M-349 · "Create a tapped … token" (Melded Moxite) // M-258 · quantidade também por contagem (um Tesouro por oponente)
+    case 'token': { const n = fichasAoCriar(s, playerOf(), amountOf(s, src, eff.amount)); for (let i = 0; i < n; i++) { const t = createToken(s, eff.token, playerOf(), events); if (eff.virada && s.objects[t]) entraViradaPorEfeito(s, s.objects[t]); if ((eff.palavrasAteFimDoTurno || []).length && s.objects[t] && s.objects[t].zone === 'battlefield') aplicaTemporario(s, s.objects[t], { palavras: eff.palavrasAteFimDoTurno }, ctrl); /* M-600 · "They gain haste until end of turn" (Sokenzan) */ } } break; // M-349 · "Create a tapped … token" (Melded Moxite) // M-258 · quantidade também por contagem (um Tesouro por oponente)
     case 'to_hand': { // S44 · a própria carta pode voltar para a mão (Rancor)
       const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
       // Leva 107 · Rancor: "return Rancor to its owner's hand" só se ele ainda estiver no cemitério (400.7)
