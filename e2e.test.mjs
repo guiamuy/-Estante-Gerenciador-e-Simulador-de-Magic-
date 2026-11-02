@@ -9312,7 +9312,11 @@ test('e2e · DS-K2 N1 · barra de navegação embaixo: cinco destinos de 44 px c
   // a tela do scanner monta depois da troca do endereço (no CI, mais devagar): espera a tela antes de olhar a barra
   await page.waitForSelector('#scan-read'); await page.waitForFunction(() => getComputedStyle(document.querySelector('#ds-navbar')).display === 'none', null, { timeout: 5000 }).catch(() => {});
   assert.equal(await page.$eval('#ds-navbar', n => getComputedStyle(n).display), 'none', 'no scanner a barra some');
-  await page.click('#scan-colecao'); await page.waitForSelector('#outlet .ds-cabecalho'); assert.equal(await page.$eval('#ds-navbar', n => getComputedStyle(n).display), 'grid');
+  // I-319 · o scanner também tem `.ds-cabecalho` (G-294): a espera passava antes de a Coleção montar e a barra ainda estava escondida
+  // (caía no CI). Espera o endereço da Coleção e a barra voltar; se ela não voltar, a asserção continua caindo (defeito do app)
+  await page.click('#scan-colecao'); await page.waitForFunction(() => location.hash === '#/colecao'); await page.waitForSelector('#outlet .ds-cabecalho');
+  await page.waitForFunction(() => getComputedStyle(document.querySelector('#ds-navbar')).display === 'grid', null, { timeout: 5000 }).catch(() => {});
+  assert.equal(await page.$eval('#ds-navbar', n => getComputedStyle(n).display), 'grid');
   await page.click('#nav-play'); await page.waitForSelector('#mesa-doca #mesa-start');
   await page.waitForFunction(() => { const b = document.querySelector('#mesa-start'); return b && !b.disabled; }, null, { timeout: 8000 });
   await page.click('#mesa-start'); await page.waitForSelector('#tb');
