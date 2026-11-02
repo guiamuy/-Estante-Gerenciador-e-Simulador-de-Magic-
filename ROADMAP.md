@@ -8102,6 +8102,16 @@ estruturado para tornarmos o Shark um jogador de nível profissional com as suas
   só do antigo); zero ilegais. **Neutra em força, ligada pelo comportamento.** Bateria **26 de 27** (erra só a isca);
   piso 25 → 26. **`shark-v20` é o Shark da B-191, congelado.** Ficam do Control: segurar a mana da anulação no próprio
   turno com a instantânea na mão e o alvo da remoção.
+- **Fase 4 · B-193 · Control: a mana da anulação não "sobra" (02/11/2026) — medida e desligada.** Nas partidas narradas
+  da B-189 o Control virava a mana no próprio turno com a anulação na mão "porque a mana ia sobrar" (8 vezes, 6 derrotas;
+  semente 900, T3: Nihil Spellbomb com a Counterspell na mão e duas terras). Opção `guardaNaSobra`: na regra "a mana ia
+  sobrar" da segunda fase principal, a jogada que me deixa sem pagar a anulação da mão não entra (o pedágio largo da B10b,
+  `segura`, continua desligado). **Medida pareada** (400 ms, contra o Shark da B-192): Control 15 × 13 · Faeries 11 × 12 ·
+  Terror 14 × 16 — **40 × 41 em 72 pares** (3 só do novo, 4 só do antigo); zero ilegais. O Control melhora pouco e o Terror
+  e as Faeries perdem a seleção de cartas do próprio turno (Preordain, Ponder): **fica desligada**, com o número aqui.
+  As duas posições entram na bateria como erro aberto (`seq-guarda-anulacao-spellbomb`, `seq-guarda-anulacao-preordain`):
+  **Shark 26 de 29 (89,7%)**. A pergunta certa é "quanto vale a anulação aberta contra esta mão provável", não uma regra
+  — fica para a avaliação aprendida (fase 2).
 - **Fases:**
   - **0 · réguas** — B-187 régua absoluta e linha de base das quatro; B-188 bateria profissional (30+ posições).
   - **1 · diagnóstico** — B-189 partidas narradas das derrotas (Control e Faeries primeiro), cada erro classificado e

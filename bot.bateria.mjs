@@ -162,6 +162,14 @@ export const POSICOES = [
   { id: 'recurso-longbow-equipa', classe: 'recurso', lista: CONTROLE, porque: 'Longbow solto, Trinket Mage desvirado e quatro manas contra Priest of Titania e dois elfos de mana 1/1: equipar e atirar no Priest no mesmo turno',
     monta: () => monta(CONTROLE, ELFOS, { p0: { campo: ['Island', 'Island', 'Swamp', 'Island', 'Viridian Longbow', 'Trinket Mage'] }, p1: { campo: ['Forest', 'Forest', 'Llanowar Elves', 'Priest of Titania', 'Elvish Mystic'] } }),
     certo: (s, j) => j.acao.t === 'activate' && nomeDe(s, j.acao.oid) === 'Viridian Longbow' },
+  // B-193 · Control (partidas narradas da B-189): virava a mana no próprio turno com a anulação na mão "porque a mana ia
+  // sobrar" — 8 vezes, 6 derrotas (semente 900, T3: Nihil Spellbomb com a Counterspell na mão e duas terras).
+  { id: 'seq-guarda-anulacao-spellbomb', classe: 'sequencia', lista: CONTROLE, porque: 'segunda fase principal, duas terras e a Counterspell na mão contra o Madness com cinco cartas: a mana não sobra — fica aberta para a anulação',
+    monta: () => monta(CONTROLE, MADNESS, { passo: 'main2', p0: { campo: ['Island', 'Contaminated Aquifer'], mao: ['Counterspell', 'Nihil Spellbomb', 'Thorn of the Black Rose', 'Island'] }, p1: { campo: ['Mountain', 'Mountain'], mao: ['Kessig Flamebreather', 'Highway Robbery', 'Lightning Bolt', 'Fiery Temper', 'Mountain'] } }),
+    certo: (s, j) => j.acao.t === 'pass' },
+  { id: 'seq-guarda-anulacao-preordain', classe: 'sequencia', lista: CONTROLE, porque: 'duas Ilhas, Counterspell e Preordain na mão contra o Terror com três Ilhas e a mão cheia: o Preordain espera; a Counterspell fica de pé para o Tolarian Terror',
+    monta: () => monta(CONTROLE, TERROR, { passo: 'main2', p0: { campo: ['Island', 'Island'], mao: ['Counterspell', 'Preordain', 'Baleful Strix'] }, p1: { campo: ['Island', 'Island', 'Island'], mao: ['Tolarian Terror', 'Cryptic Serpent', 'Ponder', 'Island', 'Counterspell'] } }),
+    certo: (s, j) => j.acao.t === 'pass' },
   // ---- mulligan
   { id: 'mull-sete-terrenos', classe: 'mulligan', lista: TERROR, porque: 'sete terrenos não jogam: mulligan',
     mulligan: true, monta: () => maoInicial(TERROR, MADNESS, ['Island', 'Island', 'Island', 'Island', 'Island', 'Island', 'Island']),
