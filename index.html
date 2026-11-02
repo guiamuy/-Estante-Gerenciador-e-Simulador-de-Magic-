@@ -821,11 +821,10 @@ a { color: var(--accent); }
 .inicio__rapidos .ds-atalho__rotulo { font-family: var(--font-ui); font-size: var(--text-sm); line-height: var(--lh-sm); font-weight: var(--weight-medium); color: var(--fg); }
 .inicio__rapidos .ds-atalho.ds-btn:active .ds-atalho__icone { transform: scale(.94); }
 .inicio__rapidos .ds-atalho__icone { transition: transform var(--dur-1) var(--ease-out); }
-/* DS-K2 I1 (G-323) · Início como na proposta K: "N listas prontas para jogar" sob o título e o grupo "Últimas listas" — as três
-   mais recentes, cada uma com o ladrilho nas cores da lista, nome, formato, contagem, posse e o selo do motor; "ver todas"
-   leva à estante. Sem lista, o grupo não aparece. */
-.inicio__prontas { display: inline-flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); color: var(--fg-muted); }
-.inicio__prontas b { color: var(--accent-lo); font-weight: var(--weight-bold); }
+/* DS-K2 I1 (G-323) · Início como na proposta K: o grupo "Últimas listas" — as três mais recentes, cada uma com o ladrilho
+   nas cores da lista, nome, formato, contagem, posse e o selo do motor; "ver todas" leva à estante. Sem lista, o grupo não
+   aparece. G-328 · relato #47: a linha "N listas prontas para jogar" sob o título saiu — contava só as suas listas de Pauper
+   que o motor joga, lia-se como o catálogo e não batia com o total da estante; o selo do motor em cada lista já diz isso. */
 .home-ultimas { display: grid; gap: var(--space-2); }
 .home-ultimas__cab { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); padding: 0 var(--space-1); }
 .home-ultimas__cab h2 { margin: 0; font-family: var(--font-display); font-weight: 600; font-size: var(--text-lg); line-height: var(--lh-lg); }
@@ -46045,7 +46044,6 @@ function renderHome({ ancora = false } = {}) {
   const titulo = Text(nomeDoPerfil ? `Olá, ${nomeDoPerfil}` : 'Estante', { size: '2xl', display: true, as: 'h1', attrs: { id: 'home-titulo' } });
   const frase = Text('Listas, coleção, scanner e mesa com regras.', { tone: 'muted', attrs: { id: 'home-frase' } });
   frase.classList.toggle('ds-hidden', !!nomeDoPerfil);
-  const prontas = h('p', { class: 'inicio__prontas ds-hidden', id: 'home-prontas' }); // DS-K2 I1 · "N listas prontas para jogar"
   const ultimas = h('div', { id: 'home-ultimas-slot' });
   const hoje = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
   const continuar = h('div', { id: 'home-continuar-slot' });
@@ -46055,7 +46053,7 @@ function renderHome({ ancora = false } = {}) {
   const tituloLinha = h('div', { class: 'inicio__titulo-linha' }, titulo, acoesDoTitulo); // G-276 · com a conta conectada, Sair da conta à direita do título
   confereNotificacoes(); // G-314 · pedido de cobertura atendido vira notificação
   const el = h('div', { class: 'ds-wrap inicio', id: 'home' },
-    h('header', { class: 'inicio__cab' }, h('span', { class: 'inicio__data', id: 'home-data' }, hoje), tituloLinha, frase, prontas),
+    h('header', { class: 'inicio__cab' }, h('span', { class: 'inicio__data', id: 'home-data' }, hoje), tituloLinha, frase),
     continuar,
     // U2 · atalhos com ícone e uma palavra; K4 · Jogar continua o primário, os outros quatro numa linha
     h('nav', { class: 'ds-atalhos inicio__atalhos', id: 'home-atalhos', 'aria-label': 'Atalhos' },
@@ -46083,8 +46081,7 @@ function renderHome({ ancora = false } = {}) {
   }).catch(() => {});
   if (conta && conta.get) conta.get().then(c => { if (c && el.isConnected && !tituloLinha.querySelector('#home-sair')) acoesDoTitulo.appendChild(__m3.IconButton('desistir', 'Sair da conta', { id: 'home-sair', variant: 'ghost', onClick: sairDaConta })); }).catch(() => {});
   painelContinuar().then(card => { if (card) { continuar.replaceChildren(card); el.querySelector('#go-play').classList.remove('ds-btn--primary'); } }).catch(() => {});
-  painelUltimasListas().then(r => { if (!r || !el.isConnected) return; if (r.bloco) ultimas.replaceChildren(r.bloco);
-    if (r.prontas > 0) { prontas.replaceChildren(h('b', {}, String(r.prontas)), document.createTextNode(`${r.prontas === 1 ? 'lista pronta' : 'listas prontas'} para jogar · ${r.formato}`)); prontas.classList.remove('ds-hidden'); } }).catch(() => {});
+  painelUltimasListas().then(r => { if (r && r.bloco && el.isConnected) ultimas.replaceChildren(r.bloco); }).catch(() => {});
   return el;
 }
 
@@ -46097,8 +46094,6 @@ async function painelUltimasListas() {
   let guardadas = new Map(), owned = {};
   try { guardadas = await cardRepo.cached([...new Set(todas.flatMap(d => d.entries.map(e => e.name)))]); } catch (e) { /* sem cache: sem cores nem selo */ }
   try { owned = await collection.all(); } catch (e) { owned = {}; }
-  const abertos = __m39.FORMATOS_ABERTOS, formato = abertos[0];
-  const prontas = todas.filter(d => abertos.includes(d.format) && __m15.contaMotor(d, guardadas).estado === 'completo').length;
   const MANA = { W: 'var(--mana-w)', U: 'var(--mana-u)', B: 'var(--mana-b)', R: 'var(--mana-r)', G: 'var(--mana-g)' };
   const ladrilho = cores => { const cs = [...(cores || '')].filter(c => MANA[c]); const stops = cs.length ? cs.map(c => MANA[c]) : ['var(--mana-c)'];
     return h('span', { class: 'home-lista__ladrilho', 'aria-hidden': 'true', style: { '--ladrilho': stops.length === 1 ? stops[0] : `linear-gradient(135deg, ${stops.map((c, i) => `${c} ${Math.round(i * 100 / stops.length)}% ${Math.round((i + 1) * 100 / stops.length)}%`).join(', ')})` } }); };
@@ -46110,7 +46105,7 @@ async function painelUltimasListas() {
   const bloco = h('section', { class: 'home-ultimas', id: 'home-ultimas', 'aria-labelledby': 'home-ultimas-titulo' },
     h('div', { class: 'home-ultimas__cab' }, h('h2', { id: 'home-ultimas-titulo' }, 'Últimas listas'), Button('Ver todas', { variant: 'ghost', id: 'home-ultimas-todas', icone: 'seguir', onClick: () => { location.hash = '#/listas'; } })),
     h('div', { class: 'ds-list' }, ...linhas));
-  return { bloco, prontas, formato: __m39.ROTULO_DO_FORMATO[formato] || formato };
+  return { bloco };
 }
 
 /** D3 · cartão Continuar: partida em andamento (com placar da série ou sala online), última lista aberta e pilha do scanner.
