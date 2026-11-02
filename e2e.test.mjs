@@ -13812,6 +13812,65 @@ test('e2e · J-33 · relato #40 · CR 720 · presságio: sem mana para a criatur
   assert.deepEqual(M.errors, []);
 });
 
+// J-55 (decisão do dono, 02/11/2026, print do Roost Seek) · a pilha e a janela da escolha mostravam "Roost Seek" escrito num quadrado
+// vazio: a face do presságio não tem imagem própria na Scryfall (a arte é uma só, da carta inteira) e a mesa procurava a imagem da face.
+// Agora a face sem imagem usa a arte da carta, e toda decisão mostra a carta de onde o efeito veio.
+test('e2e · J-55 a carta de origem: o presságio Roost Seek vai à pilha com a arte do Sagu Wildling e a escolha do grimório mostra essa carta (tocar abre a carta); 360 e 412, dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t, { dev: false });
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.route('https://cards.scryfall.io/**', r => r.fulfill({ status: 200, contentType: 'image/svg+xml', headers: { 'access-control-allow-origin': '*' },
+    body: '<svg xmlns="http://www.w3.org/2000/svg" width="488" height="680"><rect width="488" height="680" fill="#111"/><rect x="40" y="76" width="408" height="301" fill="#2f7a4a"/></svg>' }));
+  await comOficiais(page, ['Forest'], { imagens: true });
+  // a Scryfall dá o presságio como uma carta de duas faces sem imagem por face (layout "omen"): a arte é a da carta
+  const sagu = { object: 'card', id: 'sagu', name: 'Sagu Wildling', layout: 'omen', type_line: 'Creature — Dragon // Sorcery — Omen', mana_cost: '{4}{G} // {G}', cmc: 5, colors: ['G'], color_identity: ['G'], keywords: ['Flying'],
+    image_uris: Object.fromEntries(['small', 'normal', 'large'].map(t => [t, `https://cards.scryfall.io/${t}/front/x/sagu.png`])),
+    card_faces: [{ object: 'card_face', name: 'Sagu Wildling', mana_cost: '{4}{G}', type_line: 'Creature — Dragon', oracle_text: 'Flying\nWhen this creature enters, you gain 3 life.', power: '3', toughness: '3' },
+      { object: 'card_face', name: 'Roost Seek', mana_cost: '{G}', type_line: 'Sorcery — Omen', oracle_text: 'Search your library for a basic land card, reveal it, put it into your hand, then shuffle. (Also shuffle this card.)' }] };
+  await page.route('https://api.scryfall.com/cards/collection', async r => {
+    const ids = JSON.parse(r.request().postData()).identifiers;
+    if (!ids.some(i => i.name.toLowerCase() === 'sagu wildling')) return r.fallback();
+    const resto = ids.filter(i => i.name.toLowerCase() !== 'sagu wildling');
+    const forest = { object: 'card', id: 'Forest', name: 'Forest', type_line: 'Basic Land — Forest', mana_cost: '', oracle_text: '({T}: Add {G}.)', colors: [], color_identity: [], cmc: 0, keywords: [], image_uris: Object.fromEntries(['small', 'normal', 'large'].map(t => [t, `https://cards.scryfall.io/${t}/front/x/Forest.png`])) };
+    return r.fulfill({ json: { data: [sagu, ...resto.filter(i => i.name.toLowerCase() === 'forest').map(() => forest)], not_found: resto.filter(i => i.name.toLowerCase() !== 'forest') } });
+  });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'Presságio', '20 Forest\n20 Sagu Wildling', 'livre');
+  await page.goto(base + '#/mesa'); await page.fill('#mesa-seed', '4');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForTimeout(300);
+  await meuPrincipal121(page);
+  const sg = await page.evaluate(() => { const s = window.__estanteMesa.estado(), z = s.zones[0];
+    const tira = (nome, de) => { const i = z[de].findIndex(o => s.objects[o].name === nome); return i < 0 ? null : z[de].splice(i, 1)[0]; };
+    for (const oid of z.battlefield.filter(o => s.objects[o].name === 'Forest')) s.objects[oid].tapped = true;
+    const fl = tira('Forest', 'library') || tira('Forest', 'hand'); Object.assign(s.objects[fl], { zone: 'battlefield', controller: 0, tapped: false, sick: false, damage: 0, counters: {} }); z.battlefield.push(fl);
+    for (const c of 'WUBRGC') s.players[0].pool[c] = 0;
+    const sg = tira('Sagu Wildling', 'library'); s.objects[sg].zone = 'hand'; z.hand.push(sg);
+    window.__estanteMesa.repinta(); return sg; });
+  await page.locator('#tb-hand .tb-card[aria-label^="Sagu Wildling"]').last().click(); await page.waitForSelector('.ds-dialog'); await page.waitForTimeout(300);
+  await page.locator('.ds-dialog .tb-sheet__actions button', { hasText: /^Presságio/ }).click(); await page.waitForTimeout(300);
+  // na pilha: a faixa e o cartão aberto mostram a arte da carta (não o nome num quadrado vazio)
+  await page.waitForSelector('#tb-stack');
+  const pilha = await page.evaluate(() => { const st = document.querySelector('#tb-stack'), img = [...st.querySelectorAll('img')];
+    return { titulo: (st.querySelector('.tb-stack__topo') || {}).textContent || '', imagens: img.map(i => i.dataset.fonte || '') /* a imagem retida vem por blob: a fonte fica em data-fonte */, soNome: !!st.querySelector('.tb-stack__nome') }; });
+  assert.ok(/Roost Seek/.test(pilha.titulo) && pilha.imagens.length && pilha.imagens.every(x => /sagu/.test(x)) && !pilha.soNome, 'a pilha mostra a arte do Sagu Wildling para o Roost Seek: ' + JSON.stringify(pilha));
+  for (let i = 0; i < 20; i++) { const e = await estado121(page); if (e.pend) break; await page.click('#tb-pass').catch(() => {}); await page.waitForTimeout(120); }
+  await page.waitForSelector('.tb-decisao-origem #tb-decisao-origem');
+  for (const [w, hgt] of [[360, 780], [412, 891]]) for (const tema of ['dark', 'light']) {
+    await page.setViewportSize({ width: w, height: hgt }); await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(300);
+    const d = await page.evaluate(() => { const R = e => e.getBoundingClientRect(), dec = document.querySelector('#tb-decisao'), mini = document.querySelector('#tb-decisao-origem'), img = mini.querySelector('img'), tit = dec.querySelector(':scope > strong');
+      const m = R(mini), t = R(tit);
+      return { fala: mini.getAttribute('aria-label'), img: img ? (img.dataset.fonte || '') : null, w: m.width, h: m.height, aEsquerda: m.right <= t.left + 0.5, titulo: tit.textContent, dentro: (w => m.left >= w.left - 0.5 && m.bottom <= w.bottom + 0.5)(R(dec.parentNode)), soPergunta: !/Carta de origem/.test(dec.innerText) }; });
+    const onde = `${w} ${tema}`;
+    assert.ok(d.fala === 'Carta de origem: Roost Seek' && /sagu/.test(d.img || ''), `${onde}: a decisão mostra a carta de onde veio, com a arte ` + JSON.stringify(d));
+    assert.ok(/Roost Seek/.test(d.titulo) && d.aEsquerda && d.dentro && d.soPergunta && d.w >= 44 && Math.abs(d.h / d.w - 680 / 488) < 0.05, `${onde}: miniatura de 44 px ou mais, na proporção da carta, à esquerda do título ` + JSON.stringify(d));
+    await auditaTela(page, `J-55 · origem ${onde}`);
+  }
+  if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark')); await page.waitForTimeout(300); await page.screenshot({ path: process.env.SHOTS + '/j55-origem.png' }); }
+  // tocar na miniatura abre a carta
+  await page.click('#tb-decisao-origem'); await page.waitForSelector('.ds-dialog');
+  assert.match(await page.locator('.ds-dialog').innerText(), /Roost Seek/);
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · T-8 · CR 712.11b / 712.12 · dupla face modal: a folha oferece conjurar a frente ou jogar o terreno do verso, cada botão com o nome da face; jogado, entra o terreno do verso', { skip }, async t => {
   // Texto oficial em .listas/oficiais-tipos.json (Oracle do Forge, 11/10/2026): Tangled Florahedron // Tangled Vale.
   const extras = JSON.parse(readFileSync(join(ROOT, '.listas', 'oficiais-tipos.json'), 'utf8')).cartas.filter(c => c.name === 'Tangled Florahedron');

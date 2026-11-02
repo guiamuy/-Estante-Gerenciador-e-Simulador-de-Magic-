@@ -595,10 +595,14 @@ test('H1 · a carta que a mesa desenha: o nome do verso de uma dupla face acha a
   assert.deepEqual([v.name, v.type_line, v.oracle_text, v.power, v.toughness, v.images, v.faceDe, v.face, v.faces, v.cmc], ['Insectile Aberration', 'Creature — Human Insect', 'Flying', '3', '2', verso, 'Delver of Secrets', 1, [], 1]);
   assert.equal(T.cartaDaMesa(cards, 'Island'), cards.Island);
   assert.equal(T.cartaDaMesa(cards, 'Carta que não existe'), null); assert.equal(T.cartaDaMesa(null, 'Island'), null); assert.equal(T.cartaDaMesa(cards, ''), null);
-  // face sem imagem própria (aventura, carta dividida): fica sem imagem em vez de mostrar a arte da outra face como se fosse dela
+  // face sem imagem própria (aventura, presságio, carta dividida): a Scryfall dá uma arte só para a carta inteira (as duas metades
+  // impressas juntas), e é essa a carta de onde o efeito vem. J-55 (decisão do dono, 02/11/2026: "mostramos a carta de onde ele veio"):
+  // a segunda face também usa a imagem da carta — antes ficava sem imagem e a pilha mostrava "Roost Seek" num quadrado vazio
   const div = { 'Fire // Ice': { name: 'Fire // Ice', images: { normal: 'x' }, faces: [{ name: 'Fire', images: null }, { name: 'Ice', images: null }] } };
   assert.deepEqual(J(T.cartaDaMesa(div, 'Fire').images), { normal: 'x' }, 'a primeira face de uma carta de imagem única usa a imagem da carta');
-  assert.equal(T.cartaDaMesa(div, 'Ice').images, null);
+  assert.deepEqual(J(T.cartaDaMesa(div, 'Ice').images), { normal: 'x' }, 'a segunda face também usa a imagem da carta (J-55)');
+  const omen = { 'Sagu Wildling': { name: 'Sagu Wildling', images: { normal: 's' }, faces: [{ name: 'Sagu Wildling', images: null }, { name: 'Roost Seek', images: null }] } };
+  assert.deepEqual(J(T.cartaDaMesa(omen, 'Roost Seek').images), { normal: 's' }, 'o presságio Roost Seek mostra a arte do Sagu Wildling');
 });
 
 test('H2 · contra o bot dá para voltar quantas jogadas quiser, atravessando compra e turno do bot; a dois a barreira continua', () => {

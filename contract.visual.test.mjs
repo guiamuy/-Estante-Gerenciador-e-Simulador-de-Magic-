@@ -659,6 +659,15 @@ test('DS-K2 · M1 a carta do campo na moldura K: janela da arte por token sobre 
   }
 });
 
+/* ---------------- J-55 · a decisão mostra a carta de origem ---------------- */
+test('J-55 · a decisão com carta de origem ganha a miniatura ao lado (à esquerda, de largura por token; título e dica à direita, fora do texto da decisão) e o texto da decisão não pinta a miniatura', () => {
+  assert.match(componentCss, /\.tb-decisao-origem \{ display: flex; align-items: center;/);
+  assert.match(componentCss, /\.tb-decisao__carta \.tb-card \{ width: var\(--decisao-origem\); \}/);
+  assert.match(HTML, /--decisao-origem: \d+px;/);
+  assert.ok(!/\.tb-decisao span \{/.test(componentCss), 'a regra de texto da decisão não alcança a miniatura');
+  assert.match(HTML, /images: f\.images \|\| c\.images \|\| null/, 'face sem imagem própria usa a arte da carta');
+});
+
 /* ---------------- J-53 · ícones de estado que cabem e rolagem afastada ---------------- */
 test('J-53 · o ícone de estado é um quadrado de --estado-tam com o número num selo que não alarga; piso e folga da rolagem são tokens; a fileira que rola ganha a folga', () => {
   assert.match(componentCss, /\.tb-estado \{[^}]*width: var\(--estado-tam\); height: min\(var\(--estado-tam\), 100%\);/);
