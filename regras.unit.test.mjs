@@ -514,3 +514,30 @@ test('G-286 · uso opt-in: só a própria conta escreve e lê os números do dia
   await semConta.liga(true); assert.equal((await semConta.enviaSePrecisa()).feito, 'sem-conta');
   assert.equal((await semConta.liga(false)).feito, 'apagado');
 });
+
+test('R-43 · painel/$uid/metas/$cartao: só o dono lê, escreve e tira; uma meta por cartão pn-k-*, com kind, version 1, cartão igual à chave, alvo ≥ 0, unidade curta, sentido maior ou menor e data AAAA-MM-DD; chave desconhecida recusada', async () => {
+  const DONO = { uid: 'uidDoDono_001', token: { email: 'gui.amuy@gmail.com' } };
+  const b = bancoComRegras();
+  const meta = { kind: 'estante.painel.meta', version: 1, cartao: 'pn-k-portao', alvo: 20, unidade: 'min', sentido: 'menor', ate: '2026-11-30', atualizadoEm: 1700000000000 };
+  const caminho = id => `painel/${DONO.uid}/metas/${id}`;
+  await transporte(b, DONO).escrever(caminho('pn-k-portao'), meta);
+  assert.deepEqual(await transporte(b, DONO).ler(caminho('pn-k-portao')), meta);
+  await transporte(b, DONO).escrever(caminho('pn-k-verde1'), { ...meta, cartao: 'pn-k-verde1', alvo: 85, unidade: '%', sentido: 'maior' });
+  assert.deepEqual(Object.keys(await transporte(b, DONO).ler(`painel/${DONO.uid}/metas`)).sort(), ['pn-k-portao', 'pn-k-verde1']);
+  await transporte(b, DONO).escrever(caminho('pn-k-verde1'), null);
+  assert.deepEqual(Object.keys(await transporte(b, DONO).ler(`painel/${DONO.uid}/metas`)), ['pn-k-portao'], 'tirar a meta apaga só aquele cartão');
+  await recusa(transporte(b, ANA).ler(caminho('pn-k-portao')), 'Ana lê a meta do dono');
+  await recusa(transporte(b, ANA).escrever(caminho('pn-k-portao'), null), 'Ana tira a meta do dono');
+  await recusa(transporte(b, { uid: DONO.uid, token: { email: 'outra@pessoa.com' } }).escrever(caminho('pn-k-portao'), meta), 'outro e-mail');
+  await recusa(transporte(b, DONO).escrever(caminho('outra-coisa'), { ...meta, cartao: 'outra-coisa' }), 'chave fora de pn-k-*');
+  await recusa(transporte(b, DONO).escrever(caminho('pn-k-lead'), meta), 'cartão diferente da chave');
+  await recusa(transporte(b, DONO).escrever(caminho('pn-k-portao'), { ...meta, alvo: -1 }), 'alvo negativo');
+  await recusa(transporte(b, DONO).escrever(caminho('pn-k-portao'), { ...meta, alvo: '20' }), 'alvo em texto');
+  await recusa(transporte(b, DONO).escrever(caminho('pn-k-portao'), { ...meta, sentido: 'igual' }), 'sentido desconhecido');
+  await recusa(transporte(b, DONO).escrever(caminho('pn-k-portao'), { ...meta, ate: '30/11/2026' }), 'data fora da forma');
+  await recusa(transporte(b, DONO).escrever(caminho('pn-k-portao'), { ...meta, unidade: 'x'.repeat(13) }), 'unidade longa');
+  await recusa(transporte(b, DONO).escrever(caminho('pn-k-portao'), { ...meta, version: 2 }), 'versão desconhecida');
+  await recusa(transporte(b, DONO).escrever(caminho('pn-k-portao'), { ...meta, email: 'x@y.z' }), 'chave desconhecida (e-mail nunca entra)');
+  const { ate, ...semData } = meta;
+  await recusa(transporte(b, DONO).escrever(caminho('pn-k-portao'), semData), 'sem data');
+});

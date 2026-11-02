@@ -862,6 +862,21 @@ button.pn-barras__linha[aria-pressed="true"] { background: var(--accent-soft); }
 }
 @keyframes pn-pulsa { 0% { transform: scale(1); } 35% { transform: scale(1.9); } 100% { transform: scale(1); } }
 
+/* R-43 · BI4-4 · meta no cartão: a linha da meta (ícone de alvo, valor e data) e a situação; o formulário abre no próprio cartão,
+   que passa a ocupar a largura inteira da grade. O estado muda só a cor do ícone; o texto diz tudo. */
+.pn-cartao[data-meta-aberta="true"] { grid-column: 1 / -1; }
+.pn-meta { display: flex; flex-direction: column; gap: var(--space-1); padding-top: var(--space-2); border-top: 1px solid var(--border); min-width: 0; }
+.pn-meta p { margin: 0; overflow-wrap: anywhere; }
+.pn-meta__alvo { display: flex; align-items: flex-start; gap: var(--space-1); color: var(--fg); }
+.pn-meta__alvo > span { min-width: 0; }
+.pn-meta__icone { color: var(--fg-subtle); flex: none; margin-top: 3px; }
+.pn-meta[data-estado="atingida"] .pn-meta__icone, .pn-meta[data-estado="no-ritmo"] .pn-meta__icone { color: var(--positive); }
+.pn-meta[data-estado="em-risco"] .pn-meta__icone { color: var(--warning); }
+.pn-meta--form { gap: var(--space-2); }
+.pn-meta--form .ds-input { width: 100%; }
+.pn-meta--tirada { flex-direction: row; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.pn-balao__acoes { gap: var(--space-2); flex-wrap: wrap; }
+
 </style>
 </head>
 <body>
@@ -1077,7 +1092,61 @@ const __p0 = (function () {
       }
     };
   }
-  return { REPO, API, RAW, erro, h, clear, createGuarda, createFonte, createPlano, createNegocio, respostaDoRetrato, diasDoRetrato, commitsDoRetrato, intervaloDoCaminho, RETRATO_FRESCOR };
+  /** R-43 · BI4-4 · Metas do dono: uma por cartão em `/painel/<uid>/metas/<cartão>` (mesma regra do plano: só o uid e o e-mail
+      do dono), com cópia no aparelho (`painel.metas`). Por cartão, o mais novo por `atualizadoEm` vence; tirar a meta deixa uma
+      marca ("removida") que vence a cópia mais velha do banco. Gravar e tirar leem de volta antes de dizer "no banco". */
+  function createMetas({ fetch: fetchFn = null, dbUrl = '', token = null, uid = null, guarda, chave = 'painel.metas' } = {}) {
+    const f = fetchFn || (typeof fetch === 'function' ? fetch.bind(globalThis) : null);
+    const url = async id => { const u = uid && uid(); const t = token ? await token() : null; if (!dbUrl || !u || !t || !f) return null; return `${dbUrl}/painel/${encodeURIComponent(u)}/metas${id ? '/' + encodeURIComponent(id) : ''}.json?auth=${encodeURIComponent(t)}`; };
+    const local = () => { const m = guarda.ler(chave); return m && typeof m === 'object' ? m : {}; };
+    const campos = ['cartao', 'alvo', 'unidade', 'sentido', 'ate', 'atualizadoEm'];
+    const valida = r => !!r && typeof r === 'object' && r.kind === 'estante.painel.meta' && r.version === 1 && typeof r.cartao === 'string' && Number.isFinite(r.alvo) && /^\d{4}-\d{2}-\d{2}$/.test(r.ate || '') && (r.sentido === 'maior' || r.sentido === 'menor');
+    const igual = (a, b) => !!a && !!b && campos.every(k => (a[k] ?? null) === (b[k] ?? null));
+    const limpo = r => { const x = { ...r }; delete x.origem; delete x.pendente; return x; };
+    const poe = (id, x) => { const m = { ...local() }; if (x == null) delete m[id]; else m[id] = x; guarda.gravar(chave, m); };
+    return {
+      local,
+      /** Só as metas valendo (sem as marcas de removida). */
+      ativas() { const m = local(); const s = {}; for (const [k, v] of Object.entries(m)) if (v && !v.removida && valida(v)) s[k] = v; return s; },
+      async ler() {
+        const meu = local();
+        const u = await url().catch(() => null);
+        if (!u) return { metas: meu, onde: 'aparelho', motivo: dbUrl ? 'sem-sessao' : 'sem-banco' };
+        let r; try { r = await f(u, { method: 'GET' }); } catch (e) { return { metas: meu, onde: 'aparelho', motivo: 'sem-rede' }; }
+        if (!r.ok) return { metas: meu, onde: 'aparelho', motivo: r.status === 401 || r.status === 403 ? 'recusado' : 'fora' };
+        let remoto = null; try { remoto = await r.json(); } catch (e) { remoto = null; }
+        const junto = {};
+        for (const [id, reg] of Object.entries(remoto && typeof remoto === 'object' ? remoto : {})) if (valida(reg) && reg.cartao === id) junto[id] = { ...reg, origem: 'banco' };
+        for (const [id, reg] of Object.entries(meu)) if (reg && (!junto[id] || (reg.atualizadoEm || 0) > (junto[id].atualizadoEm || 0)) && (reg.removida || reg.pendente || !junto[id])) { if (reg.removida || reg.pendente) junto[id] = reg; }
+        guarda.gravar(chave, junto);
+        return { metas: junto, onde: 'banco', motivo: Object.values(junto).some(x => x.pendente) ? 'pendente' : null };
+      },
+      async gravar(reg) {
+        const p = limpo(reg);
+        const u = await url(p.cartao).catch(() => null);
+        if (!u) { poe(p.cartao, { ...p, pendente: !!dbUrl }); return { onde: 'aparelho', motivo: dbUrl ? 'sem-sessao' : 'sem-banco' }; }
+        let r; try { r = await f(u, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p) }); } catch (e) { poe(p.cartao, { ...p, pendente: true }); return { onde: 'aparelho', motivo: 'sem-rede' }; }
+        if (!r.ok) { poe(p.cartao, { ...p, pendente: true }); return { onde: 'aparelho', motivo: r.status === 401 || r.status === 403 ? 'recusado' : 'fora' }; }
+        let volta = null; try { volta = await r.json(); } catch (e) { volta = null; }
+        if (!igual(volta, p)) { poe(p.cartao, { ...p, pendente: true }); return { onde: 'aparelho', motivo: 'conferencia' }; }
+        poe(p.cartao, { ...p, origem: 'banco' });
+        return { onde: 'banco', motivo: null };
+      },
+      /** Tira a meta: apaga no banco e confere que não voltou; sem banco, fica a marca "removida" neste aparelho. */
+      async remover(id) {
+        const marca = { cartao: id, removida: true, atualizadoEm: Date.now(), pendente: true };
+        const u = await url(id).catch(() => null);
+        if (!u) { poe(id, dbUrl ? marca : null); return { onde: 'aparelho', motivo: dbUrl ? 'sem-sessao' : 'sem-banco' }; }
+        let r; try { r = await f(u, { method: 'DELETE' }); } catch (e) { poe(id, marca); return { onde: 'aparelho', motivo: 'sem-rede' }; }
+        if (!r.ok) { poe(id, marca); return { onde: 'aparelho', motivo: r.status === 401 || r.status === 403 ? 'recusado' : 'fora' }; }
+        let volta; try { volta = await (await f(u, { method: 'GET' })).json(); } catch (e) { volta = undefined; }
+        if (volta !== null) { poe(id, marca); return { onde: 'aparelho', motivo: 'conferencia' }; }
+        poe(id, null);
+        return { onde: 'banco', motivo: null };
+      }
+    };
+  }
+  return { REPO, API, RAW, erro, h, clear, createGuarda, createFonte, createPlano, createNegocio, createMetas, respostaDoRetrato, diasDoRetrato, commitsDoRetrato, intervaloDoCaminho, RETRATO_FRESCOR };
 })();
 
 /* ==== src/painel/sessao.js ==== */
@@ -1267,6 +1336,11 @@ const __p2 = (function () {
       if (!c || !r.so.includes(c.farol)) return;
       saida.push({ regra: r.id, aba: r.aba, cartao: r.cartao, verbete: r.verbete, gravidade: c.farol, ordem: i, aconteceu: r.aconteceu(c), causa: r.causa, acao: r.acao });
     });
+    // R-43 · meta em risco: qualquer cartão com meta que o ritmo atual não alcança no prazo (atenção, nunca vermelho)
+    for (const [aba, cartoes] of Object.entries(cartoesPorAba || {})) for (const c of cartoes || []) {
+      if (c.meta !== 'em-risco') continue;
+      saida.push({ regra: 'meta-em-risco', aba, cartao: c.id, verbete: 'meta', gravidade: 'amarelo', ordem: INSIGHTS.length, aconteceu: `${c.rotulo}: ${c.metaTexto || 'meta em risco'}`, causa: 'o ritmo dos últimos 14 dias não leva o número à meta no prazo', acao: 'abra a aba, veja a tendência do cartão e ajuste o ritmo ou a meta' });
+    }
     saida.sort((a, b) => (PESO_INSIGHT[a.gravidade] - PESO_INSIGHT[b.gravidade]) || (a.ordem - b.ordem));
     return saida.slice(0, maximo);
   }
@@ -1378,6 +1452,42 @@ const __p2 = (function () {
       atual.push(p); ultimo = p;
     });
     return { largura, altura, min, max, trechos, ultimo };
+  }
+  /* ---------- R-43 · BI4-4 · metas do dono: quanto falta e, com série, quando chega no ritmo atual (reta dos mínimos quadrados
+     sobre os dias com dado; rotulada "estimada"). Sem série, só "quanto falta". Tudo na unidade em que o dono escreveu a meta. ---------- */
+  function inclinacao(serie) {
+    const pts = (serie || []).map((v, i) => [i, v]).filter(([, v]) => v != null && Number.isFinite(v));
+    if (pts.length < 2) return null;
+    const n = pts.length, mx = pts.reduce((s, [x]) => s + x, 0) / n, my = pts.reduce((s, [, y]) => s + y, 0) / n;
+    const den = pts.reduce((s, [x]) => s + (x - mx) ** 2, 0);
+    return den ? pts.reduce((s, [x, y]) => s + (x - mx) * (y - my), 0) / den : null;
+  }
+  const fimDoDia = iso => { const d = new Date(iso + 'T00:00:00'); d.setHours(23, 59, 59, 999); return d.getTime(); };
+  function estadoDaMeta(meta, { atual, serie = [], agora = Date.now() } = {}) {
+    if (!meta || !Number.isFinite(meta.alvo) || atual == null || !Number.isFinite(atual)) return null;
+    const maior = meta.sentido === 'maior';
+    if (maior ? atual >= meta.alvo : atual <= meta.alvo) return { estado: 'atingida', falta: 0, chegaEm: null };
+    const falta = Math.abs(meta.alvo - atual), prazo = fimDoDia(meta.ate);
+    if (agora > prazo) return { estado: 'em-risco', falta, chegaEm: null, motivo: 'prazo' };
+    const k = inclinacao(serie);
+    if (k == null) return { estado: 'sem-serie', falta, chegaEm: null };
+    if (!(maior ? k > 0 : k < 0)) return { estado: 'em-risco', falta, chegaEm: null, motivo: 'longe' };
+    const dias = Math.ceil(falta / Math.abs(k)), chegaEm = agora + dias * 86400000;
+    return { estado: chegaEm <= prazo ? 'no-ritmo' : 'em-risco', falta, chegaEm, dias, motivo: chegaEm <= prazo ? null : 'depois' };
+  }
+  const diaMes = ms => { const d = new Date(ms); return `${dois(d.getDate())}/${dois(d.getMonth() + 1)}`; };
+  /** "Meta: ≤ 20 min até 30/11" e a situação em palavras. `formato` escreve um número na unidade da meta. */
+  function frasesDaMeta(meta, e, formato = numeroCurto) {
+    const alvo = `Meta: ${meta.sentido === 'maior' ? '≥' : '≤'} ${formato(meta.alvo)} até ${diaMes(Date.parse(meta.ate + 'T12:00:00'))}`;
+    if (!e) return { alvo, situacao: 'sem dado para comparar' };
+    const falta = `faltam ${formato(e.falta)}`;
+    const situacao = e.estado === 'atingida' ? 'meta atingida'
+      : e.estado === 'sem-serie' ? falta
+      : e.motivo === 'prazo' ? `prazo passou · ${falta}`
+      : e.motivo === 'longe' ? `${falta} · no ritmo atual não chega (estimada)`
+      : e.motivo === 'depois' ? `${falta} · no ritmo atual chega em ${diaMes(e.chegaEm)}, depois do prazo (estimada)`
+      : `${falta} · no ritmo atual chega em ${diaMes(e.chegaEm)} (estimada)`;
+    return { alvo, situacao };
   }
   /** R-38 · placar da Visão geral: para cada aba, quantos cartões em cada farol e os nomes dos que estão fora do alvo e em atenção;
       da pior aba para a melhor (mais vermelhos, depois mais amarelos, depois a ordem das abas). Aba que não carregou vai para o fim, marcada. */
@@ -2032,6 +2142,7 @@ const __p2 = (function () {
     { id: 'conversa', termo: 'conversa', tambem: ['conversas', 'sessão', 'em curso', 'check-in', 'reserva'], grupo: 'painel', def: 'Cada chat com o Claude que trabalha numa trilha. Antes de editar, a conversa faz o check-in (reserva o que vai tocar) para não colidir com as outras; ao enviar, faz o check-out.', ler: '"Em curso" lista as conversas ativas e o que cada uma reservou; reserva parada há mais de 48 h pode ser assumida por outra.', onde: ['curso'] },
     { id: 'rotina', termo: 'rotina', tambem: ['tarefa agendada', 'rotinas', 'lembrete'], grupo: 'painel', def: 'Uma tarefa que roda sozinha num horário (lembrete para uma conversa retomar, verificação periódica). O painel lista as agendadas, as que rodaram e as pausadas.', ler: 'Rotina "falhou" = não rodou como previsto; "pausada" = alguém parou de propósito.', onde: ['skills'] },
     { id: 'modelo', termo: 'modelo', tambem: ['modelos', 'Claude Fable', 'Opus', 'Sonnet', 'tokens estimados'], grupo: 'painel', def: 'Qual versão do Claude fez a leva (Fable, Opus, Sonnet…). O painel compara levas, tempo e portão por modelo. "Tokens" é a unidade de consumo das conversas; quando aparece, é estimado pela conversa, não medido.', ler: 'Modelo com mais portão verde de primeira por leva = melhor custo-benefício para aquele tipo de trabalho.', onde: ['modelos'] },
+    { id: 'meta', termo: 'meta', tambem: ['meta em risco', 'no ritmo atual', 'quanto falta'], grupo: 'painel', def: 'Um valor e uma data que você fixa para um cartão (no balão do farol, "Definir meta"). O cartão passa a dizer quanto falta e, com a mini-linha dos 14 dias, quando chega no ritmo atual. A meta fica no seu banco, com cópia neste aparelho.', ler: '"faltam 5 min · no ritmo atual chega em 21/11 (estimada)" = a reta dos últimos 14 dias cruza a meta nesse dia; "depois do prazo" vira o aviso "meta em risco" no Resumo.', onde: ['eficiencia', 'resumo'] },
     { id: 'plano', termo: 'plano', tambem: ['consumo do plano', 'renovação', 'estimado'], grupo: 'painel', def: 'A assinatura do Claude que você usa. O painel não tem acesso ao consumo real: você informa o percentual e a data de renovação na sub-aba Modelos, e tudo que deriva disso leva o rótulo "estimado".', ler: '"Consumo: 80% · estimado" = o que você informou, não uma medição.', onde: ['modelos'] },
     { id: 'estimativa', termo: 'estimativa × realizado', tambem: ['estimativa', 'levas estimadas', 'gastas'], grupo: 'painel', def: 'Quantas levas uma conversa previu para um pedido e quantas gastou de fato. Sai da telemetria (a conversa registra a estimativa no começo).', ler: 'Realizado muito acima da estimativa = pedido subestimado ou retrabalho; serve para calibrar as próximas previsões.', onde: ['eficiencia', 'curso'] },
     { id: 'roadmap', termo: 'ROADMAP', tambem: ['roadmap', 'história', 'épico', 'tema', '16º-'], grupo: 'painel', def: 'O documento que é a fonte da verdade do plano: histórias (o que entregar, com valor, aceite e o que fica de fora) agrupadas em épicos e temas, cada uma com um identificador (16º-sb) e um status. Nenhuma entrega fecha sem atualizar a história.', ler: '% concluído por épico mostra onde o projeto avançou; história "parcial" tem o que falta escrito.', onde: ['roadmap'] },
@@ -2161,7 +2272,7 @@ const __p2 = (function () {
     coleta: 'raw · catalogo/coleta.json (saúde e contagens da última coleta; gravado pelo fluxo Catálogo)',
     indice: 'raw · catalogo/indice.json (só o cabeçalho: fontes, formatos, total, pendentes; lido uma vez por coleta e guardado por carimbo)'
   };
-  return { centavosDe, reaisDe, mesDe, rotuloDoMes, linhasDoNegocio, resumoDoNegocio, SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, linhasDosCommits, levasPorRodada, compactaCommits, MAIN_URL, intervalos, diasDoPeriodo, porSemana, parseRoadmap, resumoDoMapa, linhasDosPlacares, sharkPorVersao, minutosDasRodadas, serieDeTamanho, kb, cabecalhoDoIndice, resumoDoCatalogo, experienciaDasLevas, linhasDasRodadasCI, experienciaDasRodadas, instaveisPorNome, linhasDasPessoas, resumoDasPessoas, linhasDoUso, resumoDoUso, linhasDaForca, resumoDaForca, GLOSSARIO, GRUPOS_GLOSSARIO, buscaGlossario, nomeBate, verbeteDe, MARCAVEIS, segmentosComTermos, COMO_LER, FAROL_EM_PALAVRAS, alvoEmPalavras, placarDasAbas, INSIGHTS, insightsDe, proximosPassos, escalaRedonda, geometriaColunas, geometriaLinha, geometriaAnel, diaDe, diasAte, sentidoDoLimiar, variacao, tendencia, geometriaSparkline, glossarioPorGrupo, semAcento, medidaDoScanner, linhasDosRelatos, linhasDasTrilhas, resumoDoFluxo, fraseDoCron, linhasDosFluxos, linhasDasRotinas, porModelo, SECOES_CR, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
+  return { centavosDe, reaisDe, mesDe, rotuloDoMes, linhasDoNegocio, resumoDoNegocio, SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, linhasDosCommits, levasPorRodada, compactaCommits, MAIN_URL, intervalos, diasDoPeriodo, porSemana, parseRoadmap, resumoDoMapa, linhasDosPlacares, sharkPorVersao, minutosDasRodadas, serieDeTamanho, kb, cabecalhoDoIndice, resumoDoCatalogo, experienciaDasLevas, linhasDasRodadasCI, experienciaDasRodadas, instaveisPorNome, linhasDasPessoas, resumoDasPessoas, linhasDoUso, resumoDoUso, linhasDaForca, resumoDaForca, GLOSSARIO, GRUPOS_GLOSSARIO, buscaGlossario, nomeBate, verbeteDe, MARCAVEIS, segmentosComTermos, COMO_LER, FAROL_EM_PALAVRAS, alvoEmPalavras, placarDasAbas, INSIGHTS, insightsDe, proximosPassos, escalaRedonda, geometriaColunas, geometriaLinha, geometriaAnel, diaDe, diasAte, sentidoDoLimiar, variacao, tendencia, geometriaSparkline, inclinacao, estadoDaMeta, frasesDaMeta, glossarioPorGrupo, semAcento, medidaDoScanner, linhasDosRelatos, linhasDasTrilhas, resumoDoFluxo, fraseDoCron, linhasDosFluxos, linhasDasRotinas, porModelo, SECOES_CR, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
 })();
 
 /* ==== src/painel/ui.js ==== */
@@ -2173,7 +2284,8 @@ const __p3 = (function () {
     voltar: '<path d="M14.5 6l-6 6 6 6"/>',
     buscar: '<circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5 5"/>',   // R-35 · mesmo desenho do app
     fechar: '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>',
-    sobe: '<path d="M12 19V5M6.5 10.5L12 5l5.5 5.5"/>',      // R-42 · variação do cartão
+    sobe: '<path d="M12 19V5M6.5 10.5L12 5l5.5 5.5"/>',
+    alvo: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><path d="M12 12h.01"/>',   // R-43 · meta      // R-42 · variação do cartão
     desce: '<path d="M12 5v14M6.5 13.5L12 19l5.5-5.5"/>',
     livro: '<path d="M4 5.5A1.5 1.5 0 0 1 5.5 4H11a1 1 0 0 1 1 1v14a1 1 0 0 0-1-1H5.5A1.5 1.5 0 0 1 4 16.5z"/><path d="M20 5.5A1.5 1.5 0 0 0 18.5 4H13a1 1 0 0 0-1 1v14a1 1 0 0 1 1-1h5.5a1.5 1.5 0 0 0 1.5-1.5z"/>',
     atualizar: '<path d="M20 12a8 8 0 0 1-13.7 5.6"/><path d="M4 12a8 8 0 0 1 13.7-5.6"/><path d="M17.5 3v3.5H14"/><path d="M6.5 21v-3.5H10"/>',
@@ -2220,7 +2332,7 @@ const __p3 = (function () {
   }
   const Farol = (situacao, texto, { id } = {}) => h('span', { class: 'pn-farol ds-text ds-text--sm ds-text--muted', dataset: { farol: situacao }, id: id || null }, texto);
   /** R-37 · o farol do cartão diz em palavras o que a cor quer dizer e, tocado (ou com o mouse, ou no foco), abre o balão com o alvo deste cartão. */
-  const FarolDoCartao = (situacao, limiar, rotulo, mudou = false) => h('span', { class: 'pn-farol pn-farol--explica ds-text ds-text--sm ds-text--muted', tabindex: '0', dataset: { farol: situacao, ...(mudou ? { mudou: 'true' } : {}), termo: 'farol', alvo: (limiar && limiar.texto) || '', cartao: rotulo || '' }, 'aria-label': `farol: ${__p2.FAROL_EM_PALAVRAS[situacao] || situacao}${limiar && limiar.texto ? ' · alvo: ' + limiar.texto : ''}` }, __p2.FAROL_EM_PALAVRAS[situacao] || situacao);
+  const FarolDoCartao = (situacao, limiar, rotulo, mudou = false, meta = null) => h('span', { class: 'pn-farol pn-farol--explica ds-text ds-text--sm ds-text--muted', tabindex: '0', dataset: { farol: situacao, ...(mudou ? { mudou: 'true' } : {}), ...(meta ? { meta: meta.tem ? 'tem' : 'sim', cartaoId: meta.id } : {}), termo: 'farol', alvo: (limiar && limiar.texto) || '', cartao: rotulo || '' }, 'aria-label': `farol: ${__p2.FAROL_EM_PALAVRAS[situacao] || situacao}${limiar && limiar.texto ? ' · alvo: ' + limiar.texto : ''}` }, __p2.FAROL_EM_PALAVRAS[situacao] || situacao);
 
   /* ---------- R-4 · chips de filtro, cartão de KPI, barras ---------- */
   const Chip = (rotulo, { ativo = false, onClick, id, dataset, title } = {}) => h('button', { class: 'ds-chip', type: 'button', 'aria-pressed': String(!!ativo), id, dataset, onClick, title }, rotulo);
@@ -2247,15 +2359,16 @@ const __p3 = (function () {
         h('span', {}, v.curto || v.texto)),
       v.direcao ? h('p', { class: 'pn-cartao__janela ds-text ds-text--xs ds-text--subtle' }, 'últimos 7 dias contra os 7 anteriores') : null);
   }
-  function Cartao({ id, rotulo, valor, unidade = '', farol: situacao = null, limiar = null, fonte = '', formula = '', em = null, semDados = false, totalSemFiltro = null, nota = null, tendencia = null, formatoTendencia = null }) {
+  function Cartao({ id, rotulo, valor, unidade = '', farol: situacao = null, limiar = null, fonte = '', formula = '', em = null, semDados = false, totalSemFiltro = null, nota = null, tendencia = null, formatoTendencia = null, meta = null, rodape = null }) {
     let mudou = false;
     if (id && situacao) { const chave = id + '|' + formula, antes = FAROL_VISTO.get(chave); FAROL_VISTO.set(chave, situacao); mudou = antes != null && antes !== situacao && antes !== 'cinza' && situacao !== 'cinza'; }
-    return h('article', { class: 'ds-surface pn-cartao', id, 'aria-label': rotulo },
-      h('div', { class: 'pn-cartao__topo' }, h('span', { class: 'ds-text ds-text--caps' }, rotulo), situacao ? FarolDoCartao(situacao, limiar, rotulo, mudou) : null),
+    return h('article', { class: 'ds-surface pn-cartao', id, 'aria-label': rotulo, dataset: rodape && rodape.dataset && rodape.dataset.aberta === 'true' ? { metaAberta: 'true' } : {} },
+      h('div', { class: 'pn-cartao__topo' }, h('span', { class: 'ds-text ds-text--caps' }, rotulo), situacao ? FarolDoCartao(situacao, limiar, rotulo, mudou, meta && id ? { id, tem: !!meta.tem } : null) : null),
       semDados ? h('p', { class: 'ds-text ds-text--md ds-text--muted pn-cartao__vazio' }, 'sem dados neste recorte')
         : h('p', { class: 'ds-text ds-text--2xl ds-text--display pn-cartao__valor' }, String(valor), unidade ? h('span', { class: 'ds-text ds-text--sm ds-text--muted pn-cartao__unidade' }, ' ' + unidade) : null, totalSemFiltro != null ? h('span', { class: 'ds-text ds-text--sm ds-text--subtle pn-cartao__total', title: 'sem filtro' }, ` / ${totalSemFiltro}`) : null),
       nota ? h('p', { class: 'ds-text ds-text--sm ds-text--muted' }, nota) : null,
       tendencia && !semDados ? Tendencia(tendencia, rotulo, formatoTendencia || undefined) : null,
+      rodape,
       h('p', { class: 'ds-text ds-text--xs ds-text--subtle pn-cartao__origem', title: [fonte, formula, limiar && limiar.texto].filter(Boolean).join(' · ') }, [formula, fonte].filter(Boolean).join(' · ') + (em ? ` · ${__p2.carimbo(em)}` : '')));
   }
   /** Barras horizontais em HTML (lê como tabela; sem cor por série: o rótulo carrega a identidade). `tom` é um token de situação opcional.
@@ -2365,7 +2478,7 @@ const __p3 = (function () {
    sub-aba; filtro cruzado por toque numa barra; cada cartão diz o recorte; a sub-aba Pipeline lê a fila, as rodadas, o Pages e a
    telemetria com orçamento de pedidos declarado. */
 const __p4 = (function () {
-  const { h, clear, createGuarda, createFonte, createPlano, createNegocio } = __p0;
+  const { h, clear, createGuarda, createFonte, createPlano, createNegocio, createMetas } = __p0;
   const M = __p2;
   const { Grafico, COR_FAROL } = __p3;
   const { SUBABAS, LIMIARES, FONTES, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, minutos } = M;
@@ -2387,6 +2500,32 @@ const __p4 = (function () {
   const lerJsonl = txt => String(txt || '').split('\n').filter(l => l.trim()).map(l => { try { return JSON.parse(l); } catch (e) { return null; } }).filter(Boolean);
 
   /* ---------- visões (uma por sub-aba pronta): carrega(fonte, forcar) → dados; desenha(dados, filtros, api) → nós ---------- */
+  /** R-43 · BI4-4 · o pé do cartão com meta: o formulário (aberto pelo balão) ou a meta com quanto falta e a projeção.
+      `medida` = { unidade, sentido, escala } — o valor bruto do cartão dividido pela escala é o número na unidade da meta. */
+  function blocoDaMeta(api, id, medida, bruto, tendencia) {
+    if (!api || !api.metas) return null;
+    const meta = api.metas()[id] || null;
+    const fmt = v => `${(Math.round(v * 10) / 10).toLocaleString('pt-BR')}${medida.unidade === '%' ? ' %' : ' ' + medida.unidade}`;
+    if (api.metaAberta() === id) {
+      const r = api.rascunhoMeta();
+      return h('form', { class: 'pn-meta pn-meta--form', id: 'pn-meta-form', novalidate: true, dataset: { aberta: 'true' }, onSubmit: e => { e.preventDefault(); api.salvaMeta(id, medida); } },
+        __p3.Field(`Meta (${medida.unidade}) · ${medida.sentido === 'maior' ? 'quanto maior, melhor' : 'quanto menor, melhor'}`, __p3.Input({ id: 'pn-meta-alvo', type: 'text', inputmode: 'decimal', value: r.alvo, placeholder: medida.sentido === 'maior' ? 'chegar a pelo menos' : 'chegar a no máximo', onInput: e => api.mudaMeta({ alvo: e.target.value }) }), { id: 'pn-meta-alvo' }),
+        __p3.Field('Até', __p3.Input({ id: 'pn-meta-ate', type: 'date', value: r.ate, onInput: e => api.mudaMeta({ ate: e.target.value }) }), { id: 'pn-meta-ate' }),
+        h('div', { class: 'ds-row pn-form__acoes' },
+          __p3.Button('Salvar', { variant: 'primary', icone: 'conferir', id: 'pn-meta-salvar', onClick: () => api.salvaMeta(id, medida), disabled: api.salvandoMeta() }),
+          __p3.Button('Cancelar', { variant: 'ghost', id: 'pn-meta-cancelar', onClick: () => api.fechaMeta() }),
+          meta ? __p3.Button('Tirar meta', { variant: 'ghost', id: 'pn-meta-tirar', onClick: () => api.tiraMeta(id) }) : null));
+    }
+    const desfazer = api.desfazerMeta() && api.desfazerMeta().id === id
+      ? h('div', { class: 'pn-meta pn-meta--tirada', role: 'status' }, h('p', { class: 'ds-text ds-text--sm ds-text--muted' }, 'Meta tirada.'), __p3.Button('Desfazer', { variant: 'ghost', id: 'pn-meta-desfazer', onClick: () => api.desfazMeta() })) : null;
+    if (!meta) return desfazer;
+    const esc = medida.escala || 1;
+    const e = M.estadoDaMeta(meta, { atual: bruto == null ? null : bruto / esc, serie: (tendencia && tendencia.serie || []).map(v => (v == null ? null : v / esc)) });
+    const f = M.frasesDaMeta(meta, e, fmt);
+    return h('div', { class: 'pn-meta', dataset: { estado: e ? e.estado : 'sem-dado' } },
+      h('p', { class: 'pn-meta__alvo ds-text ds-text--sm' }, __p3.Icone('alvo', { tamanho: 14, classe: 'pn-meta__icone' }), h('span', {}, f.alvo), meta.pendente ? h('span', { class: 'ds-text ds-text--xs ds-text--subtle' }, ' · neste aparelho') : null),
+      h('p', { class: 'pn-meta__situacao ds-text ds-text--sm ds-text--muted' }, f.situacao));
+  }
   const VISOES = {
     /* R-38 · Visão geral: carrega as abas com dados (na ordem, com o mesmo cache e o retrato de cada uma) e desenha cada uma fora da tela
        só para contar os faróis dos cartões — o placar usa exatamente os cartões e os limiares que a aba mostra, nada calculado à parte */
@@ -3088,11 +3227,11 @@ const __p4 = (function () {
         return [
           h('div', { class: 'pn-cartoes' },
             Cartao({ id: 'pn-k-levas', rotulo: 'Levas publicadas', valor: rCom.linhas.length, unidade: `no recorte`, farol: null, fonte: FONTES.commits, formula: 'commits "Leva X-N" no main · ' + recorteTxt, em: d.em, totalSemFiltro: comFiltro ? recorte(todas, { periodo }, agora).linhas.length : null, semDados: !todas.length, tendencia: tend.levas }),
-            Cartao({ id: 'pn-k-intervalo', rotulo: 'Intervalo entre publicações', valor: minutos(M.mediana(ints)), unidade: ints.length ? `mediana · pior ${minutos(Math.max(...ints))}` : '', farol: ints.length ? farol(M.mediana(ints), LIMIARES.intervalo) : 'cinza', limiar: LIMIARES.intervalo, fonte: FONTES.commits, formula: 'diferença entre commits consecutivos · ' + recorteTxt, em: d.em, semDados: !ints.length , tendencia: tend.intervalo, formatoTendencia: minutos }),
-            Cartao({ id: 'pn-k-verde1', rotulo: 'Portão verde na primeira', valor: pct == null ? '—' : pct, unidade: pct == null ? '' : `% de ${total} rodadas`, farol: pct == null ? 'cinza' : farol(pct, LIMIARES.portaoVerde), limiar: LIMIARES.portaoVerde, fonte: FONTES.rodadas, formula: 'rodadas success ÷ concluídas · ' + recorteTxt, em: d.em, semDados: !total, nota: 'por rodada; por leva, só com telemetria' , tendencia: tend.verde1, formatoTendencia: v => String(Math.round(v)) }),
-            Cartao({ id: 'pn-k-portao', rotulo: 'Duração do portão', valor: minutos(M.mediana(duracoes)), unidade: duracoes.length ? `p50 · p95 ${minutos(M.p95(duracoes))}` : '', farol: duracoes.length ? farol(M.mediana(duracoes), LIMIARES.rodada) : 'cinza', limiar: LIMIARES.rodada, fonte: FONTES.rodadas, formula: 'updated_at − run_started_at · ' + recorteTxt, em: d.em, semDados: !duracoes.length , tendencia: tend.portao, formatoTendencia: minutos }),
+            Cartao({ id: 'pn-k-intervalo', rotulo: 'Intervalo entre publicações', valor: minutos(M.mediana(ints)), unidade: ints.length ? `mediana · pior ${minutos(Math.max(...ints))}` : '', farol: ints.length ? farol(M.mediana(ints), LIMIARES.intervalo) : 'cinza', limiar: LIMIARES.intervalo, fonte: FONTES.commits, formula: 'diferença entre commits consecutivos · ' + recorteTxt, em: d.em, semDados: !ints.length , meta: { tem: !!(api && api.metas && api.metas()['pn-k-intervalo']) }, rodape: blocoDaMeta(api, 'pn-k-intervalo', { unidade: 'h', sentido: M.sentidoDoLimiar(LIMIARES.intervalo), escala: 3600000 }, M.mediana(ints), tend.intervalo), tendencia: tend.intervalo, formatoTendencia: minutos }),
+            Cartao({ id: 'pn-k-verde1', rotulo: 'Portão verde na primeira', valor: pct == null ? '—' : pct, unidade: pct == null ? '' : `% de ${total} rodadas`, farol: pct == null ? 'cinza' : farol(pct, LIMIARES.portaoVerde), limiar: LIMIARES.portaoVerde, fonte: FONTES.rodadas, formula: 'rodadas success ÷ concluídas · ' + recorteTxt, em: d.em, semDados: !total, nota: 'por rodada; por leva, só com telemetria' , meta: { tem: !!(api && api.metas && api.metas()['pn-k-verde1']) }, rodape: blocoDaMeta(api, 'pn-k-verde1', { unidade: '%', sentido: M.sentidoDoLimiar(LIMIARES.portaoVerde), escala: 1 }, pct, tend.verde1), tendencia: tend.verde1, formatoTendencia: v => String(Math.round(v)) }),
+            Cartao({ id: 'pn-k-portao', rotulo: 'Duração do portão', valor: minutos(M.mediana(duracoes)), unidade: duracoes.length ? `p50 · p95 ${minutos(M.p95(duracoes))}` : '', farol: duracoes.length ? farol(M.mediana(duracoes), LIMIARES.rodada) : 'cinza', limiar: LIMIARES.rodada, fonte: FONTES.rodadas, formula: 'updated_at − run_started_at · ' + recorteTxt, em: d.em, semDados: !duracoes.length , meta: { tem: !!(api && api.metas && api.metas()['pn-k-portao']) }, rodape: blocoDaMeta(api, 'pn-k-portao', { unidade: 'min', sentido: M.sentidoDoLimiar(LIMIARES.rodada), escala: 60000 }, M.mediana(duracoes), tend.portao), tendencia: tend.portao, formatoTendencia: minutos }),
             Cartao({ id: 'pn-k-tempo-leva', rotulo: 'Tempo de leva', valor: minutos(M.mediana(comFim)), unidade: comFim.length ? `mediana de ${comFim.length}` : '', farol: null, fonte: FONTES.levas, formula: 'fim − início · ' + recorteTxt, em: d.em, semDados: !comFim.length , tendencia: tend.tempo, formatoTendencia: minutos }),
-            Cartao({ id: 'pn-k-lead', rotulo: 'Do fim da leva ao main', valor: minutos(M.mediana(leads)), unidade: leads.length ? `mediana de ${leads.length}` : '', farol: leads.length ? farol(M.mediana(leads), LIMIARES.leadTime) : 'cinza', limiar: LIMIARES.leadTime, fonte: FONTES.levas + ' + commits', formula: 'data do commit no main − fim · ' + recorteTxt, em: d.em, semDados: !leads.length , tendencia: tend.lead, formatoTendencia: minutos })),
+            Cartao({ id: 'pn-k-lead', rotulo: 'Do fim da leva ao main', valor: minutos(M.mediana(leads)), unidade: leads.length ? `mediana de ${leads.length}` : '', farol: leads.length ? farol(M.mediana(leads), LIMIARES.leadTime) : 'cinza', limiar: LIMIARES.leadTime, fonte: FONTES.levas + ' + commits', formula: 'data do commit no main − fim · ' + recorteTxt, em: d.em, semDados: !leads.length , meta: { tem: !!(api && api.metas && api.metas()['pn-k-lead']) }, rodape: blocoDaMeta(api, 'pn-k-lead', { unidade: 'min', sentido: M.sentidoDoLimiar(LIMIARES.leadTime), escala: 60000 }, M.mediana(leads), tend.lead), tendencia: tend.lead, formatoTendencia: minutos })),
           h('div', { class: 'pn-graficos' },
             Grafico({ id: 'pn-g-levas', tipo: 'colunas', titulo: `Levas publicadas por ${semanal ? 'semana' : 'dia'} · ${recorteTxt}`, rotulos: serie.map(i => i.rotulo), series: [{ nome: 'levas', valores: serie.map(i => i.valor) }], vazio: 'sem levas neste recorte', nota: 'Quantas levas chegaram ao main em cada ' + (semanal ? 'semana' : 'dia') + '. Ritmo estável é bom; queda brusca pede olhar a fila.' }),
             Grafico({ id: 'pn-g-verde1', tipo: 'anel', titulo: `Rodadas da fila · verdes e vermelhas · ${recorteTxt}`, series: [{ nome: 'verdes', valor: verdes, cor: COR_FAROL.verde }, { nome: 'vermelhas', valor: total - verdes, cor: COR_FAROL.vermelho }], centro: pct == null ? '—' : `${pct} %`, vazio: 'nenhuma rodada da fila neste recorte', nota: 'Verde: tudo passou e as levas foram publicadas. Vermelha: algum teste caiu e nada daquela rodada foi publicado.' }),
@@ -3220,8 +3359,8 @@ const __p4 = (function () {
         else if (r.cotaEsgotada) est.aviso = { tipo: 'cota', texto: motivo('cota') };
         else if (r.falhou) est.aviso = { tipo: 'api', texto: motivo('api') + ' Mostrando o que havia guardado.' };
         const v = visao();
-        if (v && est.aba === 'resumo') { est.progresso = 0; await lePlano(); await leNegocio(); const d = await v.carrega(fonte, forcar, est.filtros, { aCada: () => { est.progresso++; const el = typeof document !== 'undefined' && document.getElementById('pn-carregando-n'); if (el) el.textContent = `${est.progresso} de ${M.SUBABAS.filter(a => a.id !== 'resumo' && !a.semDados).length}`; } }); est.dados.resumo = d; for (const [id, dd] of Object.entries(d.porAba)) est.dados[id] = dd; }
-        else if (v) { est.dados[est.aba] = await v.carrega(fonte, forcar, est.filtros); if (est.aba === 'modelos') await lePlano(); if (est.aba === 'negocio') await leNegocio(); if (est.dados[est.aba].sem && (est.dados[est.aba].sem.ramos || est.dados[est.aba].sem.rodadas) && !est.aviso) est.aviso = { tipo: 'rede', texto: 'Parte dos dados veio do que estava guardado (sem rede ou cota).' }; }
+        if (v && est.aba === 'resumo') { est.progresso = 0; await lePlano(); await leNegocio(); await leMetas(); const d = await v.carrega(fonte, forcar, est.filtros, { aCada: () => { est.progresso++; const el = typeof document !== 'undefined' && document.getElementById('pn-carregando-n'); if (el) el.textContent = `${est.progresso} de ${M.SUBABAS.filter(a => a.id !== 'resumo' && !a.semDados).length}`; } }); est.dados.resumo = d; for (const [id, dd] of Object.entries(d.porAba)) est.dados[id] = dd; }
+        else if (v) { est.dados[est.aba] = await v.carrega(fonte, forcar, est.filtros); if (est.aba === 'modelos') await lePlano(); if (est.aba === 'negocio') await leNegocio(); if (est.aba === 'eficiencia') await leMetas(); if (est.dados[est.aba].sem && (est.dados[est.aba].sem.ramos || est.dados[est.aba].sem.rodadas) && !est.aviso) est.aviso = { tipo: 'rede', texto: 'Parte dos dados veio do que estava guardado (sem rede ou cota).' }; }
       } catch (e) {
         est.aviso = { tipo: e.message === 'sem-rede' ? 'rede' : 'api', texto: e.message === 'sem-rede' ? 'Sem internet. Nenhum dado guardado ainda.' : motivo(e.message) };
       }
@@ -3258,6 +3397,53 @@ const __p4 = (function () {
         est.aviso = r.onde === 'banco' ? null : (MOTIVO_PLANO[r.motivo] ? { tipo: r.motivo === 'sem-rede' ? 'rede' : 'api', texto: MOTIVO_PLANO[r.motivo] } : null);
         desenha();
       } };
+    /* R-43 · BI4-4 · metas do dono: abrir pelo balão do farol, formulário no próprio cartão, banco com cópia no aparelho */
+    const metasBanco = createMetas({ fetch: W.__PAINEL_FETCH_DB || W.__PAINEL_FETCH || null, dbUrl: FIREBASE_DB_URL, token: () => sessao.token(), uid: () => est.sessao && est.sessao.uid, guarda });
+    const MOTIVO_META = { 'sem-rede': 'Sem internet: a meta ficou guardada neste aparelho e vai para o banco no próximo Salvar com rede.', recusado: 'O banco recusou a meta (regra /painel/metas ainda não publicada?). Ficou guardada neste aparelho.', fora: 'O banco não respondeu. A meta ficou guardada neste aparelho.', conferencia: 'O banco respondeu diferente do que foi enviado. A meta ficou guardada neste aparelho.' };
+    let rascMeta = null;
+    const hojeIso = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+    Object.assign(api, {
+      metas: () => metasBanco.ativas(),
+      // funções, não getters: o Object.assign copiaria o valor da hora (getter congelado)
+      metaAberta: () => est.metaAberta || null,
+      desfazerMeta: () => est.metaDesfazer || null,
+      abreMeta(id) { est.metaAberta = id; est.metaDesfazer = null; const m = metasBanco.ativas()[id]; rascMeta = m ? { alvo: String(m.alvo).replace('.', ','), ate: m.ate } : { alvo: '', ate: '' }; desenha(); const c = typeof document !== 'undefined' && document.getElementById('pn-meta-alvo'); if (c) { c.focus(); if (c.scrollIntoView) c.scrollIntoView({ block: 'center' }); } },
+      fechaMeta() { est.metaAberta = null; rascMeta = null; desenha(); },
+      rascunhoMeta: () => rascMeta || { alvo: '', ate: '' },
+      mudaMeta(p) { rascMeta = { ...(rascMeta || {}), ...p }; },
+      async salvaMeta(id, medida) {
+        const r = rascMeta || {};
+        const alvo = Number(String(r.alvo ?? '').trim().replace(',', '.'));
+        if (String(r.alvo ?? '').trim() === '' || !Number.isFinite(alvo) || alvo < 0 || (medida.unidade === '%' && alvo > 100)) { est.aviso = { tipo: 'api', texto: medida.unidade === '%' ? 'A meta precisa ser um número de 0 a 100.' : 'A meta precisa ser um número maior ou igual a zero.' }; desenha(); return; }
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(r.ate || '') || r.ate < hojeIso()) { est.aviso = { tipo: 'api', texto: 'Escolha uma data de hoje em diante.' }; desenha(); return; }
+        const reg = { kind: 'estante.painel.meta', version: 1, cartao: id, alvo: Math.round(alvo * 100) / 100, unidade: medida.unidade, sentido: medida.sentido, ate: r.ate, atualizadoEm: Date.now() };
+        est.salvandoMeta = true; desenha();
+        const g = await metasBanco.gravar(reg);
+        est.salvandoMeta = false; est.metaAberta = null; rascMeta = null;
+        est.aviso = g.onde === 'banco' ? null : (MOTIVO_META[g.motivo] ? { tipo: g.motivo === 'sem-rede' ? 'rede' : 'api', texto: MOTIVO_META[g.motivo] } : null);
+        desenha();
+      },
+      /** Tirar a meta é desfazível: o aviso no cartão traz "Desfazer", que grava de novo a meta que estava. */
+      async tiraMeta(id) {
+        const antes = metasBanco.ativas()[id]; if (!antes) return;
+        const g = await metasBanco.remover(id);
+        est.metaAberta = null; rascMeta = null; est.metaDesfazer = { id, meta: { ...antes } };
+        est.aviso = g.onde === 'banco' ? null : (MOTIVO_META[g.motivo] ? { tipo: g.motivo === 'sem-rede' ? 'rede' : 'api', texto: MOTIVO_META[g.motivo].replace('a meta ficou guardada', 'a retirada ficou guardada').replace('A meta ficou guardada', 'A retirada ficou guardada') } : null);
+        desenha();
+      },
+      async desfazMeta() {
+        const d = est.metaDesfazer; if (!d) return;
+        est.metaDesfazer = null;
+        const g = await metasBanco.gravar({ ...d.meta, atualizadoEm: Date.now() });
+        est.aviso = g.onde === 'banco' ? null : (MOTIVO_META[g.motivo] ? { tipo: g.motivo === 'sem-rede' ? 'rede' : 'api', texto: MOTIVO_META[g.motivo] } : null);
+        desenha();
+      },
+      salvandoMeta: () => !!est.salvandoMeta
+    });
+    async function leMetas() {
+      const r = await metasBanco.ler();
+      if (r.onde !== 'banco' && MOTIVO_META[r.motivo] && r.motivo !== 'sem-sessao' && !est.aviso) est.aviso = { tipo: r.motivo === 'sem-rede' ? 'rede' : 'api', texto: MOTIVO_META[r.motivo] };
+    }
     /* R-33 · Negócio: um mês por vez no formulário; o mapa vem do banco (lido a cada atualização da sub-aba) com cópia aqui */
     const NEGOCIO = 'painel.negocio';
     const negocioBanco = createNegocio({ fetch: W.__PAINEL_FETCH_DB || W.__PAINEL_FETCH || null, dbUrl: FIREBASE_DB_URL, token: () => sessao.token(), uid: () => est.sessao && est.sessao.uid, guarda, chave: NEGOCIO });
@@ -3386,8 +3572,8 @@ const __p4 = (function () {
       return [...caixa.querySelectorAll('.pn-cartao')].map(c => {
         const f = c.querySelector('.pn-farol'), v = c.querySelector('.pn-cartao__valor'), u = c.querySelector('.pn-cartao__unidade'), n = c.querySelector('.pn-cartao__valor + p:not(.pn-cartao__origem)');
         const valor = v ? v.childNodes[0] && v.childNodes[0].nodeType === 3 ? v.childNodes[0].nodeValue.trim() : v.textContent.replace(u ? u.textContent : '', '').trim() : '';
-        const tv = c.querySelector('.pn-cartao__variacao');
-        return { id: c.id || '', rotulo: c.getAttribute('aria-label') || '', farol: f ? f.dataset.farol : null, valor, unidade: u ? u.textContent.trim() : '', nota: n ? n.textContent.trim() : '', variacao: tv ? tv.textContent.trim() : '' };
+        const tv = c.querySelector('.pn-cartao__variacao'), mt = c.querySelector('.pn-meta[data-estado]');
+        return { id: c.id || '', rotulo: c.getAttribute('aria-label') || '', farol: f ? f.dataset.farol : null, valor, unidade: u ? u.textContent.trim() : '', nota: n ? n.textContent.trim() : '', variacao: tv ? tv.textContent.trim() : '', meta: mt ? mt.dataset.estado : null, metaTexto: mt ? (mt.querySelector('.pn-meta__situacao') || mt).textContent.trim() : '' };
       }).filter(c => c.farol);
     }
     function telaVisaoGeral(d) {
@@ -3555,7 +3741,8 @@ const __p4 = (function () {
         alvoDoCartao,
         h('p', { class: 'pn-balao__def ds-text ds-text--sm', id: 'pn-balao-def' }, v.def),
         h('p', { class: 'pn-balao__ler ds-text ds-text--sm ds-text--muted' }, h('strong', {}, 'Como ler: '), v.ler),
-        ver);
+        ehFarol && dfn.dataset.meta && dfn.dataset.cartaoId ? h('div', { class: 'ds-row pn-balao__acoes' },
+          Button(dfn.dataset.meta === 'tem' ? 'Mudar meta' : 'Definir meta', { variant: 'secondary', icone: 'alvo', id: 'pn-balao-meta', onClick: () => { const id = dfn.dataset.cartaoId; fechaBalao(); api.abreMeta(id); } }), ver) : ver);
       el.addEventListener('pointerenter', () => clearTimeout(balao.fechaT));
       el.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') balao.fechaT = setTimeout(fechaBalao, 220); });
       document.body.appendChild(el); balao.el = el; balao.dono = dfn; dfn.setAttribute('data-aberto', 'true'); dfn.setAttribute('aria-describedby', 'pn-balao-def');

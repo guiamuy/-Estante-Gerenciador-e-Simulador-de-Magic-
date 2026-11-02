@@ -1240,3 +1240,60 @@ test('R-42 · tendência: variação no sentido da medida (menor é melhor para 
   assert.doesNotMatch(css.slice(0, css.indexOf('@media (prefers-reduced-motion: no-preference)')), /animation:/);
   assert.match(css.slice(0, fim), /pn-pulsa 900ms/);
 });
+
+/* ---------- R-43 · BI4-4 · metas do dono ---------- */
+test('R-43 · meta: quanto falta e projeção linear (estimada) no sentido da medida; meta atingida; sem série só "faltam"; ritmo que se afasta ou chega depois do prazo = em risco; prazo passado; o insight "meta em risco" sai de qualquer cartão', () => {
+  const { modelo: M } = loadPainel();
+  const agora = new Date(2026, 10, 2, 15, 0).getTime();
+  const meta = { cartao: 'pn-k-portao', alvo: 20, unidade: 'min', sentido: 'menor', ate: '2026-11-30' };
+  // série caindo 1 min por dia: de 30 para 25 em 5 dias; hoje 25 → faltam 5 → 5 dias → 07/11
+  const caindo = [null, null, null, null, null, null, null, null, 30, 29, 28, 27, 26, 25];
+  assert.equal(Math.round(M.inclinacao(caindo) * 100) / 100, -1);
+  const e = M.estadoDaMeta(meta, { atual: 25, serie: caindo, agora });
+  assert.equal(e.estado, 'no-ritmo'); assert.equal(e.falta, 5); assert.equal(e.dias, 5);
+  const fmt = v => `${v} min`;
+  assert.deepEqual(M.frasesDaMeta(meta, e, fmt), { alvo: 'Meta: ≤ 20 min até 30/11', situacao: 'faltam 5 min · no ritmo atual chega em 07/11 (estimada)' });
+  // prazo curto: chega depois → em risco
+  const curto = M.estadoDaMeta({ ...meta, ate: '2026-11-04' }, { atual: 25, serie: caindo, agora });
+  assert.equal(curto.estado, 'em-risco'); assert.match(M.frasesDaMeta({ ...meta, ate: '2026-11-04' }, curto, fmt).situacao, /chega em 07\/11, depois do prazo \(estimada\)$/);
+  // série subindo numa medida em que menor é melhor: não chega
+  const longe = M.estadoDaMeta(meta, { atual: 25, serie: caindo.map(v => (v == null ? null : 55 - v)), agora });
+  assert.equal(longe.estado, 'em-risco'); assert.equal(longe.motivo, 'longe');
+  assert.equal(M.frasesDaMeta(meta, longe, fmt).situacao, 'faltam 5 min · no ritmo atual não chega (estimada)');
+  // atingida, sem série, prazo passado, sem dado
+  assert.equal(M.estadoDaMeta(meta, { atual: 19, serie: caindo, agora }).estado, 'atingida');
+  assert.equal(M.frasesDaMeta({ ...meta, sentido: 'maior', alvo: 85, unidade: '%' }, M.estadoDaMeta({ ...meta, sentido: 'maior', alvo: 85 }, { atual: 90, agora }), v => `${v} %`).situacao, 'meta atingida');
+  const so = M.estadoDaMeta(meta, { atual: 25, serie: [null, 25], agora });
+  assert.equal(so.estado, 'sem-serie'); assert.equal(M.frasesDaMeta(meta, so, fmt).situacao, 'faltam 5 min');
+  assert.equal(M.estadoDaMeta({ ...meta, ate: '2026-11-01' }, { atual: 25, serie: caindo, agora }).motivo, 'prazo');
+  assert.equal(M.estadoDaMeta(meta, { atual: null, agora }), null);
+  // insight genérico: atenção, nunca vermelho, de qualquer aba
+  const ins = M.insightsDe({ eficiencia: [{ id: 'pn-k-portao', rotulo: 'Duração do portão', farol: 'verde', meta: 'em-risco', metaTexto: 'faltam 5 min · no ritmo atual não chega (estimada)' }, { id: 'pn-k-verde1', rotulo: 'Portão verde', farol: 'verde', meta: 'no-ritmo' }] });
+  assert.equal(ins.length, 1); assert.equal(ins[0].regra, 'meta-em-risco'); assert.equal(ins[0].gravidade, 'amarelo'); assert.equal(ins[0].aba, 'eficiencia');
+  assert.match(ins[0].aconteceu, /^Duração do portão: faltam 5 min/);
+  assert.ok(M.verbeteDe('meta'), 'o insight aponta para o verbete "meta"');
+});
+
+test('R-43 · metas no banco: gravar faz PUT em /painel/<uid>/metas/<cartão>.json e só diz "no banco" lendo de volta; ler junta banco e aparelho por cartão e ignora o que não é meta; tirar apaga e confere; sem rede, a retirada fica marcada no aparelho e vence a cópia velha do banco', async () => {
+  const { base } = loadPainel();
+  const mk = respostas => { const g = base.createGuarda(null); const pedidos = []; const fetch = async (url, opts = {}) => { pedidos.push({ url, method: opts.method || 'GET', body: opts.body ? JSON.parse(opts.body) : null }); const r = respostas.shift(); if (!r) throw new TypeError('sem rede'); return typeof r === 'function' ? r(pedidos[pedidos.length - 1]) : r; };
+    return { g, pedidos, m: base.createMetas({ fetch, dbUrl: 'https://db.exemplo', token: async () => 'tok', uid: () => 'uidDono', guarda: g }) }; };
+  const meta = { kind: 'estante.painel.meta', version: 1, cartao: 'pn-k-portao', alvo: 20, unidade: 'min', sentido: 'menor', ate: '2026-11-30', atualizadoEm: 5 };
+  const A = mk([p => ({ ok: true, status: 200, json: async () => p.body })]);
+  assert.deepEqual(await A.m.gravar(meta), { onde: 'banco', motivo: null });
+  assert.equal(A.pedidos[0].url, 'https://db.exemplo/painel/uidDono/metas/pn-k-portao.json?auth=tok'); assert.equal(A.pedidos[0].method, 'PUT');
+  assert.deepEqual(A.m.ativas(), { 'pn-k-portao': { ...meta, origem: 'banco' } });
+  const B = mk([{ ok: true, status: 200, json: async () => ({ ...meta, alvo: 21 }) }]);
+  assert.deepEqual(await B.m.gravar(meta), { onde: 'aparelho', motivo: 'conferencia' }); assert.equal(B.g.ler('painel.metas')['pn-k-portao'].pendente, true);
+  // ler: o banco traz uma meta e um lixo (o que não é meta não entra)
+  const C = mk([{ ok: true, status: 200, json: async () => ({ 'pn-k-portao': meta, 'pn-k-x': { localId: 'nada' } }) }]);
+  const r = await C.m.ler(); assert.equal(r.onde, 'banco'); assert.deepEqual(Object.keys(C.m.ativas()), ['pn-k-portao']);
+  // tirar: DELETE e confere que voltou nulo
+  const D = mk([p => ({ ok: true, status: 200, json: async () => p.body }), { ok: true, status: 200, json: async () => null }, { ok: true, status: 200, json: async () => null }]);
+  await D.m.gravar(meta); assert.deepEqual(await D.m.remover('pn-k-portao'), { onde: 'banco', motivo: null });
+  assert.equal(D.pedidos[1].method, 'DELETE'); assert.deepEqual(D.m.ativas(), {});
+  // sem rede: a retirada fica marcada e vence a cópia mais velha do banco
+  const E = mk([p => ({ ok: true, status: 200, json: async () => p.body })]);
+  await E.m.gravar(meta); assert.equal((await E.m.remover('pn-k-portao')).motivo, 'sem-rede');
+  assert.deepEqual(E.m.ativas(), {}, 'a meta some da tela'); assert.equal(E.g.ler('painel.metas')['pn-k-portao'].removida, true);
+});

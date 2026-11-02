@@ -235,6 +235,38 @@
             ".validate": false
           }
         },
+        "metas": {
+          "$cartao": {
+            ".validate": "$cartao.matches(/^pn-k-[a-z0-9-]+$/) && $cartao.length <= 44 && newData.hasChildren(['kind', 'version', 'cartao', 'alvo', 'unidade', 'sentido', 'ate', 'atualizadoEm']) && newData.child('kind').val() === 'estante.painel.meta' && newData.child('version').val() === 1 && newData.child('cartao').val() === $cartao",
+            "kind": {
+              ".validate": "newData.isString()"
+            },
+            "version": {
+              ".validate": "newData.isNumber()"
+            },
+            "cartao": {
+              ".validate": "newData.isString()"
+            },
+            "alvo": {
+              ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000000"
+            },
+            "unidade": {
+              ".validate": "newData.isString() && newData.val().length <= 12"
+            },
+            "sentido": {
+              ".validate": "newData.val() === 'maior' || newData.val() === 'menor'"
+            },
+            "ate": {
+              ".validate": "newData.isString() && newData.val().matches(/^20[0-9][0-9]-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$/)"
+            },
+            "atualizadoEm": {
+              ".validate": "newData.isNumber() && newData.val() >= 0"
+            },
+            "$outro": {
+              ".validate": false
+            }
+          }
+        },
         "negocio": {
           "$mes": {
             ".validate": "$mes.matches(/^20[0-9][0-9]-(0[1-9]|1[0-2])$/) && newData.hasChildren(['kind', 'version', 'mes', 'atualizadoEm', 'pix', 'kofi', 'custo']) && newData.child('kind').val() === 'estante.painel.negocio' && newData.child('version').val() === 1 && newData.child('mes').val() === $mes",

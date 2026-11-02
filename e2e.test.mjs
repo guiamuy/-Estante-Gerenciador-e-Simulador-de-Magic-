@@ -15023,6 +15023,119 @@ test('e2e · R-42 Painel · tendência nos cartões da Eficiência: mini-linha d
   assert.deepEqual(errors, []);
 });
 
+/* ---------- R-43 · BI4-4 · metas do dono ---------- */
+test('e2e · R-43 Painel · metas do dono: no balão do farol, "Definir meta" abre o formulário no próprio cartão (largura inteira); valor e data inválidos são recusados com o motivo; a meta vai ao banco do dono (lida de volta) e o cartão diz quanto falta e quando chega no ritmo atual (estimada); outro aparelho lê do banco; meta que o ritmo não alcança vira "meta em risco" no Resumo; tirar a meta tem "Desfazer"; sem sobreposição', { timeout: 180000 }, async t => {
+  const { page, errors, base } = await open(t);
+  const painel = base.replace('index.html', 'painel.html');
+  await page.setViewportSize({ width: 360, height: 780 });
+  const agora = Date.now();
+  const iso = ms => new Date(ms).toISOString();
+  const h = n => iso(agora - n * 3600000);
+  const json = (r, corpo) => r.fulfill({ json: corpo, headers: { 'content-type': 'application/json', 'x-ratelimit-remaining': '50', 'x-ratelimit-limit': '60', 'access-control-expose-headers': 'etag, x-ratelimit-remaining, x-ratelimit-limit' } });
+  const commit = (leva, em) => ({ sha: leva.replace('-', '') + '0000000', commit: { message: `Leva ${leva} · assunto`, committer: { date: iso(em) }, author: { date: iso(em - 3600000) } } });
+  const levasDoDia = { 0: [commit('M-390', agora - 2 * 3600000), commit('R-2', agora - 3 * 3600000), commit('G-266', agora - 5 * 3600000)], 1: [commit('M-388', agora - 30 * 3600000)], 2: [commit('T-61', agora - 50 * 3600000), commit('M-384', agora - 52 * 3600000)] };
+  const rodada = (id, ok, horas, min) => ({ id, status: 'completed', conclusion: ok ? 'success' : 'failure', run_started_at: h(horas), updated_at: iso(agora - horas * 3600000 + min * 60000) });
+  // 7 dias: 2 verdes e 1 vermelha (67 %), durações 18, 30, 20 min; 7 dias anteriores: 1 verde e 2 vermelhas (33 %), 40, 35, 45 min
+  let fase = 1;
+  const rodadas = () => [rodada(8, true, 3, 18), rodada(7, fase === 2, 30, 30), rodada(6, true, 50, 20), rodada(5, false, 9 * 24, 40), rodada(4, false, 10 * 24, 35), rodada(3, true, 10 * 24 + 2, 45)];
+  await page.route('https://api.github.com/**', r => {
+    const u = r.request().url();
+    if (/\/commits\?sha=main&per_page=1/.test(u)) return json(r, [commit('M-390', agora - 2 * 3600000)]);
+    if (/\/commits\?sha=main&since=/.test(u)) { const since = Date.parse(decodeURIComponent((u.match(/since=([^&]+)/) || [])[1])); const diasAtras = Math.round((new Date(agora).setHours(0, 0, 0, 0) - since) / 86400000); return json(r, levasDoDia[diasAtras] || []); }
+    if (/fila\.yml\/runs/.test(u)) return json(r, { workflow_runs: rodadas() });
+    if (/\/branches/.test(u)) return json(r, []);
+    return json(r, { workflow_runs: [] });
+  });
+  // levas: duração 30 e 120 min agora (mediana 75) contra 60 min nove dias antes (+25 %, e tempo de leva maior é pior); a mais antiga (13 dias) abre a cobertura
+  await page.route('https://raw.githubusercontent.com/**', r => r.fulfill({ body: [
+    `{"id":"G-1","trilha":"geral","conversa":"geral · 20/10","situacao":"publicada","em":"${h(13 * 24)}","modelo":"Fable 5.1"}`,
+    `{"id":"M-300","trilha":"motor","conversa":"motor · 11/10","situacao":"publicada","inicio":"${h(9 * 24 + 1)}","fim":"${h(9 * 24)}","portao":"verde","tamanho":"1","modelo":"Fable 5.1"}`,
+    `{"id":"R-2","trilha":"radar","conversa":"radar · 13/10","situacao":"publicada","inicio":"${h(4)}","fim":"${h(3.5)}","portao":"verde","tamanho":"1","modelo":"Fable 5.1"}`,
+    `{"id":"M-390","trilha":"motor","conversa":"motor · 11/10","situacao":"publicada","inicio":"${h(5)}","fim":"${h(3)}","portao":"verde","tamanho":"1","modelo":"Fable 5.1"}`].join('\n') + '\n', headers: { 'content-type': 'text/plain', 'access-control-allow-origin': '*' } }));
+  await page.addInitScript(() => {
+    const jwt = email => 'h.' + btoa(JSON.stringify({ email })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') + '.s';
+    window.__PAINEL_FETCH = async (url) => new Response(JSON.stringify(url.includes('securetoken') ? { user_id: 'uidE2E', id_token: jwt('gui.amuy@gmail.com'), refresh_token: 'ref-e2e', expires_in: '3600' } : { localId: 'uidE2E', idToken: jwt('gui.amuy@gmail.com'), refreshToken: 'ref-e2e', expiresIn: '3600' }), { headers: { 'content-type': 'application/json' } });
+    // R-43 · banco falso das metas: /painel/<uid>/metas[/<cartão>].json; guarda em sessionStorage (outro aparelho = sem a cópia local)
+    window.__dbMetas = [];
+    window.__PAINEL_FETCH_DB = async (url, opts = {}) => {
+      const m = /^https:\/\/estante-10102026-default-rtdb\.firebaseio\.com\/painel\/([^/]+)\/(metas|plano|negocio)(?:\/([^.]+))?\.json\?auth=(.+)$/.exec(url);
+      const metodo = opts.method || 'GET';
+      if (!m || m[1] !== 'uidE2E' || !m[4]) return new Response('{"error":"Permission denied"}', { status: 401, headers: { 'content-type': 'application/json' } });
+      if (m[2] !== 'metas') return new Response('null', { headers: { 'content-type': 'application/json' } });
+      window.__dbMetas.push(metodo + (m[3] ? ' ' + m[3] : ''));
+      const todas = JSON.parse(sessionStorage.getItem('db.metas') || '{}');
+      if (metodo === 'PUT') { todas[m[3]] = JSON.parse(opts.body); sessionStorage.setItem('db.metas', JSON.stringify(todas)); }
+      if (metodo === 'DELETE') { delete todas[m[3]]; sessionStorage.setItem('db.metas', JSON.stringify(todas)); return new Response('null', { headers: { 'content-type': 'application/json' } }); }
+      const corpo = m[3] ? (todas[m[3]] ?? null) : (Object.keys(todas).length ? todas : null);
+      return new Response(JSON.stringify(corpo), { headers: { 'content-type': 'application/json' } });
+    };
+    window.__PAINEL_GOOGLE = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }), revoke: (tk, cb) => cb && cb() } } };
+  });
+  await page.goto(painel + '#eficiencia'); await page.waitForSelector('#pn-entrar'); await page.click('#pn-entrar');
+  await page.waitForSelector('#pn-visao-eficiencia');
+  await page.click('#pn-atualizar'); await page.waitForFunction(() => !/não lidos/.test(document.querySelector('#pn-notas')?.innerText || ''));
+  await page.waitForSelector('#pn-k-portao .pn-farol'); await page.waitForSelector('#pn-atualizar:not([disabled])');
+  const hoje = new Date(); const isoDia = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const daqui = n => { const d = new Date(hoje); d.setDate(d.getDate() + n); return isoDia(d); };
+  const diaMes = s => s.slice(8, 10) + '/' + s.slice(5, 7);
+  // o balão do farol oferece a meta; o formulário abre no cartão
+  await page.locator('#pn-k-portao .pn-farol').dispatchEvent('click'); await page.waitForSelector('#pn-balao #pn-balao-meta');
+  assert.equal(await page.locator('#pn-balao-meta').textContent(), 'Definir meta');
+  assert.ok((await page.locator('#pn-balao-meta').boundingBox()).height >= 44);
+  await page.locator('#pn-balao-meta').dispatchEvent('click'); await page.waitForSelector('#pn-k-portao #pn-meta-form');
+  assert.equal(await page.locator('#pn-balao').count(), 0, 'o balão fecha ao abrir o formulário');
+  assert.equal(await page.getAttribute('#pn-k-portao', 'data-meta-aberta'), 'true');
+  assert.ok((await page.locator('#pn-k-portao').boundingBox()).width > 300, 'o cartão com o formulário ocupa a largura inteira');
+  assert.match(await page.innerText('#pn-k-portao #pn-meta-form'), /Meta \(min\) · quanto menor, melhor[\s\S]*Até/);
+  await auditaTela(page, 'eficiência com o formulário da meta');
+  // inválidos: texto e data passada
+  await page.fill('#pn-meta-alvo', 'quinze'); await page.fill('#pn-meta-ate', daqui(20)); await page.click('#pn-meta-salvar'); await page.waitForSelector('#pn-aviso');
+  assert.match(await page.innerText('#pn-aviso'), /número maior ou igual a zero/);
+  await page.fill('#pn-meta-alvo', '15'); await page.fill('#pn-meta-ate', daqui(-1)); await page.click('#pn-meta-salvar');
+  await page.waitForFunction(() => /de hoje em diante/.test(document.querySelector('#pn-aviso')?.innerText || ''));
+  // válida: vai ao banco e volta lida; o cartão diz quanto falta e quando chega (duração caindo ~2 min por dia: 20 → 15 em 3 dias)
+  await page.fill('#pn-meta-alvo', '15'); await page.fill('#pn-meta-ate', daqui(20)); await page.click('#pn-meta-salvar');
+  await page.waitForSelector('#pn-k-portao .pn-meta[data-estado]');
+  assert.equal(await page.getAttribute('#pn-k-portao .pn-meta', 'data-estado'), 'no-ritmo');
+  assert.equal(await page.locator('#pn-k-portao .pn-meta__alvo').innerText(), `Meta: ≤ 15 min até ${diaMes(daqui(20))}`);
+  assert.equal(await page.locator('#pn-k-portao .pn-meta__situacao').innerText(), `faltam 5 min · no ritmo atual chega em ${diaMes(daqui(3))} (estimada)`);
+  assert.equal(await page.$('#pn-aviso'), null, 'gravação no banco não deixa aviso');
+  const gravada = await page.evaluate(() => JSON.parse(sessionStorage.getItem('db.metas'))['pn-k-portao']);
+  assert.deepEqual({ ...gravada, atualizadoEm: 0 }, { kind: 'estante.painel.meta', version: 1, cartao: 'pn-k-portao', alvo: 15, unidade: 'min', sentido: 'menor', ate: daqui(20), atualizadoEm: 0 });
+  assert.equal(await page.locator('#pn-k-portao .pn-farol').getAttribute('data-meta'), 'tem');
+  // outro aparelho: sem a cópia local, a meta vem do banco
+  await page.evaluate(() => localStorage.removeItem('painel.metas'));
+  await page.reload(); await page.waitForSelector('#pn-visao-eficiencia');
+  await page.waitForSelector('#pn-k-portao .pn-meta[data-estado="no-ritmo"]'); await page.waitForSelector('#pn-atualizar:not([disabled])');
+  // meta que o ritmo não alcança: portão verde ≥ 95 % até amanhã → em risco, e o Resumo avisa
+  await page.locator('#pn-k-verde1 .pn-farol').dispatchEvent('click'); await page.locator('#pn-balao-meta').dispatchEvent('click'); await page.waitForSelector('#pn-k-verde1 #pn-meta-form');
+  assert.match(await page.innerText('#pn-k-verde1 #pn-meta-form'), /Meta \(%\) · quanto maior, melhor/);
+  await page.fill('#pn-meta-alvo', '101'); await page.fill('#pn-meta-ate', daqui(1)); await page.click('#pn-meta-salvar');
+  await page.waitForFunction(() => /0 a 100/.test(document.querySelector('#pn-aviso')?.innerText || ''));
+  await page.fill('#pn-meta-alvo', '95'); await page.click('#pn-meta-salvar');
+  await page.waitForSelector('#pn-k-verde1 .pn-meta[data-estado="em-risco"]');
+  assert.match(await page.locator('#pn-k-verde1 .pn-meta__situacao').innerText(), /^faltam 28 % · no ritmo atual chega em \d\d\/\d\d, depois do prazo \(estimada\)$/);
+  await auditaTela(page, 'eficiência com metas');
+  await page.click('#pn-abas [data-tab="resumo"]'); await page.waitForSelector('#pn-insights', { timeout: 60000 });
+  await page.waitForSelector('#pn-insights .pn-insight[data-regra="meta-em-risco"]');
+  const risco = await page.$eval('#pn-insights .pn-insight[data-regra="meta-em-risco"]', l => ({ farol: l.dataset.farol, texto: l.textContent }));
+  assert.equal(risco.farol, 'amarelo'); assert.match(risco.texto, /Portão verde na primeira: faltam 28 %/);
+  // tirar a meta: some do cartão e do banco; Desfazer devolve
+  await page.click('#pn-abas [data-tab="eficiencia"]'); await page.waitForSelector('#pn-k-portao .pn-meta[data-estado]'); await page.waitForSelector('#pn-atualizar:not([disabled])');
+  await page.locator('#pn-k-portao .pn-farol').dispatchEvent('click'); assert.equal(await page.locator('#pn-balao-meta').textContent(), 'Mudar meta');
+  await page.locator('#pn-balao-meta').dispatchEvent('click'); await page.waitForSelector('#pn-k-portao #pn-meta-tirar');
+  assert.equal(await page.inputValue('#pn-meta-alvo'), '15', 'o formulário abre com a meta que está valendo');
+  await page.click('#pn-meta-tirar'); await page.waitForSelector('#pn-k-portao #pn-meta-desfazer');
+  assert.equal(await page.locator('#pn-k-portao .pn-meta[data-estado]').count(), 0);
+  assert.equal(await page.evaluate(() => JSON.parse(sessionStorage.getItem('db.metas'))['pn-k-portao']), undefined, 'apagada no banco');
+  assert.ok((await page.evaluate(() => window.__dbMetas)).includes('DELETE pn-k-portao'));
+  await page.click('#pn-meta-desfazer'); await page.waitForSelector('#pn-k-portao .pn-meta[data-estado="no-ritmo"]');
+  assert.equal(await page.evaluate(() => JSON.parse(sessionStorage.getItem('db.metas'))['pn-k-portao'].alvo), 15);
+  await emTodasAsMedidas(page, 'eficiência com metas');
+  if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.waitForTimeout(400); await page.screenshot({ path: process.env.SHOTS + '/r43-metas.png', fullPage: true }); }
+  assert.deepEqual(errors, []);
+});
+
 /* ---------- R-40 · BI4-1 · Resumo executivo: o que pede ação agora + próximos passos ---------- */
 test('e2e · R-40 Painel · Resumo executivo: a primeira aba abre com "O que pede ação agora" — um cartão por insight (farol, o que aconteceu com o número, causa provável, ação) do mais grave para o menos, com botão que abre a aba de origem —, o placar, e "Próximos passos do plano" lidos do ROADMAP; sem sobreposição nos dois temas', { timeout: 150000 }, async t => {
   const { page, errors, base } = await open(t);
