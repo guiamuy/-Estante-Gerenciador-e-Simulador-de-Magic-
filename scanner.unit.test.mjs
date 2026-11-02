@@ -129,6 +129,65 @@ test('X3 · casa a leitura com as impressões: exata, só número, ambígua e de
   assert.equal(none.exact, null); assert.equal(none.candidates.length, 0);
 });
 
+/* S-604 · a edição por evidências. Impressões no formato da Scryfall (set, collector_number, artist, illustration_id).
+   O caso do dono (02/11): Malcolm, Keen-Eyed Navigator SPG #2, sem borda, com ilustração própria; as do Commander Legends
+   (comum e foil etched) dividem outra ilustração. Artistas e ilustrações aqui são de teste. */
+const MALCOLM = [
+  { set: 'cmr', collector_number: '79', set_name: 'Commander Legends', id: 'cmr79', artist: 'Artista Um', illustration_id: 'ilu-cmr' },
+  { set: 'cmr', collector_number: '436', set_name: 'Commander Legends', id: 'cmr436', artist: 'Artista Um', illustration_id: 'ilu-cmr' },
+  { set: 'spg', collector_number: '2', set_name: 'Special Guests', id: 'spg2', artist: 'Pintora Dois', illustration_id: 'ilu-spg' }
+];
+test('S-604 · a linha de coleção (número, código, artista) escolhe a impressão entre as da carta', () => {
+  const r = X.resolveEdicao(MALCOLM, { textos: ['0002 U\nSPG • EN  Pintora Dois'] });
+  assert.equal(r.exact && r.exact.id, 'spg2'); assert.equal(r.exact.verified, true);
+  assert.ok(r.por.includes('número') && r.por.includes('código'), 'diz o que decidiu: ' + r.por);
+  // OCR sujo: "SPC" (um erro no código) e o número com o O no lugar do zero ainda separam a SPG
+  assert.equal(X.resolveEdicao(MALCOLM, { textos: ['OOO2 U', 'SPC • EN'] }).exact.id, 'spg2');
+  // leituras que se somam: a primeira só pegou o código, a segunda só o número
+  assert.equal(X.resolveEdicao(MALCOLM, { textos: ['CMR • EN', '0436 M'] }).exact.id, 'cmr436');
+  // o total da coleção ("079/361") não é número de impressão
+  const P = [{ set: 'aaa', collector_number: '361', id: 'x' }, { set: 'bbb', collector_number: '79', id: 'y' }];
+  assert.equal(X.resolveEdicao(P, { textos: ['079/361 U'] }).exact.id, 'y');
+});
+test('S-604 · a arte decide pela ilustração: única → conferida; a mesma ilustração em duas impressões → candidatas, nunca palpite', () => {
+  const spg = X.resolveEdicao(MALCOLM, { arte: { ilustracao: 'ilu-spg', set: 'spg', numero: '2' } });
+  assert.equal(spg.exact && spg.exact.id, 'spg2', 'ilustração que só a SPG tem');
+  // Antes da S-604 a arte dava set e número de UMA impressão (a da base de artes únicas) e ela entrava conferida:
+  // com a ilustração do Commander Legends, a cópia virava CMR #79 mesmo sendo a foil etched #436.
+  const antes = X.resolvePrinting(MALCOLM, { set: 'cmr', number: '79' });
+  assert.equal(antes.exact.verified, true, 'o caminho antigo conferia');
+  const cmr = X.resolveEdicao(MALCOLM, { arte: { ilustracao: 'ilu-cmr', set: 'cmr', numero: '79' } });
+  assert.equal(cmr.exact, null, 'mesma ilustração em duas impressões: não confere');
+  assert.deepEqual([...cmr.candidates.map(c => c.id)], ['cmr79', 'cmr436'], 'as duas viram escolha de um toque');
+  // a arte junto com o número fecha
+  assert.equal(X.resolveEdicao(MALCOLM, { textos: ['0436'], arte: { ilustracao: 'ilu-cmr' } }).exact.id, 'cmr436');
+  // impressões sem a ilustração (guardadas antes da S-604): a arte só aponta a impressão da base de artes, que pode dividir
+  // a ilustração com outras; vira a candidata de um toque, não edição conferida
+  const semIlu = MALCOLM.map(({ illustration_id, ...p }) => p);
+  const r = X.resolveEdicao(semIlu, { arte: { ilustracao: 'ilu-spg', set: 'spg', numero: '2' } });
+  assert.equal(r.exact, null); assert.deepEqual([...r.candidates.map(c => c.id)], ['spg2']);
+});
+test('S-604 · o artista desempata, impressão única entra conferida, sem evidência não há palpite', () => {
+  const SLD = [{ set: 'sld', collector_number: '100', id: 'a', artist: 'Rebecca Guay' }, { set: 'sld', collector_number: '101', id: 'b', artist: 'Terese Nielsen' }];
+  const r = X.resolveEdicao(SLD, { textos: ['SLD • EN  TERESE NIELSEN'] });
+  assert.equal(r.exact && r.exact.id, 'b'); assert.ok(r.por.includes('artista'));
+  assert.equal(X.resolveEdicao(SLD, { textos: ['SLD • EN'] }).exact, null, 'só o código, duas na mesma coleção: candidatas');
+  assert.equal(X.resolveEdicao([MALCOLM[2]], {}).exact.id, 'spg2', 'carta de uma impressão só');
+  assert.deepEqual([...X.resolveEdicao(MALCOLM, {}).candidates.map(c => c.id)], ['cmr79', 'cmr436', 'spg2'], 'até 4 impressões: escolha de um toque');
+  const muitas = Array.from({ length: 9 }, (_, i) => ({ set: 's' + i + 'x', collector_number: String(i + 1), id: 'm' + i }));
+  assert.equal(X.resolveEdicao(muitas, {}).candidates.length, 0, 'nove impressões e nada lido: não chuta quatro');
+  assert.equal(X.resolveEdicao(muitas, { textos: ['ZZZ'] }).exact, null);
+});
+test('S-604 · arteDaEdicao: a ilustração mais parecida do nome vale com folga para a segunda e longe de "outra carta"', () => {
+  const L = X.LIMIAR_ARTE;
+  assert.equal(X.arteDaEdicao([{ ilustracao: 'a', d: L.igual + 10 }, { ilustracao: 'b', d: L.igual + 10 + L.folga }]).ilustracao, 'a',
+    'acima do "igual" do aceite, mas bem mais perto que a outra arte do nome: escolhe');
+  assert.equal(X.arteDaEdicao([{ ilustracao: 'a', d: 40 }, { ilustracao: 'b', d: 40 + L.folga - 1 }]), null, 'colada na segunda: não escolhe');
+  assert.equal(X.arteDaEdicao([{ ilustracao: 'a', d: L.diferente + 1 }]), null, 'longe de tudo: não é arte deste nome');
+  assert.equal(X.arteDaEdicao([{ ilustracao: 'a', d: 30 }, { ilustracao: 'a', d: 31 }]).ilustracao, 'a', 'duas entradas da mesma ilustração não competem');
+  assert.equal(X.arteDaEdicao([]), null);
+});
+
 test('X3 · o lote separa impressões da mesma carta e corrigir a impressão funde com igual', async () => {
   const lot = X.createLot({ store: P.memoryStore() });
   await lot.add('Counterspell', 1, { set: 'mh2', number: '267', verified: true });

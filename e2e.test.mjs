@@ -141,7 +141,7 @@ async function open(t, { dev = true, apresentacao = false, cena = false, porta =
       const exact = q.match(/^!"(.+)"$/);
       const words = q.split(/[\s:()"=<>]+/).filter(w => w.length > 2);
       const data = exact
-        ? [DB[exact[1]], DB[exact[1]] && { ...DB[exact[1]], id: exact[1] + '-2', set: 'mh2', set_name: 'Modern Horizons 2', collector_number: '267' }].filter(Boolean)
+        ? [DB[exact[1]], DB[exact[1]] && { ...DB[exact[1]], id: exact[1] + '-2', set: 'mh2', set_name: 'Modern Horizons 2', collector_number: '267', illustration_id: 'ilu-mh2-' + exact[1] }].filter(Boolean)
         : Object.values(DB).filter(c => words.some(w => c.name.toLowerCase().includes(w)));
       return r.fulfill({ json: { object: 'list', data, has_more: false } });
     }
@@ -1555,6 +1555,25 @@ test('e2e · L11 companheiro fora das 100 e condição do Lurrus', { skip }, asy
   assert.deepEqual(errors, []);
 });
 
+test('e2e · S-604 edição por evidências: a linha que não deu na primeira leitura é lida de novo na mesma cópia do quadro, e o Diagnóstico diz como decidiu', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(FAKE_PHOTO_CAM('data:image/jpeg;base64,' + readFileSync(join(ROOT, 'fotos', 'real-counterspell-playmat.jpg')).toString('base64')));
+  await page.goto(base + '#/scanner');
+  await page.waitForSelector('#scan-read:not([disabled])');
+  await pausaAuto(page);
+  // a 1ª variante (sobre a borda preta) não dá nada útil; a 2ª ("livre", a da carta sem borda) lê a linha
+  await page.evaluate(() => { window.__ocrQueue.push('Counterspell'); window.__ocrColecao.push('XX', '267/303 U\nMH2 • EN  Artista'); });
+  await page.click('#scan-read');
+  await page.waitForFunction(() => /MH2 #267/.test((document.querySelector('#scan-edition') || {}).innerText || ''));
+  assert.doesNotMatch(await page.innerText('#scan-edition'), /não conferida/, 'número e código separaram a impressão');
+  const ed = (await page.evaluate(() => window.__scanDiario.lista())).find(x => x.via === 'edição');
+  assert.ok(ed, 'o Diagnóstico tem a linha da edição');
+  assert.match(ed.decisao, /^MH2 #267 · 2 leitura\(s\)/, ed.decisao);
+  assert.match(ed.decisao, /por número \+ código/, ed.decisao);
+  assert.match(ed.texto, /MH2/);
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · X3/X5 scanner identifica a edição e manda o lote para uma lista e para a coleção', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.goto(base + '#/listas/editar');
@@ -1577,9 +1596,12 @@ test('e2e · X3/X5 scanner identifica a edição e manda o lote para uma lista e
   await page.waitForSelector('#scan-edition');
   assert.match(await page.innerText('#scan-edition'), /MH2 #267 · Modern Horizons 2/); // leva 112: a linha do resultado ficou só "✓ nome · edição", sem o rótulo
 
+  // S-604 · expectativa ajustada: sem nada lido na linha de coleção, a carta de poucas impressões (a Scryfall falsa tem duas de
+  // cada nome) oferece a escolha de um toque em vez de "não identificada"; com mais de quatro, segue sem edição (scanner.unit)
   await page.evaluate(() => window.__ocrQueue.push('Island'));
   await page.click('#scan-read');
-  await page.waitForFunction(() => /não identificada/.test((document.querySelector('#scan-edition') || {}).innerText || ''));
+  await page.waitForFunction(() => /Edição incerta/.test((document.querySelector('#scan-edition') || {}).innerText || ''));
+  assert.equal(await page.locator('[data-printing]').count(), 2, 'as duas impressões de Island viram chips');
 
   await page.click('#scan-lot'); await page.click('#scan-pile-commit'); await page.waitForSelector('#scan-lot-list');
   assert.match(await page.innerText('#scan-lot-list'), /MH2 #267/);
@@ -4146,7 +4168,8 @@ test('e2e · S-596 reconhece pela arte: sem nome legível, a arte da carta achad
   let semente = 99; const rnd = () => (semente = (semente * 1103515245 + 12345) >>> 0);
   const lista = [], cartas = [];
   for (let i = 0; i < 300; i++) { lista.push(Uint32Array.from({ length: 6 }, rnd)); cartas.push(['Carta ' + i, 'tst', String(i + 1), 'il' + i, '1']); }
-  lista.splice(137, 0, alvo); cartas.splice(137, 0, ['Counterspell', 'mh2', '267', 'il-cs', '1']);
+  // S-604 · a ilustração é a da impressão MH2 da Scryfall falsa (ilu-mh2-<nome>): a edição vem pela ilustração
+  lista.splice(137, 0, alvo); cartas.splice(137, 0, ['Counterspell', 'mh2', '267', 'ilu-mh2-counterspell', '1']);
   const bin = Buffer.from(X.binDasArtes(lista));
   const indice = { versao: 1, geradoEm: '2026-11-02T08:00:00Z', bits: 192, campos: ['nome', 'set', 'numero', 'ilustracao', 'versao'], cartas };
   const pedidosArtes = [];

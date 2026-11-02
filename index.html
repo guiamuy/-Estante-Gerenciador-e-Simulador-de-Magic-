@@ -5655,6 +5655,9 @@ function normalizeCard(c) {
     keywords: c.keywords || [], layout: c.layout || 'normal',
     rarity: c.rarity || '', set: c.set || '', set_name: c.set_name || '',
     collector_number: c.collector_number || '',
+    // S-604 · o scanner separa as impressões pelo artista impresso e pela ilustração que a arte reconheceu
+    artist: c.artist || (Array.isArray(c.card_faces) && c.card_faces[0] && c.card_faces[0].artist) || '',
+    illustration_id: c.illustration_id || (Array.isArray(c.card_faces) && c.card_faces[0] && c.card_faces[0].illustration_id) || '',
     legalities: c.legalities || {}, prices: c.prices || {},
     images: imgs(c.image_uris) || (faces[0] && faces[0].images) || null,
     faces, uri: c.scryfall_uri || '', edhrec_rank: c.edhrec_rank ?? null,
@@ -44443,6 +44446,73 @@ function resolvePrinting(prints, parsed) {
   const pool = byNum.length ? byNum : bySet.length ? bySet : [];
   return { exact: null, candidates: pool.slice(0, 3) };
 }
+/* ---------------- S-604 · a edição por evidências ----------------
+   A linha de coleção lida como um todo (uma ou mais leituras), a ilustração achada pela arte e o artista impresso
+   dão pontos a cada impressão da carta; só a impressão que a evidência separa das outras entra conferida. Antes, a
+   edição tirada da arte entrava conferida mesmo quando a mesma ilustração existe em várias coleções, e a leitura que
+   não dava código e número juntos deixava a cópia sem edição e sem candidatas. */
+const PESOS_EDICAO = { numero: 3, set: 3, artista: 1.5, arte: 2, folga: 1.5 };
+const tokensDaColecao = textos => {
+  const t = (Array.isArray(textos) ? textos : [textos]).map(s => String(s || '').toUpperCase().replace(/[|]/g, '1').replace(/[•·*]/g, ' ')
+    .replace(/(\d)O/g, '$10').replace(/O(\d)/g, '0$1')).join(' ')
+    .replace(/\/\s*\d{1,4}/g, ' ');   // o total da coleção ("067/286") não é número de impressão
+  // "OOO2" (o leitor troca zero por O em sequência): token de dígitos e Os, com ao menos um dígito, é número
+  const tokens = t.split(/[^A-Z0-9]+/).filter(Boolean).map(k => (/^[0-9OQD]+[A-Z]?$/.test(k) && /\d/.test(k) ? k.replace(/[OQD](?=[0-9OQD]*(?:[A-Z]?)$)/g, '0') : k));
+  return { tokens, texto: t };
+};
+const semZeros = v => String(v || '').toLowerCase().replace(/^0+(?=\d)/, '');
+/** Quanto o texto lido mostra do artista (0 a 1): cada palavra do nome com 4+ letras achada, com um erro de leitura de folga. */
+function artistaNoTexto(artista, tokens) {
+  const partes = String(artista || '').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '').split(/[^A-Z]+/).filter(p => p.length >= 4);
+  if (!partes.length) return 0;
+  const achou = p => tokens.some(t => t === p || (t.length >= 4 && Math.abs(t.length - p.length) <= 1 && lev(t, p, 2) <= (p.length >= 6 ? 1 : 0)));
+  return partes.filter(achou).length / partes.length;
+}
+/** prints: as impressões da carta (Scryfall: set, collector_number, artist, illustration_id). evid: { textos: as leituras da
+    linha de coleção; arte: { ilustracao, set, numero } da arte achada }. Devolve { exact, candidates, pontos, por }. */
+function resolveEdicao(prints, { textos = [], arte = null } = {}) {
+  const P = (prints || []).map(p => ({ set: String(p.set || '').toLowerCase(), number: semZeros(p.collector_number || p.number), set_name: p.set_name || '', id: p.id || '',
+    artista: p.artist || p.artista || '', ilustracao: p.illustration_id || p.ilustracao || '' }));
+  const sai = (exact, candidates, pontos = [], por = []) => ({ exact, candidates, pontos, por });
+  if (!P.length) return sai(null, []);
+  const limpa = p => ({ set: p.set, number: p.number, set_name: p.set_name, id: p.id });
+  if (P.length === 1) return sai({ ...limpa(P[0]), verified: true }, [], [], ['única impressão']);
+  const { tokens } = tokensDaColecao(textos);
+  const nums = new Set(tokens.map(t => t.replace(/[A-Z]$/, '')).filter(t => /^\d{1,4}$/.test(t)).map(semZeros));
+  const numsComLetra = new Set(tokens.filter(t => /^\d{1,4}[A-Z]$/.test(t)).map(semZeros));
+  const LANG = new Set(LANG_CODES);
+  const ilustrSabida = !!(arte && arte.ilustracao) && P.some(p => p.ilustracao);
+  const comArte = ilustrSabida ? P.filter(p => p.ilustracao === arte.ilustracao).length : 0;
+  const pontos = P.map(p => {
+    const ev = [];
+    let s = 0;
+    if (p.number && (nums.has(p.number) || numsComLetra.has(p.number))) { s += PESOS_EDICAO.numero; ev.push('número'); }
+    const codigo = p.set.toUpperCase();
+    if (codigo.length >= 3) {
+      if (tokens.includes(codigo)) { s += PESOS_EDICAO.set; ev.push('código'); }
+      // pré-lançamento e promo (pXXX) trazem impresso o código da coleção de origem: conta pouco, para a comum ganhar o
+      // empate (o carimbo e o "s"/"p" do número é que separam a promo, e o número com letra já conta no número)
+      else if (/^P[A-Z0-9]{3}$/.test(codigo) && tokens.includes(codigo.slice(1))) { s += PESOS_EDICAO.set * 0.3; ev.push('código'); }
+      else if (codigo.length >= 3 && tokens.some(t => t.length === codigo.length && !LANG.has(t) && !/^\d+$/.test(t) && lev(t, codigo, 2) === 1)) { s += PESOS_EDICAO.set * 0.5; ev.push('código~'); }
+    }
+    const art = artistaNoTexto(p.artista, tokens);
+    if (art > 0) { s += PESOS_EDICAO.artista * art; ev.push('artista'); }
+    if (arte) {
+      if (ilustrSabida && p.ilustracao) { if (p.ilustracao === arte.ilustracao) { s += PESOS_EDICAO.arte; ev.push('arte'); } }
+      else if (arte.set && String(arte.set).toLowerCase() === p.set && semZeros(arte.numero) === p.number) { s += PESOS_EDICAO.arte; ev.push('arte'); }
+    }
+    return { p, s, ev };
+  });
+  const ordem = pontos.map((x, i) => ({ ...x, i })).sort((a, b) => b.s - a.s || a.i - b.i);
+  const [top, seg] = ordem;
+  const forte = top.ev.includes('número') || top.ev.includes('código') || (top.ev.includes('arte') && comArte === 1);
+  if (top.s > 0 && forte && top.s - (seg ? seg.s : 0) >= PESOS_EDICAO.folga)
+    return sai({ ...limpa(top.p), verified: true }, [], ordem.map(x => ({ set: x.p.set, number: x.p.number, s: x.s })), top.ev);
+  // sem uma impressão separada: as candidatas são as que empataram no topo (ou, sem evidência nenhuma, as primeiras)
+  // sem evidência nenhuma, só oferece a escolha quando as impressões cabem nos chips (até 4); mais que isso seria palpite
+  const cand = top.s > 0 ? ordem.filter(x => x.s > 0 && x.s > top.s - PESOS_EDICAO.folga).slice(0, 4).map(x => limpa(x.p)) : P.length <= 4 ? P.map(limpa) : [];
+  return sai(null, cand, ordem.map(x => ({ set: x.p.set, number: x.p.number, s: x.s })), top.s > 0 ? top.ev : []);
+}
 /** Faixa da linha de coleção (canto inferior esquerdo). X10 · a faixa passa da
     borda de baixo de propósito: quando o detector prende na moldura interna da carta
     (borda preta sobre mesa escura), a linha de coleção fica abaixo do retângulo achado. */
@@ -45131,6 +45201,12 @@ function criaBaseDeArtes({ store, fetchFn = (typeof fetch === 'function' ? fetch
       let melhor = null; for (const i of lista) { const d = distanciaDaArte(h, base.hashes, i); if (!melhor || d < melhor.d) melhor = { i, d }; }
       return melhor && { ...melhor, ...base.carta(melhor.i) };
     },
+    /** S-604 · as ilustrações de um nome, da mais parecida para a menos: [{ i, d, ilustracao, set, numero }]. */
+    ilustracoesDoNome(h, nome) {
+      if (!base) return [];
+      const lista = porNome.get(String(nome || '').toLowerCase()) || [];
+      return lista.map(i => ({ i, d: distanciaDaArte(h, base.hashes, i), ...base.carta(i) })).sort((a, b) => a.d - b.d);
+    },
     /** As duas mais parecidas na base inteira (varredura: só quando o nome não deu). */
     top(h) { if (!base) return []; return buscaArte(base.hashes, h, { quantas: 2 }).map(t => ({ ...t, ...base.carta(t.i) })); }
   };
@@ -45155,6 +45231,16 @@ function decideArte({ found = [], doNome = null, top = [], aceite = 0.85, exata 
   if (a && a.d <= L.soArte && (!b || b.d - a.d >= L.folga))
     return { found: [{ name: a.nome, score: a.d <= L.exata ? exata : aceite + 0.02, viaArte: true }], arte: a, confere: false, discorda: false };
   return { found, arte: null, confere: false, discorda: false };
+}
+/** S-604 · a ilustração da carta lida, para a edição: entre as ilustrações do MESMO nome, a mais parecida vale quando não é
+    de outra carta (d ≤ diferente) e fica com folga para a segunda. Mais solta que `igual` de propósito: aqui a arte só
+    escolhe entre as artes de um nome já lido, e reimpressões com ilustração nova (sem borda, vitrine) são justamente as
+    que a foto deixa mais longe da imagem da Scryfall. Devolve { ilustracao, set, numero, d } ou null. */
+function arteDaEdicao(lista, L = LIMIAR_ARTE) {
+  const [a, b] = lista || [];
+  if (!a || !(a.d <= L.diferente)) return null;
+  if (b && b.ilustracao !== a.ilustracao && b.d - a.d < L.folga) return null;
+  return { ilustracao: a.ilustracao || '', set: a.set || '', numero: String(a.numero || ''), d: a.d };
 }
 /** Grava as impressões no formato do artes.bin (Uint32 little-endian, 8 por arte, na ordem do índice). */
 function binDasArtes(lista) {
@@ -45206,14 +45292,21 @@ const FAIXA_COLECAO = { x: -0.02, y: 0.90, w: 0.56, h: 0.22 };
 const ALTURA_COLECAO = { min: 0.024, max: 0.052 };   // as duas linhas juntas, em frações da altura da carta
 /** O mesmo caminho do nome para a linha de coleção: retifica o canto de baixo, acha o bloco de duas linhas
     miúdas, binariza (texto claro sobre a borda preta vira preto no branco) e limpa as bordas. */
-function preparaColecao(src, sw, sh, cantos, largura = 700) {
+function preparaColecao(src, sw, sh, cantos, largura = 700, { inverte = false, livre = false } = {}) {
   const alt = Math.max(8, Math.round(largura * (FAIXA_COLECAO.h / FAIXA_COLECAO.w) / PROPORCAO_CARTA));
   const faixa = retifica(src, sw, sh, cantosDaFaixa(cantos, FAIXA_COLECAO), largura, alt);
-  const L = linhaDoNome(faixa.data, faixa.w, faixa.h, { altMin: ALTURA_COLECAO.min / FAIXA_COLECAO.h, altMax: ALTURA_COLECAO.max / FAIXA_COLECAO.h, sobreEscuro: true });
-  if (!L || !(L.nota > 0)) return null;   // carta de borda branca ou sem borda: não se lê uma tira qualquer
-  const bin = binarizaLinha(L.cinza, faixa.w, faixa.h, L.y0, L.y1, { margem: 0.25 });
+  const opc = { altMin: ALTURA_COLECAO.min / FAIXA_COLECAO.h, altMax: ALTURA_COLECAO.max / FAIXA_COLECAO.h };
+  // `livre`: a segunda tentativa procura a linha em qualquer fundo (sobre arte escura e com textura, a busca sobre a borda
+  // preta acha a textura em vez do texto)
+  let L = livre ? null : linhaDoNome(faixa.data, faixa.w, faixa.h, { ...opc, sobreEscuro: true }), borda = 'preta';
+  /* S-604 · carta sem borda (texto claro sobre a arte), de borda branca ou de vitrine: a linha não está sobre a borda preta.
+     Antes a leitura parava aqui e a edição ficava sem a linha (o Malcolm SPG #2 sem borda do dono, 02/11). Só quando a
+     busca sobre a borda preta não acha nada: nas cartas de borda preta o caminho é o de sempre. */
+  if (!L || !(L.nota > 0)) { L = linhaDoNome(faixa.data, faixa.w, faixa.h, opc); borda = 'outra'; }
+  if (!L || !(L.nota > 0)) return null;
+  const bin = binarizaLinha(L.cinza, faixa.w, faixa.h, L.y0, L.y1, { margem: 0.25, inverte });
   limpaLinha(bin.data, bin.w, bin.h);
-  return { data: bin.data, w: bin.w, h: bin.h, claro: bin.claro };
+  return { data: bin.data, w: bin.w, h: bin.h, claro: bin.claro, borda };
 }
 /** Largura da faixa de coleção retificada: o texto miúdo (1,6% da carta) fica com uns 25 px de altura. */
 function larguraColecao(alturaCartaPx) { return Math.max(400, Math.min(1400, Math.round(FAIXA_COLECAO.w * alturaCartaPx * PROPORCAO_CARTA * escalaOcr(alturaCartaPx)))); }
@@ -45243,9 +45336,9 @@ const LIMIARES_LINHA = { borrada: 0.5, deslocamentoMax: 0.05, correndo: 0.12, al
     mas a carta não conta como parada (nada entra na primeira passada; o porteiro pede repetição). */
 function pulaPorMovimento(mov, { via = 'auto', contorno = true } = {}) { return via !== 'manual' && contorno && mov > LIMIARES_LINHA.correndo; }
 
-return { cleanOcr, matchName, matchLines, criaVotacao, criaPorteiro, PORTEIRO, leituraConfiavel, nitidezDaFaixa, movimentoEntre, LIMIARES_FAIXA, criaDiario, criaCronometro, EXATA, buildIndex, candidatosDoIndice, createNameIndex, IDIOMAS_DOS_NOMES, LINGUAS_DO_LEITOR, linguaDoLeitor, temCjk, chaveCjk, indiceCjk, matchCjk, createLot, coverRegion, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, ACCEPT, ALTA, SUGGEST, lev,
+return { cleanOcr, matchName, matchLines, criaVotacao, criaPorteiro, PORTEIRO, leituraConfiavel, nitidezDaFaixa, movimentoEntre, LIMIARES_FAIXA, criaDiario, criaCronometro, EXATA, buildIndex, candidatosDoIndice, createNameIndex, IDIOMAS_DOS_NOMES, LINGUAS_DO_LEITOR, linguaDoLeitor, temCjk, chaveCjk, indiceCjk, matchCjk, createLot, coverRegion, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, resolveEdicao, artistaNoTexto, ACCEPT, ALTA, SUGGEST, lev,
   detectaCarta, detectaEmEscalas, ESCALAS_DETECTOR, brilho, nitidez, prontoParaLer, criaDetector, paradaEm, screenRect, LIMIARES, PROPORCAO_CARTA, realcaTexto, trechoEscuroEmbaixo, limpaBordas, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, faixaDaCarta, escalaOcr,
-  retasDoQuadro, achaQuadrilatero, ordenaCantos, homografia, cantosDaFaixa, retifica, FAIXA_NOME, FAIXA_COLECAO, LARGURA_NOME, linhaDoNome, binarizaLinha, limpaLinha, nitidezDaLinha, afiaLinha, FAIXA_ARTE, BITS_ARTE, impressaoDaArte, distanciaDaArte, buscaArte, abreBaseDeArtes, binDasArtes, criaBaseDeArtes, decideArte, LIMIAR_ARTE, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, alturaDaCarta, deslocamento, LIMIARES_LINHA, pulaPorMovimento, QUAD };
+  retasDoQuadro, achaQuadrilatero, ordenaCantos, homografia, cantosDaFaixa, retifica, FAIXA_NOME, FAIXA_COLECAO, LARGURA_NOME, linhaDoNome, binarizaLinha, limpaLinha, nitidezDaLinha, afiaLinha, FAIXA_ARTE, BITS_ARTE, impressaoDaArte, distanciaDaArte, buscaArte, abreBaseDeArtes, binDasArtes, criaBaseDeArtes, decideArte, arteDaEdicao, LIMIAR_ARTE, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, alturaDaCarta, deslocamento, LIMIARES_LINHA, pulaPorMovimento, QUAD };
 })();
 
 
@@ -45258,9 +45351,9 @@ const __m22 = (function () {
    o scanner abre); correspondência contra a base de nomes (C6).
    ===================================================================== */
 const { h, mount, Stack, Row, Surface, Text, Button, Field, Input, Select, Badge, Chip, Empty, Note, Spinner, Dialog, closeDialog, toast, reservaDoca, Simbolo, Icone, IconButton, AvisoRede } = __m3;
-const { createLot, coverRegion, screenRect, parseCollectorLine, resolvePrinting, ACCEPT, EXATA, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, criaPorteiro, PORTEIRO, leituraConfiavel, criaDiario, criaCronometro, realcaTexto,
+const { createLot, coverRegion, screenRect, parseCollectorLine, resolvePrinting, resolveEdicao, ACCEPT, EXATA, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, criaPorteiro, PORTEIRO, leituraConfiavel, criaDiario, criaCronometro, realcaTexto,
   achaQuadrilatero, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, FAIXA_NOME, FAIXA_COLECAO, alturaDaCarta, deslocamento, LIMIARES_LINHA, pulaPorMovimento, brilho,
-  FAIXA_ARTE, impressaoDaArte, criaBaseDeArtes, decideArte, LIMIAR_ARTE, LINGUAS_DO_LEITOR, linguaDoLeitor } = __m21;
+  FAIXA_ARTE, impressaoDaArte, criaBaseDeArtes, decideArte, arteDaEdicao, LIMIAR_ARTE, LINGUAS_DO_LEITOR, linguaDoLeitor } = __m21;
 const { pulse } = __m20;
 const TESSERACT_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
 // Leva 109 · o laço lê uma leitura atrás da outra; estes são só os respiros entre elas
@@ -45503,30 +45596,83 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     if (!printsCache.has(name)) { try { printsCache.set(name, await scryfall.search(`!"${name}"`, { unique: 'prints', order: 'released' })); } catch (e) { return []; } }
     return printsCache.get(name) || [];
   }
-  async function identify(name, cantosLidos, peloContorno, arte = null) {
+  /* S-604 · a edição por evidências. A linha de coleção é lida em até três variantes sobre a mesma cópia do quadro e, se
+     ainda não fechou e a carta segue no mesmo lugar (pelo contorno), num quadro novo: depois do aceite a pessoa já pode
+     estar trocando de carta, e a linha da próxima não pode virar a edição desta. Cada leitura soma às anteriores; para
+     quando uma impressão se separa.
+     A arte entra pela ilustração (todas as impressões com ela), o artista impresso desempata. O que não se separa vira
+     candidatas para um toque. O Diagnóstico ganha uma linha "edição" com o que foi lido e por que decidiu. */
+  // as leituras da linha de coleção, em ordem: a de sempre (sobre a borda preta), a "livre" (linha em qualquer fundo: carta
+  // sem borda, vitrine) e a de contraste invertido (texto escuro, borda branca)
+  const VARIANTES_EDICAO = [{}, { livre: true }, { inverte: true }], ESPERA_EDICAO_MS = 180;
+  /** Copia a faixa da linha de coleção do quadro de agora uma vez; devolve quem a lê em cada variante. */
+  function faixaDeColecao(cantosFr) {
+    const vw = video.videoWidth, vh = video.videoHeight;
+    const rec = recorteDaFaixa(cantosFr, FAIXA_COLECAO, vw, vh);
+    if (!rec) return null;
+    // canvas próprio: esta leitura corre em segundo plano, enquanto o laço já lê a próxima carta
+    const p = pixels(rec.regiao, {});
+    const kx = p.w / rec.w, ky = p.h / rec.h, cantos = rec.cantos.map(c => ({ x: c.x * kx, y: c.y * ky })), larg = larguraColecao(alturaDaCarta(cantosFr, vw, vh));
+    return async op => {
+      const pr = preparaColecao(p.d, p.w, p.h, cantos, larg, op);
+      return pr ? { texto: await ocr.read(paraCanvas(pr), 'colecao', 1), borda: pr.borda } : null;
+    };
+  }
+  async function identify(name, cantosLidos, peloContorno, arte = null, arteEd = null) {
     if (!state.edition) return { exact: null, candidates: [], parsed: null };
-    let parsed = { number: '', set: '', lang: '' };
+    const t0 = Date.now();
+    const list = await prints(name);
+    const arteEv = arteEd && arteEd.nome === name ? arteEd : arte && arte.nome === name && (arte.ilustracao || arte.set) ? arte : null;
+    const textos = [];
+    let parsed = { number: '', set: '', lang: '' }, borda = '', res = null, leituras = 0;
+    // revisão de escala: no automático as cartas entram a cada segundo; com outra edição esperando o leitor, esta faz só a
+    // leitura de sempre (sem variantes nem quadro novo) para a fila do leitor da edição não crescer sem teto
+    state.edicoesNaFila = (state.edicoesNaFila || 0) + 1;
+    const apertado = state.edicoesNaFila > 1;
+    const decide = () => list.length ? resolveEdicao(list, { textos, arte: arteEv }) : null;
+    const fechou = () => (res = decide()) ? !!res.exact : !!(parsed.set && parsed.number);
+    const soma = lido => {
+      leituras++;
+      if (!lido || !lido.texto || !lido.texto.trim()) return;
+      textos.push(lido.texto); borda = borda || lido.borda;
+      const p1 = parseCollectorLine(lido.texto);
+      parsed = { number: parsed.number || p1.number, set: parsed.set || p1.set, lang: parsed.lang || p1.lang };
+    };
     try {
-      const vw = video.videoWidth, vh = video.videoHeight;
       // o nome foi lido uma ou mais passadas atrás: os cantos são conferidos de novo no quadro de agora
       let cantosFr = cantosLidos;
       if (peloContorno) {
         const q = quadroPequeno(), novo = achaQuadrilatero(q.cinza, q.w, q.h);
         if (novo) { const c = state.invertida ? viraCantos(novo.cantos) : novo.cantos; if (deslocamento(c, cantosLidos) < 0.15) cantosFr = c; }
       }
-      const rec = recorteDaFaixa(cantosFr, FAIXA_COLECAO, vw, vh);
-      if (!rec) throw new Error('sem-recorte');
-      // canvas próprio: esta leitura corre em segundo plano, enquanto o laço já lê a próxima carta
-      const p = pixels(rec.regiao, {});
-      const kx = p.w / rec.w, ky = p.h / rec.h;
-      const pr = preparaColecao(p.d, p.w, p.h, rec.cantos.map(c => ({ x: c.x * kx, y: c.y * ky })), larguraColecao(alturaDaCarta(cantosFr, vw, vh)));
-      if (pr) parsed = parseCollectorLine(await ocr.read(paraCanvas(pr), 'colecao', 1));
-    } catch (e) { /* segue sem edição */ }
-    // S-596 · a linha de coleção não leu: a edição vem da arte, quando a arte é desta carta
-    if (!(parsed.set && parsed.number) && arte && arte.nome === name && arte.set) parsed = { ...parsed, set: arte.set, number: String(arte.numero || ''), deArte: true };
-    const list = await prints(name);
-    if (list.length) return { ...resolvePrinting(list, parsed), parsed };
-    return { exact: parsed.set && parsed.number ? { set: parsed.set, number: parsed.number, verified: false } : null, candidates: [], parsed };
+      // as variantes leem a MESMA cópia do quadro: não há risco de a carta seguinte entrar na conta
+      const le = faixaDeColecao(cantosFr);
+      if (le) for (const op of apertado ? VARIANTES_EDICAO.slice(0, 1) : VARIANTES_EDICAO) { try { soma(await le(op)); } catch (e) { /* próxima variante */ } if (fechou()) break; }
+      // ainda aberta e a carta segue no mesmo lugar (pelo contorno): um quadro novo, na leitura de sempre e na livre
+      if (!apertado && !(res ? res.exact : parsed.set && parsed.number) && peloContorno && state.alive) {
+        await dormir(ESPERA_EDICAO_MS);
+        const q = quadroPequeno(), novo = achaQuadrilatero(q.cinza, q.w, q.h);
+        const c = novo && (state.invertida ? viraCantos(novo.cantos) : novo.cantos);
+        if (c && deslocamento(c, cantosLidos) < 0.15) {
+          const le2 = faixaDeColecao(c);
+          if (le2) for (const op of VARIANTES_EDICAO.slice(0, 2)) { try { soma(await le2(op)); } catch (e) { /* segue */ } if (fechou()) break; }
+        }
+      }
+    } catch (e) { /* segue com o que já leu */ }
+    finally { state.edicoesNaFila = Math.max(0, state.edicoesNaFila - 1); }
+    if (!res) res = decide();
+    let saida;
+    if (res) saida = { exact: res.exact, candidates: res.candidates, parsed, por: res.por };
+    else {
+      // sem a lista de impressões (sem internet): o que a linha diz, ou a impressão da arte, sem conferir
+      const p = parsed.set && parsed.number ? parsed : arteEv && arteEv.set ? { set: arteEv.set, number: String(arteEv.numero || '') } : null;
+      saida = { exact: p ? { set: p.set, number: p.number, verified: false } : null, candidates: [], parsed, por: [] };
+    }
+    const rot = x => `${String(x.set || '').toUpperCase()} #${x.number}`;
+    diario.anota({ via: 'edição', texto: textos.join(' | '), melhor: null, ms: Date.now() - t0,
+      decisao: `${saida.exact ? `${rot(saida.exact)}${saida.exact.verified ? '' : ' (não conferida)'}` : saida.candidates.length ? `incerta: ${saida.candidates.map(rot).join(', ')}` : 'sem edição'}`
+        + ` · ${leituras} leitura(s)${apertado ? ' (fila cheia: só a de sempre)' : ''}${borda ? `, borda ${borda}` : ''}${arteEv ? `, arte ${arteEv.d != null ? arteEv.d : '?'}` : ''}${saida.por && saida.por.length ? ` · por ${saida.por.join(' + ')}` : ''} · ${list.length} impressões` });
+    return saida;
   }
 
   /* ---- a leitura ---- */
@@ -45595,11 +45741,15 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
         const h = arteDoQuadro(cartaCantos);
         if (h) {
           const nomeLido = melhor && nota(melhor) >= ACCEPT ? melhor.found[0].name : null;
-          const doNome = nomeLido ? artes.doNome(h, nomeLido) : null;
+          // S-604 · as ilustrações do nome lido, da mais parecida: a primeira é a de sempre (doNome); a lista inteira escolhe a edição
+          const doNomeTodas = nomeLido ? (artes.ilustracoesDoNome ? artes.ilustracoesDoNome(h, nomeLido) : [artes.doNome(h, nomeLido)].filter(Boolean)) : [];
+          const doNome = doNomeTodas[0] || null;
+          const ed = arteDaEdicao(doNomeTodas);
+          if (ed && melhor) melhor = { ...melhor, arteEd: { ...ed, nome: nomeLido } };
           const precisaTop = !nomeLido || (nota(melhor) < EXATA && !(doNome && doNome.d <= LIMIAR_ARTE.igual));
           const dec = decideArte({ found: melhor ? melhor.found : [], doNome, top: precisaTop ? artes.top(h) : [], aceite: ACCEPT, exata: EXATA });
           if (dec.arte || dec.discorda) {
-            if (!melhor || melhor.caminho !== 'carta') melhor = { caminho: 'carta', cantos: cartaCantos, texto: melhor ? melhor.texto : '', nitidez: melhor ? melhor.nitidez : 0 };
+            if (!melhor || melhor.caminho !== 'carta') melhor = { caminho: 'carta', cantos: cartaCantos, texto: melhor ? melhor.texto : '', nitidez: melhor ? melhor.nitidez : 0, arteEd: melhor ? melhor.arteEd : undefined };
             melhor = { ...melhor, found: dec.found, arte: dec.arte, confereArte: dec.confere, discordaArte: dec.discorda };
           }
         }
@@ -45629,7 +45779,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     if (!leitura.cantos) return key;
     (async () => {
       try {
-        const ed = await identify(name, leitura.cantos, leitura.caminho === 'carta', leitura.arte);
+        const ed = await identify(name, leitura.cantos, leitura.caminho === 'carta', leitura.arte, leitura.arteEd);
         const img = await miniatura(name, ed.exact);
         const nova = await lot.enrich(key, { printing: ed.exact, img });
         if (state.last && state.last.key === key) state.last = { ...state.last, key: nova || key, printing: ed.exact, candidates: ed.candidates || [], pendente: false };
@@ -45769,7 +45919,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
   function infoAparelho() {
     const LEITOR = { idle: 'parado', loading: 'carregando', ready: 'pronto', failed: 'falhou' };
     const cam = camera.info ? camera.info() : {};
-    return { leitor_versao: 'S-598 (nome em inglês, português, espanhol, italiano, francês e alemão + arte; lente que foca, 2×)', nomes_idiomas: (Object.entries((names.info() || {}).idiomas || {}).map(([l, n]) => `${l} ${n}`).join(' · ') || 'nenhuma'), artes: (artes.info() ? `${artes.info().total} artes` : 'sem base'), aparelho: (navigator.userAgent || '').slice(0, 80), video: `${cam.width || video.videoWidth || 0}×${cam.height || video.videoHeight || 0}${cam.fps ? ` @${Math.round(cam.fps)}` : ''}`, foco: cam.foco || '?', camera_maximo: cam.maximo || '?', subida: cam.subida || '—', zoom: `${(+(cam.zoom || 1)).toFixed(1)}×`, lanterna: cam.lanterna ? 'ligada' : 'desligada', lente: (cam.rotulo || '?').slice(0, 40) + (cam.lenteAuto ? ' (trocada: a anterior não focava)' : ''), ate_aceitar: (r => r.n ? (r.nEntrada ? `mediana ${r.desdeEntrada} ms desde a entrada (${r.nEntrada} carta(s)); ` : '') + `confirmação ${r.confirmacao} ms (${r.n} carta(s))` : 'sem cartas ainda')(cronometro.resumo()), base: (names.info() || {}).count || 0, leitor: LEITOR[state.engine] || state.engine, automatico: state.auto ? 'ligado' : 'pausado', limiares: `borrada < ${LIMIARES_LINHA.borrada} (lê de novo realçada), movimento ≤ ${Math.round(LIMIARES_LINHA.deslocamentoMax * 100)}, carta ≥ ${Math.round(LIMIARES_LINHA.alturaMin * 100)}% do quadro` };
+    return { leitor_versao: 'S-604 (nome em seis línguas latinas, japonês e chinês + arte; edição por linha de coleção, arte e artista; lente que foca, 2×)', nomes_idiomas: (Object.entries((names.info() || {}).idiomas || {}).map(([l, n]) => `${l} ${n}`).join(' · ') || 'nenhuma'), artes: (artes.info() ? `${artes.info().total} artes` : 'sem base'), aparelho: (navigator.userAgent || '').slice(0, 80), video: `${cam.width || video.videoWidth || 0}×${cam.height || video.videoHeight || 0}${cam.fps ? ` @${Math.round(cam.fps)}` : ''}`, foco: cam.foco || '?', camera_maximo: cam.maximo || '?', subida: cam.subida || '—', zoom: `${(+(cam.zoom || 1)).toFixed(1)}×`, lanterna: cam.lanterna ? 'ligada' : 'desligada', lente: (cam.rotulo || '?').slice(0, 40) + (cam.lenteAuto ? ' (trocada: a anterior não focava)' : ''), ate_aceitar: (r => r.n ? (r.nEntrada ? `mediana ${r.desdeEntrada} ms desde a entrada (${r.nEntrada} carta(s)); ` : '') + `confirmação ${r.confirmacao} ms (${r.n} carta(s))` : 'sem cartas ainda')(cronometro.resumo()), base: (names.info() || {}).count || 0, leitor: LEITOR[state.engine] || state.engine, automatico: state.auto ? 'ligado' : 'pausado', limiares: `borrada < ${LIMIARES_LINHA.borrada} (lê de novo realçada), movimento ≤ ${Math.round(LIMIARES_LINHA.deslocamentoMax * 100)}, carta ≥ ${Math.round(LIMIARES_LINHA.alturaMin * 100)}% do quadro` };
   }
   function paintEstado() {
     const txt = state.camera !== 'on' ? '' : state.engine === 'loading' ? 'Preparando o leitor…' : state.engine === 'failed' ? 'Leitor indisponível' : state.auto ? 'Automático' : 'Pausado';
