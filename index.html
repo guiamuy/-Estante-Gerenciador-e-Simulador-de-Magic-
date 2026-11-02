@@ -7263,6 +7263,7 @@ const EFFECTS = {
   oponentes_nao_conjuram: { fields: [], targets: ['self'] }, // T-92 · "Your opponents can't cast spells this turn."
   rad: { fields: ['amount'], targets: ['self', 'player', 'opponent', 'each-player', 'each-opponent'] }, // T-91 · CR 728.1 · "[target player | each player | each opponent | you] get(s) N rad counters"
   descarta_para_comprar: { fields: [], targets: ['self'] }, // T-88 · "you may discard a card. If you do, draw a card." (a pergunta só aparece com carta na mão; a compra só se descartou)
+  conjuravel_cemiterio_m: { fields: [], targets: ['card-in-your-graveyard'] }, // M-602 · Emry: "Choose target artifact card in your graveyard. You may cast that card this turn." (601.2: custo e tempo normais; 400.7: some ao sair do cemitério)
   voto_m: { fields: [], targets: ['self'] }, // M-586 · CR 701.38 · Will of the council: "starting with you, each player votes for a [tipo] card in your graveyard. Return each card with the most votes or tied for most votes to your hand" (`filter` opcional: tipos)
   pilhas: { fields: ['amount'], targets: ['self'] }, // T-83 · CR 700.3 · "reveal the top N cards of your library; [an opponent | you] separates those cards into two piles; put one pile into your hand and the other into your graveyard" — `separa` e `escolhe`: 'voce' | 'oponente'
   exila_mesmo_nome: { fields: [], targets: ['permanent'] }, // T-80 (o alvo de verdade é o seletor com zona 'graveyard', conferido na validação da trilha) · CR 701.23 · "search its owner's graveyard, hand, and library for any number of cards with the same name as that card and exile them. Then that player shuffles." (alvo: seletor de carta em cemitério)
@@ -21862,6 +21863,7 @@ const __m42 = (function () {
     [/^search your library for up to two basic land cards that share a land type, put them onto the battlefield tapped$/i, () => [{ do: 'search', amount: 2, filter: { basic: true, types: ['land'] }, to: 'battlefield-tapped', compartilhaTipoM: true }]], // M-561 · Myriad Landscape (205.3i)
     [/^search your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand$/i, () => [{ do: 'search', amount: 2, filter: { basic: true, types: ['land'] }, to: 'battlefield-tapped', reparte: ['battlefield-tapped', 'hand'] }]], // M-345 · Cultivate, Kodama's Reach: uma busca de até dois; o primeiro escolhido entra virado, o segundo vai para a mão (achado da revisão: um só entra virado, 609.3)
     [new RegExp(`^~ deals ${N} damage to each of one or two targets$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'any' }, { do: 'damage', amount: num(m[1]), target: 'any', upTo: true }]], // M-345 · Storm of Steel, Prismari Charm (601.2c: alvos diferentes)
+    [/^conjuravel_cemiterio (artifact)$/i, m => [{ do: 'conjuravel_cemiterio_m', target: 'card-in-your-graveyard', targetTypes: [m[1].toLowerCase()] }]], // M-602 · Emry, Lurker of the Loch (601.2: custo e tempo normais)
     [/^return target artifact or creature card with mana value (\d+) or less from your graveyard to the battlefield$/i, m => [{ do: 'reanimate', target: 'card-in-your-graveyard', targetTypes: ['artifact', 'creature'], targetMvMax: +m[1] }]], // M-400 · Recommission
     [/^return target creature card from your graveyard to the battlefield$/i, () => [{ do: 'reanimate', target: 'creature-in-your-graveyard' }]], // M-516 · Breath of Life
     [/^return target creature card from your graveyard to the battlefield tapped$/i, () => [{ do: 'reanimate_tapped', target: 'creature-in-your-graveyard' }]], // M-516 · Gravewaker
@@ -22294,6 +22296,7 @@ const __m42 = (function () {
     texto = texto.replace(/, then you may reveal the top card of your library\. if a creature card is revealed this way, draw a card/i, '. you may reveal the top card of your library to draw a card if it is a creature card'); // M-570 · Elven Farsight: "Scry 3, then …" em duas frases
     texto = texto.replace(/(?:^|(?<=\. ))you may put a card from your hand on the bottom of your library\. if you do, draw a card/i, 'you may put a card from your hand on the bottom of your library to draw a card'); // M-569 · Volcanic Spite (uma frase só: o "if you do" depende da escolha)
     texto = texto.replace(/(?:^|(?<=\. ))you may sacrifice a permanent\. if you do, draw (\w+) cards?/i, (m0, n) => `you may sacrifice a permanent to draw ${n} cards`); // M-549 · Witherbloom Charm
+    texto = texto.replace(/^choose target (artifact) card in your graveyard\. you may cast that card this turn/i, 'conjuravel_cemiterio $1'); // M-602 · Emry (uma frase só: a permissão é da carta escolhida)
     texto = texto.replace(/^exile (target (?:creature|permanent)(?: you control)?), then return (?:it|that card) to the battlefield under its owner's control/i, 'pisca $1'); // M-349 · Ephemerate
     texto = texto.replace(/^exile two target (artifacts, creatures, and\/or lands you control), then return those cards to the battlefield under your control/i, 'pisca_dois $1');
     texto = texto.replace(/^choose up to one target creature spell or planeswalker spell\. its owner puts it on their choice of the top or bottom of their library/i, 'topo_fundo_magia_criatura_pw'); // M-533 · Subtlety // M-351 · Ghostly Flicker
@@ -23321,7 +23324,7 @@ function zoneList(s, obj, zone) { return zone === 'stack' ? s.stack : s.zones[ob
 const VOLTA_COMANDO = ['graveyard', 'exile', 'hand', 'library'];
 /** Leva 105 · marcas que a conjuração põe na carta (e que não atravessam outra mudança de zona). */
 const MARCAS_DA_CONJURACAO = ['xPaid', 'bestowed', 'evidenced', 'faceDown', 'prevista', 'flashback', 'paidAdditional', 'discardedNonland', 'altIndex', 'mode',
-  'bargained', 'omen', 'stormCopies', 'chosenColor', 'plotted', 'playableFromExile', 'soConjurarM' /* M-566 */, 'jogavelSoNesteTurno', 'jogavelAte', 'jogavelAteFinalM' /* M-541 */, 'escondida', 'suspensa', 'suspensaImpeto', 'jogavelSe', 'emendas', 'sneakAtaque', 'sneakPw', 'kicked', 'modes', 'castFrom', 'divisao', 'danoCausado' /* M-427 */, 'descartadas' /* M-434 */, 'ordemDaMagiaM' /* M-442 */, 'naPrincipalM' /* M-443 */, 'danoNoTurnoM' /* M-447 */, 'coresGastasM' /* M-451 */]; // M-376 · 'revealed' fica: a habilidade do Martyr of Sands lê depois do sacrifício
+  'bargained', 'omen', 'stormCopies', 'chosenColor', 'plotted', 'playableFromExile', 'conjuravelCemM' /* M-602 · 400.7 */, 'soConjurarM' /* M-566 */, 'jogavelSoNesteTurno', 'jogavelAte', 'jogavelAteFinalM' /* M-541 */, 'escondida', 'suspensa', 'suspensaImpeto', 'jogavelSe', 'emendas', 'sneakAtaque', 'sneakPw', 'kicked', 'modes', 'castFrom', 'divisao', 'danoCausado' /* M-427 */, 'descartadas' /* M-434 */, 'ordemDaMagiaM' /* M-442 */, 'naPrincipalM' /* M-443 */, 'danoNoTurnoM' /* M-447 */, 'coresGastasM' /* M-451 */]; // M-376 · 'revealed' fica: a habilidade do Martyr of Sands lê depois do sacrifício
 /* ---------------- CR2-G R5c · 701.8/614 · "se fosse destruída" ---------------- */
 /** O que acontece se `o` fosse destruída agora: 'indestrutivel' (não é destruída), { totem: aura } (702.89: a Aura com
  * armadura de totem é destruída no lugar e o dano sai), 'regenerou' (701.15: um escudo de regeneração é gasto) ou 'destruida'.
@@ -23625,6 +23628,8 @@ function permissoesDoCemiterio(s, p) {
   return battlefield(s).filter(o => o.controller === p && !o.faceDown && !semImpressas(s, o) && ((s.facts[o.name] || {}).script || {}).permiteConjurar
     && (!s.facts[o.name].script.permiteConjurar.noSeuTurno || s.turn.active === p) && o.permissaoUsada !== s.turn.number);
 }
+/** M-602 · Emry: carta no cemitério com a permissão "You may cast that card this turn" dada a `p` neste turno (a marca some ao mudar de zona, 400.7). */
+const conjuravelDoCemiterioM = (s, p, o) => !!o && o.zone === 'graveyard' && !!o.conjuravelCemM && o.conjuravelCemM.p === p && o.conjuravelCemM.turno === s.turn.number;
 const permissaoServe = (s, p, perm, carta) => !!perm && selCasa(s, p, carta, s.facts[perm.name].script.permiteConjurar.filtro || {}, perm.oid, { mira: false, src: perm });
 /** M-253 · 702.164 · tóxico N (instâncias somam); some com as habilidades impressas e virada para baixo. */
 const toxicoDe = (s, o) => !o ? 0 : (o.tempToxico || 0) + (o.faceDown || semImpressas(s, o) ? 0 : ((((s.facts[o.name] || {}).script || {}).self || {}).toxic || 0)); // M-255 · o concedido até o fim do turno soma
@@ -27030,6 +27035,7 @@ function applyEffectM449(s, src, eff, tgt, events) {
     case 'descarta_para_comprar': descartaParaComprarT(s, src, events); break; // T-88
     case 'pilhas': pilhasT(s, src, eff, events); break; // T-83 · CR 700.3
     case 'voto_m': votoM(s, src, eff, events); break; // M-586 · CR 701.38
+    case 'conjuravel_cemiterio_m': if (obj && obj.zone === 'graveyard' && obj.owner === ctrl) { obj.conjuravelCemM = { p: ctrl, turno: s.turn.number }; note({ target: obj.name }); } else note({ failed: true }); break; // M-602 · Emry: a permissão vale só neste turno, para quem ativou
     case 'exila_mesmo_nome': exilaMesmoNomeT(s, src, obj, events); break; // T-80 · CR 701.23 / 201.2
     case 'escolhe_nome': escolheNomeT(s, src, eff, events); break; // T-77 · CR 201.4
     case 'descarta_nome': descartaNomeT(s, src, playerOf(), events); break; // T-77 · CR 201.4 / 701.20
@@ -28873,7 +28879,10 @@ const HANDLERS = {
     if (a.recomecarK) pagaRecomecarK(s, a, o); // K-10 · 702.133a: confere e descarta a carta escolhida (custo adicional)
     confereHarmonizarK(s, a, o); // K-55 · 702.180a: harmonizar só do cemitério, e só pelo custo de harmonizar (Toca ponto comum: HANDLERS.cast)
     conferePresenteK(s, a, o); // K-56 · 702.174a: o presente só a um oponente (Toca ponto comum: HANDLERS.cast)
-    if (a.permissao != null) { // M-256 · conjurar do cemitério pela permissão de uma permanente (uma vez por turno, por permanente)
+    if (a.permissao != null && a.permissao === a.oid) { // M-602 · Emry: a própria carta tem a permissão deste turno
+      if (!conjuravelDoCemiterioM(s, a.p, o) || s.facts[o.name].types.includes('land')) throw new RuleError('permissão', 'esta carta não pode ser conjurada do cemitério agora');
+      delete o.conjuravelCemM; // usada: a magia na pilha já é outro objeto (400.7)
+    } else if (a.permissao != null) { // M-256 · conjurar do cemitério pela permissão de uma permanente (uma vez por turno, por permanente)
       const perm = permissoesDoCemiterio(s, a.p).find(x => x.oid === a.permissao);
       if (!perm || !permissaoServe(s, a.p, perm, o) || s.facts[o.name].types.includes('land')) throw new RuleError('permissão', 'nenhuma permanente sua deixa conjurar esta carta do cemitério agora');
       perm.permissaoUsada = s.turn.number;
@@ -30268,6 +30277,10 @@ function legalActions(s, p, { adjudication = false } = {}) {
       if (!(canSorcery || !isSorcerySpeed(f)) || !payable(o, castExtra(s, p, o, 0))) continue;
       casts(o).forEach(x => out.push({ ...x, permissao: perm.oid }));
     } }
+  for (const oid of s.zones[p].graveyard) { const o = s.objects[oid], f = s.facts[o.name]; // M-602 · Emry: a carta marcada neste turno pode ser conjurada do cemitério (custo e tempo normais)
+    if (!conjuravelDoCemiterioM(s, p, o) || f.types.includes('land')) continue;
+    if (!(canSorcery || !isSorcerySpeed(f)) || !payable(o, castExtra(s, p, o, 0))) continue;
+    casts(o).forEach(x => out.push({ ...x, permissao: o.oid })); }
   // S48 · fuga: conjura do cemitério e a carta fica em jogo (Sentinel's Eyes)
   for (const oid of s.zones[p].graveyard) {
     const o = s.objects[oid], f = s.facts[o.name];
@@ -39201,6 +39214,7 @@ function descreveEfeito(e) {
     case 'search': return `procura ${plural(n, 'carta', 'cartas')}${e.filter && e.filter.types && e.filter.types.includes('creature') && e.filter.cores ? ` de criatura ${e.filter.cores.map(c => ({ W: 'branca', U: 'azul', B: 'preta', R: 'vermelha', G: 'verde' })[c]).join(' e ')}` : ''}${e.filter && e.filter.mvMax != null ? ` de valor de mana ${typeof e.filter.mvMax === 'object' ? 'X' : e.filter.mvMax} ou menos` : ''} ${e.filter && e.filter.name ? `chamada ${e.filter.name} ` : ''}no grimório${e.to === 'battlefield' && !e.reparte ? ' e põe no campo de batalha' : ''}${e.to === 'battlefield-tapped' && !e.reparte ? ' e põe no campo de batalha virada' : ''}${e.compartilhaTipoM ? ' com um tipo de terreno em comum' : ''}${e.reparte ? ' (a primeira entra virada, a segunda vai para a mão)' : ''}${e.desviraSeTerrenos ? ` (desvira a terra achada se você tiver ${e.desviraSeTerrenos} terrenos ou mais)` : ''}`; // M-343
     case 'scry': return `vidência ${n}: olha ${plural(n, 'carta', 'cartas')} de cima e decide o que fica no topo`;
     case 'surveil': return `vigia ${n}`;
+    case 'conjuravel_cemiterio_m': return `escolhe ${e.targetTypes && e.targetTypes.length === 1 && e.targetTypes[0] === 'artifact' ? 'um artefato' : 'uma carta'} do seu cemitério; você pode conjurá-lo neste turno`; // M-602
     case 'voto_m': { const TIPO = { artifact: 'artefato', creature: 'criatura', enchantment: 'encantamento', instant: 'instantânea', sorcery: 'feitiço', land: 'terreno', planeswalker: 'planeswalker' }, ts = ((e.filter || {}).types || []).map(t => TIPO[t] || t); // M-586 · 701.38
       return `começando por você, cada jogador vota numa carta${ts.length ? ` de ${ts.length > 1 ? ts.slice(0, -1).join(', ') + ' ou ' + ts[ts.length - 1] : ts[0]}` : ''} do seu cemitério; a mais votada, e as empatadas com ela, voltam para a sua mão`; }
     case 'look': { // M-354 · achado da revisão do lote XXVI: dizia "olha as 1 cartas" (contava o que vai para a mão, não o que se olha)

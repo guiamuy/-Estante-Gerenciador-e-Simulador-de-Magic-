@@ -5767,6 +5767,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Teste:** `lt282.unit` (4 testes; falham no motor anterior).
 - **Fora:** Paradoxical Outcome continua para leva própria.
 
+**M-602 · LT260 · Emry, Lurker of the Loch (conjurar do cemitério neste turno o artefato escolhido)** ✅ (leva M-602, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** passa a ser **lida por inteiro** Emry, Lurker of the Loch (66 listas competitivas). Texto da Scryfall de 01/11/2026 (`cobertura/<formato>.json`). Joga no app depois da aprovação (homologacao).
+- **Regra:** "{T}: Choose target artifact card in your graveyard. You may cast that card this turn." (efeito `conjuravel_cemiterio_m`, alvo carta de artefato do seu cemitério): a carta ganha a permissão de quem ativou, só neste turno; a oferta sai do cemitério ao lado da permissão do Lurrus (`permissao` = a própria carta), pelo custo e no tempo normais (601.2: "You still pay its costs. Timing rules still apply."); a permissão some ao ser usada e quando a carta muda de zona (400.7, `MARCAS_DA_CONJURACAO`). A afinidade e o moer quatro já eram lidos.
+- **Conferido:** o leitor antes e depois sobre as cartas revisadas e os pendentes dos competitivos de 01/11: nenhuma leitura já completa mudou; `lurrus.unit` verde.
+- **Teste:** `lt283.unit` (3 testes; falham no motor anterior).
+- **Fora:** Paradoxical Outcome (71 listas) fica **declarada para leva própria**: "any number of target … permanents you control" pede alvo em quantidade livre — oferta por subconjunto (hoje a oferta corta em 16 combinações, com permutações repetidas), escolha múltipla na mesa (região da jogabilidade) e o número de alvos fixado na conjuração (a contagem do campo muda até a resolução). A compra "for each card returned to your hand this way" é simples e entra junto.
+
 **M-584 · LT241 · Sentinela do Pauper: Nettle Sentinel (593 → 594 de 594 listas)** ✅ (leva M-584, motor v112 sem mudança de forma; goldens intactos)
 - **Valor:** a sentinela (`cobertura/pauper.json` de 26/10/2026 13:27 UTC) mostrava 593 de 594 listas Pauper a 100% no app, com uma carta `nova` (Nettle Sentinel, 1 lista). Aprovada, 594 de 594 na próxima coleta. Texto da API da Scryfall de 26/10/2026 (campo `texto` do relatório), gravado em `.listas/oficiais-revisadas.json`.
 - **Regra:** triagem A — o leitor `__m42` lê "Whenever you cast a/an <cor> spell" com uma cor só (gatilho `other-cast`, `filter.anyColors`; 105.2: multicolorida com verde conta); "doesn't untap during your untap step" (502.3, M-558) e o "you may" do gatilho (603.5, pergunta na resolução) já existiam. Núcleo intacto; numerada M-584 porque a M-583 está reservada pela conversa dos competitivos.
