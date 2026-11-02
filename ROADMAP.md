@@ -8134,6 +8134,23 @@ estruturado para tornarmos o Shark um jogador de nível profissional com as suas
   As duas posições entram na bateria como erro aberto (`seq-guarda-anulacao-spellbomb`, `seq-guarda-anulacao-preordain`):
   **Shark 26 de 29 (89,7%)**. A pergunta certa é "quanto vale a anulação aberta contra esta mão provável", não uma regra
   — fica para a avaliação aprendida (fase 2).
+- **Fase 1b · diagnóstico novo (02/11/2026)** com o Shark da B-192: partidas narradas (`bot.narra.mjs`, 10 por piloto, 400 ms):
+  Control **2–8**, Faeries **6–4**. Um revisor separado leu as 12 derrotas (texto das cartas conferido no dado do repositório).
+  Classes por derrotas decisivas: **(A)** gasta a mana no próprio turno segurando Counterspell — 8 ocorrências, 5 derrotas,
+  3 decisivas (C900 T9, C1036 T9, F934 T9); **(B)** compra até zerar o grimório e nunca usa o Campfire para reembaralhar — 2
+  derrotas, as 2 decisivas, ambas **na frente** (17 × 5, 18 × 14); **(C)** islandcycling buscando Island sem fonte preta, ou
+  sem ciclar travado em terrenos — 8 ocorrências, 1 decisiva; **(D)** remoção de uso único sem alvo ou num só alvo; **(E)**
+  remoção ou 4 de vida em alvo fraco; **(F)** Thorn numa mesa que não protege o monarca; **(G)** bloqueio que só perde a
+  criatura com 18–23 de vida; **(H)** Spellstutter Sprite no próprio turno sem alvo. O que parece erro e não é: o Augur não
+  bloqueia o Sneaky Snacker (voa); Snuff Out no alvo do bestow da Hydra dá o mesmo que matar depois.
+- **Fase 4 · B-195 · grimório (02/11/2026).** Classe (B): o grimório que acaba passa a custar na avaliação (`grimorio`:
+  abaixo de oito cartas, (8 − n)² ÷ 2; vazio, como perder; vale para os dois lados). Posição nova:
+  `recurso-campfire-reembaralha` (duas cartas no grimório, Campfire e Sewer-veillance Cam: o certo é a segunda habilidade
+  do Campfire). **Medida pareada** (400 ms, contra o Shark da B-192): Control 14 × 17 · Terror 15 × 14 (24 pares cada;
+  **29 × 31**, 2 só do novo, 4 só do antigo); zero ilegais. Neutra em força (o grimório só acaba em partidas longas, raras na
+  amostra), **ligada pelo comportamento**: perder por grimório vazio na frente é derrota certa. A direção do Control fica
+  sob vigilância na régua do fechamento. Bateria **27 de 30**; piso 26 → 27. **`shark-v21` é o Shark da B-192, congelado.**
+  Próxima: classe (A) — medir de novo o pedágio largo de segurar a anulação (`segura`, desligado na B10b com outro Shark).
 - **Fase 2 · B-194 · avaliação aprendida, primeira medida (02/11/2026) — negativa, desligada.** `bot.aprende.mjs` (novo, fora
   do portão): `coleta` joga Shark × Shark com as cinco listas e grava as parcelas da `avaliaV6` de posições sorteadas e
   quem venceu; `ajusta` faz regressão logística (L2, treino e prova separados por partida) da vitória sobre as parcelas,

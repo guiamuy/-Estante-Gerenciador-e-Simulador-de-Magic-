@@ -170,6 +170,11 @@ export const POSICOES = [
   { id: 'seq-guarda-anulacao-preordain', classe: 'sequencia', lista: CONTROLE, porque: 'duas Ilhas, Counterspell e Preordain na mão contra o Terror com três Ilhas e a mão cheia: o Preordain espera; a Counterspell fica de pé para o Tolarian Terror',
     monta: () => monta(CONTROLE, TERROR, { passo: 'main2', p0: { campo: ['Island', 'Island'], mao: ['Counterspell', 'Preordain', 'Baleful Strix'] }, p1: { campo: ['Island', 'Island', 'Island'], mao: ['Tolarian Terror', 'Cryptic Serpent', 'Ponder', 'Island', 'Counterspell'] } }),
     certo: (s, j) => j.acao.t === 'pass' },
+  // B-195 · Control (partidas narradas de 02/11, sementes 917 e 985): comprou até zerar o grimório e perdeu na frente, com o
+  // Campfire em jogo (a segunda habilidade reembaralha o cemitério no grimório).
+  { id: 'recurso-campfire-reembaralha', classe: 'recurso', lista: CONTROLE, porque: 'duas cartas no grimório, vinte no cemitério, Campfire e Sewer-veillance Cam em jogo, o Madness a 5 sem mão: reembaralhar o cemitério com o Campfire, nada de comprar nem de ganhar 2 de vida',
+    monta: () => monta(CONTROLE, MADNESS, { p0: { campo: ['Island', 'Island', 'Island', 'Island', 'Island', 'Contaminated Aquifer', 'Campfire', 'Sewer-veillance Cam'], vida: 17, cemiterio: ['Counterspell', 'Counterspell', 'Preordain', 'Preordain', 'Preordain', 'Cast Down', 'Cut Down', 'Snuff Out', 'Snuff Out', "Lórien Revealed", "Lórien Revealed", 'Baleful Strix', 'Baleful Strix', 'Island', 'Island', 'Murmuring Mystic', 'Trinket Mage', 'Grim Bauble', 'Nihil Spellbomb', 'Plunder the Trollshaws'], soNoGrimorio: ['Dispel', 'Swamp'] }, p1: { campo: ['Mountain', 'Mountain', 'Mountain'], vida: 5 } }),
+    certo: (s, j) => j.acao.t === 'activate' && nomeDe(s, j.acao.oid) === 'Campfire' && j.acao.index === 1 },
   // ---- mulligan
   { id: 'mull-sete-terrenos', classe: 'mulligan', lista: TERROR, porque: 'sete terrenos não jogam: mulligan',
     mulligan: true, monta: () => maoInicial(TERROR, MADNESS, ['Island', 'Island', 'Island', 'Island', 'Island', 'Island', 'Island']),

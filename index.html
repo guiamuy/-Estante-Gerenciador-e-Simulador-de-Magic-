@@ -35653,6 +35653,10 @@ const __m25 = (function () {
    zero — o bônus do equipamento é uma habilidade, não um número na avaliação — e o Longbow nunca era equipado. Medida
    pareada: Control 15 × 16, Elfos 16 × 14 (24 pares cada): neutra em força, ligada pelo comportamento. 'shark-v20' é o
    Shark da B-191, congelado.
+   GRIMÓRIO (B25, leva B-195): o grimório que acaba custa na avaliação (`grimorio`, `comGrimorio`): abaixo de oito cartas,
+   (8 − n)² ÷ 2; vazio, como perder. Vale para os dois lados. O Control comprava até zerar o grimório na frente e usava o
+   Campfire só para ganhar vida; agora reembaralha o cemitério. Medida pareada: Control 14 × 17, Terror 15 × 14 (24 pares
+   cada): neutra em força (dentro do ruído), ligada pelo comportamento. 'shark-v21' é o Shark da B-192, congelado.
    LIMITES DE HOJE: um lance à frente + resposta do oponente (na pilha e depois dela) + combate; sem plano
    de vários turnos, sem blefe; não joga em volta do truque de combate nem da varredura; na pilha não responde à resposta
    dele (guerra de anulação); não troca reserva na melhor de três; esquece o que a vidência
@@ -37062,6 +37066,18 @@ function manaContada(s, o) {
   }
   return n;
 }
+/** B-195 · grimório (B25, fase 4, Control): comprar com o grimório no fim perde a partida (704.5b). Nas partidas narradas
+    o Control monarca, com o Sewer-veillance Cam e o Bonder's Ornament, comprou até zerar o grimório e perdeu na frente
+    (17 × 5, 18 × 14) com o Campfire em jogo, que reembaralha o cemitério. Parcela `grimorio`: com menos de oito cartas no
+    grimório, a falta custa cada vez mais (quadrado); vazio custa como perder. Vale para os dois lados (o do outro é bônus). */
+const custoDoGrimorio = n => n <= 0 ? 60 : n < 8 ? (8 - n) * (8 - n) / 2 : 0;
+const comGrimorio = de => (s, p) => {
+  const base = de(s, p);
+  if (base.parcelas.vitoria) return base;
+  const d = oponenteDe(s, p), g = -custoDoGrimorio(s.zones[p].library.length) + custoDoGrimorio(s.zones[d].library.length);
+  if (!g) return base;
+  return { nota: base.nota + g, parcelas: { ...base.parcelas, grimorio: g } };
+};
 /** `av7` liga em cima do avaliador que as outras opções escolheram (V6 no Shark publicado). */
 const comMotores = de => (s, p) => avaliaV7(s, p, de);
 function avaliaV7(s, p, de = avaliaV6) {
@@ -37234,16 +37250,17 @@ const NOVO17 = { ...NOVO16, respostaNaPilha: true }; // congelado como 'shark-v1
 const NOVO18 = { ...NOVO17, reservaPorAlvo: true, respondeNoMeuTurno: true }; // congelado como 'shark-v18' (B-190) · B-185 · a reserva de cada anulação é medida pelo que ela pode pegar (o Dispel, só instantâneas): 29 × 24 em 48 pares (Control, Faeries, Terror); a instantânea que responde à mágica do oponente no meu turno não paga o pedágio de "guardar" (o Dispel na Counterspell que anulava o meu Mystic): 48 × 46 em 80 pares, os cinco pilotos
 const NOVO19 = { ...NOVO18, contraAtaque: true }; // congelado como 'shark-v19' (B-191) · B-190 · B25 · o contra-ataque entra na nota do ataque pelo dano (danoDeVolta), não só quando é letal: 73 × 65 em 120 pares, os cinco pilotos (Control 16 × 13, Elfos 16 × 12, Faeries 10 × 9, Madness 16 × 18, Terror 15 × 13)
 const NOVO20 = { ...NOVO19, av7: true }; // congelado como 'shark-v20' (B-192) · B-191 · B25 · o motor de mana vale pela mana que dá (avaliaV7: o Priest of Titania com quatro Elfos vale quatro fontes): neutro em força (Elfos 28 × 27 em 48 pares, Control 16 × 16 em 24), ligado porque os Elfos deixam de atacar com os motores contra o Baleful Strix
-const NOVO = { ...NOVO20, habilita: true }; // B-192 · B25 · a habilidade que só prepara (equipar o Viridian Longbow) vale pelo que abre no mesmo turno: neutra em força (Control 15 × 16, Elfos 16 × 14 em 24 pares cada), ligada porque o Control passa a equipar o Longbow e atirar no Priest of Titania
+const NOVO21 = { ...NOVO20, habilita: true }; // congelado como 'shark-v21' (B-195) · B-192 · B25 · a habilidade que só prepara (equipar o Viridian Longbow) vale pelo que abre no mesmo turno: neutra em força (Control 15 × 16, Elfos 16 × 14 em 24 pares cada), ligada porque o Control passa a equipar o Longbow e atirar no Priest of Titania
+const NOVO = { ...NOVO21, grimorio: true }; // B-195 · B25 · o grimório que acaba custa (comGrimorio): neutra em força (Control 14 × 17, Terror 15 × 14 em 24 pares cada; 29 × 31 no total, dentro do ruído), ligada porque o Control deixa de perder por grimório vazio na frente (2 de 8 derrotas narradas)
 // B-176 · `ameacas` (ameaças do campo no perfil do Dimir Control) foi medida e fica desligada: 26 de 64 contra 27 de 64 pilotando o Control
 function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date.now(), mundos: mundosN = 0, extra: extraOpts = null, pesos = null } = {}) {
   // Leva 117 · 'profissional' e 'shark' são o Shark atual (v4: o v3 com informação justa). 'shark-v3', 'shark-v2'
   // e 'shark-v1' são as versões anteriores, congeladas, só para o torneio — elas simulam sobre o estado real.
-  const v1 = nivel === 'shark-v1', v2 = nivel === 'shark-v2', v3 = nivel === 'shark-v3', v4 = nivel === 'shark-v4', v5 = nivel === 'shark-v5', v6 = nivel === 'shark-v6', v7 = nivel === 'shark-v7', v8 = nivel === 'shark-v8', v9 = nivel === 'shark-v9', v10 = nivel === 'shark-v10', v11 = nivel === 'shark-v11', v12 = nivel === 'shark-v12', v13 = nivel === 'shark-v13', v14 = nivel === 'shark-v14', v15 = nivel === 'shark-v15', v16 = nivel === 'shark-v16', v17 = nivel === 'shark-v17', v18 = nivel === 'shark-v18', v19 = nivel === 'shark-v19', v20 = nivel === 'shark-v20';
-  const atual = nivel === 'profissional' || nivel === 'shark' || v4 || v5 || v6 || v7 || v8 || v9 || v10 || v11 || v12 || v13 || v14 || v15 || v16 || v17 || v18 || v19 || v20 || !!extraOpts || !!pesos;
-  const ligadas = { ...(v4 ? {} : v5 ? NOVO5 : v6 ? NOVO6 : v7 ? NOVO7 : v8 ? NOVO8 : v9 ? NOVO9 : v10 ? NOVO10 : v11 ? NOVO11 : v12 ? NOVO12 : v13 ? NOVO13 : v14 ? NOVO14 : v15 ? NOVO15 : v16 ? NOVO16 : v17 ? NOVO17 : v18 ? NOVO18 : v19 ? NOVO19 : v20 ? NOVO20 : NOVO), ...(extraOpts || {}) };
+  const v1 = nivel === 'shark-v1', v2 = nivel === 'shark-v2', v3 = nivel === 'shark-v3', v4 = nivel === 'shark-v4', v5 = nivel === 'shark-v5', v6 = nivel === 'shark-v6', v7 = nivel === 'shark-v7', v8 = nivel === 'shark-v8', v9 = nivel === 'shark-v9', v10 = nivel === 'shark-v10', v11 = nivel === 'shark-v11', v12 = nivel === 'shark-v12', v13 = nivel === 'shark-v13', v14 = nivel === 'shark-v14', v15 = nivel === 'shark-v15', v16 = nivel === 'shark-v16', v17 = nivel === 'shark-v17', v18 = nivel === 'shark-v18', v19 = nivel === 'shark-v19', v20 = nivel === 'shark-v20', v21 = nivel === 'shark-v21';
+  const atual = nivel === 'profissional' || nivel === 'shark' || v4 || v5 || v6 || v7 || v8 || v9 || v10 || v11 || v12 || v13 || v14 || v15 || v16 || v17 || v18 || v19 || v20 || v21 || !!extraOpts || !!pesos;
+  const ligadas = { ...(v4 ? {} : v5 ? NOVO5 : v6 ? NOVO6 : v7 ? NOVO7 : v8 ? NOVO8 : v9 ? NOVO9 : v10 ? NOVO10 : v11 ? NOVO11 : v12 ? NOVO12 : v13 ? NOVO13 : v14 ? NOVO14 : v15 ? NOVO15 : v16 ? NOVO16 : v17 ? NOVO17 : v18 ? NOVO18 : v19 ? NOVO19 : v20 ? NOVO20 : v21 ? NOVO21 : NOVO), ...(extraOpts || {}) };
   let perfil, avPlano = null, passosCombo = 0, turnoCombo = -1; // B9 · perfil do meu baralho, lido na primeira jogada
-  const avAtual = ligadas.av4 || ligadas.av5 || ligadas.av6 || ligadas.av7 || pesos ? avaliadorCom({ ...PESOS_ATUAIS, ...(pesos || {}) }, (de => ligadas.av7 ? comMotores(de) : de)(ligadas.av6 ? avaliaV6 : ligadas.av5 ? avaliaV5 : ligadas.av4 ? avaliaV4 : avaliaV3)) : null;
+  const avAtual = ligadas.av4 || ligadas.av5 || ligadas.av6 || ligadas.av7 || pesos ? avaliadorCom({ ...PESOS_ATUAIS, ...(pesos || {}) }, (de => (ligadas.grimorio ? comGrimorio : x => x)(ligadas.av7 ? comMotores(de) : de))(ligadas.av6 ? avaliaV6 : ligadas.av5 ? avaliaV5 : ligadas.av4 ? avaliaV4 : avaliaV3)) : null;
   let plano = []; // leva 143 · ações que faltam do plano de mana em curso
   const profissional = v1 || v2 || v3 || atual;
   const extra = v1 ? {} : v2 ? { av: avaliaV2, bloqueioForte: true, duplo: true }

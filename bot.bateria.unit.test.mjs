@@ -6,7 +6,7 @@ import { loadModules } from './_load.mjs';
 import { POSICOES, pontua } from './bot.bateria.mjs';
 const { engine: E, bot: B } = loadModules();
 
-const PISO = 26; // B-192 · 26 de 27 com a habilidade que prepara (erra só a isca: `volta-isca`, a isca de dois lances que mediu 49 × 48 na B-184). Era 25 (B-191), 24 (B-190), 22 (B-188)
+const PISO = 27; // B-195 · 27 de 30 com o grimório na avaliação (erra a isca `volta-isca` e as duas da anulação aberta da B-193, desligada). Era 26 (B-192), 25 (B-191), 24 (B-190), 22 (B-188)
 
 test('B-188 · toda posição da bateria monta, tem classe, porquê, e a jogada certa está entre as legais', () => {
   const ids = new Set();
@@ -45,4 +45,10 @@ test('B-192 · o que a habilidade abre: com o Viridian Longbow solto e o Priest 
   const P = POSICOES.find(x => x.id === 'recurso-longbow-equipa'), joga = nivel => { const { s } = P.monta(); const j = B.criaBot({ nivel, agora: () => 0 }).jogada(s, 0); return { ok: P.certo(s, j), j }; };
   const novo = joga('shark'), v20 = joga('shark-v20');
   assert.ok(novo.ok, 'publicado: ' + novo.j.motivo); assert.ok(!v20.ok, 'v20: ' + v20.j.motivo);
+});
+
+test('B-195 · grimório: com duas cartas no grimório e o Campfire em jogo, o Shark publicado reembaralha o cemitério; o shark-v21 congelado ganhava 2 de vida', () => {
+  const P = POSICOES.find(x => x.id === 'recurso-campfire-reembaralha'), joga = nivel => { const { s } = P.monta(); const j = B.criaBot({ nivel, agora: () => 0 }).jogada(s, 0); return { ok: P.certo(s, j), j }; };
+  const novo = joga('shark'), v21 = joga('shark-v21');
+  assert.ok(novo.ok, 'publicado: ' + novo.j.motivo); assert.ok(!v21.ok, 'v21: ' + v21.j.motivo);
 });
