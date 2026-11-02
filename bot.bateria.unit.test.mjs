@@ -6,7 +6,7 @@ import { loadModules } from './_load.mjs';
 import { POSICOES, pontua } from './bot.bateria.mjs';
 const { engine: E, bot: B } = loadModules();
 
-const PISO = 27; // B-195 · 27 de 30 com o grimório na avaliação (erra a isca `volta-isca` e as duas da anulação aberta da B-193, desligada). Era 26 (B-192), 25 (B-191), 24 (B-190), 22 (B-188)
+const PISO = 29; // B-196 · 29 de 30 com a anulação aberta do Control (erra só a isca `volta-isca`). Era 27 (B-195), 26 (B-192), 25 (B-191), 24 (B-190), 22 (B-188)
 
 test('B-188 · toda posição da bateria monta, tem classe, porquê, e a jogada certa está entre as legais', () => {
   const ids = new Set();
@@ -51,4 +51,14 @@ test('B-195 · grimório: com duas cartas no grimório e o Campfire em jogo, o S
   const P = POSICOES.find(x => x.id === 'recurso-campfire-reembaralha'), joga = nivel => { const { s } = P.monta(); const j = B.criaBot({ nivel, agora: () => 0 }).jogada(s, 0); return { ok: P.certo(s, j), j }; };
   const novo = joga('shark'), v21 = joga('shark-v21');
   assert.ok(novo.ok, 'publicado: ' + novo.j.motivo); assert.ok(!v21.ok, 'v21: ' + v21.j.motivo);
+});
+
+test('B-196 · anulação aberta do Control: com a Counterspell na mão, o Shark publicado não gasta a mana na segunda fase principal e ainda cicla o Lórien por uma Ilha; o shark-v22 congelado gastava', () => {
+  for (const id of ['seq-guarda-anulacao-spellbomb', 'seq-guarda-anulacao-preordain']) {
+    const P = POSICOES.find(x => x.id === id), joga = nivel => { const { s } = P.monta(); const j = B.criaBot({ nivel, agora: () => 0 }).jogada(s, 0); return { ok: P.certo(s, j), j }; };
+    const novo = joga('shark'), v22 = joga('shark-v22');
+    assert.ok(novo.ok, id + ' · publicado: ' + novo.j.motivo); assert.ok(!v22.ok, id + ' · v22: ' + v22.j.motivo);
+  }
+  const L = POSICOES.find(x => x.id === 'recurso-lorien-ciclar'), { s } = L.monta(), j = B.criaBot({ nivel: 'shark', agora: () => 0 }).jogada(s, 0);
+  assert.ok(L.certo(s, j), 'o terreno que ainda dá para baixar conta como fonte: ' + j.motivo);
 });

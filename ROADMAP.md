@@ -8152,6 +8152,15 @@ estruturado para tornarmos o Shark um jogador de nível profissional com as suas
   amostra), **ligada pelo comportamento**: perder por grimório vazio na frente é derrota certa. A direção do Control fica
   sob vigilância na régua do fechamento. Bateria **27 de 30**; piso 26 → 27. **`shark-v21` é o Shark da B-192, congelado.**
   Próxima: classe (A) — medir de novo o pedágio largo de segurar a anulação (`segura`, desligado na B10b com outro Shark).
+- **Fase 4 · B-196 · a anulação aberta do Control (02/11/2026).** Classe (A). O pedágio largo de segurar a anulação (`segura`,
+  B10b: a jogada que me deixa sem a mana da anulação da mão no turno do outro custa 6) **medido de novo** com o Shark da B-195
+  (400 ms, 24 pares cada): **Control 20 × 14** (6 só do novo, nenhum só do antigo) · Terror 15 × 12 · **Faeries 8 × 11** — o
+  mesmo sinal da B10b nas Faeries, que jogam lampejo e ninjútsu no próprio turno. Liga **só pelo perfil** (`segura: true` no
+  perfil `controle`, dado): `seguraNoPerfil` liga o `segura` e a `guardaNaSobra` da B-193 no Shark que pilota o Control; o
+  terreno que ainda dá para baixar no turno conta como fonte (sem isso o pedágio impedia ciclar o Lórien por uma Ilha).
+  **Medida pareada** do Control com o perfil: **27 × 23 em 48 pares** (8 só do novo, 4 só do antigo); zero ilegais. Os outros
+  perfis não mudam. As duas posições da B-193 passam: bateria **29 de 30** (erra só a isca); piso 27 → 29. **`shark-v22` é o
+  Shark da B-195, congelado.** O Terror (15 × 12) fica como candidato, com medida própria.
 - **Fase 2 · B-194 · avaliação aprendida, primeira medida (02/11/2026) — negativa, desligada.** `bot.aprende.mjs` (novo, fora
   do portão): `coleta` joga Shark × Shark com as cinco listas e grava as parcelas da `avaliaV6` de posições sorteadas e
   quem venceu; `ajusta` faz regressão logística (L2, treino e prova separados por partida) da vitória sobre as parcelas,
