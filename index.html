@@ -2316,6 +2316,9 @@ body:has(#outlet .ds-fab[data-acoes="1"]) #outlet { padding-bottom: calc(56px + 
 .mesa-doca { position: sticky; bottom: var(--navbar-h, 0px); z-index: 2; margin: 0 calc(-1 * var(--space-4)); padding: var(--space-3) var(--space-4) calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
   background: var(--bg-elev-1); border-top: 1px solid color-mix(in srgb, var(--accent-lo) 40%, var(--border)); box-shadow: var(--shadow-up); display: grid; gap: var(--space-2); }
 .mesa-doca .ds-btn { width: 100%; }
+/* G-329 · relato #46 · com a doca, o pé da tela não precisa do respiro do Relatar (ele já sobe pela --doca-h): rolando até o
+   fim, a doca encosta na barra de navegação, sem o vão de 20 px que a reserva de 48 px + 32 px deixava */
+body[data-tela="mesa"]:not([data-mesa-cheia="true"]) #outlet:has(.mesa-doca) { padding-bottom: var(--navbar-h); }
 .mesa-doca__resumo { font-size: var(--text-sm); color: var(--fg-muted); text-align: center; text-wrap: balance; min-height: 1.25em; }
 .mesa-doca__resumo b { color: var(--fg); font-weight: 600; }
 body[data-tela="mesa"] .ds-relatar { bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px) + var(--doca-h, 0px) + var(--navbar-h, 0px)); }
@@ -2323,6 +2326,9 @@ body[data-tela="mesa"] .ds-relatar { bottom: calc(var(--space-4) + env(safe-area
 .deck-picker__lista .deck-item[aria-checked="true"] { background: var(--accent-soft); }
 .deck-picker__lista .deck-item__ja { width: 24px; height: 24px; }
 .deck-picker__lista { max-height: 60vh; overflow-y: auto; }
+.deck-picker__acoes { display: grid; gap: var(--space-2); } /* G-329 · relato #46 · trazer uma lista nova de dentro da escolha */
+.deck-picker__acoes .ds-row { gap: var(--space-2); }
+.deck-picker__acoes .ds-btn { flex: 1 1 0; min-width: 0; }
 
 /* ===================== A0 · mesa =====================
    A mesa é o interior da estante: madeira escura ao fundo, a carta como
@@ -19894,9 +19900,11 @@ function createTerrenosScreen({ terrenos, decks }) {
     seguem só como dado de teste do motor. Um toque põe a lista do catálogo na estante, como qualquer outra. */
 function createStarterDecks({ decks, catalogo = null }) {
   const root = Stack(pad(), __m3.Carregando('Abrindo…', { tamanho: 'tela' }));
-  const state = { format: 'all', erro: null };
+  // G-329 · relato #46 · quem vem do Jogar (#/listas/prontas?formato=pauper) já chega no formato que ia jogar
+  const pedido = new URLSearchParams((typeof location !== 'undefined' && location.hash.split('?')[1]) || '').get('formato');
   // Z2 · os formatos das listas oficiais nos chips
   const FILTROS = [['all', 'Todas'], ['pauper', 'Pauper'], ['commander', 'Commander'], ['modern', 'Modern'], ['standard', 'Standard'], ['pioneer', 'Pioneer'], ['legacy', 'Legacy'], ['vintage', 'Vintage'], ['brawl', 'Brawl'], ['construido', 'Desafio'], ['iniciante', 'Iniciante']]; // Z5 · formatos de torneio; G-241 · Vintage
+  const state = { format: pedido && FILTROS.some(([k]) => k === pedido) ? pedido : 'all', erro: null };
   const secaoOficial = catalogo ? __m39.SecaoCatalogo({ catalogo, decks, formato: state.format, aoImportar: () => {} }) : null;
 
   function paint() {
@@ -39981,6 +39989,13 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
       && !(state.opponent === 'hotseat' && situacaoDaLista(byId(state.theirs)).motivo === 'formato');
     function seletor(id, rotulo, valor, aoEscolher, fonte = visiveis, acha = byId, linha = linhaDe, classifica = null, hero = linha === linhaDoShark ? heroDoShark : heroDe) {
       const d = acha(valor);
+      // G-329 · relato #46 · da escolha da lista dá para trazer uma lista nova sem sair do fluxo: as prontas do formato (o catálogo,
+      // já filtrado) ou uma lista sua (escrever ou colar). Só para as listas da estante; a do Shark vem do catálogo.
+      const adicionar = fonte === visiveis ? h('div', { class: 'deck-picker__acoes', id: id + '-adicionar' },
+        h('div', { class: 'ds-list__group' }, 'Adicionar lista'),
+        Row({ class: 'ds-row--wrap' },
+          Button('Prontas', { icone: 'caixa', id: id + '-prontas', title: `Listas prontas de ${FORMATS[state.format] || state.format}`, onClick: () => { closeDialog(); go('/listas/prontas?formato=' + encodeURIComponent(state.format)); } }),
+          Button('Nova lista', { icone: 'mais', id: id + '-nova', title: 'Escrever ou colar uma lista', onClick: () => { closeDialog(); go('/listas/editar'); } }))) : null;
       const botao = h('button', { class: 'deck-picker deck-picker--hero', id, type: 'button', 'aria-haspopup': 'dialog', 'aria-label': `${rotulo}: ${d ? d.name : 'nenhuma'}. Trocar`,
         onClick: () => {
           const todas = fonte(), sit = classifica ? new Map(todas.map(x => [x.id, classifica(x)])) : null;
@@ -39999,7 +40014,8 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
                 fim: x.id === valor ? h('span', { class: 'deck-item__ja', 'aria-hidden': 'true' }, Icone('marcar', { tamanho: 20 })) : h('span', { class: 'deck-item__ja' }) })))
               : h('div', { class: 'deck-picker__lista deck-picker__lista--vazia', id: id + '-nenhuma' }, Note(__m3.seguro`Nenhuma lista sua de ${FORMATS[state.format] || state.format} joga ainda.`, 'warning')),
             nao.length ? h('div', { class: 'ds-list deck-picker__nao', id: id + '-nao-jogam', role: 'radiogroup', 'aria-label': 'Ainda não jogam' },
-              h('div', { class: 'ds-list__group' }, `Ainda não jogam · ${nao.length}`), ...nao.map(naoJoga)) : null),
+              h('div', { class: 'ds-list__group' }, `Ainda não jogam · ${nao.length}`), ...nao.map(naoJoga)) : null,
+            adicionar),
             actions: [Button('Voltar', { onClick: closeDialog })] });
         } },
         d ? hero(d, { tag: 'span', fim: Icone('descer', { tamanho: 18, classe: 'ds-list__seta' }) }) : Text('Escolha uma lista', { tone: 'muted' }));
@@ -40051,6 +40067,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
     }
     /** O estado vazio quando nenhuma lista sua está num formato que o motor joga inteiro. */
     function semFormatoAberto() {
+      root.style.paddingBottom = 'var(--space-8)'; // sem a doca, o respiro de baixo volta
       const prontos = (__m39.formatosProntos(state.motorCat) || []).map(rotuloDe);
       const el = Empty(prontos.length
         ? `Hoje o motor joga inteiras as listas de ${prontos.join(', ')}. Adicione uma lista pronta desse formato para jogar.`
@@ -40503,6 +40520,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
         Field('Semente', Input({ id: 'mesa-seed', value: String(state.seed), inputmode: 'numeric', onInput: e => { state.seed = parseInt(e.target.value, 10) || 0; } }),
           { dica: 'A mesma semente com as mesmas jogadas reproduz a partida.' }))),
       __m3.reservaDoca(h('div', { class: 'mesa-doca', id: 'mesa-doca' }, resumoDaDoca, startBtn))));
+    root.style.paddingBottom = '0px'; // G-329 · relato #46 · a doca é o fim da tela: sem o respiro de baixo, rolando até o fim ela encosta na barra
     paintStart();
     // leva 133 · saiu da tela esperando alguém: para de ouvir (a sala continua e pode ser cancelada ao voltar)
     const vigia = setInterval(() => { if (!root.isConnected) { clearInterval(vigia); if (on.parar) { on.parar(); on.parar = null; } } }, 1000);

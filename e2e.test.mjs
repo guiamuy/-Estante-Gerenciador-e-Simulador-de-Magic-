@@ -9586,6 +9586,44 @@ test('e2e · DS-K2 M2 mão em leque: até 7 cartas cabem sem rolar em 360 e 390,
 });
 
 /* G-312 · relato #36, fatia 2 · só a lista que joga (válida no formato e 100% no motor) é escolha no Jogar */
+/* G-329 · relato #46 · no Jogar: trazer lista nova de dentro da escolha, e a doca do Começar colada na barra ao rolar até o fim */
+test('e2e · G-329 relato #46: a escolha da lista oferece "Prontas" (catálogo já no formato) e "Nova lista"; a lista do Shark não; rolando até o fim, a doca do Começar encosta na barra de baixo, sem vão; 360×697 e 390×844, dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t, { dev: false });
+  await page.setViewportSize({ width: 360, height: 697 }); // a tela do relato
+  await createDeck(page, base, 'Delver', PAUPER, 'pauper');
+  await page.goto(base + '#/listas'); await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-doca'); await page.waitForTimeout(400);
+  // 1 · a doca é o fim da tela: rolando até o fim, ela encosta na barra de navegação (nada vazio embaixo)
+  for (const [w, hh] of [[360, 697], [390, 844]]) {
+    await page.setViewportSize({ width: w, height: hh }); await page.waitForTimeout(300);
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight)); await page.waitForTimeout(300);
+    const m = await page.evaluate(() => { const d = document.getElementById('mesa-doca').getBoundingClientRect(), n = document.getElementById('ds-navbar').getBoundingClientRect();
+      return { vao: Math.round(n.top - d.bottom), larguraDoca: Math.round(d.width), esquerda: Math.round(d.left), direita: Math.round(innerWidth - d.right), fimDaPagina: Math.round(document.documentElement.scrollHeight - innerHeight - scrollY) }; });
+    assert.equal(m.vao, 0, `${w}: vão entre a doca e a barra: ${JSON.stringify(m)}`);
+    assert.equal(m.fimDaPagina, 0, `${w}: rolou até o fim`);
+    assert.deepEqual([m.esquerda, m.direita, m.larguraDoca], [0, 0, w], `${w}: a doca ocupa a largura inteira, simétrica`);
+  }
+  await page.setViewportSize({ width: 360, height: 697 });
+  for (const tema of ['dark', 'light']) { await page.evaluate(x => document.documentElement.setAttribute('data-theme', x), tema); await page.waitForTimeout(300); await auditaTela(page, `G-329 · Jogar rolado até o fim ${tema}`); }
+  // 2 · na escolha da sua lista: "Adicionar lista" com Prontas e Nova lista, 44 px, depois das listas
+  await page.evaluate(() => window.scrollTo(0, 0)); await page.click('#mesa-mine'); await page.waitForSelector('#mesa-mine-adicionar'); await page.waitForTimeout(600); // a folha termina de entrar antes de medir
+  const a = await page.evaluate(() => { const g = document.querySelector('#mesa-mine-adicionar'); const r = id => document.getElementById(id).getBoundingClientRect();
+    return { grupo: g.querySelector('.ds-list__group').textContent, ordem: [...document.querySelector('.deck-picker__corpo').children].map(e => e.id || e.className.split(' ')[0]), prontas: Math.round(r('mesa-mine-prontas').height), nova: Math.round(r('mesa-mine-nova').height),
+      rotulos: ['mesa-mine-prontas', 'mesa-mine-nova'].map(id => document.getElementById(id).textContent.trim()) }; });
+  assert.equal(a.grupo, 'Adicionar lista'); assert.deepEqual(a.rotulos, ['Prontas', 'Nova lista']); assert.ok(a.prontas >= 44 && a.nova >= 44, JSON.stringify(a));
+  assert.equal(a.ordem.at(-1), 'mesa-mine-adicionar', 'as ações vêm depois das listas: ' + a.ordem.join(' > '));
+  await auditaTela(page, 'G-329 · escolha da lista com Adicionar');
+  // 3 · Prontas leva ao catálogo já no Pauper; Nova lista leva ao editor
+  await page.click('#mesa-mine-prontas'); await page.waitForSelector('#starter-formatos'); await page.waitForTimeout(300);
+  assert.equal(await page.getAttribute('#starter-formatos [data-starter-format="pauper"]', 'aria-pressed'), 'true', 'o catálogo abre no formato do Jogar');
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-mine'); await page.click('#mesa-mine'); await page.waitForSelector('#mesa-mine-nova'); await page.click('#mesa-mine-nova'); await page.waitForSelector('#deck-text');
+  // 4 · a dois: a lista do oponente também oferece; a do Shark (catálogo) não
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-mine');
+  await page.click('[data-opponent="hotseat"]'); await page.waitForSelector('#mesa-theirs'); await page.click('#mesa-theirs'); await page.waitForSelector('#mesa-theirs-adicionar'); await page.keyboard.press('Escape');
+  await page.click('[data-opponent="shark"]'); await page.waitForSelector('#mesa-bot-deck'); await page.click('#mesa-bot-deck'); await page.waitForSelector('.deck-picker__corpo');
+  assert.equal(await page.locator('#mesa-bot-deck-adicionar').count(), 0, 'a lista do Shark vem do catálogo: nada a adicionar'); await page.keyboard.press('Escape');
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · G-312 escolha de lista no Jogar: só as que jogam estão entre as escolhas; as outras ficam em "Ainda não jogam" com o motivo; fora do formato não é escolha e não começa', { skip }, async t => {
   const { page, errors, base } = await open(t, { dev: false, formato: true });
   await page.setViewportSize({ width: 360, height: 780 });
