@@ -2737,7 +2737,10 @@ body[data-mesa-cheia="true"] .tb-steps__list > li::after { inset: 0; height: aut
 .tb-chip[data-zero="true"]::before { content: none; }
 .tb-chip[data-zero="true"] b { color: var(--fg-subtle); font-weight: var(--weight-regular); }
 /* (D6) o lado com campo vazio só se declara pelo nome falado e por data-campo */
-.tb-row { display: flex; gap: var(--space-2); overflow-x: auto; padding: var(--space-2) var(--space-1) var(--space-2); scroll-snap-type: x proximity; }
+.tb-row { display: flex; gap: var(--space-2); overflow-x: auto; padding: var(--space-2) var(--space-1) var(--space-2); scroll-snap-type: x proximity; scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+/* J-53 (decisão do dono, 02/11/2026) · a barra de rolagem nunca encosta na carta: a fileira que rola (a mesa marca data-rola)
+   ganha a folga de baixo (--rolagem-folga), onde a barra fina corre; a que não rola fica como era (nenhum pixel de campo a menos) */
+.tb-side .tb-row[data-rola="true"] { padding-bottom: calc(var(--space-2) + var(--rolagem-folga)); }
 
 .tb-card {
   -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;   /* H10 · segurar não abre o menu da imagem no iPhone */
@@ -2811,11 +2814,18 @@ body[data-mesa-cheia="true"] .tb-steps__list > li::after { inset: 0; height: aut
 /* J-48 (decisão do dono, 02/11/2026) · os estados da carta são ícones flat na barra de P/R, à esquerda, e nunca cobrem a arte:
    cada ícone com a cor da família (token nos dois temas); até três, o resto vira "+N"; o nome falado e a folha da carta dizem tudo.
    A barra fica dentro da face (gira com a carta virada, como o P/R). Com P/R, os ícones param antes dele. */
-.tb-card__estados { position: absolute; left: 2px; bottom: 2px; z-index: 1; display: flex; align-items: center; gap: 2px; max-width: calc(100% - 4px); height: calc(var(--text-xs) * 1.4 + 2px); pointer-events: none; }
-.tb-card__face:has(.tb-card__pt) .tb-card__estados { max-width: calc(100% - 4px - 3.2ch - var(--space-2) - 2px); }
-.tb-estado { display: inline-flex; align-items: center; justify-content: center; gap: 1px; height: 100%; min-width: 15px; padding: 0 2px; border-radius: var(--radius-1); background: var(--bg-elev-1); border: 1px solid var(--border); color: var(--fg-muted); font-family: var(--font-display); font-size: var(--text-3xs); line-height: 1; white-space: nowrap; }
-.tb-estado b { font-weight: var(--weight-bold); font-size: var(--text-3xs); }
+.tb-card__estados { flex: 1 1 0; min-width: 0; height: 100%; display: flex; align-items: center; gap: 2px; overflow: hidden; --estado-tam: 15px; }
+/* J-53 (decisão do dono, 02/11/2026) · o pé da carta é uma fileira: estados à esquerda ocupam só o que sobra ao lado do P/R; cada
+   ícone é um quadrado de --estado-tam (a mesa mede e escolhe entre o piso e a altura do pé) e o número do marcador ou do dano é
+   um selo no canto do próprio ícone, que não alarga: um ícone nunca cobre outro nem o P/R, na carta deitada também */
+.tb-card__pe { position: absolute; left: 2px; right: 2px; bottom: 2px; z-index: 1; display: flex; align-items: center; gap: 2px; height: calc(var(--text-xs) * 1.4 + 2px); pointer-events: none; }
+.tb-card__pe > .tb-card__pt { position: static; margin-left: auto; flex: none; }
+.tb-estado { position: relative; flex: none; display: inline-flex; align-items: center; justify-content: center; width: var(--estado-tam); height: min(var(--estado-tam), 100%); padding: 0; border-radius: var(--radius-1); background: var(--bg-elev-1); border: 1px solid var(--border); color: var(--fg-muted); font-family: var(--font-display); font-size: calc(var(--estado-tam) * .55); line-height: 1; white-space: nowrap; overflow: hidden; }
+.tb-estado b { font-weight: var(--weight-bold); font-size: calc(var(--estado-tam) * .55); }
 .tb-estado .ds-icon { display: inline-flex; }
+.tb-estado .ds-icon svg { width: calc(var(--estado-tam) * .68); height: calc(var(--estado-tam) * .68); }
+.tb-estado:has(.tb-estado__num) .ds-icon { transform: translate(-12%, -10%); }
+.tb-estado .tb-estado__num { position: absolute; right: 0; bottom: 0; padding: 0 1px; border-radius: var(--radius-1) 0 var(--radius-1) 0; background: inherit; font-size: calc(var(--estado-tam) * .5); line-height: 1.05; }
 .tb-estado[data-familia="enjoo"] { color: var(--estado-enjoo); border-color: var(--estado-enjoo); }
 .tb-estado[data-familia="ataque"] { color: var(--negative); border-color: var(--negative); }
 .tb-estado[data-familia="bloqueio"] { color: var(--accent); border-color: var(--accent); }
@@ -2826,7 +2836,7 @@ body[data-mesa-cheia="true"] .tb-steps__list > li::after { inset: 0; height: aut
 .tb-estado[data-familia="acento"] { color: var(--accent); }
 .tb-estado[data-familia="neutro"] { color: var(--fg-muted); }
 .tb-card[data-moldura="true"] .tb-estado { background: var(--bg-elev-2); }
-.tb-card--sm .tb-card__estados { height: 13px; } .tb-card--sm .tb-estado { min-width: 12px; padding: 0 1px; }
+.tb-card--sm .tb-card__pe { height: 13px; }
 /* a fileira do campo centraliza como a fila da proposta; com mais cartas que a largura, rola desde a primeira (safe) */
 .tb-side .tb-row { justify-content: safe center; }
 .tb-card__face img[data-falhou="true"], .tb-leque__camada img[data-falhou="true"] { visibility: hidden; }   /* H7 · imagem que falhou não mostra ícone quebrado; volta sozinha */
@@ -3475,6 +3485,7 @@ button.col-dash__bar:active, .col-dash__bar--on { background: var(--accent-soft)
    Galaxy S25+ e S25 Ultra 412×891 (DPR 3,5); as capturas do aparelho do usuário (1080×2340) dão 360×780.
    Faixas: estreita ≤ 374 (Galaxy S), padrão 375–399 (iPhone 390, S+ com zoom de tela), larga ≥ 400 (S+ e Ultra).
    Altura: com a barra do navegador, o 780 vira ~700 úteis; abaixo de 740 a mão encolhe para a mesa caber. */
+:root { --estado-piso: 13px; --rolagem-folga: 12px; } /* J-53 · piso do ícone de estado; folga entre a carta e a barra de rolagem */
 :root { --carta-campo: 84px; --carta-mao: 100px; --carta-pilha: 56px; --carta-terreno: 60px; } /* MJ1d (J-5) · terreno ≈ 72% da carta do campo */
 /* DS-K2 M2 (J-37) · a mão em leque: a carta da mão encolhe até --carta-mao-min para a mão caber sem rolar; uma carta cobre
    no máximo --leque-sobrepoe da vizinha (o centro de cada carta fica sempre à vista, e é ali que se toca) */
@@ -37661,11 +37672,37 @@ function estadosDaCarta(est, card, opts = {}) {
 const ESTADOS_NA_CARTA = 3;
 function BarraDeEstados(estados, { max = ESTADOS_NA_CARTA } = {}) {
   if (!estados.length) return null;
-  const mostra = estados.length > max ? estados.slice(0, max - 1) : estados, resto = estados.length - mostra.length;
-  return h('span', { class: 'tb-card__estados', 'aria-hidden': 'true' },
-    ...mostra.map(e => h('span', { class: 'tb-estado', dataset: { marca: e.k, familia: e.familia }, title: e.explica || e.rotulo },
-      e.icone ? Icone(e.icone, { tamanho: 11 }) : h('b', {}, e.rotulo), e.icone && e.qtd != null && (e.qtd > 1 || e.k === 'dano' || e.k === 'marcador') ? h('b', {}, String(e.qtd)) : null)),
-    resto > 0 ? h('span', { class: 'tb-estado tb-estado--mais', dataset: { familia: 'neutro' }, title: estados.slice(mostra.length).map(e => e.rotulo).join(', ') }, h('b', {}, `+${resto}`)) : null);
+  // J-53 · todos os ícones nascem (o número do marcador ou do dano vai num selo no canto do próprio ícone, sem alargar);
+  // quantos aparecem e com que tamanho é a medida da barra que decide (ajustaEstados). Antes da medida, o padrão de antes:
+  // até três, o resto em "+N"
+  const chips = estados.map(e => h('span', { class: 'tb-estado', dataset: { marca: e.k, familia: e.familia, rotulo: e.rotulo || '' }, title: e.explica || e.rotulo },
+    e.icone ? Icone(e.icone, { tamanho: 11 }) : h('b', {}, e.rotulo), e.icone && e.qtd != null && (e.qtd > 1 || e.k === 'dano' || e.k === 'marcador') ? h('b', { class: 'tb-estado__num' }, String(e.qtd)) : null));
+  const barra = h('span', { class: 'tb-card__estados', 'aria-hidden': 'true', dataset: { estados: String(chips.length) } });
+  barra.__chips = chips;
+  const mostra = chips.length > max ? max - 1 : chips.length;
+  barra.append(...chips.slice(0, mostra), ...(chips.length > mostra ? [maisEstados(chips, mostra)] : []));
+  return barra;
+}
+const maisEstados = (chips, mostra) => h('span', { class: 'tb-estado tb-estado--mais', dataset: { familia: 'neutro' }, title: chips.slice(mostra).map(c => c.dataset.rotulo).join(', ') }, h('b', {}, `+${chips.length - mostra}`));
+/** J-53 (decisão do dono, 02/11/2026) · a barra de estados cabe sempre, sem um ícone sobre o outro nem sobre o P/R: mede a largura
+    livre de cada barra (o pé da carta menos o P/R) e decide quantos ícones aparecem e o tamanho deles, entre o piso
+    (--estado-piso) e o teto (a altura do pé); o que não cabe vira "+N". Medida em lote, escrita depois; a carta virada mede a
+    própria face (a rotação não muda a largura do pé). */
+function ajustaEstados(raiz) {
+  const barras = [...raiz.querySelectorAll('.tb-card__estados')].filter(b => b.__chips && b.isConnected);
+  if (!barras.length) return;
+  const piso = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--estado-piso')) || 13, vao = 2;
+  const medidas = barras.map(b => ({ b, w: b.clientWidth, alto: b.clientHeight }));
+  for (const { b, w, alto } of medidas) {
+    if (!w || !alto) continue;
+    const chips = b.__chips, n = chips.length, cabem = Math.max(1, Math.floor((w + vao) / (piso + vao)));
+    const mostra = n <= cabem ? n : cabem - 1, lugares = n <= cabem ? n : cabem;
+    const tam = Math.max(piso, Math.min(alto, Math.floor((w - (lugares - 1) * vao) / lugares * 10) / 10));
+    if (b.style.getPropertyValue('--estado-tam') !== `${tam}px`) b.style.setProperty('--estado-tam', `${tam}px`);
+    const atual = b.querySelectorAll('.tb-estado:not(.tb-estado--mais)').length, mais = b.querySelector('.tb-estado--mais');
+    if (atual === mostra && (mais ? mais.textContent === `+${n - mostra}` : n === mostra)) continue;
+    b.replaceChildren(...chips.slice(0, mostra), ...(n > mostra ? [maisEstados(chips, mostra)] : []));
+  }
 }
 
 /** Carta na mesa. Virada gira 90°; os estados (enjoo, marcadores, dano, combate, anexos…) são ícones na barra de P/R (J-48). */
@@ -37708,7 +37745,7 @@ function TableCard(card, opts = {}) {
     // sem imagem nenhuma, a carta desenhada leva o símbolo e o nome numa linha
     opts.verso ? h('span', { class: 'ds-verso' }) : moldura ? h('span', { class: 'tb-card__arte' }, SimboloDoBasico(card.name), imgDaMesa(card, opts.size)) : card.image ? imgDaMesa(card, opts.size)
       : !opts.size && manaDoBasico(card.name) ? [SimboloDoBasico(card.name), h('span', { class: 'tb-card__name tb-card__name--basico' }, card.name)] : h('span', { class: 'tb-card__name' }, card.name), // J-43 · só no campo: a mão não muda (relato #48) // D7 · verso escolhido na Aparência
-    barra, ptEl),
+    barra || ptEl ? h('span', { class: 'tb-card__pe' }, barra, ptEl) : null), // J-53 · o pé: estados à esquerda, P/R à direita, numa fileira só
   // Leva 110 · o nome fica fora da face: carta virada não leva o nome junto na rotação (antes saía de pé, cortado)
   (card.image || opts.verso) && opts.size !== 'sm' ? h('span', { class: 'tb-card__label' }, card.name) : null,
   pills.length ? h('span', { class: 'tb-card__pills' }, ...pills) : null);
@@ -38181,7 +38218,7 @@ function MapaDaMasmorra(m) {
     m.textoDaIniciativa ? h('p', { class: 'tb-masmorra__nota' }, h('b', {}, 'Iniciativa. '), m.textoDaIniciativa) : null);
 }
 
-return { QuadroDeBloqueios, retemImagem, retemImagemDaCarta, imagensRetidas, fonteParaLargura, animaVirada, faseDoPasso, TableCard, ESTADOS, FAMILIAS, estadoDesenhavel, estadosDaCarta, BarraDeEstados, ZoneRow, LifeCounter, ZoneChip, StepBar, StackStrip, StackPanel, CardPeek, PriorityBanner, Desfecho, AdjudicationPanel, Icone, IconButton, gestoDeBandeja, ligaGestoDeBandeja, modeloDaMasmorra, caminhoNaMasmorra, falaDaMasmorra, SeloDaMasmorra, MapaDaMasmorra, TEXTO_DAS_SALAS, origemDaPilha, FaceDaOrigem, miniDaMasmorra };
+return { QuadroDeBloqueios, retemImagem, retemImagemDaCarta, imagensRetidas, fonteParaLargura, animaVirada, faseDoPasso, TableCard, ESTADOS, FAMILIAS, estadoDesenhavel, estadosDaCarta, BarraDeEstados, ajustaEstados, ZoneRow, LifeCounter, ZoneChip, StepBar, StackStrip, StackPanel, CardPeek, PriorityBanner, Desfecho, AdjudicationPanel, Icone, IconButton, gestoDeBandeja, ligaGestoDeBandeja, modeloDaMasmorra, caminhoNaMasmorra, falaDaMasmorra, SeloDaMasmorra, MapaDaMasmorra, TEXTO_DAS_SALAS, origemDaPilha, FaceDaOrigem, miniDaMasmorra };
 })();
 
 
@@ -43514,7 +43551,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     // a fonte do app pode chegar depois do primeiro desenho (primeira abertura, CI): medida com a fonte de reserva não vale para a
     // fonte definitiva; quando ela terminar de carregar, mede tudo de novo do zero (uma vez por desenho)
     if (document.fonts && document.fonts.status !== 'loaded' && !ajustaNomes.esperando) { ajustaNomes.esperando = true;
-      document.fonts.ready.then(() => { ajustaNomes.esperando = false; if (!root.isConnected) return; for (const f of root.querySelectorAll('.tb-card[data-moldura="true"] > .tb-card__label')) { f.style.removeProperty('--nome-escala'); delete f.parentNode.dataset.nomeDuas; const q = f.parentNode.closest('.tb-leque'); if (q) delete q.dataset.nomeDuas; } ajustaNomes(); }); }
+      document.fonts.ready.then(() => { ajustaNomes.esperando = false; if (!root.isConnected) return; for (const f of root.querySelectorAll('.tb-card[data-moldura="true"] > .tb-card__label')) { f.style.removeProperty('--nome-escala'); delete f.parentNode.dataset.nomeDuas; const q = f.parentNode.closest('.tb-leque'); if (q) delete q.dataset.nomeDuas; } ajustaNomes(); ajustaPes(); }); }
     const piso = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--nome-piso')) || 0.78;
     // até três passadas: a largura do texto não encolhe na mesma proporção da letra (o aparelho e o CI arredondam o avanço de
     // cada glifo em letra pequena), então depois de aplicar a escala mede de novo e aperta o que ainda sobra; cada passada é
@@ -43533,11 +43570,18 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       }
     }
   }
+  /** J-53 · o pé de cada carta (quantos ícones de estado cabem e de que tamanho) e as fileiras que rolam (ganham a folga da barra
+      de rolagem): leituras em lote, escritas depois. Volta a medir quando a largura muda e quando a fonte chega. */
+  function ajustaPes() {
+    __m17.ajustaEstados(root);
+    const filas = [...root.querySelectorAll('.tb-side .tb-row')], rola = filas.map(r => r.scrollWidth > r.clientWidth + 1);
+    filas.forEach((r, i) => { if ((r.dataset.rola === 'true') !== rola[i]) { if (rola[i]) r.dataset.rola = 'true'; else delete r.dataset.rola; } });
+  }
   // a largura da carta muda com a janela (girar o aparelho): mede de novo, do zero. Observa a raiz da mesa: solta sozinho ao sair.
   if (typeof ResizeObserver !== 'undefined') { let largura = 0;
     const ro = new ResizeObserver(() => { if (!root.isConnected) { ro.disconnect(); return; } if (innerWidth === largura) return; const primeira = !largura; largura = innerWidth; if (primeira) return;
       for (const f of root.querySelectorAll('.tb-card[data-moldura="true"] > .tb-card__label')) { f.style.removeProperty('--nome-escala'); delete f.parentNode.dataset.nomeDuas; const q = f.parentNode.closest('.tb-leque'); if (q) delete q.dataset.nomeDuas; }
-      ajustaNomes(); });
+      ajustaNomes(); ajustaPes(); });
     ro.observe(root); }
 
   /* ---- J-45 · a mesa não encolhe com a mão aberta: a página desce até o seu campo ----
@@ -43708,7 +43752,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
         painelPilha ? h('div', { class: 'tb-camada', dataset: { sobrepoe: 'true' } }, h('div', { class: 'tb-camada__linha' }, painelPilha)) : null,
         meuLado),
       dock(s, v));
-    ajustaNomes(); // J-46 · o nome inteiro na faixa: a letra encolhe até o piso e depois quebra em duas linhas (medido, nunca reticências)
+    ajustaNomes(); ajustaPes(); // J-53 · ícones de estado e rolagem medidos depois do nome // J-46 · o nome inteiro na faixa: a letra encolhe até o piso e depois quebra em duas linhas (medido, nunca reticências)
     devolveFileiras(fileiras); mostraNovidade(s, v); // J2
     simbolizar(root); // U3 · custos, habilidades e textos da mesa em símbolos
     armaMiras(s, v); // MJ6a · arrastar a mágica da mão até o alvo

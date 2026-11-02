@@ -658,10 +658,20 @@ test('DS-K2 · M1 a carta do campo na moldura K: janela da arte por token sobre 
   }
 });
 
+/* ---------------- J-53 · ícones de estado que cabem e rolagem afastada ---------------- */
+test('J-53 · o ícone de estado é um quadrado de --estado-tam com o número num selo que não alarga; piso e folga da rolagem são tokens; a fileira que rola ganha a folga', () => {
+  assert.match(componentCss, /\.tb-estado \{[^}]*width: var\(--estado-tam\); height: min\(var\(--estado-tam\), 100%\);/);
+  assert.match(componentCss, /\.tb-estado \.tb-estado__num \{ position: absolute;/, 'o número fica no canto do próprio ícone');
+  assert.match(HTML, /--estado-piso: \d+px; --rolagem-folga: \d+px;/);
+  assert.match(componentCss, /\.tb-side \.tb-row\[data-rola="true"\] \{ padding-bottom: calc\(var\(--space-2\) \+ var\(--rolagem-folga\)\); \}/);
+  assert.match(HTML, /function ajustaEstados\(raiz\)/, 'a mesa mede a barra');
+});
+
 /* ---------------- J-48 · estados como ícones na barra de P/R ---------------- */
 test('J-48 · os estados da carta são ícones na barra de P/R (dentro da face, à esquerda do P/T), com cor por família e token do enjoo nos dois temas com contraste de ícone; o selo de enjoo e as pílulas de marca saíram', () => {
-  assert.match(componentCss, /\.tb-card__estados \{ position: absolute; left: 2px; bottom: 2px;/);
-  assert.match(componentCss, /\.tb-card__face:has\(\.tb-card__pt\) \.tb-card__estados \{ max-width: calc\(100% - 4px - 3\.2ch - var\(--space-2\) - 2px\); \}/, 'com P/T, a barra para antes dele');
+  // J-53 · a barra deixou de ser absoluta com largura estimada (3.2ch): é a fileira do pé (estados à esquerda ocupando o que sobra, P/R à direita)
+  assert.match(componentCss, /\.tb-card__pe \{ position: absolute; left: 2px; right: 2px; bottom: 2px;[^}]*display: flex;/);
+  assert.match(componentCss, /\.tb-card__estados \{ flex: 1 1 0; min-width: 0;[^}]*overflow: hidden;/, 'a barra só ocupa o que sobra ao lado do P/R');
   for (const [fam, tok] of [['enjoo', '--estado-enjoo'], ['ataque', '--negative'], ['bloqueio', '--accent'], ['alvo', '--warning'], ['ganho', '--positive'], ['perda', '--negative']]) assert.match(componentCss, new RegExp(`\\.tb-estado\\[data-familia="${fam}"\\] \\{ color: var\\(${tok}\\);`), `família ${fam} na cor ${tok}`);
   assert.ok(!/\.tb-card__sick \{/.test(componentCss) && !/\.tb-pill--icone/.test(componentCss), 'selo de enjoo e pílula de marca saíram do CSS');
   assert.ok(!/class: 'tb-card__sick'/.test(HTML) && !/tb-pill tb-pill--icone/.test(HTML), 'a carta não desenha mais selo nem pílula de marca');

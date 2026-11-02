@@ -9636,6 +9636,62 @@ test('e2e · J-48 estados como ícones na barra de P/R: nada por cima da arte, �
   assert.deepEqual(errors, []);
 });
 
+// J-53 (decisão do dono, 02/11/2026, print com Mesmeric Fiend e Nyxborn Hydra) · com muitos estados os ícones se empilhavam e o número
+// do marcador cobria o vizinho e o P/R. Agora o pé da carta é uma fileira: os ícones ocupam só o que sobra ao lado do P/R, com tamanho
+// entre o piso e a altura do pé, e o que não cabe vira "+N"; e a barra de rolagem da fileira que rola fica a uma folga da carta.
+test('e2e · J-53 estados que cabem: nenhum ícone sobre outro nem sobre o P/R, tamanho entre piso e teto, "+N" com a conta certa, carta virada também; barra de rolagem afastada da carta; quatro medidas, dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.route('https://cards.scryfall.io/**', r => r.fulfill({ status: 200, contentType: 'image/svg+xml', headers: { 'access-control-allow-origin': '*' },
+    body: '<svg xmlns="http://www.w3.org/2000/svg" width="488" height="680"><rect width="488" height="680" fill="#111"/><rect x="40" y="76" width="408" height="301" fill="#3e6f8f"/></svg>' }));
+  await createDeck(page, base, 'Estados cabem', '24 Mountain\n36 Delver of Secrets');
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start'); await page.fill('#mesa-seed', '3');
+  await page.click('[data-opponent="goldfish"]');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-pass');
+  const d = await page.evaluate(() => { const M = window.__estanteMesa, s = M.estado(), p = s.turn.active;
+    const ds = Object.values(s.objects).filter(o => o.owner === p && o.name === 'Delver of Secrets' && o.zone === 'library').slice(0, 9).map(o => o.oid);
+    for (const oid of ds) M.act({ t: 'move', p, oid, to: 'battlefield' });
+    // ds[0]: seis estados (enjoo, três tipos de marcador, dano) · ds[1]: o mesmo, virada · ds[2]: só enjoo · o resto enche a fileira até rolar
+    for (const oid of ds.slice(0, 2)) { M.act({ t: 'counter', p, oid, kind: 'p1p1', delta: 4 }); M.act({ t: 'counter', p, oid, kind: 'charge', delta: 2 }); M.act({ t: 'counter', p, oid, kind: 'stun', delta: 1 }); M.act({ t: 'counter', p, oid, kind: 'shield', delta: 1 }); M.act({ t: 'damage', p, oid, delta: 1 }); }
+    M.act({ t: 'tap', p, oid: ds[1] });
+    ds.slice(3).forEach((oid, i) => M.act({ t: 'counter', p, oid, kind: 'p1p1', delta: i + 1 })); // cada uma diferente: nada vira leque, a fileira rola
+    return ds; });
+  await page.waitForFunction(() => [...document.querySelectorAll('.tb-side--me .tb-card__arte img')].every(i => i.complete && i.naturalWidth > 0), null, { timeout: 8000 });
+  const mede = () => page.evaluate(ds => {
+    const R = e => e.getBoundingClientRect(), piso = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--estado-piso')), folga = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--rolagem-folga'));
+    const cruza = (a, b) => Math.min(a.right, b.right) - Math.max(a.left, b.left) > 0.5 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 0.5;
+    const cartas = ds.slice(0, 3).map(oid => { const c = document.querySelector(`.tb-side--me .tb-card[data-oid="${oid}"]`), barra = c.querySelector('.tb-card__estados'), pt = c.querySelector('.tb-card__pt'), face = c.querySelector('.tb-card__face');
+      const vis = [...barra.querySelectorAll('.tb-estado')], mais = barra.querySelector('.tb-estado--mais');
+      // na carta deitada as caixas giram: compara pela largura de layout (offset), que é a da face de pé
+      const caixas = vis.map(R), ptc = pt && R(pt);
+      return { oid, total: +barra.dataset.estados, mostrados: vis.filter(e => e !== mais).length, mais: mais ? +mais.textContent.replace('+', '') : 0,
+        larguras: vis.map(e => e.offsetWidth), alturas: vis.map(e => e.offsetHeight), pe: barra.parentNode.offsetHeight, virada: c.dataset.tapped,
+        cruzam: caixas.some((a, i) => caixas.some((b, j) => j > i && cruza(a, b))) || (ptc && caixas.some(a => cruza(a, ptc))),
+        dentro: caixas.every(a => { const f = R(face); return a.left >= f.left - 0.5 && a.right <= f.right + 0.5 && a.top >= f.top - 0.5 && a.bottom <= f.bottom + 0.5; }) }; });
+    const fila = document.querySelector(`.tb-side--me .tb-card[data-oid="${ds[3]}"]`).closest('.tb-row'), barraRol = fila.offsetHeight - fila.clientHeight;
+    const fundo = Math.max(...[...fila.querySelectorAll(':scope > .tb-card, :scope > .tb-leque')].map(e => R(e).bottom));
+    return { piso, folga, cartas, rola: fila.dataset.rola, rolaDeFato: fila.scrollWidth > fila.clientWidth, vao: R(fila).bottom - barraRol - fundo };
+  }, d);
+  for (const [w, hgt] of [[360, 780], [384, 832], [390, 844], [412, 891]]) for (const tema of ['dark', 'light']) {
+    await page.setViewportSize({ width: w, height: hgt }); await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(300);
+    const m = await mede(), onde = `${w} ${tema}`;
+    for (const c of m.cartas) {
+      assert.ok(!c.cruzam && c.dentro, `${onde}: nenhum ícone cruza outro, nem o P/R, nem sai da face ` + JSON.stringify(c));
+      assert.equal(c.mostrados + c.mais, c.total, `${onde}: os mostrados mais o "+N" somam todos os estados ` + JSON.stringify(c));
+      assert.ok(c.larguras.every(x => x >= m.piso - 0.5) && c.alturas.every(x => x <= c.pe + 0.5), `${onde}: cada ícone entre o piso (${m.piso}) e a altura do pé ` + JSON.stringify(c));
+    }
+    const [seis, deitada, um] = m.cartas;
+    assert.equal(seis.total, 6, 'seis estados: enjoo, quatro marcadores e dano'); assert.ok(seis.mais > 0 && seis.mostrados >= 1, `${onde}: o que não cabe vira "+N" ` + JSON.stringify(seis));
+    assert.equal(deitada.virada, 'true'); assert.deepEqual([deitada.mostrados, deitada.mais], [seis.mostrados, seis.mais], `${onde}: deitada, a carta mostra o mesmo que de pé (a barra gira com a face)`);
+    assert.ok(um.total === 1 && um.mostrados === 1 && !um.mais && um.larguras[0] > m.piso, `${onde}: um estado só cresce até a altura do pé ` + JSON.stringify(um));
+    assert.ok(m.rolaDeFato && m.rola === 'true', `${onde}: nove cartas rolam e a fileira se marca`);
+    assert.ok(m.vao >= m.folga - 0.5, `${onde}: a barra de rolagem fica a ${m.vao.toFixed(1)} px da carta (folga ${m.folga})`);
+    await auditaTela(page, `J-53 · estados ${onde}`);
+  }
+  if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark')); await page.waitForTimeout(300); await page.screenshot({ path: process.env.SHOTS + '/j53-estados.png' }); }
+  assert.deepEqual(errors, []);
+});
+
 // J-47 (decisão do dono, 02/11/2026) · contadores de mão, grimório, cemitério e exílio menores: a caixa pintada tem 34 px e o
 // número letra menor, o toque continua com 44 px e a linha do lado mede 34 px — o campo ganha 10 px por lado.
 test('e2e · J-47 contadores de zona menores: caixa de 34 px, toque de 44 px, linha do lado com 34 px, ícone de 16; zero sem caixa; nas quatro medidas e nos dois temas', { skip }, async t => {
