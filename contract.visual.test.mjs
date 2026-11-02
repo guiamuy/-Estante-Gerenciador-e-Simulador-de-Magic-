@@ -659,6 +659,14 @@ test('DS-K2 · M1 a carta do campo na moldura K: janela da arte por token sobre 
   }
 });
 
+/* ---------------- J-56 · escolher pela carta ampliada ---------------- */
+test('J-56 · escolher carta para um efeito passa pela carta ampliada: fileira de escolha, alvo tocado na mesa, sacrifício, descarte e lista de alvos', () => {
+  assert.match(HTML, /function ampliaParaEscolher\(oid, verbo, executa/);
+  for (const [onde, re] of [['fileira de escolha', /ampliaParaEscolher\(oid, pk\.tudoOuNada \? 'Descartar' : 'Escolher', \(\) => act\(\{ t: 'pick'/], ['sacrifício', /ampliaParaEscolher\(oid, 'Sacrificar'/],
+    ['alvo na mesa', /ampliaParaEscolher\(oid, 'Escolher', \(\) => act\(\{ t: 'pick_target'/], ['descarte', /ampliaParaEscolher\(oid, 'Descartar', \(\) => act\(\{ t: 'discard'/], ['lista de alvos', /ampliaParaEscolher\(ts\[0\]\.oid, 'Escolher'/]])
+    assert.match(HTML, re, onde);
+});
+
 /* ---------------- J-55 · a decisão mostra a carta de origem ---------------- */
 test('J-55 · a decisão com carta de origem ganha a miniatura ao lado (à esquerda, de largura por token; título e dica à direita, fora do texto da decisão) e o texto da decisão não pinta a miniatura', () => {
   assert.match(componentCss, /\.tb-decisao-origem \{ display: flex; align-items: center;/);

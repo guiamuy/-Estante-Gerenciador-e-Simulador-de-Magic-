@@ -357,7 +357,7 @@ test('e2e · goldfish: mão, terreno, criatura, adjudicação, desfazer, retomar
   await page.waitForSelector('#tb-pick-cards');
   assert.match(await page.innerText('.tb-banner'), /Vidência/); // Leva 131 · o aviso dizia "Scry"; texto de interface é em português
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/mesa-2.png' });
-  await page.locator('#tb-pick-cards .tb-card').first().click();
+  await page.locator('#tb-pick-cards .tb-card').first().click(); await escolhe(page);
   await page.click('#tb-pick-done');
   await page.waitForFunction(() => !document.querySelector('#tb-pick-cards'));
 
@@ -1957,7 +1957,7 @@ test('e2e · U6 mão recolhível: recolhe em um toque, a mesa ganha espaço, a e
   assert.match(await page.getAttribute('#tb-hand-toggle', 'aria-label'), /aberta para descarte/);
   assert.equal(await page.locator('#tb-hand-toggle').isDisabled(), true, 'não dá para recolher no meio do descarte');
   while (await page.evaluate(() => { const s = window.__estanteMesa.estado(); return !!(s.pending && s.pending.kind === 'discard'); })) {
-    await page.locator('.tb-hand .tb-card').first().click();
+    await page.locator('.tb-hand .tb-card').first().click(); await escolhe(page); // J-56 · o descarte passa pela carta ampliada
   }
   await page.waitForFunction(() => document.querySelector('#tb-hand').dataset.recolhida === 'true', null, { timeout: 5000 });
   // partida nova: a mão inicial abre sozinha mesmo com a preferência de recolher
@@ -2307,7 +2307,7 @@ test('e2e · A14 a pilha explicada: cartões com quem, o que faz e alvo; priorid
   for (let i = 0; i < 120; i++) {
     await reveal(page);
     if (await page.locator(`.tb-side--me .tb-card[aria-label^="Prodigal Sorcerer"]:not([data-sick="true"])`).count() && (await page.innerText('.tb-banner')).includes('Principal 1') && (await page.getAttribute('#tb-life-me', 'aria-label')).includes(eu)) break;
-    if ((await page.innerText('.tb-banner')).includes('Descarte')) { await page.locator('.tb-hand .tb-card').first().click(); continue; }   // mão acima de 7 na limpeza
+    if ((await page.innerText('.tb-banner')).includes('Descarte')) { await page.locator('.tb-hand .tb-card').first().click(); await escolhe(page); continue; }   // mão acima de 7 na limpeza
     if (await page.locator('#tb-no-attack').count()) await page.click('#tb-no-attack');
     else if (await page.locator('#tb-pass-turn').count()) await page.click('#tb-pass-turn');
     else if (await page.locator('#tb-pass').count()) await page.click('#tb-pass');
@@ -2462,6 +2462,12 @@ test('e2e · A12 listas prontas: sem listas próprias da Estante; a lista na est
 async function noMais(pg, sel) {
   if (!(await pg.isVisible(sel))) { await pg.click('#tb-mais'); await pg.waitForSelector(sel, { state: 'visible' }); }
   await pg.click(sel);
+}
+/** J-56 · escolher uma carta para um efeito passa pela carta ampliada: depois do toque na carta, o botão do que vai acontecer. */
+async function escolhe(page) {
+  const b = page.locator('#tb-ampliada-escolher');
+  if (!(await b.count())) await b.waitFor({ timeout: 1500 }).catch(() => {});
+  if (await b.count()) { await b.click(); await page.waitForTimeout(80); }
 }
 async function auditaTela(page, nome) {
   console.log(`# auditaTela · ${nome}`);   // R-21 · o portão conta as telas auditadas por esta linha (resumo em .tmp/portao.json)
@@ -3712,7 +3718,7 @@ test('e2e · leva 107 Duress mostra a mão inteira: terrenos e criaturas apagado
   // aria-disabled: o Playwright não clica sozinho numa carta desabilitada; força o toque para provar que nada acontece
   await page.locator('#tb-pick-cards .tb-card--fora').first().click({ force: true });
   assert.equal(await page.evaluate(() => window.__estanteMesa.estado().pending.picked.length), 0);
-  await page.locator('#tb-pick-cards .tb-card:not(.tb-card--fora)').first().click();
+  await page.locator('#tb-pick-cards .tb-card:not(.tb-card--fora)').first().click(); await escolhe(page);
   await page.waitForFunction(o => Object.values(window.__estanteMesa.estado().objects).some(x => x.owner === o && x.name === 'Counterspell' && x.zone === 'graveyard'), 1 - p);
   assert.deepEqual(errors, []);
 });
@@ -4775,7 +4781,7 @@ async function meuPrincipal121(page) {
   for (let i = 0; i < 120; i++) {
     const e = await estado121(page);
     if (e.ativo === 0 && e.prio === 0 && e.passo === 'main1' && !e.pend && !e.pilha) return;
-    if (e.pend === 'discard') { await page.locator('#tb-hand .tb-card').first().click(); await page.waitForTimeout(60); continue; }
+    if (e.pend === 'discard') { await page.locator('#tb-hand .tb-card').first().click(); await escolhe(page); await page.waitForTimeout(60); continue; }
     for (const id of ['#tb-no-block', '#tb-no-attack', '#tb-pass-turn', '#tb-pass']) if (await page.locator(id).count()) { await page.click(id).catch(() => {}); break; }
     await page.waitForTimeout(60);
   }
@@ -4799,7 +4805,7 @@ test('e2e · Leva 121 · faixa de turno: ícone + duas palavras, nunca cortada, 
   await meuPrincipal121(page);
   await jogaTerreno121(page, 'Mountain');
   // anda até o turno do Shark com a prioridade comigo (tenho raio e montanha: a mesa para)
-  for (let i = 0; i < 60; i++) { const e = await estado121(page); if (e.ativo === 1 && e.prio === 0) break; if (e.pend === 'discard') { await page.locator('#tb-hand .tb-card').first().click(); continue; }
+  for (let i = 0; i < 60; i++) { const e = await estado121(page); if (e.ativo === 1 && e.prio === 0) break; if (e.pend === 'discard') { await page.locator('#tb-hand .tb-card').first().click(); await escolhe(page); continue; }
     for (const id of ['#tb-no-attack', '#tb-pass-turn', '#tb-pass']) if (await page.locator(id).count()) { await page.click(id).catch(() => {}); break; } await page.waitForTimeout(80); }
   await page.waitForSelector('#tb-vez[data-papel="oponente"]');
   assert.equal((await page.innerText('#tb-vez')).trim(), 'Turno Shark', 'só o rótulo, em duas palavras: nenhum outro texto na faixa');
@@ -4903,16 +4909,16 @@ test('e2e · Leva 121 · Highway Robbery: tramar pela folha, a tramada à vista 
   await page.click('[data-troca="terreno"]'); await page.waitForTimeout(120);
   assert.equal(await page.locator('#tb-pick-cards .tb-card').count(), e.campo.length, 'na aba de sacrifício, só os terrenos em campo');
   assert.equal(await page.innerText('#tb-troca-ok'), 'Sacrificar');
-  await page.locator('#tb-pick-cards .tb-card').first().click(); await page.waitForTimeout(120);
+  await page.locator('#tb-pick-cards .tb-card').first().click(); await escolhe(page); await page.waitForTimeout(120);
   assert.equal(await page.locator('#tb-pick-cards .tb-card[data-selected="true"]').count(), 1);
   assert.match(await page.innerText('#tb-troca-dica'), /Sacrificar Mountain e comprar 2/, 'a frase diz o que vai acontecer');
   assert.equal((await estado121(page)).pend, 'pick', 'tocar na carta só marca: nada foi feito ainda');
   // a carta marcada cabe inteira na fileira (subia e era cortada pela borda)
   const marcada = await page.evaluate(() => { const c = document.querySelector('#tb-pick-cards .tb-card[data-selected="true"] .tb-card__face').getBoundingClientRect(), r = document.querySelector('#tb-pick-cards .tb-row').getBoundingClientRect(); return c.top >= r.top - 1; });
   assert.ok(marcada, 'carta marcada inteira');
-  await page.locator('#tb-pick-cards .tb-card').first().click(); await page.waitForTimeout(120);
+  await page.locator('#tb-pick-cards .tb-card').first().click(); await escolhe(page); await page.waitForTimeout(120);
   assert.equal(await page.locator('#tb-troca-ok').isDisabled(), true, 'tocar de novo desmarca');
-  await page.locator('#tb-pick-cards .tb-card').first().click(); await page.waitForTimeout(120);
+  await page.locator('#tb-pick-cards .tb-card').first().click(); await escolhe(page); await page.waitForTimeout(120);
   await auditaTela(page, 'escolha da Highway Robbery (sacrificar)');
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/121-troca.png' });
   await page.click('#tb-troca-ok'); await page.waitForTimeout(250);
@@ -5251,11 +5257,11 @@ test('e2e · Leva 125 · Rakdos: a pergunta de cada decisão fica escrita na ban
   assert.equal(await page.locator('.tb-dock button.tb-banner__text').count(), 0, 'e não sobra botão invisível');
   await auditaTela(page, 'descarte por efeito');
   // descarta o Kitchen Imp: insanidade com a carta, o custo e as duas saídas à vista
-  await page.locator('#tb-hand .tb-card[aria-label^="Kitchen Imp"]').first().click(); await page.waitForTimeout(250);
+  await page.locator('#tb-hand .tb-card[aria-label^="Kitchen Imp"]').first().click(); await escolhe(page); await page.waitForTimeout(250);
   // K-74 · 702.35a (decisão D1 do dono, 12/10/2026): a insanidade é gatilho na pilha; o segundo descarte da mesma Looting vem antes da pergunta e continua dizendo a fonte
   e = await M.est(); assert.equal(e.pend, 'discard'); assert.equal(await M.decisao(), 'Faithless Looting: descarte 1 carta | Toque na carta da mão que você descarta.');
   const fica = e.mao.find(n => !['Kitchen Imp', 'Fiery Temper'].includes(n));
-  await page.locator(`#tb-hand .tb-card[aria-label^="${fica}"]`).first().click(); await page.waitForTimeout(200);
+  await page.locator(`#tb-hand .tb-card[aria-label^="${fica}"]`).first().click(); await escolhe(page); await page.waitForTimeout(200);
   for (let i = 0; i < 12; i++) { e = await M.est(); if (e.pend === 'madness' || !e.pilha) break; await page.click('#tb-pass').catch(() => {}); await page.waitForTimeout(150); }
   e = await M.est(); assert.equal(e.pend, 'madness');
   assert.match(await M.decisao(), /^Kitchen Imp: insanidade \{B\} \| Conjure agora por \{B\} ou deixe ir para o cemitério\.$/);
@@ -6492,7 +6498,7 @@ test('e2e · Leva 131 · Faeries: vidência em português; alvo do gatilho sem n
   assert.ok(await page.locator('.tb-side .tb-card[aria-label^="Faerie Seer"][data-eligible="true"]').count(), 'a carta que pode ser alvo fica marcada na mesa');
   await auditaTela(page, 'alvo do gatilho da Harrier Strix');
   // tocar na carta na mesa escolhe o alvo
-  await page.locator('.tb-side .tb-card[aria-label^="Faerie Seer"]').first().click(); await page.waitForTimeout(200);
+  await page.locator('.tb-side .tb-card[aria-label^="Faerie Seer"]').first().click(); await escolhe(page); await page.waitForTimeout(200);
   e = await M.resolve();
   assert.equal(e.pend, null); assert.deepEqual(await virada('Faerie Seer'), [true], 'a Faerie Seer tocada na mesa foi virada');
   // Sewer-veillance Cam: alvo ao pôr na pilha; a escolha vem na resolução, com o estado da criatura escrito
@@ -6685,7 +6691,7 @@ test('e2e · Leva 136 · Elves: virar dois Elfos tocando nas cartas (Birchlore R
   f = await folha131(page, 'Quirion Ranger', '.tb-side');
   assert.match(f[0].txt, /^Ativar \(devolver Forest à mão\)( · \d+ alvos| → .+)$/, 'o custo está escrito');
   await page.locator('.ds-dialog .tb-sheet__actions button').first().click(); await page.waitForTimeout(300);
-  if (await page.locator('#tb-alvos').count()) { await auditaTela(page, 'alvos do Quirion Ranger'); await page.locator('#tb-alvos button', { hasText: 'Llanowar Elves' }).first().click(); await page.waitForTimeout(300); }
+  if (await page.locator('#tb-alvos').count()) { await auditaTela(page, 'alvos do Quirion Ranger'); await page.locator('#tb-alvos button', { hasText: 'Llanowar Elves' }).first().click(); await escolhe(page); await page.waitForTimeout(300); }
   await page.waitForSelector('#tb-escolha');
   assert.equal(await page.innerText('#tb-escolha-pergunta'), 'Qual terreno volta para a mão? Toque na carta.');
   const terrenos = await grade136(page);
@@ -6859,7 +6865,7 @@ test('e2e · R5 · Bogles: Armadillo Cloak e Spirit Link ganham a vida dos dois 
   assert.deepEqual(achadas.slice().sort(), ['Forest, N cópias', 'Plains, N cópias'], 'uma carta por nome, com a contagem (antes: nove cartas em fila)');
   await auditaTela(page, 'busca da Sheltering Landscape');
   const planicies = e.campo.filter(n => n === 'Plains').length;
-  await page.locator('#tb-pick-cards .tb-card[aria-label^="Plains"]').click(); await page.waitForTimeout(200); e = await M.resolve();
+  await page.locator('#tb-pick-cards .tb-card[aria-label^="Plains"]').click(); await escolhe(page); await page.waitForTimeout(200); e = await M.resolve();
   if (e.pend === 'pick') { await page.click('#tb-pick-done'); await page.waitForTimeout(200); e = await M.est(); }
   assert.equal(e.campo.filter(n => n === 'Plains').length, planicies + 1); assert.ok(!e.campo.includes('Sheltering Landscape') || e.cemiterio.includes('Sheltering Landscape'), 'a Landscape foi sacrificada');
   assert.deepEqual(M.errors, []);
@@ -6933,7 +6939,7 @@ test('e2e · R6 · Boros: Boros Garrison e Kor Skyfisher mostram iguais juntas a
   assert.ok(cartas.some(c => /^Plains, \d cópias$/.test(c)) && cartas.includes('Boros Garrison'));
   await auditaTela(page, 'terreno que volta com a Boros Garrison');
   const planicies = e.campo.filter(n => n === 'Plains').length;
-  await page.locator('#tb-pick-cards .tb-card[aria-label^="Plains"]').first().click(); await page.waitForTimeout(200); e = await segueR6(M);
+  await page.locator('#tb-pick-cards .tb-card[aria-label^="Plains"]').first().click(); await escolhe(page); await page.waitForTimeout(200); e = await segueR6(M);
   assert.equal(e.campo.filter(n => n === 'Plains').length, planicies - 1); assert.ok(e.campo.includes('Boros Garrison'));
   // a Pista (ficha) não tem texto na folha: o botão diz o que ela faz
   f = await folha131(page, 'Clue', '.tb-side'); assert.deepEqual(f.map(b => b.txt), ['Ativar ({2}, sacrificar): compra 1 carta']); await fecha136(page);
@@ -7000,7 +7006,7 @@ test('e2e · R7 · Jund: o custo de sacrificar diz o quê; Fanatical Offering es
   const achadas = await page.locator('#tb-pick-cards .tb-card').evaluateAll(cs => cs.map(c => c.getAttribute('aria-label').replace(/, \d+ cópias/, '')));
   assert.equal(new Set(achadas).size, achadas.length, 'uma carta por terreno básico: ' + achadas.join(' | ')); assert.ok(achadas.every(n => ['Swamp', 'Forest', 'Mountain'].includes(n)));
   await auditaTela(page, 'busca da Cleansing Wildfire');
-  await page.locator('#tb-pick-cards .tb-card').first().click(); await page.waitForTimeout(200); e = await segueR6(M);
+  await page.locator('#tb-pick-cards .tb-card').first().click(); await escolhe(page); await page.waitForTimeout(200); e = await segueR6(M);
   assert.equal(e.campo.filter(n => ['Swamp', 'Forest', 'Mountain', 'Drossforge Bridge'].includes(n)).length, terrenos + 1, 'um terreno a mais, e a Ponte continua');
   assert.deepEqual(M.errors, []);
 });
@@ -7897,7 +7903,7 @@ test('e2e · D7 mesa do seu jeito: superfície só na partida, cor do oponente e
   assert.notEqual(await fundo(), fundoPadrao, 'na partida o fundo é a superfície escolhida');
   const act = a => page.evaluate(a => { try { window.__estanteMesa.act(a); return true; } catch (e) { return String(e); } }, a);
   const oid = (nome, zona = 'hand', p = 0) => page.evaluate(([nome, zona, p]) => { const s = window.__estanteMesa.estado(); return s.zones[p][zona].find(o => s.objects[o].name === nome) || null; }, [nome, zona, p]);
-  const minhaVez = async () => { for (let i = 0; i < 60; i++) { await reveal(page); const e = await estado121(page); if (e.ativo === 0 && e.prio === 0 && e.passo === 'main1' && !e.pend && !e.pilha) return; if (e.pend === 'discard') { await page.locator('#tb-hand .tb-card').first().click(); await page.waitForTimeout(60); continue; } for (const id of ['#tb-no-block', '#tb-no-attack', '#tb-pass-turn', '#tb-pass']) if (await page.locator(id).count()) { await page.click(id).catch(() => {}); break; } await page.waitForTimeout(60); } };
+  const minhaVez = async () => { for (let i = 0; i < 60; i++) { await reveal(page); const e = await estado121(page); if (e.ativo === 0 && e.prio === 0 && e.passo === 'main1' && !e.pend && !e.pilha) return; if (e.pend === 'discard') { await page.locator('#tb-hand .tb-card').first().click(); await escolhe(page); await page.waitForTimeout(60); continue; } for (const id of ['#tb-no-block', '#tb-no-attack', '#tb-pass-turn', '#tb-pass']) if (await page.locator(id).count()) { await page.click(id).catch(() => {}); break; } await page.waitForTimeout(60); } };
   let conj = null;
   for (let turno = 0; turno < 6 && !conj; turno++) {
     const f = await oid('Forest'); if (f) await act({ t: 'play_land', p: 0, oid: f });
@@ -8731,11 +8737,11 @@ test('e2e · H5 ver o oponente jogar: o turno do Shark passa quadro a quadro com
   const M = () => page.evaluate(() => { const m = window.__estanteMesa; return { cena: m.cena(), narrado: m.narrado(), turno: m.estado().turn.number, final: m.estadoFinal().turn.number }; });
   // chega à minha vez e passa o turno: o Shark joga o turno dele
   const minhaVez = async () => { for (let i = 0; i < 60; i++) { await fimDaCena(); const e = await page.evaluate(() => { const s = window.__estanteMesa.estado(); return { meu: s.turn.active === 0 && s.turn.priority === 0 && !s.pending && !s.stack.length, pend: s.pending && s.pending.kind }; });
-    if (e.meu && await page.locator('#tb-pass-turn').count()) return; if (e.pend === 'discard') { await page.locator('#tb-hand .tb-card').first().click(); continue; }
+    if (e.meu && await page.locator('#tb-pass-turn').count()) return; if (e.pend === 'discard') { await page.locator('#tb-hand .tb-card').first().click(); await escolhe(page); continue; }
     for (const id of ['#tb-no-block', '#tb-no-attack', '#tb-pass']) if (await page.locator(id).count()) { await page.click(id).catch(() => {}); break; } await page.waitForTimeout(80); } };
   /** Passa o turno até o Shark fazer alguma coisa. Com a mão cheia, a limpeza pede descarte antes: é o descarte que entrega o turno a ele. */
   const passaAteCena = async () => { for (let i = 0; i < 8; i++) { await minhaVez(); await page.click('#tb-pass-turn'); await semPensar(page); await page.waitForTimeout(150);
-    if (await page.evaluate(() => { const s = window.__estanteMesa.estado(); return !!(s.pending && s.pending.kind === 'discard'); }) && !(await M()).cena) await page.locator('#tb-hand .tb-card').first().click();
+    if (await page.evaluate(() => { const s = window.__estanteMesa.estado(); return !!(s.pending && s.pending.kind === 'discard'); }) && !(await M()).cena) { await page.locator('#tb-hand .tb-card').first().click(); await escolhe(page); }
     try { await page.waitForSelector('#tb[data-cena="true"] #tb-cena', { timeout: 2000 }); return; } catch (e) { /* turno sem jogada do oponente: tenta o próximo */ } } assert.fail('o Shark não jogou em oito turnos'); };
   await minhaVez();
   const antes = (await M()).narrado.length;
@@ -13165,7 +13171,7 @@ test('e2e · K1 decisão que toma o lugar da mão (vidência): o seletor Escolha
   await page.setViewportSize({ width: 360, height: 780 }); await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   // decidir segue como antes; a decisão seguinte começa mostrando a decisão
   await page.click('#tb-alterna-mao'); await page.click('#tb-alterna-decisao');
-  await page.locator('#tb-pick-cards .tb-card').first().click(); await page.click('#tb-pick-done');
+  await page.locator('#tb-pick-cards .tb-card').first().click(); await escolhe(page); await page.click('#tb-pick-done');
   await page.waitForFunction(() => !document.querySelector('#tb-pick-cards') && !document.querySelector('#tb-alterna'));
   assert.notEqual(await page.evaluate(() => (window.__estanteMesa.estado().pending || {}).kind), 'pick');
   // K2 · com a mesa no ar, cada feltro do escuro se separa das zonas (antes 1,24:1) e mantém o texto legível
@@ -13369,7 +13375,7 @@ test('e2e · M-250 · Frantic Search: depois de comprar e descartar, a mesa pede
   assert.ok(await page.locator('#tb-pick-cards .tb-card').count() >= 3, 'os terrenos virados aparecem para escolher');
   assert.ok(await page.locator('#tb-pick-done').count() === 1, 'pode confirmar sem escolher');
   await auditaTela(page, 'desvirar com a Frantic Search');
-  await page.locator('#tb-pick-cards .tb-card').first().click(); await page.waitForTimeout(150);
+  await page.locator('#tb-pick-cards .tb-card').first().click(); await escolhe(page); await page.waitForTimeout(150);
   await page.click('#tb-pick-done'); await page.waitForTimeout(200);
   e = await M.est(); assert.notEqual(e.pend, 'pick');
   assert.deepEqual(M.errors, []);
@@ -13420,7 +13426,7 @@ test('e2e · M-265 · Stream of Thought com replicar: a folha oferece "replicar 
   assert.equal(e.pend, 'pick');
   assert.match(await M.decisao(), /^Stream of Thought · Escolha do seu cemitério o que embaralhar no grimório \| 0 de até 4 escolhida\(s\)/);
   await auditaTela(page, 'embaralhar do cemitério com a Stream of Thought');
-  await page.locator('#tb-pick-cards .tb-card').first().click(); await page.waitForTimeout(150);
+  await page.locator('#tb-pick-cards .tb-card').first().click(); await escolhe(page); await page.waitForTimeout(150);
   await page.click('#tb-pick-done'); await page.waitForTimeout(200);
   e = await segueR6(M, x => x.pend === 'pick');
   assert.equal(e.pend, 'pick', 'a original resolve depois e pergunta de novo');
@@ -13444,11 +13450,11 @@ test('e2e · M-267 · Expressive Iteration: a mesa pergunta a carta da mão e de
   assert.match(await M.decisao(), /^Expressive Iteration · Escolha a que vai para a mão \| Toque na carta\./);
   assert.equal(await page.locator('#tb-pick-cards .tb-card').count(), 3, 'as três de cima');
   await auditaTela(page, 'repartir da Expressive Iteration');
-  await page.locator('#tb-pick-cards .tb-card').first().click(); await page.waitForTimeout(200);
+  await page.locator('#tb-pick-cards .tb-card').first().click(); await escolhe(page); await page.waitForTimeout(200);
   if (/para a mão/.test(await M.decisao())) { await page.click('#tb-pick-done'); await page.waitForTimeout(200); }
   assert.match(await M.decisao(), /^Expressive Iteration · Escolha a que vai para o fundo do grimório/);
   assert.equal(await page.locator('#tb-pick-cards .tb-card').count(), 2, 'as duas que sobraram');
-  await page.locator('#tb-pick-cards .tb-card').first().click(); await page.waitForTimeout(200);
+  await page.locator('#tb-pick-cards .tb-card').first().click(); await escolhe(page); await page.waitForTimeout(200);
   if (/fundo do grimório/.test(await M.decisao().catch(() => ''))) { await page.click('#tb-pick-done'); await page.waitForTimeout(200); }
   e = await segueR6(M); assert.notEqual(e.pend, 'pick');
   const exilada = await page.evaluate(() => { const s = window.__estanteMesa.estado(); return s.zones[0].exile.filter(o => s.objects[o].playableFromExile === 0).length; });
@@ -13468,7 +13474,7 @@ test('e2e · M-268 · Windbrisk Heights: ao entrar, a mesa pede a carta a escond
   assert.match(await M.decisao(), /^Windbrisk Heights · Esconderijo: escolha a carta a exilar virada para baixo/);
   assert.equal(await page.locator('#tb-pick-cards .tb-card').count(), 4, 'as quatro de cima');
   await auditaTela(page, 'esconderijo da Windbrisk Heights');
-  await page.locator('#tb-pick-cards .tb-card').first().click(); await page.waitForTimeout(200);
+  await page.locator('#tb-pick-cards .tb-card').first().click(); await escolhe(page); await page.waitForTimeout(200);
   if (/Esconderijo/.test(await M.decisao().catch(() => ''))) { await page.click('#tb-pick-done'); await page.waitForTimeout(200); }
   e = await segueR6(M); assert.notEqual(e.pend, 'pick');
   const r = await page.evaluate(() => { const s = window.__estanteMesa.estado(); const wb = s.zones[0].battlefield.find(o => s.objects[o].name === 'Windbrisk Heights'); const x = s.objects[wb].escondida; return { exilada: s.objects[x].zone, virada: !!s.objects[x].faceDown }; });
@@ -13812,10 +13818,8 @@ test('e2e · J-33 · relato #40 · CR 720 · presságio: sem mana para a criatur
   assert.deepEqual(M.errors, []);
 });
 
-// J-55 (decisão do dono, 02/11/2026, print do Roost Seek) · a pilha e a janela da escolha mostravam "Roost Seek" escrito num quadrado
-// vazio: a face do presságio não tem imagem própria na Scryfall (a arte é uma só, da carta inteira) e a mesa procurava a imagem da face.
-// Agora a face sem imagem usa a arte da carta, e toda decisão mostra a carta de onde o efeito veio.
-test('e2e · J-55 a carta de origem: o presságio Roost Seek vai à pilha com a arte do Sagu Wildling e a escolha do grimório mostra essa carta (tocar abre a carta); 360 e 412, dois temas', { skip }, async t => {
+/** J-55/J-56 · Sagu Wildling com as faces no formato da Scryfall; conjura o presságio Roost Seek e para na escolha do grimório. */
+const presagioNaEscolha = async t => {
   const { page, errors, base } = await open(t, { dev: false });
   await page.addInitScript(() => { window.__MTG_TEST = true; });
   await page.route('https://cards.scryfall.io/**', r => r.fulfill({ status: 200, contentType: 'image/svg+xml', headers: { 'access-control-allow-origin': '*' },
@@ -13854,6 +13858,14 @@ test('e2e · J-55 a carta de origem: o presságio Roost Seek vai à pilha com a 
   assert.ok(/Roost Seek/.test(pilha.titulo) && pilha.imagens.length && pilha.imagens.every(x => /sagu/.test(x)) && !pilha.soNome, 'a pilha mostra a arte do Sagu Wildling para o Roost Seek: ' + JSON.stringify(pilha));
   for (let i = 0; i < 20; i++) { const e = await estado121(page); if (e.pend) break; await page.click('#tb-pass').catch(() => {}); await page.waitForTimeout(120); }
   await page.waitForSelector('.tb-decisao-origem #tb-decisao-origem');
+  return { page, errors };
+};
+
+// J-55 (decisão do dono, 02/11/2026, print do Roost Seek) · a pilha e a janela da escolha mostravam "Roost Seek" escrito num quadrado
+// vazio: a face do presságio não tem imagem própria na Scryfall (a arte é uma só, da carta inteira) e a mesa procurava a imagem da face.
+// Agora a face sem imagem usa a arte da carta, e toda decisão mostra a carta de onde o efeito veio.
+test('e2e · J-55 a carta de origem: o presságio Roost Seek vai à pilha com a arte do Sagu Wildling e a escolha do grimório mostra essa carta (tocar abre a carta); 360 e 412, dois temas', { skip }, async t => {
+  const { page, errors } = await presagioNaEscolha(t);
   for (const [w, hgt] of [[360, 780], [412, 891]]) for (const tema of ['dark', 'light']) {
     await page.setViewportSize({ width: w, height: hgt }); await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(300);
     const d = await page.evaluate(() => { const R = e => e.getBoundingClientRect(), dec = document.querySelector('#tb-decisao'), mini = document.querySelector('#tb-decisao-origem'), img = mini.querySelector('img'), tit = dec.querySelector(':scope > strong');
@@ -13868,6 +13880,32 @@ test('e2e · J-55 a carta de origem: o presságio Roost Seek vai à pilha com a 
   // tocar na miniatura abre a carta
   await page.click('#tb-decisao-origem'); await page.waitForSelector('.ds-dialog');
   assert.match(await page.locator('.ds-dialog').innerText(), /Roost Seek/);
+  assert.deepEqual(errors, []);
+});
+
+// J-56 (decisão do dono, 02/11/2026) · escolher uma carta para um efeito passa pela carta ampliada: o toque abre a carta com o
+// botão do que vai acontecer; só ele escolhe, e Voltar fecha sem escolher.
+test('e2e · J-56 escolher pela carta ampliada: tocar na carta da escolha abre a carta (arte, texto, para quê) com Escolher; Voltar não escolhe; Escolher escolhe; 360 e 412, dois temas', { skip }, async t => {
+  const { page, errors } = await presagioNaEscolha(t);
+  const escolhidas = () => page.evaluate(() => window.__estanteMesa.estado().pending.picked.length);
+  for (const [w, hgt] of [[360, 780], [412, 891]]) for (const tema of ['dark', 'light']) {
+    await page.setViewportSize({ width: w, height: hgt }); await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(250);
+    await page.locator('#tb-pick-cards .tb-card').first().click(); await page.waitForSelector('#tb-ampliada-escolher');
+    const a = await page.evaluate(() => { const d = document.querySelector('.ds-dialog'), R = e => e.getBoundingClientRect(), b = document.querySelector('#tb-ampliada-escolher'), v = document.querySelector('#tb-ampliada-voltar');
+      const img = d.querySelector('.tb-sheet__foto img');
+      return { titulo: (d.querySelector('h2, .ds-dialog__title') || {}).textContent || '', para: (document.querySelector('#tb-ampliada-para') || {}).textContent || '', img: !!img, imgW: img ? R(img).width : 0,
+        botao: b.textContent.trim(), alturas: [R(b).height, R(v).height], primario: b.className, voltar: v.textContent.trim(), texto: d.innerText }; });
+    const onde = `${w} ${tema}`;
+    assert.ok(/Forest/.test(a.titulo) && /Roost Seek/.test(a.para) && a.img && a.imgW >= 160, `${onde}: a carta ampliada, com a arte grande e para quê ` + JSON.stringify(a));
+    assert.ok(a.botao === 'Escolher' && /primary/.test(a.primario) && a.voltar === 'Voltar' && a.alturas.every(x => x >= 42.5), `${onde}: Escolher (primário) e Voltar, na altura de toque dos botões do app (44 px na densidade padrão) ` + JSON.stringify(a));
+    await auditaTela(page, `J-56 · ampliada ${onde}`);
+    await page.click('#tb-ampliada-voltar'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
+    assert.equal(await escolhidas(), 0, `${onde}: Voltar fecha sem escolher`);
+  }
+  if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark')); await page.locator('#tb-pick-cards .tb-card').first().click(); await page.waitForSelector('#tb-ampliada-escolher'); await page.waitForTimeout(300); await page.screenshot({ path: process.env.SHOTS + '/j56-ampliada.png' }); await page.click('#tb-ampliada-voltar'); await page.waitForTimeout(200); }
+  await page.locator('#tb-pick-cards .tb-card').first().click(); await page.click('#tb-ampliada-escolher'); await page.waitForTimeout(200);
+  const fim = await page.evaluate(() => { const s = window.__estanteMesa.estado(); return { pend: s.pending ? s.pending.picked.length : null, mao: s.zones[0].hand.filter(o => s.objects[o].name === 'Forest').length }; });
+  assert.ok(fim.pend === 1 || fim.pend === null, 'Escolher escolhe a carta: ' + JSON.stringify(fim));
   assert.deepEqual(errors, []);
 });
 
@@ -16836,7 +16874,7 @@ test('e2e · MJ3c a carta do Shark sai do contador da mão dele de verso e se re
   const anda = async (ate, max = 80) => { for (let i = 0; i < max; i++) {
     if (await page.evaluate(ate)) return true;
     const pend = await page.evaluate(() => { const s = window.__estanteMesa.estado(); return s.pending && s.pending.p === window.__estanteMesa.quemVe() ? s.pending.kind : null; });
-    if (pend === 'discard') { await page.locator('#tb-hand .tb-card').first().click(); continue; }
+    if (pend === 'discard') { await page.locator('#tb-hand .tb-card').first().click(); await escolhe(page); continue; }
     let foi = false; for (const id of ['#tb-no-attack', '#tb-pass-turn', '#tb-pass']) if (await page.locator(id).count()) { await page.click(id).catch(() => {}); foi = true; break; }
     if (!foi) await page.evaluate(() => document.querySelector('#tb').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
     await page.waitForTimeout(120); } return false; };
@@ -17435,7 +17473,7 @@ test('e2e · MJ6b arrastar da permanente ativa a habilidade no alvo; arrastar da
   for (let i = 0; i < 80; i++) {
     const e = await estado121(page);
     if (e.turno > turno0 && e.ativo === 0 && e.prio === 0 && e.passo === 'main1' && !e.pend && !e.pilha) break;
-    if (e.pend === 'discard') { await page.locator('#tb-hand .tb-card').first().click(); await page.waitForTimeout(60); continue; }
+    if (e.pend === 'discard') { await page.locator('#tb-hand .tb-card').first().click(); await escolhe(page); await page.waitForTimeout(60); continue; }
     for (const id of ['#tb-no-block', '#tb-no-attack', '#tb-pass-turn', '#tb-pass']) if (await page.locator(id).count()) { await page.click(id).catch(() => {}); break; }
     await page.waitForTimeout(60);
   }
@@ -17711,7 +17749,7 @@ test('e2e · MJ7 material: sombra que cresce ao segurar, luz do feltro só na pa
   for (let i = 0; i < 80; i++) {
     const e = await estado121(page);
     if (e.turno > turno0 && e.pend === 'may_pay') break;
-    if (e.pend === 'discard') { await page.locator('#tb-hand .tb-card').first().click(); await page.waitForTimeout(60); continue; }
+    if (e.pend === 'discard') { await page.locator('#tb-hand .tb-card').first().click(); await escolhe(page); await page.waitForTimeout(60); continue; }
     for (const id of ['#tb-no-block', '#tb-no-attack', '#tb-pass-turn', '#tb-pass']) if (await page.locator(id).count()) { await page.click(id).catch(() => {}); break; }
     await page.waitForTimeout(60);
   }
@@ -17799,7 +17837,7 @@ test('e2e · MJ8 ritmo do turno: trilho acende em sequência, faixa de vez desli
     fio: getComputedStyle(li, '::after').animationName, op: getComputedStyle(li, '::after').opacity, li: getComputedStyle(li).animationName })));
   const passo = () => page.evaluate(() => { const s = window.__estanteMesa.estado(); return { passo: s.turn.step, ativo: s.turn.active, prio: s.turn.priority, pend: s.pending && s.pending.kind, turno: s.turn.number }; });
   const minhaVez = async () => { for (let i = 0; i < 60; i++) { await fimDaCena(); const e = await page.evaluate(() => { const s = window.__estanteMesa.estado(); return { meu: s.turn.active === 0 && s.turn.priority === 0 && !s.pending && !s.stack.length, pend: s.pending && s.pending.kind }; });
-    if (e.meu && await page.locator('#tb-pass-turn').count()) return; if (e.pend === 'discard') { await page.locator('#tb-hand .tb-card').first().click(); continue; }
+    if (e.meu && await page.locator('#tb-pass-turn').count()) return; if (e.pend === 'discard') { await page.locator('#tb-hand .tb-card').first().click(); await escolhe(page); continue; }
     for (const id of ['#tb-no-block', '#tb-no-attack', '#tb-pass']) if (await page.locator(id).count()) { await page.click(id).catch(() => {}); break; } await page.waitForTimeout(80); } };
   await minhaVez();
   // 1 · passar a prioridade na principal 1 leva à principal 2: o combate pisca (k 0) e a principal 2 acende por último (k 1)
@@ -17824,7 +17862,7 @@ test('e2e · MJ8 ritmo do turno: trilho acende em sequência, faixa de vez desli
   const visto = { desce: false, voos: new Set(), deltas: [], acende: new Set() };
   for (let i = 0; i < 8; i++) {
     await minhaVez(); await page.click('#tb-pass-turn'); await page.waitForTimeout(100);
-    if (await page.evaluate(() => { const s = window.__estanteMesa.estado(); return !!(s.pending && s.pending.kind === 'discard'); }) && !(await page.evaluate(() => window.__estanteMesa.cena()))) await page.locator('#tb-hand .tb-card').first().click();
+    if (await page.evaluate(() => { const s = window.__estanteMesa.estado(); return !!(s.pending && s.pending.kind === 'discard'); }) && !(await page.evaluate(() => window.__estanteMesa.cena()))) { await page.locator('#tb-hand .tb-card').first().click(); await escolhe(page); }
     let houve = false;
     for (let j = 0; j < 400; j++) { const x = await sonda(); if (x.cena) houve = true; if (x.vezTroca && x.papel === 'oponente' && x.anim === 'tb-vez-desce') visto.desce = true;
       for (const m of x.voos.split(' ').filter(Boolean)) visto.voos.add(m.split(':')[0]); if (x.delta != null) visto.deltas.push(x.delta); for (const k of x.acende) visto.acende.add(k);
@@ -17959,7 +17997,7 @@ test('e2e · J-20 a carta virada do Shark voa do centro do contador da mão dele
   const anda = async (ate, max = 80) => { for (let i = 0; i < max; i++) {
     if (await page.evaluate(ate)) return true;
     const pend = await page.evaluate(() => { const s = window.__estanteMesa.estado(); return s.pending && s.pending.p === window.__estanteMesa.quemVe() ? s.pending.kind : null; });
-    if (pend === 'discard') { await page.locator('#tb-hand .tb-card').first().click(); continue; }
+    if (pend === 'discard') { await page.locator('#tb-hand .tb-card').first().click(); await escolhe(page); continue; }
     let foi = false; for (const id of ['#tb-no-attack', '#tb-pass-turn', '#tb-pass']) if (await page.locator(id).count()) { await page.click(id).catch(() => {}); foi = true; break; }
     if (!foi) await page.evaluate(() => document.querySelector('#tb').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
     await page.waitForTimeout(120); } return false; };
@@ -18132,7 +18170,7 @@ test('e2e · MJ11 passar a prioridade contra o Shark responde no quadro seguinte
         pend: st.pending && st.pending.p === 0 ? st.pending.kind : null }; });
     if (s.over) break;
     if (!s.minha) { await page.waitForTimeout(60); continue; }
-    if (s.pend === 'discard') { await page.locator('#tb-hand .tb-card').first().click(); continue; }
+    if (s.pend === 'discard') { await page.locator('#tb-hand .tb-card').first().click(); await escolhe(page); continue; }
     const id = await page.evaluate(() => ['#tb-no-block', '#tb-no-attack', '#tb-pass-turn', '#tb-pass'].find(x => { const b = document.querySelector(x); return b && !b.disabled; }) || null);
     if (!id) { await page.waitForTimeout(60); continue; }
     await page.click(id); feitos++;
@@ -19124,7 +19162,7 @@ test('e2e · J-34 · relato #41 · CR 601.2c/601.2h · lampejo do Dread Return: 
   assert.doesNotMatch(alvos, /permanentes/i, 'carta no cemitério não é permanente');
   assert.match(await page.innerText('#tb-alvos-pergunta'), /^Qual carta é o alvo\? Depois você paga o custo\.$/);
   await auditaTela(page, 'alvo do lampejo do Dread Return');
-  await page.locator('#tb-alvos button').first().click(); await page.waitForSelector('#tb-escolha');
+  await page.locator('#tb-alvos button').first().click(); await escolhe(page); await page.waitForSelector('#tb-escolha');
   // 2º o custo (601.2h): três criaturas, ditas como criaturas
   assert.equal(await page.innerText('#tb-escolha-pergunta'), 'Quais criaturas você sacrifica para pagar? Toque nas cartas: 0 de 3.');
   await auditaTela(page, 'sacrificar três criaturas');

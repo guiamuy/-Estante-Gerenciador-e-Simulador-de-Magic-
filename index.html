@@ -42349,7 +42349,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const s = table.state, v = table.viewer();
     // S60 · escolhendo o que sacrificar, tocar na permanente já resolve
     if (s.pending && s.pending.kind === 'sacrifice' && s.pending.p === v && (s.pending.options || []).includes(oid)) {
-      act({ t: 'sacrifice', p: v, oid }); return true;
+      ampliaParaEscolher(oid, 'Sacrificar', () => act({ t: 'sacrifice', p: v, oid }), { para: s.pending.source ? `${s.pending.source}: sacrifique uma permanente` : 'Sacrifique uma permanente' }); return true; // J-56
     }
     if (s.pending && s.pending.kind === 'dividir_magia' && s.pending.p === v) { // M-376 · 601.2d · tocar na carta põe 1 de dano nela
       const index = (s.pending.options || []).findIndex(x => x.oid === oid);
@@ -42358,7 +42358,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     // Leva 131 · escolhendo o alvo de um gatilho, tocar na carta na mesa escolhe
     if (s.pending && s.pending.kind === 'pick_target' && s.pending.p === v) {
       const index = (s.pending.options || []).findIndex(x => x.oid === oid);
-      if (index >= 0) { act({ t: 'pick_target', p: v, index }); return true; }
+      if (index >= 0) { ampliaParaEscolher(oid, 'Escolher', () => act({ t: 'pick_target', p: v, index }), { para: `Alvo de ${s.pending.name}` }); return true; } // J-56
     }
     if (!plan.eligible.has(oid)) return false;
     if (s.pending.kind === 'attackers') { plan.attack.has(oid) ? plan.attack.delete(oid) : plan.attack.add(oid); paint(); return true; }
@@ -42374,7 +42374,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   }
 
   /* ---- folhas de ação ---- */
-  function sheet(name, buttons, extra, dono = null) {
+  function sheet(name, buttons, extra, dono = null, { voltar = null } = {}) {
     const deQuem = x => (dono == null ? x : { name: x, owner: dono }); // J6 · a folha mostra a arte de quem é a carta
     // H1 · a carta grande da folha sai nítida (todos os tamanhos, o navegador escolhe; antes só a "normal", borrada em tela 3×)
     // e a carta de duas faces vira na própria folha: a outra face aparece inteira, com o texto dela
@@ -42402,7 +42402,8 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       // botões ficavam abaixo da dobra. "Tramar" nasceria escondido atrás de uma rolagem (foto do aparelho, 02/10/2026).
       buttons.length ? h('div', { class: 'tb-sheet__actions' }, ...buttons) : null,
       texto),
-      actions: [Button('Fechar', { onClick: closeDialog })] });
+      // J-56 · a carta ampliada para escolher volta à lista de onde veio (ou só fecha, sem escolher)
+      actions: [voltar ? Button('Voltar', { id: 'tb-ampliada-voltar', onClick: () => { closeDialog(); voltar(); } }) : Button('Fechar', { onClick: closeDialog })] });
   }
   // A15 · as ações de uma carta são descritas uma vez e viram botão (folha) ou chip (espiar)
   const doBtn = (label, action, opts = {}) => ({ label, action, variant: opts.variant });
@@ -42556,7 +42557,10 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const estado = x => { const o = x.oid != null && s.objects[x.oid]; if (!o) return null;
       const p = [o.tapped ? 'virada' : null, o.damage ? `${o.damage} de dano` : null, (o.counters || {}).p1p1 ? `+${o.counters.p1p1}/+${o.counters.p1p1}` : null].filter(Boolean); return p.length ? p.join(' · ') : null; };
     const botao = a => { const ts = a.targets || []; const st = ts.length === 1 ? estado(ts[0]) : null;
-      return Button(ts.map(nome).join(' + ') || 'Sem alvo', { block: true, onClick: () => { closeDialog(); executa(a); }, ...(st ? { title: st } : {}) }, ); };
+      // J-56 · alvo que é uma carta passa pela carta ampliada (Voltar reabre esta lista); jogador escolhe direto
+      const umaCarta = ts.length === 1 && ts[0].oid != null && s.objects[ts[0].oid];
+      return Button(ts.map(nome).join(' + ') || 'Sem alvo', { block: true, onClick: () => { closeDialog(); if (!umaCarta) return executa(a);
+        ampliaParaEscolher(ts[0].oid, 'Escolher', () => executa(a), { para: titulo, voltar: () => escolherAlvo(titulo, opcoes, { sempre: true, acao, executa }) }); }, ...(st ? { title: st } : {}) }, ); };
     const oponente = s.players.find((_, i) => i !== eu);
     const TITULOS = ['Jogadores', 'Suas permanentes', `Permanentes de ${oponente ? oponente.name : 'oponente'}`, `Cartas do seu ${zonaDe(3)}`, `Cartas do ${zonaDe(4)} de ${oponente ? oponente.name : 'oponente'}`];
     const secoes = [0, 1, 2, 3, 4].map(g => ord.filter(a => grupo(a) === g)).map((lista, g) => lista.length ? Stack({ style: { gap: 'var(--space-2)' } },
@@ -42913,6 +42917,16 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     __m0.haptics.evento('toque');
   }
   const comPeek = oid => ({ onPeek: (aberto, info) => peek(oid, aberto, info) });
+  /* J-56 (decisão do dono, 02/11/2026) · escolher uma carta para um efeito passa pela carta ampliada: o toque abre a carta (arte
+     grande, texto, de quem é, para quê) com o botão do que vai acontecer — só ele escolhe; Voltar fecha sem escolher (e volta à
+     lista, quando a escolha veio de uma). Vale para a fileira de escolha, o alvo tocado na mesa, o sacrifício, o descarte e a
+     lista de alvos. A carta escondida (virada para baixo do outro) mostra o verso. */
+  function ampliaParaEscolher(oid, verbo, executa, { voltar = () => {}, para = '' } = {}) {
+    const s = table.state, o = s.objects[oid]; if (!o) return executa();
+    const oculta = ocultaDe(s, o);
+    sheet(oculta ? VERSO_NOME : o.name, [Button(verbo, { variant: 'primary', block: true, id: 'tb-ampliada-escolher', onClick: () => { closeDialog(); executa(); } })],
+      para ? h('p', { class: 'ds-text ds-text--sm ds-text--muted tb-ampliada__para', id: 'tb-ampliada-para' }, para) : null, o.owner != null ? o.owner : o.controller, { voltar });
+  }
   /* J-55 (decisão do dono, 02/11/2026) · toda decisão mostra a carta de onde o efeito veio: a fonte da escolha (ou a carta do
      alvo, da cor, da lenda), achada pelo nome no que a partida conhece; com a carta na pilha ou no campo, segurar espia e tocar
      abre a carta. Sem arte, a carta desenhada com o nome (nunca um quadrado vazio). Decisão sem carta (limpeza, ordem dos
@@ -43473,7 +43487,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
         // Leva 125 · na fileira de escolha a carta aparece em pé: terreno virado saía girado e menor que os outros
         const c = TableCard({ ...o, tapped: false, image: imgOf(o, 'normal'), images: imagensOf(o) }, { size: 'hand', selected: pk.picked.includes(oid), ...comPeek(oid),
           ...(juntar && copias[chaveDe(oid)] > 1 ? { pilha: { total: copias[chaveDe(oid)], viradas: 0 } } : {}), ...(juntar && o.zone === 'battlefield' && o.tapped ? { tags: ['virada'] } : {}), ...(pk.label === 'desvirar' && o.controller !== v ? { tags: ['do oponente'] } : {}), // M-250 · desvirar pode pegar terreno de outro jogador
-          onClick: () => { if (serve && !pk.picked.includes(oid)) act({ t: 'pick', p: v, oid }); } });
+          onClick: () => { if (serve && !pk.picked.includes(oid)) ampliaParaEscolher(oid, pk.tudoOuNada ? 'Descartar' : 'Escolher', () => act({ t: 'pick', p: v, oid }), { para: (banner.querySelector('.tb-banner__text strong') || {}).textContent || '' }); } }); // J-56
         if (!serve) { c.classList.add('tb-card--fora'); c.setAttribute('aria-disabled', 'true'); c.setAttribute('aria-label', `${o.name}, ${pk.mostrar && !pk.from.includes(oid) ? 'revelada, ' : ''}não pode ser escolhida`); }
         return c;
       });
@@ -43490,7 +43504,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       size: 'hand', selected: bottomPick.has(oid), ...comPeek(oid),
       onClick: () => {
         if (s.status === 'mulligan' && pl.mulligans) { bottomPick.has(oid) ? bottomPick.delete(oid) : bottomPick.size < pl.mulligans && bottomPick.add(oid); return paint(); }
-        if (s.pending && s.pending.kind === 'discard' && s.pending.p === v) return act({ t: 'discard', p: v, oid });
+        if (s.pending && s.pending.kind === 'discard' && s.pending.p === v) return ampliaParaEscolher(oid, 'Descartar', () => act({ t: 'discard', p: v, oid }), { para: s.pending.reason === 'effect' && s.pending.source ? `${s.pending.source}: descarte` : 'Descarte' }); // J-56
         openObject(oid);
       }
     }));
