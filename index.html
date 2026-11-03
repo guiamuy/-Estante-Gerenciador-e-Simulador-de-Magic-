@@ -1477,6 +1477,16 @@ body[data-tutorial="true"] { overflow: hidden; }
 .tutorial__texto { margin: 0; font-size: var(--text-md); line-height: var(--lh-md); color: var(--fg-muted); max-width: 34ch; text-wrap: pretty; }
 .tutorial__acoes { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
 .tutorial__acoes .ds-btn { width: 100%; min-width: 0; }
+/* G-338 · relato #51 fatia 5 · encerramento do tour: título, quantos capítulos faltam e um botão por capítulo ainda não
+   experimentado (grade de dois, 44 px), Começar sozinho no pé. Chega com a mesma receita do corpo; menos movimento: no lugar. */
+.tutorial[data-capitulo="fim"] { grid-template-rows: auto 1fr auto; }
+.tutorial__fim { display: grid; align-content: center; gap: var(--space-5); min-height: 0; overflow-y: auto; }
+.tutorial__faltam { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); width: min(100%, 420px); justify-self: center;
+  animation: ds-rise var(--dur-3) var(--ease-out) var(--dur-2) both; }
+.tutorial__faltam .ds-btn { width: 100%; min-width: 0; }
+.tutorial__acoes--fim { grid-template-columns: 1fr; }
+@media (prefers-reduced-motion: reduce) { .tutorial__faltam { animation: none; } }
+:root[data-movimento="reduzido"] .tutorial__faltam { animation: none !important; }
 @media (prefers-reduced-motion: reduce) { .tutorial__objeto, .tutorial__corpo { animation: none; } .tutorial__passo { transition: none; } }
 @media (max-height: 640px) { .tutorial { gap: var(--space-3); } .tutorial__palco { width: min(100%, 240px); } }
 /* G-336 · relato #51 fatia 3 · destaque guiado (src/app/tutorial.js › abreGuia): o escudo segura o toque no resto da tela, o foco
@@ -46833,8 +46843,31 @@ const GUIAS = {
     { alvo: '#decks-new-empty, #decks-fab-abrir', espera: ESTANTE_PRONTA, titulo: 'Crie sua primeira lista', texto: 'Cole uma lista do Moxfield, Archidekt ou Arena, ou escreva a sua.', acao: { rotulo: 'Nova lista', icone: 'mais', rota: '/listas/editar' } },
     { alvo: '#deck-text', titulo: 'Cole a lista aqui', texto: 'Uma carta por linha, com a quantidade na frente. A prévia confere cada nome.' },
     { alvo: '#deck-save', titulo: 'E é só criar', texto: 'O selo do motor diz se a lista joga no formato. Depois, é levar para a mesa.' }
+  ],
+  // G-338 · fatia 5 · Coleção, Notícias e Perfil: só apontam (nenhum passo navega). Passo sem alvo visível neste estado é pulado
+  // (coleção vazia: não há painel nem filtros; com cartas, Escanear mora no botão de ação).
+  colecao: [
+    { alvo: '#col-scan-vazio, #col-fab-abrir', espera: '#col-vazio, #col-fab', titulo: 'Guarde o que você tem', texto: 'Aponte a câmera para a carta e ela entra na coleção, sem digitar o nome.' },
+    { alvo: '#col-import', titulo: 'Traga de outro app', texto: 'Cole uma lista ou abra o CSV do ManaBox, Moxfield ou Archidekt.' },
+    { alvo: '#col-dash-bloco', titulo: 'O painel da coleção', texto: 'Cartas, cópias e valor. Aberto, mostra cores, curva e o que falta para cada lista.' },
+    { alvo: '#col-filters', titulo: 'Ache qualquer carta', texto: 'Filtre por formato, cor, tipo e raridade: a coleção mostra só o que você pediu.' }
+  ],
+  noticias: [
+    { alvo: '#noticias-idiomas', espera: '#noticias-ferramentas', titulo: 'Em português ou inglês', texto: 'Toque numa bandeira para ligar ou desligar as notícias daquele idioma.' },
+    { alvo: '#noticias-filtros', titulo: 'Só o que interessa', texto: 'Filtre por tema, por fonte ou por palavras suas, como o nome de uma coleção.' },
+    { alvo: '#noticias-guardadas', titulo: 'Guarde para depois', texto: 'O marcador numa notícia guarda ela aqui, para ler quando quiser.' }
+  ],
+  perfil: [
+    { alvo: '#perfil-identidade', espera: '#perfil-aparencia', titulo: 'Seu nome na mesa', texto: 'Com a conta, seu @ vira o seu nome no Perfil e na mesa, também online.' },
+    { alvo: '#perfil-aparencia', titulo: 'Do seu jeito', texto: 'Tema, cor de destaque, tamanho do texto, menos movimento e a cara da mesa.' },
+    { alvo: '#perfil-backup', titulo: 'Nada se perde', texto: 'O backup guarda listas, coleção e perfil num arquivo. A nuvem é opcional.' },
+    { alvo: '#perfil-apresentacao', titulo: 'O tour volta daqui', texto: 'Rever o tour abre os capítulos de novo e mostra o que falta experimentar.' }
   ]
 };
+/** G-338 · capítulos já experimentados nesta abertura do app (o progresso na conta é a fatia 6, `16º-tz`). */
+const experimentados = new Set();
+/** Puro: os capítulos que ainda não foram experimentados, na ordem do tour (o encerramento lista estes). */
+const faltaExperimentar = (feitos = experimentados) => { const s = feitos instanceof Set ? feitos : new Set(feitos || []); return CAPITULOS.filter(c => !s.has(c.id)); };
 /** Puro: onde ficam o foco e o balão, dado o retângulo do alvo e a tela. O balão vai para onde cabe (abaixo, senão acima);
     alvo alto demais para sobrar lugar (o campo da lista): o balão pousa no pé da tela, por cima do alvo, sem seta. Ocupa a
     largura menos as calhas e a seta aponta o centro do alvo, presa dentro do balão. Medidas em px CSS. */
@@ -46862,7 +46895,9 @@ function esperaAlvoDoGuia(seletores, ms = 4000) {
 function abreGuia({ passos, go, aoFechar = null } = {}) {
   if (document.getElementById('guia')) return document.getElementById('guia');
   const lista = (passos || []).filter(p => p && p.alvo); if (!lista.length) return null;
-  let i = -1, fechado = false, alvo = null, agendado = 0; // começa em -1: o primeiro passo também passa pelo `quando`
+  let i = -1, fechado = false, alvo = null, agendado = 0, ultimoAqui = false; // começa em -1: o primeiro passo também passa pelo `quando`
+  /** G-338 · o passo `j` existe nesta tela: se aplica ao estado e o alvo está visível agora. */
+  const existeAqui = j => (!lista[j].quando || lista[j].quando()) && !!alvoDoGuia(lista[j].alvo);
   const el = h('div', { class: 'guia', id: 'guia' });
   const escudo = h('div', { class: 'guia__escudo' }), foco = h('div', { class: 'guia__foco', 'aria-hidden': 'true' });
   const balao = h('div', { class: 'guia__balao', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'guia-titulo' });
@@ -46876,7 +46911,7 @@ function abreGuia({ passos, go, aoFechar = null } = {}) {
   };
   const teclas = e => {
     if (e.key === 'Escape') { e.preventDefault(); fecha(); return; }
-    if (e.key === 'ArrowRight' && i >= 0 && !lista[i].acao) { e.preventDefault(); avanca(1); return; }
+    if (e.key === 'ArrowRight' && i >= 0 && !lista[i].acao) { e.preventDefault(); if (ultimoAqui) fecha(); else avanca(1); return; }
     if (e.key === 'ArrowLeft') { e.preventDefault(); avanca(-1); return; }
     if (e.key !== 'Tab') return; // o foco circula dentro do balão
     const itens = [...balao.querySelectorAll('button:not([disabled])')]; if (!itens.length) return;
@@ -46916,18 +46951,29 @@ function abreGuia({ passos, go, aoFechar = null } = {}) {
       i = de; el.dataset.passo = String(i + 1); delete el.dataset.esperando; return;
     }
     if (alvo) delete alvo.dataset.guiaAlvo;
-    alvo = await esperaAlvoDoGuia(passo.alvo);
+    // G-338 · na mesma tela (sem navegar desde o passo anterior) o alvo já está ou não está: não espera por ele
+    const mesmaTela = de >= 0 && !lista[de].acao && !passo.espera;
+    alvo = mesmaTela ? alvoDoGuia(passo.alvo) : await esperaAlvoDoGuia(passo.alvo);
     if (fechado) return;
-    if (!alvo) { // a tela não tem o elemento (mudou, ou outro estado): o guia pula o passo em vez de apontar o nada
-      if (i + 1 < lista.length) return avanca(1); return fecha();
+    if (!alvo) { // a tela não tem o elemento (mudou, ou outro estado): o guia pula o passo na mesma direção em vez de apontar o nada
+      const k = i + d;
+      if (k >= 0 && k < lista.length) return avanca(d);
+      if (d > 0 || de < 0) return fecha();
+      i = de; el.dataset.passo = String(i + 1); alvo = alvoDoGuia(lista[i].alvo); if (alvo) alvo.dataset.guiaAlvo = 'true'; delete el.dataset.esperando; return;
     }
     delete el.dataset.esperando;
     alvo.dataset.guiaAlvo = 'true';
-    let k = i - 1; while (k >= 0 && lista[k].quando && !lista[k].quando()) k--; // Voltar só quando há passo anterior que se aplica
-    const ultimo = i === lista.length - 1, primeiro = k < 0;
+    // Voltar só quando há passo anterior que se aplica (G-338: e que existe nesta tela, se não houve navegação no meio)
+    let k = i - 1, navegou = false;
+    while (k >= 0) { navegou = navegou || !!lista[k].acao; if ((!lista[k].quando || lista[k].quando()) && (navegou || existeAqui(k))) break; k--; }
+    // G-338 · último é o último que existe aqui: os passos seguintes que não se aplicam nem têm alvo na tela não contam
+    // (depois de um passo que navega, o seguinte mora na outra tela e conta sempre)
+    let resta = false;
+    for (let j = i + 1; j < lista.length && !resta; j++) resta = !!lista[j - 1].acao || existeAqui(j);
+    const ultimo = !resta, primeiro = k < 0; ultimoAqui = ultimo;
     const seguir = passo.acao
       ? Button(passo.acao.rotulo, { variant: 'primary', icone: passo.acao.icone || 'seguir', id: 'guia-acao', onClick: () => { if (go && passo.acao.rota) go(passo.acao.rota); avanca(1); } })
-      : Button(ultimo ? 'Entendi' : 'Avançar', { variant: 'primary', icone: ultimo ? 'marcar' : 'seguir', id: 'guia-avancar', onClick: () => avanca(1) });
+      : Button(ultimo ? 'Entendi' : 'Avançar', { variant: 'primary', icone: ultimo ? 'marcar' : 'seguir', id: 'guia-avancar', onClick: () => ultimo ? fecha() : avanca(1) });
     balao.replaceChildren(
       h('div', { class: 'guia__topo' },
         h('p', { class: 'guia__passo' }, `Passo ${i + 1} de ${lista.length}`),
@@ -46953,6 +46999,9 @@ function abreTutorial({ store, go, aoFechar = null, inicio = 0 } = {}) {
   if (document.getElementById('tutorial')) return document.getElementById('tutorial');
   if (store) store.set(CHAVE, { vista: true, em: Date.now() }).catch(() => {});
   let i = Math.max(0, Math.min(CAPITULOS.length - 1, inicio)), fechado = false, foco = document.activeElement;
+  const FIM = CAPITULOS.length; // G-338 · depois do último capítulo, o encerramento (i === FIM)
+  /** G-338 · Experimentar (no capítulo ou num item do encerramento): conta como experimentado e abre a tela com o guia. */
+  const experimenta = c => { experimentados.add(c.id); fecha(c.rota, GUIAS[c.id] || null); };
   const el = h('section', { class: 'tutorial', id: 'tutorial', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'tutorial-titulo' });
   const fecha = (destino, guia = null) => {
     if (fechado) return; fechado = true;
@@ -46964,7 +47013,7 @@ function abreTutorial({ store, go, aoFechar = null, inicio = 0 } = {}) {
   };
   const teclas = e => {
     if (e.key === 'Escape') { e.preventDefault(); fecha(); return; }
-    if (e.key === 'ArrowRight' && i < CAPITULOS.length - 1) { i++; pinta(); return; }
+    if (e.key === 'ArrowRight' && i < FIM) { i++; pinta(); return; }
     if (e.key === 'ArrowLeft' && i > 0) { i--; pinta(); return; }
     if (e.key !== 'Tab') return; // o foco circula dentro do tour
     const itens = [...el.querySelectorAll('button:not([disabled])')]; if (!itens.length) return;
@@ -46972,7 +47021,30 @@ function abreTutorial({ store, go, aoFechar = null, inicio = 0 } = {}) {
     if (e.shiftKey && document.activeElement === a) { e.preventDefault(); z.focus(); }
     else if (!e.shiftKey && document.activeElement === z) { e.preventDefault(); a.focus(); }
   };
+  /** G-338 · encerramento: o que ainda falta experimentar (um toque abre a tela com o guia) e Começar. */
+  function pintaFim() {
+    const faltam = faltaExperimentar();
+    el.dataset.capitulo = 'fim'; el.dataset.id = 'fim';
+    const comecar = Button('Começar', { variant: 'primary', icone: 'seguir', id: 'tutorial-comecar', onClick: () => fecha() });
+    el.replaceChildren(
+      h('header', { class: 'tutorial__topo' },
+        IconButton('voltar', 'Capítulo anterior', { id: 'tutorial-anterior', variant: 'ghost', onClick: () => { i--; pinta(); } }),
+        h('div', { class: 'tutorial__progresso', role: 'progressbar', 'aria-label': 'Fim do tour', 'aria-valuemin': '1', 'aria-valuemax': String(CAPITULOS.length), 'aria-valuenow': String(CAPITULOS.length) },
+          ...CAPITULOS.map(() => h('span', { class: 'tutorial__passo', dataset: { feito: 'true' } }))),
+        h('span', { class: 'tutorial__vazio' })),
+      h('div', { class: 'tutorial__fim' },
+        h('div', { class: 'tutorial__corpo' },
+          h('p', { class: 'tutorial__capitulo' }, h('span', { class: 'tutorial__capitulo-icone' }, Icone('marcar', { tamanho: 16 })), h('span', {}, 'Fim do tour')),
+          h('h2', { class: 'tutorial__titulo', id: 'tutorial-titulo' }, 'Agora é com você'),
+          h('p', { class: 'tutorial__texto', id: 'tutorial-texto' }, !faltam.length ? 'Você experimentou tudo. A Estante é sua.'
+            : faltam.length === 1 ? 'Falta experimentar 1 capítulo. Um toque abre a tela com o guia.' : `Falta experimentar ${faltam.length} capítulos. Um toque abre a tela com o guia.`)),
+        faltam.length ? h('div', { class: 'tutorial__faltam', role: 'list', 'aria-label': 'Falta experimentar' },
+          ...faltam.map(c => h('div', { role: 'listitem' }, Button(c.nome, { icone: c.icone, id: 'tutorial-falta-' + c.id, title: `Experimentar ${c.nome}`, onClick: () => experimenta(c) })))) : null),
+      h('footer', { class: 'tutorial__acoes tutorial__acoes--fim' }, comecar));
+    comecar.focus({ preventScroll: true });
+  }
   function pinta() {
+    if (i >= FIM) return pintaFim();
     const c = CAPITULOS[i], p = progresso(i);
     el.dataset.capitulo = String(i + 1); el.dataset.id = c.id;
     // G-335 · três planos: a luz ao fundo, a sombra no chão e o objeto por cima; a troca de capítulo redesenha e a cena pousa de novo
@@ -46984,8 +47056,8 @@ function abreTutorial({ store, go, aoFechar = null, inicio = 0 } = {}) {
       h('p', { class: 'tutorial__capitulo' }, h('span', { class: 'tutorial__capitulo-icone' }, Icone(c.icone, { tamanho: 16 })), h('span', {}, c.nome)),
       h('h2', { class: 'tutorial__titulo', id: 'tutorial-titulo' }, c.titulo),
       h('p', { class: 'tutorial__texto', id: 'tutorial-texto' }, c.texto));
-    const seguir = p.ultimo
-      ? Button('Começar', { variant: 'primary', icone: 'seguir', id: 'tutorial-comecar', onClick: () => fecha() })
+    const seguir = p.ultimo // G-338 · o último capítulo leva ao encerramento, onde mora o Começar
+      ? Button('Concluir', { variant: 'primary', icone: 'seguir', id: 'tutorial-concluir', onClick: () => { i++; pinta(); } })
       : Button('Próximo', { variant: 'primary', icone: 'seguir', id: 'tutorial-proximo', onClick: () => { i++; pinta(); } });
     el.replaceChildren(
       h('header', { class: 'tutorial__topo' },
@@ -46995,7 +47067,7 @@ function abreTutorial({ store, go, aoFechar = null, inicio = 0 } = {}) {
         Button('Pular', { variant: 'ghost', id: 'tutorial-pular', onClick: () => fecha() })),
       palco, corpo,
       h('footer', { class: 'tutorial__acoes' },
-        Button('Experimentar', { icone: c.icone, id: 'tutorial-experimentar', title: `Abrir ${c.nome}`, onClick: () => fecha(c.rota, GUIAS[c.id] || null) }),
+        Button('Experimentar', { icone: c.icone, id: 'tutorial-experimentar', title: `Abrir ${c.nome}`, onClick: () => experimenta(c) }),
         seguir));
     seguir.focus({ preventScroll: true });
   }
@@ -47005,7 +47077,7 @@ function abreTutorial({ store, go, aoFechar = null, inicio = 0 } = {}) {
   pinta();
   return el;
 }
-return { CAPITULOS, progresso, ILUSTRACOES, SOMBRAS, sombraDoTour, abreTutorial, CHAVE, GUIAS, posicaoDoGuia, abreGuia };
+return { CAPITULOS, progresso, ILUSTRACOES, SOMBRAS, sombraDoTour, abreTutorial, CHAVE, GUIAS, posicaoDoGuia, abreGuia, faltaExperimentar };
 })();
 
 /* ==== src/app/main.js ==== */

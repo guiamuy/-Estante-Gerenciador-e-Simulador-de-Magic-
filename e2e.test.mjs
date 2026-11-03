@@ -7572,7 +7572,9 @@ test('e2e · G-331 tour de boas-vindas: seis capítulos ilustrados em tela cheia
   assert.equal(await page.locator('#tutorial-proximo').count(), 0); assert.equal(await page.locator('#tutorial-pular').count(), 1, 'Pular continua no último capítulo');
   await auditaTela(page, 'G-331 · tour capítulo 6');
   await page.click('#tutorial-anterior'); await page.waitForSelector('#tutorial[data-capitulo="5"]'); await page.keyboard.press('ArrowRight'); await page.waitForSelector('#tutorial[data-capitulo="6"]');
-  // 3 · Começar fecha, a Início fica, o tour não volta na segunda abertura
+  // 3 · Começar fecha, a Início fica, o tour não volta na segunda abertura (G-338: expectativa mudada com motivo — Começar mora
+  // no encerramento, depois do capítulo 6, que agora tem Concluir)
+  await page.click('#tutorial-concluir'); await page.waitForSelector('#tutorial[data-capitulo="fim"]');
   await page.click('#tutorial-comecar'); await page.waitForSelector('#tutorial', { state: 'detached' });
   assert.equal(await page.locator('#home-atalhos').isVisible(), true); assert.equal(await page.evaluate(() => document.body.dataset.tutorial), undefined);
   await page.reload(); await page.waitForSelector('#home-atalhos'); await page.waitForTimeout(600);
@@ -7704,6 +7706,101 @@ test('e2e · G-336 destaque guiado em Listas: o foco envolve o botão de verdade
   assert.equal(await page.locator('#guia-voltar').count(), 0, 'sem Voltar: o passo anterior não se aplica');
   await auditaTela(page, 'G-336 · guia sobre o botão de ação');
   await page.keyboard.press('Escape'); await page.waitForSelector('#guia', { state: 'detached' });
+  assert.deepEqual(errors, []);
+});
+
+/* G-338 · relato #51 fatia 5 · destaque guiado em Coleção, Notícias e Perfil (as mesmas garantias do G-336: o foco envolve o
+   elemento real, o balão fica na tela, 44 px, Entendi no último passo que existe) e o encerramento do tour com o que falta */
+test('e2e · G-338 destaque guiado em Coleção, Notícias e Perfil e encerramento do tour: cada Experimentar abre a tela com o guia no elemento de verdade; o fim do tour lista o que ainda não foi experimentado e cada item abre a tela; 360×697 nos dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t, { apresentacao: true });
+  await page.setViewportSize({ width: 360, height: 697 });
+  await page.goto(base + '#/'); await page.waitForSelector('#tutorial[data-capitulo="1"]');
+  const mede = () => page.evaluate(() => {
+    const alvo = document.querySelector('[data-guia-alvo="true"]'), a = alvo.getBoundingClientRect(), f = document.querySelector('.guia__foco').getBoundingClientRect(), b = document.querySelector('.guia__balao').getBoundingClientRect();
+    const t = document.getElementById('guia-texto');
+    return { alvo: alvo.id, passo: document.getElementById('guia').dataset.passo, titulo: document.getElementById('guia-titulo').textContent, lado: document.querySelector('.guia__balao').dataset.lado,
+      envolve: f.left <= a.left - 5 && f.top <= a.top - 5 && f.right >= a.right + 5 && f.bottom >= a.bottom + 5, separado: b.top >= f.bottom + 8 || b.bottom <= f.top - 8,
+      dentro: b.left >= 15 && b.right <= innerWidth - 15 && b.top >= 0 && b.bottom <= innerHeight, foco: document.activeElement.id,
+      linhas: Math.round(t.getBoundingClientRect().height / parseFloat(getComputedStyle(t).lineHeight)), primario: (document.querySelector('.guia__balao .ds-btn--primary') || {}).textContent };
+  });
+  const confere = async (passo, alvo, rotulo) => {
+    await page.waitForSelector(`#guia[data-passo="${passo}"]:not([data-esperando])`); await page.waitForTimeout(500);
+    const m = await mede();
+    assert.deepEqual([m.alvo, m.envolve, m.dentro, m.separado || m.lado === 'sobre', m.primario, m.foco], [alvo, true, true, true, rotulo, rotulo === 'Entendi' || rotulo === 'Avançar' ? 'guia-avancar' : m.foco], JSON.stringify(m));
+    assert.ok(m.linhas <= 2, `${alvo}: texto em ${m.linhas} linhas`);
+    for (const id of ['guia-sair', 'guia-avancar']) assert.ok((await page.locator('#' + id).boundingBox()).height >= 44, `${alvo}: ${id} com 44 px`);
+    return m;
+  };
+  const rever = async (capitulo) => {
+    await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-apresentacao'); await page.click('#perfil-apresentacao'); await page.waitForSelector('#tutorial[data-capitulo="1"]');
+    for (let k = 1; k < capitulo; k++) { await page.keyboard.press('ArrowRight'); await page.waitForSelector(`#tutorial[data-capitulo="${k + 1}"]`); }
+  };
+  // 1 · Coleção vazia: Escanear, depois Colar lista; os passos da coleção com cartas (painel, filtros) não existem aqui — Entendi já no 2
+  await page.click('#tutorial-proximo'); await page.click('#tutorial-proximo'); await page.waitForSelector('#tutorial[data-capitulo="3"]'); await page.click('#tutorial-experimentar');
+  await page.waitForSelector('#tutorial', { state: 'detached' }); await page.waitForSelector('#col-vazio'); assert.match(page.url(), /#\/colecao$/);
+  const c1 = await confere(1, 'col-scan-vazio', 'Avançar'); assert.equal(c1.titulo, 'Guarde o que você tem');
+  assert.equal(await page.locator('#guia-voltar').count(), 0, 'sem Voltar no primeiro passo');
+  for (const tema of ['dark', 'light']) { await page.evaluate(x => document.documentElement.setAttribute('data-theme', x), tema); await page.waitForTimeout(350); await auditaTela(page, `G-338 · guia coleção ${tema}`); }
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  await page.mouse.click(180, 60); await page.waitForTimeout(200); assert.equal(await page.locator('#guia[data-passo="1"]').count(), 1, 'toque fora não fecha'); assert.match(page.url(), /#\/colecao$/);
+  await page.click('#guia-avancar'); await confere(2, 'col-import', 'Entendi'); assert.equal(await page.locator('#guia-voltar').count(), 1);
+  await page.click('#guia-avancar'); await page.waitForSelector('#guia', { state: 'detached' }); assert.equal(await page.locator('[data-guia-alvo]').count(), 0);
+  assert.equal(await page.locator('#col-vazio').isVisible(), true, 'a coleção fica, sem o guia');
+  // 2 · Notícias: idioma, filtros, guardadas; Sair fecha no meio
+  await rever(5); await page.click('#tutorial-experimentar'); await page.waitForSelector('#tutorial', { state: 'detached' }); assert.match(page.url(), /#\/noticias$/);
+  const n1 = await confere(1, 'noticias-idiomas', 'Avançar'); assert.equal(n1.titulo, 'Em português ou inglês');
+  await page.click('#guia-avancar'); await confere(2, 'noticias-filtros', 'Avançar');
+  await page.click('#guia-avancar'); await confere(3, 'noticias-guardadas', 'Entendi');
+  for (const tema of ['dark', 'light']) { await page.evaluate(x => document.documentElement.setAttribute('data-theme', x), tema); await page.waitForTimeout(350); await auditaTela(page, `G-338 · guia notícias ${tema}`); }
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  await page.click('#guia-voltar'); await confere(2, 'noticias-filtros', 'Avançar');
+  await page.click('#guia-sair'); await page.waitForSelector('#guia', { state: 'detached' }); assert.equal(await page.evaluate(() => document.body.dataset.guia), undefined);
+  // 3 · Perfil: identidade, aparência (alta: o balão pode pousar por cima), backup e o Rever o tour no fim
+  await rever(6); await page.click('#tutorial-experimentar'); await page.waitForSelector('#tutorial', { state: 'detached' }); assert.match(page.url(), /#\/perfil$/);
+  await confere(1, 'perfil-identidade', 'Avançar');
+  await page.click('#guia-avancar'); await confere(2, 'perfil-aparencia', 'Avançar');
+  await page.click('#guia-avancar'); await confere(3, 'perfil-backup', 'Avançar');
+  await page.click('#guia-avancar'); const p4 = await confere(4, 'perfil-apresentacao', 'Entendi'); assert.equal(p4.titulo, 'O tour volta daqui');
+  await auditaTela(page, 'G-338 · guia perfil');
+  await page.click('#guia-avancar'); await page.waitForSelector('#guia', { state: 'detached' });
+  // 3b · Coleção com cartas: Escanear mora no botão de ação (o balão vai para cima), depois Colar lista, o painel e os filtros
+  await page.goto(base + '#/colecao'); await page.waitForSelector('#col-vazio'); await page.click('#col-pelo-nome'); await page.waitForSelector('#col-add');
+  await page.fill('#col-add', 'Sol Ring'); await page.click('#col-add-btn'); await page.waitForSelector('.col-row[data-name="Sol Ring"]');
+  await rever(3); await page.click('#tutorial-experimentar'); await page.waitForSelector('#tutorial', { state: 'detached' });
+  const k1 = await confere(1, 'col-fab-abrir', 'Avançar'); assert.equal(k1.lado, 'acima', JSON.stringify(k1));
+  await page.click('#guia-avancar'); await confere(2, 'col-import', 'Avançar');
+  await page.click('#guia-avancar'); await confere(3, 'col-dash-bloco', 'Avançar');
+  await page.click('#guia-avancar'); await confere(4, 'col-filters', 'Entendi');
+  await page.click('#guia-voltar'); await confere(3, 'col-dash-bloco', 'Avançar');
+  await auditaTela(page, 'G-338 · guia coleção com cartas');
+  await page.keyboard.press('Escape'); await page.waitForSelector('#guia', { state: 'detached' });
+  // 4 · encerramento: Concluir no último capítulo leva ao fim do tour, que lista o que ainda falta experimentar, na ordem
+  await rever(6); assert.equal(await page.locator('#tutorial-comecar').count(), 0, 'o último capítulo leva ao encerramento');
+  await page.click('#tutorial-concluir'); await page.waitForSelector('#tutorial[data-capitulo="fim"]');
+  const fim = () => page.evaluate(() => ({ titulo: document.getElementById('tutorial-titulo').textContent, texto: document.getElementById('tutorial-texto').textContent,
+    faltam: [...document.querySelectorAll('.tutorial__faltam button')].map(b => b.id), altura: Math.min(...[...document.querySelectorAll('.tutorial__faltam button, #tutorial-comecar')].map(b => b.getBoundingClientRect().height)),
+    feitos: [...document.querySelectorAll('.tutorial__passo')].every(p => p.dataset.feito === 'true'), primarios: document.querySelectorAll('#tutorial .ds-btn--primary').length, foco: document.activeElement.id,
+    cabe: document.getElementById('tutorial-comecar').getBoundingClientRect().bottom <= innerHeight }));
+  await page.waitForTimeout(700); // a receita de chegada (ds-rise) escala a caixa durante a animação
+  const f1 = await fim();
+  assert.deepEqual([f1.titulo, f1.faltam, f1.feitos, f1.primarios, f1.foco, f1.cabe], ['Agora é com você', ['tutorial-falta-jogar', 'tutorial-falta-listas', 'tutorial-falta-scanner'], true, 1, 'tutorial-comecar', true], JSON.stringify(f1));
+  assert.ok(f1.altura >= 44, 'itens e Começar com 44 px: ' + f1.altura); assert.match(f1.texto, /3/);
+  for (const tema of ['dark', 'light']) { await page.evaluate(x => document.documentElement.setAttribute('data-theme', x), tema); await page.waitForTimeout(350); await auditaTela(page, `G-338 · fim do tour ${tema}`); }
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  // voltar e seta: fim ↔ capítulo 6
+  await page.click('#tutorial-anterior'); await page.waitForSelector('#tutorial[data-capitulo="6"]'); await page.keyboard.press('ArrowRight'); await page.waitForSelector('#tutorial[data-capitulo="fim"]');
+  // movimento reduzido: o fim chega já no lugar
+  await page.evaluate(() => document.documentElement.setAttribute('data-movimento', 'reduzido'));
+  await page.click('#tutorial-anterior'); await page.keyboard.press('ArrowRight'); await page.waitForSelector('#tutorial[data-capitulo="fim"]');
+  assert.equal(await page.evaluate(() => [...document.querySelectorAll('.tutorial__fim, .tutorial__fim *')].reduce((n, e) => n + e.getAnimations().length, 0)), 0, 'menos movimento: sem animação no fim');
+  await auditaTela(page, 'G-338 · fim do tour com menos movimento');
+  await page.evaluate(() => document.documentElement.removeAttribute('data-movimento'));
+  // um item do fim abre a tela do capítulo com o guia (Listas) e passa a contar como experimentado
+  await page.click('#tutorial-falta-listas'); await page.waitForSelector('#tutorial', { state: 'detached' }); assert.match(page.url(), /#\/listas$/);
+  await page.waitForSelector('#guia[data-passo="1"]:not([data-esperando])'); await page.keyboard.press('Escape'); await page.waitForSelector('#guia', { state: 'detached' });
+  await rever(6); await page.click('#tutorial-concluir'); await page.waitForSelector('#tutorial[data-capitulo="fim"]');
+  assert.deepEqual((await fim()).faltam, ['tutorial-falta-jogar', 'tutorial-falta-scanner']);
+  await page.click('#tutorial-comecar'); await page.waitForSelector('#tutorial', { state: 'detached' }); assert.equal(await page.evaluate(() => document.body.dataset.tutorial), undefined);
   assert.deepEqual(errors, []);
 });
 

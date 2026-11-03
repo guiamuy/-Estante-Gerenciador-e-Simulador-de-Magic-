@@ -42,3 +42,24 @@ test('G-336 · GUIAS: o capítulo Listas leva à primeira lista — cada passo t
   assert.equal(typeof tutorial.abreGuia, 'function');
   assert.ok(tutorial.CAPITULOS.some(c => c.id === 'listas' && tutorial.GUIAS[c.id]), 'o capítulo que tem guia existe no tour');
 });
+
+// G-338 · relato #51 fatia 5 · destaque guiado em Coleção, Notícias e Perfil; o encerramento diz o que falta experimentar
+test('G-338 · GUIAS: Coleção, Notícias e Perfil têm guia — cada passo com alvo, título curto e uma frase; nenhum faz gesto de navegar; a tela chegou antes do primeiro', () => {
+  for (const [id, n] of [['colecao', 4], ['noticias', 3], ['perfil', 4]]) {
+    const g = tutorial.GUIAS[id];
+    assert.ok(Array.isArray(g) && g.length === n, `${id}: ${g && g.length} passos`);
+    for (const p of g) { assert.ok(p.alvo && p.titulo && p.texto, JSON.stringify(p)); assert.ok(p.titulo.split(' ').length <= 5, p.titulo); assert.ok(p.texto.length <= 90, p.texto); assert.ok(!p.acao, `${id}: só aponta, não navega`); }
+    assert.ok(g[0].espera, `${id}: o primeiro passo espera a tela`);
+    assert.ok(tutorial.CAPITULOS.some(c => c.id === id), `${id} é capítulo do tour`);
+  }
+  assert.match(tutorial.GUIAS.colecao[0].alvo, /#col-scan-vazio/); assert.match(tutorial.GUIAS.colecao[0].alvo, /#col-fab-abrir/);
+  assert.match(tutorial.GUIAS.noticias.map(p => p.alvo).join(' '), /#noticias-idiomas.*#noticias-filtros.*#noticias-guardadas/);
+  assert.match(tutorial.GUIAS.perfil[3].alvo, /#perfil-apresentacao/);
+});
+
+test('G-338 · faltaExperimentar: o encerramento lista, na ordem do tour, os capítulos que ainda não foram experimentados', () => {
+  assert.equal(JSON.stringify(tutorial.faltaExperimentar(new Set()).map(c => c.id)), JSON.stringify(tutorial.CAPITULOS.map(c => c.id)));
+  assert.equal(JSON.stringify(tutorial.faltaExperimentar(new Set(['perfil', 'colecao', 'noticias'])).map(c => c.id)), '["jogar","listas","scanner"]');
+  assert.equal(tutorial.faltaExperimentar(new Set(tutorial.CAPITULOS.map(c => c.id))).length, 0);
+  assert.equal(tutorial.faltaExperimentar(['listas']).length, 5, 'aceita lista também');
+});
