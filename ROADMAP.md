@@ -5805,6 +5805,12 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Conferido:** o leitor antes e depois sobre as cartas revisadas e os pendentes dos competitivos de 01/11: nenhuma leitura já completa mudou.
 - **Teste:** `lt285.unit` (3 testes; falham no motor anterior).
 
+**M-606 · relato #57 · mágica de um alvo oferece todos os alvos (Dread Return × 19 criaturas no cemitério)** ✅ (leva M-606, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** o Dread Return passa a oferecer como alvo todas as criaturas do cemitério; antes, com mais de 16, a lista parava em 16 e a última a cair lá (o Lotleth Giant do relato) não podia ser escolhida.
+- **Regra:** o teto de 16 combinações de alvos (`COMBO_LIMIT`, contra a explosão de vários alvos) deixa de cortar a lista de um alvo só: `tetoDeCombos` em `addTarget`, "outra palavra target" (115.3), conjuração modal, `combosPorModoK` e `alvosDaFundidaT`. Com dois alvos ou mais o teto continua igual.
+- **Fora:** a outra metade do relato ("o Gigante feriu ao entrar no cemitério") foi conferida como correta (o dano sai ao entrar em campo, contando as cartas de criatura do cemitério) e espera a resposta do dono no #58.
+- **Teste:** `m606.unit` (falha no motor anterior: 16 de 19).
+
 **M-605 · LT263 · Once Upon a Time (de graça se for a primeira mágica que você conjura na partida)** ✅ (leva M-605, motor v112 sem mudança de forma; goldens intactos)
 - **Valor:** passa a ser **lida por inteiro** Once Upon a Time (54 listas competitivas). Texto da Scryfall de 01/11/2026 (`cobertura/<formato>.json`). Joga no app depois da aprovação (homologacao).
 - **Regra:** "If this spell is the first spell you've cast this game, you may cast it without paying its mana cost" vira custo alternativo de graça com a condição nova `primeiraMagiaDoJogo` (118.9). O motor conta, por jogador, as mágicas conjuradas na partida (`magiasNoJogoM`, no mesmo ponto da contagem do surto); a própria mágica só entra na conta quando fica conjurada (601.2i); as do oponente não contam. A contagem só existe em partida que tem a carta, como a do surto: o estado das outras partidas e das partidas-referência não muda. O "olhar cinco, pegar criatura ou terreno" o leitor já lia.

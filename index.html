@@ -23030,9 +23030,11 @@ const X_NO_ALVO = new WeakMap();
 const xNoAlvo = sc => { if (!sc || typeof sc !== 'object') return false; if (!X_NO_ALVO.has(sc)) X_NO_ALVO.set(sc, /"(targetCount|targetMvMax)":\{"per":"x"/.test(JSON.stringify(sc))); return X_NO_ALVO.get(sc); };
 /** 601.2c · dois alvos da mesma mágica não podem ser o mesmo objeto ou jogador. */
 const sameChoice = (a, b) => a.oid != null ? a.oid === b.oid : a.player === b.player;
-const addTarget = (combos, opts) => combos
-  .flatMap(c => opts.filter(x => !c.some(y => sameChoice(x, y))).map(x => c.concat([x])))
-  .slice(0, COMBO_LIMIT);
+/** M-606 · relato #57: o teto de combinações existe contra a explosão de VÁRIOS alvos. Com um alvo só (nenhuma combinação passa
+ * de um objeto) a lista é a lista inteira: com 19 criaturas no cemitério, o Dread Return oferecia 16 e a última a cair lá sumia. */
+const tetoDeCombos = (combos, lim = COMBO_LIMIT) => combos.length > lim && combos.some(c => c.length > 1) ? combos.slice(0, lim) : combos;
+const addTarget = (combos, opts) => tetoDeCombos(combos
+  .flatMap(c => opts.filter(x => !c.some(y => sameChoice(x, y))).map(x => c.concat([x]))));
 
 const STEPS = ['untap', 'upkeep', 'draw', 'main1', 'combat_begin', 'combat_attackers', 'combat_blockers',
   'combat_damage', 'combat_end', 'main2', 'end', 'cleanup'];
@@ -28634,7 +28636,7 @@ function ofertasModaisSemPagarT(s, p, out) {
       for (const eff of need) {
         const opts = alvosDoOponentePrimeiroT(s, p, eff, limitaAlvos(legalTargets(s, p, eff.target, oid, eff.targetColor).filter(x => targetAllowed(s, eff, x)), need.length), true);
         if (!opts.length) { if (eff.upTo) continue; combos = []; break; }
-        combos = combos.flatMap(c => opts.filter(x => !c.some((y, j) => sameChoice(x, y) && need[j].__modo === eff.__modo)).map(x => c.concat([x]))).slice(0, lim);
+        combos = tetoDeCombos(combos.flatMap(c => opts.filter(x => !c.some((y, j) => sameChoice(x, y) && need[j].__modo === eff.__modo)).map(x => c.concat([x]))), lim);
       }
       for (const targets of combos) out.push({ t: 'cast_free', p, oid, modes: ms, ...(need.length ? { targets } : {}) });
     }
@@ -30396,7 +30398,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
       }
       if (eff.doJogadorDoPrimeiro) { const todos = legalTargets(s, p, eff.target, o.oid, eff.targetColor).filter(x => targetAllowed(s, eff, x, xv != null ? { controller: p, xPaid: xv } : undefined)); // M-439 · sem o corte de limitaAlvos antes do par: com muitas criaturas de um lado, o outro jogador sumia da escolha
         combos = combos.flatMap(c => todos.filter(x => !c.some(y => sameChoice(x, y)) && controladaPeloPrimeiroM(s, c[0], s.objects[x.oid])).slice(0, TARGET_LIMIT).map(x => c.concat([x]))).slice(0, COMBO_LIMIT); if (!combos.length) return []; continue; } // M-437 · "target creature that player … controls" (sem par, não conjura: ruling de 01/03/2010)
-      combos = eff.upTo ? addTarget(combos, opts).concat(combos) : eff.alvoLivre ? combos.flatMap(c => opts.map(x => c.concat([x]))).slice(0, COMBO_LIMIT) : addTarget(combos, opts); // M-363 · 115.3: outra palavra "target" pode repetir o objeto
+      combos = eff.upTo ? addTarget(combos, opts).concat(combos) : eff.alvoLivre ? tetoDeCombos(combos.flatMap(c => opts.map(x => c.concat([x])))) : addTarget(combos, opts); // M-363 · 115.3: outra palavra "target" pode repetir o objeto
     }
     const vistos = new Set(); // S47 · dois alvos opcionais repetiam a mesma combinação
     return combos.filter(c => { const k = JSON.stringify(c); if (vistos.has(k)) return false; vistos.add(k); return !violaPortaEstandarte(s, p, need, c, o.oid); })
@@ -30435,7 +30437,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
           continue;
         }
         if (!opts.length) return []; // 700.2b · modo sem alvo legal não pode ser escolhido
-        combos = combos.flatMap(c => opts.filter(x => !c.some((y, j) => sameChoice(x, y) && need[j].__modo === eff.__modo)).map(x => c.concat([x]))).slice(0, limiteModalT); // T-106: com número variável de modos, o teto é repartido entre as combinações
+        combos = tetoDeCombos(combos.flatMap(c => opts.filter(x => !c.some((y, j) => sameChoice(x, y) && need[j].__modo === eff.__modo)).map(x => c.concat([x]))), limiteModalT); // T-106: com número variável de modos, o teto é repartido entre as combinações
       }
       return combos.map(targets => ({ t: 'cast', p, oid: o.oid, modes: ms, ...(need.length ? { targets } : {}) }));
     });
@@ -32202,7 +32204,7 @@ function combosPorModoK(s, p, oid, need, xv) {
       continue;
     }
     if (!opts.length) return []; // 700.2b
-    combos = combos.flatMap(c => opts.filter(x => !c.some((y, j) => sameChoice(x, y) && need[j].__modo === eff.__modo)).map(x => c.concat([x]))).slice(0, COMBO_LIMIT);
+    combos = tetoDeCombos(combos.flatMap(c => opts.filter(x => !c.some((y, j) => sameChoice(x, y) && need[j].__modo === eff.__modo)).map(x => c.concat([x]))), COMBO_LIMIT);
   }
   return combos.filter(c => !violaPortaEstandarte(s, p, need, c, oid));
 }
@@ -35112,7 +35114,7 @@ function alvosDaFundidaT(s, p, oid) {
   let combos = [[]];
   for (const eff of need) {
     const opts = limitaAlvos(legalTargets(s, p, eff.target, oid, eff.targetColor).filter(x => targetAllowed(s, eff, x)), need.length);
-    combos = combos.flatMap(c => opts.filter(x => !c.some((y, j) => sameChoice(x, y) && need[j].__modo === eff.__modo)).map(x => c.concat([x]))).slice(0, COMBO_LIMIT);
+    combos = tetoDeCombos(combos.flatMap(c => opts.filter(x => !c.some((y, j) => sameChoice(x, y) && need[j].__modo === eff.__modo)).map(x => c.concat([x]))), COMBO_LIMIT);
   }
   return combos;
 }
