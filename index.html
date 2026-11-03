@@ -47007,6 +47007,8 @@ const sombraDoTour = ({ cy, rx, ry }) => ({ left: `${(100 - rx) / 2}%`, top: `${
     chegou (depois de navegar), `quando` pula o passo quando não se aplica ao estado dela; `acao` é o botão que faz o gesto
     (navega) em vez de Avançar. Texto até duas linhas no balão de 360 px. */
 const ESTANTE_PRONTA = '#decks-vazio, #decks-fab';
+/** G-343 · o Começar partida do Jogar está à vista e ligado (há lista no formato e o oponente pode jogar). */
+const comecarPronto = () => { try { const b = alvoDoGuia('#mesa-start'); return !!b && !b.disabled; } catch (e) { return false; } };
 /** G-342 · o estado da câmera que a tela do Scanner publica em `#scan[data-camera]` (idle · starting · on · denied · unavailable). */
 const cameraDoScanner = () => { try { const s = document.getElementById('scan'); return s ? s.dataset.camera || '' : ''; } catch (e) { return ''; } };
 /** G-342 · o retorno do pedido da câmera, em uma frase por estado (até duas linhas no balão de 360 px). */
@@ -47031,6 +47033,18 @@ const GUIAS = {
     { alvo: '#col-import', titulo: 'Traga de outro app', texto: 'Cole uma lista ou abra o CSV do ManaBox, Moxfield ou Archidekt.' },
     { alvo: '#col-dash-bloco', titulo: 'O painel da coleção', texto: 'Cartas, cópias e valor. Aberto, mostra cores, curva e o que falta para cada lista.' },
     { alvo: '#col-filters', titulo: 'Ache qualquer carta', texto: 'Filtre por formato, cor, tipo e raridade: a coleção mostra só o que você pediu.' }
+  ],
+  // G-343 · fatia 4 · Jogar: a lista e o Shark no Jogar, Começar abre a mesa de verdade (o guia toca o botão) e segue com você
+  // pela mão inicial, pela mão e pelo Passar do primeiro turno. Sem lista pronta, o guia para na lista e diz o que falta (esse
+  // passo vem antes do Começar: depois do toque, o botão fica ocupado enquanto a mesa monta e não pode valer como "falta").
+  jogar: [
+    { alvo: '#mesa-hero, #mesa-sem-formato', espera: '#mesa-hero, #mesa-sem-formato', titulo: 'Sua lista, seu formato', texto: 'Escolha o formato e a lista. Sem lista? Pegue uma pronta aqui mesmo.' },
+    { alvo: '[data-opponent="shark"]', titulo: 'Jogue contra o Shark', texto: 'O bot da Estante: joga Pauper com listas de torneio, pelas mesmas regras.', acao: { rotulo: 'Escolher o Shark', icone: 'tubarao', clica: '[data-opponent="shark"]' } },
+    { alvo: '#mesa-hero, #mesa-sem-formato', quando: () => !comecarPronto(), titulo: 'Falta uma lista', texto: 'Escolha uma lista pronta de Pauper acima. Depois, Começar abre a mesa.' },
+    { alvo: '#mesa-start', quando: () => comecarPronto(), titulo: 'Uma partida de verdade', texto: 'Começar abre a mesa. O guia segue com você até o fim do primeiro turno.', acao: { rotulo: 'Começar', icone: 'jogar', clica: '#mesa-start' } },
+    { alvo: '#tb-keep', espera: '#tb', esperaMs: 20000, titulo: 'Sua mão inicial', texto: 'Manter fica com estas sete. Mulligan compra sete de novo e põe uma no fundo.', acao: { rotulo: 'Manter', icone: 'marcar', clica: '#tb-keep' } },
+    { alvo: '#tb-hand', espera: '#tb-pass', esperaMs: 20000, titulo: 'Sua mão', texto: 'Toque numa carta para ver o que ela faz e jogá-la. A mana vem dos terrenos.' },
+    { alvo: '#tb-pass', titulo: 'Passe a vez', texto: 'Sem mais jogadas, Passar segue o turno. O Shark joga o dele em seguida.' }
   ],
   // G-342 · fatia 4 · Scanner: o primeiro passo explica o pedido da câmera e responde sozinho ao que o navegador decidiu (texto
   // vivo); câmera ligada leva a apontar a carta, bloqueada ou ausente aponta o aviso da tela; o caminho sem câmera (Digitar)
@@ -47098,7 +47112,8 @@ function alvoDoGuia(seletores) {
   return null;
 }
 /** Espera o alvo de um passo existir (a tela pode estar sendo desenhada depois de navegar); desiste depois de `ms`. */
-function esperaAlvoDoGuia(seletores, ms = 4000) {
+function esperaAlvoDoGuia(seletores, ms) {
+  ms = ms || 4000;
   return new Promise(entrega => {
     const fim = Date.now() + ms;
     (function tenta() { const el = alvoDoGuia(seletores); if (el || Date.now() > fim) return entrega(el); setTimeout(tenta, 80); })();
@@ -47160,7 +47175,7 @@ function abreGuia({ passos, go, aoFechar = null } = {}) {
     const passo = lista[i];
     clearInterval(vivo);
     el.dataset.passo = String(i + 1); el.dataset.esperando = 'true';
-    if (passo.espera) await esperaAlvoDoGuia(passo.espera); // a tela chegou (o `quando` olha o estado dela, não o esqueleto)
+    if (passo.espera) await esperaAlvoDoGuia(passo.espera, passo.esperaMs); // a tela chegou (o `quando` olha o estado dela, não o esqueleto)
     if (fechado) return;
     if (passo.quando && !passo.quando()) { // não se aplica aqui: segue na mesma direção; sem para onde voltar, fica onde estava
       const k = i + d;
@@ -47171,7 +47186,7 @@ function abreGuia({ passos, go, aoFechar = null } = {}) {
     if (alvo) delete alvo.dataset.guiaAlvo;
     // G-338 · na mesma tela (sem navegar desde o passo anterior) o alvo já está ou não está: não espera por ele
     const mesmaTela = de >= 0 && !lista[de].acao && !passo.espera;
-    alvo = mesmaTela ? alvoDoGuia(passo.alvo) : await esperaAlvoDoGuia(passo.alvo);
+    alvo = mesmaTela ? alvoDoGuia(passo.alvo) : await esperaAlvoDoGuia(passo.alvo, passo.esperaMs);
     if (fechado) return;
     if (!alvo) { // a tela não tem o elemento (mudou, ou outro estado): o guia pula o passo na mesma direção em vez de apontar o nada
       const k = i + d;
@@ -47187,11 +47202,15 @@ function abreGuia({ passos, go, aoFechar = null } = {}) {
     // G-338 · último é o último que existe aqui: os passos seguintes que não se aplicam nem têm alvo na tela não contam
     // (depois de um passo que navega, o seguinte mora na outra tela e conta sempre)
     let resta = false;
-    for (let j = i + 1; j < lista.length && !resta; j++) resta = !!lista[j - 1].acao || existeAqui(j);
+    // G-343 · o passo com gesto só promete a tela seguinte quando ele mesmo existe aqui (Começar sem lista não leva à mesa)
+    for (let j = i + 1; j < lista.length && !resta; j++) resta = (!!lista[j - 1].acao && (j - 1 === i || existeAqui(j - 1))) || existeAqui(j);
     const ultimo = !resta, primeiro = k < 0; ultimoAqui = ultimo;
     const textoVivo = typeof passo.texto === 'function';
     const seguir = passo.acao
-      ? Button(passo.acao.rotulo, { variant: 'primary', icone: passo.acao.icone || 'seguir', id: 'guia-acao', onClick: () => { if (go && passo.acao.rota) go(passo.acao.rota); avanca(1); } })
+      ? Button(passo.acao.rotulo, { variant: 'primary', icone: passo.acao.icone || 'seguir', id: 'guia-acao', onClick: () => {
+        // G-343 · `clica`: o gesto é o botão de verdade da tela (Começar partida, Manter), tocado pelo guia; `rota` navega
+        if (passo.acao.clica) { const b = alvoDoGuia(passo.acao.clica); if (b && !b.disabled) b.click(); }
+        if (go && passo.acao.rota) go(passo.acao.rota); avanca(1); } })
       : Button(ultimo ? 'Entendi' : 'Avançar', { variant: 'primary', icone: ultimo ? 'marcar' : 'seguir', id: 'guia-avancar', onClick: () => ultimo ? fecha() : avanca(1) });
     balao.replaceChildren(
       h('div', { class: 'guia__topo' },

@@ -100,3 +100,16 @@ test('G-342 · textoDoPasso: frase fixa como está; função vira o texto do est
   assert.equal(tutorial.textoDoPasso({ texto: () => 'vivo' }), 'vivo');
   assert.equal(tutorial.textoDoPasso({ texto: () => { throw new Error('x'); } }), '');
 });
+
+// G-343 · relato #51 fatia 4 · Jogar guiado: a lista, o Shark, Começar (o guia toca o botão de verdade) e o primeiro turno na mesa
+test('G-343 · GUIAS.jogar: lista → Shark → "falta uma lista" (ou Começar) → mão inicial → mão → Passar; os gestos tocam botões de verdade e nenhum navega por rota', () => {
+  const g = tutorial.GUIAS.jogar;
+  assert.ok(Array.isArray(g) && g.length === 7, `jogar: ${g && g.length} passos`);
+  assert.equal(g.map(p => p.alvo).join(' | '), '#mesa-hero, #mesa-sem-formato | [data-opponent="shark"] | #mesa-hero, #mesa-sem-formato | #mesa-start | #tb-keep | #tb-hand | #tb-pass');
+  for (const p of g) { assert.ok(p.titulo && p.titulo.split(' ').length <= 5, p.titulo); assert.ok(typeof p.texto === 'string' && p.texto.length <= 90, p.texto); if (p.acao) { assert.ok(p.acao.clica && !p.acao.rota, 'o gesto toca o botão da tela'); assert.equal(p.acao.clica, p.alvo, 'toca o que aponta'); } }
+  assert.equal(g.filter(p => p.acao).length, 3, 'Shark, Começar e Manter');
+  assert.ok(g[0].espera, 'o primeiro passo espera a tela');
+  assert.ok(g[4].espera === '#tb' && g[4].esperaMs >= 10000, 'a mesa pode demorar a montar: espera mais');
+  // "falta uma lista" e Começar são as duas faces do mesmo momento (a falta vem antes: depois do toque o Começar fica ocupado); fora do navegador, Começar não está pronto
+  assert.equal(g[2].quando(), true); assert.equal(g[3].quando(), false);
+});

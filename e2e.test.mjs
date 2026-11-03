@@ -20195,3 +20195,80 @@ test('e2e · G-342 Scanner guiado: pedido da câmera com retorno (permitida e bl
     assert.deepEqual(errors, []);
   }
 });
+
+/* G-343 · relato #51 fatia 4 · Jogar guiado: o Experimentar do capítulo Jogar abre o Jogar com o guia — a lista, o Shark (o guia
+   toca o chip de verdade), Começar (o guia toca o botão e a mesa abre) e, na mesa, a mão inicial (Manter), a mão e o Passar do
+   primeiro turno; depois do Entendi a partida segue e o Shark joga. Sem lista no formato, o guia para em "Falta uma lista". */
+test('e2e · G-343 Jogar guiado: lista → Shark → Começar abre a mesa → mão inicial → mão → Passar, e o Shark joga o turno dele; sem lista, "Falta uma lista"; 360×697 nos dois temas', { skip }, async t => {
+  const mede = page => page.evaluate(() => {
+    const alvo = document.querySelector('[data-guia-alvo="true"]'), a = alvo.getBoundingClientRect(), f = document.querySelector('.guia__foco').getBoundingClientRect(), b = document.querySelector('.guia__balao').getBoundingClientRect();
+    const t = document.getElementById('guia-texto');
+    return { alvo: alvo.id || alvo.outerHTML.slice(0, 60), titulo: document.getElementById('guia-titulo').textContent, lado: document.querySelector('.guia__balao').dataset.lado,
+      envolve: f.left <= a.left - 5 && f.top <= a.top - 5 && f.right >= a.right + 5 && f.bottom >= a.bottom + 5, separado: b.top >= f.bottom + 8 || b.bottom <= f.top - 8,
+      dentro: b.left >= 15 && b.right <= innerWidth - 15 && b.top >= 0 && b.bottom <= innerHeight,
+      linhas: Math.round(t.getBoundingClientRect().height / parseFloat(getComputedStyle(t).lineHeight)), primario: (document.querySelector('.guia__balao .ds-btn--primary') || {}).textContent };
+  });
+  const confere = async (page, passo, sel, rotulo, titulo) => {
+    await page.waitForSelector(`#guia[data-passo="${passo}"]:not([data-esperando])`, { timeout: 30000 }); await page.waitForTimeout(500);
+    const m = await mede(page);
+    assert.equal(await page.evaluate(s => !!document.querySelector('[data-guia-alvo="true"]').matches(s), sel), true, `passo ${passo} aponta ${sel}: ${JSON.stringify(m)}`);
+    assert.deepEqual([m.titulo, m.envolve, m.dentro, m.separado || m.lado === 'sobre', m.primario], [titulo, true, true, true, rotulo], JSON.stringify(m));
+    assert.ok(m.linhas <= 2, `${sel}: texto em ${m.linhas} linhas`);
+    for (const id of ['guia-sair', rotulo === 'Avançar' || rotulo === 'Entendi' ? 'guia-avancar' : 'guia-acao']) assert.ok((await page.locator('#' + id).boundingBox()).height >= 44, `${sel}: ${id} com 44 px`);
+    return m;
+  };
+  const experimentaJogar = async (page, base) => {
+    await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-apresentacao'); await page.click('#perfil-apresentacao'); await page.waitForSelector('#tutorial[data-capitulo="1"]');
+    await page.click('#tutorial-experimentar'); await page.waitForSelector('#tutorial', { state: 'detached' }); assert.match(page.url(), /#\/mesa$/);
+  };
+  // 1 · com uma lista de Pauper: o guia leva até a mesa e pelo primeiro turno
+  {
+    const { page, errors, base } = await open(t, { apresentacao: true, dev: false });
+    await page.goto(base + '#/'); await page.waitForSelector('#tutorial'); await page.keyboard.press('Escape'); await page.waitForSelector('#tutorial', { state: 'detached' });
+    await createDeck(page, base, 'Delver', PAUPER);
+    await page.setViewportSize({ width: 360, height: 697 });
+    await experimentaJogar(page, base);
+    await confere(page, 1, '#mesa-hero', 'Avançar', 'Sua lista, seu formato');
+    assert.equal(await page.locator('#guia-voltar').count(), 0, 'sem Voltar no primeiro passo');
+    for (const tema of ['dark', 'light']) { await page.evaluate(x => document.documentElement.setAttribute('data-theme', x), tema); await page.waitForTimeout(350); await auditaTela(page, `G-343 · guia Jogar na lista ${tema}`); }
+    await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+    await page.click('#guia-avancar'); await confere(page, 2, '[data-opponent="shark"]', 'Escolher o Shark', 'Jogue contra o Shark');
+    await page.mouse.click(180, 60); await page.waitForTimeout(200); assert.equal(await page.locator('#guia[data-passo="2"]').count(), 1, 'toque fora não fecha');
+    await page.click('#guia-acao');
+    await confere(page, 4, '#mesa-start', 'Começar', 'Uma partida de verdade'); // o passo 3 ("falta uma lista") não se aplica: pulado
+    assert.equal(await page.getAttribute('[data-opponent="shark"]', 'aria-pressed'), 'true', 'o guia escolheu o Shark de verdade');
+    await auditaTela(page, 'G-343 · guia Jogar no Começar');
+    await page.click('#guia-acao');
+    await confere(page, 5, '#tb-keep', 'Manter', 'Sua mão inicial');
+    assert.match(page.url(), /#\/partida$/);
+    for (const tema of ['dark', 'light']) { await page.evaluate(x => document.documentElement.setAttribute('data-theme', x), tema); await page.waitForTimeout(350); await auditaTela(page, `G-343 · guia na mão inicial ${tema}`); }
+    await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+    await page.click('#guia-acao');
+    await confere(page, 6, '#tb-hand', 'Avançar', 'Sua mão');
+    await page.click('#guia-avancar'); await confere(page, 7, '#tb-pass', 'Entendi', 'Passe a vez');
+    await page.click('#guia-voltar'); await confere(page, 6, '#tb-hand', 'Avançar', 'Sua mão');
+    await page.keyboard.press('ArrowRight'); await confere(page, 7, '#tb-pass', 'Entendi', 'Passe a vez');
+    await auditaTela(page, 'G-343 · guia no Passar');
+    await page.click('#guia-avancar'); await page.waitForSelector('#guia', { state: 'detached' });
+    assert.equal(await page.locator('[data-guia-alvo]').count(), 0); assert.equal(await page.evaluate(() => document.body.dataset.guia), undefined);
+    // a partida é de verdade: passar segue o turno e o Shark joga
+    for (let i = 0; i < 12; i++) { await page.waitForFunction(() => !document.querySelector('#tb[data-pensando]'), null, { timeout: 60000 }); const p = await page.$('#tb-pass'); if (!p) break; await p.click(); await page.waitForTimeout(60); }
+    assert.match(await page.innerText('.tb'), /Shark/, 'o Shark está na mesa');
+    assert.deepEqual(errors, []);
+  }
+  // 2 · sem lista: o Começar não abre a mesa, e o guia para em "Falta uma lista"
+  {
+    const { page, errors, base } = await open(t, { apresentacao: true, dev: false });
+    await page.goto(base + '#/'); await page.waitForSelector('#tutorial'); await page.keyboard.press('Escape'); await page.waitForSelector('#tutorial', { state: 'detached' });
+    await page.setViewportSize({ width: 360, height: 697 });
+    await experimentaJogar(page, base);
+    await page.waitForSelector('#guia:not([data-esperando])');
+    if (await page.locator('[data-opponent="shark"]').count()) { await confere(page, 1, '#mesa-hero, #mesa-sem-formato', 'Avançar', 'Sua lista, seu formato'); await page.click('#guia-avancar'); await page.waitForSelector('#guia:not([data-esperando])'); if (await page.locator('#guia-acao').count()) await page.click('#guia-acao'); }
+    await page.waitForFunction(() => document.getElementById('guia-titulo') && document.getElementById('guia-titulo').textContent === 'Falta uma lista' && !document.getElementById('guia').dataset.esperando, null, { timeout: 15000 });
+    const m = await mede(page); assert.equal(m.primario, 'Entendi', JSON.stringify(m)); assert.ok(m.dentro && m.linhas <= 2, JSON.stringify(m));
+    assert.match(page.url(), /#\/mesa$/, 'continua no Jogar');
+    await auditaTela(page, 'G-343 · guia Jogar sem lista');
+    await page.click('#guia-avancar'); await page.waitForSelector('#guia', { state: 'detached' });
+    assert.deepEqual(errors, []);
+  }
+});
