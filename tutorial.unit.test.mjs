@@ -63,3 +63,20 @@ test('G-338 · faltaExperimentar: o encerramento lista, na ordem do tour, os cap
   assert.equal(tutorial.faltaExperimentar(new Set(tutorial.CAPITULOS.map(c => c.id))).length, 0);
   assert.equal(tutorial.faltaExperimentar(['listas']).length, 5, 'aceita lista também');
 });
+
+// G-341 · relato #51 fatia 6 · os capítulos experimentados ficam guardados na marca do tour (ui.apresentacao)
+test('G-341 · experimentadosDe: lê da marca só ids de capítulo, sem repetir, na ordem do tour; marca antiga ou estragada não tem nenhum', () => {
+  const ids = v => JSON.stringify(tutorial.experimentadosDe(v));
+  assert.equal(ids({ vista: true, em: 1 }), '[]', 'marca da D4b/G-331, sem a lista');
+  assert.equal(ids(null), '[]'); assert.equal(ids('x'), '[]'); assert.equal(ids({ experimentados: 'listas' }), '[]');
+  assert.equal(ids({ experimentados: ['perfil', 'listas', 'listas', 'mesa', 7, null, 'colecao'] }), '["listas","colecao","perfil"]');
+});
+
+test('G-341 · marcaDoTour: soma o guardado com o daqui (nada marcado se perde), continua "vista" e guarda o resto da marca', () => {
+  const m = tutorial.marcaDoTour({ vista: true, em: 5, experimentados: ['noticias'], outro: 1 }, new Set(['listas']), 99);
+  assert.equal(m.vista, true); assert.equal(m.em, 99); assert.equal(m.outro, 1);
+  assert.equal(JSON.stringify(m.experimentados), '["listas","noticias"]');
+  assert.equal(JSON.stringify(tutorial.marcaDoTour(null, [], 1)), JSON.stringify({ vista: true, em: 1, experimentados: [] }), 'primeira abertura: vista, nenhum experimentado');
+  assert.equal(JSON.stringify(tutorial.marcaDoTour({ experimentados: ['jogar'] }, ['zzz'], 1).experimentados), '["jogar"]', 'id desconhecido não entra');
+  assert.ok(JSON.stringify(m).length < 400, 'cabe folgado no valor da preferência sincronizada');
+});

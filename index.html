@@ -1533,6 +1533,11 @@ body[data-tutorial="true"] { overflow: hidden; }
 .tutorial__corpo { display: grid; gap: var(--space-2); text-align: center; justify-items: center; animation: ds-rise var(--dur-3) var(--ease-out) var(--dur-1) both; }
 .tutorial__capitulo { margin: 0; display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--text-xs); line-height: var(--lh-xs); letter-spacing: .08em; text-transform: uppercase; color: var(--accent-lo); }
 .tutorial__capitulo-icone { display: inline-grid; place-items: center; }
+/* G-341 · relato #51 fatia 6 · capítulo já experimentado (lembrado no aparelho e na conta): selo de latão ao lado do nome e o
+   traço do progresso com um anel de latão enquanto ainda não foi lido nesta volta. */
+.tutorial__selo { display: inline-flex; align-items: center; gap: 2px; margin-left: var(--space-1); padding: 0 var(--space-2); border-radius: var(--radius-full);
+  background: var(--accent-soft); color: var(--accent-lo); letter-spacing: .04em; }
+.tutorial__passo[data-experimentado="true"][data-feito="false"] { box-shadow: inset 0 0 0 1px var(--accent); }
 .tutorial__titulo { margin: 0; font-family: var(--font-display); font-weight: var(--weight-bold); font-size: var(--text-2xl); line-height: var(--lh-2xl); color: var(--fg); text-wrap: balance; max-width: 18ch; }
 .tutorial__texto { margin: 0; font-size: var(--text-md); line-height: var(--lh-md); color: var(--fg-muted); max-width: 34ch; text-wrap: pretty; }
 .tutorial__acoes { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); }
@@ -46994,8 +46999,32 @@ const GUIAS = {
     { alvo: '#perfil-apresentacao', titulo: 'O tour volta daqui', texto: 'Rever o tour abre os capítulos de novo e mostra o que falta experimentar.' }
   ]
 };
-/** G-338 · capítulos já experimentados nesta abertura do app (o progresso na conta é a fatia 6, `16º-tz`). */
+/** G-338 · capítulos já experimentados. G-341 · fatia 6: lembrados no aparelho dentro da própria marca do tour
+    (`ui.apresentacao`, uma preferência do registro de perfil.js: vai no backup e, com a conta conectada, na sincronização do
+    perfil), lidos de novo a cada abertura do tour. */
 const experimentados = new Set();
+const IDS = new Set(CAPITULOS.map(c => c.id));
+/** Puro · G-341: os capítulos experimentados guardados na marca, só ids conhecidos, na ordem do tour. Marca antiga
+    (`{ vista, em }` da D4b/G-331) ou estragada: nenhum. */
+const experimentadosDe = (valor) => {
+  const l = valor && typeof valor === 'object' && Array.isArray(valor.experimentados) ? valor.experimentados : [];
+  const s = new Set(l.filter(x => typeof x === 'string' && IDS.has(x)));
+  return CAPITULOS.filter(c => s.has(c.id)).map(c => c.id);
+};
+/** Puro · G-341: a marca nova a partir da guardada e dos experimentados daqui — soma os dois lados (nada que já estava
+    marcado se perde), mantém o resto da marca e carimba `em`. */
+const marcaDoTour = (valor, feitos = [], agora = Date.now()) => {
+  const base = valor && typeof valor === 'object' && !Array.isArray(valor) ? valor : {};
+  const todos = experimentadosDe({ experimentados: [...experimentadosDe(base), ...(feitos instanceof Set ? [...feitos] : feitos || [])] });
+  return { ...base, vista: true, em: agora, experimentados: todos };
+};
+/** G-341 · lê e grava a marca em fila (abrir e experimentar podem chegar juntos): cada escrita parte da última guardada. */
+let filaDaMarca = Promise.resolve();
+const gravaMarca = store => (filaDaMarca = filaDaMarca.then(async () => {
+  let v = null; try { v = await store.get(CHAVE); } catch (e) { v = null; }
+  for (const id of experimentadosDe(v)) experimentados.add(id);
+  await store.set(CHAVE, marcaDoTour(v, experimentados));
+}).catch(() => {}));
 /** Puro: os capítulos que ainda não foram experimentados, na ordem do tour (o encerramento lista estes). */
 const faltaExperimentar = (feitos = experimentados) => { const s = feitos instanceof Set ? feitos : new Set(feitos || []); return CAPITULOS.filter(c => !s.has(c.id)); };
 /** Puro: onde ficam o foco e o balão, dado o retângulo do alvo e a tela. O balão vai para onde cabe (abaixo, senão acima);
@@ -47127,11 +47156,24 @@ function abreGuia({ passos, go, aoFechar = null } = {}) {
     não insiste); `go(rota)` é a navegação do app; `aoFechar` avisa quem chamou. Devolve o elemento, para os testes. */
 function abreTutorial({ store, go, aoFechar = null, inicio = 0 } = {}) {
   if (document.getElementById('tutorial')) return document.getElementById('tutorial');
-  if (store) store.set(CHAVE, { vista: true, em: Date.now() }).catch(() => {});
   let i = Math.max(0, Math.min(CAPITULOS.length - 1, inicio)), fechado = false, foco = document.activeElement;
   const FIM = CAPITULOS.length; // G-338 · depois do último capítulo, o encerramento (i === FIM)
-  /** G-338 · Experimentar (no capítulo ou num item do encerramento): conta como experimentado e abre a tela com o guia. */
-  const experimenta = c => { experimentados.add(c.id); fecha(c.rota, GUIAS[c.id] || null); };
+  /** G-338 · Experimentar (no capítulo ou num item do encerramento): conta como experimentado e abre a tela com o guia.
+      G-341 · e fica guardado na marca do tour (volta depois de recarregar). */
+  const experimenta = c => { experimentados.add(c.id); if (store) gravaMarca(store); fecha(c.rota, GUIAS[c.id] || null); };
+  /** G-341 · o selo "Experimentado" ao lado do nome do capítulo, quando ele já foi experimentado. */
+  const seloDe = c => experimentados.has(c.id)
+    ? h('span', { class: 'tutorial__selo', id: 'tutorial-selo' }, Icone('marcar', { tamanho: 14 }), h('span', {}, 'Experimentado')) : null;
+  /** G-341 · a marca guardada chegou: marca os capítulos no lugar, sem repetir a cena do capítulo aberto. */
+  const remarca = () => {
+    if (fechado) return;
+    if (i >= FIM) return pintaFim();
+    el.querySelectorAll('.tutorial__passo').forEach((s, k) => { s.dataset.experimentado = String(experimentados.has(CAPITULOS[k].id)); });
+    const rot = el.querySelector('.tutorial__corpo .tutorial__capitulo'); if (!rot) return;
+    const velho = rot.querySelector('.tutorial__selo'), novo = seloDe(CAPITULOS[i]);
+    if (velho && !novo) velho.remove(); else if (novo && !velho) rot.append(novo);
+  };
+
   const el = h('section', { class: 'tutorial', id: 'tutorial', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'tutorial-titulo' });
   const fecha = (destino, guia = null) => {
     if (fechado) return; fechado = true;
@@ -47160,7 +47202,7 @@ function abreTutorial({ store, go, aoFechar = null, inicio = 0 } = {}) {
       h('header', { class: 'tutorial__topo' },
         IconButton('voltar', 'Capítulo anterior', { id: 'tutorial-anterior', variant: 'ghost', onClick: () => { i--; pinta(); } }),
         h('div', { class: 'tutorial__progresso', role: 'progressbar', 'aria-label': 'Fim do tour', 'aria-valuemin': '1', 'aria-valuemax': String(CAPITULOS.length), 'aria-valuenow': String(CAPITULOS.length) },
-          ...CAPITULOS.map(() => h('span', { class: 'tutorial__passo', dataset: { feito: 'true' } }))),
+          ...CAPITULOS.map(x => h('span', { class: 'tutorial__passo', dataset: { feito: 'true', experimentado: String(experimentados.has(x.id)) } }))),
         h('span', { class: 'tutorial__vazio' })),
       h('div', { class: 'tutorial__fim' },
         h('div', { class: 'tutorial__corpo' },
@@ -47183,7 +47225,7 @@ function abreTutorial({ store, go, aoFechar = null, inicio = 0 } = {}) {
       h('div', { class: 'tutorial__cena' }, sombra, h('div', { class: 'tutorial__objeto' })));
     palco.querySelector('.tutorial__objeto').innerHTML = ILUSTRACOES[c.id]; // SVG fixo do próprio app (dado do código, não de fora)
     const corpo = h('div', { class: 'tutorial__corpo' },
-      h('p', { class: 'tutorial__capitulo' }, h('span', { class: 'tutorial__capitulo-icone' }, Icone(c.icone, { tamanho: 16 })), h('span', {}, c.nome)),
+      h('p', { class: 'tutorial__capitulo' }, h('span', { class: 'tutorial__capitulo-icone' }, Icone(c.icone, { tamanho: 16 })), h('span', {}, c.nome), seloDe(c)),
       h('h2', { class: 'tutorial__titulo', id: 'tutorial-titulo' }, c.titulo),
       h('p', { class: 'tutorial__texto', id: 'tutorial-texto' }, c.texto));
     const seguir = p.ultimo // G-338 · o último capítulo leva ao encerramento, onde mora o Começar
@@ -47193,7 +47235,7 @@ function abreTutorial({ store, go, aoFechar = null, inicio = 0 } = {}) {
       h('header', { class: 'tutorial__topo' },
         p.primeiro ? h('span', { class: 'tutorial__vazio' }) : IconButton('voltar', 'Capítulo anterior', { id: 'tutorial-anterior', variant: 'ghost', onClick: () => { i--; pinta(); } }),
         h('div', { class: 'tutorial__progresso', role: 'progressbar', 'aria-label': p.texto, 'aria-valuemin': '1', 'aria-valuemax': String(CAPITULOS.length), 'aria-valuenow': String(i + 1) },
-          ...CAPITULOS.map((_, k) => h('span', { class: 'tutorial__passo', dataset: { feito: String(k <= i) } }))),
+          ...CAPITULOS.map((x, k) => h('span', { class: 'tutorial__passo', dataset: { feito: String(k <= i), experimentado: String(experimentados.has(x.id)) } }))),
         Button('Pular', { variant: 'ghost', id: 'tutorial-pular', onClick: () => fecha() })),
       palco, corpo,
       h('footer', { class: 'tutorial__acoes' },
@@ -47205,9 +47247,11 @@ function abreTutorial({ store, go, aoFechar = null, inicio = 0 } = {}) {
   document.body.appendChild(el);
   document.addEventListener('keydown', teclas, true);
   pinta();
+  // G-341 · a marca "vista" é gravada ao abrir (fechar de qualquer jeito conta), somando os experimentados já guardados
+  if (store) gravaMarca(store).then(remarca);
   return el;
 }
-return { CAPITULOS, progresso, ILUSTRACOES, SOMBRAS, sombraDoTour, abreTutorial, CHAVE, GUIAS, posicaoDoGuia, abreGuia, faltaExperimentar };
+return { CAPITULOS, progresso, ILUSTRACOES, SOMBRAS, sombraDoTour, abreTutorial, CHAVE, GUIAS, posicaoDoGuia, abreGuia, faltaExperimentar, experimentadosDe, marcaDoTour };
 })();
 
 /* ==== src/app/main.js ==== */

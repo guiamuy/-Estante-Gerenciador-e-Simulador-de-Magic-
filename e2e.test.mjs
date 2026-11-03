@@ -7808,6 +7808,57 @@ test('e2e · G-338 destaque guiado em Coleção, Notícias e Perfil e encerramen
   assert.deepEqual(errors, []);
 });
 
+/* G-341 · relato #51 fatia 6 · os capítulos experimentados ficam guardados (na marca do tour, que vai no backup e na
+   sincronização do perfil): depois de recarregar, Rever o tour marca cada um com o selo e o fim do tour não os lista mais */
+test('G-341 · tour lembra os capítulos experimentados depois de recarregar: Rever o tour marca cada um com o selo "Experimentado" e o fim lista só o que falta; 360×697 nos dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t, { apresentacao: true });
+  await page.setViewportSize({ width: 360, height: 697 });
+  await page.goto(base + '#/'); await page.waitForSelector('#tutorial[data-capitulo="1"]');
+  const marcas = () => page.evaluate(() => ({ selo: (document.getElementById('tutorial-selo') || {}).textContent || null,
+    tracos: [...document.querySelectorAll('.tutorial__passo')].map(p => p.dataset.experimentado === 'true') }));
+  const fim = () => page.evaluate(() => [...document.querySelectorAll('.tutorial__faltam button')].map(b => b.id.replace('tutorial-falta-', '')));
+  const rever = async (capitulo) => {
+    await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-apresentacao'); await page.click('#perfil-apresentacao'); await page.waitForSelector('#tutorial[data-capitulo="1"]');
+    for (let k = 1; k < capitulo; k++) { await page.keyboard.press('ArrowRight'); await page.waitForSelector(`#tutorial[data-capitulo="${k + 1}"]`); }
+    await page.waitForTimeout(150); // a marca guardada é lida ao abrir (e marca no lugar)
+  };
+  // primeira abertura: nada experimentado, nenhum selo
+  assert.deepEqual(await marcas(), { selo: null, tracos: [false, false, false, false, false, false] });
+  // experimenta Listas no capítulo 2 e sai do guia
+  await page.click('#tutorial-proximo'); await page.waitForSelector('#tutorial[data-capitulo="2"]'); await page.click('#tutorial-experimentar');
+  await page.waitForSelector('#tutorial', { state: 'detached' }); await page.waitForSelector('#guia[data-passo="1"]:not([data-esperando])');
+  await page.keyboard.press('Escape'); await page.waitForSelector('#guia', { state: 'detached' });
+  // recarrega: o tour não volta sozinho, mas lembra Listas
+  await page.waitForTimeout(300); await page.reload(); await page.waitForSelector('#app, body'); await page.waitForTimeout(600);
+  assert.equal(await page.locator('#tutorial').count(), 0, 'já visto: não abre sozinho depois de recarregar');
+  await rever(1);
+  assert.deepEqual(await marcas(), { selo: null, tracos: [false, true, false, false, false, false] }, 'capítulo 1 sem selo; o traço de Listas marcado');
+  await page.keyboard.press('ArrowRight'); await page.waitForSelector('#tutorial[data-capitulo="2"]');
+  const m2 = await marcas(); assert.equal(m2.selo, 'Experimentado');
+  const selo = await page.evaluate(() => { const s = document.getElementById('tutorial-selo').getBoundingClientRect(), r = document.querySelector('.tutorial__corpo .tutorial__capitulo').getBoundingClientRect();
+    return { dentro: s.left >= 0 && s.right <= innerWidth, umaLinha: r.height < 30, na: !!document.getElementById('tutorial-selo').closest('.tutorial__capitulo') }; });
+  assert.deepEqual(selo, { dentro: true, umaLinha: true, na: true }, 'o selo cabe ao lado do nome, numa linha só');
+  await page.waitForTimeout(900); // a cena termina de pousar
+  for (const tema of ['dark', 'light']) { await page.evaluate(x => document.documentElement.setAttribute('data-theme', x), tema); await page.waitForTimeout(350); await auditaTela(page, `G-341 · capítulo experimentado ${tema}`); }
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  // o fim do tour não lista mais Listas; um item do fim (Coleção) também fica guardado
+  for (let k = 3; k <= 6; k++) { await page.keyboard.press('ArrowRight'); await page.waitForSelector(`#tutorial[data-capitulo="${k}"]`); }
+  await page.click('#tutorial-concluir'); await page.waitForSelector('#tutorial[data-capitulo="fim"]');
+  assert.deepEqual(await fim(), ['jogar', 'colecao', 'scanner', 'noticias', 'perfil']);
+  assert.match(await page.textContent('#tutorial-texto'), /5 capítulos/);
+  await page.click('#tutorial-falta-colecao'); await page.waitForSelector('#tutorial', { state: 'detached' }); assert.match(page.url(), /#\/colecao$/);
+  await page.waitForSelector('#guia[data-passo="1"]:not([data-esperando])'); await page.keyboard.press('Escape'); await page.waitForSelector('#guia', { state: 'detached' });
+  await page.waitForTimeout(300); await page.reload(); await page.waitForTimeout(600);
+  await rever(3); assert.equal((await marcas()).selo, 'Experimentado', 'Coleção, experimentada pelo fim do tour, também volta marcada');
+  assert.deepEqual((await marcas()).tracos, [false, true, true, false, false, false]);
+  await page.keyboard.press('ArrowRight'); await page.waitForSelector('#tutorial[data-capitulo="4"]'); assert.equal((await marcas()).selo, null, 'Scanner ainda não');
+  for (let k = 5; k <= 6; k++) { await page.keyboard.press('ArrowRight'); await page.waitForSelector(`#tutorial[data-capitulo="${k}"]`); }
+  await page.click('#tutorial-concluir'); await page.waitForSelector('#tutorial[data-capitulo="fim"]');
+  assert.deepEqual(await fim(), ['jogar', 'scanner', 'noticias', 'perfil']);
+  await page.click('#tutorial-comecar'); await page.waitForSelector('#tutorial', { state: 'detached' });
+  assert.deepEqual(errors, []);
+});
+
 /* ---------------- Leva 149 · blocos expansíveis da coleção, formato obrigatório em Jogar, enquadrar a foto ---------------- */
 const MEDIDAS_149 = [[360, 780], [384, 832], [390, 844], [412, 891]];
 async function emTodasAsMedidas(page, nome) {
