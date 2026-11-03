@@ -1,47 +1,59 @@
 {
  "versao": 1,
  "formato": "pauper",
- "geradoEm": "2026-11-02T16:34:58.819Z",
+ "geradoEm": "2026-11-03T14:36:17.156Z",
  "motor": 112,
  "fonte": "api.scryfall.com/cards/collection",
  "listas": 644,
- "listas100": 642,
- "cartasPendentes": 2,
+ "listas100": 640,
+ "cartasPendentes": 3,
  "parcial": false,
  "lotesComFalha": 0,
  "porClasse": {
   "texto-mudou": 0,
   "lida": 1,
-  "nova": 1,
+  "nova": 2,
   "parcial": 0,
   "sem-dados": 0
  },
  "novasDesdeAnterior": [
-  "Dawnbringer Cleric",
-  "Geothermal Bog"
+  "Thought Vessel"
  ],
- "resolvidasDesdeAnterior": [
-  "Dreams of Laguna"
- ],
+ "resolvidasDesdeAnterior": [],
  "curva": [
   {
-   "listas": 643,
+   "listas": 641,
    "cartas": 1
   },
   {
    "listas": 644,
-   "cartas": 2
+   "cartas": 3
   }
  ],
  "textos": null,
  "pendentes": [
+  {
+   "name": "Geothermal Bog",
+   "classe": "lida",
+   "nivel": "lida",
+   "motivo": "lida pelo motor, em revisão",
+   "listas": 2,
+   "gulosa": 1,
+   "texto": {
+    "mana_cost": "",
+    "type_line": "Land — Swamp Mountain",
+    "oracle_text": "({T}: Add {B} or {R}.)\nThis land enters tapped.",
+    "keywords": [],
+    "layout": "normal"
+   }
+  },
   {
    "name": "Dawnbringer Cleric",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 2,
+   "gulosa": 4,
    "texto": {
     "mana_cost": "{1}{W}",
     "type_line": "Creature — Human Cleric",
@@ -53,22 +65,36 @@
    }
   },
   {
-   "name": "Geothermal Bog",
-   "classe": "lida",
-   "nivel": "lida",
-   "motivo": "lida pelo motor, em revisão",
+   "name": "Thought Vessel",
+   "classe": "nova",
+   "nivel": "parcial",
+   "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 1,
+   "gulosa": 3,
    "texto": {
-    "mana_cost": "",
-    "type_line": "Land — Swamp Mountain",
-    "oracle_text": "({T}: Add {B} or {R}.)\nThis land enters tapped.",
+    "mana_cost": "{2}",
+    "type_line": "Artifact",
+    "oracle_text": "You have no maximum hand size.\n{T}: Add {C}.",
     "keywords": [],
     "layout": "normal"
    }
   }
  ],
  "listasIncompletas": [
+  {
+   "id": "mtgo-pauper-challenge-32-2026-11-0212857414-4",
+   "nome": "Dimir Baleful Strix",
+   "faltam": [
+    "Geothermal Bog"
+   ]
+  },
+  {
+   "id": "mtgo-pauper-challenge-32-2026-11-0212857414-2",
+   "nome": "Simic Arcane Denial",
+   "faltam": [
+    "Thought Vessel"
+   ]
+  },
   {
    "id": "mtgo-pauper-challenge-32-2026-11-0112857406-3",
    "nome": "Dimir Baleful Strix",
