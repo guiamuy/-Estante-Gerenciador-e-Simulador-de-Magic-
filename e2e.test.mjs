@@ -20119,3 +20119,79 @@ test('e2e · G-340 relato #59: ícones com movimento contextual no toque (sino b
   assert.equal(lixo.a, 'tomba'); assert.ok(lixo.w >= 44 && lixo.h >= 44, 'toque de 44 px no catálogo');
   assert.deepEqual(errors, []);
 });
+
+/* G-342 · relato #51 fatia 4 · Scanner guiado: o Experimentar do capítulo Scanner abre a câmera com o guia por cima. O primeiro
+   passo explica o pedido da câmera e responde sozinho quando o navegador decide (texto vivo, sem tocar em nada); câmera ligada
+   leva a "Aponte para a carta", bloqueada leva ao aviso da tela ("Sem câmera, tudo bem"); Digitar e a pilha valem nos dois. */
+test('e2e · G-342 Scanner guiado: pedido da câmera com retorno (permitida e bloqueada) e caminho sem câmera; o foco envolve o elemento real, 44 px, duas linhas; 360×697 nos dois temas', { skip }, async t => {
+  const mede = page => page.evaluate(() => {
+    const alvo = document.querySelector('[data-guia-alvo="true"]'), a = alvo.getBoundingClientRect(), f = document.querySelector('.guia__foco').getBoundingClientRect(), b = document.querySelector('.guia__balao').getBoundingClientRect();
+    const t = document.getElementById('guia-texto');
+    return { alvo: alvo.id, titulo: document.getElementById('guia-titulo').textContent, texto: t.textContent, lado: document.querySelector('.guia__balao').dataset.lado,
+      envolve: f.left <= a.left - 5 && f.top <= a.top - 5 && f.right >= a.right + 5 && f.bottom >= a.bottom + 5, separado: b.top >= f.bottom + 8 || b.bottom <= f.top - 8,
+      dentro: b.left >= 15 && b.right <= innerWidth - 15 && b.top >= 0 && b.bottom <= innerHeight,
+      linhas: Math.round(t.getBoundingClientRect().height / parseFloat(getComputedStyle(t).lineHeight)), primario: (document.querySelector('.guia__balao .ds-btn--primary') || {}).textContent };
+  });
+  const confere = async (page, passo, alvo, rotulo) => {
+    await page.waitForSelector(`#guia[data-passo="${passo}"]:not([data-esperando])`); await page.waitForTimeout(500);
+    const m = await mede(page);
+    assert.deepEqual([m.alvo, m.envolve, m.dentro, m.separado || m.lado === 'sobre', m.primario], [alvo, true, true, true, rotulo], JSON.stringify(m));
+    assert.ok(m.linhas <= 2, `${alvo}: texto em ${m.linhas} linhas`);
+    for (const id of ['guia-sair', 'guia-avancar']) assert.ok((await page.locator('#' + id).boundingBox()).height >= 44, `${alvo}: ${id} com 44 px`);
+    return m;
+  };
+  const experimentaScanner = async (page, base) => {
+    await page.setViewportSize({ width: 360, height: 697 });
+    await page.goto(base + '#/'); await page.waitForSelector('#tutorial[data-capitulo="1"]');
+    for (let k = 1; k < 4; k++) { await page.keyboard.press('ArrowRight'); await page.waitForSelector(`#tutorial[data-capitulo="${k + 1}"]`); }
+    await page.click('#tutorial-experimentar'); await page.waitForSelector('#tutorial', { state: 'detached' }); assert.match(page.url(), /#\/scanner$/);
+  };
+  // 1 · câmera permitida, com o navegador demorando a responder: o balão diz o que fazer e muda sozinho quando a câmera liga
+  {
+    const { page, errors, base } = await open(t, { apresentacao: true });
+    await page.addInitScript(FAKE_DEVICE(false));
+    await page.addInitScript(() => { // o "Permitir" do navegador chega quando o teste quer
+      const gum = navigator.mediaDevices.getUserMedia; let libera; const sinal = new Promise(r => { libera = r; }); window.__liberaCamera = () => libera();
+      navigator.mediaDevices.getUserMedia = async c => { await sinal; return gum(c); };
+    });
+    await experimentaScanner(page, base);
+    const m1 = await confere(page, 1, 'scan-stage', 'Avançar');
+    assert.equal(m1.titulo, 'A câmera pede licença'); assert.match(m1.texto, /Permitir/);
+    assert.equal(await page.getAttribute('#scan', 'data-camera'), 'starting');
+    assert.equal(await page.getAttribute('#guia-texto', 'aria-live'), 'polite', 'o retorno é anunciado');
+    assert.equal(await page.locator('#guia-voltar').count(), 0, 'sem Voltar no primeiro passo');
+    for (const tema of ['dark', 'light']) { await page.evaluate(x => document.documentElement.setAttribute('data-theme', x), tema); await page.waitForTimeout(350); await auditaTela(page, `G-342 · guia scanner pedindo a câmera ${tema}`); }
+    await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+    await page.mouse.click(180, 60); await page.waitForTimeout(200); assert.equal(await page.locator('#guia[data-passo="1"]').count(), 1, 'toque fora não fecha');
+    await page.evaluate(() => window.__liberaCamera());
+    await page.waitForFunction(() => /Câmera ligada/.test(document.getElementById('guia-texto').textContent), null, { timeout: 8000 });
+    assert.equal(await page.locator('#guia[data-passo="1"]').count(), 1, 'o retorno chega no mesmo passo, sem tocar em nada');
+    await page.click('#guia-avancar'); const m2 = await confere(page, 2, 'scan-stage', 'Avançar'); assert.equal(m2.titulo, 'Aponte para a carta');
+    await page.click('#guia-avancar'); const m4 = await confere(page, 4, 'scan-manual-open', 'Avançar'); assert.equal(m4.titulo, 'Ou digite o nome');
+    await page.click('#guia-avancar'); const m5 = await confere(page, 5, 'scan-lot', 'Entendi'); assert.equal(m5.titulo, 'Da pilha para a coleção');
+    await auditaTela(page, 'G-342 · guia scanner na pilha');
+    await page.click('#guia-voltar'); await confere(page, 4, 'scan-manual-open', 'Avançar');
+    await page.click('#guia-voltar'); await confere(page, 2, 'scan-stage', 'Avançar'); // o "sem câmera" não se aplica: Voltar pula
+    await page.keyboard.press('ArrowRight'); await confere(page, 4, 'scan-manual-open', 'Avançar');
+    await page.keyboard.press('ArrowRight'); await confere(page, 5, 'scan-lot', 'Entendi');
+    await page.click('#guia-avancar'); await page.waitForSelector('#guia', { state: 'detached' });
+    assert.equal(await page.locator('[data-guia-alvo]').count(), 0); assert.equal(await page.evaluate(() => document.body.dataset.guia), undefined);
+    assert.equal(await page.locator('#scan-stage').isVisible(), true, 'o scanner fica, sem o guia');
+    assert.deepEqual(errors, []);
+  }
+  // 2 · câmera bloqueada: o primeiro passo diz que tudo bem, o guia aponta o aviso da tela e segue pelo Digitar
+  {
+    const { page, errors, base } = await open(t, { apresentacao: true });
+    await page.addInitScript(FAKE_DEVICE(true));
+    await experimentaScanner(page, base);
+    await confere(page, 1, 'scan-stage', 'Avançar');
+    await page.waitForFunction(() => /bloqueada/.test(document.getElementById('guia-texto').textContent), null, { timeout: 8000 });
+    await page.click('#guia-avancar'); const m3 = await confere(page, 3, 'scan-status', 'Avançar'); assert.equal(m3.titulo, 'Sem câmera, tudo bem');
+    for (const tema of ['dark', 'light']) { await page.evaluate(x => document.documentElement.setAttribute('data-theme', x), tema); await page.waitForTimeout(350); await auditaTela(page, `G-342 · guia scanner sem câmera ${tema}`); }
+    await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+    await page.click('#guia-avancar'); await confere(page, 4, 'scan-manual-open', 'Avançar');
+    await page.click('#guia-voltar'); await confere(page, 3, 'scan-status', 'Avançar');
+    await page.click('#guia-sair'); await page.waitForSelector('#guia', { state: 'detached' });
+    assert.deepEqual(errors, []);
+  }
+});

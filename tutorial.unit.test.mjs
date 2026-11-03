@@ -80,3 +80,23 @@ test('G-341 · marcaDoTour: soma o guardado com o daqui (nada marcado se perde),
   assert.equal(JSON.stringify(tutorial.marcaDoTour({ experimentados: ['jogar'] }, ['zzz'], 1).experimentados), '["jogar"]', 'id desconhecido não entra');
   assert.ok(JSON.stringify(m).length < 400, 'cabe folgado no valor da preferência sincronizada');
 });
+
+// G-342 · relato #51 fatia 4 · Scanner guiado: o pedido da câmera tem retorno (texto vivo por estado) e caminho sem câmera
+test('G-342 · GUIAS.scanner: licença da câmera com texto vivo, depois "aponte" só com a câmera ligada ou "sem câmera" só bloqueada/ausente; Digitar e a pilha valem sempre; só aponta', () => {
+  const g = tutorial.GUIAS.scanner;
+  assert.ok(Array.isArray(g) && g.length === 5, `scanner: ${g && g.length} passos`);
+  assert.equal(g.map(p => p.alvo).join(' '), '#scan-stage #scan-stage #scan-status #scan-manual-open #scan-lot'); // array de outro contexto (vm): compara por valor
+  assert.ok(g[0].espera, 'o primeiro passo espera a tela'); assert.equal(typeof g[0].texto, 'function', 'o primeiro passo responde ao pedido da câmera');
+  for (const p of g) { assert.ok(p.titulo.split(' ').length <= 5, p.titulo); assert.ok(!p.acao, 'só aponta, não navega'); if (typeof p.texto === 'string') assert.ok(p.texto.length <= 90, p.texto); }
+  // um texto por estado que a tela do Scanner publica em #scan[data-camera], cada um em até duas linhas (≤ 90 caracteres)
+  for (const est of ['idle', 'starting', 'on', 'denied', 'unavailable']) { const t = tutorial.TEXTO_DA_CAMERA[est]; assert.ok(t && t.length <= 90, `${est}: ${t}`); }
+  assert.notEqual(tutorial.TEXTO_DA_CAMERA.starting, tutorial.TEXTO_DA_CAMERA.on); assert.match(tutorial.TEXTO_DA_CAMERA.denied, /digitar/i); assert.match(tutorial.TEXTO_DA_CAMERA.unavailable, /digitar/i);
+  // sem a tela (o módulo fora do navegador): o passo condicional não se aplica e o texto vivo cai no "pede licença"
+  assert.equal(g[1].quando(), false); assert.equal(g[2].quando(), false);
+});
+
+test('G-342 · textoDoPasso: frase fixa como está; função vira o texto do estado; função que falha não derruba o balão', () => {
+  assert.equal(tutorial.textoDoPasso({ texto: 'fixo' }), 'fixo');
+  assert.equal(tutorial.textoDoPasso({ texto: () => 'vivo' }), 'vivo');
+  assert.equal(tutorial.textoDoPasso({ texto: () => { throw new Error('x'); } }), '');
+});

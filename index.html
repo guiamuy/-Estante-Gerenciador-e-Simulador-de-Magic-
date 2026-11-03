@@ -47007,6 +47007,16 @@ const sombraDoTour = ({ cy, rx, ry }) => ({ left: `${(100 - rx) / 2}%`, top: `${
     chegou (depois de navegar), `quando` pula o passo quando não se aplica ao estado dela; `acao` é o botão que faz o gesto
     (navega) em vez de Avançar. Texto até duas linhas no balão de 360 px. */
 const ESTANTE_PRONTA = '#decks-vazio, #decks-fab';
+/** G-342 · o estado da câmera que a tela do Scanner publica em `#scan[data-camera]` (idle · starting · on · denied · unavailable). */
+const cameraDoScanner = () => { try { const s = document.getElementById('scan'); return s ? s.dataset.camera || '' : ''; } catch (e) { return ''; } };
+/** G-342 · o retorno do pedido da câmera, em uma frase por estado (até duas linhas no balão de 360 px). */
+const TEXTO_DA_CAMERA = {
+  idle: 'O navegador pergunta uma vez: toque em Permitir. A imagem não sai do aparelho.',
+  starting: 'O navegador pergunta uma vez: toque em Permitir. A imagem não sai do aparelho.',
+  on: 'Câmera ligada. A imagem fica só no aparelho: nada é gravado nem enviado.',
+  denied: 'A câmera foi bloqueada. Tudo bem: dá para digitar o nome da carta.',
+  unavailable: 'Este aparelho não abriu a câmera. Tudo bem: dá para digitar o nome.'
+};
 const GUIAS = {
   listas: [
     { alvo: '#decks-starter-empty', espera: ESTANTE_PRONTA, quando: () => !!document.getElementById('decks-vazio'), titulo: 'Comece por uma pronta', texto: 'Listas prontas por formato, para jogar em um minuto. Dá para editar depois.' },
@@ -47021,6 +47031,16 @@ const GUIAS = {
     { alvo: '#col-import', titulo: 'Traga de outro app', texto: 'Cole uma lista ou abra o CSV do ManaBox, Moxfield ou Archidekt.' },
     { alvo: '#col-dash-bloco', titulo: 'O painel da coleção', texto: 'Cartas, cópias e valor. Aberto, mostra cores, curva e o que falta para cada lista.' },
     { alvo: '#col-filters', titulo: 'Ache qualquer carta', texto: 'Filtre por formato, cor, tipo e raridade: a coleção mostra só o que você pediu.' }
+  ],
+  // G-342 · fatia 4 · Scanner: o primeiro passo explica o pedido da câmera e responde sozinho ao que o navegador decidiu (texto
+  // vivo); câmera ligada leva a apontar a carta, bloqueada ou ausente aponta o aviso da tela; o caminho sem câmera (Digitar)
+  // e a pilha valem nos dois casos.
+  scanner: [
+    { alvo: '#scan-stage', espera: '#scan', titulo: 'A câmera pede licença', texto: () => TEXTO_DA_CAMERA[cameraDoScanner()] || TEXTO_DA_CAMERA.starting },
+    { alvo: '#scan-stage', quando: () => cameraDoScanner() === 'on', titulo: 'Aponte para a carta', texto: 'Com o nome dentro da moldura, a carta entra na pilha sozinha.' },
+    { alvo: '#scan-status', quando: () => /^(denied|unavailable)$/.test(cameraDoScanner()), titulo: 'Sem câmera, tudo bem', texto: 'O aviso diz como liberar a câmera. Enquanto isso, digitar o nome faz o mesmo.' },
+    { alvo: '#scan-manual-open', titulo: 'Ou digite o nome', texto: 'Três letras e um toque na carta certa: ela entra na pilha do mesmo jeito.' },
+    { alvo: '#scan-lot', titulo: 'Da pilha para a coleção', texto: 'Confira as cópias na pilha e mande tudo para a coleção de uma vez.' }
   ],
   noticias: [
     { alvo: '#noticias-idiomas', espera: '#noticias-ferramentas', titulo: 'Em português ou inglês', texto: 'Toque numa bandeira para ligar ou desligar as notícias daquele idioma.' },
@@ -47084,12 +47104,15 @@ function esperaAlvoDoGuia(seletores, ms = 4000) {
     (function tenta() { const el = alvoDoGuia(seletores); if (el || Date.now() > fim) return entrega(el); setTimeout(tenta, 80); })();
   });
 }
+/** G-342 · o texto do passo: uma frase fixa ou uma função do estado da tela (o balão a relê enquanto o passo está à vista). */
+const textoDoPasso = passo => { if (typeof passo.texto !== 'function') return passo.texto; try { return String(passo.texto() || ''); } catch (e) { return ''; } };
 /** Abre o guia sobre a tela atual. `passos` é uma lista de GUIAS (ou outra no mesmo formato); `go` navega quando um passo
     tem ação; `aoFechar` avisa quem chamou. Um guia por vez. Devolve o elemento (os testes olham `data-passo`). */
 function abreGuia({ passos, go, aoFechar = null } = {}) {
   if (document.getElementById('guia')) return document.getElementById('guia');
   const lista = (passos || []).filter(p => p && p.alvo); if (!lista.length) return null;
   let i = -1, fechado = false, alvo = null, agendado = 0, ultimoAqui = false; // começa em -1: o primeiro passo também passa pelo `quando`
+  let vivo = 0; // G-342 · passo com texto vivo (função): o balão relê o texto enquanto o passo está na tela
   /** G-338 · o passo `j` existe nesta tela: se aplica ao estado e o alvo está visível agora. */
   const existeAqui = j => (!lista[j].quando || lista[j].quando()) && !!alvoDoGuia(lista[j].alvo);
   const el = h('div', { class: 'guia', id: 'guia' });
@@ -47097,7 +47120,7 @@ function abreGuia({ passos, go, aoFechar = null } = {}) {
   const balao = h('div', { class: 'guia__balao', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'guia-titulo' });
   el.append(escudo, foco, balao);
   const fecha = () => {
-    if (fechado) return; fechado = true;
+    if (fechado) return; fechado = true; clearInterval(vivo);
     document.removeEventListener('keydown', teclas, true); window.removeEventListener('resize', recentra); window.removeEventListener('scroll', mede, true);
     if (alvo) delete alvo.dataset.guiaAlvo;
     el.remove(); delete document.body.dataset.guia;
@@ -47135,6 +47158,7 @@ function abreGuia({ passos, go, aoFechar = null } = {}) {
   /** Desenha o passo `i`; `d` é a direção de onde veio (para pular o que não se aplica) e `de` o passo anterior. */
   async function pinta(d = 1, de = -1) {
     const passo = lista[i];
+    clearInterval(vivo);
     el.dataset.passo = String(i + 1); el.dataset.esperando = 'true';
     if (passo.espera) await esperaAlvoDoGuia(passo.espera); // a tela chegou (o `quando` olha o estado dela, não o esqueleto)
     if (fechado) return;
@@ -47165,6 +47189,7 @@ function abreGuia({ passos, go, aoFechar = null } = {}) {
     let resta = false;
     for (let j = i + 1; j < lista.length && !resta; j++) resta = !!lista[j - 1].acao || existeAqui(j);
     const ultimo = !resta, primeiro = k < 0; ultimoAqui = ultimo;
+    const textoVivo = typeof passo.texto === 'function';
     const seguir = passo.acao
       ? Button(passo.acao.rotulo, { variant: 'primary', icone: passo.acao.icone || 'seguir', id: 'guia-acao', onClick: () => { if (go && passo.acao.rota) go(passo.acao.rota); avanca(1); } })
       : Button(ultimo ? 'Entendi' : 'Avançar', { variant: 'primary', icone: ultimo ? 'marcar' : 'seguir', id: 'guia-avancar', onClick: () => ultimo ? fecha() : avanca(1) });
@@ -47173,13 +47198,18 @@ function abreGuia({ passos, go, aoFechar = null } = {}) {
         h('p', { class: 'guia__passo' }, `Passo ${i + 1} de ${lista.length}`),
         IconButton('fechar', 'Sair do guia', { id: 'guia-sair', variant: 'ghost', onClick: () => fecha() })),
       h('h2', { class: 'guia__titulo', id: 'guia-titulo' }, passo.titulo),
-      h('p', { class: 'guia__texto', id: 'guia-texto' }, passo.texto),
+      h('p', { class: 'guia__texto', id: 'guia-texto', 'aria-live': textoVivo ? 'polite' : null }, textoDoPasso(passo)),
       h('div', { class: 'guia__acoes' },
         primeiro ? h('span') : Button('Voltar', { variant: 'ghost', icone: 'voltar', id: 'guia-voltar', onClick: () => avanca(-1) }),
         seguir));
     try { alvo.scrollIntoView({ block: 'center', inline: 'nearest' }); } catch (e) { /* sem rolagem */ }
     mede(); seguir.focus({ preventScroll: true });
     setTimeout(mede, 350); // a rolagem suave e a chegada da tela mudam a caixa do alvo
+    // G-342 · retorno sem tocar em nada: o texto que depende do estado da tela (a câmera respondeu ao pedido) muda sozinho no balão
+    if (textoVivo) vivo = setInterval(() => {
+      const t = balao.querySelector('#guia-texto'), novo = textoDoPasso(passo);
+      if (t && t.textContent !== novo) { t.textContent = novo; mede(); }
+    }, 200);
   }
   document.body.dataset.guia = 'true';
   document.body.appendChild(el);
@@ -47286,7 +47316,7 @@ function abreTutorial({ store, go, aoFechar = null, inicio = 0 } = {}) {
   if (store) gravaMarca(store).then(remarca);
   return el;
 }
-return { CAPITULOS, progresso, ILUSTRACOES, SOMBRAS, sombraDoTour, abreTutorial, CHAVE, GUIAS, posicaoDoGuia, abreGuia, faltaExperimentar, experimentadosDe, marcaDoTour };
+return { CAPITULOS, progresso, ILUSTRACOES, SOMBRAS, sombraDoTour, abreTutorial, CHAVE, GUIAS, posicaoDoGuia, abreGuia, faltaExperimentar, experimentadosDe, marcaDoTour, textoDoPasso, TEXTO_DA_CAMERA };
 })();
 
 /* ==== src/app/main.js ==== */
