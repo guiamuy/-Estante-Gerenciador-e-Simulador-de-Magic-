@@ -266,6 +266,10 @@ real em 360×780 e 390×844, clara e escura; (2) desenho decidido por espaço ú
 emoji; (4) CTAs curtos, com ícone quando o gesto é conhecido; (5) movimento curto e com propósito, respeitando
 `prefers-reduced-motion`; (6) captura de novo depois, nas mesmas medidas, e ajuste até ficar limpo; (7) teste que
 mede o que foi prometido (altura, alinhamento, alvo de toque, contraste).
+**Paisagem (decisão do dono, 02/11/2026, MJ25 · J-58/J-59; desfaz o "tablet e paisagem fora" dos épicos U e DS-K só para a mesa):** a
+mesa tem faixa própria para o celular deitado — `orientation: landscape` e altura até 540 px: lados lado a lado, campo 80, terreno 58,
+mão 76 px, crescimento 1,15× — e Perfil › Aparência › Mesa › "Orientação da mesa" (Automática · Só retrato) desliga. Toda leva da mesa
+mede também 780×360, 844×390 e 891×412. As outras telas continuam desenhadas para retrato.
 
 **Conduta offline (definida pelo usuário em 28/09/2026, épico E42; reforçada em 29/09/2026).** Toda funcionalidade — a que existe e
 a que vier (Coleção, Mesa, Commander) — funciona sem internet com o que já está no aparelho. **O que não puder

@@ -659,6 +659,15 @@ test('DS-K2 · M1 a carta do campo na moldura K: janela da arte por token sobre 
   }
 });
 
+/* ---------------- J-60 · os tokens da MJ25 no catálogo ---------------- */
+test('J-60 · o catálogo /ds nomeia os tokens de medida da MJ25 (piso do ícone, folga da rolagem, crescimento da fileira, miniatura da origem) e a faixa de paisagem', () => {
+  for (const t of ['--estado-piso', '--rolagem-folga', '--campo-cresce', '--decisao-origem']) {
+    assert.match(HTML, new RegExp(t + ': '), `${t} definido`);
+    assert.ok(/id: 'ds-campo-tokens'/.test(HTML) && HTML.slice(HTML.indexOf("Text('Tokens: --carta-campo"), HTML.indexOf("id: 'ds-campo-tokens'")).includes(t), `${t} no /ds`);
+  }
+  assert.match(componentCss, /@media \(orientation: landscape\) and \(max-height: 540px\)/, 'a faixa de paisagem existe');
+});
+
 /* ---------------- J-56 · escolher pela carta ampliada ---------------- */
 test('J-56 · escolher carta para um efeito passa pela carta ampliada: fileira de escolha, alvo tocado na mesa, sacrifício, descarte e lista de alvos', () => {
   assert.match(HTML, /function ampliaParaEscolher\(oid, verbo, executa/);

@@ -5586,7 +5586,7 @@ function renderDS() {
               M.TableCard(demo('Island', { oid: 'ds-campo-4', image: arte.azul }), { pilha: { total: 3, viradas: 0 } }),
               M.TableCard(demo('Forest', { oid: 'ds-campo-5', image: arte.verde })))));
         })(),
-        Text('Tokens: --carta-campo e --carta-terreno (largura) · --moldura-hd (faixa do nome) · --moldura-ft (pé com P/T) · --moldura-borda · --arte-topo e --arte-alto (onde fica a janela da arte na imagem da carta).', { size: 'xs', tone: 'muted', attrs: { id: 'ds-campo-tokens' } }),
+        Text('Tokens: --carta-campo e --carta-terreno (largura) · --moldura-hd (faixa do nome) · --moldura-ft (pé com P/T) · --moldura-borda · --arte-topo e --arte-alto (onde fica a janela da arte na imagem da carta) · --estado-piso (piso do ícone de estado; o teto é a altura do pé) · --rolagem-folga (folga entre a carta e a barra de rolagem da fileira) · --campo-cresce (quanto a fileira com folga deixa a carta crescer; 1,15 em paisagem) · --decisao-origem (miniatura da carta de origem na decisão). Em paisagem (altura até 540 px): campo 80, terreno 58, mão 76.', { size: 'xs', tone: 'muted', attrs: { id: 'ds-campo-tokens' } }), // J-60 · tokens da MJ25 no catálogo
         // DS-K2 M2 (J-37) · a mão em leque com 3, 5 e 7 cartas, com o mesmo modelo (lequeDaMao) e o mesmo CSS da partida
         Text('Mão em leque', { size: 'sm', caps: true, as: 'h3' }),
         h('div', { class: 'ds-stack', id: 'ds-leque' }, ...[3, 5, 7].map(n => {
