@@ -41624,10 +41624,13 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     desenhaPrevia(s, v, esc, cartaEl); // MJ4b
   }
   const redesenhaSetas = () => {
-    if (!root.isConnected) { if (setasNaTela) window.removeEventListener('resize', redesenhaSetas); return; } // a mesa saiu: solta a janela (não segura a mesa velha na memória)
+    if (!root.isConnected) { if (setasNaTela) { window.removeEventListener('resize', redesenhaSetas); window.removeEventListener('scroll', redesenhaSetas, { capture: true }); } return; } // a mesa saiu: solta a janela (não segura a mesa velha na memória)
     if (setasPedido || !root.querySelector('#tb-setas')) return;
     setasPedido = requestAnimationFrame(() => { setasPedido = 0; if (root.isConnected && table) desenhaSetas(table.state, table.viewer()); }); };
-  root.addEventListener('scroll', redesenhaSetas, { capture: true, passive: true }); // a fileira de cartas rola de lado
+  // J-61 · relato #55 · a camada é fixa na janela: rolar a página (a mesa rola com a mão aberta desde a J-45) ou qualquer
+  // contêiner dela (a fileira de cartas rola de lado) redesenha; a captura na janela pega a rolagem de qualquer elemento.
+  // Um desenho por quadro: o quadro pedido no scroll roda antes da pintura do mesmo quadro, então a ponta não fica para trás
+  window.addEventListener('scroll', redesenhaSetas, { capture: true, passive: true });
   window.addEventListener('resize', redesenhaSetas, { passive: true });
   function aplicaEfeitos({ plano, fantasmas, parado, rPilha }, s, v) {
     const feitos = [], curto = durFx('--dur-fx-curto'), medio = durFx('--dur-fx'), longo = durFx('--dur-fx-longo');
@@ -43220,7 +43223,9 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       banner = PriorityBanner({ title: 'Declarar atacantes',
         hint: (pa ? `Se ninguém bloquear: ${pa.texto}.${pa.letal ? ' É letal.' : ''} ` : `Toque nas criaturas que vão atacar. ${plan.eligible.size} podem atacar. `) + (obrig.length ? ` ${nomes} ${obrig.length > 1 ? 'foram provocadas e precisam' : 'foi provocada e precisa'} atacar.` : ''),
         actions: [Button(total ? `Atacar com ${total}` : 'Atacar', { variant: 'primary', id: 'tb-attack', disabled: !total, onClick: () => { const list = [...new Set([...plan.attack, ...obrig])]; const al = alvosDe(list); resetPlan(); act({ t: 'attack', p: v, attackers: list, ...(al ? { alvos: al } : {}) }); } }),
-          trocaAlvo, obrig.length ? null : Button('Sem ataque', { id: 'tb-no-attack', onClick: () => { resetPlan(); act({ t: 'attack', p: v, attackers: [] }); } })].filter(Boolean) });
+          trocaAlvo, obrig.length ? null : Button('Sem ataque', { id: 'tb-no-attack', onClick: () => { resetPlan(); act({ t: 'attack', p: v, attackers: [] }); } }),
+          // J-61 · relato #55 · desistir da escolha antes de declarar: desmarca as escolhidas e nada vai ao motor (declarado, só o Desfazer)
+          plan.attack.size ? Button('Cancelar', { id: 'tb-attack-cancelar', variant: 'ghost', icone: 'fechar', title: 'Desmarcar as criaturas escolhidas sem declarar o ataque', onClick: () => { plan.attack = new Set(); plan.alvoPw = null; paint(); } }) : null].filter(Boolean) });
     } else if (s.pending && s.pending.kind === 'blockers' && s.pending.p === v) {
       const blocks = [...plan.blocks.entries()];
       const pv = previaDoCombate(s, v, escolhaDoCombate(s, v)); // MJ4b · uma simulação por toque, dividida com as marcas
@@ -43233,7 +43238,8 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       const exige = !obrigadas.length ? '' : cumpre ? `${quem} ${plural ? 'precisam' : 'precisa'} bloquear (um efeito obriga). ` : `${quem} ${plural ? 'precisam' : 'precisa'} bloquear um atacante que ${plural ? 'possam' : 'possa'}: toque ${plural ? 'nelas' : 'nela'} e escolha. `;
       banner = PriorityBanner({ title: 'Declarar bloqueadores', hint: exige + 'Toque nas suas criaturas para escolher quem bloqueiam. ' + hint, tone: 'warning',
         actions: [Button(blocks.length ? `Bloquear (${blocks.length})` : 'Confirmar', { variant: 'primary', id: 'tb-block', disabled: !blocks.length || !pv || !cumpre, onClick: () => { resetPlan(); act({ t: 'block', p: v, blocks }); } }),
-          obrigadas.length ? null : Button('Sem bloqueio', { id: 'tb-no-block', onClick: () => { resetPlan(); act({ t: 'block', p: v, blocks: [] }); } })].filter(Boolean) });
+          obrigadas.length ? null : Button('Sem bloqueio', { id: 'tb-no-block', onClick: () => { resetPlan(); act({ t: 'block', p: v, blocks: [] }); } }),
+          blocks.length ? Button('Cancelar', { id: 'tb-block-cancelar', variant: 'ghost', icone: 'fechar', title: 'Desfazer os bloqueios escolhidos sem declarar', onClick: () => { plan.blocks = new Map(); paint(); } }) : null].filter(Boolean) }); // J-61 · relato #55
     } else if (s.pending && s.pending.kind === 'madness' && s.pending.p === v) {
       const carta = s.objects[s.pending.oid];
       const opts = legaisDe(s, v).filter(x => x.t === 'cast_madness');

@@ -17469,6 +17469,97 @@ test('e2e · MJ4a entrar e sair da mesa três vezes não acumula ouvinte de resi
   assert.deepEqual(errors, []);
 });
 
+// J-61 (trilha jogabilidade, relato #55) · rolar a mesa com uma seta de ataque à vista: a ponta continua na vida do
+// adversário (a camada é fixa na janela e só redesenhava quando rolava uma fileira de dentro da mesa, não a página);
+// "Cancelar" na declaração de atacantes desmarca as escolhidas sem declarar nada
+test('e2e · J-61 seta do ataque acompanha a rolagem da mesa; Cancelar desfaz a escolha dos atacantes sem declarar', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 697 });
+  await createDeck(page, base, 'Peixes', '30 Island\n10 Sky Pike\n10 Wall Guard', 'livre');
+  await page.goto(base + '#/mesa');
+  await page.click('[data-opponent="hotseat"]');
+  await page.fill('#mesa-me', 'Ana'); await page.fill('#mesa-them', 'Bia'); await page.fill('#mesa-seed', '4');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep');
+  await page.click('#tb-keep'); await reveal(page); await page.click('#tb-keep'); await reveal(page);
+  const { pikes } = await page.evaluate(() => {
+    const M = window.__estanteMesa; const s = M.estado(), p = s.turn.active;
+    const pikes = Object.values(s.objects).filter(o => o.owner === p && o.name === 'Sky Pike' && o.zone !== 'battlefield').slice(0, 2).map(o => o.oid);
+    for (const oid of pikes) M.act({ t: 'move', p, oid, to: 'battlefield' });
+    // um muro do outro lado: o ataque pede bloqueadores e a mesa para no passo de bloqueio, com a seta à vista
+    const muro = Object.values(s.objects).find(o => o.owner === 1 - p && o.name === 'Wall Guard' && o.zone !== 'battlefield');
+    M.act({ t: 'move', p, oid: muro.oid, to: 'battlefield' }); // quem mexe é quem tem a vez (como no MJ4a)
+    const t0 = M.estado().turn.number;
+    for (let i = 0; i < 80; i++) { const e = M.estado(), pd = e.pending;
+      if (pd && pd.kind === 'attackers' && e.turn.active === p && e.turn.number >= t0 + 2) break;
+      if (pd && pd.kind === 'attackers') M.act({ t: 'attack', p: pd.p, attackers: [] });
+      else if (pd && pd.kind === 'blockers') M.act({ t: 'block', p: pd.p, blocks: [] });
+      else if (pd && pd.kind === 'discard') M.act({ t: 'discard', p: pd.p, oid: e.zones[pd.p].hand[0] });
+      else M.act({ t: 'pass', p: e.turn.priority }); }
+    return { pikes: pikes.map(String) };
+  });
+  await reveal(page); await page.waitForSelector('#tb-attack');
+  assert.equal(await page.locator('#tb-attack-cancelar').count(), 0, 'nada escolhido: não há o que cancelar');
+  // 1 · Cancelar: escolher dois atacantes e desistir da escolha; o motor não recebe nada e a declaração segue aberta
+  await page.click(`.tb-side--me .tb-card[data-oid="${pikes[0]}"]`); await page.waitForTimeout(450); // longe do toque duplo
+  await page.click(`.tb-side--me .tb-card[data-oid="${pikes[1]}"]`);
+  assert.equal(await page.locator('#tb-setas .tb-seta').count(), 2);
+  const antesDeCancelar = await page.evaluate(() => JSON.stringify(window.__estanteMesa.estado()));
+  const bt = page.locator('#tb-attack-cancelar');
+  assert.equal(await bt.count(), 1, 'com atacante escolhido, há Cancelar');
+  const caixa = await bt.boundingBox(); assert.ok(caixa.height >= 44 && caixa.width >= 44, 'Cancelar com alvo de 44 px ' + JSON.stringify(caixa));
+  await bt.click();
+  assert.equal(await page.locator('#tb-setas .tb-seta').count(), 0, 'sem escolha, sem seta');
+  assert.equal(await page.locator('.tb-side--me .tb-card[data-selected="true"]').count(), 0, 'nenhuma criatura continua marcada');
+  assert.equal(await page.evaluate(() => JSON.stringify(window.__estanteMesa.estado())), antesDeCancelar, 'cancelar não manda nada ao motor');
+  assert.equal(await page.locator('#tb-attack-cancelar').count(), 0); assert.ok(await page.locator('#tb-attack').isDisabled(), 'a declaração segue aberta, sem atacante');
+  // 2 · a mesma escolha numa tela mais baixa (360×560, um celular de 640 com as barras do navegador): a mesa passa da
+  // altura da tela e a página rola; a seta proposta e a prévia do dano acompanham a vida do outro jogador
+  await page.waitForTimeout(450); await page.click(`.tb-side--me .tb-card[data-oid="${pikes[0]}"]`);
+  await page.setViewportSize({ width: 360, height: 560 }); await page.waitForTimeout(300);
+  // cada seta e o seu alvo: a vida (j<n>) ou a carta; a vida é a do lado oposto ao da carta que ataca
+  const mede = () => page.evaluate(() => [...document.querySelectorAll('#tb-setas .tb-seta')].map(g => {
+    const [de, para] = g.dataset.seta.split(':')[1].split('>');
+    const caixa = el => { const r = el.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; };
+    const carta = oid => document.querySelector(`.tb-side .tb-card[data-oid="${oid}"], .tb-side .tb-card[data-oids~="${oid}"]`);
+    const alvo = /^j/.test(para) ? document.querySelector(carta(de).closest('.tb-side--me') ? '#tb-life-opp' : '#tb-life-me') : carta(para);
+    const [x, y] = g.querySelector('.tb-seta__ponta').getAttribute('points').split(' ')[0].split(',').map(Number);
+    return { seta: g.dataset.seta, ponta: { x, y }, alvo: caixa(alvo) };
+  }));
+  const perto = (pt, b, folga) => pt.x >= b.x - folga && pt.x <= b.x + b.w + folga && pt.y >= b.y - folga && pt.y <= b.y + b.h + folga;
+  const antes = await mede();
+  for (const x of antes) assert.ok(perto(x.ponta, x.alvo, 8), 'antes de rolar, a ponta está no alvo ' + JSON.stringify(x));
+  assert.ok(antes.some(x => /^ataque:.*>j/.test(x.seta)), 'há uma seta de ataque até a vida ' + JSON.stringify(antes));
+  // rola a página (de onde estiver) sem mexer em mais nada
+  const rolou = await page.evaluate(() => { const el = document.scrollingElement, y0 = el.scrollTop; el.scrollTop = y0 > 80 ? 0 : y0 + 400; return { de: y0, para: el.scrollTop, altura: el.scrollHeight, tela: innerHeight }; });
+  assert.notEqual(rolou.de, rolou.para, 'a página rola nesta medida ' + JSON.stringify(rolou));
+  await page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
+  const depois = await mede();
+  assert.ok(Math.abs(depois[0].alvo.y - antes[0].alvo.y) > 20, 'o alvo saiu do lugar com a rolagem ' + JSON.stringify({ antes, depois }));
+  for (const x of depois) assert.ok(perto(x.ponta, x.alvo, 8), 'depois de rolar, a ponta continua no alvo ' + JSON.stringify(x));
+  const previa = () => page.evaluate(() => { const pv = document.querySelector('#tb-previa .tb-previa--vida'), r = document.querySelector('#tb-life-opp').getBoundingClientRect(); if (!pv) return null; const q = pv.getBoundingClientRect(); return { c: { x: q.left + q.width / 2, y: q.top + q.height / 2 }, alvo: { x: r.left, y: r.top, w: r.width, h: r.height } }; });
+  const pv = await previa(); if (pv) assert.ok(perto(pv.c, pv.alvo, 24), 'depois de rolar, a prévia do dano continua no marcador de vida ' + JSON.stringify(pv));
+  await auditaTela(page, 'J-61 · 360×560 seta depois de rolar');
+  await page.setViewportSize({ width: 360, height: 697 }); await page.waitForTimeout(200);
+  // 3 · declara; declarado, não há cancelar (só o Desfazer do menu)
+  await page.click('#tb-attack'); await reveal(page);
+  assert.equal(await page.locator('#tb-attack-cancelar, #tb-block-cancelar').count(), 0, 'depois de declarar, não há cancelar');
+  // 4 · do outro lado, o mesmo Cancelar para o bloqueio escolhido; depois bloqueia de verdade
+  await page.waitForSelector('#tb-block');
+  const muroOid = await page.evaluate(() => document.querySelector('.tb-side--me .tb-card[data-eligible="true"]').dataset.oid);
+  await page.click(`.tb-side--me .tb-card[data-oid="${muroOid}"]`); await page.click('.ds-dialog >> text=Bloquear Sky Pike');
+  const antesDoBloqueio = await page.evaluate(() => JSON.stringify(window.__estanteMesa.estado()));
+  assert.equal(await page.locator('#tb-block-cancelar').count(), 1, 'com bloqueio escolhido, há Cancelar');
+  await page.click('#tb-block-cancelar');
+  assert.equal(await page.locator('#tb-setas .tb-seta--bloqueio').count(), 0, 'cancelado, a seta dourada some');
+  assert.equal(await page.evaluate(() => JSON.stringify(window.__estanteMesa.estado())), antesDoBloqueio, 'cancelar o bloqueio não manda nada ao motor');
+  assert.equal(await page.locator('#tb-block-cancelar').count(), 0);
+  await page.waitForTimeout(450); await page.click(`.tb-side--me .tb-card[data-oid="${muroOid}"]`); await page.click('.ds-dialog >> text=Bloquear Sky Pike');
+  await page.click('#tb-block'); await reveal(page);
+  assert.equal(await page.locator('#tb-attack-cancelar, #tb-block-cancelar').count(), 0, 'declarado o bloqueio, não há cancelar');
+  assert.deepEqual(errors, []);
+});
+
 // MJ4b (leva J-13, trilha jogabilidade) · prévia junto da seta: o dano previsto no marcador de vida de quem leva e a marca
 // de cemitério em quem morre, iguais à prévia escrita na bandeja, enquanto se escolhe e até o dano
 test('e2e · MJ4b prévia junto da seta: dano previsto no marcador de vida e marca em quem morre, iguais à prévia escrita; somem depois do dano', { skip }, async t => {
