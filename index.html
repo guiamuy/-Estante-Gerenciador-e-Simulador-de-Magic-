@@ -3012,6 +3012,11 @@ body[data-mesa-cheia="true"] .tb-steps__list > li::after { inset: 0; height: aut
 .tb-fx-camada > .tb-mira__carta { position: fixed; margin: 0; pointer-events: none; transform: translateY(calc(var(--space-2) * -1)); }
 .tb-fx-camada > .tb-mira__carta::before { opacity: 1; } /* MJ7 · a carta que mira está levantada: a sombra cresce com ela (a mesma de toda carta levantada) */
 .tb-mira { z-index: 1; }
+/* J-62 · MJ27 · o Cancelar da mira: o mesmo botão da J-61 (fantasma, ícone fechar, 44 px), no pé da tela acima da doca, com fundo
+   para ler sobre o feltro; o dedo em cima acende a borda (retorno na hora, sem movimento) */
+.tb-fx-camada > .tb-mira__cancelar { position: fixed; right: var(--space-3); bottom: calc(var(--doca-h, 0px) + var(--space-2) + env(safe-area-inset-bottom, 0px)); z-index: 2;
+  pointer-events: auto; min-height: var(--tap-min); background-color: var(--bg-elev-2); border-color: var(--border-strong); color: var(--fg); box-shadow: var(--btn-rest); }
+.tb-fx-camada > .tb-mira__cancelar[data-sob="true"] { border-color: var(--negative); color: var(--negative); background-color: var(--bg-elev-3); }
 .tb-seta--mira { color: var(--player-opp); } /* J-27 · receita de mirar: a cor do oponente, nunca a de ataque (vermelho) ou de bloqueio (dourado) */
 .tb-mira[data-fase="linha"] .tb-seta__traco { stroke-dasharray: 100; animation: tb-mira-linha var(--dur-3) var(--ease-out) both; }
 .tb-mira[data-fase="linha"] .tb-seta__sombra, .tb-mira[data-fase="linha"] .tb-seta__ponta { opacity: 0; }
@@ -41522,7 +41527,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       if (quadro) { cancelAnimationFrame(quadro); quadro = 0; }
       if (!mira) return;
       for (const t of root.querySelectorAll('[data-mira]')) delete t.dataset.mira;
-      mira.svg.remove(); mira.carta.remove(); delete root.dataset.mira;
+      mira.svg.remove(); mira.carta.remove(); mira.cancela.remove(); delete root.dataset.mira;
       const camada = document.getElementById('tb-fx'); if (camada && !camada.childElementCount) camada.remove();
       mira = null; fase = null; if (miraAtiva === fim) miraAtiva = null;
     };
@@ -41535,8 +41540,13 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       }
       return null;
     };
+    // J-62 · MJ27 · o dedo sobre o "Cancelar" da mira não escolhe alvo (mesmo com um alvo embaixo): soltar ali cancela
+    // a caixa é lida a cada quadro (antes de escrever): a doca muda de altura enquanto a mão recolhe e o botão acompanha
+    const naCancela = (x, y) => { const c = caixaDe(mira.cancela); return x >= c.x && x <= c.x + c.w && y >= c.y && y <= c.y + c.h; };
     const desenha = (x, y) => {
-      const sob = alvoEm(x, y), para = sob ? caixaDe(sob.el) : { x: x - 1, y: y - 1, w: 2, h: 2 }; // mede antes de escrever
+      const cancela = naCancela(x, y);
+      const sob = cancela ? null : alvoEm(x, y), para = sob ? caixaDe(sob.el) : { x: x - 1, y: y - 1, w: 2, h: 2 }; // mede antes de escrever
+      if (cancela !== (mira.cancela.dataset.sob === 'true')) { mira.cancela.dataset.sob = String(cancela); if (cancela) __m0.haptics.evento('toque'); }
       if ((sob && sob.el) !== mira.sobEl) {
         if (mira.sobEl) mira.sobEl.dataset.mira = 'alvo';
         if (sob) { sob.el.dataset.mira = 'sob'; __m0.haptics.evento('toque'); }
@@ -41568,7 +41578,13 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       // escolha; com menos movimento, linha e tracejado parados
       svg.dataset.fase = menosMovimento() ? 'parado' : 'linha';
       if (svg.dataset.fase === 'linha') setTimeout(() => { if (svg.isConnected) { svg.dataset.fase = 'marcha'; const tr = svg.querySelector('.tb-seta__traco'); if (tr) tr.removeAttribute('pathLength'); } }, durFx('--dur-3'));
-      mira = { v, outro: s.players.findIndex((_, i) => i !== v), de, carta, svg, g, porChave: new Map(alvos.map(a => [a.chave, a])), sobEl: null, sob: null };
+      /* J-62 · MJ27 · relato #55 · "Cancelar" à vista enquanto o dedo está na mesa, no pé da tela onde fica o Cancelar da J-61
+         (canto direito acima da doca, 44 px): soltar o dedo nele desiste da mira; um segundo dedo tocando nele também. Nada vai
+         ao motor. É um botão de verdade (a camada de efeitos não pega toque; ele sim), fora da ordem de foco (só existe no gesto). */
+      const cancela = Button('Cancelar', { id: 'tb-mira-cancelar', variant: 'ghost', icone: 'fechar', classe: 'tb-mira__cancelar', title: 'Soltar aqui desiste da mira', onClick: () => cancelaMira() });
+      cancela.tabIndex = -1; cancela.dataset.sobrepoe = 'true'; cancela.dataset.sob = 'false';
+      camadaFx().append(cancela);
+      mira = { v, outro: s.players.findIndex((_, i) => i !== v), de, carta, svg, g, cancela, porChave: new Map(alvos.map(a => [a.chave, a])), sobEl: null, sob: null };
       for (const a of alvos) {
         const t = a.alvo.oid != null ? root.querySelector(`.tb-side .tb-card[data-oid="${a.alvo.oid}"]`) || root.querySelector(`.tb-side .tb-card[data-oids~="${a.alvo.oid}"]`) : root.querySelector(a.alvo.player === v ? '#tb-life-me' : '#tb-life-opp');
         if (t && t !== el) t.dataset.mira = 'alvo'; // a própria carta não acende: soltar nela cancela
@@ -41600,6 +41616,11 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       root.dataset.mirou = sob.g.chave;
       const { como, acoes } = sob.g, nome = (table.state.objects[oid] || {}).name || 'a carta';
       if (como === 'age') act(acoes[0]); else if (como === 'pergunta') escolher(acoes[0].t === 'cast' ? `Conjurar ${nome}` : `${nome}: ativar`, acoes); else openObject(oid);
+    };
+    const cancelaMira = () => { // J-62 · o segundo dedo no Cancelar: a mira some e o dedo que mirava, ao soltar, não faz nada
+      if (fase !== 'mirando' || !mira) return;
+      fase = null; fim(); root.dataset.mirou = 'cancelou';
+      try { if (id != null && el.hasPointerCapture(id)) el.releasePointerCapture(id); } catch (err) { /* sem captura, nada a soltar */ }
     };
     el.addEventListener('pointerup', solta);
     el.addEventListener('pointercancel', solta);
@@ -42612,12 +42633,22 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       buttons.length ? h('div', { class: 'tb-sheet__actions' }, ...buttons) : null,
       texto),
       // J-56 · a carta ampliada para escolher volta à lista de onde veio (ou só fecha, sem escolher)
-      actions: [voltar ? Button('Voltar', { id: 'tb-ampliada-voltar', onClick: () => { closeDialog(); voltar(); } }) : Button('Fechar', { onClick: closeDialog })] });
+      // J-62 · MJ27 · na escolha encadeada a ampliada é um passo: "Cancelar" (o mesmo da J-61) volta ao passo anterior sem escolher
+      actions: [voltar ? cancelaPasso(voltar, { id: 'tb-ampliada-voltar' }) : Button('Fechar', { onClick: closeDialog })] });
   }
   // A15 · as ações de uma carta são descritas uma vez e viram botão (folha) ou chip (espiar)
   const doBtn = (label, action, opts = {}) => ({ label, action, variant: opts.variant });
-  const toButton = d => d.disabled ? Button(d.label, { block: true, disabled: true }) : Button(d.label, { block: true, variant: d.variant,
-    onClick: () => { closeDialog(); if (d.abre) d.abre(); else if (d.opcoes) escolher(d.label, d.opcoes); else act(d.action, { rotulo: d.label }); } });
+  // J-62 · MJ27 · `voltar` reabre a folha da carta: o primeiro passo da escolha encadeada volta para ela
+  const toButton = (d, voltar = null) => d.disabled ? Button(d.label, { block: true, disabled: true }) : Button(d.label, { block: true, variant: d.variant,
+    onClick: () => { closeDialog(); if (d.abre) d.abre(voltar); else if (d.opcoes) escolher(d.label, d.opcoes, { voltar }); else act(d.action, { rotulo: d.label }); } });
+  /* J-62 · MJ27 · relato #55 · o botão de baixo de toda escolha encadeada antes de jogar (alvo → carta ampliada → custo → X →
+     cor) é o "Cancelar" da J-61 (mesmo nome, fantasma, ícone fechar, 44 px, no pé da caixa): volta um passo — do custo para o
+     alvo, do X para a folha da carta — e o primeiro passo volta para a folha (ou só fecha, quando a escolha não veio de uma).
+     Nada vai ao motor: cancelar é não despachar. O X do topo e tocar fora continuam fechando tudo. */
+  function cancelaPasso(voltar, { id = 'tb-escolha-cancelar' } = {}) {
+    return Button('Cancelar', { id, variant: 'ghost', icone: 'fechar', dataset: { volta: voltar ? 'passo' : 'fecha' },
+      title: voltar ? 'Voltar ao passo anterior sem jogar nada' : 'Fechar sem jogar nada', onClick: () => { closeDialog(); if (voltar) voltar(); } });
+  }
 
   /* ---- Leva 104 · escolhas de quem paga: valor de X e o que vira, sacrifica, descarta ou volta ---- */
   const nomesDe = (s, lista) => {
@@ -42651,17 +42682,18 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     return out.map(d => (d.opcoes && d.opcoes.length > 1 ? d : (d.opcoes ? (({ opcoes, ...resto }) => resto)(d) : d)));
   }
   /** Leva 131 · a folha enxuga os botões "ação → alvo" (regra em T.enxugaAlvos) e abre a lista por dono quando precisa. */
-  const enxugaAlvos = (lista, efeitosDe) => T.enxugaAlvos(table.state, lista, efeitosDe).map(d => d.grupos ? { ...d, abre: () => escolherAlvo(d.titulo, d.grupos.map(g => g.action), { sempre: !!d.semEfeito,
+  const enxugaAlvos = (lista, efeitosDe) => T.enxugaAlvos(table.state, lista, efeitosDe).map(d => d.grupos ? { ...d, abre: (voltar = null) => escolherAlvo(d.titulo, d.grupos.map(g => g.action), { sempre: !!d.semEfeito, voltar,
     // escolhido o alvo, se há mais de uma forma de pagar (qual Floresta volta, qual criatura vira), a pergunta seguinte é essa
-    executa: a => { const g = d.grupos.find(x => x.action === a); return g && g.opcoes.length > 1 ? escolher(g.label, g.opcoes) : act(a); } }) } : d);
+    // (J-62 · o Cancelar dela volta ao alvo: `reabre` vem da lista de alvos)
+    executa: (a, reabre) => { const g = d.grupos.find(x => x.action === a); return g && g.opcoes.length > 1 ? escolher(g.label, g.opcoes, { voltar: reabre }) : act(a); } }) } : d);
   const CORES_DA_ESCOLHA = [['W', 'Branco'], ['U', 'Azul'], ['B', 'Preto'], ['R', 'Vermelho'], ['G', 'Verde']];
-  function escolher(titulo, opcoes) {
+  function escolher(titulo, opcoes, { voltar = null } = {}) {
     const s = table.state;
     const xs = [...new Set(opcoes.map(a => a.x).filter(x => x != null))].sort((p, q) => p - q);
-    if (xs.length > 1) return escolherX(titulo, opcoes, xs);
+    if (xs.length > 1) return escolherX(titulo, opcoes, xs, { voltar });
     // ações que só diferem na cor escolhida: a pergunta é a cor (antes a folha executava a primeira, sempre branco)
     const cores = CORES_DA_ESCOLHA.filter(([c]) => opcoes.some(a => a.color === c));
-    if (cores.length > 1 && opcoes.every(a => a.color)) return escolherCor(titulo, opcoes, cores);
+    if (cores.length > 1 && opcoes.every(a => a.color)) return escolherCor(titulo, opcoes, cores, { voltar });
     const campos = CAMPOS_PAGAMENTO.filter(([c]) => opcoes.some(a => a.pay && a.pay[c] != null));
     if (!campos.length && !opcoes.some(a => a.add === null)) return act(opcoes[0]);
     // uma pergunta só quando todas as opções pagam do mesmo jeito; senão, "como você paga?"
@@ -42672,9 +42704,9 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       if (ids.length && ids.every(x => s.objects[x] && E.isCreature(s, s.objects[x]))) unico = ['sacrifice', n => n > 1 ? 'Quais criaturas você sacrifica para pagar?' : 'Qual criatura você sacrifica para pagar?', 'Sacrificar']; }
     // Leva 125 · quando a escolha é UMA carta (descartar, sacrificar, virar, devolver, exilar), a pergunta mostra as
     // cartas, não uma lista de botões dourados com o nome: cópias iguais da mão ou do cemitério viram uma carta só com ×N.
-    if (unico && qtd === 1 && unico[0] !== 'revelar' && opcoes.every(a => s.objects[[].concat(a.pay[unico[0]])[0]])) return escolherCarta(titulo, unico, opcoes);
+    if (unico && qtd === 1 && unico[0] !== 'revelar' && opcoes.every(a => s.objects[[].concat(a.pay[unico[0]])[0]])) return escolherCarta(titulo, unico, opcoes, { voltar });
     // Leva 136 · duas ou mais cartas (Birchlore Rangers: vire dois Elfos): toca nas cartas, em vez de uma lista com todos os pares
-    if (unico && qtd > 1 && unico[0] !== 'revelar' && opcoes.every(a => [].concat(a.pay[unico[0]]).every(x => s.objects[x]))) return escolherVarias(titulo, unico, qtd, opcoes);
+    if (unico && qtd > 1 && unico[0] !== 'revelar' && opcoes.every(a => [].concat(a.pay[unico[0]]).every(x => s.objects[x]))) return escolherVarias(titulo, unico, qtd, opcoes, { voltar });
     const pergunta = unico ? unico[1] : () => 'Como você paga o custo?';
     const rotulos = opcoes.map(a => {
       const partes = CAMPOS_PAGAMENTO.filter(([c]) => a.pay && a.pay[c] != null).map(([c, , verbo]) => c === 'revelar' ? `${verbo} ${a.pay[c]}` : `${verbo} ${nomesDe(s, a.pay[c])}`);
@@ -42686,16 +42718,16 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     Dialog({ title: titulo, body: Stack({},
       h('p', { class: 'ds-text ds-text--sm ds-text--muted', id: 'tb-escolha-pergunta' }, pergunta(qtd)),
       h('div', { class: 'tb-sheet__actions', id: 'tb-escolha' }, ...opcoes.map((a, i) => Button(finais[i], { block: true, variant: 'primary', onClick: () => { closeDialog(); act(a); } })))),
-      actions: [Button('Voltar', { onClick: closeDialog })] });
+      actions: [cancelaPasso(voltar)] });
   }
-  function escolherCor(titulo, opcoes, cores) {
+  function escolherCor(titulo, opcoes, cores, { voltar = null } = {}) {
     Dialog({ title: titulo, body: Stack({},
       h('p', { class: 'ds-text ds-text--sm ds-text--muted' }, 'Contra qual cor?'),
       h('div', { class: 'tb-sheet__actions', id: 'tb-escolha-cor' }, ...cores.map(([c, nome]) => Button(nome, { block: true, variant: 'primary', dataset: { color: c },
-        onClick: () => { closeDialog(); escolher(titulo, opcoes.filter(a => a.color === c)); } })))),
-      actions: [Button('Voltar', { onClick: closeDialog })] });
+        onClick: () => { closeDialog(); escolher(titulo, opcoes.filter(a => a.color === c), { voltar: () => escolherCor(titulo, opcoes, cores, { voltar }) }); } })))),
+      actions: [cancelaPasso(voltar)] });
   }
-  function escolherCarta(titulo, [campo, pergunta, verbo], opcoes) {
+  function escolherCarta(titulo, [campo, pergunta, verbo], opcoes, { voltar = null } = {}) {
     const s = table.state;
     const grupos = new Map();
     for (const a of opcoes) { const oid = [].concat(a.pay[campo])[0], o = s.objects[oid];
@@ -42716,11 +42748,11 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     Dialog({ title: titulo, body: Stack({},
       h('p', { class: 'ds-text ds-text--sm ds-text--muted', id: 'tb-escolha-pergunta' }, `${pergunta(1)} Toque na carta.`),
       h('div', { class: 'tb-zonegrid', id: 'tb-escolha' }, ...cartas)),
-      actions: [Button('Voltar', { onClick: closeDialog })] });
+      actions: [cancelaPasso(voltar)] });
   }
   /** Leva 136 · escolha de N cartas para pagar um custo. Cartas iguais no mesmo estado viram uma pilha ×N: cada toque
    *  leva mais uma dela; tocar numa pilha já usada inteira (ou com a conta fechada) tira as dela. Fechou a conta, age. */
-  function escolherVarias(titulo, [campo, pergunta, verbo], qtd, opcoes) {
+  function escolherVarias(titulo, [campo, pergunta, verbo], qtd, opcoes, { voltar = null } = {}) {
     const s = table.state;
     const chaveDe = oid => { const o = s.objects[oid]; return ['hand', 'graveyard'].includes(o.zone) ? `${o.zone}|${o.name}` : `campo|${o.name}|${!!o.tapped}|${!!o.sick}|${JSON.stringify(o.counters || {})}`; };
     const grupos = new Map();
@@ -42748,13 +42780,14 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       }));
     }
     pinta();
-    Dialog({ title: titulo, body: Stack({}, conta, grade), actions: [Button('Voltar', { onClick: closeDialog })] });
+    Dialog({ title: titulo, body: Stack({}, conta, grade), actions: [cancelaPasso(voltar)] });
   }
   /** Leva 110 · escolha de alvo fora da folha da carta (insanidade, conjurar de graça): todos os alvos,
    *  jogadores primeiro, numa folha que rola. Antes o aviso mostrava só os três primeiros botões. */
-  function escolherAlvo(titulo, opcoes, { sempre = false, acao = a => a, executa = a => act(acao(a)) } = {}) {
+  function escolherAlvo(titulo, opcoes, { sempre = false, acao = a => a, executa = a => act(acao(a)), voltar = null } = {}) {
     const s = table.state;
-    if (opcoes.length === 1 && !sempre) return executa(opcoes[0]);
+    if (opcoes.length === 1 && !sempre) return executa(opcoes[0], voltar); // alvo único: o passo seguinte volta direto para o de antes
+    const reabre = () => escolherAlvo(titulo, opcoes, { sempre: true, acao, executa, voltar }); // J-62 · o passo seguinte volta a esta lista
     const eu = table.viewer();
     // grupos: jogadores, suas permanentes, as do oponente (12 "Grizzly Bear" sem dono não dizem nada)
     // J-34 · relato #41 · carta fora do campo (cemitério do Dread Return) não é permanente: ganha grupo próprio, pelo dono
@@ -42768,8 +42801,9 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const botao = a => { const ts = a.targets || []; const st = ts.length === 1 ? estado(ts[0]) : null;
       // J-56 · alvo que é uma carta passa pela carta ampliada (Voltar reabre esta lista); jogador escolhe direto
       const umaCarta = ts.length === 1 && ts[0].oid != null && s.objects[ts[0].oid];
-      return Button(ts.map(nome).join(' + ') || 'Sem alvo', { block: true, onClick: () => { closeDialog(); if (!umaCarta) return executa(a);
-        ampliaParaEscolher(ts[0].oid, 'Escolher', () => executa(a), { para: titulo, voltar: () => escolherAlvo(titulo, opcoes, { sempre: true, acao, executa }) }); }, ...(st ? { title: st } : {}) }, ); };
+      // J-62 · escolhida pela ampliada, o passo seguinte (o custo) volta à ampliada, e ela à lista
+      const amplia = () => ampliaParaEscolher(ts[0].oid, 'Escolher', () => executa(a, amplia), { para: titulo, voltar: reabre });
+      return Button(ts.map(nome).join(' + ') || 'Sem alvo', { block: true, onClick: () => { closeDialog(); if (!umaCarta) return executa(a, reabre); amplia(); }, ...(st ? { title: st } : {}) }, ); };
     const oponente = s.players.find((_, i) => i !== eu);
     const TITULOS = ['Jogadores', 'Suas permanentes', `Permanentes de ${oponente ? oponente.name : 'oponente'}`, `Cartas do seu ${zonaDe(3)}`, `Cartas do ${zonaDe(4)} de ${oponente ? oponente.name : 'oponente'}`];
     const secoes = [0, 1, 2, 3, 4].map(g => ord.filter(a => grupo(a) === g)).map((lista, g) => lista.length ? Stack({ style: { gap: 'var(--space-2)' } },
@@ -42779,7 +42813,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const cartas = ord.some(a => grupo(a) >= 3), pagaDepois = opcoes.some(a => a.pay && CAMPOS_PAGAMENTO.some(([c]) => a.pay[c] != null));
     const pergunta = `${cartas ? 'Qual carta é o alvo?' : 'Qual é o alvo?'}${pagaDepois ? ' Depois você paga o custo.' : ''}`;
     Dialog({ title: titulo, body: Stack({}, cartas || pagaDepois ? h('p', { class: 'ds-text ds-text--sm ds-text--muted', id: 'tb-alvos-pergunta' }, pergunta) : null, h('div', { class: 'tb-sheet__actions', id: 'tb-alvos' }, ...secoes)),
-      actions: [Button('Voltar', { onClick: closeDialog })] });
+      actions: [cancelaPasso(voltar)] });
   }
   /** X: um seletor com − e +, o total em símbolos e a confirmação. Só valores pagáveis. */
   /** Leva 122 · divisão de N manas em qualquer combinação de cores. Um toque numa cor soma uma mana; "Completar" enche o
@@ -42811,13 +42845,13 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       h('div', { class: 'tb-troca__acoes' }, completa, gera)),
       actions: [Button('Voltar', { onClick: closeDialog })] });
   }
-  function escolherX(titulo, opcoes, xs) {
+  function escolherX(titulo, opcoes, xs, { voltar = null, inicio = null } = {}) {
     const s = table.state, a0 = opcoes[0], o = s.objects[a0.oid], f = s.facts[o.name];
     // CR2c.7 · habilidade com X: o custo é o da habilidade ("Spend only black mana on X": X em símbolos da cor); [−X] tira lealdade
     const hab = a0.t === 'activate' ? (E.abilitiesOf(s, o).filter(k => k.kind === 'activated')[a0.index || 0] || {}) : null;
     const lealdadeX = !!hab && hab.loyalty === '-X', xCor = hab && (hab.cost || {}).xCor;
     const base = hab ? E.parseCost((hab.cost || {}).mana || '') : a0.bestow ? E.parseCost(((f.script || {}).bestow || {}).mana || '') : f.cost;
-    let i = xs.length > 1 ? Math.min(1, xs.length - 1) : 0; // começa em X = 1 quando dá
+    let i = inicio != null && inicio < xs.length ? inicio : xs.length > 1 ? Math.min(1, xs.length - 1) : 0; // começa em X = 1 quando dá (J-62 · ou no X de antes, ao voltar)
     const valor = h('output', { class: 'tb-x__valor', id: 'tb-x-valor', 'aria-live': 'polite' });
     const total = h('p', { class: 'tb-x__total', id: 'tb-x-total' });
     const confirma = Button('', { block: true, variant: 'primary', classe: 'tb-x__ok' });
@@ -42836,13 +42870,14 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       const x = xs[i];
       const resto = opcoes.filter(a => a.x === x);
       closeDialog();
-      if (resto.length > 1) escolher(titulo, resto); else act(resto[0]);
+      const ix = i; // J-62 · o custo depois do X volta ao X, no mesmo valor
+      if (resto.length > 1) escolher(titulo, resto, { voltar: () => escolherX(titulo, opcoes, xs, { voltar, inicio: ix }) }); else act(resto[0]);
     });
     pinta();
     Dialog({ title: titulo, body: Stack({ class: 'tb-x' },
       h('p', { class: 'ds-text ds-text--sm ds-text--muted' }, `Quanto é X? Dá para pagar de ${xs[0]} a ${xs[xs.length - 1]}.`),
       Row({ class: 'tb-x__linha' }, menos, valor, mais), total, confirma),
-      actions: [Button('Voltar', { onClick: closeDialog })] });
+      actions: [cancelaPasso(voltar)] });
   }
 
   function moveButtons(v, oid) {
@@ -42899,7 +42934,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   }
   function openObject(oid) {
     const d = acoesDe(oid); if (!d) return;
-    sheet(ocultaDe(table.state, d.o) ? VERSO_NOME : d.o.name, d.acoes.map(toButton), d.where, d.o.owner != null ? d.o.owner : d.o.controller); // D7 · a folha também não revela a carta do outro
+    sheet(ocultaDe(table.state, d.o) ? VERSO_NOME : d.o.name, d.acoes.map(x => toButton(x, () => openObject(oid))), d.where, d.o.owner != null ? d.o.owner : d.o.controller); // D7 · a folha também não revela a carta do outro · J-62 · a escolha que sai dela volta para ela
   }
   /** A15 · tudo que a carta pode fazer agora, como descrições, e a linha de contexto. */
   function acoesDe(oid) {

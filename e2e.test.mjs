@@ -6591,7 +6591,11 @@ test('e2e · Leva 131 · Faeries: Hydroblast sem nada vermelho não oferece dest
   assert.match(await page.innerText('.ds-dialog'), /sem efeito/); assert.match(await page.innerText('#tb-alvos'), /Suas permanentes/i);
   assert.equal((await M.est()).pilha, 0, 'abrir a lista não conjura nada');
   await auditaTela(page, 'lista de alvos sem efeito');
-  await page.locator('.ds-dialog button', { hasText: 'Voltar' }).click(); await page.waitForTimeout(150);
+  // J-62 · MJ27 · expectativa ajustada: o pé da lista diz "Cancelar" e volta um passo, para a folha do Hydroblast (antes "Voltar"
+  // fechava tudo); a folha fecha no X do topo
+  await page.locator('.ds-dialog__actions button', { hasText: 'Cancelar' }).click(); await page.waitForSelector('#tb-alvos', { state: 'detached' });
+  assert.equal((await M.est()).pilha, 0, 'cancelar a lista não conjura nada');
+  await page.click('#ds-dialog-close'); await page.waitForSelector('.ds-dialog', { state: 'detached' }); await page.waitForTimeout(150);
   // primeira Sprite em campo (sem mágica na pilha o gatilho não tem alvo e sai)
   await page.locator('#tb-hand .tb-card[aria-label^="Spellstutter"]').first().click(); await naFolha(page, /^Conjurar/);
   let e = await M.resolve(); assert.equal(e.pend, null); assert.ok(e.campo.includes('Spellstutter Sprite'));
@@ -14244,7 +14248,7 @@ test('e2e · J-56 escolher pela carta ampliada: tocar na carta da escolha abre a
         botao: b.textContent.trim(), alturas: [R(b).height, R(v).height], primario: b.className, voltar: v.textContent.trim(), texto: d.innerText }; });
     const onde = `${w} ${tema}`;
     assert.ok(/Forest/.test(a.titulo) && /Roost Seek/.test(a.para) && a.img && a.imgW >= 160, `${onde}: a carta ampliada, com a arte grande e para quê ` + JSON.stringify(a));
-    assert.ok(a.botao === 'Escolher' && /primary/.test(a.primario) && a.voltar === 'Voltar' && a.alturas.every(x => x >= 42.5), `${onde}: Escolher (primário) e Voltar, na altura de toque dos botões do app (44 px na densidade padrão) ` + JSON.stringify(a));
+    assert.ok(a.botao === 'Escolher' && /primary/.test(a.primario) && a.voltar === 'Cancelar' && a.alturas.every(x => x >= 42.5), `${onde}: Escolher (primário) e Cancelar (J-62 · MJ27: o "Voltar" virou o "Cancelar" de toda escolha encadeada, que volta um passo), na altura de toque dos botões do app (44 px na densidade padrão) ` + JSON.stringify(a));
     await auditaTela(page, `J-56 · ampliada ${onde}`);
     await page.click('#tb-ampliada-voltar'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
     assert.equal(await escolhidas(), 0, `${onde}: Voltar fecha sem escolher`);
@@ -17612,6 +17616,170 @@ test('e2e · J-61 seta do ataque acompanha a rolagem da mesa; Cancelar desfaz a 
   await page.waitForTimeout(450); await page.click(`.tb-side--me .tb-card[data-oid="${muroOid}"]`); await page.click('.ds-dialog >> text=Bloquear Sky Pike');
   await page.click('#tb-block'); await reveal(page);
   assert.equal(await page.locator('#tb-attack-cancelar, #tb-block-cancelar').count(), 0, 'declarado o bloqueio, não há cancelar');
+  assert.deepEqual(errors, []);
+});
+
+// J-62 (trilha jogabilidade, MJ27 `16º-ug`, relato #55) · o resto do "cancelar jogada em curso": toda escolha encadeada antes de
+// jogar (alvo → carta ampliada → custo → X → cor) tem embaixo o mesmo "Cancelar" da J-61 (fantasma, ícone fechar, 44 px), que
+// volta UM passo — do custo para a carta ampliada, dela para a lista de alvos, da lista para a folha da carta — e nada vai ao
+// motor. Antes o botão dizia "Voltar" e fechava tudo (do custo, a pessoa caía de volta na mesa e refazia a jogada inteira).
+const cancelaDaCaixa = page => page.evaluate(() => [...document.querySelectorAll('.ds-dialog__actions button')].map(b => ({ id: b.id, texto: b.innerText.trim(),
+  h: b.getBoundingClientRect().height, icone: !!b.querySelector('svg'), fantasma: b.classList.contains('ds-btn--ghost') })));
+const confereCancela = async (page, onde) => {
+  const bs = await cancelaDaCaixa(page);
+  assert.equal(bs.length, 1, `${onde}: um botão no pé da caixa ` + JSON.stringify(bs));
+  assert.ok(bs[0].texto === 'Cancelar' && bs[0].icone && bs[0].fantasma && bs[0].h >= 42.5, `${onde}: "Cancelar" fantasma com o ícone fechar, na altura de toque ` + JSON.stringify(bs));
+};
+test('e2e · J-62 Cancelar volta um passo na escolha encadeada do Dread Return: custo → carta ampliada → alvo → folha, com o motor intacto', { skip }, async t => {
+  // Texto oficial do Dread Return: o mesmo do teste J-34 (.listas/oficiais-cartas.json, consulta de 12/10/2026).
+  const DREAD = { name: 'Dread Return', mana_cost: '{2}{B}{B}', type_line: 'Sorcery', oracle_text: 'Return target creature card from your graveyard to the battlefield.\nFlashback—Sacrifice three creatures. (You may cast this card from your graveyard for its flashback cost. Then exile it.)' };
+  const M = await comLista125(t, '20 Swamp\n12 Llanowar Elves\n1 Elvish Mystic\n1 Gladecover Scout\n1 Slippery Bogle\n1 Silhana Ledgewalker\n4 Dread Return', ['Swamp', 'Llanowar Elves', 'Elvish Mystic', 'Gladecover Scout', 'Slippery Bogle', 'Silhana Ledgewalker', 'Dread Return'], '4', { extras: [DREAD] });
+  const { page } = M;
+  await page.evaluate(() => { const s = window.__estanteMesa.estado(), z = s.zones[0];
+    const tira = nome => { for (const de of ['library', 'hand']) { const i = z[de].findIndex(o => s.objects[o].name === nome); if (i >= 0) return z[de].splice(i, 1)[0]; } return null; };
+    const poe = (nome, zona) => { const oid = tira(nome); Object.assign(s.objects[oid], { zone: zona, controller: 0, tapped: false, sick: false, damage: 0, counters: {} }); z[zona].push(oid); return oid; };
+    poe('Dread Return', 'graveyard'); for (const n of ['Llanowar Elves', 'Elvish Mystic', 'Gladecover Scout', 'Slippery Bogle', 'Silhana Ledgewalker']) poe(n, 'graveyard');
+    for (let i = 0; i < 4; i++) poe('Llanowar Elves', 'battlefield');
+    window.__estanteMesa.repinta(); });
+  const motor = () => page.evaluate(() => JSON.stringify(window.__estanteMesa.estado()));
+  const antes = await motor();
+  await page.click('#tb-cemiterio-me'); await page.waitForSelector('.ds-dialog');
+  await page.locator('.ds-dialog .tb-card[aria-label^="Dread Return"]').first().click(); await page.waitForTimeout(300);
+  const lampejo = () => page.locator('.ds-dialog .tb-sheet__actions button', { hasText: /^Lampejo do passado/ });
+  await lampejo().click(); await page.waitForSelector('#tb-alvos');
+  // 1 · a lista de alvos (o primeiro passo): Cancelar no pé
+  await confereCancela(page, 'alvo'); await auditaTela(page, 'J-62 · alvo com Cancelar');
+  // 2 · a carta ampliada do alvo: o mesmo Cancelar (antes "Voltar"); volta à lista
+  await page.locator('#tb-alvos button').first().click(); await page.waitForSelector('#tb-ampliada-escolher');
+  await confereCancela(page, 'carta ampliada');
+  await page.click('#tb-ampliada-voltar'); await page.waitForSelector('#tb-alvos');
+  assert.equal(await motor(), antes, 'da ampliada para a lista: nada foi ao motor');
+  // 3 · o custo (três criaturas): toca uma, Cancelar volta para a carta ampliada do alvo, e não para a mesa
+  await page.locator('#tb-alvos button').first().click(); await page.click('#tb-ampliada-escolher'); await page.waitForSelector('#tb-escolha');
+  await confereCancela(page, 'custo'); await auditaTela(page, 'J-62 · custo com Cancelar');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/j62-custo-cancelar.png' });
+  await page.locator('#tb-escolha .tb-card').first().click(); await page.waitForTimeout(150);
+  assert.match(await page.innerText('#tb-escolha-pergunta'), /1 de 3/, 'uma criatura escolhida para o sacrifício');
+  assert.equal(await motor(), antes, 'escolher no custo ainda não sacrifica');
+  await page.click('#tb-escolha-cancelar'); await page.waitForSelector('#tb-ampliada-escolher');
+  assert.match(await page.innerText('#tb-ampliada-para'), /Dread Return|Lampejo/i, 'do custo, um passo atrás: a carta ampliada do alvo, ainda para o lampejo');
+  assert.equal(await motor(), antes, 'cancelar o custo não sacrificou nada');
+  // 4 · ampliada → lista → folha da carta (o primeiro passo volta para a folha, não fecha tudo)
+  await page.click('#tb-ampliada-voltar'); await page.waitForSelector('#tb-alvos');
+  await page.click('#tb-escolha-cancelar'); await page.waitForSelector('#tb-alvos', { state: 'detached' });
+  assert.equal(await lampejo().count(), 1, 'da lista de alvos, a folha do Dread Return volta com o botão do lampejo');
+  assert.equal(await page.innerText('#ds-dialog-title'), 'Dread Return');
+  assert.equal(await motor(), antes, 'cancelar passo a passo até a folha: o motor idêntico ao de antes');
+  // 5 · o X do topo continua fechando tudo; refeita, a jogada vai até o fim (o caminho de volta não quebra o de ida)
+  await page.click('#ds-dialog-close'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
+  assert.equal(await motor(), antes);
+  await page.click('#tb-cemiterio-me'); await page.waitForSelector('.ds-dialog');
+  await page.locator('.ds-dialog .tb-card[aria-label^="Dread Return"]').first().click(); await page.waitForTimeout(300);
+  await lampejo().click(); await page.waitForSelector('#tb-alvos'); await page.locator('#tb-alvos button').first().click(); await escolhe(page); await page.waitForSelector('#tb-escolha');
+  for (let i = 0; i < 6 && await page.locator('#tb-escolha').count(); i++) { await page.locator('#tb-escolha .tb-card').nth(i % await page.locator('#tb-escolha .tb-card').count()).click(); await page.waitForTimeout(200); }
+  const dr = await page.evaluate(() => { const s = window.__estanteMesa.estado(); return Object.values(s.objects).find(o => o.name === 'Dread Return' && o.owner === 0 && o.zone !== 'library' && o.zone !== 'hand').zone; });
+  assert.ok(['stack', 'exile'].includes(dr), 'confirmado o custo, o Dread Return é conjurado (na pilha ou já resolvido no exílio): ' + dr);
+  assert.deepEqual(M.errors, []);
+});
+
+// J-62 · do X um passo atrás: Kaervek's Torch ({X}{R}, X de dano a qualquer alvo). Com poucos alvos, cada alvo já é um botão da
+// folha ("Conjurar → Você"); o passo seguinte é o X, e o Cancelar do X volta à folha da carta (antes fechava tudo). Nada vai ao motor.
+test('e2e · J-62 Cancelar no X volta à folha da carta, com o alvo ainda por escolher; motor intacto', { skip }, async t => {
+  const TORCH = JSON.parse(readFileSync(join(ROOT, '.listas', 'oficiais-cartas.json'), 'utf8')).cartas.find(c => c.name === "Kaervek's Torch"); // Oracle do Forge, consulta de 12/10/2026
+  assert.ok(TORCH, "texto oficial do Kaervek's Torch");
+  const M = await comLista125(t, "20 Mountain\n10 Grizzly Bears\n10 Kaervek's Torch", ['Mountain', 'Grizzly Bears', "Kaervek's Torch"], '4', { extras: [TORCH, { name: 'Grizzly Bears', mana_cost: '{1}{G}', type_line: 'Creature — Bear', oracle_text: '', power: '2', toughness: '2' }] });
+  const { page } = M;
+  await page.evaluate(() => { const s = window.__estanteMesa.estado(), z = s.zones[0];
+    const tira = nome => { for (const de of ['library', 'hand']) { const i = z[de].findIndex(o => s.objects[o].name === nome); if (i >= 0) return z[de].splice(i, 1)[0]; } return null; };
+    const poe = (nome, zona) => { const oid = tira(nome); Object.assign(s.objects[oid], { zone: zona, controller: 0, tapped: false, sick: false, damage: 0, counters: {} }); z[zona].push(oid); return oid; };
+    for (let i = 0; i < 4; i++) poe('Mountain', 'battlefield');
+    poe('Grizzly Bears', 'battlefield');
+    if (!z.hand.some(o => s.objects[o].name === "Kaervek's Torch")) poe("Kaervek's Torch", 'hand');
+    window.__estanteMesa.repinta(); });
+  const motor = () => page.evaluate(() => JSON.stringify(window.__estanteMesa.estado()));
+  const antes = await motor();
+  await handCard(page, "Kaervek's Torch").click(); await page.waitForSelector('.ds-dialog .tb-sheet__actions button');
+  const titulo = await page.innerText('#ds-dialog-title');
+  const conjurar = () => page.locator('.ds-dialog .tb-sheet__actions button', { hasText: /^Conjurar → Você/ });
+  assert.equal(await conjurar().count(), 1, 'a folha tem o alvo como botão');
+  await conjurar().click(); await page.waitForSelector('#tb-x-valor');
+  await confereCancela(page, 'X'); await auditaTela(page, 'J-62 · X com Cancelar');
+  assert.equal(await page.getAttribute('#tb-escolha-cancelar', 'data-volta'), 'passo', 'o Cancelar do X volta um passo (não só fecha)');
+  await page.click('#tb-x-mais'); await page.waitForTimeout(80);
+  await page.click('#tb-escolha-cancelar'); await page.waitForSelector('#tb-x-valor', { state: 'detached' });
+  assert.equal(await page.innerText('#ds-dialog-title'), titulo, 'do X, um passo atrás: a folha do Torch');
+  assert.equal(await conjurar().count(), 1, 'com os botões de alvo de volta');
+  assert.equal(await motor(), antes, 'do X à folha: nada foi ao motor');
+  // de novo pelo outro alvo, até o fim: o caminho de volta não quebra o de ida
+  await page.locator('.ds-dialog .tb-sheet__actions button', { hasText: /^Conjurar → Grizzly Bears/ }).click(); await escolhe(page); await page.waitForSelector('#tb-x-valor');
+  await page.click('.tb-x__ok'); await page.waitForTimeout(300);
+  assert.notEqual(await page.evaluate(() => { const s = window.__estanteMesa.estado(); return Object.values(s.objects).filter(o => o.name === "Kaervek's Torch" && o.owner === 0 && o.zone === 'hand').length; }), await page.evaluate(a => Object.values(JSON.parse(a).objects).filter(o => o.name === "Kaervek's Torch" && o.owner === 0 && o.zone === 'hand').length, antes), 'confirmado o X, o Torch sai da mão');
+  assert.deepEqual(M.errors, []);
+});
+
+// J-62 · a mira por arrasto mostra "Cancelar" (44 px, no pé da tela acima da doca) enquanto o dedo está na mesa: soltar nele
+// desiste (mesmo com um alvo embaixo, ele vence); um segundo dedo tocando nele também. Antes não havia nada à vista: só
+// soltar no vazio ou na própria carta cancelava, e quem não sabia disso conjurava sem querer.
+test('e2e · J-62 mira por arrasto com Cancelar à vista: soltar nele não conjura, tocar nele com outro dedo desiste; 360 e 412, dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'Raios', '20 Mountain\n12 Lightning Bolt\n12 Grizzly Bear', 'livre');
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start');
+  await page.fill('#mesa-seed', '4'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  await page.waitForSelector('#tb-pass');
+  const c = await page.evaluate(() => { const M = window.__estanteMesa, s = M.estado(), p = s.turn.active, q = 1 - p;
+    const pega = (dono, nm, n) => Object.values(s.objects).filter(o => o.owner === dono && o.name === nm && o.zone === 'library').slice(0, n).map(o => o.oid);
+    for (const oid of pega(p, 'Mountain', 2)) M.act({ t: 'move', p, oid, to: 'battlefield' });
+    const raios = pega(p, 'Lightning Bolt', 2); for (const oid of raios) M.act({ t: 'move', p, oid, to: 'hand' });
+    return { p, q, raios }; });
+  const motor = () => page.evaluate(() => JSON.stringify(window.__estanteMesa.estado()));
+  const abreMao = async () => { await page.evaluate(() => document.querySelector('#tb').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))); await page.waitForTimeout(450);
+    if ((await page.getAttribute('#tb-hand-toggle', 'aria-expanded')) !== 'true') { await page.click('#tb-hand-toggle'); await page.waitForTimeout(450); } };
+  const centro = sel => page.evaluate(sel => { const r = document.querySelector(sel).getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; }, sel);
+  const carta = oid => `#tb-hand .tb-card[data-oid="${oid}"]`;
+  const comecaMira = async oid => {
+    await page.evaluate(sel => document.querySelector(sel).scrollIntoView({ inline: 'center', block: 'nearest' }), carta(oid)); await page.waitForTimeout(120);
+    const a = await centro(carta(oid));
+    await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.mouse.move(a.x, a.y - 40, { steps: 5 }); await page.waitForTimeout(350);
+  };
+  const fica = async (rotulo, antes) => {
+    const r = await page.evaluate(oid => ({ zona: window.__estanteMesa.estado().objects[oid].zone, mirou: document.querySelector('#tb').dataset.mirou, dialogo: !!document.querySelector('.ds-dialog'),
+      camada: !!document.querySelector('#tb-mira'), cancela: !!document.querySelector('#tb-mira-cancelar') }), c.raios[0]);
+    assert.deepEqual(r, { zona: 'hand', mirou: 'cancelou', dialogo: false, camada: false, cancela: false }, rotulo);
+    assert.equal(await motor(), antes, rotulo + ': o motor idêntico');
+  };
+  for (const [w, hgt] of [[360, 780], [412, 891]]) for (const tema of ['dark', 'light']) {
+    await page.setViewportSize({ width: w, height: hgt }); await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(200);
+    await abreMao(); const antes = await motor(); const onde = `${w} ${tema}`;
+    assert.equal(await page.locator('#tb-mira-cancelar').count(), 0, `${onde}: sem mira, sem o Cancelar dela`);
+    await comecaMira(c.raios[0]);
+    const b = await page.evaluate(() => { const e = document.querySelector('#tb-mira-cancelar'); if (!e) return null; const r = e.getBoundingClientRect(), cs = getComputedStyle(e);
+      return { texto: e.innerText.trim(), icone: !!e.querySelector('svg'), h: r.height, dentro: r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight, toque: cs.pointerEvents, cor: cs.color, fundo: cs.backgroundColor,
+        mira: document.querySelector('#tb').dataset.mira || null }; });
+    assert.ok(b && b.mira, `${onde}: a mira começou e o Cancelar apareceu ` + JSON.stringify(b));
+    assert.ok(b.texto === 'Cancelar' && b.icone && b.h >= 42.5 && b.dentro && b.toque === 'auto' && b.fundo !== 'rgba(0, 0, 0, 0)', `${onde}: "Cancelar" com ícone, 44 px, inteiro na tela, tocável e com fundo sobre o feltro ` + JSON.stringify(b));
+    await auditaTela(page, `J-62 · mira com Cancelar ${onde}`);
+    if (process.env.SHOTS && w === 360) await page.screenshot({ path: process.env.SHOTS + `/j62-mira-cancelar-${tema}.png` });
+    // passa pela vida do oponente (a seta encaixa) e vai até o Cancelar: ele acende e a seta solta o alvo
+    const vida = await centro('#tb-life-opp'); await page.mouse.move(vida.x, vida.y, { steps: 8 }); await page.waitForTimeout(60);
+    assert.equal(await page.evaluate(() => document.querySelector('#tb-mira').dataset.alvo), `p:${c.q}`, `${onde}: sobre a vida a seta encaixa`);
+    const k = await centro('#tb-mira-cancelar'); await page.mouse.move(k.x, k.y, { steps: 8 }); await page.waitForTimeout(60);
+    assert.deepEqual(await page.evaluate(() => [document.querySelector('#tb-mira-cancelar').dataset.sob, document.querySelector('#tb-mira').dataset.alvo]), ['true', ''], `${onde}: sobre o Cancelar ele acende e não há alvo`);
+    await page.mouse.up(); await page.waitForTimeout(150);
+    await fica(`${onde}: soltar no Cancelar não conjura`, antes);
+  }
+  // segundo dedo: com o dedo da mira parado sobre a vida do oponente, um toque no Cancelar desiste; soltar depois não conjura
+  await page.setViewportSize({ width: 360, height: 780 }); await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark')); await page.waitForTimeout(200);
+  await abreMao(); const antes = await motor();
+  await comecaMira(c.raios[0]);
+  const vida = await centro('#tb-life-opp'); await page.mouse.move(vida.x, vida.y, { steps: 8 }); await page.waitForTimeout(60);
+  await page.evaluate(() => { const e = document.querySelector('#tb-mira-cancelar'), r = e.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
+    for (const tipo of ['pointerdown', 'pointerup']) e.dispatchEvent(new PointerEvent(tipo, { bubbles: true, pointerId: 77, clientX: x, clientY: y, isPrimary: false }));
+    e.click(); });
+  assert.equal(await page.locator('#tb-mira, #tb-mira-cancelar').count(), 0, 'o toque no Cancelar tira a seta e o botão na hora');
+  await page.mouse.up(); await page.waitForTimeout(150);
+  await fica('segundo dedo no Cancelar: soltar sobre a vida depois não conjura', antes);
   assert.deepEqual(errors, []);
 });
 
