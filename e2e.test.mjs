@@ -7792,7 +7792,11 @@ test('e2e · G-338 destaque guiado em Coleção, Notícias e Perfil e encerramen
   // movimento reduzido: o fim chega já no lugar
   await page.evaluate(() => document.documentElement.setAttribute('data-movimento', 'reduzido'));
   await page.click('#tutorial-anterior'); await page.keyboard.press('ArrowRight'); await page.waitForSelector('#tutorial[data-capitulo="fim"]');
-  assert.equal(await page.evaluate(() => [...document.querySelectorAll('.tutorial__fim, .tutorial__fim *')].reduce((n, e) => n + e.getAnimations().length, 0)), 0, 'menos movimento: sem animação no fim');
+  // só as animações de chegada contam (CSSAnimation): a regra global do menos movimento ainda cria transições de .01 ms (cor, foco),
+  // que um navegador lento pega no meio — foi o que deixou este teste instável no CI da fila (5 transições contadas)
+  await page.waitForTimeout(100);
+  const anims = await page.evaluate(() => [...document.querySelectorAll('.tutorial__fim, .tutorial__fim *')].flatMap(e => e.getAnimations().filter(a => typeof a.animationName === 'string').map(a => `${e.className}:${a.animationName}`)));
+  assert.deepEqual(anims, [], 'menos movimento: sem animação de chegada no fim');
   await auditaTela(page, 'G-338 · fim do tour com menos movimento');
   await page.evaluate(() => document.documentElement.removeAttribute('data-movimento'));
   // um item do fim abre a tela do capítulo com o guia (Listas) e passa a contar como experimentado
