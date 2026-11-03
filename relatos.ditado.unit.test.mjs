@@ -137,14 +137,12 @@ test('G-333 · fechaDitado: ponto final ao parar quando a frase não termina em 
   assert.equal(R.fechaDitado('Uma frase\nOutra', 9).texto, 'Uma frase.\nOutra');
 });
 
-test('G-333 · dica de pontuação por idioma, com as palavras inteiras', () => {
-  for (const [l] of R.IDIOMAS_DO_DITADO) { const d = R.DICA_DE_PONTUACAO[l]; assert.ok(d.length >= 5); assert.ok(d.every(([fala, sinal]) => fala.length > 2 && sinal)); }
-  assert.equal(R.DICA_DE_PONTUACAO['pt-BR'][0][0], 'vírgula');
-  // toda palavra da dica é comando de verdade
-  for (const [l] of R.IDIOMAS_DO_DITADO) for (const [fala, sinal] of R.DICA_DE_PONTUACAO[l]) {
-    const saida = R.pontuaDitado('x ' + fala + ' y', l);
-    assert.notEqual(saida, 'x ' + fala + ' y', `${l}: ${fala}`);
-  }
+/* G-337 · relato #56: o painel "Pontuação falada" saiu (o dono o achou deselegante; a pontuação vem do ritmo da fala).
+   Os comandos falados continuam valendo em silêncio, para quem os diz. */
+test('G-337 · sem painel de pontuação: os comandos falados continuam valendo, a dica não existe mais', () => {
+  assert.equal('DICA_DE_PONTUACAO' in R, false, 'a dica saiu do módulo');
+  assert.equal(R.pontuaDitado('a carta vírgula não virou ponto', 'pt-BR'), 'a carta, não virou.');
+  assert.equal(R.pontuaDitado('the card comma did not tap period', 'en-US'), 'the card, did not tap.');
 });
 
 test('G-333 · trechoNovo: final cumulativo (Android) não repete; repetição de verdade fica', () => {
@@ -154,6 +152,58 @@ test('G-333 · trechoNovo: final cumulativo (Android) não repete; repetição d
   assert.deepEqual(J(t('a carta não', 'A Carta Não virou')), { novo: 'virou', acumulado: 'a carta não virou' }, 'sem diferença de maiúscula');
   assert.deepEqual(J(t('não', 'não')), { novo: 'não', acumulado: 'não não' }, 'repetiu a palavra: entra');
   assert.deepEqual(J(t('então', 'então eu cliquei')), { novo: 'então eu cliquei', acumulado: 'então então eu cliquei' }, 'uma palavra só não basta para cortar');
+});
+
+/* G-337 · relato #56: o texto saía triplicado no Android. O final seguinte repete o último trecho inteiro (não só começa
+   pelo acumulado), emenda com palavras em comum ou chega igual duas vezes; `mesclaFala` resolve pela sobreposição. */
+test('G-337 · mesclaFala: repetição do último trecho não entra; emenda com palavras em comum entra só o resto; frase nova entra inteira', () => {
+  const m = P.mesclaFala;
+  assert.deepEqual(J(m('a carta não virou', 'a carta não virou')), { novo: '', acumulado: 'a carta não virou' }, 'o mesmo final de novo');
+  assert.deepEqual(J(m('eu ataquei e a carta não virou', 'a carta não virou')), { novo: '', acumulado: 'eu ataquei e a carta não virou' }, 'só o último trecho repetido');
+  assert.deepEqual(J(m('eu ataquei e a carta', 'a carta não virou')), { novo: 'não virou', acumulado: 'eu ataquei e a carta não virou' }, 'emenda com duas palavras em comum');
+  assert.deepEqual(J(m('eu ataquei e a carta', 'A Carta, não virou!')), { novo: 'não virou!', acumulado: 'eu ataquei e a carta não virou!' }, 'maiúscula e sinal não atrapalham a emenda');
+  assert.deepEqual(J(m('eu ataquei', 'depois ela voltou')), { novo: 'depois ela voltou', acumulado: 'eu ataquei depois ela voltou' }, 'frase nova inteira');
+  assert.deepEqual(J(m('', '  oi  ')), { novo: 'oi', acumulado: 'oi' });
+  assert.deepEqual(J(m('oi', '')), { novo: '', acumulado: 'oi' });
+});
+
+test('G-337 · plataforma: a sequência de eventos do Android (parcial que fica para trás do final, final cumulativo, final repetido) escreve cada palavra uma vez; aoTexto traz a sessão inteira com as pausas', () => {
+  const { Rec, criadas } = falsoReconhecimento();
+  const finais = [], textos = []; let t = 1000;
+  const f = P.webFala({ SpeechRecognition: Rec }, { setTimeout: () => {} });
+  f.start({ aoFinal: x => finais.push(x), aoTexto: x => textos.push(JSON.parse(JSON.stringify(x))), agora: () => t });
+  const a = criadas[0];
+  const ev = lista => a.onresult({ resultIndex: 0, results: lista.map(([x, fin]) => Object.assign([{ transcript: x }], { isFinal: fin })) });
+  ev([['a carta', false]]);
+  ev([['a carta não virou', false]]);
+  ev([['a carta não virou', false], ['a carta não virou', true]]);          // o parcial fica para trás, no índice 0, depois do final
+  t = 1300; ev([['a carta não virou', false], ['a carta não virou', true], ['quando', false]]);
+  t = 2000; ev([['a carta não virou', false], ['a carta não virou', true], ['a carta não virou quando ataquei', true]]); // cumulativo
+  ev([['a carta não virou', false], ['a carta não virou', true], ['a carta não virou quando ataquei', true], ['quando ataquei', true]]); // repetido
+  t = 4500; ev([['a carta não virou', false], ['a carta não virou', true], ['a carta não virou quando ataquei', true], ['quando ataquei', true], ['depois ela', false]]);
+  a.termina(); // o parcial no ar entra uma vez
+  assert.deepEqual(finais, ['a carta não virou', 'quando ataquei', 'depois ela'], 'cada palavra uma vez');
+  const ultimo = textos.at(-1);
+  assert.deepEqual(ultimo.segmentos.map(x => x.texto), ['a carta não virou', 'quando ataquei', 'depois ela']);
+  assert.deepEqual(ultimo.segmentos.map(x => x.pausa), [0, 300, 2500], 'a pausa é do final até a fala recomeçar');
+  assert.equal(ultimo.parcial, ''); assert.equal(ultimo.pausa, 0);
+  assert.ok(textos.some(x => x.parcial === 'depois ela' && x.pausa === 2500), 'o parcial traz a pausa desde o último final');
+  assert.equal(textos.some(x => x.parcial === 'quando'), true, 'o parcial novo vai junto, só o que vem depois do último final');
+  assert.equal(textos.some(x => x.segmentos.length >= 1 && x.parcial === 'a carta não virou'), false, 'depois do final, o parcial que ficou para trás nunca reaparece');
+});
+
+test('G-337 · textoDaSessao: a pausa entre segmentos vira nada, vírgula ou ponto; segmento que já termina em sinal não ganha outro; o parcial vai no fim', () => {
+  const T = R.textoDaSessao;
+  assert.equal(R.sinalDaPausa(0), ''); assert.equal(R.sinalDaPausa(599), ''); assert.equal(R.sinalDaPausa(600), ','); assert.equal(R.sinalDaPausa(1799), ','); assert.equal(R.sinalDaPausa(1800), '.');
+  assert.equal(T([{ texto: 'a carta não virou', pausa: 0 }, { texto: 'quando ataquei', pausa: 300 }]), 'a carta não virou quando ataquei');
+  assert.equal(T([{ texto: 'a carta não virou', pausa: 0 }, { texto: 'quando ataquei', pausa: 900 }]), 'a carta não virou, quando ataquei');
+  assert.equal(T([{ texto: 'a carta não virou', pausa: 0 }, { texto: 'depois ela voltou', pausa: 2500 }]), 'a carta não virou. Depois ela voltou');
+  assert.equal(T([{ texto: 'a carta não virou ponto', pausa: 0 }, { texto: 'depois ela voltou', pausa: 2500 }]), 'a carta não virou. Depois ela voltou', 'sinal dito não dobra');
+  assert.equal(T([{ texto: 'a carta não virou', pausa: 0 }], 'quando'), 'a carta não virou quando', 'parcial no fim');
+  assert.equal(T([{ texto: 'a carta não virou', pausa: 0 }], 'quando', 'pt-BR', 900), 'a carta não virou, quando', 'o parcial já mostra o sinal da pausa');
+  assert.equal(T([{ texto: 'a carta não virou', pausa: 0 }], 'quando', 'pt-BR', 2000), 'a carta não virou. Quando');
+  assert.equal(T([], 'oi'), 'oi'); assert.equal(T([], ''), '');
+  assert.equal(T([{ texto: 'the card', pausa: 0 }, { texto: 'did not tap', pausa: 2000 }], '', 'en-US'), 'the card. Did not tap');
 });
 
 test('G-333 · plataforma: sessão contínua; o mesmo final repetido não duplica; final cumulativo entra só o novo', () => {
