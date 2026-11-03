@@ -12481,6 +12481,7 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Angelsong': { texto: 'npkugq', leva: 'M-587' }, 'Colossal Dreadmask': { texto: '14gvq0l', leva: 'M-587' }, // M-587 · Sentinela do Pauper (Scryfall de 30/10/2026)
   'Tectonic Hazard': { texto: 'jq02et', leva: 'M-587' }, 'Unstable Experiment': { texto: '1f62prx', leva: 'M-587' },
   'Dreams of Laguna': { texto: '1wsneip', leva: 'M-598' }, // M-598 · Sentinela do Pauper (Scryfall de 01/11/2026)
+  'Geothermal Bog': { texto: '1amo2my', leva: 'M-607' }, 'Dawnbringer Cleric': { texto: '3kngfl', leva: 'M-607' }, 'Thought Vessel': { texto: 'xi1v9x', leva: 'M-607' }, // M-607 · Sentinela do Pauper (Scryfall de 03/11/2026)
   'Flawless Maneuver': { texto: '1dbabfl', leva: 'M-577' },
   'Deadly Rollick': { texto: 'mi4hfd', leva: 'M-577' },
   // H-18 · revisão em lote 1 dos competitivos (homologacao): 18 cartas `lida`, texto da Scryfall de 25/10/2026 (cobertura/*.json do ramo catalogo), revisor independente
@@ -21986,6 +21987,7 @@ const __m42 = (function () {
     if (k === 'another target artifact') return { target: { tipos: ['artifact'], outra: true } }; // M-599 · Manifold Key
     if (k === 'target attacking creature') return { target: { tipos: ['creature'], atacando: true } }; // M-377 · Desert (seletor atacando, M-361)
     if (k === 'up to one target card from a graveyard') return { target: 'card-in-any-graveyard', upTo: true }; // M-373 · Heritage Reclamation (115.3: aceita zero)
+    if (k === 'target card from a graveyard') return { target: 'card-in-any-graveyard' }; // M-607 · Dawnbringer Cleric (alvo obrigatório: sem carta em cemitério, o modo não pode ser escolhido, 700.2a/601.2c)
     if (k === 'target instant or sorcery spell') return { target: 'spell', targetTypes: ['instant', 'sorcery'] }; // LT13
     if (k === 'target creature or enchantment spell') return { target: 'spell', targetTypes: ['creature', 'enchantment'] }; // M-539 · Get Out
     if (k === 'target activated or triggered ability') return { target: { zona: 'stack', habilidades: 'so' } }; // M-536 · Stifle (habilidade de mana não vai à pilha, 605.3b)
@@ -22183,7 +22185,7 @@ const __m42 = (function () {
     [/^~ deals (\d+|X) damage divided as you choose among (any number of targets|one or two targets|one, two, or three targets|any number of target creatures)$/i, m => [{ do: 'damage', amount: m[1].toUpperCase() === 'X' ? { per: 'x' } : +m[1], target: /creatures$/i.test(m[2]) ? 'creature' : 'any', dividido: { max: /^one or two/i.test(m[2]) ? 2 : /^one, two, or three/i.test(m[2]) ? 3 : null } }]], // M-376 · 601.2d
     [/^(target creature|target creature you control) can't be the target of spells or abilities your opponents control this turn$/i, m => [com({ do: 'sem_alvo_de_oponentes' }, alvo(m[1]))]], // M-375 · Vines of Vastwood
     [/^if this spell was kicked, that creature gets ([+-]\d+)\/([+-]\d+) until end of turn$/i, m => [{ do: 'pump', power: SINAL(m[1]), toughness: SINAL(m[2]), target: 'first-target', onlyIf: 'kicked' }]], // M-375 · 702.33d · "Put a -1/-1 counter on ~: Untap ~" (Devoted Druid)
-    [/^exile (up to one target card from a graveyard)$/i, m => [com({ do: 'exile' }, alvo(m[1]))]], // M-373 · Heritage Reclamation
+    [/^exile ((?:up to one )?target card from a graveyard)$/i, m => [com({ do: 'exile' }, alvo(m[1]))]], // M-373 · Heritage Reclamation · M-607 · Dawnbringer Cleric (obrigatório)
     [/^pisca (target (?:creature|permanent)(?: you control)?)$/i, m => { const a = alvo(m[1]); return a ? [{ do: 'pisca', ...a }] : null; }], // M-349 · Ephemerate (frase juntada em leParagrafo)
     [new RegExp(`^put ${N} ([a-z]+) counters? on (.+)$`, 'i'), m => { const a = alvo(m[3]); return a && !['target player', 'target opponent'].includes(m[3].toLowerCase()) ? [{ do: 'counters', tipo: m[2].toLowerCase(), amount: num(m[1]), ...a }] : null; }], // M-349 · Cryogen Relic ("a stun counter on up to one target tapped creature")
     [/^sacrifice (?:it|~) unless you return an artifact you control to its owner's hand$/i, () => [{ do: 'sacrifica_a_menos_que_devolva', tipos: ['artifact'] }]], // M-349 · Glint Hawk
@@ -22903,6 +22905,7 @@ const __m42 = (function () {
         const el2 = lp.match(/^when (?:~|this artifact|this creature|this permanent) enters or leaves the battlefield, (.+)$/i); // M-349 · Cryogen Relic: dois gatilhos
         if (el2) { const g1 = leGatilho(`When ~ enters, ${el2[1]}`, nome, frases), g2 = leGatilho(`When ~ leaves the battlefield, ${el2[1]}`, nome, []); if (g1 && g2) (topo.abilities = topo.abilities || []).push(g1, g2); continue; }
         if (/^you may play an additional land on each of your turns$/i.test(lp)) { topo.regraJogador = [...(topo.regraJogador || []), { quem: 'voce', terrenosExtras: 1 }]; frases.push({ texto: linha, lida: true }); continue; } // M-594 · 305.2 · Icetill Explorer
+        if (/^you have no maximum hand size$/i.test(lp)) { topo.regraJogador = [...(topo.regraJogador || []), { quem: 'voce', semLimiteDeMao: true }]; frases.push({ texto: linha, lida: true }); continue; } // M-607 · 402.2 · Thought Vessel (enquanto a permanente estiver no campo, 611.3a)
         if (/^you may play lands from your graveyard$/i.test(lp)) { topo.regraJogador = [...(topo.regraJogador || []), { quem: 'voce', terrenosDoCemiterio: true }]; frases.push({ texto: linha, lida: true }); continue; } // M-594 · 305.1: jogar terreno do cemitério conta como a jogada de terreno
         if (/^spells you control can't be countered$/i.test(lp)) { topo.self = { ...(topo.self || {}), magiasNaoAnulaveis: true }; frases.push({ texto: linha, lida: true }); continue; } // M-596 · 101.2 · Hexing Squelcher
         { const ow = lp.match(/^other creatures you control have "ward\s*[—-]\s*pay (\d+) life\.?"$/i); // M-596 · Hexing Squelcher (702.21)

@@ -5752,6 +5752,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Conferido:** o leitor antes e depois sobre as cartas revisadas e os pendentes dos competitivos: nenhuma leitura já completa mudou.
 - **Teste:** `lt278.unit` (4 testes; falham no motor anterior).
 
+**M-607 · LT265 · Sentinela do Pauper: Geothermal Bog, Dawnbringer Cleric e Thought Vessel (644 de 644 listas Pauper a 100% no app na próxima coleta)** ✅ (leva M-607, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** fecha a sentinela de 03/11/2026 (`cobertura/pauper.json` de 14:36 UTC: 640 de 644, 3 cartas pendentes). Texto da API da Scryfall de 03/11/2026 em `.listas/oficiais-revisadas.json`.
+- **Regra:** Geothermal Bog já era lida (entra virado; {B} ou {R} pelos subtipos, 305.6) e só faltava a revisão. Dawnbringer Cleric (triagem A): o leitor `__m42` passa a ler "Exile target card from a graveyard" com alvo obrigatório (sem carta em cemitério o modo não pode ser escolhido, 700.2a); o gatilho modal com nome de modo já existia (M-527). Thought Vessel (triagem A): o leitor lê "You have no maximum hand size" como regra de jogador da permanente (402.2; só enquanto está no campo, 611.3a); a regra já existia no motor (Steaming Sauna).
+- **Revisão independente:** as três aprovadas, sem divergência (modo sem alvo legal fica de fora; o limite volta quando o artefato sai do campo).
+- **Fora (declarado):** nada.
+- **Teste:** `lt287.unit` (5 testes; falham no motor anterior).
+
 **M-598 · LT256 · Sentinela do Pauper: Dreams of Laguna (628 de 628 listas Pauper a 100% no app na próxima coleta)** ✅ (leva M-598, motor v112 sem mudança de forma; goldens intactos)
 - **Valor:** fecha a sentinela de 01/11/2026 (`cobertura/pauper.json` de 13:47 UTC: 627 de 628). Texto da API da Scryfall de 01/11/2026 em `.listas/oficiais-revisadas.json`.
 - **Regra:** a carta já era lida por inteiro (vigiar 1 → comprar 1, 701.42; flashback {3}{U}, 702.34) e só faltava a revisão.
