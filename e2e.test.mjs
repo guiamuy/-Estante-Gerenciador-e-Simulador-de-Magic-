@@ -19003,9 +19003,9 @@ test('e2e · DS-K · o /ds mostra os tokens de ébano e latão, as dez receitas 
     await auditaTela(page, `DS-K · receitas (${tema})`);
   }
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
-  // dez receitas, cada uma com os cinco campos e a dona; as da mesa marcadas como contrato da jogabilidade
+  // onze receitas (G-340 · relato #59 somou a do ícone vivo), cada uma com os cinco campos e a dona; as da mesa marcadas como contrato da jogabilidade
   const rec = await page.evaluate(() => [...document.querySelectorAll('#ds-receitas .ds-receita')].map(a => ({ id: a.id, dona: a.dataset.dona, campos: [...a.querySelectorAll('dt')].map(d => d.textContent), vazio: [...a.querySelectorAll('dd')].some(d => !d.textContent.trim()) })));
-  assert.equal(rec.length, 10); assert.equal(rec.filter(x => x.dona === 'jogabilidade').length, 7);
+  assert.equal(rec.length, 11); assert.equal(rec.filter(x => x.dona === 'jogabilidade').length, 7);
   for (const x of rec) { assert.deepEqual(x.campos, ['plano', 'luz', 'curva', 'etapas', 'reduzido'], x.id); assert.equal(x.vazio, false, x.id + ' tem campo vazio'); }
   // o palco da abertura toca em três planos (luz, ladrilho em 3D e nome) e o de pousar escalona as três cartas
   await page.click('#ds-receita-ver-abertura');
@@ -19859,5 +19859,44 @@ test('e2e · J-44 a sala da masmorra na pilha: face com o mapa da Cidade Baixa e
     box.remove(); return r2;
   });
   assert.ok(g.cabe && g.dentro, 'o nome escrito cabe na carta'); assert.ok(!g.habNaCarta); assert.equal(g.hab, 'habilidade');
+  assert.deepEqual(errors, []);
+});
+
+// G-340 (trilha geral) · relato #59 · o ícone tocado se mexe como o que ele é: o sino da Início balança pelo topo no mesmo
+// quadro do toque e a tela das notificações abre na hora (a ação não espera); a barra de baixo folheia as listas e o
+// movimento sai sozinho ao terminar; toque seguido recomeça; com menos movimento nada se mexe; o /ds mostra cada movimento.
+test('e2e · G-340 relato #59: ícones com movimento contextual no toque (sino balança, ação na hora, menos movimento parado)', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base); await page.waitForSelector('#home-notificacoes');
+  const toca = sel => page.evaluate(s => {
+    const b = document.querySelector(s); b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, isPrimary: true }));
+    const ic = b.querySelector('.ds-icon'); const svg = ic.querySelector('svg');
+    return { anima: ic.dataset.anima || null, nome: (svg.getAnimations()[0] || {}).animationName || null };
+  }, sel);
+  // 1 · sino: balança no toque, pela regra do DS (a animação existe no svg, não no botão)
+  assert.deepEqual(await toca('#home-notificacoes'), { anima: 'balanca', nome: 'ds-ic-balanca' }, 'o sino balança');
+  const origem = await page.evaluate(() => getComputedStyle(document.querySelector('#home-notificacoes .ds-icon svg')).transformOrigin);
+  assert.match(origem, /^\S+px \S+px/, 'origem do balanço'); const [, oy] = origem.split(' ').map(parseFloat); assert.ok(oy < 6, `balança pelo topo (origem y ${oy})`);
+  // 2 · a ação não espera o movimento: o clique leva às notificações na hora
+  await page.click('#home-notificacoes'); await page.waitForSelector('#notificacoes', { timeout: 1500 });
+  // 3 · barra de baixo: listas folheia; ao terminar, o movimento sai; toque seguido recomeça (sem acumular)
+  assert.equal((await toca('#nav-decks')).anima, 'folheia');
+  await page.waitForFunction(() => !document.querySelector('#nav-decks .ds-icon').dataset.anima, null, { timeout: 2000 });
+  const duas = await page.evaluate(() => { const b = document.querySelector('#nav-collection'); const ev = () => b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, isPrimary: true }));
+    ev(); ev(); return b.querySelector('.ds-icon svg').getAnimations().length; });
+  assert.equal(duas, 1, 'dois toques, um movimento');
+  // 4 · menos movimento: nada se mexe, e o botão continua funcionando
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.evaluate(() => { location.hash = '#/'; }); await page.waitForSelector('#home-notificacoes');
+  assert.deepEqual(await toca('#home-notificacoes'), { anima: null, nome: null }, 'parado com menos movimento');
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  // 5 · o catálogo: cada ícone é um toque de 44 px que mostra o movimento; a porta segue com o dela
+  await page.evaluate(() => { location.hash = '#/ds'; }); await page.waitForSelector('#ds-icones');
+  assert.equal(await page.getAttribute('#ds-icones [data-movimento] [data-icone="sino"]', 'data-icone'), 'sino');
+  assert.equal(await page.locator('#ds-icones figure[data-movimento="proprio"] [data-icone="porta"]').count(), 1);
+  const lixo = await page.evaluate(() => { const b = document.querySelector('#ds-icones [data-icone="lixeira"]').closest('button'); const r = b.getBoundingClientRect();
+    b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, isPrimary: true })); return { a: b.querySelector('.ds-icon').dataset.anima, w: r.width, h: r.height }; });
+  assert.equal(lixo.a, 'tomba'); assert.ok(lixo.w >= 44 && lixo.h >= 44, 'toque de 44 px no catálogo');
   assert.deepEqual(errors, []);
 });

@@ -803,6 +803,65 @@ a { color: var(--accent); }
 .inicio-sair[data-porta="abrindo"] .porta__folha, .inicio-sair[data-porta="aberta"] .porta__folha { transform: scaleX(.22); }
 .inicio-sair[data-porta="abrindo"] .porta__luz, .inicio-sair[data-porta="aberta"] .porta__luz { opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .ds-icon .porta__folha, .ds-icon .porta__luz { transition: none; } }
+/* G-340 · relato #59 · o ícone tocado se mexe como o que ele é (MOVIMENTO_DO_ICONE em __m3): só transform no svg, por
+   token, uma vez por toque; a porta do Sair (G-334) tem o movimento dela. Menos movimento: nenhum. */
+.ds-icon > svg { transform-origin: 50% 50%; }
+.ds-icon[data-anima="balanca"] > svg { animation: ds-ic-balanca var(--dur-4) var(--ease-out); transform-origin: 50% 8%; }
+@keyframes ds-ic-balanca { 0%, 100% { transform: none; } 20% { transform: rotate(-16deg); } 40% { transform: rotate(12deg); } 60% { transform: rotate(-7deg); } 80% { transform: rotate(3deg); } }
+.ds-icon[data-anima="tomba"] > svg { animation: ds-ic-tomba var(--dur-4) var(--ease-out); transform-origin: 15% 100%; }
+@keyframes ds-ic-tomba { 0%, 100% { transform: none; } 35% { transform: rotate(-14deg); } 70% { transform: rotate(4deg); } }
+.ds-icon[data-anima="gira"] > svg { animation: ds-ic-gira var(--dur-4) var(--ease-out); }
+@keyframes ds-ic-gira { from { transform: none; } to { transform: rotate(360deg); } }
+.ds-icon[data-anima="giraVolta"] > svg { animation: ds-ic-giraVolta var(--dur-4) var(--ease-out); }
+@keyframes ds-ic-giraVolta { from { transform: none; } to { transform: rotate(-360deg); } }
+.ds-icon[data-anima="giraQuarto"] > svg { animation: ds-ic-giraQuarto var(--dur-3) var(--ease-spring); }
+@keyframes ds-ic-giraQuarto { from { transform: none; } to { transform: rotate(90deg); } }
+.ds-icon[data-anima="vira"] > svg { animation: ds-ic-vira var(--dur-4) var(--ease-spring); }
+@keyframes ds-ic-vira { 0%, 100% { transform: none; } 45% { transform: rotate(90deg); } }
+.ds-icon[data-anima="direita"] > svg { animation: ds-ic-direita var(--dur-3) var(--ease-out); }
+@keyframes ds-ic-direita { 0%, 100% { transform: none; } 40% { transform: translateX(4px); } }
+.ds-icon[data-anima="esquerda"] > svg { animation: ds-ic-esquerda var(--dur-3) var(--ease-out); }
+@keyframes ds-ic-esquerda { 0%, 100% { transform: none; } 40% { transform: translateX(-4px); } }
+.ds-icon[data-anima="sobe"] > svg { animation: ds-ic-sobe var(--dur-3) var(--ease-out); }
+@keyframes ds-ic-sobe { 0%, 100% { transform: none; } 40% { transform: translateY(-4px); } }
+.ds-icon[data-anima="desce"] > svg { animation: ds-ic-desce var(--dur-3) var(--ease-out); }
+@keyframes ds-ic-desce { 0%, 100% { transform: none; } 40% { transform: translateY(4px); } }
+.ds-icon[data-anima="sobeDireita"] > svg { animation: ds-ic-sobeDireita var(--dur-3) var(--ease-out); }
+@keyframes ds-ic-sobeDireita { 0%, 100% { transform: none; } 40% { transform: translate(3px, -3px); } }
+.ds-icon[data-anima="pulso"] > svg { animation: ds-ic-pulso var(--dur-3) var(--ease-out); }
+@keyframes ds-ic-pulso { 0%, 100% { transform: none; } 40% { transform: scale(1.18); } 75% { transform: scale(.96); } }
+.ds-icon[data-anima="batida"] > svg { animation: ds-ic-batida var(--dur-4) var(--ease-out); }
+@keyframes ds-ic-batida { 0%, 30%, 100% { transform: none; } 15% { transform: scale(1.2); } 45% { transform: scale(1.14); } }
+.ds-icon[data-anima="sacode"] > svg { animation: ds-ic-sacode var(--dur-3) var(--ease-out); }
+@keyframes ds-ic-sacode { 0%, 100% { transform: none; } 20% { transform: translateX(-3px); } 40% { transform: translateX(3px); } 60% { transform: translateX(-2px); } 80% { transform: translateX(2px); } }
+.ds-icon[data-anima="obturador"] > svg { animation: ds-ic-obturador var(--dur-3) var(--ease-out); }
+@keyframes ds-ic-obturador { 0%, 100% { transform: none; } 30% { transform: scale(.8); } 65% { transform: scale(1.08); } }
+.ds-icon[data-anima="golpe"] > svg { animation: ds-ic-golpe var(--dur-3) var(--ease-out); transform-origin: 20% 80%; }
+@keyframes ds-ic-golpe { 0%, 100% { transform: none; } 30% { transform: rotate(-22deg); } 60% { transform: rotate(14deg); } }
+.ds-icon[data-anima="escreve"] > svg { animation: ds-ic-escreve var(--dur-4) var(--ease-out); transform-origin: 20% 80%; }
+@keyframes ds-ic-escreve { 0%, 100% { transform: none; } 25% { transform: translate(-1px, 1px) rotate(-8deg); } 50% { transform: translateX(1px) rotate(6deg); } 75% { transform: rotate(-4deg); } }
+.ds-icon[data-anima="ergue"] > svg { animation: ds-ic-ergue var(--dur-3) var(--ease-spring); transform-origin: 50% 100%; }
+@keyframes ds-ic-ergue { 0%, 100% { transform: none; } 40% { transform: translateY(-3px) scale(1.1); } }
+.ds-icon[data-anima="varre"] > svg { animation: ds-ic-varre var(--dur-4) var(--ease-out); }
+@keyframes ds-ic-varre { 0%, 100% { transform: none; } 25% { transform: translate(-3px, -1px); } 50% { transform: translate(3px, -1px); } 75% { transform: translate(-1px, 1px); } }
+.ds-icon[data-anima="mira"] > svg { animation: ds-ic-mira var(--dur-4) var(--ease-out); }
+@keyframes ds-ic-mira { 0%, 100% { transform: none; } 30% { transform: scale(.8) rotate(45deg); } 70% { transform: scale(1.12) rotate(90deg); } }
+.ds-icon[data-anima="ampulheta"] > svg { animation: ds-ic-ampulheta var(--dur-4) var(--ease-spring); }
+@keyframes ds-ic-ampulheta { from { transform: none; } to { transform: rotate(180deg); } }
+.ds-icon[data-anima="astro"] > svg { animation: ds-ic-astro var(--dur-4) var(--ease-out); }
+@keyframes ds-ic-astro { 0%, 100% { transform: none; } 40% { transform: rotate(-25deg) scale(1.08); } }
+.ds-icon[data-anima="onda"] > svg { animation: ds-ic-onda var(--dur-4) var(--ease-out); }
+@keyframes ds-ic-onda { 0%, 100% { transform: none; } 20% { transform: scale(1.12, .92); } 40% { transform: scale(.94, 1.06); } 60% { transform: scale(1.05, .97); } }
+.ds-icon[data-anima="aperta"] > svg { animation: ds-ic-aperta var(--dur-3) var(--ease-out); }
+@keyframes ds-ic-aperta { 0%, 100% { transform: none; } 35% { transform: scale(.82); } }
+.ds-icon[data-anima="salta"] > svg { animation: ds-ic-salta var(--dur-3) var(--ease-out); transform-origin: 50% 100%; }
+@keyframes ds-ic-salta { 0%, 100% { transform: none; } 35% { transform: translateY(-4px); } 65% { transform: translateY(1px); } }
+.ds-icon[data-anima="folheia"] > svg { animation: ds-ic-folheia var(--dur-4) var(--ease-out); transform-origin: 50% 100%; }
+@keyframes ds-ic-folheia { 0%, 100% { transform: none; } 30% { transform: rotate(-9deg); } 65% { transform: rotate(6deg); } }
+.ds-icon[data-anima="nada"] > svg { animation: ds-ic-nada var(--dur-4) var(--ease-out); }
+@keyframes ds-ic-nada { 0%, 100% { transform: none; } 25% { transform: translateX(2px) rotate(8deg); } 50% { transform: translateX(4px) rotate(-6deg); } 75% { transform: translateX(2px) rotate(4deg); } }
+@media (prefers-reduced-motion: reduce) { .ds-icon[data-anima] > svg { animation: none; } }
+:root[data-movimento="reduzido"] .ds-icon[data-anima] > svg { animation: none !important; }
 .inicio__acoes { flex: none; display: flex; align-items: center; gap: var(--space-1); margin-block: calc(-1 * var(--space-1)); } /* G-314 · sino e Sair */
 
 /* G-314 · relato #36 · central de notificações: sino com selo de latão; lista por dia; não lida com ponto e título forte */
@@ -1071,6 +1130,7 @@ body[data-tela="entrar"] .ds-appbar { display: none; }
 .ds-icones { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: var(--space-2); }
 .ds-icones__item { margin: 0; display: flex; flex-direction: column; align-items: center; gap: var(--space-1); padding: var(--space-2) 0; color: var(--fg); }
 .ds-icones__item figcaption { font-size: var(--text-xs); color: var(--fg-muted); font-family: var(--font-mono); }
+.ds-icones__toque { min-width: var(--tap-min); min-height: var(--tap-min); display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: var(--radius-2); background: none; color: inherit; cursor: pointer; }
 /* U2 · destino da barra: ícone com legenda de uma palavra embaixo */
 .ds-nav { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   min-width: 52px; min-height: var(--tap-min); padding: 3px var(--space-1) 2px; border-radius: var(--radius-1);
@@ -4524,6 +4584,69 @@ function Icone(nome, { tamanho = 20, classe = '' } = {}) {
   el.innerHTML = `<svg viewBox="0 0 24 24" width="${px}" height="${px}" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" focusable="false">${ICONES[nome] || ''}</svg>`;
   return el;
 }
+/* G-340 · relato #59 · o movimento de cada ícone no toque: lembra o que ele é (o sino balança, a lixeira tomba, atualizar
+   gira, as setas andam no sentido delas). Um mapa só; o CSS (@keyframes ds-ic-<movimento>) desenha. 'pulso' é o genérico
+   escolhido para quem não tem metáfora de movimento (símbolos de mana, contagens, visões de lista); 'proprio' anima
+   sozinho (a porta do Sair, G-334). Ícone novo em ICONES entra aqui também (icones-vivos.unit cobra). */
+const MOVIMENTOS_DE_ICONE = Object.freeze(['balanca', 'tomba', 'gira', 'giraVolta', 'giraQuarto', 'vira', 'direita', 'esquerda', 'sobe', 'desce', 'sobeDireita', 'pulso', 'batida', 'sacode', 'obturador', 'golpe', 'escreve', 'ergue', 'varre', 'mira', 'ampulheta', 'astro', 'onda', 'aperta', 'salta', 'folheia', 'nada']);
+const porMovimento = (m, nomes) => Object.fromEntries(nomes.split(' ').map(n => [n, m]));
+const MOVIMENTO_DO_ICONE = Object.freeze({
+  ...porMovimento('balanca', 'alerta anexo etiqueta sino enjoo iniciativa'),
+  ...porMovimento('tomba', 'lixeira cemiterio'),
+  ...porMovimento('gira', 'atualizar globo fase'),
+  ...porMovimento('giraVolta', 'desfazer historico'),
+  ...porMovimento('giraQuarto', 'mais'),
+  ...porMovimento('vira', 'ficha virar'),
+  ...porMovimento('direita', 'pular seguir jogar cartaSai'),
+  ...porMovimento('esquerda', 'voltar'),
+  ...porMovimento('sobe', 'subir exportar'),
+  ...porMovimento('desce', 'descer instalar baixar marcador importar comprar'),
+  ...porMovimento('sobeDireita', 'compartilhar externo email exilio'),
+  ...porMovimento('pulso', 'conferir planicie ilha pantano montanha floresta ermo gema pontos selecionar marcar planilha linhas densa meia tramar terreno comando contador masmorra'),
+  ...porMovimento('batida', 'vida'),
+  ...porMovimento('sacode', 'desistir semRede fechar raio somMudo dano'),
+  ...porMovimento('obturador', 'scanner camera'),
+  ...porMovimento('golpe', 'garras espada'),
+  ...porMovimento('escreve', 'relato registro editar'),
+  ...porMovimento('ergue', 'proteger escudo bloquear'),
+  ...porMovimento('varre', 'buscar olho'),
+  ...porMovimento('mira', 'alvo'),
+  ...porMovimento('ampulheta', 'ampulheta'),
+  ...porMovimento('astro', 'lua sol'),
+  ...porMovimento('onda', 'microfone som'),
+  ...porMovimento('aperta', 'menos filtro caixa pausa fim'),
+  ...porMovimento('salta', 'camadas pessoa info trofeu copiar pilhas pessoas conversa estante painel cartaMais peao companheiro'),
+  ...porMovimento('folheia', 'mao listas colecao jornal baralho reserva'),
+  ...porMovimento('nada', 'peixe tubarao'),
+  ...porMovimento('proprio', 'porta'),
+});
+/** Qual movimento o toque dispara: nenhum para controle desligado, para menos movimento e para quem anima sozinho. */
+function movimentoDoToque({ icone, desligado = false, reduzido = false } = {}) {
+  const m = icone ? MOVIMENTO_DO_ICONE[icone] : null;
+  return !m || m === 'proprio' || desligado || reduzido ? null : m;
+}
+/** Liga o movimento no documento inteiro: um ouvinte só (pointerdown, na captura), para todo controle com ícone — botão de
+    ícone, atalho, barra de navegação, item de lista, diálogo, mesa. Retorno no mesmo quadro do toque; a ação do botão não
+    espera nada. Toque seguido recomeça o movimento (sem acumular). Teclado (Enter/Espaço) vem pelo clique sem ponteiro. */
+let iconesVivos = false;
+function instalaIconesVivos(raiz) {
+  if (iconesVivos || !raiz || typeof raiz.addEventListener !== 'function') return;
+  iconesVivos = true;
+  const reduzido = () => document.documentElement.dataset.movimento === 'reduzido' || (typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const anima = alvo => {
+    const ctl = alvo && alvo.closest ? alvo.closest('button, [role="button"], a[href], summary') : null;
+    // o ícone do próprio controle (filho ou neto), nunca um selo de estado dentro de uma carta da mesa
+    const ic = ctl && [...ctl.querySelectorAll('.ds-icon[data-icone]')].find(x => !x.closest('.tb-estado') && (x.parentElement === ctl || x.parentElement.parentElement === ctl));
+    if (!ic) return;
+    const m = movimentoDoToque({ icone: ic.dataset.icone, desligado: ctl.disabled || ctl.getAttribute('aria-disabled') === 'true', reduzido: reduzido() });
+    if (!m) return;
+    if (ic.dataset.anima) { delete ic.dataset.anima; void ic.offsetWidth; } // recomeça do zero
+    ic.dataset.anima = m;
+  };
+  raiz.addEventListener('pointerdown', e => { if (e.isPrimary !== false) anima(e.target); }, true);
+  raiz.addEventListener('click', e => { if (e.detail === 0) anima(e.target); }, true);
+  raiz.addEventListener('animationend', e => { const ic = e.target && e.target.parentElement; if (ic && ic.dataset && ic.dataset.anima && /^ds-ic-/.test(e.animationName)) delete ic.dataset.anima; }, true);
+}
 /** Botão só de ícone: o rótulo vira nome acessível e dica; `rotulo: true` mostra o texto ao lado. */
 /** DS-K F2.2 (G-294) · cabeçalho de tela na grade da direção K: 44 · 1fr · 44 — um lado para voltar, o título no
     centro exato, um lado para a ação (só ícone, 44 px). Lado vazio guarda o lugar, para o título nunca sair do centro. */
@@ -5140,10 +5263,11 @@ const RECEITAS_DE_ANIMACAO = Object.freeze([
   { id: 'mirar', nome: 'Mirar', evento: 'escolha de alvo', dona: 'jogabilidade', plano: 'fundo: linha curva da origem ao alvo · objeto: ponta da seta · alvo: tracejado', luz: 'não', curva: '--ease-out', etapas: 'a linha se desenha (--dur-3) → ponta aparece (--dur-1) → tracejado marcha (--dur-pulso) até a escolha; cor do oponente, nunca a de ataque ou bloqueio', reduzido: 'linha e tracejado parados' },
   { id: 'dano', nome: 'Dano', evento: 'criatura ou jogador leva dano', dona: 'jogabilidade', plano: 'objeto: tremor com 1,5° de giro · número: salta a 135 % e sobe', luz: 'não', curva: '--ease-out', etapas: 'tremor (--dur-fx-curto) e número (--dur-fx-longo) começam juntos; o número some ao subir 40 px', reduzido: 'número parado por --dur-fx-longo' },
   { id: 'comprar', nome: 'Comprar', evento: 'carta sai do grimório para a mão', dona: 'jogabilidade', plano: 'objeto: vira do verso para a face em 3D enquanto voa e cresce 35 % · sombra: cresce no meio do voo', luz: 'não', curva: '--ease-out', etapas: 'uma etapa (--dur-4); a compra do oponente voa de verso, sem virar (informação oculta)', reduzido: 'a carta aparece na mão' },
-  { id: 'vida', nome: 'Vida', evento: 'o marcador de vida muda', dona: 'jogabilidade', plano: 'objeto: odômetro — dezena e unidade rolam separadas, na cor do dono', luz: 'não', curva: '--ease-spring', etapas: 'uma etapa (--dur-4); dano e cura usam o mesmo rolo, só o sentido muda', reduzido: 'o número troca' }
+  { id: 'vida', nome: 'Vida', evento: 'o marcador de vida muda', dona: 'jogabilidade', plano: 'objeto: odômetro — dezena e unidade rolam separadas, na cor do dono', luz: 'não', curva: '--ease-spring', etapas: 'uma etapa (--dur-4); dano e cura usam o mesmo rolo, só o sentido muda', reduzido: 'o número troca' },
+  { id: 'icone', nome: 'Ícone vivo', evento: 'toque em controle com ícone', dona: 'design', plano: 'objeto: só o desenho do ícone se mexe, como o que ele é (o sino balança pelo topo, a lixeira tomba pela base, atualizar gira, a seta anda no sentido dela); o botão, a sombra e o rótulo ficam parados', luz: 'não', curva: '--ease-out (a maioria) · --ease-spring (o que pousa: virar, mais, ampulheta, escudo)', etapas: 'uma etapa (--dur-3 ou --dur-4) no mesmo quadro do toque, sobreposta à ação, que não espera; toque seguido recomeça do zero; nunca em laço', reduzido: 'o ícone fica parado; o botão ainda afunda no toque' }
 ]);
 return { h, seguro, Text, Button, Field, Select, Chip, ManaPips, Tabs, CardFace, EsperaDaCarta, Dialog, closeDialog, toast, fechaToast, usaDestinoDoAviso, reservaDoca, Avatar, clear, mount, Stack, Row, Surface, Input, Textarea, Badge, List, ListItem, ListGroup, Empty, Note, Spinner, CardGrid,
-  analisaSimbolos, SIMBOLO_RX, nomeDoSimbolo, Simbolo, ComSimbolos, simbolizar, srcsetDaCarta, ImagemCarta, ICONES, Icone, IconButton, Atalho, NavBotao, AvisoRede, AnelProgresso, Expansivel, Range, LinhaEstado, confirmaBotao, Dica, rotuloDeCampo, deveAncorar, instalaAncora, levaAte, levaSeEscondido, oQueEsconde, Carregando, Esqueleto, ArteDeEspera, Transicao, BotaoDeAcao, usaRelatar, Bandeira, Chave, RECEITAS_DE_ANIMACAO, Cabecalho };
+  analisaSimbolos, SIMBOLO_RX, nomeDoSimbolo, Simbolo, ComSimbolos, simbolizar, srcsetDaCarta, ImagemCarta, ICONES, MOVIMENTOS_DE_ICONE, MOVIMENTO_DO_ICONE, movimentoDoToque, instalaIconesVivos, Icone, IconButton, Atalho, NavBotao, AvisoRede, AnelProgresso, Expansivel, Range, LinhaEstado, confirmaBotao, Dica, rotuloDeCampo, deveAncorar, instalaAncora, levaAte, levaSeEscondido, oQueEsconde, Carregando, Esqueleto, ArteDeEspera, Transicao, BotaoDeAcao, usaRelatar, Bandeira, Chave, RECEITAS_DE_ANIMACAO, Cabecalho };
 })();
 
 /* ==== src/ui/brand.js ==== */
@@ -5345,7 +5469,7 @@ function renderDS() {
     // U2 · conjunto de ícones do app, atalho da tela inicial, destino da barra e botões com ícone
     Section('Ícones',
       h('div', { class: 'ds-icones', id: 'ds-icones' },
-        ...Object.keys(__m3.ICONES).map(n => h('figure', { class: 'ds-icones__item' }, __m3.Icone(n, { tamanho: 24 }), h('figcaption', {}, n)))),
+        ...Object.keys(__m3.ICONES).map(n => h('figure', { class: 'ds-icones__item', dataset: { movimento: __m3.MOVIMENTO_DO_ICONE[n] } }, h('button', { type: 'button', class: 'ds-icones__toque', 'aria-label': `Ver o movimento de ${n}`, title: __m3.MOVIMENTO_DO_ICONE[n] }, __m3.Icone(n, { tamanho: 24 })), h('figcaption', {}, n)))), // G-340 · tocar mostra o movimento
       Row({ class: 'ds-row--wrap' },
         Button('Com ícone', { icone: 'baixar', variant: 'primary' }), Button('Proteger', { icone: 'proteger' }),
         __m3.IconButton('desfazer', 'Desfazer'), __m3.IconButton('registro', 'Registro', { variant: 'ghost' })),
@@ -47678,6 +47802,7 @@ async function boot(root) {
   const outlet = h('main', { id: 'outlet' });
   mount(root, bar, outlet, navbar);
   __m3.instalaAncora(outlet); // J1 · quem toca num controle fica onde está
+  __m3.instalaIconesVivos(document); // G-340 · relato #59 · o ícone tocado se mexe como o que ele é
   const router = createRouter(ROUTES, ({ route }) => {
     __m3.fechaToast(); // D1 · o aviso da tela anterior não atravessa para esta
     document.title = 'Estante · ' + (route.title || '');
