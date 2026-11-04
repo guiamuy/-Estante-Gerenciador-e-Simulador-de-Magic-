@@ -105,6 +105,24 @@ test('S-595 · quais cartas entram: papel, com imagem pequena da frente na Scryf
   assert.equal(c[0].versao, '1625'); assert.equal(c[1].ilustracao, 'il-2');
 });
 
+test('S-610 · relato #61: o verso da carta de duas faces entra na base com a própria imagem, respondendo pela carta (ilustração da frente, como nas impressões do app); face sem imagem própria (aventura, dividida) não entra duas vezes', () => {
+  const c = cartasDaBase([
+    { name: 'Invasion of Segovia // Caetus, Sea Tyrant of Segovia', set: 'mom', collector_number: '74', layout: 'battle', card_faces: [
+      { name: 'Invasion of Segovia', illustration_id: 'il-f', image_uris: { small: 'https://cards.scryfall.io/small/front/a/a/z.jpg?1682' } },
+      { name: 'Caetus, Sea Tyrant of Segovia', illustration_id: 'il-v', image_uris: { small: 'https://cards.scryfall.io/small/back/a/a/z.jpg?1682' } }] },
+    { name: 'Bonecrusher Giant // Stomp', set: 'eld', collector_number: '115', layout: 'adventure', illustration_id: 'il-a', image_uris: { small: 'https://cards.scryfall.io/small/front/b/b/w.jpg?9' }, card_faces: [{ name: 'Bonecrusher Giant' }, { name: 'Stomp' }] },
+    { name: 'Verso de fora', set: 'x', collector_number: '1', layout: 'transform', card_faces: [{ illustration_id: 'il-1', image_uris: { small: 'https://cards.scryfall.io/small/front/c/c/q.jpg?3' } }, { illustration_id: 'il-2', image_uris: { small: 'https://exemplo.com/back.jpg?3' } }] }
+  ]);
+  assert.deepEqual(c.map(x => [x.nome, x.set, x.numero, x.ilustracao, x.img.includes('/back/')]), [
+    ['Invasion of Segovia // Caetus, Sea Tyrant of Segovia', 'mom', '74', 'il-f', false],
+    ['Invasion of Segovia // Caetus, Sea Tyrant of Segovia', 'mom', '74', 'il-f', true],
+    ['Bonecrusher Giant // Stomp', 'eld', '115', 'il-a', false],
+    ['Verso de fora', 'x', '1', 'il-1', false]
+  ]);
+  // a chave da base anterior (ilustração|versão) não confunde frente e verso: o verso não herda a impressão da frente
+  assert.equal(new Set(c.slice(0, 2).map(x => x.ilustracao + '|' + x.versao)).size, 2);
+});
+
 /** Um corpo de resposta em pedaços de `n` bytes. */
 const pedacos = (buf, n) => (async function* () { for (let i = 0; i < buf.length; i += n) yield new Uint8Array(buf.subarray(i, i + n)); })();
 

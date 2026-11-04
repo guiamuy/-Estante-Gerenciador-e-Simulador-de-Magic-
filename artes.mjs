@@ -37,7 +37,7 @@ export async function scanner() {
   return loadModules().scanner;
 }
 
-/** Cartas da Scryfall que entram na base: papel, com imagem pequena da frente. */
+/** Cartas da Scryfall que entram na base: papel, com imagem pequena da frente (e do verso, nas de duas faces: S-610). */
 export function cartasDaBase(lista) {
   const out = [];
   for (const c of lista || []) {
@@ -46,7 +46,16 @@ export function cartasDaBase(lista) {
     if (!img || typeof img !== 'string' || !img.startsWith('https://cards.scryfall.io/')) continue;
     const ilustracao = c.illustration_id || (c.card_faces && c.card_faces[0] && c.card_faces[0].illustration_id) || c.id;
     const versao = (/\?(\d+)$/.exec(img) || [])[1] || '';
-    out.push({ nome: String(c.name || '').slice(0, 160), set: String(c.set || '').slice(0, 10), numero: String(c.collector_number || '').slice(0, 12), ilustracao: String(ilustracao).slice(0, 40), versao, img });
+    const base = { nome: String(c.name || '').slice(0, 160), set: String(c.set || '').slice(0, 10), numero: String(c.collector_number || '').slice(0, 12), ilustracao: String(ilustracao).slice(0, 40) };
+    out.push({ ...base, versao, img });
+    /* S-610 · relato #61: o verso das cartas de duas faces (transformar, dupla modal, batalha) tem imagem própria e a
+       pessoa aponta a câmera para qualquer um dos lados. Entra como outra linha que responde pela MESMA carta, com a
+       ilustração da frente (é a que as impressões do app guardam, para a edição seguir casando); a versão ganha "v" para a
+       base anterior (ilustração|versão) não dar ao verso a impressão da frente. Face sem imagem própria (aventura,
+       dividida, virar) não entra duas vezes. */
+    const v = Array.isArray(c.card_faces) && c.card_faces[1] && c.card_faces[1].image_uris && c.card_faces[1].image_uris.small;
+    if (!c.image_uris && typeof v === 'string' && v.startsWith('https://cards.scryfall.io/') && v !== img)
+      out.push({ ...base, versao: ((/\?(\d+)$/.exec(v) || [])[1] || '') + 'v', img: v });
   }
   return out;
 }
