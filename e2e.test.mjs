@@ -9906,6 +9906,7 @@ test('e2e · J-59 orientação da mesa: "Só retrato" guarda a escolha e mantém
   assert.deepEqual(chips.map(c => c.t), ['Automática', 'Só retrato']); assert.equal(chips[0].on, 'true'); assert.ok(chips.every(c => c.h >= 36), 'chips com altura de toque ' + JSON.stringify(chips));
   await auditaTela(page, 'J-59 · Aparência com a orientação');
   await page.click('#aparencia-orientacao [data-orientacao="retrato"]');
+  await page.waitForSelector('#aparencia-orientacao [data-orientacao="retrato"][aria-pressed="true"]'); // G-345: a escolha só está guardada quando a Aparência repinta (setAparencia é assíncrona); recarregar antes perdia a gravação
   await page.reload(); await page.waitForSelector('#aparencia-orientacao');
   assert.equal(await page.evaluate(() => document.documentElement.getAttribute('data-orientacao')), 'retrato', 'a escolha fica guardada no aparelho');
   await createDeck(page, base, 'Retrato', '24 Mountain\n36 Delver of Secrets');
