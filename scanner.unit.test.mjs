@@ -1220,3 +1220,14 @@ test('S-603 · bigrama presente em mais de 65 mil entradas não estoura a contag
   assert.equal((X.matchName(ix, 'Abacaxi Vcador')[0] || {}).name, 'Abacaxi Voador');
   assert.equal(ix.invertido.lista.length, ix.reduce((s, e) => s + e.bg.length, 0));
 });
+
+test('S-606 · relato #60: foco forçado só com a carta borrada no quadro, espaçado', () => {
+  let t = 0; const r = X.criaRefoco({ agora: () => t, intervalo: 1500, limiar: 0.5 });
+  assert.equal(r.pede({ contorno: false, nitidez: 0.1 }), false, 'sem carta no quadro, não mexe no foco');
+  assert.equal(r.pede({ contorno: true, nitidez: 0.9 }), false, 'linha nítida, não mexe no foco');
+  assert.equal(r.pede({ contorno: true }), false, 'sem medida de nitidez, não mexe');
+  assert.equal(r.pede({ contorno: true, nitidez: 0.2 }), true, 'carta borrada no quadro: pede foco');
+  t = 1000; assert.equal(r.pede({ contorno: true, nitidez: 0.2 }), false, 'não metralha a câmera');
+  t = 1600; assert.equal(r.pede({ contorno: true, nitidez: 0.2 }), true, 'passado o intervalo, pede de novo');
+  r.zera(); assert.equal(r.pede({ contorno: true, nitidez: 0.2 }), true);
+});

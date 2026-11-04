@@ -44535,6 +44535,21 @@ const LIMIARES_FAIXA = { nitidezMin: 3, movimentoMax: 12 };
     - `desdeEntrada`: desde que a carta apareceu num quadro que estava vazio (só vale se o quadro esvaziou antes:
       trocando a carta sem tirar a de baixo, o tempo incluiria a mão da pessoa).
     Função pura, com relógio injetável. É a linha de base para a história de velocidade (X14). */
+/** S-606 · relato #60 fatia 3: a câmera fica forçando o foco. Com a carta no quadro e a linha do nome borrada, pede um
+    foco novo no centro (onde a pessoa põe a carta), no máximo um a cada `intervalo` ms: o foco contínuo do Android às
+    vezes trava longe quando a carta chega perto, e o toque na tela era o único jeito de destravar. Sem carta, ou com a
+    linha nítida, não pede nada (não metralha a câmera nem gasta bateria). */
+function criaRefoco({ agora = () => Date.now(), intervalo = 1500, limiar = 0.5 } = {}) {
+  let ultimo = -Infinity;
+  return {
+    pede({ contorno, nitidez } = {}) {
+      if (!contorno || !(Number.isFinite(nitidez) && nitidez < limiar)) return false;
+      const t = agora(); if (t - ultimo < intervalo) return false;
+      ultimo = t; return true;
+    },
+    zera() { ultimo = -Infinity; },
+  };
+}
 function criaCronometro({ agora = () => Date.now(), maximo = 30 } = {}) {
   let entrou = null, vazioAntes = true, vazios = 2, voto = null, hist = [];
   const mediana = xs => { const v = xs.filter(x => x != null).sort((a, b) => a - b); return v.length ? v[Math.floor((v.length - 1) / 2)] : null; };
@@ -45700,7 +45715,7 @@ const LIMIARES_LINHA = { borrada: 0.5, deslocamentoMax: 0.05, correndo: 0.12, al
     mas a carta não conta como parada (nada entra na primeira passada; o porteiro pede repetição). */
 function pulaPorMovimento(mov, { via = 'auto', contorno = true } = {}) { return via !== 'manual' && contorno && mov > LIMIARES_LINHA.correndo; }
 
-return { cleanOcr, matchName, matchLines, criaVotacao, criaPorteiro, PORTEIRO, leituraConfiavel, nitidezDaFaixa, movimentoEntre, LIMIARES_FAIXA, criaDiario, criaCronometro, EXATA, buildIndex, candidatosDoIndice, createNameIndex, IDIOMAS_DOS_NOMES, LINGUAS_DO_LEITOR, linguaDoLeitor, temCjk, chaveCjk, indiceCjk, matchCjk, createLot, coverRegion, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, resolveEdicao, artistaNoTexto, ACCEPT, ALTA, SUGGEST, lev,
+return { cleanOcr, matchName, matchLines, criaVotacao, criaPorteiro, PORTEIRO, leituraConfiavel, nitidezDaFaixa, movimentoEntre, LIMIARES_FAIXA, criaDiario, criaCronometro, criaRefoco, EXATA, buildIndex, candidatosDoIndice, createNameIndex, IDIOMAS_DOS_NOMES, LINGUAS_DO_LEITOR, linguaDoLeitor, temCjk, chaveCjk, indiceCjk, matchCjk, createLot, coverRegion, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, resolveEdicao, artistaNoTexto, ACCEPT, ALTA, SUGGEST, lev,
   detectaCarta, detectaEmEscalas, ESCALAS_DETECTOR, brilho, nitidez, prontoParaLer, criaDetector, paradaEm, screenRect, LIMIARES, PROPORCAO_CARTA, realcaTexto, trechoEscuroEmbaixo, limpaBordas, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, faixaDaCarta, escalaOcr,
   retasDoQuadro, achaQuadrilatero, ordenaCantos, homografia, cantosDaFaixa, retifica, FAIXA_NOME, FAIXA_COLECAO, LARGURA_NOME, linhaDoNome, binarizaLinha, limpaLinha, nitidezDaLinha, afiaLinha, FAIXA_ARTE, BITS_ARTE, impressaoDaArte, distanciaDaArte, buscaArte, abreBaseDeArtes, binDasArtes, criaBaseDeArtes, decideArte, arteDaEdicao, LIMIAR_ARTE, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, alturaDaCarta, deslocamento, LIMIARES_LINHA, pulaPorMovimento, QUAD };
 })();
@@ -45715,13 +45730,12 @@ const __m22 = (function () {
    o scanner abre); correspondência contra a base de nomes (C6).
    ===================================================================== */
 const { h, mount, Stack, Row, Surface, Text, Button, Field, Input, Select, Badge, Chip, Empty, Note, Spinner, Dialog, closeDialog, toast, reservaDoca, Simbolo, Icone, IconButton, AvisoRede } = __m3;
-const { createLot, coverRegion, screenRect, parseCollectorLine, resolvePrinting, resolveEdicao, ACCEPT, EXATA, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, criaPorteiro, PORTEIRO, leituraConfiavel, criaDiario, criaCronometro, realcaTexto,
+const { createLot, coverRegion, screenRect, parseCollectorLine, resolvePrinting, resolveEdicao, ACCEPT, EXATA, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, criaPorteiro, PORTEIRO, leituraConfiavel, criaDiario, criaCronometro, criaRefoco, realcaTexto,
   achaQuadrilatero, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, FAIXA_NOME, FAIXA_COLECAO, alturaDaCarta, deslocamento, LIMIARES_LINHA, pulaPorMovimento, brilho,
   FAIXA_ARTE, impressaoDaArte, criaBaseDeArtes, decideArte, arteDaEdicao, LIMIAR_ARTE, LINGUAS_DO_LEITOR, linguaDoLeitor } = __m21;
 const { pulse } = __m20;
 const TESSERACT_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
 // Leva 109 · o laço lê uma leitura atrás da outra; estes são só os respiros entre elas
-const ZOOM_INICIAL = 2;        // S-594 · zoom de partida sem escolha guardada (ver aplicaZoomGuardado)
 const RESPIRO_MS = 120;        // sem carta no quadro, ou passada pulada (tremida/desfocada: a régua de movimento precisa de intervalo entre dois quadros). X14: com carta lida, a próxima passada sai no próximo quadro do vídeo
 const REPOUSO_MS = 250;        // X14 · carta já aceita parada no quadro: não há o que ler, o laço descansa (bateria e aquecimento)
 // Leva 112 · o plano B (texto esparso do quadro inteiro) saiu: era a origem das leituras erradas com a carta mal
@@ -45823,6 +45837,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
   const artes = criaBaseDeArtes({ store });
   const diario = criaDiario();
   const cronometro = criaCronometro();
+  const refoco = criaRefoco({ limiar: LIMIARES_LINHA.borrada }); // S-606 · foco forçado com a carta borrada no quadro
   if (typeof window !== 'undefined') window.__scanDiario = diario; // o mesmo que "Copiar diagnóstico" mostra
   const online = () => !env || env.online !== false;
   const printsCache = new Map();
@@ -46176,6 +46191,8 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
       const lido = !L.pulou && L.found[0] && L.found[0].score >= ACCEPT ? L.found[0].name : null;
       temCarta = !!(L.contorno || L.longe || lido);
       cronometro.quadro(temCarta, L.inicio);
+      // S-606 · carta no quadro e linha borrada: foco novo no centro (espaçado pelo refoco), sem esperar o toque
+      if (!L.pulou && !lido && camera.focar && refoco.pede({ contorno: L.contorno || L.longe, nitidez: L.nitidez })) { state.refocos = (state.refocos || 0) + 1; camera.focar({ x: 0.5, y: 0.5 }).catch(() => {}); }
       if (L.pulou) { if (L.pulou !== 'tremida' && L.pulou !== 'desfocada') cronometro.leitura(null); diario.anota({ via: L.pulou, texto: '', melhor: null, ms: 0, decisao: 'pulou', nitidez: L.nitidez, movimento: L.movimento, tempos: L.tempos }); return; }
       // X14 · leitura idêntica a um nome da base, pelo contorno, entra na primeira (o resto segue pedindo repetição)
       const peloContorno = L.caminho === 'carta';
@@ -46259,14 +46276,12 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     }
   });
   /** X13 · o zoom escolhido da última vez volta sozinho (depois da subida de resolução, que troca as restrições). */
-  /* S-594 · sem zoom escolhido, começa em 2× quando a câmera tem. Com a carta enchendo a moldura em 1×, o celular fica a
-     uns 9 cm dela, no limite do foco das câmeras principais: a imagem borra. Em 2× a mesma moldura pede uns 18 cm, onde
-     a lente foca; e o zoom da câmera recorta o sensor (que tem pixels de sobra), não a imagem já reduzida. Quem escolher
-     outro zoom no chip fica com ele (inclusive 1×). */
+  /* S-606 · relato #60: sem zoom automático. A câmera abre em 1× (a S-594 começava em 2× para a lente focar de mais
+     longe; o dono pediu a câmera sem zoom e o foco forçado — é o `refoco` do laço que cuida da carta perto). Quem
+     escolher outro zoom no chip fica com ele. */
   async function aplicaZoomGuardado() {
     try {
-      let z = await store.get('scanner.zoom');
-      if (z == null && camera.zooms && camera.zooms().includes(ZOOM_INICIAL)) z = ZOOM_INICIAL;
+      const z = await store.get('scanner.zoom');
       if (z && z !== 1 && camera.zoom) await camera.zoom(z);
     } catch (e) { /* segue em 1× */ }
   }
@@ -46283,7 +46298,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
   function infoAparelho() {
     const LEITOR = { idle: 'parado', loading: 'carregando', ready: 'pronto', failed: 'falhou' };
     const cam = camera.info ? camera.info() : {};
-    return { leitor_versao: 'S-604 (nome em seis línguas latinas, japonês e chinês + arte; edição por linha de coleção, arte e artista; lente que foca, 2×)', nomes_idiomas: (Object.entries((names.info() || {}).idiomas || {}).map(([l, n]) => `${l} ${n}`).join(' · ') || 'nenhuma'), artes: (artes.info() ? `${artes.info().total} artes` : 'sem base'), aparelho: (navigator.userAgent || '').slice(0, 80), video: `${cam.width || video.videoWidth || 0}×${cam.height || video.videoHeight || 0}${cam.fps ? ` @${Math.round(cam.fps)}` : ''}`, foco: cam.foco || '?', camera_maximo: cam.maximo || '?', subida: cam.subida || '—', zoom: `${(+(cam.zoom || 1)).toFixed(1)}×`, lanterna: cam.lanterna ? 'ligada' : 'desligada', lente: (cam.rotulo || '?').slice(0, 40) + (cam.lenteAuto ? ' (trocada: a anterior não focava)' : ''), ate_aceitar: (r => r.n ? (r.nEntrada ? `mediana ${r.desdeEntrada} ms desde a entrada (${r.nEntrada} carta(s)); ` : '') + `confirmação ${r.confirmacao} ms (${r.n} carta(s))` : 'sem cartas ainda')(cronometro.resumo()), base: (names.info() || {}).count || 0, leitor: LEITOR[state.engine] || state.engine, automatico: state.auto ? 'ligado' : 'pausado', limiares: `borrada < ${LIMIARES_LINHA.borrada} (lê de novo realçada), movimento ≤ ${Math.round(LIMIARES_LINHA.deslocamentoMax * 100)}, carta ≥ ${Math.round(LIMIARES_LINHA.alturaMin * 100)}% do quadro` };
+    return { leitor_versao: 'S-606 (nome em seis línguas latinas, japonês e chinês + arte; edição por linha de coleção, arte e artista; lente que foca, 1× com foco forçado)', nomes_idiomas: (Object.entries((names.info() || {}).idiomas || {}).map(([l, n]) => `${l} ${n}`).join(' · ') || 'nenhuma'), artes: (artes.info() ? `${artes.info().total} artes` : 'sem base'), aparelho: (navigator.userAgent || '').slice(0, 80), video: `${cam.width || video.videoWidth || 0}×${cam.height || video.videoHeight || 0}${cam.fps ? ` @${Math.round(cam.fps)}` : ''}`, foco: cam.foco || '?', camera_maximo: cam.maximo || '?', subida: cam.subida || '—', zoom: `${(+(cam.zoom || 1)).toFixed(1)}×`, lanterna: cam.lanterna ? 'ligada' : 'desligada', lente: (cam.rotulo || '?').slice(0, 40) + (cam.lenteAuto ? ' (trocada: a anterior não focava)' : ''), refocos: String(state.refocos || 0), ate_aceitar: (r => r.n ? (r.nEntrada ? `mediana ${r.desdeEntrada} ms desde a entrada (${r.nEntrada} carta(s)); ` : '') + `confirmação ${r.confirmacao} ms (${r.n} carta(s))` : 'sem cartas ainda')(cronometro.resumo()), base: (names.info() || {}).count || 0, leitor: LEITOR[state.engine] || state.engine, automatico: state.auto ? 'ligado' : 'pausado', limiares: `borrada < ${LIMIARES_LINHA.borrada} (lê de novo realçada), movimento ≤ ${Math.round(LIMIARES_LINHA.deslocamentoMax * 100)}, carta ≥ ${Math.round(LIMIARES_LINHA.alturaMin * 100)}% do quadro` };
   }
   function paintEstado() {
     const txt = state.camera !== 'on' ? '' : state.engine === 'loading' ? 'Preparando o leitor…' : state.engine === 'failed' ? 'Leitor indisponível' : state.auto ? 'Automático' : 'Pausado';

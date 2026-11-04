@@ -4107,10 +4107,12 @@ test('e2e · X13 câmera no máximo: sobe a resolução, lanterna, zoom que volt
   await page.click('[data-lanterna]');
   await page.waitForFunction(() => document.querySelector('[data-lanterna]').getAttribute('aria-pressed') === 'true');
   assert.equal(await page.evaluate(() => window.__pedidos.at(-1).advanced[0].torch), true);
-  // S-594 · sem zoom escolhido, a câmera começa em 2× (em 1× a carta que enche a moldura fica perto demais para focar)
-  assert.match(await page.innerText('[data-zoom]'), /Zoom 2×/);
-  await page.click('[data-zoom]');
-  await page.waitForFunction(() => /Zoom 3×/.test(document.querySelector('[data-zoom]').innerText));
+  // S-606 · relato #60: sem zoom escolhido, a câmera abre em 1× (sem zoom automático; antes, S-594, abria em 2×)
+  assert.match(await page.innerText('[data-zoom]'), /Zoom 1×/);
+  for (const passo of ['1,5', '2', '3']) {
+    await page.click('[data-zoom]');
+    await page.waitForFunction(p => new RegExp(`Zoom ${p}×`).test(document.querySelector('[data-zoom]').innerText), passo);
+  }
   const z = await page.evaluate(() => window.__pedidos.at(-1).advanced[0]);
   assert.equal(z.zoom, 3); assert.equal(z.torch, true, 'o zoom não desliga a lanterna');
   assert.match(await page.innerText('[data-lente]'), /Lente 1 de 2/);
@@ -4144,7 +4146,7 @@ test('e2e · X13 câmera no máximo: sobe a resolução, lanterna, zoom que volt
 });
 
 // S-594 · celular em que "traseira" abre a grande-angular de foco fixo: o app troca sozinho para a lente que foca,
-// guarda essa lente e começa em 2× (sem zoom escolhido); o diagnóstico diz que trocou.
+// guarda essa lente e abre em 1× (S-606: sem zoom automático); o diagnóstico diz que trocou.
 const CAMERA_LENTE_FIXA = `
   window.__aberturas = []; window.__pedidos = [];
   {
@@ -4163,7 +4165,7 @@ const CAMERA_LENTE_FIXA = `
     navigator.mediaDevices.enumerateDevices = async () => [{ kind: 'videoinput', deviceId: 'larga', label: 'camera2 2, facing back' }, { kind: 'videoinput', deviceId: 'frente', label: 'camera2 1, facing front' }, { kind: 'videoinput', deviceId: 'principal', label: 'camera2 0, facing back' }];
   }
 `;
-test('e2e · S-594 lente que foca: a grande-angular de foco fixo é trocada pela principal, a escolha fica guardada e o zoom começa em 2×', { skip }, async t => {
+test('e2e · S-594 lente que foca: a grande-angular de foco fixo é trocada pela principal, a escolha fica guardada e a câmera abre em 1× (S-606, sem zoom automático)', { skip }, async t => {
   const { page, errors, base } = await open(t);
   const foto = readFileSync(join(ROOT, 'fotos', 'real-counterspell-playmat.jpg'));
   await page.addInitScript(FAKE_PHOTO_CAM('data:image/jpeg;base64,' + foto.toString('base64'), false, 30));
@@ -4172,16 +4174,17 @@ test('e2e · S-594 lente que foca: a grande-angular de foco fixo é trocada pela
   await page.goto(base + '#/scanner');
   await page.waitForSelector('#scan-read:not([disabled])');
   assert.deepEqual(await page.evaluate(() => window.__aberturas), ['larga', 'principal'], 'abriu a padrão, viu que não foca e passou para a principal (sem provar a frontal)');
-  await page.waitForFunction(() => window.__pedidos.some(p => p.advanced && p.advanced[0].zoom === 2), null, { timeout: 8000 });
   await page.click('#scan-more');
   await page.waitForSelector('#scan-camera-controles');
-  assert.match(await page.innerText('[data-zoom]'), /Zoom 2×/);
+  assert.match(await page.innerText('[data-zoom]'), /Zoom 1×/);
+  // S-606 · relato #60: nenhum pedido de zoom acima de 1× sem a pessoa escolher no chip
+  assert.equal(await page.evaluate(() => window.__pedidos.some(p => (p.advanced || []).some(a => a.zoom > 1) || p.zoom > 1)), false, 'sem zoom automático');
   await page.click('[data-diag]');
   await page.waitForSelector('#scan-diag .scan-diag__linha');
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
   await page.click('#scan-diag-copiar');
   const copiado = await page.evaluate(() => navigator.clipboard.readText());
-  assert.match(copiado, /lente: .*trocada: a anterior não focava/); assert.match(copiado, /zoom: 2\.0×/);
+  assert.match(copiado, /lente: .*trocada: a anterior não focava/); assert.match(copiado, /zoom: 1\.0×/); assert.match(copiado, /refocos: \d+/);
   await page.click('#ds-dialog-close');
   // reabrir: vai direto na principal, sem provar a grande-angular de novo
   await page.reload();
