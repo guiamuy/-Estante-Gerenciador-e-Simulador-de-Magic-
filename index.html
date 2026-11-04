@@ -3486,13 +3486,27 @@ button.col-dash__bar:active, .col-dash__bar--on { background: var(--accent-soft)
 .scan-frame__band span { transform: translateY(120%); font-size: var(--text-xs); color: var(--accent); background: var(--scrim); padding: 0 var(--space-1); border-radius: var(--radius-1); }
 /* Leva 112 · a tela do scanner não rola: câmera no meio ocupando o que sobra, linha do resultado e botões embaixo.
    Num S25 (360×780 úteis) cabe tudo; a pilha, digitar, opções e diagnóstico abrem em folhas. */
-.scan { display: flex; flex-direction: column; gap: var(--space-2); height: calc(100dvh - 58px); min-height: 420px; padding-top: var(--space-2); padding-bottom: 0; }
+/* S-609 · relato #60 fatia 2 · a câmera é a tela: o vídeo vai de borda a borda (a barra do app sai, como na partida);
+   o cabeçalho e os avisos flutuam no alto, o resultado e as funções flutuam embaixo, em vidro translúcido sobre o
+   vídeo (tokens do tema: claro no claro, ébano no escuro). A moldura fica centrada no espaço livre entre os dois
+   (--scan-t e --scan-b vêm da altura medida do alto e da base). */
+body[data-tela="scanner"] .ds-appbar { display: none; }
+.scan { --scan-veu: color-mix(in srgb, var(--bg) 80%, transparent); --scan-vidro: color-mix(in srgb, var(--bg-elev-1) 76%, transparent);
+  position: relative; display: block; height: 100dvh; min-height: 420px; max-width: none; padding: 0; overflow: hidden; background: var(--bg-elev-3); }
 .scan-head { align-items: center; min-height: var(--tap-min); }
-.scan-head h1 { line-height: 1.1; }
-.scan .scan-stage { flex: 1 1 0; min-height: 180px; max-width: none; max-height: none; aspect-ratio: auto; border-radius: var(--radius-3); container-type: size; }
-/* a moldura cabe em altura (86%) e em largura (palco estreito): a menor das duas manda, sempre 63:88 */
-.scan .scan-frame { height: min(86%, calc((100cqw - 2 * var(--space-4)) * 88 / 63)); }
-.scan-estado { position: absolute; left: var(--space-3); top: var(--space-3); z-index: 2; pointer-events: none; }
+.scan-head h1 { line-height: 1.1; text-shadow: 0 1px 8px var(--scan-veu); }
+.scan .scan-stage { position: absolute; inset: 0; min-height: 0; max-width: none; max-height: none; aspect-ratio: auto; border: none; border-radius: 0; container-type: size; }
+/* a moldura cabe em altura (90% do espaço livre) e em largura (palco estreito): a menor das duas manda, sempre 63:88 */
+.scan .scan-frame { top: calc(var(--scan-t, 0px) + (100% - var(--scan-t, 0px) - var(--scan-b, 0px)) / 2);
+  height: min(calc((100cqh - var(--scan-t, 0px) - var(--scan-b, 0px)) * .9), calc((100cqw - 2 * var(--space-4)) * 88 / 63)); }
+.scan-topo { position: absolute; top: 0; left: 0; right: 0; z-index: 4; display: flex; flex-direction: column; gap: var(--space-2);
+  padding: calc(var(--space-2) + env(safe-area-inset-top, 0px)) var(--space-4) var(--space-4); background: linear-gradient(to bottom, var(--scan-veu) 55%, transparent); pointer-events: none; }
+.scan-base { position: absolute; left: 0; right: 0; bottom: 0; z-index: 4; display: flex; flex-direction: column; gap: var(--space-2);
+  padding: var(--space-5) var(--space-4) calc(var(--space-3) + env(safe-area-inset-bottom, 0px)); background: linear-gradient(to top, var(--scan-veu) 45%, transparent); pointer-events: none; }
+.scan-topo > *, .scan-base > * { pointer-events: auto; }
+.scan-topo .ds-btn--icone { background-color: var(--scan-vidro); } /* sem desfoque aqui: o véu basta, e cada desfoque sobre o vídeo custa quadros no aparelho */
+.scan-base .scan-result { padding: 0 var(--space-3); border-radius: var(--radius-2); background: var(--scan-vidro); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+.scan-estado { position: absolute; left: var(--space-4); top: calc(var(--scan-t, 0px) + var(--space-1)); z-index: 2; pointer-events: none; }
 .scan-estado__chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: var(--radius-full); background: var(--scrim); color: var(--fg); font-size: var(--text-xs); font-weight: var(--weight-medium); backdrop-filter: blur(6px); }
 .scan-estado__chip::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--fg-muted); }
 .scan-estado__chip[data-ligado="true"]::before { background: var(--positive); box-shadow: 0 0 0 3px color-mix(in srgb, var(--positive) 35%, transparent); animation: scan-pisca 1.4s ease-in-out infinite; }
@@ -3545,7 +3559,7 @@ button.col-dash__bar:active, .col-dash__bar--on { background: var(--accent-soft)
 .scan-stage.tem-contorno .scan-frame { border-color: transparent; }
 .scan-stage.tem-contorno .scan-frame__band { opacity: 0; }
 .scan-hint {
-  position: absolute; left: 50%; bottom: var(--space-3); transform: translateX(-50%); z-index: 2;
+  position: absolute; left: 50%; bottom: calc(var(--scan-b, 0px) + var(--space-2)); transform: translateX(-50%); z-index: 2;
   max-width: 90%; text-align: center; padding: var(--space-1) var(--space-3);
   background: var(--bg-elev-1); border-radius: var(--radius-2); box-shadow: var(--shadow-1); pointer-events: none;
 }
@@ -3571,11 +3585,21 @@ button.col-dash__bar:active, .col-dash__bar--on { background: var(--accent-soft)
 /* DS-K F2.5 (G-297) · a doca do scanner é a bandeja de ébano da tela (o destaque dela): filete de latão no alto, "Ler
    agora" em latão, Pilha e Desfazer em placas um degrau acima; respiro igual dos quatro lados */
 .scan-dock-wrap.ds-destaque { padding: var(--space-3) var(--space-3) calc(var(--space-3) + env(safe-area-inset-bottom, 0px)); }
-.ds-destaque .scan-dock .ds-btn:not(.ds-btn--primary):not(.ds-btn--ghost) { background-color: var(--bg-elev-1); }
+.ds-destaque .scan-dock__chaves .ds-btn:not(.ds-btn--primary):not(.ds-btn--ghost):not([aria-pressed="true"]) { background-color: var(--bg-elev-1); } /* S-609 · as placas ficam só nos interruptores; as ações são ícone e nome sobre o vidro */
 .scan-dock { display: flex; flex-direction: column; gap: var(--space-2); }
-.scan-dock__row { display: flex; gap: var(--space-2); align-items: stretch; }
-.scan-dock__row > .ds-btn:not(.ds-btn--icone) { flex: 1 1 auto; }
-.scan-dock__row > .ds-chip { flex: 0 0 auto; }
+/* S-609 · a bandeja vira vidro sobre a câmera (o filete de latão continua): funções em ícones com o nome embaixo,
+   "Ler agora" em latão no meio; acima, à direita, os interruptores (automático, lanterna, zoom) */
+.scan-base .scan-dock-wrap.ds-destaque { background-color: var(--scan-vidro); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  padding: var(--space-2) var(--space-1); border-radius: var(--radius-3); }
+.scan-dock__chaves { display: flex; justify-content: flex-end; align-items: center; gap: var(--space-2); }
+.scan-dock__chaves:empty { display: none; }
+.scan-dock__chaves .ds-btn--icone { min-width: var(--tap-min); }
+.scan-dock__chaves .ds-btn--icone[aria-pressed="true"] { color: var(--accent-fg); background-color: var(--accent); background-image: linear-gradient(160deg, var(--accent-hi), var(--accent) 55%, var(--accent-lo)); }
+.scan-zoom { font-variant-numeric: tabular-nums; font-weight: var(--weight-bold); font-size: var(--text-sm); }
+.scan-dock__acoes { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-1); align-items: stretch; }
+.scan-dock .scan-acao.ds-btn { flex-direction: column; justify-content: center; gap: 2px; min-height: 58px; min-width: 0; width: 100%; padding: var(--space-1) 2px; border-radius: var(--radius-2); }
+.scan-dock .scan-acao.ds-btn:not(.ds-btn--primary) { background-color: transparent; border-color: transparent; box-shadow: none; }
+.scan-acao .scan-acao__rotulo, .scan-acao .ds-btn__rotulo { font-size: var(--text-xs); line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 @media (prefers-reduced-motion: reduce) { .scan-stage.is-pulse .scan-frame, .scan-stage.is-pulse::after, .scan-ok.is-on, .scan-estado__chip[data-ligado="true"]::before { animation: none; } }
 
 /* ===================== A6 · combate e mana na mesa ===================== */
@@ -46450,15 +46474,34 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     const canRead = state.camera === 'on' && state.base === 'ready' && state.engine !== 'failed';
     const autoChip = Chip(state.auto ? 'Automático' : 'Pausado', { icone: state.auto ? 'scanner' : 'pausa', pressed: state.auto, dataset: { auto: '1' } });
     autoChip.addEventListener('click', () => setAuto(!state.auto));
+    // S-609 · lanterna e zoom saem de "Mais" para a bandeja: só o que este aparelho tem (o zoom mostra o valor atual)
+    const cam = state.camera === 'on' && camera.info ? camera.info() : {}, pode = cam.pode || {};
+    const chaves = [canRead ? autoChip : null];
+    if (pode.lanterna) {
+      const b = IconButton('raio', 'Lanterna', { id: 'scan-lanterna' });
+      b.setAttribute('aria-pressed', String(!!cam.lanterna));
+      b.addEventListener('click', async () => { try { await camera.lanterna(!cam.lanterna); } catch (e) { toast('A lanterna não respondeu.', 1600); } paintDock(); });
+      chaves.push(b);
+    }
+    if (pode.zoom && camera.zooms) {
+      const passos = camera.zooms(), perto = z => passos.reduce((a, x) => Math.abs(x - z) < Math.abs(a - z) ? x : a, passos[0]);
+      const atual = perto(cam.zoom || 1), fala = z => `${String(Math.round(z * 10) / 10).replace('.', ',')}×`;
+      const b = h('button', { class: 'ds-btn ds-btn--icone scan-zoom', type: 'button', id: 'scan-zoom', 'aria-label': `Zoom ${fala(atual)}: toque para trocar`, title: 'Zoom' }, fala(atual));
+      b.addEventListener('click', async () => {
+        const proximo = passos[(passos.indexOf(atual) + 1) % passos.length];
+        try { await store.set('scanner.zoom', perto(await camera.zoom(proximo))); } catch (e) { /* fica o zoom de antes */ }
+        paintDock();
+      });
+      chaves.push(b);
+    }
     mount(dock,
-      Row({ class: 'scan-dock__row' },
-        Button('Ler agora', { variant: 'primary', id: 'scan-read', icone: 'scanner', disabled: !canRead, onClick: () => readOnce() }),
-        canRead ? autoChip : null),
-      Row({ class: 'scan-dock__row' },
-        Button(`Pilha · ${n}`, { id: 'scan-lot', icone: 'pilhas', onClick: openPile }),
-        IconButton('desfazer', 'Desfazer a última leitura', { id: 'scan-undo', disabled: !n, onClick: async () => { const u = await lot.undo(); if (u) toast(`${u} −1`); paintDock(); } }),
-        IconButton('editar', 'Digitar o nome da carta', { id: 'scan-manual-open', onClick: openManual }),
-        IconButton('filtro', 'Mais opções', { id: 'scan-more', onClick: () => { openMore().catch(() => {}); } })));
+      Row({ class: 'scan-dock__chaves', id: 'scan-chaves' }, ...chaves.filter(Boolean)),
+      h('div', { class: 'scan-dock__acoes' },
+        Button('Digitar', { id: 'scan-manual-open', icone: 'editar', classe: 'scan-acao', ariaLabel: 'Digitar o nome da carta', onClick: openManual }),
+        Button('Desfazer', { id: 'scan-undo', icone: 'desfazer', classe: 'scan-acao', ariaLabel: 'Desfazer a última leitura', disabled: !n, onClick: async () => { const u = await lot.undo(); if (u) toast(`${u} −1`); paintDock(); } }),
+        Button('Ler agora', { variant: 'primary', id: 'scan-read', icone: 'scanner', classe: 'scan-acao', disabled: !canRead, onClick: () => readOnce() }),
+        Button(`Pilha · ${n}`, { id: 'scan-lot', icone: 'pilhas', classe: 'scan-acao', onClick: openPile }),
+        Button('Mais', { id: 'scan-more', icone: 'filtro', classe: 'scan-acao', ariaLabel: 'Mais opções', onClick: () => { openMore().catch(() => {}); } })));
   }
 
   /* ---- pilha (abre por botão: a tela principal não rola) ---- */
@@ -46710,7 +46753,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     const controles = [];
     if (pode.lanterna) {
       const c = Chip('Lanterna', { pressed: !!cam.lanterna, dataset: { lanterna: '1' } });
-      c.addEventListener('click', async () => { const on = await camera.lanterna(c.getAttribute('aria-pressed') !== 'true'); c.setAttribute('aria-pressed', String(on)); });
+      c.addEventListener('click', async () => { const on = await camera.lanterna(c.getAttribute('aria-pressed') !== 'true'); c.setAttribute('aria-pressed', String(on)); paintDock(); });
       controles.push(c);
     }
     if (pode.zoom) {
@@ -46721,7 +46764,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
       c.addEventListener('click', async () => {
         const proximo = passos[(passos.indexOf(atual) + 1) % passos.length];
         atual = perto(await camera.zoom(proximo)); await store.set('scanner.zoom', atual);
-        c.textContent = rotulo(atual);
+        c.textContent = rotulo(atual); paintDock();   // S-609 · a bandeja mostra o mesmo zoom
       });
       controles.push(c);
     }
@@ -46789,10 +46832,25 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
   }
 
   paintResult(); boot();
-  mount(root,
+  // S-609 · relato #60 fatia 2 · a câmera ocupa a tela; o alto (cabeçalho e avisos) e a base (resultado e bandeja) flutuam
+  // sobre ela. A barra do app sai nesta tela: o caminho de volta é o Voltar do cabeçalho (para o Início).
+  const topo = h('div', { class: 'scan-topo' },
     // DS-K F2.2 · cabeçalho 44 · 1fr · 44: "Coleção" vira botão de ícone de 44 px (nome falado "Coleção", mesmo id)
-    __m3.Cabecalho('Scanner', { classe: 'scan-head', direita: IconButton('colecao', 'Coleção', { id: 'scan-colecao', onClick: () => go('/colecao') }) }),
-    status, stage, result, reservaDoca(h('div', { class: 'scan-dock-wrap ds-surface ds-destaque' }, dock))); // leva 123 · o aviso não cobre os botões; DS-K F2.5 · a doca é a bandeja de ébano do scanner
+    __m3.Cabecalho('Scanner', { classe: 'scan-head', esquerda: IconButton('voltar', 'Voltar ao início', { id: 'scan-voltar', onClick: () => go('/') }),
+      direita: IconButton('colecao', 'Coleção', { id: 'scan-colecao', onClick: () => go('/colecao') }) }),
+    status);
+  // leva 123 · o aviso não cobre os botões (a reserva é a base inteira: resultado e bandeja); DS-K F2.5 · a bandeja é o destaque da tela
+  const base = reservaDoca(h('div', { class: 'scan-base' }, result, h('div', { class: 'scan-dock-wrap ds-surface ds-destaque' }, dock)));
+  // a moldura centra no espaço livre entre o alto e a base: as duas alturas medidas viram --scan-t e --scan-b
+  if (typeof ResizeObserver !== 'undefined') {
+    const ro = new ResizeObserver(() => {
+      if (!root.isConnected && !state.alive) return ro.disconnect();
+      root.style.setProperty('--scan-t', `${Math.round(topo.getBoundingClientRect().height)}px`);
+      root.style.setProperty('--scan-b', `${Math.round(base.getBoundingClientRect().height)}px`);
+    });
+    ro.observe(topo); ro.observe(base);
+  }
+  mount(root, stage, topo, base);
   return root;
 }
 

@@ -507,7 +507,8 @@ test('DS-K · F2.2 o cabeçalho de tela é a grade 44 · 1fr · 44 com o título
   assert.match(componentCss, /\.ds-cabecalho \{ display: grid; grid-template-columns: var\(--tap-min\) minmax\(0, 1fr\) var\(--tap-min\);/);
   assert.match(componentCss, /\.ds-cabecalho__titulo \{[^}]*text-align: center;[^}]*text-wrap: balance;/);
   for (const t of ["Cabecalho('Coleção'", "Cabecalho('Listas'", "Cabecalho('Scanner'"]) assert.ok(HTML.includes(t), t);
-  assert.match(HTML, /Cabecalho\('Scanner', \{ classe: 'scan-head', direita: IconButton\('colecao', 'Coleção', \{ id: 'scan-colecao'/, 'Coleção vira ícone com o mesmo id e nome falado');
+  // S-609 · relato #60: a barra do app sai do scanner, então o Voltar entra no lado esquerdo do cabeçalho (Coleção continua à direita)
+  assert.match(HTML, /Cabecalho\('Scanner', \{ classe: 'scan-head', esquerda: IconButton\('voltar', 'Voltar ao início', \{ id: 'scan-voltar'[^\n]*\n\s*direita: IconButton\('colecao', 'Coleção', \{ id: 'scan-colecao'/, 'Coleção vira ícone com o mesmo id e nome falado');
 });
 
 /* ---------------- DS-K (G-308) · F4.2 Perfil e subtelas ---------------- */
@@ -738,9 +739,13 @@ test('DS-K · F2.4 o Painel da Coleção é o destaque em ébano: Expansivel ace
 
 /* ---------------- DS-K (G-297) · F2.5 doca do Scanner em ébano ---------------- */
 test('DS-K · F2.5 a doca do Scanner é a bandeja de ébano (destaque), com respiro igual e os botões secundários um degrau acima', () => {
-  assert.match(HTML, /reservaDoca\(h\('div', \{ class: 'scan-dock-wrap ds-surface ds-destaque' \}, dock\)\)/);
+  // S-609 · relato #60 (decisão do dono: funções em ícones translúcidos sobre a câmera): a bandeja continua o destaque da
+  // tela, agora dentro da base flutuante (que reserva a altura para o aviso) e em vidro do tema; as placas um degrau acima
+  // ficam nos interruptores (automático, lanterna, zoom); as cinco ações são ícone e nome sobre o vidro
+  assert.match(HTML, /reservaDoca\(h\('div', \{ class: 'scan-base' \}, result, h\('div', \{ class: 'scan-dock-wrap ds-surface ds-destaque' \}, dock\)\)\)/);
   assert.match(componentCss, /\.scan-dock-wrap\.ds-destaque \{ padding: var\(--space-3\) var\(--space-3\) calc\(var\(--space-3\) \+ env\(safe-area-inset-bottom, 0px\)\); \}/);
-  assert.match(componentCss, /\.ds-destaque \.scan-dock \.ds-btn:not\(\.ds-btn--primary\):not\(\.ds-btn--ghost\) \{ background-color: var\(--bg-elev-1\); \}/);
+  assert.match(componentCss, /\.scan-base \.scan-dock-wrap\.ds-destaque \{ background-color: var\(--scan-vidro\);/);
+  assert.match(componentCss, /\.ds-destaque \.scan-dock__chaves \.ds-btn:not\(\.ds-btn--primary\):not\(\.ds-btn--ghost\):not\(\[aria-pressed="true"\]\) \{ background-color: var\(--bg-elev-1\); \}/);
 });
 
 /* ---------------- DS-K (G-298) · FA.1 orçamento da abertura ---------------- */

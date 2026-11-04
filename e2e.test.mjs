@@ -842,6 +842,9 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
   assert.match(await page.innerText('#scan-edition'), /Sem internet: a cópia entra sem edição/);
 
   // O2 · a barra avisa, e cada tela que batia na rede tem o seu caminho sem ela
+  // S-609 · relato #60: a barra de cima sai do scanner (a câmera é a tela; lá o aviso sem rede é o do próprio scanner,
+  // conferido acima na edição): a barra é conferida no Início, onde ela mora
+  await page.goto(base + '#/'); await page.waitForSelector('#home-atalhos');
   assert.equal(await page.locator('#nav-offline').isVisible(), true, 'chip "Sem internet" na barra');
   // U2 · sem internet os ícones continuam desenhados (SVG no próprio arquivo, nada de fonte externa)
   assert.equal(await page.locator('#nav-offline svg').count(), 1, 'chip com o ícone de nuvem cortada');
@@ -4155,6 +4158,58 @@ const CAMERA_COM_CAPACIDADES = `
     navigator.mediaDevices.enumerateDevices = async () => [{ kind: 'videoinput', deviceId: 'cam-a', label: 'camera2 0, facing back' }, { kind: 'videoinput', deviceId: 'cam-b', label: 'camera2 2, facing back' }, { kind: 'videoinput', deviceId: 'cam-f', label: 'camera2 1, facing front' }];
   }
 `;
+// S-609 · relato #60 fatia 2: a câmera é a tela. Em 360×697 (o aparelho do dono) o vídeo vai de borda a borda, a barra
+// do app sai, o cabeçalho e a bandeja flutuam em vidro translúcido sobre o vídeo; as cinco funções são ícones com o nome
+// inteiro embaixo; lanterna e zoom ficam na bandeja quando o aparelho tem; a moldura cabe no espaço livre; Voltar leva ao Início.
+test('e2e · S-609 scanner de tela cheia: vídeo de borda a borda em 360×697, funções em ícones translúcidos embaixo, lanterna e zoom na bandeja, moldura no espaço livre, Voltar ao Início; dois temas, auditaTela', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  const foto = readFileSync(join(ROOT, 'fotos', 'real-counterspell-playmat.jpg'));
+  await page.addInitScript(FAKE_PHOTO_CAM('data:image/jpeg;base64,' + foto.toString('base64'), false, 30));
+  await page.addInitScript(CAMERA_COM_CAPACIDADES);
+  await page.setViewportSize({ width: 360, height: 697 });
+  await page.goto(base + '#/scanner');
+  await page.waitForSelector('#scan-read:not([disabled])');
+  await page.waitForSelector('#scan-lanterna', { timeout: 8000 });
+  for (const tema of ['dark', 'light']) {
+    await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(300);
+    const m = await page.evaluate(() => {
+      const r = s => { const e = document.querySelector(s); if (!e) return null; const b = e.getBoundingClientRect(); return { top: b.top, bottom: b.bottom, left: b.left, right: b.right, w: b.width, h: b.height }; };
+      const barra = document.querySelector('.ds-appbar');
+      const acoes = [...document.querySelectorAll('.scan-dock__acoes > .ds-btn')].map(b => { const k = b.getBoundingClientRect(), ro = b.querySelector('.ds-btn__rotulo');
+        return { id: b.id, w: Math.round(k.width), h: Math.round(k.height), dentro: k.top >= 0 && k.bottom <= innerHeight + 1, inteiro: !!ro && ro.scrollWidth <= ro.clientWidth + 1, icone: !!b.querySelector('svg') }; });
+      const alfa = c => { const x = /(?:\/ ?|, )(0?\.\d+|0)\)$/.exec(c); return x ? +x[1] : 1; }; // rgba(…, a) ou color(srgb … / a)
+      return { vh: innerHeight, rola: document.documentElement.scrollHeight - innerHeight, barra: !!barra && barra.getBoundingClientRect().height > 0 && getComputedStyle(barra).display !== 'none',
+        palco: r('#scan-stage'), topo: r('.scan-topo'), base: r('.scan-base'), moldura: r('.scan-frame'), acoes,
+        vidro: alfa(getComputedStyle(document.querySelector('.scan-dock-wrap')).backgroundColor), chaves: [...document.querySelectorAll('#scan-chaves > *')].map(e => e.id || e.dataset.auto && 'auto') };
+    });
+    const ctx = `(${tema}) ${JSON.stringify(m)}`;
+    assert.equal(m.rola <= 1, true, 'a tela não rola ' + ctx);
+    assert.equal(m.barra, false, 'a barra do app sai na tela do scanner ' + ctx);
+    assert.ok(m.palco.top <= 1 && m.palco.h >= 0.85 * m.vh && m.palco.w >= 359, 'o vídeo vai de borda a borda (≥ 85% da altura) ' + ctx);
+    assert.ok(m.topo.top >= m.palco.top && m.base.bottom <= m.palco.bottom + 1, 'cabeçalho e bandeja flutuam sobre o vídeo ' + ctx);
+    assert.ok(m.moldura.top >= m.topo.bottom - 1 && m.moldura.bottom <= m.base.top + 1, 'a moldura cabe no espaço livre entre o alto e a base ' + ctx);
+    assert.deepEqual(m.acoes.map(a => a.id), ['scan-manual-open', 'scan-undo', 'scan-read', 'scan-lot', 'scan-more'], ctx);
+    assert.ok(m.acoes.every(a => a.dentro && a.inteiro && a.icone && a.w >= 44 && a.h >= 44), 'cinco funções em ícone, nome inteiro, alvo ≥ 44 px, à vista ' + ctx);
+    assert.ok(m.vidro > 0 && m.vidro < 1, 'a bandeja é translúcida ' + ctx);
+    assert.deepEqual(m.chaves, ['auto', 'scan-lanterna', 'scan-zoom'], 'automático, lanterna e zoom na bandeja ' + ctx);
+    await auditaTela(page, `S-609 scanner tela cheia ${tema}`);
+    if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + `/s609-scanner-${tema}.png` });
+  }
+  // lanterna e zoom na bandeja fazem o que os chips de "Mais" fazem, com o estado à vista
+  await page.click('#scan-lanterna');
+  await page.waitForFunction(() => document.querySelector('#scan-lanterna').getAttribute('aria-pressed') === 'true', null, { timeout: 4000 });
+  assert.equal(await page.evaluate(() => window.__pedidos.at(-1).advanced[0].torch), true);
+  assert.equal((await page.innerText('#scan-zoom')).trim(), '1×');
+  await page.click('#scan-zoom');
+  await page.waitForFunction(() => document.querySelector('#scan-zoom').innerText.trim() === '1,5×', null, { timeout: 4000 });
+  assert.equal(await page.evaluate(() => window.__pedidos.at(-1).advanced[0].zoom), 1.5);
+  // o caminho de volta: Voltar leva ao Início e a barra do app volta
+  await page.click('#scan-voltar');
+  await page.waitForFunction(() => /^#\/?$/.test(location.hash) || location.hash === '');
+  await page.waitForSelector('.ds-appbar', { state: 'visible' });
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · X13 câmera no máximo: sobe a resolução, lanterna, zoom que volta ao reabrir, foco no ponto tocado, troca de lente e tempo até aceitar no diagnóstico', { skip }, async t => {
   const { page, errors, base } = await open(t);
   const foto = readFileSync(join(ROOT, 'fotos', 'real-counterspell-playmat.jpg'));
@@ -19600,9 +19655,11 @@ test('e2e · DS-K F2.5 · a doca do Scanner é a bandeja de ébano: filete de la
         const ruins = []; const wk = document.createTreeWalker(d, NodeFilter.SHOW_TEXT);
         while (wk.nextNode()) { const el = wk.currentNode.parentElement; if (!wk.currentNode.textContent.trim() || el.getBoundingClientRect().width <= 1 || el.closest('[disabled]')) continue; const k = r(getComputedStyle(el).color, fundoDe(el)); if (k < 4.5) ruins.push(`${wk.currentNode.textContent.trim().slice(0, 20)} ${k.toFixed(2)}`); }
         const ler = document.querySelector('#scan-read'), b = d.getBoundingClientRect();
-        return { ebano: cs.backgroundColor === funda, filete: /linear-gradient\(90deg/.test(cs.backgroundImage), ler: getComputedStyle(ler).backgroundImage, ruins, gutter: [Math.round(b.left), Math.round(innerWidth - b.right)] };
+        return { ebano: cs.backgroundColor === funda, fundo: cs.backgroundColor, filete: /linear-gradient\(90deg/.test(cs.backgroundImage), ler: getComputedStyle(ler).backgroundImage, ruins, gutter: [Math.round(b.left), Math.round(innerWidth - b.right)] };
       });
-      assert.equal(m.ebano, true, `doca em ébano (${w} ${tema})`); assert.equal(m.filete, true, `filete (${w} ${tema})`);
+      // S-609 · relato #60 (decisão do dono: funções em ícones translúcidos sobre a câmera): a bandeja deixa de ser ébano
+      // sólido e vira vidro translúcido do tema; o filete de latão, o latão do Ler agora, o AA e o gutter continuam
+      assert.equal(m.ebano, false, `bandeja em vidro, não ébano sólido (${w} ${tema})`); assert.match(m.fundo, /(\/ ?|, )0?\.\d+\)$/, `bandeja translúcida (${w} ${tema}): ${m.fundo}`); assert.equal(m.filete, true, `filete (${w} ${tema})`);
       assert.match(m.ler, /linear-gradient\(160deg/, 'Ler agora em latão'); assert.deepEqual(m.ruins, [], `texto em AA na doca (${w} ${tema})`);
       assert.deepEqual(m.gutter, [16, 16], `a bandeja respeita o gutter (${w})`);
       await auditaTela(page, `DS-K F2.5 · Scanner ${w} ${tema}`);
