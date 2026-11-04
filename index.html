@@ -3520,6 +3520,22 @@ button.col-dash__bar:active, .col-dash__bar--on { background: var(--accent-soft)
 .scan-pile__card:has(.scan-pile__conferir) { border-color: var(--warning); }
 .scan-pile__conferir { display: flex; flex-direction: column; gap: var(--space-1); padding-top: var(--space-1); }
 .scan-pile__conferir .ds-btn { min-height: 44px; }
+/* S-607 · a edição na pilha e a folha de edição */
+.scan-pile__card:has(.scan-pile__body > .ds-badge--warning) { border-color: var(--warning); }
+.scan-pile__edicao { max-width: 100%; justify-content: flex-start; padding-inline: var(--space-2); }
+.scan-pile__edicao .ds-btn__rotulo { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scan-ed { display: flex; flex-direction: column; gap: var(--space-2); min-height: 120px; }
+.scan-ed__acab { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-2) 0; border-bottom: 1px solid var(--border); }
+.scan-ed__lista { display: flex; flex-direction: column; gap: var(--space-1); }
+.scan-ed__item { display: grid; grid-template-columns: 32px 1fr; align-items: center; gap: var(--space-3); min-height: var(--tap-min); width: 100%; text-align: left;
+  padding: var(--space-2) var(--space-3); background: var(--bg-elev-1); color: var(--fg); border: 1px solid var(--border); border-radius: var(--radius-2); font: inherit; cursor: pointer; }
+.scan-ed__item[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.scan-ed__item:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.scan-ed__simbolo { width: 28px; height: 28px; justify-self: center; background-color: var(--fg); -webkit-mask: var(--scan-ed-icone) center / contain no-repeat; mask: var(--scan-ed-icone) center / contain no-repeat; }
+.scan-ed__simbolo--sigla { width: auto; height: auto; background: none; -webkit-mask: none; mask: none; font-size: var(--text-xs); font-weight: 700; color: var(--fg-muted); letter-spacing: .02em; }
+.scan-ed__texto { display: flex; flex-direction: column; min-width: 0; }
+.scan-ed__nome { font-size: var(--text-md); line-height: var(--lh-md); overflow-wrap: anywhere; }
+.scan-ed__meta { font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--fg-muted); font-variant-numeric: tabular-nums; }
 /* X11 · o contorno é o quadrilátero da carta achada (com inclinação e perspectiva), desenhado em SVG */
 .scan-outline { position: absolute; z-index: 1; pointer-events: none; color: var(--accent); }
 .scan-outline svg { display: block; overflow: visible; }
@@ -5863,6 +5879,9 @@ function normalizeCard(c) {
     keywords: c.keywords || [], layout: c.layout || 'normal',
     rarity: c.rarity || '', set: c.set || '', set_name: c.set_name || '',
     collector_number: c.collector_number || '',
+    // S-607 · a folha de edição do scanner mostra o ano e oferece só os acabamentos da impressão (só quando a Scryfall manda)
+    ...(Array.isArray(c.finishes) ? { finishes: c.finishes.filter(f => typeof f === 'string') } : {}),
+    ...(typeof c.released_at === 'string' ? { released_at: c.released_at } : {}),
     // S-604 · o scanner separa as impressões pelo artista impresso e pela ilustração que a arte reconheceu
     artist: c.artist || (Array.isArray(c.card_faces) && c.card_faces[0] && c.card_faces[0].artist) || '',
     illustration_id: c.illustration_id || (Array.isArray(c.card_faces) && c.card_faces[0] && c.card_faces[0].illustration_id) || '',
@@ -44684,7 +44703,8 @@ function createNameIndex({ store, scryfall, now = () => Date.now(), fetchFn = (t
    parada na frente da câmera não soma de novo até sair do quadro.
    X3: cada item pode trazer a impressão (edição e número); a chave junta
    nome e impressão, então duas edições da mesma carta ficam separadas. */
-const lotKey = (name, p) => p && p.set ? `${name}|${p.set}|${p.number || ''}` : name;
+// S-607 · o acabamento (foil, etched) separa a cópia como a edição: só entra na chave quando há (as chaves antigas não mudam)
+const lotKey = (name, p) => p && p.set ? `${name}|${p.set}|${p.number || ''}${p.finish ? '|' + p.finish : ''}` : name;
 function createLot({ store }) {
   let items = null, armed = true, lastSeen = null, history = [];
   const load = async () => {
@@ -44729,6 +44749,32 @@ function createLot({ store }) {
       else { Object.assign(cur, ed, { key: nova }); }
       history = history.map(k => k === key ? nova : k); await persist();
       return nova;
+    },
+    /** S-607 · relato #60 fatia 4 + #64 parte 1: a edição e o acabamento escolhidos na pilha. Escolher uma impressão do
+     * nome também confere o nome (passou pela mão da pessoa). Igual a outra cópia da pilha: as duas se juntam. Devolve
+     * { key, desfaz }: `desfaz` põe a cópia de volta como estava (separando de novo, se juntou). */
+    async escolhe(key, printing = null, finish = '') {
+      await load(); const cur = find(key); if (!cur || !(printing && printing.set)) return null;
+      const antes = { ...cur }, pos = items.indexOf(cur);
+      const fin = ACABAMENTO_NA_COLECAO[finish] || '';
+      const ed = { set: String(printing.set).toLowerCase(), number: String(printing.number || ''), set_name: printing.set_name || '', id: printing.id || '', verified: true };
+      const nova = lotKey(cur.name, { ...ed, finish: fin });
+      const dup = nova !== key ? find(nova) : null;
+      if (dup) { dup.qty += cur.qty; if (cur.img && !dup.img) dup.img = cur.img; delete dup.conferir; delete dup.alternativas; items.splice(pos, 1); }
+      else { Object.assign(cur, ed, { key: nova }); if (fin) cur.finish = fin; else delete cur.finish; delete cur.conferir; delete cur.alternativas; }
+      if (!dup) history = history.map(k => k === key ? nova : k);
+      await persist();
+      let feito = false;
+      const desfaz = async () => {
+        if (feito) return null; feito = true; await load();
+        const agora = find(nova); if (!agora) return null;
+        if (dup) { agora.qty -= antes.qty; if (agora.qty <= 0) items.splice(items.indexOf(agora), 1); }
+        else { antes.qty = agora.qty; items.splice(items.indexOf(agora), 1); history = history.map(k => k === nova ? key : k); }
+        const ja = find(key);
+        if (ja) ja.qty += antes.qty; else items.splice(Math.min(pos, items.length), 0, antes);
+        await persist(); return key;
+      };
+      return { key: nova, desfaz };
     },
     /** X9 · "é essa mesmo": a leitura deixa de pedir conferência. */
     async confirmar(key) {
@@ -44824,6 +44870,42 @@ function resolvePrinting(prints, parsed) {
   if (bySet.length === 1) return { exact: { ...bySet[0], verified: true }, candidates: [] };
   const pool = byNum.length ? byNum : bySet.length ? bySet : [];
   return { exact: null, candidates: pool.slice(0, 3) };
+}
+/* ---------------- S-607 · a folha de edição da pilha ----------------
+   Relato #60 fatia 4 + #64 parte 1: a carta que entrou sem edição (ou com a edição errada) recebe na própria pilha a
+   impressão e o acabamento. A lista sai das impressões da Scryfall (as mesmas que o scanner já busca) e do catálogo de
+   coleções (símbolo e data), buscados só quando a folha abre. O acabamento oferecido é só o que a impressão tem. */
+const ACABAMENTOS = ['nonfoil', 'foil', 'etched'];
+const ACABAMENTO_NA_COLECAO = { nonfoil: '', foil: 'foil', etched: 'etched' };   // o item da coleção guarda '' / foil / etched (C1)
+const NOME_DO_ACABAMENTO = { nonfoil: 'Normal', foil: 'Foil', etched: 'Etched' };
+/** Os acabamentos da impressão, na ordem nonfoil, foil, etched. Sem o campo `finishes` (carta guardada antes da S-607),
+    sai dos preços que a Scryfall tem; sem nada, só o normal. */
+function acabamentosDa(p) {
+  const f = p && Array.isArray(p.finishes) ? ACABAMENTOS.filter(x => p.finishes.includes(x)) : [];
+  if (f.length) return f;
+  const pr = (p && p.prices) || {};
+  const out = ACABAMENTOS.filter(x => (x === 'nonfoil' ? pr.usd || pr.eur : x === 'foil' ? pr.usd_foil || pr.eur_foil : pr.usd_etched));
+  return out.length ? out : ['nonfoil'];
+}
+/** Só o símbolo servido pela Scryfall (svgs.scryfall.io, arquivo .svg) vira imagem: o endereço entra no CSS da folha. */
+const iconeDoSet = u => (/^https:\/\/svgs\.scryfall\.io\/[a-z0-9_\/-]+\.svg(\?\d+)?$/i.test(String(u || '')) ? String(u) : '');
+/** As impressões da carta como a folha mostra: sigla, nome da coleção, número, ano, símbolo e acabamentos, da mais nova
+    para a mais antiga (sem data, na ordem que vieram). `sets`: o catálogo de coleções (ou nada, sem rede). */
+function edicoesDaCarta(prints, sets = null) {
+  const porCodigo = new Map((Array.isArray(sets) ? sets : []).filter(x => x && x.code).map(x => [String(x.code).toLowerCase(), x]));
+  return (prints || []).filter(p => p && p.set).map((p, i) => {
+    const set = String(p.set).toLowerCase(), c = porCodigo.get(set);
+    const data = String(p.released_at || (c && c.released_at) || '');
+    return { id: p.id || '', set, set_name: p.set_name || (c && c.name) || set.toUpperCase(), number: String(p.collector_number || p.number || ''),
+      ano: /^\d{4}/.test(data) ? data.slice(0, 4) : '', data, icone: c ? iconeDoSet(c.icon_svg_uri) : '', acabamentos: acabamentosDa(p), i };
+  }).sort((a, b) => (a.data && b.data && a.data !== b.data ? (a.data < b.data ? 1 : -1) : a.i - b.i)).map(({ i, ...x }) => x);
+}
+/** Busca da folha: sigla, nome da coleção, número ou ano; cada palavra precisa casar. */
+function filtraEdicoes(lista, termo) {
+  const n = v => String(v || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const ps = n(termo).split(/\s+/).filter(Boolean);
+  if (!ps.length) return lista.slice();
+  return lista.filter(e => { const t = n(`${e.set} ${e.set_name} #${e.number} ${e.number} ${e.ano}`); return ps.every(p => t.includes(p)); });
 }
 /* ---------------- S-604 · a edição por evidências ----------------
    A linha de coleção lida como um todo (uma ou mais leituras), a ilustração achada pela arte e o artista impresso
@@ -45715,7 +45797,7 @@ const LIMIARES_LINHA = { borrada: 0.5, deslocamentoMax: 0.05, correndo: 0.12, al
     mas a carta não conta como parada (nada entra na primeira passada; o porteiro pede repetição). */
 function pulaPorMovimento(mov, { via = 'auto', contorno = true } = {}) { return via !== 'manual' && contorno && mov > LIMIARES_LINHA.correndo; }
 
-return { cleanOcr, matchName, matchLines, criaVotacao, criaPorteiro, PORTEIRO, leituraConfiavel, nitidezDaFaixa, movimentoEntre, LIMIARES_FAIXA, criaDiario, criaCronometro, criaRefoco, EXATA, buildIndex, candidatosDoIndice, createNameIndex, IDIOMAS_DOS_NOMES, LINGUAS_DO_LEITOR, linguaDoLeitor, temCjk, chaveCjk, indiceCjk, matchCjk, createLot, coverRegion, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, resolveEdicao, artistaNoTexto, ACCEPT, ALTA, SUGGEST, lev,
+return { cleanOcr, matchName, matchLines, criaVotacao, criaPorteiro, PORTEIRO, leituraConfiavel, nitidezDaFaixa, movimentoEntre, LIMIARES_FAIXA, criaDiario, criaCronometro, criaRefoco, EXATA, buildIndex, candidatosDoIndice, createNameIndex, IDIOMAS_DOS_NOMES, LINGUAS_DO_LEITOR, linguaDoLeitor, temCjk, chaveCjk, indiceCjk, matchCjk, createLot, coverRegion, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, resolveEdicao, artistaNoTexto, acabamentosDa, edicoesDaCarta, filtraEdicoes, iconeDoSet, ACABAMENTO_NA_COLECAO, NOME_DO_ACABAMENTO, ACCEPT, ALTA, SUGGEST, lev,
   detectaCarta, detectaEmEscalas, ESCALAS_DETECTOR, brilho, nitidez, prontoParaLer, criaDetector, paradaEm, screenRect, LIMIARES, PROPORCAO_CARTA, realcaTexto, trechoEscuroEmbaixo, limpaBordas, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, faixaDaCarta, escalaOcr,
   retasDoQuadro, achaQuadrilatero, ordenaCantos, homografia, cantosDaFaixa, retifica, FAIXA_NOME, FAIXA_COLECAO, LARGURA_NOME, linhaDoNome, binarizaLinha, limpaLinha, nitidezDaLinha, afiaLinha, FAIXA_ARTE, BITS_ARTE, impressaoDaArte, distanciaDaArte, buscaArte, abreBaseDeArtes, binDasArtes, criaBaseDeArtes, decideArte, arteDaEdicao, LIMIAR_ARTE, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, alturaDaCarta, deslocamento, LIMIARES_LINHA, pulaPorMovimento, QUAD };
 })();
@@ -45730,7 +45812,7 @@ const __m22 = (function () {
    o scanner abre); correspondência contra a base de nomes (C6).
    ===================================================================== */
 const { h, mount, Stack, Row, Surface, Text, Button, Field, Input, Select, Badge, Chip, Empty, Note, Spinner, Dialog, closeDialog, toast, reservaDoca, Simbolo, Icone, IconButton, AvisoRede } = __m3;
-const { createLot, coverRegion, screenRect, parseCollectorLine, resolvePrinting, resolveEdicao, ACCEPT, EXATA, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, criaPorteiro, PORTEIRO, leituraConfiavel, criaDiario, criaCronometro, criaRefoco, realcaTexto,
+const { createLot, coverRegion, screenRect, parseCollectorLine, resolvePrinting, resolveEdicao, edicoesDaCarta, filtraEdicoes, ACABAMENTO_NA_COLECAO, NOME_DO_ACABAMENTO, ACCEPT, EXATA, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, criaPorteiro, PORTEIRO, leituraConfiavel, criaDiario, criaCronometro, criaRefoco, realcaTexto,
   achaQuadrilatero, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, FAIXA_NOME, FAIXA_COLECAO, alturaDaCarta, deslocamento, LIMIARES_LINHA, pulaPorMovimento, brilho,
   FAIXA_ARTE, impressaoDaArte, criaBaseDeArtes, decideArte, arteDaEdicao, LIMIAR_ARTE, LINGUAS_DO_LEITOR, linguaDoLeitor } = __m21;
 const { pulse } = __m20;
@@ -46359,7 +46441,10 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
       x.img ? h('img', { class: 'scan-pile__img', src: x.img, alt: '' }) : h('div', { class: 'scan-pile__img scan-pile__img--vazia' }, h('span', {}, x.name.slice(0, 1))),
       h('div', { class: 'scan-pile__body' },
         Text(x.name, { size: 'md' }),
-        Text(x.set ? `${printLabel(x)}${x.set_name ? ' · ' + x.set_name : ''}` : 'sem edição', { size: 'xs', tone: 'muted' }),
+        // S-607 · a edição é um botão: sem ela, o aviso; com ela, troca edição e acabamento ali mesmo
+        x.set ? null : Badge('Escolha a edição', { tone: 'warning' }),
+        Button(x.set ? edicaoDoItem(x) : 'Edição a definir', { variant: 'ghost', icone: 'editar', classe: 'scan-pile__edicao', dataset: { edicao: x.key }, onClick: () => openEdicao(x) }),
+        x.set && x.set_name ? Text(x.set_name, { size: 'xs', tone: 'muted' }) : null,
         x.score != null ? Badge(`${Math.round(x.score * 100)}%`, { tone: x.conferir ? 'warning' : 'positive' }) : null,
         x.conferir ? conferencia(x, depois) : null),
       h('div', { class: 'scan-pile__qty' },
@@ -46368,7 +46453,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
         IconButton('mais', `Uma a mais de ${x.name}`, { onClick: async () => { await lot.setQty(x.key, x.qty + 1); depois(); } }),
         IconButton('fechar', `Tirar ${x.name} da pilha`, { onClick: async () => { const nm = await lot.remove(x.key); depois(); if (nm) toast(`${nm} saiu da pilha`); } })));
     mount(box, list.length ? Stack({},
-      Row({ class: 'scan-pile__head' }, Text(`Na pilha: ${list.reduce((s2, x) => s2 + x.qty, 0)} carta(s)`, { size: 'sm' }),
+      Row({ class: 'scan-pile__head' }, Text(`Na pilha: ${list.reduce((s2, x) => s2 + x.qty, 0)} carta(s)` + (list.some(x => !x.set) ? ` · ${list.filter(x => !x.set).length} sem edição` : ''), { size: 'sm' }),
         Button('Adicionar em lote', { variant: 'primary', id: 'scan-pile-commit', icone: 'mais', onClick: () => { state.pilhaAberta = false; closeDialog(); openLot(); } })),
       h('div', { class: 'scan-pile__lista' }, ...recentes.map(cartao))) : Empty('Nada lido ainda. Aponte a câmera para uma carta.'));
   }
@@ -46382,6 +46467,100 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     Dialog({ title: 'Pilha', body: box, aoFechar: () => { state.pilhaAberta = false; if (pilhaBox === box) pilhaBox = null; },
       actions: [Button('Voltar', { onClick: closeDialog })] });
     state.pilhaAberta = true; pilhaBox = box;
+  }
+  /* S-607 · relato #60 fatia 4 + #64 parte 1: a folha de edição da carta da pilha. Abre só pelo toque na edição (nunca
+     sozinha, S-605); a lista de impressões e o catálogo de coleções são buscados aqui, ao abrir, nunca por carta lida.
+     Voltar e o X não mexem na carta; Usar troca e oferece Desfazer. Sem rede, a carta fica com a edição a definir. */
+  const edicaoDoItem = x => `${printLabel(x)}${x.finish && NOME_DO_ACABAMENTO[x.finish] ? ' · ' + NOME_DO_ACABAMENTO[x.finish] : ''}`;
+  let colecoesDaFolha = null;
+  async function colecoesParaFolha() {
+    if (colecoesDaFolha) return colecoesDaFolha;
+    if (!online() || !scryfall || !scryfall.sets) return [];
+    try { colecoesDaFolha = (await scryfall.sets()).map(c => ({ code: c.code, name: c.name, released_at: c.released_at, icon_svg_uri: c.icon_svg_uri })); }
+    catch (e) { return []; }   // sem o catálogo a folha mostra a sigla no lugar do símbolo
+    return colecoesDaFolha;
+  }
+  async function impressoesParaFolha(name) {
+    if (!online()) throw new Error('sem-rede');
+    if (!printsCache.has(name)) printsCache.set(name, await scryfall.search(`!"${name}"`, { unique: 'prints', order: 'released' }));
+    return printsCache.get(name) || [];
+  }
+  const BUSCA_A_PARTIR = 8;   // com mais impressões que isso, a folha ganha a busca
+  async function openEdicao(x) {
+    const box = h('div', { class: 'scan-ed', id: 'scan-ed', dataset: { key: x.key } });
+    const voltar = () => { closeDialog(); openPile(); };
+    const usar = Button('Usar', { variant: 'primary', id: 'scan-ed-usar', icone: 'marcar', disabled: true });
+    Dialog({ title: x.name, body: box, actions: [Button('Voltar', { id: 'scan-ed-voltar', onClick: voltar }), usar] });
+    const titulo = document.getElementById('ds-dialog-title'); if (titulo) titulo.setAttribute('lang', 'en');
+    const escolha = { ed: null, acab: x.finish ? (x.finish === 'foil' ? 'foil' : 'etched') : 'nonfoil' };
+    async function carrega() {
+      box.dataset.estado = 'carregando'; usar.disabled = true;
+      mount(box, __m3.Carregando('Buscando edições…', { tamanho: 'bloco' }));
+      let prints;
+      try { prints = await impressoesParaFolha(x.name); }
+      catch (e) {
+        const semRede = e && e.message === 'sem-rede';
+        box.dataset.estado = semRede ? 'sem-rede' : 'erro';
+        return mount(box, Stack({},
+          Note(semRede ? 'Sem internet: a carta fica com a edição a definir. Escolha quando a rede voltar.' : 'Não deu para buscar as edições agora.', semRede ? 'warning' : 'negative'),
+          semRede ? null : Button('Tentar de novo', { id: 'scan-ed-tentar', icone: 'atualizar', onClick: carrega })));
+      }
+      const sets = await colecoesParaFolha();
+      if (!box.isConnected) return;
+      const lista = edicoesDaCarta(prints, sets);
+      if (!lista.length) { box.dataset.estado = 'vazio'; return mount(box, Empty('A Scryfall não tem impressões com esse nome.')); }
+      box.dataset.estado = 'pronto';
+      escolha.ed = lista.find(e => x.set && e.set === String(x.set).toLowerCase() && (!x.number || e.number === String(x.number))) || null;
+      if (escolha.ed && !escolha.ed.acabamentos.includes(escolha.acab)) escolha.acab = escolha.ed.acabamentos[0];
+      const acabBox = h('div', { class: 'scan-ed__acab', id: 'scan-ed-acab' });
+      const listaBox = h('div', { class: 'scan-ed__lista', id: 'scan-ed-lista', role: 'list' });
+      const pintaAcab = () => {
+        usar.disabled = !escolha.ed;
+        if (!escolha.ed) return mount(acabBox, Text('Toque na edição da sua carta.', { size: 'sm', tone: 'muted' }));
+        mount(acabBox, Text(`Acabamento · ${escolha.ed.set.toUpperCase()} #${escolha.ed.number}`, { size: 'xs', tone: 'muted' }),
+          Row({ class: 'ds-row--wrap' }, ...escolha.ed.acabamentos.map(a => Chip(NOME_DO_ACABAMENTO[a], { pressed: escolha.acab === a, dataset: { acab: a },
+            onClick: () => { escolha.acab = a; pintaAcab(); } }))));
+      };
+      // a sigla aparece já; o símbolo entra no lugar dela quando a imagem chega (sem rede ou sem símbolo, fica a sigla)
+      const simbolo = e => {
+        const el = h('span', { class: 'scan-ed__simbolo scan-ed__simbolo--sigla', 'aria-hidden': 'true', dataset: e.icone ? { icone: e.icone } : null }, e.set.toUpperCase().slice(0, 4));
+        if (e.icone) {
+          const img = new Image();
+          img.onload = () => { el.style.setProperty('--scan-ed-icone', `url("${e.icone}")`); el.classList.remove('scan-ed__simbolo--sigla'); el.textContent = ''; };   // endereço já conferido (iconeDoSet)
+          img.src = e.icone;
+        }
+        return el;
+      };
+      const item = e => h('button', { class: 'scan-ed__item', type: 'button', role: 'listitem', 'aria-pressed': String(escolha.ed === e), dataset: { set: e.set, number: e.number },
+        onClick: () => { escolha.ed = e; if (!e.acabamentos.includes(escolha.acab)) escolha.acab = e.acabamentos[0]; pintaLista(); pintaAcab(); } },
+        simbolo(e),
+        h('span', { class: 'scan-ed__texto' },
+          h('span', { class: 'scan-ed__nome' }, e.set_name),
+          h('span', { class: 'scan-ed__meta' }, [e.set.toUpperCase(), e.number ? '#' + e.number : '', e.ano].filter(Boolean).join(' · '))));
+      let termo = '';
+      const pintaLista = () => {
+        const vis = filtraEdicoes(lista, termo);
+        mount(listaBox, ...(vis.length ? vis.map(item) : [Text('Nenhuma edição com esse texto.', { size: 'sm', tone: 'muted' })]));
+      };
+      let busca = null;
+      if (lista.length > BUSCA_A_PARTIR) {
+        busca = Input({ id: 'scan-ed-busca', type: 'search', placeholder: 'Sigla, coleção, número ou ano', onInput: ev => { termo = ev.target.value; pintaLista(); } });
+        busca.setAttribute('aria-label', 'Buscar edição');
+      }
+      mount(box, Stack({}, Text(`${lista.length} impressão(ões)`, { size: 'xs', tone: 'muted' }), busca, acabBox, listaBox));
+      pintaAcab(); pintaLista();
+    }
+    usar.addEventListener('click', async () => {
+      if (!escolha.ed) return;
+      const ed = escolha.ed;
+      const r = await lot.escolhe(x.key, { set: ed.set, number: ed.number, set_name: ed.set_name, id: ed.id }, escolha.acab);
+      closeDialog(); paintDock();
+      if (!r) { toast('A carta saiu da pilha'); return; }
+      await openPile();
+      toast(`${x.name}: ${ed.set.toUpperCase()} #${ed.number}${escolha.acab !== 'nonfoil' ? ' · ' + NOME_DO_ACABAMENTO[escolha.acab] : ''}`, 4000,
+        { acao: { rotulo: 'Desfazer', icone: 'desfazer', onClick: async () => { await r.desfaz(); if (pilhaBox) paintPile(pilhaBox); paintDock(); } } });
+    });
+    await carrega();
   }
   function conferencia(x, depois) {
     return h('div', { class: 'scan-pile__conferir', dataset: { conferir: x.key } },
@@ -46401,8 +46580,8 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     const allDecks = decks ? await decks.list() : [];
     const reopen = () => { closeDialog(); openLot(); paintDock(); };
     const row = x => h('div', { class: 'col-print', dataset: { name: x.name, key: x.key, ...(x.conferir ? { conferir: '1' } : {}) } },
-      h('div', { class: 'col-print__label' }, Row({ class: 'ds-row--wrap' }, Text(x.name, { size: 'md' }), x.conferir ? Badge('Confira', { tone: 'warning' }) : null),
-        Text(x.set ? `${printLabel(x)}${x.set_name ? ' · ' + x.set_name : ''}` : 'sem edição', { size: 'xs', tone: 'muted' })),
+      h('div', { class: 'col-print__label' }, Row({ class: 'ds-row--wrap' }, Text(x.name, { size: 'md' }), x.conferir ? Badge('Confira', { tone: 'warning' }) : null, x.set ? null : Badge('Edição a definir', { tone: 'warning' })),
+        Text(x.set ? `${edicaoDoItem(x)}${x.set_name ? ' · ' + x.set_name : ''}` : 'sem edição', { size: 'xs', tone: 'muted' })),
       h('div', { class: 'col-row__qty' },
         IconButton('menos', `Uma a menos de ${x.name}`, { onClick: async () => { await lot.setQty(x.key, x.qty - 1); reopen(); } }),
         h('span', { class: 'col-print__n' }, String(x.qty)),
@@ -46414,8 +46593,12 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
       c.addEventListener('click', () => { dest.alsoCollection = !dest.alsoCollection; c.setAttribute('aria-pressed', String(dest.alsoCollection)); }); return c; })() : null;
     const aviso = aConferir ? Note(__m3.seguro`<b>${aConferir} leitura(s) ainda não conferida(s).</b> Toque em Corrigir para trocar o nome, ou adicione assim mesmo.`, 'warning') : null;
     if (aviso) aviso.id = 'scan-lot-aviso';
+    // S-607 · guardar nunca escolhe edição em silêncio: a cópia sem edição entra só com o nome ("edição a definir"), e o lote diz quantas
+    const semEdicao = list.filter(x => !x.set).reduce((s2, x) => s2 + x.qty, 0);
+    const avisoEd = semEdicao ? Note(semEdicao + ' carta(s) sem edição entram como edição a definir. Para escolher, toque na edição na pilha.', 'warning') : null;
+    if (avisoEd) avisoEd.id = 'scan-lot-sem-edicao';
     const rotulo = (dest.to === 'collection' ? `Adicionar ${total} à coleção` : `Adicionar ${total} à lista`) + (aConferir ? ` (${aConferir} a conferir)` : '');
-    Dialog({ title: `Lote · ${total} carta(s)`, body: list.length ? Stack({}, aviso, Field('Destino', destSelect), also, h('div', { class: 'col-prints', id: 'scan-lot-list' }, ...list.map(row))) : Empty('Nada lido ainda.'),
+    Dialog({ title: `Lote · ${total} carta(s)`, body: list.length ? Stack({}, aviso, avisoEd, Field('Destino', destSelect), also, h('div', { class: 'col-prints', id: 'scan-lot-list' }, ...list.map(row))) : Empty('Nada lido ainda.'),
       actions: [
         list.length ? Button('Limpar', { variant: 'danger', onClick: async () => { await lot.clear(); closeDialog(); paintDock(); toast('Lote limpo'); } }) : null,
         Button('Fechar', { onClick: closeDialog }),
@@ -46431,7 +46614,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
   }
   async function toCollection(list) {
     for (const x of list) {
-      if (x.set) await collection.addPrinting({ name: x.name, set: x.set, number: x.number, set_name: x.set_name, id: x.id }, x.qty);
+      if (x.set) await collection.addPrinting({ name: x.name, set: x.set, number: x.number, set_name: x.set_name, id: x.id, finish: x.finish || '' }, x.qty);   // S-607 · com o acabamento escolhido na pilha
       else await collection.set(x.name, (await collection.qty(x.name)) + x.qty);
     }
   }

@@ -1231,3 +1231,49 @@ test('S-606 · relato #60: foco forçado só com a carta borrada no quadro, espa
   t = 1600; assert.equal(r.pede({ contorno: true, nitidez: 0.2 }), true, 'passado o intervalo, pede de novo');
   r.zera(); assert.equal(r.pede({ contorno: true, nitidez: 0.2 }), true);
 });
+
+// S-607 · relato #60 fatia 4 + #64 parte 1: a edição e o acabamento escolhidos na pilha
+// (o módulo roda em outro contexto: listas comparadas pelo conteúdo)
+const eq607 = (a, b, m) => assert.deepEqual(JSON.parse(JSON.stringify(a)), b, m);
+test('S-607 · acabamentos só os da impressão; sem o campo, pelos preços; símbolo só da Scryfall', () => {
+  eq607(X.acabamentosDa({ finishes: ['foil', 'nonfoil'] }), ['nonfoil', 'foil'], 'na ordem normal, foil, etched');
+  eq607(X.acabamentosDa({ finishes: ['etched'] }), ['etched']);
+  eq607(X.acabamentosDa({ prices: { usd: '1', usd_foil: '3' } }), ['nonfoil', 'foil'], 'carta guardada antes: pelos preços');
+  eq607(X.acabamentosDa({}), ['nonfoil'], 'sem nada, só o normal');
+  assert.equal(X.iconeDoSet('https://svgs.scryfall.io/sets/mh2.svg?1700000000'), 'https://svgs.scryfall.io/sets/mh2.svg?1700000000');
+  assert.equal(X.iconeDoSet('https://svgs.scryfall.io/sets/x.svg");background:url(//mal'), '', 'nada que escape do url() do CSS');
+  assert.equal(X.iconeDoSet('https://outro.site/sets/mh2.svg'), '');
+});
+test('S-607 · edicoesDaCarta: da mais nova para a mais antiga, com ano e símbolo do catálogo; busca por sigla, nome, número e ano', () => {
+  const prints = [{ id: 'a', set: 'lea', set_name: 'Limited Edition Alpha', collector_number: '54', finishes: ['nonfoil'] },
+    { id: 'b', set: 'MH2', set_name: 'Modern Horizons 2', collector_number: '267', released_at: '2021-06-18', finishes: ['nonfoil', 'foil', 'etched'] }];
+  const sets = [{ code: 'lea', name: 'Limited Edition Alpha', released_at: '1993-08-05', icon_svg_uri: 'https://svgs.scryfall.io/sets/lea.svg?1' }];
+  const l = X.edicoesDaCarta(prints, sets);
+  eq607(l.map(e => [e.set, e.ano, e.icone]), [['mh2', '2021', ''], ['lea', '1993', 'https://svgs.scryfall.io/sets/lea.svg?1']]);
+  eq607(l[0].acabamentos, ['nonfoil', 'foil', 'etched']);
+  eq607(X.edicoesDaCarta(prints, null).map(e => e.set), ['lea', 'mh2'], 'sem catálogo e sem data: a ordem da Scryfall');
+  eq607(X.filtraEdicoes(l, 'mh2').map(e => e.id), ['b']);
+  eq607(X.filtraEdicoes(l, 'alpha 1993').map(e => e.id), ['a']);
+  eq607(X.filtraEdicoes(l, '#267').map(e => e.id), ['b']);
+  assert.equal(X.filtraEdicoes(l, '').length, 2);
+});
+test('S-607 · lote: escolher edição e foil confere, separa do normal, junta com igual e desfaz', async () => {
+  const lot = X.createLot({ store: P.memoryStore() });
+  const k = await lot.add('Island', 2, null, { score: 0.8 });
+  assert.equal((await lot.list())[0].conferir, true);
+  const r = await lot.escolhe(k, { set: 'MH2', number: '267', set_name: 'Modern Horizons 2', id: 'x' }, 'foil');
+  assert.equal(r.key, 'Island|mh2|267|foil');
+  let l = await lot.list();
+  assert.equal(l.length, 1); assert.equal(l[0].finish, 'foil'); assert.equal(l[0].set, 'mh2'); assert.equal(l[0].verified, true); assert.equal(l[0].conferir, undefined);
+  await r.desfaz();
+  l = await lot.list();
+  eq607(l.map(x => [x.key, x.qty, x.set || '', x.finish || '']), [['Island', 2, '', '']], 'desfazer põe como estava');
+  // a mesma impressão normal já na pilha: escolher normal junta; desfazer separa de novo
+  const k2 = await lot.add('Island', 1, { set: 'mh2', number: '267' });
+  const r2 = await lot.escolhe('Island', { set: 'mh2', number: '267' }, 'nonfoil');
+  assert.equal(r2.key, k2);
+  eq607((await lot.list()).map(x => [x.key, x.qty]), [[k2, 3]]);
+  await r2.desfaz();
+  eq607((await lot.list()).map(x => [x.key, x.qty]).sort(), [['Island', 2], [k2, 1]]);
+  assert.equal(await lot.escolhe('Island', null), null, 'sem impressão, nada muda');
+});

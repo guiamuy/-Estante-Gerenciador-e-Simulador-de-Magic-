@@ -1604,6 +1604,83 @@ test('e2e · S-605 relato #60: a pilha não abre sozinha — fechada pelo X, a c
   assert.deepEqual(errors, []);
 });
 
+// S-607 · relato #60 fatia 4 + #64 parte 1: a carta sem edição pede a edição na pilha; a folha lista as impressões com símbolo,
+// oferece só o acabamento que a impressão tem, Voltar não mexe na carta, Usar troca (com Desfazer) e o lote guarda edição e foil.
+test('e2e · S-607 relato #60/#64: carta sem edição é marcada na pilha, a folha escolhe edição e foil e a coleção guarda os dois', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  const pedidos = { sets: 0, prints: 0 };
+  await page.route('https://api.scryfall.com/sets', r => { pedidos.sets++; return r.fulfill({ json: { object: 'list', has_more: false, data: [
+    { code: 'mh2', name: 'Modern Horizons 2', released_at: '2021-06-18', icon_svg_uri: 'https://svgs.scryfall.io/sets/mh2.svg?1700000000' }] } }); });
+  await page.route('https://svgs.scryfall.io/**', r => r.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><circle cx="5" cy="5" r="5"/></svg>' }));
+  await page.route('https://api.scryfall.com/cards/search**', r => {
+    const q = decodeURIComponent(new URL(r.request().url()).searchParams.get('q') || '');
+    if (q !== '!"Island"') return r.fallback();
+    pedidos.prints++;
+    const c = { object: 'card', name: 'Island', type_line: 'Basic Land — Island', color_identity: ['U'], colors: [], cmc: 0, oracle_text: '', legalities: {} };
+    return r.fulfill({ json: { object: 'list', has_more: false, data: [
+      { ...c, id: 'island-mh2', set: 'mh2', set_name: 'Modern Horizons 2', collector_number: '267', released_at: '2021-06-18', finishes: ['nonfoil', 'foil'] },
+      { ...c, id: 'island-lea', set: 'lea', set_name: 'Limited Edition Alpha', collector_number: '288', released_at: '1993-08-05', finishes: ['nonfoil'] }] } });
+  });
+  await page.addInitScript(FAKE_PHOTO_CAM('data:image/jpeg;base64,' + readFileSync(join(ROOT, 'fotos', 'real-counterspell-playmat.jpg')).toString('base64')));
+  await page.goto(base + '#/scanner');
+  await page.waitForSelector('#scan-read:not([disabled])');
+  await pausaAuto(page);
+  await page.evaluate(() => window.__ocrQueue.push('Island'));
+  await page.click('#scan-read');
+  await page.waitForFunction(() => /Edição incerta/.test((document.querySelector('#scan-edition') || {}).innerText || ''));
+  assert.equal(pedidos.sets, 0, 'o catálogo de coleções só é buscado quando a folha abre');
+  await abrePilha(page);
+  const cartao = page.locator('#scan-pile .scan-pile__card[data-name="Island"]');
+  assert.match(await cartao.innerText(), /Escolha a edição/);
+  assert.match(await page.innerText('#scan-pile'), /1 sem edição/);
+  // Voltar não mexe na carta
+  await cartao.locator('[data-edicao]').click();
+  await page.waitForSelector('#scan-ed[data-estado="pronto"]');
+  await page.click('#scan-ed-voltar');
+  await page.waitForSelector('#scan-pile');
+  assert.match(await page.innerText('#scan-pile .scan-pile__card[data-name="Island"]'), /Edição a definir/);
+  // a folha: as duas impressões, a mais nova primeiro, com símbolo (ou sigla) e ano; acabamento só o que a impressão tem
+  await page.locator('#scan-pile .scan-pile__card[data-name="Island"] [data-edicao]').click();
+  await page.waitForSelector('#scan-ed[data-estado="pronto"]');
+  assert.deepEqual(await page.$$eval('#scan-ed .scan-ed__item', els => els.map(e => e.dataset.set)), ['mh2', 'lea']);
+  assert.match(await page.innerText('#scan-ed .scan-ed__item[data-set="mh2"]'), /Modern Horizons 2[\s\S]*MH2 · #267 · 2021/);
+  assert.match(await page.getAttribute('#scan-ed .scan-ed__item[data-set="mh2"] .scan-ed__simbolo', 'data-icone'), /^https:\/\/svgs\.scryfall\.io\/sets\/mh2\.svg/, 'o símbolo da coleção vem do catálogo da Scryfall');
+  // o símbolo chega e toma o lugar da sigla (desenhado na cor do texto, nos dois temas)
+  await page.waitForSelector('#scan-ed .scan-ed__item[data-set="mh2"] .scan-ed__simbolo:not(.scan-ed__simbolo--sigla)');
+  assert.match(await page.innerText('#scan-ed .scan-ed__item[data-set="lea"] .scan-ed__simbolo'), /LEA/, 'sem símbolo no catálogo: a sigla');
+  assert.equal(await page.getAttribute('#scan-ed-usar', 'disabled') !== null, true, 'Usar só depois de escolher a edição');
+  await page.click('#scan-ed .scan-ed__item[data-set="lea"]');
+  assert.deepEqual(await page.$$eval('#scan-ed-acab [data-acab]', els => els.map(e => e.dataset.acab)), ['nonfoil']);
+  await page.click('#scan-ed .scan-ed__item[data-set="mh2"]');
+  assert.deepEqual(await page.$$eval('#scan-ed-acab [data-acab]', els => els.map(e => e.dataset.acab)), ['nonfoil', 'foil']);
+  await page.click('#scan-ed-acab [data-acab="foil"]');
+  const pequenos = await page.$$eval('#scan-ed button, .ds-dialog__actions button', bs => bs.filter(b => b.offsetParent && b.getBoundingClientRect().height < 44).map(b => b.textContent.trim()));
+  assert.deepEqual(pequenos, [], 'alvos de toque com 44 px');
+  await page.click('#scan-ed-usar');
+  await page.waitForSelector('#scan-pile');
+  assert.match(await page.innerText('#scan-pile .scan-pile__card[data-name="Island"]'), /MH2 #267 · Foil/);
+  assert.doesNotMatch(await page.innerText('#scan-pile'), /Escolha a edição|sem edição/);
+  assert.equal(pedidos.sets, 1, 'o catálogo vem uma vez por sessão');
+  // a pilha guarda a escolha enquanto se escaneia: a carta seguinte soma sem reabrir a folha nem perder a edição
+  await page.click('#ds-dialog-close');
+  await page.waitForFunction(() => document.querySelector('#ds-overlay').dataset.open !== 'true');
+  await page.evaluate(() => { window.__ocrQueue.push('Counterspell'); window.__ocrColecao.push('267/303 U\nMH2 • EN'); });
+  await page.click('#scan-read');
+  await esperaPilha(page, 2);
+  assert.notEqual(await page.evaluate(() => document.querySelector('#ds-overlay').dataset.open), 'true');
+  // guardar: a coleção recebe a edição e o acabamento escolhidos
+  await abrePilha(page);
+  assert.match(await page.innerText('#scan-pile .scan-pile__card[data-name="Island"]'), /MH2 #267 · Foil/);
+  await page.click('#scan-pile-commit'); await page.waitForSelector('#scan-lot-list');
+  assert.equal(await page.locator('#scan-lot-sem-edicao').count(), 0, 'nada sem edição: sem aviso');
+  await page.click('#scan-commit');
+  await esperaPilha(page, 0);
+  await page.goto(base + '#/colecao');
+  await page.waitForSelector('.col-row[data-name="Island"]');
+  assert.match(await page.innerText('.col-row[data-name="Island"]'), /MH2 · #267 · foil/i);
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · X3/X5 scanner identifica a edição e manda o lote para uma lista e para a coleção', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.goto(base + '#/listas/editar');
