@@ -725,6 +725,9 @@ a { color: var(--accent); }
 .etq-nova { display: flex; flex-direction: column; gap: var(--space-1); padding-top: var(--space-3); border-top: 1px solid var(--border); }
 .etq-nova__linha { display: flex; gap: var(--space-2); align-items: center; }
 .etq-nova__linha > input { flex: 1; min-width: 0; }
+/* G-346 · etiquetas do lote na folha de guardar a pilha do scanner (relato #63) */
+.scan-etq { display: flex; flex-direction: column; gap: var(--space-1); }
+.scan-etq .col-etiquetas { margin-bottom: var(--space-2); }
 .etq-atalho { display: flex; flex-direction: column; gap: var(--space-2); align-items: flex-start; }
 .col-row__titulo > .etq-pontos { align-self: center; }
 .col-dense__name .etq-pontos { margin-left: var(--space-2); vertical-align: middle; }
@@ -16432,7 +16435,7 @@ async function folha({ servico, tipo = 'cartas', chaves = [], titulo = 'Etiqueta
   Dialog({ title: titulo, body: corpo, actions: [Button('Pronto', { variant: 'primary', id: 'etq-pronto', onClick: closeDialog })] });
 }
 
-return { createEtiquetas, normaliza, limpaNome, proximaCor, cria, edita, apaga, marca, esquece, de, estadoNaSelecao, contagem, vazio, folha, Ponto, Pontos, Pilulas, ChipEtiqueta, CORES, TIPOS, NOME_MAX, LIMITE, CHAVE };
+return { createEtiquetas, normaliza, limpaNome, proximaCor, cria, edita, apaga, marca, esquece, de, estadoNaSelecao, contagem, vazio, folha, Ponto, Pontos, Pilulas, ChipEtiqueta, CORES, TIPOS, NOME_MAX, LIMITE, CHAVE, ERROS };
 })();
 
 /* ==== src/data/partidas.js ==== */
@@ -45947,7 +45950,7 @@ function createOcr(win = window, doc = document) {
   };
 }
 
-function createScannerScreen({ camera, store, names, collection, decks, scryfall, env, ocr }) {
+function createScannerScreen({ camera, store, names, collection, decks, scryfall, env, ocr, etiquetas = null }) {
   /* Leva 112 · o scanner como os apps de referência (ManaBox, Delver Lens, TCGplayer, Dragon Shield): a câmera
      ocupa a tela, a moldura diz onde pôr a carta, a leitura acontece só dentro dela, o nome aparece com ✓ quando
      entra, a mesma carta parada não entra duas vezes (toque na tela soma outra) e a pilha abre por um botão.
@@ -46644,7 +46647,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
   }
 
   /* ---- lote e destino (X4, X5) ---- */
-  const dest = { to: 'collection', alsoCollection: true };
+  const dest = { to: 'collection', alsoCollection: true, etiquetas: [] }; // G-346 · etiquetas: ids escolhidos para o lote inteiro (relato #63)
   async function openLot() {
     const list = await lot.list();
     const total = list.reduce((s, x) => s + x.qty, 0);
@@ -46661,8 +46664,10 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
         Button('Corrigir', { variant: 'ghost', onClick: () => fix(x) })));
     const destSelect = Select([{ value: 'collection', label: 'Coleção' }, ...allDecks.map(d => ({ value: d.id, label: `Lista: ${d.name}` }))], { id: 'scan-dest', value: dest.to,
       onChange: e => { dest.to = e.target.value; reopen(); } });
+    const etqCampo = list.length ? await campoEtiquetas(reopen) : null;
+    if (etqCampo) etqCampo.hidden = !(dest.to === 'collection' || dest.alsoCollection);
     const also = dest.to !== 'collection' ? (() => { const c = Chip('Também somar à coleção', { pressed: dest.alsoCollection, dataset: { also: '1' } });
-      c.addEventListener('click', () => { dest.alsoCollection = !dest.alsoCollection; c.setAttribute('aria-pressed', String(dest.alsoCollection)); }); return c; })() : null;
+      c.addEventListener('click', () => { dest.alsoCollection = !dest.alsoCollection; c.setAttribute('aria-pressed', String(dest.alsoCollection)); if (etqCampo) etqCampo.hidden = !dest.alsoCollection; }); return c; })() : null;
     const aviso = aConferir ? Note(__m3.seguro`<b>${aConferir} leitura(s) ainda não conferida(s).</b> Toque em Corrigir para trocar o nome, ou adicione assim mesmo.`, 'warning') : null;
     if (aviso) aviso.id = 'scan-lot-aviso';
     // S-607 · guardar nunca escolhe edição em silêncio: a cópia sem edição entra só com o nome ("edição a definir"), e o lote diz quantas
@@ -46670,11 +46675,58 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     const avisoEd = semEdicao ? Note(semEdicao + ' carta(s) sem edição entram como edição a definir. Para escolher, toque na edição na pilha.', 'warning') : null;
     if (avisoEd) avisoEd.id = 'scan-lot-sem-edicao';
     const rotulo = (dest.to === 'collection' ? `Adicionar ${total} à coleção` : `Adicionar ${total} à lista`) + (aConferir ? ` (${aConferir} a conferir)` : '');
-    Dialog({ title: `Lote · ${total} carta(s)`, body: list.length ? Stack({}, aviso, avisoEd, Field('Destino', destSelect), also, h('div', { class: 'col-prints', id: 'scan-lot-list' }, ...list.map(row))) : Empty('Nada lido ainda.'),
+    Dialog({ title: `Lote · ${total} carta(s)`, body: list.length ? Stack({}, aviso, avisoEd, Field('Destino', destSelect), also, etqCampo, h('div', { class: 'col-prints', id: 'scan-lot-list' }, ...list.map(row))) : Empty('Nada lido ainda.'),
       actions: [
         list.length ? Button('Limpar', { variant: 'danger', onClick: async () => { await lot.clear(); closeDialog(); paintDock(); toast('Lote limpo'); } }) : null,
         Button('Fechar', { onClick: closeDialog }),
         list.length ? Button(rotulo, { variant: 'primary', id: 'scan-commit', onClick: commit }) : null].filter(Boolean) });
+  }
+  /* G-346 · relato #63 fatia 1: etiquetas para o lote inteiro. Chips das etiquetas que já existem (tocar liga e desliga)
+     e "Nova etiqueta" no lugar, que já nasce ligada. Ao guardar, toda carta do lote ganha as escolhidas, sem perder
+     as que já tinha. Só aparece quando o lote vai para a coleção (etiqueta é de carta da coleção). */
+  async function campoEtiquetas(reabre) {
+    if (!etiquetas) return null;
+    let est = null;
+    try { est = await etiquetas.estado(); } catch (e) { return null; } // sem armazenamento: sem etiquetas
+    dest.etiquetas = dest.etiquetas.filter(id => est.lista.some(t => t.id === id)); // apagada noutra tela sai da escolha
+    const resumo = () => { const n = dest.etiquetas.length; return n ? `${n} etiqueta(s) para as cartas deste lote` : 'Nenhuma: as cartas entram sem etiqueta'; };
+    const fala = Text(resumo(), { size: 'xs', tone: 'subtle', attrs: { id: 'scan-etq-resumo', 'aria-live': 'polite' } });
+    const chips = est.lista.map(t => {
+      const c = __m32.ChipEtiqueta(t, { pressed: dest.etiquetas.includes(t.id), onClick: () => {
+        dest.etiquetas = dest.etiquetas.includes(t.id) ? dest.etiquetas.filter(id => id !== t.id) : [...dest.etiquetas, t.id];
+        c.setAttribute('aria-pressed', String(dest.etiquetas.includes(t.id))); fala.textContent = resumo();
+      } });
+      return c;
+    });
+    const novaIn = Input({ id: 'scan-etq-nova', placeholder: 'Nova etiqueta' });
+    novaIn.setAttribute('aria-label', 'Nome da nova etiqueta'); novaIn.setAttribute('maxlength', String(__m32.NOME_MAX));
+    const criar = async () => {
+      let r;
+      try { r = await etiquetas.cria({ nome: novaIn.value }); } catch (e) { r = { erro: 'falha' }; }
+      if (r.erro) { toast(__m32.ERROS[r.erro] || 'Não deu para criar a etiqueta'); novaIn.focus(); return; }
+      dest.etiquetas = [...dest.etiquetas, r.etiqueta.id];
+      toast(`Etiqueta "${r.etiqueta.nome}" criada para este lote`, 1600);
+      reabre();
+    };
+    novaIn.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); criar(); } });
+    // um grupo, não um <label>: dentro de label, tocar no vazio acionaria o primeiro chip
+    return h('div', { class: 'scan-etq', id: 'scan-etq', role: 'group', 'aria-labelledby': 'scan-etq-titulo' },
+      h('div', { class: 'ds-field' }, h('span', { class: 'ds-field__label', id: 'scan-etq-titulo' }, 'Etiquetas do lote'),
+        chips.length ? Row({ class: 'ds-row--wrap col-etiquetas', id: 'scan-etq-chips' }, ...chips)
+          : Text('Nenhuma etiqueta ainda. Crie uma: ela entra em todas as cartas deste lote.', { size: 'sm', tone: 'muted', attrs: { id: 'scan-etq-vazio' } }),
+        h('div', { class: 'etq-nova__linha' }, novaIn, Button('Criar', { icone: 'mais', id: 'scan-etq-criar', onClick: criar }))),
+      fala);
+  }
+  /** As etiquetas escolhidas entram em todas as cartas do lote; devolve os nomes para o aviso. Falhar não perde o lote (já guardado). */
+  async function etiquetaLote(list) {
+    const ids = dest.etiquetas; dest.etiquetas = [];
+    if (!etiquetas || !ids.length || !list.length) return { nomes: [], erro: false };
+    const chaves = [...new Set(list.map(x => __m7.norm(x.name)))];
+    try {
+      for (const id of ids) await etiquetas.marca('cartas', chaves, id, true);
+      const est = await etiquetas.estado();
+      return { nomes: ids.map(id => est.lista.find(t => t.id === id)).filter(Boolean).map(t => t.nome), erro: false };
+    } catch (e) { return { nomes: [], erro: true }; }
   }
   function fix(x, voltar = openLot) {
     closeDialog();
@@ -46690,13 +46742,14 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
       else await collection.set(x.name, (await collection.qty(x.name)) + x.qty);
     }
   }
+  const avisoEtq = r => r.erro ? ' · as etiquetas não foram guardadas' : r.nomes.length ? ` · ${r.nomes.length === 1 ? 'etiqueta' : 'etiquetas'} ${r.nomes.join(', ')}` : '';
   let enviando = false;
   async function commit() { if (enviando) return; enviando = true; try { await commitUmaVez(); } finally { enviando = false; } }
   async function commitUmaVez() {
     const list = await lot.list();
     const total = list.reduce((s, x) => s + x.qty, 0);
     let msg;
-    if (dest.to === 'collection') { await toCollection(list); msg = `${total} carta(s) adicionada(s) à coleção`; }
+    if (dest.to === 'collection') { await toCollection(list); msg = `${total} carta(s) adicionada(s) à coleção`; msg += avisoEtq(await etiquetaLote(list)); }
     else {
       const deck = await decks.get(dest.to);
       if (!deck) return toast('Lista não encontrada');
@@ -46707,7 +46760,8 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
       }
       await decks.save(deck);
       if (dest.alsoCollection) await toCollection(list);
-      msg = `${total} carta(s) em ${deck.name} (${fresh} nova(s))` + (dest.alsoCollection ? ' e na coleção' : '');
+      msg = `${total} carta(s) em ${deck.name} (${fresh} nova(s))` + (dest.alsoCollection ? ' e na coleção' + avisoEtq(await etiquetaLote(list)) : '');
+      dest.etiquetas = [];
     }
     await lot.clear(); closeDialog(); state.last = null; paintResult(); paintDock(); toast(msg, 3000);
   }
@@ -47848,7 +47902,7 @@ const ROUTES = [
   { path: '/listas/editar', title: 'Editar lista', render: () => createDeckEditor({ decks, collection }) },
   { path: '/lista', title: 'Lista', render: () => createDeckScreen({ decks, collection, cardRepo, images, share: platform.share, files: platform.files, store: platform.store, etiquetas, names, scryfall }) },
   { path: '/colecao', title: 'Coleção', render: () => createCollectionScreen({ collection, decks, cardRepo, scryfall, files: platform.files, persistence: platform.persistence, share: platform.share, names, etiquetas }) },
-  { path: '/scanner', title: 'Scanner', render: () => createScannerScreen({ camera: platform.camera, store: platform.store, names, collection, decks, scryfall, env: envVivo, ocr }) },
+  { path: '/scanner', title: 'Scanner', render: () => createScannerScreen({ camera: platform.camera, store: platform.store, names, collection, decks, scryfall, env: envVivo, ocr, etiquetas }) },
   { path: '/mesa', title: 'Jogar', render: () => createTableSetup({ decks, cardRepo, store: platform.store, keeper, perfil, online, catalogo, cobertura }) },
   { path: '/partida', title: 'Mesa', render: () => createTableScreen({ store: platform.store, perfil, online, som, partidas }) },
   { path: '/serie', title: 'Série', render: () => createSeriesScreen({ store: platform.store, online }) },

@@ -1529,6 +1529,44 @@ test('e2e · X1 câmera bloqueada: explica e deixa montar a pilha digitando', { 
   assert.deepEqual(errors, []);
 });
 
+test('e2e · G-346 relato #63: etiquetas para o lote inteiro ao guardar a pilha do scanner', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(FAKE_DEVICE(true));
+  await page.goto(base + '#/scanner');
+  await page.waitForSelector('#scan[data-base="ready"]');
+  await page.click('#scan-manual-open');
+  for (const [digita, nome, n] of [['Countrspell', 'Counterspell', 1], ['Island', 'Island', 2]]) {
+    await page.fill('#scan-manual', digita);
+    await page.click(`[data-manual="${nome}"]`);
+    await esperaPilha(page, n);
+  }
+  await page.keyboard.press('Escape');
+  await page.click('#scan-lot'); await page.click('#scan-pile-commit');
+  await page.waitForSelector('#scan-etq');
+  assert.equal(await page.locator('#scan-etq-vazio').count(), 1, 'sem etiquetas: o vazio diz o que fazer');
+  // criar no lugar: a etiqueta nova já nasce escolhida
+  await page.fill('#scan-etq-nova', 'Troca'); await page.click('#scan-etq-criar');
+  await page.waitForSelector('#scan-etq-chips .etq-chip[aria-pressed="true"]');
+  await page.fill('#scan-etq-nova', 'Pauper'); await page.click('#scan-etq-criar');
+  await page.waitForFunction(() => document.querySelectorAll('#scan-etq-chips .etq-chip[aria-pressed="true"]').length === 2);
+  // tocar desliga (a Pauper fica fora deste lote); repetir o nome não duplica
+  await page.locator('#scan-etq-chips .etq-chip', { hasText: 'Pauper' }).click();
+  assert.equal(await page.locator('#scan-etq-chips .etq-chip[aria-pressed="true"]').count(), 1);
+  await page.fill('#scan-etq-nova', 'troca'); await page.click('#scan-etq-criar');
+  assert.equal(await page.locator('#scan-etq-chips .etq-chip').count(), 2, 'nome repetido não cria outra');
+  const alvo = await page.locator('#scan-etq-chips .etq-chip').first().boundingBox();
+  assert.ok(alvo.height >= 44, 'chip com alvo de 44 px');
+  await page.click('#scan-commit');
+  await page.waitForFunction(() => /2 carta\(s\) adicionada\(s\) à coleção · etiqueta Troca/.test(document.body.innerText));
+  await esperaPilha(page, 0);
+  await page.goto(base + '#/colecao');
+  await page.waitForSelector('#col-etiquetas .etq-chip');
+  await page.locator('#col-etiquetas .etq-chip', { hasText: 'Troca' }).click();
+  await page.waitForFunction(() => document.querySelectorAll('#col-list .col-row').length === 2);
+  assert.deepEqual((await page.$$eval('#col-list .col-row', rs => rs.map(r => r.dataset.name))).sort(), ['Counterspell', 'Island']);
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · L11 companheiro fora das 100 e condição do Lurrus', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.goto(base + '#/listas/editar');

@@ -10596,6 +10596,10 @@ funciona offline, cabe no arquivo único da ADR-02); "cotação em tempo real" �
   agrupar a coleção por etiqueta no seletor "Agrupar"; etiqueta por impressão (vale para a carta, todas as
   cópias); o link com filtro de etiqueta só faz sentido no próprio aparelho (os ids são locais). Valor em dinheiro
   por etiqueta é a G3.
+- **Relato #63 do dono (04/11/2026, melhoria · alta · Coleção): etiquetas em lote e seleção por toque longo** — em fatias de uma leva (rotina "Relatos do dono"):
+  1. **G-346 · etiquetas do lote ao guardar a pilha do scanner** 🟡 (aguardando teste no aparelho): na folha "Lote", abaixo do Destino, o grupo **Etiquetas do lote** mostra as etiquetas que já existem como chips (tocar liga e desliga; alvo de 44 px) e um campo **Nova etiqueta** + **Criar** que cria no lugar e já deixa ligada (nome repetido avisa e não duplica; vazio sem etiquetas diz o que fazer). Ao guardar, toda carta do lote ganha as etiquetas ligadas, sem perder as que já tinha, e o aviso diz quais ("2 carta(s) adicionada(s) à coleção · etiqueta Troca"); falhar ao gravar as etiquetas não perde o lote (as cartas já entraram) e o aviso diz. O grupo só aparece quando o lote vai para a coleção (direto, ou lista com "Também somar à coleção"). A escolha vale para um lote: ao guardar, zera. Campo novo: nenhum (usa a chave `etiquetas` da G2; o scanner recebe o serviço). Fora: Desfazer só das etiquetas (o guardar do lote não tem Desfazer; tirar pela Coleção → Selecionar → Etiquetar); ordem por uso recente. Testes: I headless ("G-346", falhava antes: o grupo não existia).
+  2. toque longo numa carta da Coleção entra na seleção (retorno imediato), bandeja com as ações e Cancelar ○
+  3. ações em lote novas: excluir da coleção (com confirmação e Desfazer) e criar uma lista com as cartas ○
 
 - **Correção (leva 170, 04/10/2026):** o portão do CI ficou vermelho na 168 e na 169 — "excluir ao lado de editar"
   (e2e U2 parte 2). O botão de etiqueta era o quarto na linha de ações da lista; com a fonte de sistema do CI, mais
