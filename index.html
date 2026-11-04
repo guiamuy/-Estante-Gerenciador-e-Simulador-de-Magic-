@@ -46147,7 +46147,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
         const img = await miniatura(name, ed.exact);
         const nova = await lot.enrich(key, { printing: ed.exact, img });
         if (state.last && state.last.key === key) state.last = { ...state.last, key: nova || key, printing: ed.exact, candidates: ed.candidates || [], pendente: false };
-        if (state.alive) { paintResult(); paintDock(); if (state.pilhaAberta) openPile(); }
+        if (state.alive) { paintResult(); paintDock(); if (state.pilhaAberta && pilhaBox && pilhaBox.isConnected) paintPile(pilhaBox); }
       } catch (e) { if (state.last && state.last.key === key) { state.last.pendente = false; paintResult(); } }
     })();
     return key;
@@ -46357,11 +46357,16 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
         Button('Adicionar em lote', { variant: 'primary', id: 'scan-pile-commit', icone: 'mais', onClick: () => { state.pilhaAberta = false; closeDialog(); openLot(); } })),
       h('div', { class: 'scan-pile__lista' }, ...recentes.map(cartao))) : Empty('Nada lido ainda. Aponte a câmera para uma carta.'));
   }
+  /* S-605 · relato #60: a pilha só abre pelo toque. Fechada pelo X, por arrasto ou tocando fora, `aoFechar` desliga a
+     marca (antes ela ficava ligada e a pilha inteira reabria por cima da câmera a cada carta que entrava); aberta, a carta
+     que entra é redesenhada na mesma folha, sem trocar o diálogo (rolagem e foco ficam). */
+  let pilhaBox = null;
   async function openPile() {
     const box = h('div', { class: 'scan-pile', id: 'scan-pile' });
-    state.pilhaAberta = true;
     await paintPile(box);
-    Dialog({ title: 'Pilha', body: box, actions: [Button('Voltar', { onClick: () => { state.pilhaAberta = false; closeDialog(); } })] });
+    Dialog({ title: 'Pilha', body: box, aoFechar: () => { state.pilhaAberta = false; if (pilhaBox === box) pilhaBox = null; },
+      actions: [Button('Voltar', { onClick: closeDialog })] });
+    state.pilhaAberta = true; pilhaBox = box;
   }
   function conferencia(x, depois) {
     return h('div', { class: 'scan-pile__conferir', dataset: { conferir: x.key } },

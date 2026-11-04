@@ -9231,6 +9231,14 @@ X14 ataca. Sobre imagem: acima de 1440p o **nome** não ganha (a linha é lida e
 - **Valor:** a câmera é a tela; o resto aparece quando é preciso.
 - **Aceite:** câmera de borda a borda; controles por ícone sobre ela (lanterna, zoom, lente, pausar); estados desenhados (procurando, carta achada, lendo, entrou) com movimento curto; a carta lida "voa" para a pilha; dica só quando há o que corrigir; sem rolagem em 360×780; contraste AA sobre o vídeo; `prefers-reduced-motion` respeitado.
 - **Testes:** I e V (capturas 360 e 390, claro e escuro; auditoria de sobreposição; alvos de 44 px). **Depende de:** X13.
+- **Relato #60 do dono (03/11/2026, "impede o uso")** — a X16 passa a ser a resposta a ele, em fatias de uma leva (rotina "Relatos do dono", 04/11):
+  1. **S-605 · a pilha não abre sozinha** 🟡 (aguardando teste no aparelho): fechada pelo X, por arrasto ou tocando fora, a folha da pilha deixava a marca de "aberta" ligada e reabria por cima da câmera, com a pilha inteira, a cada carta que entrava; agora só abre pelo toque em Pilha, e aberta se atualiza no lugar. Testes: I headless ("S-605", falhava antes da correção).
+  2. câmera de borda a borda e funções em ícones flat translúcidos embaixo (ainda recortando o centro) ○
+  3. sem zoom automático de 2× (S-594) e foco contínuo, com aviso quando o aparelho não tem ○ — **decisão do dono registrada no relato**: o 2× da S-594 sai
+  4. carta sem edição reconhecida escolhe a edição na própria pilha ○ (junta com a X17)
+  5. sem moldura: o contorno (X11) acha a carta em qualquer ponto do centro; a moldura sai só depois dele provar o acerto nas fotos ○
+- **Relato #61 (04/11/2026, "impede o uso")**: carta deitada (batalhas como Invasion of Segovia) e as duas faces das cartas de duas faces ○ — fatia própria: ler a 0° e a 90° e ficar com a de maior confiança; verso indexado na base de artes.
+- **Relato #62 (04/11/2026, média)**: impressões em phyrexiano ○ — o nome não é legível por OCR: o caminho é a arte (S-596) e a linha de coleção (S-604); fatia própria, com fotos de referência.
 
 **X17 · Pilha e conferência visuais** ○
 - **Valor:** conferir o lote olhando para as cartas, não para uma lista.

@@ -1574,6 +1574,36 @@ test('e2e · S-604 edição por evidências: a linha que não deu na primeira le
   assert.deepEqual(errors, []);
 });
 
+test('e2e · S-605 relato #60: a pilha não abre sozinha — fechada pelo X, a carta seguinte só soma no contador; aberta, ela se atualiza no lugar', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(FAKE_PHOTO_CAM('data:image/jpeg;base64,' + readFileSync(join(ROOT, 'fotos', 'real-counterspell-playmat.jpg')).toString('base64')));
+  await page.goto(base + '#/scanner');
+  await page.waitForSelector('#scan-read:not([disabled])');
+  await pausaAuto(page);
+  await page.evaluate(() => { window.__ocrQueue.push('Counterspell'); window.__ocrColecao.push('267/303 U\nMH2 • EN'); });
+  await page.click('#scan-read');
+  await page.waitForSelector('#scan-edition');
+  // a pessoa espia a pilha e fecha pelo X (ou arrastando, ou tocando fora): não pelo "Voltar"
+  await abrePilha(page);
+  await page.click('#ds-dialog-close');
+  await page.waitForFunction(() => document.querySelector('#ds-overlay').dataset.open !== 'true');
+  // a carta seguinte entra e a edição chega depois: antes, a pilha inteira abria por cima da câmera a cada carta
+  await page.evaluate(() => window.__ocrQueue.push('Island'));
+  await page.click('#scan-read');
+  await esperaPilha(page, 2);
+  await page.waitForFunction(() => /Edição incerta/.test((document.querySelector('#scan-edition') || {}).innerText || ''));
+  await page.waitForTimeout(500);
+  assert.notEqual(await page.evaluate(() => document.querySelector('#ds-overlay').dataset.open), 'true', 'a pilha não abre sozinha');
+  assert.equal(await page.locator('#scan-pile').count(), 0);
+  // com a pilha aberta, a carta que entra aparece nela sem a folha ser trocada (rolagem e foco ficam)
+  await abrePilha(page);
+  await page.evaluate(() => { document.querySelector('#scan-pile').dataset.marca = 'mesma'; });
+  await page.evaluate(() => { window.__ocrQueue.push('Counterspell'); window.__ocrColecao.push('267/303 U\nMH2 • EN'); document.querySelector('#scan-read').click(); });
+  await page.waitForFunction(() => /Na pilha: 3 carta/.test((document.querySelector('#scan-pile') || {}).innerText || ''), null, { timeout: 12000 });
+  assert.equal(await page.getAttribute('#scan-pile', 'data-marca'), 'mesma', 'a mesma folha, atualizada no lugar');
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · X3/X5 scanner identifica a edição e manda o lote para uma lista e para a coleção', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.goto(base + '#/listas/editar');
