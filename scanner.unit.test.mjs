@@ -1277,3 +1277,51 @@ test('S-607 · lote: escolher edição e foil confere, separa do normal, junta c
   eq607((await lot.list()).map(x => [x.key, x.qty]).sort(), [['Island', 2], [k2, 1]]);
   assert.equal(await lot.escolhe('Island', null), null, 'sem impressão, nada muda');
 });
+
+/* S-608 · relato #61 · batalha (carta deitada): o nome corre ao longo do lado comprido da carta em pé. */
+function batalhaEmPe({ W = 315, H = 440 } = {}) {
+  // a carta deitada (88 × 63: 440 × 315) desenhada com o nome no topo e girada no sentido do relógio para a carta em pé
+  const LW = H, LH = W, d = new Uint8ClampedArray(W * H * 4);
+  let seed = 5; const rnd = () => (seed = (seed * 1103515245 + 12345) >>> 0) / 4294967296;
+  const lv = (x, y) => {
+    if (y < 12 || x < 12 || x >= LW - 12 || y >= LH - 12) return 15;           // borda preta
+    if (y === 14 || y === 42) return 20;                                        // linhas da barra do título
+    if (y > 14 && y < 42) {                                                     // barra do título, com as "letras" em 20–35
+      if (y >= 20 && y < 35 && x >= 30 && x < 30 + 14 * 14 && (x - 30) % 14 < 5) return 25;
+      return 215;
+    }
+    return 60 + ((x * 7 + y * 13) % 97) + rnd() * 40;                           // arte
+  };
+  for (let ly = 0; ly < LH; ly++) for (let lx = 0; lx < LW; lx++) {
+    const px = W - 1 - ly, py = lx, i = (py * W + px) * 4, v = lv(lx, ly);
+    d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255;
+  }
+  return { d, W, H, cantos: [{ x: 0, y: 0 }, { x: W, y: 0 }, { x: W, y: H }, { x: 0, y: H }] };
+}
+const tracos = b => { const meio = Math.round(b.h / 2); let n = 0; for (let x = 1; x < b.w; x++) if ((b.data[(meio * b.w + x) * 4] < 128) !== (b.data[(meio * b.w + x - 1) * 4] < 128)) n++; return n; };
+test('S-608 · cantos da carta deitada: topo à direita (lado 1) e à esquerda (lado −1)', () => {
+  const c = ['te', 'td', 'bd', 'be'], dl = l => [...X.cantosDeitada(c, l)];
+  assert.deepEqual(dl(1), ['td', 'bd', 'be', 'te']);
+  assert.deepEqual(dl(-1), ['be', 'te', 'td', 'bd']);
+  // os dois lados são a mesma carta virada de cabeça para baixo
+  assert.deepEqual(dl(-1), [...dl(1).slice(2), ...dl(1).slice(0, 2)]);
+});
+test('S-608 · batalha: a linha do nome é achada com a carta deitada, na proporção dela, e sai com as letras', () => {
+  const b = batalhaEmPe(), pr = X.preparaNome(b.d, b.W, b.H, X.cantosDeitada(b.cantos, 1), { deitada: true });
+  assert.ok(pr, 'a linha do nome deitada foi achada');
+  assert.ok(pr.linha.nota > 0);
+  // o nome (14 "letras") atravessa a linha: 28 trocas de tinta ↔ papel, com folga para a limpeza das bordas
+  assert.ok(tracos(pr) >= 20, `trocas na linha: ${tracos(pr)}`);
+  // a linha fica entre as linhas da barra (14 e 42 de 315 = 4,4% e 13,3% da altura da carta deitada)
+  const y0 = -0.03 + pr.linha.y0 * 0.22, y1 = -0.03 + pr.linha.y1 * 0.22;
+  assert.ok(y0 >= 0.04 && y1 <= 0.14, `linha em ${y0.toFixed(3)}–${y1.toFixed(3)} da carta`);
+  // a faixa sai na proporção da carta deitada (88 × 63): 0,86 × 88 de largura por 0,22 × 63 de altura, recortada na linha
+  assert.equal(pr.w, 1100);
+});
+test('S-608 · carta de duas faces: o verso lido responde pela carta inteira', () => {
+  const idx = X.buildIndex(['Invasion of Segovia // Caetus, Sea Tyrant of Segovia', 'Fire // Ice', 'Ice Cave', ...DECOYS.slice(0, 2000)]);
+  assert.equal((X.matchName(idx, 'Caetus, Sea Tyrant of Segovia')[0] || {}).name, 'Invasion of Segovia // Caetus, Sea Tyrant of Segovia');
+  assert.equal((X.matchName(idx, 'Caetus, Sea Tyrant of Segovla')[0] || {}).name, 'Invasion of Segovia // Caetus, Sea Tyrant of Segovia', 'com ruído de OCR');
+  assert.equal((X.matchName(idx, 'Invasion of Segovia')[0] || {}).name, 'Invasion of Segovia // Caetus, Sea Tyrant of Segovia', 'a frente continua');
+  assert.equal((X.matchName(idx, 'Ice Cave')[0] || {}).name, 'Ice Cave', 'outra carta não é puxada pelo verso');
+});

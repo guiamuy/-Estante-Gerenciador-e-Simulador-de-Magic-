@@ -3932,7 +3932,7 @@ const FAKE_PHOTO_CAM = (dataUrl, deCabecaParaBaixo = false, qps = 10) => `
     return { setParameters: async p => { bloco = String(p && p.tessedit_pageseg_mode) === '6'; }, terminate: async () => { window.__ocrEncerrados = (window.__ocrEncerrados || 0) + 1; },
       recognize: async alvo => {
         const imgs = bloco ? window.__ocrImgsColecao : window.__ocrImgs, f = bloco ? window.__ocrColecao : window.__ocrQueue;
-        try { if (imgs.length < 18) imgs.push(alvo.toDataURL('image/png')); } catch (e) {}
+        try { if (imgs.length < 36) imgs.push(alvo.toDataURL('image/png')); } catch (e) {}
         if (bloco && window.__colecaoLenta) await new Promise(r => setTimeout(r, window.__colecaoLenta));
         if (!bloco) window.__leiturasDeNome = (window.__leiturasDeNome || 0) + 1;
         // Leva M-211 · leitor de mentira que olha o recorte (ligado por __ocrSoLegivel). O laço do scanner tenta, em rodízio, a
@@ -4106,7 +4106,9 @@ test('e2e · X11 carta de cabeça para baixo: depois de três leituras sem nome,
   // leva 192 · a janela era de 12 imagens (6 passadas). O leitor alterna três passadas em pé e três viradas, e a janela
   // começa em qualquer ponto desse ciclo: começando na segunda virada saía "S-S-------S-", sem três viradas seguidas,
   // e o teste caía com o app certo. Com 18 imagens (9 passadas) sempre há um trecho de três viradas inteiro.
-  await page.waitForFunction(() => window.__ocrImgs.length >= 18, null, { timeout: 30000 });
+  // S-608 · a janela vai a 36: a passada sem nome lê também a carta deitada (batalha) uma vez sim, outra não, e dá de duas
+  // a quatro imagens (em pé, deitada dos dois lados quando a linha é achada, moldura)
+  await page.waitForFunction(() => window.__ocrImgs.length >= 36, null, { timeout: 60000 });
   await page.click('[data-auto]');
   const diario = await page.evaluate(() => window.__scanDiario.lista());
   assert.ok(diario.some(x => x.via === 'carta' || x.via === 'moldura'), 'houve leituras: ' + JSON.stringify(diario.slice(0, 3)));
@@ -4117,11 +4119,12 @@ test('e2e · X11 carta de cabeça para baixo: depois de três leituras sem nome,
     await worker.setParameters({ tessedit_pageseg_mode: '7' });
     const le = async i => (await worker.recognize(imgs[i])).data.text.trim();
     const lidas = []; for (let i = 0; i < imgs.length; i++) lidas.push(/Counterspell/.test(await le(i)) ? 'S' : '-');
-    // cada passada dá duas imagens (contorno, depois moldura). Em pé, nenhuma tem o nome ("--"); virada, a do
-    // contorno tem ("S-"). Três passadas viradas seguidas = "S-S-S", que é o que o porteiro precisa para aceitar
+    // cada passada dá de duas a quatro imagens (contorno, [deitada dos dois lados, S-608], moldura). Em pé, nenhuma tem o
+    // nome ("--"); virada, a do contorno tem e é a primeira ("S-" a "S---"). Três passadas viradas seguidas = "S-S-S" com
+    // um a três "-" entre elas, que é o que o porteiro precisa para aceitar
     const padrao = lidas.join('');
     assert.match(padrao, /--/, 'com a carta suposta em pé o nome não aparece: ' + padrao);
-    assert.match(padrao, /S-S-S/, 'virada, o nome aparece em três passadas seguidas: ' + padrao);
+    assert.match(padrao, /S-{1,3}S-{1,3}S/, 'virada, o nome aparece em três passadas seguidas: ' + padrao);
   } finally { await worker.terminate(); }
 });
 

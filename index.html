@@ -44333,7 +44333,14 @@ function buildIndex(names, apelidos = []) {
   const entries = [];
   for (const full of names) {
     entries.push({ key: simple(full), name: full });
-    if (full.includes(' // ')) entries.push({ key: simple(full.split(' // ')[0]), name: full });
+    if (full.includes(' // ')) {
+      const [frente, verso] = full.split(' // ');
+      entries.push({ key: simple(frente), name: full });
+      /* S-608 · relato #61: o verso da carta de duas faces (Caetus, Sea Tyrant of Segovia, verso da Invasion of Segovia) é lido
+         pela câmera e responde pela carta inteira; na carta dividida (Fire // Ice) a segunda metade também está impressa.
+         Chave repetida com o nome de outra carta: fica o nome mais curto (a carta de uma face com aquele nome). */
+      if (verso) entries.push({ key: simple(verso), name: full });
+    }
   }
   // S-597 · nome impresso em outro idioma ("Beledros Murchaflor") responde pelo nome em inglês da base ("Beledros Witherbloom")
   for (const [impresso, nome] of apelidos || []) if (impresso && nome) entries.push({ key: simple(impresso), name: nome });
@@ -45477,6 +45484,11 @@ function retifica(src, sw, sh, cantos, larg, alt) {
 const FAIXA_NOME = { x: 0.0, y: -0.03, w: 0.86, h: 0.22 };
 const LARGURA_NOME = 800;                       // largura da faixa retificada: o nome fica com ~30 px de altura. X14 mediu 600 px: o leitor ganha ~10 ms e a moldura antiga deixa de ler (85% → 79%); ficou em 800
 const ALTURA_NOME = { min: 0.022, max: 0.055 }; // altura da linha do nome, em frações da altura da carta
+/* S-608 · relato #61 · a carta deitada (batalha: o nome corre ao longo do lado comprido). Os cantos da carta em pé
+   (topo-esquerda, topo-direita, baixo-direita, baixo-esquerda) passam a ser os da carta deitada com o topo à direita
+   (lado 1: a carta girada no sentido do relógio, ou segurada deitada na frente da câmera) ou à esquerda (lado −1). */
+function cantosDeitada(c, lado = 1) { return lado >= 0 ? [c[1], c[2], c[3], c[0]] : [c[3], c[0], c[1], c[2]]; }
+const LARGURA_NOME_DEITADA = 1100;              // a faixa cobre 0,86 de 88 mm em vez de 63: a mesma altura do nome em pixels
 /** Linha de texto dentro da faixa (RGBA): a sequência de linhas com mais traços verticais, cercada em
     cima e embaixo por linhas calmas (a barra do título). Devolve { y0, y1, nota, cinza }. */
 function linhaDoNome(d, w, h, { altMin = ALTURA_NOME.min / FAIXA_NOME.h, altMax = ALTURA_NOME.max / FAIXA_NOME.h, sobreEscuro = false } = {}) {
@@ -45723,10 +45735,14 @@ function nitidezDaLinha(g, w, y0, y1) {
 /** O caminho inteiro da imagem até o que o OCR lê. `src` é RGBA de qualquer recorte do quadro e `cantos`
     são os quatro cantos da CARTA (ou da moldura guia) em pixels de `src`. Devolve a linha do nome pronta
     ({ data, w, h }), mais o que o diagnóstico mostra. null quando não há linha de texto na faixa. */
-function preparaNome(src, sw, sh, cantos, { inverte = false, largura = LARGURA_NOME, afia = false } = {}) {
-  const alt = Math.max(8, Math.round(largura * (FAIXA_NOME.h / FAIXA_NOME.w) / PROPORCAO_CARTA));
+/* S-608 · relato #61 · `deitada`: os cantos já vêm girados (cantosDeitada) e a carta é larga (88 × 63 mm, a batalha): a faixa
+   sai na proporção da carta deitada e a altura da linha do nome é medida contra os 63 mm, não contra os 88. */
+function preparaNome(src, sw, sh, cantos, { inverte = false, largura, afia = false, deitada = false } = {}) {
+  if (!largura) largura = deitada ? LARGURA_NOME_DEITADA : LARGURA_NOME;
+  const prop = deitada ? 1 / PROPORCAO_CARTA : PROPORCAO_CARTA;
+  const alt = Math.max(8, Math.round(largura * (FAIXA_NOME.h / FAIXA_NOME.w) / prop));
   const faixa = retifica(src, sw, sh, cantosDaFaixa(cantos, FAIXA_NOME), largura, alt);
-  const L = linhaDoNome(faixa.data, faixa.w, faixa.h);
+  const L = linhaDoNome(faixa.data, faixa.w, faixa.h, deitada ? { altMin: ALTURA_NOME.min / FAIXA_NOME.h / PROPORCAO_CARTA, altMax: ALTURA_NOME.max / FAIXA_NOME.h / PROPORCAO_CARTA } : undefined);
   if (!L || !(L.nota > 0)) return null;
   const nit = nitidezDaLinha(L.cinza, faixa.w, L.y0, L.y1);
   // S-594 · segunda tentativa com a linha borrada: realça as bordas antes de binarizar (na linha limpa piora: só depois de falhar)
@@ -45799,7 +45815,7 @@ function pulaPorMovimento(mov, { via = 'auto', contorno = true } = {}) { return 
 
 return { cleanOcr, matchName, matchLines, criaVotacao, criaPorteiro, PORTEIRO, leituraConfiavel, nitidezDaFaixa, movimentoEntre, LIMIARES_FAIXA, criaDiario, criaCronometro, criaRefoco, EXATA, buildIndex, candidatosDoIndice, createNameIndex, IDIOMAS_DOS_NOMES, LINGUAS_DO_LEITOR, linguaDoLeitor, temCjk, chaveCjk, indiceCjk, matchCjk, createLot, coverRegion, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, resolveEdicao, artistaNoTexto, acabamentosDa, edicoesDaCarta, filtraEdicoes, iconeDoSet, ACABAMENTO_NA_COLECAO, NOME_DO_ACABAMENTO, ACCEPT, ALTA, SUGGEST, lev,
   detectaCarta, detectaEmEscalas, ESCALAS_DETECTOR, brilho, nitidez, prontoParaLer, criaDetector, paradaEm, screenRect, LIMIARES, PROPORCAO_CARTA, realcaTexto, trechoEscuroEmbaixo, limpaBordas, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, faixaDaCarta, escalaOcr,
-  retasDoQuadro, achaQuadrilatero, ordenaCantos, homografia, cantosDaFaixa, retifica, FAIXA_NOME, FAIXA_COLECAO, LARGURA_NOME, linhaDoNome, binarizaLinha, limpaLinha, nitidezDaLinha, afiaLinha, FAIXA_ARTE, BITS_ARTE, impressaoDaArte, distanciaDaArte, buscaArte, abreBaseDeArtes, binDasArtes, criaBaseDeArtes, decideArte, arteDaEdicao, LIMIAR_ARTE, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, alturaDaCarta, deslocamento, LIMIARES_LINHA, pulaPorMovimento, QUAD };
+  retasDoQuadro, achaQuadrilatero, ordenaCantos, homografia, cantosDaFaixa, cantosDeitada, retifica, FAIXA_NOME, FAIXA_COLECAO, LARGURA_NOME, linhaDoNome, binarizaLinha, limpaLinha, nitidezDaLinha, afiaLinha, FAIXA_ARTE, BITS_ARTE, impressaoDaArte, distanciaDaArte, buscaArte, abreBaseDeArtes, binDasArtes, criaBaseDeArtes, decideArte, arteDaEdicao, LIMIAR_ARTE, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, alturaDaCarta, deslocamento, LIMIARES_LINHA, pulaPorMovimento, QUAD };
 })();
 
 
@@ -45813,7 +45829,7 @@ const __m22 = (function () {
    ===================================================================== */
 const { h, mount, Stack, Row, Surface, Text, Button, Field, Input, Select, Badge, Chip, Empty, Note, Spinner, Dialog, closeDialog, toast, reservaDoca, Simbolo, Icone, IconButton, AvisoRede } = __m3;
 const { createLot, coverRegion, screenRect, parseCollectorLine, resolvePrinting, resolveEdicao, edicoesDaCarta, filtraEdicoes, ACABAMENTO_NA_COLECAO, NOME_DO_ACABAMENTO, ACCEPT, EXATA, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, criaPorteiro, PORTEIRO, leituraConfiavel, criaDiario, criaCronometro, criaRefoco, realcaTexto,
-  achaQuadrilatero, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, FAIXA_NOME, FAIXA_COLECAO, alturaDaCarta, deslocamento, LIMIARES_LINHA, pulaPorMovimento, brilho,
+  achaQuadrilatero, cantosDeitada, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, FAIXA_NOME, FAIXA_COLECAO, alturaDaCarta, deslocamento, LIMIARES_LINHA, pulaPorMovimento, brilho,
   FAIXA_ARTE, impressaoDaArte, criaBaseDeArtes, decideArte, arteDaEdicao, LIMIAR_ARTE, LINGUAS_DO_LEITOR, linguaDoLeitor } = __m21;
 const { pulse } = __m20;
 const TESSERACT_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
@@ -45914,7 +45930,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
      Nada rola na tela principal: num S25 (360×780) câmera, aviso e botões cabem sem rolagem. */
   const lot = createLot({ store });
   const state = { camera: 'idle', engine: 'idle', base: 'idle', auto: false, busy: false, last: null, alive: true, edition: true, ocrReady: false, lingua: 'latino',
-    moldura: true, cantosAntes: null, falhas: 0, invertida: false, aceitoEm: 0, diag: false, pilhaAberta: false };
+    moldura: true, cantosAntes: null, falhas: 0, invertida: false, lado: 0, aceitoEm: 0, diag: false, pilhaAberta: false };
   const porteiro = criaPorteiro();
   const artes = criaBaseDeArtes({ store });
   const diario = criaDiario();
@@ -46012,12 +46028,12 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
   }
   /** A linha do nome pronta para o OCR, a partir dos cantos da carta (ou da moldura), em frações do quadro.
       Do vídeo sai só o pedaço que tem o nome, na resolução cheia. */
-  function linhaPronta(cantosFr, { afia = false } = {}) {
+  function linhaPronta(cantosFr, { afia = false, deitada = false } = {}) {
     const rec = recorteDaFaixa(cantosFr, FAIXA_NOME, video.videoWidth, video.videoHeight);
     if (!rec) return null;
     const p = pixels(rec.regiao, { canvas: telas.faixa });
     const kx = p.w / rec.w, ky = p.h / rec.h;
-    const pr = preparaNome(p.d, p.w, p.h, rec.cantos.map(c => ({ x: c.x * kx, y: c.y * ky })), { afia });
+    const pr = preparaNome(p.d, p.w, p.h, rec.cantos.map(c => ({ x: c.x * kx, y: c.y * ky })), { afia, deitada });
     if (!pr) return null;
     return { tela: paraCanvas(pr, telas.linha), nitidez: pr.nitidez, claro: pr.claro };
   }
@@ -46154,7 +46170,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     const visto = !!(quad && state.cantosAntes);   // já havia contorno na passada anterior: dá para dizer se a carta está parada
     const mov = visto ? deslocamento(quad.cantos, state.cantosAntes) : 0;
     state.cantosAntes = quad ? quad.cantos : null;
-    if (!quad) state.invertida = false;   // carta nova no quadro: volta a supor que está em pé
+    if (!quad) { state.invertida = false; state.lado = 0; }   // carta nova no quadro: volta a supor que está em pé
     pintaContorno(quad);
     // contorno pequeno demais para ler (carta longe, ou um objeto com cara de carta fora da área que a tela mostra):
     // não serve para a leitura, mas não impede a moldura guia
@@ -46162,7 +46178,18 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     const base = { luz, movimento: mov * 100, parado: visto && mov <= LIMIARES_LINHA.deslocamentoMax, contorno: !!quad && !longe, longe, tempos, inicio: Date.now() - Math.round(relogio() - t0) };
     if (pulaPorMovimento(mov, { via, contorno: !!quad && !longe })) { dicaTexto(DICAS.tremida); return { pulou: 'tremida', ms: 0, nitidez: 0, ...base }; }
     const caminhos = [];
-    if (quad && !longe) caminhos.push({ nome: 'carta', cantos: state.invertida ? viraCantos(quad.cantos) : quad.cantos });
+    /* S-608 · relato #61 · carta deitada (batalha): com o contorno achado e o nome em pé sem leitura, a mesma passada lê a linha
+       do nome ao longo dos dois lados compridos (topo à direita e à esquerda) e fica com a de maior confiança. O lado que leu
+       vale para as próximas passadas da mesma carta (o porteiro pede leituras seguidas iguais) e vai primeiro. Orçamento: a
+       carta em pé só paga as leituras deitadas quando a em pé não deu nome, e uma passada sem nome sim, outra não (a carta
+       em pé borrada não fica duas vezes mais lenta); a batalha entra na segunda passada. */
+    if (quad && !longe) {
+      const base = state.invertida ? viraCantos(quad.cantos) : quad.cantos;
+      const emPe = { nome: 'carta', cantos: base };
+      const deitadas = (state.lado ? [state.lado, -state.lado] : [1, -1]).map(l => ({ nome: 'deitada', lado: l, cantos: cantosDeitada(base, l), deitada: true }));
+      if (state.lado) caminhos.push(deitadas[0], emPe, deitadas[1]);
+      else caminhos.push(emPe, ...(state.falhas % 2 === 1 ? deitadas : []));
+    }
     caminhos.push({ nome: 'moldura', cantos: cantosDe(molduraNoQuadro()) });
     let melhor = null, afiou = false;
     const nota = r => (r && r.found[0] ? r.found[0].score : 0);
@@ -46174,19 +46201,19 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
       let ta = relogio();
       const texto = await ocr.read(L.tela, 'linha');
       tempos.ocr += Math.round(relogio() - ta); ta = relogio();
-      const r = { caminho: c.nome, cantos: c.cantos, texto, found: names.match(texto), nitidez: L.nitidez, afiada: !!L.afiada };
+      const r = { caminho: c.nome, cantos: c.cantos, texto, found: names.match(texto), nitidez: L.nitidez, afiada: !!L.afiada, lado: c.lado || 0 };
       tempos.casa += Math.round(relogio() - ta);
       return r;
     };
     for (const c of caminhos) {
       let ta = relogio();
-      const L = linhaPronta(c.cantos);
+      const L = linhaPronta(c.cantos, { deitada: !!c.deitada });
       tempos.prep += Math.round(relogio() - ta);
       if (!L) continue;
       let r = await le(c, L);
       if (nota(r) < ACCEPT && L.nitidez < LIMIARES_LINHA.borrada && !afiou) {
         afiou = true; ta = relogio();
-        const L2 = linhaPronta(c.cantos, { afia: true });
+        const L2 = linhaPronta(c.cantos, { afia: true, deitada: !!c.deitada });
         tempos.prep += Math.round(relogio() - ta);
         if (L2) { const r2 = await le(c, { ...L2, nitidez: L.nitidez, afiada: true }); if (nota(r2) > nota(r)) r = r2; }
       }
@@ -46195,7 +46222,9 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     }
     /* X12 · S-596 · a arte da carta achada confere o nome (e dá a edição) ou responde quando o nome não deu. A varredura
        da base inteira só roda quando o nome não deu ou não bateu com nenhuma edição dele (orçamento de escala). */
-    if (quad && !longe && artes.pronta()) {
+    // S-608 · a faixa da arte é a da carta em pé: com o nome lido deitado, a arte não confere (nem desmente) a leitura
+    if (melhor && nota(melhor) >= ACCEPT) state.lado = melhor.caminho === 'deitada' ? melhor.lado : 0;   // leu em pé: a próxima carta começa em pé
+    if (quad && !longe && artes.pronta() && !(melhor && melhor.caminho === 'deitada')) {
       const ta = relogio();
       try {
         const cartaCantos = state.invertida ? viraCantos(quad.cantos) : quad.cantos;
@@ -46226,7 +46255,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     // virada enquanto estiver lendo (o porteiro precisa de leituras seguidas iguais); três falhas viradas, desvira
     if (nota(melhor) >= ACCEPT) state.falhas = 0;
     else { state.falhas++; if (quad && !longe && state.falhas % 3 === 0) state.invertida = !state.invertida; }
-    if (quad && !longe && melhor.caminho === 'carta' && nota(melhor) >= ACCEPT && (state.auto || via === 'manual')) pintaContorno(quad, true);
+    if (quad && !longe && (melhor.caminho === 'carta' || melhor.caminho === 'deitada') && nota(melhor) >= ACCEPT && (state.auto || via === 'manual')) pintaContorno(quad, true);
     return { ...melhor, ms: Math.round(performance.now() - t0), ...base };
   }
   /** Aceite: entra na pilha na hora; edição e miniatura chegam depois. */
@@ -46370,7 +46399,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
   function setAuto(on) {
     const antes = state.auto;
     state.auto = on;
-    if (on) { porteiro.zera(); state.cantosAntes = null; state.falhas = 0; state.invertida = false; laco(); }
+    if (on) { porteiro.zera(); state.cantosAntes = null; state.falhas = 0; state.invertida = false; state.lado = 0; laco(); }
     else { pintaContorno(null); dicaTexto(''); state.cantosAntes = null; }
     paintDock(); paintEstado(); if (!state.last) paintResult();
   }
