@@ -1,7 +1,7 @@
 {
  "versao": 1,
  "formato": "iniciante",
- "geradoEm": "2026-11-03T14:41:56.476Z",
+ "geradoEm": "2026-11-04T15:00:20.389Z",
  "motor": 112,
  "fonte": "api.scryfall.com/cards/collection",
  "listas": 648,
@@ -11,8 +11,8 @@
  "lotesComFalha": 0,
  "porClasse": {
   "texto-mudou": 8,
-  "lida": 1575,
-  "nova": 4877,
+  "lida": 1580,
+  "nova": 4872,
   "parcial": 0,
   "sem-dados": 0
  },
@@ -583,12 +583,20 @@
   },
   {
    "name": "Crypt Creeper",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "texto que o motor não resolve",
+   "classe": "lida",
+   "nivel": "lida",
+   "motivo": "lida pelo motor, em revisão",
    "listas": 5,
    "gulosa": 155,
-   "texto": null
+   "texto": {
+    "mana_cost": "{1}{B}",
+    "type_line": "Creature — Zombie",
+    "oracle_text": "Sacrifice this creature: Exile target card from a graveyard.",
+    "keywords": [],
+    "layout": "normal",
+    "power": "2",
+    "toughness": "1"
+   }
   },
   {
    "name": "Dauntless Onslaught",
@@ -5285,12 +5293,18 @@
   },
   {
    "name": "Beckon Apparition",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "mágica sem script",
+   "classe": "lida",
+   "nivel": "lida",
+   "motivo": "lida pelo motor, em revisão",
    "listas": 2,
    "gulosa": 195,
-   "texto": null
+   "texto": {
+    "mana_cost": "{W/B}",
+    "type_line": "Instant",
+    "oracle_text": "Exile target card from a graveyard. Create a 1/1 white and black Spirit creature token with flying.",
+    "keywords": [],
+    "layout": "normal"
+   }
   },
   {
    "name": "Become Immense",
@@ -14912,12 +14926,23 @@
   },
   {
    "name": "Stonecloaker",
-   "classe": "nova",
-   "nivel": "parcial",
-   "motivo": "parte do texto o motor não resolve",
+   "classe": "lida",
+   "nivel": "lida",
+   "motivo": "lida pelo motor, em revisão",
    "listas": 2,
    "gulosa": 401,
-   "texto": null
+   "texto": {
+    "mana_cost": "{2}{W}",
+    "type_line": "Creature — Gargoyle",
+    "oracle_text": "Flash\nFlying\nWhen this creature enters, return a creature you control to its owner's hand.\nWhen this creature enters, exile target card from a graveyard.",
+    "keywords": [
+     "Flying",
+     "Flash"
+    ],
+    "layout": "normal",
+    "power": "3",
+    "toughness": "2"
+   }
   },
   {
    "name": "Stonefare Crocodile",
@@ -57816,12 +57841,23 @@
   },
   {
    "name": "Sewerdreg",
-   "classe": "nova",
-   "nivel": "parcial",
-   "motivo": "parte do texto o motor não resolve",
+   "classe": "lida",
+   "nivel": "lida",
+   "motivo": "lida pelo motor, em revisão",
    "listas": 1,
    "gulosa": 559,
-   "texto": null
+   "texto": {
+    "mana_cost": "{3}{B}{B}",
+    "type_line": "Creature — Spirit",
+    "oracle_text": "Swampwalk (This creature can't be blocked as long as defending player controls a Swamp.)\nSacrifice this creature: Exile target card from a graveyard.",
+    "keywords": [
+     "Landwalk",
+     "Swampwalk"
+    ],
+    "layout": "normal",
+    "power": "3",
+    "toughness": "3"
+   }
   },
   {
    "name": "Seymour Flux",
@@ -70487,12 +70523,20 @@
   },
   {
    "name": "Withered Wretch",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "texto que o motor não resolve",
+   "classe": "lida",
+   "nivel": "lida",
+   "motivo": "lida pelo motor, em revisão",
    "listas": 1,
    "gulosa": 602,
-   "texto": null
+   "texto": {
+    "mana_cost": "{B}{B}",
+    "type_line": "Creature — Zombie Cleric",
+    "oracle_text": "{1}: Exile target card from a graveyard.",
+    "keywords": [],
+    "layout": "normal",
+    "power": "2",
+    "toughness": "2"
+   }
   },
   {
    "name": "Wizard Mentor",
