@@ -15272,7 +15272,7 @@ test('e2e · R-41 Painel · gráficos na Eficiência: levas por dia em colunas S
   const h = n => iso(agora - n * 3600000);
   const json = (r, corpo) => r.fulfill({ json: corpo, headers: { 'content-type': 'application/json', 'x-ratelimit-remaining': '50', 'x-ratelimit-limit': '60', 'access-control-expose-headers': 'etag, x-ratelimit-remaining, x-ratelimit-limit' } });
   const commit = (leva, em) => ({ sha: leva.replace('-', '') + '0000000', commit: { message: `Leva ${leva} · assunto`, committer: { date: iso(em) }, author: { date: iso(em - 3600000) } } });
-  const levasDoDia = { 0: [commit('M-390', agora - 2 * 3600000), commit('R-2', agora - 3 * 3600000), commit('G-266', agora - 5 * 3600000)], 1: [commit('M-388', agora - 30 * 3600000)], 2: [commit('T-61', agora - 50 * 3600000), commit('M-384', agora - 52 * 3600000)] };
+  const levasDoDia = { 0: [commit('M-390', agora - 2 * 3600000), commit('R-2', agora - 3 * 3600000), commit('G-266', agora - 5 * 3600000)], 1: [commit('M-388', agora - 30 * 3600000)], 2: [commit('T-61', agora - 50 * 3600000), commit('M-384', agora - 52 * 3600000)] }; for (const [d, cs] of Object.entries(levasDoDia)) cs.forEach((c, i) => { /* G-344: cada leva fica no dia local que o pedido leu, a qualquer hora (antes das 6 h a de 30 h atrás caía em anteontem) */ const meia = new Date(agora).setHours(0, 0, 0, 0), ini = meia - d * 86400000, em = Date.parse(c.commit.committer.date); const novo = em >= ini && em < ini + 86400000 && em <= agora ? em : +d === 0 ? meia + (agora - meia) * (i + 1) / 4 : ini + (12 - i) * 3600000; c.commit.committer.date = iso(novo); c.commit.author.date = iso(novo - 3600000); });
   let pedidosCommits = 0;
   await page.route('https://api.github.com/**', r => {
     const u = r.request().url();
