@@ -1217,6 +1217,55 @@ test('e2e · C11 importar por lista: conferir, importar, pendências com sugest�
   assert.deepEqual(errors, []);
 });
 
+test('e2e · G-347 relato #63 fatia 2: manter o dedo numa carta da Coleção começa a seleção com ela marcada; na seleção o toque marca e desmarca; Cancelar sai', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 697 });
+  await page.goto(base + '#/colecao');
+  await page.waitForSelector('#col-csv-import');
+  await page.setInputFiles('#col-csv-file', { name: 'manabox.csv', mimeType: 'text/csv', buffer: Buffer.from(MANABOX) });
+  await page.waitForSelector('#col-csv-add'); await page.click('#col-csv-add');
+  await page.waitForSelector('.col-row[data-name="Counterspell"]'); await page.waitForSelector('.col-row[data-name="Sol Ring"] .col-row__info');
+  // a lista repinta quando chegam os dados das cartas (no CI, depois do primeiro desenho): espera ela ficar 700 ms sem mudar
+  const quieta = () => page.evaluate(() => new Promise(ok => { let t = setTimeout(fim, 700); const mo = new MutationObserver(() => { clearTimeout(t); t = setTimeout(fim, 700); });
+    function fim() { mo.disconnect(); ok(); } mo.observe(document.querySelector('#col-list'), { childList: true, subtree: true }); setTimeout(fim, 8000); }));
+  await quieta();
+  // o centro sai na mesma ida à página em que a linha é achada (um repinte no meio não deixa a referência solta)
+  const centro = sel => page.evaluate(q => { const el = document.querySelector(q); el.scrollIntoView({ block: 'center' }); const b = el.getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; }, sel);
+  const dialogo = () => page.locator('.ds-dialog').count();
+  // dedo que pousa e arrasta (rolar) desiste: nada é selecionado
+  let [x, y] = await centro('.col-row[data-name="Sol Ring"] .col-row__info');
+  await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x, y + 40, { steps: 4 }); await page.waitForTimeout(600); await page.mouse.up();
+  assert.equal(await page.locator('#col-selection-count').count(), 0, 'arrastar não seleciona');
+  if (await dialogo()) await page.click('#ds-dialog-close');
+  // segurar: afunda na hora e, aos 450 ms, entra na seleção com a carta marcada; soltar não abre a carta
+  [x, y] = await centro('.col-row[data-name="Sol Ring"] .col-row__info');
+  await page.mouse.move(x, y); await page.mouse.down(); await page.waitForTimeout(120);
+  assert.equal(await page.locator('.col-row[data-name="Sol Ring"].is-segurando').count(), 1, 'retorno imediato ao pousar o dedo');
+  await page.waitForSelector('#col-selection-count', { timeout: 3000 });
+  await page.mouse.up(); await page.waitForTimeout(300);
+  assert.equal(await dialogo(), 0, 'soltar depois do toque longo não abre a carta');
+  assert.match(await page.innerText('#col-selection-count'), /1 carta\(s\) selecionada/);
+  assert.equal(await page.getAttribute('.col-row[data-name="Sol Ring"] .col-row__check', 'aria-checked'), 'true');
+  // na seleção, o toque na carta marca e desmarca, sem abrir nada
+  await page.click('.col-row[data-name="Counterspell"] .col-row__info');
+  await page.waitForFunction(() => /2 carta\(s\) selecionada/.test(document.querySelector('#col-selection-count').innerText));
+  await page.click('.col-row[data-name="Sol Ring"] .col-row__thumb');
+  await page.waitForFunction(() => /1 carta\(s\) selecionada/.test(document.querySelector('#col-selection-count').innerText));
+  assert.equal(await dialogo(), 0, 'na seleção o toque não abre a carta');
+  assert.equal(await page.getAttribute('.col-row[data-name="Counterspell"] .col-row__check', 'aria-checked'), 'true');
+  await page.waitForSelector('#col-etiquetar:not([disabled])');
+  await auditaTela(page, 'G-347 coleção selecionando pelo toque longo');
+  // Cancelar, por extenso, sai e limpa
+  assert.equal((await page.innerText('#col-select-off')).trim(), 'Cancelar');
+  await page.click('#col-select-off');
+  await page.waitForFunction(() => !document.querySelector('#col-selection-count'));
+  assert.equal(await page.locator('.col-row__check').count(), 0);
+  // fora da seleção, o toque curto continua abrindo a carta
+  await page.click('.col-row[data-name="Counterspell"] .col-row__info');
+  await page.waitForSelector('.ds-dialog', { timeout: 4000 });
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · C10 exportar a coleção por lista: formatos, seleção manual, copiar e baixar', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
@@ -3196,9 +3245,10 @@ test('e2e · U2 parte 2 listas e coleção: ícones, rótulos curtos, cabeçalho
   assert.equal((await page.innerText('#col-filters .ds-btn__conta')).trim(), '1');
   await temIcone('#col-filters');
   assert.match(await page.getAttribute('#col-filters', 'aria-label'), /Filtros, 1 ativo/);
-  // seleção: sair é ícone com nome falado
+  // seleção: sair é "Cancelar" por extenso, com ícone (G-347 · relato #63: antes só o ícone, falado "Sair da seleção"; o nome falado contém o visível)
   await page.click('#col-select'); await page.waitForSelector('#col-select-off');
-  assert.equal(await page.getAttribute('#col-select-off', 'aria-label'), 'Sair da seleção');
+  assert.equal(await page.getAttribute('#col-select-off', 'aria-label'), 'Cancelar a seleção');
+  assert.equal((await page.innerText('#col-select-off')).trim(), 'Cancelar');
   await temIcone('#col-select-all'); await audita('coleção (selecionando)');
   await page.click('#col-select-off');
   assert.deepEqual(errors, []);

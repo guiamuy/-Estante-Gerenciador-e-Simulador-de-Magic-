@@ -3442,6 +3442,17 @@ button.col-dash__bar:active, .col-dash__bar--on { background: var(--accent-soft)
 .col-row__check { grid-area: check; width: var(--tap-min); height: var(--tap-min); border-radius: var(--radius-1); border: 1px solid var(--border); background: var(--bg-elev-2); color: var(--fg); font-size: var(--text-lg); padding: 0; }
 .col-row__check[aria-checked="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
 .col-row--checked { background: var(--bg-elev-2); }
+/* G-347 · toque longo: a carta afunda na hora em que o dedo pousa (retorno imediato) e, na seleção, a marcada leva o fio e o ✓ em latão */
+.col-row, .col-card, .col-dense__row { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; transition: transform var(--dur-2) var(--ease-out), background-color var(--dur-1) var(--ease-out); }
+.col-row.is-segurando, .col-card.is-segurando, .col-dense__row.is-segurando { transform: scale(.97); background-color: var(--bg-elev-2); }
+.col-card[data-sel] { position: relative; }
+.col-card[data-sel="true"]::after, .col-dense__row[data-sel="true"]::after { content: '✓'; position: absolute; top: var(--space-1); right: var(--space-1); width: 28px; height: 28px; display: grid; place-items: center;
+  border-radius: 50%; background: var(--accent); color: var(--accent-fg); font-weight: 700; box-shadow: var(--shadow-1); pointer-events: none; }
+.col-card[data-sel="true"] { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: var(--radius-card); }
+.col-card[data-sel="false"] { opacity: .78; }
+.col-dense__row[data-sel] { position: relative; padding-right: calc(var(--space-3) + 32px); }
+.col-dense__row[data-sel="true"] { background: var(--bg-elev-2); }
+@media (prefers-reduced-motion: reduce) { .col-row.is-segurando, .col-card.is-segurando, .col-dense__row.is-segurando { transform: none; } }
 .col-selection { position: sticky; bottom: var(--space-2); z-index: 2; }
 .col-export__text { min-height: 200px; font-family: var(--font-mono); font-size: var(--text-sm); }
 .col-row__thumb { grid-area: thumb; width: 48px; aspect-ratio: 488 / 680; border-radius: var(--radius-1); overflow: hidden; background: var(--bg-elev-3); border: 1px solid var(--border); padding: 0; color: var(--fg-muted); font-family: var(--font-display); }
@@ -21244,6 +21255,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
   const undoBar = h('div', { id: 'col-undo' });
   const pendingBox = h('div', { id: 'col-pending' });
   const listEl = h('div', { id: 'col-list' }, __m3.Esqueleto({ linhas: 5, fala: 'Abrindo coleção…' })); // J4
+  ligaToqueLongo(listEl); // G-347 · toque longo começa a seleção
   const care = h('div', { id: 'col-care' });
   const selectionBar = h('div', { id: 'col-selection' });
   const countLine = h('div', { id: 'col-count' });
@@ -21675,13 +21687,13 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     const cg = cardOf(g);
     // leva 102 · um toque abre a carta grande com o texto; as impressões ficam num botão dentro dela
     const face = CardFace({ name: g.name, imagens: thumb(g), mana_cost: cg && cg.mana_cost, type_line: cg && cg.type_line }, { onClick: () => verCarta(g), dataset: { name: g.name } });
-    return h('div', { class: 'deck-slot col-card', dataset: { name: g.name } }, face,
+    return h('div', { class: 'deck-slot col-card', dataset: { name: g.name, ...(state.selecting ? { sel: String(state.selected.has(g.key)) } : {}) } }, face, // G-347
       h('span', { class: 'deck-slot__qty' }, '×' + (g.qtyRecorte ?? g.qty)));
   }
   /** Densa: uma linha por carta. */
   function denso(g) {
     const c = cardOf(g);
-    return h('button', { class: 'col-dense__row', type: 'button', dataset: { name: g.name }, onClick: () => openPrintings(g) },
+    return h('button', { class: 'col-dense__row', type: 'button', dataset: { name: g.name, ...(state.selecting ? { sel: String(state.selected.has(g.key)) } : {}) }, onClick: () => openPrintings(g) },
       h('span', { class: 'col-dense__name' }, g.name, c && c.mana_cost ? h('span', { class: 'col-dense__custo' }, ComSimbolos(String(c.mana_cost).split('//')[0].trim())) : null, __m32.Pontos(__m32.de(state.etq, 'cartas', g.key))), // U3 · G2
       h('span', { class: 'col-dense__meta' }, [c && c.type_line ? c.type_line.split(' — ')[0] : null, g.items.filter(i => i.set).map(i => i.set.toUpperCase()).filter((v, i, a) => a.indexOf(v) === i).join(' ') || null].filter(Boolean).join(' · ')),
       h('span', { class: 'col-dense__qty' }, String(g.qtyRecorte ?? g.qty)));
@@ -21710,6 +21722,37 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     paint();
   }
   function toggleSelected(g) { if (state.selected.has(g.key)) state.selected.delete(g.key); else state.selected.add(g.key); paint(); }
+  /* G-347 · relato #63 fatia 2 · manter o dedo numa carta (lista, galeria ou densa) entra na seleção com ela marcada: a carta
+     afunda na hora (retorno imediato) e, aos 450 ms, vibra e fica marcada; mexer o dedo (rolar) desiste. Na seleção, o toque na
+     carta marca e desmarca no lugar de abrir; os botões de quantidade e a caixa seguem com o papel deles. */
+  const SEGURAR_MS = 450, ITEM_SEL = '.col-row, .col-card, .col-dense__row';
+  function grupoDoItem(el) { const nome = el && el.dataset.name; return nome ? state.items.find(g => g.name === nome) || null : null; }
+  function ligaToqueLongo(alvo) {
+    let segura = null, engoleClique = false;
+    const solta = () => { if (!segura) return; clearTimeout(segura.timer); segura.el.classList.remove('is-segurando'); segura = null; };
+    alvo.addEventListener('pointerdown', e => {
+      engoleClique = false; // um toque novo: o clique do toque longo anterior (se o navegador não o mandou) não engole este
+      if (e.button > 0 || e.target.closest('.col-row__qty, .col-row__check')) return;
+      const el = e.target.closest(ITEM_SEL); if (!el || !alvo.contains(el)) return;
+      solta(); el.classList.add('is-segurando');
+      segura = { el, x: e.clientX, y: e.clientY, timer: setTimeout(() => {
+        const g = grupoDoItem(el); solta(); if (!g) return;
+        engoleClique = true; setTimeout(() => { engoleClique = false; }, 800);
+        try { __m0.haptics.vibrate(15); } catch (_) { /* sem vibração: o visual basta */ }
+        if (!state.selecting) { state.selecting = true; state.selected.add(g.key); paint(); } else toggleSelected(g);
+      }, SEGURAR_MS) };
+    });
+    alvo.addEventListener('pointermove', e => { if (segura && Math.hypot(e.clientX - segura.x, e.clientY - segura.y) > 10) solta(); });
+    for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) alvo.addEventListener(ev, solta);
+    alvo.addEventListener('scroll', solta, { passive: true, capture: true });
+    alvo.addEventListener('contextmenu', e => { if (e.target.closest(ITEM_SEL)) e.preventDefault(); }); // sem o menu de imagem do navegador
+    alvo.addEventListener('click', e => {
+      if (engoleClique) { engoleClique = false; e.preventDefault(); e.stopPropagation(); return; } // o toque longo não abre a carta ao soltar
+      if (!state.selecting || e.target.closest('.col-row__qty, .col-row__check')) return;
+      const el = e.target.closest(ITEM_SEL), g = el && grupoDoItem(el);
+      if (g) { e.preventDefault(); e.stopPropagation(); toggleSelected(g); }
+    }, true);
+  }
   function paintSelection() {
     pintaAcaoDaColecao();
     if (!state.selecting) return mount(selectionBar, null);
@@ -21719,7 +21762,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
       Row({},
         Text(n ? `${n} carta(s) selecionada(s)` : 'Toque nas cartas para selecionar', { size: 'sm', attrs: { id: 'col-selection-count' } }), h('div', { class: 'ds-grow' }),
         Button('Todas', { icone: 'selecionar', id: 'col-select-all', onClick: () => { state.items.forEach(g => state.selected.add(g.key)); paint(); } }),
-        IconButton('fechar', 'Sair da seleção', { id: 'col-select-off', onClick: () => toggleSelecting(false) })),
+        (() => { const b = Button('Cancelar', { icone: 'fechar', id: 'col-select-off', onClick: () => toggleSelecting(false) }); b.setAttribute('aria-label', 'Cancelar a seleção'); return b; })()), // G-347 · por extenso
       Row({ class: 'col-selection__acoes' },
         etiquetas ? Button('Etiquetar', { icone: 'etiqueta', id: 'col-etiquetar', disabled: !n, onClick: () => abreEtiquetas([...state.selected], (state.items.find(g => state.selected.has(g.key)) || {}).name || 'Etiquetas') }) : null,
         Button('Exportar', { variant: 'primary', icone: 'exportar', id: 'col-export-selection', title: 'Exportar a seleção', disabled: !n, onClick: () => openExport({ selecao: true }) }))));
