@@ -3561,13 +3561,18 @@ body[data-tela="scanner"] .ds-appbar { display: none; }
 .scan-frame, .scan-frame__band { transition: border-color var(--dur-1) var(--ease-out), opacity var(--dur-1) var(--ease-out); }
 .scan-stage.tem-contorno .scan-frame { border-color: transparent; }
 .scan-stage.tem-contorno .scan-frame__band { opacity: 0; }
+/* S-611 · relato #60 fatia 5 · sem moldura: a câmera fica limpa (sem borda, sem a faixa "nome aqui", sem o véu escuro em volta)
+   e o contorno da carta achada é o único desenho. A moldura continua no lugar, invisível: sem contorno, a leitura usa o recorte
+   do centro dela. O chip "Moldura" em "Mais" a traz de volta. */
+.scan-stage:not([data-guia="true"]) .scan-frame { border-color: transparent; box-shadow: none; }
+.scan-stage:not([data-guia="true"]) .scan-frame__band { opacity: 0; }
 .scan-hint {
   position: absolute; left: 50%; bottom: calc(var(--scan-b, 0px) + var(--space-2)); transform: translateX(-50%); z-index: 2;
   max-width: 90%; text-align: center; padding: var(--space-1) var(--space-3);
   background: var(--bg-elev-1); border-radius: var(--radius-2); box-shadow: var(--shadow-1); pointer-events: none;
 }
 .scan-hint:empty { display: none; }
-.scan-stage.is-pulse .scan-frame { animation: scan-ok var(--dur-3) var(--ease-out); }
+.scan-stage[data-guia="true"].is-pulse .scan-frame { animation: scan-ok var(--dur-3) var(--ease-out); } /* S-611 · sem moldura, o aceite pisca só o palco */
 @keyframes scan-ok { 50% { border-color: var(--positive); transform: translate(-50%, -50%) scale(1.02); } }
 .scan-stage::after { content: ''; position: absolute; inset: 0; pointer-events: none; border-radius: inherit; box-shadow: inset 0 0 0 0 var(--positive); opacity: 0; }
 .scan-stage.is-pulse::after { animation: scan-ok-palco var(--dur-3) var(--ease-out); }
@@ -45957,7 +45962,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
      Nada rola na tela principal: num S25 (360×780) câmera, aviso e botões cabem sem rolagem. */
   const lot = createLot({ store });
   const state = { camera: 'idle', engine: 'idle', base: 'idle', auto: false, busy: false, last: null, alive: true, edition: true, ocrReady: false, lingua: 'latino',
-    moldura: true, cantosAntes: null, falhas: 0, invertida: false, lado: 0, aceitoEm: 0, diag: false, pilhaAberta: false };
+    moldura: false, cantosAntes: null, falhas: 0, invertida: false, lado: 0, aceitoEm: 0, diag: false, pilhaAberta: false };
   const porteiro = criaPorteiro();
   const artes = criaBaseDeArtes({ store });
   const diario = criaDiario();
@@ -45969,14 +45974,14 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
   const printLabel = x => x && x.set ? `${x.set.toUpperCase()}${x.number ? ' #' + x.number : ''}` : '';
   const video = h('video', { class: 'scan-video', playsinline: true, muted: true, autoplay: true, id: 'scan-video' });
   video.setAttribute('playsinline', ''); video.muted = true;
-  // a moldura fica ligada: é a referência de onde a carta precisa estar (dá para esconder em "mais")
+  // S-611 · a moldura fica invisível (relato #60: basta pôr a carta no centro); o chip "Moldura" em "Mais" a mostra
   const frame = h('div', { class: 'scan-frame', 'aria-hidden': 'true' }, h('div', { class: 'scan-frame__band' }, h('span', {}, 'nome aqui')));
   const contorno = h('div', { class: 'scan-outline', id: 'scan-outline', 'aria-hidden': 'true', style: { display: 'none' } });
   const dica = h('div', { class: 'scan-hint', id: 'scan-hint', 'aria-live': 'polite' });
   // "[nome] ✓" grande, por cima da câmera, por um instante
   const okBox = h('div', { class: 'scan-ok', id: 'scan-ok', hidden: true, 'aria-live': 'assertive' });
   const estadoChip = h('div', { class: 'scan-estado', id: 'scan-estado' });
-  const stage = h('div', { class: 'scan-stage', id: 'scan-stage', role: 'button', tabindex: '0', 'aria-label': 'Câmera. Toque para somar outra cópia da última carta ou focar.' }, video, frame, contorno, estadoChip, dica, okBox);
+  const stage = h('div', { class: 'scan-stage', id: 'scan-stage', role: 'button', tabindex: '0', 'aria-label': 'Câmera. Toque para somar outra cópia da última carta ou focar.', dataset: { guia: 'false' } }, video, frame, contorno, estadoChip, dica, okBox);
   const status = h('div', { class: 'scan-status', id: 'scan-status' });
   const result = h('div', { class: 'scan-result', id: 'scan-result', 'aria-live': 'polite' });
   const dock = h('div', { class: 'scan-dock' });
@@ -46181,7 +46186,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
 
   /* ---- a leitura ---- */
   const dormir = ms => new Promise(r => setTimeout(r, ms));
-  const DICAS = { foco: 'Fora de foco: afaste a câmera um palmo.', tremida: 'Segure firme.', longe: 'Aproxime a carta.', escuro: 'Está escuro: procure mais luz.', ambigua: 'Duas cartas parecidas: centralize o nome.', espera: 'Lendo… segure assim.', repetida: 'Já na pilha. Toque na tela para somar outra.', fraca: 'Nome pouco legível: incline para tirar o reflexo.', nada: 'Enquadre a carta na moldura.' };
+  const DICAS = { foco: 'Fora de foco: afaste a câmera um palmo.', tremida: 'Segure firme.', longe: 'Aproxime a carta.', escuro: 'Está escuro: procure mais luz.', ambigua: 'Duas cartas parecidas: centralize o nome.', espera: 'Lendo… segure assim.', repetida: 'Já na pilha. Toque na tela para somar outra.', fraca: 'Nome pouco legível: incline para tirar o reflexo.', nada: 'Centralize a carta na tela.' };
   /** X11 · uma leitura: acha os quatro cantos da carta em qualquer lugar do quadro, endireita o topo dela, acha a
       linha do nome, lê e casa com a base. Sem contorno (carta na mão, protetor, mesa da cor da borda), o mesmo
       caminho vale a partir da moldura guia. Quando o contorno não dá leitura, a moldura é tentada na mesma passada. */
@@ -46800,7 +46805,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     const edChip = Chip('Edição', { pressed: state.edition, dataset: { edition: '1' } });
     edChip.addEventListener('click', () => { state.edition = !state.edition; edChip.setAttribute('aria-pressed', String(state.edition)); });
     const molduraChip = Chip('Moldura', { pressed: state.moldura, dataset: { moldura: '1' } });
-    molduraChip.addEventListener('click', () => { state.moldura = !state.moldura; frame.style.display = state.moldura ? '' : 'none'; molduraChip.setAttribute('aria-pressed', String(state.moldura)); });
+    molduraChip.addEventListener('click', () => { state.moldura = !state.moldura; stage.dataset.guia = String(state.moldura); molduraChip.setAttribute('aria-pressed', String(state.moldura)); });
     const diagChip = Chip('Diagnóstico', { dataset: { diag: '1' }, onClick: () => { closeDialog(); openDiag(); } });
     // X13 · controles da câmera: só aparece o que este aparelho tem
     const cam = state.camera === 'on' && camera.info ? camera.info() : {}, pode = cam.pode || {};

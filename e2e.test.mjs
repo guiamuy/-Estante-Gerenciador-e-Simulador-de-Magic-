@@ -1381,6 +1381,9 @@ const FAKE_CARD_CAM = `
 const contaPilha = page => page.evaluate(() => +((/(\d+)/.exec((document.querySelector('#scan-lot') || {}).innerText || '') || [])[1] || -1));
 const esperaPilha = (page, n, timeout = 12000) => page.waitForFunction(k => +((/(\d+)/.exec((document.querySelector('#scan-lot') || {}).innerText || '') || [])[1] || -1) === k, n, { timeout });
 async function abrePilha(page) { await page.click('#scan-lot'); await page.waitForSelector('#scan-pile'); }
+/** S-611 · a moldura guia está à vista? (borda não transparente ou véu em volta; ela fica sempre no lugar, para o recorte) */
+const molduraAparece = page => page.evaluate(() => { const f = document.querySelector('.scan-frame'); if (!f) return false; const cs = getComputedStyle(f);
+  return cs.display !== 'none' && (!/rgba\(0, 0, 0, 0\)|transparent/.test(cs.borderTopColor) || cs.boxShadow !== 'none'); });
 async function opcaoScanner(page, chip, fecha = true) { await page.click('#scan-more'); await page.click(`[data-${chip}]`); if (fecha && await page.locator('.ds-dialog').count()) await page.click('#ds-dialog-close'); }
 
 test('e2e · X7 scanner acha a carta dentro da moldura e lê sozinho; "[nome] ✓" aparece e a carta parada não entra duas vezes', { skip }, async t => {
@@ -1388,8 +1391,8 @@ test('e2e · X7 scanner acha a carta dentro da moldura e lê sozinho; "[nome] �
   await page.addInitScript(FAKE_CARD_CAM);
   await page.goto(base + '#/scanner');
   await page.waitForSelector('#scan-read:not([disabled])');
-  // Leva 112 · expectativa mudou: a moldura é a referência e começa visível (antes: escondida, leitura do quadro inteiro)
-  assert.equal(await page.locator('.scan-frame').isVisible(), true, 'moldura visível');
+  // S-611 · expectativa mudou (relato #60 fatia 5): a moldura começa invisível (antes, Leva 112: visível); o contorno acha a carta
+  assert.equal(await molduraAparece(page), false, 'sem moldura à vista');
   await opcaoScanner(page, 'edition');                     // este teste é só do nome
   await page.waitForFunction(() => document.querySelector('[data-auto]').getAttribute('aria-pressed') === 'true', null, { timeout: 12000 });
   await page.evaluate(() => window.__ocrQueue.push('Sol Ring', 'Sol Ring', 'Sol Ring', 'Sol Ring', 'Sol Ring', 'Sol Ring'));
@@ -1417,9 +1420,37 @@ test('e2e · X7 scanner acha a carta dentro da moldura e lê sozinho; "[nome] �
   await page.locator('#scan-pile .scan-pile__card').first().locator('button[aria-label^="Tirar"]').click();
   await page.waitForFunction(() => !document.querySelector('#scan-pile .scan-pile__card'), null, { timeout: 4000 });
   await page.click('#ds-dialog-close');
-  // a moldura pode ser escondida em "mais"
+  // a moldura pode ser mostrada em "mais"
   await opcaoScanner(page, 'moldura');
-  assert.equal(await page.locator('.scan-frame').isVisible(), false, 'moldura opcional');
+  assert.equal(await molduraAparece(page), true, 'moldura opcional');
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · S-611 relato #60 fatia 5: sem moldura — a câmera fica limpa (sem borda, sem "nome aqui", sem véu) e a carta fora do centro é achada pelo contorno e lida; "Moldura" em "Mais" a traz de volta', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(FAKE_CARD_CAM.replace('const x = 220, y = 90', 'const x = 240, y = 185')); // a carta bem abaixo do centro (o vídeo em cover corta as laterais do quadro 4:3)
+  await page.setViewportSize({ width: 360, height: 697 });
+  await page.goto(base + '#/scanner');
+  await page.waitForSelector('#scan-read:not([disabled])');
+  const tela = () => page.evaluate(() => { const f = document.querySelector('.scan-frame'), b = document.querySelector('.scan-frame__band'), fb = f.getBoundingClientRect();
+    return { borda: getComputedStyle(f).borderTopColor, veu: getComputedStyle(f).boxShadow, faixa: +getComputedStyle(b).opacity, noLugar: fb.width > 50 && fb.height > 50, dica: document.querySelector('#scan-hint').innerText }; });
+  const antes = await tela();
+  assert.equal(await molduraAparece(page), false, 'a moldura não aparece ' + JSON.stringify(antes));
+  assert.equal(antes.faixa, 0, '"nome aqui" não aparece');
+  assert.ok(antes.noLugar, 'a moldura invisível segue no lugar (é o recorte quando não há contorno)');
+  assert.doesNotMatch(antes.dica, /moldura/i, 'nenhum aviso fala em moldura');
+  await opcaoScanner(page, 'edition');
+  await page.waitForFunction(() => document.querySelector('[data-auto]').getAttribute('aria-pressed') === 'true', null, { timeout: 12000 });
+  await page.evaluate(() => window.__ocrQueue.push('Sol Ring', 'Sol Ring', 'Sol Ring', 'Sol Ring', 'Sol Ring', 'Sol Ring'));
+  await page.waitForFunction(() => { const el = document.querySelector('#scan-outline'); return el && el.style.display === 'block' && parseFloat(el.style.width) > 20; }, null, { timeout: 12000 });
+  const c = await page.evaluate(() => { const o = document.querySelector('#scan-outline').getBoundingClientRect(), s = document.querySelector('#scan-stage').getBoundingClientRect(); return { cy: (o.top + o.bottom) / 2 - s.top, h: s.height }; });
+  assert.ok(c.cy > c.h * 0.56, 'o contorno desenhado está onde a carta está, fora do centro ' + JSON.stringify(c));
+  await esperaPilha(page, 1);
+  assert.equal(await molduraAparece(page), false, 'o aceite não acende a moldura');
+  await page.click('[data-auto]');
+  await opcaoScanner(page, 'moldura');
+  assert.equal(await molduraAparece(page), true, '"Moldura" em "Mais" mostra a moldura');
+  await auditaTela(page, 'S-611 scanner sem moldura');
   assert.deepEqual(errors, []);
 });
 
