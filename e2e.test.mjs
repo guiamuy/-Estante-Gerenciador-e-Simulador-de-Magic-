@@ -1502,6 +1502,15 @@ const FAKE_CARD_CAM = `
 // Leva 112 · a tela do scanner não rola: pilha, digitar, opções e diagnóstico abrem em folhas
 const contaPilha = page => page.evaluate(() => +((/(\d+)/.exec((document.querySelector('#scan-lot') || {}).innerText || '') || [])[1] || -1));
 const esperaPilha = (page, n, timeout = 12000) => page.waitForFunction(k => +((/(\d+)/.exec((document.querySelector('#scan-lot') || {}).innerText || '') || [])[1] || -1) === k, n, { timeout });
+// S-613 · relato #65: a pilha que o dono descreveu (carta pedindo confirmação, nome longo, várias pendentes, foil, sem edição)
+const PILHA_S613 = [
+  { key: 'Sol Ring', name: 'Sol Ring', qty: 1, score: 0.82, conferir: true, alternativas: ['Ulamog, the Ceaseless Hunger', 'Kozilek, Butcher of Truth', 'Sol Talisman'], img: 'https://cards.scryfall.io/small/front/x/solring.jpg' },
+  { key: 'Ulamog, the Ceaseless Hunger', name: 'Ulamog, the Ceaseless Hunger', qty: 2, score: 0.78, conferir: true, alternativas: ['Ulamog, the Infinite Gyre', 'Ulamog, the Defiler'], img: 'https://cards.scryfall.io/small/front/x/ulamog.jpg' },
+  { key: 'Kessig Flamebreather', name: 'Kessig Flamebreather', qty: 1, score: 0.86, conferir: true, alternativas: [] },
+  { key: 'Island', name: 'Island', qty: 3, score: 1, conferir: false },
+  { key: 'Counterspell|mh2|267|foil', name: 'Counterspell', qty: 1, score: 0.99, conferir: false, set: 'mh2', number: '267', set_name: 'Modern Horizons 2', id: 'cs-mh2', verified: true, finish: 'foil', img: 'https://cards.scryfall.io/small/front/x/cs.jpg' },
+  { key: 'Asmoranomardicadaistinaculdacar|mh2|186', name: 'Asmoranomardicadaistinaculdacar', qty: 1, score: 0.8, conferir: true, alternativas: ['Asmoranomardicadaistinaculdacar'], set: 'mh2', number: '186', set_name: 'Modern Horizons 2', id: 'asm', verified: true }
+];
 async function abrePilha(page) { await page.click('#scan-lot'); await page.waitForSelector('#scan-pile'); }
 /** S-611 · a moldura guia está à vista? (borda não transparente ou véu em volta; ela fica sempre no lugar, para o recorte) */
 const molduraAparece = page => page.evaluate(() => { const f = document.querySelector('.scan-frame'); if (!f) return false; const cs = getComputedStyle(f);
@@ -1842,15 +1851,15 @@ test('e2e · S-607 relato #60/#64: carta sem edição é marcada na pilha, a fol
   // o símbolo chega e toma o lugar da sigla (desenhado na cor do texto, nos dois temas)
   await page.waitForSelector('#scan-ed .scan-ed__item[data-set="mh2"] .scan-ed__simbolo:not(.scan-ed__simbolo--sigla)');
   assert.match(await page.innerText('#scan-ed .scan-ed__item[data-set="lea"] .scan-ed__simbolo'), /LEA/, 'sem símbolo no catálogo: a sigla');
-  assert.equal(await page.getAttribute('#scan-ed-usar', 'disabled') !== null, true, 'Usar só depois de escolher a edição');
-  await page.click('#scan-ed .scan-ed__item[data-set="lea"]');
-  assert.deepEqual(await page.$$eval('#scan-ed-acab [data-acab]', els => els.map(e => e.dataset.acab)), ['nonfoil']);
-  await page.click('#scan-ed .scan-ed__item[data-set="mh2"]');
+  // S-613 · expectativa mudou (relato #65): a escolha é de um toque — o acabamento fica acima da lista (o que alguma
+  // impressão tem; a que não tem o marcado diz com qual entra) e o toque na impressão já troca; "Usar" saiu
+  assert.equal(await page.locator('#scan-ed-usar').count(), 0, 'sem o segundo toque em "Usar"');
   assert.deepEqual(await page.$$eval('#scan-ed-acab [data-acab]', els => els.map(e => e.dataset.acab)), ['nonfoil', 'foil']);
   await page.click('#scan-ed-acab [data-acab="foil"]');
+  assert.match(await page.innerText('#scan-ed .scan-ed__item[data-set="lea"]'), /sem Foil: entra Normal/);
   const pequenos = await page.$$eval('#scan-ed button, .ds-dialog__actions button', bs => bs.filter(b => b.offsetParent && b.getBoundingClientRect().height < 44).map(b => b.textContent.trim()));
   assert.deepEqual(pequenos, [], 'alvos de toque com 44 px');
-  await page.click('#scan-ed-usar');
+  await page.click('#scan-ed .scan-ed__item[data-set="mh2"]');
   await page.waitForSelector('#scan-pile');
   assert.match(await page.innerText('#scan-pile .scan-pile__card[data-name="Island"]'), /MH2 #267 · Foil/);
   assert.doesNotMatch(await page.innerText('#scan-pile'), /Escolha a edição|sem edição/);
@@ -1872,6 +1881,98 @@ test('e2e · S-607 relato #60/#64: carta sem edição é marcada na pilha, a fol
   await page.goto(base + '#/colecao');
   await page.waitForSelector('.col-row[data-name="Island"]');
   assert.match(await page.innerText('.col-row[data-name="Island"]'), /MH2 · #267 · foil/i);
+  assert.deepEqual(errors, []);
+});
+
+// S-613 · relato #65 fatia 1 (360×697, tema escuro): a pilha com cartas pedindo confirmação não se deforma (nome longo,
+// alternativas compridas, várias pendentes, foil, sem edição, miniatura que não carrega) e a edição se troca com um toque.
+test('e2e · S-613 relato #65: a pilha com cartas a confirmar não se deforma em 360×697 e um toque na impressão troca a edição (com Desfazer)', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 697 });
+  await page.emulateMedia({ colorScheme: 'dark' });
+  const jpg = readFileSync(join(ROOT, 'fotos', 'brainstorm-retrato.jpg'));
+  // a miniatura do Sol Ring não carrega (fica a inicial); as outras chegam
+  await page.route('https://cards.scryfall.io/**', r => /solring/.test(r.request().url()) ? r.abort('internetdisconnected') : r.fulfill({ contentType: 'image/jpeg', body: jpg }));
+  await page.route('https://api.scryfall.com/sets', r => r.fulfill({ json: { object: 'list', has_more: false, data: [
+    { code: 'mh2', name: 'Modern Horizons 2', released_at: '2021-06-18', icon_svg_uri: 'https://svgs.scryfall.io/sets/mh2.svg?1700000000' }] } }));
+  await page.route('https://svgs.scryfall.io/**', r => r.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><circle cx="5" cy="5" r="5"/></svg>' }));
+  await page.route('https://api.scryfall.com/cards/search**', r => {
+    const q = decodeURIComponent(new URL(r.request().url()).searchParams.get('q') || '');
+    if (q !== '!"Island"') return r.fallback();
+    const c = { object: 'card', name: 'Island', type_line: 'Basic Land — Island', color_identity: ['U'], colors: [], cmc: 0, oracle_text: '', legalities: {} };
+    return r.fulfill({ json: { object: 'list', has_more: false, data: [
+      { ...c, id: 'island-mh2', set: 'mh2', set_name: 'Modern Horizons 2', collector_number: '267', released_at: '2021-06-18', finishes: ['nonfoil', 'foil'] },
+      { ...c, id: 'island-lea', set: 'lea', set_name: 'Limited Edition Alpha', collector_number: '288', released_at: '1993-08-05', finishes: ['nonfoil'] }] } });
+  });
+  await page.addInitScript(FAKE_DEVICE(false));
+  await page.goto(base + '#/');
+  await page.evaluate(async itens => { await new Promise((res, rej) => { const r = indexedDB.open('mtg', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv');
+    r.onsuccess = () => { const tx = r.result.transaction('kv', 'readwrite'); tx.objectStore('kv').put(itens, 'scanner.lot'); tx.oncomplete = res; tx.onerror = rej; }; r.onerror = rej; }); }, PILHA_S613);
+  await page.goto(base + '#/scanner');
+  await page.waitForSelector('#scan-read:not([disabled])');
+  await pausaAuto(page);
+  await abrePilha(page);
+  // geometria: nada sai do cartão para os lados, cartões sem sobreposição, sem rolagem lateral, miniatura com altura fixa
+  const geometria = () => page.evaluate(() => {
+    const corpo = document.querySelector('#scan-pile').closest('.ds-dialog__body') || document.querySelector('#scan-pile');
+    const cards = [...document.querySelectorAll('#scan-pile .scan-pile__card')];
+    const fora = [], sobre = [], miniaturas = [];
+    cards.forEach((c, i) => {
+      const cb = c.getBoundingClientRect();
+      for (const e of c.querySelectorAll('*')) { const b = e.getBoundingClientRect(); if (b.width && (b.right > cb.right + 1 || b.left < cb.left - 1)) fora.push(c.dataset.name.slice(0, 16) + ' ' + String(e.className).split(' ')[0] + ' → ' + Math.round(b.right)); }
+      if (c.scrollWidth > c.clientWidth + 1) fora.push(c.dataset.name.slice(0, 16) + ' rola ' + (c.scrollWidth - c.clientWidth) + 'px');
+      if (i && cards[i - 1].getBoundingClientRect().bottom > cb.top + 0.5) sobre.push(c.dataset.name);
+      const m = c.querySelector('.scan-pile__mini'); miniaturas.push(m ? Math.round(m.getBoundingClientRect().height) : -1);
+    });
+    // a imagem que não carregou não aparece (fica a inicial na caixa da miniatura)
+    const quebradas = cards.filter(c => { const im = c.querySelector('img.scan-pile__img'); return im && im.complete && !im.naturalWidth && getComputedStyle(im).display !== 'none'; }).map(c => c.dataset.name);
+    return { fora: fora.slice(0, 8), sobre, miniaturas, quebradas, lateral: corpo.scrollWidth - corpo.clientWidth, alturas: cards.map(c => Math.round(c.getBoundingClientRect().height)) };
+  });
+  await page.waitForFunction(() => [...document.querySelectorAll('#scan-pile img.scan-pile__img')].every(i => i.complete));
+  await page.waitForTimeout(300);
+  const g = await geometria();
+  assert.deepEqual(g.fora, [], 'nada do cartão sai para os lados (nome longo, alternativas, "Confira")');
+  assert.deepEqual(g.sobre, [], 'cartões sem sobreposição');
+  assert.ok(g.lateral <= 1, `a folha não rola para o lado (${g.lateral}px)`);
+  assert.deepEqual(g.quebradas, [], 'miniatura que não carrega vira a inicial, não a imagem quebrada');
+  assert.ok(g.miniaturas.every(hh => hh === g.miniaturas[0] && hh > 80), `miniaturas da mesma altura (${g.miniaturas})`);
+  const pequenos = await page.$$eval('#scan-pile button', bs => bs.filter(b => b.offsetParent && b.getBoundingClientRect().height < 44).map(b => b.textContent.trim()));
+  assert.deepEqual(pequenos, [], 'alvos de toque com 44 px');
+  await auditaTela(page, 'S-613 pilha com cartas a confirmar (360×697, escuro)');
+  if (process.env.SHOTS) for (const [i, c] of (await page.$$('#scan-pile .scan-pile__card')).entries()) { await c.scrollIntoViewIfNeeded(); await page.screenshot({ path: `${process.env.SHOTS}/s613-pilha-${i}.png` }); }
+  // altura estável: confirmar uma carta não mexe nas outras
+  const antes = g.alturas;
+  const k = (await page.$$eval('#scan-pile .scan-pile__card', cs => cs.map(c => c.dataset.name))).indexOf('Kessig Flamebreather');
+  await page.click('#scan-pile [data-confirm="Kessig Flamebreather"]');
+  await page.waitForFunction(() => !document.querySelector('#scan-pile [data-conferir="Kessig Flamebreather"]'));
+  const depois = (await geometria()).alturas;
+  assert.deepEqual(depois.filter((_, i) => i !== k), antes.filter((_, i) => i !== k), 'as outras cartas ficam com a mesma altura');
+  // um toque: com Foil marcado acima da lista, tocar a impressão já troca a carta e fecha a folha
+  await page.locator('#scan-pile .scan-pile__card[data-name="Island"] [data-edicao]').click();
+  await page.waitForSelector('#scan-ed[data-estado="pronto"]');
+  assert.equal(await page.locator('#scan-ed-usar').count(), 0, 'sem segundo toque em "Usar"');
+  assert.deepEqual(await page.$$eval('#scan-ed-acab [data-acab]', els => els.map(e => e.dataset.acab)), ['nonfoil', 'foil'], 'o acabamento que alguma impressão tem');
+  await page.click('#scan-ed-acab [data-acab="foil"]');
+  assert.equal(await page.getAttribute('#scan-ed-acab [data-acab="foil"]', 'aria-pressed'), 'true');
+  await auditaTela(page, 'S-613 folha de impressões (360×697, escuro)');
+  if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/s613-folha.png` });
+  await page.click('#scan-ed .scan-ed__item[data-set="mh2"]');
+  await page.waitForSelector('#scan-pile');
+  assert.equal(await page.locator('#scan-ed').count(), 0, 'a folha fechou');
+  assert.match(await page.innerText('#scan-pile .scan-pile__card[data-name="Island"]'), /MH2 #267 · Foil/);
+  await page.waitForSelector('#ds-toast[data-open="true"] .ds-toast__acao');
+  assert.match(await page.innerText('#ds-toast'), /Island: MH2 #267 · Foil/);
+  await page.click('#ds-toast .ds-toast__acao');
+  await page.waitForFunction(() => /Edição a definir/.test((document.querySelector('#scan-pile .scan-pile__card[data-name="Island"]') || {}).innerText || ''));
+  // a impressão sem o acabamento marcado entra com o que ela tem (Alpha não tem foil: entra Normal) e a folha avisa antes
+  await page.locator('#scan-pile .scan-pile__card[data-name="Island"] [data-edicao]').click();
+  await page.waitForSelector('#scan-ed[data-estado="pronto"]');
+  await page.click('#scan-ed-acab [data-acab="foil"]');
+  assert.match(await page.innerText('#scan-ed .scan-ed__item[data-set="lea"]'), /sem Foil/);
+  await page.click('#scan-ed .scan-ed__item[data-set="lea"]');
+  await page.waitForSelector('#scan-pile');
+  const ilha = await page.innerText('#scan-pile .scan-pile__card[data-name="Island"]');
+  assert.match(ilha, /LEA #288/); assert.doesNotMatch(ilha, /Foil/);
   assert.deepEqual(errors, []);
 });
 
