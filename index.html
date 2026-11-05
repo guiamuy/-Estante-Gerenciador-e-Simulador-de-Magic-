@@ -45563,6 +45563,21 @@ const ALTURA_NOME = { min: 0.022, max: 0.055 }; // altura da linha do nome, em f
    (topo-esquerda, topo-direita, baixo-direita, baixo-esquerda) passam a ser os da carta deitada com o topo à direita
    (lado 1: a carta girada no sentido do relógio, ou segurada deitada na frente da câmera) ou à esquerda (lado −1). */
 function cantosDeitada(c, lado = 1) { return lado >= 0 ? [c[1], c[2], c[3], c[0]] : [c[3], c[0], c[1], c[2]]; }
+/* S-612 · relato #61 · os cantos da carta numa imagem da Scryfall, para a impressão da arte (artes.mjs). A Scryfall guarda a
+   batalha em pé, com a carta girada: a página pede "girar 90° no sentido do relógio" para ler (consultado em 05/11/2026,
+   Invasion of Segovia, MOM #63). Girar no sentido do relógio põe o lado esquerdo da imagem em cima: o topo da carta deitada
+   é o lado esquerdo (lado −1). Assim a base guarda a arte da batalha na proporção deitada, a mesma que a câmera lê. */
+/** S-612 · os cantos (em frações de um quadro vw × vh) são de uma carta deitada, com o lado comprido em cima? O caminho
+    "deitada" (cantos girados) também acerta a carta em pé cujo contorno saiu com o topo num lado comprido (perspectiva,
+    moldura de dentro): aí o nome sai, mas a linha de coleção e a arte são as da carta em pé. Decide pela forma. */
+function cartaDeitada(c, vw = 1, vh = 1) {
+  const d = (a, b) => Math.hypot((a.x - b.x) * vw, (a.y - b.y) * vh);
+  return d(c[0], c[1]) + d(c[2], c[3]) > d(c[1], c[2]) + d(c[3], c[0]);
+}
+function cantosDaImagemDaArte(w, h, { batalha = false } = {}) {
+  const c = [{ x: 0, y: 0 }, { x: w, y: 0 }, { x: w, y: h }, { x: 0, y: h }];
+  return batalha ? cantosDeitada(c, -1) : c;
+}
 const LARGURA_NOME_DEITADA = 1100;              // a faixa cobre 0,86 de 88 mm em vez de 63: a mesma altura do nome em pixels
 /** Linha de texto dentro da faixa (RGBA): a sequência de linhas com mais traços verticais, cercada em
     cima e embaixo por linhas calmas (a barra do título). Devolve { y0, y1, nota, cinza }. */
@@ -45844,10 +45859,13 @@ const FAIXA_COLECAO = { x: -0.02, y: 0.90, w: 0.56, h: 0.22 };
 const ALTURA_COLECAO = { min: 0.024, max: 0.052 };   // as duas linhas juntas, em frações da altura da carta
 /** O mesmo caminho do nome para a linha de coleção: retifica o canto de baixo, acha o bloco de duas linhas
     miúdas, binariza (texto claro sobre a borda preta vira preto no branco) e limpa as bordas. */
-function preparaColecao(src, sw, sh, cantos, largura = 700, { inverte = false, livre = false } = {}) {
-  const alt = Math.max(8, Math.round(largura * (FAIXA_COLECAO.h / FAIXA_COLECAO.w) / PROPORCAO_CARTA));
+/* S-612 · relato #61 · `deitada`: a batalha, com os cantos já girados (cantosDeitada). A linha de coleção dela corre ao longo do
+   lado comprido de baixo da carta deitada: a faixa sai na proporção 88 × 63 e a altura do bloco é medida contra os 63 mm. */
+function preparaColecao(src, sw, sh, cantos, largura = 700, { inverte = false, livre = false, deitada = false } = {}) {
+  const prop = deitada ? 1 / PROPORCAO_CARTA : PROPORCAO_CARTA, k = deitada ? PROPORCAO_CARTA : 1;
+  const alt = Math.max(8, Math.round(largura * (FAIXA_COLECAO.h / FAIXA_COLECAO.w) / prop));
   const faixa = retifica(src, sw, sh, cantosDaFaixa(cantos, FAIXA_COLECAO), largura, alt);
-  const opc = { altMin: ALTURA_COLECAO.min / FAIXA_COLECAO.h, altMax: ALTURA_COLECAO.max / FAIXA_COLECAO.h };
+  const opc = { altMin: ALTURA_COLECAO.min / FAIXA_COLECAO.h / k, altMax: ALTURA_COLECAO.max / FAIXA_COLECAO.h / k };
   // `livre`: a segunda tentativa procura a linha em qualquer fundo (sobre arte escura e com textura, a busca sobre a borda
   // preta acha a textura em vez do texto)
   let L = livre ? null : linhaDoNome(faixa.data, faixa.w, faixa.h, { ...opc, sobreEscuro: true }), borda = 'preta';
@@ -45861,7 +45879,12 @@ function preparaColecao(src, sw, sh, cantos, largura = 700, { inverte = false, l
   return { data: bin.data, w: bin.w, h: bin.h, claro: bin.claro, borda };
 }
 /** Largura da faixa de coleção retificada: o texto miúdo (1,6% da carta) fica com uns 25 px de altura. */
-function larguraColecao(alturaCartaPx) { return Math.max(400, Math.min(1400, Math.round(FAIXA_COLECAO.w * alturaCartaPx * PROPORCAO_CARTA * escalaOcr(alturaCartaPx)))); }
+function larguraColecao(alturaCartaPx, { deitada = false } = {}) {
+  if (!deitada) return Math.max(400, Math.min(1400, Math.round(FAIXA_COLECAO.w * alturaCartaPx * PROPORCAO_CARTA * escalaOcr(alturaCartaPx))));
+  // S-612 · carta deitada: a "altura" dos cantos girados é o lado curto (63 mm); a faixa cobre 0,56 dos 88 mm com o texto do mesmo tamanho
+  const longo = alturaCartaPx / PROPORCAO_CARTA;
+  return Math.max(Math.round(400 / PROPORCAO_CARTA), Math.min(Math.round(1400 / PROPORCAO_CARTA), Math.round(FAIXA_COLECAO.w * longo * escalaOcr(longo))));
+}
 /** Altura da carta (em pixels do quadro) a partir dos cantos em frações. */
 function alturaDaCarta(cantosFr, vw, vh) {
   const d = (a, b) => Math.hypot((a.x - b.x) * vw, (a.y - b.y) * vh);
@@ -45890,7 +45913,7 @@ function pulaPorMovimento(mov, { via = 'auto', contorno = true } = {}) { return 
 
 return { cleanOcr, matchName, matchLines, criaVotacao, criaPorteiro, PORTEIRO, leituraConfiavel, nitidezDaFaixa, movimentoEntre, LIMIARES_FAIXA, criaDiario, criaCronometro, criaRefoco, EXATA, buildIndex, candidatosDoIndice, createNameIndex, IDIOMAS_DOS_NOMES, LINGUAS_DO_LEITOR, linguaDoLeitor, temCjk, chaveCjk, indiceCjk, matchCjk, createLot, coverRegion, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, resolveEdicao, artistaNoTexto, acabamentosDa, edicoesDaCarta, filtraEdicoes, iconeDoSet, ACABAMENTO_NA_COLECAO, NOME_DO_ACABAMENTO, ACCEPT, ALTA, SUGGEST, lev,
   detectaCarta, detectaEmEscalas, ESCALAS_DETECTOR, brilho, nitidez, prontoParaLer, criaDetector, paradaEm, screenRect, LIMIARES, PROPORCAO_CARTA, realcaTexto, trechoEscuroEmbaixo, limpaBordas, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, faixaDaCarta, escalaOcr,
-  retasDoQuadro, achaQuadrilatero, ordenaCantos, homografia, cantosDaFaixa, cantosDeitada, retifica, FAIXA_NOME, FAIXA_COLECAO, LARGURA_NOME, linhaDoNome, binarizaLinha, limpaLinha, nitidezDaLinha, afiaLinha, FAIXA_ARTE, BITS_ARTE, impressaoDaArte, distanciaDaArte, buscaArte, abreBaseDeArtes, binDasArtes, criaBaseDeArtes, decideArte, arteDaEdicao, LIMIAR_ARTE, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, alturaDaCarta, deslocamento, LIMIARES_LINHA, pulaPorMovimento, QUAD };
+  retasDoQuadro, achaQuadrilatero, ordenaCantos, homografia, cantosDaFaixa, cantosDeitada, cartaDeitada, cantosDaImagemDaArte, retifica, FAIXA_NOME, FAIXA_COLECAO, LARGURA_NOME, linhaDoNome, binarizaLinha, limpaLinha, nitidezDaLinha, afiaLinha, FAIXA_ARTE, BITS_ARTE, impressaoDaArte, distanciaDaArte, buscaArte, abreBaseDeArtes, binDasArtes, criaBaseDeArtes, decideArte, arteDaEdicao, LIMIAR_ARTE, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, alturaDaCarta, deslocamento, LIMIARES_LINHA, pulaPorMovimento, QUAD };
 })();
 
 
@@ -45904,7 +45927,7 @@ const __m22 = (function () {
    ===================================================================== */
 const { h, mount, Stack, Row, Surface, Text, Button, Field, Input, Select, Badge, Chip, Empty, Note, Spinner, Dialog, closeDialog, toast, reservaDoca, Simbolo, Icone, IconButton, AvisoRede } = __m3;
 const { createLot, coverRegion, screenRect, parseCollectorLine, resolvePrinting, resolveEdicao, edicoesDaCarta, filtraEdicoes, ACABAMENTO_NA_COLECAO, NOME_DO_ACABAMENTO, ACCEPT, EXATA, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, criaPorteiro, PORTEIRO, leituraConfiavel, criaDiario, criaCronometro, criaRefoco, realcaTexto,
-  achaQuadrilatero, cantosDeitada, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, FAIXA_NOME, FAIXA_COLECAO, alturaDaCarta, deslocamento, LIMIARES_LINHA, pulaPorMovimento, brilho,
+  achaQuadrilatero, cantosDeitada, cartaDeitada, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, FAIXA_NOME, FAIXA_COLECAO, alturaDaCarta, deslocamento, LIMIARES_LINHA, pulaPorMovimento, brilho,
   FAIXA_ARTE, impressaoDaArte, criaBaseDeArtes, decideArte, arteDaEdicao, LIMIAR_ARTE, LINGUAS_DO_LEITOR, linguaDoLeitor } = __m21;
 const { pulse } = __m20;
 const TESSERACT_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
@@ -46158,19 +46181,20 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
   // sem borda, vitrine) e a de contraste invertido (texto escuro, borda branca)
   const VARIANTES_EDICAO = [{}, { livre: true }, { inverte: true }], ESPERA_EDICAO_MS = 180;
   /** Copia a faixa da linha de coleção do quadro de agora uma vez; devolve quem a lê em cada variante. */
-  function faixaDeColecao(cantosFr) {
+  // S-612 · `deitada`: a batalha (cantos girados): a linha corre ao longo do lado comprido de baixo, na proporção 88 × 63
+  function faixaDeColecao(cantosFr, { deitada = false } = {}) {
     const vw = video.videoWidth, vh = video.videoHeight;
     const rec = recorteDaFaixa(cantosFr, FAIXA_COLECAO, vw, vh);
     if (!rec) return null;
     // canvas próprio: esta leitura corre em segundo plano, enquanto o laço já lê a próxima carta
     const p = pixels(rec.regiao, {});
-    const kx = p.w / rec.w, ky = p.h / rec.h, cantos = rec.cantos.map(c => ({ x: c.x * kx, y: c.y * ky })), larg = larguraColecao(alturaDaCarta(cantosFr, vw, vh));
+    const kx = p.w / rec.w, ky = p.h / rec.h, cantos = rec.cantos.map(c => ({ x: c.x * kx, y: c.y * ky })), larg = larguraColecao(alturaDaCarta(cantosFr, vw, vh), { deitada });
     return async op => {
-      const pr = preparaColecao(p.d, p.w, p.h, cantos, larg, op);
+      const pr = preparaColecao(p.d, p.w, p.h, cantos, larg, { ...op, deitada });
       return pr ? { texto: await ocr.read(paraCanvas(pr), 'colecao', 1), borda: pr.borda } : null;
     };
   }
-  async function identify(name, cantosLidos, peloContorno, arte = null, arteEd = null) {
+  async function identify(name, cantosLidos, peloContorno, arte = null, arteEd = null, { deitada = false } = {}) {
     if (!state.edition) return { exact: null, candidates: [], parsed: null };
     const t0 = Date.now();
     const list = await prints(name);
@@ -46195,18 +46219,18 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
       let cantosFr = cantosLidos;
       if (peloContorno) {
         const q = quadroPequeno(), novo = achaQuadrilatero(q.cinza, q.w, q.h);
-        if (novo) { const c = state.invertida ? viraCantos(novo.cantos) : novo.cantos; if (deslocamento(c, cantosLidos) < 0.15) cantosFr = c; }
+        if (novo) { const c = alinhaCantos(novo.cantos, cantosLidos); if (deslocamento(c, cantosLidos) < 0.15) cantosFr = c; }
       }
       // as variantes leem a MESMA cópia do quadro: não há risco de a carta seguinte entrar na conta
-      const le = faixaDeColecao(cantosFr);
+      const le = faixaDeColecao(cantosFr, { deitada });
       if (le) for (const op of apertado ? VARIANTES_EDICAO.slice(0, 1) : VARIANTES_EDICAO) { try { soma(await le(op)); } catch (e) { /* próxima variante */ } if (fechou()) break; }
       // ainda aberta e a carta segue no mesmo lugar (pelo contorno): um quadro novo, na leitura de sempre e na livre
       if (!apertado && !(res ? res.exact : parsed.set && parsed.number) && peloContorno && state.alive) {
         await dormir(ESPERA_EDICAO_MS);
         const q = quadroPequeno(), novo = achaQuadrilatero(q.cinza, q.w, q.h);
-        const c = novo && (state.invertida ? viraCantos(novo.cantos) : novo.cantos);
+        const c = novo && alinhaCantos(novo.cantos, cantosLidos);
         if (c && deslocamento(c, cantosLidos) < 0.15) {
-          const le2 = faixaDeColecao(c);
+          const le2 = faixaDeColecao(c, { deitada });
           if (le2) for (const op of VARIANTES_EDICAO.slice(0, 2)) { try { soma(await le2(op)); } catch (e) { /* segue */ } if (fechou()) break; }
         }
       }
@@ -46234,6 +46258,17 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
       linha do nome, lê e casa com a base. Sem contorno (carta na mão, protetor, mesa da cor da borda), o mesmo
       caminho vale a partir da moldura guia. Quando o contorno não dá leitura, a moldura é tentada na mesma passada. */
   const viraCantos = c => [c[2], c[3], c[0], c[1]];
+  /* S-612 · os cantos do quadro novo na mesma ordem dos que foram lidos (em pé, de cabeça para baixo ou deitada para qualquer
+     lado): a rotação mais perto deles. Antes valia a carta virada de agora (state.invertida), que não sabe da deitada. */
+  const alinhaCantos = (novo, lidos) => {
+    let melhor = novo, menor = Infinity;
+    for (let r = 0; r < 4; r++) {
+      const c = [0, 1, 2, 3].map(i => novo[(i + r) % 4]);
+      const d = Math.max(...c.map((p, i) => Math.hypot(p.x - lidos[i].x, p.y - lidos[i].y)));
+      if (d < menor) { menor = d; melhor = c; }
+    }
+    return melhor;
+  };
   async function lerUmaVez(via) {
     const vw = video.videoWidth || 0, vh = video.videoHeight || 0;
     if (!vw || !vh) { dicaTexto(DICAS.nada); return { pulou: 'nada', ms: 0, nitidez: 0, movimento: 0 }; }
@@ -46262,10 +46297,12 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
       const base = state.invertida ? viraCantos(quad.cantos) : quad.cantos;
       const emPe = { nome: 'carta', cantos: base };
       const deitadas = (state.lado ? [state.lado, -state.lado] : [1, -1]).map(l => ({ nome: 'deitada', lado: l, cantos: cantosDeitada(base, l), deitada: true }));
-      if (state.lado) caminhos.push(deitadas[0], emPe, deitadas[1]);
-      else caminhos.push(emPe, ...(state.falhas % 2 === 1 ? deitadas : []));
-    }
-    caminhos.push({ nome: 'moldura', cantos: cantosDe(molduraNoQuadro()) });
+      /* S-612 · a moldura vem antes das deitadas: a carta em pé cujo contorno saiu errado (meia carta, perspectiva) lia o nome
+         pelo caminho deitado e a edição não fechava (fotos do portão: Thraben e Malcolm); a batalha paga uma leitura a mais
+         só até o lado dela ser achado (depois vai primeiro). */
+      if (state.lado) caminhos.push(deitadas[0], emPe, deitadas[1], { nome: 'moldura', cantos: cantosDe(molduraNoQuadro()) });
+      else caminhos.push(emPe, { nome: 'moldura', cantos: cantosDe(molduraNoQuadro()) }, ...(state.falhas % 2 === 1 ? deitadas : []));
+    } else caminhos.push({ nome: 'moldura', cantos: cantosDe(molduraNoQuadro()) });
     let melhor = null, afiou = false;
     const nota = r => (r && r.found[0] ? r.found[0].score : 0);
     /* S-594 · a régua de nitidez não pula mais a leitura. Medido nas 27 fotos do portão com desfoque leve (1,5 px numa
@@ -46297,24 +46334,36 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     }
     /* X12 · S-596 · a arte da carta achada confere o nome (e dá a edição) ou responde quando o nome não deu. A varredura
        da base inteira só roda quando o nome não deu ou não bateu com nenhuma edição dele (orçamento de escala). */
-    // S-608 · a faixa da arte é a da carta em pé: com o nome lido deitado, a arte não confere (nem desmente) a leitura
     if (melhor && nota(melhor) >= ACCEPT) state.lado = melhor.caminho === 'deitada' ? melhor.lado : 0;   // leu em pé: a próxima carta começa em pé
-    if (quad && !longe && artes.pronta() && !(melhor && melhor.caminho === 'deitada')) {
+    /* S-612 · relato #61 · com o nome lido deitado (batalha), a arte é lida nos cantos deitados, na proporção 88 × 63: a base
+       guarda a batalha assim (cantosDaImagemDaArte). Até a base de artes ser coletada de novo, a batalha ainda está lá na
+       imagem em pé da Scryfall (a carta girada): a mesma faixa nos cantos em pé dela também é comparada e vale a mais perto.
+       A varredura da base inteira não roda para a deitada (o nome já foi lido; a base é quase toda de cartas em pé). */
+    const deitadaLida = !!(melhor && melhor.caminho === 'deitada' && nota(melhor) >= ACCEPT);
+    // a carta em pé com o contorno girado também lê pelo caminho deitado: a arte dela é a da carta em pé, nos mesmos cantos
+    const batalha = deitadaLida && cartaDeitada(melhor.cantos, vw, vh);
+    if (quad && !longe && artes.pronta() && (!melhor || melhor.caminho !== 'deitada' || deitadaLida)) {
       const ta = relogio();
       try {
-        const cartaCantos = state.invertida ? viraCantos(quad.cantos) : quad.cantos;
+        const cartaCantos = deitadaLida ? melhor.cantos : state.invertida ? viraCantos(quad.cantos) : quad.cantos;
         const h = arteDoQuadro(cartaCantos);
         if (h) {
           const nomeLido = melhor && nota(melhor) >= ACCEPT ? melhor.found[0].name : null;
           // S-604 · as ilustrações do nome lido, da mais parecida: a primeira é a de sempre (doNome); a lista inteira escolhe a edição
-          const doNomeTodas = nomeLido ? (artes.ilustracoesDoNome ? artes.ilustracoesDoNome(h, nomeLido) : [artes.doNome(h, nomeLido)].filter(Boolean)) : [];
+          const ilustracoes = hh => nomeLido ? (artes.ilustracoesDoNome ? artes.ilustracoesDoNome(hh, nomeLido) : [artes.doNome(hh, nomeLido)].filter(Boolean)) : [];
+          let doNomeTodas = ilustracoes(h);
+          if (batalha) {
+            const h2 = arteDoQuadro(cantosDeitada(cartaCantos, 1)), porI = new Map(doNomeTodas.map(x => [x.i, x]));
+            if (h2) for (const x of ilustracoes(h2)) if (!porI.has(x.i) || x.d < porI.get(x.i).d) porI.set(x.i, x);
+            doNomeTodas = [...porI.values()].sort((a, b) => a.d - b.d);
+          }
           const doNome = doNomeTodas[0] || null;
           const ed = arteDaEdicao(doNomeTodas);
           if (ed && melhor) melhor = { ...melhor, arteEd: { ...ed, nome: nomeLido } };
-          const precisaTop = !nomeLido || (nota(melhor) < EXATA && !(doNome && doNome.d <= LIMIAR_ARTE.igual));
+          const precisaTop = !deitadaLida && (!nomeLido || (nota(melhor) < EXATA && !(doNome && doNome.d <= LIMIAR_ARTE.igual)));
           const dec = decideArte({ found: melhor ? melhor.found : [], doNome, top: precisaTop ? artes.top(h) : [], aceite: ACCEPT, exata: EXATA });
           if (dec.arte || dec.discorda) {
-            if (!melhor || melhor.caminho !== 'carta') melhor = { caminho: 'carta', cantos: cartaCantos, texto: melhor ? melhor.texto : '', nitidez: melhor ? melhor.nitidez : 0, arteEd: melhor ? melhor.arteEd : undefined };
+            if (!melhor || (melhor.caminho !== 'carta' && !deitadaLida)) melhor = { caminho: 'carta', cantos: cartaCantos, texto: melhor ? melhor.texto : '', nitidez: melhor ? melhor.nitidez : 0, arteEd: melhor ? melhor.arteEd : undefined };
             melhor = { ...melhor, found: dec.found, arte: dec.arte, confereArte: dec.confere, discordaArte: dec.discorda };
           }
         }
@@ -46344,7 +46393,9 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     if (!leitura.cantos) return key;
     (async () => {
       try {
-        const ed = await identify(name, leitura.cantos, leitura.caminho === 'carta', leitura.arte, leitura.arteEd);
+        // S-612 · a batalha lida deitada: a linha de coleção sai dos cantos deitados, na proporção dela, e o contorno é conferido de novo
+        const ed = await identify(name, leitura.cantos, leitura.caminho === 'carta' || leitura.caminho === 'deitada', leitura.arte, leitura.arteEd,
+          { deitada: leitura.caminho === 'deitada' && cartaDeitada(leitura.cantos, video.videoWidth || 1, video.videoHeight || 1) });
         const img = await miniatura(name, ed.exact);
         const nova = await lot.enrich(key, { printing: ed.exact, img });
         if (state.last && state.last.key === key) state.last = { ...state.last, key: nova || key, printing: ed.exact, candidates: ed.candidates || [], pendente: false };

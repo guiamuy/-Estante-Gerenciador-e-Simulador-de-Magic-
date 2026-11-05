@@ -1318,6 +1318,23 @@ test('S-608 · batalha: a linha do nome é achada com a carta deitada, na propor
   // a faixa sai na proporção da carta deitada (88 × 63): 0,86 × 88 de largura por 0,22 × 63 de altura, recortada na linha
   assert.equal(pr.w, 1100);
 });
+test('S-612 · batalha: a linha de coleção deitada sai com o texto do mesmo tamanho da carta em pé (faixa 1,4× mais larga)', () => {
+  // cantos deitados: a "altura" medida é o lado curto (63 mm); a carta em pé da mesma foto mede 88 mm de altura
+  for (const longo of [500, 900, 1600]) {
+    const curto = longo * X.PROPORCAO_CARTA, emPe = X.larguraColecao(longo), deitada = X.larguraColecao(curto, { deitada: true });
+    assert.ok(Math.abs(deitada - emPe / X.PROPORCAO_CARTA) <= 2, `lado ${longo}: deitada ${deitada} × em pé ${emPe}`);
+  }
+  assert.equal(X.larguraColecao(700), X.larguraColecao(700, {}), 'em pé, como sempre');
+  // a mesma carta, retificada deitada: a faixa sai na proporção 88 × 63 (mais larga que alta do que a da carta em pé)
+  const b = batalhaEmPe(), dl = X.cantosDeitada(b.cantos, 1);
+  const pr = X.preparaColecao(b.d, b.W, b.H, dl, 980, { deitada: true, livre: true });
+  assert.ok(!pr || pr.w === 980, 'a largura pedida vale também deitada');
+  // a forma decide: a batalha (cantos deitados de uma carta em pé no quadro) tem o lado comprido em cima; a carta em pé cujo
+  // contorno saiu girado, lida pelo caminho deitado, volta a ser carta em pé para a linha de coleção e a arte
+  assert.equal(X.cartaDeitada(dl, b.W, b.H), true);
+  assert.equal(X.cartaDeitada(b.cantos, b.W, b.H), false);
+  assert.equal(X.cartaDeitada([{ x: 0.2, y: 0.1 }, { x: 0.8, y: 0.1 }, { x: 0.8, y: 0.9 }, { x: 0.2, y: 0.9 }], 1920, 1080), true, 'frações de um quadro deitado contam em pixels');
+});
 test('S-608 · carta de duas faces: o verso lido responde pela carta inteira', () => {
   const idx = X.buildIndex(['Invasion of Segovia // Caetus, Sea Tyrant of Segovia', 'Fire // Ice', 'Ice Cave', ...DECOYS.slice(0, 2000)]);
   assert.equal((X.matchName(idx, 'Caetus, Sea Tyrant of Segovia')[0] || {}).name, 'Invasion of Segovia // Caetus, Sea Tyrant of Segovia');

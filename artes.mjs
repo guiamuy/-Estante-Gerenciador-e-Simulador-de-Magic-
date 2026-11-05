@@ -47,7 +47,13 @@ export function cartasDaBase(lista) {
     const ilustracao = c.illustration_id || (c.card_faces && c.card_faces[0] && c.card_faces[0].illustration_id) || c.id;
     const versao = (/\?(\d+)$/.exec(img) || [])[1] || '';
     const base = { nome: String(c.name || '').slice(0, 160), set: String(c.set || '').slice(0, 10), numero: String(c.collector_number || '').slice(0, 12), ilustracao: String(ilustracao).slice(0, 40) };
-    out.push({ ...base, versao, img });
+    /* S-612 · relato #61: a frente da batalha se lê deitada e a Scryfall a guarda em pé, girada. A arte dela entra na base na
+       proporção deitada (os cantos girados, cantosDaImagemDaArte), a mesma que a câmera lê; a versão ganha "d" para a base
+       anterior (ilustração|versão) não reaproveitar a impressão tirada em pé. A Scryfall marca a batalha pelo tipo da face
+       ("Battle — Siege"), não pelo layout (a de Invasion of Segovia é "transform", consulta de 05/11/2026). */
+    const tipo0 = (c.card_faces && c.card_faces[0] && c.card_faces[0].type_line) || c.type_line || '';
+    if (/^Battle\b/.test(tipo0)) out.push({ ...base, versao: versao + 'd', img, deitada: true });
+    else out.push({ ...base, versao, img });
     /* S-610 · relato #61: o verso das cartas de duas faces (transformar, dupla modal, batalha) tem imagem própria e a
        pessoa aponta a câmera para qualquer um dos lados. Entra como outra linha que responde pela MESMA carta, com a
        ilustração da frente (é a que as impressões do app guardam, para a edição seguir casando); a versão ganha "v" para a
@@ -224,7 +230,7 @@ export async function gera({ saida, limite = 0, autoteste = 0, idiomas = [], pau
       else {
         try {
           const img = decodifica(await busca(fetchFn, c.img, 'binario', { ms: 20000 }));
-          hashes[i] = X.impressaoDaArte(img.data, img.width, img.height, cantosDaImagem(img.width, img.height));
+          hashes[i] = X.impressaoDaArte(img.data, img.width, img.height, X.cantosDaImagemDaArte(img.width, img.height, { batalha: !!c.deitada }));
           if (amostra.has(i)) imagens.set(i, img);
           if (antes.has(chave)) reaproveitadas++; else novas++;
         } catch (e) { falhas++; }
@@ -248,7 +254,7 @@ export async function gera({ saida, limite = 0, autoteste = 0, idiomas = [], pau
   if (imagens.size) {
     const base = X.abreBaseDeArtes(indice, X.binDasArtes(ok.map(([, h]) => h)));
     const posicao = new Map(); ok.forEach(([c], j) => posicao.set(c, j));
-    medida = autotesteDaBase(X, base, [...imagens].map(([i, img]) => ({ img, j: posicao.get(cartas[i]) })).filter(x => x.j != null));
+    medida = autotesteDaBase(X, base, [...imagens].map(([i, img]) => ({ img, j: posicao.get(cartas[i]), deitada: !!cartas[i].deitada })).filter(x => x.j != null));
     await writeFile(join(saida, 'medida.json'), JSON.stringify({ geradoEm: indice.geradoEm, total: ok.length, ...medida }, null, 1) + '\n');
   }
   log(`base: ${ok.length} artes (novas ${novas}, reaproveitadas ${reaproveitadas}, falhas ${falhas})${igual ? ' · igual à publicada' : ''}`);
@@ -297,9 +303,10 @@ export function autotesteDaBase(X, base, casos) {
   const out = {};
   for (const [nome, fn] of Object.entries(variacoes)) {
     let certas = 0; const dc = [], de = [];
-    casos.forEach(({ img, j }, n) => {
+    casos.forEach(({ img, j, deitada }, n) => {
       const [im, cantos] = fn(img, n + 1);
-      const h = X.impressaoDaArte(im.data, W(im), H(im), cantos);
+      // S-612 · a batalha é lida deitada, como na base (os cantos da imagem girados)
+      const h = X.impressaoDaArte(im.data, W(im), H(im), deitada ? X.cantosDeitada(cantos, -1) : cantos);
       const top = X.buscaArte(base.hashes, h, { quantas: 2 });
       if (top[0] && top[0].i === j) certas++;
       dc.push(X.distanciaDaArte(h, base.hashes, j));

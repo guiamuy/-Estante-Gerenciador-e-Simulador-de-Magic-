@@ -60,17 +60,17 @@ function molduraDaFoto(f) {
 }
 const cantosDe = r => [{ x: r.x, y: r.y }, { x: r.x + r.w, y: r.y }, { x: r.x + r.w, y: r.y + r.h }, { x: r.x, y: r.y + r.h }];
 /** Uma leitura do nome por um caminho (contorno ou moldura), exatamente como lerUmaVez() no app. */
-async function leNome(worker, index, img, cantosFr, { podeAfiar = true } = {}) {
+async function leNome(worker, index, img, cantosFr, { podeAfiar = true, deitada = false } = {}) {
   const rec = X.recorteDaFaixa(cantosFr, X.FAIXA_NOME, img.width, img.height);
   if (!rec) return null;
-  const pr = X.preparaNome(pedaco(img, rec), rec.w, rec.h, rec.cantos);
+  const pr = X.preparaNome(pedaco(img, rec), rec.w, rec.h, rec.cantos, { deitada });
   if (!pr) return null;
   if (process.env.FOTOS_DEBUG) (await import('node:fs')).writeFileSync(join(process.env.FOTOS_DEBUG, 'nome-' + nomeDebug + '-' + Math.round(cantosFr[0].x * 1000) + '.png'), paraPng(pr));
   await worker.setParameters(X.OCR_MODES.linha);
   let texto = (await worker.recognize(paraPng(pr))).data.text || '', found = X.matchName(index, texto), afiada = false;
   // S-594 · como lerUmaVez: linha borrada que não deu nome é lida de novo, realçada (uma vez por passada)
   if (podeAfiar && !(found[0] && found[0].score >= X.ACCEPT) && pr.nitidez < X.LIMIARES_LINHA.borrada) {
-    const p2 = X.preparaNome(pedaco(img, rec), rec.w, rec.h, rec.cantos, { afia: true });
+    const p2 = X.preparaNome(pedaco(img, rec), rec.w, rec.h, rec.cantos, { afia: true, deitada });
     if (p2) {
       const t2 = (await worker.recognize(paraPng(p2))).data.text || '', f2 = X.matchName(index, t2);
       if ((f2[0] ? f2[0].score : 0) > (found[0] ? found[0].score : 0)) { texto = t2; found = f2; afiada = true; }
@@ -80,10 +80,11 @@ async function leNome(worker, index, img, cantosFr, { podeAfiar = true } = {}) {
 }
 /** A linha de coleção, como identify() no app: preparaColecao (retifica, acha o bloco, binariza) e OCR em bloco. */
 let nomeDebug = '';
-async function leColecao(worker, img, cantosFr, op = {}) {
+// S-612 · `deitada`: a batalha, com os cantos já girados (cantosDeitada) — a faixa sai na proporção 88 × 63, como no app
+async function leColecao(worker, img, cantosFr, op = {}, { deitada = false } = {}) {
   const rec = X.recorteDaFaixa(cantosFr, X.FAIXA_COLECAO, img.width, img.height);
   if (!rec) return '';
-  const pr = X.preparaColecao(pedaco(img, rec), rec.w, rec.h, rec.cantos, X.larguraColecao(X.alturaDaCarta(cantosFr, img.width, img.height)), op);
+  const pr = X.preparaColecao(pedaco(img, rec), rec.w, rec.h, rec.cantos, X.larguraColecao(X.alturaDaCarta(cantosFr, img.width, img.height), { deitada }), { ...op, deitada });
   if (!pr) return '';
   if (process.env.FOTOS_DEBUG) (await import('node:fs')).writeFileSync(join(process.env.FOTOS_DEBUG, 'col-' + nomeDebug + '.png'), paraPng(pr));
   await worker.setParameters(X.OCR_MODES.colecao);
@@ -120,18 +121,20 @@ async function mede(fotos = manifest.fotos, { degrada = null } = {}) {
       if (quad) detectadas++;
       // como no app: o contorno primeiro; sem leitura, a moldura guia
       nomeDebug = f.arquivo.replace(/\.\w+$/, '');
-      const caminhos = [...(quad ? [['carta', quad.cantos]] : []), ...(moldura ? [['moldura', cantosDe(moldura)]] : [])];
+      // S-612 · como lerUmaVez (S-608): com o contorno e sem nome em pé nem pela moldura, a carta deitada dos dois lados
+      const caminhos = [...(quad ? [['carta', quad.cantos]] : []), ...(moldura ? [['moldura', cantosDe(moldura)]] : []), ...(quad ? [['deitada', X.cantosDeitada(quad.cantos, 1), 1], ['deitada', X.cantosDeitada(quad.cantos, -1), -1]] : [])];
       if (!caminhos.length) { linha.erro = 'carta não encontrada no quadro e foto sem moldura'; linhas.push(linha); continue; }
       let melhor = null, afiou = false;
-      for (const [nome, cantos] of caminhos) {
-        const r = await leNome(worker, index, img, cantos, { podeAfiar: !afiou });
+      const t0 = Date.now();
+      for (const [nome, cantos, lado] of caminhos) {
+        const r = await leNome(worker, index, img, cantos, { podeAfiar: !afiou, deitada: nome === 'deitada' });
         if (r && r.tentouAfiar) afiou = true;
-        if (r && (!melhor || nota(r) > nota(melhor))) melhor = { ...r, caminho: nome, cantos };
+        if (r && (!melhor || nota(r) > nota(melhor))) melhor = { ...r, caminho: nome, cantos, lado: lado || 0 };
         if (nota(r) >= X.ACCEPT) break;
       }
       if (!melhor) { linha.erro = 'sem linha de nome'; linhas.push(linha); continue; }
       const cand = melhor.found;
-      linha.caminho = melhor.caminho; linha.nitidez = Math.round(melhor.nitidez * 10) / 10;
+      linha.caminho = melhor.caminho + (melhor.lado ? (melhor.lado > 0 ? ' →' : ' ←') : ''); linha.cantos = melhor.cantos; linha.nitidez = Math.round(melhor.nitidez * 10) / 10;
       // S-594 · a régua que pulava a leitura saiu (LIMIARES_LINHA.nitidezMin): se voltar, conta aqui como foto pulada
       if (X.LIMIARES_LINHA.nitidezMin != null && melhor.nitidez < X.LIMIARES_LINHA.nitidezMin) linha.pulada = true;
       linha.afiada = !!melhor.afiada;
@@ -144,7 +147,7 @@ async function mede(fotos = manifest.fotos, { degrada = null } = {}) {
       const textos = [];
       let res = { exact: null, por: [] };
       for (const op of [{}, { livre: true }, { inverte: true }]) {
-        textos.push(await leColecao(worker, img, melhor.cantos, op));
+        textos.push(await leColecao(worker, img, melhor.cantos, op, { deitada: melhor.caminho === 'deitada' && X.cartaDeitada(melhor.cantos, img.width, img.height) }));
         res = X.resolveEdicao(f.impressoes || [], { textos });
         if (res.exact) break;
       }
@@ -153,6 +156,7 @@ async function mede(fotos = manifest.fotos, { degrada = null } = {}) {
       const semZero = v => String(v).toLowerCase().replace(/^0+(?=\d)/, '');
       linha.edOk = !!res.exact && res.exact.set === String(f.set).toLowerCase() && semZero(res.exact.number) === semZero(f.numero);
       if (linha.edOk) edOk++;
+      linha.ms = Date.now() - t0;   // nome + edição, com o OCR de teste (não é o tempo do aparelho)
       linhas.push(linha);
     }
   } finally { await worker.terminate(); }
@@ -188,6 +192,36 @@ test('S-604 · carta sem borda (texto claro sobre a arte, como o Malcolm SPG #2 
   assert.equal(r.edOk, semBorda.length, relatorio(r));
 });
 
+/* S-612 · relato #61 · a batalha deitada (Invasion of Segovia, MOM #63; dados da Scryfall de 05/11/2026), girada 90° para os dois
+   lados e segurada deitada: o nome sai ao longo do lado comprido (S-608); a linha de coleção, no lado comprido de baixo da carta
+   deitada, é lida na proporção 88 × 63; a arte é comparada na proporção deitada com a imagem da batalha como a Scryfall guarda
+   (em pé, girada), pelo mesmo caminho da base de artes (cantosDaImagemDaArte). */
+test('S-612 · batalha deitada (girada para os dois lados e segurada deitada): nome, edição e arte saem como numa carta comum', { skip, timeout: 240000 }, async () => {
+  const batalhas = manifest.fotos.filter(f => f.estilo === 'batalha');
+  assert.ok(batalhas.length >= 3 && new Set(batalhas.map(f => f.giro)).size >= 3, 'o conjunto precisa da batalha girada para os dois lados e deitada');
+  const r = await mede(batalhas);
+  console.log('S-612 · batalha · ' + relatorio(r) + '\n' + r.linhas.map(l => `  ${l.foto}: ${l.caminho} · ${l.ms} ms`).join('\n'));
+  assert.equal(r.nomeOk, batalhas.length, relatorio(r));
+  // antes: a linha de coleção saía na proporção da carta em pé e a edição não fechava (S-608, simplificação declarada)
+  assert.equal(r.edOk, batalhas.length, relatorio(r));
+  // a arte: a base guarda a batalha pela imagem da Scryfall, girada para ficar deitada; a câmera, pelos cantos deitados lidos
+  const scan = decodifica(join(dir, batalhas[0].scan));
+  const naBase = X.impressaoDaArte(scan.data, scan.width, scan.height, X.cantosDaImagemDaArte(scan.width, scan.height, { batalha: true }));
+  let conferem = 0;
+  for (const l of r.linhas) {
+    const f = batalhas.find(b => b.arquivo === l.foto), img = decodifica(join(dir, f.arquivo)), px = c => c.map(p => ({ x: p.x * img.width, y: p.y * img.height }));
+    const deitada = X.distanciaDaArte(X.impressaoDaArte(img.data, img.width, img.height, px(l.cantos)), naBase, 0);
+    const emPe = X.distanciaDaArte(X.impressaoDaArte(img.data, img.width, img.height, px(X.cantosDeitada(l.cantos, 1))), naBase, 0);
+    console.log(`  ${l.foto}: arte deitada ${deitada} bits · na proporção em pé ${emPe} bits (igual ≤ ${X.LIMIAR_ARTE.igual})`);
+    if (deitada <= X.LIMIAR_ARTE.igual) conferem++;
+    // longe da arte de qualquer outra carta (cartas diferentes: p5 84) e mais perto que a leitura em pé, que é a de antes
+    assert.ok(deitada < X.LIMIAR_ARTE.diferente && deitada < emPe, `${l.foto}: a arte deitada (${deitada}) fica mais perto que a lida em pé (${emPe}) e abaixo de ${X.LIMIAR_ARTE.diferente}`);
+  }
+  // medido em 05/11/2026: 16 (deitada, papel) e 22 (playmat) conferem; na mesa de madeira o contorno para na moldura de dentro
+  // e a faixa da arte desloca (54 bits): a edição ainda sai pela linha de coleção — declarado parcial no ROADMAP
+  assert.ok(conferem >= batalhas.length - 1, `arte deitada confere em ${conferem}/${batalhas.length}`);
+});
+
 test('X10 · o conjunto declara a origem de cada foto e as reais têm o que o leitor deve achar', () => {
   for (const f of manifest.fotos) {
     assert.ok(['sintetica', 'real'].includes(f.origem), `${f.arquivo}: origem precisa ser "sintetica" ou "real"`);
@@ -215,7 +249,8 @@ function protetor(img) {
 }
 // S-604 · as cartas sem borda ficam fora da amostra: com elas no fim do conjunto, "uma em cada três" passou a pegar o Malcolm
 // sem borda e mudou a amostra (9 → 10 fotos) sem ninguém pedir; a amostra continua sendo as mesmas 9 da S-594
-const AMOSTRA = manifest.fotos.filter(f => f.estilo !== 'semBorda').filter((f, i) => i % 3 === 0);   // 9 fotos, das duas famílias do conjunto
+// S-612 · as batalhas também ficam fora, pelo mesmo motivo
+const AMOSTRA = manifest.fotos.filter(f => f.estilo !== 'semBorda' && f.estilo !== 'batalha').filter((f, i) => i % 3 === 0);   // 9 fotos, das duas famílias do conjunto
 
 test('S-594 · foto um pouco borrada (desfoque de 1,5 px numa carta de 600 px) é lida: nenhuma pulada, nenhum nome errado', { skip, timeout: 240000 }, async () => {
   const r = await mede(AMOSTRA, { degrada: (img, f) => borra(img, f, 1.5) });

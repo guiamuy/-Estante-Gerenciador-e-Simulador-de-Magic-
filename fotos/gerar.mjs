@@ -121,14 +121,65 @@ function cartaSemBorda(f, cw, ch) {
     <div class="colecao" style="font-size:${fsC}px;top:93.2%;text-shadow:0 0 2px rgba(0,0,0,.6)">${String(f.numero).padStart(4, '0')} ${f.raridade || 'U'}\n${f.set.toUpperCase()} • EN  ${f.artista || 'Jane Artist'}</div>
   </div>`;
 }
+/* ---------------- S-612 · relato #61 · estilo "batalha": a carta deitada (88 × 63 mm) ----------------
+   A batalha se lê deitada: barra do nome ao longo do lado comprido, arte larga, linha de tipo, caixa de texto à esquerda,
+   escudo da defesa embaixo à direita e a linha de coleção sobre a borda de baixo do lado comprido (formato de 2023 em diante,
+   ilustrativo como nas outras sintéticas; a frente traz só o nome da face, `nomeImpresso`). `giro` gira a carta na cena: 90 e −90 = a carta aparece em pé no quadro, o nome
+   correndo ao longo de um lado comprido; 0 = segurada deitada, o nome na horizontal. `scan`: a imagem como a Scryfall guarda
+   a batalha (em pé, a carta girada; o site pede "girar 90° no sentido do relógio" para ler — consultado em 05/11/2026),
+   que é o que a base de artes recebe. */
+function cartaBatalha(f, LW, LH, extra = '') {
+  const [c1, c2, c3] = CORES[f.cor || 'azul'];
+  const px = v => (v * LW).toFixed(1);   // medidas em frações do lado comprido (88 mm), como nas cartas em pé contra os 88 mm
+  const mana = (f.mana || ['2', 'U']).map(m => `<span class="m" style="background:${{ U: '#aad4f0', R: '#f0a890', G: '#9fd3a8', W: '#f6f0d0', B: '#bdb5b8' }[m] || '#cfcfcf'}">${/\d/.test(m) ? m : ''}</span>`).join('');
+  return `<div class="carta batalha" style="width:${LW}px;height:${LH}px;${extra}">
+    <div style="position:absolute;left:${px(0.034)}px;right:${px(0.034)}px;top:${px(0.03)}px;bottom:${px(0.072)}px;border-radius:1.4%;background:repeating-linear-gradient(60deg, ${c1} 0 7px, ${c2} 7px 9px, ${c1} 9px 17px), ${c1}"></div>
+    <div class="tit" style="top:${px(0.042)}px;height:${px(0.058)}px;left:${px(0.05)}px;right:${px(0.05)}px;font-size:${px(0.040)}px;background:linear-gradient(${c3}, ${c2})"><span>${f.nomeImpresso || f.nome}</span><span class="custo" style="--b:${px(0.032)}px">${mana}</span></div>
+    <div class="art" style="left:${px(0.06)}px;right:${px(0.06)}px;top:${px(0.108)}px;height:${(LH * 0.47).toFixed(1)}px;background:
+      radial-gradient(ellipse at 22% 40%, #f6d36a 0 7%, transparent 8%), radial-gradient(ellipse at 66% 58%, #1b1320 0 20%, transparent 21%),
+      radial-gradient(ellipse at 48% 30%, ${c2} 0 18%, transparent 19%), radial-gradient(ellipse at 85% 25%, #c9e2f2 0 9%, transparent 10%),
+      repeating-linear-gradient(115deg, rgba(255,255,255,.12) 0 3px, transparent 3px 11px), linear-gradient(160deg, #0f1a2e, ${c1} 55%, #0a0d14)"></div>
+    <div class="tipo" style="top:${(LH * 0.62).toFixed(1)}px;height:${px(0.05)}px;left:${px(0.05)}px;right:${px(0.05)}px;font-size:${px(0.030)}px;background:linear-gradient(${c3}, ${c2})"><span>${f.tipo || 'Battle — Siege'}</span></div>
+    <div class="regras" style="left:${px(0.06)}px;right:${px(0.2)}px;top:${(LH * 0.71).toFixed(1)}px;bottom:${px(0.085)}px;font-size:${px(0.024)}px;background:${c3}">${f.regras || 'When this Siege enters, create two 1/1 blue Kraken creature tokens with trample.'}</div>
+    <div style="position:absolute;right:${px(0.055)}px;bottom:${px(0.08)}px;width:${px(0.11)}px;height:${px(0.11)}px;border-radius:12% 12% 50% 50%;background:#e8e2d0;border:2px solid #2a241a;display:grid;place-items:center;font:700 ${px(0.05)}px/1 'DejaVu Sans',Arial,sans-serif">${f.defesa || '4'}</div>
+    <div class="colecao" style="left:${px(0.042)}px;top:auto;bottom:${px(0.008)}px;font-size:${px(0.0165)}px">${String(f.numero).padStart(4, '0')} ${f.raridade || 'R'}\n${f.set.toUpperCase()} • EN  ${f.artista || 'Jane Artist'}</div>
+  </div>`;
+}
+function htmlBatalha(f, { scan = false } = {}) {
+  const { largura, altura, fundo = 'mesa', giro = 90, rot = 0, rotX = 0, rotY = 0, brilho = 1, borrao = 0, alturaCarta = 0.6, cx = 0.5, cy = 0.5 } = f;
+  // alturaCarta: o lado comprido (88 mm) em frações da altura do quadro
+  const W = scan ? 340 : largura, H = scan ? 476 : altura;
+  const LW = scan ? 476 : Math.round(altura * alturaCarta), LH = Math.round(LW * 63 / 88);
+  const left = Math.round(W * (scan ? 0.5 : cx) - LW / 2), top = Math.round(H * (scan ? 0.5 : cy) - LH / 2);
+  const giroTotal = scan ? -90 : giro + rot;
+  return `<!doctype html><meta charset="utf-8"><style>
+  html,body{margin:0;width:${W}px;height:${H}px;overflow:hidden}
+  .foto{position:relative;width:${W}px;height:${H}px;background:${scan ? '#000' : CENAS[fundo]};${scan ? '' : `filter:brightness(${brilho}) blur(${borrao}px);`}perspective:${Math.round(H * 1.1)}px}
+  .cena{position:absolute;left:${left}px;top:${top}px;width:${LW}px;height:${LH}px;transform:rotateX(${scan ? 0 : rotX}deg) rotateY(${scan ? 0 : rotY}deg) rotate(${giroTotal}deg);transform-style:preserve-3d}
+  .carta.batalha{position:absolute;left:0;top:0;border-radius:3.3%/4.6%;background:#111112;${scan ? '' : `box-shadow:0 ${Math.round(LH * 0.01)}px ${Math.round(LH * 0.03)}px rgba(0,0,0,.5);`}overflow:hidden;font-family:"DejaVu Serif","Liberation Serif",Georgia,serif;color:#15110a}
+  .tit,.tipo{position:absolute;border:${Math.max(1, Math.round(LH * 0.003))}px solid #2a241a;border-radius:${Math.round(LH * 0.017)}px/${Math.round(LH * 0.04)}px;display:flex;align-items:center;justify-content:space-between;padding:0 1.8%;box-sizing:border-box;font-weight:700;white-space:nowrap;box-shadow:inset 0 0 0 1px rgba(255,255,255,.5)}
+  .custo{display:flex;gap:${Math.max(1, Math.round(LH * 0.005))}px}
+  .m{width:var(--b);height:var(--b);border-radius:50%;border:1px solid #333;display:grid;place-items:center;font:700 calc(var(--b)*.7)/1 "DejaVu Sans",Arial,sans-serif;box-shadow:-1px 1px 0 #222}
+  .art{position:absolute;border:${Math.max(1, Math.round(LH * 0.003))}px solid #1a1712}
+  .regras{position:absolute;border:${Math.max(1, Math.round(LH * 0.003))}px solid #1a1712;padding:1.6% 2%;box-sizing:border-box;line-height:1.22;overflow:hidden}
+  .colecao{position:absolute;color:#f1f1f1;font-family:"DejaVu Sans",Arial,Helvetica,sans-serif;line-height:1.2;white-space:pre;letter-spacing:.3px}
+  </style><div class="foto"><div class="cena">${cartaBatalha(f, LW, LH)}</div></div>`;
+}
 const todas = process.argv.includes('--todas');   // sem isto, só as fotos que ainda não existem (as antigas não mudam)
 const browser = await chromium.launch({ executablePath: process.env.PW_CHROMIUM || undefined });
 const page = await browser.newPage();
 for (const f of manifest.fotos) {
   if (f.origem !== 'sintetica') continue;
+  if (f.scan && (todas || !existsSync(join(dir, f.scan)))) {
+    await page.setViewportSize({ width: 340, height: 476 });
+    await page.setContent(htmlBatalha(f, { scan: true }));
+    const s = await page.screenshot({ type: 'jpeg', quality: 90, fullPage: false });
+    writeFileSync(join(dir, f.scan), s);
+    console.log(`${f.scan} · ${s.length} bytes (como a Scryfall guarda)`);
+  }
   if (!todas && existsSync(join(dir, f.arquivo))) continue;
   await page.setViewportSize({ width: f.largura, height: f.altura });
-  await page.setContent(f.estilo === 'real' || f.estilo === 'semBorda' ? htmlReal(f) : html(f));
+  await page.setContent(f.estilo === 'batalha' ? htmlBatalha(f) : f.estilo === 'real' || f.estilo === 'semBorda' ? htmlReal(f) : html(f));
   const buf = await page.screenshot({ type: 'jpeg', quality: 84, fullPage: false });
   writeFileSync(join(dir, f.arquivo), buf);
   console.log(`${f.arquivo} · ${buf.length} bytes`);

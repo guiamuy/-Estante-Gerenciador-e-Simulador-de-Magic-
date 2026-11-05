@@ -123,6 +123,32 @@ test('S-610 · relato #61: o verso da carta de duas faces entra na base com a pr
   assert.equal(new Set(c.slice(0, 2).map(x => x.ilustracao + '|' + x.versao)).size, 2);
 });
 
+/** A carta girada 90° no sentido contrário ao do relógio: é como a Scryfall guarda a batalha (pede "girar 90° no sentido do relógio"). */
+function giraAntiHorario(img) {
+  const { width: w, height: h } = img, d = new Uint8ClampedArray(w * h * 4);
+  // (x, y) da carta deitada vai para (y, w − 1 − x) da imagem em pé, de largura h e altura w
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const i = (y * w + x) * 4, o = ((w - 1 - x) * h + y) * 4; d.set(img.data.subarray(i, i + 4), o); }
+  return { data: d, width: h, height: w };
+}
+test('S-612 · relato #61: a frente da batalha entra na base na proporção deitada (versão "d"), a mesma que a câmera lê; o verso e as outras cartas, como antes', () => {
+  const c = cartasDaBase([
+    { name: 'Invasion of Segovia // Caetus, Sea Tyrant of Segovia', set: 'mom', collector_number: '63', layout: 'transform', card_faces: [
+      { name: 'Invasion of Segovia', type_line: 'Battle — Siege', illustration_id: 'il-f', image_uris: { small: 'https://cards.scryfall.io/small/front/9/d/z.jpg?1783917037' } },
+      { name: 'Caetus, Sea Tyrant of Segovia', type_line: 'Legendary Creature — Serpent', illustration_id: 'il-v', image_uris: { small: 'https://cards.scryfall.io/small/back/9/d/z.jpg?1783917037' } }] },
+    { name: 'Counterspell', set: 'mh2', collector_number: '267', layout: 'normal', type_line: 'Instant', illustration_id: 'il-c', image_uris: { small: 'https://cards.scryfall.io/small/front/c/c/c.jpg?5' } }
+  ]);
+  assert.deepEqual(c.map(x => [x.versao, !!x.deitada, x.img.includes('/back/')]), [['1783917037d', true, false], ['1783917037v', false, true], ['5', false, false]]);
+  // a impressão da imagem guardada em pé (girada) com os cantos da base é a da carta deitada lida reta: a câmera, com os cantos
+  // deitados, cai na mesma faixa da arte
+  const deitada = carta(61, 204, 146), guardada = giraAntiHorario(deitada);
+  const naBase = imp(guardada, X.cantosDaImagemDaArte(guardada.width, guardada.height, { batalha: true }));
+  // medido: 6 bits (a amostragem da retificação em pé × deitada); a mesma carta degradada fica em 16 a 34
+  assert.ok(X.distanciaDaArte(imp(deitada), naBase, 0) <= 10, `deitada × base: ${X.distanciaDaArte(imp(deitada), naBase, 0)}`);
+  // antes (cantos em pé da imagem guardada): outra faixa da carta, longe
+  assert.ok(X.distanciaDaArte(imp(deitada), imp(guardada), 0) > X.LIMIAR_ARTE.igual);
+  assert.equal(JSON.stringify(X.cantosDaImagemDaArte(10, 20)), JSON.stringify(reta({ width: 10, height: 20 })), 'carta em pé: os cantos da imagem, como sempre');
+});
+
 /** Um corpo de resposta em pedaços de `n` bytes. */
 const pedacos = (buf, n) => (async function* () { for (let i = 0; i < buf.length; i += n) yield new Uint8Array(buf.subarray(i, i + n)); })();
 
