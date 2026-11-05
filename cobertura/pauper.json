@@ -1,29 +1,59 @@
 {
  "versao": 1,
  "formato": "pauper",
- "geradoEm": "2026-11-04T14:54:22.082Z",
+ "geradoEm": "2026-11-05T14:57:52.295Z",
  "motor": 112,
  "fonte": "api.scryfall.com/cards/collection",
  "listas": 659,
- "listas100": 659,
- "cartasPendentes": 0,
+ "listas100": 658,
+ "cartasPendentes": 1,
  "parcial": false,
  "lotesComFalha": 0,
  "porClasse": {
   "texto-mudou": 0,
   "lida": 0,
-  "nova": 0,
+  "nova": 1,
   "parcial": 0,
   "sem-dados": 0
  },
- "novasDesdeAnterior": [],
- "resolvidasDesdeAnterior": [
-  "Geothermal Bog",
-  "Dawnbringer Cleric",
-  "Thought Vessel"
+ "novasDesdeAnterior": [
+  "No Admittance"
  ],
- "curva": [],
+ "resolvidasDesdeAnterior": [],
+ "curva": [
+  {
+   "listas": 659,
+   "cartas": 1
+  }
+ ],
  "textos": null,
- "pendentes": [],
- "listasIncompletas": []
+ "pendentes": [
+  {
+   "name": "No Admittance",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "mágica sem script",
+   "listas": 1,
+   "gulosa": 1,
+   "texto": {
+    "mana_cost": "{1}{R}",
+    "type_line": "Sorcery",
+    "oracle_text": "No Admittance deals 3 damage to any target.\nEmpower Jace 1. (Put a loyalty counter on a Jace token you control. If you don't control one, first create a blue Jace planeswalker token with \"[−1]: Surveil 1\" and \"[−3]: Draw a card.\")",
+    "keywords": [
+     "Surveil",
+     "Empower Jace"
+    ],
+    "layout": "normal"
+   }
+  }
+ ],
+ "listasIncompletas": [
+  {
+   "id": "mtgo-pauper-league-2026-11-0511153-8",
+   "nome": "Gruul Burning-Tree Emissary",
+   "faltam": [
+    "No Admittance"
+   ]
+  }
+ ]
 }
