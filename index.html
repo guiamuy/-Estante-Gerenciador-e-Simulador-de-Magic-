@@ -703,7 +703,8 @@ a { color: var(--accent); }
 .etq-chip[aria-pressed="true"] .etq-ponto { border-color: var(--accent-fg); }
 .col-etiquetas { gap: var(--space-2); }
 .col-selection { display: flex; flex-direction: column; gap: var(--space-2); }
-.col-selection__acoes > .ds-btn { flex: 1 1 0; }
+.col-selection__acoes { flex-wrap: wrap; } /* G-348 · quatro ações: duas por fileira em 360 */
+.col-selection__acoes > .ds-btn { flex: 1 1 calc(50% - var(--space-2)); }
 .etq-folha { display: flex; flex-direction: column; gap: var(--space-3); }
 .etq-linhas { display: flex; flex-direction: column; gap: var(--space-1); }
 .etq-linha { display: flex; align-items: center; gap: var(--space-1); min-height: var(--tap-min); border-radius: var(--radius-2); }
@@ -13499,6 +13500,15 @@ function createCollection({ store }) {
       await persist(); return target;
     },
     async remove(name) { return api.set(name, 0); },
+    /** G-348 · tira vários nomes numa gravação só e devolve as cópias tiradas (para o Desfazer, com `importItems`).
+        Gravar falhou: a memória volta como estava e o erro sobe (nada some). */
+    async removeNames(names) {
+      await load(); const ks = new Set((names || []).map(norm));
+      const antes = new Map(items); const tirados = [...items.values()].filter(it => ks.has(norm(it.name))).map(it => ({ ...it }));
+      for (const it of tirados) items.delete(it.key);
+      try { await persist(); } catch (e) { items = antes; throw e; }
+      return tirados;
+    },
     /** C2 · uma entrada por nome, com as impressões dentro. */
     async entries() {
       const groups = new Map();
@@ -21722,6 +21732,53 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     paint();
   }
   function toggleSelected(g) { if (state.selected.has(g.key)) state.selected.delete(g.key); else state.selected.add(g.key); paint(); }
+  /* G-348 · relato #63 fatia 3 · ações em lote na bandeja: excluir (confirma quantas são; Desfazer devolve as mesmas cópias,
+     edição, acabamento e etiquetas, que ficam guardadas como no Remover de uma carta) e criar uma lista com as selecionadas. */
+  const selecionadas = () => state.items.filter(g => state.selected.has(g.key));
+  function confirmaExcluirSelecao() {
+    const gs = selecionadas(); if (!gs.length) return;
+    const copias = gs.reduce((s, g) => s + g.qty, 0);
+    const usadas = gs.filter(g => (state.usedIn.get(g.key) || []).length).length;
+    Dialog({ title: gs.length === 1 ? `Excluir ${gs[0].name} da coleção?` : `Excluir ${gs.length} cartas da coleção?`,
+      body: Text(`Saem ${copias} cópia(s), de todas as impressões.` + (usadas ? ` ${usadas} delas estão em listas, que passam a mostrá-las como faltantes.` : '') + ' Dá para desfazer logo depois.', { tone: 'muted' }),
+      actions: [Button('Cancelar', { id: 'col-excluir-cancelar', onClick: closeDialog }),
+        Button('Excluir', { variant: 'danger', icone: 'lixeira', id: 'col-excluir-confirmar', onClick: async () => {
+          closeDialog();
+          let tirados;
+          try { tirados = await collection.removeNames(gs.map(g => g.name)); }
+          catch (e) { toast('Não deu para excluir: o aparelho não gravou. Nada saiu da coleção.', 4200); return; }
+          const etq = gs.map(g => [g.key, __m32.de(state.etq, 'cartas', g.key).map(t => t.id)]);
+          toggleSelecting(false); await refresh();
+          toast(`${gs.length} carta(s) excluída(s) da coleção`, EXCLUIR_DESFAZER_MS, { acao: { rotulo: 'Desfazer', icone: 'desfazer', onClick: async () => {
+            try { await collection.importItems(tirados, 'add'); }
+            catch (e) { toast('Não deu para desfazer: o aparelho não gravou.', 4200); return; }
+            if (etiquetas) { try { for (const [k, ids] of etq) for (const id of ids) state.etq = (await etiquetas.marca('cartas', [k], id, true)).estado || state.etq; } catch (e) { /* as etiquetas não saíram: só não regravou */ } }
+            await refresh(); toast(`${gs.length} carta(s) de volta à coleção`);
+          } } });
+        } })] });
+  }
+  function criaListaDaSelecao() {
+    const gs = selecionadas(); if (!gs.length) return;
+    const hoje = new Date();
+    const sugestao = `Seleção da coleção · ${String(hoje.getDate()).padStart(2, '0')}/${String(hoje.getMonth() + 1).padStart(2, '0')}`;
+    const input = Input({ id: 'col-lista-nome', value: sugestao });
+    let indo = false;
+    const cria = async () => {
+      if (indo) return;
+      const nome = input.value.trim() || sugestao; indo = true;
+      let d;
+      try { d = await decks.save({ name: nome, format: 'livre', entries: gs.map(g => ({ name: g.name, qty: g.qty, zone: 'main' })) }); }
+      catch (e) { indo = false; toast('Não deu para criar a lista: o aparelho não gravou. A seleção continua.', 4200); return; }
+      closeDialog(); toggleSelecting(false);
+      toast(`Lista "${nome}" criada com ${gs.length} carta(s)`);
+      go('/lista?id=' + d.id);
+    };
+    input.addEventListener('keydown', ev => { if (ev.key === 'Enter') cria(); });
+    Dialog({ title: gs.length === 1 ? `Criar lista com ${gs[0].name}` : `Criar lista com ${gs.length} cartas`,
+      body: Field('Nome da lista', input, { hint: `Entram ${gs.reduce((s, g) => s + g.qty, 0)} cópia(s), com as quantidades da coleção.` }),
+      actions: [Button('Cancelar', { id: 'col-lista-cancelar', onClick: closeDialog }), Button('Criar lista', { variant: 'primary', icone: 'listas', id: 'col-lista-criar', onClick: cria })] });
+    setTimeout(() => { input.focus(); input.select(); }, 50);
+  }
   /* G-347 · relato #63 fatia 2 · manter o dedo numa carta (lista, galeria ou densa) entra na seleção com ela marcada: a carta
      afunda na hora (retorno imediato) e, aos 450 ms, vibra e fica marcada; mexer o dedo (rolar) desiste. Na seleção, o toque na
      carta marca e desmarca no lugar de abrir; os botões de quantidade e a caixa seguem com o papel deles. */
@@ -21757,7 +21814,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     pintaAcaoDaColecao();
     if (!state.selecting) return mount(selectionBar, null);
     const n = state.selected.size;
-    // G2 · duas fileiras: contagem, Todas e sair em cima; as ações sobre a seleção (etiquetar, exportar) embaixo
+    // G2 · duas fileiras: contagem, Todas e sair em cima; as ações sobre a seleção (etiquetar, exportar, criar lista, excluir) embaixo
     mount(selectionBar, Surface({ class: 'ds-surface--pad col-selection' },
       Row({},
         Text(n ? `${n} carta(s) selecionada(s)` : 'Toque nas cartas para selecionar', { size: 'sm', attrs: { id: 'col-selection-count' } }), h('div', { class: 'ds-grow' }),
@@ -21765,7 +21822,9 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
         (() => { const b = Button('Cancelar', { icone: 'fechar', id: 'col-select-off', onClick: () => toggleSelecting(false) }); b.setAttribute('aria-label', 'Cancelar a seleção'); return b; })()), // G-347 · por extenso
       Row({ class: 'col-selection__acoes' },
         etiquetas ? Button('Etiquetar', { icone: 'etiqueta', id: 'col-etiquetar', disabled: !n, onClick: () => abreEtiquetas([...state.selected], (state.items.find(g => state.selected.has(g.key)) || {}).name || 'Etiquetas') }) : null,
-        Button('Exportar', { variant: 'primary', icone: 'exportar', id: 'col-export-selection', title: 'Exportar a seleção', disabled: !n, onClick: () => openExport({ selecao: true }) }))));
+        Button('Exportar', { variant: 'primary', icone: 'exportar', id: 'col-export-selection', title: 'Exportar a seleção', disabled: !n, onClick: () => openExport({ selecao: true }) }),
+        Button('Criar lista', { icone: 'listas', id: 'col-criar-lista', disabled: !n, onClick: criaListaDaSelecao }), // G-348
+        Button('Excluir', { variant: 'danger', icone: 'lixeira', id: 'col-excluir-selecao', disabled: !n, onClick: confirmaExcluirSelecao }))));
   }
   async function openExport({ selecao = false, filtro = false } = {}) {
     const all = await collection.items();

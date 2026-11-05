@@ -1266,6 +1266,79 @@ test('e2e · G-347 relato #63 fatia 2: manter o dedo numa carta da Coleção com
   assert.deepEqual(errors, []);
 });
 
+test('e2e · G-348 relato #63 fatia 3: na seleção da Coleção, Excluir confirma quantas são e Desfazer devolve igual; Criar lista leva as cartas e as quantidades; falha ao gravar não perde nada', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 697 });
+  await page.goto(base + '#/colecao');
+  await page.waitForSelector('#col-csv-import');
+  await page.setInputFiles('#col-csv-file', { name: 'manabox.csv', mimeType: 'text/csv', buffer: Buffer.from(MANABOX) });
+  await page.waitForSelector('#col-csv-add'); await page.click('#col-csv-add');
+  await page.waitForSelector('.col-row[data-name="Counterspell"]');
+  await page.click('#col-import'); await page.waitForSelector('#col-import-text'); await page.fill('#col-import-text', '3 Island');
+  await page.click('#col-import-check'); await page.waitForSelector('#col-import-run'); await page.click('#col-import-run');
+  await page.waitForSelector('.col-row[data-name="Island"]');
+  const linha = async nome => (await page.innerText(`.col-row[data-name="${nome}"] .col-row__info`)) + ' ×' + (await page.innerText(`.col-row[data-name="${nome}"] .col-row__n`)); // edição, acabamento, etiquetas e total
+  const soLing = await linha('Sol Ring'), counter = await linha('Counterspell');
+  // a Sol Ring ganha a etiqueta Troca (pela seleção, como o dono faz)
+  await page.click('#col-etiquetas-gerir'); await page.waitForSelector('#etq-nova');
+  await page.fill('#etq-nova', 'Troca'); await page.press('#etq-nova', 'Enter'); await page.waitForSelector('.etq-linha');
+  await page.click('#etq-selecionar'); await page.waitForSelector('#col-selection-count');
+  // com zero selecionadas, Excluir e Criar lista esperam
+  assert.equal(await page.isDisabled('#col-excluir-selecao'), true, 'sem carta, Excluir espera');
+  assert.equal(await page.isDisabled('#col-criar-lista'), true, 'sem carta, Criar lista espera');
+  await page.click('.col-row[data-name="Sol Ring"] .col-row__check');
+  await page.click('#col-etiquetar'); await page.waitForSelector('#etq-folha');
+  await page.locator('.etq-linha', { hasText: 'Troca' }).locator('.etq-linha__marca').click();
+  await page.waitForFunction(() => document.querySelector('.etq-linha__marca').getAttribute('aria-checked') === 'true');
+  await page.click('#etq-pronto'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
+  await page.waitForSelector('.col-row[data-name="Sol Ring"] .etq-pontos');
+  await page.click('.col-row[data-name="Counterspell"] .col-row__check');
+  await page.waitForFunction(() => /2 carta\(s\) selecionada/.test(document.querySelector('#col-selection-count').innerText));
+  await page.waitForSelector('#col-excluir-selecao:not([disabled])'); await page.waitForSelector('#col-criar-lista:not([disabled])');
+  await auditaTela(page, 'G-348 coleção selecionando, com Excluir e Criar lista');
+  const bandeja = await page.$$eval('.col-selection__acoes .ds-btn', bs => bs.map(b => { const r = b.getBoundingClientRect(); return [r.left, r.top, r.right, r.bottom]; }));
+  assert.ok(bandeja.every((a, i) => bandeja.every((b, j) => i === j || a[2] <= b[0] + 0.5 || b[2] <= a[0] + 0.5 || a[3] <= b[1] + 0.5 || b[3] <= a[1] + 0.5)), 'botões da bandeja sem sobreposição');
+  // falha ao gravar: avisa, nada sai e a seleção continua
+  await page.evaluate(() => { window.__putOriginal = IDBObjectStore.prototype.put; IDBObjectStore.prototype.put = function () { throw new DOMException('cheio', 'QuotaExceededError'); }; });
+  await page.click('#col-excluir-selecao'); await page.waitForSelector('#col-excluir-confirmar');
+  await page.click('#col-excluir-confirmar');
+  await page.waitForFunction(() => /Não deu para excluir/.test((document.querySelector('#ds-toast') || {}).innerText || ''));
+  assert.equal(await linha('Sol Ring'), soLing, 'nada saiu');
+  assert.match(await page.innerText('#col-selection-count'), /2 carta\(s\) selecionada/, 'a seleção continua');
+  await page.evaluate(() => { IDBObjectStore.prototype.put = window.__putOriginal; });
+  // Excluir pede confirmação dizendo quantas são
+  await page.click('#col-excluir-selecao'); await page.waitForSelector('#col-excluir-confirmar');
+  assert.equal(await page.innerText('#ds-dialog-title'), 'Excluir 2 cartas da coleção?');
+  assert.match(await page.innerText('.ds-dialog'), /3 cópia\(s\)/);
+  await auditaTela(page, 'G-348 confirmar excluir a seleção');
+  await page.click('#col-excluir-confirmar');
+  await page.waitForFunction(() => !document.querySelector('.col-row[data-name="Sol Ring"]') && !document.querySelector('.col-row[data-name="Counterspell"]'));
+  assert.equal(await page.locator('#col-selection-count').count(), 0, 'a seleção termina');
+  assert.equal(await page.locator('.col-row[data-name="Island"]').count(), 1, 'a que não estava selecionada fica');
+  assert.match(await page.innerText('#ds-toast'), /2 carta\(s\) excluída\(s\)/);
+  // Desfazer devolve exatamente: quantidades, acabamento e edição, etiquetas
+  await page.click('#ds-toast .ds-toast__acao');
+  await page.waitForSelector('.col-row[data-name="Sol Ring"]'); await page.waitForSelector('.col-row[data-name="Counterspell"]');
+  assert.equal(await linha('Sol Ring'), soLing); assert.equal(await linha('Counterspell'), counter);
+  assert.equal(await page.getAttribute('.col-row[data-name="Sol Ring"] .etq-pontos', 'aria-label'), 'etiquetas: Troca');
+  // Criar lista: pede um nome (com sugestão), leva as cartas e quantidades selecionadas e abre a lista
+  await page.click('#col-select'); await page.waitForSelector('#col-selection-count');
+  await page.click('.col-row[data-name="Sol Ring"] .col-row__check'); await page.click('.col-row[data-name="Island"] .col-row__check');
+  await page.click('#col-criar-lista'); await page.waitForSelector('#col-lista-nome');
+  assert.ok((await page.inputValue('#col-lista-nome')).trim().length > 0, 'o nome vem sugerido');
+  await auditaTela(page, 'G-348 criar lista com a seleção');
+  await page.fill('#col-lista-nome', 'Troca de sexta');
+  await page.click('#col-lista-criar');
+  await page.waitForFunction(() => location.hash.startsWith('#/lista?id='));
+  const id = await page.evaluate(() => new URLSearchParams(location.hash.split('?')[1]).get('id'));
+  const deck = await page.evaluate(id => new Promise((ok, erro) => { const r = indexedDB.open('mtg'); r.onsuccess = () => { const g = r.result.transaction('kv').objectStore('kv').get('deck.' + id); g.onsuccess = () => ok(g.result); g.onerror = erro; }; }), id);
+  assert.equal(deck.name, 'Troca de sexta');
+  assert.deepEqual(deck.entries.map(e => [e.name, e.qty, e.zone]).sort(), [['Island', 3, 'main'], ['Sol Ring', 2, 'main']]);
+  await page.goto(base + '#/colecao'); await page.waitForSelector('.col-row[data-name="Island"]');
+  assert.equal(await page.locator('#col-selection-count').count(), 0, 'a seleção terminou');
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · C10 exportar a coleção por lista: formatos, seleção manual, copiar e baixar', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
