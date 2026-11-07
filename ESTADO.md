@@ -25,7 +25,7 @@ Marcos: Pauper 100% (as sete listas revisadas carta a carta; 682 de 685 listas P
 | `radar` | R | BI4 · Painel Estante: comparar períodos, metas, tendência | R-44 · 07/11 | BI4-6 em diante; validação do dono após os primeiros pilares |
 | `jogabilidade` | J | MJ25/MJ27 · mesa de patamar: paisagem, orientação, Cancelar em toda escolha | J-62 · 03/11 | relato #54 (efeito da Cidade Baixa) |
 | `bot` | B | B25 · Shark por baralho; força absoluta 55% (alvo 60%) | B-201 · 02/11 | subir a força para 60% |
-| `infra` | I | migração para a Vercel (https://estante-magic.vercel.app): PR com prévia, portão no clone (sem CI), dados por /dados/ (função que lê os ramos), repo privado no fim | I-328 · 08/11 | robôs diários na nuvem do Claude, token de leitura na Vercel, ponte das coleções no github.io, repo privado |
+| `infra` | I | migração para a Vercel (https://estante-magic.vercel.app): PR com prévia, portão no clone (sem CI), dados por /dados/, robôs na nuvem do Claude (robos.mjs: notícias e relatos de hora em hora, catálogo por dia), rotinas agendadas publicam sozinhas, repo privado no fim | I-328 · 08/11 | token de leitura na Vercel, ponte das coleções no github.io, repo privado |
 | `homologacao` | H | prova de partida do catálogo, revisão em lote (Commander) | H-24 · 01/11 | lote 8 |
 | `protecao` | P | segurança e privacidade; Apoiar a Estante (MON1) | P-21 · 26/10 | — |
 
@@ -82,4 +82,4 @@ Os documentos `claude/…` moram no Projeto do claude.ai, fora do repositório: 
 
 No commit de docs de cada leva (o mesmo que atualiza o ROADMAP): reescreva a **sua** linha na tabela de trilhas, atualize relatos e pendências se mudaram e troque a data abaixo. Edite por patch, nunca o arquivo inteiro. Conflito no rebase: fique com as linhas das outras trilhas e a sua. Passou de 8 KB: resuma, não acrescente.
 
-Atualizado: 08/11/2026 · I-328 (infra: rotinas agendadas publicam sozinhas)
+Atualizado: 08/11/2026 · I-328 (rotinas publicam sozinhas) · I-325 (robôs na nuvem do Claude)

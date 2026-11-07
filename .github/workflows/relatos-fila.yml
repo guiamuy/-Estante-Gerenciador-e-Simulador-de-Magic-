@@ -5,8 +5,7 @@
 name: Relatos pela fila
 
 on:
-  schedule:
-    - cron: '*/10 * * * *'
+  # I-325 · o agendamento saiu daqui: roda na rotina da nuvem do Claude (node robos.mjs). Este fluxo fica só à mão, de reserva.
   workflow_dispatch:
 
 permissions:
