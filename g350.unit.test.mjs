@@ -114,3 +114,27 @@ test('G-350 · repositório: arte por impressão em lote, guardada; sem rede, na
   const m4 = await repo.impressoes([{ name: 'Plains', set: 'dmu', number: '1' }], { onlineOnly: true });
   assert.equal(m4.get('dmu|1'), null); assert.equal(pedidos.length, 0);
 });
+
+// G-351 · o C13 caía no CI: 300 cópias importadas de uma vez e a arte das 150 com edição levava ~8 s para guardar — cada
+// impressão era gravada no aparelho uma depois da outra (no IndexedDB de verdade, ~50 ms cada) —, e os dados das cartas
+// (tipo, custo) esperavam atrás. A gravação das impressões vai junta, como a de byNames.
+test('G-351 · as impressões pedidas de uma vez são guardadas juntas, não uma por uma', async () => {
+  const mapa = new Map();
+  let emVoo = 0, maxEmVoo = 0;
+  const store = {
+    get: async k => mapa.get(k),
+    set: async (k, v) => { emVoo++; maxEmVoo = Math.max(maxEmVoo, emVoo); await new Promise(r => setTimeout(r, 20)); mapa.set(k, v); emVoo--; },
+    del: async k => { mapa.delete(k); }, keys: async () => [...mapa.keys()],
+  };
+  const scryfall = { async porIdentificadores(idents) { return { found: idents.map((i, n) => ({ id: 'i' + n, name: 'Carta ' + i.collector_number, set: i.set, collector_number: i.collector_number, images: { normal: 'https://i/' + n + '.jpg' } })), missing: [] }; } };
+  const repo = C.createCardRepo({ store, scryfall });
+  const copias = Array.from({ length: 60 }, (_, n) => ({ name: 'Carta ' + n, set: 'abc', number: String(n) }));
+  const t0 = Date.now();
+  const m = await repo.impressoes(copias);
+  const ms = Date.now() - t0;
+  assert.equal([...m.values()].filter(Boolean).length, 60, 'as 60 voltam com a arte');
+  assert.ok(maxEmVoo > 1, `gravações em paralelo (no máximo ${maxEmVoo} ao mesmo tempo)`);
+  assert.ok(ms < 600, `60 impressões guardadas em ${ms} ms (uma por uma: ≥ 1200 ms)`);
+  const m2 = await repo.impressoes(copias.slice(0, 3));
+  assert.equal([...m2.values()].filter(Boolean).length, 3, 'guardadas: a segunda abertura não vai à rede e acha as três');
+});

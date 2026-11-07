@@ -6330,8 +6330,10 @@ function createCardRepo({ store, scryfall, local = null, ttlMs = 7 * 24 * 3600 *
       const keys = [...new Set(names.map(norm))].filter(Boolean);
       const out = new Map();
       const need = [];
-      for (const k of keys) {
-        const rec = await readCache(k);
+      // G-351 · lidas juntas: uma por uma, 300 nomes de uma importação levavam ~5 s de leituras do IndexedDB em fila (o C13 caía no CI)
+      const recs = await Promise.all(keys.map(readCache));
+      for (const [i, k] of keys.entries()) {
+        const rec = recs[i];
         // G-244 · `exige`: carta guardada antes de um campo novo existir conta como vencida (busca de novo, uma vez)
         if (fresh(rec) && (!exige || !rec.card || exige(rec.card))) { stats.hits++; out.set(k, rec.card); }
         else { stats.misses++; need.push(k); }
@@ -6467,12 +6469,16 @@ function createCardRepo({ store, scryfall, local = null, ttlMs = 7 * 24 * 3600 *
           for (const k of [__m14.chaveDaImpressao({ id: c.id }), __m14.chaveDaImpressao({ set: c.set, number: c.collector_number }), __m14.chaveDaImpressao({ set: c.set, name: c.name })]) if (k) achada.set(k, so);
           for (const f of c.faces || []) { const k = __m14.chaveDaImpressao({ set: c.set, name: f.name }); if (k && !achada.has(k)) achada.set(k, so); }
         }
+        // G-351 · guardadas juntas (como em byNames): uma por uma, 150 impressões levavam ~8 s no IndexedDB e os dados das
+        // cartas, pedidos depois, esperavam atrás (o C13 caía no CI)
+        const writes = [];
         for (const [chave] of falta) {
           const card = achada.get(chave) || null;
           const novo = { ts: now(), card, pin: !!card };
-          mem.set('impressao:' + chave, novo); await store.set(KEY('impressao:' + chave), novo);
+          mem.set('impressao:' + chave, novo); writes.push(store.set(KEY('impressao:' + chave), novo));
           out.set(chave, card);
         }
+        await Promise.all(writes);
       } catch (e) { stats.degraded = true; for (const k of falta.keys()) out.set(k, null); } // sem rede: a próxima abertura tenta de novo
       return out;
     },
@@ -21522,9 +21528,10 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     // G3 · a cotação chega depois (a guardada é imediata); só o painel é repintado
     __m31.padrao.taxas().then(t => { state.taxas = t || null; }).catch(() => { state.taxas = null; }).then(() => { if (state.recorte && state.items.length) paintDashboard(state.recorte); });
     if (state.items.length) {
-      carregaCapas();
       try { state.cards = await cardRepo.byNames(state.items.map(i => i.name)); } catch (e) { /* sem rede: segue só com nomes */ }
       paint();
+      // G-351 · as capas (G-350) depois dos dados das cartas: tipo, custo e preço não esperam as imagens
+      carregaCapas();
     }
   }
 
