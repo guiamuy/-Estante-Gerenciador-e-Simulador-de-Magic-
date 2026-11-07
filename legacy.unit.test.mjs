@@ -110,6 +110,11 @@ test('W1 · estratégia de cache do service worker por tipo de requisição', ()
   assert.equal(pick('https://guiamuy.github.io/repo/index.html', { mode: 'navigate' }), 'network-first');
   assert.equal(pick('https://guiamuy.github.io/repo/icon.svg'), 'stale-while-revalidate');
   assert.equal(pick('https://fonts.example.com/x.css'), 'passthrough');
+  // I-323: dados gerados e funções da Vercel, na mesma origem, nunca vão para o cache do shell
+  assert.equal(pick('https://guiamuy.github.io/dados/catalogo/indice.json'), 'passthrough');
+  assert.equal(pick('https://guiamuy.github.io/dados/artes/artes.bin'), 'passthrough');
+  assert.equal(pick('https://guiamuy.github.io/api/noticias?arquivo=indice.json'), 'passthrough');
+  assert.equal(pick('https://guiamuy.github.io/repo/dados/x.json'), 'stale-while-revalidate', 'só a raiz /dados/ é de dados');
   // X6: motor de OCR guardado para uso offline, inclusive resposta opaca de <script>
   const ocr = ctx.__pick({ url: 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js', method: 'GET' });
   assert.equal(ocr.strategy, 'cache-first'); assert.equal(ocr.opaque, true);

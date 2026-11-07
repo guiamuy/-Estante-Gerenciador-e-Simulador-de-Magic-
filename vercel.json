@@ -1,0 +1,17 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "echo sem-dependencias",
+  "buildCommand": "node vercel-publico.mjs",
+  "outputDirectory": "publico",
+  "cleanUrls": false,
+  "trailingSlash": false,
+  "rewrites": [
+    { "source": "/dados/:caminho*", "destination": "https://estante-dados.vercel.app/:caminho*" }
+  ],
+  "headers": [
+    {
+      "source": "/sw.js",
+      "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+    }
+  ]
+}
