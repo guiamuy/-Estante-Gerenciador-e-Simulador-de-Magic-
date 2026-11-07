@@ -9095,7 +9095,7 @@ X14 ataca. Sobre imagem: acima de 1440p o **nome** não ganha (a linha é lida e
 - **Custo:** a linha que antes era pulada agora vai ao leitor (uma leitura a mais por passada com carta borrada, e no máximo uma segunda, realçada); com a carta nítida nada muda. A troca de lente custa uma abertura de câmera a mais, uma vez, só no aparelho que abre a lente de foco fixo. `index.html` +5 KB.
 - **Fora:** reconhecimento pela arte (X12); contorno do protetor (próxima fatia da trilha); a tela nova (X16).
 
-**X20 · Carta em qualquer língua e carta na mão** 🟡 (levas S-597, S-598; aguardando a base de nomes e o teste no aparelho)
+**X20 · Carta em qualquer língua e carta na mão** 🟡 (levas S-597, S-598, S-601, S-603, S-614; aguardando o teste no aparelho)
 - **Relato (01/11/2026, print do aparelho):** depois de ler várias cartas, o scanner não leu "Beledros Murchaflor":
   contorno achado, aviso "Segure firme.", sugestão "É uma destas? Melee".
 - **Causas:**
@@ -9156,10 +9156,17 @@ X14 ataca. Sobre imagem: acima de 1440p o **nome** não ganha (a linha é lida e
      至尊魔戒锢余众) — as duas vêm coladas e o porteiro não aceita nenhuma (margem); a arte decide ou a pessoa confere.
      Fonte desenhada não é carta fotografada: falta medir no aparelho. Fora: detectar o idioma sozinho (seriam dois
      leitores por quadro), nome em vertical.
-  4. **S-602** · coreano e russo, no mesmo molde (o casamento da escrita já aceita hangul; o russo pede chave cirílica).
-- **Parcial, e o que falta:** fatia 4 (S-602); calibração dos limiares de arte com dados reais (S-604: o
-  autoteste precisa gravar a distribuição inteira, não só mediana e p95); montar a base de nomes sem travar a tela;
-  não testado no aparelho. Fora: traduzir a interface, mostrar o nome impresso na coleção.
+  4. **S-614** ✅ (planejada como S-602; renumerada porque a trilha publicou S-605…S-613 pelos relatos) · coreano e russo.
+     Idioma impresso ganha **Coreano** e **Russo**: leitor `kor` (1,6 MB) e `rus` (2,7 MB) do mesmo endereço do leitor;
+     nomes `names.ko` (11.175 pares, 0,19 MB gzip) e `names.ru` (16.535, 0,30 MB gzip) só depois da escolha. O cirílico
+     entra no casamento da escrita não latina: chave em minúsculas com "ё" = "е"; o índice conta **pares de letras** no
+     cirílico (por letra, quase todo nome russo tem quase toda letra: 25 ms por leitura em Node; por pares, ~2 ms, o
+     mesmo do japonês). **Medida com o leitor de verdade** (07/11/2026, 60 nomes sorteados de cada arquivo, limpo e
+     borrado 1,2 px): coreano 60/60 certos no topo (55–57 acima do aceite), russo 60/60 (todos acima do aceite), nenhum
+     nome errado. Fonte desenhada não é carta fotografada: falta medir no aparelho.
+- **Parcial, e o que falta:** calibração dos limiares de arte com dados reais e a velocidade do reconhecimento (agora no
+  relato #65, com a rotina); montar a base de nomes sem travar a tela; não testado no aparelho. Fora: traduzir a
+  interface (relato #53), mostrar o nome impresso na coleção, phyrexiano (relato #62).
 - **Testes:** U (`artes.unit`: sem os nomes em português o print não casa — o defeito —, com eles casa exato, com troca de
   OCR e sem acento; a base baixa, guarda, abre sem rede e recusa arquivo estranho; régua de movimento com 7%, 11%, 20%,
   manual e sem contorno; gerador lê páginas seguidas, as duas faces e não repete).
@@ -9180,6 +9187,10 @@ X14 ataca. Sobre imagem: acima de 1440p o **nome** não ganha (a linha é lida e
   baixada, guarda, volta sem rede; o latino segue igual). E2E (folha com os quatro idiomas sem estouro; "Japonês" sobe o
   leitor `jpn` sem lista de letras, pede `nomes-ja.json`, mantém o automático pausado e 対抗呪文 entra como Counterspell;
   reabrir já sobe o japonês).
+  S-614: U (`artes.unit`: coreano por sílaba sem espaço e com uma sílaba trocada; russo em caixa alta, sem vírgula, com
+  "н" no lugar de "и" e "й" lido como "и"; "ё" = "е"; latino fora do índice da escrita; escolher russo baixa só o russo,
+  depois coreano só o coreano, e o russo guardado continua). E2E ("Russo" sobe o leitor `rus` sem lista de letras, pede só
+  `nomes-ru.json` e ОТМЕНА ЗАКЛИНАНИЯ entra como Counterspell; a folha do S-601 passa a ter seis idiomas, ajustado com motivo).
 
 **X13 · Câmera no máximo e cronômetro de leitura** 🟡 (leva 120; aguardando teste no aparelho)
 - **Valor:** o scanner usa tudo o que a câmera do aparelho entrega, e passa a dizer quanto demora, por etapa.

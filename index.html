@@ -14710,7 +14710,7 @@ const REGISTRO = [
   ['ui.entrada', 'aparelho', false], // G-274 · a porta de entrada já foi atravessada neste aparelho (com conta ou sem)
   ['uso.compartilhar', 'aparelho', false], ['uso.envio', 'aparelho', false], ['uso.scanner', 'aparelho', false], // G-286 · uso agregado opt-in: consentimento deste aparelho, último envio e leituras do scanner
   // derivado
-  ['card.', 'derivado', false], ['rulings.', 'derivado', false], ['scanner.artes', 'derivado', false], /* S-596 · base de artes do scanner (ramo artes) */ ['names.pt', 'derivado', false], ['names.es', 'derivado', false], ['names.it', 'derivado', false], ['names.fr', 'derivado', false], ['names.de', 'derivado', false], ['names.ja', 'derivado', false], ['names.zhs', 'derivado', false], ['names.zht', 'derivado', false], /* S-597 · S-598 · S-601 · nomes impressos em outras línguas */ ['cambio.usd', 'derivado', false], ['names.catalog', 'derivado', false],
+  ['card.', 'derivado', false], ['rulings.', 'derivado', false], ['scanner.artes', 'derivado', false], /* S-596 · base de artes do scanner (ramo artes) */ ['names.pt', 'derivado', false], ['names.es', 'derivado', false], ['names.it', 'derivado', false], ['names.fr', 'derivado', false], ['names.de', 'derivado', false], ['names.ja', 'derivado', false], ['names.zhs', 'derivado', false], ['names.zht', 'derivado', false], ['names.ko', 'derivado', false], ['names.ru', 'derivado', false], /* S-597 · S-598 · S-601 · S-614 · nomes impressos em outras línguas */ ['cambio.usd', 'derivado', false], ['names.catalog', 'derivado', false],
   ['catalogo.indice', 'derivado', false], ['catalogo.lista.', 'derivado', false], ['catalogo.fichas', 'derivado', false], ['catalogo.motor', 'derivado', false], ['notificacoes', 'aparelho', false], // G-314 · a leitura é deste aparelho; a de cobertura nasce de novo dos pedidos (que vão no backup)
  
   ['fichas.opcoes', 'derivado', false], ['fichas.opcoes.fila', 'derivado', false], ['fichas.partes', 'derivado', false],
@@ -17498,7 +17498,7 @@ const DESTINOS = [
     evitar: 'Sem internet, os preços ficam em dólar ou na última cotação guardada.' },
   { id: 'leitor', nome: 'Leitor do scanner', icone: 'scanner', origens: ['https://cdn.jsdelivr.net', 'https://tessdata.projectnaptha.com'],
     vai: 'Só o download do leitor de texto. As imagens da câmera não saem do aparelho: a leitura é feita aqui.',
-    quando: 'Na primeira vez que o scanner é aberto, e uma vez para cada idioma impresso escolhido (japonês, chinês); depois ele fica guardado.',
+    quando: 'Na primeira vez que o scanner é aberto, e uma vez para cada idioma impresso escolhido (japonês, chinês, coreano, russo); depois ele fica guardado.',
     evitar: 'Não abrir o scanner, ou abrir com o leitor já guardado.' },
   { id: 'google', nome: 'Conta Google', icone: 'pessoa', liga: 'google',
     origens: ['https://accounts.google.com', 'https://oauth2.googleapis.com', 'https://www.googleapis.com', 'https://*.googleusercontent.com', 'https://identitytoolkit.googleapis.com', 'https://securetoken.googleapis.com'],
@@ -44701,16 +44701,30 @@ function matchLines(index, text, { limit = 3 } = {}) {
    cheia vira normal; sem espaço nem pontuação, que o leitor põe e tira entre os ideogramas) e o filtro é por ideograma em
    comum: em japonês e chinês um caractere carrega quase o que uma palavra latina carrega. A nota tem a mesma régua do
    latino (1 − edições/tamanho), por isso um erro num nome de três caracteres já fica abaixo do aceite e vira "confira". */
-const ESCRITA_CJK = /[\u3040-\u30ff\u3400-\u9fff\uf900-\ufaff\uac00-\ud7af]/;
+/* S-614 · o cirílico (russo) entra no mesmo casador da escrita não latina: letra a letra, sem o índice de bigramas latino
+   (que só conhece a-z). "ё" vira "е": a impressão e o leitor trocam uma pela outra. */
+const ESCRITA_CJK = /[\u3040-\u30ff\u3400-\u9fff\uf900-\ufaff\uac00-\ud7af\u0400-\u04ff]/;
 const temCjk = s => ESCRITA_CJK.test(String(s || ''));
-const chaveCjk = s => String(s || '').normalize('NFKC').toLowerCase().replace(/[^\u3040-\u30fa\u30fc-\u30ff\u3400-\u9fff\uf900-\ufaff\uac00-\ud7afa-z0-9]/g, '');
+const chaveCjk = s => String(s || '').normalize('NFKC').toLowerCase().replace(/ё/g, 'е')
+  .replace(/[^\u3040-\u30fa\u30fc-\u30ff\u3400-\u9fff\uf900-\ufaff\uac00-\ud7af\u0430-\u044f\u0450-\u045fa-z0-9]/g, '');
+/** As peças que o índice conta: um caractere em CJK e hangul (cada um já carrega quase uma palavra); no cirílico, pares
+    de letras — com 33 letras, quase todo nome russo tem quase toda letra, e a conta por letra passava por todos (25 ms
+    por leitura no computador; pelos pares, ~3 ms). */
+const CIRILICO = /[\u0430-\u045f]/;
+function unidadesDaEscrita(key) {
+  if (!CIRILICO.test(key)) return new Set(key);
+  const u = new Set();
+  for (let i = 0; i + 1 < key.length; i++) u.add(key.slice(i, i + 2));
+  if (!u.size) u.add(key);
+  return u;
+}
 /** Índice dos nomes impressos em escrita CJK: [[impresso, nome em inglês], …] → { entradas, exatos, porLetra }. */
 function indiceCjk(pares) {
   const entradas = [], exatos = new Map(), porLetra = new Map();
   for (const [impresso, nome] of pares || []) {
     if (!nome || !temCjk(impresso)) continue;
     const key = chaveCjk(impresso); if (key.length < 2) continue;
-    const i = entradas.length, letras = new Set(key);
+    const i = entradas.length, letras = unidadesDaEscrita(key);
     entradas.push({ key, name: nome, n: letras.size });
     if (!exatos.has(key) || nome.length < exatos.get(key).length) exatos.set(key, nome);
     for (const c of letras) { let l = porLetra.get(c); if (!l) porLetra.set(c, l = []); l.push(i); }
@@ -44726,7 +44740,7 @@ function matchCjk(ix, text, { limit = 3 } = {}) {
   if (conta(q) < 2) return [];
   if (ix.exatos.has(q)) return [{ name: ix.exatos.get(q), score: 1, exata: true }];
   const { entradas, porLetra, conta: n } = ix, tocadas = [];
-  for (const c of new Set(q)) for (const i of porLetra.get(c) || []) if (n[i]++ === 0) tocadas.push(i);
+  for (const c of unidadesDaEscrita(q)) for (const i of porLetra.get(c) || []) if (n[i]++ === 0) tocadas.push(i);
   const best = new Map(), { floor, min, max } = Math;
   for (const i of tocadas.sort((a, b) => a - b)) {
     const e = entradas[i], len = e.key.length, comum = n[i]; n[i] = 0;
@@ -44895,16 +44909,18 @@ function criaDiario({ maximo = 30, agora = () => Date.now() } = {}) {
 /* S-597 · S-598 · nomes impressos em outras línguas: gerados pelo fluxo "Artes do scanner" (artes.mjs --idiomas …) no ramo
    `artes`, um arquivo por língua (nomes-<idioma>.json), guardados no aparelho (names.<idioma>, derivado) e somados à base de
    nomes. Sem eles, a carta impressa em outra língua não casa. Só as de escrita latina: o leitor de hoje (dados do inglês) lê
-   o nome delas; japonês, chinês, coreano e russo pedem leitor próprio (X20, fatias 3 e 4) e, até lá, entram pela arte (X12). */
+   o nome delas; japonês, chinês, coreano e russo pedem leitor próprio (X20, fatias 3 e 4: S-601 e S-614). */
 const IDIOMAS_DOS_NOMES = ['pt', 'es', 'it', 'fr', 'de'];
 /* S-601 · o leitor do nome por escrita: 'latino' (dados do inglês: lê as seis línguas latinas) ou japonês e chinês, cada um
    com os dados de leitura da sua escrita (baixados uma vez do mesmo endereço do leitor, guardados para usar sem internet) e
-   com os nomes impressos da sua língua (nomes-<idioma>.json do ramo `artes`). Coreano e russo: X20 fatia 4. */
+   com os nomes impressos da sua língua (nomes-<idioma>.json do ramo `artes`). Coreano e russo: X20 fatia 4 (S-614). */
 const LINGUAS_DO_LEITOR = {
   latino: { rotulo: 'Latino', fala: 'letras latinas', ocr: 'eng', nomes: [] },
   ja: { rotulo: 'Japonês', fala: 'japonês', ocr: 'jpn', nomes: ['ja'] },
   zhs: { rotulo: 'Chinês simpl.', fala: 'chinês simplificado', ocr: 'chi_sim', nomes: ['zhs'] },
-  zht: { rotulo: 'Chinês trad.', fala: 'chinês tradicional', ocr: 'chi_tra', nomes: ['zht'] }
+  zht: { rotulo: 'Chinês trad.', fala: 'chinês tradicional', ocr: 'chi_tra', nomes: ['zht'] },
+  ko: { rotulo: 'Coreano', fala: 'coreano', ocr: 'kor', nomes: ['ko'] },
+  ru: { rotulo: 'Russo', fala: 'russo', ocr: 'rus', nomes: ['ru'] }
 };
 const linguaDoLeitor = id => (Object.prototype.hasOwnProperty.call(LINGUAS_DO_LEITOR, id) ? id : 'latino');
 const chaveDosNomes = idioma => 'names.' + idioma;
@@ -44912,7 +44928,7 @@ const URL_NOMES = idioma => `https://raw.githubusercontent.com/guiamuy/-Estante-
 function createNameIndex({ store, scryfall, now = () => Date.now(), fetchFn = (typeof fetch === 'function' ? fetch.bind(globalThis) : null), idiomas = IDIOMAS_DOS_NOMES }) {
   let index = null, meta = null, lista = [], cjk = null;
   const porIdioma = new Map(), tentadas = new Map();   // idioma → { pares, ts } · idioma → quando foi pedido nesta sessão
-  const extras = new Set();   // S-601 · línguas de escrita CJK pedidas pelo leitor (japonês, chinês)
+  const extras = new Set();   // S-601 · S-614 · línguas de escrita não latina pedidas pelo leitor (japonês, chinês, coreano, russo)
   const apelidos = () => [...porIdioma.values()].flatMap(x => x.pares);
   const refaz = () => {
     const todos = apelidos(), latinos = todos.filter(p => !temCjk(p[0]));
@@ -46209,7 +46225,7 @@ function createOcr(win = window, doc = document) {
       const pronto = prepare(canvas, escala, want);   // 'linha' e 'colecao' já chegam prontas (o MESMO canvas: quem chama não o reaproveita antes de a leitura voltar)
       return serial(f, async () => {
         const w = await engine(qual);
-        // S-601 · japonês e chinês: sem a lista de letras latinas (ela apagaria os ideogramas)
+        // S-601 · S-614 · japonês, chinês, coreano e russo: sem a lista de letras latinas (ela apagaria a escrita)
         const cjk = qual === 'nome' && lingua !== 'latino', chave = want + (cjk ? '|' + lingua : '');
         if (f.mode !== chave) { await w.setParameters(cjk ? { ...MODES[want], tessedit_char_whitelist: '' } : MODES[want]); f.mode = chave; }
         const r = await w.recognize(pronto); return (r && r.data && r.data.text) || '';
@@ -46736,7 +46752,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
   function infoAparelho() {
     const LEITOR = { idle: 'parado', loading: 'carregando', ready: 'pronto', failed: 'falhou' };
     const cam = camera.info ? camera.info() : {};
-    return { leitor_versao: 'S-606 (nome em seis línguas latinas, japonês e chinês + arte; edição por linha de coleção, arte e artista; lente que foca, 1× com foco forçado)', nomes_idiomas: (Object.entries((names.info() || {}).idiomas || {}).map(([l, n]) => `${l} ${n}`).join(' · ') || 'nenhuma'), artes: (artes.info() ? `${artes.info().total} artes` : 'sem base'), aparelho: (navigator.userAgent || '').slice(0, 80), video: `${cam.width || video.videoWidth || 0}×${cam.height || video.videoHeight || 0}${cam.fps ? ` @${Math.round(cam.fps)}` : ''}`, foco: cam.foco || '?', camera_maximo: cam.maximo || '?', subida: cam.subida || '—', zoom: `${(+(cam.zoom || 1)).toFixed(1)}×`, lanterna: cam.lanterna ? 'ligada' : 'desligada', lente: (cam.rotulo || '?').slice(0, 40) + (cam.lenteAuto ? ' (trocada: a anterior não focava)' : ''), refocos: String(state.refocos || 0), ate_aceitar: (r => r.n ? (r.nEntrada ? `mediana ${r.desdeEntrada} ms desde a entrada (${r.nEntrada} carta(s)); ` : '') + `confirmação ${r.confirmacao} ms (${r.n} carta(s))` : 'sem cartas ainda')(cronometro.resumo()), base: (names.info() || {}).count || 0, leitor: LEITOR[state.engine] || state.engine, automatico: state.auto ? 'ligado' : 'pausado', limiares: `borrada < ${LIMIARES_LINHA.borrada} (lê de novo realçada), movimento ≤ ${Math.round(LIMIARES_LINHA.deslocamentoMax * 100)}, carta ≥ ${Math.round(LIMIARES_LINHA.alturaMin * 100)}% do quadro` };
+    return { leitor_versao: 'S-614 (nome em seis línguas latinas, japonês, chinês, coreano e russo + arte; edição por linha de coleção, arte e artista; lente que foca, 1× com foco forçado)', nomes_idiomas: (Object.entries((names.info() || {}).idiomas || {}).map(([l, n]) => `${l} ${n}`).join(' · ') || 'nenhuma'), artes: (artes.info() ? `${artes.info().total} artes` : 'sem base'), aparelho: (navigator.userAgent || '').slice(0, 80), video: `${cam.width || video.videoWidth || 0}×${cam.height || video.videoHeight || 0}${cam.fps ? ` @${Math.round(cam.fps)}` : ''}`, foco: cam.foco || '?', camera_maximo: cam.maximo || '?', subida: cam.subida || '—', zoom: `${(+(cam.zoom || 1)).toFixed(1)}×`, lanterna: cam.lanterna ? 'ligada' : 'desligada', lente: (cam.rotulo || '?').slice(0, 40) + (cam.lenteAuto ? ' (trocada: a anterior não focava)' : ''), refocos: String(state.refocos || 0), ate_aceitar: (r => r.n ? (r.nEntrada ? `mediana ${r.desdeEntrada} ms desde a entrada (${r.nEntrada} carta(s)); ` : '') + `confirmação ${r.confirmacao} ms (${r.n} carta(s))` : 'sem cartas ainda')(cronometro.resumo()), base: (names.info() || {}).count || 0, leitor: LEITOR[state.engine] || state.engine, automatico: state.auto ? 'ligado' : 'pausado', limiares: `borrada < ${LIMIARES_LINHA.borrada} (lê de novo realçada), movimento ≤ ${Math.round(LIMIARES_LINHA.deslocamentoMax * 100)}, carta ≥ ${Math.round(LIMIARES_LINHA.alturaMin * 100)}% do quadro` };
   }
   function paintEstado() {
     const txt = state.camera !== 'on' ? '' : state.engine === 'loading' ? 'Preparando o leitor…' : state.engine === 'failed' ? 'Leitor indisponível' : state.auto ? 'Automático' : 'Pausado';
@@ -47175,7 +47191,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
       controles.length ? Row({ class: 'ds-row--wrap', id: 'scan-camera-controles' }, ...controles) : null,
       Text('Idioma impresso', { size: 'sm', tone: 'muted' }),
       Row({ class: 'ds-row--wrap', id: 'scan-idioma' }, ...linguaChips),
-      Text('Latino lê inglês, português, espanhol, italiano, francês e alemão. Japonês e chinês baixam o leitor da escrita na primeira vez (cerca de 2 MB).', { size: 'xs', tone: 'subtle' }),
+      Text('Latino lê inglês, português, espanhol, italiano, francês e alemão. As outras baixam o leitor da escrita na primeira vez (de 1,5 a 3 MB).', { size: 'xs', tone: 'subtle' }),
       Text('Leitura', { size: 'sm', tone: 'muted' }),
       Row({ class: 'ds-row--wrap' }, edChip, molduraChip, diagChip),
       Text((info && state.base === 'ready' ? `Base: ${info.count.toLocaleString('pt-BR')} nomes · ${Math.round(info.bytes / 1024)} KB` : 'Base de nomes: ainda não baixada') + (state.ocrReady ? ' · leitor disponível offline' : ''), { size: 'xs', tone: 'subtle', attrs: { id: 'scan-base' } })),

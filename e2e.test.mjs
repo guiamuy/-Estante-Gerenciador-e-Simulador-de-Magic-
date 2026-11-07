@@ -4773,7 +4773,8 @@ test('e2e · S-601 idioma impresso: com "Japonês" o leitor do nome lê japonês
   assert.ok(!pedidos.includes('ja'), 'os nomes japoneses só vêm quando o japonês é escolhido');
   await page.click('#scan-more');
   await page.waitForSelector('#scan-idioma [data-lingua]');
-  assert.equal(await page.locator('#scan-idioma [data-lingua]').count(), 4);
+  // S-614 · expectativa ajustada: Coreano e Russo entraram (latino, japonês, chinês simpl., chinês trad., coreano, russo)
+  assert.equal(await page.locator('#scan-idioma [data-lingua]').count(), 6);
   assert.equal(await page.getAttribute('[data-lingua="latino"]', 'aria-pressed'), 'true');
   await auditaTela(page, 'folha do scanner com o idioma impresso');
   await page.click('[data-lingua="ja"]');
@@ -4794,6 +4795,43 @@ test('e2e · S-601 idioma impresso: com "Japonês" o leitor do nome lê japonês
   await page.reload();
   await page.waitForSelector('#scan-read:not([disabled])');
   assert.deepEqual(await page.evaluate(() => window.__ocrLinguas.filter(l => l !== 'eng')), ['jpn']);
+  assert.deepEqual(errors, []);
+});
+
+// S-614 · nome impresso em russo: escolher "Russo" sobe o leitor com os dados do russo (sem a lista de letras latinas), pede só
+// os nomes russos ao ramo `artes` e a leitura em cirílico vira a carta.
+test('e2e · S-614 idioma impresso Russo: o leitor lê cirílico e ОТМЕНА ЗАКЛИНАНИЯ entra como Counterspell', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  const pedidos = [];
+  await page.route(/^https:\/\/raw\.githubusercontent\.com\/[^/]+\/[^/]+\/artes\/nomes-[a-z]+\.json$/, r => {
+    const idioma = /nomes-([a-z]+)\.json$/.exec(r.request().url())[1]; pedidos.push(idioma);
+    return r.fulfill({ json: { versao: 1, idioma, pares: idioma === 'ru' ? [['Отмена Заклинания', 'Counterspell'], ['Удар Молнии', 'Lightning Bolt']] : [] }, headers: { 'access-control-allow-origin': '*' } });
+  });
+  await page.addInitScript(FAKE_DEVICE(false));
+  await page.addInitScript(() => {
+    const T = window.Tesseract, cria = T.createWorker; window.__ocrLinguas = []; window.__ocrListas = [];
+    T.createWorker = async (lang, ...resto) => { window.__ocrLinguas.push(lang); const w = await cria(lang, ...resto), sp = w.setParameters;
+      w.setParameters = async p => { window.__ocrListas.push([lang, p.tessedit_char_whitelist]); return sp(p); }; return w; };
+  });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base + '#/scanner');
+  await page.waitForSelector('#scan-read:not([disabled])');
+  await pausaAuto(page);
+  await page.click('#scan-more');
+  await page.waitForSelector('[data-lingua="ru"]');
+  assert.equal((await page.innerText('[data-lingua="ru"]')).trim(), 'Russo');
+  assert.equal((await page.innerText('[data-lingua="ko"]')).trim(), 'Coreano');
+  await page.click('[data-lingua="ru"]');
+  await page.waitForFunction(() => window.__ocrLinguas.includes('rus'));
+  await page.click('#ds-dialog-close');
+  for (let i = 0; i < 50 && !pedidos.includes('ru'); i++) await page.waitForTimeout(100);
+  assert.ok(pedidos.includes('ru') && !pedidos.includes('ko'), 'só os nomes russos foram pedidos: ' + pedidos);
+  await page.waitForSelector('#scan-read:not([disabled])');
+  await page.evaluate(() => window.__ocrQueue.push('ОТМЕНА ЗАКЛИНАНИЯ'));
+  await page.click('#scan-read');
+  await esperaPilha(page, 1).catch(async e => { throw new Error('diario: ' + JSON.stringify(await page.evaluate(() => window.__scanDiario.lista().slice(0, 3)))); });
+  assert.ok((await page.evaluate(() => window.__scanDiario.lista())).some(x => /Counterspell/.test(x.decisao || '')), 'a leitura em cirílico virou Counterspell');
+  assert.ok((await page.evaluate(() => window.__ocrListas)).some(([l, w]) => l === 'rus' && w === ''), 'o leitor russo lê sem a lista de letras latinas');
   assert.deepEqual(errors, []);
 });
 
