@@ -57,6 +57,24 @@ const AUTOR_DA_FILA = ['-c', 'user.name=estante-fila', '-c', 'user.email=4189828
 /** Identidade de uma leva que sobrevive ao cherry-pick: instante de autoria + assunto. O sha muda quando a fila põe o commit
     sobre o `main`; a data de autoria e a mensagem não. É por ela que a fila (e o publicar) sabem o que já está publicado. */
 export const chave = (c) => `${c.autorEm}|${c.assunto}`;
+/** Q28 · a leva renumerada (G-329 → G-333, I-312 → I-314) guarda a data de autoria e o assunto depois do número. */
+export const semNumero = (assunto) => String(assunto || '').replace(/^Leva [A-Z]+-\d+ · /, '');
+/** A letra da trilha fica na chave: renumerar não troca de trilha (G-329 → G-333 casa; G-329 → M-333 não). */
+export const chaveSemNumero = (c) => { const p = /^Leva ([A-Z]+)-\d+ · /.exec(String(c.assunto || '')); return `${c.autorEm}|${p ? p[1] : ''}|${semNumero(c.assunto)}`; };
+/** Q28 · baixa declarada de aviso `recusada/<nome>` cujo conteúdo chegou ao main por outra leva (nem chave nem número batem):
+    arquivo do main, revisado pelo portão. Só vale para o aviso com exatamente o sha declarado (aviso regravado fica). */
+export const ARQUIVO_BAIXAS = 'recusas-superadas.json';
+export function baixasDeclaradas(texto) {
+  let dado; try { dado = JSON.parse(texto); } catch (e) { return new Map(); }
+  const mapa = new Map();
+  for (const b of (dado && Array.isArray(dado.baixas)) ? dado.baixas : []) {
+    const ramo = String((b && b.ramo) || '');
+    if (!ramo.startsWith(PREFIXO_RECUSADA)) continue;
+    const nome = ramo.slice(PREFIXO_RECUSADA.length);
+    if (NOME_VALIDO.test(nome) && SHA_VALIDO.test(String(b.sha || '')) && String(b.coberta_por || '').trim()) mapa.set(nome, b.sha);
+  }
+  return mapa;
+}
 
 /** Nome do ramo de fila de um conjunto de commits: a leva do último (`G-252`, `207`); sem leva, trilha e sha curto. */
 export function nomeDoRamo(commits) {
@@ -310,24 +328,30 @@ export function recusar({ cwd, remoto = 'origin', nome, sha, motivo }) {
 }
 
 /** Tira o aviso `recusada/<nome>` de uma leva que acabou de chegar ao main (ou que já estava lá): aviso velho de leva publicada confunde. */
-export function apagarAviso({ cwd, remoto = 'origin', nome }) {
+export function apagarAviso({ cwd, remoto = 'origin', nome, sha = '' }) {
   const g = gitEm(cwd);
   if (!tenta(g, ['ls-remote', '--exit-code', '--heads', remoto, `${PREFIXO_RECUSADA}${nome}`])) return false;
-  return tenta(g, ['push', '--quiet', remoto, `:refs/heads/${PREFIXO_RECUSADA}${nome}`]) !== null;
+  // Q28 · com o sha conferido, só apaga se o aviso ainda for aquele (aviso regravado no meio do caminho fica)
+  const trava = SHA_VALIDO.test(sha) ? [`--force-with-lease=refs/heads/${PREFIXO_RECUSADA}${nome}:${sha}`] : [];
+  return tenta(g, ['push', '--quiet', ...trava, remoto, `:refs/heads/${PREFIXO_RECUSADA}${nome}`]) !== null;
 }
 
-/** Limpeza a cada rodada: aviso `recusada/<nome>` cujas levas já estão todas no main é velho (a leva foi corrigida e publicada) e sai.
+/** Limpeza a cada rodada: aviso `recusada/<nome>` cujas levas já estão todas no main (com o mesmo número ou renumeradas, Q28) é velho
+    (a leva foi corrigida e publicada) e sai; também sai o aviso com baixa declarada em `recusas-superadas.json` (Q28).
     As conversas de nuvem não conseguem apagar ramo no remoto; quem limpa é a fila. Devolve os nomes apagados. */
 export function limparAvisos({ cwd, remoto = 'origin', principal = 'main' }) {
   const g = gitEm(cwd);
   tenta(g, ['fetch', '--quiet', '--prune', '--depth=60', remoto, `+refs/heads/${PREFIXO_RECUSADA}*:refs/remotes/${remoto}/${PREFIXO_RECUSADA}*`]);
-  const ja = publicados(cwd, `${remoto}/${principal}`);
+  const doMain = commitsDa(cwd, `${remoto}/${principal}`, [`--max-count=${JANELA_PUBLICADOS}`]);
+  const ja = new Set(doMain.map(chave)), jaSemNumero = new Set(doMain.map(chaveSemNumero));
+  const baixas = baixasDeclaradas(tenta(g, ['show', `${remoto}/${principal}:${ARQUIVO_BAIXAS}`]) || '');
   const apagados = [];
   for (const r of ramosDaFila(cwd, { remoto, prefixo: PREFIXO_RECUSADA })) {
+    if (baixas.get(r.nome) === r.sha) { if (apagarAviso({ cwd, remoto, nome: r.nome, sha: r.sha })) apagados.push(r.nome); continue; }
     let levas = [];
     try { levas = commitsDa(cwd, `${remoto}/${principal}..${r.sha}`).filter((c) => !/^RECUSADA pela fila/.test(c.assunto)); } catch (e) { continue; }
-    if (levas.some((c) => !ja.has(chave(c)))) continue;   // ainda há leva deste aviso fora do main: a recusa vale
-    if (apagarAviso({ cwd, remoto, nome: r.nome })) apagados.push(r.nome);
+    if (levas.some((c) => !ja.has(chave(c)) && !jaSemNumero.has(chaveSemNumero(c)))) continue;   // ainda há leva deste aviso fora do main (nem renumerada): a recusa vale
+    if (apagarAviso({ cwd, remoto, nome: r.nome, sha: r.sha })) apagados.push(r.nome);
   }
   return apagados;
 }

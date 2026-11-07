@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { EPOCA } from './agregacao.mjs';
-import { chave, nomeDoRamo, ordemDaFila, decisao, limparMotivo, quedasDoLog, planoValido, NOME_VALIDO, montar, avancar, ramosDaFila, commitsDa, publicados, situacao, formatarQuedas, limparAvisos,
+import { chave, nomeDoRamo, ordemDaFila, decisao, limparMotivo, quedasDoLog, planoValido, NOME_VALIDO, montar, avancar, ramosDaFila, commitsDa, publicados, situacao, formatarQuedas, limparAvisos, semNumero, chaveSemNumero, baixasDeclaradas,
   AVISO_MAIN, TETO_DO_NOME, limparQueda, quedasComArquivo, reexecutar, mainVermelho, resultadoDaPresonda, sondaDoAviso, lerAvisoMain, herdadasNoMain,
   resultadoDoPortao, juntarHerdadas, juntarResumos, quedasDaFase } from './fila.mjs';
 
@@ -379,6 +379,59 @@ test('Q17 · a fila limpa aviso velho: recusada/<nome> de leva que já está no 
     assert.deepEqual(limparAvisos({ cwd: c.dir }), ['P-6']);
     assert.equal(m.existe('refs/heads/recusada/P-6'), false); assert.equal(m.existe('refs/heads/recusada/G-9'), true, 'recusa pendente não é apagada');
     assert.deepEqual(limparAvisos({ cwd: c.dir }), []);
+  } finally { m.fim(); }
+});
+
+test('Q28 · parte pura: assunto sem o número da leva e baixas declaradas só com ramo recusada/, sha exato e quem cobriu', () => {
+  assert.equal(semNumero('Leva G-329 · o ditado acompanha'), 'o ditado acompanha');
+  assert.equal(semNumero('RECUSADA pela fila · G-329'), 'RECUSADA pela fila · G-329');
+  assert.equal(chaveSemNumero({ autorEm: 7, assunto: 'Leva I-312 · Q25' }), chaveSemNumero({ autorEm: 7, assunto: 'Leva I-314 · Q25' }));
+  assert.notEqual(chaveSemNumero({ autorEm: 7, assunto: 'Leva I-312 · Q25' }), chaveSemNumero({ autorEm: 8, assunto: 'Leva I-314 · Q25' }));
+  assert.notEqual(chaveSemNumero({ autorEm: 7, assunto: 'Leva G-312 · Q25' }), chaveSemNumero({ autorEm: 7, assunto: 'Leva M-314 · Q25' }), 'renumerar não troca de trilha');
+  const sha = 'a'.repeat(40);
+  const m = baixasDeclaradas(JSON.stringify({ versao: 1, baixas: [
+    { ramo: 'recusada/B-186', sha, coberta_por: 'B-187 537c3a4' },
+    { ramo: 'fila/G-9', sha, coberta_por: 'x' },                  // só aviso de recusa sai por baixa
+    { ramo: 'recusada/--force', sha, coberta_por: 'x' },          // nome fora da forma
+    { ramo: 'recusada/G-1', sha: 'abc', coberta_por: 'x' },       // sha fora da forma
+    { ramo: 'recusada/G-2', sha },                                // sem dizer quem cobriu
+  ] }));
+  assert.deepEqual([...m], [['B-186', sha]]);
+  assert.equal(baixasDeclaradas('não é json').size, 0);
+  assert.equal(baixasDeclaradas('{"baixas": 3}').size, 0);
+});
+
+test('Q28 · o recusas-superadas.json do repositório é lido inteiro: toda baixa tem ramo recusada/, sha de 40 e quem cobriu', () => {
+  const dado = JSON.parse(readFileSync(new URL('./recusas-superadas.json', import.meta.url), 'utf8'));
+  assert.ok(Array.isArray(dado.baixas) && dado.baixas.length > 0);
+  assert.equal(baixasDeclaradas(JSON.stringify(dado)).size, dado.baixas.length, 'entrada que a fila ignora calada: corrija a linha');
+});
+
+test('Q28 · a fila limpa o aviso de leva renumerada (mesma autoria, mesmo assunto sem o número) e o de baixa declarada com o sha exato; o resto fica', () => {
+  const m = mundo();
+  try {
+    const a = m.clone('a'), b = m.clone('b');
+    const shaG = a.enfileira('G-9', 'Leva G-9 · tela nova\n\nTrilha: geral', () => a.escreve('tela.js', ['const tela = app.desenharTelaNova(estado);']));
+    const shaH = b.enfileira('G-11', 'Leva G-11 · outra tela\n\nTrilha: geral', () => b.escreve('outra.js', ['const outra = app.desenharOutra(estado);']));
+    const c = ci(m);
+    const aviso = (nome, sha) => c.git('push', '-q', 'origin', `${c.git('commit-tree', `${sha}^{tree}`, '-p', sha, '-m', `RECUSADA pela fila · ${nome}`)}:refs/heads/recusada/${nome}`);
+    aviso('G-9', shaG); aviso('G-11', shaH);
+    // a G-9 chega ao main renumerada (G-10): cherry-pick guarda a data de autoria; só o número muda
+    a.git('fetch', '-q', 'origin'); a.git('checkout', '-q', '-B', 'renum', 'origin/main'); a.git('cherry-pick', shaG);
+    a.git('commit', '-q', '--amend', '-m', 'Leva G-10 · tela nova\n\nTrilha: geral'); a.git('push', '-q', 'origin', 'HEAD:main');
+    c.busca();
+    assert.deepEqual(limparAvisos({ cwd: c.dir }), ['G-9']);
+    assert.equal(m.existe('refs/heads/recusada/G-11'), true, 'leva fora do main, sem baixa: a recusa vale');
+    // baixa com sha errado não apaga; com o sha exato do aviso, apaga
+    c.busca();
+    const shaAviso = c.git('rev-parse', 'origin/recusada/G-11');
+    const baixa = (sha) => { a.git('fetch', '-q', 'origin'); a.git('checkout', '-q', '-B', 'baixa', 'origin/main'); a.escreve('recusas-superadas.json', [JSON.stringify({ versao: 1, baixas: [{ ramo: 'recusada/G-11', sha, coberta_por: 'G-12 por outra forma' }] })]); a.commit('Leva I-9 · baixa\n\nTrilha: infra'); a.git('push', '-q', 'origin', 'HEAD:main'); c.busca(); };
+    baixa('b'.repeat(40));
+    assert.deepEqual(limparAvisos({ cwd: c.dir }), []);
+    assert.equal(m.existe('refs/heads/recusada/G-11'), true, 'aviso regravado (outro sha) não sai pela baixa velha');
+    baixa(shaAviso);
+    assert.deepEqual(limparAvisos({ cwd: c.dir }), ['G-11']);
+    assert.equal(m.existe('refs/heads/recusada/G-11'), false);
   } finally { m.fim(); }
 });
 
