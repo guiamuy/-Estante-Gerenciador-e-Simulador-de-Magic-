@@ -28,11 +28,14 @@ function serve() {
   });
   return new Promise(r => srv.listen(0, () => r(srv)));
 }
-const card = (name, type_line, ci, cmc = 2) => ({ object: 'card', id: name, name, type_line, color_identity: ci, colors: ci, cmc, oracle_text: name === 'Preordain' ? 'Scry 2, then draw a card.' : name.startsWith('Lurrus') ? 'Companion — Each permanent card in your starting deck has mana value 2 or less.\nLifelink' : '', power: /Creature/.test(type_line) ? '1' : undefined, toughness: /Creature/.test(type_line) ? '1' : undefined, legalities: { commander: 'legal', pauper: 'legal' }, set: 'tst', set_name: 'Teste', collector_number: '1', rarity: 'common' });
+// G-350 · cada carta de teste com o seu número de coleção (TST #101, #102…), como na Scryfall: a Coleção pede a arte pela impressão
+let numeroDeTeste = 100;
+const card = (name, type_line, ci, cmc = 2) => ({ object: 'card', id: name, name, type_line, color_identity: ci, colors: ci, cmc, oracle_text: name === 'Preordain' ? 'Scry 2, then draw a card.' : name.startsWith('Lurrus') ? 'Companion — Each permanent card in your starting deck has mana value 2 or less.\nLifelink' : '', power: /Creature/.test(type_line) ? '1' : undefined, toughness: /Creature/.test(type_line) ? '1' : undefined, legalities: { commander: 'legal', pauper: 'legal' }, set: 'tst', set_name: 'Teste', collector_number: String(++numeroDeTeste), rarity: 'common' });
 const DB = Object.fromEntries([
   card('Malcolm, Alluring Scoundrel', 'Legendary Creature — Siren Pirate', ['U']),
   // O2 · o Sol Ring tem imagem apontando para fora: o visualizador precisa cair no texto quando ela não carrega
-  { ...card('Sol Ring', 'Artifact', [], 1), image_uris: { small: 'https://cards.scryfall.io/small/front/x/sol.jpg', normal: 'https://cards.scryfall.io/normal/front/x/sol.jpg', large: 'https://cards.scryfall.io/large/front/x/sol.jpg' } },
+  // G-350 · número de coleção fixo (TST #7): o O1, a leva 102 e a G-282 importam a cópia com essa edição
+  { ...card('Sol Ring', 'Artifact', [], 1), collector_number: '7', image_uris: { small: 'https://cards.scryfall.io/small/front/x/sol.jpg', normal: 'https://cards.scryfall.io/normal/front/x/sol.jpg', large: 'https://cards.scryfall.io/large/front/x/sol.jpg' } },
   card('Island', 'Basic Land — Island', ['U'], 0), card('Counterspell', 'Instant', ['U']),
   // U12 · o Delver tem imagem (pequena e grande): o guardião precisa baixá-las com rede e contá-las no painel
   { ...card('Delver of Secrets', 'Creature — Human Wizard', ['U'], 1), image_uris: { small: 'https://cards.scryfall.io/small/front/x/delver.png', normal: 'https://cards.scryfall.io/normal/front/x/delver.png' } },
@@ -71,6 +74,15 @@ const DB = Object.fromEntries([
   { ...card('Voldaren Epicure', 'Creature — Vampire', ['R'], 1), mana_cost: '{R}', power: '1', toughness: '1', oracle_text: 'When this creature enters, it deals 1 damage to each opponent. Create a Blood token. (It\'s an artifact with "{1}, {T}, Discard a card, Sacrifice this artifact: Draw a card.")' },
   { ...card('Clue', 'Token Artifact — Clue', [], 0), id: 'tok-clue', oracle_text: '{2}, Sacrifice this artifact: Draw a card.', image_uris: { small: 'https://cards.scryfall.io/small/front/x/clue.png', normal: 'https://cards.scryfall.io/normal/front/x/clue.png' } }
 ].map(c => [c.name.toLowerCase(), c]));
+// G-350 · a Scryfall falsa responde /cards/collection como a real: por nome, por id e por coleção+número (a Coleção pede a
+// arte pela impressão da cópia); coleção+nome devolve a carta do nome naquela coleção
+function achaNoDB(i, db = DB) {
+  if (!i) return null;
+  if (i.name) { const c = db[String(i.name).toLowerCase()]; return c ? (i.set ? { ...c, set: String(i.set).toLowerCase() } : c) : null; }
+  if (i.id) return Object.values(db).find(c => c.id === i.id) || null;
+  if (i.set && i.collector_number) return Object.values(db).find(c => c.set === i.set && String(c.collector_number) === String(i.collector_number)) || null;
+  return null;
+}
 // B-22 · o Shark na mesa só joga com as suas cinco listas de torneio (`LISTAS_DO_SHARK`): a Scryfall falsa precisa das cartas delas, com o
 // texto oficial de `.listas/oficiais*.json` (o mesmo do torneio). Carta que o DB acima já tem fica como está (os testes antigos contam com ela).
 // J-40 · relato #45 · a masmorra na mesa: uma criatura que toma a iniciativa (texto oficial de .listas/oficiais-revisadas.json)
@@ -130,7 +142,7 @@ async function open(t, { dev = true, apresentacao = false, cena = false, porta =
   await page.route('https://api.scryfall.com/**', async r => {
     if (r.request().url().includes('/cards/collection')) {
       const ids = JSON.parse(r.request().postData()).identifiers;
-      return r.fulfill({ json: { data: ids.map(i => DB[i.name.toLowerCase()]).filter(Boolean), not_found: ids.filter(i => !DB[i.name.toLowerCase()]) } });
+      return r.fulfill({ json: { data: ids.map(i => achaNoDB(i)).filter(Boolean), not_found: ids.filter(i => !achaNoDB(i)) } });
     }
     if (r.request().url().includes('/catalog/card-names')) return r.fulfill({ json: { object: 'catalog', data: Object.values(DB).map(c => c.name) } });
     if (r.request().url().includes('/cards/search')) {
@@ -656,7 +668,9 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
   await createDeck(page, base, 'Cmd', 'Commander\n1 Mock Commander\n\nDeck\n99 Plains', 'commander');
   await page.goto(base + '#/colecao');
   await page.waitForSelector('#col-import'); await page.click('#col-import');
-  await page.waitForSelector('#col-import-text'); await page.fill('#col-import-text', '2 Sol Ring\n1 Grizzly Bear');
+  // G-350 · expectativa mudou (relato #65): a cópia sem edição mostra a arte desconhecida, não a arte do nome; o Sol Ring
+  // entra com a edição (a impressão de teste, TST #7) para o visor e o guardião continuarem tratando a imagem dele
+  await page.waitForSelector('#col-import-text'); await page.fill('#col-import-text', '2 Sol Ring (TST) 7\n1 Grizzly Bear');
   await page.click('#col-import-check'); await page.waitForSelector('#col-import-run'); await page.click('#col-import-run');
   await page.waitForSelector('.col-row[data-name="Sol Ring"]');
 
@@ -2135,6 +2149,121 @@ test('e2e · S-615 relato #65: a folha de edição mostra a arte de cada impress
   assert.deepEqual(errors, []);
 });
 
+// G-350 · relato #65 (arte da edição): a miniatura da pilha e a arte da Coleção são as da impressão escolhida; sem edição,
+// a "arte desconhecida" do design system (nunca a arte de uma edição qualquer, nem a padrão do nome).
+test('e2e · G-350 relato #65: a arte da pilha e da Coleção é a da edição escolhida; sem edição, a arte desconhecida', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 697 });
+  const jpg = readFileSync(join(ROOT, 'fotos', 'brainstorm-retrato.jpg'));
+  const pedidasImg = [];
+  await page.route('https://cards.scryfall.io/**', r => { pedidasImg.push(r.request().url() + ' @' + page.url().split('#')[1] + ' ' + r.request().resourceType()); return r.fulfill({ contentType: 'image/jpeg', body: jpg }); });
+  const img = n => ({ small: `https://cards.scryfall.io/small/front/g/${n}.jpg`, normal: `https://cards.scryfall.io/normal/front/g/${n}.jpg`, large: `https://cards.scryfall.io/large/front/g/${n}.jpg` });
+  const ilha = { object: 'card', name: 'Island', type_line: 'Basic Land — Island', color_identity: ['U'], colors: [], cmc: 0, oracle_text: '', legalities: {} };
+  const MH2 = { ...ilha, id: 'island-mh2', set: 'mh2', set_name: 'Modern Horizons 2', collector_number: '267', released_at: '2021-06-18', finishes: ['nonfoil'], image_uris: img('island-mh2') };
+  const LEA = { ...ilha, id: 'island-lea', set: 'lea', set_name: 'Limited Edition Alpha', collector_number: '288', released_at: '1993-08-05', finishes: ['nonfoil'], image_uris: img('island-lea') };
+  const CS = { object: 'card', id: 'cs-padrao', name: 'Counterspell', set: 'tmp', collector_number: '57', type_line: 'Instant', mana_cost: '{U}{U}', cmc: 2, colors: ['U'], color_identity: ['U'], oracle_text: 'Counter target spell.', legalities: {}, image_uris: img('cs-padrao') };
+  await page.route('https://api.scryfall.com/sets', r => r.fulfill({ json: { object: 'list', has_more: false, data: [{ code: 'mh2', name: 'Modern Horizons 2', released_at: '2021-06-18' }] } }));
+  await page.route('https://api.scryfall.com/cards/search**', r => {
+    const q = decodeURIComponent(new URL(r.request().url()).searchParams.get('q') || '');
+    return r.fulfill({ json: q === '!"Island"' ? { object: 'list', has_more: false, data: [MH2, LEA] } : { object: 'error', status: 404 }, status: q === '!"Island"' ? 200 : 404 });
+  });
+  // a arte padrão do nome (byNames) é a da LEA: se ela aparecer na Coleção, a cópia MH2 está com a arte errada
+  const porImpressao = [];
+  await page.route('https://api.scryfall.com/cards/collection', r => {
+    const ids = JSON.parse(r.request().postData() || '{}').identifiers || [];
+    const data = [];
+    for (const i of ids) {
+      if (i.id || i.set) porImpressao.push(i);
+      if (i.id === 'island-mh2' || (i.set === 'mh2' && i.collector_number === '267')) data.push(MH2);
+      else if (!i.set && !i.id && /^island$/i.test(i.name || '')) data.push(LEA);
+      else if (!i.set && !i.id && /^counterspell$/i.test(i.name || '')) data.push(CS);
+    }
+    return r.fulfill({ json: { object: 'list', data, not_found: [] } });
+  });
+  await page.addInitScript(FAKE_DEVICE(false));
+  await page.goto(base + '#/');
+  // na pilha: a Island sem edição traz a miniatura de uma leitura antiga (de outra impressão) — ela não pode aparecer
+  await page.evaluate(async itens => { await new Promise((res, rej) => { const r = indexedDB.open('mtg', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv');
+    r.onsuccess = () => { const tx = r.result.transaction('kv', 'readwrite'); tx.objectStore('kv').put(itens, 'scanner.lot'); tx.oncomplete = res; tx.onerror = rej; }; r.onerror = rej; }); },
+  [{ key: 'Island', name: 'Island', qty: 2, score: 1, img: 'https://cards.scryfall.io/small/front/g/island-lea.jpg' }]);
+  await page.goto(base + '#/scanner');
+  await page.waitForSelector('#scan-read:not([disabled])');
+  await pausaAuto(page);
+  await abrePilha(page);
+  const mini = '#scan-pile .scan-pile__card[data-name="Island"] .scan-pile__mini';
+  await page.waitForSelector(`${mini} [data-arte-desconhecida]`);
+  assert.equal(await page.locator(`${mini} img`).count(), 0, 'sem edição: nenhuma arte de edição qualquer');
+  assert.equal(await page.getAttribute(`${mini} [data-arte-desconhecida]`, 'aria-label'), 'Arte desconhecida: edição a definir');
+  const alturaMini = await page.$eval(mini, m => Math.round(m.getBoundingClientRect().height));
+  assert.ok(alturaMini > 80, `a arte desconhecida ocupa a caixa da miniatura (${alturaMini}px)`);
+  await auditaTela(page, 'G-350 pilha com carta sem edição (arte desconhecida)');
+  if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/g350-pilha-sem-edicao.png` });
+  // escolher a MH2: a miniatura troca na hora pela arte daquela impressão
+  await page.locator('#scan-pile .scan-pile__card[data-name="Island"] [data-edicao]').click();
+  await page.waitForSelector('#scan-ed[data-estado="pronto"]');
+  await page.click('#scan-ed .scan-ed__item[data-set="mh2"]');
+  await page.waitForSelector('#scan-pile');
+  await page.waitForSelector(`${mini} img[src*="island-mh2"]`);
+  assert.match(await page.getAttribute(`${mini} img`, 'src'), /\/normal\//, 'a miniatura nítida (normal), não a pequena borrada');
+  assert.equal(await page.locator(`${mini} [data-arte-desconhecida]`).count(), 0);
+  if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/g350-pilha-mh2.png` });
+  // Desfazer: volta a arte desconhecida (a edição voltou a ser "a definir")
+  await page.waitForSelector('#ds-toast[data-open="true"] .ds-toast__acao');
+  await page.click('#ds-toast .ds-toast__acao');
+  await page.waitForSelector(`${mini} [data-arte-desconhecida]`);
+  await page.locator('#scan-pile .scan-pile__card[data-name="Island"] [data-edicao]').click();
+  await page.waitForSelector('#scan-ed[data-estado="pronto"]');
+  await page.click('#scan-ed .scan-ed__item[data-set="mh2"]');
+  await page.waitForSelector(`${mini} img[src*="island-mh2"]`);
+  // guardar na Coleção, mais um Counterspell pelo nome (sem edição)
+  await page.click('#scan-pile-commit'); await page.waitForSelector('#scan-lot-list');
+  await page.click('#scan-commit');
+  await esperaPilha(page, 0);
+  await page.goto(base + '#/colecao');
+  await page.waitForSelector('#col-import');
+  await page.click('#col-import'); await page.waitForSelector('#col-import-text'); await page.fill('#col-import-text', '1 Counterspell');
+  await page.click('#col-import-check'); await page.waitForSelector('#col-import-run'); await page.click('#col-import-run');
+  await page.waitForSelector('.col-row[data-name="Counterspell"]');
+  // lista: a Island mostra a arte da MH2 (não a padrão do nome, LEA); o Counterspell sem edição, a arte desconhecida
+  await page.waitForSelector('.col-row[data-name="Island"] .col-row__thumb img[src*="island-mh2"]');
+  assert.doesNotMatch(await page.$eval('.col-row[data-name="Island"] .col-row__thumb img', i => (i.getAttribute('src') || '') + ' ' + (i.getAttribute('srcset') || '')), /island-lea/);
+  await page.waitForSelector('.col-row[data-name="Counterspell"] .col-row__thumb [data-arte-desconhecida]');
+  assert.equal(await page.locator('.col-row[data-name="Counterspell"] .col-row__thumb img').count(), 0, 'a arte padrão do nome não entra');
+  assert.ok(porImpressao.some(i => i.id === 'island-mh2' || (i.set === 'mh2' && i.collector_number === '267')), 'a arte foi pedida pela impressão: ' + JSON.stringify(porImpressao));
+  assert.ok(!porImpressao.some(i => /counterspell/i.test(i.name || '')), 'a cópia sem edição não é pedida por impressão');
+  for (const tema of ['dark', 'light']) { await page.emulateMedia({ colorScheme: tema }); await page.waitForTimeout(150); await auditaTela(page, `G-350 coleção com arte da edição e arte desconhecida (${tema})`); }
+  if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/g350-colecao-lista.png` });
+  // o visor: a Island abre na arte da MH2; o Counterspell, na arte desconhecida grande, com o aviso
+  await page.click('.col-row[data-name="Island"] .col-row__thumb');
+  await page.waitForSelector('#card-viewer img[src*="island-mh2"]');
+  await page.keyboard.press('Escape'); await page.waitForSelector('#card-viewer', { state: 'detached' });
+  await page.click('.col-row[data-name="Counterspell"] .col-row__thumb');
+  await page.waitForSelector('#card-viewer-arte-desconhecida');
+  assert.match(await page.innerText('#card-viewer-arte-desconhecida'), /Edição a definir/);
+  assert.equal(await page.locator('#card-viewer img[src*="cs-padrao"]').count(), 0);
+  await auditaTela(page, 'G-350 visor da cópia sem edição');
+  if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/g350-visor-sem-edicao.png` });
+  await page.keyboard.press('Escape'); await page.waitForSelector('#card-viewer', { state: 'detached' });
+  // galeria e pilhas: as mesmas artes
+  await page.click('[data-visao="galeria"]');
+  await page.waitForSelector('.col-card[data-name="Island"] img[src*="island-mh2"]');
+  await page.waitForSelector('.col-card[data-name="Counterspell"] [data-arte-desconhecida]');
+  assert.equal(await page.locator('.col-card[data-name="Counterspell"] img').count(), 0);
+  assert.equal(await page.innerText('.col-card[data-name="Counterspell"] .ds-arte-desc__nome'), 'Counterspell', 'na galeria a carta sem arte ainda diz quem é');
+  await auditaTela(page, 'G-350 galeria com arte desconhecida');
+  if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/g350-galeria.png` });
+  // de volta à Coleção sem a Scryfall: a arte da MH2 vem do que ficou guardado no aparelho (o pedido por impressão não se repete)
+  await page.unroute('https://api.scryfall.com/cards/collection');
+  await page.route('https://api.scryfall.com/**', r => r.abort('internetdisconnected'));
+  const antesDeVoltar = porImpressao.length;
+  await page.reload(); await page.waitForSelector('.col-card[data-name="Island"]');
+  await page.waitForSelector('.col-card[data-name="Island"] img[src*="island-mh2"]');
+  assert.equal(porImpressao.length, antesDeVoltar);
+  // (o guardião offline ainda guarda a arte padrão do nome para a mesa, por fetch; na tela ela nunca entra como imagem)
+  assert.ok(!pedidasImg.some(u => /island-lea/.test(u) && / image$/.test(u)), 'a arte da LEA nunca foi mostrada: ' + pedidasImg.filter(u => /island-lea/.test(u)).join(' '));
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · X3/X5 scanner identifica a edição e manda o lote para uma lista e para a coleção', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.goto(base + '#/listas/editar');
@@ -2752,7 +2881,9 @@ test('e2e · U3 parte 2 · símbolos no acervo: carta sem imagem vira texto com 
   await page.click('[data-visao="densa"]'); await page.waitForSelector('.col-dense__row[data-name="Grizzly Bear"] .col-dense__custo');
   assert.deepEqual(await custo(page.locator('.col-dense__row[data-name="Grizzly Bear"] .col-dense__custo')), ['1', 'G']);
   await foto('u3-colecao-densa');
-  await page.click('[data-visao="galeria"]'); await page.waitForSelector('.col-card[data-name="Prodigal Sorcerer"] .ds-card__custo');
+  // G-350 · expectativa mudou (relato #65): a cópia sem edição mostra a arte desconhecida, que traz o nome e o custo em símbolos
+  await page.click('[data-visao="galeria"]'); await page.waitForSelector('.col-card[data-name="Prodigal Sorcerer"] [data-arte-desconhecida] .ds-arte-desc__custo');
+  assert.deepEqual(await custo(page.locator('.col-card[data-name="Prodigal Sorcerer"] .ds-arte-desc__custo')), ['2', 'U']);
   await foto('u3-colecao-galeria');
   await page.click('[data-visao="lista"]');
   // filtro de cor: chip redondo com o símbolo, nome falado, alvo de toque, e funciona
@@ -4091,12 +4222,13 @@ test('e2e · leva 102 coleção com imagens nítidas e visor da carta: grande, t
   const p3 = await ctx.newPage(); t.after(() => ctx.close());
   const erros3 = []; p3.on('pageerror', e => erros3.push(String(e)));
   const pedidas = [];
-  await p3.route('https://api.scryfall.com/**', async r => { const ids = r.request().postData() ? JSON.parse(r.request().postData()).identifiers : []; return r.fulfill({ json: { data: ids.map(i => DB[i.name.toLowerCase()]).filter(Boolean), not_found: [] } }); });
+  await p3.route('https://api.scryfall.com/**', async r => { const ids = r.request().postData() ? JSON.parse(r.request().postData()).identifiers : []; return r.fulfill({ json: { data: ids.map(i => achaNoDB(i)).filter(Boolean), not_found: [] } }); });
   const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
   await p3.route('https://**.scryfall.io/**', r => { pedidas.push(r.request().url()); return r.fulfill({ status: 200, contentType: 'image/png', body: PNG }); });
   await p3.addInitScript(() => { window.__MTG_TEST = true; });
   await p3.goto(base + '#/colecao'); await p3.waitForSelector('#col-import');
-  await p3.click('#col-import'); await p3.fill('#col-import-text', '2 Sol Ring');
+  // G-350 · expectativa mudou (relato #65): a arte da Coleção é a da edição da cópia; sem edição, a arte desconhecida
+  await p3.click('#col-import'); await p3.fill('#col-import-text', '2 Sol Ring (TST) 7');
   await p3.click('#col-import-check'); await p3.waitForSelector('#col-import-run'); await p3.click('#col-import-run');
   await p3.waitForSelector('.col-row[data-name="Sol Ring"] .col-row__thumb img[srcset]'); // G-277 · o srcset entra depois da primeira carga (a guardada)
   // miniatura da linha: srcset com todos os tamanhos; numa tela 3× o navegador não pede a "small"
@@ -4139,7 +4271,8 @@ test('e2e · G-282 carta com a espera desenhada: enquanto a imagem não chega, a
   // G-284 · o brilho anda por `transform` no ::before da espera (composição), não na imagem; `brilho` lê o ::before da espera ao lado da imagem
   const estado = (sel) => page.$eval(sel, i => { const e = i.parentElement && i.parentElement.querySelector(':scope > .ds-carta-espera'); const b = e ? getComputedStyle(e, '::before') : null; return { carregada: i.dataset.carregada || null, animacao: getComputedStyle(i).animationName, raio: getComputedStyle(i).borderRadius, brilho: b ? b.animationName : null, brilhoPor: b ? b.transform !== 'none' || b.animationName !== 'none' : null }; });
   await page.goto(base + '#/colecao'); await page.waitForSelector('#col-import');
-  await page.click('#col-import'); await page.fill('#col-import-text', '2 Sol Ring');
+  // G-350 · a cópia com edição (sem edição a Coleção mostra a arte desconhecida, sem espera de imagem)
+  await page.click('#col-import'); await page.fill('#col-import-text', '2 Sol Ring (TST) 7');
   await page.click('#col-import-check'); await page.waitForSelector('#col-import-run'); await page.click('#col-import-run');
   // 1 · galeria: a carta aparece com o brilho e sem a imagem; 1,2 s depois a imagem chega e o brilho some
   await page.click('[data-visao="galeria"]'); await page.waitForSelector('.col-card[data-name="Sol Ring"] img.ds-carta-img');
@@ -4168,15 +4301,17 @@ test('e2e · G-282 carta com a espera desenhada: enquanto a imagem não chega, a
   await page.keyboard.press('Escape'); await page.waitForSelector('#ds-overlay[data-open="false"]', { state: 'attached' });
   // 3 · sem imagem: a carta em texto, como antes (nenhum brilho preso)
   demora = 0; await page.route('https://**.scryfall.io/**', r => r.abort('failed'));
-  await page.click('#col-import'); await page.fill('#col-import-text', '1 Island'); await page.click('#col-import-check'); await page.waitForSelector('#col-import-run'); await page.click('#col-import-run');
-  await page.waitForSelector('.col-card[data-name="Island"] .ds-card__fallback', { timeout: 8000 });
+  await page.click('#col-import'); await page.fill('#col-import-text', '1 Island (TST)'); await page.click('#col-import-check'); await page.waitForSelector('#col-import-run'); await page.click('#col-import-run');
+  // G-350 · expectativa mudou (relato #65): a impressão sem imagem mostra a arte desconhecida ("Arte indisponível"), com o
+  // nome da carta — não mais a carta em texto; continua sem prateleira presa
+  await page.waitForSelector('.col-card[data-name="Island"] [data-arte-desconhecida="sem-imagem"] .ds-arte-desc__nome', { timeout: 8000 });
   assert.equal(await page.locator('.col-card[data-name="Island"] img.ds-carta-img').count(), 0);
   assert.equal(await page.$$eval('.col-card[data-name="Island"] .ds-carta-espera', es => es.filter(e => getComputedStyle(e).display !== 'none').length), 0, 'carta em texto: nenhuma prateleira presa');
   // 4 · movimento reduzido: a espera fica parada (sem animação), mas continua visível
   await page.unroute('https://**.scryfall.io/**'); demora = 1200;
   await page.route('https://**.scryfall.io/**', async r => { await new Promise(ok => setTimeout(ok, demora)); return r.fulfill({ status: 200, contentType: 'image/png', body: PNG }); });
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.click('#col-import'); await page.fill('#col-import-text', '1 Delver of Secrets'); await page.click('#col-import-check'); await page.waitForSelector('#col-import-run'); await page.click('#col-import-run');
+  await page.click('#col-import'); await page.fill('#col-import-text', '1 Delver of Secrets (TST)'); await page.click('#col-import-check'); await page.waitForSelector('#col-import-run'); await page.click('#col-import-run');
   await page.waitForSelector('.col-card[data-name="Delver of Secrets"] img.ds-carta-img');
   const parada = await estado('.col-card[data-name="Delver of Secrets"] img.ds-carta-img');
   assert.equal(parada.carregada, null); assert.equal(parada.animacao, 'none'); assert.equal(parada.brilho, 'none', 'movimento reduzido: sem animação no brilho');
@@ -4354,8 +4489,10 @@ test('e2e · leva 112 scanner: cabe sem rolar num S25, não registra leitura inc
   // pilha: abre por botão e mostra a imagem grande (normal), não a miniatura borrada
   await page.waitForFunction(() => !document.querySelector('#scan-edition-espera'), null, { timeout: 8000 });
   await abrePilha(page);
-  const src = await page.getAttribute('#scan-pile .scan-pile__img', 'src');
-  assert.match(String(src), /\/normal\//, 'imagem em qualidade normal: ' + src);
+  // G-350 · expectativa mudou (relato #65): só o nome foi lido (edição a definir), então a pilha mostra a arte desconhecida em
+  // vez da arte de uma impressão qualquer; a nitidez da miniatura da impressão escolhida (a "normal") é conferida no e2e G-350
+  await page.waitForSelector('#scan-pile .scan-pile__card[data-name="Sol Ring"] .scan-pile__mini [data-arte-desconhecida]');
+  assert.equal(await page.locator('#scan-pile .scan-pile__img').count(), 0, 'sem edição, nenhuma arte de edição qualquer');
   await auditaTela(page, 'pilha do scanner');
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/scanner-pilha.png' });
   await page.click('#ds-dialog-close');
@@ -5454,7 +5591,7 @@ function comOficiais(page, nomes, { imagens = false, cores = false, extras = [] 
     return [n.toLowerCase(), { object: 'card', id: n, name: n, type_line: c.type_line, mana_cost: c.mana_cost || '', oracle_text: c.oracle_text || '', colors: corDe(c), color_identity: [], cmc: 2, keywords: palavrasDoTexto(c.oracle_text), ...(c.power != null ? { power: c.power, toughness: c.toughness } : {}),
       ...(imagens ? { image_uris: Object.fromEntries(['small', 'normal', 'large'].map(t => [t, `https://cards.scryfall.io/${t}/front/x/${encodeURIComponent(n)}.png`])) } : {}) }]; }));
   return page.route('https://api.scryfall.com/cards/collection', async r => {
-    const ids = JSON.parse(r.request().postData()).identifiers; const acha = i => extra[i.name.toLowerCase()] || DB[i.name.toLowerCase()];
+    const ids = JSON.parse(r.request().postData()).identifiers; const acha = i => (i.name && extra[i.name.toLowerCase()]) || achaNoDB(i);
     return r.fulfill({ json: { data: ids.map(acha).filter(Boolean), not_found: ids.filter(i => !acha(i)) } });
   });
 }
@@ -9211,7 +9348,7 @@ test('e2e · G3 valor acumulado: coleção, recorte do filtro e cada etiqueta no
   await page.setViewportSize({ width: 360, height: 780 });
   const PRECO = { 'sol ring': { usd: '2.00', usd_foil: '10.00' }, island: { usd: '0.25' }, counterspell: { usd: '1.50' }, 'delver of secrets': { usd: '0.50' } }; // Preordain fica sem preço
   await page.route('https://api.scryfall.com/cards/collection', r => { const ids = JSON.parse(r.request().postData()).identifiers;
-    return r.fulfill({ json: { data: ids.map(i => DB[i.name.toLowerCase()] && { ...DB[i.name.toLowerCase()], prices: PRECO[i.name.toLowerCase()] || {} }).filter(Boolean), not_found: [] } }); });
+    return r.fulfill({ json: { data: ids.map(i => achaNoDB(i) && { ...achaNoDB(i), prices: PRECO[(achaNoDB(i).name || '').toLowerCase()] || {} }).filter(Boolean), not_found: [] } }); });
   const valor = sel => page.$eval(sel, el => [el.querySelector('.ds-valor__nome').textContent, el.querySelector('.ds-valor__principal').textContent, el.querySelector('.ds-valor__outras').textContent]);
   await page.goto(base + '#/colecao'); await page.waitForSelector('#col-vazio');
   await page.click('#col-import'); await page.waitForSelector('#col-import-text'); await page.fill('#col-import-text', '3 Island\n2 Counterspell\n1 Sol Ring\n4 Preordain');
@@ -9392,7 +9529,7 @@ test('e2e · H1 imagens nítidas: a folha da carta na mesa traz todos os tamanho
     'lunarch veteran': { object: 'card', id: 'vet', name: 'Lunarch Veteran', type_line: vet.type_line, mana_cost: vet.mana_cost || '{W}', oracle_text: vet.oracle_text, colors: ['W'], color_identity: ['W'], cmc: 1, keywords: [], power: vet.power, toughness: vet.toughness,
       card_faces: [{ name: 'Lunarch Veteran', type_line: 'Creature — Human Cleric', mana_cost: '{W}', oracle_text: textoFrente, power: '1', toughness: '1', image_uris: uris('front', 'vet') },
         { name: 'Luminous Phantom', type_line: 'Creature — Spirit Cleric', mana_cost: '', oracle_text: textoVerso || 'Flying', power: '1', toughness: '1', image_uris: uris('back', 'vet') }] } };
-  await page.route('https://api.scryfall.com/cards/collection', r => { const ids = JSON.parse(r.request().postData()).identifiers; return r.fulfill({ json: { not_found: [], data: ids.map(i => CARTAS[i.name.toLowerCase()]).filter(Boolean) } }); });
+  await page.route('https://api.scryfall.com/cards/collection', r => { const ids = JSON.parse(r.request().postData()).identifiers; return r.fulfill({ json: { not_found: [], data: ids.map(i => achaNoDB(i, CARTAS)).filter(Boolean) } }); });
   await createDeck(page, base, 'Veteranos', '20 Plains\n40 Lunarch Veteran\n\nSideboard\n4 Mountain', 'livre');
   await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start:not([disabled])');
   await page.click('[data-serie="3"]'); await page.fill('#mesa-seed', '4'); await page.click('#mesa-start');
@@ -12565,7 +12702,7 @@ test('e2e · G-248 catálogo: o título é o nome da lista, o evento vem embaixo
     const l = LISTAS.find(x => x.id === u.split('/listas/')[1].replace('.json', '')); if (!l) return r.fulfill({ status: 404, body: '' });
     return r.fulfill({ json: { ...l, descricao: '1º lugar entre 29 jogadores no Modern Challenge 16 do Magic Online, em 10/10/2026. Lista de Venom01.', entradas: ENTRADAS }, headers: { 'access-control-allow-origin': '*' } }); });
   await page.route('https://api.scryfall.com/cards/collection', r => { const ids = JSON.parse(r.request().postData()).identifiers;
-    return r.fulfill({ json: { data: ids.map(i => DB[i.name.toLowerCase()]).filter(Boolean).map(c => ({ ...c, prices: { usd: PRECOS[c.name.toLowerCase()] || null } })), not_found: ids.filter(i => !DB[i.name.toLowerCase()]) }, headers: { 'access-control-allow-origin': '*' } }); });
+    return r.fulfill({ json: { data: ids.map(i => achaNoDB(i)).filter(Boolean).map(c => ({ ...c, prices: { usd: PRECOS[c.name.toLowerCase()] || null } })), not_found: ids.filter(i => !achaNoDB(i)) }, headers: { 'access-control-allow-origin': '*' } }); });
   await page.context().route(/api\.frankfurter\.dev/, r => r.fulfill({ json: { base: 'USD', rates: { BRL: 5, EUR: 0.9 } }, headers: { 'access-control-allow-origin': '*' } }));
 
   // 1 · a listagem
@@ -14842,10 +14979,10 @@ const presagioNaEscolha = async t => {
       { object: 'card_face', name: 'Roost Seek', mana_cost: '{G}', type_line: 'Sorcery — Omen', oracle_text: 'Search your library for a basic land card, reveal it, put it into your hand, then shuffle. (Also shuffle this card.)' }] };
   await page.route('https://api.scryfall.com/cards/collection', async r => {
     const ids = JSON.parse(r.request().postData()).identifiers;
-    if (!ids.some(i => i.name.toLowerCase() === 'sagu wildling')) return r.fallback();
-    const resto = ids.filter(i => i.name.toLowerCase() !== 'sagu wildling');
+    if (!ids.some(i => (i.name || '').toLowerCase() === 'sagu wildling')) return r.fallback();
+    const resto = ids.filter(i => (i.name || "").toLowerCase() !== 'sagu wildling');
     const forest = { object: 'card', id: 'Forest', name: 'Forest', type_line: 'Basic Land — Forest', mana_cost: '', oracle_text: '({T}: Add {G}.)', colors: [], color_identity: [], cmc: 0, keywords: [], image_uris: Object.fromEntries(['small', 'normal', 'large'].map(t => [t, `https://cards.scryfall.io/${t}/front/x/Forest.png`])) };
-    return r.fulfill({ json: { data: [sagu, ...resto.filter(i => i.name.toLowerCase() === 'forest').map(() => forest)], not_found: resto.filter(i => i.name.toLowerCase() !== 'forest') } });
+    return r.fulfill({ json: { data: [sagu, ...resto.filter(i => (i.name || "").toLowerCase() === 'forest').map(() => forest)], not_found: resto.filter(i => (i.name || "").toLowerCase() !== 'forest') } });
   });
   await page.setViewportSize({ width: 360, height: 780 });
   await createDeck(page, base, 'Presságio', '20 Forest\n20 Sagu Wildling', 'livre');
@@ -20170,7 +20307,7 @@ test('e2e · DS-K F2.4 · o Painel da Coleção é o cartão de ébano (aberto e
   await page.addInitScript(() => { window.__MTG_TEST = true; });
   await page.setViewportSize({ width: 360, height: 780 });
   await page.route('https://api.scryfall.com/cards/collection', r => { const ids = JSON.parse(r.request().postData()).identifiers;
-    return r.fulfill({ json: { data: ids.map(i => DB[i.name.toLowerCase()]).filter(Boolean), not_found: [] } }); });
+    return r.fulfill({ json: { data: ids.map(i => achaNoDB(i)).filter(Boolean), not_found: [] } }); });
   await page.goto(base + '#/colecao'); await page.waitForSelector('#col-vazio');
   await page.click('#col-import'); await page.waitForSelector('#col-import-text'); await page.fill('#col-import-text', '3 Island\n2 Counterspell\n1 Sol Ring');
   await page.click('#col-import-check'); await page.waitForSelector('#col-import-run'); await page.click('#col-import-run'); await page.waitForSelector('.col-row[data-name="Sol Ring"]');

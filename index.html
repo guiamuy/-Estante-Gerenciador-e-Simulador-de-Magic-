@@ -506,6 +506,26 @@ a { color: var(--accent); }
 .ds-carta-espera { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; overflow: hidden; border-radius: var(--radius-card); }
 .ds-carta-img[data-carregada="true"] + .ds-carta-espera, .ds-card__fallback + .ds-carta-espera, .ds-visor__moldura[data-carregando="false"] .ds-carta-espera { display: none; }
 .ds-card .ds-carta-espera .ds-carregando__arte { width: 48px; height: 36px; }
+/* G-350 · relato #65 · a arte desconhecida: a carta desenhada no traço do DS (sem imagem de edição nenhuma). Ocupa a
+   caixa de quem a usa (a miniatura de 64 px da lista, a da pilha do scanner, a carta da galeria, a moldura do visor). */
+.ds-arte-desc { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1);
+  width: 100%; height: 100%; box-sizing: border-box; overflow: hidden; border-radius: var(--radius-card);
+  background: var(--bg-elev-1); color: var(--fg-subtle); }
+.ds-arte-desc--carta { aspect-ratio: 488 / 680; height: auto; padding: 8% 10% 10%; border: 1px solid var(--border); }
+.ds-arte-desc__figura { display: flex; flex: 1 1 auto; min-height: 0; width: 100%; align-items: center; justify-content: center; }
+.ds-arte-desc__svg { width: auto; height: 100%; max-width: 100%; max-height: 100%; }
+.ds-arte-desc--mini .ds-arte-desc__svg { height: 86%; }
+.ds-arte-desc__svg * { fill: none; stroke: currentColor; stroke-width: 1.750; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.ds-arte-desc__moldura { stroke: var(--border-strong); }
+.ds-arte-desc__janela { stroke-dasharray: 3 3; }
+.ds-arte-desc__sinal { stroke: var(--accent); }
+.ds-arte-desc__ponto { fill: var(--accent); stroke: none; }
+.ds-arte-desc__titulo, .ds-arte-desc__texto { stroke: var(--fg-subtle); opacity: .7; }
+.ds-arte-desc__cabeca { display: flex; flex-direction: column; align-items: center; gap: 2px; max-width: 100%; flex: 0 0 auto; }
+.ds-arte-desc__nome { font-family: var(--font-display); font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--fg); text-align: center; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.ds-arte-desc__custo { display: inline-flex; flex-wrap: wrap; justify-content: center; }
+.ds-arte-desc__rotulo { font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--fg-muted); text-align: center; white-space: normal; overflow-wrap: anywhere; }
+.ds-card .ds-arte-desc--carta, .ds-visor__moldura .ds-arte-desc--carta { border: 0; }
 .tb-sheet__foto { position: relative; width: min(100%, 240px); margin: 0 auto; } /* MJ10 (J-22) · a foto mede a carta: a EsperaDaCarta cobre só ela */
 .ds-visor__moldura { position: relative; width: min(100%, 380px); aspect-ratio: 488 / 680; margin: 0 auto var(--space-4); border-radius: 4.75% / 3.5%; overflow: hidden;
   background: var(--bg-elev-2); box-shadow: var(--shadow-3); }
@@ -3458,6 +3478,9 @@ button.col-dash__bar:active, .col-dash__bar--on { background: var(--accent-soft)
 .col-export__text { min-height: 200px; font-family: var(--font-mono); font-size: var(--text-sm); }
 .col-row__thumb { grid-area: thumb; width: 48px; aspect-ratio: 488 / 680; border-radius: var(--radius-1); overflow: hidden; background: var(--bg-elev-3); border: 1px solid var(--border); padding: 0; color: var(--fg-muted); font-family: var(--font-display); }
 .col-row__thumb img { width: 100%; height: 100%; object-fit: cover; }
+/* G-350 · relato #65 · a espera da capa (a imagem da impressão a caminho) ocupa a caixa da miniatura */
+.col-capa__espera { position: relative; display: block; width: 100%; height: 100%; background: var(--bg-elev-2); border-radius: inherit; }
+.col-row__thumb .ds-arte-desc, .col-pile__card .ds-arte-desc { border-radius: 0; }
 /* U3 · custo em símbolos ao lado do nome, na linha e na visão densa */
 .col-row__titulo { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0; }
 .col-row__titulo > :first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -3563,6 +3586,7 @@ body[data-tela="scanner"] .ds-appbar { display: none; }
 .scan-pile__nome { max-width: 100%; overflow-wrap: anywhere; }
 .scan-pile__card > * { min-width: 0; }
 .scan-pile__card--conferir .scan-pile__mini { grid-row: auto; }
+.scan-pile__mini--desconhecida .ds-arte-desc { border-radius: 0; } /* G-350 · relato #65 · cópia com a edição a definir: a arte desconhecida */
 .scan-pile__card--conferir .scan-pile__conferir { grid-column: 1 / -1; align-items: flex-start; }
 .scan-pile__confirma { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); width: 100%; }
 .scan-pile__alt { width: 100%; justify-content: flex-start; min-width: 0; }
@@ -5035,6 +5059,28 @@ const ARTE_CARREGANDO = '<path class="ds-carregando__labio" d="M9 43.500h46"/><p
 const ArteDeEspera = () => h('span', { class: 'ds-carregando__figura', 'aria-hidden': 'true', html: `<svg class="ds-carregando__arte" viewBox="0 0 64 48" aria-hidden="true" focusable="false">${ARTE_CARREGANDO}</svg>` });
 /** G-282 · relato #28 · a espera desenhada por cima da carta cuja imagem ainda não chegou (galeria, visor). */
 const EsperaDaCarta = () => h('span', { class: 'ds-carta-espera', 'aria-hidden': 'true' }, ArteDeEspera());
+/* G-350 · relato #65 · a arte de uma cópia sem edição definida (ou cuja arte não está no aparelho e não há rede): uma
+   carta desenhada no traço do DS — a moldura, a janela da arte vazia com o ponto de interrogação em latão e as linhas do
+   texto —, nunca a arte de uma edição qualquer. `motivo`: 'sem-edicao' (falta escolher a edição) ou 'sem-imagem' (a
+   edição é conhecida, a imagem não chegou). `tamanho`: 'mini' (miniatura da lista e da pilha: só o desenho) ou 'carta'
+   (galeria e visor: o desenho e uma linha que diz o que fazer). */
+const ARTE_DESCONHECIDA = '<rect class="ds-arte-desc__moldura" x="1.5" y="1.5" width="60" height="85" rx="3.200"/>' +
+  '<rect class="ds-arte-desc__titulo" x="6" y="6.500" width="34" height="3.600" rx="1.800"/>' +
+  '<rect class="ds-arte-desc__janela" x="6" y="13" width="51" height="38" rx="1.600"/>' +
+  '<path class="ds-arte-desc__sinal" d="M27.500 26.500a4 4 0 1 1 5.800 3.600c-1.400.7-1.800 1.500-1.800 2.900v.8"/><circle class="ds-arte-desc__ponto" cx="31.500" cy="38.600" r="1.300"/>' +
+  '<path class="ds-arte-desc__texto" d="M6 59h51M6 65h43M6 71h47"/>';
+const TEXTO_DA_ARTE_DESCONHECIDA = { 'sem-edicao': ['Arte desconhecida: edição a definir', 'Edição a definir'], 'sem-imagem': ['Arte indisponível agora', 'Arte indisponível'] };
+function ArteDesconhecida({ motivo = 'sem-edicao', tamanho = 'mini', id = null, nome = '', custo = '' } = {}) {
+  const [falado, curto] = TEXTO_DA_ARTE_DESCONHECIDA[motivo] || TEXTO_DA_ARTE_DESCONHECIDA['sem-edicao'];
+  const carta = tamanho === 'carta';
+  // na galeria a carta ainda se reconhece: nome e custo em símbolos acima do desenho (U3: carta sem imagem diz quem é)
+  const cabeca = carta && nome ? h('span', { class: 'ds-arte-desc__cabeca' }, h('span', { class: 'ds-arte-desc__nome', lang: 'en' }, nome),
+    custo ? h('span', { class: 'ds-arte-desc__custo' }, ComSimbolos(String(custo).split('//')[0].trim())) : null) : null;
+  return h('span', { class: `ds-arte-desc ds-arte-desc--${carta ? 'carta' : 'mini'}`, id, role: 'img', 'aria-label': (nome ? nome + ' · ' : '') + falado, dataset: { arteDesconhecida: motivo } },
+    cabeca,
+    h('span', { class: 'ds-arte-desc__figura', 'aria-hidden': 'true', html: `<svg class="ds-arte-desc__svg" viewBox="0 0 63 88" aria-hidden="true" focusable="false">${ARTE_DESCONHECIDA}</svg>` }),
+    carta ? h('span', { class: 'ds-arte-desc__rotulo', 'aria-hidden': 'true' }, curto) : null);
+}
 function Carregando(texto = 'Carregando…', { tamanho = 'bloco', id = null } = {}) {
   const arte = ArteDeEspera();
   return h('div', { class: 'ds-carregando', id, role: 'status', 'aria-live': 'polite', dataset: { tamanho: ['tela', 'bloco', 'linha'].includes(tamanho) ? tamanho : 'bloco' } },
@@ -5380,7 +5426,7 @@ const RECEITAS_DE_ANIMACAO = Object.freeze([
   { id: 'vida', nome: 'Vida', evento: 'o marcador de vida muda', dona: 'jogabilidade', plano: 'objeto: odômetro — dezena e unidade rolam separadas, na cor do dono', luz: 'não', curva: '--ease-spring', etapas: 'uma etapa (--dur-4); dano e cura usam o mesmo rolo, só o sentido muda', reduzido: 'o número troca' },
   { id: 'icone', nome: 'Ícone vivo', evento: 'toque em controle com ícone', dona: 'design', plano: 'objeto: só o desenho do ícone se mexe, como o que ele é (o sino balança pelo topo, a lixeira tomba pela base, atualizar gira, a seta anda no sentido dela); o botão, a sombra e o rótulo ficam parados', luz: 'não', curva: '--ease-out (a maioria) · --ease-spring (o que pousa: virar, mais, ampulheta, escudo)', etapas: 'uma etapa (--dur-3 ou --dur-4) no mesmo quadro do toque, sobreposta à ação, que não espera; toque seguido recomeça do zero; nunca em laço', reduzido: 'o ícone fica parado; o botão ainda afunda no toque' }
 ]);
-return { h, seguro, Text, Button, Field, Select, Chip, ManaPips, Tabs, CardFace, EsperaDaCarta, Dialog, closeDialog, toast, fechaToast, usaDestinoDoAviso, reservaDoca, Avatar, clear, mount, Stack, Row, Surface, Input, Textarea, Badge, List, ListItem, ListGroup, Empty, Note, Spinner, CardGrid,
+return { h, seguro, Text, Button, Field, Select, Chip, ManaPips, Tabs, CardFace, EsperaDaCarta, ArteDesconhecida, Dialog, closeDialog, toast, fechaToast, usaDestinoDoAviso, reservaDoca, Avatar, clear, mount, Stack, Row, Surface, Input, Textarea, Badge, List, ListItem, ListGroup, Empty, Note, Spinner, CardGrid,
   analisaSimbolos, SIMBOLO_RX, nomeDoSimbolo, Simbolo, ComSimbolos, simbolizar, srcsetDaCarta, ImagemCarta, ICONES, MOVIMENTOS_DE_ICONE, MOVIMENTO_DO_ICONE, movimentoDoToque, instalaIconesVivos, Icone, IconButton, Atalho, NavBotao, AvisoRede, AnelProgresso, Expansivel, Range, LinhaEstado, confirmaBotao, Dica, rotuloDeCampo, deveAncorar, instalaAncora, levaAte, levaSeEscondido, oQueEsconde, Carregando, Esqueleto, ArteDeEspera, Transicao, BotaoDeAcao, usaRelatar, Bandeira, Chave, RECEITAS_DE_ANIMACAO, Cabecalho };
 })();
 
@@ -5889,6 +5935,13 @@ function renderDS() {
       // N2 · bandeiras do seletor de idioma
       Row({ id: 'ds-bandeiras' }, __m3.Bandeira('br'), __m3.Bandeira('us'), __m3.Bandeira('br', { tamanho: 10 }), __m3.Bandeira('us', { tamanho: 10 }), Text('Bandeira: enfeite de um rótulo que já diz o idioma', { size: 'sm', tone: 'muted' })),
       Row({ id: 'ds-arte-de-espera' }, __m3.ArteDeEspera(), Text('ArteDeEspera: o desenho sozinho, dentro de uma arte que ainda não chegou', { size: 'sm', tone: 'muted' })),
+      // G-350 · relato #65 · a cópia sem edição definida (ou sem a imagem no aparelho) nunca mostra a arte de outra edição
+      Row({ id: 'ds-arte-desconhecida', class: 'ds-row--wrap' },
+        h('div', { class: 'ds-card', style: { width: '96px' } }, __m3.ArteDesconhecida({ tamanho: 'carta' })),
+        h('div', { class: 'ds-card', style: { width: '96px' } }, __m3.ArteDesconhecida({ tamanho: 'carta', motivo: 'sem-imagem' })),
+        h('div', { class: 'ds-card', style: { width: '104px' } }, __m3.ArteDesconhecida({ tamanho: 'carta', nome: 'Prodigal Sorcerer', custo: '{2}{U}' })),
+        h('div', { style: { width: '48px', height: '67px' } }, __m3.ArteDesconhecida()),
+        Text('ArteDesconhecida: cópia com a edição a definir (ou arte que não está no aparelho, sem rede) — na lista, na pilha, na galeria e no visor', { size: 'sm', tone: 'muted' })),
       // G-282 · a carta cuja imagem ainda não chegou: brilho no formato dela e a prateleira por cima
       Row({ id: 'ds-espera-da-carta' }, h('div', { class: 'ds-card', style: { width: '96px' } }, h('img', { class: 'ds-carta-img', alt: '', src: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7' }), __m3.EsperaDaCarta()),
         Text('EsperaDaCarta: por cima da carta (galeria, visor) enquanto a primeira imagem não chega; some com data-carregada', { size: 'sm', tone: 'muted' })),
@@ -6099,6 +6152,20 @@ function createScryfall(opts = {}) {
         if (data.notFound) { missing.push(...batch); continue; }
         (data.data || []).forEach(c => found.push(normalizeCard(c)));
         (data.not_found || []).forEach(x => missing.push(x.id || ''));
+      }
+      return { found, missing };
+    },
+    /** G-350 · impressões por identificador ({id} | {set, collector_number} | {set, name}), em lotes. Devolve as cartas
+        achadas (cada uma na impressão pedida) e os identificadores que a Scryfall não achou. */
+    async porIdentificadores(idents, { prioridade = 'normal' } = {}) {
+      const vistos = new Set(), uniq = (idents || []).filter(x => x && !vistos.has(JSON.stringify(x)) && vistos.add(JSON.stringify(x)));
+      const found = [], missing = [];
+      for (let i = 0; i < uniq.length; i += BATCH_SIZE) {
+        const batch = uniq.slice(i, i + BATCH_SIZE);
+        const data = await schedule(() => request('/cards/collection', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ identifiers: batch }) }), { prioridade });
+        if (data.notFound) { missing.push(...batch); continue; }
+        (data.data || []).forEach(c => found.push(normalizeCard(c)));
+        (data.not_found || []).forEach(x => missing.push(x));
       }
       return { found, missing };
     },
@@ -6374,6 +6441,39 @@ function createCardRepo({ store, scryfall, local = null, ttlMs = 7 * 24 * 3600 *
           out.set(chave, card);
         } catch (e) { stats.degraded = true; out.set(chave, rec ? rec.card : null); }
       }
+      return out;
+    },
+    /** G-350 · relato #65 · as imagens de cada impressão (a arte da edição da cópia). `impressoes`: cópias ou itens com
+        id/set/number/name. Devolve Map(chave da impressão → { images, faces } | null); null = a Scryfall não achou, ou não
+        há rede e ela não está guardada. Guardada uma vez, vale para sempre (a arte de uma impressão não muda) e entra
+        sem rede. Sem edição, a cópia não entra no mapa: quem mostra desenha a arte desconhecida. */
+    async impressoes(impressoes, { onlineOnly = false } = {}) {
+      const out = new Map(), falta = new Map(); // chave → identificador
+      for (const p of impressoes || []) {
+        const chave = __m14.chaveDaImpressao(p); if (!chave || out.has(chave) || falta.has(chave)) continue;
+        const rec = await readCache('impressao:' + chave);
+        if (rec && rec.card) { out.set(chave, rec.card); continue; }
+        if (rec && !rec.card && fresh(rec)) { out.set(chave, null); continue; }
+        const ident = __m14.identDaImpressao(p); if (ident) falta.set(chave, ident); else out.set(chave, null);
+      }
+      if (!falta.size) return out;
+      if (onlineOnly) { for (const k of falta.keys()) out.set(k, null); return out; }
+      try {
+        const r = await scryfall.porIdentificadores([...falta.values()]);
+        const achada = new Map();
+        for (const c of r.found) {
+          const so = { id: c.id, name: c.name, set: c.set, set_name: c.set_name, collector_number: c.collector_number, images: c.images || null,
+            faces: (c.faces || []).map(f => ({ name: f.name, images: f.images || null })) };
+          for (const k of [__m14.chaveDaImpressao({ id: c.id }), __m14.chaveDaImpressao({ set: c.set, number: c.collector_number }), __m14.chaveDaImpressao({ set: c.set, name: c.name })]) if (k) achada.set(k, so);
+          for (const f of c.faces || []) { const k = __m14.chaveDaImpressao({ set: c.set, name: f.name }); if (k && !achada.has(k)) achada.set(k, so); }
+        }
+        for (const [chave] of falta) {
+          const card = achada.get(chave) || null;
+          const novo = { ts: now(), card, pin: !!card };
+          mem.set('impressao:' + chave, novo); await store.set(KEY('impressao:' + chave), novo);
+          out.set(chave, card);
+        }
+      } catch (e) { stats.degraded = true; for (const k of falta.keys()) out.set(k, null); } // sem rede: a próxima abertura tenta de novo
       return out;
     },
     /** Quantos destes nomes já estão guardados para jogar sem rede. */
@@ -6991,7 +7091,7 @@ const __m12 = (function () {
    problema dele.
    ===================================================================== */
 const { normalizeCard } = __m6;
-const { h, mount, clear, Stack, Row, Surface, Text, Button, Field, Input, Select, Badge, Chip, ManaPips, CardFace, CardGrid, Empty, Note, Spinner, Dialog, closeDialog, toast, Simbolo, Icone, IconButton, AvisoRede, ImagemCarta, EsperaDaCarta, ComSimbolos } = __m3;
+const { h, mount, clear, Stack, Row, Surface, Text, Button, Field, Input, Select, Badge, Chip, ManaPips, CardFace, CardGrid, Empty, Note, Spinner, Dialog, closeDialog, toast, Simbolo, Icone, IconButton, AvisoRede, ImagemCarta, EsperaDaCarta, ArteDesconhecida, ComSimbolos } = __m3;
 const COLORS = [['W', 'Branco'], ['U', 'Azul'], ['B', 'Preto'], ['R', 'Vermelho'], ['G', 'Verde']];
 const TYPES = [['', 'Qualquer tipo'], ['creature', 'Criatura'], ['instant', 'Instantânea'], ['sorcery', 'Feitiço'],
   ['artifact', 'Artefato'], ['enchantment', 'Encantamento'], ['land', 'Terreno'], ['planeswalker', 'Planeswalker']];
@@ -7243,7 +7343,7 @@ function secaoRulings(card) {
 }
 
 /* ---------------- D5 · visualizador ---------------- */
-function openCardViewer(card, extra = [], { quantidade = null } = {}) {
+function openCardViewer(card, extra = [], { quantidade = null, arteDesconhecida = null } = {}) { // G-350 · 'sem-edicao' | 'sem-imagem': a moldura mostra a arte desconhecida
   let face = 0;
   const hasFaces = (card.faces || []).length > 1;
   const body = h('div', { id: 'card-viewer' });
@@ -7290,8 +7390,9 @@ function openCardViewer(card, extra = [], { quantidade = null } = {}) {
     // leva 102 · a carta grande: moldura com a proporção da carta (nada pula ao carregar), brilho enquanto carrega,
     // o tamanho nítido para a tela (large/png num celular 3×) e, sem rede, cai para a imagem guardada
     const moldura = h('div', { class: 'ds-visor__moldura', dataset: { carregando: 'true' } });
-    const foto = img ? ImagemCarta(imgs, { alt: name, sizes: 'min(86vw, 380px)', lazy: false, classe: 'ds-visor__img', onFalha: el => { moldura.dataset.carregando = 'false'; el.replaceWith(semImagem()); } }) : null;
-    if (foto) { foto.addEventListener('load', () => { moldura.dataset.carregando = 'false'; }); moldura.append(foto, EsperaDaCarta()); } else { moldura.dataset.carregando = 'false'; moldura.appendChild(semImagem()); } // G-282 · a prateleira por cima enquanto carrega
+    const foto = img && !arteDesconhecida ? ImagemCarta(imgs, { alt: name, sizes: 'min(86vw, 380px)', lazy: false, classe: 'ds-visor__img', onFalha: el => { moldura.dataset.carregando = 'false'; el.replaceWith(semImagem()); } }) : null;
+    if (arteDesconhecida) { moldura.dataset.carregando = 'false'; moldura.appendChild(ArteDesconhecida({ motivo: arteDesconhecida, tamanho: 'carta', id: 'card-viewer-arte-desconhecida' })); }
+    else if (foto) { foto.addEventListener('load', () => { moldura.dataset.carregando = 'false'; }); moldura.append(foto, EsperaDaCarta()); } else { moldura.dataset.carregando = 'false'; moldura.appendChild(semImagem()); } // G-282 · a prateleira por cima enquanto carrega
     mount(body,
       moldura,
       h('div', { class: 'ds-visor__texto' },
@@ -14119,6 +14220,35 @@ function cartaNaImpressao(card, impressao) {
     images: { ...(card.images || {}), ...Object.fromEntries(Object.entries(impressao.images).filter(([, v]) => v)) },
     faces: (card.faces || []).map((f, i) => { const im = impressao.faces && impressao.faces[i] && impressao.faces[i].images; return im && im.normal ? { ...f, images: im } : f; }) };
 }
+/* G-350 · relato #65 · a arte é a da impressão da cópia. Uma impressão se reconhece pelo id da Scryfall; sem ele, pela
+   coleção e pelo número; sem número, pela coleção e pelo nome (a Scryfall aceita os três como identificador). Sem
+   coleção não há impressão: a cópia está com a edição a definir e não leva arte nenhuma (nunca a de uma edição qualquer). */
+/** A chave de cache da impressão de uma cópia (ou de um item da pilha do scanner), ou '' sem edição. Pura. */
+function chaveDaImpressao(p) {
+  if (!p) return '';
+  if (p.id) return 'id:' + String(p.id).toLowerCase();
+  const set = String(p.set || '').toLowerCase(); if (!set) return '';
+  const num = String(p.number || p.collector_number || '');
+  return num ? `${set}|${num}` : `${set}|nome:${norm(p.name)}`;
+}
+/** O identificador que a Scryfall aceita em /cards/collection para essa impressão, ou null sem edição. Pura. */
+function identDaImpressao(p) {
+  if (!p) return null;
+  if (p.id) return { id: String(p.id) };
+  const set = String(p.set || '').toLowerCase(); if (!set) return null;
+  const num = String(p.number || p.collector_number || '');
+  return num ? { set, collector_number: num } : (p.name ? { set, name: String(p.name) } : null);
+}
+/** A cópia que dá a arte de um nome na Coleção: entre as que têm edição, a de mais cópias; empate, a mais recente.
+    Nenhuma com edição: null (o nome mostra a arte desconhecida). Pura. */
+function copiaDaCapa(items) {
+  let melhor = null;
+  for (const it of items || []) {
+    if (!it || !chaveDaImpressao(it)) continue;
+    if (!melhor || (it.qty || 0) > (melhor.qty || 0) || ((it.qty || 0) === (melhor.qty || 0) && (it.added || 0) > (melhor.added || 0))) melhor = it;
+  }
+  return melhor;
+}
 /** As impressões escolhidas numa lista, uma por id (o guardião offline baixa as imagens delas). */
 function impressoesDaLista(deck) {
   const vistas = new Map();
@@ -14208,7 +14338,7 @@ function coresDaLista(entries, cards) {
   return [...ORD].filter(x => cor.has(x)).join('');
 }
 
-return { impressaoDe, opcoesDeImpressao, rotuloDaImpressao, comImpressao, herdaImpressoes, cartaNaImpressao, impressoesDaLista, IMPRESSOES_MAX, coresQueGera, estatisticasDaLista, ajustaEntrada, sugereNomes, VERSOES_MAX, fotoDaLista, versoesDa, salvaVersao, rotuloDaVersao, diffListas, parseDeckText, createDeckStore, createCollection, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS, ZONES, COMPANIONS, isCompanionCard, coresDaLista,
+return { impressaoDe, opcoesDeImpressao, rotuloDaImpressao, comImpressao, herdaImpressoes, cartaNaImpressao, impressoesDaLista, chaveDaImpressao, identDaImpressao, copiaDaCapa, IMPRESSOES_MAX, coresQueGera, estatisticasDaLista, ajustaEntrada, sugereNomes, VERSOES_MAX, fotoDaLista, versoesDa, salvaVersao, rotuloDaVersao, diffListas, parseDeckText, createDeckStore, createCollection, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS, ZONES, COMPANIONS, isCompanionCard, coresDaLista,
   parseCSV, parseCollectionCSV, exportCollectionCSV, exportCollectionText, EXPORT_FORMATS, parseCollectionText, planCollectionImport, itemKey, CONDITIONS, LANGS, FINISHES };
 })();
 
@@ -19294,9 +19424,9 @@ const __m15 = (function () {
    /listas/editar   criar ou editar colando o texto
    /lista?id=…      galeria, coleção, validação e exportação
    ===================================================================== */
-const { h, mount, clear, Stack, Row, Surface, Text, Button, Field, Input, Textarea, Select, Badge, Chip, ManaPips, CardFace, Empty, Note, Spinner, Dialog, closeDialog, toast, Simbolo, ComSimbolos, Icone, IconButton, AvisoRede, ImagemCarta, Avatar, Expansivel, LinhaEstado, confirmaBotao, ListItem, Transicao } = __m3;
+const { h, mount, clear, Stack, Row, Surface, Text, Button, Field, Input, Textarea, Select, Badge, Chip, ManaPips, CardFace, Empty, Note, Spinner, Dialog, closeDialog, toast, Simbolo, ComSimbolos, Icone, IconButton, AvisoRede, ImagemCarta, ArteDesconhecida, EsperaDaCarta, Avatar, Expansivel, LinhaEstado, confirmaBotao, ListItem, Transicao } = __m3;
 const { norm } = __m7;
-const { opcoesDeImpressao, rotuloDaImpressao, comImpressao, herdaImpressoes, cartaNaImpressao, impressoesDaLista, IMPRESSOES_MAX, estatisticasDaLista, ajustaEntrada, sugereNomes, VERSOES_MAX, versoesDa, salvaVersao, rotuloDaVersao, diffListas, parseDeckText, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS, isCompanionCard, coresDaLista } = __m14;
+const { opcoesDeImpressao, rotuloDaImpressao, comImpressao, herdaImpressoes, cartaNaImpressao, impressoesDaLista, chaveDaImpressao, copiaDaCapa, IMPRESSOES_MAX, estatisticasDaLista, ajustaEntrada, sugereNomes, VERSOES_MAX, versoesDa, salvaVersao, rotuloDaVersao, diffListas, parseDeckText, categoryOf, CATEGORIES, deckStats, validateDeck, exportText, FORMATS, isCompanionCard, coresDaLista } = __m14;
 const { coverage, deckCoverage, COVERAGE_PT, COVERAGE_MARK, COVERAGE_ICONE } = __m23;
 const { openCardViewer } = __m12;
 const { onTaps, pulse } = __m20;
@@ -21311,7 +21441,7 @@ function abrirPainelFiltros({ filtro, grupos, onChange, onLimpar, semImpressoes 
 function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, persistence, share, names, etiquetas = null }) {
   const { parseCollectionCSV, exportCollectionCSV, exportCollectionText, EXPORT_FORMATS, parseCollectionText, planCollectionImport, CONDITIONS, LANGS, FINISHES } = __m14;
   const FL = __m27;
-  const state = { filter: '', sort: 'name', items: [], cards: new Map(), usedIn: new Map(), loading: true,
+  const state = { filter: '', sort: 'name', items: [], cards: new Map(), usedIn: new Map(), loading: true, impressoes: new Map(), // G-350 · chave da impressão → imagens | null
     // C12 · filtro vivo e o último recorte calculado (para exportar o recorte)
     filtro: FL.novoFiltro(), recorte: null,
     // C13 · visão (lista/galeria/densa/pilhas), agrupamento e ordenação lembrados; pilha aberta; quantas linhas já desenhadas
@@ -21352,7 +21482,26 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     : 'sem edição definida';
   const printsSummary = g => g.items.map(it => `${it.set ? printLabel(it) : 'genérica'} ×${it.qty}`).join('  ·  ');
 
-  async function refresh() { state.items = await collection.entries(); state.pending = await collection.pending(); paint(); }
+  async function refresh() { state.items = await collection.entries(); state.pending = await collection.pending(); paint(); carregaCapas(); }
+  /* G-350 · relato #65 · a arte de cada nome é a da impressão da cópia que dá a capa (copiaDaCapa); as imagens vêm do
+     repositório (guardadas: na hora; faltando: um pedido em lotes à Scryfall) e a tela repinta quando chegam. Uma
+     passada por vez; pedido no meio roda de novo no fim. */
+  let capasEmCurso = null, capasDeNovo = false;
+  function carregaCapas() {
+    if (!cardRepo || !cardRepo.impressoes) return Promise.resolve();
+    if (capasEmCurso) { capasDeNovo = true; return capasEmCurso; }
+    capasEmCurso = (async () => {
+      do {
+        capasDeNovo = false;
+        const capas = state.items.map(g => copiaDaCapa(g.items)).filter(Boolean).filter(it => !state.impressoes.has(chaveDaImpressao(it)));
+        if (!capas.length) break;
+        let m; try { m = await cardRepo.impressoes(capas); } catch (e) { m = new Map(); }
+        for (const it of capas) { const k = chaveDaImpressao(it); state.impressoes.set(k, m.has(k) ? m.get(k) : null); }
+        paint();
+      } while (capasDeNovo);
+    })().finally(() => { capasEmCurso = null; });
+    return capasEmCurso;
+  }
 
   async function load() {
     state.items = await collection.entries();
@@ -21373,6 +21522,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     // G3 · a cotação chega depois (a guardada é imediata); só o painel é repintado
     __m31.padrao.taxas().then(t => { state.taxas = t || null; }).catch(() => { state.taxas = null; }).then(() => { if (state.recorte && state.items.length) paintDashboard(state.recorte); });
     if (state.items.length) {
+      carregaCapas();
       try { state.cards = await cardRepo.byNames(state.items.map(i => i.name)); } catch (e) { /* sem rede: segue só com nomes */ }
       paint();
     }
@@ -21831,13 +21981,35 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
   // Q10 · a miniatura é a que o guardião guarda para a coleção: sem rede, galeria e pilhas mostram a carta
   // leva 102 · todos os tamanhos da carta: o navegador escolhe o nítido para a tela (antes: a "small", borrada no celular)
   const imagensDe = c => c && (c.images || (c.faces && c.faces[0] && c.faces[0].images)) || null;
-  const thumb = g => imagensDe(cardOf(g));
+  /* G-350 · relato #65 · a capa de um nome: { motivo } sem arte (a arte desconhecida), { carregando } enquanto a imagem
+     da impressão não chegou, ou { imagens, impressao } — a arte da edição da cópia, nunca a de outra. */
+  function capaDe(g) {
+    const it = copiaDaCapa(g.items || []);
+    if (!it) return { motivo: 'sem-edicao' };
+    const k = chaveDaImpressao(it);
+    if (!state.impressoes.has(k)) return { carregando: true };
+    const imp = state.impressoes.get(k);
+    const ims = imp && (imp.images || (imp.faces && imp.faces[0] && imp.faces[0].images));
+    return ims ? { imagens: ims, impressao: imp } : { motivo: 'sem-imagem' };
+  }
+  const thumb = g => capaDe(g).imagens || null;
+  /** A arte da capa no tamanho de quem usa: a imagem da impressão, a espera, ou a arte desconhecida. */
+  function arteDaCapa(g, { sizes = '64px', tamanho = 'mini', nome = '', custo = '' } = {}) {
+    const capa = capaDe(g);
+    if (capa.carregando) return h('span', { class: 'col-capa__espera', 'aria-hidden': 'true' }, EsperaDaCarta());
+    if (!capa.imagens) return ArteDesconhecida({ motivo: capa.motivo, tamanho, nome, custo });
+    return ImagemCarta(capa.imagens, { sizes, alt: tamanho === 'carta' ? g.name : '', onFalha: el => el.replaceWith(ArteDesconhecida({ motivo: 'sem-imagem', tamanho, nome, custo })) });
+  }
   /** leva 102 · a carta grande, nítida, com o texto embaixo; X no topo; atalho para impressões e quantidade. */
-  function verCarta(g) {
+  async function verCarta(g) {
     const c = cardOf(g);
     if (!c) return openPrintings(g);
-    openCardViewer(c, [Button('Impressões', { icone: 'camadas', id: 'col-viewer-prints', onClick: () => { closeDialog(); openPrintings(g); } }),
-      etiquetas ? Button('Etiquetas', { icone: 'etiqueta', id: 'col-viewer-etq', onClick: () => { closeDialog(); abreEtiquetas([g.key], g.name); } }) : null].filter(Boolean), { quantidade: g.qty });
+    let capa = capaDe(g);
+    if (capa.carregando) { await carregaCapas(); capa = capaDe(g); }
+    // G-350 · relato #65 · a carta grande na arte da edição da cópia; sem edição (ou sem a imagem, sem rede), a arte desconhecida
+    const naImpressao = capa.impressao ? cartaNaImpressao(c, capa.impressao) : c;
+    openCardViewer(naImpressao, [Button('Impressões', { icone: 'camadas', id: 'col-viewer-prints', onClick: () => { closeDialog(); openPrintings(g); } }),
+      etiquetas ? Button('Etiquetas', { icone: 'etiqueta', id: 'col-viewer-etq', onClick: () => { closeDialog(); abreEtiquetas([g.key], g.name); } }) : null].filter(Boolean), { quantidade: g.qty, arteDesconhecida: capa.imagens ? null : capa.motivo });
   }
   /* ---- G2 · etiquetas: chips de filtro acima da lista, folha para criar e aplicar ---- */
   function abreEtiquetas(chaves = [], titulo = '') {
@@ -21859,7 +22031,10 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
   function cartao(g) {
     const cg = cardOf(g);
     // leva 102 · um toque abre a carta grande com o texto; as impressões ficam num botão dentro dela
-    const face = CardFace({ name: g.name, imagens: thumb(g), mana_cost: cg && cg.mana_cost, type_line: cg && cg.type_line }, { onClick: () => verCarta(g), dataset: { name: g.name } });
+    // G-350 · relato #65 · a arte é a da edição da cópia; sem edição, a arte desconhecida (no lugar da arte de outra edição)
+    const capa = capaDe(g);
+    const face = capa.imagens ? CardFace({ name: g.name, imagens: capa.imagens, mana_cost: cg && cg.mana_cost, type_line: cg && cg.type_line }, { onClick: () => verCarta(g), dataset: { name: g.name } })
+      : h('button', { class: 'ds-card', type: 'button', 'aria-label': g.name, dataset: { name: g.name }, onClick: () => verCarta(g) }, arteDaCapa(g, { tamanho: 'carta', nome: g.name, custo: cg && cg.mana_cost }));
     return h('div', { class: 'deck-slot col-card', dataset: { name: g.name, ...(state.selecting ? { sel: String(state.selected.has(g.key)) } : {}) } }, face, // G-347
       h('span', { class: 'deck-slot__qty' }, '×' + (g.qtyRecorte ?? g.qty)));
   }
@@ -21875,7 +22050,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
   function pilha(g) {
     const topo = g.itens.slice(0, 5);
     return h('button', { class: 'col-pile', type: 'button', dataset: { pile: g.chave }, 'aria-label': `Abrir ${g.rotulo}: ${g.itens.length} carta(s)`, onClick: () => { state.pilhaAberta = g.chave; state.limite = 120; paint(); } },
-      h('div', { class: 'col-pile__stack' }, ...topo.map((x, i) => { const ims = thumb(x); const falha = () => h('span', { class: 'ds-card__fallback' }, x.name); return h('div', { class: 'col-pile__card', style: { '--i': String(i) } }, (ims && ImagemCarta(ims, { sizes: '56px', onFalha: el => el.replaceWith(falha()) })) || falha()); })),
+      h('div', { class: 'col-pile__stack' }, ...topo.map((x, i) => { const ims = thumb(x); const falha = () => h('span', { class: 'ds-card__fallback' }, x.name); if (!ims) return h('div', { class: 'col-pile__card', style: { '--i': String(i) } }, arteDaCapa(x, { sizes: '56px' })); /* G-350 · sem a arte da edição: a desconhecida (ou a espera) */ return h('div', { class: 'col-pile__card', style: { '--i': String(i) } }, (ims && ImagemCarta(ims, { sizes: '56px', onFalha: el => el.replaceWith(falha()) })) || falha()); })),
       h('div', { class: 'col-pile__label' }, Text(g.rotulo, { size: 'md' }), Text(`${g.itens.length} carta(s) · ${g.copias} cópia(s)`, { size: 'xs', tone: 'muted' })));
   }
 
@@ -22026,14 +22201,13 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
   /* ---- linhas ---- */
   function row(g) {
     const c = state.cards.get(g.key) || state.cards.get(norm(g.name));
-    const ims = imagensDe(c);
     const used = state.usedIn.get(g.key) || [];
     const printed = g.items.some(i => i.set);
     const checked = state.selected.has(g.key);
     return h('div', { class: ['col-row', state.selecting ? 'col-row--select' : '', checked ? 'col-row--checked' : ''].filter(Boolean).join(' '), dataset: { name: g.name } },
       state.selecting ? h('button', { class: 'col-row__check', type: 'button', role: 'checkbox', 'aria-checked': String(checked), 'aria-label': `${checked ? 'Tirar' : 'Pôr'} ${g.name} na seleção`, onClick: () => toggleSelected(g) }, checked ? '✓' : '') : null,
       h('button', { class: 'col-row__thumb', type: 'button', 'aria-label': `Ver ${g.name}`, onClick: () => verCarta(g) },
-        (ims && ImagemCarta(ims, { sizes: '64px', onFalha: el => el.replaceWith(h('span', {}, g.name.slice(0, 1))) })) /* 64 e não 48: numa tela 3× pede a "normal", a que o guardião guarda para a coleção */ || h('span', {}, g.name.slice(0, 1))),
+        arteDaCapa(g, { sizes: '64px' }) /* 64 e não 48: numa tela 3× pede a "normal", a que o guardião guarda para a coleção · G-350: a da edição da cópia */),
       h('button', { class: 'col-row__info', type: 'button', 'aria-label': `Impressões de ${g.name}`, onClick: () => openPrintings(g) },
         h('span', { class: 'col-row__titulo' }, Text(g.name, { size: 'md' }), c && c.mana_cost ? h('span', { class: 'col-row__custo' }, ComSimbolos(String(c.mana_cost).split('//')[0].trim())) : null, __m32.Pontos(__m32.de(state.etq, 'cartas', g.key))), // U3 · G2: pontos das etiquetas
         Text(printed ? printsSummary(g) : ([c && c.type_line, used.length ? `em ${used.join(', ')}` : null].filter(Boolean).join(' · ') || 'toque para definir a edição'), { size: 'xs', tone: 'muted' })),
@@ -45058,9 +45232,11 @@ function createLot({ store }) {
     },
     /** Leva 109 · edição e miniatura chegam depois do aceite, em segundo plano: atualiza o item sem mexer
      * em quantidade, confiança nem marca de conferência; com edição, a chave muda (e funde com igual). */
-    async enrich(key, { printing = null, img = '' } = {}) {
+    async enrich(key, { printing = null, img = '', imgDe = null } = {}) {
       await load(); const cur = find(key); if (!cur) return null;
       if (img) cur.img = img;
+      // G-350 · relato #65 · de que impressão é a miniatura: a pilha refaz a que não bate com a edição atual
+      if (imgDe != null) { cur.imgDe = imgDe; if (!img) delete cur.img; }
       if (!(printing && printing.set)) { await persist(); return key; }
       const nova = lotKey(cur.name, printing);
       const ed = { set: printing.set, number: printing.number || '', set_name: printing.set_name || '', id: printing.id || '', verified: !!printing.verified };
@@ -45074,15 +45250,19 @@ function createLot({ store }) {
     /** S-607 · relato #60 fatia 4 + #64 parte 1: a edição e o acabamento escolhidos na pilha. Escolher uma impressão do
      * nome também confere o nome (passou pela mão da pessoa). Igual a outra cópia da pilha: as duas se juntam. Devolve
      * { key, desfaz }: `desfaz` põe a cópia de volta como estava (separando de novo, se juntou). */
-    async escolhe(key, printing = null, finish = '') {
+    async escolhe(key, printing = null, finish = '', img = '') {
       await load(); const cur = find(key); if (!cur || !(printing && printing.set)) return null;
       const antes = { ...cur }, pos = items.indexOf(cur);
       const fin = ACABAMENTO_NA_COLECAO[finish] || '';
       const ed = { set: String(printing.set).toLowerCase(), number: String(printing.number || ''), set_name: printing.set_name || '', id: printing.id || '', verified: true };
       const nova = lotKey(cur.name, { ...ed, finish: fin });
       const dup = nova !== key ? find(nova) : null;
+      // G-350 · relato #65 · a miniatura passa a ser a da impressão escolhida (antes ficava a da leitura, de outra edição)
+      const imgDe = __m14.chaveDaImpressao(ed);
       if (dup) { dup.qty += cur.qty; if (cur.img && !dup.img) dup.img = cur.img; delete dup.conferir; delete dup.alternativas; items.splice(pos, 1); }
-      else { Object.assign(cur, ed, { key: nova }); if (fin) cur.finish = fin; else delete cur.finish; delete cur.conferir; delete cur.alternativas; }
+      // G-350 · na fusão, a miniatura que fica é a da impressão escolhida: a nova, se veio; senão sai a que não é dela
+      if (dup) { if (img) { dup.img = img; dup.imgDe = imgDe; } else if (dup.imgDe !== imgDe) { delete dup.img; dup.imgDe = ''; } }
+      else { Object.assign(cur, ed, { key: nova }); if (img) cur.img = img; else delete cur.img; cur.imgDe = img ? imgDe : ''; if (fin) cur.finish = fin; else delete cur.finish; delete cur.conferir; delete cur.alternativas; }
       if (!dup) history = history.map(k => k === key ? nova : k);
       await persist();
       let feito = false;
@@ -45207,6 +45387,18 @@ function acabamentosDa(p) {
   const pr = (p && p.prices) || {};
   const out = ACABAMENTOS.filter(x => (x === 'nonfoil' ? pr.usd || pr.eur : x === 'foil' ? pr.usd_foil || pr.eur_foil : pr.usd_etched));
   return out.length ? out : ['nonfoil'];
+}
+/** G-350 · relato #65 · a miniatura da pilha é a da impressão da cópia: casa pelo id, senão pela coleção e pelo número.
+    Sem edição, ou impressão que não está na lista, devolve '' (a pilha mostra a arte desconhecida) — nunca a primeira
+    impressão da busca, que é a arte de uma edição qualquer. Pura. */
+function imagemDaImpressao(prints, printing) {
+  if (!printing || !printing.set) return '';
+  const lista = (prints || []).filter(Boolean);
+  const id = String(printing.id || '').toLowerCase(), set = String(printing.set).toLowerCase(), num = String(printing.number || printing.collector_number || '');
+  const p = (id && lista.find(x => String(x.id || '').toLowerCase() === id))
+    || (num && lista.find(x => String(x.set || '').toLowerCase() === set && String(x.collector_number || x.number || '') === num)) || null;
+  const im = p && (p.images || (p.faces && p.faces[0] && p.faces[0].images));
+  return (im && (im.normal || im.small)) || '';
 }
 /** Só o símbolo servido pela Scryfall (svgs.scryfall.io, arquivo .svg) vira imagem: o endereço entra no CSS da folha. */
 const iconeDoSet = u => (/^https:\/\/svgs\.scryfall\.io\/[a-z0-9_\/-]+\.svg(\?\d+)?$/i.test(String(u || '')) ? String(u) : '');
@@ -46159,7 +46351,7 @@ const LIMIARES_LINHA = { borrada: 0.5, deslocamentoMax: 0.05, correndo: 0.12, al
     mas a carta não conta como parada (nada entra na primeira passada; o porteiro pede repetição). */
 function pulaPorMovimento(mov, { via = 'auto', contorno = true } = {}) { return via !== 'manual' && contorno && mov > LIMIARES_LINHA.correndo; }
 
-return { cleanOcr, matchName, matchLines, criaVotacao, criaPorteiro, PORTEIRO, leituraConfiavel, nitidezDaFaixa, movimentoEntre, LIMIARES_FAIXA, criaDiario, criaCronometro, criaRefoco, EXATA, buildIndex, candidatosDoIndice, createNameIndex, IDIOMAS_DOS_NOMES, LINGUAS_DO_LEITOR, linguaDoLeitor, temCjk, chaveCjk, indiceCjk, matchCjk, createLot, coverRegion, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, resolveEdicao, artistaNoTexto, acabamentosDa, edicoesDaCarta, arteDaImpressao, filtraEdicoes, iconeDoSet, ACABAMENTO_NA_COLECAO, NOME_DO_ACABAMENTO, ACCEPT, ALTA, SUGGEST, lev,
+return { imagemDaImpressao, cleanOcr, matchName, matchLines, criaVotacao, criaPorteiro, PORTEIRO, leituraConfiavel, nitidezDaFaixa, movimentoEntre, LIMIARES_FAIXA, criaDiario, criaCronometro, criaRefoco, EXATA, buildIndex, candidatosDoIndice, createNameIndex, IDIOMAS_DOS_NOMES, LINGUAS_DO_LEITOR, linguaDoLeitor, temCjk, chaveCjk, indiceCjk, matchCjk, createLot, coverRegion, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, resolveEdicao, artistaNoTexto, acabamentosDa, edicoesDaCarta, arteDaImpressao, filtraEdicoes, iconeDoSet, ACABAMENTO_NA_COLECAO, NOME_DO_ACABAMENTO, ACCEPT, ALTA, SUGGEST, lev,
   detectaCarta, detectaEmEscalas, ESCALAS_DETECTOR, brilho, nitidez, prontoParaLer, criaDetector, paradaEm, screenRect, LIMIARES, PROPORCAO_CARTA, realcaTexto, trechoEscuroEmbaixo, limpaBordas, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, faixaDaCarta, escalaOcr,
   retasDoQuadro, achaQuadrilatero, ordenaCantos, homografia, cantosDaFaixa, cantosDeitada, cartaDeitada, cantosDaImagemDaArte, retifica, FAIXA_NOME, FAIXA_COLECAO, LARGURA_NOME, linhaDoNome, binarizaLinha, limpaLinha, nitidezDaLinha, afiaLinha, FAIXA_ARTE, BITS_ARTE, impressaoDaArte, distanciaDaArte, buscaArte, abreBaseDeArtes, binDasArtes, criaBaseDeArtes, decideArte, arteDaEdicao, LIMIAR_ARTE, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, alturaDaCarta, deslocamento, LIMIARES_LINHA, pulaPorMovimento, QUAD };
 })();
@@ -46173,8 +46365,8 @@ const __m22 = (function () {
    Câmera pela camada F2; OCR no aparelho (Tesseract, carregado só quando
    o scanner abre); correspondência contra a base de nomes (C6).
    ===================================================================== */
-const { h, mount, Stack, Row, Surface, Text, Button, Field, Input, Select, Badge, Chip, Empty, Note, Spinner, Dialog, closeDialog, toast, reservaDoca, Simbolo, Icone, IconButton, AvisoRede } = __m3;
-const { createLot, coverRegion, screenRect, parseCollectorLine, resolvePrinting, resolveEdicao, edicoesDaCarta, filtraEdicoes, ACABAMENTO_NA_COLECAO, NOME_DO_ACABAMENTO, ACCEPT, EXATA, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, criaPorteiro, PORTEIRO, leituraConfiavel, criaDiario, criaCronometro, criaRefoco, realcaTexto,
+const { h, mount, Stack, Row, Surface, Text, Button, Field, Input, Select, Badge, Chip, Empty, Note, Spinner, Dialog, closeDialog, toast, reservaDoca, Simbolo, Icone, IconButton, AvisoRede, ArteDesconhecida } = __m3;
+const { imagemDaImpressao, createLot, coverRegion, screenRect, parseCollectorLine, resolvePrinting, resolveEdicao, edicoesDaCarta, filtraEdicoes, ACABAMENTO_NA_COLECAO, NOME_DO_ACABAMENTO, ACCEPT, EXATA, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, criaPorteiro, PORTEIRO, leituraConfiavel, criaDiario, criaCronometro, criaRefoco, realcaTexto,
   achaQuadrilatero, cantosDeitada, cartaDeitada, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, FAIXA_NOME, FAIXA_COLECAO, alturaDaCarta, deslocamento, LIMIARES_LINHA, pulaPorMovimento, brilho,
   FAIXA_ARTE, impressaoDaArte, criaBaseDeArtes, decideArte, arteDaEdicao, LIMIAR_ARTE, LINGUAS_DO_LEITOR, linguaDoLeitor } = __m21;
 const { pulse } = __m20;
@@ -46405,14 +46597,10 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
 
   /* ---- edição e miniatura (depois do aceite, em segundo plano) ---- */
   async function miniatura(name, printing) {
-    try {
-      const list = await prints(name);
-      if (!list.length) return '';
-      const p2 = (printing && printing.id && list.find(x => x.id === printing.id))
-        || (printing && printing.set && list.find(x => (x.set || '').toLowerCase() === String(printing.set).toLowerCase())) || list[0];
-      // Leva 112 · a pilha mostra a carta nítida, como o resto do app (normal, não small)
-      return (p2 && p2.images && (p2.images.normal || p2.images.small)) || '';
-    } catch (e) { return ''; }
+    // G-350 · relato #65 · sem edição não há miniatura (a pilha desenha a arte desconhecida): antes vinha a primeira
+    // impressão da busca, a arte de uma edição qualquer. Leva 112 · a nítida (normal, não small).
+    if (!printing || !printing.set) return '';
+    try { return imagemDaImpressao(await prints(name), printing); } catch (e) { return ''; }
   }
   async function prints(name) {
     if (!online()) return [];
@@ -46645,7 +46833,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
         const ed = await identify(name, leitura.cantos, leitura.caminho === 'carta' || leitura.caminho === 'deitada', leitura.arte, leitura.arteEd,
           { deitada: leitura.caminho === 'deitada' && cartaDeitada(leitura.cantos, video.videoWidth || 1, video.videoHeight || 1) });
         const img = await miniatura(name, ed.exact);
-        const nova = await lot.enrich(key, { printing: ed.exact, img });
+        const nova = await lot.enrich(key, { printing: ed.exact, img, imgDe: img ? __m14.chaveDaImpressao(ed.exact) : '' });
         if (state.last && state.last.key === key) state.last = { ...state.last, key: nova || key, printing: ed.exact, candidates: ed.candidates || [], pendente: false };
         if (state.alive) { paintResult(); paintDock(); if (state.pilhaAberta && pilhaBox && pilhaBox.isConnected) paintPile(pilhaBox); }
       } catch (e) { if (state.last && state.last.key === key) { state.last.pendente = false; paintResult(); } }
@@ -46861,15 +47049,35 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     const depois = () => { paintPile(box); paintDock(); };
     // S-613 · relato #65: a miniatura que não carrega vira a inicial (a imagem quebrada encolhia e mexia na altura do cartão)
     // (a caixa tem a medida da carta e a inicial embaixo; a imagem cobre a caixa e some se não carregar)
-    const miniatura = x => {
+    // G-350 · relato #65 · sem edição: a arte desconhecida, nunca a de outra edição; com edição, a da impressão (a que
+    // ainda não chegou mostra a inicial embaixo até chegar; a que não carrega também)
+    const desenhaMini = x => {
+      if (!x.set) return h('div', { class: 'scan-pile__mini scan-pile__mini--desconhecida' }, ArteDesconhecida());
       const im = x.img ? h('img', { class: 'scan-pile__img', src: x.img, alt: '' }) : null;
       if (im) im.addEventListener('error', () => { im.hidden = true; }, { once: true });
       return h('div', { class: 'scan-pile__mini' }, h('span', { 'aria-hidden': 'true' }, x.name.slice(0, 1)), im);
     };
+    // a miniatura que não é da impressão da cópia (guardada antes desta leva, ou de outra edição) é refeita em segundo
+    // plano, com rede, uma vez por item e por edição nesta abertura do scanner (sem rede, fica a que estava)
+    const tentadas = paintPile.tentadas || (paintPile.tentadas = new Set());
+    const refazer = online() ? list.filter(x => x.set && x.imgDe !== __m14.chaveDaImpressao(x) && !tentadas.has(x.key + '>' + __m14.chaveDaImpressao(x))) : [];
+    if (refazer.length && !paintPile.refazendo) {
+      paintPile.refazendo = true;
+      (async () => {
+        let mudou = false;
+        for (const x of refazer) {
+          const chave = __m14.chaveDaImpressao(x); tentadas.add(x.key + '>' + chave);
+          const img = await miniatura(x.name, x);
+          if (img) { await lot.enrich(x.key, { img, imgDe: chave }); mudou = true; } // sem achar a impressão (rede falhou), fica a que estava
+        }
+        paintPile.refazendo = false;
+        if (mudou && state.alive && pilhaBox && pilhaBox.isConnected) paintPile(pilhaBox);
+      })().catch(() => { paintPile.refazendo = false; });
+    }
     // S-613 · a conferência ocupa a largura inteira do cartão, abaixo da miniatura (antes ficava na coluna estreita do texto
     // e as alternativas compridas e o selo "Confira" passavam da borda direita)
     const cartao = x => h('div', { class: 'scan-pile__card' + (x.conferir ? ' scan-pile__card--conferir' : ''), dataset: { name: x.name, key: x.key } },
-      miniatura(x),
+      desenhaMini(x),
       h('div', { class: 'scan-pile__body' },
         (el => { el.classList.add('scan-pile__nome'); return el; })(Text(x.name, { size: 'md' })),
         // S-607 · a edição é um botão: sem ela, o aviso; com ela, troca edição e acabamento ali mesmo
@@ -46936,7 +47144,9 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
       if (el) { el.setAttribute('aria-pressed', 'true'); el.dataset.usando = 'true'; }
       box.querySelectorAll('.scan-ed__item').forEach(b => { b.disabled = true; });
       const acab = ed.acabamentos.includes(escolha.acab) ? escolha.acab : ed.acabamentos[0];
-      const r = await lot.escolhe(x.key, { set: ed.set, number: ed.number, set_name: ed.set_name, id: ed.id }, acab);
+      // G-350 · relato #65 · a arte da impressão tocada vai junto (as impressões já estão na memória da folha)
+      const img = imagemDaImpressao(printsCache.get(x.name) || [], { set: ed.set, number: ed.number, id: ed.id });
+      const r = await lot.escolhe(x.key, { set: ed.set, number: ed.number, set_name: ed.set_name, id: ed.id }, acab, img);
       closeDialog(); paintDock();
       if (!r) { toast('A carta saiu da pilha'); return; }
       await openPile();
@@ -47430,7 +47640,14 @@ function createOfflineKeeper({ cardRepo, decks, collection, images, names, ocr, 
       if (colecaoEmCurso) { colecaoDeNovo = true; return colecaoEmCurso; }
       colecaoEmCurso = (async () => {
         let r;
-        do { colecaoDeNovo = false; const grupos = await collection.entries(); r = await guardar(grupos.map(g => g.name), 'normal'); } while (colecaoDeNovo); // leva 102 · a nítida (a small ficava borrada no celular)
+        do {
+          colecaoDeNovo = false; const grupos = await collection.entries(); r = await guardar(grupos.map(g => g.name), 'normal'); // leva 102 · a nítida (a small ficava borrada no celular)
+          // G-350 · relato #65 · a Coleção mostra a arte da edição de cada cópia: as imagens dessas impressões também ficam no aparelho
+          if (online() && cardRepo.impressoes && __m14.copiaDaCapa) {
+            const capas = grupos.map(g => __m14.copiaDaCapa(g.items)).filter(Boolean);
+            if (capas.length) { const m = await semFalha(() => cardRepo.impressoes(capas), new Map()); r = { ...r, imagens: (r.imagens || 0) + await aquecer([...m.values()].filter(Boolean), 'normal') }; }
+          }
+        } while (colecaoDeNovo);
         return r;
       })().finally(() => { colecaoEmCurso = null; });
       return colecaoEmCurso;

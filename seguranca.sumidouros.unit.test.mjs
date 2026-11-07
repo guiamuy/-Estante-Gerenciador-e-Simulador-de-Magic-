@@ -84,6 +84,7 @@ const PERMITIDOS = [
   { onde: 'AnelProgresso · innerHTML', vale: ['px', 'px', 'r', 'r', 'c.toFixed(2)', '(c * (1 - v / 100)).toFixed(2)', "v >= 100 ? '' : v + '%'"], por: 'só números (v é limitado a 0–100)' },
   { onde: 'Note · html:', vale: ['ehSeguro(content) ? content[SEGURO] : null'], por: 'só HTML marcado por seguro`…` (P-1)' },
   { onde: 'ArteDeEspera · html:', vale: ['ARTE_CARREGANDO'], por: 'desenho fixo do código' },
+  { onde: 'ArteDesconhecida · html:', vale: ['ARTE_DESCONHECIDA'], por: 'desenho fixo do código (G-350, relato #65: a arte da cópia sem edição)' },
   { onde: 'Bandeira · innerHTML', vale: ['Math.round(px * 1.5)', 'px', "BANDEIRAS[pais] || ''"], por: 'tamanho virou número; desenho da tabela BANDEIRAS' },
   { onde: 'mostraAbertura · innerHTML', vale: ['cena', 'iconeDoApp({ tamanho: 240, animado: true })'], por: 'G-306 · a cena da estante (cenaDaAbertura: classes fixas, nenhum dado de fora) e o ícone do app, gerados pelo código' },
   ...[16, 32, 64, 128].map(n => ({ onde: 'pinta · html:', vale: [`logoSvg(${n})`], por: 'catálogo /ds: marca do app' })),
