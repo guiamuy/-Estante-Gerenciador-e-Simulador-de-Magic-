@@ -696,6 +696,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ud ✅ | MJ25 mesa pelo print 2 (decisão do dono, 02/11/2026), sete fatias: .1 ícones de estado que cabem e rolagem afastada da carta (J-53 ✅) · .2 nome na faixa de cima, girando com a carta virada (J-54 ✅) · .3 a carta de origem na pilha e nas decisões (Roost Seek) (J-55 ✅) · .4 escolher carta vendo a carta ampliada (J-56 ✅) · .5 cartas ocupam o espaço da fileira (J-57 ✅) · .6 layout em paisagem (J-58 ✅) · .7 opção "Orientação: automática / só retrato" (J-59 ✅) | MJ24 | jogabilidade |
 | 16º-uf ✅ | MJ26 relato #55: as setas do combate (e a prévia do dano) acompanham a rolagem da página e de qualquer contêiner da mesa; "Cancelar" na declaração de atacantes e de bloqueadores desmarca a escolha sem mandar nada ao motor (J-61, 03/11/2026) | J | 1 | 16º-ud |
 | 16º-ug ✅ | MJ27 relato #55, o resto do "cancelar jogada em curso": um Cancelar com o mesmo nome e lugar em toda escolha encadeada antes de jogar (alvo → custo → X → cor), que volta um passo em vez de fechar tudo, e a mira por arrasto com Cancelar à vista (J-62, 03/11/2026) | J | 1 | 16º-uf |
+| 16º-ui 🟡 | T-IDIOMA relatos #53/#66, fatia 1: o português cobre a interface (Rulings → Esclarecimentos, Near Mint → Quase nova, Etched → Foil gravado, Offline → Sem internet, cinco palavras-chave e os marcadores com nome em português na mesa e no registro); falta troca de idioma, pacotes es/en e texto das cartas (leva G-353, 07/11/2026) | T | 1 | — |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -13317,6 +13318,41 @@ regras** (`database.rules.json`) no console; até lá a tela diz "Nomes de usuá
 - **Fora:** relato resolvido à mão antes desta leva continua resolvido (o dado não muda); o relato enviado pelo GitHub e
   ainda sem registro pode duplicar se a pessoa confirmar lá e também enviar de novo pela fila (a conciliação G-243 mostra o
   primeiro registro achado).
+
+**T-IDIOMA · O app inteiro num idioma só: português (padrão), espanhol e inglês (relatos #53 e #66)** 🟡 (fatia 1 na leva G-353, trilha `geral`, 07/11/2026; `16º-ui`)
+- **Pedido (relato #66, repete o #53):** pacotes de idioma pt (padrão), es e en para o app inteiro; "hoje a aplicação está
+  misturada em inglês e português, e isso não pode acontecer. Apenas as imagens das cartas podem estar em inglês".
+- **Valor:** quem abre o app lê uma língua só, em toda tela; quem prefere espanhol ou inglês troca uma vez e o app inteiro segue.
+- **Aceite:** (1) em português, nenhum texto de interface (rótulo, botão, título, aviso, erro, estado vazio, nome falado,
+  registro da partida) em inglês, salvo as exceções escritas abaixo; (2) Perfil › Idioma troca entre pt, es e en, guardado na
+  conta; (3) cada pacote cobre todas as telas, com teste que barra texto fora do pacote; (4) o texto e o nome das cartas seguem a
+  decisão do dono (oficial da Scryfall quando houver, ou tradução automática).
+- **Fatia 1 · o português cobre a interface (G-353) ✅:** levantamento por script (literais dos módulos de tela, filtrados por
+  palavras inglesas) achou o app quase todo em português; o que vazava: a seção **Rulings** da carta (título, carregando, sem
+  internet, erro, vazio e contagem) virou **Esclarecimentos**; a condição **Near Mint** virou **Quase nova** (a sigla NM fica);
+  o acabamento **Etched** virou **Foil gravado** (Coleção e Scanner); o ladrilho **Offline** da mesa e o "leitor disponível
+  offline" do Scanner viraram **Sem internet**; cinco palavras-chave do motor que a mesa mostrava em inglês ("ganhou flash")
+  ganharam nome: lampejo, manto, metal vivo, diurno, noturno; e a carta na mesa, que dizia o marcador pela chave ("charge 2",
+  "stun 1"), e o registro ("marcador stun") passam a dizer carga, atordoamento, escudo, finalidade e os marcadores de
+  palavra-chave (de voar, de vínculo com a vida…). Os nomes das palavras-chave novas seguem o glossário em português que o app
+  já usa (lampejo do passado, metal vivo); diurno/noturno não foram conferidos na Scryfall nesta sessão (sem acesso): conferir.
+- **Exceções mantidas em inglês, com motivo:** nomes de formato (Commander, Pauper, Modern, Standard, Pioneer, Legacy,
+  Vintage, Brawl: nomes oficiais, a Wizards não traduz); **Deck**, **mulligan** e **Planeswalker** (termos oficiais do Magic em
+  português); **Foil** (nome do acabamento no mercado brasileiro); **online** (dicionarizado; "Partida online"); **Goldfish** e
+  **Shark** (nomes de modo/adversário); **Scanner** (dicionarizado); os cabeçalhos **Commander/Companion/Sideboard** e a
+  exportação CSV (**Near Mint**, **English**…), que são o formato dos outros apps; "Submit new issue" (botão da página do
+  GitHub); a rota `/ds` (catálogo do design system, "Tokens"). Texto vindo da Scryfall (Oracle, esclarecimentos, nome de
+  carta, de ficha e de edição) é dado: fica para a decisão do item (4).
+- **Testes:** U `idioma.unit` (novo, fase rápida): toda palavra-chave e todo marcador de palavra-chave do motor têm nome em
+  português na mesa; todo tipo de marcador tem nome no registro e na carta (nunca a chave); nenhum literal de tela com as
+  palavras do levantamento (Rulings, Near Mint, Etched, Offline, rótulos ingleses soltos, frases de sistema), com a lista de
+  exceções comentada; falha no `main` de antes (10 textos, 5 palavras-chave, marcadores sem nome). e2e "V2 rulings": a
+  expectativa do título mudou de propósito ("Esclarecimentos 3 esclarecimentos").
+- **Depende de:** decisão do dono sobre o texto das cartas (oficial × automática, relato #53) para o item (4).
+- **Fora, declarado (fatias seguintes):** a troca de idioma no Perfil (item 2); os pacotes **es** e **en** (item 3: extrair os
+  textos para um dicionário por idioma, história de várias rodadas); texto e nome das cartas (item 4, aguarda decisão
+  "oficial"/"automática"); a **camada obrigatória de idioma em toda entrega** (texto novo nasce no dicionário e o teste barra
+  literal solto) — até lá, `idioma.unit` barra a volta das palavras desta fatia, não todo inglês possível.
 
 ### Z · Catálogo de listas (E61, pedido de 08/10/2026)
 
