@@ -4014,10 +4014,24 @@ function idbStore(idb, name = 'mtg', store = 'kv') {
       t.onabort = () => rej(t.error);
     });
   };
+  /* G-351 · as gravações do mesmo instante vão numa transação só. As transações de escrita andam uma de cada vez: 300
+     gravações de uma importação, cada uma na sua, custavam ~3 s (o C13 caía no CI). A transação do lote é criada no mesmo
+     passo em que a de uma gravação sozinha seria — antes de uma leitura pedida logo depois, que continua vendo o valor novo.
+     Valor que não se grava (DataCloneError) falha só a gravação dele. */
+  let lote = null;
+  const gravaEmLote = (k, v) => {
+    if (!lote) {
+      const l = lote = { itens: [] };
+      l.p = tx('readwrite', s => { if (lote === l) lote = null; for (const it of l.itens) { try { s.put(it.v, it.k); } catch (e) { it.erro = e; } } });
+      l.p.catch(() => { if (lote === l) lote = null; });
+    }
+    const it = { k, v }; lote.itens.push(it);
+    return lote.p.then(() => { if (it.erro) throw it.erro; });
+  };
   return {
     kind: 'indexeddb',
     async get(k) { const v = await tx('readonly', s => s.get(k)); return v === undefined ? null : v; },
-    async set(k, v) { await tx('readwrite', s => s.put(v, k)); return true; },
+    async set(k, v) { await gravaEmLote(k, v); return true; },
     async remove(k) { await tx('readwrite', s => s.delete(k)); return true; },
     async keys(prefix) { const ks = await tx('readonly', s => s.getAllKeys()); return (ks || []).filter(k => !prefix || String(k).startsWith(prefix)); }
   };

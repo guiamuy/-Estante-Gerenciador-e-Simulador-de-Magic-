@@ -138,3 +138,38 @@ test('G-351 · as impressões pedidas de uma vez são guardadas juntas, não uma
   const m2 = await repo.impressoes(copias.slice(0, 3));
   assert.equal([...m2.values()].filter(Boolean).length, 3, 'guardadas: a segunda abertura não vai à rede e acha as três');
 });
+
+// G-351 · a causa de fundo: cada gravação abria a sua transação no IndexedDB, e as de escrita andam uma de cada vez — 300
+// gravações de uma importação custavam ~3 s no navegador de teste (mais no CI). As gravações do mesmo instante vão numa só.
+function idbDeMentira({ custoMs = 5 } = {}) {
+  const dados = new Map(), fila = []; let rodando = false; const log = { escrita: 0, leitura: 0 };
+  const roda = () => { if (rodando || !fila.length) return; rodando = true; const t = fila.shift();
+    setTimeout(() => { try { t.corpo(); } catch (e) { t.erro = e; } rodando = false; if (t.erro) t.onabort && t.onabort(); else t.oncomplete && t.oncomplete(); roda(); }, custoMs); };
+  const db = { objectStoreNames: { contains: () => true }, createObjectStore() {},
+    transaction(_s, modo) { log[modo === 'readwrite' ? 'escrita' : 'leitura']++; const ops = [];
+      const t = { error: null, objectStore: () => ({
+        put(v, k) { if (v && v.naoClona) throw new Error('DataCloneError'); ops.push(() => dados.set(k, structuredClone(v))); },
+        get(k) { const r = { result: undefined }; ops.push(() => { r.result = dados.get(k); }); return r; },
+        delete(k) { ops.push(() => dados.delete(k)); }, getAllKeys() { const r = { result: [] }; ops.push(() => { r.result = [...dados.keys()]; }); return r; } }),
+        corpo: () => ops.forEach(f => f()) };
+      fila.push(t); queueMicrotask(roda); return t; } };
+  return { idb: { open() { const r = {}; setTimeout(() => { r.result = db; r.onsuccess && r.onsuccess(); }, 0); return r; } }, log, dados };
+}
+test('G-351 · gravações do mesmo instante no IndexedDB vão numa transação só; ler logo depois de gravar acha o valor novo', async () => {
+  const { idb, log } = idbDeMentira();
+  const pl = P.createPlatform({ indexedDB: idb, dbName: 't', window: {} });
+  const store = pl.store;
+  await store.set('aquece', 1);
+  const antes = log.escrita;
+  const t0 = Date.now();
+  await Promise.all(Array.from({ length: 100 }, (_, i) => store.set('k' + i, { i })));
+  assert.ok(log.escrita - antes <= 2, `100 gravações em ${log.escrita - antes} transação(ões) de escrita`);
+  assert.ok(Date.now() - t0 < 200, 'sem fila de 100 transações');
+  const p = store.set('x', 'novo'); const lido = store.get('x');
+  await p; assert.equal(await lido, 'novo', 'a leitura pedida logo depois da gravação vê a gravação');
+  assert.deepEqual(await store.get('k7'), { i: 7 });
+  // um valor que não se grava falha sozinho: as outras gravações do mesmo instante entram
+  const r = await Promise.allSettled([store.set('a', 1), store.set('ruim', { naoClona: true }), store.set('b', 2)]);
+  assert.deepEqual(r.map(x => x.status), ['fulfilled', 'rejected', 'fulfilled']);
+  assert.equal(await store.get('a'), 1); assert.equal(await store.get('b'), 2);
+});
