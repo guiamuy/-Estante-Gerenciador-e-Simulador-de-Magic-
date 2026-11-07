@@ -267,3 +267,44 @@ test('S-594 · protetor com reflexo e desfoque de 2 px: a segunda leitura realç
   assert.ok(r.nomeOk >= AMOSTRA.length - 2, `nome ${r.nomeOk}/${AMOSTRA.length}\n${relatorio(r)}`);
   assert.equal(r.erradas, 0, 'nenhum nome errado com nota de aceite');
 });
+
+/* S-616 · relato #65 ("demora para reconhecer a versão") · a mesma carta em três quadros seguidos, com tremor diferente em cada
+   um (desfoque de 1,5, 1,0 e 0,4 px numa carta de 600 px, em ordem que gira de foto para foto): a edição lê o mais nítido.
+   Antes a linha de coleção era lida do quadro do aceite — com 1,5 px, edição 0/9 nesta amostra. */
+test('S-616 · a edição lê o mais nítido de três quadros seguidos da mesma carta', { skip, timeout: 240000 }, async () => {
+  assert.equal(typeof X.maisNitida, 'function', 'S-616 · falta a escolha do quadro mais nítido');
+  assert.equal(X.maisNitida([]), -1); assert.equal(X.maisNitida([{ nitidez: 0.2 }, null, { nitidez: 0.9 }, { nitidez: 0.9 }]), 2);
+  const worker = await deps.tesseract.createWorker('eng', 1, { langPath: deps.langPath, gzip: true, cacheMethod: 'none' });
+  const sigmas = [1.5, 1.0, 0.4];
+  let escolheu = 0, edOk = 0, edPrimeiro = 0, n = 0;
+  const linhas = [];
+  try {
+    for (const [j, f] of AMOSTRA.entries()) {
+      const arquivo = join(dir, f.arquivo); if (!existsSync(arquivo)) continue;
+      const img = decodifica(arquivo), q = cinzaReduzido(img), quad = X.achaQuadrilatero(q.cinza, q.w, q.h);
+      if (!quad) continue;
+      n++;
+      const ordem = sigmas.map((_, i) => sigmas[(i + j) % 3]);
+      const rec = X.recorteDaFaixa(quad.cantos, X.FAIXA_COLECAO, img.width, img.height);
+      const larg = X.larguraColecao(X.alturaDaCarta(quad.cantos, img.width, img.height));
+      const quadros = ordem.map(sg => { const im = borra(img, f, sg); return { sg, im, pr: X.preparaColecao(pedaco(im, rec), rec.w, rec.h, rec.cantos, larg) }; });
+      const k = X.maisNitida(quadros.map(x => x.pr));
+      if (k >= 0 && quadros[k].sg === 0.4) escolheu++;
+      const edicaoDe = async im => {
+        const textos = []; let res = { exact: null };
+        for (const op of [{}, { livre: true }, { inverte: true }]) { textos.push(await leColecao(worker, im, quad.cantos, op)); res = X.resolveEdicao(f.impressoes || [], { textos }); if (res.exact) break; }
+        const semZero = v => String(v).toLowerCase().replace(/^0+(?=\d)/, '');
+        return !!res.exact && res.exact.set === String(f.set).toLowerCase() && semZero(res.exact.number) === semZero(f.numero);
+      };
+      const ok = await edicaoDe(quadros[Math.max(0, k)].im);
+      if (ok) edOk++;
+      if (await edicaoDe(quadros[0].im)) edPrimeiro++;
+      linhas.push(`  ${ok ? '·' : '✗'} ${f.arquivo}: nitidez ${quadros.map(x => `${x.sg}px=${x.pr ? x.pr.nitidez.toFixed(2) : '—'}`).join(' ')} → quadro ${k + 1}`);
+    }
+  } finally { await worker.terminate(); }
+  console.log(`S-616 · ${n} carta(s) em três quadros: o mais nítido escolhido em ${escolheu}, edição ${edOk}/${n} (lendo o primeiro quadro, como antes: ${edPrimeiro}/${n})\n${linhas.join('\n')}`);
+  assert.ok(n >= 8, 'a amostra precisa das cartas com contorno');
+  assert.equal(escolheu, n, 'para a mesma carta no mesmo lugar, a nitidez da linha cai com o desfoque');
+  assert.ok(edOk >= n - 2, `edição no quadro escolhido: ${edOk}/${n}`);
+  assert.ok(edOk > edPrimeiro, 'escolher o quadro tem de acertar mais que ler o primeiro');
+});

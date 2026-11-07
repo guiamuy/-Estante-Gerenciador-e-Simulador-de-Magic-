@@ -46314,9 +46314,19 @@ function preparaColecao(src, sw, sh, cantos, largura = 700, { inverte = false, l
      busca sobre a borda preta não acha nada: nas cartas de borda preta o caminho é o de sempre. */
   if (!L || !(L.nota > 0)) { L = linhaDoNome(faixa.data, faixa.w, faixa.h, opc); borda = 'outra'; }
   if (!L || !(L.nota > 0)) return null;
+  const nitidez = nitidezDaLinha(L.cinza, faixa.w, L.y0, L.y1);
   const bin = binarizaLinha(L.cinza, faixa.w, faixa.h, L.y0, L.y1, { margem: 0.25, inverte });
   limpaLinha(bin.data, bin.w, bin.h);
-  return { data: bin.data, w: bin.w, h: bin.h, claro: bin.claro, borda };
+  return { data: bin.data, w: bin.w, h: bin.h, claro: bin.claro, borda, nitidez };
+}
+/** S-616 · relato #65 · entre cópias da MESMA linha de coleção tiradas em quadros seguidos, a mais nítida (maior `nitidez` da
+    linha, a mesma medida da linha do nome). A medida não separa sozinha o que o leitor lê do que não lê (medido nas fotos do
+    portão: linhas lidas a partir de 0,06 e não lidas até 0,29), mas, para a mesma carta no mesmo lugar, cai sempre com o
+    desfoque: comparar quadros entre si é seguro. Devolve o índice (o primeiro no empate) ou -1 sem nenhuma medida. */
+function maisNitida(lista) {
+  let k = -1, m = -Infinity;
+  (lista || []).forEach((x, i) => { const v = x && Number.isFinite(x.nitidez) ? x.nitidez : -Infinity; if (v > m) { m = v; k = i; } });
+  return m === -Infinity ? -1 : k;
 }
 /** Largura da faixa de coleção retificada: o texto miúdo (1,6% da carta) fica com uns 25 px de altura. */
 function larguraColecao(alturaCartaPx, { deitada = false } = {}) {
@@ -46353,7 +46363,7 @@ function pulaPorMovimento(mov, { via = 'auto', contorno = true } = {}) { return 
 
 return { imagemDaImpressao, cleanOcr, matchName, matchLines, criaVotacao, criaPorteiro, PORTEIRO, leituraConfiavel, nitidezDaFaixa, movimentoEntre, LIMIARES_FAIXA, criaDiario, criaCronometro, criaRefoco, EXATA, buildIndex, candidatosDoIndice, createNameIndex, IDIOMAS_DOS_NOMES, LINGUAS_DO_LEITOR, linguaDoLeitor, temCjk, chaveCjk, indiceCjk, matchCjk, createLot, coverRegion, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, resolveEdicao, artistaNoTexto, acabamentosDa, edicoesDaCarta, arteDaImpressao, filtraEdicoes, iconeDoSet, ACABAMENTO_NA_COLECAO, NOME_DO_ACABAMENTO, ACCEPT, ALTA, SUGGEST, lev,
   detectaCarta, detectaEmEscalas, ESCALAS_DETECTOR, brilho, nitidez, prontoParaLer, criaDetector, paradaEm, screenRect, LIMIARES, PROPORCAO_CARTA, realcaTexto, trechoEscuroEmbaixo, limpaBordas, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, faixaDaCarta, escalaOcr,
-  retasDoQuadro, achaQuadrilatero, ordenaCantos, homografia, cantosDaFaixa, cantosDeitada, cartaDeitada, cantosDaImagemDaArte, retifica, FAIXA_NOME, FAIXA_COLECAO, LARGURA_NOME, linhaDoNome, binarizaLinha, limpaLinha, nitidezDaLinha, afiaLinha, FAIXA_ARTE, BITS_ARTE, impressaoDaArte, distanciaDaArte, buscaArte, abreBaseDeArtes, binDasArtes, criaBaseDeArtes, decideArte, arteDaEdicao, LIMIAR_ARTE, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, alturaDaCarta, deslocamento, LIMIARES_LINHA, pulaPorMovimento, QUAD };
+  retasDoQuadro, achaQuadrilatero, ordenaCantos, homografia, cantosDaFaixa, cantosDeitada, cartaDeitada, cantosDaImagemDaArte, retifica, maisNitida, FAIXA_NOME, FAIXA_COLECAO, LARGURA_NOME, linhaDoNome, binarizaLinha, limpaLinha, nitidezDaLinha, afiaLinha, FAIXA_ARTE, BITS_ARTE, impressaoDaArte, distanciaDaArte, buscaArte, abreBaseDeArtes, binDasArtes, criaBaseDeArtes, decideArte, arteDaEdicao, LIMIAR_ARTE, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, alturaDaCarta, deslocamento, LIMIARES_LINHA, pulaPorMovimento, QUAD };
 })();
 
 
@@ -46367,7 +46377,7 @@ const __m22 = (function () {
    ===================================================================== */
 const { h, mount, Stack, Row, Surface, Text, Button, Field, Input, Select, Badge, Chip, Empty, Note, Spinner, Dialog, closeDialog, toast, reservaDoca, Simbolo, Icone, IconButton, AvisoRede, ArteDesconhecida } = __m3;
 const { imagemDaImpressao, createLot, coverRegion, screenRect, parseCollectorLine, resolvePrinting, resolveEdicao, edicoesDaCarta, filtraEdicoes, ACABAMENTO_NA_COLECAO, NOME_DO_ACABAMENTO, ACCEPT, EXATA, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, criaPorteiro, PORTEIRO, leituraConfiavel, criaDiario, criaCronometro, criaRefoco, realcaTexto,
-  achaQuadrilatero, cantosDeitada, cartaDeitada, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, FAIXA_NOME, FAIXA_COLECAO, alturaDaCarta, deslocamento, LIMIARES_LINHA, pulaPorMovimento, brilho,
+  achaQuadrilatero, cantosDeitada, cartaDeitada, preparaNome, preparaColecao, maisNitida, larguraColecao, recorteDaFaixa, FAIXA_NOME, FAIXA_COLECAO, alturaDaCarta, deslocamento, LIMIARES_LINHA, pulaPorMovimento, brilho,
   FAIXA_ARTE, impressaoDaArte, criaBaseDeArtes, decideArte, arteDaEdicao, LIMIAR_ARTE, LINGUAS_DO_LEITOR, linguaDoLeitor } = __m21;
 const { pulse } = __m20;
 const TESSERACT_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
@@ -46625,10 +46635,37 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     // canvas próprio: esta leitura corre em segundo plano, enquanto o laço já lê a próxima carta
     const p = pixels(rec.regiao, {});
     const kx = p.w / rec.w, ky = p.h / rec.h, cantos = rec.cantos.map(c => ({ x: c.x * kx, y: c.y * ky })), larg = larguraColecao(alturaDaCarta(cantosFr, vw, vh), { deitada });
-    return async op => {
-      const pr = preparaColecao(p.d, p.w, p.h, cantos, larg, { ...op, deitada });
+    // S-616 · a leitura de sempre já sai preparada: a nitidez dela escolhe entre quadros (faixaMaisNitida)
+    const pr0 = preparaColecao(p.d, p.w, p.h, cantos, larg, { deitada });
+    const le = async op => {
+      const pr = op && Object.keys(op).length ? preparaColecao(p.d, p.w, p.h, cantos, larg, { ...op, deitada }) : pr0;
       return pr ? { texto: await ocr.read(paraCanvas(pr), 'colecao', 1), borda: pr.borda } : null;
     };
+    le.nitidez = pr0 ? pr0.nitidez : NaN;
+    return le;
+  }
+  /* S-616 · relato #65 ("demora para reconhecer a versão") · a linha de coleção tem 1,6% da carta: um tremor que o nome
+     aguenta já a apaga (fotos do portão com desfoque de 1,5 px: nome 9/9, edição 0/9; com 0,7 px, edição 27/29). Antes o
+     leitor lia a linha do quadro do aceite, borrado ou não, até cinco vezes. Agora copia a linha em até QUADROS_EDICAO
+     quadros seguidos (com a carta no mesmo lugar, pelo contorno) e lê o mais nítido: mais acerto e menos leituras jogadas
+     fora. Custo: até dois quadros (~70 ms) antes da primeira leitura da edição, que já corre em segundo plano. */
+  const QUADROS_EDICAO = 3;
+  async function faixaMaisNitida(cantosLidos, { deitada = false, peloContorno = false, quadros = QUADROS_EDICAO } = {}) {
+    const copias = [];
+    const primeira = faixaDeColecao(cantosLidos, { deitada });
+    if (primeira) copias.push(primeira);
+    for (let i = 1; i < quadros && peloContorno && state.alive; i++) {
+      await proximoQuadro();
+      const q = quadroPequeno(), novo = achaQuadrilatero(q.cinza, q.w, q.h);
+      const c = novo && alinhaCantos(novo.cantos, cantosLidos);
+      if (!c || deslocamento(c, cantosLidos) >= 0.15) break;   // a carta saiu: a linha de outra não entra na conta desta
+      const le = faixaDeColecao(c, { deitada });
+      if (le) copias.push(le);
+    }
+    const k = maisNitida(copias);
+    const le = k >= 0 ? copias[k] : copias[0] || null;
+    if (le) { le.quadro = k >= 0 ? k + 1 : 1; le.quadros = copias.length; }
+    return le;
   }
   async function identify(name, cantosLidos, peloContorno, arte = null, arteEd = null, { deitada = false } = {}) {
     if (!state.edition) return { exact: null, candidates: [], parsed: null };
@@ -46636,7 +46673,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     const list = await prints(name);
     const arteEv = arteEd && arteEd.nome === name ? arteEd : arte && arte.nome === name && (arte.ilustracao || arte.set) ? arte : null;
     const textos = [];
-    let parsed = { number: '', set: '', lang: '' }, borda = '', res = null, leituras = 0;
+    let parsed = { number: '', set: '', lang: '' }, borda = '', res = null, leituras = 0, escolha = '';
     // revisão de escala: no automático as cartas entram a cada segundo; com outra edição esperando o leitor, esta faz só a
     // leitura de sempre (sem variantes nem quadro novo) para a fila do leitor da edição não crescer sem teto
     state.edicoesNaFila = (state.edicoesNaFila || 0) + 1;
@@ -46658,7 +46695,9 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
         if (novo) { const c = alinhaCantos(novo.cantos, cantosLidos); if (deslocamento(c, cantosLidos) < 0.15) cantosFr = c; }
       }
       // as variantes leem a MESMA cópia do quadro: não há risco de a carta seguinte entrar na conta
-      const le = faixaDeColecao(cantosFr, { deitada });
+      // S-616 · o mais nítido entre quadros seguidos (com a fila do leitor cheia, só o de agora)
+      const le = await faixaMaisNitida(cantosFr, { deitada, peloContorno, quadros: apertado ? 1 : QUADROS_EDICAO });
+      if (le && le.quadros > 1) escolha = `quadro ${le.quadro} de ${le.quadros}`;
       if (le) for (const op of apertado ? VARIANTES_EDICAO.slice(0, 1) : VARIANTES_EDICAO) { try { soma(await le(op)); } catch (e) { /* próxima variante */ } if (fechou()) break; }
       // ainda aberta e a carta segue no mesmo lugar (pelo contorno): um quadro novo, na leitura de sempre e na livre
       if (!apertado && !(res ? res.exact : parsed.set && parsed.number) && peloContorno && state.alive) {
@@ -46683,7 +46722,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     const rot = x => `${String(x.set || '').toUpperCase()} #${x.number}`;
     diario.anota({ via: 'edição', texto: textos.join(' | '), melhor: null, ms: Date.now() - t0,
       decisao: `${saida.exact ? `${rot(saida.exact)}${saida.exact.verified ? '' : ' (não conferida)'}` : saida.candidates.length ? `incerta: ${saida.candidates.map(rot).join(', ')}` : 'sem edição'}`
-        + ` · ${leituras} leitura(s)${apertado ? ' (fila cheia: só a de sempre)' : ''}${borda ? `, borda ${borda}` : ''}${arteEv ? `, arte ${arteEv.d != null ? arteEv.d : '?'}` : ''}${saida.por && saida.por.length ? ` · por ${saida.por.join(' + ')}` : ''} · ${list.length} impressões` });
+        + ` · ${leituras} leitura(s)${escolha ? `, ${escolha} (o mais nítido)` : ''}${apertado ? ' (fila cheia: só a de sempre)' : ''}${borda ? `, borda ${borda}` : ''}${arteEv ? `, arte ${arteEv.d != null ? arteEv.d : '?'}` : ''}${saida.por && saida.por.length ? ` · por ${saida.por.join(' + ')}` : ''} · ${list.length} impressões` });
     return saida;
   }
 
