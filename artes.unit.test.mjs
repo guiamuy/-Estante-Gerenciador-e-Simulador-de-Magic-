@@ -536,5 +536,51 @@ test('S-601 · a língua do leitor pede os nomes da sua escrita; o latino segue 
   n.usaLingua('xx'); pedidos.length = 0; await n.ensure({ online: true, impressos: true });
   assert.deepEqual(pedidos, [], 'língua desconhecida vira latino: nada novo');
   assert.equal(X.linguaDoLeitor('ja'), 'ja'); assert.equal(X.linguaDoLeitor('toString'), 'latino'); assert.equal(X.linguaDoLeitor(undefined), 'latino');
-  assert.deepEqual(Object.fromEntries(Object.entries(X.LINGUAS_DO_LEITOR).map(([k, v]) => [k, v.ocr])), { latino: 'eng', ja: 'jpn', zhs: 'chi_sim', zht: 'chi_tra' });
+  assert.deepEqual(Object.fromEntries(Object.entries(X.LINGUAS_DO_LEITOR).map(([k, v]) => [k, v.ocr])), { latino: 'eng', ja: 'jpn', zhs: 'chi_sim', zht: 'chi_tra', ko: 'kor', ru: 'rus' });
+});
+
+/* ---------------- S-614 · X20 fatia 4: coreano e russo ---------------- */
+// Pares tirados dos arquivos nomes-ko/ru.json gerados pelo fluxo em 04/11/2026 (Scryfall, dados em massa All Cards).
+const NOMES_KO_RU = {
+  ko: [['벼락', 'Lightning Bolt'], ['주문 무효화', 'Counterspell'], ['라노워 엘프', 'Llanowar Elves'], ['영웅의 스승 아자니', 'Ajani, Mentor of Heroes'], ['세라 천사', 'Serra Angel']],
+  ru: [['Удар Молнии', 'Lightning Bolt'], ['Отмена Заклинания', 'Counterspell'], ['Лановарские эльфы', 'Llanowar Elves'], ['Лановарские Эльфы', 'Llanowar Elves'],
+    ['Аджани, Наставник Героев', 'Ajani, Mentor of Heroes'], ['Златогривый Аджани', 'Ajani Goldmane'], ['Ангел Серры', 'Serra Angel'], ['Шиванский дракон', 'Shivan Dragon']]
+};
+test('S-614 · nome impresso em coreano e russo: hangul por sílaba, cirílico por pares de letras; caixa, "ё", espaço e uma letra trocada', () => {
+  const ix = X.indiceCjk([...NOMES_KO_RU.ko, ...NOMES_KO_RU.ru, ['Anular Feitiço', 'Counterspell']]);
+  assert.equal(ix.entradas.length, 13, 'o cirílico entra no índice da escrita; o latino, não');
+  const top = t => X.matchCjk(ix, t)[0] || {};
+  assert.deepEqual([top('벼락').name, top('벼락').exata], ['Lightning Bolt', true]);
+  assert.equal(top('주문무효화').name, 'Counterspell', 'sem o espaço');
+  assert.equal(top('라노워 엘프 G').name, 'Llanowar Elves');
+  const ko = X.matchCjk(ix, '영웅의 스승 아자이')[0];
+  assert.equal(ko.name, 'Ajani, Mentor of Heroes'); assert.ok(ko.score >= X.ACCEPT && ko.score < 1, 'uma sílaba trocada: aproximado, acima do aceite');
+  assert.deepEqual([top('УДАР МОЛНИИ').name, top('УДАР МОЛНИИ').exata], ['Lightning Bolt', true], 'o título em caixa alta');
+  assert.equal(top('Аджани Наставник Героев').name, 'Ajani, Mentor of Heroes', 'sem a vírgula');
+  assert.equal(top('Златогрнвый Аджани').name, 'Ajani Goldmane', 'и lido como н (troca comum do leitor)');
+  assert.equal(top('Лановарские эльфы').name, 'Llanowar Elves');
+  const ru = X.matchCjk(ix, 'Шиванскии дракон')[0];
+  assert.equal(ru.name, 'Shivan Dragon'); assert.ok(ru.score >= X.ACCEPT && ru.score < 1, 'й lido como и');
+  assert.equal(X.chaveCjk('Ёлка'), X.chaveCjk('елка'), '"ё" e "е" são a mesma letra para o leitor');
+  assert.equal(X.matchCjk(ix, 'Ж').length, 0, 'uma letra só não basta');
+  assert.equal(X.matchCjk(ix, 'Lightning Bolt').length, 0, 'texto latino não passa por aqui');
+  assert.ok(X.temCjk('Удар') && X.temCjk('벼락') && !X.temCjk('Udar'));
+});
+test('S-614 · escolher coreano ou russo baixa só os nomes daquela língua e o latino segue valendo', async () => {
+  const scryfall = { catalogNames: async () => ['Counterspell', 'Lightning Bolt', 'Llanowar Elves', 'Serra Angel'] };
+  const pedidos = [], todos = { ...NOMES_TESTE, ...NOMES_KO_RU };
+  const fetchFn = async url => {
+    const m = /\/artes\/nomes-([a-z]+)\.json$/.exec(url); assert.ok(m, 'só o ramo artes: ' + url); pedidos.push(m[1]);
+    return todos[m[1]] ? { ok: true, json: async () => ({ versao: 1, idioma: m[1], pares: todos[m[1]] }) } : { ok: false, status: 404 };
+  };
+  const loja = lojaMemoria(); const t = Date.UTC(2026, 10, 7);
+  const n = X.createNameIndex({ store: loja, scryfall, now: () => t, fetchFn });
+  n.usaLingua('ru'); await n.ensure({ online: true, impressos: true });
+  assert.ok(pedidos.includes('ru') && !pedidos.includes('ko'), 'só o russo além das latinas: ' + pedidos);
+  assert.equal(n.match('Удар Молнии')[0].name, 'Lightning Bolt');
+  assert.equal(n.match('Anular Feitico')[0].name, 'Counterspell', 'o latino continua');
+  assert.ok(loja.m.has('names.ru'));
+  n.usaLingua('ko'); pedidos.length = 0; await n.ensure({ online: true, impressos: true });
+  assert.deepEqual(pedidos, ['ko']); assert.equal(n.match('세라 천사')[0].name, 'Serra Angel');
+  assert.equal(n.match('Ангел Серры')[0].name, 'Serra Angel', 'o russo já guardado continua valendo');
 });
