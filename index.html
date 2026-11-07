@@ -3481,6 +3481,12 @@ button.col-dash__bar:active, .col-dash__bar--on { background: var(--accent-soft)
 .col-prints { display: flex; flex-direction: column; }
 .col-print { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-2) 0; border-bottom: 1px solid var(--border); }
 .col-print:last-child { border-bottom: none; }
+/* G-349 · relato #64 parte 2: a edição da cópia é um botão que abre as impressões (folha da pilha do scanner) */
+.col-print__edicao { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; flex: 1 1 160px; min-width: 0; min-height: var(--tap-min);
+  padding: var(--space-1) var(--space-2); margin-left: calc(-1 * var(--space-2)); background: none; border: 1px solid transparent; border-radius: var(--radius-2);
+  color: var(--fg); font: inherit; text-align: left; cursor: pointer; }
+.col-print__edicao:active { border-color: var(--accent); background: var(--accent-soft); }
+.col-print__edicao:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .col-print__label { min-width: 0; display: flex; flex-direction: column; }
 .col-print__n { min-width: 3ch; text-align: center; font-weight: var(--weight-bold); font-size: var(--text-lg); }
 
@@ -13556,6 +13562,27 @@ function createCollection({ store }) {
       const dup = items.get(next.key); if (dup) dup.qty += next.qty; else items.set(next.key, next);
       await persist(); return next.key;
     },
+    /** G-349 · relato #64 parte 2: troca a edição (e o acabamento) de uma cópia guardada, mantendo quantidade, idioma
+        e condição; se já existe a mesma impressão, as cópias somam. Devolve a chave nova e `desfaz`, que volta as duas
+        cópias exatamente como estavam. Gravar falhou: a memória volta e o erro sobe (nada some). */
+    async trocaItem(key, patch) {
+      await load(); const it = items.get(key); if (!it) return null;
+      const velho = { ...it }, n = it.qty;
+      const next = makeItem({ ...it, ...patch, added: it.added }, n);
+      const alvo = next.key === key ? null : items.get(next.key);
+      const alvoAntes = alvo ? { ...alvo } : null;
+      items.delete(key);
+      if (alvo) alvo.qty += n; else items.set(next.key, next);
+      // falhou: só as duas cópias tocadas voltam (sem copiar a coleção inteira)
+      try { await persist(); } catch (e) { if (alvo) items.set(alvoAntes.key, alvoAntes); else items.delete(next.key); items.set(key, velho); throw e; }
+      return { key: next.key, fundiu: !!alvo, desfaz: async () => {
+        // tira só as cópias que a troca levou e devolve à impressão de antes: um +/- feito no meio tempo fica
+        await load();
+        const cur = items.get(next.key); if (cur) { cur.qty -= n; if (cur.qty <= 0) items.delete(next.key); }
+        const v = items.get(velho.key); if (v) v.qty += n; else items.set(velho.key, { ...velho, qty: n });
+        await persist();
+      } };
+    },
     async toggle(name, target = 1) {
       const before = await api.qty(name);
       if (before > target) return { before, after: before, changed: false, reason: 'acima' };
@@ -21371,8 +21398,11 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
 
   /* ---- C1 · impressões ---- */
   function itemControls(it, reopen) {
+    // G-349 · relato #64 parte 2: a edição da cópia é um botão (também a "sem edição definida"): abre as impressões do nome
     return h('div', { class: 'col-print', dataset: { key: it.key } },
-      h('div', { class: 'col-print__label' }, Text(printLabel(it), { size: 'sm' }), it.set_name ? Text(it.set_name, { size: 'xs', tone: 'muted' }) : null),
+      h('button', { class: 'col-print__label col-print__edicao', type: 'button', 'data-edicao': '', 'aria-label': `Trocar a edição: ${printLabel(it)}`, onClick: () => openEdicaoDaCopia(it, reopen) },
+        Text(printLabel(it), { size: 'sm' }), it.set_name ? Text(it.set_name, { size: 'xs', tone: 'muted' }) : null,
+        it.set ? null : Badge('Escolha a edição', { tone: 'warning' })),
       h('div', { class: 'col-row__qty' },
         IconButton('menos', 'Uma cópia a menos desta impressão', { onClick: async () => { await collection.setItem(it.key, it.qty - 1); await refresh(); reopen(); } }),
         h('span', { class: 'col-print__n' }, String(it.qty)),
@@ -21419,6 +21449,101 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
         Field('Condição', (() => { const el = selectOf(CONDITIONS, 'NM', 'col-print-cond'); el.addEventListener('change', e => { f.cond = e.target.value; }); return el; })()),
         Field('Cópias', qtyIn))),
       actions: [Button('Cancelar', { onClick: closeDialog }), Button('Adicionar', { variant: 'primary', id: 'col-print-save', onClick: save })] });
+  }
+  /* G-349 · relato #64 parte 2: trocar a edição e o acabamento da cópia que já está na Coleção, com a mesma folha da pilha
+     do scanner (S-607/S-613): impressões do nome com símbolo, nome, sigla, número e ano; acabamento em chips (só o que
+     alguma impressão tem) e um toque na impressão troca, com Desfazer. Quantidade, idioma e condição ficam; se a
+     impressão escolhida já está na coleção, as cópias somam. A lista e o catálogo de coleções só são buscados ao abrir. */
+  let colecoesDaCopia = null;
+  const impressoesDaCopia = new Map();   // nome → impressões, na sessão (o básico tem centenas e vem em várias páginas)
+  const temRedeCol = () => typeof navigator === 'undefined' || navigator.onLine !== false;
+  async function openEdicaoDaCopia(it, reopen) {
+    const sc = __m21, NOME = sc.NOME_DO_ACABAMENTO;
+    closeDialog();
+    const box = h('div', { class: 'scan-ed', id: 'col-ed', dataset: { key: it.key } });
+    Dialog({ title: it.name, body: box, actions: [Button('Voltar', { id: 'col-ed-voltar', onClick: () => { closeDialog(); reopen(); } })] });
+    const titulo = document.getElementById('ds-dialog-title'); if (titulo) titulo.setAttribute('lang', 'en');
+    const escolha = { acab: it.finish === 'foil' ? 'foil' : it.finish === 'etched' ? 'etched' : 'nonfoil' };
+    let gravando = false;
+    async function usa(ed, el) {
+      if (gravando) return;
+      gravando = true;
+      if (el) { el.setAttribute('aria-pressed', 'true'); el.dataset.usando = 'true'; }
+      box.querySelectorAll('.scan-ed__item').forEach(b => { b.disabled = true; });
+      const acab = ed.acabamentos.includes(escolha.acab) ? escolha.acab : ed.acabamentos[0];
+      let r;
+      try { r = await collection.trocaItem(it.key, { set: ed.set, number: ed.number, set_name: ed.set_name, id: ed.id, finish: sc.ACABAMENTO_NA_COLECAO[acab] }); }
+      catch (e) { gravando = false; box.querySelectorAll('.scan-ed__item').forEach(b => { b.disabled = false; delete b.dataset.usando; }); return toast('Não deu para trocar a edição agora. Nada mudou.'); }
+      closeDialog(); await refresh(); reopen();
+      if (!r) return toast('A cópia saiu da coleção');
+      toast(`${it.name}: ${ed.set.toUpperCase()} #${ed.number}${acab !== 'nonfoil' ? ' · ' + NOME[acab] : ''}${r.fundiu ? ' (somou às cópias que já tinha)' : ''}`, 4000,
+        { acao: { rotulo: 'Desfazer', icone: 'desfazer', onClick: async () => {
+          try { await r.desfaz(); } catch (e) { return toast('Não deu para desfazer agora. A troca continua.'); }
+          await refresh(); if (document.getElementById('col-prints')) reopen(); } } });
+    }
+    async function carrega() {
+      box.dataset.estado = 'carregando';
+      mount(box, __m3.Carregando('Buscando edições…', { tamanho: 'bloco' }));
+      let prints;
+      try {
+        if (!temRedeCol() || !scryfall) throw new Error('sem-rede');
+        if (!impressoesDaCopia.has(it.name)) impressoesDaCopia.set(it.name, await scryfall.search(`!"${it.name}"`, { unique: 'prints', order: 'released' }));
+        prints = impressoesDaCopia.get(it.name) || [];
+      } catch (e) {
+        const semRede = e && e.message === 'sem-rede';
+        box.dataset.estado = semRede ? 'sem-rede' : 'erro';
+        return mount(box, Stack({},
+          Note(semRede ? 'Sem internet: a cópia fica como está. Troque a edição quando a rede voltar.' : 'Não deu para buscar as edições agora.', semRede ? 'warning' : 'negative'),
+          semRede ? null : Button('Tentar de novo', { id: 'col-ed-tentar', icone: 'atualizar', onClick: carrega })));
+      }
+      if (!colecoesDaCopia && scryfall.sets) {
+        try { colecoesDaCopia = (await scryfall.sets()).map(c => ({ code: c.code, name: c.name, released_at: c.released_at, icon_svg_uri: c.icon_svg_uri })); }
+        catch (e) { /* sem o catálogo, a sigla no lugar do símbolo */ }
+      }
+      if (!box.isConnected) return;
+      const lista = sc.edicoesDaCarta(prints, colecoesDaCopia);
+      if (!lista.length) { box.dataset.estado = 'vazio'; return mount(box, Empty('A Scryfall não tem impressões com esse nome.')); }
+      box.dataset.estado = 'pronto';
+      const atual = lista.find(e => it.set && e.set === it.set && (!it.number || e.number === String(it.number))) || null;
+      const acabamentos = ['nonfoil', 'foil', 'etched'].filter(a => lista.some(e => e.acabamentos.includes(a)));
+      if (!acabamentos.includes(escolha.acab)) escolha.acab = acabamentos[0] || 'nonfoil';
+      const acabBox = h('div', { class: 'scan-ed__acab', id: 'col-ed-acab' });
+      const listaBox = h('div', { class: 'scan-ed__lista', id: 'col-ed-lista', role: 'list' });
+      let termo = '';
+      const simbolo = e => {
+        const el = h('span', { class: 'scan-ed__simbolo scan-ed__simbolo--sigla', 'aria-hidden': 'true', dataset: e.icone ? { icone: e.icone } : null }, e.set.toUpperCase().slice(0, 4));
+        if (e.icone) {
+          const img = new Image();
+          img.onload = () => { el.style.setProperty('--scan-ed-icone', `url("${e.icone}")`); el.classList.remove('scan-ed__simbolo--sigla'); el.textContent = ''; };   // endereço já conferido (iconeDoSet)
+          img.src = e.icone;
+        }
+        return el;
+      };
+      const item = e => h('button', { class: 'scan-ed__item', type: 'button', role: 'listitem', 'aria-pressed': String(atual === e), dataset: { set: e.set, number: e.number },
+        onClick: ev => usa(e, ev.currentTarget) },
+        simbolo(e),
+        h('span', { class: 'scan-ed__texto' },
+          h('span', { class: 'scan-ed__nome' }, e.set_name),
+          h('span', { class: 'scan-ed__meta' }, [e.set.toUpperCase(), e.number ? '#' + e.number : '', e.ano, atual === e ? 'a sua' : '',
+            e.acabamentos.includes(escolha.acab) ? '' : `sem ${NOME[escolha.acab]}: entra ${NOME[e.acabamentos[0]]}`].filter(Boolean).join(' · '))));
+      const pintaLista = () => {
+        const vis = sc.filtraEdicoes(lista, termo);
+        mount(listaBox, ...(vis.length ? vis.map(item) : [Text('Nenhuma edição com esse texto.', { size: 'sm', tone: 'muted' })]));
+      };
+      const pintaAcab = () => {
+        mount(acabBox, Text(acabamentos.length > 1 ? 'Acabamento da sua carta e, depois, a edição:' : 'Toque na edição da sua carta.', { size: 'sm', tone: 'muted' }),
+          acabamentos.length > 1 ? Row({ class: 'ds-row--wrap' }, ...acabamentos.map(a => Chip(NOME[a], { pressed: escolha.acab === a, dataset: { acab: a },
+            onClick: () => { escolha.acab = a; pintaAcab(); pintaLista(); } }))) : null);
+      };
+      let busca = null;
+      if (lista.length > 8) {
+        busca = Input({ id: 'col-ed-busca', type: 'search', placeholder: 'Sigla, coleção, número ou ano', onInput: ev => { termo = ev.target.value; pintaLista(); } });
+        busca.setAttribute('aria-label', 'Buscar edição');
+      }
+      mount(box, Stack({}, Text(`${it.qty} cópia(s) · ${lista.length} impressão(ões)`, { size: 'xs', tone: 'muted' }), busca, acabBox, listaBox));
+      pintaAcab(); pintaLista();
+    }
+    await carrega();
   }
   function editPrinting(it, reopen) {
     closeDialog();

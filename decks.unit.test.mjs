@@ -892,3 +892,34 @@ test('G-272 · desfazer a exclusão: restore devolve a lista igual (mesmo id, da
   assert.equal(await decks.restore(null), null);
   assert.ok(a && c);
 });
+
+test('G-349 · relato #64 parte 2: trocaItem troca a edição da cópia guardada, soma se a impressão já existe e Desfazer volta igual', async () => {
+  const J = x => JSON.parse(JSON.stringify(x));   // os itens vêm de outro contexto (vm)
+  const col = D.createCollection({ store: P.memoryStore() });
+  await col.set('Island', 3);
+  await col.addPrinting({ name: 'Island', set: 'mh2', number: '267', finish: 'foil', lang: 'ja', cond: 'LP' }, 1);
+  const antes = J((await col.items()).map(({ added, ...x }) => x).sort((a, b) => a.key.localeCompare(b.key)));
+  const generica = (await col.items()).find(x => !x.set);
+  // sem edição → MH2 #267 normal: as 3 cópias levam a edição, idioma e condição de praxe
+  const r1 = await col.trocaItem(generica.key, { set: 'mh2', number: '267', set_name: 'Modern Horizons 2', finish: '' });
+  assert.equal(r1.fundiu, false);
+  assert.deepEqual(J((await col.items()).filter(x => x.key === r1.key).map(x => [x.set, x.number, x.finish, x.lang, x.cond, x.qty])), [['mh2', '267', '', 'en', 'NM', 3]]);
+  // a cópia foil japonesa LP vira a mesma impressão normal: idioma e condição ficam os dela, não funde com a outra
+  const foil = (await col.items()).find(x => x.finish === 'foil');
+  const r2 = await col.trocaItem(foil.key, { finish: '' });
+  assert.equal(r2.fundiu, false);
+  assert.equal(await col.qty('Island'), 4, 'nada some');
+  // fundir: quando a troca cai numa impressão que já está na coleção, as cópias somam
+  const r3 = await col.trocaItem(r1.key, { set: 'mh2', number: '267', finish: '', lang: 'ja', cond: 'LP' });
+  assert.equal(r3.fundiu, true);
+  assert.deepEqual(J((await col.items()).map(x => x.qty)), [4]);
+  await r3.desfaz(); await r2.desfaz(); await r1.desfaz();
+  assert.deepEqual(J((await col.items()).map(({ added, ...x }) => x).sort((a, b) => a.key.localeCompare(b.key))), antes, 'Desfazer devolve as mesmas cópias');
+  assert.equal(await col.trocaItem('nao-existe', { set: 'lea' }), null);
+  // um +/- feito entre a troca e o Desfazer fica: o Desfazer só devolve as cópias que a troca levou
+  const g2 = (await col.items()).find(x => !x.set);
+  const r4 = await col.trocaItem(g2.key, { set: 'lea', number: '288' });
+  await col.setItem(r4.key, 5);
+  await r4.desfaz();
+  assert.deepEqual(J((await col.items()).filter(x => x.name === 'Island').map(x => [x.set, x.qty]).sort()), [['', 3], ['lea', 2], ['mh2', 1]]);
+});

@@ -1339,6 +1339,84 @@ test('e2e · G-348 relato #63 fatia 3: na seleção da Coleção, Excluir confir
   assert.deepEqual(errors, []);
 });
 
+// G-349 · relato #64 parte 2: depois de guardada, a cópia da Coleção troca de edição e de acabamento pela mesma folha da
+// pilha (símbolo, nome, sigla, número, ano; acabamento só com o que a impressão tem; um toque troca, com Desfazer).
+test('e2e · G-349 relato #64 parte 2: a cópia guardada na Coleção troca edição e acabamento num toque, com Desfazer, e a troca fica', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 697 });
+  const pedidos = { sets: 0, prints: 0 };
+  await page.route('https://api.scryfall.com/sets', r => { pedidos.sets++; return r.fulfill({ json: { object: 'list', has_more: false, data: [
+    { code: 'mh2', name: 'Modern Horizons 2', released_at: '2021-06-18', icon_svg_uri: 'https://svgs.scryfall.io/sets/mh2.svg?1700000000' }] } }); });
+  await page.route('https://svgs.scryfall.io/**', r => r.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><circle cx="5" cy="5" r="5"/></svg>' }));
+  await page.route('https://api.scryfall.com/cards/search**', r => {
+    const q = decodeURIComponent(new URL(r.request().url()).searchParams.get('q') || '');
+    if (q !== '!"Island"') return r.fallback();
+    pedidos.prints++;
+    const c = { object: 'card', name: 'Island', type_line: 'Basic Land — Island', color_identity: ['U'], colors: [], cmc: 0, oracle_text: '', legalities: {} };
+    return r.fulfill({ json: { object: 'list', has_more: false, data: [
+      { ...c, id: 'island-mh2', set: 'mh2', set_name: 'Modern Horizons 2', collector_number: '267', released_at: '2021-06-18', finishes: ['nonfoil', 'foil'] },
+      { ...c, id: 'island-lea', set: 'lea', set_name: 'Limited Edition Alpha', collector_number: '288', released_at: '1993-08-05', finishes: ['nonfoil'] }] } });
+  });
+  await page.goto(base + '#/colecao');
+  await page.waitForSelector('#col-csv-import');
+  await page.click('#col-import'); await page.waitForSelector('#col-import-text'); await page.fill('#col-import-text', '3 Island');
+  await page.click('#col-import-check'); await page.waitForSelector('#col-import-run'); await page.click('#col-import-run');
+  await page.waitForSelector('.col-row[data-name="Island"]');
+  assert.equal(pedidos.prints, 0, 'as impressões só são buscadas quando a folha abre');
+  const abreImpressoes = async () => { await page.click('.col-row[data-name="Island"] .col-row__info'); await page.waitForSelector('#col-prints'); };
+  // a cópia sem edição pede a edição e o toque nela abre a folha
+  await abreImpressoes();
+  const copia = page.locator('#col-prints .col-print').first();
+  assert.match(await copia.innerText(), /sem edição definida[\s\S]*Escolha a edição/);
+  await copia.locator('[data-edicao]').click();
+  await page.waitForSelector('#col-ed[data-estado="pronto"]');
+  assert.deepEqual(await page.$$eval('#col-ed .scan-ed__item', els => els.map(e => e.dataset.set)), ['mh2', 'lea']);
+  assert.match(await page.innerText('#col-ed .scan-ed__item[data-set="mh2"]'), /Modern Horizons 2[\s\S]*MH2 · #267 · 2021/);
+  await page.waitForSelector('#col-ed .scan-ed__item[data-set="mh2"] .scan-ed__simbolo:not(.scan-ed__simbolo--sigla)');
+  assert.deepEqual(await page.$$eval('#col-ed-acab [data-acab]', els => els.map(e => e.dataset.acab)), ['nonfoil', 'foil']);
+  // Voltar não mexe na cópia
+  await page.click('#col-ed-voltar'); await page.waitForSelector('#col-prints');
+  assert.match(await page.innerText('#col-prints'), /sem edição definida ?/);
+  await page.locator('#col-prints .col-print').first().locator('[data-edicao]').click();
+  await page.waitForSelector('#col-ed[data-estado="pronto"]');
+  await page.click('#col-ed-acab [data-acab="foil"]');
+  assert.match(await page.innerText('#col-ed .scan-ed__item[data-set="lea"]'), /sem Foil: entra Normal/);
+  await auditaTela(page, 'G-349 trocar a edição da cópia na Coleção');
+  const pequenos = await page.$$eval('#col-ed button, .ds-dialog__actions button', bs => bs.filter(b => b.offsetParent && b.getBoundingClientRect().height < 43.5).map(b => b.textContent.trim()));
+  assert.deepEqual(pequenos, [], 'alvos de toque com 44 px');
+  // um toque troca: as 3 cópias viram MH2 #267 foil, idioma e condição de praxe
+  await page.click('#col-ed .scan-ed__item[data-set="mh2"]');
+  await page.waitForFunction(() => /MH2 · #267 · foil/.test((document.querySelector('#col-prints') || {}).innerText || ''));
+  assert.match(await page.innerText('.ds-dialog'), /3 cópia\(s\) em 1 versão/);
+  assert.doesNotMatch(await page.innerText('#col-prints'), /sem edição/);
+  // trocar de novo: a impressão atual vem marcada; LEA não tem foil e entra normal
+  await page.locator('#col-prints .col-print').first().locator('[data-edicao]').click();
+  await page.waitForSelector('#col-ed[data-estado="pronto"]');
+  assert.equal(await page.getAttribute('#col-ed .scan-ed__item[data-set="mh2"]', 'aria-pressed'), 'true', 'a sua impressão vem marcada');
+  assert.equal(await page.getAttribute('#col-ed-acab [data-acab="foil"]', 'aria-pressed'), 'true', 'o acabamento da cópia vem marcado');
+  await page.click('#col-ed .scan-ed__item[data-set="lea"]');
+  await page.waitForFunction(() => /LEA · #288/.test((document.querySelector('#col-prints') || {}).innerText || ''));
+  assert.doesNotMatch(await page.innerText('#col-prints'), /foil/);
+  assert.match(await page.innerText('#ds-toast'), /Island: LEA #288/);
+  // Desfazer volta exatamente à MH2 foil
+  await page.click('#ds-toast .ds-toast__acao');
+  await page.waitForFunction(() => /MH2 · #267 · foil/.test((document.querySelector('#col-prints') || {}).innerText || ''));
+  assert.doesNotMatch(await page.innerText('#col-prints'), /LEA/);
+  // a troca fica gravada
+  await page.reload(); await page.waitForSelector('.col-row[data-name="Island"]');
+  const guardado = await page.evaluate(() => new Promise((ok, erro) => { const r = indexedDB.open('mtg'); r.onsuccess = () => { const g = r.result.transaction('kv').objectStore('kv').get('collection.items'); g.onsuccess = () => ok(g.result); g.onerror = erro; }; }));
+  assert.deepEqual(guardado.filter(x => x.name === 'Island').map(x => [x.set, x.number, x.finish, x.qty]), [['mh2', '267', 'foil', 3]]);
+  // sem internet: a folha diz e a cópia fica como está
+  await abreImpressoes();
+  await page.context().setOffline(true);
+  await page.locator('#col-prints .col-print').first().locator('[data-edicao]').click();
+  await page.waitForSelector('#col-ed[data-estado="sem-rede"]');
+  assert.match(await page.innerText('#col-ed'), /Sem internet/);
+  await page.context().setOffline(false);
+  assert.equal(pedidos.sets, 1, 'o catálogo de coleções vem uma vez por sessão');
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · C10 exportar a coleção por lista: formatos, seleção manual, copiar e baixar', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
