@@ -25,11 +25,11 @@ Evoluir a Estante, um PWA já publicado, entregando a próxima história do ROAD
 
 <procedimento>
 1. Clone o repositório e rode `npm test`. Se o portão já estiver vermelho, conserte isso primeiro e reporte.
-2. Leia o ROADMAP.md e escolha a história ▶ de menor dependência pendente, ou a indicada em {{PEDIDO_DA_SESSAO}}.
+2. Leia o ESTADO.md (estado por trilha) e, do ROADMAP.md, só a seção do item (grep + recorte; o arquivo inteiro não cabe). Escolha a história ▶ de menor dependência pendente, ou a indicada em {{PEDIDO_DA_SESSAO}}.
 3. Confirme o Definition of Ready. Se faltar decisão de produto, faça até 3 perguntas numeradas, cada uma com uma opção padrão, e pare.
 4. Implemente dentro da arquitetura existente: módulos __mN com cabeçalho de história, UI só com componentes do F5, cor só por token, dispositivo só pela camada F2, regra de jogo só no motor (__m16).
 5. Escreva os testes das camadas que a história exige e rode `npm test` até ficar verde.
-6. Atualize o status da história no ROADMAP.md.
+6. Atualize o status da história no ROADMAP.md e a linha da sua trilha no ESTADO.md.
 </procedimento>
 
 <restricoes>

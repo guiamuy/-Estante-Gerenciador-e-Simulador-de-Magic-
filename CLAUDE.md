@@ -2,6 +2,10 @@
 
 Várias conversas (trilhas) evoluem o mesmo `index.html` ao mesmo tempo. Publicar **soma** ao produto: nenhuma trilha apaga a entrega de outra sem dizer isso por escrito. Contexto do produto e do plano: `ROADMAP.md` e `PROMPT.md`.
 
+## Comece pelo `ESTADO.md`
+
+Toda conversa lê primeiro o `ESTADO.md` (estado por trilha, relatos abertos, onde mora o detalhe; até 8 KB). O `ROADMAP.md` tem ≈ 2,4 MB: **nunca o leia inteiro**, só a seção do item (`grep -n` + `sed -n`). No commit de docs de cada leva, a trilha reescreve a **sua** linha no `ESTADO.md` e a data do rodapé dele.
+
 ## Publicar
 
 Um caminho só:
