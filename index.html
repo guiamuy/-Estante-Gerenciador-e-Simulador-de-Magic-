@@ -3587,6 +3587,28 @@ body[data-tela="scanner"] .ds-appbar { display: none; }
 .scan-ed__texto { display: flex; flex-direction: column; min-width: 0; }
 .scan-ed__nome { font-size: var(--text-md); line-height: var(--lh-md); overflow-wrap: anywhere; }
 .scan-ed__meta { font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--fg-muted); font-variant-numeric: tabular-nums; }
+/* S-615 · relato #65: a folha de edição da pilha vira galeria — duas colunas em 360 px, cada impressão com a arte inteira
+   na proporção da carta, o símbolo, a coleção e o número embaixo; a sua com o anel de latão e o selo "A sua". Só no scanner
+   (a folha da Coleção, G-349, segue em lista). */
+.scan-ed--galeria .scan-ed__lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: var(--space-2); }
+.scan-ed--galeria .scan-ed__lista > .ds-text { grid-column: 1 / -1; }
+.scan-ed--galeria .scan-ed__item { position: relative; display: flex; flex-direction: column; align-items: stretch; gap: var(--space-2); padding: var(--space-2);
+  transition: border-color var(--dur-1) var(--ease-out), background-color var(--dur-1) var(--ease-out), transform var(--dur-1) var(--ease-out); }
+.scan-ed--galeria .scan-ed__item:active:not(:disabled) { transform: scale(.98); }
+.scan-ed--galeria .scan-ed__item[aria-pressed="true"] { box-shadow: 0 0 0 1px var(--accent); }
+.scan-ed__arte { position: relative; display: flex; align-items: center; justify-content: center; width: 100%; aspect-ratio: 488 / 680; overflow: hidden;
+  border-radius: var(--radius-card); background: var(--bg-elev-2); }
+.scan-ed__arte-img { display: block; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity var(--dur-2) var(--ease-out); }
+.scan-ed__arte[data-arte="pronta"] .scan-ed__arte-img { opacity: 1; }
+.scan-ed__arte-sigla { font-size: var(--text-lg); font-weight: 700; letter-spacing: .04em; color: var(--fg-muted); }
+.scan-ed__sua { position: absolute; top: calc(var(--space-2) + var(--space-1)); left: calc(var(--space-2) + var(--space-1)); padding: 2px var(--space-2); border-radius: var(--radius-full);
+  background: var(--accent); color: var(--accent-fg); font-size: var(--text-xs); font-weight: 700; line-height: var(--lh-xs); }
+.scan-ed__rodape { display: grid; grid-template-columns: 22px 1fr; align-items: start; gap: var(--space-2); min-width: 0; }
+.scan-ed--galeria .scan-ed__simbolo { width: 20px; height: 20px; margin-top: 2px; }
+.scan-ed--galeria .scan-ed__simbolo--sigla { width: auto; height: auto; font-size: var(--text-2xs); }
+.scan-ed--galeria .scan-ed__nome { font-size: var(--text-sm); line-height: var(--lh-sm); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+@media (prefers-reduced-motion: reduce) { .scan-ed--galeria .scan-ed__item, .scan-ed__arte-img { transition: none; } .scan-ed--galeria .scan-ed__item:active:not(:disabled) { transform: none; } }
+:root[data-movimento="reduzido"] .scan-ed--galeria .scan-ed__item, :root[data-movimento="reduzido"] .scan-ed__arte-img { transition: none; }
 /* X11 · o contorno é o quadrilátero da carta achada (com inclinação e perspectiva), desenhado em SVG */
 .scan-outline { position: absolute; z-index: 1; pointer-events: none; color: var(--accent); }
 .scan-outline svg { display: block; overflow: visible; }
@@ -45188,6 +45210,15 @@ function acabamentosDa(p) {
 }
 /** Só o símbolo servido pela Scryfall (svgs.scryfall.io, arquivo .svg) vira imagem: o endereço entra no CSS da folha. */
 const iconeDoSet = u => (/^https:\/\/svgs\.scryfall\.io\/[a-z0-9_\/-]+\.svg(\?\d+)?$/i.test(String(u || '')) ? String(u) : '');
+/** S-615 · relato #65: a imagem pequena da impressão (a frente; na carta de duas faces, a primeira face), para a folha de
+    edição virar galeria. Só o endereço servido pela Scryfall (cards.scryfall.io, .jpg) entra; o resto vira '' (a folha
+    mostra a sigla no lugar da arte). */
+const ARTE_DA_SCRYFALL = /^https:\/\/cards\.scryfall\.io\/(small|normal)\/front\/[0-9a-f]\/[0-9a-f]\/[0-9a-f-]{36}\.jpg(\?\d+)?$/i;
+function arteDaImpressao(p) {
+  // a carta normalizada (normalizeCard) traz `images.small` (já com a primeira face); a bruta da Scryfall, `image_uris`/`card_faces`
+  const u = p && ((p.images && p.images.small) || (p.image_uris && p.image_uris.small) || (Array.isArray(p.card_faces) && p.card_faces[0] && p.card_faces[0].image_uris && p.card_faces[0].image_uris.small));
+  return ARTE_DA_SCRYFALL.test(String(u || '')) ? String(u) : '';
+}
 /** As impressões da carta como a folha mostra: sigla, nome da coleção, número, ano, símbolo e acabamentos, da mais nova
     para a mais antiga (sem data, na ordem que vieram). `sets`: o catálogo de coleções (ou nada, sem rede). */
 function edicoesDaCarta(prints, sets = null) {
@@ -45196,7 +45227,7 @@ function edicoesDaCarta(prints, sets = null) {
     const set = String(p.set).toLowerCase(), c = porCodigo.get(set);
     const data = String(p.released_at || (c && c.released_at) || '');
     return { id: p.id || '', set, set_name: p.set_name || (c && c.name) || set.toUpperCase(), number: String(p.collector_number || p.number || ''),
-      ano: /^\d{4}/.test(data) ? data.slice(0, 4) : '', data, icone: c ? iconeDoSet(c.icon_svg_uri) : '', acabamentos: acabamentosDa(p), i };
+      ano: /^\d{4}/.test(data) ? data.slice(0, 4) : '', data, icone: c ? iconeDoSet(c.icon_svg_uri) : '', acabamentos: acabamentosDa(p), arte: arteDaImpressao(p), i };
   }).sort((a, b) => (a.data && b.data && a.data !== b.data ? (a.data < b.data ? 1 : -1) : a.i - b.i)).map(({ i, ...x }) => x);
 }
 /** Busca da folha: sigla, nome da coleção, número ou ano; cada palavra precisa casar. */
@@ -46128,7 +46159,7 @@ const LIMIARES_LINHA = { borrada: 0.5, deslocamentoMax: 0.05, correndo: 0.12, al
     mas a carta não conta como parada (nada entra na primeira passada; o porteiro pede repetição). */
 function pulaPorMovimento(mov, { via = 'auto', contorno = true } = {}) { return via !== 'manual' && contorno && mov > LIMIARES_LINHA.correndo; }
 
-return { cleanOcr, matchName, matchLines, criaVotacao, criaPorteiro, PORTEIRO, leituraConfiavel, nitidezDaFaixa, movimentoEntre, LIMIARES_FAIXA, criaDiario, criaCronometro, criaRefoco, EXATA, buildIndex, candidatosDoIndice, createNameIndex, IDIOMAS_DOS_NOMES, LINGUAS_DO_LEITOR, linguaDoLeitor, temCjk, chaveCjk, indiceCjk, matchCjk, createLot, coverRegion, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, resolveEdicao, artistaNoTexto, acabamentosDa, edicoesDaCarta, filtraEdicoes, iconeDoSet, ACABAMENTO_NA_COLECAO, NOME_DO_ACABAMENTO, ACCEPT, ALTA, SUGGEST, lev,
+return { cleanOcr, matchName, matchLines, criaVotacao, criaPorteiro, PORTEIRO, leituraConfiavel, nitidezDaFaixa, movimentoEntre, LIMIARES_FAIXA, criaDiario, criaCronometro, criaRefoco, EXATA, buildIndex, candidatosDoIndice, createNameIndex, IDIOMAS_DOS_NOMES, LINGUAS_DO_LEITOR, linguaDoLeitor, temCjk, chaveCjk, indiceCjk, matchCjk, createLot, coverRegion, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, resolveEdicao, artistaNoTexto, acabamentosDa, edicoesDaCarta, arteDaImpressao, filtraEdicoes, iconeDoSet, ACABAMENTO_NA_COLECAO, NOME_DO_ACABAMENTO, ACCEPT, ALTA, SUGGEST, lev,
   detectaCarta, detectaEmEscalas, ESCALAS_DETECTOR, brilho, nitidez, prontoParaLer, criaDetector, paradaEm, screenRect, LIMIARES, PROPORCAO_CARTA, realcaTexto, trechoEscuroEmbaixo, limpaBordas, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, faixaDaCarta, escalaOcr,
   retasDoQuadro, achaQuadrilatero, ordenaCantos, homografia, cantosDaFaixa, cantosDeitada, cartaDeitada, cantosDaImagemDaArte, retifica, FAIXA_NOME, FAIXA_COLECAO, LARGURA_NOME, linhaDoNome, binarizaLinha, limpaLinha, nitidezDaLinha, afiaLinha, FAIXA_ARTE, BITS_ARTE, impressaoDaArte, distanciaDaArte, buscaArte, abreBaseDeArtes, binDasArtes, criaBaseDeArtes, decideArte, arteDaEdicao, LIMIAR_ARTE, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, alturaDaCarta, deslocamento, LIMIARES_LINHA, pulaPorMovimento, QUAD };
 })();
@@ -46887,10 +46918,14 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
   }
   const BUSCA_A_PARTIR = 8;   // com mais impressões que isso, a folha ganha a busca
   async function openEdicao(x) {
-    const box = h('div', { class: 'scan-ed', id: 'scan-ed', dataset: { key: x.key } });
+    const box = h('div', { class: 'scan-ed scan-ed--galeria', id: 'scan-ed', dataset: { key: x.key } });
     const voltar = () => { closeDialog(); openPile(); };
+    // S-615 · relato #65: fechar a jornada e seguir lendo — a folha fecha direto na câmera (sem passar pela pilha) e a carta
+    // continua na pilha com a edição como estava ("Edição a definir" quando não havia), para escolher depois
+    const seguir = () => { closeDialog(); paintDock(); toast(x.set ? 'Edição mantida. Siga lendo as cartas.' : 'A edição fica para depois, na Pilha. Siga lendo as cartas.', 3000); };
     // S-613 · relato #65: sem "Usar" — o toque na impressão já troca (um toque só); o acabamento fica acima da lista
-    Dialog({ title: x.name, body: box, actions: [Button('Voltar', { id: 'scan-ed-voltar', onClick: voltar })] });
+    Dialog({ title: x.name, body: box, actions: [Button('Voltar', { id: 'scan-ed-voltar', onClick: voltar }),
+      Button('Seguir escaneando', { id: 'scan-ed-seguir', variant: 'primary', icone: 'camera', onClick: seguir })] });
     const titulo = document.getElementById('ds-dialog-title'); if (titulo) titulo.setAttribute('lang', 'en');
     const escolha = { ed: null, acab: x.finish ? (x.finish === 'foil' ? 'foil' : 'etched') : 'nonfoil' };
     let gravando = false;
@@ -46946,14 +46981,30 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
         }
         return el;
       };
+      // S-615 · relato #65: cada impressão mostra a própria arte (imagem pequena da Scryfall), para escolher vendo a carta.
+      // Enquanto chega, a espera do DS; imagem que falha ou não existe vira a sigla grande no lugar (nunca a arte de outra impressão).
+      const arte = e => {
+        const el = h('span', { class: 'scan-ed__arte', 'aria-hidden': 'true', dataset: { arte: e.arte ? 'carregando' : 'sem' } });
+        if (!e.arte) { el.append(h('span', { class: 'scan-ed__arte-sigla' }, e.set.toUpperCase().slice(0, 5))); return el; }
+        const espera = h('span', { class: 'ds-carta-espera' });
+        const img = h('img', { class: 'scan-ed__arte-img', alt: '', loading: 'lazy', decoding: 'async', width: 146, height: 204 });
+        img.onload = () => { el.dataset.arte = 'pronta'; espera.remove(); };
+        img.onerror = () => { el.dataset.arte = 'falhou'; espera.remove(); img.remove(); el.append(h('span', { class: 'scan-ed__arte-sigla' }, e.set.toUpperCase().slice(0, 5))); };
+        img.src = e.arte;   // endereço já conferido (arteDaImpressao)
+        el.append(img, espera);
+        return el;
+      };
       const item = e => h('button', { class: 'scan-ed__item', type: 'button', role: 'listitem', 'aria-pressed': String(escolha.ed === e), dataset: { set: e.set, number: e.number },
+        'aria-label': `${e.set_name}, ${e.set.toUpperCase()}${e.number ? ' número ' + e.number : ''}${e.ano ? ', ' + e.ano : ''}${escolha.ed === e ? ', a sua' : ''}`,
         onClick: ev => usa(e, ev.currentTarget) },
-        simbolo(e),
+        arte(e),
+        escolha.ed === e ? h('span', { class: 'scan-ed__sua' }, 'A sua') : null,
+        h('span', { class: 'scan-ed__rodape' }, simbolo(e),
         h('span', { class: 'scan-ed__texto' },
           h('span', { class: 'scan-ed__nome' }, e.set_name),
           h('span', { class: 'scan-ed__meta' }, [e.set.toUpperCase(), e.number ? '#' + e.number : '', e.ano,
             // a impressão que não tem o acabamento marcado entra com o que ela tem (dito antes do toque)
-            e.acabamentos.includes(escolha.acab) ? '' : `sem ${NOME_DO_ACABAMENTO[escolha.acab]}: entra ${NOME_DO_ACABAMENTO[e.acabamentos[0]]}`].filter(Boolean).join(' · '))));
+            e.acabamentos.includes(escolha.acab) ? '' : `sem ${NOME_DO_ACABAMENTO[escolha.acab]}: entra ${NOME_DO_ACABAMENTO[e.acabamentos[0]]}`].filter(Boolean).join(' · ')))));
       let termo = '';
       const pintaLista = () => {
         const vis = filtraEdicoes(lista, termo);
@@ -46966,6 +47017,9 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
       }
       mount(box, Stack({}, Text(`${lista.length} impressão(ões)`, { size: 'xs', tone: 'muted' }), busca, acabBox, listaBox));
       pintaAcab(); pintaLista();
+      // S-615 · a sua impressão (quando há) aparece sem rolar
+      const sua = listaBox.querySelector('.scan-ed__item[aria-pressed="true"]');
+      if (sua && sua.scrollIntoView) sua.scrollIntoView({ block: 'nearest' });
     }
     await carrega();
   }

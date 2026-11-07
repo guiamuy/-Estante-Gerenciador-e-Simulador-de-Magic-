@@ -2054,6 +2054,87 @@ test('e2e · S-613 relato #65: a pilha com cartas a confirmar não se deforma em
   assert.deepEqual(errors, []);
 });
 
+// S-615 · relato #65 parte "escolha de edição elaborada" (360×697, escuro): a folha de edição da pilha é uma galeria com a
+// arte de cada impressão (duas colunas, a sua com "A sua"); a arte que não carrega vira a sigla (nunca a imagem quebrada);
+// "Seguir escaneando" fecha direto na câmera e a carta continua na pilha com a edição a definir.
+test('e2e · S-615 relato #65: a folha de edição mostra a arte de cada impressão em grade e "Seguir escaneando" volta à câmera', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 697 });
+  await page.emulateMedia({ colorScheme: 'dark' });
+  const jpg = readFileSync(join(ROOT, 'fotos', 'brainstorm-retrato.jpg'));
+  const ARTE = id => `https://cards.scryfall.io/small/front/${id[0]}/${id[1]}/${id}.jpg?1700000000`;
+  const MH2 = 'a1b2c3d4-0000-4000-8000-000000000267', LEA = 'b2c3d4e5-0000-4000-8000-000000000288', M21 = 'c3d4e5f6-0000-4000-8000-000000000260';
+  // a arte da Alpha não carrega (vira a sigla); as outras chegam
+  await page.route('https://cards.scryfall.io/**', r => r.request().url().includes(LEA) ? r.abort('internetdisconnected') : r.fulfill({ contentType: 'image/jpeg', body: jpg }));
+  await page.route('https://api.scryfall.com/sets', r => r.fulfill({ json: { object: 'list', has_more: false, data: [] } }));
+  await page.route('https://api.scryfall.com/cards/search**', r => {
+    const q = decodeURIComponent(new URL(r.request().url()).searchParams.get('q') || '');
+    if (q !== '!"Island"') return r.fallback();
+    const c = { object: 'card', name: 'Island', type_line: 'Basic Land — Island', color_identity: ['U'], colors: [], cmc: 0, oracle_text: '', legalities: {} };
+    return r.fulfill({ json: { object: 'list', has_more: false, data: [
+      { ...c, id: MH2, set: 'mh2', set_name: 'Modern Horizons 2', collector_number: '267', released_at: '2021-06-18', finishes: ['nonfoil', 'foil'], image_uris: { small: ARTE(MH2) } },
+      { ...c, id: M21, set: 'm21', set_name: 'Core Set 2021', collector_number: '260', released_at: '2020-07-03', finishes: ['nonfoil', 'foil'], image_uris: { small: ARTE(M21) } },
+      { ...c, id: LEA, set: 'lea', set_name: 'Limited Edition Alpha', collector_number: '288', released_at: '1993-08-05', finishes: ['nonfoil'], image_uris: { small: ARTE(LEA) } },
+      // endereço fora da Scryfall: não vira imagem (fica a sigla)
+      { ...c, id: 'x-fora', set: 'pxx', set_name: 'Promo X', collector_number: '1', released_at: '2019-01-01', finishes: ['nonfoil'], image_uris: { small: 'https://mal.example/x.jpg' } }] } });
+  });
+  await page.addInitScript(FAKE_DEVICE(false));
+  await page.goto(base + '#/');
+  await page.evaluate(async itens => { await new Promise((res, rej) => { const r = indexedDB.open('mtg', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv');
+    r.onsuccess = () => { const tx = r.result.transaction('kv', 'readwrite'); tx.objectStore('kv').put(itens, 'scanner.lot'); tx.oncomplete = res; tx.onerror = rej; }; r.onerror = rej; }); }, PILHA_S613);
+  await page.goto(base + '#/scanner');
+  await page.waitForSelector('#scan-read:not([disabled])');
+  await pausaAuto(page);
+  await abrePilha(page);
+  await page.locator('#scan-pile .scan-pile__card[data-name="Island"] [data-edicao]').click();
+  await page.waitForSelector('#scan-ed[data-estado="pronto"]');
+  await page.waitForFunction(() => [...document.querySelectorAll('#scan-ed .scan-ed__arte')].every(a => a.dataset.arte !== 'carregando'));
+  const g = await page.evaluate(() => {
+    const itens = [...document.querySelectorAll('#scan-ed .scan-ed__item')];
+    const corpo = document.querySelector('#scan-ed').closest('.ds-dialog__body') || document.querySelector('#scan-ed');
+    const fora = [];
+    for (const it of itens) { const b = it.getBoundingClientRect(); for (const e of it.querySelectorAll('*')) { const r = e.getBoundingClientRect(); if (r.width && (r.right > b.right + 1 || r.left < b.left - 1)) fora.push(it.dataset.set + ' ' + String(e.className).split(' ')[0]); } }
+    return { sets: itens.map(i => i.dataset.set), estados: itens.map(i => i.querySelector('.scan-ed__arte').dataset.arte),
+      colunas: new Set(itens.map(i => Math.round(i.getBoundingClientRect().left))).size,
+      quebradas: itens.filter(i => { const im = i.querySelector('img'); return im && im.complete && !im.naturalWidth; }).map(i => i.dataset.set),
+      siglas: itens.filter(i => i.querySelector('.scan-ed__arte-sigla')).map(i => i.dataset.set),
+      proporcao: (() => { const a = itens[0].querySelector('.scan-ed__arte').getBoundingClientRect(); return a.height / a.width; })(),
+      fora, lateral: corpo.scrollWidth - corpo.clientWidth, sua: document.querySelectorAll('#scan-ed .scan-ed__sua').length };
+  });
+  assert.deepEqual(g.sets, ['mh2', 'm21', 'pxx', 'lea'], 'da mais nova para a mais antiga');
+  assert.deepEqual(g.estados, ['pronta', 'pronta', 'sem', 'falhou'], 'a arte de cada impressão; sem endereço da Scryfall e com falha, a sigla');
+  assert.equal(g.colunas, 2, 'duas colunas em 360 px');
+  assert.deepEqual(g.quebradas, [], 'nenhuma imagem quebrada à vista');
+  assert.deepEqual(g.siglas, ['pxx', 'lea']);
+  assert.ok(Math.abs(g.proporcao - 680 / 488) < 0.03, `a arte na proporção da carta (${g.proporcao})`);
+  assert.deepEqual(g.fora, [], 'nada sai do quadro da impressão');
+  assert.ok(g.lateral <= 1, `a folha não rola para o lado (${g.lateral}px)`);
+  assert.equal(g.sua, 0, 'carta sem edição: nenhuma marcada como a sua');
+  assert.match(await page.innerText('#scan-ed .scan-ed__item[data-set="mh2"]'), /Modern Horizons 2[\s\S]*MH2 · #267 · 2021/);
+  const pequenos = await page.$$eval('#scan-ed button, .ds-dialog__actions button', bs => bs.filter(b => b.offsetParent && b.getBoundingClientRect().height < 44).map(b => b.textContent.trim()));
+  assert.deepEqual(pequenos, [], 'alvos de toque com 44 px');
+  await auditaTela(page, 'S-615 galeria de impressões (360×697, escuro)');
+  if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/s615-galeria.png` });
+  // fechar a jornada: "Seguir escaneando" volta direto à câmera; a carta continua na pilha com a edição a definir
+  await page.click('#scan-ed-seguir');
+  await page.waitForFunction(() => !document.querySelector('#scan-ed'));
+  assert.equal(await page.locator('#scan-pile').count(), 0, 'não reabre a pilha');
+  assert.ok(await page.isVisible('#scan-read'), 'a câmera está à vista');
+  await abrePilha(page);
+  assert.match(await page.innerText('#scan-pile .scan-pile__card[data-name="Island"]'), /Edição a definir/);
+  // escolhida a edição, a folha marca a sua
+  await page.locator('#scan-pile .scan-pile__card[data-name="Island"] [data-edicao]').click();
+  await page.waitForSelector('#scan-ed[data-estado="pronto"]');
+  await page.click('#scan-ed .scan-ed__item[data-set="m21"]');
+  await page.waitForSelector('#scan-pile');
+  await page.locator('#scan-pile .scan-pile__card[data-name="Island"] [data-edicao]').click();
+  await page.waitForSelector('#scan-ed[data-estado="pronto"]');
+  assert.equal(await page.getAttribute('#scan-ed .scan-ed__item[data-set="m21"]', 'aria-pressed'), 'true');
+  assert.match(await page.innerText('#scan-ed .scan-ed__item[data-set="m21"]'), /A sua/);
+  assert.equal(await page.locator('#scan-ed .scan-ed__sua').count(), 1);
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · X3/X5 scanner identifica a edição e manda o lote para uma lista e para a coleção', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.goto(base + '#/listas/editar');

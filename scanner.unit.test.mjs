@@ -1257,6 +1257,17 @@ test('S-607 · edicoesDaCarta: da mais nova para a mais antiga, com ano e símbo
   eq607(X.filtraEdicoes(l, '#267').map(e => e.id), ['b']);
   assert.equal(X.filtraEdicoes(l, '').length, 2);
 });
+test('S-615 · arteDaImpressao: só a imagem pequena da Scryfall (frente; carta de duas faces, a primeira face) vira a arte da galeria', () => {
+  const id = 'a1b2c3d4-0000-4000-8000-000000000267', u = `https://cards.scryfall.io/small/front/a/1/${id}.jpg?1700000000`;
+  assert.equal(X.arteDaImpressao({ image_uris: { small: u } }), u);
+  assert.equal(X.arteDaImpressao({ card_faces: [{ image_uris: { small: u } }, {}] }), u, 'duas faces: a primeira');
+  assert.equal(X.arteDaImpressao({ images: { small: u, normal: null } }), u, 'a carta normalizada do app');
+  assert.equal(X.arteDaImpressao({ image_uris: { small: 'https://mal.example/x.jpg' } }), '', 'fora da Scryfall: nada');
+  assert.equal(X.arteDaImpressao({ image_uris: { small: u + '");background:url(//mal' } }), '', 'nada que escape');
+  assert.equal(X.arteDaImpressao({}), '');
+  const l = X.edicoesDaCarta([{ id, set: 'mh2', set_name: 'Modern Horizons 2', collector_number: '267', image_uris: { small: u } }, { id: 'b', set: 'lea', collector_number: '1' }]);
+  assert.deepEqual(l.map(e => e.arte), [u, ''], 'a folha recebe a arte de cada impressão (sem imagem, vazio: nunca a de outra)');
+});
 test('S-607 · lote: escolher edição e foil confere, separa do normal, junta com igual e desfaz', async () => {
   const lot = X.createLot({ store: P.memoryStore() });
   const k = await lot.add('Island', 2, null, { score: 0.8 });
