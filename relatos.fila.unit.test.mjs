@@ -133,10 +133,10 @@ test('I-289 · tabela: o robô só é confiável com a etiqueta da fila; estranh
   assert.equal(T.confiavel({ ...base, user: { login: 'estranho', type: 'User' }, author_association: 'NONE', labels: [{ name: 'relato-fila' }] }), false, 'etiqueta sem o robô');
 });
 
-test('I-289 · fluxo: segredo só no passo que lê a fila, permissões mínimas, a cada 10 minutos, na mesma fila de execução do fluxo Relatos, e sem segredo não faz nada', () => {
+test('I-289 · fluxo: segredo só no passo que lê a fila, permissões mínimas, à mão (o agendamento é da rotina na nuvem, I-325), na mesma fila de execução do fluxo Relatos, e sem segredo não faz nada', () => {
   const yml = readFileSync(new URL('./.github/workflows/relatos-fila.yml', import.meta.url), 'utf8');
   assert.match(yml, /^permissions:\n  contents: write\n  issues: write\n/m);
-  assert.match(yml, /cron: '\*\/10 \* \* \* \*'/); assert.match(yml, /^concurrency:\n  group: relatos\n/m, 'não disputa o ramo relatos com o fluxo Relatos');
+  assert.doesNotMatch(yml, /^  schedule:/m, 'I-325 · o agendamento é da rotina na nuvem (node robos.mjs hora)'); assert.match(yml, /^  workflow_dispatch:/m); assert.match(yml, /^concurrency:\n  group: relatos\n/m, 'não disputa o ramo relatos com o fluxo Relatos');
   assert.equal((yml.match(/secrets\.FIREBASE_SERVICE_ACCOUNT/g) || []).length, 1, 'o segredo aparece num passo só');
   const passo = yml.split('- name:').find(p => p.includes('secrets.FIREBASE_SERVICE_ACCOUNT')); assert.match(passo, /run: node relatos-fila\.mjs --saida saida\s*$/);
   assert.ok(yml.indexOf('Trazer a tabela publicada') < yml.indexOf('Criar os registros da fila'), 'o ramo relatos já está em saida quando o script grava o aviso');

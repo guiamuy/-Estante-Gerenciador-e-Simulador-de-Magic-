@@ -5,8 +5,7 @@
 name: Notícias
 
 on:
-  schedule:
-    - cron: '17 * * * *'   # de hora em hora, fora do minuto cheio (o GitHub atrasa menos)
+  # I-325 · o agendamento saiu daqui: roda na rotina da nuvem do Claude (node robos.mjs). Este fluxo fica só à mão, de reserva.
   workflow_dispatch:
 
 permissions:
