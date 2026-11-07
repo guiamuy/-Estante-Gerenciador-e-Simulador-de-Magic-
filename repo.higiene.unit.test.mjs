@@ -6,8 +6,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
-const AQUI = new URL('.', import.meta.url).pathname;
+const AQUI = fileURLToPath(new URL('.', import.meta.url)); // I-322 · Windows
 
 test('M-350 · node_modules não é rastreado pelo git e o .gitignore o ignora como pasta, link ou arquivo', () => {
   const linhas = readFileSync(new URL('./.gitignore', import.meta.url), 'utf8').split('\n').map(x => x.trim());

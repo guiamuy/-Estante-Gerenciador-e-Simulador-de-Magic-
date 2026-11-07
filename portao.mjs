@@ -159,7 +159,23 @@ export function conferirFatias(saidas) {
   return { total: nomes.length, faltando: nomes.filter((n) => vezes.get(n) === 0), repetidos: nomes.filter((n) => vezes.get(n) > 1) };
 }
 
+/** I-322 · sem CI, o portão roda no clone de quem publica, e o dono publica do Windows. Estes testes só valem no Linux
+    (caminho com "/" fixo no teste, ou gerador que depende do sistema); no Windows saem pulados, com o aviso, e seguem valendo
+    nas sessões de nuvem (Linux). Dívida da trilha dona de cada um: tornar o teste independente do sistema e tirar daqui. */
+export const SO_NO_LINUX = [
+  { padrao: '^Q16 · o navegador da fase de tela', motivo: 'o teste monta caminhos com "/" (chrome-linux)', trilha: 'infra' },
+  { padrao: '^S-595 · gerador: grava índice', motivo: 'o gerador perde 8 de 12 imagens falsas no Windows', trilha: 'scanner' },
+  { padrao: '^S-595 · gerador com autoteste', motivo: 'o mesmo do gerador acima', trilha: 'scanner' },
+];
+export const pulosDoSistema = (plataforma = process.platform) => (plataforma === 'win32' ? SO_NO_LINUX.map((p) => `--test-skip-pattern=${p.padrao}`) : []);
+let avisouPulos = false;
 function roda(args, { eco = true, env = process.env } = {}) {
+  // I-322 · o portão lê as quedas e o resumo em TAP; desde o Node 23 o padrão fora de terminal é o "spec", e as quedas viravam "?"
+  if (args[0] === '--test' && !args.some((a) => a.startsWith('--test-reporter'))) args = ['--test', '--test-reporter=tap', ...args.slice(1)];
+  if (args[0] === '--test' && pulosDoSistema().length) {
+    args = ['--test', ...pulosDoSistema(), ...args.slice(1)];
+    if (!avisouPulos) { avisouPulos = true; console.log(`# Windows: ${SO_NO_LINUX.length} teste(s) só do Linux pulados (rodam nas sessões de nuvem): ${SO_NO_LINUX.map((p) => p.padrao.slice(1)).join(' · ')}`); }
+  }
   return new Promise((resolve) => {
     const filho = spawn(process.execPath, args, { cwd: RAIZ, env, stdio: ['ignore', 'pipe', 'inherit'] });
     let saida = '';

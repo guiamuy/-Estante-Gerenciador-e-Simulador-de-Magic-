@@ -1,3 +1,9 @@
 #!/bin/sh
 # Q12 · guarda de agregação antes de qualquer push no main. Instalado pelo `npm install` (script prepare).
-exec node "$(git rev-parse --show-toplevel)/agregacao.mjs" --pre-push
+# I-322 · ninguém envia para o main: só o merge do pull request, pedido pelo dono, muda o main.
+entrada=$(cat)
+if printf '%s\n' "$entrada" | grep -q ' refs/heads/main '; then
+  echo "✗ Push para o main bloqueado (I-322). Rode: npm run publicar (branch claude/<leva>, pull request e prévia)." >&2
+  exit 1
+fi
+printf '%s\n' "$entrada" | exec node "$(git rev-parse --show-toplevel)/agregacao.mjs" --pre-push

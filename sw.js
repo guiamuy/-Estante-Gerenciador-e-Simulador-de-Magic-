@@ -32,6 +32,9 @@ function pickStrategy(request) {
   if (/(^|\.)scryfall\.io$/.test(u.hostname) || /(^|\.)scryfall\.com$/.test(u.hostname)) {
     return { strategy: 'cache-first', cache: CACHES.img, opaque: true, cors: true };
   }
+  // I-322 · dados gerados (/dados/…) e funções (/api/…) na Vercel: mesma origem, mas nunca no cache do shell.
+  // O app guarda a própria cópia no IndexedDB e pede com cache:'no-cache'; aqui é como era com o raw do GitHub.
+  if (u.origin === selfOrigin() && /^\/(dados|api)\//.test(u.pathname)) return { strategy: 'passthrough' };
   if (request.mode === 'navigate' || u.pathname === '/' || u.pathname.endsWith('.html')) {
     return { strategy: 'network-first', cache: CACHES.shell };
   }

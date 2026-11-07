@@ -15013,7 +15013,7 @@ Visão de gestão do próprio projeto, para o dono: o que foi entregue, o que es
 
 ```
 npm install        # uma vez por clone; liga o gancho de pre-push
-npm run publicar   # busca o main, rebase, guarda, conferência, fase rápida e envio para a fila (Q17): um portão no CI publica todas as levas da fila
+npm run publicar   # I-322: rebase, guarda, portão inteiro no clone, envio para claude/<leva> e pull request com prévia da Vercel; o dono vê a prévia e pede o merge (npm run publicar -- --merge <n>)
 ```
 
 Regras completas em `CLAUDE.md`. Trilhas em uso (o nome vai no rodapé `Trilha:` de todo commit):

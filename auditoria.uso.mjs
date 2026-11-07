@@ -2,10 +2,11 @@
 // carta (e cada jeito de conjurar) quantas decisões a tiveram disponível e quantas vezes ele a usou.
 // Uso: node auditoria.uso.mjs [nivel] [partidas] [semente]     ex.: node auditoria.uso.mjs shark 28 500
 // Não é teste do portão (leva minutos). "Oferecida muito, usada nunca" é o que se investiga.
+import { fileURLToPath } from 'node:url';
 import { loadModules } from './_load.mjs';
 import { cartasReais, listas } from './torneio.listas.mjs';
 const { engine: E, bot: B } = loadModules();
-const CR = cartasReais(new URL('.', import.meta.url).pathname.replace(/\/$/, ''));
+const CR = cartasReais(fileURLToPath(new URL('.', import.meta.url)).replace(/[\\/]$/, '')); // I-322 · Windows
 const TIPOS = new Set(['activate', 'cycle', 'cast_madness', 'cast_free', 'ninjutsu', 'flashback', 'escape', 'transmute', 'plot', 'unmorph']);
 const chave = (s, a) => {
   const o = a.oid ? s.objects[a.oid] : null; if (!o) return null;

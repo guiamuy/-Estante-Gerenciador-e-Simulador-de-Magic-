@@ -5,8 +5,8 @@ import { readFileSync, readdirSync, writeFileSync, mkdtempSync, rmSync } from 'n
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { arquivosDaFase, falhasDoTap, padraoExato, pushSemFiltro, navegadorDeTela, fatiasDeTela, fatiar, conferirFatias, resumoDoTap, juntaResumo, ordemDaRapida, PESADOS_DA_RAPIDA, fatiasDaParte, ARQUIVO_DE_TELA } from './portao.mjs';
+import { fileURLToPath, pathToFileURL } from 'node:url'; // I-322 · caminho absoluto no import precisa ser file:// no Windows
+import { arquivosDaFase, falhasDoTap, padraoExato, pushSemFiltro, navegadorDeTela, fatiasDeTela, fatiar, conferirFatias, resumoDoTap, juntaResumo, ordemDaRapida, PESADOS_DA_RAPIDA, fatiasDaParte, ARQUIVO_DE_TELA, SO_NO_LINUX, pulosDoSistema } from './portao.mjs';
 const RAIZ = dirname(fileURLToPath(import.meta.url));
 
 test('Q14 · as duas fases cobrem todos os arquivos de teste, sem repetir nenhum; o navegador fica sozinho na segunda', () => {
@@ -117,7 +117,7 @@ test('Q19 · de verdade: um arquivo de teste rodado em duas fatias executa cada 
   const dir = mkdtempSync(join(tmpdir(), 'estante-fatias-'));
   try {
     const arq = join(dir, 'x.test.mjs');
-    writeFileSync(arq, `import { test as t0 } from 'node:test';\nimport { fatiar } from ${JSON.stringify(join(RAIZ, 'portao.mjs'))};\nconst test = fatiar(t0, process.env.E2E_FATIA);\nfor (const n of ['um', 'dois', 'três', 'quatro', 'cinco']) test('caso ' + n, { skip: false }, () => {});\n`);
+    writeFileSync(arq, `import { test as t0 } from 'node:test';\nimport { fatiar } from ${JSON.stringify(pathToFileURL(join(RAIZ, 'portao.mjs')).href)};\nconst test = fatiar(t0, process.env.E2E_FATIA);\nfor (const n of ['um', 'dois', 'três', 'quatro', 'cinco']) test('caso ' + n, { skip: false }, () => {});\n`);
     const { NODE_TEST_CONTEXT, ...ambiente } = process.env; // sem isto o Node filho fala com o executor de testes pai, não em TAP
     const saidas = ['1/2', '2/2'].map((f) => spawnSync(process.execPath, ['--test', '--test-reporter=tap', arq], { encoding: 'utf8', env: { ...ambiente, E2E_FATIA: f } }).stdout);
     assert.deepEqual(conferirFatias(saidas), { total: 5, faltando: [], repetidos: [] });
@@ -184,6 +184,17 @@ test('Q26 · a tela dividida entre jobs: cada parte roda as suas fatias numa con
     for (const n of nomes) t(n, () => {});
   }
   assert.deepEqual(nomes.map((n) => vezes.get(n)), nomes.map(() => 1));
+});
+
+test('I-322 · no Windows o portão pula só os testes que valem no Linux, cada um com motivo e trilha; nos outros sistemas, nenhum', () => {
+  assert.deepEqual(pulosDoSistema('linux'), []);
+  assert.deepEqual(pulosDoSistema('win32'), SO_NO_LINUX.map((p) => `--test-skip-pattern=${p.padrao}`));
+  const nomes = readdirSync(RAIZ).filter((n) => n.endsWith('.test.mjs')).map((n) => readFileSync(join(RAIZ, n), 'utf8')).join('\n');
+  for (const p of SO_NO_LINUX) {
+    assert.ok(p.motivo && p.trilha, p.padrao);
+    const rx = new RegExp(p.padrao.slice(1).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    assert.equal((nomes.match(new RegExp(`test\\('${rx.source}`, 'g')) || []).length, 1, `${p.padrao} pula exatamente um teste (renomeou? tire daqui)`);
+  }
 });
 
 test('Q21 · os fluxos que rodam o portão fixam a versão do sistema (ubuntu-latest troca de versão sem aviso e o Playwright instala dependências do sistema)', () => {

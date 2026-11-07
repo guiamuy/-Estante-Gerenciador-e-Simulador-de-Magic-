@@ -298,11 +298,11 @@ test('Q17 · do lado da conversa: `publicar --fila` envia para fila/<leva>; núm
     const a = m.clone('a'), b = m.clone('b');
     a.escreve('fichas.js', ['const fichas = perfil.fichasDoJogador(estado);']); a.acrescenta('ROADMAP.md', '| 16º-ab ✅ | fichas (leva G-2) |');
     a.commit('Leva G-2 · fichas do seu jeito\n\nTrilha: geral');
-    const r1 = publicar(a, '--sem-rapida'); // a fila é o caminho padrão: sem `--direto`, nada vai ao main por este clone
+    const r1 = publicar(a, '--fila', '--sem-rapida'); // I-322 · a fila saiu do caminho padrão (o padrão é o pull request); --fila segue para estes testes
     assert.equal(r1.status, 0, r1.stdout + r1.stderr); assert.match(r1.stdout, /✓ Na fila: fila\/G-2 \(1 commit/);
     assert.equal(m.cabeca('refs/heads/fila/G-2'), a.git('rev-parse', 'HEAD'));
     assert.notEqual(m.cabeca('main'), a.git('rev-parse', 'HEAD'), 'o publicar não envia para o main');
-    assert.match(readFileSync(join(RAIZ, 'publicar.mjs'), 'utf8'), /const pelaFila = !direto;/);
+    assert.match(readFileSync(join(RAIZ, 'publicar.mjs'), 'utf8'), /const pelaFila = process\.argv\.includes\('--fila'\);/);
     // outra conversa da mesma trilha, sem ver a primeira, com o mesmo número
     b.escreve('catalogo.js', ['const catalogo = app.catalogoDeListas(estado);']);
     b.commit('Leva G-2 · catálogo com valor\n\nTrilha: geral');
@@ -314,7 +314,7 @@ test('Q17 · do lado da conversa: `publicar --fila` envia para fila/<leva>; núm
     a.commit('Leva G-3 · outra tela\n\nTrilha: geral');
     const c = ci(m);
     assert.ok(avancar({ cwd: c.dir, plano: plano(c), portao: 'success' }).publicado);
-    const sit = publicar(a, '--situacao');
+    const sit = publicar(a, '--situacao', '--fila'); // I-322 · sem --fila, --situacao mostra os pull requests
     assert.match(sit.stdout, /✓ no main [0-9a-f]{7}  Leva G-2[\s\S]*· aguardando  Leva G-3/);
     const r3 = publicar(a, '--fila', '--sem-rapida');
     assert.equal(r3.status, 0, r3.stdout + r3.stderr);
@@ -558,13 +558,50 @@ test('I-308 · cada fase sonda só as próprias quedas; o publicar em modo fila 
     delete env.PW_CHROMIUM;
     const a = m.clone('a');
     a.escreve('fichas.js', ['const fichas = perfil.fichasDoJogador(estado);']); a.commit('Leva G-2 · fichas\n\nTrilha: geral');
-    const pelaFila = spawnSync(process.execPath, [join(RAIZ, 'publicar.mjs'), '--sem-rapida'], { cwd: a.dir, encoding: 'utf8', env });
+    const pelaFila = spawnSync(process.execPath, [join(RAIZ, 'publicar.mjs'), '--fila', '--sem-rapida'], { cwd: a.dir, encoding: 'utf8', env });
     assert.equal(pelaFila.status, 0, pelaFila.stdout + pelaFila.stderr);
     assert.match(pelaFila.stdout, /aviso: .*Chromium[\s\S]*Pela fila isso não impede o envio/); assert.match(pelaFila.stdout, /✓ Na fila: fila\/G-2/);
     a.escreve('mais.js', ['const mais = app.outraTela(estado);']); a.commit('Leva G-3 · outra\n\nTrilha: geral');
-    const direto = spawnSync(process.execPath, [join(RAIZ, 'publicar.mjs'), '--direto'], { cwd: a.dir, encoding: 'utf8', env });
-    assert.equal(direto.status, 1); assert.match(direto.stderr, /Chromium[\s\S]*Nada foi publicado/, 'o caminho direto roda a fase de tela no clone: sem navegador, para');
+    // I-322 · o pull request roda a fase de tela neste clone (o caminho direto, que fazia isso, acabou): sem navegador, para
+    const direto = spawnSync(process.execPath, [join(RAIZ, 'publicar.mjs'), '--sem-rapida'], { cwd: a.dir, encoding: 'utf8', env });
+    assert.equal(direto.status, 1); assert.match(direto.stderr, /Chromium[\s\S]*Nada foi publicado/, 'o pull request roda a fase de tela no clone: sem navegador, para');
+    const recusado = spawnSync(process.execPath, [join(RAIZ, 'publicar.mjs'), '--direto'], { cwd: a.dir, encoding: 'utf8', env });
+    assert.equal(recusado.status, 1); assert.match(recusado.stderr, /caminho direto \(push no main\) acabou/);
     rmSync(vazio, { recursive: true, force: true });
+  } finally { m.fim(); }
+});
+
+/* ---------- I-322 · pull request no lugar da fila ---------- */
+
+test('I-322 · o publicar padrão envia para claude/<leva> e nunca para o main; sem gh, mostra o link do PR; depois de outra trilha publicar, o reenvio substitui o próprio ramo', () => {
+  const m = mundo();
+  try {
+    const env = { ...process.env, PW_CHROMIUM: process.execPath, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@t', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@t', GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null' };
+    const publicar = (c, ...args) => spawnSync(process.execPath, [join(RAIZ, 'publicar.mjs'), ...args], { cwd: c.dir, encoding: 'utf8', env });
+    const a = m.clone('a');
+    a.escreve('fichas.js', ['const fichas = perfil.fichasDoJogador(estado);']); a.commit('Leva G-2 · fichas\n\nTrilha: geral');
+    const antes = m.cabeca('main');
+    const r = publicar(a, '--sem-rapida', '--sem-tela');
+    assert.equal(r.status, 0, r.stdout + r.stderr);
+    assert.match(r.stdout, /✓ Enviado: claude\/G-2 \(1 commit\(s\)\)\. O main não mudou\./);
+    assert.match(r.stdout, /Abra o pull request: https:\/\/github\.com\/.*\/compare\/main\.\.\.claude\/G-2\?expand=1/, 'origin fora do GitHub: sem gh, só o link');
+    assert.equal(m.cabeca('refs/heads/claude/G-2'), a.git('rev-parse', 'HEAD'));
+    assert.equal(m.cabeca('main'), antes, 'o publicar nunca muda o main');
+    // outra trilha chega ao main; a conversa roda de novo: rebase em cima e o próprio ramo é substituído (com trava)
+    const b = m.clone('b');
+    b.escreve('outro.js', ['const outro = bot.outraJogada(estado);']); b.commit('Leva B-9 · outra jogada\n\nTrilha: bot'); b.git('push', '-q', 'origin', 'HEAD:main');
+    const r2 = publicar(a, '--sem-rapida', '--sem-tela');
+    assert.equal(r2.status, 0, r2.stdout + r2.stderr);
+    assert.equal(m.cabeca('refs/heads/claude/G-2'), a.git('rev-parse', 'HEAD'));
+    assert.equal(a.git('rev-list', '--count', 'origin/main..HEAD'), '1');
+    assert.equal(a.git('rev-list', '--count', 'HEAD..origin/main'), '0', 'o ramo enviado está em cima do main de agora');
+    // outra conversa com o mesmo número: recusada, o ramo de quem chegou antes fica intacto
+    const c = m.clone('c');
+    c.escreve('catalogo.js', ['const catalogo = app.catalogoDeListas(estado);']); c.commit('Leva G-2 · catálogo\n\nTrilha: geral');
+    const r3 = publicar(c, '--sem-rapida', '--sem-tela');
+    assert.equal(r3.status, 1); assert.match(r3.stderr, /Já existe claude\/G-2, de outra conversa[\s\S]*Renumere/);
+    assert.equal(m.cabeca('refs/heads/claude/G-2'), a.git('rev-parse', 'HEAD'));
+    assert.match(readFileSync(join(RAIZ, '.githooks/pre-push'), 'utf8'), /refs\/heads\/main[\s\S]*exit 1/, 'o gancho barra push no main');
   } finally { m.fim(); }
 });
 
