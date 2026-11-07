@@ -1114,6 +1114,39 @@ test('X14 · leitura confiável: só idêntica a um nome da base, pelo contorno,
   assert.equal(X.leituraConfiavel([], { peloContorno: true }), false); assert.equal(X.leituraConfiavel(null, { peloContorno: true }), false);
 });
 
+/* ---------------- S-617 · relato #65: velocidade do nome ---------------- */
+test('S-617 · lixo de uma ou duas letras na frente de um nome idêntico entra na primeira leitura; nome que é o fim de outro, não', () => {
+  const ix = X.buildIndex(['Delver of Secrets', 'Arcane Signet', 'Counterspell', 'Tiny', 'So Tiny', 'Opt', 'Mountain', 'Mountain Goat', 'Fantasticar', 'El Fantasticar']);
+  const conf = t => X.leituraConfiavel(X.matchName(ix, t), { peloContorno: true });
+  assert.equal(conf('l Delver of Secrets'), true, 'a curva da barra do título lida como "l" não segura a carta');
+  assert.equal(conf('i Arcane Signet'), true);
+  assert.equal(conf("' Counterspell"), true, 'apóstrofo solto na frente');
+  assert.equal(conf('f Counterspell'), true);
+  assert.equal(X.matchName(ix, 'l Delver of Secrets')[0].frente, true);
+  // a palavra tirada pode ser a de verdade: "So Tiny" lido "Sx Tiny" vira "Tiny" — espera a segunda leitura
+  assert.equal(conf('x Tiny'), false, 'nome que é o fim de outro (Tiny / So Tiny) não entra na primeira');
+  assert.equal(X.matchName(ix, 'x Tiny')[0].sufixo, true);
+  assert.equal(conf('le Fantasticar'), false, 'Fantasticar é o fim de El Fantasticar (nome impresso em espanhol)');
+  // revisão de escala: o OCR também separa as primeiras letras de uma palavra ("Re vitalize"): o nome que é outro nome com uma
+  // ou duas letras coladas na frente também é "fim de outro nome"
+  const ix2 = X.buildIndex(['Revitalize', 'Vitalize', 'Unholy Strength', 'Holy Strength', 'Squash', 'Quash', 'Delver of Secrets']);
+  const conf2 = t => X.leituraConfiavel(X.matchName(ix2, t), { peloContorno: true });
+  assert.equal(conf2('re vitalize'), false, 'Revitalize lido "Re vitalize" não entra como Vitalize na primeira');
+  assert.equal(conf2('un holy strength'), false, 'Unholy Strength lido "Un holy strength" não entra como Holy Strength');
+  assert.equal(conf2('s quash'), false);
+  assert.equal(conf2('l Delver of Secrets'), true);
+  assert.equal(conf('l Mountain'), false, 'começo de outro nome continua esperando');
+  assert.equal(conf('l Opt'), false, 'nome curto continua esperando');
+  assert.equal(conf('i Counterspel'), false, 'sem identidade depois de tirar a frente, nada muda');
+  assert.equal(conf('i Preordain I'), false, 'lixo no fim continua pelo caminho aproximado');
+  assert.equal(X.leituraConfiavel(X.matchName(ix, 'l Delver of Secrets'), { peloContorno: false }), false, 'pela moldura guia continua precisando repetir');
+  assert.equal(X.leituraConfiavel(X.matchName(ix, 'l Delver of Secrets'), { peloContorno: true, parado: false }), false, 'carta em movimento não entra');
+  // o porteiro aceita na primeira com a marca
+  const p = X.criaPorteiro({ agora: () => 0 });
+  const f = X.matchName(ix, 'l Delver of Secrets');
+  assert.equal(p.voto(f, { confiavel: X.leituraConfiavel(f, { peloContorno: true }) }).aceito, 'Delver of Secrets');
+});
+
 test('X14 · nome exato é achado por consulta direta: mesmo resultado, sem percorrer a base', () => {
   assert.equal(INDEX.exatos.get('sol ring'), 'Sol Ring');
   assert.deepEqual(JSON.parse(JSON.stringify(X.matchName(INDEX, 'Sol Ring'))), [{ name: 'Sol Ring', score: 1, exata: true }]);
@@ -1201,6 +1234,7 @@ test('S-603 · índice invertido de bigramas: mesmo resultado da varredura e só
   const apelidos = DECOYS.slice(0, 8000).map((d, i) => ['Ap ' + word() + ' ' + word(), REAL[i % REAL.length]]);
   const ix = X.buildIndex([...REAL, ...DECOYS], apelidos), ref = ix.slice();
   Object.defineProperty(ref, 'exatos', { value: ix.exatos }); Object.defineProperty(ref, 'prefixos', { value: ix.prefixos });
+  Object.defineProperty(ref, 'sufixos', { value: ix.sufixos });   // S-617 · a cópia sem índice invertido leva as mesmas tabelas
   assert.ok(ix.invertido && !ref.invertido);
   const sujo = s => [...s].map(c => { const x = rnd(); return x < 0.06 ? '' : x < 0.12 ? 'rnmil1cvo0'[Math.floor(rnd() * 10)] : c; }).join('');
   const fontes = [...REAL, ...DECOYS.slice(0, 400), ...apelidos.slice(0, 200).map(p => p[0])];

@@ -44825,8 +44825,14 @@ function buildIndex(names, apelidos = []) {
     // começos de nome que terminam em fim de palavra: "mountain" é começo de "mountain goat"
     for (let i = e.key.indexOf(' '); i > 0; i = e.key.indexOf(' ', i + 1)) prefixos.add(e.key.slice(0, i));
   }
+  // S-617 · relato #65: nomes que são o FIM de outro nome ("tiny" é o fim de "so tiny", "fantasticar" de "el fantasticar"):
+  // tirar o lixo da frente da leitura pode ter tirado uma palavra de verdade, então esses não entram na primeira leitura
+  // (o nome que é outro com uma ou duas letras COLADAS na frente, "Revitalize" / "Vitalize", é conferido na leitura, em matchName)
+  const sufixos = new Set();
+  for (const k of exatos.keys()) for (let i = k.indexOf(' '); i > 0; i = k.indexOf(' ', i + 1)) { const fim = k.slice(i + 1); if (exatos.has(fim)) sufixos.add(fim); }
   Object.defineProperty(index, 'exatos', { value: exatos, enumerable: false });
   Object.defineProperty(index, 'prefixos', { value: prefixos, enumerable: false });
+  Object.defineProperty(index, 'sufixos', { value: sufixos, enumerable: false });
   // S-603 · índice invertido por bigrama: com os nomes impressos de cinco línguas a base passa de 180 mil entradas e
   // percorrer todas a cada leitura custava ~30 ms em Node (várias vezes isso no celular). Só entra no cálculo quem
   // divide ao menos um bigrama com a leitura, que é exatamente quem o filtro de bigramas já deixava passar.
@@ -44865,8 +44871,21 @@ function matchName(index, text, { limit = 3 } = {}) {
   if (index.exatos && index.exatos.has(q0)) return [{ name: index.exatos.get(q0), score: 1, exata: true, ...(index.prefixos.has(q0) ? { prefixo: true } : {}) }];
   const best = new Map();
   for (const q of semFrente !== q0 && semFrente.length >= 3 ? [q0, semFrente] : [q0]) matchInto(best, index, q);
-  return [...best.entries()].map(([name, score]) => ({ name, score: Math.round(score * 1000) / 1000 }))
+  const out = [...best.entries()].map(([name, score]) => ({ name, score: Math.round(score * 1000) / 1000 }))
     .sort((a, b) => b.score - a.score || a.name.length - b.name.length).slice(0, limit);
+  /* S-617 · relato #65 (velocidade do nome): a leitura que, tirado só o lixo da frente ("l Delver of Secrets", "i Arcane
+     Signet"), é idêntica a um nome da base ganha a marca `frente` — é o que separava 6 de 18 fotos da entrada na primeira
+     leitura. `sufixo`: esse nome é o fim de outro ("tiny" / "so tiny"), e a palavra tirada pode ser a de verdade. */
+  /* Revisão de escala: o OCR também separa as primeiras letras de uma palavra ("Re vitalize", "Un holy strength"). Um nome com
+     uma ou duas letras coladas antes deste (Revitalize / Vitalize) também conta como `sufixo`. Conferido só aqui, quando a marca
+     ia sair: os candidatos do índice de bigramas incluem toda chave 1 ou 2 letras maior que termina igual (montar isso no
+     índice custava +250 ms com cinco línguas). */
+  if (out[0] && semFrente !== q0 && index.exatos && index.exatos.get(semFrente) === out[0].name && out[0].score >= 1) {
+    const colado = () => candidatosDoIndice(index, semFrente).some(i => { const k = index[i].key; return k.length > semFrente.length && k.length <= semFrente.length + 2 && k.endsWith(semFrente); });
+    const sufixo = (index.sufixos && index.sufixos.has(semFrente)) || colado();
+    out[0] = { ...out[0], frente: true, ...(index.prefixos.has(semFrente) ? { prefixo: true } : {}), ...(sufixo ? { sufixo: true } : {}) };
+  }
+  return out;
 }
 function matchInto(best, index, q) {
   const { floor, min, max } = Math;
@@ -44981,12 +45000,13 @@ function criaVotacao({ precisa = 2, exata = EXATA, aceite = ACCEPT } = {}) {
    segunda leitura (mais o respiro entre as duas) que dominava o tempo até aceitar. Entra na primeira quando quem
    chama diz que a leitura é `confiavel`. Nome curto, leitura aproximada e leitura pela moldura seguem como antes. */
 const PORTEIRO = { precisa: 3, precisaExata: 2, exata: EXATA, aceite: ACCEPT, margem: 0.06, cooldownMs: 2500, vaziosParaRearmar: 3, letrasParaImediata: 5 };
-/** A leitura pode entrar na primeira? Só a idêntica a um nome da base (`exata`, letra por letra, sem limpeza de
-    lixo na frente), pelo contorno, com a carta parada, de nome com letras suficientes — e que não seja o começo de
+/** A leitura pode entrar na primeira? Só a idêntica a um nome da base (`exata`, letra por letra; desde a S-617
+    também a que só tinha lixo de uma ou duas letras na frente, `frente`, se o nome não for o fim de outro), pelo contorno, com a carta parada, de nome com letras suficientes — e que não seja o começo de
     outro nome (linha cortada de "Mountain Goat" lê "Mountain": essa espera a segunda leitura). */
 function leituraConfiavel(found, { peloContorno = false, parado = true, letras = PORTEIRO.letrasParaImediata } = {}) {
   const best = found && found[0];
-  return !!best && peloContorno && parado && best.exata === true && !best.prefixo && best.score >= 1
+  // S-617 · ou idêntica depois de tirar só o lixo da frente, se o nome não for o fim de outro nome da base
+  return !!best && peloContorno && parado && (best.exata === true || (best.frente === true && !best.sufixo)) && !best.prefixo && best.score >= 1
     && simple(best.name.split(' // ')[0]).replace(/[^a-z]/g, '').length >= letras;
 }
 function criaPorteiro(opts = {}) {

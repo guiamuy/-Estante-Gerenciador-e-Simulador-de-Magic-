@@ -141,6 +141,8 @@ async function mede(fotos = manifest.fotos, { degrada = null } = {}) {
       linha.lido = melhor.texto.trim(); linha.melhor = cand[0] ? `${cand[0].name} (${Math.round(cand[0].score * 100)}%)` : '—';
       linha.nomeOk = !!cand[0] && cand[0].name === f.nome && cand[0].score >= X.ACCEPT && !linha.pulada;
       if (linha.nomeOk) nomeOk++;
+      // S-617 · entraria na primeira leitura no app (pelo contorno, carta parada): o que o porteiro aceita sem repetir
+      linha.primeira = melhor.caminho === 'carta' && X.leituraConfiavel(cand, { peloContorno: true });
       nomeDebug = f.arquivo.replace(/\.\w+$/, '');
       // S-604 · como identify() no app: as variantes da leitura (de sempre, "livre", contraste invertido) sobre a mesma
       // cópia do quadro, somadas e casadas com as impressões da carta por evidências (resolveEdicao), até uma se separar
@@ -161,26 +163,42 @@ async function mede(fotos = manifest.fotos, { degrada = null } = {}) {
     }
   } finally { await worker.terminate(); }
   const erradas = linhas.filter(l => !l.erro && !l.pulada && !l.nomeOk && /\((\d+)%\)$/.test(l.melhor || '') && +/\((\d+)%\)$/.exec(l.melhor)[1] >= X.ACCEPT * 100 && !l.melhor.startsWith(l.esperado + ' ('));
-  return { linhas, n: fotos.length, nomeOk, edOk, detectadas, puladas: linhas.filter(l => l.pulada).length, erradas: erradas.length, afiadas: linhas.filter(l => l.afiada).length };
+  return { linhas, n: fotos.length, nomeOk, edOk, detectadas, puladas: linhas.filter(l => l.pulada).length, erradas: erradas.length, afiadas: linhas.filter(l => l.afiada).length, primeira: linhas.filter(l => l.primeira).length, primeiraErrada: linhas.filter(l => l.primeira && !l.nomeOk).length };
 }
 
 function relatorio(r) {
   const falhas = r.linhas.filter(l => l.erro || !l.nomeOk || !l.edOk);
-  const cab = `X10 · ${r.n} foto(s): contorno achado em ${r.detectadas}, nome ${r.nomeOk}/${r.n}, edição ${r.edOk}/${r.n}`;
+  const cab = `X10 · ${r.n} foto(s): contorno achado em ${r.detectadas}, nome ${r.nomeOk}/${r.n}, edição ${r.edOk}/${r.n}, na 1ª leitura ${r.primeira}/${r.n}`;
   const corpo = falhas.map(l => l.erro ? `  ✗ ${l.foto}: ${l.erro}` :
     `  ${l.nomeOk ? '·' : '✗'} ${l.foto} [${l.caminho}, nitidez ${l.nitidez}]: nome lido "${l.lido}" → ${l.melhor} (esperado ${l.esperado})${l.edOk ? '' : ` · edição lida "${l.colecao}" → ${l.edicao}`}`);
   return [cab, ...corpo].join('\n');
 }
 
+// a medida do conjunto inteiro, sem degradar, é a mesma para o X10 e a S-617: roda uma vez
+let medidaPadrao = null;
+const medePadrao = () => medidaPadrao || (medidaPadrao = mede());
 test('X10 · o scanner acerta o nome em ≥ 90% e a edição em ≥ 90% das fotos do conjunto', { skip, timeout: 240000 }, async () => {
   assert.ok(manifest.fotos.length >= 10, 'o conjunto precisa de pelo menos 10 fotos para a medida valer alguma coisa');
-  const r = await mede();
+  const r = await medePadrao();
   console.log(relatorio(r));
   assert.ok(r.nomeOk / r.n >= 0.9, `nome: ${r.nomeOk}/${r.n} (alvo ≥ 90%)\n${relatorio(r)}`);
   // Leva 112 · a régua de nitidez não descarta foto que o OCR lê certo
   assert.equal(r.puladas, 0, 'nenhuma foto legível descartada por nitidez: ' + JSON.stringify(r.linhas.map(l => [l.foto, l.nitidez])));
   // S-604 · alvo 70% → 90%: antes da edição por evidências o conjunto (com as duas sem borda) dava 24/29 (83%); com ela, 27/29
   assert.ok(r.edOk / r.n >= 0.9, `edição: ${r.edOk}/${r.n} (alvo ≥ 90%)\n${relatorio(r)}`);
+});
+
+/* S-617 · relato #65 (velocidade do nome): o OCR arrasta lixo de uma ou duas letras na frente da linha (a curva da barra do
+   título vira "l", "i", "f", "'") e essa leitura, idêntica ao nome depois de limpa, esperava a segunda passada. Medido em
+   07/11/2026 neste conjunto: 14 de 32 entravam na primeira leitura; com a marca `frente`, 20 — nenhuma com o nome errado. */
+test('S-617 · mais fotos entram na primeira leitura (lixo na frente não segura a carta), nenhuma com o nome errado', { skip, timeout: 240000 }, async () => {
+  const r = await medePadrao();
+  const lista = r.linhas.filter(l => l.primeira).map(l => l.foto).join(', ');
+  console.log(`# medida · scanner · S-617 na_primeira=${r.primeira}/${r.n}`);
+  assert.equal(r.primeiraErrada, 0, 'nenhuma foto entra na primeira leitura com o nome errado: ' + JSON.stringify(r.linhas.filter(l => l.primeira && !l.nomeOk).map(l => [l.foto, l.melhor])));
+  assert.ok(r.primeira >= 20, `na primeira leitura: ${r.primeira}/${r.n} (eram 14 antes da S-617; alvo ≥ 20): ${lista}`);
+  for (const foto of ['counterspell-torta.jpg', 'delver-borrada.jpg', 'arcane-signet-canto.jpg', 'sol-talisman-foco.jpg'])
+    assert.ok(r.linhas.find(l => l.foto === foto)?.primeira, foto + ' (lixo de uma letra na frente) entra na primeira leitura');
 });
 
 test('S-604 · carta sem borda (texto claro sobre a arte, como o Malcolm SPG #2 do dono): a edição sai da linha de coleção', { skip, timeout: 240000 }, async () => {
