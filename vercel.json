@@ -6,7 +6,7 @@
   "cleanUrls": false,
   "trailingSlash": false,
   "rewrites": [
-    { "source": "/dados/:caminho*", "destination": "https://estante-dados.vercel.app/:caminho*" }
+    { "source": "/dados/:caminho*", "destination": "/api/dados?caminho=:caminho*" }
   ],
   "headers": [
     {

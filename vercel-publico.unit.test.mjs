@@ -16,7 +16,7 @@ test('I-323 · vercel.json publica a pasta montada, sem instalar dependências, 
   assert.equal(v.buildCommand, 'node vercel-publico.mjs');
   assert.match(v.installCommand, /^echo /, 'o build não instala o Playwright nem o resto do devDependencies');
   const r = v.rewrites.find(x => x.source.startsWith('/dados/'));
-  assert.ok(r && /^https:\/\/[a-z0-9-]+\.vercel\.app\//.test(r.destination));
+  assert.deepEqual(r, { source: '/dados/:caminho*', destination: '/api/dados?caminho=:caminho*' }, 'I-324 · /dados/ é a função que lê os ramos de dados');
 });
 
 test('I-323 · a prévia ganha um endereço fixo (cadastrado no Google), apontado pelo publicar --esperar', () => {
