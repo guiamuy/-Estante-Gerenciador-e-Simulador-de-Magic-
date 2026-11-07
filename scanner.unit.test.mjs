@@ -1387,3 +1387,37 @@ test('S-608 · carta de duas faces: o verso lido responde pela carta inteira', (
   assert.equal((X.matchName(idx, 'Invasion of Segovia')[0] || {}).name, 'Invasion of Segovia // Caetus, Sea Tyrant of Segovia', 'a frente continua');
   assert.equal((X.matchName(idx, 'Ice Cave')[0] || {}).name, 'Ice Cave', 'outra carta não é puxada pelo verso');
 });
+
+/* ---------------- S-618 · relato #62 · carta em phyrexiano pela linha de coleção ---------------- */
+test('S-618 · linha de coleção em phyrexiano: PH é idioma, não edição', () => {
+  const r = t => { const x = X.parseCollectorLine(t); return `${x.number}|${x.set}|${x.lang}`; };
+  assert.equal(r('0123 R\nONE • PH'), '123|one|ph');
+  assert.equal(r('007 R TST PH'), '7|tst|ph');
+});
+test('S-618 · sem nome, a mesma edição e o mesmo número duas vezes identificam a carta; a aceita não volta até a carta sair', () => {
+  const L0 = X.criaLinhaSemNome(), L = { soma: t => { const r = L0.soma(t); return r && { ...r }; }, saiu: () => L0.saiu() }; // o objeto vem de outro contexto
+  assert.equal(L.soma('0123 R\nONE • PH'), null, 'uma leitura só não basta');
+  assert.deepEqual(L.soma('0123 R\nONE PH'), { set: 'one', number: '123', lang: 'ph' });
+  assert.equal(L.soma('0123 R\nONE • PH'), null, 'a mesma carta parada no quadro não entra de novo');
+  assert.equal(L.soma('0123 R\nONE • PH'), null);
+  L.saiu();
+  assert.equal(L.soma('0123 R\nONE • PH'), null);
+  assert.deepEqual(L.soma('0123 R\nONE • PH'), { set: 'one', number: '123', lang: 'ph' }, 'outra cópia depois de a carta sair');
+  // leituras diferentes não somam; linha sem edição ou sem número zera
+  assert.equal(L.soma('0045 C\nDMR • EN'), null);
+  assert.equal(L.soma('0046 C\nDMR • EN'), null);
+  assert.equal(L.soma('xx'), null);
+  assert.equal(L.soma('0046 C\nDMR • EN'), null);
+  assert.deepEqual(L.soma('0046 C\nDMR'), { set: 'dmr', number: '46', lang: 'en' }, 'o idioma de uma das leituras vale');
+});
+test('S-618 · a pilha guarda o idioma da linha: a cópia phyrexiana não se junta à inglesa', async () => {
+  const mem = new Map(), store = { get: async k => mem.get(k), set: async (k, v) => { mem.set(k, v); } };
+  const lot = X.createLot({ store });
+  const ph = await lot.add('Sol Ring', 1, { set: 'tst', number: '7', verified: true, lang: 'ph' }, { conferir: true });
+  const en = await lot.add('Sol Ring', 1, { set: 'tst', number: '7', verified: true });
+  assert.notEqual(ph, en);
+  const itens = await lot.list();
+  const a = itens.find(x => x.key === ph);
+  assert.equal(a.lang, 'ph'); assert.equal(a.conferir, true); assert.equal(a.score, undefined);
+  assert.equal(itens.find(x => x.key === en).lang, undefined);
+});

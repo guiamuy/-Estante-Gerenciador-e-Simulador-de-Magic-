@@ -9164,9 +9164,29 @@ X14 ataca. Sobre imagem: acima de 1440p o **nome** não ganha (a linha é lida e
      mesmo do japonês). **Medida com o leitor de verdade** (07/11/2026, 60 nomes sorteados de cada arquivo, limpo e
      borrado 1,2 px): coreano 60/60 certos no topo (55–57 acima do aceite), russo 60/60 (todos acima do aceite), nenhum
      nome errado. Fonte desenhada não é carta fotografada: falta medir no aparelho.
+  5. **S-618** 🟡 · **relato #62 do dono (04/11/2026): carta impressa em phyrexiano.** O nome em phyrexiano não tem leitor
+     (Tesseract só lê latino, CJK e cirílico); a linha de coleção da mesma carta é latina ("0123 R · ONE • PH"). Com a carta
+     achada pelo contorno e duas passadas sem nome, a linha de coleção é lida (uma passada sim, outra não, até 12 passadas
+     secas); a mesma edição e o mesmo número com o idioma **PH**, duas vezes seguidas, viram **uma** pergunta à Scryfall pela
+     impressão daquele idioma (`/cards/<edição>/<número>/ph`); a carta entra na pilha **pedindo conferência** (o nome não foi
+     lido), com "TST #7 · PH" na edição, e chega à Coleção com o idioma **Phyrexiano** (novo na Coleção, nos filtros, na
+     importação "Phyrexian" e na exportação). A cópia phyrexiana não se junta à inglesa na pilha. Sem rede ou com a
+     impressão inexistente, nada entra, a dica pede o nome digitado e a mesma linha só é perguntada de novo depois de a
+     carta sair do quadro (três passadas sem carta; um reflexo num quadro não conta). O diagnóstico diz "linha ONE #123 · PH".
+     Só o idioma PH entra pela linha: carta inglesa com reflexo continua pelo nome e pela arte (revisão de escala: a mesma
+     leitura errada duas vezes, 123 por 128, não vira carta sem a impressão phyrexiana existir).
+     **Custo:** 1 leitura da linha de coleção (segundo leitor) a cada duas passadas secas com a carta no quadro, só até a
+     linha responder; 1 pergunta à Scryfall por carta (prioridade alta), mais a miniatura de sempre.
+     **Parcial, e o que falta:** a carta phyrexiana cuja arte é a mesma da inglesa já pode entrar pela arte (X12, base de
+     artes publicada em 04/11, depois do relato) — não conferido, a sessão não alcança a Scryfall (consulta **não
+     realizada**); linha de coleção ilegível (carta sem borda, foil escuro) continua sem caminho; leitura do alfabeto
+     phyrexiano fica fora; não testado no aparelho. Testes: U (`scanner.unit` "S-618": PH é idioma e não edição; duas
+     leituras iguais identificam, a aceita não volta até a carta sair; a pilha guarda o idioma e não junta com a inglesa —
+     falhavam antes). E2E ("S-618": leitor do nome sem texto, linha "007 R · TST • PH": Sol Ring entra pedindo conferência,
+     "TST #7 · PH", uma pergunta à Scryfall em oito passadas paradas, a Coleção guarda `ph` — falhava antes).
 - **Parcial, e o que falta:** calibração dos limiares de arte com dados reais e a velocidade do reconhecimento (agora no
   relato #65, com a rotina); montar a base de nomes sem travar a tela; não testado no aparelho. Fora: traduzir a
-  interface (relato #53), mostrar o nome impresso na coleção, phyrexiano (relato #62).
+  interface (relato #53), mostrar o nome impresso na coleção; leitura do alfabeto phyrexiano (o relato #62 entra pela linha de coleção, S-618).
 - **Testes:** U (`artes.unit`: sem os nomes em português o print não casa — o defeito —, com eles casa exato, com troca de
   OCR e sem acento; a base baixa, guarda, abre sem rede e recusa arquivo estranho; régua de movimento com 7%, 11%, 20%,
   manual e sem contorno; gerador lê páginas seguidas, as duas faces e não repete).

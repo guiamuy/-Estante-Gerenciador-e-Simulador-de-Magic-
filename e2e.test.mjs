@@ -1769,6 +1769,47 @@ test('e2e · X1/X2/X4 scanner: ler, automático com porteiro, candidatos, desfaz
   assert.deepEqual(errors, []);
 });
 
+// S-618 · relato #62 · carta impressa em phyrexiano: o leitor do nome não lê nada (a escrita não tem leitor); a linha de
+// coleção é latina ("007 R · TST • PH"). Com a carta achada e sem nome, a linha identifica a carta pela Scryfall (coleção +
+// número), a carta entra pedindo conferência, com a edição e o idioma PH, e chega à Coleção como Phyrexiano.
+test('e2e · S-618 carta em phyrexiano: sem nome legível, a linha de coleção identifica a carta e o idioma PH vai para a Coleção', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  // a impressão phyrexiana pela coleção, número e idioma (a Scryfall falsa responde só esta; a rota da página mais nova vale)
+  const pedidosPH = [];
+  await page.route(/^https:\/\/api\.scryfall\.com\/cards\/tst\/7\/ph$/, r => { pedidosPH.push(r.request().url()); return r.fulfill({ json: { ...DB['sol ring'], id: 'sol-ring-ph', lang: 'ph', printed_name: '' } }); });
+  await page.addInitScript(FAKE_CARD_CAM);
+  await page.goto(base + '#/scanner');
+  await page.waitForSelector('#scan-read:not([disabled])');
+  await page.waitForFunction(() => document.querySelector('[data-auto]').getAttribute('aria-pressed') === 'true', null, { timeout: 12000 });
+  await page.evaluate(() => { for (let i = 0; i < 12; i++) window.__ocrColecao.push('007 R\nTST • PH'); });
+  await esperaPilha(page, 1, 20000).catch(async e => { throw new Error('diario: ' + JSON.stringify(await page.evaluate(() => window.__scanDiario.lista().slice(0, 6)))); });
+  const aceite = (await page.evaluate(() => window.__scanDiario.lista())).find(x => /Sol Ring \+1/.test(x.decisao || ''));
+  assert.ok(aceite, 'o diagnóstico registra a entrada');
+  assert.match(aceite.decisao, /linha TST #7 · PH/, 'entrou pela linha de coleção: ' + aceite.decisao);
+  // a carta continua parada no quadro com a mesma linha: oito passadas depois, não entrou de novo nem perguntou de novo
+  await page.waitForFunction(t0 => window.__scanDiario.lista().filter(x => x.t > t0).length >= 8, aceite.t, { timeout: 15000 });
+  assert.equal(await contaPilha(page), 1, 'a mesma carta parada entra uma vez só');
+  assert.equal(pedidosPH.length, 1, 'uma pergunta à Scryfall por carta');
+  await page.click('[data-auto]');
+  await abrePilha(page);
+  const cartao = page.locator('#scan-pile .scan-pile__card').first();
+  assert.match(await cartao.innerText(), /Sol Ring/);
+  assert.match(await cartao.innerText(), /TST #7 · PH/, 'edição e idioma lidos na linha');
+  assert.equal(await page.locator('#scan-pile .scan-pile__card--conferir').count(), 1, 'o nome não foi lido: pede conferência');
+  await page.click('#scan-pile-commit');
+  await page.waitForSelector('#scan-commit');
+  await page.click('#scan-commit');
+  await esperaPilha(page, 0);
+  const idioma = await page.evaluate(async () => {
+    const db = await new Promise((ok, erro) => { const r = indexedDB.open('mtg'); r.onsuccess = () => ok(r.result); r.onerror = () => erro(r.error); });
+    const nomes = [...db.objectStoreNames];
+    const tudo = await Promise.all(nomes.map(n => new Promise(ok => { const q = db.transaction(n).objectStore(n).getAll(); q.onsuccess = () => ok(q.result); q.onerror = () => ok([]); })));
+    return JSON.stringify(tudo).match(/"Sol Ring"[^}]*?"lang":"([a-z]*)"/) ? RegExp.$1 : JSON.stringify(tudo).slice(0, 400);
+  });
+  assert.equal(idioma, 'ph', 'a Coleção guarda a cópia como Phyrexiano');
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · X1 câmera bloqueada: explica e deixa montar a pilha digitando', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.addInitScript(FAKE_DEVICE(true));
