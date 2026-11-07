@@ -1,23 +1,28 @@
 {
  "versao": 1,
  "formato": "pauper",
- "geradoEm": "2026-11-06T14:35:19.984Z",
+ "geradoEm": "2026-11-07T13:29:14.560Z",
  "motor": 112,
  "fonte": "api.scryfall.com/cards/collection",
- "listas": 668,
+ "listas": 671,
  "listas100": 666,
- "cartasPendentes": 2,
+ "cartasPendentes": 8,
  "parcial": false,
  "lotesComFalha": 0,
  "porClasse": {
   "texto-mudou": 0,
-  "lida": 0,
-  "nova": 2,
+  "lida": 1,
+  "nova": 7,
   "parcial": 0,
   "sem-dados": 0
  },
  "novasDesdeAnterior": [
-  "Rites of Initiation"
+  "Bountiful Landscape",
+  "Deprive",
+  "Ghitu Lavarunner",
+  "Guac & Marshmallow Pizza",
+  "Perilous Research",
+  "Retraction Helix"
  ],
  "resolvidasDesdeAnterior": [],
  "curva": [
@@ -26,19 +31,85 @@
    "cartas": 1
   },
   {
-   "listas": 668,
-   "cartas": 2
+   "listas": 671,
+   "cartas": 8
   }
  ],
  "textos": null,
  "pendentes": [
+  {
+   "name": "Bountiful Landscape",
+   "classe": "lida",
+   "nivel": "lida",
+   "motivo": "lida pelo motor, em revisão",
+   "listas": 1,
+   "gulosa": 5,
+   "texto": {
+    "mana_cost": "",
+    "type_line": "Land",
+    "oracle_text": "{T}: Add {C}.\n{T}, Sacrifice this land: Search your library for a basic Forest, Island, or Mountain card, put it onto the battlefield tapped, then shuffle.\nCycling {G}{U}{R} ({G}{U}{R}, Discard this card: Draw a card.)",
+    "keywords": [
+     "Cycling"
+    ],
+    "layout": "normal"
+   }
+  },
+  {
+   "name": "Deprive",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "mágica sem script",
+   "listas": 1,
+   "gulosa": 1,
+   "texto": {
+    "mana_cost": "{U}{U}",
+    "type_line": "Instant",
+    "oracle_text": "As an additional cost to cast this spell, return a land you control to its owner's hand.\nCounter target spell.",
+    "keywords": [],
+    "layout": "normal"
+   }
+  },
+  {
+   "name": "Ghitu Lavarunner",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
+   "listas": 1,
+   "gulosa": 4,
+   "texto": {
+    "mana_cost": "{R}",
+    "type_line": "Creature — Human Wizard",
+    "oracle_text": "As long as there are two or more instant and/or sorcery cards in your graveyard, this creature gets +1/+0 and has haste. (It can attack and {T} as soon as it comes under your control.)",
+    "keywords": [],
+    "layout": "normal",
+    "power": "1",
+    "toughness": "2"
+   }
+  },
+  {
+   "name": "Guac & Marshmallow Pizza",
+   "classe": "nova",
+   "nivel": "parcial",
+   "motivo": "parte do texto o motor não resolve",
+   "listas": 1,
+   "gulosa": 5,
+   "texto": {
+    "mana_cost": "{G}",
+    "type_line": "Artifact — Food",
+    "oracle_text": "Flash\nWhen this artifact enters, target creature gets +2/+2 until end of turn. Untap it.\n{2}, {T}, Sacrifice this artifact: You gain 3 life.",
+    "keywords": [
+     "Flash"
+    ],
+    "layout": "normal"
+   }
+  },
   {
    "name": "No Admittance",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 1,
-   "gulosa": 1,
+   "gulosa": 2,
    "texto": {
     "mana_cost": "{1}{R}",
     "type_line": "Sorcery",
@@ -51,12 +122,42 @@
    }
   },
   {
+   "name": "Perilous Research",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "mágica sem script",
+   "listas": 1,
+   "gulosa": 5,
+   "texto": {
+    "mana_cost": "{1}{U}",
+    "type_line": "Instant",
+    "oracle_text": "Draw two cards, then sacrifice a permanent.",
+    "keywords": [],
+    "layout": "normal"
+   }
+  },
+  {
+   "name": "Retraction Helix",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "mágica sem script",
+   "listas": 1,
+   "gulosa": 5,
+   "texto": {
+    "mana_cost": "{U}",
+    "type_line": "Instant",
+    "oracle_text": "Until end of turn, target creature gains \"{T}: Return target nonland permanent to its owner's hand.\"",
+    "keywords": [],
+    "layout": "normal"
+   }
+  },
+  {
    "name": "Rites of Initiation",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 1,
-   "gulosa": 2,
+   "gulosa": 3,
    "texto": {
     "mana_cost": "{R}",
     "type_line": "Instant",
@@ -67,6 +168,13 @@
   }
  ],
  "listasIncompletas": [
+  {
+   "id": "mtgo-pauper-league-2026-11-0711153-4",
+   "nome": "Mono Blue Cryptic Serpent",
+   "faltam": [
+    "Deprive"
+   ]
+  },
   {
    "id": "mtgo-pauper-league-2026-11-0511153-8",
    "nome": "Gruul Burning-Tree Emissary",
@@ -79,6 +187,23 @@
    "nome": "Jeskai Squadron Hawk",
    "faltam": [
     "Rites of Initiation"
+   ]
+  },
+  {
+   "id": "topdeck-merlion-pauper-league-week-5-2-7",
+   "nome": "Grixis Grab the Prize",
+   "faltam": [
+    "Ghitu Lavarunner"
+   ]
+  },
+  {
+   "id": "topdeck-merlion-pauper-league-week-5-2-6",
+   "nome": "Quatro cores Guac & Marshmallow Pizza",
+   "faltam": [
+    "Bountiful Landscape",
+    "Guac & Marshmallow Pizza",
+    "Perilous Research",
+    "Retraction Helix"
    ]
   }
  ]
