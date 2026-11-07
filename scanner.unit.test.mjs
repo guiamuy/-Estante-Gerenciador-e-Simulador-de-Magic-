@@ -1138,7 +1138,7 @@ test('S-617 · lixo de uma ou duas letras na frente de um nome idêntico entra n
   assert.equal(conf('l Mountain'), false, 'começo de outro nome continua esperando');
   assert.equal(conf('l Opt'), false, 'nome curto continua esperando');
   assert.equal(conf('i Counterspel'), false, 'sem identidade depois de tirar a frente, nada muda');
-  assert.equal(conf('i Preordain I'), false, 'lixo no fim continua pelo caminho aproximado');
+  assert.equal(conf('i Preordain I'), false, 'nome fora da base continua fora (lixo no fim: S-619)');
   assert.equal(X.leituraConfiavel(X.matchName(ix, 'l Delver of Secrets'), { peloContorno: false }), false, 'pela moldura guia continua precisando repetir');
   assert.equal(X.leituraConfiavel(X.matchName(ix, 'l Delver of Secrets'), { peloContorno: true, parado: false }), false, 'carta em movimento não entra');
   // o porteiro aceita na primeira com a marca
@@ -1147,18 +1147,56 @@ test('S-617 · lixo de uma ou duas letras na frente de um nome idêntico entra n
   assert.equal(p.voto(f, { confiavel: X.leituraConfiavel(f, { peloContorno: true }) }).aceito, 'Delver of Secrets');
 });
 
+/* ---------------- S-619 · relato #65: o espelho da S-617 para o FIM da linha ---------------- */
+test('S-619 · lixo de uma ou duas letras no fim de um nome idêntico entra na primeira leitura; nome que é o começo de outro, não', () => {
+  const ix = X.buildIndex(['Delver of Secrets', 'Arcane Signet', 'Preordain', 'Chasm Skulker', 'Killian, Ink Duelist', 'Opt', 'Mountain', 'Mountain Goat',
+    'Fantasticar', 'El Fantasticar', 'Vitalize', 'Vitalizer', 'Snuff Out']);
+  const conf = t => X.leituraConfiavel(X.matchName(ix, t), { peloContorno: true });
+  // o símbolo de mana e a borda da barra do título viram "l", "i", "1", "|" no fim da linha
+  assert.equal(conf('Delver of Secrets l'), true, 'um "l" no fim não segura a carta');
+  assert.equal(conf('Arcane Signet i'), true);
+  assert.equal(conf('Arcane Signet |'), true, '"|" vira "l" na limpeza');
+  assert.equal(conf('Chasm Skulker C'), true);
+  assert.equal(conf('Killian, Ink Duelist CC'), true, 'duas letras de lixo');
+  assert.equal(conf('i Preordain I'), true, 'lixo nas duas pontas');
+  const m = X.matchName(ix, 'Delver of Secrets l')[0];
+  assert.equal(m.name, 'Delver of Secrets'); assert.equal(m.fim, true); assert.equal(m.score, 1);
+  // a palavra tirada pode ser a de verdade: "Mountain Goat" lido "Mountain go" é o começo de outro nome
+  assert.equal(conf('Mountain go'), false, 'nome que é o começo de outro (Mountain / Mountain Goat) não entra na primeira');
+  assert.equal(X.matchName(ix, 'Mountain go')[0].fim, undefined, 'sem a marca, a nota segue a de antes');
+  assert.ok(X.matchName(ix, 'Mountain go')[0].score < 1);
+  // o OCR também separa as últimas letras de uma palavra: "Vitalizer" lido "Vitalize r" não entra como Vitalize
+  assert.equal(conf('Vitalize r'), false, 'nome que é outro com uma ou duas letras coladas no fim');
+  assert.equal(conf('Vitalize l'), false);
+  assert.equal(conf('x Fantasticar i'), false, 'com lixo na frente também, o nome não pode ser o fim de outro (El Fantasticar)');
+  assert.equal(conf('Opt l'), false, 'nome curto continua esperando');
+  // simulação na base com cinco línguas: "Suffocation" é uma carta em inglês e o nome impresso de Choke em francês
+  const ix3 = X.buildIndex(['Choke', 'Suffocation', 'Delver of Secrets'], [['Suffocation', 'Choke']]);
+  assert.equal(X.leituraConfiavel(X.matchName(ix3, 'Suffocation l'), { peloContorno: true }), false, 'chave de duas cartas não entra pelo fim');
+  assert.equal(X.leituraConfiavel(X.matchName(ix3, 'Delver of Secrets l'), { peloContorno: true }), true);
+  assert.equal(conf('Delver of Secret l'), false, 'sem identidade depois de tirar o fim, nada muda');
+  assert.equal(conf('Snuff Out'), true, 'nome que termina em palavra curta, lido certo, segue exato');
+  assert.equal(X.leituraConfiavel(X.matchName(ix, 'Delver of Secrets l'), { peloContorno: false }), false, 'pela moldura guia continua precisando repetir');
+  assert.equal(X.leituraConfiavel(X.matchName(ix, 'Delver of Secrets l'), { peloContorno: true, parado: false }), false, 'carta em movimento não entra');
+  const p = X.criaPorteiro({ agora: () => 0 });
+  const f = X.matchName(ix, 'Chasm Skulker C');
+  assert.equal(p.voto(f, { confiavel: X.leituraConfiavel(f, { peloContorno: true }) }).aceito, 'Chasm Skulker');
+});
+
 test('X14 · nome exato é achado por consulta direta: mesmo resultado, sem percorrer a base', () => {
   assert.equal(INDEX.exatos.get('sol ring'), 'Sol Ring');
   assert.deepEqual(JSON.parse(JSON.stringify(X.matchName(INDEX, 'Sol Ring'))), [{ name: 'Sol Ring', score: 1, exata: true }]);
   assert.equal(X.matchName(INDEX, 'Fire').map(m => [m.name, m.score, m.exata]).join(), 'Fire // Ice,1,true', 'carta dividida responde pela primeira metade');
   assert.equal(X.matchName(INDEX, 'S0l Ring')[0].name, 'Sol Ring', 'troca típica de OCR também cai na consulta direta');
-  // lixo no fim ou no começo não é exato: segue pelo caminho aproximado e NÃO chega a nota 1 no fim
-  assert.ok(X.matchName(INDEX, 'Sol Ring oo')[0].score < 1);
+  // lixo no fim ou no começo não é exato. Desde a S-619 (espelho da S-617), o lixo limpo no fim pode dar nota 1 (`fim`) se o nome
+  // não for o começo de outro; o que é começo de outro segue pelo caminho aproximado e NÃO chega a nota 1 (abaixo, Mountain)
+  assert.equal(X.matchName(INDEX, 'Sol Ring oo')[0].exata, undefined, 'lixo limpo no fim pode dar nota 1, mas não é identidade');
   assert.equal(X.matchName(INDEX, 'ol Sol Ring')[0].exata, undefined, 'lixo limpo na frente pode dar nota 1, mas não é identidade');
   // nome que é começo de outro vem marcado; nome repetido como metade de carta dividida fica com o mais curto
   const I = X.buildIndex(['Mountain Goat', 'Mountain', 'Fire // Ice', 'Fire', 'Counterspell']);
   assert.equal(X.matchName(I, 'Mountain')[0].prefixo, true); assert.equal(X.matchName(I, 'Counterspell')[0].prefixo, undefined);
   assert.equal(X.matchName(I, 'Fire')[0].name, 'Fire'); assert.equal(X.matchName(I, 'Mountain Goat')[0].prefixo, undefined);
+  assert.ok(X.matchName(I, 'Mountain oo')[0].score < 1, 'lixo no fim de nome que é começo de outro não chega a nota 1');
   // custo: mil consultas exatas em menos de 50 ms no total
   const t0 = performance.now(); for (let i = 0; i < 1000; i++) X.matchName(INDEX, 'Counterspell');
   assert.ok(performance.now() - t0 < 50, 'consulta direta: ' + (performance.now() - t0).toFixed(1) + ' ms por mil');

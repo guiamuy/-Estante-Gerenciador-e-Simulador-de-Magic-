@@ -44920,6 +44920,38 @@ function matchName(index, text, { limit = 3 } = {}) {
     const sufixo = (index.sufixos && index.sufixos.has(semFrente)) || colado();
     out[0] = { ...out[0], frente: true, ...(index.prefixos.has(semFrente) ? { prefixo: true } : {}), ...(sufixo ? { sufixo: true } : {}) };
   }
+  /* S-619 · relato #65: o espelho para o FIM da linha. O símbolo de mana e a borda da barra do título viram uma ou duas letras
+     soltas no fim ("Chasm Skulker C", "Killian, Ink Duelist CC", "i Preordain I"): a nota ficava em 0,94–0,98 pelo prefixo e a
+     carta esperava a segunda leitura. Idêntica a um nome da base depois de tirar só esse fim, ganha `fim` e a nota cheia —
+     se o nome não for o começo de outro (`prefixos`, que já guarda todo começo de nome em fim de palavra: "mountain" de
+     "mountain goat") nem outro nome com uma ou duas letras COLADAS no fim ("Vitalize r" / Vitalizer, pelos candidatos do
+     índice de bigramas, como a S-617). Com lixo também na frente, valem as salvaguardas da S-617 (`sufixos`, colado na frente).
+     Sem salvaguarda cumprida, nada muda: nem marca, nem nota. */
+  const semFim = semFrente.replace(/(?: [a-z,'\-]{1,2})+$/, '');
+  if (out[0] && semFim !== semFrente && semFim.length >= 3 && index.exatos && index.exatos.get(semFim) === out[0].name) {
+    const viz = chavesVizinhas(index, semFim, out[0].name);
+    const comeco = index.prefixos.has(semFim) || viz.some(k => k.startsWith(semFim));
+    const frente = semFrente !== q0;
+    const fimDeOutro = frente && ((index.sufixos && index.sufixos.has(semFim)) || viz.some(k => k.endsWith(semFim)));
+    /* Simulação na base com cinco línguas: o nome em inglês de uma carta pode ser o nome impresso de outra ("Suffocation" é
+       Choke em francês; a chave exata fica com o nome mais curto, dívida da S-597). Chave de duas cartas não ganha a marca. */
+    const deDuas = viz.includes(semFim);
+    if (!comeco && !fimDeOutro && !deDuas) out[0] = { ...out[0], score: 1, fim: true, ...(frente ? { frente: true } : {}) };
+  }
+  return out;
+}
+/** S-619 · as chaves de OUTRA carta com o tamanho de `s` até duas letras a mais que dividem com ela o bigrama mais raro dela
+    (toda chave que começa ou termina com `s` divide todos). Revisão de escala: montar essas tabelas no índice custava
+    +170 ms com cinco línguas no Node, e pedir os candidatos do índice de bigramas, +0,4 ms na leitura; pela lista do bigrama
+    mais raro, alguns microssegundos, e só na leitura que ia ganhar a marca `fim`. */
+function chavesVizinhas(index, s, nome) {
+  const inv = index.invertido, L = s.length, out = [];
+  const serve = e => e.key.length >= L && e.key.length <= L + 2 && e.name !== nome;
+  if (!inv) { for (const e of index) if (serve(e)) out.push(e.key); return out; }
+  let melhor = -1, n = Infinity;
+  for (const g of bigrams(s)) { if (g >= 16384) continue; const m = inv.inicio[g + 1] - inv.inicio[g]; if (m < n) { n = m; melhor = g; } }
+  if (melhor < 0) return out;
+  for (let k = inv.inicio[melhor], f = inv.inicio[melhor + 1]; k < f; k++) { const e = index[inv.lista[k]]; if (serve(e)) out.push(e.key); }
   return out;
 }
 function matchInto(best, index, q) {
@@ -45036,12 +45068,14 @@ function criaVotacao({ precisa = 2, exata = EXATA, aceite = ACCEPT } = {}) {
    chama diz que a leitura é `confiavel`. Nome curto, leitura aproximada e leitura pela moldura seguem como antes. */
 const PORTEIRO = { precisa: 3, precisaExata: 2, exata: EXATA, aceite: ACCEPT, margem: 0.06, cooldownMs: 2500, vaziosParaRearmar: 3, letrasParaImediata: 5 };
 /** A leitura pode entrar na primeira? Só a idêntica a um nome da base (`exata`, letra por letra; desde a S-617
-    também a que só tinha lixo de uma ou duas letras na frente, `frente`, se o nome não for o fim de outro), pelo contorno, com a carta parada, de nome com letras suficientes — e que não seja o começo de
+    também a que só tinha lixo de uma ou duas letras na frente, `frente`, se o nome não for o fim de outro; desde a S-619
+    a que só tinha lixo no fim, `fim`, se o nome não for o começo de outro), pelo contorno, com a carta parada, de nome com letras suficientes — e que não seja o começo de
     outro nome (linha cortada de "Mountain Goat" lê "Mountain": essa espera a segunda leitura). */
 function leituraConfiavel(found, { peloContorno = false, parado = true, letras = PORTEIRO.letrasParaImediata } = {}) {
   const best = found && found[0];
   // S-617 · ou idêntica depois de tirar só o lixo da frente, se o nome não for o fim de outro nome da base
-  return !!best && peloContorno && parado && (best.exata === true || (best.frente === true && !best.sufixo)) && !best.prefixo && best.score >= 1
+  // S-619 · ou idêntica depois de tirar só o lixo do fim (`fim` só sai com as salvaguardas cumpridas, em matchName)
+  return !!best && peloContorno && parado && (best.exata === true || (best.frente === true && !best.sufixo) || best.fim === true) && !best.prefixo && best.score >= 1
     && simple(best.name.split(' // ')[0]).replace(/[^a-z]/g, '').length >= letras;
 }
 function criaPorteiro(opts = {}) {

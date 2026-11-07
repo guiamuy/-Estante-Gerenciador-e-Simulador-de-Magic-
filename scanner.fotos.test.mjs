@@ -201,6 +201,17 @@ test('S-617 · mais fotos entram na primeira leitura (lixo na frente não segura
     assert.ok(r.linhas.find(l => l.foto === foto)?.primeira, foto + ' (lixo de uma letra na frente) entra na primeira leitura');
 });
 
+/* S-619 · relato #65: o espelho da S-617 para o FIM da linha (o símbolo de mana e a borda viram "C", "CC", "I"). Medido em
+   07/11/2026 neste conjunto: 20 de 32 na primeira leitura; com a marca `fim`, 23 — nenhuma com o nome errado. */
+test('S-619 · lixo no fim da linha não segura a carta: mais fotos na primeira leitura, nenhuma com o nome errado', { skip, timeout: 240000 }, async () => {
+  const r = await medePadrao();
+  console.log(`# medida · scanner · S-619 na_primeira=${r.primeira}/${r.n}`);
+  assert.equal(r.primeiraErrada, 0, 'nenhuma foto entra na primeira leitura com o nome errado');
+  assert.ok(r.primeira >= 23, `na primeira leitura: ${r.primeira}/${r.n} (eram 20 antes da S-619; alvo ≥ 23)`);
+  for (const foto of ['preordain-inclinada.jpg', 'real-chasm-playmat.jpg', 'real-killian-nome-longo.jpg'])
+    assert.ok(r.linhas.find(l => l.foto === foto)?.primeira, foto + ' (lixo de uma ou duas letras no fim) entra na primeira leitura');
+});
+
 test('S-604 · carta sem borda (texto claro sobre a arte, como o Malcolm SPG #2 do dono): a edição sai da linha de coleção', { skip, timeout: 240000 }, async () => {
   const semBorda = manifest.fotos.filter(f => f.estilo === 'semBorda');
   assert.ok(semBorda.length >= 2, 'o conjunto precisa das cartas sem borda');
@@ -276,6 +287,7 @@ test('S-594 · foto um pouco borrada (desfoque de 1,5 px numa carta de 600 px) �
   assert.equal(r.puladas, 0, 'a régua de nitidez não pode pular foto borrada que o leitor lê');
   assert.ok(r.nomeOk >= AMOSTRA.length - 1, `nome ${r.nomeOk}/${AMOSTRA.length} (antes da S-594: a régua pulava 2 de cada 3)\n${relatorio(r)}`);
   assert.equal(r.erradas, 0, 'nenhum nome errado com nota de aceite');
+  assert.equal(r.primeiraErrada, 0, 'S-619 · nenhuma entra na primeira leitura com o nome errado');
 });
 
 test('S-594 · protetor com reflexo e desfoque de 2 px: a segunda leitura realçada devolve o nome, sem nome errado', { skip, timeout: 240000 }, async () => {
@@ -284,6 +296,7 @@ test('S-594 · protetor com reflexo e desfoque de 2 px: a segunda leitura realç
   assert.equal(r.puladas, 0);
   assert.ok(r.nomeOk >= AMOSTRA.length - 2, `nome ${r.nomeOk}/${AMOSTRA.length}\n${relatorio(r)}`);
   assert.equal(r.erradas, 0, 'nenhum nome errado com nota de aceite');
+  assert.equal(r.primeiraErrada, 0, 'S-619 · nenhuma entra na primeira leitura com o nome errado');
 });
 
 /* S-616 · relato #65 ("demora para reconhecer a versão") · a mesma carta em três quadros seguidos, com tremor diferente em cada
