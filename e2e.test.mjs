@@ -15952,6 +15952,83 @@ test('e2e · R-42 Painel · tendência nos cartões da Eficiência: mini-linha d
   assert.deepEqual(errors, []);
 });
 
+/* ---------- R-44 · BI4-5 · comparar períodos ---------- */
+test('e2e · R-44 Painel · comparar períodos: o chip "Comparar" junto do período liga, no endereço, a linha "7 dias anteriores" em cada cartão da Eficiência, com o número de antes e a diferença julgada pelo sentido da medida; os dias do período anterior entram pelo orçamento e, sem eles, o cartão diz "sem dado lido"; "tudo" não tem anterior; desligar tira a linha; sem sobreposição', { timeout: 180000 }, async t => {
+  const { page, errors, base } = await open(t);
+  const painel = base.replace('index.html', 'painel.html');
+  await page.setViewportSize({ width: 360, height: 780 });
+  const agora = Date.now();
+  const iso = ms => new Date(ms).toISOString();
+  const h = n => iso(agora - n * 3600000);
+  const json = (r, corpo) => r.fulfill({ json: corpo, headers: { 'content-type': 'application/json', 'x-ratelimit-remaining': '50', 'x-ratelimit-limit': '60', 'access-control-expose-headers': 'etag, x-ratelimit-remaining, x-ratelimit-limit' } });
+  const commit = (leva, em) => ({ sha: leva.replace('-', '') + '0000000', commit: { message: `Leva ${leva} · assunto`, committer: { date: iso(em) }, author: { date: iso(em - 3600000) } } });
+  const levasDoDia = { 0: [commit('M-390', agora - 2 * 3600000), commit('R-2', agora - 3 * 3600000), commit('G-266', agora - 5 * 3600000)], 1: [commit('M-388', agora - 30 * 3600000)], 2: [commit('T-61', agora - 50 * 3600000), commit('M-384', agora - 52 * 3600000)] };
+  const rodada = (id, ok, horas, min) => ({ id, status: 'completed', conclusion: ok ? 'success' : 'failure', run_started_at: h(horas), updated_at: iso(agora - horas * 3600000 + min * 60000) });
+  // 7 dias: 2 verdes e 1 vermelha (67 %), durações 18, 30, 20 min; 7 dias anteriores: 1 verde e 2 vermelhas (33 %), 40, 35, 45 min
+  let fase = 1;
+  const rodadas = () => [rodada(8, true, 3, 18), rodada(7, fase === 2, 30, 30), rodada(6, true, 50, 20), rodada(5, false, 9 * 24, 40), rodada(4, false, 10 * 24, 35), rodada(3, true, 10 * 24 + 2, 45)];
+  await page.route('https://api.github.com/**', r => {
+    const u = r.request().url();
+    if (/\/commits\?sha=main&per_page=1/.test(u)) return json(r, [commit('M-390', agora - 2 * 3600000)]);
+    if (/\/commits\?sha=main&since=/.test(u)) { const since = Date.parse(decodeURIComponent((u.match(/since=([^&]+)/) || [])[1])); const diasAtras = Math.round((new Date(agora).setHours(0, 0, 0, 0) - since) / 86400000); return json(r, levasDoDia[diasAtras] || []); }
+    if (/fila\.yml\/runs/.test(u)) return json(r, { workflow_runs: rodadas() });
+    if (/\/branches/.test(u)) return json(r, []);
+    return json(r, { workflow_runs: [] });
+  });
+  // levas: duração 30 e 120 min agora (mediana 75) contra 60 min nove dias antes (+25 %, e tempo de leva maior é pior); a mais antiga (13 dias) abre a cobertura
+  await page.route('https://raw.githubusercontent.com/**', r => r.fulfill({ body: [
+    `{"id":"G-1","trilha":"geral","conversa":"geral · 20/10","situacao":"publicada","em":"${h(15 * 24)}","modelo":"Fable 5.1"}`,
+    `{"id":"M-300","trilha":"motor","conversa":"motor · 11/10","situacao":"publicada","inicio":"${h(9 * 24 + 1)}","fim":"${h(9 * 24)}","portao":"verde","tamanho":"1","modelo":"Fable 5.1"}`,
+    `{"id":"R-2","trilha":"radar","conversa":"radar · 13/10","situacao":"publicada","inicio":"${h(4)}","fim":"${h(3.5)}","portao":"verde","tamanho":"1","modelo":"Fable 5.1"}`,
+    `{"id":"M-390","trilha":"motor","conversa":"motor · 11/10","situacao":"publicada","inicio":"${h(5)}","fim":"${h(3)}","portao":"verde","tamanho":"1","modelo":"Fable 5.1"}`].join('\n') + '\n', headers: { 'content-type': 'text/plain', 'access-control-allow-origin': '*' } }));
+  await page.addInitScript(() => {
+    const jwt = email => 'h.' + btoa(JSON.stringify({ email })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') + '.s';
+    window.__PAINEL_FETCH = async (url) => new Response(JSON.stringify(url.includes('securetoken') ? { user_id: 'uidE2E', id_token: jwt('gui.amuy@gmail.com'), refresh_token: 'ref-e2e', expires_in: '3600' } : { localId: 'uidE2E', idToken: jwt('gui.amuy@gmail.com'), refreshToken: 'ref-e2e', expiresIn: '3600' }), { headers: { 'content-type': 'application/json' } });
+    window.__PAINEL_GOOGLE = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }), revoke: (tk, cb) => cb && cb() } } };
+  });
+  await page.goto(painel + '#eficiencia'); await page.waitForSelector('#pn-entrar'); await page.click('#pn-entrar');
+  await page.waitForSelector('#pn-visao-eficiencia');
+  await page.click('#pn-atualizar'); await page.waitForFunction(() => !/não lidos/.test(document.querySelector('#pn-notas')?.innerText || ''));
+  await page.waitForSelector('#pn-atualizar:not([disabled])');
+  assert.equal(await page.locator('.pn-cartao__antes').count(), 0, 'desligado, nada muda');
+  assert.match(await page.innerText('#pn-k-tempo-leva'), /mediana de 2/, 'sem período no endereço, o padrão (7 dias) vale também para as levas: a de 9 dias atrás não entra');
+  assert.equal(await page.getAttribute('#pn-comparar', 'aria-pressed'), 'false');
+  assert.ok((await page.locator('#pn-comparar').boundingBox()).height >= 44);
+  await page.click('#pn-comparar'); await page.waitForSelector('#pn-comparar[aria-pressed="true"]');
+  assert.match(page.url(), /#eficiencia\?.*comparar=1/, 'o endereço guarda a escolha');
+  // os dias do período anterior chegam pelo orçamento (até 4 por atualização)
+  for (let i = 0; i < 5; i++) {
+    await page.waitForSelector('#pn-atualizar:not([disabled])');
+    if (!/período anterior ainda não lidos|ainda não lidos/.test(await page.evaluate(() => document.querySelector('#pn-notas')?.innerText || ''))) break;
+    await page.click('#pn-atualizar');
+  }
+  await page.waitForSelector('#pn-atualizar:not([disabled])');
+  const antes = id => page.evaluate(id => { const e = document.querySelector(id + ' .pn-cartao__antes'); return e ? { juizo: e.dataset.juizo, texto: e.textContent.trim(), titulo: e.title } : null; }, id);
+  assert.equal(await page.locator('#pn-visao-eficiencia .pn-cartao__antes').count(), 6);
+  assert.deepEqual(await antes('#pn-k-verde1'), { juizo: 'melhor', texto: '7 dias anteriores: 33 % · +100 % · melhor', titulo: '+100 % vs 7 dias anteriores · melhor' });
+  assert.deepEqual(await antes('#pn-k-portao'), { juizo: 'melhor', texto: '7 dias anteriores: 40 min · −50 % · melhor', titulo: '−50 % vs 7 dias anteriores · melhor' });
+  assert.deepEqual(await antes('#pn-k-tempo-leva'), { juizo: 'pior', texto: '7 dias anteriores: 1 h · +25 % · pior', titulo: '+25 % vs 7 dias anteriores · pior' });
+  assert.deepEqual((await antes('#pn-k-levas')).texto, '7 dias anteriores: 0 · +6 · melhor', 'semana anterior sem levas (dias lidos): diferença absoluta');
+  assert.equal((await antes('#pn-k-lead')).texto, '7 dias anteriores: nada no período', 'lido, mas sem leva com commit: não é "sem dado lido"');
+  assert.equal((await antes('#pn-k-intervalo')).texto, '7 dias anteriores: nada no período', 'semana anterior lida e sem commits: sem intervalo');
+  assert.equal((await antes('#pn-k-lead')).juizo, 'sem');
+  await auditaTela(page, 'eficiência comparando');
+  await emTodasAsMedidas(page, 'eficiência comparando');
+  // o endereço reabre comparando
+  await page.reload(); await page.waitForSelector('#pn-visao-eficiencia'); await page.waitForSelector('#pn-comparar[aria-pressed="true"]');
+  await page.waitForSelector('#pn-k-verde1 .pn-cartao__antes');
+  // "tudo" não tem período anterior
+  await page.click('#pn-filtros [data-dim="periodo"][data-valor="tudo"]'); await page.waitForSelector('#pn-atualizar:not([disabled])');
+  assert.equal(await page.locator('#pn-comparar').count(), 0); assert.equal(await page.locator('.pn-cartao__antes').count(), 0);
+  // volta a 7 dias e desliga
+  await page.click('#pn-filtros [data-dim="periodo"][data-valor="7d"]'); await page.waitForSelector('#pn-comparar[aria-pressed="true"]');
+  await page.click('#pn-comparar'); await page.waitForSelector('#pn-comparar[aria-pressed="false"]');
+  assert.equal(await page.locator('.pn-cartao__antes').count(), 0, 'desligar tira a linha');
+  assert.doesNotMatch(page.url(), /comparar=1/);
+  if (process.env.SHOTS) { await page.click('#pn-comparar'); await page.waitForSelector('#pn-k-verde1 .pn-cartao__antes'); await page.setViewportSize({ width: 360, height: 780 }); await page.waitForTimeout(400); await page.screenshot({ path: process.env.SHOTS + '/r44-comparar.png', fullPage: true }); }
+  assert.deepEqual(errors, []);
+});
+
 /* ---------- R-43 · BI4-4 · metas do dono ---------- */
 test('e2e · R-43 Painel · metas do dono: no balão do farol, "Definir meta" abre o formulário no próprio cartão (largura inteira); valor e data inválidos são recusados com o motivo; a meta vai ao banco do dono (lida de volta) e o cartão diz quanto falta e quando chega no ritmo atual (estimada); outro aparelho lê do banco; meta que o ritmo não alcança vira "meta em risco" no Resumo; tirar a meta tem "Desfazer"; sem sobreposição', { timeout: 180000 }, async t => {
   const { page, errors, base } = await open(t);

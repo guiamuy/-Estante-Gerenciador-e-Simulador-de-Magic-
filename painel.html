@@ -464,6 +464,7 @@ a { color: var(--accent); }
 .ds-empty__acoes .ds-row { justify-content: center; }
 @media (prefers-reduced-motion: reduce) { #nav-offline::before { animation: none; } .ds-anel__barra { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .ds-icon .porta__folha, .ds-icon .porta__luz { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .ds-icon[data-anima] > svg { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .inicio__rapidos .ds-atalho__icone { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .nt-topo.ds-btn { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .cat-topo.ds-btn { animation: none; } }
@@ -532,6 +533,7 @@ a { color: var(--accent); }
 .ds-tab[aria-selected="true"] { border-bottom-color: transparent; background: linear-gradient(90deg, var(--accent-lo), var(--accent-hi) 50%, var(--accent-lo)) bottom / 100% 2px no-repeat; }
 @media (prefers-reduced-motion: reduce) { .ds-dialog { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .tutorial__luz, .tutorial__sombra, .tutorial__objeto, .tutorial__objeto *, .tutorial__titulo { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .tutorial__faltam { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .tutorial__objeto, .tutorial__corpo { animation: none; } .tutorial__passo { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .tb-vez__aviso, .tb-vez__aviso[data-saindo="true"] { animation: none; } }
 /* ---------------- estados ---------------- */
@@ -620,6 +622,7 @@ body {
 @media (prefers-reduced-motion: reduce) { .tb-resumo__painel { animation: none; } .tb-resumo__faixa > .tb-resumo__seta { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .tb-origem[data-novo="true"] .tb-origem__mapa .tb-masmorra__no[data-dono="true"] { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .tb-card, .tb-card__face { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .col-row.is-segurando, .col-card.is-segurando, .col-dense__row.is-segurando { transform: none; } }
 @media (prefers-reduced-motion: reduce) { .deck-slot.is-pulse .ds-card { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .scan-stage.is-pulse .scan-frame, .scan-stage.is-pulse::after, .scan-ok.is-on, .scan-estado__chip[data-ligado="true"]::before { animation: none; } }
 /* ==== src/painel/painel.css ==== */
@@ -876,6 +879,12 @@ button.pn-barras__linha[aria-pressed="true"] { background: var(--accent-soft); }
 .pn-meta--form .ds-input { width: 100%; }
 .pn-meta--tirada { flex-direction: row; align-items: center; justify-content: space-between; flex-wrap: wrap; }
 .pn-balao__acoes { gap: var(--space-2); flex-wrap: wrap; }
+
+/* R-44 · BI4-5 · a linha do período anterior no cartão (mesma gramática da tendência: seta com o juízo, texto em token de texto) */
+.pn-cartao__antes { display: flex; align-items: flex-start; gap: var(--space-1); min-width: 0; overflow-wrap: anywhere; }
+.pn-cartao__antes .pn-cartao__seta { margin-top: 3px; }
+.pn-cartao__antes[data-juizo="melhor"] .pn-cartao__seta { color: var(--positive); }
+.pn-cartao__antes[data-juizo="pior"] .pn-cartao__seta { color: var(--negative); }
 
 </style>
 </head>
@@ -1489,6 +1498,19 @@ const __p2 = (function () {
       : `${falta} · no ritmo atual chega em ${diaMes(e.chegaEm)} (estimada)`;
     return { alvo, situacao };
   }
+  /** R-44 · BI4-5 · dias de calendário (AAAA-MM-DD) que a janela ]de, ate] toca, do mais antigo ao mais novo. */
+  function diasEntre(de, ate) {
+    const saida = [], d = new Date(de); d.setHours(12, 0, 0, 0);
+    const fim = diaDe(ate);
+    for (let k = diaDe(d.getTime()); k <= fim; d.setDate(d.getDate() + 1), k = diaDe(d.getTime())) saida.push(k);
+    return saida;
+  }
+  /** R-44 · a janela anterior de mesmo tamanho: ]agora − 2·janela, agora − janela]; "tudo" não tem anterior. */
+  function janelaAnterior(periodo, agora = Date.now()) {
+    const j = PERIODOS[periodo || '7d'];
+    if (!Number.isFinite(j)) return null;
+    return { de: agora - 2 * j, ate: agora - j, rotulo: `${ROTULO_PERIODO[periodo || '7d']} anteriores` };
+  }
   /** R-38 · placar da Visão geral: para cada aba, quantos cartões em cada farol e os nomes dos que estão fora do alvo e em atenção;
       da pior aba para a melhor (mais vermelhos, depois mais amarelos, depois a ordem das abas). Aba que não carregou vai para o fim, marcada. */
   function placarDasAbas(abas) {
@@ -1588,6 +1610,8 @@ const __p2 = (function () {
   /** Dimensões que toda linha normalizada pode carregar; o filtro só vale onde a dimensão existe. */
   const DIMENSOES = ['periodo', 'trilha', 'conversa', 'historia', 'epico', 'tema', 'skill', 'modelo', 'situacao', 'portao', 'formato', 'area', 'tipo', 'urgencia', 'fonte'];
   const PERIODOS = { '24h': 24 * 3600000, '7d': 7 * 86400000, '30d': 30 * 86400000, 'tudo': Infinity };
+  /** R-44 · opções que o endereço guarda mas que não recortam linhas (não viram "este filtro não se aplica"). */
+  const OPCOES = ['comparar'];
   /** Trilha pela letra da leva (prefixo do rodapé `Trilha:`; retrato de 13/10/2026). */
   const TRILHA_DA_LETRA = { M: 'motor', B: 'bot', G: 'geral', D: 'design', S: 'scanner', I: 'infra', P: 'protecao', A: 'armazem', K: 'keywords', V: 'verbos', T: 'tipos', L: 'listas', C: 'cartas', H: 'homologacao', R: 'radar', E: 'escala', J: 'jogabilidade' };
   const trilhaDaLeva = leva => TRILHA_DA_LETRA[String(leva || '').charAt(0)] || null;
@@ -1609,11 +1633,11 @@ const __p2 = (function () {
     const h = String(hash || '').replace(/^#/, '');
     const [aba, consulta = ''] = h.split('?');
     const filtros = {};
-    for (const par of consulta.split('&')) { if (!par) continue; const [k, v = ''] = par.split('='); const chave = decodeURIComponent(k); if (DIMENSOES.includes(chave) && v !== '') filtros[chave] = decodeURIComponent(v); }
+    for (const par of consulta.split('&')) { if (!par) continue; const [k, v = ''] = par.split('='); const chave = decodeURIComponent(k); if ((DIMENSOES.includes(chave) || OPCOES.includes(chave)) && v !== '') filtros[chave] = decodeURIComponent(v); }
     return { aba: aba || null, filtros };
   }
   function urlDosFiltros(aba, filtros = {}) {
-    const pares = Object.entries(filtros || {}).filter(([k, v]) => DIMENSOES.includes(k) && v != null && v !== '' && !(k === 'periodo' && v === 'tudo')).map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`);
+    const pares = Object.entries(filtros || {}).filter(([k, v]) => (DIMENSOES.includes(k) || OPCOES.includes(k)) && v != null && v !== '' && !(k === 'periodo' && v === 'tudo')).map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`);
     return '#' + aba + (pares.length ? '?' + pares.join('&') : '');
   }
   /** Frase do recorte para o cartão: "7 dias · trilha motor" ou "tudo". */
@@ -2272,7 +2296,7 @@ const __p2 = (function () {
     coleta: 'raw · catalogo/coleta.json (saúde e contagens da última coleta; gravado pelo fluxo Catálogo)',
     indice: 'raw · catalogo/indice.json (só o cabeçalho: fontes, formatos, total, pendentes; lido uma vez por coleta e guardado por carimbo)'
   };
-  return { centavosDe, reaisDe, mesDe, rotuloDoMes, linhasDoNegocio, resumoDoNegocio, SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, linhasDosCommits, levasPorRodada, compactaCommits, MAIN_URL, intervalos, diasDoPeriodo, porSemana, parseRoadmap, resumoDoMapa, linhasDosPlacares, sharkPorVersao, minutosDasRodadas, serieDeTamanho, kb, cabecalhoDoIndice, resumoDoCatalogo, experienciaDasLevas, linhasDasRodadasCI, experienciaDasRodadas, instaveisPorNome, linhasDasPessoas, resumoDasPessoas, linhasDoUso, resumoDoUso, linhasDaForca, resumoDaForca, GLOSSARIO, GRUPOS_GLOSSARIO, buscaGlossario, nomeBate, verbeteDe, MARCAVEIS, segmentosComTermos, COMO_LER, FAROL_EM_PALAVRAS, alvoEmPalavras, placarDasAbas, INSIGHTS, insightsDe, proximosPassos, escalaRedonda, geometriaColunas, geometriaLinha, geometriaAnel, diaDe, diasAte, sentidoDoLimiar, variacao, tendencia, geometriaSparkline, inclinacao, estadoDaMeta, frasesDaMeta, glossarioPorGrupo, semAcento, medidaDoScanner, linhasDosRelatos, linhasDasTrilhas, resumoDoFluxo, fraseDoCron, linhasDosFluxos, linhasDasRotinas, porModelo, SECOES_CR, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
+  return { centavosDe, reaisDe, mesDe, rotuloDoMes, linhasDoNegocio, resumoDoNegocio, SUBABAS, LIMIARES, FONTES, DIMENSOES, PERIODOS, ROTULO_PERIODO, TRILHA_DA_LETRA, trilhaDaLeva, recorte, filtrosDaUrl, urlDosFiltros, fraseDoRecorte, valoresDe, levaDoRamo, motivoDaRecusa, linhasDaFila, linhasDasRodadas, linhasDasLevas, linhasDosCommits, levasPorRodada, compactaCommits, MAIN_URL, intervalos, diasDoPeriodo, porSemana, parseRoadmap, resumoDoMapa, linhasDosPlacares, sharkPorVersao, minutosDasRodadas, serieDeTamanho, kb, cabecalhoDoIndice, resumoDoCatalogo, experienciaDasLevas, linhasDasRodadasCI, experienciaDasRodadas, instaveisPorNome, linhasDasPessoas, resumoDasPessoas, linhasDoUso, resumoDoUso, linhasDaForca, resumoDaForca, GLOSSARIO, GRUPOS_GLOSSARIO, buscaGlossario, nomeBate, verbeteDe, MARCAVEIS, segmentosComTermos, COMO_LER, FAROL_EM_PALAVRAS, alvoEmPalavras, placarDasAbas, INSIGHTS, insightsDe, proximosPassos, escalaRedonda, geometriaColunas, geometriaLinha, geometriaAnel, diaDe, diasAte, sentidoDoLimiar, variacao, tendencia, geometriaSparkline, inclinacao, estadoDaMeta, frasesDaMeta, diasEntre, janelaAnterior, OPCOES, glossarioPorGrupo, semAcento, medidaDoScanner, linhasDosRelatos, linhasDasTrilhas, resumoDoFluxo, fraseDoCron, linhasDosFluxos, linhasDasRotinas, porModelo, SECOES_CR, mediana, p95, porDia, minutos, farol, carimbo, haQuanto, resumoDoMain, estadoTela, motivo };
 })();
 
 /* ==== src/painel/ui.js ==== */
@@ -2359,7 +2383,15 @@ const __p3 = (function () {
         h('span', {}, v.curto || v.texto)),
       v.direcao ? h('p', { class: 'pn-cartao__janela ds-text ds-text--xs ds-text--subtle' }, 'últimos 7 dias contra os 7 anteriores') : null);
   }
-  function Cartao({ id, rotulo, valor, unidade = '', farol: situacao = null, limiar = null, fonte = '', formula = '', em = null, semDados = false, totalSemFiltro = null, nota = null, tendencia = null, formatoTendencia = null, meta = null, rodape = null }) {
+  /** R-44 · BI4-5 · a linha do período anterior no cartão: "7 dias anteriores: 40 min · −50 % · melhor"; sem dado lido daquele
+      período, diz isso (nunca zero inventado). A seta leva o juízo; o texto fica em token de texto. */
+  function Comparacao(c) {
+    const v = c.variacao || {};
+    return h('div', { class: 'pn-cartao__antes ds-text ds-text--sm ds-text--muted', dataset: { juizo: c.antes == null ? 'sem' : (v.juizo || 'sem') }, title: c.antes == null ? '' : (v.texto || '') },
+      c.antes != null && (v.direcao === 'sobe' || v.direcao === 'desce') ? Icone(v.direcao, { tamanho: 14, classe: 'pn-cartao__seta' }) : null,
+      h('span', {}, c.antes == null ? `${c.rotulo}: ${c.vazio || 'sem dado lido'}` : `${c.rotulo}: ${c.antesTexto} · ${v.curto || v.texto}`));
+  }
+  function Cartao({ id, rotulo, valor, unidade = '', farol: situacao = null, limiar = null, fonte = '', formula = '', em = null, semDados = false, totalSemFiltro = null, nota = null, tendencia = null, formatoTendencia = null, meta = null, rodape = null, comparacao = null }) {
     let mudou = false;
     if (id && situacao) { const chave = id + '|' + formula, antes = FAROL_VISTO.get(chave); FAROL_VISTO.set(chave, situacao); mudou = antes != null && antes !== situacao && antes !== 'cinza' && situacao !== 'cinza'; }
     return h('article', { class: 'ds-surface pn-cartao', id, 'aria-label': rotulo, dataset: rodape && rodape.dataset && rodape.dataset.aberta === 'true' ? { metaAberta: 'true' } : {} },
@@ -2367,6 +2399,7 @@ const __p3 = (function () {
       semDados ? h('p', { class: 'ds-text ds-text--md ds-text--muted pn-cartao__vazio' }, 'sem dados neste recorte')
         : h('p', { class: 'ds-text ds-text--2xl ds-text--display pn-cartao__valor' }, String(valor), unidade ? h('span', { class: 'ds-text ds-text--sm ds-text--muted pn-cartao__unidade' }, ' ' + unidade) : null, totalSemFiltro != null ? h('span', { class: 'ds-text ds-text--sm ds-text--subtle pn-cartao__total', title: 'sem filtro' }, ` / ${totalSemFiltro}`) : null),
       nota ? h('p', { class: 'ds-text ds-text--sm ds-text--muted' }, nota) : null,
+      comparacao && !semDados ? Comparacao(comparacao) : null,
       tendencia && !semDados ? Tendencia(tendencia, rotulo, formatoTendencia || undefined) : null,
       rodape,
       h('p', { class: 'ds-text ds-text--xs ds-text--subtle pn-cartao__origem', title: [fonte, formula, limiar && limiar.texto].filter(Boolean).join(' · ') }, [formula, fonte].filter(Boolean).join(' · ') + (em ? ` · ${__p2.carimbo(em)}` : '')));
@@ -3144,7 +3177,7 @@ const __p4 = (function () {
       }
     },
     eficiencia: {
-      filtros: ['periodo', 'trilha', 'conversa', 'modelo', 'portao', 'situacao'], porPeriodo: true,
+      filtros: ['periodo', 'trilha', 'conversa', 'modelo', 'portao', 'situacao'], porPeriodo: true, compara: true,   // R-44 · chip "Comparar"
       linhas: d => [...M.linhasDosCommits(Object.values(d.commits || {}).flat()), ...M.linhasDasLevas(d.levas || [])],
       /** Commits por dia (dias passados são imutáveis: guardados para sempre; o dia de hoje volta a cada atualização), rodadas,
           ramos e telemetria compartilham o cache da Pipeline. Dias ainda não lidos ficam para a próxima atualização (orçamento). */
@@ -3156,11 +3189,14 @@ const __p4 = (function () {
         /* R-42 · a tendência dos cartões pede os últimos 14 dias. Os que o período não cobre só entram se já estão no cache ou no
            retrato do CI (custo zero de pedidos): nunca gastam o orçamento do período. Dia fora disso fica vazio na mini-linha (não vira
            zero) e não entra no aviso, que fala só do período escolhido. */
-        const diasTendencia = M.diasAte(agora, 14).reverse().filter(x => !dias.includes(x));
+        /* R-44 · com "Comparar" ligado, os dias do período anterior entram no orçamento (depois dos do período); sem ele, só cache. */
+        const ant = filtros.comparar ? M.janelaAnterior(filtros.periodo || '7d', agora) : null;
+        const diasAnteriores = ant ? M.diasEntre(ant.de, ant.ate).reverse().filter(x => !dias.includes(x)) : [];
+        const diasTendencia = [...new Set([...M.diasAte(agora, 14).reverse(), ...diasAnteriores])].filter(x => !dias.includes(x));
         const commits = {}, commitsTendencia = {}; let novos = 0; const pendentes = [], pendentesTendencia = [];
         const leTendencia = async () => { for (const dia of diasTendencia) {
           const nome = 'commits.' + dia;
-          if (!fonte.emCache(nome)) { pendentesTendencia.push(dia); continue; }
+          if (!fonte.emCache(nome)) { if (!diasAnteriores.includes(dia) || novos >= ORCAMENTO.detalhes) { pendentesTendencia.push(dia); continue; } novos++; }
           const de = new Date(dia + 'T00:00:00'), ate = new Date(de.getTime() + 86400000);
           try { commitsTendencia[dia] = (await fonte.api(`/commits?sha=main&since=${de.toISOString()}&until=${ate.toISOString()}&per_page=100`, { nome, ttl: Infinity })).dado || []; }
           catch (e) { pendentesTendencia.push(dia); }
@@ -3173,6 +3209,8 @@ const __p4 = (function () {
           catch (e) { pendentes.push(dia); }
         }
         await leTendencia();
+        const faltamAnteriores = pendentesTendencia.filter(x => diasAnteriores.includes(x));
+        if (faltamAnteriores.length) avisos.push(`${faltamAnteriores.length} dia(s) do período anterior ainda não lidos (orçamento de pedidos): o "antes" desses cartões espera a próxima atualização`);
         if (pendentes.length) avisos.push(`${pendentes.length} dia(s) ainda não lidos (orçamento de pedidos): ${pendentes.slice(0, 3).join(', ')}${pendentes.length > 3 ? '…' : ''}`);
         if ((filtros.periodo || '7d') === 'tudo') avisos.push('"tudo" cobre os últimos 30 dias (orçamento de pedidos)');
         const rodadas = await fonte.api('/actions/workflows/fila.yml/runs?per_page=50', { nome: 'rodadas', ttl: 2 * 60000, forcar });
@@ -3186,7 +3224,7 @@ const __p4 = (function () {
         const todas = M.linhasDosCommits(Object.values(d.commits).flat());
         const rCom = recorte(todas, { periodo, trilha: filtros.trilha }, agora);
         const rRod = recorte(M.linhasDasRodadas(d.rodadas).filter(r => r.status === 'completed'), { periodo, portao: filtros.portao }, agora);
-        const rLev = recorte(M.linhasDasLevas(d.levas), filtros, agora);
+        const rLev = recorte(M.linhasDasLevas(d.levas), { ...filtros, periodo }, agora);   // R-44 · sem período no endereço, vale o padrão (antes: todas as levas)
         const ints = M.intervalos(rCom.linhas);
         const verdes = rRod.linhas.filter(r => r.portao === 'verde').length, total = rRod.linhas.length;
         const pct = total ? Math.round(100 * verdes / total) : null;
@@ -3216,6 +3254,39 @@ const __p4 = (function () {
           tempo: M.tendencia(tLev.filter(l => l.inicio && l.fim), { agregar: g => M.mediana(g.map(l => Date.parse(l.fim) - Date.parse(l.inicio))), sentido: 'menor', coberto: cobreLevas, agora, formato: minutos }),
           lead: M.tendencia(tLev.filter(l => l.fim && shaDaLeva.get(l.id) && shaDaLeva.get(l.id).data), { agregar: g => M.mediana(g.map(l => shaDaLeva.get(l.id).data - Date.parse(l.fim)).filter(x => x >= 0)), sentido: M.sentidoDoLimiar(LIMIARES.leadTime), coberto: cobreLevas, agora, formato: minutos })
         };
+        /* R-44 · BI4-5 · comparar com o período anterior de mesmo tamanho: mesmas fórmulas, mesmos filtros (menos o período);
+           fonte que não leu todos os dias da janela anterior não compara ("sem dado lido"), nunca vira zero. */
+        const ant = filtros.comparar ? M.janelaAnterior(periodo, agora) : null;
+        let antes = null;
+        if (ant) {
+          const naJanela = ls => ls.filter(l => l.data != null && l.data > ant.de && l.data <= ant.ate);
+          const cobre = f => M.diasEntre(ant.de, ant.ate).every(f);
+          const aCom = naJanela(tCom), aRod = naJanela(tRod), aLev = naJanela(tLev);
+          const okCom = cobre(cobreCommits), okRod = cobre(cobreRodadas), okLev = cobre(cobreLevas);
+          const aFim = aLev.filter(l => l.inicio && l.fim).map(l => Date.parse(l.fim) - Date.parse(l.inicio));
+          const aLead = aLev.filter(l => l.fim && shaDaLeva.get(l.id) && shaDaLeva.get(l.id).data).map(l => shaDaLeva.get(l.id).data - Date.parse(l.fim)).filter(x => x >= 0);
+          antes = {
+            levas: { lido: okCom, v: aCom.length },
+            intervalo: { lido: okCom, v: M.mediana(M.intervalos(aCom)) },
+            verde1: { lido: okRod, v: aRod.length ? 100 * aRod.filter(r => r.portao === 'verde').length / aRod.length : null },
+            portao: { lido: okRod, v: M.mediana(aRod.map(r => r.duracao)) },
+            tempo: { lido: okLev, v: M.mediana(aFim) },
+            lead: { lido: okLev, v: M.mediana(aLead) }
+          };
+        }
+        const compara = (chave, atual, sentido, fmt = v => String(Math.round(v * 10) / 10).replace('.', ',')) => {
+          if (!antes) return null;
+          const { lido, v: a } = antes[chave], tem = a != null && Number.isFinite(a);
+          return { rotulo: ant.rotulo, antes: tem ? a : null, vazio: lido ? 'nada no período' : 'sem dado lido', antesTexto: tem ? fmt(a) : '', variacao: M.variacao(atual, tem ? a : null, { sentido, rotulo: ant.rotulo, formato: fmt }) };
+        };
+        const comp = {
+          levas: compara('levas', rCom.linhas.length, 'maior'),
+          intervalo: compara('intervalo', M.mediana(ints), M.sentidoDoLimiar(LIMIARES.intervalo), minutos),
+          verde1: compara('verde1', total ? 100 * verdes / total : null, M.sentidoDoLimiar(LIMIARES.portaoVerde), v => `${Math.round(v)} %`),
+          portao: compara('portao', M.mediana(duracoes), M.sentidoDoLimiar(LIMIARES.rodada), minutos),
+          tempo: compara('tempo', M.mediana(comFim), 'menor', minutos),
+          lead: compara('lead', M.mediana(leads), M.sentidoDoLimiar(LIMIARES.leadTime), minutos)
+        };
         const semanal = periodo === '30d' || periodo === 'tudo';
         const serie = semanal ? M.porSemana(rCom.linhas).map(({ semana, itens }) => ({ chave: semana, rotulo: 'sem. ' + semana.slice(5).split('-').reverse().join('/'), valor: itens.length, dica: `${itens.length} leva(s) na semana de ${semana}` })) : M.porDia(rCom.linhas).map(({ dia, itens }) => ({ chave: dia, rotulo: dia.slice(5).split('-').reverse().join('/'), valor: itens.length, dica: `${dia}: ${itens.length} leva(s)` }));
         const porTrilha = valoresDe(rCom.linhas, 'trilha', 12).map(v => ({ chave: v.valor, rotulo: v.valor, valor: v.n }));
@@ -3226,12 +3297,12 @@ const __p4 = (function () {
         const comFiltro = !!filtros.trilha;
         return [
           h('div', { class: 'pn-cartoes' },
-            Cartao({ id: 'pn-k-levas', rotulo: 'Levas publicadas', valor: rCom.linhas.length, unidade: `no recorte`, farol: null, fonte: FONTES.commits, formula: 'commits "Leva X-N" no main · ' + recorteTxt, em: d.em, totalSemFiltro: comFiltro ? recorte(todas, { periodo }, agora).linhas.length : null, semDados: !todas.length, tendencia: tend.levas }),
-            Cartao({ id: 'pn-k-intervalo', rotulo: 'Intervalo entre publicações', valor: minutos(M.mediana(ints)), unidade: ints.length ? `mediana · pior ${minutos(Math.max(...ints))}` : '', farol: ints.length ? farol(M.mediana(ints), LIMIARES.intervalo) : 'cinza', limiar: LIMIARES.intervalo, fonte: FONTES.commits, formula: 'diferença entre commits consecutivos · ' + recorteTxt, em: d.em, semDados: !ints.length , meta: { tem: !!(api && api.metas && api.metas()['pn-k-intervalo']) }, rodape: blocoDaMeta(api, 'pn-k-intervalo', { unidade: 'h', sentido: M.sentidoDoLimiar(LIMIARES.intervalo), escala: 3600000 }, M.mediana(ints), tend.intervalo), tendencia: tend.intervalo, formatoTendencia: minutos }),
-            Cartao({ id: 'pn-k-verde1', rotulo: 'Portão verde na primeira', valor: pct == null ? '—' : pct, unidade: pct == null ? '' : `% de ${total} rodadas`, farol: pct == null ? 'cinza' : farol(pct, LIMIARES.portaoVerde), limiar: LIMIARES.portaoVerde, fonte: FONTES.rodadas, formula: 'rodadas success ÷ concluídas · ' + recorteTxt, em: d.em, semDados: !total, nota: 'por rodada; por leva, só com telemetria' , meta: { tem: !!(api && api.metas && api.metas()['pn-k-verde1']) }, rodape: blocoDaMeta(api, 'pn-k-verde1', { unidade: '%', sentido: M.sentidoDoLimiar(LIMIARES.portaoVerde), escala: 1 }, pct, tend.verde1), tendencia: tend.verde1, formatoTendencia: v => String(Math.round(v)) }),
-            Cartao({ id: 'pn-k-portao', rotulo: 'Duração do portão', valor: minutos(M.mediana(duracoes)), unidade: duracoes.length ? `p50 · p95 ${minutos(M.p95(duracoes))}` : '', farol: duracoes.length ? farol(M.mediana(duracoes), LIMIARES.rodada) : 'cinza', limiar: LIMIARES.rodada, fonte: FONTES.rodadas, formula: 'updated_at − run_started_at · ' + recorteTxt, em: d.em, semDados: !duracoes.length , meta: { tem: !!(api && api.metas && api.metas()['pn-k-portao']) }, rodape: blocoDaMeta(api, 'pn-k-portao', { unidade: 'min', sentido: M.sentidoDoLimiar(LIMIARES.rodada), escala: 60000 }, M.mediana(duracoes), tend.portao), tendencia: tend.portao, formatoTendencia: minutos }),
-            Cartao({ id: 'pn-k-tempo-leva', rotulo: 'Tempo de leva', valor: minutos(M.mediana(comFim)), unidade: comFim.length ? `mediana de ${comFim.length}` : '', farol: null, fonte: FONTES.levas, formula: 'fim − início · ' + recorteTxt, em: d.em, semDados: !comFim.length , tendencia: tend.tempo, formatoTendencia: minutos }),
-            Cartao({ id: 'pn-k-lead', rotulo: 'Do fim da leva ao main', valor: minutos(M.mediana(leads)), unidade: leads.length ? `mediana de ${leads.length}` : '', farol: leads.length ? farol(M.mediana(leads), LIMIARES.leadTime) : 'cinza', limiar: LIMIARES.leadTime, fonte: FONTES.levas + ' + commits', formula: 'data do commit no main − fim · ' + recorteTxt, em: d.em, semDados: !leads.length , meta: { tem: !!(api && api.metas && api.metas()['pn-k-lead']) }, rodape: blocoDaMeta(api, 'pn-k-lead', { unidade: 'min', sentido: M.sentidoDoLimiar(LIMIARES.leadTime), escala: 60000 }, M.mediana(leads), tend.lead), tendencia: tend.lead, formatoTendencia: minutos })),
+            Cartao({ id: 'pn-k-levas', rotulo: 'Levas publicadas', valor: rCom.linhas.length, unidade: `no recorte`, farol: null, fonte: FONTES.commits, formula: 'commits "Leva X-N" no main · ' + recorteTxt, em: d.em, totalSemFiltro: comFiltro ? recorte(todas, { periodo }, agora).linhas.length : null, semDados: !todas.length, comparacao: comp.levas, tendencia: tend.levas }),
+            Cartao({ id: 'pn-k-intervalo', rotulo: 'Intervalo entre publicações', valor: minutos(M.mediana(ints)), unidade: ints.length ? `mediana · pior ${minutos(Math.max(...ints))}` : '', farol: ints.length ? farol(M.mediana(ints), LIMIARES.intervalo) : 'cinza', limiar: LIMIARES.intervalo, fonte: FONTES.commits, formula: 'diferença entre commits consecutivos · ' + recorteTxt, em: d.em, semDados: !ints.length , meta: { tem: !!(api && api.metas && api.metas()['pn-k-intervalo']) }, rodape: blocoDaMeta(api, 'pn-k-intervalo', { unidade: 'h', sentido: M.sentidoDoLimiar(LIMIARES.intervalo), escala: 3600000 }, M.mediana(ints), tend.intervalo), comparacao: comp.intervalo, tendencia: tend.intervalo, formatoTendencia: minutos }),
+            Cartao({ id: 'pn-k-verde1', rotulo: 'Portão verde na primeira', valor: pct == null ? '—' : pct, unidade: pct == null ? '' : `% de ${total} rodadas`, farol: pct == null ? 'cinza' : farol(pct, LIMIARES.portaoVerde), limiar: LIMIARES.portaoVerde, fonte: FONTES.rodadas, formula: 'rodadas success ÷ concluídas · ' + recorteTxt, em: d.em, semDados: !total, nota: 'por rodada; por leva, só com telemetria' , meta: { tem: !!(api && api.metas && api.metas()['pn-k-verde1']) }, rodape: blocoDaMeta(api, 'pn-k-verde1', { unidade: '%', sentido: M.sentidoDoLimiar(LIMIARES.portaoVerde), escala: 1 }, pct, tend.verde1), comparacao: comp.verde1, tendencia: tend.verde1, formatoTendencia: v => String(Math.round(v)) }),
+            Cartao({ id: 'pn-k-portao', rotulo: 'Duração do portão', valor: minutos(M.mediana(duracoes)), unidade: duracoes.length ? `p50 · p95 ${minutos(M.p95(duracoes))}` : '', farol: duracoes.length ? farol(M.mediana(duracoes), LIMIARES.rodada) : 'cinza', limiar: LIMIARES.rodada, fonte: FONTES.rodadas, formula: 'updated_at − run_started_at · ' + recorteTxt, em: d.em, semDados: !duracoes.length , meta: { tem: !!(api && api.metas && api.metas()['pn-k-portao']) }, rodape: blocoDaMeta(api, 'pn-k-portao', { unidade: 'min', sentido: M.sentidoDoLimiar(LIMIARES.rodada), escala: 60000 }, M.mediana(duracoes), tend.portao), comparacao: comp.portao, tendencia: tend.portao, formatoTendencia: minutos }),
+            Cartao({ id: 'pn-k-tempo-leva', rotulo: 'Tempo de leva', valor: minutos(M.mediana(comFim)), unidade: comFim.length ? `mediana de ${comFim.length}` : '', farol: null, fonte: FONTES.levas, formula: 'fim − início · ' + recorteTxt, em: d.em, semDados: !comFim.length , comparacao: comp.tempo, tendencia: tend.tempo, formatoTendencia: minutos }),
+            Cartao({ id: 'pn-k-lead', rotulo: 'Do fim da leva ao main', valor: minutos(M.mediana(leads)), unidade: leads.length ? `mediana de ${leads.length}` : '', farol: leads.length ? farol(M.mediana(leads), LIMIARES.leadTime) : 'cinza', limiar: LIMIARES.leadTime, fonte: FONTES.levas + ' + commits', formula: 'data do commit no main − fim · ' + recorteTxt, em: d.em, semDados: !leads.length , meta: { tem: !!(api && api.metas && api.metas()['pn-k-lead']) }, rodape: blocoDaMeta(api, 'pn-k-lead', { unidade: 'min', sentido: M.sentidoDoLimiar(LIMIARES.leadTime), escala: 60000 }, M.mediana(leads), tend.lead), comparacao: comp.lead, tendencia: tend.lead, formatoTendencia: minutos })),
           h('div', { class: 'pn-graficos' },
             Grafico({ id: 'pn-g-levas', tipo: 'colunas', titulo: `Levas publicadas por ${semanal ? 'semana' : 'dia'} · ${recorteTxt}`, rotulos: serie.map(i => i.rotulo), series: [{ nome: 'levas', valores: serie.map(i => i.valor) }], vazio: 'sem levas neste recorte', nota: 'Quantas levas chegaram ao main em cada ' + (semanal ? 'semana' : 'dia') + '. Ritmo estável é bom; queda brusca pede olhar a fila.' }),
             Grafico({ id: 'pn-g-verde1', tipo: 'anel', titulo: `Rodadas da fila · verdes e vermelhas · ${recorteTxt}`, series: [{ nome: 'verdes', valor: verdes, cor: COR_FAROL.verde }, { nome: 'vermelhas', valor: total - verdes, cor: COR_FAROL.vermelho }], centro: pct == null ? '—' : `${pct} %`, vazio: 'nenhuma rodada da fila neste recorte', nota: 'Verde: tudo passou e as levas foram publicadas. Vermelha: algum teste caiu e nada daquela rodada foi publicado.' }),
@@ -3526,9 +3597,12 @@ const __p4 = (function () {
         escondidos.length ? Chip(est.maisFiltros ? 'Menos filtros' : `Mais filtros (${escondidos.length})`, { id: 'pn-mais-filtros', onClick: () => { est.maisFiltros = !est.maisFiltros; desenha(); } }) : null,
         ativos ? Chip(`Limpar (${ativos})`, { id: 'pn-limpar', onClick: limpaFiltros }) : null];
       const segunda = fixos.find(g => g.dim !== 'periodo');
+      // R-44 · "Comparar" abre a segunda linha (logo abaixo do período), só onde a visão sabe comparar e o período tem anterior
+      const chipComparar = v.compara && periodoAtual !== 'tudo' ? Chip('Comparar', { id: 'pn-comparar', ativo: !!est.filtros.comparar, title: 'comparar com o período anterior de mesmo tamanho', onClick: () => { filtra('comparar', '1'); if (visao() && visao().porPeriodo) atualiza(); } }) : null;
       return h('div', { class: 'pn-filtros', id: 'pn-filtros' },
         grupo(fixos[0]),
         h('div', { class: 'pn-filtros__grupo', dataset: { dim: segunda ? segunda.dim : 'acoes' }, role: 'group', 'aria-label': segunda ? segunda.dim : 'ações' },
+          chipComparar,
           ...(segunda ? segunda.chips.map(c => Chip(c.rotulo, { ativo: est.filtros[segunda.dim] === c.valor, dataset: { dim: segunda.dim, valor: c.valor }, onClick: () => filtra(segunda.dim, c.valor) })) : []),
           ...acoes),
         est.maisFiltros ? escondidos.map(grupo) : null);

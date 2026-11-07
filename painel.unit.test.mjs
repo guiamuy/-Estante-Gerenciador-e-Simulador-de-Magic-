@@ -1297,3 +1297,21 @@ test('R-43 · metas no banco: gravar faz PUT em /painel/<uid>/metas/<cartão>.js
   await E.m.gravar(meta); assert.equal((await E.m.remover('pn-k-portao')).motivo, 'sem-rede');
   assert.deepEqual(E.m.ativas(), {}, 'a meta some da tela'); assert.equal(E.g.ler('painel.metas')['pn-k-portao'].removida, true);
 });
+
+/* ---------- R-44 · BI4-5 · comparar períodos ---------- */
+test('R-44 · comparar: o endereço guarda "comparar" sem que ele recorte linhas; a janela anterior tem o mesmo tamanho e termina onde o período começa; "tudo" não compara; os dias tocados pela janela saem em ordem', () => {
+  const { modelo: M } = loadPainel();
+  assert.deepEqual(M.filtrosDaUrl('#eficiencia?periodo=7d&comparar=1&trilha=motor'), { aba: 'eficiencia', filtros: { periodo: '7d', comparar: '1', trilha: 'motor' } });
+  assert.equal(M.urlDosFiltros('eficiencia', { periodo: '7d', comparar: '1' }), '#eficiencia?periodo=7d&comparar=1');
+  const linhas = [{ data: Date.now() - 1000, trilha: 'motor' }, { data: Date.now() - 9 * 86400000, trilha: 'bot' }];
+  const r = M.recorte(linhas, { periodo: '7d', comparar: '1' });
+  assert.equal(r.linhas.length, 1); assert.deepEqual(r.naoAplica, [], '"comparar" não é dimensão: nunca vira "este filtro não se aplica"');
+  const agora = new Date(2026, 10, 7, 15, 0).getTime();
+  const j = M.janelaAnterior('7d', agora);
+  assert.equal(j.ate - j.de, 7 * 86400000); assert.equal(j.ate, agora - 7 * 86400000); assert.equal(j.rotulo, '7 dias anteriores');
+  assert.equal(M.janelaAnterior('24h', agora).rotulo, '24 horas anteriores');
+  assert.equal(M.janelaAnterior('tudo', agora), null);
+  const dias = M.diasEntre(j.de, j.ate);
+  assert.deepEqual([dias[0], dias.at(-1), dias.length], ['2026-10-24', '2026-10-31', 8], 'a janela de 7 dias toca 8 dias de calendário (começa e termina no meio do dia)');
+  assert.deepEqual(M.diasEntre(agora - 3600000, agora), ['2026-11-07']);
+});
