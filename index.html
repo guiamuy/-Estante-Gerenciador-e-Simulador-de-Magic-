@@ -5926,7 +5926,7 @@ function renderDS() {
       Empty('Comece por uma lista pronta ou cole uma lista.', h('div', { class: 'ds-empty__acoes' }, Row({}, Button('Ver prontas', { variant: 'primary', icone: 'caixa' }), Button('Nova lista', { icone: 'mais' }))), { icone: 'listas', titulo: 'Nenhuma lista ainda', hero: true }),
       Empty('Nenhuma carta passa por esses filtros.'),
       LinhaEstado([{ icone: 'semRede', tom: 'warning', rotulo: 'Sem internet', detalhe: 'Sem conexão: mostrando o que está guardado.' }, { icone: 'alerta', tom: 'warning', rotulo: '2 avisos', detalhe: __m3.seguro`<b>!</b> Exemplo de aviso.<br><b>!</b> Outro aviso.` }], { id: 'ds-linha-estado', titulo: 'Estado' }),
-      LinhaEstado([{ icone: 'marcar', tom: 'positive', rotulo: 'Motor', valor: '100%', detalhe: 'Exemplo.' }, { icone: 'reserva', rotulo: 'Reserva', valor: 15, detalhe: 'Exemplo.' }, { icone: 'baixar', tom: 'warning', rotulo: 'Offline', valor: '41/60', detalhe: 'Exemplo.' }], { id: 'ds-estado-ladrilhos', titulo: 'Estado em ladrilhos', ladrilhos: true }),
+      LinhaEstado([{ icone: 'marcar', tom: 'positive', rotulo: 'Motor', valor: '100%', detalhe: 'Exemplo.' }, { icone: 'reserva', rotulo: 'Reserva', valor: 15, detalhe: 'Exemplo.' }, { icone: 'baixar', tom: 'warning', rotulo: 'Sem internet', valor: '41/60', detalhe: 'Exemplo.' }], { id: 'ds-estado-ladrilhos', titulo: 'Estado em ladrilhos', ladrilhos: true }),
       AvisoRede('Sem internet: a busca usa as cartas guardadas no aparelho.'),
       // I3 · dica: explicação a um toque, no lugar de texto solto sob o campo
       Field('Semente', Input({ value: '4', inputmode: 'numeric' }), { dica: 'A mesma semente com as mesmas jogadas reproduz a partida.' }),
@@ -7336,9 +7336,9 @@ function secaoRulings(card) {
     pinta();
   }
   function conteudo() {
-    if (st.estado === 'buscando') return [__m3.Carregando('Buscando rulings…', { tamanho: 'bloco', id: 'card-rulings-buscando' })];
-    if (st.estado === 'semRede') return [AvisoRede('Sem internet: os rulings aparecem quando houver conexão.', { id: 'card-rulings-sem-rede' })];
-    if (st.estado === 'erro') { const n = Note(__m3.seguro`<b>Não foi possível buscar os rulings.</b> Confira a conexão e tente de novo.`, 'negative'); n.id = 'card-rulings-erro';
+    if (st.estado === 'buscando') return [__m3.Carregando('Buscando esclarecimentos…', { tamanho: 'bloco', id: 'card-rulings-buscando' })];
+    if (st.estado === 'semRede') return [AvisoRede('Sem internet: os esclarecimentos aparecem quando houver conexão.', { id: 'card-rulings-sem-rede' })];
+    if (st.estado === 'erro') { const n = Note(__m3.seguro`<b>Não foi possível buscar os esclarecimentos.</b> Confira a conexão e tente de novo.`, 'negative'); n.id = 'card-rulings-erro';
       return [n, Row({}, Button('Repetir busca', { icone: 'atualizar', id: 'card-rulings-de-novo', onClick: () => carrega(true) }))]; }
     if (!st.dado) return [];
     const itens = st.dado.itens;
@@ -7346,15 +7346,16 @@ function secaoRulings(card) {
       itens.length ? h('ol', { class: 'ds-rulings', id: 'card-rulings-lista' }, ...itens.map(r => h('li', { class: 'ds-ruling', dataset: { fonte: r.fonte } },
         h('span', { class: 'ds-ruling__quando' }, `${dataDoRuling(r.data)} · ${r.fonte === 'wotc' ? 'Wizards' : 'Scryfall'}`),
         h('p', { class: 'ds-ruling__texto', lang: 'en' }, ComSimbolos(r.texto)))))
-        : Text('Nenhum ruling publicado para esta carta.', { size: 'sm', tone: 'muted', attrs: { id: 'card-rulings-vazio' } }),
+        : Text('Nenhum esclarecimento publicado para esta carta.', { size: 'sm', tone: 'muted', attrs: { id: 'card-rulings-vazio' } }),
       Text(`Da Scryfall · ${st.dado.origem === 'rede' ? 'buscados agora' : 'guardados em ' + new Date(st.dado.em).toLocaleDateString('pt-BR')}${st.dado.velho ? ' (sem internet: a última cópia)' : ''}`, { size: 'xs', tone: 'subtle', attrs: { id: 'card-rulings-fonte' } })];
   }
   function pinta() {
     // redesenhar troca os botões: quem estava com o foco aqui dentro continua com ele (sem rolar a folha)
     const foco = typeof document !== 'undefined' && box.contains(document.activeElement) ? document.activeElement.id : null;
     const n = st.dado ? st.dado.itens.length : null;
-    const resumo = n == null ? '' : n ? `${n} ${n === 1 ? 'ruling' : 'rulings'}` : 'nenhum';
-    mount(box, __m3.Expansivel({ titulo: 'Rulings', icone: 'info', aberto: st.aberto, id: 'card-rulings', toggleId: 'card-rulings-toggle', resumo,
+    const resumo = n == null ? '' : n ? `${n} ${n === 1 ? 'esclarecimento' : 'esclarecimentos'}` : 'nenhum';
+    // G-353 · relatos #53/#66: "Rulings" vira "Esclarecimentos" (o texto de cada um continua o da Scryfall, em inglês, com lang="en")
+    mount(box, __m3.Expansivel({ titulo: 'Esclarecimentos', icone: 'info', aberto: st.aberto, id: 'card-rulings', toggleId: 'card-rulings-toggle', resumo,
       onToggle: () => { st.aberto = !st.aberto; rulings.lembraAberto(st.aberto); if (st.aberto && st.estado !== 'pronto') carrega(); else pinta(); } }, ...conteudo()));
     const volta = foco && (box.querySelector('#' + foco) || box.querySelector('#card-rulings-toggle'));
     if (volta) volta.focus({ preventScroll: true });
@@ -13299,6 +13300,11 @@ function batalhaErros(sc) {
 }
 TRIGGER_PT['cerco-derrotado'] = 'quando sai o último marcador de defesa'; // T-14 · CR 310.12b (gatilho do motor, não de script)
 MARCADOR_PT.defense = 'de defesa'; // T-14 · CR 310.4b
+// G-353 · relatos #53/#66 (o app inteiro em português): os marcadores que o registro ainda mostrava pela chave inglesa ("marcador stun")
+// e os marcadores de palavra-chave (122.1b), com o mesmo nome da palavra na mesa (PALAVRA_PT). idioma.unit barra tipo sem nome.
+Object.assign(MARCADOR_PT, { stun: 'de atordoamento', shield: 'de escudo', finality: 'de finalidade', flying: 'de voar', 'first strike': 'de iniciativa', 'double strike': 'de golpe duplo',
+  deathtouch: 'de toque mortífero', decayed: 'de decaída', exalted: 'de exaltado', haste: 'de ímpeto', hexproof: 'de resistência a magia', indestructible: 'de indestrutível',
+  lifelink: 'de vínculo com a vida', menace: 'de ameaçar', reach: 'de alcance', shadow: 'de sombra', trample: 'de atropelar', vigilance: 'de vigilância' });
 ALVO_SELETOR.any = { ...ALVO_SELETOR.any, tipos: [...ALVO_SELETOR.any.tipos, 'battle'] }; // T-14 · CR 115.4 / 120.1: "any target" é criatura, jogador, planeswalker ou batalha
 Object.assign(EXPORTS_T_SC, { batalhaErros });
 /* ---------------- T-10 · CR 709 · carta dividida (forma do script) ----------------
@@ -13610,9 +13616,10 @@ const ITEMS = 'collection.items';
 const PENDING = 'collection.pending';
 const VIEWS = 'collection.views';
 const PREFS = 'collection.prefs';
-const CONDITIONS = [['NM', 'Near Mint'], ['LP', 'Levemente jogada'], ['MP', 'Moderadamente jogada'], ['HP', 'Muito jogada'], ['DMG', 'Danificada']];
+// G-353 · relatos #53/#66: rótulos em português (a sigla NM continua; a exportação para CSV mantém "Near Mint" em COND_EXPORT, que é o formato dos outros apps)
+const CONDITIONS = [['NM', 'Quase nova'], ['LP', 'Levemente jogada'], ['MP', 'Moderadamente jogada'], ['HP', 'Muito jogada'], ['DMG', 'Danificada']];
 const LANGS = [['en', 'Inglês'], ['pt', 'Português'], ['es', 'Espanhol'], ['ja', 'Japonês'], ['de', 'Alemão'], ['fr', 'Francês'], ['it', 'Italiano'], ['ru', 'Russo'], ['ko', 'Coreano'], ['zhs', 'Chinês simplificado'], ['zht', 'Chinês tradicional'], ['ph', 'Phyrexiano']]; // S-618 · relato #62: a impressão em phyrexiano (Scryfall lang `ph`)
-const FINISHES = [['', 'Normal'], ['foil', 'Foil'], ['etched', 'Etched']];
+const FINISHES = [['', 'Normal'], ['foil', 'Foil'], ['etched', 'Foil gravado']]; // G-353 · "Foil" fica: é o nome do acabamento no mercado brasileiro
 
 function itemKey(p) {
   return [norm(p.name), String(p.set || '').toLowerCase(), String(p.number || ''), p.finish || '', p.set ? (p.lang || 'en') : '', p.set ? (p.cond || 'NM') : ''].join('|');
@@ -38382,6 +38389,10 @@ const ESTADOS = {
 const FAMILIAS = ['enjoo', 'ataque', 'bloqueio', 'alvo', 'anexo', 'ganho', 'perda', 'acento', 'neutro'];
 /** Nome em português de cada tipo de marcador que o motor usa (para o nome falado e a folha); tipo sem nome sai como está. */
 const MARCADOR_NOME = { p1p1: '+1/+1', m1m1: '−1/−1', m0m1: '−0/−1', charge: 'de carga', age: 'de idade', loyalty: 'de lealdade', time: 'de tempo', lore: 'de saga', defense: 'de defesa', stun: 'de atordoamento', shield: 'de escudo', oil: 'de óleo', depletion: 'de esgotamento', poison: 'de veneno', energia: 'de energia', finality: 'de finalidade', flying: 'de voar' };
+// G-353 · relatos #53/#66: o que o motor nomeia (fade, level, marcadores de palavra-chave) também tem nome na mesa
+for (const [k, v] of Object.entries(__m23.MARCADOR_PT || {})) if (!MARCADOR_NOME[k]) MARCADOR_NOME[k] = v;
+/** G-353 · o nome curto do marcador na carta ("carga 2", "atordoamento 1"), nunca a chave inglesa ("charge 2"). */
+const nomeCurtoDoMarcador = k => String(MARCADOR_NOME[k] || k).replace(/^de /, '');
 /** Uma marca (de `estadoDaCarta`, ou `{ k }` da tela) → o estado desenhável: ícone, família, rótulo, número e explicação.
     Marcador de +1/+1 e −1/−1 vira mais/menos nas famílias ganho/perda; os outros marcadores levam o hexágono e o tipo no rótulo.
     Marca sem entrada vira `neutro` com o texto dela (nunca some), e o contrato acusa. Puro. */
@@ -38410,7 +38421,7 @@ function estadosDaCarta(est, card, opts = {}) {
   if (est ? est.sick : !!card.sick) lista.push(estadoDesenhavel({ k: 'enjoo' }));
   for (const t of opts.tags || []) lista.push(t === 'enjoo' || t === 'virada' ? estadoDesenhavel({ k: t }) : { k: 'tag', icone: null, familia: 'acento', rotulo: t, explica: t, qtd: null, texto: t });
   if (!est) { // sem o modelo (cartas de lista): o que a carta traz
-    for (const [k, v] of Object.entries(card.counters || {})) if (v) lista.push(estadoDesenhavel({ k: 'marcador', tipo: k, qtd: v, texto: k === 'p1p1' ? `+${v}/+${v}` : k === 'm1m1' ? `−${v}/−${v}` : `${k} ${v}` }));
+    for (const [k, v] of Object.entries(card.counters || {})) if (v) lista.push(estadoDesenhavel({ k: 'marcador', tipo: k, qtd: v, texto: k === 'p1p1' ? `+${v}/+${v}` : k === 'm1m1' ? `−${v}/−${v}` : `${nomeCurtoDoMarcador(k)} ${v}` })); // G-353 · relato #66: "carga 2", não "charge 2"
     if (card.damage) lista.push(estadoDesenhavel({ k: 'dano', qtd: card.damage, texto: `${card.damage} dano` }));
   }
   const pos = e => { const i = ORDEM_DOS_ESTADOS.indexOf(e.k); return i < 0 ? ORDEM_DOS_ESTADOS.length : i; };
@@ -38968,7 +38979,7 @@ function MapaDaMasmorra(m) {
     m.textoDaIniciativa ? h('p', { class: 'tb-masmorra__nota' }, h('b', {}, 'Iniciativa. '), m.textoDaIniciativa) : null);
 }
 
-return { QuadroDeBloqueios, retemImagem, retemImagemDaCarta, imagensRetidas, fonteParaLargura, animaVirada, faseDoPasso, TableCard, ESTADOS, FAMILIAS, estadoDesenhavel, estadosDaCarta, BarraDeEstados, ajustaEstados, ZoneRow, LifeCounter, ZoneChip, StepBar, StackStrip, StackPanel, CardPeek, PriorityBanner, Desfecho, AdjudicationPanel, Icone, IconButton, gestoDeBandeja, ligaGestoDeBandeja, modeloDaMasmorra, caminhoNaMasmorra, falaDaMasmorra, SeloDaMasmorra, MapaDaMasmorra, TEXTO_DAS_SALAS, origemDaPilha, FaceDaOrigem, miniDaMasmorra };
+return { QuadroDeBloqueios, retemImagem, retemImagemDaCarta, imagensRetidas, fonteParaLargura, animaVirada, faseDoPasso, TableCard, ESTADOS, FAMILIAS, estadoDesenhavel, estadosDaCarta, BarraDeEstados, ajustaEstados, ZoneRow, LifeCounter, ZoneChip, StepBar, StackStrip, StackPanel, CardPeek, PriorityBanner, Desfecho, AdjudicationPanel, Icone, IconButton, gestoDeBandeja, ligaGestoDeBandeja, modeloDaMasmorra, caminhoNaMasmorra, falaDaMasmorra, SeloDaMasmorra, MapaDaMasmorra, TEXTO_DAS_SALAS, origemDaPilha, FaceDaOrigem, miniDaMasmorra, MARCADOR_NOME, nomeCurtoDoMarcador };
 })();
 
 
@@ -39742,8 +39753,8 @@ function estadoDaCarta(s, o, plano = null) {
   // J-19 · M-567/M-572 · 509.1c: um efeito obriga esta criatura a bloquear (a mesa a escolhe de antemão; a folha só oferece quem cumpre)
   if (plano && plano.obrigadas && plano.obrigadas.has(o.oid)) marcas.push({ k: 'obrigada', texto: 'precisa bloquear', icone: 'alerta', rotulo: 'Precisa bloquear: um efeito obriga' });
   if (plano && plano.attack && plano.attack.has(o.oid)) anel = 'ataca';
-  for (const [k, v] of Object.entries(o.counters || {})) { if (!v) continue; marcas.push({ k: 'marcador', tipo: k, qtd: v, texto: k === 'p1p1' ? `+${v}/+${v}` : k === 'm1m1' ? `−${v}/−${v}` : k === 'loyalty' ? `lealdade ${v}` : k === 'age' ? `idade ${v}` : `${k} ${v}` }); } // J-48 · tipo e qtd para o ícone da mesa
-  if ((o.counters || {}).lore) { const m = marcas.find(x => x.k === 'marcador' && x.texto === `lore ${o.counters.lore}`); if (m) { m.texto = 'capítulo ' + (['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'][o.counters.lore] || o.counters.lore); m.rotulo = `${o.counters.lore} marcador(es) de saga`; } } // T-1 · CR 714 · a Saga diz em que capítulo está
+  for (const [k, v] of Object.entries(o.counters || {})) { if (!v) continue; marcas.push({ k: 'marcador', tipo: k, qtd: v, texto: k === 'p1p1' ? `+${v}/+${v}` : k === 'm1m1' ? `−${v}/−${v}` : k === 'loyalty' ? `lealdade ${v}` : k === 'age' ? `idade ${v}` : `${__m17.nomeCurtoDoMarcador(k)} ${v}` }); } // J-48 · tipo e qtd para o ícone da mesa · G-353 · relato #66: o nome em português, nunca a chave
+  if ((o.counters || {}).lore) { const m = marcas.find(x => x.k === 'marcador' && x.tipo === 'lore'); if (m) { m.texto = 'capítulo ' + (['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'][o.counters.lore] || o.counters.lore); m.rotulo = `${o.counters.lore} marcador(es) de saga`; } } // T-1 · CR 714 · a Saga diz em que capítulo está
   if (o.protetorT != null || (o.counters || {}).defense) { const m = marcas.find(x => x.k === 'marcador' && x.texto === `defense ${(o.counters || {}).defense}`); if (m) { m.texto = `defesa ${o.counters.defense}`; m.rotulo = `${o.counters.defense} marcador(es) de defesa`; } if (o.protetorT != null && s.players[o.protetorT] && (s.facts[o.name].types || []).includes('battle')) marcas.push({ k: 'protetor', texto: `protegida por ${s.players[o.protetorT].name}`, rotulo: `Batalha protegida por ${s.players[o.protetorT].name}: quem não é o protetor pode atacá-la` }); } // T-14 · CR 310.4c / 310.9 · a batalha diz a defesa e quem a protege
   if (o.damage) marcas.push({ k: 'dano', qtd: o.damage, texto: `${o.damage} dano` });
   // T4 · habilidades ganhas (verde) e perdidas (tachada): uma pílula para cada lado; o nome inteiro fica no rótulo
@@ -40074,6 +40085,8 @@ Object.assign(PALAVRA_PT, { changeling: 'metamorfo', devoid: 'desprovido' }); //
 Object.assign(PALAVRA_PT, { prowess: 'proeza' }); // K-3
 Object.assign(PALAVRA_PT, { persist: 'persistir', undying: 'imortal' }); // K-4
 Object.assign(PALAVRA_PT, { exalted: 'exaltado' }); // K-5
+// G-353 · relatos #53/#66: as palavras-chave do motor que a mesa ainda mostrava em inglês ("ganhou flash"); idioma.unit barra palavra sem nome
+Object.assign(PALAVRA_PT, { flash: 'lampejo', shroud: 'manto', 'living metal': 'metal vivo', daybound: 'diurno', nightbound: 'noturno' });
 Object.assign(PALAVRA_PT, { afterlife: 'pós-vida' }); // K-6
 Object.assign(PALAVRA_PT, { cascade: 'cascata' }); // K-7
 Object.assign(PALAVRA_PT, { evoke: 'evocar' }); // K-8
@@ -41569,8 +41582,8 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
             detalhe: __m3.seguro`${cv.pct === 100 ? __m3.seguro`<b>Motor 100% completo.</b> O motor resolve sozinho todas as cartas desta lista.` : __m3.seguro`<b>Motor ${cv.pct}% completo.</b> ${cv.parcial + cv.manual + cv.lida} carta(s) sem regra completa: ${lista6(faltam)}.${cv.lida ? ` ${cv.lida} lida(s) pelo motor aguardam revisão.` : ''}`} ${versao}` }
             : { id: 'mesa-motor', icone: 'alerta', tom: 'warning', rotulo: 'Motor', valor: `${cv.pct}%`, detalhe: __m3.seguro`<b>Esta lista ainda não joga.</b> O motor não resolve ${faltam.length} carta(s) dela: ${lista6(faltam)}. ${versao}` },
           reserva ? { id: 'mesa-reserva', icone: 'reserva', rotulo: 'Reserva', valor: reserva, detalhe: __m3.seguro`<b>${reserva} carta(s) na reserva</b> ficam de fora da partida. Na melhor de 3, você troca entre as partidas.` } : null,
-          prontaOffline ? { id: 'mesa-offline-ok', icone: 'marcar', tom: 'positive', rotulo: 'Offline', valor: 'Pronta', fala: 'pronta para jogar sem internet', detalhe: __m3.seguro`<b>Guardada no aparelho.</b> Esta lista joga sem internet.` }
-            : { id: 'mesa-offline-falta', icone: 'baixar', tom: 'warning', rotulo: 'Offline', valor: `${guardadas}/${nomes.length}`, fala: `${guardadas} de ${nomes.length} cartas guardadas para jogar sem internet`, detalhe: __m3.seguro`<b>${guardadas} de ${nomes.length} cartas guardadas.</b> Baixe as cartas para jogar esta lista sem internet.` }
+          prontaOffline ? { id: 'mesa-offline-ok', icone: 'marcar', tom: 'positive', rotulo: 'Sem internet', valor: 'Pronta', fala: 'pronta para jogar sem internet', detalhe: __m3.seguro`<b>Guardada no aparelho.</b> Esta lista joga sem internet.` }
+            : { id: 'mesa-offline-falta', icone: 'baixar', tom: 'warning', rotulo: 'Sem internet', valor: `${guardadas}/${nomes.length}`, fala: `${guardadas} de ${nomes.length} cartas guardadas para jogar sem internet`, detalhe: __m3.seguro`<b>${guardadas} de ${nomes.length} cartas guardadas.</b> Baixe as cartas para jogar esta lista sem internet.` }
         ], { id: 'mesa-estado', titulo: 'Sua lista', ladrilhos: true }),
         DEV && faltam.length ? Text(`Fica com você: ${lista6(faltam)}`, { size: 'sm', tone: 'muted', attrs: { id: 'mesa-coverage-falta' } }) : null,
         DEV ? null : bloqueio,
@@ -45492,7 +45505,7 @@ function resolvePrinting(prints, parsed) {
    coleções (símbolo e data), buscados só quando a folha abre. O acabamento oferecido é só o que a impressão tem. */
 const ACABAMENTOS = ['nonfoil', 'foil', 'etched'];
 const ACABAMENTO_NA_COLECAO = { nonfoil: '', foil: 'foil', etched: 'etched' };   // o item da coleção guarda '' / foil / etched (C1)
-const NOME_DO_ACABAMENTO = { nonfoil: 'Normal', foil: 'Foil', etched: 'Etched' };
+const NOME_DO_ACABAMENTO = { nonfoil: 'Normal', foil: 'Foil', etched: 'Foil gravado' }; // G-353 · relatos #53/#66: o mesmo nome da Coleção
 /** Os acabamentos da impressão, na ordem nonfoil, foil, etched. Sem o campo `finishes` (carta guardada antes da S-607),
     sai dos preços que a Scryfall tem; sem nada, só o normal. */
 function acabamentosDa(p) {
@@ -47648,7 +47661,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
       Text('Latino lê inglês, português, espanhol, italiano, francês e alemão. As outras baixam o leitor da escrita na primeira vez (de 1,5 a 3 MB).', { size: 'xs', tone: 'subtle' }),
       Text('Leitura', { size: 'sm', tone: 'muted' }),
       Row({ class: 'ds-row--wrap' }, edChip, molduraChip, diagChip),
-      Text((info && state.base === 'ready' ? `Base: ${info.count.toLocaleString('pt-BR')} nomes · ${Math.round(info.bytes / 1024)} KB` : 'Base de nomes: ainda não baixada') + (state.ocrReady ? ' · leitor disponível offline' : ''), { size: 'xs', tone: 'subtle', attrs: { id: 'scan-base' } })),
+      Text((info && state.base === 'ready' ? `Base: ${info.count.toLocaleString('pt-BR')} nomes · ${Math.round(info.bytes / 1024)} KB` : 'Base de nomes: ainda não baixada') + (state.ocrReady ? ' · leitor disponível sem internet' : ''), { size: 'xs', tone: 'subtle', attrs: { id: 'scan-base' } })),
       actions: [Button('Fechar', { onClick: closeDialog })] });
   }
   function openDiag() {

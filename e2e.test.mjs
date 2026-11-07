@@ -10177,7 +10177,7 @@ test('e2e · I3 tela Jogar: o estado da lista é uma linha de ícones com folha 
   // 1 · estado da lista: três itens com ícone e rótulo curto, numa linha de 44 px
   const itens = await page.$$eval('#mesa-estado .ds-estado__item', is => is.map(i => ({ id: i.id, icone: (i.querySelector('.ds-icon') || { dataset: {} }).dataset.icone, texto: i.querySelector('.ds-estado__rotulo').textContent.trim() + ' ' + i.querySelector('.ds-estado__valor').textContent.trim(), tom: i.dataset.tom, x: Math.round(i.getBoundingClientRect().left), w: Math.round(i.getBoundingClientRect().width) })));
   assert.deepEqual(itens.map(i => i.id.replace(/-(ok|falta)$/, '')), ['mesa-motor', 'mesa-reserva', 'mesa-offline']);
-  assert.deepEqual(itens.slice(0, 2).map(i => i.texto), ['Motor 100%', 'Reserva 4']); assert.match(itens[2].texto, /^Offline (Pronta|\d+\/\d+)$/);
+  assert.deepEqual(itens.slice(0, 2).map(i => i.texto), ['Motor 100%', 'Reserva 4']); assert.match(itens[2].texto, /^Sem internet (Pronta|\d+\/\d+)$/); // G-353 · relatos #53/#66: o ladrilho Offline virou Sem internet, de propósito
   assert.ok(itens[0].x < itens[1].x && itens[1].x < itens[2].x && Math.abs(itens[0].w - itens[2].w) <= 2, 'três ladrilhos iguais, lado a lado: ' + JSON.stringify(itens.map(i => [i.x, i.w])));
   assert.match(await page.getAttribute('#mesa-estado', 'aria-label'), /^Sua lista: Motor 100%, Reserva 4, .*sem internet/); assert.ok(itens.every(i => i.icone), 'cada estado com ícone');
   const cabe = async () => page.$eval('#mesa-estado', e => ({ h: Math.round(e.getBoundingClientRect().height), ok: e.scrollWidth <= e.clientWidth + 1 && [...e.querySelectorAll('.ds-estado__rotulo, .ds-estado__valor')].every(x => x.scrollWidth <= x.clientWidth + 1) }));
@@ -11798,7 +11798,7 @@ test('e2e · V2 rulings na carta: seção fechada que só busca ao abrir, lista 
     ['04/10/2004 · Scryfall', 'Ruling de teste A, da Scryfall.'], ['19/03/2021 · Wizards', 'Ruling de teste B, da Wizards, com {U} no texto.'], ['19/03/2021 · Wizards', 'Ruling de teste C, mesmo dia.']]);
   assert.equal(await page.locator('#card-rulings-lista .ds-ruling__texto .ds-sym').count(), 1, 'o símbolo de mana vira símbolo');
   assert.equal(await page.getAttribute('#card-rulings-lista .ds-ruling__texto', 'lang'), 'en');
-  assert.match(await page.innerText('#card-rulings-toggle'), /Rulings\s*3 rulings/);
+  assert.match(await page.innerText('#card-rulings-toggle'), /Esclarecimentos\s*3 esclarecimentos/); // G-353 · relatos #53/#66: expectativa mudou de propósito, a seção saiu do inglês
   assert.match(await page.innerText('#card-rulings-fonte'), /Da Scryfall · buscados agora/);
   assert.equal(await page.locator('.ds-dialog .ds-btn--primary:visible').count(), 1, 'um primário');
   assert.doesNotMatch(await page.innerText('.ds-dialog'), /\p{Extended_Pictographic}/u, 'sem emoji');
@@ -11820,18 +11820,18 @@ test('e2e · V2 rulings na carta: seção fechada que só busca ao abrir, lista 
   await fecha(); await abre('Delver of Secrets'); await page.waitForSelector('#card-rulings-erro');
   assert.ok((await page.$eval('#card-rulings-de-novo', b => b.offsetHeight)) >= 44, 'altura de layout (o diálogo pode estar na escala da entrada)');
   delverFalha = false; await page.click('#card-rulings-de-novo'); await page.waitForSelector('#card-rulings-vazio');
-  assert.match(await page.innerText('#card-rulings-vazio'), /Nenhum ruling publicado/);
+  assert.match(await page.innerText('#card-rulings-vazio'), /Nenhum esclarecimento publicado/); // G-353 · relatos #53/#66: a seção saiu do inglês
   assert.match(await page.innerText('#card-rulings-toggle'), /nenhum/);
   // 5 · sem internet: o que está guardado aparece; o que não está vira aviso
   await fecha(); await page.context().setOffline(true);
   await abre('Counterspell'); await page.waitForSelector('#card-rulings-lista'); await fecha();
   await abre('Island'); await page.waitForSelector('#card-rulings-sem-rede');
-  assert.match(await page.innerText('#card-rulings-sem-rede'), /Sem internet: os rulings aparecem quando houver conexão/);
+  assert.match(await page.innerText('#card-rulings-sem-rede'), /Sem internet: os esclarecimentos aparecem quando houver conexão/); // G-353
   await page.context().setOffline(false);
   // 6 · fechar a seção também fica lembrado
   await page.click('#card-rulings-toggle'); await fecha(); await abre('Counterspell');
   assert.equal(await page.getAttribute('#card-rulings-toggle', 'aria-expanded'), 'false');
-  assert.match(await page.innerText('#card-rulings-toggle'), /3 rulings/, 'fechada, a contagem vem do aparelho');
+  assert.match(await page.innerText('#card-rulings-toggle'), /3 esclarecimentos/, 'fechada, a contagem vem do aparelho'); // G-353
   assert.deepEqual(errors, []);
 });
 
