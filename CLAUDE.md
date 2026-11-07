@@ -6,29 +6,35 @@ Várias conversas (trilhas) evoluem o mesmo `index.html` ao mesmo tempo. Publica
 
 Toda conversa lê primeiro o `ESTADO.md` (estado por trilha, relatos abertos, onde mora o detalhe; até 8 KB). O `ROADMAP.md` tem ≈ 2,4 MB: **nunca o leia inteiro**, só a seção do item (`grep -n` + `sed -n`). No commit de docs de cada leva, a trilha reescreve a **sua** linha no `ESTADO.md` e a data do rodapé dele.
 
-## Publicar
+## Publicar: branch, testes, pull request, prévia, ok do dono, merge
 
-Um caminho só:
-
-```
-npm install        # uma vez por clone; também liga o gancho de pre-push
-npm run publicar   # busca o main, rebase, guarda, conferência, fase rápida local e envio para a fila
-```
-
-**A fila (Q17).** O `npm run publicar` não envia para o `main`: envia a leva para `fila/<leva>` e termina em minutos. O fluxo "Fila de publicação", no GitHub, soma as levas que estiverem na fila sobre o `main`, roda **um** portão inteiro para todas e avança o `main`. A conversa não espera o portão: segue trabalhando no mesmo clone, por cima da leva enviada.
+**Ninguém envia para o `main`** (decisão do dono, 07/11/2026, leva I-323). Toda mudança passa por uma prévia que o dono vê antes de ir para produção. O `main` só muda pelo merge do pull request, e o merge só acontece quando o dono pede.
 
 ```
-npm run publicar -- --situacao   # onde está cada leva: na fila · recusada (com o motivo) · publicada
-npm run publicar -- --esperar    # envia e fica olhando até publicar ou recusar
-npm run publicar -- --conferir   # só rebase, guarda e conferência
-npm run publicar -- --direto     # caminho antigo (portão inteiro no clone e push no main); só com a fila parada
+npm install                        # uma vez por clone; liga o gancho de pre-push (que barra push no main)
+npm run publicar                   # rebase, guarda, conferência, PORTÃO INTEIRO neste clone, envio para claude/<leva> e pull request
+npm run publicar -- --esperar      # idem, e espera a prévia da Vercel para mostrar o link
+npm run publicar -- --situacao     # pull requests abertos e o que este clone tem à frente do main
+npm run publicar -- --conferir     # só rebase, guarda e conferência
+npm run publicar -- --merge <n>    # junta o PR n no main: SÓ quando o dono pedir
 ```
 
-- Leva recusada (conflito com quem estava na frente, guarda de agregação ou portão vermelho) aparece em `recusada/<leva>`, com o motivo. O `main` não mudou. Corrija no clone e rode `npm run publicar` de novo.
-- O nome do ramo é a reserva do número: se outra conversa da mesma trilha já enfileirou a mesma `Leva <P>-N`, o envio é recusado e a sua leva renumera.
-- O sha muda quando a fila publica (a mensagem, os rodapés e a data de autoria não). O próximo `npm run publicar` tira da frente o que já está no `main`; não faça isso à mão.
-- Só diga "publicado" com a leva no `main` (`-- --situacao` ou `-- --esperar`), nunca só por ter enviado para a fila.
-- Nunca `git push --force`, nunca `--no-verify`, nunca `git push` direto no `main`, nunca envie nada para `fila/*` ou `recusada/*` à mão.
+O passo a passo, sempre igual:
+
+1. **Leva em commit** no clone, com o rodapé `Trilha:`.
+2. **`npm run publicar`.** Roda o portão inteiro (as duas fases) neste clone, porque não há mais CI no GitHub. Portão vermelho: nada sai.
+3. **Branch e pull request.** A leva vai para `claude/<leva>` e abre um PR contra o `main`. Sem o `gh` (sessões de nuvem), o publicar mostra o link para abrir o PR. A Vercel monta a **prévia** sozinha e comenta o link no PR.
+4. **Mostre a prévia ao dono**: o link e, em uma ou duas linhas, o que mudou e o que conferir. Espere ele dizer "pode fazer merge". Nunca faça merge por conta própria.
+5. **`npm run publicar -- --merge <n>`.** Se o `main` andou desde o teste, ele pede para atualizar o ramo (`git switch claude/<leva> && npm run publicar`): o portão roda de novo sobre a soma e a prévia é refeita. Se a mudança dos outros mexe no mesmo assunto, mostre a prévia nova ao dono antes do merge.
+6. **Produção.** A Vercel publica o `main` sozinha em https://estante-magic.vercel.app, em um ou dois minutos. Só diga "publicado" depois do merge.
+
+Regras:
+
+- Nunca `git push` no `main`, nunca `--force` ou `--no-verify` à mão, nunca merge sem o pedido do dono. Três travas barram o push no `main`: este texto, `.claude/settings.json` (comandos negados) e o gancho `.githooks/pre-push`.
+- O nome do ramo é a reserva do número: se outra conversa já enviou `claude/<a mesma leva>`, o envio é recusado e a sua leva renumera. Reenviar a própria leva depois de um rebase substitui o ramo (com trava), e o PR acompanha.
+- O login com Google só aceita endereço cadastrado, e cada prévia tem um endereço novo. Por isso o `--esperar` aponta o endereço fixo **https://estante-magic-previa.vercel.app** para a prévia mais recente (precisa da CLI da Vercel logada, que existe no PC do dono). Mostre ao dono esse endereço fixo. Sem a CLI (sessões de nuvem), mostre o endereço próprio da prévia e avise que nele o login com Google não funciona.
+- No Windows, o portão pula os poucos testes que só valem no Linux (`SO_NO_LINUX`, em `portao.mjs`, com motivo e trilha dona); eles seguem valendo nas sessões de nuvem.
+- A fila (Q17, `fila/*` e `recusada/*`) e os fluxos do GitHub Actions estão desligados. `--fila` existe só para os testes dela. Nunca envie nada para `fila/*` ou `recusada/*`.
 - Nunca grave um arquivo inteiro a partir de cópia que não veio do `main` de agora. Edite por patch em cima do que está no clone.
 - Leva pequena, um assunto, enviada ao terminar. Quanto mais tempo sem publicar, mais conflito.
 
@@ -70,11 +76,11 @@ Fique com **os dois lados**: monte à mão a versão que contém a entrega da ou
 - Com quatro núcleos ou mais (CI), a fase de tela roda em fatias: o mesmo `e2e.test.mjs` uma vez por fatia, um Chromium cada, e cada teste numa fatia só (o portão confere). Por isso teste de tela novo é `test(nome, opções, fn)` no nível do arquivo e não depende de outro teste. `PORTAO_FATIAS=1` desliga.
 - Arquivo de teste novo que abre navegador entra na fase de tela (hoje só `e2e.test.mjs`; `portao.unit` barra navegador na fase rápida).
 - Antes do portão, o `npm run publicar` confere em segundos o que o derrubaria por descuido: id `16º-x` repetido no ROADMAP, partida-referência de outra versão do motor e navegador da fase de tela ausente (o Playwright do projeto usa a mesma revisão do Chromium das sessões de nuvem; se elas mudarem, o portão acha sozinho o de outra revisão; `PW_CHROMIUM` continua valendo).
-- No caminho antigo (`npm run publicar -- --direto`), o `main` é conferido a cada dois minutos durante o portão: se outra trilha publicar no meio, a fase é interrompida e recomeça em cima do `main` novo. Pela fila isso não acontece: o portão roda no CI sobre a soma.
+- I-323 · se outra trilha chegar ao `main` enquanto o portão roda, o PR sai assim mesmo; o `--merge` exige o ramo em cima do `main` de agora, e aí o `npm run publicar` roda o portão de novo sobre a soma.
 
 ## O que a guarda faz e o que não faz
 
-`agregacao.mjs` roda em quatro pontos: dentro do `npm run publicar`, na fila (cada leva somada), no gancho de pre-push e no CI a cada push no `main` (o portão do CI só roda em push no `main`, em pull request e à mão; ramo de serviço não dispara portão). Ela barra: linhas de outra trilha apagadas sem declaração (linha movida ou que só ganhou conteúdo não conta), cópia antiga por cima de nova, leva repetida, histórico reescrito. Ela **não** enxerga conflito de comportamento (duas trilhas mudando a mesma regra em linhas diferentes): isso é trabalho do portão, por isso o portão roda depois do rebase, sobre o código já somado.
+`agregacao.mjs` roda em três pontos (I-323): dentro do `npm run publicar`, no `--merge` (sobre o ramo do PR, logo antes de juntar) e no gancho de pre-push. Ela barra: linhas de outra trilha apagadas sem declaração (linha movida ou que só ganhou conteúdo não conta), cópia antiga por cima de nova, leva repetida, histórico reescrito. Ela **não** enxerga conflito de comportamento (duas trilhas mudando a mesma regra em linhas diferentes): isso é trabalho do portão, por isso o portão roda depois do rebase, sobre o código já somado.
 
 Relatório do que aconteceu no `main`: `node agregacao.mjs --auditar 40`.
 

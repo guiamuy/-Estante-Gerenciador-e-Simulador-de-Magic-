@@ -4,6 +4,7 @@
 // .listas/oficiais.json (texto oficial); cor, valor de mana e palavras-chave são derivados do texto.
 // Níveis: 'shark' (atual; 'shark:N' muda o número de mundos), 'shark-v5' e 'shark-v4' (congelados), 'shark-v3', 'shark-v2', 'shark-v1', 'amador', ou 'x:mull,av3,projeta,corrida,sub,valor,desdobra' para ligar peças do v3 uma a uma; 'z:ameacas' é o Shark atual com a peça a mais (B-176).
 import { readFileSync, readdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { loadModules } from './_load.mjs';
 const { engine: E, bot: B, starter: ST, decks: D } = loadModules();
 const VOCAB = ['flying', 'haste', 'reach', 'trample', 'vigilance', 'deathtouch', 'lifelink', 'first strike', 'double strike', 'menace', 'defender', 'flash', 'hexproof', 'indestructible', 'shroud', 'changeling', 'devoid', 'storm', 'ward', 'prowess',
@@ -40,7 +41,7 @@ function cartasReais(raiz = '.', arquivos = ['oficiais.json']) {
   return out;
 }
 
-const RAIZ = new URL('.', import.meta.url).pathname.replace(/\/$/, '');
+const RAIZ = fileURLToPath(new URL('.', import.meta.url)).replace(/[\\/]$/, ''); // I-323 · .pathname vira C:\C:\… no Windows
 const CARTAS = cartasReais(RAIZ);
 // B-22 · as cinco listas do Shark (`LISTAS_DO_SHARK`, dado do módulo do bot) na forma das sete do torneio, com os dados de carta de todos os oficiais
 let CARTAS_SHARK = null;

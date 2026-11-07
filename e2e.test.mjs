@@ -105,6 +105,11 @@ async function open(t, { dev = true, apresentacao = false, cena = false, porta =
   await ctx.route(/^https:\/\/(economia\.awesomeapi\.com\.br|api\.frankfurter\.dev|open\.er-api\.com)\//, r => r.abort('internetdisconnected'));
   // K4 (leva G-216) · a Início lê as notícias do ramo `noticias`: nos testes ele fica fora do ar, salvo no teste que o simula (rota da página)
   await ctx.route(/^https:\/\/raw\.githubusercontent\.com\//, r => r.abort('internetdisconnected'));
+  // I-323 · o Chromium do Windows devolve a área de transferência com \r\n (o app escreve \n): o teste lê como o app escreveu
+  if (process.platform === 'win32') await ctx.addInitScript(() => {
+    const c = navigator.clipboard; const ler = c && c.readText && c.readText.bind(c);
+    if (ler) c.readText = async () => (await ler()).replace(/\r\n/g, '\n');
+  });
   // D4b (leva 145) · a apresentação de primeira abertura só aparece no teste que a pede: os outros (e as abas que abrem
   // a partir do mesmo contexto, como as da partida online) começam direto na tela
   if (!apresentacao) await ctx.addInitScript(() => { window.__SEM_APRESENTACAO = true; });
