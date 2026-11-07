@@ -3777,6 +3777,11 @@ body[data-tela="scanner"] .ds-appbar { display: none; }
 <body>
 <div id="app"></div>
 <script>/* ==== src/platform/index.js ==== */
+/* I-324 · de onde vêm os dados dos robôs (notícias, catálogo, artes, relatos). Na Vercel (https fora do github.io), do
+   próprio site em /dados/<ramo>/: uma função lê o ramo no GitHub (mesmo com o repositório privado) e a Vercel guarda em
+   cache. No github.io, no clone e nos testes, direto do raw do GitHub, como sempre. */
+const baseDosDados = (ramo) => (typeof location !== 'undefined' && location.protocol === 'https:' && !/(^|\.)github\.io$/.test(location.hostname)
+  ? location.origin + '/dados/' : 'https://raw.githubusercontent.com/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-/') + ramo + '/';
 const __m0 = (function () {
 /* =====================================================================
    F2 · CAMADA DE PLATAFORMA
@@ -17050,7 +17055,7 @@ const __m37 = (function () {
    O modelo (`N.*`) é puro e tem teste sem navegador; a tela só desenha.
    ===================================================================== */
 const { h, mount, Stack, Row, Text, Button, IconButton, Field, Chip, Input, Dialog, closeDialog, toast, Empty, Icone, Esqueleto, Bandeira, AvisoRede, levaAte } = __m3;
-const BASE = 'https://raw.githubusercontent.com/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-/noticias/';
+const BASE = baseDosDados('noticias');
 const CHAVE_IDIOMAS = 'noticias.idiomas';
 const CHAVE_FILTRO = 'noticias.filtro'; // N3 · fontes escolhidas; G-260 · palavras criadas pela pessoa e as ligadas (vai no backup)
 const CHAVE_VISTA = 'noticias.vista';   // N3 · data da notícia mais nova já mostrada neste aparelho (é o que separa as "novas")
@@ -18301,7 +18306,7 @@ function contextoDaPartida({ s, v = 0, entradas = [], options = {}, setup = {}, 
 
 /* G-243 · relato #11: a situação dos registros volta do GitHub. O fluxo Relatos grava `situacao.json` no ramo `relatos`
    (id, número e situação de cada registro do app, sem o texto); o app concilia com os relatos do aparelho. */
-const URL_SITUACAO = `https://raw.githubusercontent.com/${REPOSITORIO}/relatos/situacao.json`;
+const URL_SITUACAO = baseDosDados('relatos') + 'situacao.json';
 const BUSCA_SITUACAO_MS = 10 * 60 * 1000; // no máximo uma busca a cada 10 minutos (a tabela muda a cada registro)
 const urlDoRegistro = n => `https://github.com/${REPOSITORIO}/issues/${n}`;
 /** Valida o arquivo publicado e devolve id → { numero, situacao, resolvidoEm }. Endereço montado aqui (nunca o do arquivo). Puro. */
@@ -18601,7 +18606,7 @@ function estadoDoEnvio(r) {
   const k = situacaoDoEnvio(r), e = ESTADO_DO_ENVIO[k];
   return e ? { ...e, situacao: k, linha: k === 'falhou' ? `${motivoCurto(r)}.` : e.linha } : null;
 }
-const URL_FILA_LIGADA = `https://raw.githubusercontent.com/${REPOSITORIO}/relatos/fila.json`;
+const URL_FILA_LIGADA = baseDosDados('relatos') + 'fila.json';
 const FILA_MEMORIA_MS = 10 * 60 * 1000;
 /** O aviso publicado pelo fluxo vale? Puro. */
 const filaLigada = d => !!(d && d.versao === 1 && d.ligada === true && typeof d.desde === 'string' && !isNaN(Date.parse(d.desde)));
@@ -18871,7 +18876,7 @@ const __m39 = (function () {
    O modelo é puro e tem teste sem navegador; a seção só desenha.
    ===================================================================== */
 const { h, mount, Stack, Row, Text, Button, IconButton, Input, Empty, Note, Badge, Icone, ManaPips, AvisoRede, toast, ComSimbolos, Dialog, closeDialog, Chip, Field, Simbolo } = __m3;
-const BASE = 'https://raw.githubusercontent.com/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-/catalogo/';
+const BASE = baseDosDados('catalogo');
 const CHAVE_INDICE = 'catalogo.indice';
 const CHAVE_LISTA = id => 'catalogo.lista.' + id;
 const CHAVE_MOTOR = 'catalogo.motor'; // Q10-7b · quanto de cada lista roda no motor (cobertura/motor.json, medido pela sentinela)
@@ -45209,7 +45214,7 @@ const LINGUAS_DO_LEITOR = {
 };
 const linguaDoLeitor = id => (Object.prototype.hasOwnProperty.call(LINGUAS_DO_LEITOR, id) ? id : 'latino');
 const chaveDosNomes = idioma => 'names.' + idioma;
-const URL_NOMES = idioma => `https://raw.githubusercontent.com/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-/artes/nomes-${idioma}.json`;
+const URL_NOMES = idioma => `${baseDosDados('artes')}nomes-${idioma}.json`;
 function createNameIndex({ store, scryfall, now = () => Date.now(), fetchFn = (typeof fetch === 'function' ? fetch.bind(globalThis) : null), idiomas = IDIOMAS_DOS_NOMES }) {
   let index = null, meta = null, lista = [], cjk = null;
   const porIdioma = new Map(), tentadas = new Map();   // idioma → { pares, ts } · idioma → quando foi pedido nesta sessão
@@ -46274,7 +46279,7 @@ function abreBaseDeArtes(indice, bin) {
   return { total: indice.cartas.length, hashes, carta, geradoEm: indice.geradoEm || null };
 }
 /* ---------------- X12 · S-596 · a base no aparelho e a decisão com a arte ---------------- */
-const URL_ARTES = 'https://raw.githubusercontent.com/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-/artes/';
+const URL_ARTES = baseDosDados('artes');
 const ARTES_KEY = 'scanner.artes', ARTES_VELHA_MS = 7 * 24 * 3600 * 1000;
 /* Limiares em bits diferentes (de 189). PROVISÓRIOS: medidos em 2.000 artes desenhadas (mesma carta degradada: mediana 16 a
    34; cartas diferentes: p5 84). A primeira corrida do fluxo grava medida.json com arte de verdade; recalibrar com ela. */
