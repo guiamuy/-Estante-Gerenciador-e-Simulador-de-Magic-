@@ -20,7 +20,7 @@ Marcos: Pauper 100% (as sete listas revisadas carta a carta; 669 de 671 listas P
 | Trilha | Prefixo | Foco atual | Última leva | Próximo |
 |---|---|---|---|---|
 | `scanner` | S | X16/X20: tela nova do scanner, edição e arte pela impressão, idiomas impressos (coreano, russo, phyrexiano) — relatos #60–#65 | S-618 · 07/11 | #65 lixo no fim do nome (rotina, em curso); X15 melhor quadro ▶ |
-| `geral` | G | Coleção grande sem esperar artes, gravação em transação (relato #65); seleção e etiquetas na Coleção (G2); tour guiado (TUT) | G-352 · 07/11 | fechar relato #65; relatos #53/#66 (pacotes de idioma) |
+| `geral` | G | T-IDIOMA (relatos #53/#66): o português cobre a interface (fatia 1); Coleção grande sem esperar artes, gravação em transação (relato #65); seleção e etiquetas na Coleção (G2); tour guiado (TUT) | G-353 · 07/11 (antes G-352 · 07/11) | T-IDIOMA: troca de idioma no Perfil e pacotes es/en; texto das cartas aguarda decisão do dono (oficial × automática); fechar relato #65; relatos #53/#66 (pacotes de idioma) |
 | `motor` | M | cartas lidas por inteiro (Shadowspear, Once Upon a Time…); sentinela Pauper | M-609 · 07/11 | CR2c.2 "destruir todas" por filtro ▶; #58 espera a resposta do dono |
 | `radar` | R | BI4 · Painel Estante: comparar períodos, metas, tendência | R-44 · 07/11 | BI4-6 em diante; validação do dono após os primeiros pilares |
 | `jogabilidade` | J | MJ25/MJ27 · mesa de patamar: paisagem, orientação, Cancelar em toda escolha | J-62 · 03/11 | relato #54 (efeito da Cidade Baixa) |
@@ -41,7 +41,7 @@ Datas no formato dia/mês, horário de Brasília. Trilha que muda de foco atuali
 
 ## Relatos do dono abertos (etiqueta `relato`)
 
-Em atuação pela rotina: #65 scanner mais rápido (alta) · #66 app inteiro em português (só a interface; o texto das cartas espera o #53).
+Em atuação pela rotina: #65 scanner mais rápido (alta) · #66 app inteiro em português (só a interface; o texto das cartas espera o #53). Fatia 1 na G-353: interface em português; falta troca no Perfil e pacotes es/en.
 Esperando o dono (`aguarda-dono`), com a pergunta já feita no relato:
 - #53 pacotes de idioma: texto das cartas oficial (impresso) ou automático? Trava o épico (8 a 12 levas).
 - #49 ditado: no aparelho ou por serviço na nuvem? (Y6b e Y6c entregues.)
@@ -82,4 +82,4 @@ Os documentos `claude/…` moram no Projeto do claude.ai, fora do repositório: 
 
 No commit de docs de cada leva (o mesmo que atualiza o ROADMAP): reescreva a **sua** linha na tabela de trilhas, atualize relatos e pendências se mudaram e troque a data abaixo. Edite por patch, nunca o arquivo inteiro. Conflito no rebase: fique com as linhas das outras trilhas e a sua. Passou de 8 KB: resuma, não acrescente.
 
-Atualizado: 07/11/2026 · I-322 (completado com os documentos do Projeto)
+Atualizado: 07/11/2026 · G-353 (linha `geral`, relatos #53/#66) · I-322 (completado com os documentos do Projeto)
