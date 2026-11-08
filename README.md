@@ -24,11 +24,9 @@ Código e textos próprios: © 2026 Guilherme de Aguiar Schmidt Amuy, todos os d
 
 A Scryfall só libera CORS quando a página tem origem http válida. Aberto como arquivo (`file://`), o navegador não envia origem e a requisição é bloqueada.
 
-## Publicar (GitHub Pages)
+## Publicar (Vercel)
 
-1. Suba os arquivos em **Add file → Upload files**.
-2. Em **Settings → Pages**, selecione **Deploy from a branch**, branch `main`, pasta `/ (root)`.
-3. Abra `https://guiamuy.github.io/-Estante-Gerenciador-e-Simulador-de-Magic-/`.
+O app está em **https://estante-magic.vercel.app**. A Vercel publica o `main` sozinha; as levas chegam por pull request com prévia (veja o `CLAUDE.md`). O endereço antigo no GitHub Pages fica no ar enquanto os dados são levados por backup.
 
 ## Portão de release
 
