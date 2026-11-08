@@ -60,6 +60,8 @@ Ficam fora da exceção (o PR espera o dono, como antes):
 
 Produção quebrada depois de um merge de rotina: a mesma rotina abre um PR que reverte o commit (`git revert`), passa pelas mesmas condições e avisa o dono. Nunca `push` no `main`, nunca `--force`: as travas valem igual.
 
+**A trilha `bot` também publica sozinha** (decisão do dono, 08/11/2026, leva B-204: "no caso das evoluções do Shark, você não precisa nunca do meu OK para subir na main"). Leva com rodapé `Trilha: bot`, em qualquer conversa, com ou sem o dono presente, junta o próprio PR no `main` pelas mesmas seis condições acima e com as mesmas exclusões. A partir daí, a mesma conferência em produção e o mesmo aviso ao dono.
+
 ## Rodapés do commit
 
 Todo commit termina com a trilha da conversa (o escopo dela, sempre o mesmo nome):
