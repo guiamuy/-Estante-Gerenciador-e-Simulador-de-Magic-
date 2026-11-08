@@ -47,3 +47,12 @@ test('I-323 · monta copia exatamente a lista', async () => {
     assert.deepEqual(readdirSync(destino).sort(), [...ARQUIVOS].sort());
   } finally { rmSync(destino, { recursive: true, force: true }); }
 });
+
+test('I-326 · toda prévia vai para o endereço fixo, também nas sessões de nuvem (pelo conector da Vercel)', () => {
+  const regras = readFileSync(new URL('./CLAUDE.md', import.meta.url), 'utf8');
+  assert.match(regras, /toda prévia é mostrada no endereço fixo https:\/\/estante-magic-previa\.vercel\.app/);
+  assert.match(regras, /conector da Vercel[^\n]*alias `estante-magic-previa\.vercel\.app`/);
+  const p = readFileSync(new URL('./publicar.mjs', import.meta.url), 'utf8');
+  assert.match(p, /aponte o endereço fixo \$\{ENDERECO_PREVIA\} para esta prévia pelo conector da Vercel/);
+  assert.doesNotMatch(p, /não foi apontado, e nesta o login/, 'sem a CLI, a saída não termina no endereço sem login');
+});
