@@ -8055,7 +8055,7 @@ const ALT_COST_PARTS = ['returnTapped', 'mana', 'life', 'discard', 'returnLand',
 /** S48 · fuga: conjura do cemitério pagando o custo, e a carta fica em jogo. */
 /** S20 · custos adicionais de ativação e de conjuração. */
 const CRAFT_TIPOS = ['creature', 'artifact', 'land', 'enchantment']; // M-356 · 702.167a: materiais de craft
-const EXTRA_COST_PARTS = ['sacrificeOther', 'tapOther', 'discard', 'returnLand', 'revealColor', 'exileFromGraveyard', 'discardSelf', 'pagarVida', 'generico' /* M-441 · "or pay {5}" (Lightning Axe): mana genérica somada ao custo total, 601.2f */]; // M-346 · pagarVida: "or pay 3 life" (Bitter Triumph)
+const EXTRA_COST_PARTS = ['blight' /* M-611 · 701.68: afligir N como custo (Requiting Hex) */, 'sacrificeOther', 'tapOther', 'discard', 'returnLand', 'revealColor', 'exileFromGraveyard', 'discardSelf', 'pagarVida', 'generico' /* M-441 · "or pay {5}" (Lightning Axe): mana genérica somada ao custo total, 601.2f */]; // M-346 · pagarVida: "or pay 3 life" (Bitter Triumph)
 /* ---------------- M-229 · R1 · seletor único de objetos (gramática escalável) ----------------
    Um alvo é descrito por um seletor, não por um nome: zona, de quem é, tipos, subtipos, "outra", valor de mana, cor,
    se inclui jogadores. Os nomes antigos continuam valendo e são atalhos para um seletor (ALVO_SELETOR); o teste de
@@ -22636,7 +22636,8 @@ const __m42 = (function () {
     if (k === 'up to one target tapped creature') return { target: 'creature', upTo: true, targetTapped: true }; // M-349 · Cryogen Relic
     if (k === 'target tapped creature') return { target: 'creature', targetTapped: true }; // M-516 · Vengeance
     m = k.match(/^target nonartifact(?:, non(white|blue|black|red|green))? creature$/); if (m) return { target: { tipos: ['creature'], semTipos: ['artifact'] }, ...(m[1] ? { targetNotColor: CORES[m[1]] } : {}) }; // M-524 · Terror
-    { const mv = k.match(/^target spell with mana value (\d+) or less$/); if (mv) return { target: { zona: 'stack', mvMax: +mv[1] } }; } // M-535 · Mesmeric Glare (Hypnotic Sprite): restrição de alvo, conferida de novo na resolução (608.2b)
+    { const mv = k.match(/^target spell with mana value (\d+) or less$/); if (mv) return { target: { zona: 'stack', mvMax: +mv[1] } }; }
+    { const mv = k.match(/^target creature with mana value (\d+) or less$/); if (mv) return { target: { tipos: ['creature'], mvMax: +mv[1] } }; } // M-611 · Requiting Hex: restrição de alvo, conferida de novo na resolução (608.2b) // M-535 · Mesmeric Glare (Hypnotic Sprite): restrição de alvo, conferida de novo na resolução (608.2b)
     if (k === 'target triggered ability or colorless spell') return { target: { ou: [{ zona: 'stack', habilidades: 'disparadas' }, { zona: 'stack', incolor: true }] } }; // M-533 · Consign to Memory
     if (k === 'target noncreature, nonland permanent') return { target: { semTipos: ['creature', 'land'] } }; // M-527 · Archive Arbiter (seletor de permanente)
     if (k === 'target noncreature artifact') return { target: { tipos: ['artifact'], semTipos: ['creature'] } }; // M-387 · Gorilla Shaman
@@ -22739,6 +22740,7 @@ const __m42 = (function () {
     [/^destroy target creature with total power and toughness (\d+) or less$/i, m => [{ do: 'destroy', target: 'creature', targetPTTotalMax: +m[1] }]], // M-331 · Cut Down
     [/^exile that creature$/i, () => [{ do: 'exile', target: 'first-target' }]], // M-331 · "Tap target creature. … exile that creature." (Dispatch)
     [/^destroy (target [a-z ,'-]+)$/i, m => [com({ do: 'destroy' }, alvo(m[1]))]], // M-599 · hífen ("non-outlaw", Shoot the Sheriff)
+    [/^destroy (target creature with mana value \d+ or less)$/i, m => [com({ do: 'destroy' }, alvo(m[1]))]], // M-611 · Requiting Hex (os dígitos ficavam fora do padrão geral)
     [/^destroy (up to one target [a-z ']+)$/i, m => [com({ do: 'destroy' }, alvo(m[1]))]], // M-580 · Curious Farm Animals (115.3: "up to one" aceita zero alvos; alvo() devolve upTo)
     [/^destroy (target creature, enchantment, or planeswalker)$/i, m => [com({ do: 'destroy' }, alvo(m[1]))]], // M-341 · Get Lost
     [/^destroy (target nonartifact, non(?:white|blue|black|red|green) creature)$/i, m => [com({ do: 'destroy' }, alvo(m[1]))]], // M-524 · Terror (a vírgula ficava fora do padrão geral)
@@ -22972,7 +22974,8 @@ const __m42 = (function () {
     [/^flashback—(\{[^}]+\}(?:\{[^}]+\})*), discard a card$/i, m => ({ flashback: { mana: m[1], discard: 1 } })], // M-352 · Twinned Vision (702.34a: o descarte faz parte do custo do lampejo) · Deep Analysis (702.34a + 119.4)
     [/^as an additional cost to cast this spell, discard a card$/i, () => ({ additional: { discard: 1 } })], // M-348
     [/^as an additional cost to cast this spell, return a land you control to its owner's hand$/i, () => ({ additional: { returnLand: 'Land' } })], // M-609 · Deprive (601.2b/601.2h: o terreno volta para a mão ao conjurar; qualquer terreno, pelo tipo de agora)
-    [/^as an additional cost to cast this spell, you may collect evidence (\d+)$/i, m => ({ evidence: +m[1] })], // M-351 · 701.59 · Extract a Confession (o motor oferece conjurar com ou sem provas)
+    [/^as an additional cost to cast this spell, you may collect evidence (\d+)$/i, m => ({ evidence: +m[1] })],
+    [/^as an additional cost to cast this spell, you may blight (\d+)$/i, m => ({ additional: { blight: +m[1] }, additionalOptional: true })], // M-611 · Requiting Hex (601.2b/601.2h, 701.68: N marcadores −1/−1 numa criatura sua, escolhida ao pagar) // M-351 · 701.59 · Extract a Confession (o motor oferece conjurar com ou sem provas)
     [new RegExp(`^you may exile the top ${N} (white|blue|black|red|green) cards of your graveyard rather than pay this spell's mana cost$`, 'i'), m => { const n = num(m[1]), cor = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[2].toLowerCase()]; return { alt: [{ label: `Exilar as ${n} cartas ${{ W: 'brancas', U: 'azuis', B: 'pretas', R: 'vermelhas', G: 'verdes' }[cor]} de cima do cemitério em vez de pagar o custo`, cost: { exileGraveyardTopo: { n, cor } } }] }; }], // M-362 · Spinning Darkness (118.9)
     [/^if this spell is the first spell you've cast this game, you may cast it without paying its mana cost$/i, () => ({ alt: [{ label: 'De graça: a primeira mágica que você conjura na partida', cost: { free: true }, when: { primeiraMagiaDoJogo: true } }] })], // M-605 · Once Upon a Time (118.9; a própria mágica não conta: a contagem sobe só quando ela fica conjurada, 601.2i)
     [/^if you control a commander, you may cast this spell without paying its mana cost$/i, () => ({ alt: [{ label: 'De graça: você controla um comandante', cost: { free: true }, when: { controlaComandante: true } }] })], // M-577 · CR 903.3d + 118.9 · Fierce Guardianship, Deflecting Swat, Flawless Maneuver, Obscuring Haze, Deadly Rollick (Commander)
@@ -23351,6 +23354,8 @@ const __m42 = (function () {
       { const mp = p.match(/^if you cast this spell during your main phase, that creature gets \+(\d+)\/\+(\d+) until end of turn instead$/i); // M-443 · Might of Old Krosa: o "instead" troca o +N/+N
         if (mp && efeitos.length && efeitos[efeitos.length - 1].do === 'pump' && Number.isInteger(efeitos[efeitos.length - 1].power) && Number.isInteger(efeitos[efeitos.length - 1].toughness) && SC_ALVEJA(efeitos[efeitos.length - 1])) { const ult = efeitos[efeitos.length - 1]; ult.power = { per: 'se', se: 'na-principal-propria', sim: +mp[1], nao: ult.power }; ult.toughness = { per: 'se', se: 'na-principal-propria', sim: +mp[2], nao: ult.toughness }; frases.push({ texto: p, lida: true }); continue; } }
       if (/^if this spell was cast from a graveyard, also put a \+1\/\+1 counter on each other creature you control$/i.test(p) && efeitos.length && efeitos[efeitos.length - 1].do === 'counters' && efeitos[efeitos.length - 1].amount === 1 && efeitos[efeitos.length - 1].target === 'creature-you-control') { efeitos.push({ do: 'counters', amount: 1, cada: { tipos: ['creature'], de: 'you' }, excetoPrimeiro: true, onlyIf: 'cast-from-graveyard' }); frases.push({ texto: p, lida: true }); continue; } // M-422 · Moment of Glory ("other": além do alvo)
+      { const ad = p.match(/^if this spell's additional cost was paid, (.+)$/i), te = ad && leFrase(ad[1]); // M-611 · Requiting Hex: "se você pagou", na resolução (601.2b, 608.2c)
+        if (te && te.length && te.every(x => x && !x.onlyIf && !SC_ALVEJA(x))) { efeitos.push(...te.map(x => ({ ...x, onlyIf: 'paid-additional' }))); frases.push({ texto: p, lida: true }); continue; } }
       if (/^if that land was a snow land, you gain 1 life$/i.test(p) && efeitos.length && SC_ALVEJA(efeitos[efeitos.length - 1])) { efeitos.push({ do: 'gain', amount: 1, onlyIf: 'alvo-era-neve' }); frases.push({ texto: p, lida: true }); continue; } // M-385 · Thermokarst (608.2h)
       if (/^if the creature you control has trample, excess damage is dealt to that creature's controller instead$/i.test(p) && efeitos.length && efeitos[efeitos.length - 1].do === 'morde') { efeitos[efeitos.length - 1].excessoComAtropelar = true; frases.push({ texto: p, lida: true }); continue; } // M-407 · Ram Through
       { const fh = p.match(/^if its mana value was 3 or less, scry (\d+)$/i); // M-557 · Fading Hope (608.2h: o valor de mana de antes de sair do campo)
@@ -29364,6 +29369,7 @@ function pagamentosDe(s, p, cost, selfOid) {
     out = novo;
   };
   if (cost.crew != null) multiplica(formasDeTripular(s, p, cost.crew, selfOid), 'crew'); // CR2d.3
+  if (cost.blight) multiplica(criaturasParaAfligirM(s, p, selfOid), 'blight'); // M-611 · quem paga escolhe a criatura que recebe os marcadores
   if (cost.sacrificeOther) multiplica((cost.sacrificeOther.amount || 1) > 1 ? combinacoes(extraCostCandidates(s, p, cost.sacrificeOther, selfOid), cost.sacrificeOther.amount) : extraCostCandidates(s, p, cost.sacrificeOther, selfOid), 'sacrifice'); // M-264 · "Sacrifice two other creatures"
   if (cost.tapOther) multiplica(combinacoes(extraCostCandidates(s, p, cost.tapOther, selfOid, true), cost.tapOther.amount || 1), 'tapOther');
   if (cost.discard) multiplica(combinacoes(s.zones[p].hand.filter(x => x !== selfOid), cost.discard).filter(l => descarteServe(s, cost, [].concat(l))), 'discard'); // CR2c.4 · Foil: só as combinações com Ilha
@@ -29400,6 +29406,11 @@ function materiaisDeCraft(s, p, spec, selfOid) {
   return campo.concat(cemiterio);
 }
 function payExtraCosts(s, p, cost, pay, selfOid) {
+  if (cost.blight) { // M-611 · 701.68a como custo (601.2h): N marcadores −1/−1 numa criatura que quem paga controla, escolhida ao pagar
+    const suas = criaturasParaAfligirM(s, p, selfOid), oid = (pay && pay.blight) || suas[0];
+    if (!oid || !suas.includes(oid)) throw new RuleError('custo', 'escolha uma criatura sua para afligir');
+    poeMarcadores(s, s.objects[oid], 'm1m1', cost.blight);
+  }
   if (cost.pagarVida != null) { if (s.players[p].life < cost.pagarVida) throw new RuleError('custo', 'vida insuficiente'); perdeVida(s, p, cost.pagarVida); } // K-2 · salvaguarda com vida
   if (cost.crew != null) cost = pagaTripulacaoT(s, p, cost, pay, selfOid); // T-3 · CR 702.122a–d · paga a tripulação (qualquer grupo que some N), anota quem tripulou e dispara "crews a Vehicle"; devolve o custo sem a parte de tripular (função abaixo da âncora T das exportações)
   if (cost.crew != null) { // CR2d.3 · tripular: confere e vira as escolhidas
@@ -29489,7 +29500,9 @@ function formasDeTripular(s, p, n, selfOid) {
 }
 /** M-441 · 601.2f · a mana genérica do custo adicional escolhido ("discard a card or pay {5}"): entra no custo total da conjuração, não no pagamento à parte. */
 const genericoDoAdicional = (s, o, add) => { const sp = (((s.facts[o.name] || {}).script) || {}).additional; const l = Array.isArray(sp) ? sp : sp ? [sp] : []; const e = add === null ? null : l[add || 0]; return (e && Number.isInteger(e.generico) && e.generico > 0) ? e.generico : 0; };
+const criaturasParaAfligirM = (s, p, selfOid) => battlefield(s).filter(o => o.controller === p && o.oid !== selfOid && isCreature(s, o)).map(o => o.oid); // M-611 · 701.68b: sem criatura sua, não dá para afligir
 const canPayExtra = (s, p, cost, selfOid) =>
+  (!cost.blight || criaturasParaAfligirM(s, p, selfOid).length > 0) && // M-611
   (cost.pagarVida == null || s.players[p].life >= cost.pagarVida) && // K-2 · 119.4: só paga a vida que tem
   (cost.crew == null || formasDeTripular(s, p, cost.crew, selfOid).length > 0) &&
   (!cost.exileFromGraveyard || s.zones[p].graveyard.filter(x => matchesFilter(s, s.objects[x], cost.exileFromGraveyard)).length >= (cost.exileFromGraveyard.amount || 1)) && // M-538
@@ -43398,6 +43411,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     ['exile', () => 'Qual carta do cemitério é exilada?', 'Exilar'],
     ['craft', n => n > 1 ? 'Quais materiais você exila para o craft?' : 'Qual material você exila para o craft?', 'Exilar'], // M-356 · 702.167a
     ['bargain', () => 'O que você sacrifica na barganha?', 'Sacrificar'],
+    ['blight', () => 'Qual criatura sua recebe o marcador −1/−1?', 'Afligir'], // M-611 · 701.68 (Requiting Hex)
     ['exileGrave', () => 'Quais cartas do cemitério você exila?', 'Exilar'],
     ['revelar', () => 'Quantas cartas você revela?', 'Revelar']];
   /** Junta as ações que só diferem no pagamento ou no X num botão só, que abre a escolha. */
