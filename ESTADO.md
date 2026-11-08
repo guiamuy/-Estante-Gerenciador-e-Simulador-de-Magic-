@@ -13,7 +13,7 @@ Arquivo de entrada de toda conversa. Diz onde o projeto está, o que cada trilha
 
 PWA de Magic: The Gathering publicado: listas, coleção, scanner de cartas, mesa (assistida e com motor de regras completo), bot Shark, notícias, relatos do dono e painel de BI (`painel.html`). `index.html` é o código-fonte (sem build). Offline primeiro. Portão: `npm test` (fase rápida + fase de tela). Publicação só pela fila (`npm run publicar`; regras no `CLAUDE.md`).
 
-Marcos: Pauper 100% (as sete listas revisadas carta a carta; 669 de 671 listas Pauper a 100% na sentinela depois da M-609, 07/11; Retraction Helix e Rites of Initiation ficam manuais). Motor v112. Commander parcial. Conformidade com as Comprehensive Rules em andamento (épico CR).
+Marcos: Pauper 100% (as sete listas revisadas carta a carta; 682 de 685 listas Pauper a 100% na sentinela depois da M-610, 08/11; Retraction Helix e Rites of Initiation ficam manuais). Motor v112. Commander parcial. Conformidade com as Comprehensive Rules em andamento (épico CR).
 
 ## Trilhas (uma linha por trilha; cada trilha reescreve só a sua)
 
@@ -21,11 +21,11 @@ Marcos: Pauper 100% (as sete listas revisadas carta a carta; 669 de 671 listas P
 |---|---|---|---|---|
 | `scanner` | S | X16/X20: tela nova do scanner, edição e arte pela impressão, idiomas impressos (coreano, russo, phyrexiano) — relatos #60–#65 | S-618 · 07/11 | #65 lixo no fim do nome (rotina, em curso); X15 melhor quadro ▶ |
 | `geral` | G | Coleção grande sem esperar artes, gravação em transação (relato #65); seleção e etiquetas na Coleção (G2); tour guiado (TUT) | G-352 · 07/11 | fechar relato #65; relatos #53/#66 (pacotes de idioma) |
-| `motor` | M | cartas lidas por inteiro (Shadowspear, Once Upon a Time…); sentinela Pauper | M-609 · 07/11 | CR2c.2 "destruir todas" por filtro ▶; #58 espera a resposta do dono |
+| `motor` | M | cartas lidas por inteiro (Shadowspear, Once Upon a Time…); sentinela Pauper | M-610 · 08/11 | CR2c.2 "destruir todas" por filtro ▶; #58 espera a resposta do dono |
 | `radar` | R | BI4 · Painel Estante: comparar períodos, metas, tendência | R-44 · 07/11 | BI4-6 em diante; validação do dono após os primeiros pilares |
 | `jogabilidade` | J | MJ25/MJ27 · mesa de patamar: paisagem, orientação, Cancelar em toda escolha | J-62 · 03/11 | relato #54 (efeito da Cidade Baixa) |
 | `bot` | B | B25 · Shark por baralho; força absoluta 55% (alvo 60%) | B-201 · 02/11 | subir a força para 60% |
-| `infra` | I | migração para a Vercel (https://estante-magic.vercel.app): PR com prévia, portão no clone (sem CI), dados por /dados/ (função que lê os ramos), repo privado no fim | I-324 · 07/11 | robôs diários na nuvem do Claude, token de leitura na Vercel, ponte das coleções no github.io, repo privado |
+| `infra` | I | migração para a Vercel (https://estante-magic.vercel.app): PR com prévia, portão no clone (sem CI), dados por /dados/ (função que lê os ramos), repo privado no fim | I-328 · 08/11 | robôs diários na nuvem do Claude, token de leitura na Vercel, ponte das coleções no github.io, repo privado |
 | `homologacao` | H | prova de partida do catálogo, revisão em lote (Commander) | H-24 · 01/11 | lote 8 |
 | `protecao` | P | segurança e privacidade; Apoiar a Estante (MON1) | P-21 · 26/10 | — |
 
@@ -55,7 +55,7 @@ Leitura e fila dos relatos: seção "Relatos do dono" do `CLAUDE.md`.
 
 - Commander (R11.2b em diante) pausado desde 06/10/2026: volta quando o épico CR entregar as estruturas que as cartas pedem.
 - Radar: depois dos primeiros pilares, pedir validação do dono antes dos demais tópicos (`claude/DIRETRIZ-radar-continuo.md`, no Projeto).
-- Vigentes (`claude/DECISOES-dono-2026-10-12.md`): repositório público (D6); monetização por doações e anúncios (D7), com os dados reais do Apoiar na P-21; política sem `'unsafe-inline'` só depois da integração do motor (D5); mutação e meld esperam (D15); um nome só por conta (D16, G-281).
+- Vigentes (`claude/DECISOES-dono-2026-10-12.md`): rotina agendada junta o próprio PR no `main` sem homologação, com as condições do `CLAUDE.md` (I-328, 08/11); repositório público (D6); monetização por doações e anúncios (D7), com os dados reais do Apoiar na P-21; política sem `'unsafe-inline'` só depois da integração do motor (D5); mutação e meld esperam (D15); um nome só por conta (D16, G-281).
 - Em aberto: D10 patrocínio próprio · D11 rede de anúncios (fora até a D5).
 - Escopo negativo: gerador de decks, sugestão de cartas, ranking de metagame, marketplace, multiplayer com mais de dois. Online 1x1 está dentro (U14).
 - Design vigente: DS-K "Ébano e Ouro" (decisão de 24/10): `claude/DESIGN-direcoes-2026-10-24.md` e `claude/DIRETRIZ-animacao.md`.
@@ -82,4 +82,4 @@ Os documentos `claude/…` moram no Projeto do claude.ai, fora do repositório: 
 
 No commit de docs de cada leva (o mesmo que atualiza o ROADMAP): reescreva a **sua** linha na tabela de trilhas, atualize relatos e pendências se mudaram e troque a data abaixo. Edite por patch, nunca o arquivo inteiro. Conflito no rebase: fique com as linhas das outras trilhas e a sua. Passou de 8 KB: resuma, não acrescente.
 
-Atualizado: 07/11/2026 · I-324 (infra: dados do app pela Vercel em /dados/)
+Atualizado: 08/11/2026 · I-328 (infra: rotinas agendadas publicam sozinhas)
