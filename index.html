@@ -1035,6 +1035,12 @@ body[data-tela="entrar"] .ds-appbar { display: none; }
 .ds-offline--folha .ds-offline__corpo { display: block; }
 /* D3 · Continuar: o que você estava fazendo, uma linha por coisa, toque na linha inteira */
 .home-continuar { overflow: hidden; }
+/* I-329 · faixa da mudança de endereço (só no github.io): borda no acento, ícone num círculo, ações que quebram linha */
+.ponte-faixa { display: grid; gap: var(--space-2); border: 1px solid var(--accent); }
+.ponte-faixa__cab { display: flex; align-items: center; gap: var(--space-3); }
+.ponte-faixa__icone { flex: none; width: 40px; height: 40px; border-radius: var(--radius-full); display: grid; place-items: center; background: var(--accent-soft, var(--bg-elev-2)); color: var(--accent); }
+.ponte-faixa__titulo { font-size: var(--text-md, 1rem); }
+.ponte-faixa__acoes { flex-wrap: wrap; gap: var(--space-2); }
 .home-continuar__rotulo { padding: var(--space-3) var(--space-4) 0; }
 .home-continuar__item { display: flex; align-items: center; gap: var(--space-3); width: 100%; min-height: 60px; padding: var(--space-2) var(--space-4);
   border: 0; background: transparent; color: var(--fg); text-align: left; font: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent;
@@ -15007,7 +15013,7 @@ const REGISTRO = [
   ['scanner.zoom', 'aparelho', false], ['scanner.lente', 'aparelho', false], ['scanner.idioma', 'aparelho', false], /* S-601 · idioma impresso que o leitor do nome lê */ ['scanner.lot', 'aparelho', false],
   ['offline.', 'aparelho', false], ['ocr.ready', 'aparelho', false], ['noticias.vista', 'aparelho', false],
   ['ui.ultimaLista', 'aparelho', false], ['collection.pending', 'aparelho', false], ['match.', 'aparelho', false],
-  ['ui.entrada', 'aparelho', false], // G-274 · a porta de entrada já foi atravessada neste aparelho (com conta ou sem)
+  ['ui.entrada', 'aparelho', false], ['ponte.levada', 'aparelho', false], /* I-329 · quando este aparelho levou tudo do github.io para a Vercel */ // G-274 · a porta de entrada já foi atravessada neste aparelho (com conta ou sem)
   ['uso.compartilhar', 'aparelho', false], ['uso.envio', 'aparelho', false], ['uso.scanner', 'aparelho', false], // G-286 · uso agregado opt-in: consentimento deste aparelho, último envio e leituras do scanner
   // derivado
   ['card.', 'derivado', false], ['rulings.', 'derivado', false], ['cartas.texto.', 'derivado', false], /* G-356 · texto impresso em português, pela Scryfall */ ['scanner.artes', 'derivado', false], /* S-596 · base de artes do scanner (ramo artes) */ ['names.pt', 'derivado', false], ['names.es', 'derivado', false], ['names.it', 'derivado', false], ['names.fr', 'derivado', false], ['names.de', 'derivado', false], ['names.ja', 'derivado', false], ['names.zhs', 'derivado', false], ['names.zht', 'derivado', false], ['names.ko', 'derivado', false], ['names.ru', 'derivado', false], /* S-597 · S-598 · S-601 · S-614 · nomes impressos em outras línguas */ ['cambio.usd', 'derivado', false], ['names.catalog', 'derivado', false],
@@ -48783,6 +48789,138 @@ function abreTutorial({ store, go, aoFechar = null, inicio = 0 } = {}) {
 return { CAPITULOS, progresso, ILUSTRACOES, SOMBRAS, sombraDoTour, abreTutorial, CHAVE, GUIAS, posicaoDoGuia, abreGuia, faltaExperimentar, experimentadosDe, marcaDoTour, textoDoPasso, TEXTO_DA_CAMERA };
 })();
 
+/* ==== src/app/ponte.js ==== */
+const __m46 = (function () {
+/* =====================================================================
+   I-329 · PONTE DAS COLEÇÕES: do github.io para a Vercel. Listas, coleção e preferências moram no aparelho, presas ao
+   endereço; o endereço novo (https://estante-magic.vercel.app) começa vazio, e o antigo (https://guiamuy.github.io) sai do
+   ar quando o repositório ficar privado. No antigo, o Início mostra a faixa "A Estante mudou de endereço": o toque monta o
+   backup completo (o mesmo do Perfil), abre o endereço novo em `#/ponte` e entrega o texto pela troca de mensagens entre as
+   duas janelas (postMessage). Nada passa por servidor. O novo só aceita o que vem da origem do antigo e da janela que o
+   abriu, mostra o que chegou e só grava com o "Trazer" da pessoa; a restauração junta ao que já existe e não apaga nada.
+   Sem janela nova (bloqueada), a faixa oferece o arquivo do backup para restaurar à mão.
+   Conversa:  novo → antigo  { tipo: 'estante.ponte.pronta' }
+              antigo → novo  { tipo: 'estante.ponte.backup', texto }
+              novo → antigo  { tipo: 'estante.ponte.recebida', listas, cartas } ou { tipo: 'estante.ponte.recusada', motivo }
+   ===================================================================== */
+const { h, Surface, Text, Button, Icone } = __m3;
+const ANTIGO = 'https://guiamuy.github.io', NOVO = 'https://estante-magic.vercel.app';
+const CHAVE = 'ponte.levada'; // instante em que o antigo recebeu "recebida" (deste aparelho; fora do backup)
+const TIPO = { pronta: 'estante.ponte.pronta', backup: 'estante.ponte.backup', recebida: 'estante.ponte.recebida', recusada: 'estante.ponte.recusada' };
+const ESPERA_MS = 10 * 60 * 1000; // a pessoa pode demorar no "Trazer"; depois disso a faixa volta ao começo
+const TEXTO_MAX = 64 * 1024 * 1024;
+
+/** Os dois endereços. Os testes trocam por window.__PONTE ({ antigo, novo }: duas origens do mesmo servidor). */
+function enderecos(w) {
+  const o = w && w.__PONTE;
+  return o && typeof o.antigo === 'string' && typeof o.novo === 'string' ? { antigo: o.antigo, novo: o.novo } : { antigo: ANTIGO, novo: NOVO };
+}
+/** 'antigo', 'novo' ou null para a origem dada. */
+function papel(origem, e) { return origem === e.antigo ? 'antigo' : origem === e.novo ? 'novo' : null; }
+/** Quantas listas e cartas o texto do backup leva; null quando não é um backup da Estante. */
+function resumoDoBackup(texto) {
+  if (typeof texto !== 'string' || texto.length > TEXTO_MAX) return null;
+  let d; try { d = JSON.parse(texto); } catch (e) { return null; }
+  if (!d || d.kind !== 'estante.backup') return null;
+  const listas = (Array.isArray(d.decks) ? d.decks : []).filter(x => x && x.id && Array.isArray(x.entries)).length;
+  const qtd = v => (Number(v) > 0 ? Math.floor(Number(v)) : 0);
+  const cartas = Array.isArray(d.items) ? d.items.reduce((s, i) => s + (i && i.name ? qtd(i.qty) : 0), 0)
+    : d.owned && typeof d.owned === 'object' ? Object.values(d.owned).reduce((s, v) => s + qtd(v), 0) : 0;
+  return { listas, cartas };
+}
+const plural = (n, um, varios) => `${n} ${n === 1 ? um : varios}`;
+/** "3 listas e 120 cartas da coleção" */
+function fraseDoResumo(r) { return `${plural(r.listas, 'lista', 'listas')} e ${plural(r.cartas, 'carta', 'cartas')} da coleção`; }
+
+/** No antigo: abre o novo e entrega o backup. Resolve { ok: true, listas, cartas } ou { ok: false, motivo: 'bloqueada' | 'recusada' | 'tempo' }. */
+function levar({ janela, texto, e, espera = ESPERA_MS }) {
+  return new Promise(devolve => {
+    let w = null;
+    // janela nova a cada toque: reaproveitar uma já aberta só trocaria o hash, sem recarregar (e ela nunca diria "pronta")
+    try { w = janela.open(e.novo + '/#/ponte', '_blank'); } catch (err) { w = null; }
+    if (!w) return devolve({ ok: false, motivo: 'bloqueada' });
+    let entregue = false, t = null;
+    const fim = r => { janela.removeEventListener('message', ouve); clearTimeout(t); devolve(r); };
+    function ouve(ev) {
+      if (ev.origin !== e.novo || ev.source !== w) return;
+      const d = ev.data || {};
+      if (d.tipo === TIPO.pronta && !entregue) { entregue = true; w.postMessage({ tipo: TIPO.backup, texto }, e.novo); }
+      else if (d.tipo === TIPO.recebida) fim({ ok: true, listas: Number(d.listas) || 0, cartas: Number(d.cartas) || 0 });
+      else if (d.tipo === TIPO.recusada) fim({ ok: false, motivo: 'recusada' });
+    }
+    janela.addEventListener('message', ouve);
+    t = setTimeout(() => fim({ ok: false, motivo: 'tempo' }), espera);
+  });
+}
+
+/** No novo, aberto pelo antigo em `#/ponte`: avisa que está pronto e espera o backup. `confirma(resumo, texto)` mostra o que
+    chegou e resolve verdadeiro quando gravou. Devolve false quando não há quem abriu (aberto à mão: nada a esperar). */
+function receber({ janela, e, confirma }) {
+  const quem = janela.opener;
+  if (!quem) return false;
+  const responde = m => { try { quem.postMessage(m, e.antigo); } catch (err) { /* o antigo fechou */ } };
+  async function ouve(ev) {
+    if (ev.origin !== e.antigo || ev.source !== quem) return;
+    const d = ev.data || {};
+    if (d.tipo !== TIPO.backup || typeof d.texto !== 'string') return;
+    janela.removeEventListener('message', ouve);
+    const r = resumoDoBackup(d.texto);
+    if (!r) return responde({ tipo: TIPO.recusada, motivo: 'formato' });
+    let ok = false; try { ok = !!(await confirma(r, d.texto)); } catch (err) { ok = false; }
+    responde(ok ? { tipo: TIPO.recebida, ...r } : { tipo: TIPO.recusada, motivo: 'cancelou' });
+  }
+  janela.addEventListener('message', ouve);
+  responde({ tipo: TIPO.pronta });
+  return true;
+}
+
+/** A faixa do Início no endereço antigo. `backup` é o do app (texto, exportar); `toast` avisa. */
+function FaixaDaMudanca({ janela, e, store, backup, toast }) {
+  const novoSemProtocolo = e.novo.replace(/^https?:\/\//, '');
+  const box = Surface({ class: 'ds-surface--pad ponte-faixa', id: 'home-ponte', dataset: { estado: 'pendente' } });
+  const abrirNovo = () => { try { janela.open(e.novo + '/', '_blank', 'noopener'); } catch (err) { /* bloqueado */ } };
+  const baixar = Button('Baixar backup', { variant: 'ghost', icone: 'baixar', id: 'home-ponte-baixar', onClick: async () => {
+    try { await backup.exportar(); toast(`Backup baixado. No ${novoSemProtocolo}, restaure em Perfil › Backup.`, 5200); } catch (err) { toast('Não deu para montar o backup.'); } } });
+  function pinta(estado, quando = 0) {
+    box.dataset.estado = estado;
+    const titulo = h('strong', { class: 'ponte-faixa__titulo', id: 'home-ponte-titulo' }, estado === 'levada' ? 'Tudo levado para o endereço novo' : 'A Estante mudou de endereço');
+    const msg = estado === 'levada'
+      ? `Levado em ${new Date(quando).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' })}. Use ${novoSemProtocolo} daqui em diante; este endereço sai do ar em breve.`
+      : estado === 'levando' ? `Confirme no ${novoSemProtocolo}, na janela que abriu, tocando em "Trazer".`
+      : estado === 'bloqueada' ? 'O navegador não abriu a janela nova. Libere janelas para este site e tente de novo, ou baixe o backup e restaure lá em Perfil › Backup.'
+      : `Agora ela mora em ${novoSemProtocolo}. Leve suas listas, sua coleção e suas preferências num toque; uma cópia continua aqui.`;
+    const texto = Text(msg, { size: 'sm', tone: 'muted', attrs: { id: 'home-ponte-texto' } });
+    const levarBtn = Button(estado === 'levada' ? 'Levar de novo' : 'Levar tudo para o endereço novo', {
+      variant: estado === 'levada' ? 'ghost' : 'primary', icone: 'exportar', id: 'home-ponte-levar', disabled: estado === 'levando', onClick: leva });
+    const acoes = estado === 'levada'
+      ? [Button(`Abrir ${novoSemProtocolo}`, { variant: 'primary', icone: 'externo', id: 'home-ponte-abrir', onClick: abrirNovo }), levarBtn]
+      : [levarBtn, baixar];
+    box.replaceChildren(h('div', { class: 'ponte-faixa__cab' }, h('span', { class: 'ponte-faixa__icone' }, Icone('exportar', { tamanho: 22 })), titulo),
+      texto, h('div', { class: 'ds-row ponte-faixa__acoes' }, ...acoes));
+  }
+  async function leva() {
+    let texto;
+    try { texto = await backup.texto(); } catch (err) { return toast('Não deu para montar o backup.'); }
+    pinta('levando');
+    const r = await levar({ janela, texto, e });
+    if (r.ok) {
+      const agora = Date.now();
+      try { await store.set(CHAVE, agora); } catch (err) { /* sem armazenamento: a faixa só não lembra */ }
+      if (box.isConnected) pinta('levada', agora);
+      toast(`${fraseDoResumo(r)} chegaram ao endereço novo.`, 5200);
+    } else if (box.isConnected) {
+      let antes = 0; try { antes = Number(await store.get(CHAVE)) || 0; } catch (err) { antes = 0; }
+      if (r.motivo === 'bloqueada') pinta('bloqueada'); else if (antes) pinta('levada', antes); else pinta('pendente'); // cancelou ou demorou: volta ao que era
+    }
+  }
+  pinta('pendente');
+  Promise.resolve(store.get(CHAVE)).then(v => { if (v && box.dataset.estado === 'pendente') pinta('levada', Number(v)); }).catch(() => {});
+  return box;
+}
+
+return { ANTIGO, NOVO, CHAVE, TIPO, enderecos, papel, resumoDoBackup, fraseDoResumo, levar, receber, FaixaDaMudanca };
+})();
+
 /* ==== src/app/main.js ==== */
 const __m13 = (function () {
 /* Casca da aplicação. Por enquanto: barra, tema e o catálogo do design system.
@@ -48901,6 +49039,32 @@ const backup = {
     return `${r.decks} lista(s) restaurada(s)` + (m.length ? ` · reserva separada em ${m.length}` : '') + extra;
   }
 };
+/** I-329 · o que chegou do endereço antigo pela ponte: a pessoa vê e decide; "Trazer" restaura como o backup do Perfil (junta,
+    não apaga). Resolve verdadeiro quando gravou. */
+function confirmaPonte(resumo, texto) {
+  return new Promise(devolve => {
+    let feito = false; const fim = v => { if (!feito) { feito = true; devolve(v); } };
+    Dialog({ title: 'Trazer do endereço antigo?', aoFechar: () => fim(false),
+      body: Stack({ style: { gap: 'var(--space-2)' } },
+        Text(`Chegaram ${__m46.fraseDoResumo(resumo)}, com as preferências, de guiamuy.github.io.`, { attrs: { id: 'ponte-resumo' } }),
+        Text('Tudo se junta ao que já está aqui. Nada é apagado.', { size: 'sm', tone: 'muted' })),
+      actions: [Button('Cancelar', { id: 'ponte-cancelar', onClick: () => { fim(false); closeDialog(); } }),
+        Button('Trazer', { variant: 'primary', icone: 'baixar', id: 'ponte-trazer', onClick: async ev => {
+          ev.currentTarget.disabled = true;
+          try {
+            const msg = await backup.restaurar(texto);
+            fim(true); closeDialog(); toast(`Do endereço antigo: ${msg}`, 5200);
+            if (!/^#\/entrar\b/.test(location.hash)) location.hash = '#/listas';
+          } catch (err) { fim(false); closeDialog(); toast('Não deu para trazer. Tente de novo pelo endereço antigo.', 5200); }
+        } })] });
+  });
+}
+/** I-329 · no endereço antigo (github.io), a faixa da mudança logo abaixo do título do Início; nos outros, nada. */
+function faixaDaPonte() {
+  if (typeof window === 'undefined' || typeof location === 'undefined') return null;
+  const e = __m46.enderecos(window);
+  return __m46.papel(location.origin, e) === 'antigo' ? __m46.FaixaDaMudanca({ janela: window, e, store: platform.store, backup, toast }) : null;
+}
 const names = createNameIndex({ store: platform.store, scryfall });
 const etiquetas = __m32.createEtiquetas({ store: platform.store }); // G2
 const fichas = __m34.createFichas({ store: platform.store, scryfall, images }); // I4
@@ -49120,6 +49284,7 @@ function renderHome({ ancora = false } = {}) {
   confereNotificacoes(); // G-314 · pedido de cobertura atendido vira notificação
   const el = h('div', { class: 'ds-wrap inicio', id: 'home' },
     h('header', { class: 'inicio__cab' }, h('span', { class: 'inicio__data', id: 'home-data' }, hoje), tituloLinha, frase),
+    faixaDaPonte(), // I-329 · só no endereço antigo
     continuar,
     // U2 · atalhos com ícone e uma palavra; K4 · Jogar continua o primário, os outros quatro numa linha
     h('nav', { class: 'ds-atalhos inicio__atalhos', id: 'home-atalhos', 'aria-label': 'Atalhos' },
@@ -49397,11 +49562,18 @@ async function boot(root) {
     const feitas = await __m24.migraReservas(decks, platform.store);
     if (feitas.length) { toast(feitas.length === 1 ? `Reserva separada em ${feitas[0]}` : `Reserva separada em ${feitas.length} listas`, 3600); }
   } catch (e) { /* sem armazenamento: a lista continua como estava */ }
+  // I-329 · aberto pelo endereço antigo em #/ponte: espera o backup que ele manda. O hash sai antes da porta e do roteador
+  // (não há tela #/ponte); aberto à mão, sem quem abriu, é só o Início.
+  const ePonte = __m46.enderecos(window);
+  const naPonte = /^#\/ponte\b/.test(location.hash);
+  const daPonte = naPonte && !!window.opener && __m46.papel(location.origin, ePonte) !== 'antigo';
+  if (naPonte) history.replaceState(null, '', location.pathname + location.search + '#/');
   // G-274 · primeira abertura sem conta: a porta de entrada vem antes de tudo; a apresentação, depois dela
   const porta = await precisaDaPorta();
   if (porta) { const h0 = location.hash || '#/'; destinoDaPorta = /^#\/entrar\b/.test(h0) ? '#/' : h0; history.replaceState(null, '', '#/entrar'); }
   router.start();
-  if (!porta && await primeiraAbertura()) mostraApresentacao();
+  if (daPonte) __m46.receber({ janela: window, e: ePonte, confirma: confirmaPonte });
+  if (!porta && !daPonte && await primeiraAbertura()) mostraApresentacao();
   // O1 · manutenção silenciosa: com rede, guarda o que ainda não está guardado
   // Q10 · uma passada por vez (o guardião garante), e também ao voltar para o app (o celular suspende a aba e
   // perde o evento "online"); no máximo uma a cada 10 minutos por esse caminho
