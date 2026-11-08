@@ -266,6 +266,11 @@ real em 360×780 e 390×844, clara e escura; (2) desenho decidido por espaço ú
 emoji; (4) CTAs curtos, com ícone quando o gesto é conhecido; (5) movimento curto e com propósito, respeitando
 `prefers-reduced-motion`; (6) captura de novo depois, nas mesmas medidas, e ajuste até ficar limpo; (7) teste que
 mede o que foi prometido (altura, alinhamento, alvo de toque, contraste).
+**Balcão · Gaveta · Armário (DS-K3, decisão do dono de 08/11/2026).** Toda função nova responde três perguntas antes de ganhar
+lugar: com que frequência se usa (todo dia → balcão, à vista; toda semana → gaveta, a um toque; uma vez → armário, em Perfil ou
+num menu), se um toque a menos importa, e o que sai do balcão para ela entrar. Orçamento por tela: um latão cheio (o primário),
+no máximo quatro ações visíveis fora da barra, no máximo quatro chips na primeira dobra e cinco destinos na barra. Movimento segue a
+gramática R1–R5 e a Diretriz P1–P7 (`claude/DIRETRIZ-animacao.md`), com os três níveis de Aparência valendo por token.
 **Paisagem (decisão do dono, 02/11/2026, MJ25 · J-58/J-59; desfaz o "tablet e paisagem fora" dos épicos U e DS-K só para a mesa):** a
 mesa tem faixa própria para o celular deitado — `orientation: landscape` e altura até 540 px: lados lado a lado, campo 80, terreno 58,
 mão 76 px, crescimento 1,15× — e Perfil › Aparência › Mesa › "Orientação da mesa" (Automática · Só retrato) desliga. Toda leva da mesa
@@ -411,6 +416,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-uj ✅ | CONV2 convite e QR no endereço da Vercel (plano Vercel do dono, 07/11/2026): Perfil › Convidar amigos compartilha, copia e mostra no QR https://estante-magic.vercel.app/ (QR gerado de novo e lido de volta no teste); "O que sai do aparelho" diz que, na Vercel, os arquivos do app vêm do próprio site em /dados/ (leva G-354). Fora: levar os dados do endereço antigo (backup e restauração, pelo dono) e cadastrar o domínio no Google para o login | CONV1 | 1 | 16º-si |
 | 16º-ul ✅ | CARGA1 cartas que faltam descem sozinhas (pedido do dono, 08/11/2026): num endereço novo ou depois de restaurar um backup, Listas baixa em segundo plano os dados das cartas que não estão no aparelho (busca coletiva da Scryfall, em lotes) e pinta cores e % do motor sem abrir lista por lista; "Baixando os dados das cartas · X de Y" à vista; cada nome uma vez por abertura, de novo quando a internet volta (leva G-355). Fora: o preparo para jogar sem internet num endereço novo (CARGA2, a seguir) e levar as cartas dentro do backup | CONV2 | 1 | 16º-uj |
 | 16º-um ✅ | CARGA2 preparo do dia sozinho (pedido do dono, 08/11/2026): na primeira abertura do dia com rede, o app prepara tudo para jogar e cuidar da coleção sem internet, com imagens (listas, coleção, listas do Shark com imagem, base de nomes e o leitor do scanner, mesmo sem preparo manual antes), sem tocar em nada; a faixa do Início mostra "Preparando sozinho…" e chega a "Tudo pronto"; o dia só fica marcado quando tudo está no aparelho — incompleto, continua na próxima abertura, na volta ao app ou quando a rede volta; feito hoje, nada volta à Scryfall (leva A-264). Fora: escolher só Wi-Fi para baixar | O1 | 1 | 16º-ul |
+| 16º-uo 🟡 | DS-K3 · Vitrine e Movimento (propostas de 07 e 08/11; "seguir com todo o plano", decisão do dono de 08/11/2026, com as opções recomendadas A): ✅ K3-0 + MV-0 (G-357) tokens de material por luz (cinco degraus de ébano, aresta, laca, sombras de contato · chave · flutuante, grão, véu sobre arte) e de movimento (durações 60/600 ms, escalonamento, três molas em `linear()`, saída, distâncias, profundidade, calma), Movimento em Aparência com três níveis (completo · moderado · reduzido) e o catálogo `/ds` com Material e Molas; próxima K3-1 superfície por luz e grão. **MV-10 (abertura e marca "The Shelf") adiada pelo dono:** volta depois da FA-2 | DS-K3 | 1 de 22 | DS-K, DS-K2 |
 | 16º-sa 🟡 | B22 Shark profissional com cinco listas: fatia 1 ✅ (B-173) listas de torneio embutidas e seletor do Shark só com elas; fatia 2 ✅ (B-174) linha de base: Madness 75% · Elves 63% · Faeries 50% · Control 38% · Terror 25% contra o campo; fatia 3 ✅ (B-175) perfil do Terror + o terreno que falta (pareado 50% × 38% em 32 pares: dentro da margem); fatia 4 (B-176) ameaças do campo no Control: sem ganho (41% × 42% em 64 pares), desligada; fatia 5 (B-177) mulligan por fontes e cores: neutro em força (79 × 81 em 160 pares), ligado pelo comportamento; fatia 6 (B-178) prazo da decisão: p95 430 → 366 ms, pior 4,3 → 0,8 s, força 48 × 47; fatia 7 (B-179) quando anular: a resposta é lida primeiro e a anulação guardada tem valor, neutro em força (38 × 39 em 96 pares), ligado pelo comportamento; fatias 8–9 viraram a B23 (16º-sd); força final (B-185, 208 decididas por lista, Shark × Shark): Madness 66% · Terror 59% · Elfos 50% · Faeries 47% · Control 29% — o aceite "nenhuma abaixo de 45%" fica aberto pelo Control (B24, 16º-se) | B22 | 9 | 16º-z2 |
 | 16º-sd ✅ | B23 o Shark usa bem cada carta das cinco listas: fatia 1 ✅ (B-180) auditoria carta a carta (`bot.cartas.mjs`, 76 cartas, 40 partidas): 6 cartas ficam na mão, 5 com alvo no próprio lado por erro; fatia 2 ✅ (B-181) alvo no próprio lado + avaliaV6 (o −3/−0 na própria criatura dava +4), neutro em força (47 × 48), ligado; fatia 3 ✅ (B-182) loucura e descarte conferidos (Fiery Temper 14/20 contando a loucura), sem mudança no Shark; fatia 4 ✅ (B-183) a decisão do outro na resolução (Deem Inferior 1/13 → 13/14), 49 × 47, ligado; fatia 5 ✅ (B-184) jogar em volta: o outro responde com a mágica do Shark na pilha (anula, tira o alvo), 51 × 47, ligado; fatia 6 ✅ (B-185) fechamento: reserva pelo alvo (29 × 24) e resposta no meu turno (o Dispel na Counterspell que anulava a minha ameaça; 48 × 46), auditoria final sem "não usa" (69 usam, 5 a revisar declaradas), força por lista com 208 decididas no painel, p95 dentro do orçamento | B23 | 6 | 16º-sa |
 | 16º-sz ✅ | B6 estável: o torneio Shark × sparring mede força por trabalho feito (relógio de contas), não pelo relógio da máquina — caía no CI (mais lento) e passava no clone, deixando o `main` vermelho e a fila parada (B-186, 01/11/2026) | B | 1 | 16º-sd |
@@ -14605,6 +14611,65 @@ sentinela do Pauper mantém as novas jogando. Outro formato entra quando chegar 
 - **Fora:** iOS antes do Android.
 
 ---
+
+### DS-K3 · Vitrine e Movimento (trilha `geral`; MV-9 na `jogabilidade`; decisão do dono de 08/11/2026)
+
+**Por que existe.** O app ainda lê como "não profissional" fora da mesa: um plano só, separado por borda de 1 px; latão em toda
+parte; veio uniforme sem fonte de luz; quase nenhuma imagem de carta fora da mesa; composição de folheto; estado vazio genérico;
+barra inferior colada. No movimento: 139 `@keyframes` sem gramática comum, nenhuma transição entre telas (`hashchange` seco),
+listas que saltam, "molas" em `cubic-bezier`, espera que pulsa sem luz. As duas propostas (artefatos "DS-K3 · Vitrine", 07/11, e
+"DS-K3 · Movimento", 08/11; índices `claude/DESIGN-proposta-K3-vitrine-2026-11-07.md` e `claude/DESIGN-proposta-K3-movimento-2026-11-08.md`)
+foram aprovadas com "seguir com todo o plano" e as opções recomendadas: veio sai do fundo, arte inclina por padrão (P7, opcional),
+barra recolhe ao rolar, navegação com direção e elemento compartilhado, três níveis de movimento, os cinco gestos, ordem intercalada.
+**A MV-10 (abertura com a montagem elevada e a marca Estante → "The Shelf") fica fora até o dono decidir**; o nome "The Shelf" também.
+
+**Gramática (R1–R5).** Tudo vem de onde está · avançar afasta, voltar aproxima · mola para o que pousa, saída curta para o que vai ·
+o dedo manda · uma coisa por vez (um herói por tela, `--calma` entre dois movimentos grandes, laço só em marca e espera).
+
+**Ordem (22 levas):** K3-0+MV-0 → K3-1 → MV-4 → K3-2 → MV-1 → K3-3+K3-4 → K3-5 → K3-6 → K3-7 → K3-8+MV-3 → K3-9 → MV-2 → K3-10 →
+K3-11 → MV-5 → MV-6 → K3-12 → MV-11 → MV-8 → MV-9 → FA-1 → FA-M → FA-2; depois, MV-10 com o dono.
+
+| Fatia | O que entrega | Estado |
+|---|---|---|
+| **K3-0 + MV-0** | tokens de material e de movimento, três níveis em Aparência, `/ds` Material e Molas | ✅ G-357 |
+| K3-1 | superfície por luz e grão (cartões e folhas em degraus, veio sai do fundo); capturas das 20 telas antes e depois | ⬜ |
+| MV-4 | família de espera: imperceptível · curta (fio que percorre) · média (esqueleto com luz) · longa (anel + odômetro + frase) · imagem de carta · sem rede | ⬜ |
+| K3-2 | barra inferior flutuante (vidro só nela, com reserva opaca) | ⬜ |
+| MV-1 | navegação com direção (avançar afasta, voltar aproxima) e elemento compartilhado; reserva em esmaecer sem View Transitions | ⬜ |
+| K3-3 + K3-4 (+ MV-7) | barra que recolhe ao rolar; cabeçalho editorial que recolhe | ⬜ |
+| K3-5 | ladrilho com arte da carta-chave sob véu | ⬜ |
+| K3-6 | vitrine vazia (estado vazio com arte e um próximo passo) | ⬜ |
+| K3-7 | Início na direção Vitrine | ⬜ |
+| K3-8 + MV-3 | Coleção; FLIP, odômetro e chips | ⬜ |
+| K3-9 | Lista (hero com arte, posse) | ⬜ |
+| MV-2 | ladrilho → destaque e espiar | ⬜ |
+| K3-10 | Notícias e scanner | ⬜ |
+| K3-11 | Perfil | ⬜ |
+| MV-5 | retorno de ação (feedback) | ⬜ |
+| MV-6 | os cinco gestos | ⬜ |
+| K3-12 | receitas de movimento no `/ds` (P7: arte que inclina, ±`--tilt-max`, opcional) | ⬜ |
+| MV-11 | ícones vivos 2 (navegação preenche, ação confirma, estado bate uma vez, ilustração se desenha) | ⬜ |
+| MV-8 | momentos e tema que troca em círculo | ⬜ |
+| MV-9 | ponte da mesa: entrar e sair da partida (trilha `jogabilidade`) | ⬜ |
+| FA-1 · FA-M | medir no aparelho (quadros, tarefas longas) material e movimento | ⬜ |
+| FA-2 | aposentar os apelidos (`--bg-elev-*`, `--shadow-*`, `--ease-spring`, `--ease-mola`) e fechar contra as telas-modelo | ⬜ |
+| MV-10 | abertura e marca | ⏸ adiada pelo dono (08/11) |
+
+#### K3-0 + MV-0 · tokens de material e de movimento (✅ G-357, 08/11/2026)
+- **Valor:** a base para o app ganhar luz e movimento com um só vocabulário; e quem prefere menos movimento escolhe entre três níveis.
+- **Aceite:** `:root` ganha `--elev-0..4`, `--edge`/`--edge-strong`, `--shadow-contact`/`--shadow-key`/`--shadow-float`, `--lacquer`,
+  `--grain`, `--scrim-art` com `--fg-sobre-arte`(-muted), `--radius-4` 22 px, `--tilt-max` 6°, `--navbar-h` 64 px, nos dois temas e
+  no claro automático; `--dur-0` 60 ms, `--dur-5` 600 ms, `--escalona-1/2/3` 60/90/140 ms, `--mola-firme/macia/suave` em `linear()`
+  (rigidez 220/170/120, amortecimento 18/14/16, massa 1; par de duração 280/420/600 ms), `--sai`, `--desloc-1/2/3` 8/16/32 px,
+  `--z-recuo` −40 / `--z-chega` −120 px, `--calma` 300 ms. Perfil › Aparência › Movimento: Completo (segue o aparelho) · Moderado
+  (distâncias de 4–8 px, sem profundidade nem inclinação, molas viram saída suave, nada acima de `--dur-3`) · Reduzido (tudo parado);
+  a escolha antiga "Menos movimento" continua valendo como Reduzido. `/ds`: seção Material (cinco degraus, arte com véu) e as três molas.
+- **Testes:** contrato visual (tokens nos três blocos, degraus em direção à luz, AA de `--fg` em todos os degraus, AA do texto sobre o
+  véu, molas que começam em 0 e terminam em 1 com repique ≤ 14 %, valores de moderado e reduzido); `theme.unit` (três níveis);
+  e2e "G-356" (360, dois temas, `auditaTela`, três níveis trocam distância e curva na hora e ficam guardados); D2 e D10 ajustados ao
+  segmentado e às duas durações novas.
+- **Depende de:** DS-K, DS-K2. **Fora:** nenhuma tela usa os tokens novos ainda (começa na K3-1); `--brass-soft` da proposta não
+  entrou (é o `--accent-soft`, que já muda com o acento).
 
 ## Trilha homologacao · prova de partida do catálogo (H)
 

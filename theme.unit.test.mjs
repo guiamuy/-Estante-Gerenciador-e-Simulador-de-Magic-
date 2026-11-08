@@ -92,10 +92,11 @@ test('D2 · acento, movimento e vibração: atributos, validação, e quem ouve 
   const store = P.memoryStore(); const d = documento(); const ouvidas = [];
   const th = T.createTheme(store, janela('dark'), { documentElement: d.root, querySelectorAll: () => [] }, { aoAparencia: a => ouvidas.push(a.vibracao) });
   await th.init();
-  assert.deepEqual(JSON.parse(JSON.stringify([th.ACENTOS, th.MOVIMENTOS])), [['latao', 'cobre', 'prata', 'jade'], ['sistema', 'reduzido']]);
+  assert.deepEqual(JSON.parse(JSON.stringify([th.ACENTOS, th.MOVIMENTOS])), [['latao', 'cobre', 'prata', 'jade'], ['sistema', 'moderado', 'reduzido']]); // DS-K3 MV-0 · três níveis
   await th.setAparencia({ acento: 'jade', movimento: 'reduzido', vibracao: false });
   assert.equal(d.root.attrs['data-acento'], 'jade'); assert.equal(d.root.attrs['data-movimento'], 'reduzido');
   assert.equal(ouvidas.at(-1), false, 'quem ouve soube que a vibração desligou');
+  await th.setAparencia({ movimento: 'moderado' }); assert.equal(d.root.attrs['data-movimento'], 'moderado', 'DS-K3 MV-0 · moderado vira atributo');
   await th.setAparencia({ acento: 'neon', movimento: 'nenhum' });
   assert.equal('data-acento' in d.root.attrs, false, 'acento desconhecido volta ao latão'); assert.equal('data-movimento' in d.root.attrs, false);
   assert.equal(th.aparencia.vibracao, false, 'o que não veio no patch não muda');
