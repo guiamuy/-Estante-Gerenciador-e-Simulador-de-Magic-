@@ -21263,3 +21263,66 @@ test('e2e · A-264 preparo do dia: na primeira abertura com rede, tudo desce soz
   assert.match(await page.innerText('#home-offline-state'), /Tudo pronto/);
   assert.deepEqual(errors, []);
 });
+
+test('e2e · G-356 T-IDIOMA fatia 2: a folha da carta mostra o texto oficial impresso em português (nome, tipo e texto), troca para o original, guarda no aparelho; nunca impressa, sem internet e erro com nova tentativa', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  // dados de teste (não o texto oficial): as cartas ganham oracle_id; a busca "oracleid:… lang:pt" responde por carta
+  const pedidos = []; let delverFalha = true;
+  await page.route('https://api.scryfall.com/cards/collection', r => {
+    const ids = JSON.parse(r.request().postData()).identifiers;
+    const data = ids.map(i => achaNoDB(i)).filter(Boolean).map(c => ({ ...c, oracle_id: 'o-' + c.name, ...(c.name === 'Counterspell' ? { oracle_text: 'Counter target spell.' } : {}) }));
+    return r.fulfill({ json: { data, not_found: ids.filter(i => !achaNoDB(i)) } });
+  });
+  await page.route('https://api.scryfall.com/cards/search**', r => {
+    const q = new URL(r.request().url()).searchParams.get('q') || '';
+    const m = q.match(/^oracleid:o-(.+) lang:pt$/);
+    if (!m) return r.fallback();
+    pedidos.push(m[1]);
+    if (m[1] === 'Island') return r.abort('internetdisconnected');
+    if (m[1] === 'Delver of Secrets') return delverFalha ? r.abort('failed') : r.fulfill({ status: 404, json: { object: 'error', code: 'not_found' } });
+    return r.fulfill({ json: { object: 'list', has_more: false, data: [{ object: 'card', lang: 'pt', name: 'Counterspell', set: 'tst', collector_number: '7',
+      oracle_text: 'Counter target spell.', printed_name: 'Anular de Teste', printed_type_line: 'Mágica Instantânea', printed_text: 'Anule a mágica alvo, texto de teste com {U}.' }] } });
+  });
+  await createDeck(page, base, 'Azul', '4 Counterspell\n4 Delver of Secrets\n12 Island', 'livre');
+  const abre = async nome => { await page.click(`.deck-slot[data-name="${nome}"] .ds-card`); await page.waitForSelector('#card-viewer'); };
+  const fecha = async () => { await page.click('#ds-dialog-close'); await page.waitForSelector('#card-viewer', { state: 'detached' }); };
+  // 1 · impressa em português: título, tipo e texto em português, com o selo "oficial" e o símbolo de mana desenhado
+  await abre('Counterspell'); await page.waitForSelector('#card-idioma');
+  assert.equal(await page.innerText('#ds-dialog-title'), 'Anular de Teste');
+  assert.match(await page.innerText('#card-viewer .ds-visor__tipo'), /Mágica Instantânea/);
+  assert.match(await page.innerText('#card-oracle'), /Anule a mágica alvo, texto de teste com/);
+  assert.equal(await page.getAttribute('#card-oracle', 'lang'), 'pt-BR');
+  assert.equal(await page.locator('#card-oracle .ds-sym').count(), 1);
+  assert.match(await page.innerText('#card-idioma'), /Texto oficial em português/);
+  assert.ok((await page.$eval('#card-idioma-alterna', b => b.offsetHeight)) >= 44);
+  assert.equal(await page.locator('.ds-dialog .ds-btn--primary:visible').count(), 1, 'um primário');
+  await auditaTela(page, 'carta · texto em português (escuro)');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/g356-carta-pt.png' });
+  // 2 · ver o original: o inglês volta, com o título inglês; e volta ao português
+  await page.click('#card-idioma-alterna');
+  assert.equal(await page.innerText('#card-oracle'), 'Counter target spell.');
+  assert.equal(await page.getAttribute('#card-oracle', 'lang'), 'en');
+  assert.equal(await page.innerText('#ds-dialog-title'), 'Counterspell');
+  assert.match(await page.innerText('#card-idioma'), /Original em inglês/);
+  assert.ok(await page.evaluate(() => document.activeElement && document.activeElement.id === 'card-idioma-alterna'), 'o foco fica na troca');
+  await page.click('#card-idioma-alterna'); assert.equal(await page.innerText('#ds-dialog-title'), 'Anular de Teste');
+  // 3 · nunca saiu em português (depois de uma falha com internet: erro e Tentar de novo)
+  await fecha(); await abre('Delver of Secrets'); await page.waitForSelector('#card-idioma-erro');
+  assert.ok((await page.$eval('#card-idioma-de-novo', b => b.offsetHeight)) >= 44);
+  delverFalha = false; await page.click('#card-idioma-de-novo'); await page.waitForSelector('#card-idioma-nenhum');
+  assert.match(await page.innerText('#card-idioma-nenhum'), /não saiu impressa em português/);
+  assert.equal(await page.innerText('#ds-dialog-title'), 'Delver of Secrets');
+  // 4 · sem internet: o que está guardado aparece em português sem pedir de novo; o que não está vira aviso
+  await fecha(); await page.context().setOffline(true);
+  const antes = pedidos.length;
+  await abre('Counterspell'); await page.waitForSelector('#card-idioma');
+  assert.equal(await page.innerText('#ds-dialog-title'), 'Anular de Teste');
+  await fecha(); await abre('Delver of Secrets'); await page.waitForSelector('#card-idioma-nenhum'); // "nunca saiu" também fica guardado
+  assert.equal(pedidos.length, antes, 'no prazo, nada volta à rede');
+  await fecha(); await abre('Island'); await page.waitForSelector('#card-idioma-sem-rede');
+  assert.match(await page.innerText('#card-idioma-sem-rede'), /Sem internet: o texto em português aparece quando houver conexão/);
+  await page.context().setOffline(false);
+  for (const tema of ['dark', 'light']) { await page.evaluate(t => document.documentElement.setAttribute('data-theme', t), tema); await auditaTela(page, 'carta · aviso do idioma ' + tema); }
+  assert.deepEqual(errors.filter(e => !/status of 404/.test(e)), [], 'o 404 da Scryfall (carta nunca impressa em português) é o estado esperado, não erro do app');
+});

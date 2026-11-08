@@ -762,6 +762,8 @@ a { color: var(--accent); }
 .ds-precos__valor[data-moeda="brl"] { color: var(--accent); }
 .ds-visor__oracle { margin: var(--space-1) 0 0; padding: var(--space-3) var(--space-4); border-radius: var(--radius-2); background: var(--bg-elev-2); border: 1px solid var(--border);
   font-size: var(--text-md); line-height: 1.5; white-space: pre-wrap; color: var(--fg); }
+/* G-356 · a linha do idioma do texto: selo (oficial em português / original em inglês) e a troca, no mesmo respiro do texto */
+.ds-visor__idioma { margin-top: var(--space-2); gap: var(--space-2); align-items: center; }
 
 /* U4 · sem internet mais visual: anel de progresso, linha por item com estado desenhado, aviso de uma linha */
 .ds-anel { position: relative; flex: none; width: var(--anel, 64px); height: var(--anel, 64px); display: grid; place-items: center; }
@@ -6226,10 +6228,35 @@ function createScryfall(opts = {}) {
     async impressao(set, numero, lang = '', { prioridade = 'normal' } = {}) {
       const data = await schedule(() => request('/cards/' + [set, numero, lang].filter(Boolean).map(encodeURIComponent).join('/')), { prioridade });
       return !data || data.notFound || !data.name ? null : normalizeCard(data);
+    },
+    /** G-356 · T-IDIOMA fatia 2 (relatos #53/#66): o texto IMPRESSO da carta num idioma (pt, es), pela impressão mais nova
+        daquele idioma. null quando a carta nunca saiu impressa nele. O motor continua lendo o Oracle em inglês. */
+    async textoImpresso(oracleId, lang) {
+      if (!oracleId || !lang) return null;
+      const qs = `?q=${encodeURIComponent(`oracleid:${oracleId} lang:${lang}`)}&unique=prints&order=released&dir=desc&include_extras=true`;
+      const data = await schedule(() => request('/cards/search' + qs));
+      return !data || data.notFound || !Array.isArray(data.data) ? null : textoImpressoDe(data.data, lang);
     }
   };
 }
-return { ScryfallError, normalizeCard, originBlocked, createScryfall, BATCH_SIZE, MIN_INTERVAL_MS, TIMEOUT_MS };
+/** G-356 · da lista de impressões, a primeira no idioma pedido que traz o texto impresso (nome, tipo, texto; por face).
+    Impressão sem `printed_*` (a Scryfall às vezes só tem a imagem) não conta: melhor o inglês que um texto inventado. */
+function textoImpressoDe(cartas, lang) {
+  const limpo = v => (typeof v === 'string' && v.trim() ? v : '');
+  for (const c of cartas || []) {
+    if (!c || c.lang !== lang) continue;
+    const faces = Array.isArray(c.card_faces) ? c.card_faces.map(f => ({ nome: limpo(f.printed_name), tipo: limpo(f.printed_type_line), texto: limpo(f.printed_text) })) : [];
+    const nome = limpo(c.printed_name) || faces.map(f => f.nome).filter(Boolean).join(' // ');
+    const texto = limpo(c.printed_text) || faces.map(f => f.texto).filter(Boolean).join('\n//\n');
+    const tipo = limpo(c.printed_type_line) || (faces[0] ? faces[0].tipo : '');
+    const temTexto = !!limpo(c.oracle_text) || (Array.isArray(c.card_faces) && c.card_faces.some(f => limpo(f.oracle_text)));
+    // carta com regras precisa do texto impresso; carta sem regras (terreno básico, vanilla) basta o nome
+    if (!nome || (temTexto && !texto)) continue;
+    return { lang, nome, tipo, texto, faces: faces.some(f => f.nome) ? faces : [], set: c.set || '', numero: c.collector_number || '' };
+  }
+  return null;
+}
+return { ScryfallError, normalizeCard, originBlocked, createScryfall, textoImpressoDe, BATCH_SIZE, MIN_INTERVAL_MS, TIMEOUT_MS };
 })();
 
 /* ==== src/data/cards.js ==== */
@@ -6611,7 +6638,41 @@ function createRulings({ store, scryfall, agora = () => Date.now(), prazo = RULI
     lembraAberto(v) { store.set(RULINGS_ABERTO, !!v).catch(() => {}); }
   };
 }
-return { createCardRepo, faceDaFicha, baseDaFicha, palavrasDaFicha, textoDaFicha, chaveDaFicha, chaveDaArte, arteDaVariante, fichasPorVariante, norm, BASIC_CARDS, limpaRulings, temRulings, createRulings, RULINGS_PRAZO_MS };
+/* G-356 · T-IDIOMA fatia 2 (relatos #53/#66): o texto impresso da carta no idioma do app, guardado no aparelho pelo
+   oracle_id (vale para todas as impressões). "Nunca saiu neste idioma" também fica guardado, por menos tempo, para a
+   folha não perguntar de novo a cada toque. Falhou a busca: a cópia velha vale; sem cópia, o erro sobe e a folha
+   mostra o inglês com o aviso. */
+const TEXTO_IMPRESSO = (lang, k) => `cartas.texto.${lang}.${k}`;
+const TEXTO_IMPRESSO_PRAZO_MS = 30 * 24 * 60 * 60 * 1000;
+const TEXTO_IMPRESSO_NENHUM_MS = 7 * 24 * 60 * 60 * 1000;
+const chaveDoTextoImpresso = card => (card && typeof card.oracle_id === 'string' && card.oracle_id ? card.oracle_id : null);
+function createTextoImpresso({ store, scryfall, agora = () => Date.now() }) {
+  const le = async (lang, k) => { try { const g = await store.get(TEXTO_IMPRESSO(lang, k)); return g && typeof g.em === 'number' && 'dado' in g ? g : null; } catch (e) { return null; } };
+  const noPrazo = g => agora() - g.em < (g.dado ? TEXTO_IMPRESSO_PRAZO_MS : TEXTO_IMPRESSO_NENHUM_MS);
+  return {
+    /** A carta pode ter texto impresso para buscar? Precisa do oracle_id (básicos embutidos e cartas sem dados não têm). */
+    temChave: card => !!chaveDoTextoImpresso(card),
+    /** O que está guardado (sem rede): `{ dado, em }` ou null. `dado` null = nunca saiu neste idioma. */
+    async guardado(card, lang) { const k = chaveDoTextoImpresso(card); return k ? le(lang, k) : null; },
+    /** Guardado no prazo; senão busca. Devolve `{ dado, em, origem, velho? }`. */
+    async busca(card, lang, { forcar = false } = {}) {
+      const k = chaveDoTextoImpresso(card);
+      if (!k) return { dado: null, em: null, semChave: true };
+      const g = await le(lang, k);
+      if (g && !forcar && noPrazo(g)) return { ...g, origem: 'guardado' };
+      try {
+        const r = { dado: (await scryfall.textoImpresso(k, lang)) || null, em: agora() };
+        try { await store.set(TEXTO_IMPRESSO(lang, k), r); } catch (e) { /* sem disco: mostra assim mesmo */ }
+        return { ...r, origem: 'rede' };
+      } catch (e) {
+        if (g) return { ...g, origem: 'guardado', velho: true };
+        throw e;
+      }
+    }
+  };
+}
+return { createCardRepo, faceDaFicha, baseDaFicha, palavrasDaFicha, textoDaFicha, chaveDaFicha, chaveDaArte, arteDaVariante, fichasPorVariante, norm, BASIC_CARDS, limpaRulings, temRulings, createRulings, RULINGS_PRAZO_MS,
+  createTextoImpresso, TEXTO_IMPRESSO_PRAZO_MS, TEXTO_IMPRESSO_NENHUM_MS };
 })();
 
 /* ==== src/data/images.js ==== */
@@ -7321,6 +7382,11 @@ function painelBaseLocal({ local, files }) {
    Fechada por padrão: abrir busca (ou lê os guardados) e fica lembrado no aparelho. */
 let rulings = null;
 function usaRulings(servico) { rulings = servico || null; }
+/* G-356 · T-IDIOMA fatia 2 (relatos #53/#66): o texto impresso no idioma do app (`__m7.createTextoImpresso`), pelo boot.
+   O idioma das cartas é o português até a troca de idioma no Perfil (fatia 4); o motor segue no Oracle em inglês. */
+let textoImpresso = null;
+function usaTextoImpresso(servico) { textoImpresso = servico || null; }
+const IDIOMA_DAS_CARTAS = 'pt';
 const dataDoRuling = d => (d ? d.split('-').reverse().join('/') : 'sem data');
 function secaoRulings(card) {
   if (!rulings || !__m7.temRulings(card)) return null;
@@ -7379,6 +7445,36 @@ function openCardViewer(card, extra = [], { quantidade = null, arteDesconhecida 
   let face = 0;
   const hasFaces = (card.faces || []).length > 1;
   const body = h('div', { id: 'card-viewer' });
+  // G-356 · o texto impresso em português: estado 'sem' (carta sem oracle_id ou sem o serviço), 'buscando', 'pronto'
+  // (dado = texto impresso, ou null = nunca saiu em português), 'semRede', 'erro'. `original` mostra o inglês por escolha.
+  const tr = { estado: textoImpresso && textoImpresso.temChave(card) ? 'buscando' : 'sem', dado: null, original: false, run: 0 };
+  async function carregaTexto(forcar = false) {
+    const run = ++tr.run;
+    let g = null;
+    if (!forcar) { try { g = await textoImpresso.guardado(card, IDIOMA_DAS_CARTAS); } catch (e) { g = null; } if (run !== tr.run) return;
+      if (g) { tr.dado = g.dado; tr.estado = 'pronto'; paint(); } }
+    if (!g && tr.estado !== 'buscando') { tr.estado = 'buscando'; paint(); }
+    try {
+      const r = await textoImpresso.busca(card, IDIOMA_DAS_CARTAS, { forcar });
+      if (run !== tr.run) return;
+      if (!g || r.origem === 'rede') { tr.dado = r.dado; tr.estado = 'pronto'; paint(); }
+    } catch (e) {
+      if (run !== tr.run || g) return; // com cópia guardada, a falha da renovação não muda a folha
+      tr.estado = typeof navigator !== 'undefined' && navigator.onLine === false ? 'semRede' : 'erro'; paint();
+    }
+  }
+  const linhaDoIdioma = () => {
+    if (tr.estado === 'buscando') return __m3.Carregando('Buscando o texto em português…', { tamanho: 'linha', id: 'card-idioma-buscando' });
+    if (tr.estado === 'semRede') return AvisoRede('Sem internet: o texto em português aparece quando houver conexão.', { id: 'card-idioma-sem-rede' });
+    if (tr.estado === 'erro') return Row({ class: 'ds-row--wrap ds-visor__idioma', id: 'card-idioma-erro' },
+      Text('Não foi possível buscar o texto em português.', { size: 'xs', tone: 'subtle' }), h('div', { class: 'ds-grow' }),
+      Button('Tentar de novo', { variant: 'ghost', icone: 'atualizar', id: 'card-idioma-de-novo', onClick: () => carregaTexto(true) }));
+    if (tr.estado !== 'pronto') return null;
+    if (!tr.dado) return Text('Esta carta não saiu impressa em português: o texto fica em inglês por enquanto.', { size: 'xs', tone: 'subtle', attrs: { id: 'card-idioma-nenhum' } });
+    return Row({ class: 'ds-row--wrap ds-visor__idioma', id: 'card-idioma' },
+      Badge(tr.original ? 'Original em inglês' : 'Texto oficial em português', { tone: tr.original ? undefined : 'accent' }), h('div', { class: 'ds-grow' }),
+      Button(tr.original ? 'Ver em português' : 'Ver o original', { variant: 'ghost', id: 'card-idioma-alterna', onClick: () => { tr.original = !tr.original; paint(); const b = body.querySelector('#card-idioma-alterna'); if (b) b.focus({ preventScroll: true }); } }));
+  };
   const rulingsBox = secaoRulings(card); // V2 · a mesma seção nas duas faces (os rulings são da carta)
 
   const paint = () => {
@@ -7387,10 +7483,19 @@ function openCardViewer(card, extra = [], { quantidade = null, arteDesconhecida 
     // não houver a normal. Antes o visualizador pedia a grande e dizia "não guardada" com a normal no cache.
     const imgs = (f && f.images) || card.images || {};
     const img = imgs.normal || imgs.large || imgs.small || null;
-    const name = f ? f.name : card.name;
-    const typeLine = f ? f.type_line : card.type_line;
-    const oracle = f ? f.oracle_text : card.oracle_text;
+    // G-356 · com o texto impresso em português (e sem "Ver o original"), nome, tipo e texto vêm dele; face sem texto
+    // impresso fica no inglês, marcada com lang="en"
+    const imp = tr.estado === 'pronto' && tr.dado && !tr.original ? tr.dado : null;
+    const fi = imp && hasFaces ? imp.faces[face] || null : null;
+    const doImp = { nome: imp ? (hasFaces ? fi && fi.nome : imp.nome) : '', tipo: imp ? (hasFaces ? fi && fi.tipo : imp.tipo) : '', texto: imp ? (hasFaces ? fi && fi.texto : imp.texto) : '' };
+    const name = doImp.nome || (f ? f.name : card.name);
+    const typeLine = doImp.tipo || (f ? f.type_line : card.type_line);
+    const oracleEn = f ? f.oracle_text : card.oracle_text;
+    const oracle = doImp.texto || oracleEn;
+    const oracleLang = doImp.texto ? 'pt-BR' : 'en';
     const cost = f ? f.mana_cost : card.mana_cost;
+    const titulo = typeof document !== 'undefined' && body.isConnected ? document.getElementById('ds-dialog-title') : null;
+    if (titulo) titulo.textContent = (imp && imp.nome) || card.name;
     const pt = (f ? f.power : card.power) != null ? `${f ? f.power : card.power}/${f ? f.toughness : card.toughness}` : null;
 
     const legal = Object.entries(card.legalities || {})
@@ -7432,8 +7537,9 @@ function openCardViewer(card, extra = [], { quantidade = null, arteDesconhecida 
         (hasFaces || cost) ? Row({ class: 'ds-visor__cabeca' }, hasFaces ? Text(name, { size: 'lg', display: true }) : null, h('div', { class: 'ds-grow' }),
           cost ? h('span', { class: 'ds-visor__custo' }, ComSimbolos(String(cost))) : null) : null,
         Row({ class: 'ds-row--wrap ds-visor__tipo' }, Text(typeLine || '', { size: 'sm', tone: 'muted' }), pt ? Badge(pt) : null, quantidade ? Badge(`você tem ${quantidade}`, { tone: 'accent' }) : null),
-        oracle ? h('p', { class: 'ds-visor__oracle', lang: 'en' }, ComSimbolos(oracle))
-               : Text('Sem texto de regras.', { size: 'sm', tone: 'subtle' })),
+        oracle ? h('p', { class: 'ds-visor__oracle', lang: oracleLang, id: 'card-oracle' }, ComSimbolos(oracle))
+               : Text('Sem texto de regras.', { size: 'sm', tone: 'subtle' }),
+        linhaDoIdioma()),
       rulingsBox ? h('div', { style: { height: 'var(--space-3)' } }) : null,
       rulingsBox,
       h('div', { style: { height: 'var(--space-4)' } }),
@@ -7456,9 +7562,11 @@ function openCardViewer(card, extra = [], { quantidade = null, arteDesconhecida 
   actions.push(...extra);
   actions.push(Button('Fechar', { variant: 'primary', onClick: closeDialog }));
 
-  return Dialog({ title: card.name, body, actions });
+  const dlg = Dialog({ title: card.name, body, actions });
+  if (tr.estado !== 'sem') carregaTexto();
+  return dlg;
 }
-return { createCardsScreen, openCardViewer, painelBaseLocal, usaRulings };
+return { createCardsScreen, openCardViewer, painelBaseLocal, usaRulings, usaTextoImpresso };
 })();
 
 /* ==== src/engine/scripts.js ==== */
@@ -14902,7 +15010,7 @@ const REGISTRO = [
   ['ui.entrada', 'aparelho', false], // G-274 · a porta de entrada já foi atravessada neste aparelho (com conta ou sem)
   ['uso.compartilhar', 'aparelho', false], ['uso.envio', 'aparelho', false], ['uso.scanner', 'aparelho', false], // G-286 · uso agregado opt-in: consentimento deste aparelho, último envio e leituras do scanner
   // derivado
-  ['card.', 'derivado', false], ['rulings.', 'derivado', false], ['scanner.artes', 'derivado', false], /* S-596 · base de artes do scanner (ramo artes) */ ['names.pt', 'derivado', false], ['names.es', 'derivado', false], ['names.it', 'derivado', false], ['names.fr', 'derivado', false], ['names.de', 'derivado', false], ['names.ja', 'derivado', false], ['names.zhs', 'derivado', false], ['names.zht', 'derivado', false], ['names.ko', 'derivado', false], ['names.ru', 'derivado', false], /* S-597 · S-598 · S-601 · S-614 · nomes impressos em outras línguas */ ['cambio.usd', 'derivado', false], ['names.catalog', 'derivado', false],
+  ['card.', 'derivado', false], ['rulings.', 'derivado', false], ['cartas.texto.', 'derivado', false], /* G-356 · texto impresso em português, pela Scryfall */ ['scanner.artes', 'derivado', false], /* S-596 · base de artes do scanner (ramo artes) */ ['names.pt', 'derivado', false], ['names.es', 'derivado', false], ['names.it', 'derivado', false], ['names.fr', 'derivado', false], ['names.de', 'derivado', false], ['names.ja', 'derivado', false], ['names.zhs', 'derivado', false], ['names.zht', 'derivado', false], ['names.ko', 'derivado', false], ['names.ru', 'derivado', false], /* S-597 · S-598 · S-601 · S-614 · nomes impressos em outras línguas */ ['cambio.usd', 'derivado', false], ['names.catalog', 'derivado', false],
   ['catalogo.indice', 'derivado', false], ['catalogo.lista.', 'derivado', false], ['catalogo.fichas', 'derivado', false], ['catalogo.motor', 'derivado', false], ['notificacoes', 'aparelho', false], // G-314 · a leitura é deste aparelho; a de cobertura nasce de novo dos pedidos (que vão no backup)
  
   ['fichas.opcoes', 'derivado', false], ['fichas.opcoes.fila', 'derivado', false], ['fichas.partes', 'derivado', false],
@@ -48606,6 +48714,7 @@ const images = createImageCache({ caches: typeof caches !== 'undefined' ? caches
 const localIndex = createLocalIndex({ store: platform.store });
 const cardRepo = createCardRepo({ store: platform.store, scryfall, local: localIndex });
 __m12.usaRulings(__m7.createRulings({ store: platform.store, scryfall })); // V2 · rulings no visualizador, guardados no aparelho
+__m12.usaTextoImpresso(__m7.createTextoImpresso({ store: platform.store, scryfall })); // G-356 · texto impresso em português na folha da carta
 const decks = createDeckStore({ store: platform.store });
 const collection = createCollection({ store: platform.store });
 // Leva 128 · perfil local e backup completo (listas + coleção + perfil + preferências), usado pelas telas Perfil e Listas
