@@ -21213,3 +21213,32 @@ test('e2e · G-343 Jogar guiado: lista → Shark → Começar abre a mesa → m�
     assert.deepEqual(errors, []);
   }
 });
+
+test('e2e · G-355 endereço novo ou backup restaurado: Listas baixa sozinha os dados das cartas que faltam e pinta as cores, com o progresso à vista', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'Azul', PAUPER);
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-backup-export');
+  const [download] = await Promise.all([page.waitForEvent('download'), page.click('#perfil-backup-export')]);
+  const texto = await (await download.createReadStream()).toArray().then(parts => Buffer.concat(parts).toString('utf8'));
+  // aparelho limpo (como um endereço novo): só o backup volta, sem nenhuma carta guardada
+  await page.evaluate(() => indexedDB.databases().then(ds => Promise.all(ds.map(d => new Promise(r => { const q = indexedDB.deleteDatabase(d.name); q.onsuccess = q.onerror = q.onblocked = r; })))));
+  await page.reload(); await page.waitForSelector('#perfil-backup-arquivo', { state: 'attached' });
+  // a Scryfall falsa responde devagar: dá para ver o progresso antes das cores
+  await page.route(/api\.scryfall\.com\/cards\/collection/, async r => { await new Promise(ok => setTimeout(ok, 600)); await r.fallback(); });
+  await page.setInputFiles('#perfil-backup-arquivo', { name: 'estante-backup.json', mimeType: 'application/json', buffer: Buffer.from(texto) });
+  await page.waitForSelector('#ds-toast[data-open="true"]');
+  await page.goto(base + '#/listas'); await page.waitForSelector('#decks-list .deck-linha');
+  await page.waitForSelector('#decks-baixando-texto', { timeout: 4000 });
+  assert.match(await page.innerText('#decks-baixando-texto'), /^Baixando os dados das cartas · \d+ de \d+$/);
+  await auditaTela(page, 'listas · baixando os dados das cartas');
+  // sem abrir a lista: as cores chegam e o aviso some
+  await page.waitForFunction(() => { const p = document.querySelector('#decks-list .deck-linha .ds-pips'); return p && /azul/i.test(p.getAttribute('aria-label') || ''); }, null, { timeout: 8000 });
+  await page.waitForFunction(() => !document.querySelector('#decks-baixando-texto'), null, { timeout: 4000 });
+  // uma vez só: voltar à estante não pede de novo o que já desceu
+  let pedidos = 0; page.on('request', q => { if (/cards\/collection/.test(q.url())) pedidos++; });
+  await page.goto(base + '#/inicio'); await page.goto(base + '#/listas'); await page.waitForSelector('#decks-list .deck-linha .ds-pips');
+  await page.waitForTimeout(500);
+  assert.equal(pedidos, 0, 'o que já está guardado não volta à Scryfall');
+  assert.deepEqual(errors, []);
+});
