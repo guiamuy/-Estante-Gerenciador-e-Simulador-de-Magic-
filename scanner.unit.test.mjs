@@ -1459,3 +1459,27 @@ test('S-618 · a pilha guarda o idioma da linha: a cópia phyrexiana não se jun
   assert.equal(a.lang, 'ph'); assert.equal(a.conferir, true); assert.equal(a.score, undefined);
   assert.equal(itens.find(x => x.key === en).lang, undefined);
 });
+
+test('S-620 · relato #79: nome com "!" ("Yip Yip!") entra na primeira leitura, com o "!" lido como l, i, 1 ou |', () => {
+  const ix = X.buildIndex(['Yip Yip!', 'Kaboom!', 'Ach! Hans, Run!', ...REAL, ...DECOYS]);
+  const confiavel = t => X.leituraConfiavel(X.matchName(ix, t), { peloContorno: true });
+  for (const t of ['Yip Yip!', 'Yip Yipl', 'Yip Yipi', 'Yip YipI', 'Yip Yip1', 'Yip Yip|', 'Yip Yip', 'l Yip Yipl', 'Yip Yipl W', 'YIP YIPL']) {
+    const f = X.matchName(ix, t);
+    assert.equal(f[0] && f[0].name, 'Yip Yip!', t);
+    assert.equal(f[0].score, 1, t);
+    assert.ok(confiavel(t), `${t} entra na primeira leitura`);
+  }
+  assert.equal(X.matchName(ix, 'Kabooml')[0].name, 'Kaboom!');
+  assert.ok(confiavel('Kaboom!'));
+  assert.ok(confiavel('Achl Hans, Runl'));
+  // o nome que termina mesmo em "l" não muda: o "l" lido como "!" segue sendo "l" (Counterspell idêntica, como antes)
+  assert.equal(X.matchName(ix, 'Counterspel!')[0].name, 'Counterspell');
+  assert.equal(X.matchName(ix, 'Counterspell')[0].exata, true);
+  assert.ok(confiavel('Counterspel!'));
+});
+
+test('S-620 · a grafia com "l" no lugar do "!" nunca toma a chave de outra carta', () => {
+  const ix = X.buildIndex(['Boom!', 'Booml', ...REAL]);
+  assert.equal(X.matchName(ix, 'Booml')[0].name, 'Booml');
+  assert.equal(X.matchName(ix, 'Boomi')[0].name, 'Boom!');
+});

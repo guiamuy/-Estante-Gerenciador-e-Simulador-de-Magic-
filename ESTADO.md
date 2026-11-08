@@ -19,7 +19,7 @@ Marcos: Pauper 100% (as sete listas revisadas carta a carta; 682 de 685 listas P
 
 | Trilha | Prefixo | Foco atual | Última leva | Próximo |
 |---|---|---|---|---|
-| `scanner` | S | X16/X20: tela nova do scanner, edição e arte pela impressão, idiomas impressos (coreano, russo, phyrexiano) — relatos #60–#65 | S-618 · 07/11 | #65 lixo no fim do nome (rotina, em curso); X15 melhor quadro ▶ |
+| `scanner` | S | X16/X20: tela nova do scanner, edição e arte pela impressão, idiomas impressos (coreano, russo, phyrexiano) — relatos #60–#65 | S-618 · 07/11; S-620 | #65 lixo no fim do nome (rotina, em curso); X15 melhor quadro ▶ |
 | `geral` | G | T-IDIOMA (#53/#66): interface em português (G-353) e cartas em português oficial (G-356) | G-356 · 08/11 | T-IDIOMA fatia 3: tradução precisa (glossário + conferidor) |
 | `motor` | M | leitor dos competitivos (Requiting Hex, afligir como custo); sentinela Pauper | M-612 · 08/11 | M-613 Umbral Collar Zealot ▶; CR2c.2 "destruir todas"; #58 espera o dono |
 | `radar` | R | BI4 · Painel Estante: comparar períodos, metas, tendência | R-44 · 07/11 | BI4-6 em diante; validação do dono após os primeiros pilares |

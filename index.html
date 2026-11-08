@@ -45134,6 +45134,16 @@ function buildIndex(names, apelidos = []) {
   // (o nome que é outro com uma ou duas letras COLADAS na frente, "Revitalize" / "Vitalize", é conferido na leitura, em matchName)
   const sufixos = new Set();
   for (const k of exatos.keys()) for (let i = k.indexOf(' '); i > 0; i = k.indexOf(' ', i + 1)) { const fim = k.slice(i + 1); if (exatos.has(fim)) sufixos.add(fim); }
+  /* S-620 · relato #79 ("Yip Yip!" nunca era lida): o leitor do nome não tem "!" na lista de letras e a limpeza do OCR troca
+     "!" por "l" (é como o "l" costuma sair), então a leitura perfeita virava "yip yipl" (nota 0,93): nunca idêntica, nunca na
+     primeira leitura, e com reflexo as três leituras seguidas não vinham. O nome com "!" responde também pela grafia em que o
+     "!" saiu como "l" ou "i" — só quando essa grafia não é a chave de outra carta. */
+  for (const e of index) {
+    if (!e.name.includes('!')) continue;
+    const lado = e.name.split(' // ')[0];
+    if (!lado.includes('!') || simple(lado) !== e.key) continue;
+    for (const troca of ['l', 'i']) { const k = simple(lado.replace(/!/g, troca)); if (k !== e.key && !exatos.has(k)) exatos.set(k, e.name); }
+  }
   Object.defineProperty(index, 'exatos', { value: exatos, enumerable: false });
   Object.defineProperty(index, 'prefixos', { value: prefixos, enumerable: false });
   Object.defineProperty(index, 'sufixos', { value: sufixos, enumerable: false });
@@ -45174,7 +45184,11 @@ function matchName(index, text, { limit = 3 } = {}) {
   const semFrente = q0.replace(/^(?:[a-z,'\-]{1,2} )+(?=[a-z,'\-]{3})/, '');
   if (index.exatos && index.exatos.has(q0)) return [{ name: index.exatos.get(q0), score: 1, exata: true, ...(index.prefixos.has(q0) ? { prefixo: true } : {}) }];
   const best = new Map();
-  for (const q of semFrente !== q0 && semFrente.length >= 3 ? [q0, semFrente] : [q0]) matchInto(best, index, q);
+  for (const q of semFrente !== q0 && semFrente.length >= 3 ? [q0, semFrente] : [q0]) {
+    matchInto(best, index, q);
+    // S-620 · a grafia de um nome com "!" (o "!" lido como "l") só existe em `exatos`: idêntica a ela vale como o nome inteiro
+    const n = index.exatos && index.exatos.get(q); if (n) best.set(n, 1);
+  }
   const out = [...best.entries()].map(([name, score]) => ({ name, score: Math.round(score * 1000) / 1000 }))
     .sort((a, b) => b.score - a.score || a.name.length - b.name.length).slice(0, limit);
   /* S-617 · relato #65 (velocidade do nome): a leitura que, tirado só o lixo da frente ("l Delver of Secrets", "i Arcane

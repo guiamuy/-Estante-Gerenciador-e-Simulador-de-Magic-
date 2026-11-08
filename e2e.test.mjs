@@ -2018,6 +2018,9 @@ test('e2e · S-607 relato #60/#64: carta sem edição é marcada na pilha, a fol
   // I-329 · a edição do Counterspell (linha de coleção MH2 #267) chega da Scryfall depois que a carta entra na pilha: com a máquina
   // carregada (quatro navegadores no portão) o lote abria antes e mostrava, com razão, "sem edição". O teste espera a resposta.
   await page.waitForFunction(() => !/Escolha a edição|sem edição/.test((document.querySelector('#scan-pile') || {}).innerText || 'sem edição'), null, { timeout: 15000 });
+  // S-620 · a edição da Counterspell (linha de coleção) chega depois da carta na pilha: sob carga o Guardar vinha antes dela
+  // e a carta entrava "sem edição" (caiu duas vezes no portão de 09/11). Espera explícita, a asserção não muda.
+  await page.waitForFunction(() => { const c = document.querySelector('#scan-pile .scan-pile__card[data-name="Counterspell"]'); return c && !/Escolha a edição|sem edição/.test(c.innerText); }, null, { timeout: 8000 });
   await page.click('#scan-pile-commit'); await page.waitForSelector('#scan-lot-list');
   assert.equal(await page.locator('#scan-lot-sem-edicao').count(), 0, 'nada sem edição: sem aviso');
   await page.click('#scan-commit');
