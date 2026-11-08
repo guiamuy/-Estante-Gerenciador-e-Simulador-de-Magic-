@@ -20424,18 +20424,39 @@ test('e2e · DS-K FA.1 · orçamento das receitas da geral com CPU 4×: folha (d
   await page.addInitScript(FAKE_DEVICE(false));
   await page.setViewportSize({ width: 360, height: 780 });
   const cdp = await page.context().newCDPSession(page);
-  const mede = async (nome, acao, ms) => {
+  const janela = async (acao, ms) => {
     await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
-    await page.evaluate(() => { window.__qa = { quadros: 0, longas: [] }; const conta = () => { if (!window.__qa.fim) { window.__qa.quadros++; requestAnimationFrame(conta); } }; requestAnimationFrame(conta);
-      try { new PerformanceObserver(l => { for (const e of l.getEntries()) window.__qa.longas.push(Math.round(e.duration)); }).observe({ type: 'longtask', buffered: false }); } catch (e) { /* sem longtask */ } window.__qa.t0 = performance.now(); });
+    // cada janela conta só o que é dela: contador e observador próprios, encerrados no fim (janelas seguidas não se somam)
+    await page.evaluate(() => { const qa = { quadros: 0, longas: [], fim: false }; window.__qa = qa; const conta = () => { if (!qa.fim) { qa.quadros++; requestAnimationFrame(conta); } }; requestAnimationFrame(conta);
+      try { qa.obs = new PerformanceObserver(l => { for (const e of l.getEntries()) qa.longas.push(Math.round(e.duration)); }); qa.obs.observe({ type: 'longtask', buffered: false }); } catch (e) { /* sem longtask */ } qa.t0 = performance.now(); });
     await acao(); await page.waitForTimeout(ms);
-    const q = await page.evaluate(() => { window.__qa.fim = true; const s = (performance.now() - window.__qa.t0) / 1000; return { fps: Math.round(window.__qa.quadros / s), longas: window.__qa.longas }; });
+    const q = await page.evaluate(() => { const qa = window.__qa; qa.fim = true; if (qa.obs) qa.obs.disconnect(); const s = (performance.now() - qa.t0) / 1000; return { fps: Math.round(qa.quadros / s), longas: qa.longas }; });
     await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
-    t.diagnostic(`FA.1 · ${nome} com CPU 4×: ${q.fps} quadros/s, tarefas longas ${JSON.stringify(q.longas)}`);
+    return q;
+  };
+  // I-327 · calibrado pela máquina (decisão do dono, 08/11/2026): o portão passou a rodar em máquinas de velocidade
+  // variável (sessões de nuvem, PC), e "CPU 4×" numa máquina mais lenta é um celular mais lento que o do orçamento — o
+  // FA.1 caía igual no main de antes de qualquer leva. Agora cada medida tem um controle na mesma máquina: a mesma ação
+  // com "reduzir movimento" (sem a receita: sem véu animado, mola, sombra nem varredura). O orçamento continua 45 quadros/s
+  // e 100 ms; só onde a própria máquina não chega nisso sem a receita é que a régua vira "a receita não tira mais que
+  // 5 quadros/s nem soma mais que 30 ms à pior tarefa do controle". Numa máquina rápida, nada muda.
+  const mede = async (nome, acao, ms, desfaz) => {
+    // três janelas de cada (a mediana tira o ruído de uma janela só: a mesma receita mediu de 43 a 52 quadros/s na mesma
+    // máquina); a receita primeiro, o controle depois (já aquecido): a ordem favorece o controle, nunca a receita
+    const tres = async () => { const r = []; for (let i = 0; i < 3; i++) { r.push(await janela(acao, ms)); if (desfaz) await desfaz(); } return r; };
+    const mediana = v => [...v].sort((x, y) => x - y)[1];
+    const resumo = r => { const pior = x => Math.max(0, ...x.longas); const m = [...r].sort((x, y) => pior(x) - pior(y))[1]; return { fps: mediana(r.map(x => x.fps)), longas: m.longas }; };
+    const q = resumo(await tres());
+    await page.emulateMedia({ reducedMotion: 'reduce' }); await page.waitForTimeout(300);
+    const c = resumo(await tres());
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    const piorC = Math.max(0, ...c.longas);
+    const minFps = Math.min(45, c.fps - 5), tetoTarefa = Math.max(100, piorC + 30);
+    t.diagnostic(`FA.1 · ${nome} com CPU 4×: ${q.fps} quadros/s, tarefas longas ${JSON.stringify(q.longas)} · controle sem a receita: ${c.fps} quadros/s, ${JSON.stringify(c.longas)} · régua ${minFps} quadros/s, ${tetoTarefa} ms`);
     // com CPU 4×, 50 ms são 12,5 ms reais: a coleta de lixo ou o próprio teste cruzam essa linha sem ser da receita
     // (medido: 53 ms com a varredura acionada sozinha, sem JavaScript da tela). O teto é 100 ms (25 ms reais, um engasgo
     // que se vê); a fluidez é o número de quadros
-    assert.ok(q.fps >= 45, `${nome}: quadros com CPU 4× (${q.fps})`); assert.deepEqual(q.longas.filter(x => x > 100), [], `${nome}: sem tarefa acima de 100 ms com CPU 4×`);
+    assert.ok(q.fps >= minFps, `${nome}: quadros com CPU 4× (${q.fps}; controle ${c.fps})`); assert.deepEqual(q.longas.filter(x => x > tetoTarefa), [], `${nome}: sem tarefa acima de ${tetoTarefa} ms com CPU 4× (controle ${JSON.stringify(c.longas)})`);
   };
   // 1 · a folha: abrir o diálogo do catálogo (véu, mola, sombra). A primeira abertura logo depois de navegar paga o
   // JavaScript frio (montar o diálogo, simbolizar) e a montagem do /ds: medida em separado e anotada. O orçamento é o
@@ -20443,8 +20464,7 @@ test('e2e · DS-K FA.1 · orçamento das receitas da geral com CPU 4×: folha (d
   // animada, sem desfoque e sem vinheta — a receita não pesa)
   await page.goto(base + '#/ds'); await page.waitForSelector('#ds-open-dialog'); await page.waitForTimeout(800);
   await page.click('#ds-open-dialog'); await page.waitForSelector('.ds-dialog'); await page.waitForTimeout(400); await page.keyboard.press('Escape'); await page.waitForTimeout(300);
-  await mede('folha', () => page.click('#ds-open-dialog'), 700);
-  await page.keyboard.press('Escape');
+  await mede('folha', () => page.click('#ds-open-dialog'), 700, async () => { await page.keyboard.press('Escape'); await page.waitForTimeout(300); });
   // 2 · a varredura do primário
   const prim = page.locator('.ds-btn--primary', { hasText: 'Primário' }).first(); await prim.scrollIntoViewIfNeeded();
   // a receita sozinha: a marca que o toque põe (o toque do "Primário" do catálogo também abre um aviso, que não é da receita)
