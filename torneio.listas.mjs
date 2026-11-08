@@ -56,7 +56,7 @@ export { cartasReais, oficiaisTodos, listas, partida, listasDoShark };
 const ORC = +(process.env.ORC || 250), MUNDOSN = +(process.env.MUNDOS || 0);
 const cria = nivel => {
   if (nivel.startsWith('p:')) return B.criaBot({ nivel: 'shark', orcamentoMs: ORC, mundos: MUNDOSN, pesos: Object.fromEntries(nivel.slice(2).split(',').filter(Boolean).map(x => { const [k, v] = x.split('='); return [k, +v]; })) });
-  if (['shark', 'shark-v24', 'shark-v23', 'shark-v22', 'shark-v21', 'shark-v20', 'shark-v19', 'shark-v18', 'shark-v17', 'shark-v16', 'shark-v15', 'shark-v14', 'shark-v13', 'shark-v12', 'shark-v11', 'shark-v10', 'shark-v9', 'shark-v8', 'shark-v7', 'shark-v6', 'shark-v5', 'shark-v4'].includes(nivel)) return B.criaBot({ nivel, orcamentoMs: ORC, mundos: MUNDOSN });
+  if (['shark', 'shark-v25', 'shark-v24', 'shark-v23', 'shark-v22', 'shark-v21', 'shark-v20', 'shark-v19', 'shark-v18', 'shark-v17', 'shark-v16', 'shark-v15', 'shark-v14', 'shark-v13', 'shark-v12', 'shark-v11', 'shark-v10', 'shark-v9', 'shark-v8', 'shark-v7', 'shark-v6', 'shark-v5', 'shark-v4'].includes(nivel)) return B.criaBot({ nivel, orcamentoMs: ORC, mundos: MUNDOSN });
   if (/^t:\d+$/.test(nivel)) return B.criaBot({ nivel: 'shark', orcamentoMs: +nivel.slice(2), mundos: MUNDOSN }); // B-189 · 't:1600' = o Shark publicado com outro orçamento por decisão (sensibilidade ao tempo)
   if (/^shark:\d+$/.test(nivel)) return B.criaBot({ nivel: 'shark', orcamentoMs: 250, mundos: +nivel.split(':')[1] }); // leva 117 · 'shark:5' = Shark com 5 mundos
   // leva 132 · 'y:rolaAtaque,rolaJogada' = Shark v6 com as peças novas ligadas uma a uma

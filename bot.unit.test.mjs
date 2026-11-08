@@ -1206,7 +1206,9 @@ test('B-176 · ameaças do campo: AMEACAS_DO_CAMPO são cartas das cinco listas 
 test('B-176 · com a opção ameacas, na manutenção dos Elfos, com um Cast Down e Masked Vandal e Timberwatch Elf do outro lado, o Dimir Control mata o Timberwatch Elf; o Shark publicado (opção desligada: medida sem ganho) mata o Masked Vandal', async () => {
   const { s, ids } = await montaShark(CONTROLE, ELFOS, { ativo: 1, vez: 0, passo: 'upkeep',
     p0: { campo: ['Island', 'Swamp'], mao: ['Cast Down'] }, p1: { campo: ['Forest', 'Forest', 'Masked Vandal', 'Timberwatch Elf'] } });
-  const novo = B.criaBot({ nivel: 'shark', agora: relogioParado, extra: { ameacas: true } }).jogada(s, 0), velho = shark('shark').jogada(s, 0);
+  // B-203 · a opção `ameacas` (desligada, sem ganho) lê AMEACAS_DO_CAMPO pelo perfil escrito à mão: vale nos níveis congelados
+  // (`shark-v25`); o Shark publicado deriva o perfil da composição e não carrega a lista de nomes
+  const novo = B.criaBot({ nivel: 'shark-v25', agora: relogioParado, extra: { ameacas: true } }).jogada(s, 0), velho = shark('shark').jogada(s, 0);
   assert.deepEqual([novo.acao.t, novo.acao.oid, (novo.acao.targets || [])[0] && novo.acao.targets[0].oid], ['cast', ids[0]['Cast Down'], ids[1]['Timberwatch Elf']], 'novo: ' + novo.motivo);
   assert.deepEqual([velho.acao.t, velho.acao.targets && velho.acao.targets[0].oid], ['cast', ids[1]['Masked Vandal']], 'sem a opção, o corpo maior: ' + velho.motivo);
   // a parcela só existe do lado do Control, e só com a ameaça em campo
@@ -1500,4 +1502,41 @@ test('B-185 · no meu turno, o Dispel na Counterspell que anula o meu Murmuring 
   const sem = bot(false).jogada(s, 0), com = bot(true).jogada(s, 0);
   assert.ok(!dispel(sem), 'sem a opção: ' + sem.motivo);
   assert.ok(dispel(com), 'com a opção: ' + com.motivo);
+});
+
+// B-203 · B25 · o perfil sai do que as cartas fazem, não do nome (pedido do dono de 08/11/2026).
+const jogoDaLista = (d, entries = d.entries) => E.createGame({ format: 'pauper', seed: 3, mode: 'full', manaCheck: true, cards: d.cartas,
+  players: [{ name: 'P0', deck: entries }, { name: 'P1', deck: entries }] });
+const chavesDoPerfil = pf => pf ? J({ segura: !!pf.segura, desliga: pf.desliga || [], cemiterio: pf.cemiterio ? { ...pf.cemiterio, enquanto: [...pf.cemiterio.enquanto].sort() } : null }) : null;
+test('B-203 · nas cinco listas do Shark, o perfil derivado da composição dá as mesmas chaves que os PERFIS escritos à mão', async () => {
+  const { listasDoShark } = await import('./torneio.listas.mjs');
+  for (const d of listasDoShark()) {
+    const s = jogoDaLista(d);
+    assert.deepEqual(chavesDoPerfil(B.perfilDerivado(s, 0)), chavesDoPerfil(B.perfilDe(s, 0)), d.id + ': ' + JSON.stringify(B.tracosDaLista(s, 0)));
+  }
+});
+test('B-203 · sem a carta que o perfil à mão exigia, o perfil pelo nome some e o derivado continua: Terror sem Cryptic Serpent, Control sem Murmuring Mystic', async () => {
+  const { listasDoShark } = await import('./torneio.listas.mjs');
+  const L = listasDoShark(), troca = (d, nome) => d.entries.map(e => e.name === nome ? { ...e, name: 'Island' } : e);
+  const t = jogoDaLista(L[TERROR], troca(L[TERROR], 'Cryptic Serpent'));
+  assert.equal(B.perfilDe(t, 0), null, 'pelo nome: o Terror exigia a Serpent');
+  const pt = B.perfilDerivado(t, 0);
+  assert.deepEqual(J(pt.cemiterio.enquanto), ['Tolarian Terror'], 'a carta barateada sai da própria lista');
+  assert.ok(pt.segura && !pt.desliga);
+  const c = jogoDaLista(L[CONTROLE], troca(L[CONTROLE], 'Murmuring Mystic'));
+  assert.equal(B.perfilDe(c, 0), null, 'pelo nome: o Control exigia o Mystic');
+  assert.ok(B.perfilDerivado(c, 0).segura, 'seis instantâneas que anulam: segura');
+  assert.equal(B.perfilDerivado(jogoDaLista(L[MADNESS]), 0), null, 'sem traço, sem perfil');
+});
+test('B-203 · contrato: o código de decisão do Shark não tem nome de carta das cinco listas; nomes só nos dados (listas, PERFIS e AMEACAS_DO_CAMPO dos níveis congelados)', async () => {
+  const { readFileSync } = await import('node:fs');
+  const html = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
+  const ini = html.indexOf('/* ==== src/engine/bot.js'), fim = html.indexOf('/* ==== src/', ini + 10);
+  let src = html.slice(ini, fim).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  const tira = (de, ate) => { const a = src.indexOf(de); assert.ok(a >= 0, de); const b = src.indexOf(ate, a); src = src.slice(0, a) + src.slice(b + ate.length); };
+  tira('const AMEACAS_DO_CAMPO', ';'); tira('const PERFIS = [', '\n];');
+  const { listasDoShark } = await import('./torneio.listas.mjs');
+  const nomes = new Set(listasDoShark().flatMap(d => d.entries.map(e => e.name)).filter(n => !/^(Island|Forest|Swamp|Mountain|Plains)$/.test(n)));
+  const achados = [...nomes].filter(n => src.includes("'" + n + "'") || src.includes('"' + n + '"'));
+  assert.deepEqual(achados, [], 'nome de carta no código de decisão');
 });
