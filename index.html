@@ -47760,6 +47760,14 @@ function nomesDaLista(deck) { return [...new Set((deck && deck.entries || []).ma
 function createOfflineKeeper({ cardRepo, decks, collection, images, names, ocr, store, persistence = null, online = () => true, agora = () => Date.now(), prontas = null, caches = null }) {
   let emCurso = null, colecaoEmCurso = null, colecaoDeNovo = false, manterEmCurso = null;
   const semFalha = async (fn, padrao) => { try { return await fn(); } catch (e) { return padrao; } };
+  // A-264 · preparo do dia: quem está preparando sozinho e quem quer saber (a faixa do Início)
+  let diarioEmCurso = null;
+  const ouvintes = new Set();
+  const avisaPreparo = preparando => { for (const f of [...ouvintes]) { try { f({ preparando }); } catch (e) { /* quem ouve não derruba o preparo */ } } };
+  const diaDe = t => { const d = new Date(t); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+  /** A-264 · "tudo no aparelho": listas com dados e imagens, coleção, base de nomes e leitor do scanner. */
+  const completo = st => !!st && st.listas.prontas >= st.listas.total && st.colecao.pronta && st.nomes && st.leitor
+    && (!st.imagens || st.imagens.guardadas >= st.imagens.total);
 
   async function aquecer(cards, tamanho) {
     if (!images || !images.available || !online()) return 0;
@@ -47925,7 +47933,8 @@ function createOfflineKeeper({ cardRepo, decks, collection, images, names, ocr, 
           const nomes = [...new Set(prontas())];
           if (nomes.length) {
             onProgress({ etapa: 'listas', texto: 'Guardando as listas do Shark…' });
-            const r = await semFalha(() => guardar(nomes, null), { fixadas: [], faltando: nomes });
+            // A-264 · com as imagens do jogo: sem internet, as cartas do Shark aparecem na mesa como as suas
+            const r = await semFalha(() => guardar(nomes, ['small', 'normal']), { fixadas: [], faltando: nomes });
             rel.listas.fixadas += r.fixadas.length; rel.listas.faltando.push(...r.faltando.map(n => `Shark: ${n}`));
             if (store && !r.faltando.length) await semFalha(() => store.set('offline.prontas', `${nomes.length}:${nomes.slice(0, 5).join('|')}`), null);
           }
@@ -47971,6 +47980,32 @@ function createOfflineKeeper({ cardRepo, decks, collection, images, names, ocr, 
       })().finally(() => { manterEmCurso = null; });
       return manterEmCurso;
     },
+
+    /** A-264 · CARGA2 (pedido do dono, 08/11/2026): na primeira abertura do dia com rede, prepara tudo sozinho (o mesmo de
+        "Preparar tudo agora", leitor do scanner incluído) e só marca o dia quando tudo está no aparelho. Incompleto (rede caiu,
+        app fechado no meio, carta que a rede não trouxe), a próxima abertura, a volta ao app ou a rede que volta continuam.
+        Já completo hoje: devolve { ja: true } sem pedir nada à rede. Sem rede: null. */
+    diario() {
+      if (!online()) return Promise.resolve(null);
+      if (diarioEmCurso) return diarioEmCurso;
+      diarioEmCurso = (async () => {
+        const hoje = diaDe(agora());
+        const marcado = store ? await semFalha(() => store.get('offline.dia'), null) : null;
+        if (marcado === hoje) return { ja: true, completo: true };
+        avisaPreparo(true);
+        // começa quando o aparelho está ocioso: o preparo do dia não disputa a primeira tela com quem acabou de abrir o app
+        await new Promise(r => (typeof requestIdleCallback === 'function' ? requestIdleCallback(() => r(), { timeout: 5000 }) : setTimeout(r, 0)));
+        const rel = await api.prepararTudo();
+        const st = await semFalha(() => api.status(), null);
+        const ok = rel.rede && completo(st);
+        if (ok && store) await semFalha(() => store.set('offline.dia', hoje), null);
+        return { ...rel, completo: ok };
+      })().finally(() => { diarioEmCurso = null; avisaPreparo(false); });
+      return diarioEmCurso;
+    },
+    preparando: () => !!diarioEmCurso,
+    aoMudarPreparo(fn) { ouvintes.add(fn); return () => ouvintes.delete(fn); },
+    completo,
 
     /** Liga os ganchos: lista salva e coleção alterada são guardadas sozinhas (com rede). */
     vigiar({ atraso = 1500, timer = setTimeout, cancela = clearTimeout } = {}) {
@@ -48965,7 +49000,10 @@ function offlinePanel() {
       const r = await platform.persistence.request(); toast(r === 'protegido' ? 'Armazenamento protegido' : 'O navegador não liberou a proteção. Instale o app e mantenha backups em dia.', 3600); paint(); } }) : null;
     box.dataset.rede = String(!!st.rede); box.dataset.pronto = String(tudoPronto);
     box.dataset.compacto = 'true';
-    const estadoTxt = st.rede ? (tudoPronto ? 'Tudo pronto' : rs.faltam === 1 ? 'Falta preparar 1 item' : `Falta preparar ${rs.faltam} itens`) : 'Sem conexão agora'; // DS-K2 I2 · cabe numa linha da faixa em 360 px (a frase longa ia a duas linhas)
+    const sozinho = !tudoPronto && !!(keeper.preparando && keeper.preparando()); // A-264 · o preparo do dia está rodando
+    box.dataset.preparando = String(sozinho);
+    if (box.isConnected) box.dataset.montada = 'true';
+    const estadoTxt = st.rede ? (tudoPronto ? 'Tudo pronto' : sozinho ? 'Preparando sozinho…' : rs.faltam === 1 ? 'Falta preparar 1 item' : `Falta preparar ${rs.faltam} itens`) : 'Sem conexão agora'; // DS-K2 I2 · cabe numa linha da faixa em 360 px (a frase longa ia a duas linhas)
     const ver = Button('Ver', { variant: 'ghost', icone: 'seguir', id: 'home-offline-detalhes', classe: 'ds-offline__abrir', onClick: abreFolha });
     ver.setAttribute('aria-haspopup', 'dialog'); ver.setAttribute('aria-expanded', String(folhaAberta)); ver.setAttribute('aria-label', `Ver o que funciona sem internet · ${estadoTxt}`);
     const corpo = h('div', { class: 'ds-offline__corpo', id: 'home-offline-corpo' }, Stack({},
@@ -49006,6 +49044,8 @@ function offlinePanel() {
     toast(rel.rede ? partes.join(' · ') : 'Sem internet: não dá para preparar agora', 4000);
     paint(rel.listas.faltando.length ? Note(__m3.seguro`<b>A rede não trouxe:</b> ${rel.listas.faltando.slice(0, 6).join(', ')}${rel.listas.faltando.length > 6 ? '…' : ''}`, 'warning') : null);
   }
+  // A-264 · começou ou acabou o preparo do dia: a faixa acompanha (e para de ouvir quando sai da tela)
+  if (keeper.aoMudarPreparo) { const sai = keeper.aoMudarPreparo(() => { if (box.isConnected) paint(); else if (box.dataset.montada === 'true') sai(); }); }
   paint();
   return box;
 }
@@ -49129,7 +49169,10 @@ async function boot(root) {
   // Q10 · uma passada por vez (o guardião garante), e também ao voltar para o app (o celular suspende a aba e
   // perde o evento "online"); no máximo uma a cada 10 minutos por esse caminho
   let ultimaManutencao = 0;
-  const manter = () => { if (temRede()) { ultimaManutencao = Date.now(); keeper.manter().catch(() => {}); } };
+  // A-264 · primeiro o preparo do dia (completo, uma vez por dia; incompleto, continua na próxima vez); feito hoje, a manutenção leve
+  // (teste: window.__SEM_PREPARO_DIARIO mantém só a manutenção leve, para o preparo não disputar a máquina com o que o teste mede)
+  const semDiario = typeof window !== 'undefined' && window.__SEM_PREPARO_DIARIO === true;
+  const manter = () => { if (temRede()) { ultimaManutencao = Date.now(); (semDiario ? keeper.manter() : keeper.diario().then(r => (r && r.ja ? keeper.manter() : null))).catch(() => {}); } };
   setTimeout(manter, 4000);
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && Date.now() - ultimaManutencao > 10 * 60 * 1000) { redeDetectar().then(manter); } });
   // O2 · rede indo e voltando durante o uso: ambiente e chip acompanham

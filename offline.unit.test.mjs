@@ -456,3 +456,71 @@ test('DS-K · todo arquivo do PRECACHE existe no repositório (o addAll é atôm
     assert.ok(b.length < 40000, f + ' leve (subconjunto latino)');
   }
 });
+
+// A-264 · CARGA2 (pedido do dono, 08/11/2026): o preparo roda sozinho na primeira abertura do dia, de forma transparente,
+// e só para quando tudo estiver no aparelho (listas com imagens, coleção, base de nomes, leitor do scanner, listas do Shark).
+async function mundoDoDia(dia0 = Date.UTC(2026, 10, 8, 12)) {
+  let agoraMs = dia0;
+  const store = P.memoryStore();
+  const { st, api: scryfall } = scryfallFalsa();
+  const cardRepo = C.createCardRepo({ store, scryfall });
+  const decks = D.createDeckStore({ store });
+  const collection = D.createCollection({ store });
+  const images = imagensFalsas();
+  let baseInfo = null, leitores = 0;
+  const names = { info: () => baseInfo, load: async () => baseInfo, ensure: async () => { baseInfo = { count: 30000 }; return baseInfo; } };
+  const ocr = { warm: async () => { leitores++; return true; } };
+  const keeper = O.createOfflineKeeper({ cardRepo, decks, collection, images, names, ocr, store, online: () => st.rede, agora: () => agoraMs,
+    prontas: () => ['Lightning Bolt'] });
+  return { store, st, keeper, decks, collection, images, cardRepo, leitores: () => leitores, avanca: ms => { agoraMs += ms; } };
+}
+
+test('A-264 · primeira abertura do dia: prepara tudo sozinho (leitor do scanner incluído, mesmo sem preparo manual antes) e marca o dia como completo', async () => {
+  const m = await mundoDoDia();
+  await m.decks.save({ name: 'Delver', format: 'pauper', entries: [{ name: 'Delver of Secrets', qty: 4, zone: 'main' }] });
+  await m.collection.set('Sol Ring', 1);
+  const r = await m.keeper.diario();
+  assert.equal(r.completo, true, JSON.stringify(r));
+  assert.equal(m.leitores(), 1, 'o leitor do scanner desce na primeira vez, sem esperar o preparo manual');
+  const st = await m.keeper.status();
+  assert.ok(st.listas.prontas === 1 && st.colecao.pronta && st.nomes && st.leitor, JSON.stringify(st));
+  assert.ok(m.images.aquecidas.includes('https://img/Lightning Bolt/s.jpg') && m.images.aquecidas.includes('https://img/Lightning Bolt/n.jpg'), 'as cartas do Shark com imagem: a mesa sem internet mostra as dele também');
+});
+
+test('A-264 · no mesmo dia, completo: não refaz (nenhum pedido à Scryfall); no dia seguinte confere de novo o que mudou', async () => {
+  const m = await mundoDoDia();
+  await m.decks.save({ name: 'Delver', format: 'pauper', entries: [{ name: 'Delver of Secrets', qty: 4, zone: 'main' }] });
+  await m.keeper.diario();
+  const chamadas = m.st.chamadas, leitores = m.leitores();
+  const de_novo = await m.keeper.diario();
+  assert.equal(de_novo.ja, true, 'já feito hoje');
+  assert.equal(m.st.chamadas, chamadas, 'sem pedido a mais'); assert.equal(m.leitores(), leitores);
+  m.avanca(24 * 3600 * 1000);
+  const amanha = await m.keeper.diario();
+  assert.equal(amanha.ja, undefined, 'outro dia: roda de novo'); assert.equal(amanha.completo, true);
+});
+
+test('A-264 · incompleto (rede caiu no meio ou carta que a rede não trouxe): o dia não fica marcado e a próxima abertura continua', async () => {
+  const m = await mundoDoDia();
+  await m.decks.save({ name: 'Com fantasma', format: 'pauper', entries: [{ name: 'Fantasma', qty: 1, zone: 'main' }, { name: 'Island', qty: 1, zone: 'main' }] });
+  const r = await m.keeper.diario();
+  assert.equal(r.completo, false);
+  assert.equal(await m.store.get('offline.dia'), null, 'dia não marcado');
+  const r2 = await m.keeper.diario();
+  assert.equal(r2.ja, undefined, 'tenta de novo na próxima abertura');
+  m.st.rede = false;
+  assert.equal(await m.keeper.diario(), null, 'sem rede não faz nada');
+});
+
+test('A-264 · transparente: enquanto prepara sozinho o app sabe (para a faixa do Início) e avisa quando acaba', async () => {
+  const m = await mundoDoDia();
+  await m.decks.save({ name: 'Delver', format: 'pauper', entries: [{ name: 'Delver of Secrets', qty: 4, zone: 'main' }] });
+  const vistos = [];
+  const sai = m.keeper.aoMudarPreparo(e => vistos.push(e.preparando));
+  const p = m.keeper.diario();
+  assert.equal(m.keeper.preparando(), true);
+  await p;
+  assert.equal(m.keeper.preparando(), false);
+  assert.deepEqual(vistos, [true, false]);
+  sai();
+});

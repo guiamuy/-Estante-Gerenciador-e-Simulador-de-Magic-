@@ -89,7 +89,7 @@ function achaNoDB(i, db = DB) {
 DB['goliath paladin'] = { ...card('Goliath Paladin', 'Creature — Giant Knight', ['W'], 5), mana_cost: '{4}{W}', power: '3', toughness: '6', oracle_text: 'Vigilance\nWhen Goliath Paladin enters, you take the initiative.' };
 for (const l of listasDoShark()) for (const e of [...l.entries, ...l.reserva]) { const c = l.cartas[e.name], k = e.name.toLowerCase(); if (c && !DB[k]) DB[k] = { ...card(c.name, c.type_line, c.colors, c.cmc), ...c, id: c.name }; }
 
-async function open(t, { dev = true, apresentacao = false, cena = false, porta = false, formato = false } = {}) {
+async function open(t, { dev = true, apresentacao = false, cena = false, porta = false, formato = false, preparo = false } = {}) {
   const srv = await serve();
   const browser = await pw.chromium.launch(process.env.PW_CHROMIUM ? { executablePath: process.env.PW_CHROMIUM } : {});
   // capturas de tela nas outras medidas e no tema escuro (ROADMAP §4): SHOT_W=360 SHOT_TEMA=dark
@@ -115,6 +115,9 @@ async function open(t, { dev = true, apresentacao = false, cena = false, porta =
   if (!apresentacao) await ctx.addInitScript(() => { window.__SEM_APRESENTACAO = true; });
   // G-274 · a porta de entrada da primeira abertura só aparece no teste que a pede (o resto começa como quem já escolheu)
   if (!porta) await ctx.addInitScript(() => { window.__SEM_PORTA = true; });
+  // A-264 · o preparo do dia roda sozinho na primeira abertura com rede e disputa a máquina com o que o teste mede (o FA.1
+  // caiu de 52 para 43 quadros/s com ele por baixo): só o teste que pede vê o preparo; os outros mantêm a manutenção leve de antes
+  if (!preparo) await ctx.addInitScript(() => { window.__SEM_PREPARO_DIARIO = true; });
   // H5 · contra o bot a mesa mostra o turno dele quadro a quadro (segundos de espera, mesa sem toque). Só o teste que pede vê a cena;
   // os outros recebem o turno do bot de uma vez, como antes.
   if (!cena) await ctx.addInitScript(() => { window.__SEM_CENA = true; });
@@ -21240,5 +21243,23 @@ test('e2e · G-355 endereço novo ou backup restaurado: Listas baixa sozinha os 
   await page.goto(base + '#/inicio'); await page.goto(base + '#/listas'); await page.waitForSelector('#decks-list .deck-linha .ds-pips');
   await page.waitForTimeout(500);
   assert.equal(pedidos, 0, 'o que já está guardado não volta à Scryfall');
+  assert.deepEqual(errors, []);
+});
+
+test('e2e · A-264 preparo do dia: na primeira abertura com rede, tudo desce sozinho (sem tocar em "Preparar tudo agora") e a faixa do Início chega a "Tudo pronto"', { skip }, async t => {
+  const { page, errors, base } = await open(t, { preparo: true });
+  await page.addInitScript(FAKE_DEVICE(false)); // leitor do scanner falso: não depende do CDN
+  const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+  await page.route('https://**.scryfall.io/**', r => r.fulfill({ status: 200, contentType: 'image/png', body: PNG, headers: { 'access-control-allow-origin': '*' } }));
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/'); await page.waitForSelector('#home-offline-detalhes');
+  // ninguém toca em nada: o preparo do dia roda sozinho e a faixa acompanha
+  await page.waitForFunction(() => /Tudo pronto/.test((document.querySelector('#home-offline-state') || {}).innerText || ''), null, { timeout: 30000 });
+  assert.equal(await page.getAttribute('#home-offline', 'data-preparando'), 'false');
+  // no mesmo dia, abrir de novo não pede nada à Scryfall
+  let pedidos = 0; const urls = []; page.on('request', q => { if (/api\.scryfall\.com\/cards\/collection/.test(q.url())) { pedidos++; urls.push(q.url()); } });
+  await page.reload(); await page.waitForSelector('#home-offline-detalhes'); await page.waitForTimeout(6000);
+  assert.equal(pedidos, 0, 'feito hoje: nada volta à rede ' + urls.join(' '));
+  assert.match(await page.innerText('#home-offline-state'), /Tudo pronto/);
   assert.deepEqual(errors, []);
 });
