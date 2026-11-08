@@ -182,6 +182,39 @@
   --ease-spring: cubic-bezier(.34, 1.3, .64, 1);
   --dur-abertura: 1300ms;
   --escalona: 130ms; /* irmãos entram escalonados: a etapa seguinte começa antes de a anterior terminar (P4) */
+  /* DS-K3 K3-0 (G-357) · Vitrine: material por luz. Cinco degraus de ébano (E0 mais fundo → E4 mais perto da luz), fio de
+     luz nas arestas, laca (luz de cima numa superfície), sombra em três alturas (contato, chave, flutuante), grão fino que
+     substitui o veio do fundo, véu obrigatório sob texto sobre arte, inclinação máxima da arte (P7) e a barra flutuante.
+     Os tokens antigos (--bg-elev-*, --shadow-*) seguem valendo como apelidos até a FA-2. */
+  --elev-0: #0a0704; --elev-1: #130e09; --elev-2: #1b140d; --elev-3: #241b12; --elev-4: #2e2318;
+  --edge: rgba(255, 240, 210, .10);
+  --edge-strong: rgba(255, 240, 210, .18);
+  --shadow-contact: 0 1px 2px rgba(0, 0, 0, .55);
+  --shadow-key: 0 12px 28px -14px rgba(0, 0, 0, .8);
+  --shadow-float: 0 18px 40px -16px rgba(0, 0, 0, .85), 0 2px 6px rgba(0, 0, 0, .4);
+  --lacquer: linear-gradient(180deg, rgba(255, 246, 226, .07) 0%, rgba(255, 246, 226, 0) 38%, rgba(0, 0, 0, .14) 100%);
+  --grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 .95 0 0 0 0 .85 0 0 0 .05 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  /* o véu e o texto sobre arte são os mesmos nos dois temas: a arte é escura em qualquer tema */
+  --scrim-art: linear-gradient(180deg, rgba(10, 7, 4, 0) 30%, rgba(10, 7, 4, .55) 62%, rgba(10, 7, 4, .94) 100%);
+  --fg-sobre-arte: #f6eedd;
+  --fg-sobre-arte-muted: #d6c8ad;
+  --radius-4: 22px;
+  --tilt-max: 6deg;
+  --navbar-h: 64px;
+  /* DS-K3 MV-0 (G-357) · Movimento: gramática R1–R5 (claude/DIRETRIZ-animacao.md). Durações nas pontas, escalonamento
+     em três ritmos, três molas físicas em linear() (rigidez/amortecimento, massa 1), saída curta que acelera, distâncias
+     e profundidade por token e o intervalo de calma entre dois movimentos grandes. Par de duração recomendado: mola firme
+     com --dur-3, macia com --dur-4, suave com --dur-5. Moderado e reduzido trocam estes tokens (abaixo). */
+  --dur-0: 60ms;
+  --dur-5: 600ms;
+  --escalona-1: 60ms; --escalona-2: 90ms; --escalona-3: 140ms;
+  --mola-firme: linear(0, .099, .31, .55, .76, .919, 1.021, 1.074, 1.09, 1.083, 1.065, 1.044, 1.024, 1.009, .999, .994, .992, .992, .994, .996, 1);
+  --mola-macia: linear(0, .108, .345, .61, .837, 1.002, 1.097, 1.133, 1.128, 1.1, 1.065, 1.031, 1.006, .99, .983, .982, .985, .99, .994, .998, 1);
+  --mola-suave: linear(0, .063, .204, .373, .539, .685, .804, .893, .956, .997, 1.02, 1.031, 1.034, 1.032, 1.027, 1.021, 1.016, 1.011, 1.007, 1.004, 1);
+  --sai: cubic-bezier(.4, 0, 1, 1);
+  --desloc-1: 8px; --desloc-2: 16px; --desloc-3: 32px;
+  --z-recuo: -40px; --z-chega: -120px;
+  --calma: 300ms;
   color-scheme: dark;
 }
 
@@ -237,6 +270,15 @@
   --accent-hi: #8c681e;
   --accent-lo: #5e440f;
   --sheen: rgba(255, 252, 240, .6);
+  /* DS-K3 K3-0 (G-357) · material por luz no papel: o degrau mais alto é o mais claro */
+  --elev-0: #e9dfc9; --elev-1: #f1e8d4; --elev-2: #f7f0df; --elev-3: #fcf6e8; --elev-4: #fffaf0;
+  --edge: rgba(255, 255, 255, .75);
+  --edge-strong: rgba(255, 255, 255, .95);
+  --shadow-contact: 0 1px 2px rgba(60, 40, 10, .14);
+  --shadow-key: 0 12px 28px -14px rgba(60, 40, 10, .35);
+  --shadow-float: 0 18px 40px -16px rgba(60, 40, 10, .4), 0 2px 6px rgba(60, 40, 10, .12);
+  --lacquer: linear-gradient(180deg, rgba(255, 255, 255, .6), rgba(255, 255, 255, 0) 40%, rgba(60, 40, 10, .04));
+  --grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .35 0 0 0 0 .25 0 0 0 0 .1 0 0 0 .06 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
   color-scheme: light;
 }
 
@@ -292,6 +334,15 @@
     --accent-hi: #8c681e;
     --accent-lo: #5e440f;
     --sheen: rgba(255, 252, 240, .6);
+    /* DS-K3 K3-0 (G-357) · material por luz no papel: o degrau mais alto é o mais claro */
+    --elev-0: #e9dfc9; --elev-1: #f1e8d4; --elev-2: #f7f0df; --elev-3: #fcf6e8; --elev-4: #fffaf0;
+    --edge: rgba(255, 255, 255, .75);
+    --edge-strong: rgba(255, 255, 255, .95);
+    --shadow-contact: 0 1px 2px rgba(60, 40, 10, .14);
+    --shadow-key: 0 12px 28px -14px rgba(60, 40, 10, .35);
+    --shadow-float: 0 18px 40px -16px rgba(60, 40, 10, .4), 0 2px 6px rgba(60, 40, 10, .12);
+    --lacquer: linear-gradient(180deg, rgba(255, 255, 255, .6), rgba(255, 255, 255, 0) 40%, rgba(60, 40, 10, .04));
+    --grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .35 0 0 0 0 .25 0 0 0 0 .1 0 0 0 .06 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
     color-scheme: light;
   }
 }
@@ -342,6 +393,18 @@ body[data-tela="partida"] { --bg: var(--mesa-bg); --grain-1: var(--mesa-veio-1);
 /* amostras para os chips da Aparência */
 :root { --superficie-nogueira: #1f1811; --superficie-feltro: #1b4535; --superficie-oceano: #173f57; --superficie-vinho: #632a3b; --superficie-pedra: #22252a; --superficie-linho: #262320; --oponente-azul: #86acd8; --oponente-rubi: #dc8f98; --oponente-ametista: #bb9ddc; }
 :root[data-theme="light"] { --superficie-nogueira: #e7dbc4; --superficie-feltro: #c3d9c6; --superficie-oceano: #c2d6e0; --superficie-vinho: #e2c9cd; --superficie-pedra: #d7d8d9; --superficie-linho: #ebe4d4; --oponente-azul: #2c5a88; --oponente-rubi: #8a2b3a; --oponente-ametista: #5b3c8a; }
+/* DS-K3 MV-0 (G-357) · três níveis de movimento (Aparência): completo (padrão, segue o aparelho), moderado e reduzido.
+   Moderado mantém o retorno curto (esmaecer, mola firme virando saída suave) e tira o que viaja: distâncias pela metade
+   ou menos, sem profundidade, sem inclinar a arte, escalonamento curto e nada acima de --dur-3. Reduzido (escolha ou
+   aparelho) zera distâncias e profundidade; a regra global abaixo deixa tudo instantâneo. As receitas K3 só usam estes
+   tokens, então os três níveis valem para todas sem regra por receita. */
+:root[data-movimento="moderado"] {
+  --desloc-1: 4px; --desloc-2: 6px; --desloc-3: 8px; --z-recuo: 0px; --z-chega: 0px; --tilt-max: 0deg;
+  --escalona-1: 30ms; --escalona-2: 45ms; --escalona-3: 70ms; --dur-4: var(--dur-3); --dur-5: var(--dur-3);
+  --mola-firme: var(--ease-out); --mola-macia: var(--ease-out); --mola-suave: var(--ease-out);
+}
+:root[data-movimento="reduzido"] { --desloc-1: 0px; --desloc-2: 0px; --desloc-3: 0px; --z-recuo: 0px; --z-chega: 0px; --tilt-max: 0deg; }
+@media (prefers-reduced-motion: reduce) { :root { --desloc-1: 0px; --desloc-2: 0px; --desloc-3: 0px; --z-recuo: 0px; --z-chega: 0px; --tilt-max: 0deg; } }
 /* D2 · menos movimento por escolha (além do que o sistema pede): tudo instantâneo */
 :root[data-movimento="reduzido"] *, :root[data-movimento="reduzido"] *::before, :root[data-movimento="reduzido"] *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 
@@ -1065,8 +1128,20 @@ body[data-tela="entrar"] .ds-appbar { display: none; }
 .ds-movimentos { display: grid; grid-template-columns: 1fr; gap: var(--space-2); }
 .ds-movimento { display: grid; grid-template-columns: 44px 1fr; grid-template-rows: auto auto; column-gap: var(--space-3); align-items: center; }
 .ds-movimento__demo { grid-row: 1 / span 2; width: 44px; height: 44px; border-radius: var(--radius-1); background: var(--accent-soft); border: 1px solid var(--accent); }
-.ds-movimento__demo.is-on { animation: ds-demo var(--demo, var(--dur-2)) var(--ease-out); }
+.ds-movimento__demo.is-on { animation: ds-demo var(--demo, var(--dur-2)) var(--demo-curva, var(--ease-out)); }
 @keyframes ds-demo { 0% { transform: translateX(0); background: var(--accent); } 100% { transform: translateX(12px); background: var(--accent-soft); } }
+/* DS-K3 K3-0 (G-357) · amostras de material no /ds: degrau com laca, aresta e a sombra da sua altura; arte com véu */
+.ds-elevs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-2); padding: var(--space-3); background: var(--elev-0); border-radius: var(--radius-3); }
+.ds-elev { min-height: 64px; display: grid; align-content: end; gap: var(--space-0); padding: var(--space-2); border-radius: var(--radius-2); background: var(--lacquer), var(--elev-1); box-shadow: inset 0 1px 0 var(--edge), var(--shadow-contact); }
+.ds-elev code { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--fg); }
+.ds-elev > * { min-width: 0; overflow-wrap: anywhere; }
+.ds-elev[data-elev="0"] { background: var(--elev-0); box-shadow: inset 0 0 0 1px var(--edge); }
+.ds-elev[data-elev="2"] { background: var(--lacquer), var(--elev-2); box-shadow: inset 0 1px 0 var(--edge), var(--shadow-contact), var(--shadow-key); }
+.ds-elev[data-elev="3"] { background: var(--lacquer), var(--elev-3); box-shadow: inset 0 1px 0 var(--edge-strong), var(--shadow-contact), var(--shadow-key); }
+.ds-elev[data-elev="4"] { background: var(--lacquer), var(--elev-4); box-shadow: inset 0 1px 0 var(--edge-strong), var(--shadow-float); }
+.ds-arte-amostra { position: relative; min-height: 120px; display: grid; align-content: end; gap: var(--space-1); padding: var(--space-4); border-radius: var(--radius-4); overflow: hidden; color: var(--fg-sobre-arte); background: var(--scrim-art), var(--grain), linear-gradient(135deg, var(--mana-r), var(--mana-b)); box-shadow: var(--shadow-key); }
+.ds-arte-amostra strong { font-family: var(--font-display); font-size: var(--text-xl); line-height: var(--lh-xl); }
+.ds-arte-amostra__rotulo { font-size: var(--text-xs); letter-spacing: .14em; color: var(--fg-sobre-arte-muted); }
 .ds-movimento code { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--fg); }
 /* DS-K (G-287) · receitas de animação: o padrão da Estante (claude/DIRETRIZ-animacao.md) em três planos — fundo, objeto e
    sombra —, luz que varre, massa (mola) e etapas sobrepostas. Cada receita declara plano · luz · curva · etapas · reduzido;
@@ -4377,7 +4452,7 @@ function createTheme(store, win, doc = (typeof document !== 'undefined' ? docume
   // D1 · aparência além do tema: escala de texto e densidade, por atributo no <html>, guardadas no aparelho
   const APAR = 'ui.aparencia';
   let aparencia = { escala: 'media', densidade: 'confortavel', acento: 'latao', movimento: 'sistema', vibracao: true, superficie: 'nogueira', oponente: 'azul', verso: 'estante', orientacao: 'automatica' };
-  const ESCALAS = ['pequena', 'media', 'grande'], DENSIDADES = ['confortavel', 'compacta'], ACENTOS = ['latao', 'cobre', 'prata', 'jade'], MOVIMENTOS = ['sistema', 'reduzido'];
+  const ESCALAS = ['pequena', 'media', 'grande'], DENSIDADES = ['confortavel', 'compacta'], ACENTOS = ['latao', 'cobre', 'prata', 'jade'], MOVIMENTOS = ['sistema', 'moderado', 'reduzido']; // DS-K3 MV-0 · três níveis
   // D7 · a mesa do seu jeito: superfície, cor do oponente e verso de carta
   const SUPERFICIES = ['nogueira', 'feltro', 'oceano', 'vinho', 'pedra', 'linho'], OPONENTES = ['azul', 'rubi', 'ametista'], VERSOS = ['estante', 'selo', 'trama'];
   const ORIENTACOES = ['automatica', 'retrato']; // J-59 · a mesa segue o giro do aparelho (paisagem, J-58) ou fica sempre em retrato
@@ -5760,12 +5835,24 @@ function renderDS() {
       Row({ class: 'ds-row--wrap' }, ...['nogueira', 'feltro', 'pedra', 'linho'].map(k => Row({}, (() => { const a = h('span', { class: 'aparencia__cor', 'aria-hidden': 'true' }); a.dataset.superficie = k; return a; })(), Text(k, { size: 'xs', tone: 'muted' })))),
       Row({ class: 'ds-row--wrap' }, ...['azul', 'rubi', 'ametista'].map(k => Row({}, (() => { const a = h('span', { class: 'aparencia__cor', 'aria-hidden': 'true' }); a.dataset.oponente = k; return a; })(), Text(k, { size: 'xs', tone: 'muted' }))))),
 
+    // DS-K3 K3-0 (G-357) · material por luz: cinco degraus, aresta, laca, três sombras, grão e véu sobre arte
+    Section('Material',
+      Text('Vitrine: a altura vem da luz, não da borda. Cada degrau tem a sua sombra; a laca é a luz de cima; o grão substitui o veio.', { size: 'sm', tone: 'muted' }),
+      h('div', { class: 'ds-elevs', id: 'ds-elevs' }, ...[0, 1, 2, 3, 4].map(n => h('div', { class: 'ds-elev', dataset: { elev: String(n) } }, h('code', {}, 'E' + n), Text(['fundo', 'base', 'cartão', 'folha', 'topo'][n], { size: 'xs', tone: 'muted' })))),
+      h('div', { class: 'ds-arte-amostra', id: 'ds-arte-amostra', role: 'img', 'aria-label': 'texto sobre arte com véu' }, h('span', { class: 'ds-arte-amostra__rotulo' }, 'LISTA'), h('strong', {}, 'Mono Red Madness')),
+      Text('--elev-0…4 · --edge · --lacquer · --shadow-contact · --shadow-key · --shadow-float · --grain · --scrim-art com --fg-sobre-arte · --radius-4 · --tilt-max · --navbar-h', { size: 'xs', tone: 'subtle' })),
+
     // D10 · catálogo de movimento: cada duração com nome e uso; a regra de menos movimento é global (sistema ou escolha)
     Section('Movimento',
       Text('Durações por token; com "menos movimento" (do sistema ou da Aparência) tudo fica instantâneo. Vibração por evento: toque · confirmação · alerta · turno.', { size: 'sm', tone: 'muted' }),
-      h('div', { class: 'ds-movimentos', id: 'ds-movimentos' }, ...[['--dur-1', 'toque: botão afunda, chip liga'], ['--dur-2', 'entrar e sair: folha, aviso, carta na mesa'], ['--dur-3', 'trocar de vez, pulso de posse'], ['--dur-4', 'chegada de carta na troca'], ['--dur-giro', 'giro do carregando'], ['--dur-pulso', 'pulso de atenção (ligação, chip ligado)'], ['--dur-pulso-lento', 'pulso discreto (sem internet)'], ['--dur-brilho', 'brilho de carregamento'], ['--dur-fx-curto', 'efeito de mesa curto: tremor de dano, carta que some'], ['--dur-fx', 'efeito de mesa: ataque, cura, aprimoramento, abalo'], ['--dur-fx-longo', 'número que sobe do marcador de vida']].map(([tok, uso]) =>
+      h('div', { class: 'ds-movimentos', id: 'ds-movimentos' }, ...[['--dur-0', 'retorno imediato: segmento que acende, número que troca'], ['--dur-1', 'toque: botão afunda, chip liga'], ['--dur-2', 'entrar e sair: folha, aviso, carta na mesa'], ['--dur-3', 'trocar de vez, pulso de posse'], ['--dur-4', 'chegada de carta na troca'], ['--dur-5', 'tela que chega, ladrilho que vira destaque'], ['--dur-giro', 'giro do carregando'], ['--dur-pulso', 'pulso de atenção (ligação, chip ligado)'], ['--dur-pulso-lento', 'pulso discreto (sem internet)'], ['--dur-brilho', 'brilho de carregamento'], ['--dur-fx-curto', 'efeito de mesa curto: tremor de dano, carta que some'], ['--dur-fx', 'efeito de mesa: ataque, cura, aprimoramento, abalo'], ['--dur-fx-longo', 'número que sobe do marcador de vida']].map(([tok, uso]) =>
         h('div', { class: 'ds-movimento' }, h('button', { class: 'ds-movimento__demo', type: 'button', 'aria-label': `demonstrar ${tok}`, style: { '--demo': `var(${tok})` }, onClick: e => { const el = e.currentTarget; el.classList.remove('is-on'); void el.offsetWidth; el.classList.add('is-on'); } }),
           h('code', {}, tok), Text(uso, { size: 'xs', tone: 'muted' })))),
+      // DS-K3 MV-0 (G-357) · as três molas, cada uma com a duração do par recomendado; moderado troca por saída suave
+      h('div', { class: 'ds-movimentos', id: 'ds-molas' }, ...[['--mola-firme', '--dur-3', 'chip, segmento, botão e barra que voltam'], ['--mola-macia', '--dur-4', 'ladrilho, carta que pousa, aviso'], ['--mola-suave', '--dur-5', 'folha ao soltar, odômetro, tela que chega']].map(([tok, dur, uso]) =>
+        h('div', { class: 'ds-movimento' }, h('button', { class: 'ds-movimento__demo', type: 'button', 'aria-label': `demonstrar ${tok}`, style: { '--demo': `var(${dur})`, '--demo-curva': `var(${tok})` }, onClick: e => { const el = e.currentTarget; el.classList.remove('is-on'); void el.offsetWidth; el.classList.add('is-on'); } }),
+          h('code', {}, tok), Text(uso + ' · com ' + dur, { size: 'xs', tone: 'muted' })))),
+      Text('Distâncias --desloc-1/2/3 (8 · 16 · 32 px), profundidade --z-recuo/--z-chega, escalonamento --escalona-1/2/3 (60 · 90 · 140 ms), saída --sai e --calma 300 ms entre dois movimentos grandes. Movimento em Aparência: completo, moderado (sem viagem nem profundidade) ou reduzido.', { size: 'xs', tone: 'subtle' }),
       Row({ class: 'ds-row--wrap' }, ...Object.keys(__m0.EVENTOS_HAPTICOS).map(k => Button(k, { icone: 'raio', onClick: () => { const ok = __m0.haptics.evento(k); toast(ok ? `vibrou: ${k}` : 'sem vibração neste aparelho ou desligada'); } })))),
 
     // DS-K (G-287) · receitas de animação: o padrão em três planos, com luz, mola e etapas; o palco demonstra, a dona implementa
@@ -20443,9 +20530,11 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
           ...[['latao', 'Latão'], ['cobre', 'Cobre'], ['prata', 'Prata'], ['jade', 'Jade']].map(([k, nome]) => { const c = Chip(nome, { pressed: a.acento === k, dataset: { acento: k }, onClick: () => muda({ acento: k }) }); c.prepend(h('span', { class: 'aparencia__cor', dataset: { acento: k }, 'aria-hidden': 'true' })); return c; }))),
       seg('Tamanho do texto', 'aparencia-escala', [['pequena', 'Menor'], ['media', 'Normal'], ['grande', 'Maior']], a.escala, k => muda({ escala: k })),
       seg('Densidade', 'aparencia-densidade', [['confortavel', 'Confortável'], ['compacta', 'Compacta']], a.densidade, k => muda({ densidade: k })),
+      // DS-K3 MV-0 (G-357) · três níveis de movimento: completo segue o aparelho; moderado tira o que viaja; reduzido para tudo
+      seg('Movimento', 'aparencia-movimento', [['sistema', 'Completo'], ['moderado', 'Moderado'], ['reduzido', 'Reduzido', 'pausa']], a.movimento, k => muda({ movimento: k })),
+      Text('Com menos movimento ligado no aparelho, ele vale sobre esta escolha.', { size: 'xs', tone: 'subtle' }),
       Row({ class: 'ds-row--wrap' },
-        // os dois alternam a partir do estado atual do tema, não do desenho: dois toques rápidos não se perdem
-        Chip('Menos movimento', { icone: 'pausa', pressed: a.movimento === 'reduzido', dataset: { movimento: '1' }, onClick: () => muda({ movimento: theme.aparencia.movimento === 'reduzido' ? 'sistema' : 'reduzido' }) }),
+        // alterna a partir do estado atual do tema, não do desenho: dois toques rápidos não se perdem
         Chip('Vibração', { icone: 'raio', pressed: a.vibracao, dataset: { vibracao: '1' }, onClick: () => muda({ vibracao: !theme.aparencia.vibracao }) })),
       // D7 · a mesa do seu jeito: superfície, cor do oponente e verso de carta (amostra em cada chip)
       Text('Mesa', { size: 'sm', as: 'h3', display: true, attrs: { id: 'aparencia-mesa' } }),

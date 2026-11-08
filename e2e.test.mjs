@@ -8263,7 +8263,8 @@ test('e2e · D2 aparência: tema, cor de destaque, texto, densidade, movimento e
   const toca = async (sel, pronto) => { await page.click(sel); await page.waitForFunction(pronto, null, { timeout: 5000 }); };
   await toca('#perfil-aparencia [data-escala="grande"]', () => document.documentElement.getAttribute('data-escala') === 'grande' && document.querySelector('#perfil-aparencia [data-escala="grande"]').getAttribute('aria-pressed') === 'true');
   await toca('#perfil-aparencia [data-densidade="compacta"]', () => document.querySelector('#perfil-aparencia [data-densidade="compacta"]').getAttribute('aria-pressed') === 'true');
-  await toca('#perfil-aparencia [data-movimento]', () => document.querySelector('#perfil-aparencia [data-movimento]').getAttribute('aria-pressed') === 'true');
+  // DS-K3 MV-0 (G-357) · movimento virou segmentado de três níveis (decisão do dono 3A, 08/11/2026): o chip "Menos movimento" é o "Reduzido"
+  await toca('#aparencia-movimento [data-movimento="reduzido"]', () => document.documentElement.getAttribute('data-movimento') === 'reduzido' && document.querySelector('#aparencia-movimento [data-movimento="reduzido"]').getAttribute('aria-pressed') === 'true');
   await toca('#perfil-aparencia [data-vibracao]', () => document.querySelector('#perfil-aparencia [data-vibracao]').getAttribute('aria-pressed') === 'false');
   assert.deepEqual(await html(), ['dark', 'jade', 'grande', 'compacta', 'reduzido']);
   assert.equal(await page.evaluate(() => __m0.haptics.vibrate(5)), false, 'vibração desligada: a instância padrão não vibra');
@@ -8285,7 +8286,7 @@ test('e2e · D2 aparência: tema, cor de destaque, texto, densidade, movimento e
   await toque('#aparencia-acento [data-acento="latao"]', () => !document.documentElement.getAttribute('data-acento'));
   await toque('#perfil-aparencia [data-escala="media"]', () => !document.documentElement.getAttribute('data-escala'));
   await toque('#perfil-aparencia [data-densidade="confortavel"]', () => !document.documentElement.getAttribute('data-densidade'));
-  await toque('#perfil-aparencia [data-movimento]', () => !document.documentElement.getAttribute('data-movimento') && document.querySelector('#perfil-aparencia [data-movimento]').getAttribute('aria-pressed') === 'false');
+  await toque('#aparencia-movimento [data-movimento="sistema"]', () => !document.documentElement.getAttribute('data-movimento') && document.querySelector('#aparencia-movimento [data-movimento="sistema"]').getAttribute('aria-pressed') === 'true');
   await toque('#perfil-aparencia [data-vibracao]', () => document.querySelector('#perfil-aparencia [data-vibracao]').getAttribute('aria-pressed') === 'true');
   await toque('#perfil-aparencia [data-tema="dark"]', () => document.documentElement.getAttribute('data-theme') === 'dark');
   assert.deepEqual(await html(), ['dark', null, null, null, null]);
@@ -9070,9 +9071,9 @@ test('e2e · D10 movimento com sistema: catálogo em /ds, pulsos por token, a ve
   await page.addInitScript(() => { window.__MTG_TEST = true; window.__vibs = []; Object.defineProperty(navigator, 'vibrate', { value: p => { window.__vibs.push(p); return true; }, configurable: true }); });
   await page.setViewportSize({ width: 360, height: 780 });
   await page.goto(base + '#/ds'); await page.waitForSelector('#ds-movimentos');
-  assert.equal(await page.locator('#ds-movimentos .ds-movimento').count(), 11, 'onze durações no catálogo (G5 somou três de efeito de mesa)');
-  await page.click('#ds-movimentos .ds-movimento__demo >> nth=5');
-  assert.equal(await page.$eval('#ds-movimentos .ds-movimento__demo >> nth=5', el => getComputedStyle(el).animationDuration), '1.2s', 'a demo usa o token (--dur-pulso)');
+  assert.equal(await page.locator('#ds-movimentos .ds-movimento').count(), 13, 'treze durações no catálogo (G5 somou três de efeito de mesa; DS-K3 MV-0 somou --dur-0 e --dur-5)');
+  await page.click('#ds-movimentos .ds-movimento__demo >> nth=7');
+  assert.equal(await page.$eval('#ds-movimentos .ds-movimento__demo >> nth=7', el => getComputedStyle(el).animationDuration), '1.2s', 'a demo usa o token (--dur-pulso)');
   await page.click('.ds-surface:has(#ds-movimentos) button:has-text("turno")');
   assert.deepEqual(await page.evaluate(() => JSON.parse(JSON.stringify(window.__vibs.at(-1)))), [12, 40, 12], 'padrão da troca de vez');
   // o pulso de "sem internet" na barra usa o token lento
@@ -9089,7 +9090,7 @@ test('e2e · D10 movimento com sistema: catálogo em /ds, pulsos por token, a ve
   const vibs = await page.evaluate(() => JSON.parse(JSON.stringify(window.__vibs)));
   assert.ok(vibs.some(v => Array.isArray(v) && v.join() === '12,40,12'), 'a vez de Bia chegou com o padrão de turno: ' + JSON.stringify(vibs));
   // menos movimento por escolha: a demo do catálogo fica instantânea
-  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-aparencia'); await page.click('#perfil-aparencia [data-movimento]');
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-aparencia'); await page.click('#aparencia-movimento [data-movimento="reduzido"]'); // DS-K3 MV-0 · segmentado
   await page.waitForFunction(() => document.documentElement.getAttribute('data-movimento') === 'reduzido');
   await page.goto(base + '#/ds'); await page.waitForSelector('#ds-movimentos');
   await page.click('#ds-movimentos .ds-movimento__demo >> nth=1');
@@ -21325,4 +21326,46 @@ test('e2e · G-356 T-IDIOMA fatia 2: a folha da carta mostra o texto oficial imp
   await page.context().setOffline(false);
   for (const tema of ['dark', 'light']) { await page.evaluate(t => document.documentElement.setAttribute('data-theme', t), tema); await auditaTela(page, 'carta · aviso do idioma ' + tema); }
   assert.deepEqual(errors.filter(e => !/status of 404/.test(e)), [], 'o 404 da Scryfall (carta nunca impressa em português) é o estado esperado, não erro do app');
+});
+
+/* ---------------- DS-K3 K3-0 + MV-0 (G-357) · material e três níveis de movimento ---------------- */
+test('e2e · G-357 DS-K3: o /ds mostra o material (cinco degraus, arte com véu) e as três molas; Movimento em Aparência tem três níveis que trocam distâncias e curvas na hora, em 360 nos dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base + '#/ds'); await page.waitForSelector('#ds-elevs');
+  assert.equal(await page.locator('#ds-elevs .ds-elev').count(), 5);
+  assert.equal(await page.locator('#ds-molas .ds-movimento__demo').count(), 3);
+  for (const tema of ['dark', 'light']) {
+    await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema);
+    // os degraus sobem: a sombra do E4 é maior que a do E1 (a altura vem da luz, não da borda)
+    const sombras = await page.$$eval('#ds-elevs .ds-elev', els => els.map(e => getComputedStyle(e).boxShadow));
+    assert.notEqual(sombras[4], sombras[1], 'E4 tem sombra própria (' + tema + ')');
+    assert.match(await page.$eval('#ds-arte-amostra', el => getComputedStyle(el).backgroundImage), /linear-gradient/, 'arte com véu');
+    await page.locator('#ds-elevs').scrollIntoViewIfNeeded();
+    await auditaTela(page, 'ds material (' + tema + ')');
+  }
+  // a demo da mola macia usa a curva própria
+  await page.locator('#ds-molas .ds-movimento__demo >> nth=1').click();
+  assert.match(await page.$eval('#ds-molas .ds-movimento__demo >> nth=1', el => getComputedStyle(el).animationTimingFunction), /^linear\(/);
+  // três níveis em Aparência
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#aparencia-movimento');
+  assert.equal(await page.locator('#aparencia-movimento [data-movimento]').count(), 3);
+  const desloc = () => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--desloc-3').trim());
+  const curva = () => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--mola-macia').trim());
+  assert.equal(await desloc(), '32px'); assert.match(await curva(), /^linear\(/);
+  await page.click('#aparencia-movimento [data-movimento="moderado"]');
+  await page.waitForFunction(() => document.documentElement.getAttribute('data-movimento') === 'moderado');
+  assert.equal(await desloc(), '8px', 'moderado encurta a viagem'); const saida = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--ease-out').trim());
+  assert.equal(await curva(), saida, 'moderado troca a mola pela saída suave');
+  await page.waitForFunction(() => document.querySelector('#aparencia-movimento [data-movimento="moderado"]').getAttribute('aria-pressed') === 'true'); // o desenho vem depois de guardar
+  await page.click('#aparencia-movimento [data-movimento="reduzido"]');
+  await page.waitForFunction(() => document.documentElement.getAttribute('data-movimento') === 'reduzido');
+  assert.equal(await desloc(), '0px', 'reduzido não viaja');
+  await page.locator('#aparencia-movimento').scrollIntoViewIfNeeded();
+  await auditaTela(page, 'aparência com três níveis de movimento');
+  await page.reload(); await page.waitForSelector('#aparencia-movimento');
+  assert.equal(await page.evaluate(() => document.documentElement.getAttribute('data-movimento')), 'reduzido', 'a escolha fica guardada');
+  await page.click('#aparencia-movimento [data-movimento="sistema"]');
+  await page.waitForFunction(() => !document.documentElement.getAttribute('data-movimento'));
+  assert.deepEqual(errors, []);
 });
