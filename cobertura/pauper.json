@@ -1,139 +1,115 @@
 {
  "versao": 1,
  "formato": "pauper",
- "geradoEm": "2026-11-07T13:29:14.560Z",
+ "geradoEm": "2026-11-08T13:47:09.439Z",
  "motor": 112,
  "fonte": "api.scryfall.com/cards/collection",
- "listas": 671,
- "listas100": 666,
- "cartasPendentes": 8,
+ "listas": 685,
+ "listas100": 678,
+ "cartasPendentes": 6,
  "parcial": false,
  "lotesComFalha": 0,
  "porClasse": {
   "texto-mudou": 0,
   "lida": 1,
-  "nova": 7,
+  "nova": 5,
   "parcial": 0,
   "sem-dados": 0
  },
  "novasDesdeAnterior": [
+  "Crypt Incursion",
+  "Homestead Courage",
+  "Mardu Devotee",
+  "Spinewoods Paladin"
+ ],
+ "resolvidasDesdeAnterior": [
   "Bountiful Landscape",
   "Deprive",
   "Ghitu Lavarunner",
   "Guac & Marshmallow Pizza",
-  "Perilous Research",
-  "Retraction Helix"
+  "No Admittance",
+  "Perilous Research"
  ],
- "resolvidasDesdeAnterior": [],
  "curva": [
   {
-   "listas": 667,
+   "listas": 679,
    "cartas": 1
   },
   {
-   "listas": 671,
-   "cartas": 8
+   "listas": 683,
+   "cartas": 4
+  },
+  {
+   "listas": 685,
+   "cartas": 6
   }
  ],
  "textos": null,
  "pendentes": [
   {
-   "name": "Bountiful Landscape",
-   "classe": "lida",
-   "nivel": "lida",
-   "motivo": "lida pelo motor, em revisão",
-   "listas": 1,
-   "gulosa": 5,
-   "texto": {
-    "mana_cost": "",
-    "type_line": "Land",
-    "oracle_text": "{T}: Add {C}.\n{T}, Sacrifice this land: Search your library for a basic Forest, Island, or Mountain card, put it onto the battlefield tapped, then shuffle.\nCycling {G}{U}{R} ({G}{U}{R}, Discard this card: Draw a card.)",
-    "keywords": [
-     "Cycling"
-    ],
-    "layout": "normal"
-   }
-  },
-  {
-   "name": "Deprive",
+   "name": "Rites of Initiation",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "mágica sem script",
-   "listas": 1,
-   "gulosa": 1,
-   "texto": {
-    "mana_cost": "{U}{U}",
-    "type_line": "Instant",
-    "oracle_text": "As an additional cost to cast this spell, return a land you control to its owner's hand.\nCounter target spell.",
-    "keywords": [],
-    "layout": "normal"
-   }
-  },
-  {
-   "name": "Ghitu Lavarunner",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "texto que o motor não resolve",
-   "listas": 1,
-   "gulosa": 4,
+   "listas": 2,
+   "gulosa": 3,
    "texto": {
     "mana_cost": "{R}",
-    "type_line": "Creature — Human Wizard",
-    "oracle_text": "As long as there are two or more instant and/or sorcery cards in your graveyard, this creature gets +1/+0 and has haste. (It can attack and {T} as soon as it comes under your control.)",
+    "type_line": "Instant",
+    "oracle_text": "Discard any number of cards at random. Creatures you control get +1/+0 until end of turn for each card discarded this way.",
     "keywords": [],
-    "layout": "normal",
-    "power": "1",
-    "toughness": "2"
-   }
-  },
-  {
-   "name": "Guac & Marshmallow Pizza",
-   "classe": "nova",
-   "nivel": "parcial",
-   "motivo": "parte do texto o motor não resolve",
-   "listas": 1,
-   "gulosa": 5,
-   "texto": {
-    "mana_cost": "{G}",
-    "type_line": "Artifact — Food",
-    "oracle_text": "Flash\nWhen this artifact enters, target creature gets +2/+2 until end of turn. Untap it.\n{2}, {T}, Sacrifice this artifact: You gain 3 life.",
-    "keywords": [
-     "Flash"
-    ],
     "layout": "normal"
    }
   },
   {
-   "name": "No Admittance",
+   "name": "Crypt Incursion",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 1,
    "gulosa": 2,
    "texto": {
-    "mana_cost": "{1}{R}",
+    "mana_cost": "{2}{B}",
+    "type_line": "Instant",
+    "oracle_text": "Exile all creature cards from target player's graveyard. You gain 3 life for each card exiled this way.",
+    "keywords": [],
+    "layout": "normal"
+   }
+  },
+  {
+   "name": "Homestead Courage",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "mágica sem script",
+   "listas": 1,
+   "gulosa": 1,
+   "texto": {
+    "mana_cost": "{W}",
     "type_line": "Sorcery",
-    "oracle_text": "No Admittance deals 3 damage to any target.\nEmpower Jace 1. (Put a loyalty counter on a Jace token you control. If you don't control one, first create a blue Jace planeswalker token with \"[−1]: Surveil 1\" and \"[−3]: Draw a card.\")",
+    "oracle_text": "Put a +1/+1 counter on target creature you control. It gains vigilance until end of turn.\nFlashback {W} (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
     "keywords": [
-     "Surveil",
-     "Empower Jace"
+     "Flashback"
     ],
     "layout": "normal"
    }
   },
   {
-   "name": "Perilous Research",
+   "name": "Mardu Devotee",
    "classe": "nova",
    "nivel": "manual",
-   "motivo": "mágica sem script",
+   "motivo": "texto que o motor não resolve",
    "listas": 1,
    "gulosa": 5,
    "texto": {
-    "mana_cost": "{1}{U}",
-    "type_line": "Instant",
-    "oracle_text": "Draw two cards, then sacrifice a permanent.",
-    "keywords": [],
-    "layout": "normal"
+    "mana_cost": "{W}",
+    "type_line": "Creature — Human Scout",
+    "oracle_text": "When this creature enters, scry 2. (Look at the top two cards of your library, then put any number of them on the bottom and the rest on top in any order.)\n{1}: Add {R}, {W}, or {B}. Activate only once each turn.",
+    "keywords": [
+     "Scry"
+    ],
+    "layout": "normal",
+    "power": "1",
+    "toughness": "2"
    }
   },
   {
@@ -142,7 +118,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 1,
-   "gulosa": 5,
+   "gulosa": 7,
    "texto": {
     "mana_cost": "{U}",
     "type_line": "Instant",
@@ -152,34 +128,60 @@
    }
   },
   {
-   "name": "Rites of Initiation",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "mágica sem script",
+   "name": "Spinewoods Paladin",
+   "classe": "lida",
+   "nivel": "lida",
+   "motivo": "lida pelo motor, em revisão",
    "listas": 1,
-   "gulosa": 3,
+   "gulosa": 6,
    "texto": {
-    "mana_cost": "{R}",
-    "type_line": "Instant",
-    "oracle_text": "Discard any number of cards at random. Creatures you control get +1/+0 until end of turn for each card discarded this way.",
-    "keywords": [],
-    "layout": "normal"
+    "mana_cost": "{4}{G}",
+    "type_line": "Creature — Human Knight",
+    "oracle_text": "Trample\nWhen this creature enters, you gain 3 life.\nPlot {3}{G} (You may pay {3}{G} and exile this card from your hand. Cast it as a sorcery on a later turn without paying its mana cost. Plot only as a sorcery.)",
+    "keywords": [
+     "Plot",
+     "Trample"
+    ],
+    "layout": "normal",
+    "power": "5",
+    "toughness": "4"
    }
   }
  ],
  "listasIncompletas": [
   {
-   "id": "mtgo-pauper-league-2026-11-0711153-4",
-   "nome": "Mono Blue Cryptic Serpent",
+   "id": "topdeck-ipt-kelpie-quaich-2026-5",
+   "nome": "Azorius Akroan Skyguard",
    "faltam": [
-    "Deprive"
+    "Homestead Courage"
    ]
   },
   {
-   "id": "mtgo-pauper-league-2026-11-0511153-8",
-   "nome": "Gruul Burning-Tree Emissary",
+   "id": "topdeck-oktoberpauperfest-vol-2-8",
+   "nome": "Dimir Baleful Strix",
    "faltam": [
-    "No Admittance"
+    "Crypt Incursion"
+   ]
+  },
+  {
+   "id": "mtgo-pauper-challenge-16-2026-11-0712857684-4",
+   "nome": "Jeskai Squadron Hawk",
+   "faltam": [
+    "Rites of Initiation"
+   ]
+  },
+  {
+   "id": "topdeck-oktoberpauperfest-vol-2-5",
+   "nome": "Mardu Mardu Devotee",
+   "faltam": [
+    "Mardu Devotee"
+   ]
+  },
+  {
+   "id": "topdeck-amsterdam-pauper-league-8-leg-2026-7",
+   "nome": "Mono Green Llanowar Elves",
+   "faltam": [
+    "Spinewoods Paladin"
    ]
   },
   {
@@ -190,19 +192,9 @@
    ]
   },
   {
-   "id": "topdeck-merlion-pauper-league-week-5-2-7",
-   "nome": "Grixis Grab the Prize",
-   "faltam": [
-    "Ghitu Lavarunner"
-   ]
-  },
-  {
    "id": "topdeck-merlion-pauper-league-week-5-2-6",
    "nome": "Quatro cores Guac & Marshmallow Pizza",
    "faltam": [
-    "Bountiful Landscape",
-    "Guac & Marshmallow Pizza",
-    "Perilous Research",
     "Retraction Helix"
    ]
   }
