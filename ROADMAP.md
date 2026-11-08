@@ -697,6 +697,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-uf ✅ | MJ26 relato #55: as setas do combate (e a prévia do dano) acompanham a rolagem da página e de qualquer contêiner da mesa; "Cancelar" na declaração de atacantes e de bloqueadores desmarca a escolha sem mandar nada ao motor (J-61, 03/11/2026) | J | 1 | 16º-ud |
 | 16º-ug ✅ | MJ27 relato #55, o resto do "cancelar jogada em curso": um Cancelar com o mesmo nome e lugar em toda escolha encadeada antes de jogar (alvo → custo → X → cor), que volta um passo em vez de fechar tudo, e a mira por arrasto com Cancelar à vista (J-62, 03/11/2026) | J | 1 | 16º-uf |
 | 16º-ui 🟡 | T-IDIOMA relatos #53/#66, fatia 1: o português cobre a interface (Rulings → Esclarecimentos, Near Mint → Quase nova, Etched → Foil gravado, Offline → Sem internet, cinco palavras-chave e os marcadores com nome em português na mesa e no registro); falta troca de idioma, pacotes es/en e texto das cartas (leva G-353, 07/11/2026) | T | 1 | — |
+| 16º-up ✅ | T-IDIOMA relatos #53/#66, fatia 2: a folha da carta mostra nome, tipo e texto oficiais impressos em português (Scryfall), com a troca para o original, guardados no aparelho; nunca impressa fica em inglês com aviso até a fatia 3 (leva G-356, 08/11/2026) | T | 1 | 16º-ui |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -13349,6 +13350,26 @@ regras** (`database.rules.json`) no console; até lá a tela diz "Nomes de usuá
   exceções comentada; falha no `main` de antes (10 textos, 5 palavras-chave, marcadores sem nome). e2e "V2 rulings": a
   expectativa do título mudou de propósito ("Esclarecimentos 3 esclarecimentos").
 - **Depende de:** decisão do dono sobre o texto das cartas (oficial × automática, relato #53) para o item (4).
+- **Decisão do dono (08/11/2026, nesta conversa):** o texto das cartas fora da imagem segue sempre o idioma do app e precisa
+  estar certo: **texto oficial impresso** naquele idioma primeiro; para a carta que nunca saiu impressa nele, **tradução
+  precisa** ("outra integração/API ou tradução precisa por máquina"). A imagem da carta pode ficar no idioma dela. Plano em
+  fatias: 2 cartas em português oficial (G-356) · 3 tradução precisa do que falta (glossário oficial das palavras-chave e
+  conferidor que barra tradução que mude símbolo, número ou palavra-chave; marcada "tradução", toque para o original) ·
+  4 Perfil › Idioma + interface em inglês + camada obrigatória · 5 espanhol · 6 cartas em inglês no modo inglês. A partida
+  segue decidida pelo Oracle em inglês: tradução nunca muda resultado.
+- **Fatia 2 · cartas em português oficial (G-356, `16º-up`) ✅:** a folha da carta (Listas, Coleção, Busca e o toque longo da
+  mesa, que usam a mesma folha) busca na Scryfall a impressão mais nova **em português** da carta (`oracleid:… lang:pt`,
+  `unique=prints`) e mostra o **nome** (também no título da folha), o **tipo** e o **texto** impressos, com o selo "Texto
+  oficial em português" e a troca "Ver o original" / "Ver em português"; carta de duas faces, por face. Impressão em
+  português sem texto impresso (só imagem na Scryfall) não conta: melhor o inglês que texto inventado. Guardado no aparelho
+  pelo oracle_id (vale para toda impressão) por 30 dias; "nunca saiu em português" também fica guardado, por 7 dias. Sem
+  internet e sem cópia: aviso "Sem internet: o texto em português aparece quando houver conexão"; com internet e sem
+  resposta: aviso e "Tentar de novo"; nunca impressa: "Esta carta não saiu impressa em português: o texto fica em inglês por
+  enquanto" (até a fatia 3). Nenhuma origem nova (a Scryfall já é usada); a chave `cartas.texto.` entra no registro de
+  armazenamento como dado derivado. Testes: U `idioma-cartas.unit` (novo; escolha da impressão, consulta, guarda e prazos;
+  falha no `main` de antes) e e2e "G-356" (português, troca, nunca impressa depois de erro com nova tentativa, sem internet
+  com e sem cópia, dois temas). Fora: o texto em português **na mesa** fora da folha (carta na pilha, escolhas, registro) e
+  a busca antecipada no preparo do dia (A-264) — próximas fatias, junto da 3.
 - **Fora, declarado (fatias seguintes):** a troca de idioma no Perfil (item 2); os pacotes **es** e **en** (item 3: extrair os
   textos para um dicionário por idioma, história de várias rodadas); texto e nome das cartas (item 4, aguarda decisão
   "oficial"/"automática"); a **camada obrigatória de idioma em toda entrega** (texto novo nasce no dicionário e o teste barra
