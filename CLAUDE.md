@@ -16,7 +16,7 @@ npm run publicar                   # rebase, guarda, conferência, PORTÃO INTEI
 npm run publicar -- --esperar      # idem, e espera a prévia da Vercel para mostrar o link
 npm run publicar -- --situacao     # pull requests abertos e o que este clone tem à frente do main
 npm run publicar -- --conferir     # só rebase, guarda e conferência
-npm run publicar -- --merge <n>    # junta o PR n no main: SÓ quando o dono pedir
+npm run publicar -- --merge <n>    # junta o PR n no main: quando o dono pedir (ou rotina agendada, na exceção abaixo)
 ```
 
 O passo a passo, sempre igual:
@@ -24,19 +24,41 @@ O passo a passo, sempre igual:
 1. **Leva em commit** no clone, com o rodapé `Trilha:`.
 2. **`npm run publicar`.** Roda o portão inteiro (as duas fases) neste clone, porque não há mais CI no GitHub. Portão vermelho: nada sai.
 3. **Branch e pull request.** A leva vai para `claude/<leva>` e abre um PR contra o `main`. Sem o `gh` (sessões de nuvem), o publicar mostra o link para abrir o PR. A Vercel monta a **prévia** sozinha e comenta o link no PR.
-4. **Mostre a prévia ao dono**: o link e, em uma ou duas linhas, o que mudou e o que conferir. Espere ele dizer "pode fazer merge". Nunca faça merge por conta própria.
+4. **Mostre a prévia ao dono**: o link e, em uma ou duas linhas, o que mudou e o que conferir. Espere ele dizer "pode fazer merge". Nunca faça merge por conta própria (a única exceção é a das rotinas agendadas, abaixo).
 5. **`npm run publicar -- --merge <n>`.** Se o `main` andou desde o teste, ele pede para atualizar o ramo (`git switch claude/<leva> && npm run publicar`): o portão roda de novo sobre a soma e a prévia é refeita. Se a mudança dos outros mexe no mesmo assunto, mostre a prévia nova ao dono antes do merge.
 6. **Produção.** A Vercel publica o `main` sozinha em https://estante-magic.vercel.app, em um ou dois minutos. Só diga "publicado" depois do merge.
 
 Regras:
 
-- Nunca `git push` no `main`, nunca `--force` ou `--no-verify` à mão, nunca merge sem o pedido do dono. Três travas barram o push no `main`: este texto, `.claude/settings.json` (comandos negados) e o gancho `.githooks/pre-push`.
+- Nunca `git push` no `main`, nunca `--force` ou `--no-verify` à mão, nunca merge sem o pedido do dono (exceto a rotina agendada, na seção seguinte). Três travas barram o push no `main`: este texto, `.claude/settings.json` (comandos negados) e o gancho `.githooks/pre-push`.
 - O nome do ramo é a reserva do número: se outra conversa já enviou `claude/<a mesma leva>`, o envio é recusado e a sua leva renumera. Reenviar a própria leva depois de um rebase substitui o ramo (com trava), e o PR acompanha.
 - O login com Google só aceita endereço cadastrado, e cada prévia tem um endereço novo. Por isso **toda prévia é mostrada no endereço fixo https://estante-magic-previa.vercel.app** (decisão do dono, 08/11/2026; o login já está cadastrado nele). No PC, o `--esperar` aponta o endereço fixo para a prévia mais recente pela CLI da Vercel. Nas sessões de nuvem, sem a CLI, aponte pelo conector da Vercel: ache o deployment da prévia do ramo `claude/<leva>` (projeto `estante`) e atribua a ele o alias `estante-magic-previa.vercel.app`; confira o alias antes de mostrar o link. O endereço fixo é um só: aponte para a prévia que vai mostrar ao dono agora e diga qual leva está nele.
 - No Windows, o portão pula os poucos testes que só valem no Linux (`SO_NO_LINUX`, em `portao.mjs`, com motivo e trilha dona); eles seguem valendo nas sessões de nuvem.
 - A fila (Q17, `fila/*` e `recusada/*`) e os fluxos do GitHub Actions estão desligados. `--fila` existe só para os testes dela. Nunca envie nada para `fila/*` ou `recusada/*`.
 - Nunca grave um arquivo inteiro a partir de cópia que não veio do `main` de agora. Edite por patch em cima do que está no clone.
 - Leva pequena, um assunto, enviada ao terminar. Quanto mais tempo sem publicar, mais conflito.
+
+## Exceção: rotinas agendadas publicam sozinhas
+
+Decisão do dono, 08/11/2026, leva I-328: uma sessão aberta por **rotina agendada** (a conversa começa como tarefa agendada, sem o dono presente) junta o próprio pull request no `main` sem esperar a homologação, desde que cumpra **todas** as condições abaixo. Conversa com o dono presente segue a regra geral (prévia e "pode fazer merge").
+
+Condições, nesta ordem:
+
+1. **Portão inteiro verde** neste clone pelo `npm run publicar` (rebase, guarda, as duas fases). Instável que passou sozinho não barra, mas vai no aviso ao dono.
+2. **Prévia montada**: o comentário da Vercel no PR mostra a prévia como Ready (o build de produção monta).
+3. **Ramo em cima do `main` de agora**, conferido logo antes do merge. Se o `main` andou, `npm run publicar` de novo (portão sobre a soma) e volte ao passo 2.
+4. **Merge pelo caminho de sempre**: `npm run publicar -- --merge <n>` com o `gh`; sem o `gh` (nuvem), merge do PR com rebase pelo conector do GitHub, só depois de conferir 1 a 3.
+5. **Conferência em produção** em um ou dois minutos: o deployment de produção do commit do merge está Ready (pelo conector da Vercel, que a sessão de nuvem alcança; no PC, abrindo https://estante-magic.vercel.app).
+6. **Aviso ao dono** por notificação: o que entrou, o número do PR, o portão e os instáveis. Só então diga "publicado".
+
+Ficam fora da exceção (o PR espera o dono, como antes):
+
+- leva com rodapé `Sobrescreve:`;
+- leva que muda `ENGINE_VERSION` ou regrava partida-referência (golden);
+- leva da trilha `infra` que mexe no portão, na guarda, no `publicar.mjs`, no gancho, em `.claude/settings.json` ou neste `CLAUDE.md`;
+- leva que muda o formato dos dados salvos do usuário ou apaga dado dele.
+
+Produção quebrada depois de um merge de rotina: a mesma rotina abre um PR que reverte o commit (`git revert`), passa pelas mesmas condições e avisa o dono. Nunca `push` no `main`, nunca `--force`: as travas valem igual.
 
 ## Rodapés do commit
 
