@@ -21328,3 +21328,47 @@ test('e2e · G-356 T-IDIOMA fatia 2: a folha da carta mostra o texto oficial imp
   for (const tema of ['dark', 'light']) { await page.evaluate(t => document.documentElement.setAttribute('data-theme', t), tema); await auditaTela(page, 'carta · aviso do idioma ' + tema); }
   assert.deepEqual(errors.filter(e => !/status of 404/.test(e)), [], 'o 404 da Scryfall (carta nunca impressa em português) é o estado esperado, não erro do app');
 });
+
+// I-329 · ponte das coleções: duas origens do mesmo servidor fazem o papel dos dois endereços (127.0.0.1 é o github.io,
+// localhost é a Vercel). A faixa só aparece no antigo; o toque abre o novo, que mostra o que chegou e só grava com o Trazer.
+test('e2e · I-329 ponte das coleções: no endereço antigo a faixa leva listas e coleção para o novo, que mostra o que chegou e só grava com o Trazer', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  const porta = new URL(base).port;
+  const antigo = `http://127.0.0.1:${porta}`, novo = `http://localhost:${porta}`;
+  const ctx = page.context();
+  await ctx.addInitScript(([a, n]) => { window.__PONTE = { antigo: a, novo: n }; }, [antigo, novo]);
+  // a janela nova não tem as rotas da página: a Scryfall dela responde vazio (nada sai para a internet)
+  await ctx.route('https://api.scryfall.com/**', r => r.fulfill({ json: r.request().url().includes('/cards/collection') ? { data: [], not_found: [] } : { object: 'list', data: [], has_more: false } }));
+  const velho = `${antigo}/index.html`;
+  await createDeck(page, velho, 'Azul da ponte', PAUPER);
+  await page.goto(velho + '#/'); await page.waitForSelector('#home-ponte[data-estado="pendente"]');
+  assert.match(await page.innerText('#home-ponte-titulo'), /A Estante mudou de endereço/);
+  assert.match(await page.innerText('#home-ponte-texto'), /localhost/, 'diz o endereço novo');
+  await auditaTela(page, 'início · faixa da mudança de endereço');
+  const [nova] = await Promise.all([ctx.waitForEvent('page'), page.click('#home-ponte-levar')]);
+  const errosDaNova = [];
+  nova.on('pageerror', e => errosDaNova.push(String(e)));
+  await nova.waitForSelector('#ponte-trazer', { timeout: 15000 });
+  assert.match(await nova.innerText('#ponte-resumo'), /^Chegaram 1 lista e \d+ cartas? da coleção/);
+  assert.equal(new URL(nova.url()).hash, '#/', 'não há tela #/ponte: o hash sai');
+  assert.equal(await page.getAttribute('#home-ponte', 'data-estado'), 'levando');
+  await nova.click('#ponte-trazer');
+  await nova.waitForFunction(() => location.hash === '#/listas');
+  await nova.waitForSelector('#decks-list .deck-linha');
+  assert.match(await nova.innerText('#decks-list'), /Azul da ponte/);
+  // o antigo fica sabendo e lembra
+  await page.waitForSelector('#home-ponte[data-estado="levada"]', { timeout: 8000 });
+  assert.ok(await page.locator('#home-ponte-abrir').count(), 'oferece abrir o endereço novo');
+  await page.reload(); await page.waitForSelector('#home-ponte[data-estado="levada"]');
+  // no endereço novo não há faixa; aberto à mão em #/ponte (sem quem abriu), é só o Início
+  await nova.goto(novo + '/index.html#/ponte'); await nova.waitForSelector('#home');
+  assert.equal(await nova.locator('#home-ponte').count(), 0);
+  assert.equal(await nova.locator('#ponte-trazer').count(), 0);
+  // Levar de novo e Cancelar: a faixa volta a "levada" (o que era antes)
+  const [outra] = await Promise.all([ctx.waitForEvent('page'), page.click('#home-ponte-levar')]);
+  await outra.waitForSelector('#ponte-cancelar', { timeout: 15000 });
+  await page.waitForSelector('#home-ponte[data-estado="levando"]');
+  await outra.click('#ponte-cancelar');
+  await page.waitForSelector('#home-ponte[data-estado="levada"]', { timeout: 8000 });
+  assert.deepEqual(errors, []); assert.deepEqual(errosDaNova, []);
+});
