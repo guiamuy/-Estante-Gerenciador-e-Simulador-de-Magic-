@@ -12721,6 +12721,7 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Tectonic Hazard': { texto: 'jq02et', leva: 'M-587' }, 'Unstable Experiment': { texto: '1f62prx', leva: 'M-587' },
   'Dreams of Laguna': { texto: '1wsneip', leva: 'M-598' }, // M-598 · Sentinela do Pauper (Scryfall de 01/11/2026)
   'Bountiful Landscape': { texto: '19xn7c6', leva: 'M-609' }, 'Deprive': { texto: 'pskslg', leva: 'M-609' }, 'Ghitu Lavarunner': { texto: '1n92o9z', leva: 'M-609' }, 'Guac & Marshmallow Pizza': { texto: '1t19msa', leva: 'M-609' }, 'Perilous Research': { texto: '1eyjq5f', leva: 'M-609' }, 'No Admittance': { texto: '1blm63l', leva: 'M-609' }, // M-609 · Sentinela do Pauper (Scryfall de 07/11/2026)
+  'Spinewoods Paladin': { texto: '1vhquu9', leva: 'M-610' }, 'Homestead Courage': { texto: 'i753hv', leva: 'M-610' }, 'Crypt Incursion': { texto: 'z79h83', leva: 'M-610' }, 'Mardu Devotee': { texto: '17q1ufx', leva: 'M-610' }, // M-610 · Sentinela do Pauper (Scryfall, 08/11/2026)
   'Geothermal Bog': { texto: '1amo2my', leva: 'M-607' }, 'Dawnbringer Cleric': { texto: '3kngfl', leva: 'M-607' }, 'Thought Vessel': { texto: 'xi1v9x', leva: 'M-607' }, // M-607 · Sentinela do Pauper (Scryfall de 03/11/2026)
   'Flawless Maneuver': { texto: '1dbabfl', leva: 'M-577' },
   'Deadly Rollick': { texto: 'mi4hfd', leva: 'M-577' },
@@ -22707,6 +22708,7 @@ const __m42 = (function () {
     [/^search your library for a creature card with (defender|flying|reach), reveal it, put it into your hand$/i, m => [{ do: 'search', amount: 1, filter: { types: ['creature'], keyword: m[1].toLowerCase() }, to: 'hand' }]], // LT11
     [/^prevent all combat damage that would be dealt this turn$/i, () => [{ do: 'fog' }]], // LT9
     [/^exile all cards from target player's graveyard$/i, () => [{ do: 'exile_graveyard', target: 'player' }]], // LT9
+    [/^exile all creature cards from target player's graveyard$/i, () => [{ do: 'exile_graveyard', target: 'player', tipos: ['creature'] }]], // M-610 · Crypt Incursion (só as cartas de criatura)
     [/^return target creature card from your graveyard to your hand$/i, () => [{ do: 'to_hand', target: 'creature-in-your-graveyard' }]], // LT9
     [/^put a \+1\/\+1 counter on each creature you control with a \+1\/\+1 counter on it$/i, () => [{ do: 'counters', tipo: 'p1p1', amount: 1, cada: { tipos: ['creature'], de: 'you', comMarcador: 'p1p1' } }]], // M-461 · Lifecrafter's Gift (as de agora, depois da frase anterior: o alvo também ganha o segundo)
     [new RegExp(`^prevent the next ${N} damage that would be dealt to any target this turn$`, 'i'), m => [{ do: 'prevenir', quantidade: num(m[1]), target: 'any' }]], // M-460 · 615.7 (Aurora Eidolon; o escudo da R5b)
@@ -23052,6 +23054,8 @@ const __m42 = (function () {
     const instante = /^Add (two|three|four|five) mana of any one color\.\s*Activate only as an instant$/i.test(corpo); if (instante) corpo = corpo.replace(/\.\s*Activate only as an instant$/i, ''); // M-342 · Lion's Eye Diamond: ativar exige prioridade, como toda ativação nesta mesa (602.5d não muda nada aqui)
     if (/\.\s*Activate only once each turn$/i.test(corpo)) { corpo = corpo.replace(/\.\s*Activate only once each turn$/i, ''); extra.oncePerTurn = true; } // M-334 · LT18 · 602.5b (Barrels of Blasting Jelly)
     if (/^Add one mana of any color$/i.test(corpo) && !(cost.tap && Object.keys(cost).length === 1)) { frases.push({ texto: m[1], lida: true }, { texto: corpo, lida: true }); return { kind: 'activated', cost, ...extra, effects: [{ do: 'add_mana', anyColor: true }] }; } // LT11 · mana de qualquer cor com custo além de {T}
+    { const um = corpo.match(/^Add \{([WUBRG])\}, \{([WUBRG])\}, or \{([WUBRG])\}$/); // M-610 · Mardu Devotee: uma de três cores, com custo além de {T} (a de só {T} é da linha de mana do terreno/criatura)
+      if (um && !(cost.tap && Object.keys(cost).length === 1)) { frases.push({ texto: m[1], lida: true }, { texto: corpo, lida: true }); return { kind: 'activated', cost, ...extra, effects: [{ do: 'add_mana', anyColor: true, cores: [um[1], um[2], um[3]] }] }; } }
     const tres = corpo.match(/^Add (two|three|four|five) mana of any one color$/i); // M-339 · Black Lotus, Lion's Eye Diamond
     if (tres) { frases.push({ texto: m[1], lida: true }, { texto: corpo, lida: true }, ...(instante ? [{ texto: 'Activate only as an instant', lida: true }] : [])); return { kind: 'activated', cost, ...extra, effects: [{ do: 'add_mana', anyColor: true, vezes: num(tres[1]) }] }; }
     const dep = corpo.match(/^Add ((?:\{[WUBRGC]\})+)\. If there are no ([a-z]+) counters on ~, sacrifice it$/i); // M-348 · terras de depleção
@@ -23219,6 +23223,10 @@ const __m42 = (function () {
     for (const p of partes) {
       { const tg = p.match(/^they gain ((?:haste|trample|flying|vigilance|lifelink|menace|deathtouch|first strike)(?:(?:,| and) (?:haste|trample|flying|vigilance|lifelink|menace|deathtouch|first strike))*) until end of turn$/i); // M-600 · Sokenzan: as fichas criadas pela frase anterior (611.2a)
         if (tg && efeitos.length && efeitos[efeitos.length - 1].do === 'token') { efeitos[efeitos.length - 1].palavrasAteFimDoTurno = tg[1].split(/,\s*| and /).map(x => x.trim().toLowerCase()).filter(Boolean); frases.push({ texto: p, lida: true }); continue; } }
+      { const ig = p.match(/^it gains ((?:haste|trample|flying|vigilance|lifelink|menace|deathtouch|first strike|reach|indestructible)(?:(?:,| and) (?:haste|trample|flying|vigilance|lifelink|menace|deathtouch|first strike|reach|indestructible))*) until end of turn$/i); const ult = efeitos[efeitos.length - 1]; // M-610 · Homestead Courage: "it" é a criatura alvo da frase anterior (608.2c; 611.2a)
+        if (ig && ult && ['counters', 'pump'].includes(ult.do) && ['creature', 'creature-you-control'].includes(ult.target)) { ig[1].split(/,\s*| and /).map(x => x.trim().toLowerCase()).filter(Boolean).forEach(k => efeitos.push({ do: 'keyword', keyword: k, target: 'first-target' })); frases.push({ texto: p, lida: true }); continue; } }
+      { const ge = p.match(/^you gain (\d+) life for each card exiled this way$/i); const ult = efeitos[efeitos.length - 1]; // M-610 · Crypt Incursion: conta o que o exílio anterior desta mágica moveu (608.2c)
+        if (ge && ult && ult.do === 'exile_graveyard' && !ult.jogadores) { ult.contaMovidas = true; efeitos.push({ do: 'gain', amount: { per: 'movidas', times: +ge[1] } }); frases.push({ texto: p, lida: true }); continue; } }
       if (/^untap it$/i.test(p) && efeitos.length && efeitos[efeitos.length - 1].do === 'pump' && efeitos[efeitos.length - 1].target === 'creature') { efeitos.push({ do: 'untap', target: 'first-target' }); frases.push({ texto: p, lida: true }); continue; } // M-609 · Guac & Marshmallow Pizza: "it" é a criatura alvo da frase anterior (608.2c)
       if (/^if that spell is countered this way, put it on top of its owner's library instead of into that player's graveyard$/i.test(p) && efeitos.length && efeitos[efeitos.length - 1].do === 'counter') { efeitos[efeitos.length - 1].topo = true; frases.push({ texto: p, lida: true }); continue; } // M-395 · Memory Lapse
       if (/^if that spell is countered this way, exile it instead of putting it into its owner's graveyard$/i.test(p) && efeitos.length && efeitos[efeitos.length - 1].do === 'counter') { efeitos[efeitos.length - 1].exila = true; frases.push({ texto: p, lida: true }); continue; } // M-338 · Force of Negation
@@ -24822,6 +24830,7 @@ function coresDosTerrenosDosOponentes(s, p, visto = new Set()) {
 function coresPermitidas(s, p, eff) {
   if (eff.identity) return identidade(s, p);
   if (eff.opponentLands) return coresDosTerrenosDosOponentes(s, p);
+  if (Array.isArray(eff.cores)) return eff.cores.slice(); // M-610 · "Add {R}, {W}, or {B}" (Mardu Devotee)
   return null;
 }
 /** M-353 · 106.12a / 605.1b · mana a mais de "whenever enchanted land is tapped for mana" (Wild Growth, Utopia Sprawl) e da Maré Alta, quando a terra
@@ -26863,8 +26872,9 @@ function applyEffectM449(s, src, eff, tgt, events) {
     }
     case 'exile_graveyard': {
       const alvos = eff.target === 'all' ? s.players.map((_, i) => i) : eff.target === 'each-opponent' ? s.players.map((_, i) => i).filter(i => i !== ctrl) : [playerOf()]; // R11 · Soul-Guide Lantern
-      alvos.forEach(who => [...s.zones[who].graveyard].forEach(x => moveObject(s, x, 'exile')));
-      note({}); break;
+      let k = 0; // M-610 · `tipos`: "exile all creature cards from …" (Crypt Incursion); `contaMovidas`: guarda em `movidas` quantas saíram, para "for each card exiled this way"
+      alvos.forEach(who => [...s.zones[who].graveyard].filter(x => !eff.tipos || ((s.facts[s.objects[x].name] || {}).types || []).some(t => eff.tipos.includes(t))).forEach(x => { moveObject(s, x, 'exile'); k++; }));
+      if (eff.contaMovidas) src.movidas = k; note(eff.tipos ? { amount: k } : {}); break;
     }
     case 'discard_chosen': { // S45 · o oponente revela a mão e VOCÊ escolhe o que ele descarta
       const who = playerOf();
@@ -30092,6 +30102,7 @@ const HANDLERS = {
       if (!cores.includes(a.color)) throw new RuleError('mana', 'essa cor nenhum terreno dos oponentes poderia produzir');
     }
     if (a.color == null && (base.effects || []).some(e => e.do === 'add_mana' && e.anyColor && !e.identity && !e.opponentLands)) throw new RuleError('cor', 'escolha a cor da mana');
+    if (a.color != null && (base.effects || []).some(e => e.do === 'add_mana' && Array.isArray(e.cores) && !e.cores.includes(a.color))) throw new RuleError('cor', 'essa habilidade não produz essa cor'); // M-610
     if (a.color != null && !['W', 'U', 'B', 'R', 'G'].includes(a.color) && (base.effects || []).some(e => e.do === 'add_mana' && e.anyColor)) throw new RuleError('cor', 'a cor precisa ser branco, azul, preto, vermelho ou verde'); // M-342 · achado da revisão do lote XVI (105.1): {C} ou outra letra numa ação montada // M-339 · achado da revisão (105.1): "any one color" não é incolor — antes, sem cor, dava {C}
     const ab = { ...base, effects: expandeAlvos(s, o, base.effects || []).map(e => e.do === 'add_mana' && e.anyColor ? { ...e, color: (e.identity || e.opponentLands) ? (a.color || null) : (a.color || 'C') } : e) };
     if (ab.sorceryOnly && !canSorceryNow(s, a.p)) throw new RuleError('tempo', 'só quando você poderia conjurar um feitiço');
@@ -31273,7 +31284,8 @@ function legalActions(s, p, { adjudication = false } = {}) {
         const anyColor = (ab.effects || []).some(e => e.do === 'add_mana' && e.anyColor);
         const porIdentidade = (ab.effects || []).some(e => e.do === 'add_mana' && e.identity);
         const porOponentes = (ab.effects || []).some(e => e.do === 'add_mana' && e.opponentLands);
-        const cores = porOponentes ? coresDosTerrenosDosOponentes(s, p) : porIdentidade ? identidade(s, p) : anyColor ? ['W', 'U', 'B', 'R', 'G'] : [null];
+        const restrita = (ab.effects || []).find(e => e.do === 'add_mana' && Array.isArray(e.cores)); // M-610 · só as cores que a habilidade diz
+        const cores = porOponentes ? coresDosTerrenosDosOponentes(s, p) : porIdentidade ? identidade(s, p) : restrita ? restrita.cores.slice() : anyColor ? ['W', 'U', 'B', 'R', 'G'] : [null];
         return cores.forEach(color => pays.forEach(pay => xs.forEach(x => out.push({ t: 'activate', p, oid: o.oid, index, ...(color ? { color } : {}), ...comPagamento(pay), ...comXA(x) }))));
       }
       let combos = [[]];
@@ -37962,7 +37974,8 @@ function coresEmCampo(s, p) {
   const tenho = new Set();
   for (const oid of s.zones[p].battlefield) {
     const f = s.facts[s.objects[oid].name];
-    const txt = JSON.stringify([f.produces || [], (f.script || {}).produces || [], ((f.script || {}).abilities || []).map(ab => (ab.effects || []).filter(e => e.do === 'add_mana'))]);
+    const txt = JSON.stringify([f.produces || [], (f.script || {}).produces || [], ((f.script || {}).abilities || []).map(ab => (ab.effects || []).filter(e => e.do === 'add_mana' && !Array.isArray(e.cores)))]);
+    ((f.script || {}).abilities || []).forEach(ab => (ab.effects || []).forEach(e => { if (e.do === 'add_mana' && Array.isArray(e.cores)) e.cores.forEach(c => tenho.add(c)); })); // M-610 · só as cores ditas (Mardu Devotee)
     if (/anyColor/.test(txt)) 'WUBRG'.split('').forEach(c => tenho.add(c));
     for (const m of txt.match(/"[WUBRG]"/g) || []) tenho.add(m[1]);
   }
@@ -40328,7 +40341,7 @@ function descreveEfeito(e) {
     case 'moeda': return `jogue uma moeda${e.ateperder ? ' até perder um lance' : ''}`; // T-65 · CR 705
     case 'energia': return `você ganha ${e.amount === 1 ? 'um marcador' : (e.amount || 1) + ' marcadores'} de energia`; // M-367
     case 'mana_combinada': return e.amount === 1 ? 'adiciona uma mana da cor que você escolher' : `adiciona ${(e.amount || 2) + ' manas'} das cores que você escolher (pode misturar)`; // M-553 · uma mana só não "mistura" // M-357 · 106.1a
-    case 'add_mana': if (e.symbols && !e.identity && !e.opponentLands) return `adiciona ${e.symbols.map(c => `{${c}}`).join('')}${e.porContagem ? ` para cada ${({ 'creature-cards-in-your-graveyard': 'carta de criatura no seu cemitério' })[e.porContagem] /* M-428 · "para cada cartas" */ || X_PT[e.porContagem] || 'um'}` : ''}`; /* M-423 · a mana dita (achado da revisão da M-409: "adiciona mana") */ return e.identity ? 'adiciona mana de uma cor da identidade do seu comandante' : e.opponentLands ? 'adiciona mana de uma cor que um terreno de um oponente poderia produzir' : e.anyColor ? 'adiciona mana de qualquer cor' : 'adiciona mana';
+    case 'add_mana': if (e.symbols && !e.identity && !e.opponentLands) return `adiciona ${e.symbols.map(c => `{${c}}`).join('')}${e.porContagem ? ` para cada ${({ 'creature-cards-in-your-graveyard': 'carta de criatura no seu cemitério' })[e.porContagem] /* M-428 · "para cada cartas" */ || X_PT[e.porContagem] || 'um'}` : ''}`; /* M-423 · a mana dita (achado da revisão da M-409: "adiciona mana") */ if (Array.isArray(e.cores)) return `adiciona ${e.cores.map(c => `{${c}}`).join(', ').replace(/, (\{[A-Z]\})$/, ' ou $1')}`; /* M-610 */ return e.identity ? 'adiciona mana de uma cor da identidade do seu comandante' : e.opponentLands ? 'adiciona mana de uma cor que um terreno de um oponente poderia produzir' : e.anyColor ? 'adiciona mana de qualquer cor' : 'adiciona mana';
     case 'search': return `procura ${plural(n, 'carta', 'cartas')}${e.filter && e.filter.types && e.filter.types.includes('creature') && e.filter.cores ? ` de criatura ${e.filter.cores.map(c => ({ W: 'branca', U: 'azul', B: 'preta', R: 'vermelha', G: 'verde' })[c]).join(' e ')}` : ''}${e.filter && e.filter.mvMax != null ? ` de valor de mana ${typeof e.filter.mvMax === 'object' ? 'X' : e.filter.mvMax} ou menos` : ''} ${e.filter && e.filter.name ? `chamada ${e.filter.name} ` : ''}no grimório${e.to === 'battlefield' && !e.reparte ? ' e põe no campo de batalha' : ''}${e.to === 'battlefield-tapped' && !e.reparte ? ' e põe no campo de batalha virada' : ''}${e.compartilhaTipoM ? ' com um tipo de terreno em comum' : ''}${e.reparte ? ' (a primeira entra virada, a segunda vai para a mão)' : ''}${e.desviraSeTerrenos ? ` (desvira a terra achada se você tiver ${e.desviraSeTerrenos} terrenos ou mais)` : ''}`; // M-343
     case 'scry': return `vidência ${n}: olha ${plural(n, 'carta', 'cartas')} de cima e decide o que fica no topo`;
     case 'surveil': return `vigia ${n}`;
