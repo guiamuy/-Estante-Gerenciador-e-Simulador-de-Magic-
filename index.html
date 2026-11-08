@@ -1774,11 +1774,15 @@ body[data-mesa-cheia="true"] .ds-toast[data-inteiro="true"] { padding-top: var(-
 /* D8 · botão confirmado: ✓ no acento por 1,2 s */
 .ds-btn[data-confirmado="true"] { color: var(--positive); border-color: var(--positive); }
 .ds-btn--primary[data-confirmado="true"] { color: var(--accent-fg); border-color: var(--accent); }
-.ds-spinner {
-  width: 18px; height: 18px; border-radius: var(--radius-full);
-  border: 2px solid var(--border); border-top-color: var(--accent);
-  animation: ds-spin var(--dur-giro) linear infinite;
-}
+/* DS-K3 MV-4 (G-358) · espera curta: o anel que gira se aposenta e vira o fio que percorre — um trilho de 28 px com um
+   trecho de latão que vai de uma ponta à outra (luz que passa, não peça que roda). Mesma classe, papel e nome falado.
+   Plano: trilho (fundo) e trecho (objeto); luz: o trecho é a luz; curva --ease-in-out; etapas: uma, em laço (espera);
+   moderado: igual (é luz, não viagem); reduzido: o trecho parado no meio. */
+.ds-spinner { position: relative; display: inline-block; flex: none; width: 28px; height: 3px; border: 0; border-radius: var(--radius-full); background: var(--border); overflow: hidden; animation: none; vertical-align: middle; }
+.ds-spinner::after { content: ''; position: absolute; inset: 0 auto 0 0; width: 40%; border-radius: inherit; background: linear-gradient(90deg, transparent, var(--accent-hi), var(--accent), transparent); animation: ds-fio var(--dur-brilho) var(--ease-in-out) infinite; }
+@keyframes ds-fio { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+@media (prefers-reduced-motion: reduce) { .ds-spinner::after { animation: none; transform: translateX(75%); } }
+:root[data-movimento="reduzido"] .ds-spinner::after { animation: none !important; transform: translateX(75%); }
 @keyframes ds-spin { to { transform: rotate(360deg) } }
 /* G-270 · botão ocupado (aria-busy): o ícone dá lugar ao giro do carregando, na cor do botão — retorno na hora do toque */
 .ds-btn[aria-busy="true"] > .ds-icon { display: none; }
@@ -2040,13 +2044,21 @@ html:has(#noticias) { overscroll-behavior-y: contain; }
 .ds-esqueleto__texto { flex: 1 1 auto; display: flex; flex-direction: column; gap: var(--space-2); }
 .ds-esqueleto__texto > span { height: var(--space-3); border-radius: var(--radius-1); background: var(--bg-elev-3); }
 .ds-esqueleto__texto > span:last-child { width: 46%; height: var(--space-2); background: var(--bg-elev-2); }
-.ds-esqueleto__linha { animation: ds-pulsa-esqueleto var(--dur-pulso) var(--ease-out) infinite alternate; }
-.ds-esqueleto__linha:nth-child(2) { animation-delay: calc(var(--dur-pulso) * .2); }
-.ds-esqueleto__linha:nth-child(3) { animation-delay: calc(var(--dur-pulso) * .4); }
-.ds-esqueleto__linha:nth-child(n+4) { animation-delay: calc(var(--dur-pulso) * .6); }
-@keyframes ds-pulsa-esqueleto { from { opacity: 1; } to { opacity: .55; } }
-@media (prefers-reduced-motion: reduce) { .ds-esqueleto__linha { animation: none; } }
+/* DS-K3 MV-4 (G-358) · família de espera. Imperceptível: a espera só aparece depois de --calma (300 ms); o que chega antes
+   nunca pisca um esqueleto. Média: o esqueleto deixa de pulsar e recebe luz — um brilho estreito atravessa cada linha,
+   escalonado por --escalona-2, como a luz que passa numa prateleira (P2). Plano: linha (objeto) e brilho (luz); curva
+   --ease-in-out; moderado: igual (luz, sem viagem); reduzido: sem brilho, a linha parada e inteira. */
+.ds-esqueleto { animation: ds-espera-aparece var(--dur-2) var(--ease-out) var(--calma) both; }
+@keyframes ds-espera-aparece { from { opacity: 0; } to { opacity: 1; } }
+.ds-esqueleto__linha { position: relative; overflow: hidden; isolation: isolate; }
+.ds-esqueleto__linha::after { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: linear-gradient(100deg, transparent 30%, var(--sheen) 50%, transparent 70%); opacity: .35; transform: translateX(-100%); animation: ds-esqueleto-luz var(--dur-arruma) var(--ease-in-out) var(--calma) infinite; }
+.ds-esqueleto__linha:nth-child(2)::after { animation-delay: calc(var(--calma) + var(--escalona-2)); }
+.ds-esqueleto__linha:nth-child(3)::after { animation-delay: calc(var(--calma) + var(--escalona-2) * 2); }
+.ds-esqueleto__linha:nth-child(n+4)::after { animation-delay: calc(var(--calma) + var(--escalona-2) * 3); }
+@keyframes ds-esqueleto-luz { 0% { transform: translateX(-100%); } 60%, 100% { transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) { .ds-esqueleto__linha { animation: none; } .ds-esqueleto__linha::after { animation: none; opacity: 0; } }
 :root[data-movimento="reduzido"] .ds-esqueleto__linha { animation: none !important; }
+:root[data-movimento="reduzido"] .ds-esqueleto__linha::after { animation: none !important; opacity: 0; }
 
 /* ---------------- carta ---------------- */
 .ds-card {
@@ -6049,7 +6061,9 @@ function renderDS() {
       Note(__m3.seguro`Nota informativa com <b>ênfase</b>.`),
       Note('Atenção: algo exige decisão.', 'warning'),
       Note('Erro: a operação não pôde ser concluída.', 'negative'),
-      Row({}, Spinner(), Text('Carregando…', { size: 'sm', tone: 'muted' })),
+      // DS-K3 MV-4 (G-358) · família de espera por tempo: imperceptível (até 300 ms, nada) · curta (fio) · média (esqueleto com luz) · longa e de imagem (cartas que se arrumam)
+      Text('Espera por tempo: até 300 ms nada aparece; curta, o fio que percorre; média, o esqueleto com luz; longa, as cartas que se arrumam com a frase do que está acontecendo. Sem internet, tudo para e a faixa diz.', { size: 'sm', tone: 'muted', attrs: { id: 'ds-espera-nota' } }),
+      Row({ id: 'ds-espera-curta' }, Spinner(), Text('Carregando…', { size: 'sm', tone: 'muted' })),
       // J4 · espera com identidade, nos três tamanhos, e o esqueleto de lista
       h('div', { id: 'ds-carregando' }, __m3.Carregando('Abrindo lista…', { tamanho: 'tela', id: 'ds-carregando-tela' }), __m3.Carregando('Buscando artes…', { tamanho: 'bloco', id: 'ds-carregando-bloco' }), __m3.Carregando('Esperando o outro jogador…', { tamanho: 'linha', id: 'ds-carregando-linha' })),
       __m3.Esqueleto({ linhas: 3, id: 'ds-esqueleto' }),
