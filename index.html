@@ -39376,7 +39376,7 @@ function repeticaoDoCombo(before, action, assentoBot, perfil) {
   }
   if (action.t !== 'pass' || !before.stack.length) return false;
   const topo = before.objects[before.stack[before.stack.length - 1]];
-  return !!(topo && topo.ability && topo.controller === assentoBot && topo.name === perfil.combo.desvira);
+  return !!(topo && topo.ability && perfil.combo && topo.controller === assentoBot && topo.name === perfil.combo.desvira); // B-202 · relato #72: lista sem combo (quatro das cinco do Shark) quebrava aqui, depois de a jogada valer, e a vez do Shark ficava com você
 }
 /** Chave da habilidade no topo da pilha, para "já cedi a esta repetição neste turno". Null se o topo não é habilidade. */
 function chaveDaRepeticao(s) {
