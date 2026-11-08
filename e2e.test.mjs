@@ -8126,7 +8126,9 @@ test('e2e · P-12 Silenciar a conversa: com a conversa silenciada as mensagens d
   await B.waitForSelector('#online-codigo-input'); await B.fill('#online-codigo-input', codigo); await B.waitForFunction(() => !document.querySelector('#online-entrar').disabled, null, { timeout: 10000 }); await B.click('#online-entrar');
   await A.waitForSelector('#tb-chat', { timeout: 20000 }); await B.waitForSelector('#tb-chat', { timeout: 20000 });
   // A silencia (o botão fica no topo da Conversa, 44 px, com o estado falado)
-  await A.click('#tb-chat'); await A.waitForSelector('#tb-chat-silenciar');
+  // M-612 · A volta para a frente antes de medir: com B aberta por último, A fica em segundo plano e o Chromium não anda a animação
+  // de entrada do diálogo (escala 0,97 parada: 42,68 px num botão de 44, toda vez, nas sessões de nuvem de 08/11)
+  await A.bringToFront(); await A.click('#tb-chat'); await A.waitForSelector('#tb-chat-silenciar');
   assert.equal(await A.getAttribute('#tb-chat-silenciar', 'aria-pressed'), 'false');
   await A.waitForTimeout(350); // o diálogo entra com escala: mede depois da entrada
   const caixa = await A.locator('#tb-chat-silenciar').boundingBox(); assert.ok(caixa.height >= 44, JSON.stringify(caixa));
