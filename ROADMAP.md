@@ -8299,6 +8299,14 @@ estruturado para tornarmos o Shark um jogador de nível profissional com as suas
     (posição montada no F1251 T3: passar e dar Snuff Out no Priest of Titania na pilha), classe **(A)** mana do Counterspell
     no próprio turno com outra regra que não o `segura` (que mediu 8 × 11), classes **(D)** e **(E)** juntas; depois a
     régua absoluta e o equilíbrio de novo, com 200+ decididas por lista (≈ 4 h em dois núcleos).
+- **B-202 · relato #72 (08/11/2026, rotina "Relatos do dono") · a vez do Shark nunca fica com você.** Com uma lista do Shark
+  sem combo (Madness, Control, Faeries, Terror; só os Elfos têm), passar a prioridade com uma habilidade dele na pilha lia
+  `perfil.combo.desvira` no registro (`repeticaoDoCombo`, desde a J-55 de 03/11) e quebrava **depois** de a jogada valer: a tela
+  avisava "O oponente não conseguiu jogar" e a partida seguia com você no lugar do Shark, vendo a mão dele. Reproduzido em 13 de
+  15 partidas simuladas (as cinco listas contra o Mono Blue Terror). Correção: perfil sem combo não tem repetição. Testes:
+  bot.unit "B-202" (2; falhavam antes: as cinco listas quebravam). Depois: 30 partidas simuladas (cinco listas contra Terror,
+  Madness e Elfos), nenhuma vez a vez do Shark com você. Fora: o aviso de quando o Shark quebra por outro motivo continua
+  entregando a vez a você (dívida: devolver a vez ao Shark com um passe); motor v112 e goldens intactos.
 - **Fase 2 · B-194 · avaliação aprendida, primeira medida (02/11/2026) — negativa, desligada.** `bot.aprende.mjs` (novo, fora
   do portão): `coleta` joga Shark × Shark com as cinco listas e grava as parcelas da `avaliaV6` de posições sorteadas e
   quem venceu; `ajusta` faz regressão logística (L2, treino e prova separados por partida) da vitória sobre as parcelas,

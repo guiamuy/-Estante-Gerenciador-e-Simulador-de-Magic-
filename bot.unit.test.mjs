@@ -1049,6 +1049,47 @@ test('B9 · combo na mesa: as ações do laço são reconhecidas como repetiçã
   assert.equal(T.chaveDaRepeticao(fora.s), null);
 });
 
+// B-202 · relato #72: com uma lista do Shark sem combo (Mono Blue Terror, Dimir, Grixis), passar a prioridade com uma
+// habilidade dele na pilha lia `perfil.combo.desvira` e quebrava o registro depois de a jogada já valer; a tela seguia
+// com o jogador no lugar do Shark, vendo a mão dele. Perfil sem combo: nada é repetição, e nada quebra.
+test('B-202 · relato #72: perfil sem combo e habilidade do Shark no topo da pilha — passar não é repetição e não quebra', async () => {
+  const { table: T } = loadModules();
+  const { s } = await monta(4, 3, { ativo: 1, vez: 0, passo: 'main1' });
+  const t = J(s), fonte = Object.keys(t.objects)[0];
+  t.objects.hab72 = { oid: 'hab72', name: 'Tolarian Terror', ability: true, source: fonte, controller: 1, owner: 1, zone: 'stack' };
+  t.stack.push('hab72');
+  for (const pf of [{}, { plano: 'tempo' }, B.perfilDe(t, 1)]) {
+    assert.doesNotThrow(() => T.repeticaoDoCombo(t, { t: 'pass', p: 0 }, 1, pf), JSON.stringify(pf));
+    assert.equal(T.repeticaoDoCombo(t, { t: 'pass', p: 0 }, 1, pf), false);
+  }
+});
+
+// B-202 · relato #72, na mesa inteira: o Shark com cada uma das cinco listas contra o Mono Blue Terror dele, você pilotado por
+// um jogador simples com o piloto em passos da tela; a vez nunca passa a você no lugar do Shark e nada quebra.
+test('B-202 · relato #72: contra o Shark, a mesa nunca entrega a vez do Shark a você (cinco listas, piloto em passos)', { timeout: 240000 }, async () => {
+  const { table: T } = loadModules();
+  const { listasDoShark } = await import('./torneio.listas.mjs');
+  const shark = listasDoShark(), terror = shark.find(l => l.id === 'shark-terror'), voce = B.criaBot({ nivel: 'amador' });
+  const falhas = [];
+  for (const op of shark) {
+    const cards = {}; for (const d of [op, terror]) for (const e of d.entries) if (d.cartas[e.name]) cards[e.name] = d.cartas[e.name];
+    const tb = T.createTable(T.buildSetup({ format: 'pauper', seed: 7919, seats: [{ name: 'Você', deck: op }, { name: 'Shark', deck: terror }], cards, mode: 'full' }),
+      { options: { autoPass: true, bot: { nivel: 'shark', seat: 1 } } });
+    try {
+      for (let i = 0; i < 400 && tb.state.status !== 'over'; i++) {
+        const s = tb.state;
+        if (tb.viewer() === 1) { falhas.push(`${op.id}: a vez do Shark ficou com você (turno ${s.turn.number}, ${s.pending ? s.pending.kind : s.turn.step})`); break; }
+        const a = s.status === 'mulligan' ? { t: 'keep', p: 0, bottom: [] } : (voce.jogada(s, 0) || {}).acao;
+        if (!a) break;
+        tb.act(a, { piloto: false });
+        let r = tb.pilota({ antesDoBot: true });
+        for (let g = 0; !r.fim && g < 3000; g++) r = tb.pilota({ umBot: true });
+      }
+    } catch (e) { falhas.push(`${op.id}: ${e.message}`); }
+  }
+  assert.deepEqual(falhas, []);
+});
+
 /* ---- B-22 · as cinco listas do Shark (leva B-173) ---- */
 // O Shark só joga com `LISTAS_DO_SHARK` (dado do módulo: cinco listas de torneio do catálogo, escolhidas em 23/10/2026). A tela de
 // preparação monta o deck a partir daí e exige cobertura 100%; aqui se prova que o dado é são e que cada lista joga no motor.
