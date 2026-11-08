@@ -184,7 +184,7 @@
   --escalona: 130ms; /* irmãos entram escalonados: a etapa seguinte começa antes de a anterior terminar (P4) */
   /* DS-K3 K3-0 (G-357) · Vitrine: material por luz. Cinco degraus de ébano (E0 mais fundo → E4 mais perto da luz), fio de
      luz nas arestas, laca (luz de cima numa superfície), sombra em três alturas (contato, chave, flutuante), grão fino que
-     substitui o veio do fundo, véu obrigatório sob texto sobre arte, inclinação máxima da arte (P7) e a barra flutuante.
+     substitui o veio do fundo, véu obrigatório sob texto sobre arte, e a inclinação máxima da arte (P7); a altura da barra já é --navbar-h (G-322).
      Os tokens antigos (--bg-elev-*, --shadow-*) seguem valendo como apelidos até a FA-2. */
   --elev-0: #0a0704; --elev-1: #130e09; --elev-2: #1b140d; --elev-3: #241b12; --elev-4: #2e2318;
   --edge: rgba(255, 240, 210, .10);
@@ -200,7 +200,6 @@
   --fg-sobre-arte-muted: #d6c8ad;
   --radius-4: 22px;
   --tilt-max: 6deg;
-  --navbar-h: 64px;
   /* DS-K3 MV-0 (G-357) · Movimento: gramática R1–R5 (claude/DIRETRIZ-animacao.md). Durações nas pontas, escalonamento
      em três ritmos, três molas físicas em linear() (rigidez/amortecimento, massa 1), saída curta que acelera, distâncias
      e profundidade por token e o intervalo de calma entre dois movimentos grandes. Par de duração recomendado: mola firme
@@ -2127,6 +2126,30 @@ body[data-tela="partida"] {
 .ds-list__group { border-bottom: 2px solid var(--shelf-edge); }
 .ds-list { border-bottom: 3px solid var(--shelf-edge); }
 .ds-appbar { border-bottom: 2px solid var(--shelf-edge); }
+
+/* ===================== DS-K3 K3-1 (G-358) · superfície por luz e grão =====================
+   Decisão do dono (08/11/2026, opção 2A): o veio sai do fundo. Fora da mesa, o fundo é o ébano (ou o papel) com uma luz
+   de cima e um grão fino parado; o veio fica só como elemento (ombro de prateleira). A altura vem da luz: o cartão é o
+   degrau E3 com laca (luz de cima), aresta clara no topo e duas sombras (contato e chave), sem borda; o que flutua
+   (cartão elevado, folha, diálogo) é o E4 com sombra flutuante. A mesa (body[data-tela="partida"]) não muda. Os degraus
+   e as sombras saem dos tokens da K3-0, nos dois temas; o contraste de --fg nos degraus é conferido no contrato visual. */
+body:not([data-tela="partida"]) {
+  background-image: radial-gradient(1200px 520px at 50% -12%, var(--elev-3) 0%, transparent 62%), var(--grain);
+  background-attachment: fixed, scroll;
+}
+.ds-surface:where(:not(.ds-surface--flat, .ds-destaque)) {
+  background: var(--lacquer), var(--elev-3); border-color: transparent;
+  box-shadow: inset 0 1px 0 var(--edge), var(--shadow-contact), var(--shadow-key);
+}
+.ds-surface--raised:where(:not(.ds-destaque)) { background: var(--lacquer), var(--elev-4); box-shadow: inset 0 1px 0 var(--edge-strong), var(--shadow-float); }
+.ds-dialog { background: var(--lacquer), var(--elev-4); }
+.ds-surface--shelf:where(:not(.ds-destaque)) { border-bottom-color: var(--shelf-edge); } /* o ombro de prateleira continua: é o veio como elemento */
+/* os cartões que não são Surface ganham o mesmo material (vazio de destaque, notícia, relato, escolha de lista, lista
+   do catálogo); dentro do destaque em ébano continuam como o destaque pede (regras de duas classes vencem estas) */
+:where(body:not([data-tela="partida"])) :is(.ds-empty.ds-empty--hero, .nt-cartao, .relato-item, .deck-picker, .cat-lista) {
+  background: var(--lacquer), var(--elev-3); border-color: transparent;
+  box-shadow: inset 0 1px 0 var(--edge), var(--shadow-contact), var(--shadow-key);
+}
 
 /* ===================== L3 · galeria da lista ===================== */
 .ds-text--positive { color: var(--positive); }
@@ -5846,7 +5869,7 @@ function renderDS() {
       Text('Vitrine: a altura vem da luz, não da borda. Cada degrau tem a sua sombra; a laca é a luz de cima; o grão substitui o veio.', { size: 'sm', tone: 'muted' }),
       h('div', { class: 'ds-elevs', id: 'ds-elevs' }, ...[0, 1, 2, 3, 4].map(n => h('div', { class: 'ds-elev', dataset: { elev: String(n) } }, h('code', {}, 'E' + n), Text(['fundo', 'base', 'cartão', 'folha', 'topo'][n], { size: 'xs', tone: 'muted' })))),
       h('div', { class: 'ds-arte-amostra', id: 'ds-arte-amostra', role: 'img', 'aria-label': 'texto sobre arte com véu' }, h('span', { class: 'ds-arte-amostra__rotulo' }, 'LISTA'), h('strong', {}, 'Mono Red Madness')),
-      Text('--elev-0…4 · --edge · --lacquer · --shadow-contact · --shadow-key · --shadow-float · --grain · --scrim-art com --fg-sobre-arte · --radius-4 · --tilt-max · --navbar-h', { size: 'xs', tone: 'subtle' })),
+      Text('--elev-0…4 · --edge · --lacquer · --shadow-contact · --shadow-key · --shadow-float · --grain · --scrim-art com --fg-sobre-arte · --radius-4 · --tilt-max', { size: 'xs', tone: 'subtle' })),
 
     // D10 · catálogo de movimento: cada duração com nome e uso; a regra de menos movimento é global (sistema ou escolha)
     Section('Movimento',

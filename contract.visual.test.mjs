@@ -809,7 +809,7 @@ test('DS-K3 K3-0 · material: degraus, aresta, laca, três sombras e grão exist
   assert.ok(ratio(DARK['--fg-sobre-arte'], pe) >= 4.5, 'texto sobre arte: ' + ratio(DARK['--fg-sobre-arte'], pe).toFixed(2));
   assert.ok(ratio(DARK['--fg-sobre-arte-muted'], pe) >= 4.5, 'rótulo sobre arte: ' + ratio(DARK['--fg-sobre-arte-muted'], pe).toFixed(2));
   assert.match(DARK['--scrim-art'], /^linear-gradient\(180deg, rgba\(10, 7, 4, 0\) 30%/);
-  assert.equal(DARK['--radius-4'], '22px'); assert.equal(DARK['--tilt-max'], '6deg'); assert.equal(DARK['--navbar-h'], '64px');
+  assert.equal(DARK['--radius-4'], '22px'); assert.equal(DARK['--tilt-max'], '6deg');
   // as amostras do /ds usam só tokens
   assert.match(componentCss, /\.ds-elev\[data-elev="4"\] \{ background: var\(--lacquer\), var\(--elev-4\); box-shadow: inset 0 1px 0 var\(--edge-strong\), var\(--shadow-float\); \}/);
   assert.match(componentCss, /\.ds-arte-amostra \{[^}]*color: var\(--fg-sobre-arte\); background: var\(--scrim-art\)/);
@@ -833,4 +833,19 @@ test('DS-K3 MV-0 · movimento: durações nas pontas, escalonamento, três molas
   assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{ :root \{ --desloc-1: 0px;[^}]*--tilt-max: 0deg; \} \}/);
   // o catálogo de movimento demonstra cada mola com a sua curva
   assert.match(componentCss, /\.ds-movimento__demo\.is-on \{ animation: ds-demo var\(--demo, var\(--dur-2\)\) var\(--demo-curva, var\(--ease-out\)\); \}/);
+});
+
+test('DS-K3 K3-1 · superfície por luz: fora da mesa o fundo é luz de cima + grão (sem veio); o cartão é E3 com laca, aresta e duas sombras, sem borda; o que flutua é E4; destaque, plano e mesa ficam como estão', () => {
+  const corpo = componentCss.match(/body:not\(\[data-tela="partida"\]\) \{([^}]*)\}/); assert.ok(corpo, 'regra do fundo fora da mesa');
+  assert.match(corpo[1], /background-image: radial-gradient\(1200px 520px at 50% -12%, var\(--elev-3\) 0%, transparent 62%\), var\(--grain\);/);
+  assert.doesNotMatch(corpo[1], /repeating-linear-gradient/, 'o veio sai do fundo (decisão 2A)');
+  assert.match(componentCss, /\.ds-surface:where\(:not\(\.ds-surface--flat, \.ds-destaque\)\) \{\s*background: var\(--lacquer\), var\(--elev-3\); border-color: transparent;\s*box-shadow: inset 0 1px 0 var\(--edge\), var\(--shadow-contact\), var\(--shadow-key\);\s*\}/);
+  assert.match(componentCss, /\.ds-surface--raised:where\(:not\(\.ds-destaque\)\) \{ background: var\(--lacquer\), var\(--elev-4\); box-shadow: inset 0 1px 0 var\(--edge-strong\), var\(--shadow-float\); \}/);
+  assert.match(componentCss, /\.ds-dialog \{ background: var\(--lacquer\), var\(--elev-4\); \}/);
+  assert.ok(componentCss.includes(':where(body:not([data-tela="partida"])) :is(.ds-empty.ds-empty--hero, .nt-cartao, .relato-item, .deck-picker, .cat-lista) {\n  background: var(--lacquer), var(--elev-3);'), 'os cartões que não são Surface têm o mesmo material');
+  // a mesa continua com o veio e a luz do feltro (MJ7)
+  assert.match(componentCss, /body\[data-tela="partida"\] \{\s*background-image:\s*repeating-linear-gradient\(94deg/);
+  // o texto apagado também passa AA nos degraus que viram fundo de cartão
+  for (const [nome, t] of [['escuro', DARK], ['claro', LIGHT]])
+    for (const n of [3, 4]) for (const f of ['--fg-muted', '--accent', '--positive', '--negative', '--player-opp', '--warning']) assert.ok(ratio(t[f], t[`--elev-${n}`]) >= 4.5, `${f} sobre E${n} (${nome}): ${ratio(t[f], t[`--elev-${n}`]).toFixed(2)}`);
 });
