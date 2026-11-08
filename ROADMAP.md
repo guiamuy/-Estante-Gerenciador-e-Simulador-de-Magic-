@@ -8299,6 +8299,25 @@ estruturado para tornarmos o Shark um jogador de nível profissional com as suas
     (posição montada no F1251 T3: passar e dar Snuff Out no Priest of Titania na pilha), classe **(A)** mana do Counterspell
     no próprio turno com outra regra que não o `segura` (que mediu 8 × 11), classes **(D)** e **(E)** juntas; depois a
     régua absoluta e o equilíbrio de novo, com 200+ decididas por lista (≈ 4 h em dois núcleos).
+- **Diretriz do dono (08/11/2026): o Shark melhora por lógica, não carta a carta**, para jogar bem com listas que não conhece.
+  Situação na B-201: a decisão já era geral (as levas B-190…B-200 leem o dado do motor: dano de volta, `produces` com `per`,
+  habilidades ativadas, ninjútsu, custo), mas o Shark publicado reconhecia o plano de cada lista **pelos nomes exigidos**
+  (`PERFIS.exige`) e o Terror pela lista `enquanto`; `AMEACAS_DO_CAMPO` (seis nomes) só vale na opção desligada `ameacas`.
+  Plano em três levas: **B-203** perfil derivado da composição + contrato sem nome de carta · **B-204** ameaças do campo pelo
+  efeito (gatilho ao conjurar, dano de combate, mana por contagem, bônus por contagem) e o combo pelo padrão, no lugar dos
+  nomes · **B-205** régua de generalização: o Shark com listas do catálogo fora das cinco, sem nada delas no código, × `shark-v12`.
+  Regra daqui em diante: correção do Shark entra como regra sobre o dado do motor; nome de carta só em lista e em teste.
+- **Fase 4 · B-203 · o perfil sai da lista, não do nome (08/11/2026).** `perfilDerivado` lê `s.facts` da lista de quem joga:
+  carta barateada por instantânea e feitiço no cemitério (`reduzPor.per`) → `cemiterio`, com `enquanto` tirado da própria lista;
+  4+ criaturas com lampejo que anulam ao entrar → `desliga: ['respondeNoMeuTurno']` (o baralho responde com criatura no turno
+  do outro, B-198); senão 4+ instantâneas que anulam → `segura` (B-196/B-197). Traços das cinco listas: Control 6 anulações ·
+  Terror 7 e duas barateadas (Tolarian Terror, Cryptic Serpent) · Faeries 6 e 4 lampejos que anulam · Madness e Elfos nenhum.
+  **Mesmas chaves que os PERFIS à mão nas cinco** (teste), e o Shark publicado faz **a mesma jogada que o `shark-v25`** em 780
+  ações de três confrontos (Terror × Faeries, Control × Elfos, Faeries × Terror; relógio parado): as quatro réguas da B-201 não
+  mudam por construção. O ganho está fora das cinco: o Terror sem a Serpent e o Control sem o Mystic perdem o perfil pelo nome
+  e mantêm o derivado (teste). Contrato novo no `bot.unit`: nenhum nome de carta das cinco listas no código de decisão do Shark
+  (nomes só nas listas, em `PERFIS` e em `AMEACAS_DO_CAMPO`, dados dos níveis congelados). Os limiares (4 e 4) saíram das cinco
+  listas: a B-205 mede se valem fora delas. **`shark-v25` é o Shark da B-200, congelado.**
 - **Fase 2 · B-194 · avaliação aprendida, primeira medida (02/11/2026) — negativa, desligada.** `bot.aprende.mjs` (novo, fora
   do portão): `coleta` joga Shark × Shark com as cinco listas e grava as parcelas da `avaliaV6` de posições sorteadas e
   quem venceu; `ajusta` faz regressão logística (L2, treino e prova separados por partida) da vitória sobre as parcelas,
