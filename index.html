@@ -19616,6 +19616,25 @@ function createDecksHome({ decks, collection, files, cardRepo, backup = null, et
   const etqLigadas = new Set();
   // G3 · valor de cada lista e o total das que estão à vista; a cotação chega depois e repinta
   const valorRow = h('div', { id: 'decks-valor' });
+  // G-355 · endereço novo ou backup restaurado: cores e % saem das cartas guardadas no aparelho, e o backup leva só as listas.
+  // As que faltam descem sozinhas em segundo plano (em lotes, pela busca coletiva da Scryfall), com o progresso à vista;
+  // cada nome é tentado uma vez por abertura da tela, e de novo quando a internet volta.
+  const baixandoRow = h('div', { id: 'decks-baixando', role: 'status', 'aria-live': 'polite' });
+  const tentadas = new Set();
+  let baixando = false;
+  const temRedeL = () => typeof navigator === 'undefined' || navigator.onLine !== false;
+  function baixaFaltantes(nomes, guardadas) {
+    if (baixando || !cardRepo || typeof cardRepo.byNames !== 'function') return;
+    const faltam = [...new Map(nomes.map(n => [norm(n), n]).filter(([k]) => k && !guardadas.has(k) && !tentadas.has(k))).values()];
+    if (!faltam.length) return;
+    if (!temRedeL()) { if (typeof addEventListener === 'function') addEventListener('online', () => { if (root.isConnected) paint(); }, { once: true }); return; }
+    faltam.forEach(n => tentadas.add(norm(n)));
+    baixando = true;
+    const pinta = (x, y) => mount(baixandoRow, Text(`Baixando os dados das cartas · ${x} de ${y}`, { size: 'sm', tone: 'muted', attrs: { id: 'decks-baixando-texto' } }));
+    pinta(0, faltam.length);
+    Promise.resolve().then(() => cardRepo.byNames(faltam, pinta)).catch(() => { /* sem rede no meio: fica o que desceu */ })
+      .finally(() => { baixando = false; mount(baixandoRow, null); if (root.isConnected) paint(); });
+  }
   let taxas = null;
   __m31.padrao.taxas().then(t => { if (t) { taxas = t; paint(); } }).catch(() => { /* sem cotação: fica em dólar */ });
   const fileInput = h('input', { type: 'file', accept: '.json,application/json', class: 'ds-hidden' });
@@ -19654,6 +19673,7 @@ function createDecksHome({ decks, collection, files, cardRepo, backup = null, et
     // Leva 110 · cores só do que já está guardado no aparelho (sem rede, sem espera)
     let guardadas = new Map();
     try { if (cardRepo && cardRepo.cached) guardadas = await cardRepo.cached(all.flatMap(d => d.entries.map(e => e.name))); } catch (e) { /* sem cache: sem cores */ }
+    baixaFaltantes(all.flatMap(d => d.entries.map(e => e.name)), guardadas);
     const comEtiqueta = etqLigadas.size ? all.filter(d => (etq.listas[d.id] || []).some(id => etqLigadas.has(id))) : all;
     // I2 · depois das etiquetas, o filtro da estante (texto, formato, cor, posse) e a ordem
     conhecidas = { all: comEtiqueta, guardadas, owned };
@@ -19704,7 +19724,7 @@ function createDecksHome({ decks, collection, files, cardRepo, backup = null, et
   const root = Stack({ ...pad(), class: 'ds-wrap decks-home' },
     // J6 · "Nova" e "Prontas" saíram do topo: moram no botão de ação (canto inferior direito), que é o primário da tela
     __m3.Cabecalho('Listas', { classe: 'decks-topo' }), // DS-K F2.2 · cabeçalho 44 · 1fr · 44 (os lados guardam o centro)
-    filtroRow, etqRow, contagemRow, valorRow,
+    filtroRow, etqRow, contagemRow, valorRow, baixandoRow,
     list, acaoDaTela,
     // D5 · o backup saiu daqui para Perfil › Dados; a estante vazia oferece "Restaurar backup" em "Mais" (D4a)
     fileInput);
