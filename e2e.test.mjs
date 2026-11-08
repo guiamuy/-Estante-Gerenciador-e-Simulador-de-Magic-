@@ -21369,3 +21369,29 @@ test('e2e · G-357 DS-K3: o /ds mostra o material (cinco degraus, arte com véu)
   await page.waitForFunction(() => !document.documentElement.getAttribute('data-movimento'));
   assert.deepEqual(errors, []);
 });
+
+/* ---------------- DS-K3 K3-1 (G-358) · superfície por luz e grão ---------------- */
+test('e2e · G-358 DS-K3 K3-1: fora da mesa o fundo tem luz e grão sem veio, os cartões sobem por luz (laca, aresta, duas sombras, sem borda) e as telas seguem sem sobreposição em 360 nos dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  for (const tema of ['dark', 'light']) {
+    for (const [rota, sel] of [['#/listas', '.ds-empty--hero'], ['#/colecao', '.ds-empty--hero'], ['#/perfil', '#perfil-aparencia']]) {
+      await page.goto(base + rota); await page.waitForSelector(sel);
+      await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(120);
+      const m = await page.evaluate(s => {
+        const corpo = getComputedStyle(document.body).backgroundImage, el = getComputedStyle(document.querySelector(s));
+        return { corpo, fundo: el.backgroundImage, sombra: el.boxShadow, borda: el.borderTopColor };
+      }, sel);
+      assert.doesNotMatch(m.corpo, /repeating-linear-gradient/, `sem veio no fundo (${rota}, ${tema})`);
+      assert.match(m.corpo, /url\("data:image\/svg\+xml/, `grão no fundo (${rota}, ${tema})`);
+      assert.match(m.fundo, /linear-gradient/, `laca no cartão (${rota}, ${tema})`);
+      assert.equal(m.sombra.split(/,(?![^(]*\))/).length, 3, `aresta + contato + chave (${rota}, ${tema}): ${m.sombra}`);
+      assert.equal(m.borda, 'rgba(0, 0, 0, 0)', `sem borda (${rota}, ${tema})`);
+      await auditaTela(page, `K3-1 ${rota} (${tema})`);
+    }
+  }
+  // a mesa não muda: o veio e a luz do feltro continuam
+  await page.evaluate(() => document.body.setAttribute('data-tela', 'partida'));
+  assert.match(await page.evaluate(() => getComputedStyle(document.body).backgroundImage), /repeating-linear-gradient/);
+  assert.deepEqual(errors, []);
+});
