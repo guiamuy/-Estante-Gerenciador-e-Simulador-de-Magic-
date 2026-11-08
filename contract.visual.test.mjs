@@ -791,3 +791,46 @@ test('DS-K · F1.4 diálogo e aviso seguem a receita "folha": véu com vinheta, 
   assert.match(componentCss, /\.ds-toast\[data-open="true"\] \{ transform: translateX\(-50%\) translateY\(0\); transition: opacity var\(--dur-2\) var\(--ease-out\), transform var\(--dur-3\) var\(--ease-spring\); \}/, 'aviso entra com mola');
   assert.match(componentCss, /\.ds-toast \{ transform: translateX\(-50%\) translateY\(14px\); \}/, 'sem encolher: fechado, o botão do aviso segue com 44 px');
 });
+
+/* ---------------- DS-K3 K3-0 + MV-0 (G-356) · material por luz e tokens de movimento ---------------- */
+test('DS-K3 K3-0 · material: degraus, aresta, laca, três sombras e grão existem nos três blocos (claro automático idêntico); os degraus sobem em direção à luz; texto sobre arte passa AA sobre o véu', () => {
+  const novos = ['--elev-0', '--elev-1', '--elev-2', '--elev-3', '--elev-4', '--edge', '--edge-strong', '--shadow-contact', '--shadow-key', '--shadow-float', '--lacquer', '--grain'];
+  for (const [nome, t] of [['escuro', DARK], ['claro', LIGHT], ['claro automático', { ...DARK, ...AUTO_LIGHT }]])
+    for (const k of novos) assert.ok(t[k], `${k} no tema ${nome}`);
+  for (const k of novos) assert.equal(AUTO_LIGHT[k], LIGHT[k], `${k}: claro automático idêntico ao escolhido`);
+  // escuro: cada degrau mais claro que o anterior (mais perto da luz); claro: idem (o papel mais alto é o mais claro)
+  for (const [nome, t] of [['escuro', DARK], ['claro', LIGHT]])
+    for (let n = 1; n <= 4; n++) assert.ok(lum(t[`--elev-${n}`]) > lum(t[`--elev-${n - 1}`]), `E${n} acima de E${n - 1} no ${nome}`);
+  // o texto principal passa AA em todos os degraus nos dois temas
+  for (const [nome, t] of [['escuro', DARK], ['claro', LIGHT]])
+    for (let n = 0; n <= 4; n++) assert.ok(ratio(t['--fg'], t[`--elev-${n}`]) >= 4.5, `--fg sobre E${n} (${nome}): ${ratio(t['--fg'], t[`--elev-${n}`]).toFixed(2)}`);
+  // véu sobre arte: no pé do véu (94 % de #0a0704) o texto e o texto apagado passam AA, mesmo sobre arte branca
+  const pe = '#' + [10, 7, 4].map(c => Math.round(c * .94 + 255 * .06).toString(16).padStart(2, '0')).join('');
+  assert.ok(ratio(DARK['--fg-sobre-arte'], pe) >= 4.5, 'texto sobre arte: ' + ratio(DARK['--fg-sobre-arte'], pe).toFixed(2));
+  assert.ok(ratio(DARK['--fg-sobre-arte-muted'], pe) >= 4.5, 'rótulo sobre arte: ' + ratio(DARK['--fg-sobre-arte-muted'], pe).toFixed(2));
+  assert.match(DARK['--scrim-art'], /^linear-gradient\(180deg, rgba\(10, 7, 4, 0\) 30%/);
+  assert.equal(DARK['--radius-4'], '22px'); assert.equal(DARK['--tilt-max'], '6deg'); assert.equal(DARK['--navbar-h'], '64px');
+  // as amostras do /ds usam só tokens
+  assert.match(componentCss, /\.ds-elev\[data-elev="4"\] \{ background: var\(--lacquer\), var\(--elev-4\); box-shadow: inset 0 1px 0 var\(--edge-strong\), var\(--shadow-float\); \}/);
+  assert.match(componentCss, /\.ds-arte-amostra \{[^}]*color: var\(--fg-sobre-arte\); background: var\(--scrim-art\)/);
+});
+
+test('DS-K3 MV-0 · movimento: durações nas pontas, escalonamento, três molas em linear() que terminam em 1, saída, distâncias e calma; moderado e reduzido trocam os tokens', () => {
+  assert.equal(DARK['--dur-0'], '60ms'); assert.equal(DARK['--dur-5'], '600ms'); assert.equal(DARK['--calma'], '300ms');
+  assert.deepEqual(['--escalona-1', '--escalona-2', '--escalona-3'].map(k => DARK[k]), ['60ms', '90ms', '140ms']);
+  assert.deepEqual(['--desloc-1', '--desloc-2', '--desloc-3', '--z-recuo', '--z-chega'].map(k => DARK[k]), ['8px', '16px', '32px', '-40px', '-120px']);
+  for (const k of ['--mola-firme', '--mola-macia', '--mola-suave']) {
+    const m = DARK[k].match(/^linear\((.*)\)$/); assert.ok(m, k);
+    const pts = m[1].split(',').map(Number); assert.equal(pts[0], 0, k); assert.equal(pts.at(-1), 1, k);
+    assert.ok(Math.max(...pts) <= 1.14, `${k} não passa de 14 % de repique`);
+  }
+  assert.ok(Math.max(...DARK['--mola-suave'].slice(7, -1).split(',').map(Number)) < 1.04, 'a mola suave quase não repica');
+  assert.equal(DARK['--sai'], 'cubic-bezier(.4, 0, 1, 1)');
+  const mod = vars(css.slice(css.indexOf(':root[data-movimento="moderado"] {'), css.indexOf('}', css.indexOf(':root[data-movimento="moderado"] {'))));
+  assert.deepEqual(['--desloc-1', '--desloc-2', '--desloc-3', '--z-recuo', '--z-chega', '--tilt-max'].map(k => mod[k]), ['4px', '6px', '8px', '0px', '0px', '0deg']);
+  assert.equal(mod['--dur-5'], 'var(--dur-3)'); assert.equal(mod['--mola-macia'], 'var(--ease-out)');
+  assert.match(css, /:root\[data-movimento="reduzido"\] \{ --desloc-1: 0px; --desloc-2: 0px; --desloc-3: 0px; --z-recuo: 0px; --z-chega: 0px; --tilt-max: 0deg; \}/);
+  assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{ :root \{ --desloc-1: 0px;[^}]*--tilt-max: 0deg; \} \}/);
+  // o catálogo de movimento demonstra cada mola com a sua curva
+  assert.match(componentCss, /\.ds-movimento__demo\.is-on \{ animation: ds-demo var\(--demo, var\(--dur-2\)\) var\(--demo-curva, var\(--ease-out\)\); \}/);
+});
