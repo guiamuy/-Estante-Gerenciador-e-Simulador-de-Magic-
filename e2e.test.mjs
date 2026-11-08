@@ -15439,7 +15439,7 @@ test('e2e · P-21 Apoiar a Estante: do Perfil abre a tela; Brasil: Pix primeiro,
 test('e2e · G-325 Convidar amigos: do Perfil abre em um toque; QR em papel claro nos dois temas; Compartilhar leva o convite com o endereço; Copiar link copia; no iPhone o passo a passo do iPhone vem primeiro; sem rede a tela abre igual; sem sobreposição nas quatro medidas', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.setViewportSize({ width: 360, height: 780 });
-  const URL_APP = 'https://guiamuy.github.io/-Estante-Gerenciador-e-Simulador-de-Magic-/';
+  const URL_APP = 'https://estante-magic.vercel.app/'; // G-354 · o convite leva ao endereço da Vercel
   await page.addInitScript(() => {
     window.__copias = []; window.__envios = [];
     navigator.clipboard.writeText = async t => { window.__copias.push(t); };

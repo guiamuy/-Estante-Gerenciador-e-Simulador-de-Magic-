@@ -17673,7 +17673,8 @@ const DESTINOS = [
     quando: 'Ao abrir listas, buscar cartas e jogar com cartas que ainda não estão guardadas.',
     evitar: 'Carta guardada não volta à Scryfall. Sem internet, o app usa só o que já guardou.' },
   { id: 'github', nome: 'GitHub (arquivos do app)', icone: 'jornal', origens: ['https://raw.githubusercontent.com'],
-    vai: 'Só o pedido dos arquivos: notícias, listas prontas do catálogo, fichas, a base de artes e os nomes impressos em outras línguas do scanner e a situação dos seus relatos.',
+    // G-354 · na Vercel (I-324) os arquivos vêm do próprio site, em /dados/; a lista diz isso
+    vai: 'Só o pedido dos arquivos: notícias, listas prontas do catálogo, fichas, a base de artes e os nomes impressos em outras línguas do scanner e a situação dos seus relatos. No endereço da Vercel, o pedido vai ao próprio site da Estante, que busca os arquivos no GitHub; no endereço antigo, vai direto ao GitHub.',
     quando: 'Ao abrir Início, Catálogo, Fichas, Scanner e Relatos com internet.',
     evitar: 'Sem internet, ficam as últimas versões guardadas.' },
   { id: 'cambio', nome: 'Cotação do dólar', icone: 'globo', origens: ['https://economia.awesomeapi.com.br', 'https://api.frankfurter.dev', 'https://open.er-api.com'],
@@ -17700,7 +17701,7 @@ const DESTINOS = [
 const LINKS = [
   { id: 'relatos', nome: 'Relatos no GitHub', icone: 'relato', origens: ['https://github.com'],
     vai: 'Ao tocar em Enviar: o texto do relato, a tela, a versão do app e o tamanho da tela abrem numa página do GitHub; nada é publicado sem você confirmar lá.' },
-  { id: 'sites', nome: 'Sites das cartas e das listas', icone: 'externo', origens: ['https://scryfall.com', 'https://topdeck.gg', 'https://www.mtgo.com', 'https://guiamuy.github.io'],
+  { id: 'sites', nome: 'Sites das cartas e das listas', icone: 'externo', origens: ['https://scryfall.com', 'https://topdeck.gg', 'https://www.mtgo.com', 'https://guiamuy.github.io', 'https://estante-magic.vercel.app'],
     vai: 'Ao tocar em um link: o site abre noutra aba.' },
   // P-21 · MON1 · a página de doação abre fora do app; nada da Estante vai junto (nem lista, nem conta)
   { id: 'apoio', nome: 'Apoiar a Estante (Ko-fi)', icone: 'vida', origens: ['https://ko-fi.com'],
@@ -17933,18 +17934,19 @@ function createApoioScreen({ dados = APOIO, regiao = regiaoDoAparelho(), copiar 
    O endereço do app, Compartilhar (folha do sistema; sem ela, copia), Copiar link, o QR do endereço e o passo a passo
    de instalar no Android e no iPhone. Tudo fixo no código: a tela funciona sem internet e não fala com nenhum serviço.
    ===================================================================== */
-const ENDERECO_DO_APP = 'https://guiamuy.github.io/-Estante-Gerenciador-e-Simulador-de-Magic-/';
+/* G-354 · o app é publicado na Vercel (I-323); o convite e o QR levam para lá. */
+const ENDERECO_DO_APP = 'https://estante-magic.vercel.app/';
 /** QR do endereço: versão 5, correção M, máscara 6, 37 × 37 módulos, uma linha em hexadecimal por fileira (bit mais alto
- *  à esquerda). Gerado e lido de volta por um leitor de QR em 01/11/2026. Endereço novo → gerar o QR de novo: o teste
+ *  à esquerda). Gerado e lido de volta por um leitor de QR em 01/11/2026 (G-325) e de novo em 08/11/2026 (G-354, endereço da Vercel). Endereço novo → gerar o QR de novo: o teste
  *  `convidar.unit` confere que o endereço guardado aqui é o mesmo que a tela compartilha e a forma do QR. */
 const QR_DO_APP = { endereco: ENDERECO_DO_APP, lado: 37, linhas: [
-    '1fd57b557f', '105842c041', '175e42b95d', '174e0dd95d', '1758c60c5d', '1049a02441',
-    '1fd555557f', '00006e5800', '13f4627497', '0d8d1ce63a', '1ef87b6b75', '0981db361f',
-    '0975b85061', '15a934af98', '08fc661e9f', '1108f224ed', '1fceee9a45', '198208ca24',
-    '06cb92af49', '16863369f1', '1d6d9a96f8', '099fae7214', '1a7920b369', '1a0f64547d',
-    '08e80bf553', '119a462f1c', '19dde08e07', '16331215ef', '13cd637bfd', '0018ab8916',
-    '1fda6f2951', '105a128b13', '175df79ff0', '1750816fcd', '174e442691', '104fac2017',
-    '1fd7d201e9'] };
+    '1fd966b67f', '105e498a41', '175c4ddc5d', '1743938b5d', '1755cd045d', '104f3da041',
+    '1fd555557f', '000da08900', '13f2959a97', '068d4149d6', '18e6cc1371', '1aa2680547',
+    '0be8cf1365', '1b0b092799', '13426ad79e', '09941d2c2c', '0c7739a214', '019e5530f8',
+    '1f6ea1ade9', '1cbf4c5b8d', '0b4e3104fc', '0c86c6e697', '01d94d76eb', '1eb8e8c67d',
+    '0fdd5e9cd3', '10325388f0', '186797b6c7', '11bda16157', '10de9c1bf3', '001c535917',
+    '1fd1a2e150', '10588f7710', '175fa2cff2', '17585c9fc8', '174633669f', '104017751b',
+    '1fd57930ad'] };
 /** Matriz de módulos (true = escuro). */
 function modulosDoQr(qr = QR_DO_APP) {
   return qr.linhas.map(hx => { const bits = BigInt('0x' + hx).toString(2).padStart(qr.lado, '0').slice(-qr.lado); return [...bits].map(b => b === '1'); });

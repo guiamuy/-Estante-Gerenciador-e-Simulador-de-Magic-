@@ -75,3 +75,11 @@ test('G-325 · a rota e a entrada no Perfil existem, e a tela não fala com nenh
   const corpo = FONTE.slice(FONTE.indexOf('function createConvidarScreen'), FONTE.indexOf('return { DESTINOS, LINKS', FONTE.indexOf('function createConvidarScreen')));
   assert.doesNotMatch(corpo, /fetch\(|XMLHttpRequest|window\.open/, 'convidar só usa a folha do sistema e a área de transferência');
 });
+
+test('G-354 · o convite e o QR levam ao endereço da Vercel, onde o app é publicado', () => {
+  assert.equal(S.ENDERECO_DO_APP, 'https://estante-magic.vercel.app/');
+  assert.equal(S.QR_DO_APP.endereco, S.ENDERECO_DO_APP);
+  assert.equal(leQrV5M(S.modulosDoQr(), 6), 'https://estante-magic.vercel.app/');
+  assert.ok(S.mensagemDoConvite().endsWith('https://estante-magic.vercel.app/'));
+  assert.doesNotMatch(FONTE.slice(FONTE.indexOf('const ENDERECO_DO_APP'), FONTE.indexOf('function modulosDoQr')), /github\.io/, 'o convite não manda mais para o endereço antigo');
+});
