@@ -245,11 +245,11 @@ async function enviarParaPR() {
   for (;;) {
     const p = previaDe(repo, enviado);
     if (typeof p === 'string') {
-      // a CLI da Vercel (logada) aponta o endereço fixo para esta prévia; sem ela (nuvem), fica o endereço próprio, sem login Google
+      // a CLI da Vercel (logada) aponta o endereço fixo para esta prévia; sem ela (nuvem), a conversa aponta pelo conector da Vercel (I-326)
       const fixo = spawnSync('vercel', ['alias', 'set', p, new URL(ENDERECO_PREVIA).host], { stdio: 'ignore', shell: process.platform === 'win32' }).status === 0;
       console.log(fixo
         ? `\n✓ Prévia: ${ENDERECO_PREVIA}  (endereço fixo, com login Google; esta montagem: ${p})`
-        : `\n✓ Prévia: ${p}\n  (sem a CLI da Vercel aqui: o endereço fixo ${ENDERECO_PREVIA} não foi apontado, e nesta o login com Google não funciona)`);
+        : `\n✓ Prévia: ${p}\n  (sem a CLI da Vercel aqui: aponte o endereço fixo ${ENDERECO_PREVIA} para esta prévia pelo conector da Vercel antes de mostrar ao dono; neste endereço próprio o login com Google não funciona)`);
       console.log(`  Mostre ao dono. Merge só quando ele pedir: npm run publicar -- --merge ${url.split('/').pop()}`);
       return;
     }
