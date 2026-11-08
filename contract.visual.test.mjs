@@ -849,3 +849,16 @@ test('DS-K3 K3-1 · superfície por luz: fora da mesa o fundo é luz de cima + g
   for (const [nome, t] of [['escuro', DARK], ['claro', LIGHT]])
     for (const n of [3, 4]) for (const f of ['--fg-muted', '--accent', '--positive', '--negative', '--player-opp', '--warning']) assert.ok(ratio(t[f], t[`--elev-${n}`]) >= 4.5, `${f} sobre E${n} (${nome}): ${ratio(t[f], t[`--elev-${n}`]).toFixed(2)}`);
 });
+
+test('DS-K3 MV-4 · família de espera: o anel que gira saiu (o fio percorre por transform), o esqueleto aparece depois de --calma e tem luz escalonada em vez de pulso; reduzido e o sistema param fio e brilho', () => {
+  const sp = componentCss.match(/\.ds-spinner \{([^}]*)\}/); assert.ok(sp);
+  assert.match(sp[1], /width: 28px; height: 3px;/); assert.match(sp[1], /animation: none;/);
+  assert.doesNotMatch(componentCss, /\.ds-spinner \{[^}]*ds-spin/, 'nenhum anel que gira');
+  assert.match(componentCss, /@keyframes ds-fio \{ from \{ transform: translateX\(-100%\); \} to \{ transform: translateX\(250%\); \} \}/);
+  assert.match(componentCss, /\.ds-esqueleto \{ animation: ds-espera-aparece var\(--dur-2\) var\(--ease-out\) var\(--calma\) both; \}/);
+  assert.doesNotMatch(componentCss, /ds-pulsa-esqueleto/, 'o pulso de opacidade saiu');
+  assert.match(componentCss, /\.ds-esqueleto__linha:nth-child\(2\)::after \{ animation-delay: calc\(var\(--calma\) \+ var\(--escalona-2\)\); \}/);
+  assert.match(componentCss, /:root\[data-movimento="reduzido"\] \.ds-spinner::after \{ animation: none !important;/);
+  assert.match(componentCss, /:root\[data-movimento="reduzido"\] \.ds-esqueleto__linha::after \{ animation: none !important; opacity: 0; \}/);
+  assert.match(componentCss, /@media \(prefers-reduced-motion: reduce\) \{ \.ds-esqueleto__linha \{ animation: none; \} \.ds-esqueleto__linha::after \{ animation: none; opacity: 0; \} \}/);
+});

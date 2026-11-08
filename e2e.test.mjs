@@ -8136,7 +8136,9 @@ test('e2e · P-12 Silenciar a conversa: com a conversa silenciada as mensagens d
   // de entrada do diálogo (escala 0,97 parada: 42,68 px num botão de 44, toda vez, nas sessões de nuvem de 08/11)
   await A.bringToFront(); await A.click('#tb-chat'); await A.waitForSelector('#tb-chat-silenciar');
   assert.equal(await A.getAttribute('#tb-chat-silenciar', 'aria-pressed'), 'false');
-  await A.waitForTimeout(350); // o diálogo entra com escala: mede depois da entrada
+  // o diálogo entra com escala: mede depois da entrada. G-359 · esperar 350 ms fixos media no meio da mola numa máquina
+  // lenta (caiu sozinho com 42,7 px = 44 × 0,97 também no main); agora espera as animações finitas do diálogo terminarem
+  await A.waitForFunction(() => { const d = document.querySelector('.ds-dialog'); return d && d.getAnimations({ subtree: true }).filter(a => a.effect && a.effect.getTiming().iterations !== Infinity).every(a => a.playState === 'finished'); }, null, { timeout: 5000 });
   const caixa = await A.locator('#tb-chat-silenciar').boundingBox(); assert.ok(caixa.height >= 44, JSON.stringify(caixa));
   await A.click('#tb-chat-silenciar'); await A.waitForSelector('#tb-chat-silenciar[aria-pressed="true"]');
   await auditaTela(A, 'conversa silenciada');
@@ -13294,7 +13296,9 @@ test('e2e · J4 carregamento com identidade: cartas que se arrumam na prateleira
   const acento = await page.evaluate(() => { const p = document.createElement('span'); p.style.color = 'var(--accent)'; document.body.appendChild(p); const c = getComputedStyle(p).color; p.remove(); return c; });
   assert.equal(m[0].traco, acento, 'o traço das cartas é o acento do tema');
   assert.equal(await page.locator('#ds-esqueleto .ds-esqueleto__linha').count(), 3); assert.equal(await page.getAttribute('#ds-esqueleto', 'role'), 'status');
-  assert.ok(await page.$eval('#ds-esqueleto .ds-esqueleto__linha', e => e.getBoundingClientRect().height >= 44 && getComputedStyle(e).animationName === 'ds-pulsa-esqueleto'));
+  // DS-K3 MV-4 (G-359) · o esqueleto deixou de pulsar: a luz atravessa cada linha (::after) e ele só aparece depois de --calma
+  assert.ok(await page.$eval('#ds-esqueleto .ds-esqueleto__linha', e => e.getBoundingClientRect().height >= 44 && getComputedStyle(e, '::after').animationName === 'ds-esqueleto-luz'));
+  assert.equal(await page.$eval('#ds-esqueleto', e => getComputedStyle(e).animationName), 'ds-espera-aparece');
   await page.locator('#ds-carregando').scrollIntoViewIfNeeded(); await auditaTela(page, 'ds · carregando');
   if (process.env.SHOTS) await page.locator('#ds-carregando').screenshot({ path: process.env.SHOTS + '/j4-carregando.png' });
   await page.evaluate(() => document.documentElement.setAttribute('data-theme', document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark')); await auditaTela(page, 'ds · carregando (outro tema)');
@@ -13303,6 +13307,8 @@ test('e2e · J4 carregamento com identidade: cartas que se arrumam na prateleira
   await page.evaluate(() => document.documentElement.setAttribute('data-movimento', 'reduzido'));
   const parado = await page.evaluate(() => [...document.querySelectorAll('#ds-carregando-tela .ds-carregando__carta, #ds-esqueleto .ds-esqueleto__linha')].map(c => [getComputedStyle(c).animationName, getComputedStyle(c).opacity]));
   assert.ok(parado.every(([a, o]) => a === 'none' && o === '1'), JSON.stringify(parado));
+  // reduzido: sem brilho no esqueleto (espera o estilo do pseudo-elemento assentar; na fase de tela inteira a leitura vinha antes)
+  await page.waitForFunction(() => getComputedStyle(document.querySelector('#ds-esqueleto .ds-esqueleto__linha'), '::after').opacity === '0', null, { timeout: 3000 });
   await page.evaluate(() => document.documentElement.removeAttribute('data-movimento'));
   await page.emulateMedia({ reducedMotion: 'reduce' });
   assert.equal(await page.$eval('#ds-carregando-bloco .ds-carregando__carta', c => getComputedStyle(c).animationName), 'none', 'a preferência do sistema também para');
@@ -21445,5 +21451,27 @@ test('e2e · G-358 DS-K3 K3-1: fora da mesa o fundo tem luz e grão sem veio, os
   // a mesa não muda: o veio e a luz do feltro continuam
   await page.evaluate(() => document.body.setAttribute('data-tela', 'partida'));
   assert.match(await page.evaluate(() => getComputedStyle(document.body).backgroundImage), /repeating-linear-gradient/);
+  assert.deepEqual(errors, []);
+});
+
+/* ---------------- DS-K3 MV-4 (G-359) · família de espera ---------------- */
+test('e2e · G-359 DS-K3 MV-4: a espera curta é o fio que percorre (sem anel que gira), o esqueleto só aparece depois de 300 ms e recebe luz; reduzido para tudo; 360 nos dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base + '#/ds'); await page.waitForSelector('#ds-espera-curta .ds-spinner');
+  const fio = await page.$eval('#ds-espera-curta .ds-spinner', e => { const r = e.getBoundingClientRect(), d = getComputedStyle(e), a = getComputedStyle(e, '::after'); return { w: r.width, h: r.height, gira: d.animationName, luz: a.animationName, papel: e.getAttribute('role'), nome: e.getAttribute('aria-label') }; });
+  assert.deepEqual(fio, { w: 28, h: 3, gira: 'none', luz: 'ds-fio', papel: 'status', nome: 'carregando' });
+  // imperceptível: o esqueleto montado agora começa invisível e aparece depois de --calma
+  const visivel = await page.evaluate(async () => {
+    const e = __m3.Esqueleto({ linhas: 2 }); document.body.appendChild(e);
+    const antes = +getComputedStyle(e).opacity; await new Promise(r => setTimeout(r, 650)); const depois = +getComputedStyle(e).opacity; e.remove(); return [antes, depois];
+  });
+  assert.ok(visivel[0] < 0.05 && visivel[1] > 0.95, 'some no começo e aparece depois: ' + visivel);
+  for (const tema of ['dark', 'light']) {
+    await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema);
+    await page.locator('#ds-espera-nota').scrollIntoViewIfNeeded(); await auditaTela(page, 'espera (' + tema + ')');
+  }
+  await page.evaluate(() => document.documentElement.setAttribute('data-movimento', 'reduzido'));
+  assert.equal(await page.$eval('#ds-espera-curta .ds-spinner', e => getComputedStyle(e, '::after').animationName), 'none', 'reduzido: o fio parado');
   assert.deepEqual(errors, []);
 });
