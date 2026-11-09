@@ -21418,6 +21418,52 @@ test('e2e · G-356 T-IDIOMA fatia 2: a folha da carta mostra o texto oficial imp
   assert.deepEqual(errors.filter(e => !/status of 404/.test(e)), [], 'o 404 da Scryfall (carta nunca impressa em português) é o estado esperado, não erro do app');
 });
 
+// G-365 · T-IDIOMA fatia 3: a carta que nunca saiu impressa em português mostra a tradução do robô (pacote de teste,
+// não o texto oficial), marcada "Tradução", com o original a um toque; Oracle diferente do traduzido fica em inglês.
+test('e2e · G-365 T-IDIOMA fatia 3: carta nunca impressa em português mostra a tradução marcada, troca para o original e vale sem internet; Oracle mudado fica em inglês', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.route('https://api.scryfall.com/cards/collection', r => {
+    const ids = JSON.parse(r.request().postData()).identifiers;
+    const data = ids.map(i => achaNoDB(i)).filter(Boolean).map(c => ({ ...c, oracle_id: 'o-' + c.name, ...(c.name === 'Counterspell' ? { oracle_text: 'Counter target spell.' } : {}) }));
+    return r.fulfill({ json: { data, not_found: ids.filter(i => !achaNoDB(i)) } });
+  });
+  await page.route('https://api.scryfall.com/cards/search**', r => r.fulfill({ status: 404, json: { object: 'error', code: 'not_found' } }));
+  const delver = achaNoDB({ name: 'Delver of Secrets' });
+  const oracleDelver = (delver.card_faces ? delver.card_faces[0] : delver).oracle_text;
+  let pacotes = 0;
+  await page.route('**/idiomas/cartas-pt.json', r => { pacotes++; return r.fulfill({ json: { v: 1, idioma: 'pt', cartas: {
+    'Delver of Secrets': { original: oracleDelver, tipo: 'Criatura — Teste Tradução', texto: 'Texto de teste traduzido pelo robô.' },
+    'Counterspell': { original: 'Counter target spell, outro texto.', tipo: 'Mágica Instantânea', texto: 'Anule a mágica alvo (teste).' } } } }); });
+  await createDeck(page, base, 'Azul', '4 Counterspell\n4 Delver of Secrets\n12 Island', 'livre');
+  const abre = async nome => { await page.click(`.deck-slot[data-name="${nome}"] .ds-card`); await page.waitForSelector('#card-viewer'); };
+  const fecha = async () => { await page.click('#ds-dialog-close'); await page.waitForSelector('#card-viewer', { state: 'detached' }); };
+  // 1 · nunca impressa, com tradução: o texto e o tipo traduzidos, o selo "Tradução", o nome continua o inglês
+  await abre('Delver of Secrets'); await page.waitForSelector('#card-idioma[data-traducao="true"]');
+  assert.match(await page.innerText('#card-idioma'), /Tradução para o português/);
+  assert.match(await page.innerText('#card-viewer'), /Texto de teste traduzido pelo robô/);
+  assert.match(await page.innerText('#card-viewer'), /Criatura — Teste Tradução/);
+  assert.equal(await page.innerText('#ds-dialog-title'), 'Delver of Secrets');
+  await auditaTela(page, 'carta · tradução do robô');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/g364-carta-traducao.png' });
+  // 2 · o original a um toque, e de volta
+  await page.click('#card-idioma-alterna');
+  assert.match(await page.innerText('#card-idioma'), /Original em inglês/);
+  assert.doesNotMatch(await page.innerText('#card-viewer'), /Texto de teste traduzido/);
+  await page.click('#card-idioma-alterna');
+  assert.match(await page.innerText('#card-viewer'), /Texto de teste traduzido pelo robô/);
+  // 3 · Oracle diferente do que o robô traduziu: fica em inglês, com o aviso de sempre
+  await fecha(); await abre('Counterspell'); await page.waitForSelector('#card-idioma-nenhum');
+  assert.doesNotMatch(await page.innerText('#card-viewer'), /Anule a mágica alvo \(teste\)/);
+  // 4 · outra abertura, com o pacote fora do ar (sem internet para ele): o guardado no aparelho vale
+  await fecha(); assert.equal(pacotes, 1, 'uma busca do pacote por sessão');
+  await page.unroute('**/idiomas/cartas-pt.json'); await page.route('**/idiomas/cartas-pt.json', r => { pacotes++; return r.abort('internetdisconnected'); });
+  await page.reload(); await page.waitForSelector('.deck-slot[data-name="Delver of Secrets"]');
+  await abre('Delver of Secrets'); await page.waitForSelector('#card-idioma[data-traducao="true"]');
+  assert.match(await page.innerText('#card-viewer'), /Texto de teste traduzido pelo robô/);
+  assert.deepEqual(errors.filter(e => !/status of 404/.test(e) && !/ERR_INTERNET_DISCONNECTED/.test(e)), []);
+});
+
 // I-329 · ponte das coleções: duas origens do mesmo servidor fazem o papel dos dois endereços (127.0.0.1 é o github.io,
 // localhost é a Vercel). A faixa só aparece no antigo; o toque abre o novo, que mostra o que chegou e só grava com o Trazer.
 test('e2e · I-329 ponte das coleções: no endereço antigo a faixa leva listas e coleção para o novo, que mostra o que chegou e só grava com o Trazer', { skip }, async t => {

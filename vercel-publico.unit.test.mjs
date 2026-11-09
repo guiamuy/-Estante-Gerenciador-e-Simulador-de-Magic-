@@ -44,9 +44,9 @@ test('I-323 · monta copia exatamente a lista', async () => {
   try {
     const n = await monta({ raiz: ROOT, destino });
     assert.equal(n, ARQUIVOS.length);
-    // G-361 · os pacotes de idioma moram em idiomas/: a raiz tem a pasta, e a pasta tem os dois pacotes
+    // G-361 · os pacotes de idioma moram em idiomas/: a raiz tem a pasta, e a pasta tem os dois pacotes; G-365 · e as traduções das cartas (mudou de propósito)
     assert.deepEqual(readdirSync(destino).sort(), [...new Set(ARQUIVOS.map(a => a.split('/')[0]))].sort());
-    assert.deepEqual(readdirSync(join(destino, 'idiomas')).sort(), ['en.json', 'es.json']);
+    assert.deepEqual(readdirSync(join(destino, 'idiomas')).sort(), ['cartas-es.json', 'cartas-pt.json', 'en.json', 'es.json']);
   } finally { rmSync(destino, { recursive: true, force: true }); }
 });
 

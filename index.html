@@ -7165,8 +7165,63 @@ function createTextoImpresso({ store, scryfall, agora = () => Date.now() }) {
     }
   };
 }
+/* G-365 · T-IDIOMA fatia 3 (relatos #53/#66): a carta que nunca saiu impressa no idioma ganha a tradução precisa feita uma
+   vez pelo robô (idiomas/cartas-<idioma>.json, conferida por idioma-cartas.mjs: símbolos, números, palavras-chave e o nome
+   iguais ao Oracle). O pacote é baixado na primeira carta que precisa e fica guardado no aparelho (vale sem internet;
+   renova em segundo plano depois do prazo). A tradução só vale se o Oracle que ela traduziu ainda é o da carta: regra
+   mudou, a carta fica em inglês até o robô refazer. A partida segue decidida pelo Oracle em inglês. */
+const TRADUCAO_CARTAS = lang => `cartas.texto.traducao.${lang}`;
+const TRADUCAO_PRAZO_MS = 7 * 24 * 60 * 60 * 1000;
+const oracleComparavel = t => String(t || '').replace(/[“”]/g, '"').replace(/[‘’]/g, "'").replace(/[–—−]/g, '-').replace(/\s+/g, ' ').trim().toLowerCase();
+/** A entrada do pacote vale para esta carta? Devolve o dado no formato do texto impresso (sem nome: a carta nunca teve
+    nome no idioma) ou null. Duas faces: por face; entrada de uma face só vale para a primeira. */
+function traducaoDaCarta(pacote, card, lang) {
+  const e = pacote && pacote.cartas && card && Object.prototype.hasOwnProperty.call(pacote.cartas, card.name) ? pacote.cartas[card.name] : null;
+  if (!e || typeof e !== 'object') return null;
+  const faces = Array.isArray(card.faces) && card.faces.length > 1 ? card.faces : null;
+  const base = { lang, nome: '', traducao: true };
+  if (Array.isArray(e.original)) {
+    if (!faces || !Array.isArray(e.faces) || e.original.length !== faces.length) return null;
+    if (!e.original.every((o, i) => oracleComparavel(o) === oracleComparavel(faces[i].oracle_text))) return null;
+    return { ...base, tipo: '', texto: '', faces: e.faces.map(f => ({ nome: '', tipo: String(f.tipo || ''), texto: String(f.texto || '') })) };
+  }
+  if (typeof e.texto !== 'string' || typeof e.original !== 'string') return null;
+  if (faces) return oracleComparavel(e.original) === oracleComparavel(faces[0].oracle_text)
+    ? { ...base, tipo: '', texto: '', faces: faces.map((f, i) => (i ? null : { nome: '', tipo: String(e.tipo || ''), texto: e.texto })) } : null;
+  return oracleComparavel(e.original) === oracleComparavel(card.oracle_text) ? { ...base, tipo: String(e.tipo || ''), texto: e.texto, faces: [] } : null;
+}
+function createTraducaoCartas({ store, fetch: doFetch = null, base = 'idiomas/', agora = () => Date.now() }) {
+  const pacotes = new Map(); // lang → Promise do pacote (uma busca por sessão)
+  async function baixa(lang) {
+    if (!doFetch) throw new Error('sem rede');
+    const r = await doFetch(base + "cartas-" + lang + ".json", { cache: "no-cache" });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const p = await r.json();
+    if (!p || typeof p.cartas !== 'object') throw new Error('pacote inválido');
+    const g = { pacote: p, em: agora() };
+    try { await store.set(TRADUCAO_CARTAS(lang), g); } catch (e) { /* sem disco: vale nesta sessão */ }
+    return p;
+  }
+  async function pacote(lang) {
+    let g = null;
+    try { g = await store.get(TRADUCAO_CARTAS(lang)); } catch (e) { g = null; }
+    if (g && g.pacote && typeof g.pacote.cartas === 'object') {
+      if (agora() - (g.em || 0) >= TRADUCAO_PRAZO_MS) baixa(lang).catch(() => {});
+      return g.pacote;
+    }
+    return baixa(lang);
+  }
+  return {
+    /** A tradução da carta no idioma, ou null (sem tradução, Oracle mudou, ou sem rede e sem o pacote guardado). */
+    async busca(card, lang) {
+      if (!card || !lang) return null;
+      if (!pacotes.has(lang)) pacotes.set(lang, pacote(lang).catch(e => { pacotes.delete(lang); throw e; }));
+      try { return traducaoDaCarta(await pacotes.get(lang), card, lang); } catch (e) { return null; }
+    }
+  };
+}
 return { createCardRepo, faceDaFicha, baseDaFicha, palavrasDaFicha, textoDaFicha, chaveDaFicha, chaveDaArte, arteDaVariante, fichasPorVariante, norm, BASIC_CARDS, limpaRulings, temRulings, createRulings, RULINGS_PRAZO_MS,
-  createTextoImpresso, TEXTO_IMPRESSO_PRAZO_MS, TEXTO_IMPRESSO_NENHUM_MS };
+  createTextoImpresso, TEXTO_IMPRESSO_PRAZO_MS, TEXTO_IMPRESSO_NENHUM_MS, createTraducaoCartas, traducaoDaCarta, oracleComparavel, TRADUCAO_PRAZO_MS };
 })();
 
 /* ==== src/data/images.js ==== */
@@ -7885,6 +7940,9 @@ function usaRulings(servico) { rulings = servico || null; }
    O idioma das cartas é o português até a troca de idioma no Perfil (fatia 4); o motor segue no Oracle em inglês. */
 let textoImpresso = null;
 function usaTextoImpresso(servico) { textoImpresso = servico || null; }
+// G-365 · T-IDIOMA fatia 3: a tradução do robô para a carta que nunca saiu impressa no idioma (`__m7.createTraducaoCartas`)
+let traducaoCartas = null;
+function usaTraducaoCartas(servico) { traducaoCartas = servico || null; }
 /* G-361 · fatia 4: o idioma das cartas é o do app (Perfil › Idioma). Inglês não busca nada: o Oracle já é o texto. */
 const NOME_DO_IDIOMA = { pt: 'português', es: 'espanhol' };
 const idiomaDasCartas = () => { const id = __m47.atual(); return NOME_DO_IDIOMA[id] ? id : null; };
@@ -7954,16 +8012,23 @@ function openCardViewer(card, extra = [], { quantidade = null, arteDesconhecida 
     const run = ++tr.run;
     let g = null;
     if (!forcar) { try { g = await textoImpresso.guardado(card, LANG); } catch (e) { g = null; } if (run !== tr.run) return;
-      if (g) { tr.dado = g.dado; tr.estado = 'pronto'; paint(); } }
+      if (g) { tr.dado = g.dado; tr.estado = 'pronto'; paint(); if (!g.dado) traduz(run); } }
     if (!g && tr.estado !== 'buscando') { tr.estado = 'buscando'; paint(); }
     try {
       const r = await textoImpresso.busca(card, LANG, { forcar });
       if (run !== tr.run) return;
-      if (!g || r.origem === 'rede') { tr.dado = r.dado; tr.estado = 'pronto'; paint(); }
+      if (!g || r.origem === 'rede') { tr.dado = r.dado; tr.estado = 'pronto'; paint(); if (!r.dado) traduz(run); }
     } catch (e) {
       if (run !== tr.run || g) return; // com cópia guardada, a falha da renovação não muda a folha
       tr.estado = typeof navigator !== 'undefined' && navigator.onLine === false ? 'semRede' : 'erro'; paint();
     }
+  }
+  // G-365 · nunca saiu impressa no idioma: a tradução do robô, se houver (marcada "Tradução", com o original a um toque)
+  async function traduz(run) {
+    if (!traducaoCartas) return;
+    let d = null; try { d = await traducaoCartas.busca(card, LANG); } catch (e) { d = null; }
+    if (run !== tr.run || !d || tr.dado) return;
+    tr.dado = d; paint();
   }
   const linhaDoIdioma = () => {
     if (tr.estado === 'buscando') return __m3.Carregando(`Buscando o texto em ${nomeLang}…`, { tamanho: 'linha', id: 'card-idioma-buscando' });
@@ -7973,8 +8038,9 @@ function openCardViewer(card, extra = [], { quantidade = null, arteDesconhecida 
       Button('Tentar de novo', { variant: 'ghost', icone: 'atualizar', id: 'card-idioma-de-novo', onClick: () => carregaTexto(true) }));
     if (tr.estado !== 'pronto') return null;
     if (!tr.dado) return Text(`Esta carta não saiu impressa em ${nomeLang}: o texto fica em inglês por enquanto.`, { size: 'xs', tone: 'subtle', attrs: { id: 'card-idioma-nenhum' } });
-    return Row({ class: 'ds-row--wrap ds-visor__idioma', id: 'card-idioma' },
-      Badge(tr.original ? 'Original em inglês' : `Texto oficial em ${nomeLang}`, { tone: tr.original ? undefined : 'accent' }), h('div', { class: 'ds-grow' }),
+    const traducao = !!tr.dado.traducao;
+    return Row({ class: 'ds-row--wrap ds-visor__idioma', id: 'card-idioma', dataset: { traducao: String(traducao) } },
+      Badge(tr.original ? 'Original em inglês' : traducao ? `Tradução para o ${nomeLang}` : `Texto oficial em ${nomeLang}`, { tone: tr.original ? undefined : 'accent' }), h('div', { class: 'ds-grow' }),
       Button(tr.original ? `Ver em ${nomeLang}` : 'Ver o original', { variant: 'ghost', id: 'card-idioma-alterna', onClick: () => { tr.original = !tr.original; paint(); const b = body.querySelector('#card-idioma-alterna'); if (b) b.focus({ preventScroll: true }); } }));
   };
   const rulingsBox = secaoRulings(card); // V2 · a mesma seção nas duas faces (os rulings são da carta)
@@ -8073,7 +8139,7 @@ function openCardViewer(card, extra = [], { quantidade = null, arteDesconhecida 
   if (tr.estado !== 'sem') carregaTexto();
   return dlg;
 }
-return { createCardsScreen, openCardViewer, painelBaseLocal, usaRulings, usaTextoImpresso };
+return { createCardsScreen, openCardViewer, painelBaseLocal, usaRulings, usaTextoImpresso, usaTraducaoCartas };
 })();
 
 /* ==== src/engine/scripts.js ==== */
@@ -49763,6 +49829,7 @@ const localIndex = createLocalIndex({ store: platform.store });
 const cardRepo = createCardRepo({ store: platform.store, scryfall, local: localIndex });
 __m12.usaRulings(__m7.createRulings({ store: platform.store, scryfall })); // V2 · rulings no visualizador, guardados no aparelho
 __m12.usaTextoImpresso(__m7.createTextoImpresso({ store: platform.store, scryfall })); // G-356 · texto impresso em português na folha da carta
+__m12.usaTraducaoCartas(__m7.createTraducaoCartas({ store: platform.store, fetch: typeof fetch !== 'undefined' ? (u, o) => fetch(u, o) : null })); // G-365 · tradução da carta nunca impressa no idioma
 // G-361 · T-IDIOMA fatia 4: o idioma do app (Perfil › Idioma); fora do português, a camada traduz a tela e a folha da carta busca o texto impresso no idioma
 const idioma = __m47.createIdioma({ store: platform.store, fetch: typeof fetch !== 'undefined' ? (u, o) => fetch(u, o) : null });
 __m47.usa(idioma);
