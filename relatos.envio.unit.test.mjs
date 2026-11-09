@@ -53,7 +53,8 @@ test('T6e-2 · enviar: põe na fila da conta e confere; sem rede, relato grande 
 
 test('G-256 · o prazo da fila é o real: a tela não promete minutos, e a conversa que lê relatos roda a fila antes', async () => {
   const { readFileSync } = await import('node:fs');
-  assert.match(R.PRAZO_FILA, /algumas horas/);
+  // G-364 · expectativa mudou de propósito: a rotina da nuvem roda a fila de hora em hora; o prazo real passou a ser 1 hora
+  assert.match(R.PRAZO_FILA, /^O registro sai em até 1 hora$/);
   const html = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
   const modulo = html.slice(html.indexOf('T6e-2 · relato #13 · Enviar sem sair do app'), html.indexOf('return { PRAZO_FILA, URL_FILA_LIGADA'));
   assert.ok(modulo.length > 1000); assert.doesNotMatch(modulo, /em (até )?alguns minutos/, 'o GitHub atrasa o agendamento em horas');

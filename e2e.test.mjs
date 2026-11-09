@@ -5381,7 +5381,7 @@ test('e2e · P-6 O que sai do aparelho: do Perfil (Dados) abre a lista dos servi
   await page.click('#perfil-saida'); await page.waitForSelector('#saida-destinos');
   assert.equal(await page.locator('h1').innerText(), 'O que sai do aparelho');
   assert.deepEqual(await page.$$eval('#saida-destinos .saida-item', es => es.map(e => e.dataset.destino)), ['scryfall', 'github', 'cambio', 'leitor', 'google', 'firebase']);
-  assert.deepEqual(await page.$$eval('#saida-links .saida-item', es => es.map(e => e.dataset.destino)), ['relatos', 'sites', 'apoio']);
+  assert.deepEqual(await page.$$eval('#saida-links .saida-item', es => es.map(e => e.dataset.destino)), ['sites', 'apoio']); // G-364 · o relato não abre mais o GitHub (vai pela conta)
   assert.deepEqual(await page.$$eval('#saida-navegador .saida-item', es => es.map(e => [e.dataset.destino, e.dataset.estado])), [['fala', 'ao-tocar']]); // G-320 · ditado do relato
   assert.match(await page.innerText('#saida-fala'), /Ao tocar[\s\S]*Vai: Só quando você toca em Ditar[\s\S]*Para evitar:/);
   assert.equal(await page.locator('#saida-fala .saida-item__origens').count(), 0, 'sem endereço do app');
@@ -11452,7 +11452,7 @@ test('e2e · G-312 escolha de lista no Jogar: só as que jogam estão entre as e
 });
 
 /* G-313 · relato #36, fatia 3 · a lista válida que não joga inteira pede a cobertura num toque, sem caixa de texto */
-test('e2e · G-313 Pedir cobertura: do Jogar, a folha mostra a lista, as cartas que vão e as três etapas; sem conta, guarda o pedido e abre o GitHub preenchido; depois o Jogar diz "Pedido enviado"', { skip }, async t => {
+test('e2e · G-313 Pedir cobertura: do Jogar, a folha mostra a lista, as cartas que vão e as três etapas; sem conta, guarda o pedido ("Aguardando conexão", com Conectar e enviar) e nunca abre o GitHub', { skip }, async t => {
   const { page, errors, base } = await open(t, { dev: false, formato: true });
   await page.setViewportSize({ width: 360, height: 780 });
   await page.addInitScript(() => { window.open = u => { window.__abriu = String(u); return null; }; });
@@ -11471,19 +11471,21 @@ test('e2e · G-313 Pedir cobertura: do Jogar, a folha mostra a lista, as cartas 
   assert.deepEqual(folha.cartas, [['Carta Inexistente', 'en']]); assert.deepEqual(folha.etapas, ['agora', 'depois', 'depois']); assert.equal(folha.caixa, 0, 'sem caixa de texto');
   assert.match(await page.innerText('#cobertura-promessa'), /não promete data/);
   await auditaTela(page, 'folha Pedir cobertura');
-  // sem a conta da Estante: o pedido fica guardado e o GitHub abre preenchido, a um toque
+  // G-364 · expectativa mudou de propósito (decisão do dono, 09/11/2026: o app nunca abre o GitHub para relatar): sem a conta
+  // da Estante, o pedido fica guardado e o primário é "Conectar e enviar"; nada abre o GitHub. O "Pedido enviado" do Jogar só
+  // vem quando a fila confirma; o conteúdo do registro (que antes se lia no endereço do GitHub, sem o nome da lista) é
+  // conferido no relatos.fila.unit (registroDoRelato, o mesmo título e corpo) e no relatos.cobertura.unit.
   await page.click('#cobertura-enviar'); await page.waitForSelector('#cobertura-aviso');
-  assert.match(await page.innerText('#cobertura-aviso'), /conecte a conta da Estante/);
-  await page.click('#cobertura-github'); await page.waitForSelector('#cobertura-pedido .cob-etapa[data-estado="feita"]');
-  assert.match(await page.evaluate(() => window.__abriu), /^https:\/\/github\.com\/.+\/issues\/new\?/);
-  const abriu = decodeURIComponent((await page.evaluate(() => window.__abriu)).replace(/\+/g, ' '));
-  assert.match(abriu, /Pedido de cobertura do motor: uma lista de Pauper com 60 cartas/); assert.match(abriu, /Cartas que faltam \(1\): Carta Inexistente\./);
-  assert.doesNotMatch(abriu, /Quase Pronta/, 'o nome da lista não vai ao registro público');
-  await page.click('#cobertura-fechar'); await page.waitForSelector('#cobertura-pedido', { state: 'detached' });
-  await page.waitForSelector('#mesa-cobertura-pedida'); assert.match(await page.innerText('#mesa-cobertura-pedida'), /Pedido enviado/);
-  await auditaTela(page, 'Jogar com o pedido enviado');
+  assert.match(await page.innerText('#cobertura-aviso'), /Conecte a conta da Estante e ele segue sozinho/);
+  await page.waitForSelector('#cobertura-conectar'); assert.equal(await page.locator('#cobertura-github').count(), 0, 'sem "Pelo GitHub"');
+  assert.equal(await page.evaluate(() => window.__abriu), undefined, 'o GitHub não abriu');
+  await auditaTela(page, 'folha Pedir cobertura · pedido guardado');
+  await page.keyboard.press('Escape'); await page.waitForSelector('#cobertura-pedido', { state: 'detached' });
+  await page.waitForSelector('#mesa-pedir-cobertura'); assert.equal(await page.locator('#mesa-cobertura-pedida').count(), 0, 'guardado não é "Pedido enviado"');
   // o pedido é um relato guardado (vai no backup com os relatos)
   await page.goto(base + '#/perfil/relatos'); await page.waitForFunction(() => /Pedido de cobertura do motor/.test(document.body.innerText));
+  await page.waitForSelector('.relato-item [data-aviso="aguarda-conexao"]'); assert.equal(await page.locator('.relato-item [data-acao="conectar"]').count(), 1); // G-364
+  assert.equal(await page.evaluate(() => window.__abriu), undefined, 'o GitHub não abriu');
   assert.deepEqual(errors, []);
 });
 
@@ -12324,20 +12326,24 @@ test('e2e · T6e-2 relato enviado sem sair do app: com a conta conectada e a fil
   assert.ok(pedidos.includes(`PUT /relatos/fila/uidE2E/${id}`) && pedidos.includes(`GET /relatos/fila/uidE2E/${id}`), 'escreve e lê de volta: ' + pedidos.join(', '));
   await page.waitForSelector('.relato-item [data-aviso="na-fila"]'); // G-330 · relato #50 · a linha de estado, com o prazo à vista (antes era um title)
   assert.equal(await page.innerText('.relato-item .relato-item__enviado'), 'Na fila');
-  assert.match(await page.innerText('.relato-item [data-aviso="na-fila"]'), /^Na fila O número do registro chega em algumas horas\.$/);
+  assert.match(await page.innerText('.relato-item [data-aviso="na-fila"]'), /^Na fila O registro sai em até 1 hora\.$/); // G-364 · o prazo real (a fila roda de hora em hora)
   for (const tema of ['dark', 'light']) { await page.evaluate(x => document.documentElement.setAttribute('data-theme', x), tema); for (const [w, hh] of MEDIDAS_149) { await page.setViewportSize({ width: w, height: hh }); await auditaTela(page, `relatos na fila ${w} ${tema}`); } }
   await page.setViewportSize({ width: 360, height: 780 }); await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   if (process.env.CAPTURA) await page.screenshot({ path: process.env.CAPTURA + '/t6e2-na-fila.png' });
   // 3 · o fluxo criou o registro: a situação de sempre traz o número e o selo "Na fila" sai
   situacao = { versao: 1, geradoEm: '2026-10-12T20:10:00Z', relatos: [{ id, numero: 77, url: 'x', situacao: 'aberto', resolvidoEm: null, reenvios: [] }] };
   await page.reload(); await page.waitForSelector('#relatos-lista .relato-item'); // a situação é buscada ao abrir o app (no máximo a cada 10 min)
-  await page.waitForSelector('.relato-item .relato-item__numero', { timeout: 10000 });
-  assert.equal(await page.innerText('.relato-item .relato-item__numero'), '#77'); assert.equal(await page.locator('.relato-item .relato-item__enviado').count(), 0);
+  // G-364 · expectativa mudou de propósito: o número mora na linha de estado ("Registrado #77"), sem link para o GitHub
+  await page.waitForSelector('.relato-item [data-aviso="registrado"]', { timeout: 10000 });
+  assert.equal(await page.innerText('.relato-item .relato-item__enviado'), 'Registrado #77'); assert.equal(await page.locator('.relato-item [data-aviso="na-fila"]').count(), 0);
+  assert.equal(await page.locator('.relato-item a[href*="github.com"]').count(), 0, 'nenhum link para o GitHub');
   assert.equal(await page.locator('.relato-item [data-acao="enviar"]').count(), 0, 'G-261 · enviado (com registro) não se reenvia');
   assert.deepEqual(errors, []);
 });
 
-test('e2e · T6e-2 sem a fila ligada (o segredo ainda não existe), Enviar com a conta conectada continua abrindo o GitHub', { skip }, async t => {
+// G-364 · expectativa mudou de propósito (decisão do dono, 09/11/2026): o aviso "fila ligada" não decide mais o caminho; com a
+// conta conectada o relato vai para a fila da conta (o robô da hora o cria quando roda) e o GitHub nunca abre
+test('e2e · T6e-2 sem o aviso de fila ligada, Enviar com a conta conectada põe o relato na fila e não abre o GitHub', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.setViewportSize({ width: 360, height: 780 });
   const banco = {};
@@ -12369,16 +12375,91 @@ test('e2e · T6e-2 sem a fila ligada (o segredo ainda não existe), Enviar com a
   await page.goto(base + '#/perfil/relatos'); await page.waitForSelector('#relatos-lista .relato-item');
   await page.evaluate(() => { window.__abertos = []; window.open = u => { window.__abertos.push(u); return null; }; });
   await page.waitForTimeout(400);
-  assert.equal(await page.getAttribute('.relato-item [data-acao="enviar"]', 'data-via'), 'github');
+  assert.equal(await page.getAttribute('.relato-item [data-acao="enviar"]', 'data-via'), 'fila');
   await page.click('.relato-item [data-acao="enviar"]');
-  await page.waitForFunction(() => /Submit new issue/.test(document.querySelector('#ds-toast').textContent));
-  assert.equal((await page.evaluate(() => window.__abertos)).length, 1);
-  assert.equal(banco.relatos, undefined, 'nada foi para a fila');
+  await page.waitForFunction(() => /Relato enviado/.test(document.querySelector('#ds-toast').textContent));
+  assert.deepEqual(await page.evaluate(() => window.__abertos), [], 'o GitHub não abriu');
+  assert.equal(Object.keys(banco.relatos.fila.uidE2E).length, 1, 'foi para a fila da conta');
   assert.deepEqual(errors.filter(e => !/status of 404/.test(e)), [], 'o 404 do aviso da fila (ainda não gravado) é o estado esperado, não erro do app');
 });
 
+/* G-364 · relatos sem GitHub: sem a conta, o relato fica "Aguardando conexão" com "Conectar e enviar"; o login no Perfil manda
+   os guardados sozinhos pela fila; a linha de estado acompanha cada passo do registro até "Entregue em produção". */
+test('e2e · G-364 relato sem a conta: "Aguardando conexão" com Conectar e enviar, o login no Perfil envia sozinho pela fila, e o cartão acompanha em atuação, aguarda você e "Entregue em produção"; o GitHub nunca abre', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  const banco = {};
+  await page.route('https://teste.firebaseio.com/**', async r => {
+    const u = new URL(r.request().url()), seg = u.pathname.replace(/\.json$/, '').split('/').filter(Boolean), metodo = r.request().method();
+    if (u.searchParams.get('auth') !== 'id-e2e') return r.fulfill({ status: 401, json: { error: 'Permission denied' } });
+    const desce = () => seg.reduce((o, k) => (o && typeof o === 'object' ? o[k] : undefined), banco);
+    const poe = (caminho, v) => { let o = banco; for (const k of caminho.slice(0, -1)) o = o[k] = o[k] && typeof o[k] === 'object' ? o[k] : {}; if (v === null) delete o[caminho.at(-1)]; else o[caminho.at(-1)] = v; };
+    const corpo = r.request().postData() ? JSON.parse(r.request().postData()) : null;
+    if (metodo === 'PUT') poe(seg, corpo);
+    if (metodo === 'PATCH') for (const [k, v] of Object.entries(corpo)) poe([...seg, ...k.split('/')], v);
+    return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(metodo === 'GET' ? (desce() ?? null) : corpo) });
+  });
+  let situacao = { versao: 1, geradoEm: '2026-11-09T12:00:00Z', relatos: [] };
+  await page.route(/\/relatos\/(fila|situacao)\.json/, r => r.request().url().includes('fila.json')
+    ? r.fulfill({ json: { versao: 1, ligada: true, desde: '2026-11-09T10:00:00.000Z' }, headers: { 'access-control-allow-origin': '*' } })
+    : r.fulfill({ json: situacao, headers: { 'access-control-allow-origin': '*' } }));
+  await page.route('https://www.googleapis.com/**', r => r.request().url().includes('/oauth2/v3/userinfo') ? r.fulfill({ json: { name: 'Gui', email: 'gui@example.com' } }) : r.fulfill({ status: 404, json: {} }));
+  await page.addInitScript(() => {
+    window.__FIREBASE_DB_URL = 'https://teste.firebaseio.com';
+    window.__GOOGLE_CLIENT_ID = 'e2e.apps.googleusercontent.com'; window.__FIREBASE_API_KEY = 'chave-e2e';
+    window.__FIREBASE_FETCH = async url => new Response(JSON.stringify(url.includes('securetoken') ? { id_token: 'id-e2e', refresh_token: 'ref-e2e', expires_in: '3600', user_id: 'uidE2E' } : { localId: 'uidE2E', idToken: 'id-e2e', refreshToken: 'ref-e2e', expiresIn: '3600' }), { headers: { 'content-type': 'application/json' } });
+    window.__GOOGLE_FALSO = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }), revoke: (tk, cb) => cb && cb() } } };
+    window.EventSource = class { constructor() {} addEventListener() {} close() {} };
+    window.__abertos = []; window.open = u => { window.__abertos.push(String(u)); return null; };
+  });
+  // 1 · sem conta neste aparelho: escrever e tocar em Enviar guarda o relato, à espera da conexão
+  await page.goto(base + '#/perfil/relatos'); await page.waitForSelector('#relatos-novo');
+  await page.click('#relatos-novo'); await page.waitForSelector('#relato-form');
+  await page.selectOption('#relato-tipo', 'erro'); await page.selectOption('#relato-urgencia', 'alta');
+  await page.fill('#relato-descricao', 'O botão de passar a vez some na mesa.'); await page.click('#relato-salvar'); await page.waitForSelector('#relato-form', { state: 'detached' });
+  await page.waitForSelector('#relatos-para-enviar .relato-item [data-acao="enviar"][data-via="fila"]');
+  const id = (await page.getAttribute('#relatos-lista .relato-item', 'id')).replace(/^relato-/, '');
+  await page.click('.relato-item [data-acao="enviar"]');
+  await page.waitForSelector('.relato-item [data-aviso="aguarda-conexao"]');
+  assert.equal(await page.innerText('.relato-item [data-aviso="aguarda-conexao"]'), 'Aguardando conexão Conecte a conta e ele segue sozinho.');
+  assert.equal(await page.getAttribute('.relato-item [data-aviso="aguarda-conexao"]', 'role'), 'status');
+  const conectar = '.relato-item [data-acao="conectar"]';
+  assert.equal(await page.innerText(conectar), 'Conectar e enviar'); assert.match(await page.getAttribute(conectar, 'class'), /ds-btn--primary/);
+  assert.ok((await page.locator(conectar).boundingBox()).height >= 44, 'alvo de 44 px');
+  assert.equal(await page.locator('.relato-item [data-acao="enviar"]').count(), 0, 'um primário só: Conectar e enviar');
+  assert.equal(banco.relatos, undefined, 'nada saiu sem a conta');
+  for (const tema of ['dark', 'light']) { await page.evaluate(x => document.documentElement.setAttribute('data-theme', x), tema); for (const [w, hh] of [[360, 780], [412, 891]]) { await page.setViewportSize({ width: w, height: hh }); await auditaTela(page, `relatos aguardando conexão ${w} ${tema}`); } }
+  await page.setViewportSize({ width: 360, height: 780 }); await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/g363-aguardando.png' });
+  // 2 · Conectar e enviar: sem conta Google neste aparelho, leva ao login do Perfil; ao conectar, o guardado vai sozinho
+  await page.click(conectar); await page.waitForFunction(() => location.hash === '#/perfil');
+  await page.waitForSelector('#conta-entrar:not([disabled])'); await page.click('#conta-entrar');
+  await page.waitForSelector('#conta-sincronia[data-estado="sincronizado"]', { timeout: 10000 });
+  for (let i = 0; i < 100 && !(banco.relatos && banco.relatos.fila && banco.relatos.fila.uidE2E && banco.relatos.fila.uidE2E[id]); i++) await page.waitForTimeout(100);
+  const no = banco.relatos.fila.uidE2E[id]; assert.equal(JSON.parse(no.dado).descricao, 'O botão de passar a vez some na mesa.');
+  assert.equal(Object.keys(banco.relatos.fila.uidE2E).length, 1, 'um nó só');
+  await page.goto(base + '#/perfil/relatos'); await page.waitForSelector('#relatos-enviados .relato-item [data-aviso="na-fila"]');
+  assert.equal(await page.innerText('.relato-item [data-aviso="na-fila"]'), 'Na fila O registro sai em até 1 hora.');
+  // 3 · o registro anda: em atuação, aguarda você (com a pergunta), entregue em produção — cada passo relido ao abrir
+  const passo = async (extra, aviso) => { situacao = { ...situacao, relatos: [{ id, numero: 88, url: 'x', resolvidoEm: null, reenvios: [], ...extra }] };
+    await page.reload(); await page.waitForSelector(`.relato-item [data-aviso="${aviso}"]`, { timeout: 10000 }); return page.innerText(`.relato-item [data-aviso="${aviso}"]`); };
+  assert.equal(await passo({ situacao: 'aberto', etapa: 'em-atuacao' }, 'em-atuacao'), 'Em atuação #88 A correção está sendo feita.');
+  assert.equal(await passo({ situacao: 'aberto', etapa: 'aguarda-dono', motivo: 'O botão some sempre ou só no segundo turno? <img src=x onerror=alert(1)>' }, 'aguarda-dono'),
+    'Aguarda você #88 O botão some sempre ou só no segundo turno? <img src=x onerror=alert(1)>');
+  assert.equal(await page.locator('.relato-item img').count(), 0, 'o motivo é texto, nunca HTML');
+  await auditaTela(page, 'relatos aguarda você');
+  assert.match(await passo({ situacao: 'resolvido', etapa: 'resolvido', resolvidoEm: '2026-11-09T15:20:00Z' }, 'resolvido'), /^Entregue em produção Em \d\d\/\d\d\/2026 \d\d:\d\d\.$/);
+  assert.equal(await page.getAttribute('.relato-item', 'data-status'), 'resolvido');
+  assert.equal(await page.getAttribute('.relato-item [data-aviso="resolvido"]', 'data-tom'), 'feito');
+  for (const tema of ['dark', 'light']) { await page.evaluate(x => document.documentElement.setAttribute('data-theme', x), tema); for (const [w, hh] of [[360, 780], [412, 891]]) { await page.setViewportSize({ width: w, height: hh }); await auditaTela(page, `relatos entregue ${w} ${tema}`); } }
+  if (process.env.SHOTS) { await page.setViewportSize({ width: 360, height: 780 }); await page.screenshot({ path: process.env.SHOTS + '/g363-entregue.png' }); }
+  assert.deepEqual(await page.evaluate(() => window.__abertos), [], 'o GitHub nunca abriu');
+  assert.equal(await page.locator('.relato-item a[href*="github.com"]').count(), 0);
+  assert.deepEqual(errors, []);
+});
+
 /* ---------------- Y5 · relatos chegam à correção ---------------- */
-test('e2e · G-243 relato resolvido sozinho (relato #11): o número do registro aparece e abre o GitHub; o registro fechado marca o relato como resolvido, com a data e um aviso; sem a tabela nada muda', { skip }, async t => {
+test('e2e · G-243 relato resolvido sozinho (relato #11): o número do registro aparece na linha de estado; o registro fechado marca o relato como entregue, com a data e um aviso; sem a tabela nada muda', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.setViewportSize({ width: 360, height: 780 });
   let situacao = null; const pedidos = [];
@@ -12393,33 +12474,35 @@ test('e2e · G-243 relato resolvido sozinho (relato #11): o número do registro 
   await page.waitForSelector('#relatos-lista .relato-item');
   const id = (await page.getAttribute('#relatos-lista .relato-item', 'id')).replace(/^relato-/, '');
   // sem a tabela publicada: nada muda, sem erro
-  assert.equal(await page.locator('.relato-item__numero').count(), 0); assert.equal(await page.getAttribute('.relato-item', 'data-status'), 'aberto');
-  // registrado e aberto: o número aparece e abre o registro
+  assert.equal(await page.locator('.relato-item [data-aviso="registrado"]').count(), 0); assert.equal(await page.getAttribute('.relato-item', 'data-status'), 'aberto');
+  // registrado e aberto: o número aparece. G-364 · expectativa mudou de propósito: o número mora na linha de estado e deixou
+  // de ser link para o GitHub (nenhum botão da tela de relatos leva ao GitHub); o endereço do arquivo segue ignorado
   situacao = { versao: 1, geradoEm: '2026-10-10T15:00:00Z', relatos: [{ id, numero: 41, situacao: 'aberto', resolvidoEm: null, url: 'https://evil.example/', reenvios: [] }] };
-  await page.reload(); await page.waitForSelector('.relato-item__numero');
-  assert.equal(await page.textContent('.relato-item__numero'), '#41'); assert.equal(await page.textContent('.relato-item__resolvido'), 'Registrado no GitHub');
-  assert.equal(await page.getAttribute('.relato-item__numero', 'href'), 'https://github.com/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-/issues/41', 'o endereço é o do app, não o do arquivo');
-  assert.equal(await page.getAttribute('.relato-item__numero', 'target'), '_blank'); assert.equal(await page.getAttribute('.relato-item__numero', 'rel'), 'noopener'); assert.equal(await page.getAttribute('.relato-item', 'data-status'), 'aberto');
-  assert.ok((await page.locator('.relato-item__numero').boundingBox()).height >= 44, 'alvo de 44 px');
+  await page.reload(); await page.waitForSelector('.relato-item [data-aviso="registrado"]');
+  assert.equal(await page.innerText('.relato-item [data-aviso="registrado"]'), 'Registrado #41 Esperando a vez de ser atendido.');
+  assert.equal(await page.locator('.relato-item a').count(), 0, 'nem o endereço do arquivo nem o do GitHub viram link'); assert.equal(await page.getAttribute('.relato-item', 'data-status'), 'aberto');
   // G-261 · relato #16: expectativa mudou de propósito — com registro, o relato está em Enviados: sem Reenviar, Editar nem Excluir
   assert.deepEqual(await page.$$eval('#relatos-enviados .relato-item [data-acao]', bs => bs.map(b => b.dataset.acao)), ['copiar']);
   // fechado no GitHub: resolvido sozinho, com a data, e o aviso
   situacao = { ...situacao, relatos: [{ ...situacao.relatos[0], situacao: 'resolvido', resolvidoEm: '2026-10-10T16:20:00Z' }] };
   await page.reload(); await page.waitForSelector('.relato-item[data-status="resolvido"]');
-  await page.waitForFunction(() => /1 relato resolvido no GitHub/.test(document.querySelector('#ds-toast').textContent));
-  assert.match(await page.textContent('.relato-item__resolvido'), /^Resolvido em 10\/10\/2026 \d\d:20$/); assert.equal(await page.getAttribute('.relato-item__registro', 'data-situacao'), 'resolvido');
+  await page.waitForFunction(() => /1 relato concluído/.test(document.querySelector('#ds-toast').textContent)); // G-364 · o aviso não fala em GitHub
+  assert.match(await page.innerText('.relato-item [data-aviso="resolvido"]'), /^Entregue em produção Em 10\/10\/2026 \d\d:20\.$/); assert.equal(await page.getAttribute('.relato-item [data-aviso="resolvido"]', 'data-tom'), 'feito');
   assert.equal(await page.locator('.relato-item [data-acao="status"]').count(), 0, 'G-261 · a situação é do sistema: sem Reabrir');
   assert.match(await page.textContent('#relatos-resumo'), /0 abertos/);
   await auditaTela(page, 'relatos · resolvido pelo registro');
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/g243-relatos.png' });
   // G-261 · reabrir no app saiu (a situação é do sistema): na próxima busca, segue resolvido
-  await page.reload(); await page.waitForSelector('.relato-item__numero'); await page.waitForTimeout(400);
+  await page.reload(); await page.waitForSelector('.relato-item [data-aviso="resolvido"]'); await page.waitForTimeout(400);
   assert.equal(await page.getAttribute('.relato-item', 'data-status'), 'resolvido');
   assert.ok(pedidos.filter(u => u.endsWith('/situacao.json')).length >= 3);
   assert.deepEqual(errors.filter(e => !/404|Failed to load resource/.test(e)), []);
 });
 
-test('e2e · Y5 relatos chegam à correção: tipos Melhoria e Infraestrutura, Enviar abre o registro no GitHub já preenchido (título, etiqueta, texto e dados da tela) e marca o relato como enviado', { skip }, async t => {
+// G-364 · expectativa mudou de propósito (decisão do dono, 09/11/2026): Enviar não abre mais o GitHub; sem a conta da Estante o
+// relato fica guardado ("Aguardando conexão", com Conectar e enviar) e continua editável. O título, a etiqueta, o texto e os
+// dados da tela do registro seguem conferidos no relatos.tabela.unit (Y5 · o endereço do registro) e no relatos.fila.unit.
+test('e2e · Y5 relatos chegam à correção: tipos Melhoria e Infraestrutura; Enviar sem a conta guarda o relato ("Aguardando conexão") sem abrir o GitHub e ele segue editável', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.setViewportSize({ width: 360, height: 780 });
   await createDeck(page, base, 'Delver', PAUPER);
@@ -12432,22 +12515,12 @@ test('e2e · Y5 relatos chegam à correção: tipos Melhoria e Infraestrutura, E
   assert.equal(await page.innerText('.relato-item [data-acao="enviar"]'), 'Enviar');
   await auditaTela(page, 'relatos · enviar');
   await page.click('.relato-item [data-acao="enviar"]');
-  await page.waitForFunction(() => /Submit new issue/.test(document.querySelector('#ds-toast').textContent));
-  const [{ u, alvo }] = await page.evaluate(() => window.__abertos);
-  assert.equal(alvo, '_blank');
-  const url = new URL(u);
-  assert.equal(url.origin + url.pathname, 'https://github.com/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-/issues/new');
-  assert.equal(url.searchParams.get('labels'), 'relato');
-  assert.equal(url.searchParams.get('title'), '[Infraestrutura · Alta] Listas — Guardar os relatos num banco para a correção ler.');
-  const corpo = url.searchParams.get('body');
-  assert.match(corpo, /Guardar os relatos num banco para a correção ler\./);
-  const d = JSON.parse(corpo.match(/<!-- estante-relato (\{[\s\S]*\}) -->/)[1]);
-  assert.equal(d.tipo, 'infra'); assert.equal(d.urgencia, 'alta'); assert.equal(d.area, 'Listas'); assert.match(d.endereco, /^\/listas/); assert.equal(d.viewport, '360×780');
-  // marcado: o selo "Enviado" aparece; G-261 · relato #16: sem o registro, só o GitHub confirma — o cartão diz isso, fica em
-  // "Para enviar" e oferece "Enviar de novo" (expectativa mudou de propósito: era "Reenviar" sempre)
-  await page.waitForSelector('.relato-item .relato-item__enviado');
-  assert.equal(await page.innerText('.relato-item [data-acao="enviar"]'), 'Enviar de novo');
-  assert.match(await page.innerText('.relato-item [data-aviso="no-github"]'), /^Aberto no GitHub Confirme lá, ou envie de novo\.$/); // G-330 · relato #50 · linha de estado curta
+  await page.waitForFunction(() => /Relato guardado\. Conecte a conta e ele segue sozinho\./.test(document.querySelector('#ds-toast').textContent));
+  assert.deepEqual(await page.evaluate(() => window.__abertos), [], 'o GitHub não abriu');
+  // guardado: o cartão diz o que falta, fica em "Para enviar" e o primário é "Conectar e enviar"
+  await page.waitForSelector('.relato-item [data-aviso="aguarda-conexao"]');
+  assert.equal(await page.innerText('.relato-item [data-aviso="aguarda-conexao"]'), 'Aguardando conexão Conecte a conta e ele segue sozinho.');
+  assert.equal(await page.innerText('.relato-item [data-acao="conectar"]'), 'Conectar e enviar');
   assert.equal(await page.locator('#relatos-para-enviar .relato-item').count(), 1);
   // T1 · editar antes de enviar: o formulário vem preenchido, a tela do relato fica, e o aviso lembra de enviar de novo
   await page.click('.relato-item [data-acao="editar"]'); await page.waitForSelector('#relato-form');
@@ -12459,7 +12532,7 @@ test('e2e · Y5 relatos chegam à correção: tipos Melhoria e Infraestrutura, E
   await auditaTela(page, 'relatos · editar');
   await page.selectOption('#relato-tipo', 'melhoria'); await page.fill('#relato-descricao', 'Guardar os relatos numa tabela que a correção lê.');
   await page.click('#relato-salvar'); await page.waitForSelector('#relato-form', { state: 'detached' });
-  await page.waitForFunction(() => /Enviar de novo/.test(document.querySelector('#ds-toast').textContent));
+  await page.waitForFunction(() => /^Relato corrigido/.test(document.querySelector('#ds-toast').textContent));
   await page.waitForFunction(() => document.querySelector('.relato-item').dataset.tipo === 'melhoria');
   assert.match(await page.innerText('.relato-item .relato-item__texto'), /numa tabela que a correção lê/);
   for (const tema of ['dark', 'light']) { await page.evaluate(t => document.documentElement.setAttribute('data-theme', t), tema); for (const [w, hh] of MEDIDAS_149) { await page.setViewportSize({ width: w, height: hh }); await auditaTela(page, `relatos enviado ${w} ${tema}`); } }

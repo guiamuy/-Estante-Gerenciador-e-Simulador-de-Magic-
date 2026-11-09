@@ -75,9 +75,9 @@ test('I-289 · limite: mais antigos primeiro, 3 por conta e 20 por rodada; nó c
 test('I-289 · registro: o mesmo título e corpo do Enviar de antes, a linha de origem, e as etiquetas relato e relato-fila; relato fora da regra não vira registro', () => {
   const r = relato('rmvABC123');
   const reg = F.registroDoRelato(R, r, { uid: 'uid-da-pessoa-xyz789', id: 'rmvABC123' });
-  const antes = new URL(R.enderecoDoRegistro(r)).searchParams;
-  assert.equal(reg.title, antes.get('title'));
-  assert.ok(reg.body.startsWith(antes.get('body').split('\n\n<!-- ')[0]), 'o texto é o mesmo');
+  const antes = R.registroDoApp(r); // G-364 · o mesmo registro, sem o endereço do GitHub
+  assert.equal(reg.title, antes.title);
+  assert.ok(reg.body.startsWith(antes.body.split('\n\n<!-- ')[0]), 'o texto é o mesmo');
   assert.match(reg.body, /\n- Enviado de dentro do app, pela fila da Estante \(conta …xyz789\)\n/);
   assert.equal(T.leDados(reg.body).id, 'rmvABC123', 'a tabela lê os dados do mesmo jeito');
   assert.deepEqual(reg.labels, ['relato', 'relato-fila']);
@@ -112,6 +112,17 @@ test('I-289 · rodada: cria o registro, só depois tira da fila, não duplica o 
   assert.deepEqual(J(r2), { criados: [], repetidos: 1, invalidos: 0, ficaram: 0 }); assert.equal(m.issues.length, 2); assert.deepEqual(J(m.db.relatos.fila.uidA), {});
   // fila vazia: nem pergunta ao GitHub
   const m3 = mundo(); assert.deepEqual(J(await roda(m3)), { criados: [], repetidos: 0, invalidos: 0, ficaram: 0 }); assert.equal(m3.pedidos.filter(p => p.url.includes('api.github.com')).length, 0);
+});
+
+// G-364 · o relato que o app antigo abriu no GitHub (e o dono confirmou lá, só com a etiqueta `relato`) e que agora segue pela
+// fila ("Enviar de novo" de um "não confirmado") não vira um segundo registro
+test('G-364 · rodada: registro aberto à mão pelo GitHub (etiqueta relato, sem relato-fila) com o mesmo relato não duplica', async () => {
+  const m = mundo({ fila: { uidA: { rmvMAO1: no(relato('rmvMAO1')) } } });
+  const corpo = R.registroDoApp(relato('rmvMAO1')).body;
+  m.issues.push({ number: 7, title: 'à mão', body: corpo, labels: [{ name: 'relato' }], user: { login: 'dono', type: 'User' }, author_association: 'OWNER', state: 'open' });
+  const r = await roda(m);
+  assert.deepEqual(J(r), { criados: [], repetidos: 1, invalidos: 0, ficaram: 0 });
+  assert.equal(m.issues.length, 1, 'nenhum registro novo'); assert.deepEqual(J(m.db.relatos.fila.uidA), {}, 'sai da fila');
 });
 
 test('I-289 · GitHub fora do ar: a rodada para com erro e o relato continua na fila; chave errada não lê o banco', async () => {
