@@ -15,7 +15,7 @@ const UR = 'Urborg, Tomb of Yawgmoth', YA = 'Yavimaya, Cradle of Growth';
 
 test('K-88 · leitura: Urborg soma Swamp e Yavimaya soma Forest a todo terreno', () => {
   for (const [n, sub] of [[UR, 'Swamp'], [YA, 'Forest']]) {
-    const l = S.leitura(of(n)); assert.ok(l, n + ': leitura completa'); assert.equal(S.coverage(of(n)).level, 'lida');
+    const l = S.leitura(of(n)); assert.ok(l, n + ': leitura completa'); assert.equal(S.coverage(of(n)).level, 'completo', n + ': aprovada na revisão em lote 8 (M-613)');
     assert.deepEqual(J(l.script.self.terrenosK), { quais: 'todos', subtipo: sub, soma: true });
     assert.deepEqual(J(S.validateScript({ ...l.script, example: EX })), []);
   }

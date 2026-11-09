@@ -2916,6 +2916,32 @@ sete Pauper (133 com script, 5 cobertas pelo texto) e 164 nas duas Commander, 6 
 - **Resolvido na leva G-245 (10/10/2026):** I7 (o Tab espera o acento aplicado e dois quadros), N2 (a posição do botão de idioma é medida depois de dois quadros, quando a âncora J1 já compensou — a tela nunca pulou: a compensação roda antes da pintura) e H7 (a falha simulada valia para quem pedisse primeiro, ver H7b). Os três passaram sob carga artificial nos dois núcleos. **Leva G-247:** os testes de desempenho B2 (avaliação do bot, trilha `bot`) e C12 (filtro de 5 000 cartas) mediam o relógio de parede e caíam quando o portão rodava arquivos em paralelo (215, 239 e 121 ms em 10/10/2026, com ~70 ms de processador no B2); passam a medir o **tempo de processador** do próprio teste, com os mesmos limites (200 e 100 ms). Prova: sob três processos ocupando a máquina, a versão antiga do B2 marcou 295 ms e caiu; a nova passou três vezes. Registro: na máquina livre o B2 mede 60–88 ms hoje (o comentário de origem fala em ~10 ms) — a avaliação ficou mais cara com o crescimento do motor; dívida da trilha `bot` se passar de 100 ms de processador.
 - **Fora:** fila de publicação entre trilhas (tentei uma trava em `refs/vez/*`; o proxy do ambiente recusa esse tipo de referência, e trava em ramo dispararia o CI); dividir a fase de tela em dois navegadores em paralelo; Pages só com portão verde (depende do dono, em Settings → Pages).
 
+### CR-PLANO · Plano de completude do motor (rotina Motor contínuo)
+
+Rotina agendada "Motor contínuo" (a cada 3 h, trilha `motor`, prefixo M; aberta em 09/11/2026, leva M-613). Missão: completar o motor de regras para todos os formatos que a Estante mostra, do jeito mais escalável — primitiva de regra antes de carta avulsa, sempre pelo texto Oracle do dia (Scryfall).
+
+- **Métrica:** listas a 100% por formato (o que o app mede, `cobertura/<formato>.json` e `cobertura/resumo.json` do ramo `catalogo`, gravados pela coleta diária com `cobertura.mjs`) e cartas pendentes por classe (`texto-mudou`, `lida`, `nova`, `parcial`, `sem-dados`).
+- **Escolha (gulosa por valor):** cada carta pendente vale a soma, nas listas incompletas em que aparece, de peso do formato ÷ cartas que faltam na lista. Peso: Modern, Pioneer, Legacy, Standard, Vintage e Construído 1,0; Iniciante 0,5; Commander e Brawl 0,25 enquanto os de 60 cartas estiverem abaixo de 50% (depois 1,0). Agrupa pela primitiva que as cartas pedem: regra numerada das CR (épico CR) que destrava 8 ou mais cartas pendentes vem antes; senão, o lote que mais vale, no tamanho de uma leva. Dentro de cada formato, `texto-mudou` primeiro (carta coberta que ficou errada); `lida` (o leitor já lê, falta a revisão independente) é a leva mais barata por lista.
+- **Commander e Brawl:** 1x1 (zona de comando, imposto de comandante, vida inicial do formato); mesa com mais de dois fora do escopo.
+- **Fidelidade:** nenhuma carta por palpite; sem texto localizável ou com primitiva fora de alcance, a carta vira "manual" aqui com o motivo. Toda carta coberta ganha cenário e teste; toda aprovação passa por revisor independente com uma partida por carta.
+- **Relação com o épico CR:** as primitivas que a rotina abre entram no `.regras/mapa.json` com o teste que prova (CR 7xx/6xx); a rotina não muda `ENGINE_VERSION` nem golden sem o dono (a leva espera o PR).
+- **Relação com as sentinelas:** o Pauper é da rotina "Sentinela do Pauper" (a Motor contínuo não pega carta só-Pauper). A rotina "Sentinela dos formatos" usa o limiar de 90% das listas a 100% por formato: abaixo dele, o formato é trabalho da Motor contínuo; acima, a sentinela segura o que cair.
+
+| Formato | Listas a 100% (08/11) | Pendentes (08/11) | texto-mudou · lida · nova · parcial · sem-dados | Depois da M-613 (estimado) |
+|---|---|---|---|---|
+| Pauper (sentinela) | 678 / 685 | 6 | 0 · 1 · 5 · 0 · 0 | — |
+| Modern | 39 / 732 | 368 | 0 · 28 · 339 · 0 · 1 | 39 (351 pendentes) |
+| Legacy | 25 / 520 | 342 | 0 · 29 · 313 · 0 · 0 | 30 (323) |
+| Pioneer | 22 / 304 | 286 | 0 · 24 · 258 · 0 · 4 | 22 (274) |
+| Standard | 4 / 520 | 400 | 0 · 18 · 373 · 0 · 9 | 4 (394) |
+| Vintage | 0 / 260 | 174 | 0 · 17 · 156 · 0 · 1 | 0 (163) |
+| Construído | 0 / 30 | 249 | 0 · 38 · 211 · 0 · 0 | 0 (249) |
+| Iniciante | 25 / 648 | 6458 | 8 · 1581 · 4869 · 0 · 0 | 25 (6457) |
+| Commander | 0 / 706 | 7530 | 7 · 673 · 6849 · 1 · 0 | 0 (7509) |
+| Brawl | 0 / 9 | 336 | 1 · 58 · 277 · 0 · 0 | 0 (335) |
+
+Próximas rodadas, pela ordem gulosa de 08/11: as `lida` restantes dos competitivos (≈ 70, quase todas de valor baixo) em lotes; depois as `nova` de maior valor agrupadas por primitiva (candidatas: energia `{E}` — Wrath of the Skies, Guide of Souls, Static Prison, Amped Raptor; Moonshadow; Nethergoyf; Kaito, Bane of Nightmares/ninjutsu; Cavern of Souls), e Vibrant Outburst (115.3, alvo repetido entre palavras "target").
+
 #### Velocidade de publicação (trilha `infra`, pedido do dono em 10/10/2026; plano aprovado em 11/10/2026)
 
 Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora) num caminho que comporta 1,5 a 2 por hora — um portão local de 30 a 40 min por vez, sobre o `main` parado. Do commit ao `main`: mediana de 29 min no motor, 38 min na geral (pior caso 243 min). Cada leva roda o portão duas vezes (na conversa e no CI): cerca de 790 min de CI por dia. Detalhe em `claude/ROADMAP-infra-velocidade-de-publicacao.md` (Projeto).
@@ -5867,6 +5893,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Teste:** `lt289.unit` (8 testes; 7 falham no motor anterior).
 
 **M-612 · portão · P-12 (Silenciar a conversa) volta a passar nas sessões de nuvem** ✅ — o teste abre a página B por último e mede o botão Silenciar da página A, que fica em segundo plano: o Chromium não anda a animação de entrada do diálogo (escala 0,97 parada) e o botão de 44 px media 42,68 px, toda vez, inclusive no `main` de 08/11 (f1b6b253, 9a009e8b, 2baf3afb, 1012f5cf, 3dcfbf1a). Causa, não sintoma: `A.bringToFront()` antes de abrir a Conversa; a asserção de 44 px fica igual. Sem mudança no app. Dívida que era da trilha dona do P-12, paga aqui porque deixava o portão vermelho para toda leva. Conferido: P-12 sozinho 2 de 2 verde com a correção, 0 de 5 sem ela.
+
+**M-613 · LT270 · rotina Motor contínuo · revisão em lote 8: as 23 cartas `lida` de maior valor nos competitivos** ✅ (leva M-613, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** a coleta de 08/11/2026 (`cobertura/*.json` do ramo `catalogo`). Passam a jogar no app Urza's Saga (219 listas Modern), Boseiju, Who Endures, Dark Matter Manipulator, Sink into Stupor // Soporific Springs, Stitcher's Supplier, Icetill Explorer, Strategic Betrayal, Blood Moon, Seam Rip, Haywire Mite, Null Rod, Sokenzan, Emry, Hexing Squelcher, Shoot the Sheriff, Thundertrap Trainer, Yavimaya, Takenuma, Eiganjo, Portable Hole, Sheoldred, the Apocalypse, Griselbrand e Urborg. Estimado sobre a coleta de 08/11: Legacy 25 → 30 listas a 100%; pendentes Modern 368 → 351, Legacy 342 → 323, Pioneer 286 → 274, Standard 400 → 394, Vintage 174 → 163, Commander 7530 → 7509. A coleta seguinte confirma.
+- **Regra:** nenhuma primitiva nova; o leitor já lia as 24 cartas por inteiro. Dois revisores independentes (12 cartas cada) conferiram frase a frase o script lido contra o texto da Scryfall de 08/11 e jogaram uma partida por carta. Aprovadas 23 (texto em `.listas/oficiais-revisadas.json`, linhas em `APROVADAS`); `node .listas/leitor-revisar.mjs --confere` verde.
+- **Recusada:** Vibrant Outburst — "deals 3 damage to any target. Tap up to one target creature": pela 115.3 o mesmo objeto pode ser escolhido pelas duas palavras "target", e o motor nunca oferece o dano e o virar na mesma criatura. Fica `lida` até o alvo repetido entre palavras "target" existir.
+- **Teste:** `lt292.unit` (17 testes; falham no motor anterior): as partidas dos revisores, agora pelo caminho do app (nenhum script passado para as cartas do lote).
+- **Testes que mudaram de propósito:** `keywords.k86`/`k87`/`k88` afirmavam Urza's Saga, Blood Moon, Urborg e Yavimaya "lidas, em revisão"; agora afirmam aprovadas (Magus of the Moon e Harbinger of the Seas seguem em revisão). `idioma-extrai.mjs` (trilha geral, uma linha acrescentada): assinatura de revisão (`/^[a-z0-9]+$/` com dígito e letra) não é texto de tela — a de Takenuma, `1o6ndv`, lia o "o" entre dígitos como palavra e derrubava `idioma-pacotes.unit`.
 
 **M-611 · LT269 · Requiting Hex (afligir 1 como custo adicional opcional; destrói criatura de valor de mana 2 ou menos)** ✅ (leva M-611, motor v112 sem mudança de forma; goldens intactos)
 - **Valor:** passa a ser **lida por inteiro** Requiting Hex (177 listas competitivas: Standard 172, Pioneer 5). Texto da API da Scryfall de 08/11/2026 (`cobertura/<formato>.json` do ramo `catalogo`). Joga no app depois da aprovação (homologacao).

@@ -14,7 +14,7 @@ const EX = { action: 'etb', target: 'none', expect: { attached: false } };
 
 test('K-87 · leitura: Blood Moon e Magus viram Mountain, Harbinger vira Island; o validador confere a forma', () => {
   for (const [n, sub] of [['Blood Moon', 'Mountain'], ['Magus of the Moon', 'Mountain'], ['Harbinger of the Seas', 'Island']]) {
-    const l = S.leitura(of(n)); assert.ok(l, n + ': leitura completa'); assert.equal(l.aprovada, false); assert.equal(S.coverage(of(n)).level, 'lida');
+    const l = S.leitura(of(n)); assert.ok(l, n + ': leitura completa'); const ap = n === 'Blood Moon'; assert.equal(l.aprovada, ap, n + (ap ? ': aprovada na revisão em lote 8 (M-613)' : ': espera a revisão')); assert.equal(S.coverage(of(n)).level, ap ? 'completo' : 'lida');
     assert.deepEqual(J(l.script.self.terrenosK), { quais: 'nao-basicos', subtipo: sub });
     assert.deepEqual(J(S.validateScript({ ...l.script, example: EX })), []);
   }

@@ -13,7 +13,7 @@ const of = n => { const c = OF.find(x => x.name === n); assert.ok(c, 'sem texto 
 const US = "Urza's Saga";
 
 test("K-86 · Urza's Saga lida por inteiro: Construct com o bônus por artefato e a busca por custo exato", () => {
-  const l = S.leitura(of(US)); assert.ok(l, 'leitura completa'); assert.equal(l.aprovada, false); assert.equal(S.coverage(of(US)).level, 'lida');
+  const l = S.leitura(of(US)); assert.ok(l, 'leitura completa'); assert.equal(l.aprovada, true, 'aprovada na revisão em lote 8 (M-613)'); assert.equal(S.coverage(of(US)).level, 'completo');
   const caps = J(l.script.abilities.filter(a => a.when === 'chapter'));
   assert.deepEqual(caps.map(a => a.chapters), [[1], [2], [3]]);
   assert.deepEqual(caps[1].effects[0].habilidade.effects, [{ do: 'token', amount: 1, token: { name: 'Construct', types: ['artifact', 'creature'], subtypes: ['Construct'], colors: [], power: 0, toughness: 0, self: { per: 'artifacts-you-control', perPower: 1, perToughness: 1 } } }]);
