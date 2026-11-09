@@ -6855,8 +6855,9 @@ function createCardRepo({ store, scryfall, local = null, ttlMs = 7 * 24 * 3600 *
       for (const n of names) { const k = norm(n); if (k && !originais.has(k)) originais.set(k, n); }
       const todos = [...originais.keys()];
       // O1 · o que já está guardado não volta à rede nem é regravado: guardar de novo é barato
-      const novos = [];
-      for (const n of todos) { const rec = await readCache(n); if (!(rec && rec.pin && rec.card)) novos.push(n); }
+      // G-363 · relato #95 · lidas juntas (como em byNames): uma por uma, a coleção grande segurava o preparo em leituras em fila
+      const recsPin = await Promise.all(todos.map(readCache));
+      const novos = todos.filter((n, i) => !(recsPin[i] && recsPin[i].pin && recsPin[i].card));
       const mapa = novos.length ? await this.byNames(novos.map(k => originais.get(k)), onProgress) : new Map();
       const fixadas = [], faltando = [];
       const writes = [];
@@ -6944,9 +6945,42 @@ function createCardRepo({ store, scryfall, local = null, ttlMs = 7 * 24 * 3600 *
     },
     /** Quantos destes nomes já estão guardados para jogar sem rede. */
     async pinned(names) {
-      let n = 0;
-      for (const k of new Set(names.map(norm))) { const rec = await readCache(k); if (rec && rec.pin && rec.card) n++; }
-      return n;
+      return (await this.situacao(names)).guardadas;
+    },
+    /** G-363 · relato #95 · destes nomes (sem repetir), quantos estão guardados para jogar sem rede e quantos a Scryfall já
+        respondeu que não conhece (nada a guardar: não podem segurar o preparo para sempre). Sem rede, nada muda aqui. */
+    async situacao(names) {
+      const keys = [...new Set(names.map(norm))].filter(Boolean);
+      const recs = await Promise.all(keys.map(readCache));
+      let guardadas = 0, desconhecidas = 0;
+      for (const rec of recs) { if (rec && rec.pin && rec.card) guardadas++; else if (rec && rec.card === null) desconhecidas++; }
+      return { total: keys.length, guardadas, desconhecidas };
+    },
+    /** G-363 · relato #95 · carta da coleção que a Scryfall não acha pelo nome (nome impresso em outra língua, grafia antiga)
+        é guardada pela impressão da cópia (id, ou edição e número): `pares` = [{ nome, ident }] (ident de identDaImpressao).
+        A carta fica fixada na chave do nome da coleção. Devolve { fixadas, faltando } em chaves normalizadas. */
+    async pinPorImpressao(pares) {
+      const lista = (pares || []).filter(x => x && x.nome && x.ident);
+      const out = { fixadas: [], faltando: [] };
+      if (!lista.length || !scryfall.porIdentificadores) return { fixadas: [], faltando: lista.map(x => norm(x.nome)) };
+      try {
+        const r = await scryfall.porIdentificadores(lista.map(x => x.ident));
+        const achada = new Map();
+        for (const c of r.found) {
+          for (const k of [__m14.chaveDaImpressao({ id: c.id }), __m14.chaveDaImpressao({ set: c.set, number: c.collector_number }), __m14.chaveDaImpressao({ set: c.set, name: c.name })]) if (k && !achada.has(k)) achada.set(k, c);
+          for (const f of c.faces || []) { const k = __m14.chaveDaImpressao({ set: c.set, name: f.name }); if (k && !achada.has(k)) achada.set(k, c); }
+        }
+        const writes = [];
+        for (const x of lista) {
+          const k = norm(x.nome), card = achada.get(__m14.chaveDaImpressao({ id: x.ident.id, set: x.ident.set, number: x.ident.collector_number, name: x.ident.name }));
+          if (!card) { out.faltando.push(k); continue; }
+          const rec = { ts: now(), card, pin: true };
+          mem.set(k, rec); writes.push(store.set(KEY(k), rec)); out.fixadas.push(k);
+        }
+        await Promise.all(writes);
+        if (local && r.found.length) { try { await local.upsert(r.found); } catch (e) { /* base local cheia: a busca sem rede fica menor */ } }
+      } catch (e) { stats.degraded = true; return { fixadas: [], faltando: lista.map(x => norm(x.nome)) }; }
+      return out;
     },
 
     /** D4 · busca. Tenta a rede; se ela não existe ou falha, cai para a
@@ -7133,18 +7167,22 @@ function createImageCache({ caches, fetch: doFetch, pausa: pausaPadrao = 80, esp
     /** Garante que a imagem esteja em cache. Silencioso em caso de falha:
         imagem é conforto, não correção. CORS primeiro (resposta normal, sem o
         acolchoamento de cota da resposta opaca); opaca só se o CDN não deixar. */
-    warm(urls, { ja = false } = {}) {
+    warm(urls, { ja = false, paralelo = 1, aoGuardar = null } = {}) {
       if (!available || !doFetch) return Promise.resolve(0);
       // I7 · `ja`: o que a pessoa acabou de escolher não espera na fila do que desce em segundo plano, nem faz pausa
       if (ja) return this._warm(urls, 0);
-      return emSerie(() => this._warm(urls));
+      // G-363 · relato #95 · `paralelo`: o preparo para jogar sem internet baixa algumas por vez (cada uma com a sua folga),
+      // ainda na fila única; `aoGuardar(n, total)` conta o progresso
+      return emSerie(() => this._warm(urls, pausaPadrao, { paralelo, aoGuardar }));
     },
-    async _warm(urls, pausa = pausaPadrao) {
+    async _warm(urls, pausa = pausaPadrao, { paralelo = 1, aoGuardar = null } = {}) {
       const c = await open();
       let n = 0;
-      for (const url of [...new Set(urls.filter(Boolean))]) {
+      const unicas = [...new Set(urls.filter(Boolean))], fila = unicas.slice();
+      const conta = () => { if (aoGuardar) { try { aoGuardar(n, unicas.length); } catch (e) { /* quem conta não derruba a descida */ } } };
+      const trabalhador = async () => { for (let url = fila.shift(); url !== undefined; url = fila.shift()) {
         try {
-          if (await c.match(url)) { n++; continue; }
+          if (await c.match(url)) { n++; conta(); continue; }
           let res = null;
           try { res = await doFetch(url, { mode: 'cors', credentials: 'omit' }); if (!res.ok) res = null; } catch (e) { res = null; }
           // H7 · veio cortada: pede de novo sem o cache do navegador; cortada outra vez, não guarda (a próxima passada tenta)
@@ -7154,10 +7192,11 @@ function createImageCache({ caches, fetch: doFetch, pausa: pausaPadrao = 80, esp
           }
           if (!res) res = await doFetch(url, { mode: 'no-cors' });
           await c.put(url, res.clone ? res.clone() : res);
-          n++;
+          n++; conta();
           if (pausa > 0) await espera(pausa);   // U12 · uma imagem por vez, com folga: o CDN não vê rajada
         } catch (e) { /* imagem indisponível não quebra a tela */ }
-      }
+      } };
+      await Promise.all(Array.from({ length: Math.max(1, Math.min(paralelo, fila.length)) }, trabalhador));
       return n;
     },
     async has(url) {
@@ -48560,12 +48599,16 @@ function createOfflineKeeper({ cardRepo, decks, collection, images, names, ocr, 
   const completo = st => !!st && st.listas.prontas >= st.listas.total && st.colecao.pronta && st.nomes && st.leitor
     && (!st.imagens || st.imagens.guardadas >= st.imagens.total);
 
-  async function aquecer(cards, tamanho) {
+  async function aquecer(cards, tamanho, op = null) {
     if (!images || !images.available || !online()) return 0;
     const tamanhos = Array.isArray(tamanho) ? tamanho : [tamanho];
     // U12 · a miniatura primeiro (é a que a mesa mostra no campo), depois a grande (mão e zoom)
-    return semFalha(() => images.warm(tamanhos.flatMap(t => cards.flatMap(c => urlsDeImagem(c, t)))), 0);
+    const urls = tamanhos.flatMap(t => cards.flatMap(c => urlsDeImagem(c, t)));
+    return semFalha(() => (op ? images.warm(urls, op) : images.warm(urls)), 0); // G-363 · `op`: o preparo baixa algumas por vez, com progresso
   }
+  /** G-363 · relato #95 · a cópia da coleção que diz a impressão de cada nome (para guardar pela impressão o que a Scryfall não
+      acha pelo nome). Map chave normalizada → cópia com edição. */
+  const capasDaColecao = grupos => new Map(grupos.map(g => [norm(g.name), __m14.copiaDaCapa ? __m14.copiaDaCapa(g.items) : null]).filter(([k, c]) => k && c));
   /** U12 · quantas imagens do jogo das listas já estão no aparelho (Q10: a pequena do campo E a grande da mão). */
   async function contaImagens(listas) {
     if (!images || !images.available || !images.has) return null;
@@ -48578,22 +48621,31 @@ function createOfflineKeeper({ cardRepo, decks, collection, images, names, ocr, 
     return { total: urls.length, guardadas };
   }
   /** Guarda os dados das cartas destes nomes e, com rede, as imagens no tamanho pedido. */
-  async function guardar(nomes, tamanho) {
+  let opPreparo = null; // G-363 · durante o preparo, a descida das imagens sem `op` próprio usa a do preparo (quatro por vez, com contagem)
+  async function guardar(nomes, tamanho, { op = opPreparo, capas = null } = {}) {
     // grafia original (a rede recebe o nome como está na lista), uma vez por nome
     const porChave = new Map();
     for (const n of nomes) { const k = norm(n); if (k && !porChave.has(k)) porChave.set(k, n); }
     const unicos = [...porChave.values()];
     if (!unicos.length) return { fixadas: [], faltando: [], imagens: 0 };
-    const r = await cardRepo.pin(unicos);
+    let r = await cardRepo.pin(unicos);
+    // G-363 · relato #95 · o que a Scryfall não achou pelo nome, pela impressão da cópia (id, ou edição e número)
+    if (capas && r.faltando.length && cardRepo.pinPorImpressao && online()) {
+      const pares = r.faltando.map(k => ({ nome: k, ident: capas.get(k) ? __m14.identDaImpressao(capas.get(k)) : null })).filter(x => x.ident);
+      if (pares.length) {
+        const p = await semFalha(() => cardRepo.pinPorImpressao(pares), { fixadas: [], faltando: [] });
+        if (p.fixadas.length) { const ok = new Set(p.fixadas); r = { ...r, fixadas: [...r.fixadas, ...p.fixadas], faltando: r.faltando.filter(k => !ok.has(k)) }; }
+      }
+    }
     let imagens = 0;
     if (tamanho && r.fixadas.length) {
       const mapa = await cardRepo.byNames(r.fixadas);
-      imagens = await aquecer([...mapa.values()].filter(Boolean), tamanho);
+      imagens = await aquecer([...mapa.values()].filter(Boolean), tamanho, op);
     }
     // E50 P3 · as fichas que estas cartas criam também ficam guardadas, com imagem
     if (tamanho && cardRepo.fichas && __m23.fichasDasCartas) {
       const defs = __m23.fichasDasCartas(unicos);
-      if (defs.length) { const f = await semFalha(() => cardRepo.fichas(defs), new Map()); imagens += await aquecer([...f.values()].filter(Boolean), tamanho); }
+      if (defs.length) { const f = await semFalha(() => cardRepo.fichas(defs), new Map()); imagens += await aquecer([...f.values()].filter(Boolean), tamanho, op); }
     }
     return { ...r, imagens };
   }
@@ -48644,24 +48696,27 @@ function createOfflineKeeper({ cardRepo, decks, collection, images, names, ocr, 
     /** Lista salva: dados de todas as cartas + imagens do jogo. U12: a pequena (campo da mesa) e a
         grande (mão e zoom). Antes só a grande: sem rede, o campo da mesa aparecia sem imagem. */
     /** V1 · a impressão escolhida para uma carta da lista também fica guardada (frente e verso). */
-    async guardarLista(deck) {
-      const r = await guardar(nomesDaLista(deck), ['small', 'normal']);
+    async guardarLista(deck, { op = null, soDados = false } = {}) {
+      // G-363 · `soDados`: o preparo guarda primeiro os dados de tudo (rápido) e só depois desce as imagens
+      if (soDados) return guardar(nomesDaLista(deck), null);
+      const r = await guardar(nomesDaLista(deck), ['small', 'normal'], { op });
       const escolhidas = __m14.impressoesDaLista(deck);
-      if (escolhidas.length) r.imagens = (r.imagens || 0) + await aquecer(escolhidas, ['small', 'normal']);
+      if (escolhidas.length) r.imagens = (r.imagens || 0) + await aquecer(escolhidas, ['small', 'normal'], op);
       return r;
     },
     /** Coleção: dados de todas as cartas + miniatura (a lista da coleção mostra a miniatura).
         H11 · uma passada por vez: pedido durante a passada marca "de novo" e roda uma só no fim. */
-    guardarColecao() {
+    guardarColecao({ op = null } = {}) {
       if (colecaoEmCurso) { colecaoDeNovo = true; return colecaoEmCurso; }
       colecaoEmCurso = (async () => {
         let r;
         do {
-          colecaoDeNovo = false; const grupos = await collection.entries(); r = await guardar(grupos.map(g => g.name), 'normal'); // leva 102 · a nítida (a small ficava borrada no celular)
+          colecaoDeNovo = false; const grupos = await collection.entries(); const capasCol = capasDaColecao(grupos);
+          r = await guardar(grupos.map(g => g.name), 'normal', { op, capas: capasCol }); // leva 102 · a nítida (a small ficava borrada no celular) · G-363 · pela impressão o que o nome não acha
           // G-350 · relato #65 · a Coleção mostra a arte da edição de cada cópia: as imagens dessas impressões também ficam no aparelho
           if (online() && cardRepo.impressoes && __m14.copiaDaCapa) {
-            const capas = grupos.map(g => __m14.copiaDaCapa(g.items)).filter(Boolean);
-            if (capas.length) { const m = await semFalha(() => cardRepo.impressoes(capas), new Map()); r = { ...r, imagens: (r.imagens || 0) + await aquecer([...m.values()].filter(Boolean), 'normal') }; }
+            const capas = [...capasCol.values()];
+            if (capas.length) { const m = await semFalha(() => cardRepo.impressoes(capas), new Map()); r = { ...r, imagens: (r.imagens || 0) + await aquecer([...m.values()].filter(Boolean), 'normal', op) }; }
           }
         } while (colecaoDeNovo);
         return r;
@@ -48680,7 +48735,9 @@ function createOfflineKeeper({ cardRepo, decks, collection, images, names, ocr, 
       }
       const grupos = await collection.entries();
       const nomesCol = grupos.map(g => g.name);
-      const colGuardadas = nomesCol.length ? await semFalha(() => cardRepo.pinned(nomesCol), 0) : 0;
+      // G-363 · relato #95 · carta que a Scryfall respondeu não conhecer não tem o que guardar: não segura a coleção pendente para sempre
+      const sitCol = nomesCol.length ? await semFalha(() => (cardRepo.situacao ? cardRepo.situacao(nomesCol) : cardRepo.pinned(nomesCol).then(g => ({ guardadas: g, desconhecidas: 0 }))), { guardadas: 0, desconhecidas: 0 }) : { guardadas: 0, desconhecidas: 0 };
+      const colGuardadas = sitCol.guardadas, colDesconhecidas = sitCol.desconhecidas;
       const infoNomes = names && names.info ? (names.info() || (await semFalha(() => names.load().then(() => names.info()), null))) : null;
       // Q10 · o leitor só conta como pronto se os arquivos dele ainda estão no aparelho (o navegador pode limpar o cache)
       const leitorFlag = !!(store && await semFalha(() => store.get('ocr.ready'), null));
@@ -48689,7 +48746,7 @@ function createOfflineKeeper({ cardRepo, decks, collection, images, names, ocr, 
       return {
         rede: online(),
         listas: { total: listas.length, prontas: listas.filter(l => l.pronta).length, detalhe: listas },
-        colecao: { cartas: nomesCol.length, guardadas: colGuardadas, pronta: colGuardadas >= nomesCol.length },
+        colecao: { cartas: nomesCol.length, guardadas: colGuardadas, desconhecidas: colDesconhecidas, pronta: colGuardadas + colDesconhecidas >= nomesCol.length },
         nomes: !!infoNomes, nomesInfo: infoNomes || null,
         leitor,
         // O3 · espaço e proteção do armazenamento (gatilhos G1 e G2)
@@ -48700,43 +48757,66 @@ function createOfflineKeeper({ cardRepo, decks, collection, images, names, ocr, 
       };
     },
 
-    /** Prepara tudo de uma vez, com progresso. Só faz sentido com rede. */
+    /** Prepara tudo de uma vez, com progresso. Só faz sentido com rede.
+        G-363 · relato #95 · em duas passadas: primeiro os DADOS de tudo (listas, Shark e coleção: poucos pedidos, segundos) e o
+        leitor do scanner; depois as IMAGENS, quatro por vez, com a contagem na tela. Antes, as imagens de cada lista desciam
+        uma por uma antes de a coleção começar: com a coleção grande o preparo levava muitos minutos e, interrompido, a
+        coleção nunca saía de pendente. */
     async prepararTudo(onProgress = () => {}) {
       if (emCurso) return emCurso;
       emCurso = (async () => {
         const rel = { rede: online(), nomes: false, leitor: false, listas: { fixadas: 0, faltando: [], prontas: 0, total: 0 }, colecao: { fixadas: 0, faltando: [] }, imagens: 0 };
         if (!online()) { return rel; }
-        onProgress({ etapa: 'nomes', texto: 'Baixando a base de nomes…' });
+        const avisa = p => { try { onProgress(p); } catch (e) { /* quem mostra não derruba o preparo */ } };
+        avisa({ etapa: 'nomes', texto: 'Baixando a base de nomes…' });
         rel.nomes = !!(await semFalha(() => names.ensure({ online: true, impressos: true }), null));
-        onProgress({ etapa: 'leitor', texto: 'Baixando o leitor do scanner…' });
-        if (ocr && ocr.warm) { rel.leitor = await semFalha(async () => { await ocr.warm(); if (store) await store.set('ocr.ready', agora()); return true; }, false); }
+        // 1 · os dados de tudo
         const todas = await decks.list();
         rel.listas.total = todas.length;
         let i = 0;
         for (const d of todas) {
-          i++; onProgress({ etapa: 'listas', texto: `Guardando lista ${i} de ${todas.length}: ${d.name}` });
-          const r = await semFalha(() => api.guardarLista(d), { fixadas: [], faltando: nomesDaLista(d), imagens: 0 });
-          rel.listas.fixadas += r.fixadas.length; rel.listas.faltando.push(...r.faltando.map(n => `${d.name}: ${n}`)); rel.imagens += r.imagens;
+          i++; avisa({ etapa: 'listas', texto: `Guardando os dados da lista ${i} de ${todas.length}: ${d.name}` });
+          const r = await semFalha(() => api.guardarLista(d, { soDados: true }), { fixadas: [], faltando: nomesDaLista(d), imagens: 0 });
+          rel.listas.fixadas += r.fixadas.length; rel.listas.faltando.push(...r.faltando.map(n => `${d.name}: ${n}`));
           if (!r.faltando.length) rel.listas.prontas++;
         }
         // B-22 · as listas do Shark (dado do app, não da estante): sem elas guardadas o Shark não joga sem internet
-        if (prontas) {
-          const nomes = [...new Set(prontas())];
-          if (nomes.length) {
-            onProgress({ etapa: 'listas', texto: 'Guardando as listas do Shark…' });
-            // A-264 · com as imagens do jogo: sem internet, as cartas do Shark aparecem na mesa como as suas
-            const r = await semFalha(() => guardar(nomes, ['small', 'normal']), { fixadas: [], faltando: nomes });
-            rel.listas.fixadas += r.fixadas.length; rel.listas.faltando.push(...r.faltando.map(n => `Shark: ${n}`));
-            if (store && !r.faltando.length) await semFalha(() => store.set('offline.prontas', `${nomes.length}:${nomes.slice(0, 5).join('|')}`), null);
-          }
+        const nomesShark = prontas ? [...new Set(prontas())] : [];
+        if (nomesShark.length) {
+          avisa({ etapa: 'listas', texto: 'Guardando as listas do Shark…' });
+          const r = await semFalha(() => guardar(nomesShark, null), { fixadas: [], faltando: nomesShark });
+          rel.listas.fixadas += r.fixadas.length; rel.listas.faltando.push(...r.faltando.map(n => `Shark: ${n}`));
+          if (store && !r.faltando.length) await semFalha(() => store.set('offline.prontas', `${nomesShark.length}:${nomesShark.slice(0, 5).join('|')}`), null);
         }
-        onProgress({ etapa: 'colecao', texto: 'Guardando as cartas da coleção…' });
-        const c = await semFalha(() => api.guardarColecao(), { fixadas: [], faltando: [], imagens: 0 });
-        rel.colecao.fixadas = c.fixadas.length; rel.colecao.faltando = c.faltando; rel.imagens += c.imagens;
+        avisa({ etapa: 'colecao', texto: 'Guardando os dados da coleção…' });
+        const grupos = await semFalha(() => collection.entries(), []);
+        const c = await semFalha(() => guardar(grupos.map(g => g.name), null, { capas: capasDaColecao(grupos) }), { fixadas: [], faltando: [], imagens: 0 });
+        rel.colecao.fixadas = c.fixadas.length; rel.colecao.faltando = c.faltando;
+        avisa({ etapa: 'leitor', texto: 'Baixando o leitor do scanner…' });
+        if (ocr && ocr.warm) { rel.leitor = await semFalha(async () => { await ocr.warm(); if (store) await store.set('ocr.ready', agora()); return true; }, false); }
+        // 2 · as imagens, quatro por vez, com a contagem
+        const op = rotulo => ({ paralelo: 4, aoGuardar: (n, total) => avisa({ etapa: 'imagens', texto: `${rotulo}: ${n} de ${total}` }) });
+        i = 0;
+        for (const d of todas) {
+          i++; avisa({ etapa: 'imagens', texto: `Imagens da lista ${i} de ${todas.length}: ${d.name}` });
+          const r = await semFalha(() => api.guardarLista(d, { op: op(`Imagens da lista ${d.name}`) }), { imagens: 0 });
+          rel.imagens += r.imagens || 0;
+        }
+        if (nomesShark.length) {
+          // A-264 · com as imagens do jogo: sem internet, as cartas do Shark aparecem na mesa como as suas
+          avisa({ etapa: 'imagens', texto: 'Imagens das listas do Shark…' });
+          const nomes = nomesShark; opPreparo = op('Imagens do Shark');
+          const r = await semFalha(() => guardar(nomes, ['small', 'normal']), { fixadas: [], faltando: nomes });
+          opPreparo = null;
+          rel.imagens += r.imagens || 0;
+        }
+        avisa({ etapa: 'imagens', texto: 'Imagens da coleção…' });
+        const ci = await semFalha(() => api.guardarColecao({ op: op('Imagens da coleção') }), { imagens: 0 });
+        rel.imagens += ci.imagens || 0;
         if (store) await semFalha(() => store.set('offline.preparado', agora()), null);
-        onProgress({ etapa: 'fim', texto: 'Pronto.' });
+        avisa({ etapa: 'fim', texto: 'Pronto.' });
         return rel;
-      })().finally(() => { emCurso = null; });
+      })().finally(() => { emCurso = null; opPreparo = null; });
       return emCurso;
     },
 
@@ -48818,7 +48898,8 @@ function resumoOffline(st) {
   const fr = (a, b) => b ? Math.max(0, Math.min(1, a / b)) : null;
   const itens = [
     { id: 'listas', icone: 'listas', rotulo: 'Listas', detalhe: st.listas.total ? `${st.listas.prontas} de ${st.listas.total} prontas para jogar` : 'nenhuma lista ainda', fracao: fr(st.listas.prontas, st.listas.total) },
-    { id: 'colecao', icone: 'colecao', rotulo: 'Coleção', detalhe: st.colecao.cartas ? `${st.colecao.guardadas} de ${st.colecao.cartas} carta(s) com dados` : 'coleção vazia', fracao: st.colecao.cartas ? fr(st.colecao.guardadas, st.colecao.cartas) : null },
+    // G-363 · relato #95 · carta que a Scryfall não reconhece não tem dado a guardar: aparece no detalhe e não deixa a coleção pendente
+    { id: 'colecao', icone: 'colecao', rotulo: 'Coleção', detalhe: st.colecao.cartas ? `${st.colecao.guardadas} de ${st.colecao.cartas} carta(s) com dados` + (st.colecao.desconhecidas ? ` · ${st.colecao.desconhecidas} que a Scryfall não reconhece` : '') : 'coleção vazia', fracao: st.colecao.cartas ? fr(st.colecao.guardadas + (st.colecao.desconhecidas || 0), st.colecao.cartas) : null },
     { id: 'nomes', icone: 'buscar', rotulo: 'Base de nomes', detalhe: st.nomes ? (st.nomesInfo ? `${st.nomesInfo.count.toLocaleString('pt-BR')} nomes para o scanner` : 'baixada para o scanner') : 'não baixada', fracao: st.nomes ? 1 : 0 },
     { id: 'leitor', icone: 'scanner', rotulo: 'Leitor de texto', detalhe: st.leitor ? 'pronto para o scanner' : 'não baixado', fracao: st.leitor ? 1 : 0 },
     st.imagens && st.imagens.total ? { id: 'imagens', icone: 'camadas', rotulo: 'Imagens do jogo', detalhe: `${st.imagens.guardadas} de ${st.imagens.total}`, fracao: fr(st.imagens.guardadas, st.imagens.total) } : null
@@ -49941,7 +50022,7 @@ function offlinePanel() {
     let st; try { st = await keeper.status(); } catch (e) { return mount(box, Text('Não foi possível conferir o que está guardado.', { size: 'sm', tone: 'muted' })); }
     const faltas = [];
     if (st.listas.total && st.listas.prontas < st.listas.total) faltas.push(`${st.listas.total - st.listas.prontas} lista(s) ainda dependem da internet`);
-    if (st.colecao.cartas && !st.colecao.pronta) faltas.push(`${st.colecao.cartas - st.colecao.guardadas} carta(s) da coleção sem dados guardados`);
+    if (st.colecao.cartas && !st.colecao.pronta) faltas.push(`${st.colecao.cartas - st.colecao.guardadas - (st.colecao.desconhecidas || 0)} carta(s) da coleção sem dados guardados`);
     if (!st.nomes) faltas.push('base de nomes do scanner não baixada');
     if (!st.leitor) faltas.push('leitor do scanner não baixado');
     if (st.imagens && st.imagens.guardadas < st.imagens.total) faltas.push(`${st.imagens.total - st.imagens.guardadas} imagem(ns) do jogo a baixar`);

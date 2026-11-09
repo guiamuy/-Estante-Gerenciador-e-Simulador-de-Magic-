@@ -524,3 +524,84 @@ test('A-264 · transparente: enquanto prepara sozinho o app sabe (para a faixa d
   assert.deepEqual(vistos, [true, false]);
   sai();
 });
+
+/* ---------------- G-363 · relato #95 · preparo rápido e a coleção que não fica pendente ---------------- */
+/** Mundo do relato #95: Scryfall que não acha pelo nome o que está no nome impresso em português, mas acha pela impressão;
+    registra a ordem dos pedidos (dados × imagens) e uma descida de imagens com tempo, para medir quantas vão juntas. */
+async function mundoDoRelato95() {
+  const store = P.memoryStore();
+  const ordem = [];
+  const pelaImpressao = { 'id-relampago': { ...CARD('Lightning Bolt'), id: 'id-relampago', set: 'm10', collector_number: '146' } };
+  const scryfall = {
+    collection: async names => { ordem.push('dados:' + names.join('|'));
+      const conhece = n => !['relâmpago', 'fantasma'].includes(n.toLowerCase());
+      return { found: names.filter(conhece).map(CARD), missing: names.filter(n => !conhece(n)) }; },
+    porIdentificadores: async idents => { ordem.push('impressao:' + idents.map(x => x.id).join('|'));
+      const found = idents.map(x => pelaImpressao[x.id]).filter(Boolean); return { found, missing: idents.filter(x => !pelaImpressao[x.id]) }; },
+    porIds: async () => ({ found: [], missing: [] })
+  };
+  const cardRepo = C.createCardRepo({ store, scryfall });
+  const decks = D.createDeckStore({ store });
+  const collection = D.createCollection({ store });
+  const images = { available: true, aquecidas: [], async warm(urls) { ordem.push('imagens'); this.aquecidas.push(...urls); return urls.length; }, async has() { return false; } };
+  const names = { info: () => ({ count: 1 }), load: async () => ({ count: 1 }), ensure: async () => ({ count: 1 }) };
+  const store2 = store;
+  const keeper = O.createOfflineKeeper({ cardRepo, decks, collection, images, names, ocr: { warm: async () => true }, store: store2, online: () => true, agora: () => Date.UTC(2026, 10, 9, 12) });
+  return { store, ordem, cardRepo, decks, collection, images, keeper };
+}
+
+test('G-363 · relato #95 · carta da coleção que a Scryfall não acha pelo nome é guardada pela impressão da cópia; a que ninguém reconhece não deixa a coleção pendente para sempre', async () => {
+  const m = await mundoDoRelato95();
+  await m.collection.set('Sol Ring', 1);
+  await m.collection.addPrinting({ name: 'Relâmpago', set: 'm10', number: '146', id: 'id-relampago', lang: 'pt' }, 1); // nome impresso, com a impressão
+  await m.collection.set('Fantasma', 1);                                                                             // sem impressão, nome que não existe
+  const rel = await m.keeper.prepararTudo();
+  assert.deepEqual(JSON.parse(JSON.stringify(rel.colecao.faltando)), ['fantasma'], 'só a sem impressão fica sem dados');
+  assert.equal(await m.cardRepo.pinned(['Relâmpago']), 1, 'guardada pela impressão, na chave do nome da coleção');
+  assert.equal((await m.cardRepo.byName('Relâmpago')).name, 'Lightning Bolt', 'e a Coleção acha os dados dela sem internet');
+  const st = await m.keeper.status();
+  assert.deepEqual(JSON.parse(JSON.stringify(st.colecao)), { cartas: 3, guardadas: 2, desconhecidas: 1, pronta: true });
+  const it = O.resumoOffline(st).itens.find(x => x.id === 'colecao');
+  assert.equal(it.estado, 'pronto', 'a coleção não fica pendente');
+  assert.match(it.detalhe, /2 de 3 carta\(s\) com dados · 1 que a Scryfall não reconhece/);
+  assert.equal(m.keeper.completo(st), true, 'o preparo do dia fecha (não roda de novo a cada abertura)');
+});
+
+test('G-363 · relato #95 · sem rede, carta da coleção sem resposta da Scryfall continua pendente (só o "não conheço" da Scryfall libera)', async () => {
+  const store = P.memoryStore();
+  const cardRepo = C.createCardRepo({ store, scryfall: { collection: async () => { throw new Error('sem rede'); } } });
+  await cardRepo.pin(['Sol Ring']);
+  assert.deepEqual(JSON.parse(JSON.stringify(await cardRepo.situacao(['Sol Ring', 'sol ring', '']))), { total: 1, guardadas: 0, desconhecidas: 0 });
+});
+
+test('G-363 · relato #95 · o preparo guarda os dados de tudo (listas, Shark e coleção) antes de descer qualquer imagem', async () => {
+  const m = await mundoDoRelato95();
+  await m.decks.save({ name: 'Delver', entries: [{ name: 'Delver of Secrets', qty: 4, zone: 'main' }] });
+  await m.decks.save({ name: 'Burn', entries: [{ name: 'Lava Spike', qty: 4, zone: 'main' }] });
+  await m.collection.set('Sol Ring', 1);
+  const textos = [];
+  await m.keeper.prepararTudo(p => textos.push(p.texto));
+  const ultimoDado = Math.max(...m.ordem.map((x, i) => x.startsWith('dados:') ? i : -1));
+  const primeiraImagem = m.ordem.indexOf('imagens');
+  assert.ok(m.ordem.some(x => x === 'dados:Sol Ring'), 'a coleção foi pedida: ' + m.ordem.join(' / '));
+  assert.ok(primeiraImagem > ultimoDado, 'nenhuma imagem antes dos dados da coleção: ' + m.ordem.join(' / '));
+  assert.ok(textos.indexOf('Guardando os dados da coleção…') < textos.indexOf('Imagens da coleção…'), textos.join(' / '));
+});
+
+test('G-363 · relato #95 · imagens do preparo descem quatro por vez, sem repetir, com a contagem; o resto da fila segue uma por vez', async () => {
+  const { createImageCache } = loadModules().imagesMod;
+  const cacheMem = new Map(); const pedidos = [];
+  let emVoo = 0, pico = 0;
+  const caches = { open: async () => ({ match: async u => cacheMem.get(u), put: async (u, r) => { cacheMem.set(u, r); } }) };
+  const fetch = async u => { pedidos.push(u); emVoo++; pico = Math.max(pico, emVoo); await new Promise(r => setTimeout(r, 5)); emVoo--; return { ok: true, clone() { return this; } }; };
+  const c = createImageCache({ caches, fetch, pausa: 0 });
+  const contagem = [];
+  const urls = Array.from({ length: 12 }, (_, i) => 'u' + i);
+  const n = await c.warm([...urls, 'u0', 'u1'], { paralelo: 4, aoGuardar: (k, total) => contagem.push(`${k}/${total}`) });
+  assert.equal(n, 12); assert.equal(pico, 4, 'quatro juntas');
+  assert.deepEqual([...pedidos].sort(), [...urls].sort(), 'cada uma uma vez');
+  assert.equal(contagem.at(-1), '12/12');
+  pico = 0;
+  await c.warm(['v1', 'v2', 'v3']);
+  assert.equal(pico, 1, 'sem pedir, uma por vez como antes');
+});
