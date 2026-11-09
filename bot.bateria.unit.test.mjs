@@ -6,7 +6,7 @@ import { loadModules } from './_load.mjs';
 import { POSICOES, pontua } from './bot.bateria.mjs';
 const { engine: E, bot: B } = loadModules();
 
-const PISO = 30; // B-200 · 30 de 31 com o ninja pelo ataque (erra só a isca `volta-isca`). Era 29 (B-196), 27 (B-195), 26 (B-192), 25 (B-191), 24 (B-190), 22 (B-188)
+const PISO = 31; // B-207 · 31 de 33 (posições novas `rem-elfo-de-mana`, que o Shark publicado erra, e `rem-priest-sim`) · B-200 · 30 de 31 com o ninja pelo ataque (erra só a isca `volta-isca`). Era 29 (B-196), 27 (B-195), 26 (B-192), 25 (B-191), 24 (B-190), 22 (B-188)
 
 test('B-188 · toda posição da bateria monta, tem classe, porquê, e a jogada certa está entre as legais', () => {
   const ids = new Set();
