@@ -20,7 +20,7 @@ Marcos: Pauper 100% (as sete listas revisadas carta a carta; 682 de 685 listas P
 | Trilha | Prefixo | Foco atual | Última leva | Próximo |
 |---|---|---|---|---|
 | `scanner` | S | X16: relato #79 fechado (Yip Yip!: o "!", nome e edição sob reflexo) e #65 velocidade | S-621 · 09/11; S-622 · 09/11 | teste no aparelho do #79; #90 foil espera o dono |
-| `geral` | G | relatos sem GitHub, situação até a produção (G-364); #95 preparo offline (G-363); DS-K3 barra flutuante (G-362) | G-364 · 09/11 | MV-1 navegação com direção; T-IDIOMA fatia 3 |
+| `geral` | G | DS-K3 MV-1 navegação com direção (G-366); relatos sem GitHub (G-364) | G-366 · 09/11 | DS-K3 K3-3 + K3-4; T-IDIOMA fatia 3 |
 | `motor` | M | leitor dos competitivos (Requiting Hex, afligir como custo); sentinela Pauper | M-612 · 08/11 | M-613 Umbral Collar Zealot ▶; CR2c.2 "destruir todas"; #58 espera o dono |
 | `radar` | R | BI4 · Painel Estante: comparar períodos, metas, tendência | R-44 · 07/11 | BI4-6 em diante; validação do dono após os primeiros pilares |
 | `jogabilidade` | J | MJ25/MJ27 · mesa de patamar: paisagem, orientação, Cancelar em toda escolha | J-62 · 03/11 | relato #54 (efeito da Cidade Baixa) |
@@ -39,6 +39,7 @@ Datas no formato dia/mês, horário de Brasília. Trilha que muda de foco atuali
 - **Relatos contínuo**, a cada 1 h (nuvem): roda a fila e atua no relato pendente mais urgente até produção (modo agilidade, 09/11).
 - **Sentinela do Pauper**, diária 12h40: cobre as cartas que tiram listas Pauper de 100% (`cobertura/pauper.json` do ramo `catalogo`).
 - **Shark contínuo**, a cada 4 h: B25 até as quatro réguas verdes, depois o portfólio de listas (B26); trilha `bot`, publica sozinha (B-204).
+- **Design DS-K3**, a cada 4 h: uma fatia do DS-K3 por rodada (trilha `geral`).
 - **Pendências do dono**, diária 7h43: mantém o artefato "Pendências da Estante" (estado em `claude/ROTINA-pendencias-estado.md`).
 
 ## Relatos do dono abertos (etiqueta `relato`)
@@ -78,4 +79,4 @@ Os documentos `claude/…` moram no Projeto do claude.ai, fora do repositório: 
 
 No commit de docs de cada leva (o mesmo que atualiza o ROADMAP): reescreva a **sua** linha na tabela de trilhas, atualize relatos e pendências se mudaram e troque a data abaixo. Edite por patch, nunca o arquivo inteiro. Conflito no rebase: fique com as linhas das outras trilhas e a sua. Passou de 8 KB: resuma, não acrescente.
 
-Atualizado: 09/11/2026 · I-328 (rotinas publicam) · M-612 (motor) · I-329 (ponte) · S-622 (scanner) · B-206 (bot) · G-362 (geral) · G-363 (geral) · G-364 (geral) · B-207 (bot)
+Atualizado: 09/11/2026 · I-328 (rotinas publicam) · M-612 (motor) · I-329 (ponte) · S-622 (scanner) · B-206 (bot) · G-362 (geral) · G-363 (geral) · G-364 (geral) · B-207 (bot) · G-366 (geral)

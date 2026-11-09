@@ -906,3 +906,38 @@ test('DS-K3 K3-2 · barra flutuante: tokens nos três blocos; pílula a --navbar
   assert.match(componentCss, /\.ds-navbar \.ds-nav--jogar \{[^}]*color: var\(--accent\); \}/);
   assert.match(componentCss, /body:is\(\[data-tela="partida"\], \[data-tela="scanner"\], \[data-tela="entrar"\], \[data-mesa-cheia="true"\]\) \.ds-navbar \{ display: none; \}/);
 });
+
+/* ---------------- DS-K3 MV-1 (G-366) · navegação com direção ---------------- */
+test('DS-K3 MV-1 · navegação com direção: tokens de perspectiva, escurecer e atraso no :root; avançar recua em Z e escurece a de trás e traz a nova da direita e da profundidade com mola suave (--dur-4); voltar é o inverso, mais curto (--dur-3, saída suave); aba esmaece e desliza --desloc-1 no sentido da barra (--dur-2), com o fio da barra que varre; só a barra tem nome na transição; reserva sem a API esmaece o conteúdo; nada de literal de duração, distância ou curva nas receitas; Moderado e Reduzido pelos tokens', () => {
+  assert.deepEqual(['--perspectiva', '--recuo-escurece', '--nav-fio-atraso'].map(k => DARK[k]), ['900px', '.94', '40ms']);
+  const regra = sel => { const i = componentCss.indexOf(sel + ' {'); assert.ok(i >= 0, sel); return componentCss.slice(i, componentCss.indexOf('}', i) + 1); };
+  const kf = nome => { const m = componentCss.match(new RegExp(`@keyframes ${nome} \\{ (from|to) \\{ ([^}]*) \\} \\}`)); assert.ok(m, nome); return m[1] + ' ' + m[2]; };
+  assert.match(regra(':root[data-nav="avanca"]::view-transition-old(root)'), /animation: nav-recua var\(--dur-4\) var\(--mola-suave\) both;/);
+  assert.match(regra(':root[data-nav="avanca"]::view-transition-new(root)'), /animation: nav-chega var\(--dur-4\) var\(--mola-suave\) both;/);
+  assert.match(regra(':root[data-nav="volta"]::view-transition-old(root)'), /z-index: 1; animation: nav-vai var\(--dur-3\) var\(--ease-out\) both;/);
+  assert.match(regra(':root[data-nav="volta"]::view-transition-new(root)'), /animation: nav-aproxima var\(--dur-3\) var\(--ease-out\) both;/);
+  assert.match(regra(':root[data-nav="aba"]::view-transition-old(root)'), /animation: nav-aba-sai var\(--dur-2\) var\(--sai\) both;/);
+  assert.match(regra(':root[data-nav="aba"]::view-transition-new(root)'), /animation: nav-aba-entra var\(--dur-2\) var\(--ease-out\) var\(--nav-fio-atraso\) both;/);
+  // o que separa do 2D: a de trás recua em Z e escurece; a nova vem da profundidade
+  assert.equal(kf('nav-recua'), 'to transform: perspective(var(--perspectiva)) translateZ(var(--z-recuo)); filter: brightness(var(--recuo-escurece));');
+  assert.equal(kf('nav-chega'), 'from opacity: 0; transform: perspective(var(--perspectiva)) translate3d(var(--desloc-3), 0, var(--z-chega));');
+  assert.equal(kf('nav-vai'), 'to opacity: 0; transform: perspective(var(--perspectiva)) translate3d(var(--desloc-3), 0, var(--z-chega));', 'voltar: o mesmo caminho da chegada, ao contrário');
+  assert.equal(kf('nav-aproxima'), 'from transform: perspective(var(--perspectiva)) translateZ(var(--z-recuo)); filter: brightness(var(--recuo-escurece));');
+  assert.match(kf('nav-aba-sai'), /translateX\(calc\(-1 \* var\(--desloc-1\) \* var\(--nav-sentido, 1\)\)\)/);
+  assert.match(kf('nav-aba-entra'), /translateX\(calc\(var\(--desloc-1\) \* var\(--nav-sentido, 1\)\)\)/);
+  // só a barra tem nome; ela fica parada (sem o cruzamento das duas imagens)
+  assert.deepEqual([...componentCss.matchAll(/view-transition-name: ([a-z-]+)/g)].map(m => m[1]), ['ds-navbar']);
+  assert.match(componentCss, /::view-transition-old\(ds-navbar\) \{ animation: none; opacity: 0; \}/);
+  // reserva sem a API e o fio que varre
+  assert.match(regra('#outlet[data-chega] > *'), /animation: nav-esmaece var\(--dur-2\) var\(--ease-out\) both;/);
+  assert.match(regra('.ds-navbar .ds-nav[aria-current="page"][data-fio-varre]::after'), /animation: navbar-fio-varre var\(--dur-2\) var\(--ease-out\) both;/);
+  // só token nas receitas: nenhum ms, px ou cubic-bezier literal nos keyframes da navegação
+  const kfs = [...componentCss.matchAll(/@keyframes (nav-[a-z-]+|navbar-fio-varre) \{([^\n]*)\}/g)];
+  assert.equal(kfs.length, 8);
+  for (const [, nome, corpo] of kfs) assert.doesNotMatch(corpo.replace(/0px\)\)/, ''), /\d+(ms|px)|cubic-bezier|\d+deg/, nome);
+  // Moderado zera a profundidade; Reduzido zera distâncias e profundidade (os tokens que as receitas usam)
+  const mod = vars(tokenCss.slice(tokenCss.indexOf(':root[data-movimento="moderado"] {')).split('}')[0]);
+  assert.deepEqual([mod['--z-recuo'], mod['--z-chega'], mod['--desloc-3'], mod['--dur-4'], mod['--mola-suave']], ['0px', '0px', '8px', 'var(--dur-3)', 'var(--ease-out)']);
+  const red = vars(tokenCss.slice(tokenCss.indexOf(':root[data-movimento="reduzido"] {')).split('}')[0]);
+  assert.deepEqual([red['--z-recuo'], red['--z-chega'], red['--desloc-1'], red['--desloc-3']], ['0px', '0px', '0px', '0px']);
+});

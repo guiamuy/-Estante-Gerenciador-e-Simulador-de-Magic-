@@ -89,7 +89,7 @@ function achaNoDB(i, db = DB) {
 DB['goliath paladin'] = { ...card('Goliath Paladin', 'Creature — Giant Knight', ['W'], 5), mana_cost: '{4}{W}', power: '3', toughness: '6', oracle_text: 'Vigilance\nWhen Goliath Paladin enters, you take the initiative.' };
 for (const l of listasDoShark()) for (const e of [...l.entries, ...l.reserva]) { const c = l.cartas[e.name], k = e.name.toLowerCase(); if (c && !DB[k]) DB[k] = { ...card(c.name, c.type_line, c.colors, c.cmc), ...c, id: c.name }; }
 
-async function open(t, { dev = true, apresentacao = false, cena = false, porta = false, formato = false, preparo = false } = {}) {
+async function open(t, { dev = true, apresentacao = false, cena = false, porta = false, formato = false, preparo = false, navegacao = false } = {}) {
   const srv = await serve();
   const browser = await pw.chromium.launch(process.env.PW_CHROMIUM ? { executablePath: process.env.PW_CHROMIUM } : {});
   // capturas de tela nas outras medidas e no tema escuro (ROADMAP §4): SHOT_W=360 SHOT_TEMA=dark
@@ -121,6 +121,9 @@ async function open(t, { dev = true, apresentacao = false, cena = false, porta =
   // H5 · contra o bot a mesa mostra o turno dele quadro a quadro (segundos de espera, mesa sem toque). Só o teste que pede vê a cena;
   // os outros recebem o turno do bot de uma vez, como antes.
   if (!cena) await ctx.addInitScript(() => { window.__SEM_CENA = true; });
+  // DS-K3 MV-1 (G-366) · a troca de tela anima (View Transitions): os testes medem a tela assentada, como antes; só o teste
+  // da navegação (`navegacao: true`) vê o movimento
+  if (!navegacao) await ctx.addInitScript(() => { window.__SEM_NAVEGACAO_ANIMADA = true; });
   // H6 · a folha de pagamento abre antes de toda mágica que vira terreno; os testes que não são dela continuam com o
   // pagamento automático (um toque a menos por mágica). O teste da H6 liga por `window.__estanteMesa.manaManual(true)`.
   await ctx.addInitScript(() => { window.__SEM_PAGAMENTO = true; });
@@ -21732,5 +21735,77 @@ test('e2e · G-362 DS-K3 K3-2: a barra flutua a 14 px das bordas (64 px, raio 22
   // a mesa não muda: na partida a barra some e nada é reservado
   await page.evaluate(() => document.body.setAttribute('data-tela', 'partida'));
   assert.deepEqual(await page.evaluate(() => [getComputedStyle(document.querySelector('#ds-navbar')).display, getComputedStyle(document.body).getPropertyValue('--navbar-h').trim(), getComputedStyle(document.body).getPropertyValue('--navbar-reserva').trim(), getComputedStyle(document.getElementById('outlet')).paddingBottom]), ['none', '0px', '0px', '0px']);
+  assert.deepEqual(errors, []);
+});
+
+/* ---------------- DS-K3 MV-1 (G-366) · navegação com direção ---------------- */
+test('e2e · G-366 DS-K3 MV-1: avançar afasta (recua em Z, nova chega da profundidade), voltar aproxima, troca de aba desliza no sentido da barra com o fio que varre; o próximo toque conclui na hora; Moderado encurta, Reduzido troca direto; sem View Transitions, a reserva esmaece; 360 nos dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t, { navegacao: true });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.addInitScript(() => {
+    window.__NAVEGACAO_COM_MOVIMENTO = true; window.__trocas = [];
+    const orig = document.startViewTransition && document.startViewTransition.bind(document);
+    if (orig) document.startViewTransition = cb => {
+      const t = orig(cb), reg = { nav: document.documentElement.getAttribute('data-nav'), anims: [], fio: null, pulada: false };
+      window.__trocas.push(reg); window.__vtFim = t.finished.catch(() => {});
+      t.ready.then(() => { reg.anims = document.getAnimations().filter(a => a.effect && /view-transition-(old|new)\(root\)/.test(a.effect.pseudoElement || '')).map(a => [a.effect.pseudoElement.replace('::view-transition-', ''), a.animationName, Math.round(a.effect.getComputedTiming().duration)]).sort();
+        const f = document.getAnimations().find(a => a.animationName === 'navbar-fio-varre'); reg.fio = f ? [f.effect.target.id, f.effect.pseudoElement, getComputedStyle(f.effect.target).getPropertyValue('--fio-de').trim()] : null; }).catch(() => { reg.pulada = true; });
+      return t;
+    };
+  });
+  const assenta = () => page.evaluate(() => (window.__vtFim || Promise.resolve()).then(() => new Promise(r => requestAnimationFrame(() => r()))));
+  const ultima = () => page.evaluate(() => window.__trocas[window.__trocas.length - 1] || null);
+  const conta = () => page.evaluate(() => window.__trocas.length);
+  await page.goto(base + '#/'); await page.waitForSelector('#home-titulo');
+  assert.deepEqual(await page.evaluate(() => [window.__estanteNav.tipo, window.__trocas.length]), ['nenhuma', 0], 'a primeira tela não anima');
+  // 1 · troca de aba: Início → Listas (para a direita): esmaece e desliza --desloc-1; o fio sai do Início e varre até Listas
+  await page.click('#nav-decks'); await page.waitForSelector('#nav-decks[aria-current="page"]'); await page.waitForFunction(() => window.__trocas.length === 1 && window.__trocas[0].anims.length);
+  let u = await ultima();
+  assert.deepEqual([u.nav, u.anims], ['aba', [['new(root)', 'nav-aba-entra', 180], ['old(root)', 'nav-aba-sai', 180]]], JSON.stringify(u));
+  assert.equal(u.fio[0], 'nav-decks'); assert.equal(u.fio[1], '::after'); assert.ok(parseInt(u.fio[2]) < 0, `o fio vem da esquerda (Início): ${u.fio[2]}`);
+  assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--nav-sentido').trim()), '1');
+  await assenta();
+  // 2 · avançar: Listas → Perfil (subtela): a de trás recua em Z, a nova chega da profundidade (mola suave, 420 ms)
+  await page.click('#nav-perfil'); await page.waitForSelector('.perfil-topo'); await page.waitForFunction(() => window.__trocas.length === 2 && window.__trocas[1].anims.length);
+  u = await ultima();
+  assert.deepEqual([u.nav, u.anims], ['avanca', [['new(root)', 'nav-chega', 420], ['old(root)', 'nav-recua', 420]]], JSON.stringify(u));
+  // a barra fica parada: tem nome próprio e não entra no grupo da tela
+  assert.equal(await page.evaluate(() => getComputedStyle(document.querySelector('#ds-navbar')).viewTransitionName), 'ds-navbar');
+  await assenta();
+  for (const tema of ['dark', 'light']) { await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(120); await auditaTela(page, `MV-1 Perfil depois de avançar (${tema})`); }
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  // 3 · voltar (o botão do navegador): o inverso, mais curto (280 ms), a que sai fica por cima
+  await page.goBack(); await page.waitForSelector('#nav-decks[aria-current="page"]'); await page.waitForFunction(() => window.__trocas.length === 3 && window.__trocas[2].anims.length);
+  u = await ultima();
+  assert.deepEqual([u.nav, u.anims], ['volta', [['new(root)', 'nav-aproxima', 280], ['old(root)', 'nav-vai', 280]]], JSON.stringify(u));
+  await assenta();
+  // 4 · R4 · o dedo manda: o próximo toque conclui a transição na hora (a tela nova já está lá, sem pseudo de transição)
+  await page.click('#nav-perfil');
+  await page.waitForFunction(() => window.__trocas.length === 4 && window.__trocas[3].anims.length);
+  const pulou = await page.evaluate(async () => { const t0 = performance.now(); document.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); await window.__vtFim; await new Promise(r => requestAnimationFrame(() => r()));
+    return { ms: Math.round(performance.now() - t0), pseudos: document.getAnimations().filter(a => a.effect && /view-transition/.test(a.effect.pseudoElement || '')).length, perfil: !!document.querySelector('.perfil-topo') }; });
+  assert.ok(pulou.ms < 200 && pulou.pseudos === 0 && pulou.perfil, `concluiu na hora: ${JSON.stringify(pulou)}`);
+  // 5 · Moderado: sem profundidade (tokens), avançar dura 280 ms e usa a saída suave
+  await page.evaluate(() => document.documentElement.setAttribute('data-movimento', 'moderado'));
+  await page.click('#nav-collection'); await page.waitForFunction(() => window.__trocas.length === 5 && window.__trocas[4].anims.length); await assenta();
+  await page.evaluate(() => { location.hash = '#/perfil/fichas'; }); await page.waitForFunction(() => window.__trocas.length === 6 && window.__trocas[5].anims.length); // o Perfil é o anterior da pilha: abrir uma subtela nova
+  u = await ultima(); assert.deepEqual([u.nav, u.anims], ['avanca', [['new(root)', 'nav-chega', 280], ['old(root)', 'nav-recua', 280]]], 'moderado: ' + JSON.stringify(u));
+  assert.deepEqual(await page.evaluate(() => ['--z-recuo', '--z-chega', '--desloc-3'].map(k => getComputedStyle(document.documentElement).getPropertyValue(k).trim())), ['0px', '0px', '8px'], 'moderado: sem profundidade, viagem curta');
+  await assenta();
+  // 6 · Reduzido: troca direta, sem transição
+  await page.evaluate(() => document.documentElement.setAttribute('data-movimento', 'reduzido'));
+  const antes = await conta();
+  await page.click('#nav-decks'); await page.waitForSelector('#nav-decks[aria-current="page"]');
+  assert.deepEqual([await conta(), await page.evaluate(() => [window.__estanteNav.tipo, window.__estanteNav.anima])], [antes, ['volta', false]], 'reduzido: troca direta (do Perfil para Listas é subir)');
+  // 7 · sem View Transitions: a reserva esmaece o conteúdo novo com --desloc-1 e solta sozinha
+  await page.evaluate(() => { document.documentElement.removeAttribute('data-movimento'); document.startViewTransition = undefined; });
+  // o que a reserva marca é lido no momento em que ela marca (a animação dura 180 ms; a leitura depois pode chegar tarde)
+  await page.evaluate(() => { const o = document.getElementById('outlet'); window.__reserva = null;
+    new MutationObserver((ms, obs) => { const v = o.getAttribute('data-chega'); if (!v) return; window.__reserva = [v, o.firstElementChild.getAnimations().map(x => x.animationName)]; obs.disconnect(); }).observe(o, { attributes: true, attributeFilter: ['data-chega'] }); });
+  await page.click('#nav-collection'); await page.waitForFunction(() => window.__estanteNav.api === false && window.__reserva);
+  const reserva = await page.evaluate(() => [...window.__reserva, window.__estanteNav.api]);
+  assert.deepEqual(reserva, ['aba', ['nav-esmaece'], false]);
+  await page.waitForFunction(() => !document.getElementById('outlet').hasAttribute('data-chega'), null, { timeout: 2000 });
+  for (const tema of ['dark', 'light']) { await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(120); await auditaTela(page, `MV-1 Coleção pela reserva (${tema})`); }
   assert.deepEqual(errors, []);
 });
