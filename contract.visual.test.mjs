@@ -562,10 +562,11 @@ test('DS-K2 · L1 o topo da Lista tem a carta-chave (helper compartilhado com o 
 
 /* ---------------- DS-K2 (G-322) · N1 barra de navegação embaixo ---------------- */
 test('DS-K2 · N1 a barra de navegação mora embaixo com cinco destinos e o Jogar em latão; toda tela reserva --navbar-h; a barra some na partida, no scanner e na porta de entrada; a de cima fica sem destinos', () => {
-  assert.match(componentCss, /\.ds-navbar \{ position: fixed; left: 0; right: 0; bottom: 0;[^}]*grid-template-columns: repeat\(5, 1fr\);/);
-  assert.match(componentCss, /body:not\(\[data-tela="partida"\]\):not\(\[data-tela="scanner"\]\):not\(\[data-tela="entrar"\]\):not\(\[data-mesa-cheia="true"\]\) \{ --navbar-h: calc\(60px \+ env\(safe-area-inset-bottom, 0px\)\); \}/);
+  // DS-K3 K3-2 (G-362) · a barra passou a flutuar (a --navbar-folga das bordas); --navbar-h segue sendo o pé até o topo dela
+  assert.match(componentCss, /\.ds-navbar \{ position: fixed; left: var\(--navbar-folga\); right: var\(--navbar-folga\); bottom: calc\(var\(--navbar-folga\) \+ env\(safe-area-inset-bottom, 0px\)\);[^}]*grid-template-columns: repeat\(5, 1fr\);/);
+  assert.match(componentCss, /body:not\(\[data-tela="partida"\]\):not\(\[data-tela="scanner"\]\):not\(\[data-tela="entrar"\]\):not\(\[data-mesa-cheia="true"\]\) \{ --navbar-h: calc\(var\(--navbar-alt\) \+ var\(--navbar-folga\) \+ env\(safe-area-inset-bottom, 0px\)\);/);
   assert.match(componentCss, /body:is\(\[data-tela="partida"\], \[data-tela="scanner"\], \[data-tela="entrar"\], \[data-mesa-cheia="true"\]\) \.ds-navbar \{ display: none; \}/);
-  assert.match(componentCss, /#outlet \{ padding-bottom: var\(--navbar-h\); \}/);
+  assert.match(componentCss, /#outlet \{ padding-bottom: var\(--navbar-reserva\); \}/);
   for (const sel of ['.ds-fab { position: fixed;', '.ds-relatar { position: fixed;', '.mesa-doca { position: sticky;']) { const i = componentCss.indexOf(sel); assert.ok(i >= 0 && /--navbar-h/.test(componentCss.slice(i, i + 400)), sel + ' sobe com a barra'); }
   assert.match(HTML, /function navBar\(\) \{[\s\S]*?NavBotao\('Início', \{ icone: 'estante', id: 'nav-home'[\s\S]*?NavBotao\('Listas', \{ icone: 'listas', id: 'nav-decks'[\s\S]*?NavBotao\('Coleção', \{ icone: 'colecao', id: 'nav-collection'[\s\S]*?NavBotao\('Scanner', \{ icone: 'scanner', id: 'nav-scanner'/);
   const appbar = HTML.slice(HTML.indexOf('function appBar() {'), HTML.indexOf('function navBar() {'));
@@ -861,4 +862,47 @@ test('DS-K3 MV-4 · família de espera: o anel que gira saiu (o fio percorre por
   assert.match(componentCss, /:root\[data-movimento="reduzido"\] \.ds-spinner::after \{ animation: none !important;/);
   assert.match(componentCss, /:root\[data-movimento="reduzido"\] \.ds-esqueleto__linha::after \{ animation: none !important; opacity: 0; \}/);
   assert.match(componentCss, /@media \(prefers-reduced-motion: reduce\) \{ \.ds-esqueleto__linha \{ animation: none; \} \.ds-esqueleto__linha::after \{ animation: none; opacity: 0; \} \}/);
+});
+
+/* ---------------- DS-K3 K3-2 (G-362) · barra inferior flutuante ---------------- */
+test('DS-K3 K3-2 · barra flutuante: tokens nos três blocos; pílula a --navbar-folga das bordas e da área segura, raio --radius-4; vidro (desfoque) só nela, dentro de @supports e fora do reduzido; reserva opaca com transparência reduzida, contraste alto ou movimento reduzido; texto e ícones AA mesmo com branco (escuro) ou preto (claro) atrás; o fim da tela reserva o ressalto do Jogar; a mesa não muda', () => {
+  const novos = ['--navbar-alt', '--navbar-folga', '--navbar-ressalto', '--vidro', '--vidro-reserva', '--vidro-desfoque'];
+  for (const [nome, t] of [['escuro', DARK], ['claro', LIGHT], ['claro automático', { ...DARK, ...AUTO_LIGHT }]]) for (const k of novos) assert.ok(t[k], `${k} no tema ${nome}`);
+  for (const k of novos) assert.equal(AUTO_LIGHT[k], LIGHT[k], `${k}: claro automático idêntico ao escolhido`);
+  assert.deepEqual(['--navbar-alt', '--navbar-folga', '--navbar-ressalto'].map(k => DARK[k]), ['64px', '14px', '16px']);
+  // a reserva é o E4 cheio; o vidro é o mesmo E4 a 92 %
+  const rgba = v => { const m = v.match(/^rgba\((\d+), (\d+), (\d+), ([\d.]+)\)$/); assert.ok(m, v); return [+m[1], +m[2], +m[3], +m[4]]; };
+  const hex = c => '#' + c.map(x => Math.round(x).toString(16).padStart(2, '0')).join('');
+  const sobre = (v, atras) => { const [r, g, b, a] = rgba(v); const f = [1, 3, 5].map(i => parseInt(atras.slice(i, i + 2), 16)); return hex([r, g, b].map((c, i) => c * a + f[i] * (1 - a))); };
+  for (const [nome, t, atras] of [['escuro', DARK, '#ffffff'], ['claro', LIGHT, '#000000']]) {
+    assert.equal(t['--vidro-reserva'], t['--elev-4'], `reserva opaca = E4 (${nome})`);
+    const [r, g, b, a] = rgba(t['--vidro']); assert.equal(hex([r, g, b]), t['--elev-4'], `vidro é o E4 (${nome})`); assert.ok(a >= .9, `vidro quase opaco (${nome}): ${a}`);
+    // pior caso: o oposto do tema por trás do vidro; a reserva opaca também
+    for (const fundo of [sobre(t['--vidro'], atras), t['--vidro-reserva']])
+      for (const f of ['--fg', '--fg-muted', '--accent']) assert.ok(ratio(t[f], fundo) >= 4.5, `${f} sobre a barra ${fundo} (${nome}): ${ratio(t[f], fundo).toFixed(2)}`);
+  }
+  const barra = componentCss.match(/\.ds-navbar \{ position: fixed;([^}]*)\}/); assert.ok(barra);
+  assert.match(barra[1], /left: var\(--navbar-folga\); right: var\(--navbar-folga\); bottom: calc\(var\(--navbar-folga\) \+ env\(safe-area-inset-bottom, 0px\)\);/);
+  assert.match(barra[1], /height: var\(--navbar-alt\);/); assert.match(barra[1], /border-radius: var\(--radius-4\);/);
+  assert.match(barra[1], /background: var\(--lacquer\), var\(--vidro-reserva\); box-shadow: inset 0 1px 0 var\(--edge-strong\), var\(--shadow-float\);/);
+  assert.doesNotMatch(barra[1], /backdrop-filter/, 'sem @supports, a barra é opaca');
+  assert.match(componentCss, /@supports \(\(backdrop-filter: blur\(1px\)\) or \(-webkit-backdrop-filter: blur\(1px\)\)\) \{\n  :root:not\(\[data-movimento="reduzido"\]\) \.ds-navbar \{ background: var\(--lacquer\), var\(--vidro\); -webkit-backdrop-filter: var\(--vidro-desfoque\); backdrop-filter: var\(--vidro-desfoque\); \}\n\}/);
+  assert.match(componentCss, /@media \(prefers-reduced-transparency: reduce\), \(prefers-contrast: more\), \(prefers-reduced-motion: reduce\) \{\n  :root:not\(\[data-movimento="reduzido"\]\) \.ds-navbar \{ background: var\(--lacquer\), var\(--vidro-reserva\); -webkit-backdrop-filter: none; backdrop-filter: none; \}\n\}/);
+  assert.ok(componentCss.indexOf('@media (prefers-reduced-transparency') > componentCss.indexOf('@supports ((backdrop-filter'), 'a reserva vem depois do vidro (mesmo seletor)');
+  // vidro só na barra: o desfoque do vidro aparece numa regra só, e o fundo de vidro só na barra e na amostra do /ds
+  assert.equal(componentCss.split('backdrop-filter: var(--vidro-desfoque)').length - 1, 2, 'desfoque do vidro só na regra da barra (com e sem prefixo)');
+  const usosVidro = [...componentCss.matchAll(/([^{}\n]+)\{[^{}]*var\(--vidro\)[^{}]*\}/g)].map(m => m[1].trim());
+  assert.deepEqual(usosVidro, ['.ds-vidro[data-vidro="vidro"]', ':root:not([data-movimento="reduzido"]) .ds-navbar']);
+  // o fim da tela reserva a barra e o ressalto do Jogar; a mesa (partida) não reserva nada e não mostra a barra
+  assert.match(componentCss, /:root \{ --navbar-h: 0px; --navbar-reserva: 0px; \}/);
+  assert.match(componentCss, /--navbar-reserva: calc\(var\(--navbar-h\) \+ var\(--navbar-ressalto\)\); \}/);
+  assert.match(componentCss, /\.ds-navbar \.ds-nav--jogar \.ds-navbar__latao \{[^}]*width: 56px; height: 56px; flex: none; margin-top: calc\(-1 \* var\(--navbar-ressalto\)\);/);
+  // as reservas do Relatar e do botão de ação nunca ficam abaixo da reserva da barra; a doca do Jogar reserva o ressalto
+  for (const r of ['#outlet:has(.ds-fab) { padding-bottom: max(var(--navbar-reserva), calc(56px + var(--space-6))); }', '#outlet:not(:has(.ds-fab)) { padding-bottom: max(var(--navbar-reserva), calc(48px + var(--space-6))); }', '#outlet { padding-bottom: max(var(--navbar-reserva), calc(56px + 48px + var(--space-6))); }', 'body[data-tela="mesa"]:not([data-mesa-cheia="true"]) .mesa-doca { padding-bottom: calc(var(--navbar-ressalto) + var(--space-1)); }'])
+    assert.ok(componentCss.includes(r), r);
+  // alvos: cada destino ocupa a altura da pílula (64 ≥ 44); o atual em acento (AA acima), com um fio de 16 px
+  assert.match(componentCss, /\.ds-navbar \.ds-nav \{ width: 100%; min-width: 0; height: 100%;/);
+  assert.match(componentCss, /\.ds-navbar \.ds-nav\[aria-current="page"\] \{ color: var\(--accent\); \}/);
+  assert.match(componentCss, /\.ds-navbar \.ds-nav--jogar \{[^}]*color: var\(--accent\); \}/);
+  assert.match(componentCss, /body:is\(\[data-tela="partida"\], \[data-tela="scanner"\], \[data-tela="entrar"\], \[data-mesa-cheia="true"\]\) \.ds-navbar \{ display: none; \}/);
 });

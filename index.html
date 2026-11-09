@@ -200,6 +200,14 @@
   --fg-sobre-arte-muted: #d6c8ad;
   --radius-4: 22px;
   --tilt-max: 6deg;
+  /* DS-K3 K3-2 (G-362) · barra inferior flutuante: pílula de --navbar-alt a --navbar-folga das bordas (e da área segura), o
+     Jogar sobe --navbar-ressalto acima dela. Vidro (E4 a 92 % + desfoque) só na barra; reserva opaca (E4 cheio) quando não há
+     backdrop-filter, com Movimento reduzido, transparência reduzida ou contraste alto. O texto da barra passa AA mesmo com
+     branco atrás (escuro) ou preto atrás (claro). */
+  --navbar-alt: 64px; --navbar-folga: 14px; --navbar-ressalto: 16px;
+  --vidro: rgba(46, 35, 24, .92);
+  --vidro-reserva: #2e2318;
+  --vidro-desfoque: blur(14px) saturate(1.2);
   /* DS-K3 MV-0 (G-357) · Movimento: gramática R1–R5 (claude/DIRETRIZ-animacao.md). Durações nas pontas, escalonamento
      em três ritmos, três molas físicas em linear() (rigidez/amortecimento, massa 1), saída curta que acelera, distâncias
      e profundidade por token e o intervalo de calma entre dois movimentos grandes. Par de duração recomendado: mola firme
@@ -278,6 +286,11 @@
   --shadow-float: 0 18px 40px -16px rgba(60, 40, 10, .4), 0 2px 6px rgba(60, 40, 10, .12);
   --lacquer: linear-gradient(180deg, rgba(255, 255, 255, .6), rgba(255, 255, 255, 0) 40%, rgba(60, 40, 10, .04));
   --grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .35 0 0 0 0 .25 0 0 0 0 .1 0 0 0 .06 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  /* DS-K3 K3-2 (G-362) · vidro de papel: E4 a 92 %; reserva opaca em E4 */
+  --navbar-alt: 64px; --navbar-folga: 14px; --navbar-ressalto: 16px;
+  --vidro: rgba(255, 250, 240, .92);
+  --vidro-reserva: #fffaf0;
+  --vidro-desfoque: blur(14px) saturate(1.2);
   color-scheme: light;
 }
 
@@ -342,6 +355,11 @@
     --shadow-float: 0 18px 40px -16px rgba(60, 40, 10, .4), 0 2px 6px rgba(60, 40, 10, .12);
     --lacquer: linear-gradient(180deg, rgba(255, 255, 255, .6), rgba(255, 255, 255, 0) 40%, rgba(60, 40, 10, .04));
     --grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .35 0 0 0 0 .25 0 0 0 0 .1 0 0 0 .06 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    /* DS-K3 K3-2 (G-362) · vidro de papel: E4 a 92 %; reserva opaca em E4 */
+    --navbar-alt: 64px; --navbar-folga: 14px; --navbar-ressalto: 16px;
+    --vidro: rgba(255, 250, 240, .92);
+    --vidro-reserva: #fffaf0;
+    --vidro-desfoque: blur(14px) saturate(1.2);
     color-scheme: light;
   }
 }
@@ -1163,6 +1181,14 @@ body[data-tela="entrar"] .ds-appbar { display: none; }
 .ds-elev[data-elev="3"] { background: var(--lacquer), var(--elev-3); box-shadow: inset 0 1px 0 var(--edge-strong), var(--shadow-contact), var(--shadow-key); }
 .ds-elev[data-elev="4"] { background: var(--lacquer), var(--elev-4); box-shadow: inset 0 1px 0 var(--edge-strong), var(--shadow-float); }
 .ds-arte-amostra { position: relative; min-height: 120px; display: grid; align-content: end; gap: var(--space-1); padding: var(--space-4); border-radius: var(--radius-4); overflow: hidden; color: var(--fg-sobre-arte); background: var(--scrim-art), var(--grain), linear-gradient(135deg, var(--mana-r), var(--mana-b)); box-shadow: var(--shadow-key); }
+/* DS-K3 K3-2 (G-362) · amostras da barra no /ds: a pílula sobre uma faixa de cor (o vidro deixa ver; a reserva não) */
+.ds-vidros { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); padding: var(--space-3); border-radius: var(--radius-3);
+  background: linear-gradient(90deg, var(--mana-r) 0 25%, var(--mana-w) 25% 50%, var(--mana-u) 50% 75%, var(--mana-g) 75%); }
+.ds-vidro { min-height: var(--tap-min); display: flex; align-items: center; justify-content: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border-radius: var(--radius-4);
+  color: var(--accent); box-shadow: inset 0 1px 0 var(--edge-strong), var(--shadow-float); }
+.ds-vidro[data-vidro="vidro"] { background: var(--lacquer), var(--vidro); }
+.ds-vidro[data-vidro="reserva"] { background: var(--lacquer), var(--vidro-reserva); }
+.ds-vidro__rotulo { min-width: 0; font-size: var(--text-xs); font-weight: var(--weight-medium); color: var(--fg-muted); }
 .ds-arte-amostra strong { font-family: var(--font-display); font-size: var(--text-xl); line-height: var(--lh-xl); }
 .ds-arte-amostra__rotulo { font-size: var(--text-xs); letter-spacing: .14em; color: var(--fg-sobre-arte-muted); }
 .ds-movimento code { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--fg); }
@@ -1267,24 +1293,36 @@ body[data-tela="entrar"] .ds-appbar { display: none; }
    centro como botão de latão elevado. A barra de cima fica com a marca, o avatar, instalar, sem rede e o tema. Toda tela
    reserva a altura dela (--navbar-h) no pé: o Relatar, o botão de ação, o aviso flutuante e as docas sobem junto. Na
    partida, no scanner e na porta de entrada ela some (a mesa tem a bandeja dela; a câmera ocupa a tela). */
-:root { --navbar-h: 0px; }
-body:not([data-tela="partida"]):not([data-tela="scanner"]):not([data-tela="entrar"]):not([data-mesa-cheia="true"]) { --navbar-h: calc(60px + env(safe-area-inset-bottom, 0px)); }
-.ds-navbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: calc(var(--z-sticky) + 1); display: grid; grid-template-columns: repeat(5, 1fr); align-items: end;
-  height: var(--navbar-h); padding: 0 var(--space-2) env(safe-area-inset-bottom, 0px); background: var(--bg-elev-0); border-top: 1px solid color-mix(in srgb, var(--accent-lo) 40%, var(--border));
-  box-shadow: var(--shadow-up), inset 0 1px 0 var(--latao-luz); }
+/* DS-K3 K3-2 (G-362) · a barra flutua: pílula E4 com laca, aresta e sombra flutuante, a --navbar-folga das bordas e acima da
+   área segura, raio --radius-4. --navbar-h continua sendo a distância do pé da tela ao topo da barra (onde o Relatar, o
+   botão de ação, o aviso e as docas se apoiam); o #outlet reserva também o ressalto do Jogar (--navbar-reserva), para o fim
+   da tela nunca ficar atrás da barra. O conteúdo passa por baixo da pílula e pelas margens dela ao rolar. */
+:root { --navbar-h: 0px; --navbar-reserva: 0px; }
+body:not([data-tela="partida"]):not([data-tela="scanner"]):not([data-tela="entrar"]):not([data-mesa-cheia="true"]) { --navbar-h: calc(var(--navbar-alt) + var(--navbar-folga) + env(safe-area-inset-bottom, 0px)); --navbar-reserva: calc(var(--navbar-h) + var(--navbar-ressalto)); }
+.ds-navbar { position: fixed; left: var(--navbar-folga); right: var(--navbar-folga); bottom: calc(var(--navbar-folga) + env(safe-area-inset-bottom, 0px)); z-index: calc(var(--z-sticky) + 1);
+  max-width: 32rem; margin-inline: auto; display: grid; grid-template-columns: repeat(5, 1fr); align-items: stretch; height: var(--navbar-alt); padding: 0 var(--space-1);
+  border-radius: var(--radius-4); background: var(--lacquer), var(--vidro-reserva); box-shadow: inset 0 1px 0 var(--edge-strong), var(--shadow-float); }
+/* vidro só aqui: onde o navegador desfoca o fundo e ninguém pediu menos movimento; a mesma regra, depois, volta à reserva opaca */
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root:not([data-movimento="reduzido"]) .ds-navbar { background: var(--lacquer), var(--vidro); -webkit-backdrop-filter: var(--vidro-desfoque); backdrop-filter: var(--vidro-desfoque); }
+}
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (prefers-reduced-motion: reduce) {
+  :root:not([data-movimento="reduzido"]) .ds-navbar { background: var(--lacquer), var(--vidro-reserva); -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
 body:is([data-tela="partida"], [data-tela="scanner"], [data-tela="entrar"], [data-mesa-cheia="true"]) .ds-navbar { display: none; }
-.ds-navbar .ds-nav { width: 100%; min-width: 0; height: 60px; border-radius: 0; gap: 3px; padding: 6px 0 8px; }
-.ds-navbar .ds-nav[aria-current="page"]::after { display: none; }
-.ds-navbar .ds-nav[aria-current="page"] { color: var(--accent-lo); }
+.ds-navbar .ds-nav { width: 100%; min-width: 0; height: 100%; border-radius: var(--radius-3); gap: 3px; padding: 6px 0 8px; }
+.ds-navbar .ds-nav[aria-current="page"] { color: var(--accent); }
+.ds-navbar .ds-nav[aria-current="page"]::after { left: calc(50% - 8px); right: auto; width: 16px; bottom: 5px; box-shadow: 0 0 8px currentColor; }
 .ds-navbar .ds-nav:active { background: transparent; }
-.ds-navbar .ds-nav--jogar { gap: 2px; padding-top: 0; justify-content: flex-end; color: var(--accent-lo); }
-.ds-navbar .ds-nav--jogar .ds-navbar__latao { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; margin-top: -14px; border-radius: var(--radius-full);
+.ds-navbar .ds-nav--jogar { gap: 2px; padding-top: 0; justify-content: flex-start; color: var(--accent); }
+.ds-navbar .ds-nav--jogar[aria-current="page"]::after { display: none; }
+.ds-navbar .ds-nav--jogar .ds-navbar__latao { display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; flex: none; margin-top: calc(-1 * var(--navbar-ressalto)); border-radius: var(--radius-full);
   background-color: var(--accent); background-image: linear-gradient(160deg, var(--accent-hi), var(--accent) 55%, var(--accent-lo)); color: var(--accent-fg);
   box-shadow: var(--shadow-2), inset 0 1px 0 var(--latao-luz); transition: transform var(--dur-1) var(--ease-out), box-shadow var(--dur-1) var(--ease-out); }
 .ds-navbar .ds-nav--jogar:active .ds-navbar__latao { transform: translateY(1px) scale(.96); box-shadow: var(--btn-pressed); }
 .ds-navbar .ds-nav--jogar[aria-current="page"] .ds-navbar__latao { box-shadow: var(--shadow-2), 0 0 0 3px color-mix(in srgb, var(--accent-lo) 45%, transparent), inset 0 1px 0 var(--latao-luz); }
 @media (prefers-reduced-motion: reduce) { .ds-navbar .ds-nav--jogar:active .ds-navbar__latao { transform: none; } }
-#outlet { padding-bottom: var(--navbar-h); }
+#outlet { padding-bottom: var(--navbar-reserva); }
 @media (hover: hover) { .ds-nav:hover { color: var(--fg); background: var(--bg-elev-2); } }
 .ds-nav:active { transform: scale(.94); background: var(--bg-elev-2); }
 .ds-nav--alerta { color: var(--warning); }
@@ -1953,7 +1991,7 @@ body[data-mesa-cheia="true"] .ds-toast[data-inteiro="true"] { padding-top: var(-
 @keyframes ds-fab-sobe { from { opacity: 0; transform: translateY(var(--space-2)); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .ds-fab__item.ds-btn { animation: none; } .ds-fab__principal .ds-icon { transition: none; } }
 :root[data-movimento="reduzido"] .ds-fab__item.ds-btn { animation: none !important; }
-#outlet:has(.ds-fab) { padding-bottom: calc(56px + var(--space-6)); }
+#outlet:has(.ds-fab) { padding-bottom: max(var(--navbar-reserva), calc(56px + var(--space-6))); } /* G-362 · nunca menos que a reserva da barra flutuante */
 /* N2 · bandeira (ícone do conjunto, em cores da bandeira) e a linha do tempo de notícias */
 .ds-chave { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); width: 100%; min-height: var(--tap-min); padding: var(--space-2) var(--space-1); border: 0; background: none; color: var(--fg); font: inherit; text-align: left; cursor: pointer; }
 .ds-chave + .ds-chave { border-top: 1px solid var(--border); }
@@ -2352,10 +2390,10 @@ a.perfil-atalho { text-decoration: none; } /* R-15 · a entrada do painel é um 
 body:has(#outlet .ds-fab:not([data-acoes="1"])) #relatar-abrir,
 body:is([data-tela="partida"], [data-tela="scanner"], [data-tela="perfil-relatos"], [data-tela="entrar"]) #relatar-abrir { display: none; }
 body:has(#outlet .ds-fab[data-acoes="1"]) #relatar-abrir { right: calc(var(--space-4) + 4px); bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px) + 56px + var(--space-3) + var(--navbar-h, 0px)); }
-body:not([data-tela="partida"]):not([data-tela="scanner"]) #outlet:not(:has(.ds-fab)) { padding-bottom: calc(48px + var(--space-6)); }
+body:not([data-tela="partida"]):not([data-tela="scanner"]) #outlet:not(:has(.ds-fab)) { padding-bottom: max(var(--navbar-reserva), calc(48px + var(--space-6))); } /* G-362 · idem */
 /* o aviso flutuante sobe para cima do Relatar visível (como sobe para cima do botão de ação: --doca-h) */
 body:has(#relatar-abrir):not([data-tela="partida"]):not([data-tela="scanner"]):not([data-tela="perfil-relatos"]):not(:has(#outlet .ds-fab:not([data-acoes="1"]))) { --relatar-h: calc(48px + var(--space-3)); }
-body:has(#outlet .ds-fab[data-acoes="1"]) #outlet { padding-bottom: calc(56px + 48px + var(--space-6)); }
+body:has(#outlet .ds-fab[data-acoes="1"]) #outlet { padding-bottom: max(var(--navbar-reserva), calc(56px + 48px + var(--space-6))); }
 .relato__par { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
 .relato__par .ds-select { width: 100%; min-width: 0; }
 .relato__texto { min-height: 140px; resize: vertical; font-family: var(--font-ui); }
@@ -2651,6 +2689,9 @@ body:has(#outlet .ds-fab[data-acoes="1"]) #outlet { padding-bottom: calc(56px + 
 /* G-329 · relato #46 · com a doca, o pé da tela não precisa do respiro do Relatar (ele já sobe pela --doca-h): rolando até o
    fim, a doca encosta na barra de navegação, sem o vão de 20 px que a reserva de 48 px + 32 px deixava */
 body[data-tela="mesa"]:not([data-mesa-cheia="true"]) #outlet:has(.mesa-doca) { padding-bottom: var(--navbar-h); }
+/* G-362 · a doca senta no topo da barra flutuante e o latão do Jogar sobe --navbar-ressalto para dentro dela: o pé da doca
+   reserva esse ressalto (a área segura já fica embaixo da barra) */
+body[data-tela="mesa"]:not([data-mesa-cheia="true"]) .mesa-doca { padding-bottom: calc(var(--navbar-ressalto) + var(--space-1)); }
 .mesa-doca__resumo { font-size: var(--text-sm); color: var(--fg-muted); text-align: center; text-wrap: balance; min-height: 1.25em; }
 .mesa-doca__resumo b { color: var(--fg); font-weight: 600; }
 body[data-tela="mesa"] .ds-relatar { bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px) + var(--doca-h, 0px) + var(--navbar-h, 0px)); }
@@ -6113,7 +6154,12 @@ function renderDS() {
       Text('Vitrine: a altura vem da luz, não da borda. Cada degrau tem a sua sombra; a laca é a luz de cima; o grão substitui o veio.', { size: 'sm', tone: 'muted' }),
       h('div', { class: 'ds-elevs', id: 'ds-elevs' }, ...[0, 1, 2, 3, 4].map(n => h('div', { class: 'ds-elev', dataset: { elev: String(n) } }, h('code', {}, 'E' + n), Text(['fundo', 'base', 'cartão', 'folha', 'topo'][n], { size: 'xs', tone: 'muted' })))),
       h('div', { class: 'ds-arte-amostra', id: 'ds-arte-amostra', role: 'img', 'aria-label': 'texto sobre arte com véu' }, h('span', { class: 'ds-arte-amostra__rotulo' }, 'LISTA'), h('strong', {}, 'Mono Red Madness')),
-      Text('--elev-0…4 · --edge · --lacquer · --shadow-contact · --shadow-key · --shadow-float · --grain · --scrim-art com --fg-sobre-arte · --radius-4 · --tilt-max', { size: 'xs', tone: 'subtle' })),
+      Text('--elev-0…4 · --edge · --lacquer · --shadow-contact · --shadow-key · --shadow-float · --grain · --scrim-art com --fg-sobre-arte · --radius-4 · --tilt-max', { size: 'xs', tone: 'subtle' }),
+      // DS-K3 K3-2 (G-362) · a barra flutuante: vidro (E4 a 92 %; o desfoque mora só na barra de baixo) e a reserva opaca
+      Text('Barra flutuante: vidro só nela. Sem desfoque do navegador, com Movimento reduzido, transparência reduzida ou contraste alto, a reserva opaca.', { size: 'sm', tone: 'muted' }),
+      h('div', { class: 'ds-vidros', id: 'ds-vidros' }, ...[['vidro', 'vidro · 92 %'], ['reserva', 'reserva opaca']].map(([k, rot]) =>
+        h('div', { class: 'ds-vidro', dataset: { vidro: k } }, Icone('estante', { tamanho: 22 }), h('span', { class: 'ds-vidro__rotulo' }, rot)))),
+      Text('--navbar-alt 64 · --navbar-folga 14 · --navbar-ressalto 16 · --vidro · --vidro-reserva · --vidro-desfoque · --navbar-h (pé até o topo da barra) · --navbar-reserva (+ ressalto do Jogar)', { size: 'xs', tone: 'subtle' })),
 
     // D10 · catálogo de movimento: cada duração com nome e uso; a regra de menos movimento é global (sistema ou escolha)
     Section('Movimento',
