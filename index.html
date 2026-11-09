@@ -222,6 +222,9 @@
   --desloc-1: 8px; --desloc-2: 16px; --desloc-3: 32px;
   --z-recuo: -40px; --z-chega: -120px;
   --calma: 300ms;
+  /* DS-K3 MV-1 (G-366) · navegação com direção: a tela de trás recua em Z dentro desta perspectiva e escurece 6 %;
+     o conteúdo da aba nova entra 40 ms depois de o fio da barra começar a varrer */
+  --perspectiva: 900px; --recuo-escurece: .94; --nav-fio-atraso: 40ms;
   color-scheme: dark;
 }
 
@@ -1322,6 +1325,31 @@ body:is([data-tela="partida"], [data-tela="scanner"], [data-tela="entrar"], [dat
 .ds-navbar .ds-nav--jogar:active .ds-navbar__latao { transform: translateY(1px) scale(.96); box-shadow: var(--btn-pressed); }
 .ds-navbar .ds-nav--jogar[aria-current="page"] .ds-navbar__latao { box-shadow: var(--shadow-2), 0 0 0 3px color-mix(in srgb, var(--accent-lo) 45%, transparent), inset 0 1px 0 var(--latao-luz); }
 @media (prefers-reduced-motion: reduce) { .ds-navbar .ds-nav--jogar:active .ds-navbar__latao { transform: none; } }
+/* DS-K3 MV-1 (G-366) · navegação com direção (R2): avançar afasta (a tela de trás recua em Z e escurece; a nova chega da
+   direita e da profundidade, com mola suave), voltar aproxima (o inverso, saída suave e mais curta), troca de aba esmaece
+   e desliza --desloc-1 no sentido da aba enquanto o fio da barra varre até ela. View Transitions: só a barra tem nome
+   (fica parada); o resto vai em grupo. Sem a API, a reserva esmaece o conteúdo com --desloc-1 (#outlet[data-chega]).
+   Moderado: os tokens tiram a profundidade e encurtam a viagem; Reduzido: o app nem abre a transição (troca direta). */
+.ds-navbar { view-transition-name: ds-navbar; }
+::view-transition-old(ds-navbar) { animation: none; opacity: 0; }
+::view-transition-new(ds-navbar) { animation: none; }
+::view-transition-old(root), ::view-transition-new(root) { mix-blend-mode: normal; }
+:root[data-nav="avanca"]::view-transition-old(root) { animation: nav-recua var(--dur-4) var(--mola-suave) both; }
+:root[data-nav="avanca"]::view-transition-new(root) { animation: nav-chega var(--dur-4) var(--mola-suave) both; }
+:root[data-nav="volta"]::view-transition-old(root) { z-index: 1; animation: nav-vai var(--dur-3) var(--ease-out) both; }
+:root[data-nav="volta"]::view-transition-new(root) { animation: nav-aproxima var(--dur-3) var(--ease-out) both; }
+:root[data-nav="aba"]::view-transition-old(root) { animation: nav-aba-sai var(--dur-2) var(--sai) both; }
+:root[data-nav="aba"]::view-transition-new(root) { animation: nav-aba-entra var(--dur-2) var(--ease-out) var(--nav-fio-atraso) both; }
+@keyframes nav-recua { to { transform: perspective(var(--perspectiva)) translateZ(var(--z-recuo)); filter: brightness(var(--recuo-escurece)); } }
+@keyframes nav-chega { from { opacity: 0; transform: perspective(var(--perspectiva)) translate3d(var(--desloc-3), 0, var(--z-chega)); } }
+@keyframes nav-vai { to { opacity: 0; transform: perspective(var(--perspectiva)) translate3d(var(--desloc-3), 0, var(--z-chega)); } }
+@keyframes nav-aproxima { from { transform: perspective(var(--perspectiva)) translateZ(var(--z-recuo)); filter: brightness(var(--recuo-escurece)); } }
+@keyframes nav-aba-sai { to { opacity: 0; transform: translateX(calc(-1 * var(--desloc-1) * var(--nav-sentido, 1))); } }
+@keyframes nav-aba-entra { from { opacity: 0; transform: translateX(calc(var(--desloc-1) * var(--nav-sentido, 1))); } }
+#outlet[data-chega] > * { animation: nav-esmaece var(--dur-2) var(--ease-out) both; }
+@keyframes nav-esmaece { from { opacity: 0; transform: translateX(calc(var(--desloc-1) * var(--nav-sentido, 1))); } }
+.ds-navbar .ds-nav[aria-current="page"][data-fio-varre]::after { animation: navbar-fio-varre var(--dur-2) var(--ease-out) both; }
+@keyframes navbar-fio-varre { from { transform: translateX(var(--fio-de, 0px)); } }
 #outlet { padding-bottom: var(--navbar-reserva); }
 @media (hover: hover) { .ds-nav:hover { color: var(--fg); background: var(--bg-elev-2); } }
 .ds-nav:active { transform: scale(.94); background: var(--bg-elev-2); }
@@ -4620,7 +4648,27 @@ function createRouter(routes, onChange) {
   const start = () => { window.addEventListener('hashchange', () => onChange(resolve())); onChange(resolve()); };
   return { start, go, resolve, parse };
 }
-return { createRouter };
+/* DS-K3 MV-1 (G-366) · a direção de cada troca de tela (R2: avançar afasta, voltar aproxima). Os cinco destinos da barra,
+   na ordem dela; cada um com a raiz e as rotas que moram nele (as mesmas do `marcaNav`). Trocar para a raiz de outro
+   destino é troca de aba (sentido pela ordem da barra); voltar ao endereço anterior da pilha, ou subir para uma tela mais
+   rasa, é voltar; o resto é avançar. A mesa (partida) e a porta de entrada têm movimento próprio (MV-9, G-274): nenhuma. */
+const ABAS = [['/', '/noticias'], ['/listas', '/lista'], ['/mesa', '/partida'], ['/colecao', '/cartas'], ['/scanner']];
+const caminhoDe = hash => '/' + String(hash || '').replace(/^#/, '').split('?')[0].split('/').filter(Boolean).join('/');
+const abaDe = p => ABAS.findIndex(rs => rs.some(r => p === r || (r !== '/' && p.startsWith(r + '/'))));
+const raizDeAba = p => ABAS.some(rs => rs[0] === p);
+const fundura = p => raizDeAba(p) ? 0 : p.split('/').filter(Boolean).length;
+const SEM_DIRECAO = /^\/(partida|entrar)(\/|$)/;
+function direcaoDaNavegacao(antes, depois, anterior = null) {
+  const nada = { tipo: 'nenhuma', sentido: 0 };
+  if (antes == null || antes === depois) return nada;
+  const pa = caminhoDe(antes), pd = caminhoDe(depois);
+  if (pa === pd || SEM_DIRECAO.test(pa) || SEM_DIRECAO.test(pd)) return nada;
+  const ta = abaDe(pa), td = abaDe(pd);
+  if (raizDeAba(pd) && ta >= 0 && ta !== td) return { tipo: 'aba', sentido: Math.sign(td - ta) };
+  if ((anterior != null && anterior === depois) || fundura(pd) < fundura(pa)) return { tipo: 'volta', sentido: -1 };
+  return { tipo: 'avanca', sentido: 1 };
+}
+return { createRouter, direcaoDaNavegacao, ABAS };
 })();
 
 /* ==== src/ui/components.js ==== */
@@ -6169,6 +6217,13 @@ function renderDS() {
         h('div', { class: 'ds-movimento' }, h('button', { class: 'ds-movimento__demo', type: 'button', 'aria-label': `demonstrar ${tok}`, style: { '--demo': `var(${dur})`, '--demo-curva': `var(${tok})` }, onClick: e => { const el = e.currentTarget; el.classList.remove('is-on'); void el.offsetWidth; el.classList.add('is-on'); } }),
           h('code', {}, tok), Text(uso + ' · com ' + dur, { size: 'xs', tone: 'muted' })))),
       Text('Distâncias --desloc-1/2/3 (8 · 16 · 32 px), profundidade --z-recuo/--z-chega, escalonamento --escalona-1/2/3 (60 · 90 · 140 ms), saída --sai e --calma 300 ms entre dois movimentos grandes. Movimento em Aparência: completo, moderado (sem viagem nem profundidade) ou reduzido.', { size: 'xs', tone: 'subtle' }),
+      // DS-K3 MV-1 (G-366) · navegação com direção: as três receitas tocadas aqui mesmo (a tela atual faz o papel das duas)
+      h('div', { class: 'ds-movimentos', id: 'ds-navegacao' }, ...[['avanca', 'Avançar', 'a tela de trás recua em Z e escurece; a nova chega da direita e da profundidade · mola suave · --dur-4'], ['volta', 'Voltar', 'o inverso, no mesmo caminho · saída suave · --dur-3'], ['aba', 'Trocar de aba', 'esmaece e desliza --desloc-1 no sentido da aba; o fio da barra varre · --dur-2']].map(([tipo, rotulo, uso]) =>
+        h('div', { class: 'ds-movimento' }, IconButton(tipo === 'volta' ? 'voltar' : 'seguir', rotulo, { id: 'ds-navegacao-' + tipo, onClick: () => {
+          const R = document.documentElement, parado = R.getAttribute('data-movimento') === 'reduzido' || !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+          if (parado || typeof document.startViewTransition !== 'function') { toast(parado ? 'Movimento reduzido: a tela troca direto' : 'Sem View Transitions: a tela nova esmaece'); return; }
+          R.setAttribute('data-nav', tipo); R.style.setProperty('--nav-sentido', '1'); document.startViewTransition(() => {}); } }),
+          h('code', {}, rotulo), Text(uso, { size: 'xs', tone: 'muted' })))),
       Row({ class: 'ds-row--wrap' }, ...Object.keys(__m0.EVENTOS_HAPTICOS).map(k => Button(k, { icone: 'raio', onClick: () => { const ok = __m0.haptics.evento(k); toast(ok ? `vibrou: ${k}` : 'sem vibração neste aparelho ou desligada'); } })))),
 
     // DS-K (G-287) · receitas de animação: o padrão em três planos, com luz, mola e etapas; o palco demonstra, a dona implementa
@@ -50312,6 +50367,53 @@ function marcaNav(bar, path) {
     if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
   });
 }
+/** DS-K3 MV-1 (G-366) · navegação com direção. Cada troca de tela pergunta ao roteador a direção (`direcaoDaNavegacao`,
+    com a pilha do que foi visitado) e desenha a tela nova dentro de uma View Transition marcada em `data-nav` no :root
+    (avanca · volta · aba; o CSS faz o resto). Sem a API, a reserva esmaece o conteúdo novo com --desloc-1. Reduzido (escolha
+    ou aparelho): troca direta. R4 · o dedo manda: o próximo toque (ou outra troca) conclui a transição em curso na hora.
+    Troca de aba: o fio da barra varre do destino de antes até o novo. Nos testes de tela, só quem pede vê o movimento (os
+    outros abrem com `window.__SEM_NAVEGACAO_ANIMADA` e medem a tela assentada, como antes). */
+function criaNavegacao(navbar) {
+  const R = document.documentElement, pilha = [];
+  let antes = null, vt = null;
+  const parado = () => R.getAttribute('data-movimento') === 'reduzido' || !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const ligado = () => window.__SEM_NAVEGACAO_ANIMADA !== true;
+  const conclui = () => { if (vt) { try { vt.skipTransition(); } catch (e) { /* já acabou */ } vt = null; } };
+  window.addEventListener('pointerdown', conclui, { capture: true, passive: true });
+  const centroDoAtual = () => { const b = navbar.querySelector('.ds-nav[aria-current="page"]'); if (!b) return null; const r = b.getBoundingClientRect(); return r.left + r.width / 2; };
+  const varreFio = de => {
+    const b = navbar.querySelector('.ds-nav[aria-current="page"]'); if (!b || de == null) return;
+    const r = b.getBoundingClientRect(), d = Math.round(de - (r.left + r.width / 2)); if (!d) return;
+    b.style.setProperty('--fio-de', d + 'px'); b.removeAttribute('data-fio-varre'); void b.offsetWidth; b.setAttribute('data-fio-varre', '');
+    setTimeout(() => { b.removeAttribute('data-fio-varre'); b.style.removeProperty('--fio-de'); }, 600);
+  };
+  return function navega(desenha) {
+    const depois = location.hash || '#/';
+    const anterior = pilha.length > 1 ? pilha[pilha.length - 2] : null;
+    const dir = __m2.direcaoDaNavegacao(antes, depois, anterior);
+    if (anterior != null && anterior === depois) pilha.pop(); else if (pilha[pilha.length - 1] !== depois) pilha.push(depois);
+    if (pilha.length > 40) pilha.shift();
+    antes = depois;
+    conclui();
+    const anima = dir.tipo !== 'nenhuma' && ligado() && !parado();
+    const de = anima && dir.tipo === 'aba' ? centroDoAtual() : null;
+    const tudo = () => { desenha(); if (de != null) varreFio(de); };
+    R.setAttribute('data-nav', anima ? dir.tipo : 'nenhuma'); R.style.setProperty('--nav-sentido', String(dir.sentido || 1));
+    if (window.__MTG_TEST || window.__NAVEGACAO_COM_MOVIMENTO) window.__estanteNav = { ...dir, anima, api: typeof document.startViewTransition === 'function' };
+    if (!anima) return tudo();
+    if (typeof document.startViewTransition === 'function') {
+      let t; try { t = document.startViewTransition(tudo); } catch (e) { return tudo(); }
+      vt = t; t.finished.catch(() => {}).finally(() => { if (vt === t) vt = null; });
+      return;
+    }
+    tudo();
+    const outlet = document.getElementById('outlet'); if (!outlet) return;
+    outlet.setAttribute('data-chega', dir.tipo);
+    const tira = () => { if (outlet.getAttribute('data-chega') === dir.tipo) outlet.removeAttribute('data-chega'); };
+    if (outlet.firstElementChild) outlet.firstElementChild.addEventListener('animationend', e => { if (e.target === outlet.firstElementChild) tira(); });
+    setTimeout(tira, 400);
+  };
+}
 function pintaRede() { if (chipRede) chipRede.classList.toggle('ds-hidden', temRede()); }
 
 async function boot(root) {
@@ -50340,7 +50442,8 @@ async function boot(root) {
   mount(root, bar, outlet, navbar);
   __m3.instalaAncora(outlet); // J1 · quem toca num controle fica onde está
   __m3.instalaIconesVivos(document); // G-340 · relato #59 · o ícone tocado se mexe como o que ele é
-  const router = createRouter(ROUTES, ({ route }) => {
+  const navega = criaNavegacao(navbar); // DS-K3 MV-1 (G-366) · avançar afasta, voltar aproxima, aba desliza
+  const router = createRouter(ROUTES, ({ route }) => navega(() => {
     __m3.fechaToast(); // D1 · o aviso da tela anterior não atravessa para esta
     document.title = 'Estante · ' + (route.title || '');
     document.body.dataset.tela = (route.path === '*' ? 'nao-encontrado' : route.path.replace(/^\//, '') || 'inicio').replace(/\//g, '-'); // D7 · a superfície da mesa só vale em "partida"
@@ -50349,7 +50452,7 @@ async function boot(root) {
     if (!document.getElementById('relatar-abrir')) document.body.appendChild(__m38.BotaoRelatar()); // Y1 · Relatar das telas sem botão de ação
     marcaNav(bar, location.hash.replace(/^#/, '').split('?')[0] || '/'); marcaNav(navbar, location.hash.replace(/^#/, '').split('?')[0] || '/');
     window.scrollTo(0, 0);
-  });
+  }));
   // E51 · listas prontas salvas antes da separação da reserva: separa sozinho, uma vez
   try {
     const feitas = await __m24.migraReservas(decks, platform.store);
