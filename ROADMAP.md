@@ -8323,9 +8323,10 @@ estruturado para tornarmos o Shark um jogador de nível profissional com as suas
   Situação na B-201: a decisão já era geral (as levas B-190…B-200 leem o dado do motor: dano de volta, `produces` com `per`,
   habilidades ativadas, ninjútsu, custo), mas o Shark publicado reconhecia o plano de cada lista **pelos nomes exigidos**
   (`PERFIS.exige`) e o Terror pela lista `enquanto`; `AMEACAS_DO_CAMPO` (seis nomes) só vale na opção desligada `ameacas`.
-  Plano em três levas: **B-203** perfil derivado da composição + contrato sem nome de carta · **B-204** ameaças do campo pelo
+  Plano em três levas: **B-203** perfil derivado da composição + contrato sem nome de carta · **B-205** ameaças do campo pelo
   efeito (gatilho ao conjurar, dano de combate, mana por contagem, bônus por contagem) e o combo pelo padrão, no lugar dos
-  nomes · **B-205** régua de generalização: o Shark com listas do catálogo fora das cinco, sem nada delas no código, × `shark-v12`.
+  nomes · **B-206** régua de generalização: o Shark com listas do catálogo fora das cinco, sem nada delas no código, × `shark-v12`.
+  (Renumerado em 09/11: a B-204 foi a regra "a trilha bot publica sozinha" no `CLAUDE.md`.)
   Regra daqui em diante: correção do Shark entra como regra sobre o dado do motor; nome de carta só em lista e em teste.
 - **Fase 4 · B-203 · o perfil sai da lista, não do nome (08/11/2026).** `perfilDerivado` lê `s.facts` da lista de quem joga:
   carta barateada por instantânea e feitiço no cemitério (`reduzPor.per`) → `cemiterio`, com `enquanto` tirado da própria lista;
@@ -8337,7 +8338,19 @@ estruturado para tornarmos o Shark um jogador de nível profissional com as suas
   mudam por construção. O ganho está fora das cinco: o Terror sem a Serpent e o Control sem o Mystic perdem o perfil pelo nome
   e mantêm o derivado (teste). Contrato novo no `bot.unit`: nenhum nome de carta das cinco listas no código de decisão do Shark
   (nomes só nas listas, em `PERFIS` e em `AMEACAS_DO_CAMPO`, dados dos níveis congelados). Os limiares (4 e 4) saíram das cinco
-  listas: a B-205 mede se valem fora delas. **`shark-v25` é o Shark da B-200, congelado.**
+  listas: a B-206 mede se valem fora delas. **`shark-v25` é o Shark da B-200, congelado.**
+- **Fase 4 · B-205 · o combo pelo padrão e as ameaças pelo efeito (09/11/2026).** `comboDaLista` acha o combo de mana infinita
+  pelo que as cartas fazem: criatura que gera X manas de cor livre (`produces` com `combination` e `anyColor`), aura de criatura
+  com "{C}: desvire a criatura encantada" (cor e índice saem da habilidade) e habilidade só de mana genérica que causa dano ou faz
+  perder vida (finalizadores; custo = o maior). Na Walls Combo dá **o mesmo combo** que o `walls-combo` escrito à mão; em nenhuma
+  outra das listas do catálogo de torneio nem nas cinco do Shark (teste). `ameacaPeloEfeito`: gatilho a cada mágica (`other-cast`),
+  compra a cada dano de combate, ou `per` que conta permanentes em campo; nas cinco listas pega as seis de `AMEACAS_DO_CAMPO` e
+  só mais o Moon-Circuit Hacker (o mesmo padrão do Ninja). `perfilPeloPadrao` junta as duas às chaves da B-203 sem chamar
+  `perfilDe`: **nenhum nome escrito no código chega à decisão do Shark publicado** — o teste esvazia `PERFIS` e
+  `AMEACAS_DO_CAMPO` e o Shark ainda fecha o combo e acha a ameaça (o `shark-v26` perde o combo). O laço do combo derivado mede o
+  que o motor gera (`E.comboDe`), não "dois defensores". A opção `ameacas` continua desligada (B-176: sem ganho); com ela, o Shark
+  publicado mata o Timberwatch Elf antes do Masked Vandal, como o `shark-v25` pelos nomes. Nas cinco listas, mesma jogada do
+  `shark-v26` em 1.294 ações de cinco confrontos, as cinco listas pilotando (Terror × Faeries, Control × Elfos, Faeries × Terror, Madness × Control, Elfos × Madness; relógio parado). Fora: a régua fora das cinco (B-206). **`shark-v26` é o Shark da B-203, congelado.**
 - **Fase 2 · B-194 · avaliação aprendida, primeira medida (02/11/2026) — negativa, desligada.** `bot.aprende.mjs` (novo, fora
   do portão): `coleta` joga Shark × Shark com as cinco listas e grava as parcelas da `avaliaV6` de posições sorteadas e
   quem venceu; `ajusta` faz regressão logística (L2, treino e prova separados por partida) da vitória sobre as parcelas,
