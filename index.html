@@ -46901,8 +46901,11 @@ function afiaLinha(g, w, h, y0, y1, { quanto = 1.5, margem = 0.35 } = {}) {
     local (o fundo em volta, com as letras preenchidas: fechamento de ±0,35 da altura da linha — a barra, ou o reflexo) comparado com o teto normal
     da linha dá o (1 − k) de cada ponto, e a conta é desfeita (até 15×). Onde o teto é o normal da barra, o ganho é 1 e nada
     muda; com menos de `min` da linha estourada, nada muda em lugar nenhum: as fotos normais leem como antes. Branco puro
-    (255) não tem o que devolver. Devolve a fração estourada da linha (0 quando não mexeu). */
-function realcaEstouro(g, w, h, y0, y1, { margem = 0.35, min = 0.03, ganhoMax = 15 } = {}) {
+    (255) não tem o que devolver. Devolve a fração estourada da linha (0 quando não mexeu).
+    S-622 · relato #79 F3 · `fundoEscuro`: a linha de coleção (texto claro sobre a borda preta). A conta é a mesma, mas a
+    referência é o PISO local (abertura: mínimo e depois máximo, que apaga as letras claras e deixa a borda) comparado com o
+    piso normal da linha: na borda preta sem reflexo o piso fica no preto e o ganho é 1. */
+function realcaEstouro(g, w, h, y0, y1, { margem = 0.35, min = 0.03, ganhoMax = 15, fundoEscuro = false } = {}) {
   const { max, min: mn, round } = Math;
   const a = y1 - y0; if (a < 4 || w < 16) return 0;
   const ya = max(0, y0 - round(a * margem)), yb = mn(h, y1 + round(a * margem)), hh = yb - ya, n = w * hh;
@@ -46937,8 +46940,12 @@ function realcaEstouro(g, w, h, y0, y1, { margem = 0.35, min = 0.03, ganhoMax = 
   const A = Float32Array.from(g.subarray(ya * w, yb * w)), B = new Float32Array(n);
   const filtro = (r, s) => { passa(A, B, r, s, true); passa(B, A, r, s, false); };
   // o teto: fechamento (máximo e depois mínimo) maior que o traço da letra — preenche as letras e segue a borda do reflexo
-  const rm = max(3, round(a * 0.35));
-  filtro(1, 0); filtro(rm, 1); filtro(rm, -1); filtro(2, 0);
+  // S-622 · fundo escuro: o piso, por abertura (mínimo e depois máximo) — apaga as letras claras e segue a borda do reflexo
+  // (no fundo escuro o raio só precisa passar do traço: a linha de coleção tem duas linhas e a altura dela não é a da letra)
+  const rm = fundoEscuro ? max(2, round(a * 0.12)) : max(3, round(a * 0.35));
+  filtro(1, 0);
+  if (fundoEscuro) { filtro(rm, -1); filtro(rm, 1); } else { filtro(rm, 1); filtro(rm, -1); }
+  filtro(2, 0);
   const U = A;
   // o teto normal da linha: 40º percentil do teto nas linhas do nome (histograma: sem ordenar)
   const i0 = (y0 - ya) * w, i1 = (y1 - ya) * w, hist = new Uint32Array(256);
@@ -46949,11 +46956,32 @@ function realcaEstouro(g, w, h, y0, y1, { margem = 0.35, min = 0.03, ganhoMax = 
   for (let j = 0; j < n; j++) {
     const k = mn(ganhoMax, folga / max(1.5, 255 - U[j]));
     ganho[j] = k < 1.4 ? 1 : 1 + (k - 1) * mn(1, (k - 1.4) / 0.6);
-    if (j >= i0 && j < i1 && k >= 2.5) est++;
+    if (!fundoEscuro && j >= i0 && j < i1 && k >= 2.5) est++;
+  }
+  if (fundoEscuro) {
+    /* S-622 · na linha de coleção a faixa passa da carta (de propósito, M-207): o papel ou a mesa clara depois da borda e o
+       canto arredondado têm o piso alto como o reflexo. O reflexo sobre a borda tem preto em volta; as colunas que ficam claras
+       em TODAS as linhas do texto, da ponta da faixa para dentro, são o que está fora da carta: não contam nem são mexidas.
+       (Medido: olhar se sobra letra não separa — o papel pautado e a sombra da carta também deixam pontos acima do piso.)
+       O reflexo que encosta no papel claro perde o pedaço ligado à ponta: limite declarado. */
+    const forte = j => folga / max(1.5, 255 - U[j]) >= 2.5;   // piso bem acima da borda: estouro, papel ou mesa clara
+    const fora = x => { for (let j = i0 + x; j < i1; j += w) if (!forte(j)) return false; return true; };
+    const apaga = x => { for (let j = x; j < n; j += w) ganho[j] = 1; };
+    for (let x = 0; x < w && fora(x); x++) apaga(x);
+    for (let x = w - 1; x >= 0 && fora(x); x--) apaga(x);
+    for (let j = i0; j < i1; j++) if (ganho[j] > 1 && forte(j)) est++;
   }
   const frac = est / (i1 - i0);
   if (frac < min) return 0;
-  for (let j = 0; j < n; j++) if (ganho[j] > 1) { const q = ya * w + j; g[q] = max(0, 255 - (255 - g[q]) * ganho[j]); }
+  if (!fundoEscuro) { for (let j = 0; j < n; j++) if (ganho[j] > 1) { const q = ya * w + j; g[q] = max(0, 255 - (255 - g[q]) * ganho[j]); } return frac; }
+  /* S-622 · fundo escuro: a borda preta (piso ~15) sob reflexo de 96% fica em ~245 e pediria ganho de ~25; com o teto de 15× o
+     fundo do trecho ficaria cinza (~110) e a binarização veria uma mancha. Aqui o fundo do trecho vai para o piso normal e só a
+     diferença das letras para o piso local é esticada: piso + (visto − piso local) × ganho, com a mesma rampa de entrada. */
+  for (let j = 0; j < n; j++) {
+    if (ganho[j] <= 1) continue;
+    const k = mn(ganhoMax, folga / max(1.5, 255 - U[j])), al = mn(1, (k - 1.4) / 0.6), q = ya * w + j;
+    g[q] = max(0, mn(255, g[q] + al * (teto + (g[q] - U[j]) * k - g[q])));
+  }
   return frac;
 }
 /* ---------------- X12 · impressão digital da arte (S-595) ----------------
@@ -47168,9 +47196,14 @@ function preparaColecao(src, sw, sh, cantos, largura = 700, { inverte = false, l
   if (!L || !(L.nota > 0)) { L = linhaDoNome(faixa.data, faixa.w, faixa.h, opc); borda = 'outra'; }
   if (!L || !(L.nota > 0)) return null;
   const nitidez = nitidezDaLinha(L.cinza, faixa.w, L.y0, L.y1);
+  /* S-622 · relato #79 F3 · reflexo forte sobre a linha de coleção: o trecho estourado volta a ter o contraste das letras antes
+     de binarizar (o mesmo realce do nome, S-621, pelo piso: texto claro sobre a borda preta, ou sobre a arte na carta sem
+     borda). Sem estouro, não mexe. A variante de contraste invertido (texto escuro na borda branca) fica de fora: na carta de
+     borda preta ela vê a borda como "letra" e o papel em volta como fundo, e não há foto de borda branca com reflexo para medir. */
+  const estouro = inverte ? 0 : realcaEstouro(L.cinza, faixa.w, faixa.h, L.y0, L.y1, { margem: 0.25, fundoEscuro: true });
   const bin = binarizaLinha(L.cinza, faixa.w, faixa.h, L.y0, L.y1, { margem: 0.25, inverte });
   limpaLinha(bin.data, bin.w, bin.h);
-  return { data: bin.data, w: bin.w, h: bin.h, claro: bin.claro, borda, nitidez };
+  return { data: bin.data, w: bin.w, h: bin.h, claro: bin.claro, borda, nitidez, estouro };
 }
 /** S-616 · relato #65 · entre cópias da MESMA linha de coleção tiradas em quadros seguidos, a mais nítida (maior `nitidez` da
     linha, a mesma medida da linha do nome). A medida não separa sozinha o que o leitor lê do que não lê (medido nas fotos do

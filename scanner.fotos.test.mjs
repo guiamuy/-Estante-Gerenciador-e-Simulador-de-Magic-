@@ -163,13 +163,16 @@ async function mede(fotos = manifest.fotos, { degrada = null } = {}) {
       const semZero = v => String(v).toLowerCase().replace(/^0+(?=\d)/, '');
       linha.edOk = !!res.exact && res.exact.set === String(f.set).toLowerCase() && semZero(res.exact.number) === semZero(f.numero);
       if (linha.edOk) edOk++;
+      linha.edErrada = !!res.exact && !linha.edOk;   // S-622 · edição decidida e errada
+      linha.leiturasEd = textos.length;
       linha.ms = Date.now() - t0;   // nome + edição, com o OCR de teste (não é o tempo do aparelho)
       linhas.push(linha);
     }
   } finally { await worker.terminate(); }
   const erradas = linhas.filter(l => !l.erro && !l.pulada && !l.nomeOk && /\((\d+)%\)$/.test(l.melhor || '') && +/\((\d+)%\)$/.exec(l.melhor)[1] >= X.ACCEPT * 100 && !l.melhor.startsWith(l.esperado + ' ('));
   return { linhas, n: fotos.length, nomeOk, edOk, detectadas, puladas: linhas.filter(l => l.pulada).length, erradas: erradas.length, afiadas: linhas.filter(l => l.afiada).length, primeira: linhas.filter(l => l.primeira).length, primeiraErrada: linhas.filter(l => l.primeira && !l.nomeOk).length,
-    leituras: linhas.reduce((s, l) => s + (l.leituras || 0), 0), msNome: linhas.reduce((s, l) => s + (l.msNome || 0), 0) };
+    leituras: linhas.reduce((s, l) => s + (l.leituras || 0), 0), msNome: linhas.reduce((s, l) => s + (l.msNome || 0), 0),
+    edErradas: linhas.filter(l => l.edErrada).length, leiturasEd: linhas.reduce((s, l) => s + (l.leiturasEd || 0), 0) };
 }
 
 function relatorio(r) {
@@ -352,7 +355,27 @@ test('S-616 · a edição lê o mais nítido de três quadros seguidos da mesma 
     parte da linha do nome, com borda suave. Fica nos cantos da carta achados na foto limpa (sem contorno, a moldura guia), cobre
     ~40% da largura do nome e muda de lugar de foto para foto (determinístico pelo nome do arquivo); `veu` soma o véu claro
     do protetor. Nada aqui depende do scanner além de achar onde a carta está. */
-function reflexoForte(img, f, { veu = false } = {}) {
+/** S-622 · onde está o bloco da linha de coleção na foto limpa, em coordenadas da carta (u, v): a faixa de coleção retificada,
+    a linha achada nela (sobre a borda preta; sem ela, em qualquer fundo) e as colunas com traço. O contorno às vezes para na
+    moldura de dentro e aí o texto fica abaixo do v = 1: por isso a posição é medida, não fixa. */
+function ondeColecao(img, c) {
+  const { width: w, height: h } = img, F = X.FAIXA_COLECAO, rec = X.recorteDaFaixa(c, F, w, h);
+  if (!rec) return null;
+  const larg = 700, alt = Math.round(larg * (F.h / F.w) / (88 / 63));
+  const fx = X.retifica(pedaco(img, rec), rec.w, rec.h, X.cantosDaFaixa(rec.cantos, F), larg, alt);
+  const opc = { altMin: 0.024 / F.h, altMax: 0.052 / F.h };
+  let L = X.linhaDoNome(fx.data, larg, alt, { ...opc, sobreEscuro: true });
+  if (!L || !(L.nota > 0)) L = X.linhaDoNome(fx.data, larg, alt, opc);
+  if (!L || !(L.nota > 0)) return null;
+  const col = new Float32Array(larg);
+  for (let y = L.y0; y < L.y1; y++) for (let x = 1; x < larg - 1; x++) col[x] += Math.abs(L.cinza[y * larg + x + 1] - L.cinza[y * larg + x - 1]);
+  const lim = Math.max(...col) * 0.15;
+  let x0 = 0, x1 = larg - 1; while (x0 < larg && col[x0] < lim) x0++; while (x1 > x0 && col[x1] < lim) x1--;
+  return { u0: F.x + x0 / larg * F.w, u1: F.x + x1 / larg * F.w, v: F.y + (L.y0 + L.y1) / 2 / alt * F.h };
+}
+/* S-622 · `onde`: 'nome' (a S-621, como era) ou 'colecao' — a mancha na linha de coleção (canto de baixo, à esquerda: número,
+   sigla e idioma), cobrindo ~40% dela, em lugar diferente por foto. */
+function reflexoForte(img, f, { veu = false, onde = 'nome' } = {}) {
   const q = cinzaReduzido(img), quad = X.achaQuadrilatero(q.cinza, q.w, q.h), m = molduraDaFoto(f);
   const c = (quad ? quad.cantos : m ? cantosDe(m) : null);
   if (!c) return img;
@@ -363,7 +386,10 @@ function reflexoForte(img, f, { veu = false } = {}) {
   const det = M[0] * (M[4] * M[8] - M[5] * M[7]) - M[1] * (M[3] * M[8] - M[5] * M[6]) + M[2] * (M[3] * M[7] - M[4] * M[6]);
   const I = [M[4] * M[8] - M[5] * M[7], M[2] * M[7] - M[1] * M[8], M[1] * M[5] - M[2] * M[4], M[5] * M[6] - M[3] * M[8], M[0] * M[8] - M[2] * M[6], M[2] * M[3] - M[0] * M[5], M[3] * M[7] - M[4] * M[6], M[1] * M[6] - M[0] * M[7], M[0] * M[4] - M[1] * M[3]].map(x => x / det);
   let s = 0; for (const ch of f.arquivo) s = (s * 31 + ch.charCodeAt(0)) >>> 0;
-  const u0 = 0.18 + (s % 1000) / 1000 * 0.42, v0 = 0.062, ru = 0.13, rv = 0.04, ang = ((s >> 10) % 100 / 100 - 0.5) * 0.6;
+  const col = onde === 'colecao' ? ondeColecao(img, c) : null;
+  if (onde === 'colecao' && !col) return img;
+  const u0 = col ? col.u0 + (0.2 + (s % 1000) / 1000 * 0.6) * (col.u1 - col.u0) : 0.18 + (s % 1000) / 1000 * 0.42, v0 = col ? col.v : 0.062;
+  const ru = col ? 0.32 * (col.u1 - col.u0) : 0.13, rv = col ? 0.03 : 0.04, ang = ((s >> 10) % 100 / 100 - 0.5) * 0.6;
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
     const z = I[6] * x + I[7] * y + I[8], u = (I[0] * x + I[1] * y + I[2]) / z, v = (I[3] * x + I[4] * y + I[5]) / z;
     const du = u - u0, dv = v - v0, pu = du * Math.cos(ang) + dv * Math.sin(ang), pv = -du * Math.sin(ang) + dv * Math.cos(ang);
@@ -407,4 +433,44 @@ test('S-621 · sem reflexo, o preparo do nome não mexe em nenhuma foto do conju
   }
   assert.ok(preparos >= 50, 'o conjunto precisa das leituras pelo contorno e pela moldura: ' + preparos);
   assert.deepEqual(mexeu, [], 'foto normal com estouro achado');
+});
+
+/* ---------------- S-622 · relato #79 F3 · reflexo forte sobre a linha de coleção ---------------- */
+const resumoEd = r => `edição ${r.edOk}/${r.n}, edições erradas ${r.edErradas}, leituras da linha de coleção ${r.leiturasEd}`;
+test('S-622 · reflexo forte que estoura parte da linha de coleção (com e sem véu do protetor): a edição é lida, sem edição errada', { skip, timeout: 300000 }, async () => {
+  const r = await mede(AMOSTRA, { degrada: (img, f) => reflexoForte(img, f, { onde: 'colecao' }) });
+  const rv = await mede(AMOSTRA, { degrada: (img, f) => reflexoForte(img, f, { onde: 'colecao', veu: true }) });
+  console.log('S-622 · reflexo na coleção · ' + resumoEd(r) + '\n' + relatorio(r) + '\nS-622 · reflexo na coleção + véu · ' + resumoEd(rv) + '\n' + relatorio(rv));
+  console.log(`# medida · scanner · S-622 reflexo edicao=${r.edOk}/${r.n} erradas=${r.edErradas} leituras=${r.leiturasEd} · com véu edicao=${rv.edOk}/${rv.n} erradas=${rv.edErradas} leituras=${rv.leiturasEd}`);
+  /* medido em 09/11/2026 (antes → depois da S-622): sem véu edição 2/9 → 7/9, edições erradas 1 → 0 (a Brainstorm saía como
+     mh2 #1: o "0078" estourado virava "7" e o número casava com outra impressão), leituras da linha de coleção 21 → 13; com véu
+     2/9 → 8/9, erradas 1 → 0, leituras 21 → 12. As que faltam: a Gitaxian (a faixa já pega o "35/098" e o "NPH" cortados na
+     ponta, e o reflexo cai em cima do pouco que sobra) e, sem véu, a Llanowar "clara" (o reflexo encosta no fundo branco
+     fora da carta e o pedaço que vai até a ponta da faixa não é mexido: lê "0221/0294 FON", sem edição — nunca a errada). */
+  for (const [nome, m] of [['sem véu', r], ['com véu', rv]]) {
+    assert.ok(m.edOk >= 7, `${nome}: edição ${m.edOk}/${m.n} (eram 2/9 antes da S-622)\n${relatorio(m)}`);
+    assert.equal(m.edErradas, 0, `${nome}: nenhuma edição decidida errada (era 1)`);
+    assert.equal(m.erradas, 0, `${nome}: nenhum nome errado com nota de aceite`);
+    assert.ok(m.leiturasEd <= 14, `${nome}: leituras da linha de coleção ${m.leiturasEd} (eram 21: cada foto sem edição lia as três variantes)`);
+  }
+});
+/* S-622 · a foto normal não muda: em todas as fotos do conjunto, sem degradar, pelo contorno e pela moldura e nas três variantes
+   da leitura (de sempre, "livre", contraste invertido), o preparo da linha de coleção não acha estouro — o realce só existe com reflexo. */
+test('S-622 · sem reflexo, o preparo da linha de coleção não mexe em nenhuma foto do conjunto', { skip, timeout: 120000 }, () => {
+  let preparos = 0;
+  const mexeu = [];
+  for (const f of manifest.fotos) {
+    const img = decodifica(join(dir, f.arquivo)), q = cinzaReduzido(img), quad = X.achaQuadrilatero(q.cinza, q.w, q.h), m = molduraDaFoto(f);
+    for (const c of [...(quad ? [quad.cantos] : []), ...(m ? [cantosDe(m)] : [])]) {
+      const rec = X.recorteDaFaixa(c, X.FAIXA_COLECAO, img.width, img.height); if (!rec) continue;
+      const larg = X.larguraColecao(X.alturaDaCarta(c, img.width, img.height)), px = pedaco(img, rec);
+      for (const op of [{}, { livre: true }, { inverte: true }]) {
+        const pr = X.preparaColecao(px, rec.w, rec.h, rec.cantos, larg, op); if (!pr) continue;
+        preparos++;
+        if (pr.estouro) mexeu.push(`${f.arquivo} ${JSON.stringify(op)} (${pr.estouro.toFixed(2)})`);
+      }
+    }
+  }
+  assert.ok(preparos >= 150, 'o conjunto precisa das leituras pelo contorno e pela moldura nas três variantes: ' + preparos);
+  assert.deepEqual(mexeu, [], 'foto normal com estouro achado na linha de coleção');
 });

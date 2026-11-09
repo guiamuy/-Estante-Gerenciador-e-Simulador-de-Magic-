@@ -1511,3 +1511,40 @@ test('S-621 · realcaEstouro desfaz o reflexo que estoura parte da linha e não 
   const ref = barra();
   for (let x = 20; x < 120; x++) assert.equal(g[45 * w + x], ref[45 * w + x]);
 });
+
+/* S-622 · relato #79 F3 · reflexo forte sobre a linha de coleção (texto claro sobre a borda preta): `fundoEscuro` mede o piso
+   (abertura) e leva o fundo estourado de volta ao preto, esticando só as letras; sem reflexo, e com papel claro fora da carta
+   encostado na ponta da faixa, a linha sai idêntica. */
+test('S-622 · realcaEstouro com fundo escuro devolve as letras claras sob o reflexo e não mexe na linha normal nem no papel fora da carta', () => {
+  const w = 600, h = 80, y0 = 30, y1 = 60;
+  // borda preta (15) com "letras" claras: traços verticais de 3 px (tom 225) a cada 12 px, nas linhas do texto
+  const borda = () => { const g = new Float32Array(w * h).fill(15); for (let y = y0 + 3; y < y1 - 3; y++) for (let x = 60; x < 560; x++) if (x % 12 < 3) g[y * w + x] = 225; return g; };
+  const reflexo = (g, k, cx = 300) => { for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const d = Math.abs(x - cx) / 80, kk = k * Math.max(0, Math.min(1, 1.6 - d)); g[y * w + x] = 255 - (255 - g[y * w + x]) * (1 - kk); } return g; };
+  const contraste = (g, x0, x1) => { let lo = 255, hi = 0; for (let x = x0; x < x1; x++) { const v = g[45 * w + x]; if (v < lo) lo = v; if (v > hi) hi = v; } return hi - lo; };
+  const fundo = (g, x0, x1) => { let s = 0, n = 0; for (let x = x0; x < x1; x++) if (x % 12 >= 5 && x % 12 <= 10) { s += g[45 * w + x]; n++; } return s / n; };
+  const op = { margem: 0.25, fundoEscuro: true };
+  // sem reflexo: nada muda (as letras claras passam de 240 e não são reflexo)
+  const limpa = borda(), copia = Float32Array.from(limpa);
+  assert.equal(X.realcaEstouro(limpa, w, h, y0, y1, op), 0);
+  assert.deepEqual(limpa, copia);
+  // papel claro (240) fora da carta, da ponta esquerda da faixa até a borda: não é reflexo, nada muda
+  const papel = borda(); for (let y = 0; y < h; y++) for (let x = 0; x < 50; x++) papel[y * w + x] = 240;
+  const cp = Float32Array.from(papel);
+  assert.equal(X.realcaEstouro(papel, w, h, y0, y1, op), 0);
+  assert.deepEqual(papel, cp);
+  // reflexo de 96% no meio da linha: a borda vai a ~245 e as letras a ~254 (~9 tons); depois, o fundo volta para perto do
+  // preto e as letras ficam bem acima dele (o ganho para em 15×)
+  const g = reflexo(borda(), 0.96);
+  assert.ok(contraste(g, 290, 310) < 12 && fundo(g, 290, 310) > 230);
+  const frac = X.realcaEstouro(g, w, h, y0, y1, op);
+  assert.ok(frac > 0.1 && frac < 0.6, 'fração estourada ' + frac);
+  assert.ok(fundo(g, 290, 310) < 60, 'fundo devolvido ' + fundo(g, 290, 310));
+  assert.ok(contraste(g, 290, 310) > 90, 'contraste devolvido ' + contraste(g, 290, 310));
+  // longe do reflexo, a linha fica como estava
+  const ref = borda();
+  for (let x = 60; x < 120; x++) assert.equal(g[45 * w + x], ref[45 * w + x]);
+  // o realce do nome (sem fundoEscuro) segue o mesmo: a mesma linha escura sem reflexo não é tocada
+  const nome = borda(), cn = Float32Array.from(nome);
+  assert.equal(X.realcaEstouro(nome, w, h, y0, y1), 0);
+  assert.deepEqual(nome, cn);
+});
