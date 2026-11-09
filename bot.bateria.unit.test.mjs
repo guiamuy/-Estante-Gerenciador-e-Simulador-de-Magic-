@@ -6,7 +6,7 @@ import { loadModules } from './_load.mjs';
 import { POSICOES, pontua } from './bot.bateria.mjs';
 const { engine: E, bot: B } = loadModules();
 
-const PISO = 31; // B-207 · 31 de 33 (posições novas `rem-elfo-de-mana`, que o Shark publicado erra, e `rem-priest-sim`) · B-200 · 30 de 31 com o ninja pelo ataque (erra só a isca `volta-isca`). Era 29 (B-196), 27 (B-195), 26 (B-192), 25 (B-191), 24 (B-190), 22 (B-188)
+const PISO = 32; // B-208 · 32 de 35 (posições novas `seq-faeries-brainstorm-espera`, que o Shark publicado já acerta, e `seq-faeries-sprite-espera`, que ele erra: a opção `esperaOLampejo` acerta e mediu 31 × 33 nas Faeries) · B-207 · 31 de 33 (posições novas `rem-elfo-de-mana`, que o Shark publicado erra, e `rem-priest-sim`) · B-200 · 30 de 31 com o ninja pelo ataque (erra só a isca `volta-isca`). Era 29 (B-196), 27 (B-195), 26 (B-192), 25 (B-191), 24 (B-190), 22 (B-188)
 
 test('B-188 · toda posição da bateria monta, tem classe, porquê, e a jogada certa está entre as legais', () => {
   const ids = new Set();
@@ -80,4 +80,12 @@ test('B-200 · o ninja pelo ataque: com o Augur desvirado e o outro lado sem blo
   const P = POSICOES.find(x => x.id === 'seq-ninja-pelo-ataque'), joga = nivel => { const { s } = P.monta(); const j = B.criaBot({ nivel, agora: () => 0 }).jogada(s, 0); return { ok: P.certo(s, j), j }; };
   const novo = joga('shark'), v24 = joga('shark-v24');
   assert.ok(novo.ok, 'publicado: ' + novo.j.motivo); assert.ok(!v24.ok, 'v24: ' + v24.j.motivo);
+});
+
+test('B-208 · lampejo espera o turno do outro: com a Counterspell na mão, `esperaOLampejo` não conjura a Spellstutter Sprite sem alvo no próprio turno; o Shark publicado (opção desligada, 31 × 33 em 96 pares nas Faeries) conjura', () => {
+  const P = POSICOES.find(x => x.id === 'seq-faeries-sprite-espera'), joga = extra => { const { s } = P.monta(); const j = B.criaBot({ nivel: 'shark', agora: () => 0, ...(extra ? { extra } : {}) }).jogada(s, 0); return { ok: P.certo(s, j), j }; };
+  const com = joga({ esperaOLampejo: true }), sem = joga(null);
+  assert.ok(com.ok, 'com a opção: ' + com.j.motivo); assert.ok(!sem.ok, 'publicado mudou (a opção é só de torneio): ' + sem.j.motivo);
+  const Q = POSICOES.find(x => x.id === 'seq-faeries-brainstorm-espera'), m = Q.monta(), j = B.criaBot({ nivel: 'shark', agora: () => 0, extra: { esperaOLampejo: true } }).jogada(m.s, 0);
+  assert.ok(Q.certo(m.s, j), 'Brainstorm com a opção: ' + j.motivo);
 });

@@ -38184,7 +38184,7 @@ function jogadaProfissional(s, p, opts = {}) {
     const custoDescarte = opts.recursos && a.t === 'discard' && a.oid ? valorNaMao(s, p, a.oid) * 0.5 : 0;
     // B10b · efeito opcional de graça ("você pode comprar"): em empate, aceita. Antes o empate caía em "não fazer".
     const aceite = opts.aceita && minhaDecisao && pend.kind === 'may_pay' && !pend.cost && !pend.extra && a.t === 'pay' ? 1 : 0;
-    return notaComResposta(depois, p, opts) - custoDescarte + aceite - gastaAResposta(w, a, depois) - reservaDaAnulacao(a) - reservaDaRemocao(a) - alvoProprio(a) - guardaONinja(w, a, depois);
+    return notaComResposta(depois, p, opts) - custoDescarte + aceite - gastaAResposta(w, a, depois) - reservaDaAnulacao(a) - reservaDaRemocao(a) - alvoProprio(a) - guardaONinja(w, a, depois) - esperaOLampejo(w, a, depois);
   };
   // B-192 · `habilita` (B25, fase 4, Control): a habilidade ativada que só prepara (equipar o Viridian Longbow) vale pelo que
   // ela abre no mesmo turno — até quatro habilidades ativadas novas, a melhor delas resolvida. Antes equipar valia zero (o
@@ -38334,6 +38334,22 @@ function jogadaProfissional(s, p, opts = {}) {
     const baixa = opts.seguraNoPerfil && !(depois.players[p].landsPlayed > 0) && depois.zones[p].hand.some(oid => ehTerreno(depois, depois.objects[oid])) ? 1 : 0;
     return fontesDeMana(w, p) >= custoResposta.custo && fontesDeMana(depois, p) + baixa < custoResposta.custo ? 6 : 0;
   }
+  // B-208 · `esperaOLampejo` (B25, classe A das Faeries): no meu turno, com a pilha vazia e uma anulação na mão que a mana desvirada
+  // paga, a instantânea ou a mágica com lampejo que não responde a nada e me deixa sem a mana dessa anulação custa 6 — ela pode
+  // esperar o turno do outro (o Brainstorm no fim do turno dele, a Spellstutter Sprite quando houver o que anular). Diferente do
+  // `segura` (B10b, que mediu 8 × 11 nas Faeries): a ameaça de feitiço (Augur, ninjútsu) não paga — é o tempo do baralho.
+  // A anulação gasta sem alvo também paga, quando não sobra outra.
+  const esperaResp = opts.esperaOLampejo && !minhaDecisao && s.turn.active === p && !s.stack.length ? custoDaResposta(s, p) : null;
+  function esperaOLampejo(w, a, depois) {
+    if (!esperaResp || a.t !== 'cast') return 0;
+    const f = s.facts[(s.objects[a.oid] || {}).name] || {};
+    if (!((f.types || []).includes('instant') || f.flash)) return 0;
+    const resto = esperaResp.oids.filter(o => o !== a.oid);
+    if (!resto.length) return 6; // era a única anulação, gasta sem nada para anular
+    const custo = Math.min(...resto.map(o => valorDeMana(s.objects[o].name)));
+    const baixa = !(depois.players[p].landsPlayed > 0) && depois.zones[p].hand.some(oid => ehTerreno(depois, depois.objects[oid])) ? 1 : 0;
+    return fontesDeMana(w, p) >= custo && fontesDeMana(depois, p) + baixa < custo ? 6 : 0;
+  }
   const notasJog = [];
   // Leva 143 · com muitas candidatas, uma leitura barata (um mundo, sem a resposta do oponente) põe as melhores na
   // frente; o relógio corta o fim da fila, não o que a ordem alfabética deixou por último.
@@ -38420,7 +38436,8 @@ function jogadaProfissional(s, p, opts = {}) {
       // uma levava a decisão a 1,4 s, fora do orçamento. Terreno que ainda dá para baixar conta como fonte (como no `gastaAResposta`).
       const fontesAgora = guarda ? fontesDeMana(W[0], p) + (!(s.players[p].landsPlayed > 0) && s.zones[p].hand.some(oid => ehTerreno(s, s.objects[oid])) ? 1 : 0) : 0;
       const sobra = a => { if (!guarda || guarda.oids.includes(a.oid) || fontesAgora < guarda.custo) return true; const f = s.facts[(s.objects[a.oid] || {}).name] || {}; return fontesAgora - (f.cmc || 0) >= guarda.custo; };
-      const lentas = candidatas.filter(a => a.t === 'cast' && !ehInstantanea(a) && (meu || permanente(a)) && !alvoProprio(a) && sobra(a)); // B-181 · "a mana ia sobrar" nunca vale mirar o meu lado
+      const lampejoEspera = a => opts.esperaOLampejo && meu && esperaResp && ((s.facts[(s.objects[a.oid] || {}).name] || {}).flash); // B-208 · com a anulação na mão, o lampejo entra no fim do turno do outro, não "porque a mana ia sobrar" no meu
+      const lentas = candidatas.filter(a => a.t === 'cast' && !ehInstantanea(a) && (meu || permanente(a)) && !alvoProprio(a) && sobra(a) && !lampejoEspera(a)); // B-181 · "a mana ia sobrar" nunca vale mirar o meu lado
       const v = escolhe(lentas, a => media(w => { const sim = simula(w, a); if (!sim) return null; return notaComResposta(resolveSimulado(sim.estado, 8, opts.desdobra ? p : null, opts.av), p, opts); }) - (permanente(a) ? 0 : opts.plano ? 1.5 : 3), opts); // B9 · com o terreno na mão valendo menos, a compra que troca uma carta por um terreno lê −2,5: continua valendo a pena com mana sobrando
       if (v.acao && v.nota - base >= -4.5) return { acao: v.acao, motivo: `${motivoDe(s, p, v.acao, 0)}: a mana ia sobrar`, ganho: v.nota - base };
     } else
@@ -39227,6 +39244,7 @@ const NOVO24 = { ...NOVO23, desligaNoPerfil: true }; // congelado como 'shark-v2
 const NOVO25 = { ...NOVO24, ninjaDepois: true }; // congelado como 'shark-v25' (B-203) · B-200 · B25 · o ninja entra pelo ninjútsu depois do ataque, não pela mão antes do combate (guardaONinja): piloto Faeries 13 × 10 em 32 pares (5 só do novo, 2 só do antigo)
 const NOVO26 = { ...NOVO25, perfilDerivado: true }; // congelado como 'shark-v26' (B-205) · B-203 · B25 · o perfil sai do que as cartas fazem (perfilDerivado), não dos nomes exigidos: nas cinco listas dá as mesmas chaves que os PERFIS à mão; numa lista nova, as mesmas regras valem sem código novo
 const NOVO = { ...NOVO26, perfilPeloPadrao: true }; // B-205 · B25 · o combo pelo padrão (comboDaLista) e as ameaças do campo pelo efeito (ameacaPeloEfeito): nenhum nome de carta escrito no código chega à decisão do Shark publicado; nas cinco listas, as mesmas jogadas do shark-v26
+// B-208 · `esperaOLampejo` (no meu turno, com a anulação na mão, a instantânea ou o lampejo que não responde a nada e deixa a anulação sem mana custa 6; B25 classe A das Faeries) foi medida e fica desligada: piloto Faeries 31 × 33 em 96 pares (7 só do novo, 9 só do antigo); acerta a posição `seq-faeries-sprite-espera` da bateria, mas não se paga em partida
 // B-207 · `reservaRemocao` (remoção guardada para a criatura que importa, B25 classe B) foi medida e fica desligada: piloto Faeries 21 × 23 em 48 pares (3 só do novo, 5 só do antigo), Control 16 × 15 em 32 (1 só do novo); acerta a posição `rem-elfo-de-mana` da bateria, mas não se paga em partida
 // B-176 · `ameacas` (ameaças do campo no perfil do Dimir Control) foi medida e fica desligada: 26 de 64 contra 27 de 64 pilotando o Control
 function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date.now(), mundos: mundosN = 0, extra: extraOpts = null, pesos = null } = {}) {
