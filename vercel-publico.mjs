@@ -2,7 +2,7 @@
 // Só entram os arquivos do app: testes, scripts, documentos e fixtures do repositório não vão para a internet.
 // Sem dependência: roda com o Node puro no build da Vercel (installCommand não instala nada).
 import { cp, mkdir, rm, access } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 export const PASTA = 'publico';
@@ -19,6 +19,9 @@ export const ARQUIVOS = [
   'fonte-figtree-600.woff2',
   'fonte-figtree-LICENSE.txt',
   'LICENSE',
+  // G-361 · T-IDIOMA: os pacotes de idioma (baixados só por quem escolhe inglês ou espanhol)
+  'idiomas/en.json',
+  'idiomas/es.json',
 ];
 
 export async function monta({ raiz = '.', destino = join(raiz, PASTA), arquivos = ARQUIVOS } = {}) {
@@ -26,6 +29,7 @@ export async function monta({ raiz = '.', destino = join(raiz, PASTA), arquivos 
   await mkdir(destino, { recursive: true });
   for (const a of arquivos) {
     await access(join(raiz, a)); // arquivo do app sumiu: o build cai em vez de publicar um app pela metade
+    await mkdir(dirname(join(destino, a)), { recursive: true });
     await cp(join(raiz, a), join(destino, a));
   }
   return arquivos.length;

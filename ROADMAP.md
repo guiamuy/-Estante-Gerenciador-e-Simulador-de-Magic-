@@ -705,6 +705,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ug ✅ | MJ27 relato #55, o resto do "cancelar jogada em curso": um Cancelar com o mesmo nome e lugar em toda escolha encadeada antes de jogar (alvo → custo → X → cor), que volta um passo em vez de fechar tudo, e a mira por arrasto com Cancelar à vista (J-62, 03/11/2026) | J | 1 | 16º-uf |
 | 16º-ui 🟡 | T-IDIOMA relatos #53/#66, fatia 1: o português cobre a interface (Rulings → Esclarecimentos, Near Mint → Quase nova, Etched → Foil gravado, Offline → Sem internet, cinco palavras-chave e os marcadores com nome em português na mesa e no registro); falta troca de idioma, pacotes es/en e texto das cartas (leva G-353, 07/11/2026) | T | 1 | — |
 | 16º-up ✅ | T-IDIOMA relatos #53/#66, fatia 2: a folha da carta mostra nome, tipo e texto oficiais impressos em português (Scryfall), com a troca para o original, guardados no aparelho; nunca impressa fica em inglês com aviso até a fatia 3 (leva G-356, 08/11/2026) | T | 1 | 16º-ui |
+| 16º-us ✅ | T-IDIOMA relatos #53/#66, fatia 4: Perfil › Idioma (português, inglês, espanhol, com bandeira e nome no próprio idioma), o app inteiro na hora pela camada de tradução da tela e pelos pacotes idiomas/en.json e es.json, a folha da carta no idioma (oficial impresso; Oracle em inglês) com o texto antes da imagem, e a camada obrigatória (texto novo sem tradução derruba o portão) (leva G-361, 08/11/2026) | T | 1 | 16º-up |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -13419,6 +13420,33 @@ regras** (`database.rules.json`) no console; até lá a tela diz "Nomes de usuá
   falha no `main` de antes) e e2e "G-356" (português, troca, nunca impressa depois de erro com nova tentativa, sem internet
   com e sem cópia, dois temas). Fora: o texto em português **na mesa** fora da folha (carta na pilha, escolhas, registro) e
   a busca antecipada no preparo do dia (A-264) — próximas fatias, junto da 3.
+- **Fatia 4 · o app no idioma escolhido (G-361, `16º-us`, pedido do dono de 08/11/2026 20:29) ✅:** **Perfil › Idioma** com
+  três opções grandes (bandeira desenhada, nome no próprio idioma — Português, English, Español — e uma frase de amostra; a
+  escolhida com aro de latão e selo de marcado; alvo de 64 px; carregando "Preparando o idioma…"; sem internet e sem o pacote,
+  aviso com "Tentar de novo" e o idioma de antes continua). Vale **na hora, sem recarregar**, e fica para a próxima abertura
+  (lido antes de pintar), por aparelho (preferência de conta exigiria regra nova no banco; fica para quando a sincronia pedir). **Como:** o código continua em português; fora dele, uma **camada de tradução da tela**
+  (`src/ui/idioma.js`, `__m47`) observa o DOM e troca cada texto e atributo visível (title, aria-label, placeholder, alt)
+  pelo do pacote do idioma — frase exata, a mesma frase com outros números, modelos com lacunas `{0}` (o trecho da lacuna
+  também traduz) e frases juntadas pelo código ("A · B", duas frases seguidas) pedaço a pedaço. O que vem de fora não passa
+  pela camada: elemento com `lang` próprio (Oracle e texto impresso das cartas), `translate="no"` (nome da carta no título da
+  folha, nomes dos idiomas), o que se digita nos campos. Em português o observador nem liga (custo zero; o orçamento FA.1 roda
+  em português). Pacotes `idiomas/en.json` e `idiomas/es.json` (≈ 5 mil textos e modelos cada, traduzidos com glossário da
+  terminologia oficial de Magic em inglês e em espanhol; nomes de carta, formato, edição e nomes próprios ficam), fora do
+  `index.html` (só baixa quem escolhe; guardado no aparelho e renovado em segundo plano); `vercel-publico.mjs` publica a pasta.
+  **Cartas no idioma:** a folha da carta segue o idioma do app — português e espanhol pelo texto oficial impresso (G-356,
+  agora por idioma), inglês pelo Oracle; com o texto no idioma, ele vem **antes da imagem** (achado de 08/11: no celular a
+  imagem em inglês ocupava a folha e o texto em português ficava escondido embaixo, e o dono não o viu). **Camada
+  obrigatória:** `idioma-extrai.mjs` lê o `index.html` (leitor de JavaScript que respeita comentários, expressões regulares e
+  modelos) e lista todo texto de tela em português; `idioma-pacotes.unit` barra o texto sem tradução nos dois pacotes, as
+  lacunas trocadas e o nome próprio traduzido — texto novo só entra com a tradução (`node idioma-extrai.mjs --faltam en`).
+  Testes: U `idioma-pacotes.unit` (tradutor, leitor, cobertura en/es, lacunas, serviço); e2e "G-361" (seletor nos dois temas,
+  inglês e espanhol nas telas principais sem sobra em português, folha em inglês e em espanhol, próxima abertura, volta ao
+  português sem recarregar, sem internet). `vercel-publico.unit` mudou de propósito (a pasta `idiomas/`).
+  **Parcial, declarado:** a tradução cobre o texto que o código escreve; frase montada por pedaços soltos fora dos padrões
+  acima pode sair misturada (cada achado vira linha no pacote ou modelo no código); esclarecimentos (rulings) e notícias
+  seguem em inglês/português de origem (são dados); a carta que nunca saiu impressa no idioma fica em inglês com aviso até a
+  fatia 3; o registro e as escolhas da mesa traduzem pelo pacote, mas o texto das cartas dentro da mesa (fora da folha) segue
+  o Oracle.
 - **Fora, declarado (fatias seguintes):** a troca de idioma no Perfil (item 2); os pacotes **es** e **en** (item 3: extrair os
   textos para um dicionário por idioma, história de várias rodadas); texto e nome das cartas (item 4, aguarda decisão
   "oficial"/"automática"); a **camada obrigatória de idioma em toda entrega** (texto novo nasce no dicionário e o teste barra
