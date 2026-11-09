@@ -10504,8 +10504,8 @@ test('e2e · DS-K2 N1 · barra de navegação embaixo: cinco destinos de 44 px c
     const latao = nb.querySelector('.ds-nav--jogar .ds-navbar__latao'), lr = latao.getBoundingClientRect();
     const rel = document.querySelector('#relatar-abrir'), rr = rel ? rel.getBoundingClientRect() : null;
     const ultimo = [...document.querySelectorAll('#outlet *')].filter(e => e.getClientRects().length).map(e => e.getBoundingClientRect().bottom + window.scrollY).reduce((a, b) => Math.max(a, b), 0);
-    return { noPe: Math.abs(r.bottom - innerHeight) <= 1, largura: Math.round(r.width) === innerWidth, ids: itens.map(i => i.id), alvos: itens.every(i => i.getBoundingClientRect().height >= 44 && i.getBoundingClientRect().width >= 44),
-      atual: itens.filter(i => i.getAttribute('aria-current') === 'page').map(i => i.id), latao: Math.round(lr.width) === 48 && lr.top < r.top, ruins,
+    return { noPe: Math.abs(innerHeight - 14 - r.bottom) <= 1 /* G-362 · flutua a 14 px do pé */, largura: Math.round(r.width) === innerWidth - 28, ids: itens.map(i => i.id), alvos: itens.every(i => i.getBoundingClientRect().height >= 44 && i.getBoundingClientRect().width >= 44),
+      atual: itens.filter(i => i.getAttribute('aria-current') === 'page').map(i => i.id), latao: Math.round(lr.width) === 56 && lr.top < r.top, ruins,
       topo: [...document.querySelectorAll('.ds-appbar .ds-nav')].map(i => i.id), navbarH: getComputedStyle(document.body).getPropertyValue('--navbar-h').trim(),
       relatarAcima: rr ? rr.bottom <= r.top + 1 : true, conteudoAcima: ultimo <= document.documentElement.scrollHeight - r.height + 1 }; });
   for (const [w, hh] of [[360, 780], [390, 844]]) {
@@ -10563,7 +10563,7 @@ test('e2e · DS-K2 J2 · Jogar como mesa de preparação: a sua lista é um cart
     while (wk.nextNode()) { const el = wk.currentNode.parentElement; if (!wk.currentNode.textContent.trim() || el.getBoundingClientRect().width <= 1 || el.closest('[aria-pressed="false"].ds-chip')) continue; const k = r(getComputedStyle(el).color, fundoDe(el)); if (k < 4.5) ruins.push(`${wk.currentNode.textContent.trim().slice(0, 20)} ${k.toFixed(2)}`); }
     const d = doca.getBoundingClientRect(), rr = rel ? rel.getBoundingClientRect() : null;
     return { ebano: getComputedStyle(hero).backgroundColor === funda, destaques: document.querySelectorAll('#outlet .ds-destaque').length, ruins,
-      heroMine: !!document.querySelector('#mesa-hero #mesa-mine.deck-picker--hero .deck-hero__arte'), docaNoPe: Math.abs(d.bottom - (innerHeight - (document.querySelector('#ds-navbar') && getComputedStyle(document.querySelector('#ds-navbar')).display !== 'none' ? document.querySelector('#ds-navbar').getBoundingClientRect().height : 0))) <= 1, /* G-322 · em cima da barra de baixo */ docaH: getComputedStyle(document.documentElement).getPropertyValue('--doca-h').trim(),
+      heroMine: !!document.querySelector('#mesa-hero #mesa-mine.deck-picker--hero .deck-hero__arte'), docaNoPe: Math.abs(d.bottom - (innerHeight - (document.querySelector('#ds-navbar') && getComputedStyle(document.querySelector('#ds-navbar')).display !== 'none' ? (innerHeight - document.querySelector('#ds-navbar').getBoundingClientRect().top) /* G-362 · a barra flutua: mede do topo dela */ : 0))) <= 1, /* G-322 · em cima da barra de baixo */ docaH: getComputedStyle(document.documentElement).getPropertyValue('--doca-h').trim(),
       comecarNaDoca: !!doca.querySelector('#mesa-start'), relatarAcima: rr ? rr.bottom <= d.top + 1 : true, resumo: document.querySelector('#mesa-doca-resumo').innerText, altura: document.documentElement.scrollHeight > innerHeight }; });
   for (const [w, hh] of [[360, 780], [390, 844]]) {
     await page.setViewportSize({ width: w, height: hh });
@@ -11678,7 +11678,7 @@ test('e2e · I5 Perfil › Partidas: a partida que termina entra no histórico (
   assert.equal(await page.locator('#partidas-oponentes').count(), 0); assert.equal(await page.locator('#partidas-lista .pt-linha').count(), 3);
   // J7 · com partidas no histórico, a ação da tela é jogar a próxima: botão de ação único, 56 px no canto, sem cobrir o fim da página
   assert.equal(await page.locator('.ds-btn--primary:visible').count(), 1, 'um primário: o botão de ação');
-  assert.deepEqual(await page.evaluate(() => { const b = document.querySelector('#partidas-fab .ds-fab__principal'); const r = b.getBoundingClientRect(); /* G-322 */ return { id: b.id, nome: b.getAttribute('aria-label'), icone: !!b.querySelector('svg'), w: Math.round(r.width), h: Math.round(r.height), direita: Math.round(innerWidth - r.right), baixo: Math.round(innerHeight - (document.querySelector('#ds-navbar') && getComputedStyle(document.querySelector('#ds-navbar')).display !== 'none' ? document.querySelector('#ds-navbar').getBoundingClientRect().height : 0) - r.bottom) }; }),
+  assert.deepEqual(await page.evaluate(() => { const b = document.querySelector('#partidas-fab .ds-fab__principal'); const r = b.getBoundingClientRect(); /* G-322 */ return { id: b.id, nome: b.getAttribute('aria-label'), icone: !!b.querySelector('svg'), w: Math.round(r.width), h: Math.round(r.height), direita: Math.round(innerWidth - r.right), baixo: Math.round(innerHeight - (document.querySelector('#ds-navbar') && getComputedStyle(document.querySelector('#ds-navbar')).display !== 'none' ? (innerHeight - document.querySelector('#ds-navbar').getBoundingClientRect().top) /* G-362 · a barra flutua: mede do topo dela */ : 0) - r.bottom) }; }),
     { id: 'partidas-jogar', nome: 'Jogar', icone: true, w: 56, h: 56, direita: 16, baixo: 16 });
   const pe = await page.evaluate(() => { window.scrollTo(0, document.documentElement.scrollHeight); return { limpar: Math.round(document.querySelector('#partidas-limpar').getBoundingClientRect().bottom), botao: Math.round(document.querySelector('#partidas-jogar').getBoundingClientRect().top) }; });
   assert.ok(pe.limpar <= pe.botao, 'Limpar histórico fica acima do botão: ' + JSON.stringify(pe));
@@ -11855,8 +11855,8 @@ test('e2e · Y1 relatar de qualquer tela: botão discreto onde não há botão d
   await page.setViewportSize({ width: 360, height: 780 });
   await page.goto(base + '#/'); await page.waitForSelector('#go-play');
   // 1 · Início não tem botão de ação: o Relatar discreto fica no canto, 48 px, sem ser primário
-  const geo = sel => page.$eval(sel, b => { const r = b.getBoundingClientRect(); /* G-322 · medido a partir da barra de baixo */ return { w: Math.round(r.width), h: Math.round(r.height), direita: Math.round(innerWidth - r.right), baixo: Math.round(innerHeight - (document.querySelector('#ds-navbar') && getComputedStyle(document.querySelector('#ds-navbar')).display !== 'none' ? document.querySelector('#ds-navbar').getBoundingClientRect().height : 0) - r.bottom), top: Math.round(r.top), left: Math.round(r.left) }; });
-  assert.deepEqual(await geo('#relatar-abrir'), { w: 48, h: 48, direita: 16, baixo: 16, top: 780 - 60 - 16 - 48, left: 360 - 16 - 48 }); // G-322 · acima da barra de baixo (60 px)
+  const geo = sel => page.$eval(sel, b => { const r = b.getBoundingClientRect(); /* G-322 · medido a partir da barra de baixo */ return { w: Math.round(r.width), h: Math.round(r.height), direita: Math.round(innerWidth - r.right), baixo: Math.round(innerHeight - (document.querySelector('#ds-navbar') && getComputedStyle(document.querySelector('#ds-navbar')).display !== 'none' ? (innerHeight - document.querySelector('#ds-navbar').getBoundingClientRect().top) /* G-362 · a barra flutua: mede do topo dela */ : 0) - r.bottom), top: Math.round(r.top), left: Math.round(r.left) }; });
+  assert.deepEqual(await geo('#relatar-abrir'), { w: 48, h: 48, direita: 16, baixo: 16, top: 780 - 78 - 16 - 48, left: 360 - 16 - 48 }); // G-322 · acima da barra de baixo; G-362 · a barra flutua (64 px a 14 px do pé)
   assert.equal(await page.getAttribute('#relatar-abrir', 'aria-label'), 'Relatar um problema ou uma ideia');
   assert.equal(await page.locator('.ds-btn--primary:visible').count(), 1, 'continua um primário: Jogar');
   await auditaTela(page, 'início com relatar');
@@ -13510,7 +13510,7 @@ test('e2e · J6 botão de ação: no canto inferior direito de Listas e Coleçã
   await page.goto(base + '#/listas/editar'); await page.fill('#deck-name', 'Longa'); await page.selectOption('#deck-format', 'livre'); await page.fill('#deck-text', LISTA_J1); await page.click('[data-ownall]'); await page.click('#deck-save'); await page.waitForSelector('.deck-summary');
   await createDeck(page, base, 'Outra', PAUPER);
   await page.goto(base + '#/listas'); await page.waitForSelector('#decks-fab-abrir'); await page.waitForTimeout(350);
-  const geo = () => page.evaluate(() => { const b = document.querySelector('.ds-fab__principal').getBoundingClientRect(); return { w: Math.round(b.width), h: Math.round(b.height), direita: Math.round(innerWidth - b.right), baixo: Math.round(innerHeight - (document.querySelector('#ds-navbar') && getComputedStyle(document.querySelector('#ds-navbar')).display !== 'none' ? document.querySelector('#ds-navbar').getBoundingClientRect().height : 0) - b.bottom) }; }); // G-322 · a partir da barra de baixo
+  const geo = () => page.evaluate(() => { const b = document.querySelector('.ds-fab__principal').getBoundingClientRect(); return { w: Math.round(b.width), h: Math.round(b.height), direita: Math.round(innerWidth - b.right), baixo: Math.round(innerHeight - (document.querySelector('#ds-navbar') && getComputedStyle(document.querySelector('#ds-navbar')).display !== 'none' ? (innerHeight - document.querySelector('#ds-navbar').getBoundingClientRect().top) /* G-362 · a barra flutua: mede do topo dela */ : 0) - b.bottom) }; }); // G-322 · a partir da barra de baixo
   // 2 · onde fica e o que é: 56 px, 16 px das bordas, o único primário da tela; as ações saíram do topo
   assert.deepEqual(await geo(), { w: 56, h: 56, direita: 16, baixo: 16 });
   assert.equal(await page.locator('.ds-btn--primary:visible').count(), 1, 'um primário: o botão de ação');
@@ -13579,7 +13579,7 @@ test('e2e · J7 botão de ação da Lista: Jogar, Editar e Exportar no canto inf
   assert.ok(idLonga && idOutra && idLonga !== idOutra);
   const abre = async id => { await page.goto(base + '#/lista?id=' + id); await page.waitForSelector('#deck-fab-abrir'); await page.waitForTimeout(350); };
   await abre(idLonga);
-  const geo = () => page.evaluate(() => { const b = document.querySelector('.ds-fab__principal').getBoundingClientRect(); return { w: Math.round(b.width), h: Math.round(b.height), direita: Math.round(innerWidth - b.right), baixo: Math.round(innerHeight - (document.querySelector('#ds-navbar') && getComputedStyle(document.querySelector('#ds-navbar')).display !== 'none' ? document.querySelector('#ds-navbar').getBoundingClientRect().height : 0) - b.bottom) }; }); // G-322 · a partir da barra de baixo
+  const geo = () => page.evaluate(() => { const b = document.querySelector('.ds-fab__principal').getBoundingClientRect(); return { w: Math.round(b.width), h: Math.round(b.height), direita: Math.round(innerWidth - b.right), baixo: Math.round(innerHeight - (document.querySelector('#ds-navbar') && getComputedStyle(document.querySelector('#ds-navbar')).display !== 'none' ? (innerHeight - document.querySelector('#ds-navbar').getBoundingClientRect().top) /* G-362 · a barra flutua: mede do topo dela */ : 0) - b.bottom) }; }); // G-322 · a partir da barra de baixo
   // 1 · onde fica e o que é
   assert.deepEqual(await geo(), { w: 56, h: 56, direita: 16, baixo: 16 });
   assert.equal(await page.locator('.ds-btn--primary:visible').count(), 1, 'um primário: o botão de ação');
@@ -21419,6 +21419,8 @@ test('e2e · G-357 DS-K3: o /ds mostra o material (cinco degraus, arte com véu)
   await page.click('#aparencia-movimento [data-movimento="reduzido"]');
   await page.waitForFunction(() => document.documentElement.getAttribute('data-movimento') === 'reduzido');
   assert.equal(await desloc(), '0px', 'reduzido não viaja');
+  // G-362 · o segmentado se redesenha depois de guardar: rolar antes disso pegava o nó velho ("not attached to the DOM")
+  await page.waitForFunction(() => document.querySelector('#aparencia-movimento [data-movimento="reduzido"]').getAttribute('aria-pressed') === 'true');
   await page.locator('#aparencia-movimento').scrollIntoViewIfNeeded();
   await auditaTela(page, 'aparência com três níveis de movimento');
   await page.reload(); await page.waitForSelector('#aparencia-movimento');
@@ -21585,4 +21587,77 @@ test('e2e · G-361 T-IDIOMA fatia 4: Perfil › Idioma com bandeira e nome no pr
   await page.waitForFunction(() => document.documentElement.lang === 'pt-BR' && /^Idioma$/.test(document.querySelector('#perfil-idioma h2').textContent));
   assert.match(await page.innerText('#perfil-idioma'), /O app inteiro e o texto das cartas/);
   assert.deepEqual(errors.filter(e => !/status of 404/.test(e)), [], 'o 404 da Scryfall (carta nunca impressa no idioma) é o estado esperado');
+});
+
+/* ---------------- DS-K3 K3-2 (G-362) · barra inferior flutuante ---------------- */
+test('e2e · G-362 DS-K3 K3-2: a barra flutua a 14 px das bordas (64 px, raio 22), com vidro só nela e reserva opaca sem backdrop-filter, com Movimento reduzido e com contraste alto; destinos de 44 px, texto AA mesmo com o oposto do tema atrás; o fim da tela fica acima da barra e do Jogar; a mesa não muda; 360 nos dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  const mede = () => page.evaluate(() => {
+    const nb = document.querySelector('#ds-navbar'), r = nb.getBoundingClientRect(), cs = getComputedStyle(nb), itens = [...nb.querySelectorAll('.ds-nav')];
+    const cv = document.createElement('canvas'); cv.width = cv.height = 1; const cx = cv.getContext('2d', { willReadFrequently: true });
+    const rgb = k => { cx.clearRect(0, 0, 1, 1); cx.fillStyle = k; cx.fillRect(0, 0, 1, 1); return [...cx.getImageData(0, 0, 1, 1).data].slice(0, 3); };
+    const lum = c => c.map(v => v / 255).map(v => v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4).reduce((a, v, i) => a + v * [0.2126, 0.7152, 0.0722][i], 0);
+    const ctr = (p, q) => { const [m, n] = [lum(p), lum(q)].sort((u, v) => v - u); return (m + 0.05) / (n + 0.05); };
+    const m = cs.backgroundColor.match(/[\d.]+/g).map(Number), alfa = m.length > 3 ? m[3] : 1;
+    // pior caso: o oposto do tema passa por trás do vidro (branco no escuro, preto no claro)
+    const atras = document.documentElement.getAttribute('data-theme') === 'light' ? 0 : 255;
+    const fundo = m.slice(0, 3).map(c => c * alfa + atras * (1 - alfa));
+    const ruins = itens.map(i => [i.id, ctr(rgb(getComputedStyle(i.querySelector('.ds-nav__rotulo')).color), fundo)]).filter(x => x[1] < 4.5).map(x => x[0] + ' ' + x[1].toFixed(2));
+    const latao = nb.querySelector('.ds-navbar__latao').getBoundingClientRect();
+    return { esq: Math.round(r.left), dir: Math.round(innerWidth - r.right), pe: Math.round(innerHeight - r.bottom), alt: Math.round(r.height), raio: cs.borderTopLeftRadius,
+      desfoque: cs.backdropFilter, alfa, ruins, alvos: itens.every(i => { const b = i.getBoundingClientRect(); return b.height >= 44 && b.width >= 44; }),
+      ressalto: Math.round(r.top - latao.top), latao: Math.round(latao.width), topoBarra: Math.round(r.top), topoJogar: Math.round(latao.top) };
+  });
+  for (const tema of ['dark', 'light']) {
+    for (const [rota, sel] of [['#/', '#home-titulo'], ['#/perfil', '.perfil-topo'], ['#/ds', '#ds-vidros']]) {
+      await page.goto(base + rota); await page.waitForSelector(sel);
+      await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(150);
+      const m = await mede();
+      assert.deepEqual([m.esq, m.dir, m.pe, m.alt, m.raio, m.alvos, m.ruins, m.latao, m.ressalto], [14, 14, 14, 64, '22px', true, [], 56, 16], `${rota} ${tema}: ${JSON.stringify(m)}`);
+      assert.match(m.desfoque, /blur\(14px\)/, `vidro na barra (${rota}, ${tema})`); assert.ok(m.alfa > 0.9 && m.alfa < 1, `vidro a 92 %: ${m.alfa}`);
+      await auditaTela(page, `K3-2 ${rota} (${tema})`);
+      // o fim da tela: rola até o fim; o último elemento termina acima do topo da barra e do latão do Jogar
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight)); await page.waitForTimeout(150);
+      const fim = await page.evaluate(() => { const nb = document.querySelector('#ds-navbar').getBoundingClientRect(), j = document.querySelector('#ds-navbar .ds-navbar__latao').getBoundingClientRect();
+        const u = [...document.querySelectorAll('#outlet *')].filter(e => e.getClientRects().length && getComputedStyle(e).position !== 'fixed' && !e.closest('.ds-fab')).map(e => e.getBoundingClientRect().bottom).reduce((a, b) => Math.max(a, b), 0);
+        return { ultimo: Math.round(u), barra: Math.round(nb.top), jogar: Math.round(j.top) }; });
+      assert.ok(fim.ultimo <= fim.jogar + 1 && fim.ultimo <= fim.barra + 1, `fim da tela acima da barra e do Jogar (${rota}, ${tema}): ${JSON.stringify(fim)}`);
+      if (process.env.SHOTS && rota === '#/perfil') await page.screenshot({ path: process.env.SHOTS + `/k3-2-perfil-fim-${tema}.png` });
+    }
+  }
+  // o /ds mostra o vidro e a reserva lado a lado, sem desfoque fora da barra
+  assert.deepEqual(await page.$$eval('#ds-vidros .ds-vidro', vs => vs.map(v => [v.dataset.vidro, getComputedStyle(v).backdropFilter])), [['vidro', 'none'], ['reserva', 'none']]);
+  const opaca = () => page.evaluate(() => { const cs = getComputedStyle(document.querySelector('#ds-navbar')); const m = cs.backgroundColor.match(/[\d.]+/g).map(Number); return { desfoque: cs.backdropFilter, alfa: m.length > 3 ? m[3] : 1 }; });
+  // reserva opaca 1 · Perfil › Aparência › Movimento: Reduzido (e de volta ao Completo, o vidro volta)
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#aparencia-movimento');
+  // o desenho do segmentado vem depois de guardar (como na G-357): espera o botão marcado e o atributo assentado
+  const escolhe = async k => { await page.click(`#aparencia-movimento [data-movimento="${k}"]`);
+    await page.waitForFunction(k => document.querySelector(`#aparencia-movimento [data-movimento="${k}"]`).getAttribute('aria-pressed') === 'true' && (document.documentElement.getAttribute('data-movimento') || 'sistema') === k, k);
+    await page.waitForFunction(k => (getComputedStyle(document.querySelector('#ds-navbar')).backdropFilter === 'none') === (k === 'reduzido'), k, { timeout: 3000 }).catch(() => {}); };
+  await escolhe('reduzido');
+  assert.deepEqual(await opaca(), { desfoque: 'none', alfa: 1 }, 'reduzido: reserva opaca');
+  await escolhe('sistema');
+  assert.match((await opaca()).desfoque, /blur/, 'de volta ao vidro');
+  await page.goto(base + '#/listas'); await page.waitForSelector('#ds-navbar');
+  // reserva opaca 2 · contraste alto do sistema
+  await page.emulateMedia({ contrast: 'more' }); assert.deepEqual(await opaca(), { desfoque: 'none', alfa: 1 }, 'contraste alto: reserva opaca');
+  await page.emulateMedia({ contrast: 'no-preference' });
+  // reserva opaca 3 · navegador sem backdrop-filter: tira a regra @supports da folha (é o que ele faria) e a barra fica opaca
+  await page.evaluate(() => { for (const ss of document.styleSheets) { let rs; try { rs = ss.cssRules; } catch { continue; } for (let i = rs.length - 1; i >= 0; i--) if (rs[i] instanceof CSSSupportsRule && /backdrop-filter/.test(rs[i].conditionText)) ss.deleteRule(i); } });
+  assert.deepEqual(await opaca(), { desfoque: 'none', alfa: 1 }, 'sem backdrop-filter: reserva opaca');
+  for (const tema of ['dark', 'light']) { await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(120); await auditaTela(page, `K3-2 reserva opaca (${tema})`); }
+  // na tela Jogar a doca senta no topo da pílula e o latão do Jogar (que sobe 16 px) não encosta no Começar
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-doca #mesa-start'); await page.waitForTimeout(300);
+  for (const tema of ['dark', 'light']) {
+    await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(120);
+    const d = await page.evaluate(() => { const s = document.querySelector('#mesa-start').getBoundingClientRect(), l = document.querySelector('#ds-navbar .ds-navbar__latao').getBoundingClientRect(), dc = document.querySelector('#mesa-doca').getBoundingClientRect(), nb = document.querySelector('#ds-navbar').getBoundingClientRect();
+      return { folga: Math.round(l.top - s.bottom), vao: Math.round(nb.top - dc.bottom) }; });
+    assert.ok(d.folga >= 0 && d.vao === 0, `doca sobre a pílula e latão livre do Começar (${tema}): ${JSON.stringify(d)}`);
+    await auditaTela(page, `K3-2 Jogar (${tema})`);
+  }
+  // a mesa não muda: na partida a barra some e nada é reservado
+  await page.evaluate(() => document.body.setAttribute('data-tela', 'partida'));
+  assert.deepEqual(await page.evaluate(() => [getComputedStyle(document.querySelector('#ds-navbar')).display, getComputedStyle(document.body).getPropertyValue('--navbar-h').trim(), getComputedStyle(document.body).getPropertyValue('--navbar-reserva').trim(), getComputedStyle(document.getElementById('outlet')).paddingBottom]), ['none', '0px', '0px', '0px']);
+  assert.deepEqual(errors, []);
 });

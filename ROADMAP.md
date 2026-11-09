@@ -416,7 +416,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-uj ✅ | CONV2 convite e QR no endereço da Vercel (plano Vercel do dono, 07/11/2026): Perfil › Convidar amigos compartilha, copia e mostra no QR https://estante-magic.vercel.app/ (QR gerado de novo e lido de volta no teste); "O que sai do aparelho" diz que, na Vercel, os arquivos do app vêm do próprio site em /dados/ (leva G-354). Fora: levar os dados do endereço antigo (backup e restauração, pelo dono) e cadastrar o domínio no Google para o login | CONV1 | 1 | 16º-si |
 | 16º-ul ✅ | CARGA1 cartas que faltam descem sozinhas (pedido do dono, 08/11/2026): num endereço novo ou depois de restaurar um backup, Listas baixa em segundo plano os dados das cartas que não estão no aparelho (busca coletiva da Scryfall, em lotes) e pinta cores e % do motor sem abrir lista por lista; "Baixando os dados das cartas · X de Y" à vista; cada nome uma vez por abertura, de novo quando a internet volta (leva G-355). Fora: o preparo para jogar sem internet num endereço novo (CARGA2, a seguir) e levar as cartas dentro do backup | CONV2 | 1 | 16º-uj |
 | 16º-um ✅ | CARGA2 preparo do dia sozinho (pedido do dono, 08/11/2026): na primeira abertura do dia com rede, o app prepara tudo para jogar e cuidar da coleção sem internet, com imagens (listas, coleção, listas do Shark com imagem, base de nomes e o leitor do scanner, mesmo sem preparo manual antes), sem tocar em nada; a faixa do Início mostra "Preparando sozinho…" e chega a "Tudo pronto"; o dia só fica marcado quando tudo está no aparelho — incompleto, continua na próxima abertura, na volta ao app ou quando a rede volta; feito hoje, nada volta à Scryfall (leva A-264). Fora: escolher só Wi-Fi para baixar | O1 | 1 | 16º-ul |
-| 16º-uq 🟡 | DS-K3 · Vitrine e Movimento (propostas de 07 e 08/11; "seguir com todo o plano", decisão do dono de 08/11/2026, com as opções recomendadas A): ✅ K3-0 + MV-0 (G-357) tokens de material por luz (cinco degraus de ébano, aresta, laca, sombras de contato · chave · flutuante, grão, véu sobre arte) e de movimento (durações 60/600 ms, escalonamento, três molas em `linear()`, saída, distâncias, profundidade, calma), Movimento em Aparência com três níveis (completo · moderado · reduzido) e o catálogo `/ds` com Material e Molas; ✅ K3-1 (G-358) superfície por luz e grão: o veio sai do fundo (luz de cima + grão), cartões em E3 com laca, aresta e duas sombras, folhas e diálogos em E4; ✅ MV-4 (G-359) família de espera: nada até 300 ms, fio que percorre no lugar do anel que gira, esqueleto com luz em vez de pulso; próxima K3-2 barra flutuante. **MV-10 (abertura e marca "The Shelf") adiada pelo dono:** volta depois da FA-2 | DS-K3 | 3 de 22 | DS-K, DS-K2 |
+| 16º-uq 🟡 | DS-K3 · Vitrine e Movimento (propostas de 07 e 08/11; "seguir com todo o plano", decisão do dono de 08/11/2026, com as opções recomendadas A): ✅ K3-0 + MV-0 (G-357) tokens de material por luz (cinco degraus de ébano, aresta, laca, sombras de contato · chave · flutuante, grão, véu sobre arte) e de movimento (durações 60/600 ms, escalonamento, três molas em `linear()`, saída, distâncias, profundidade, calma), Movimento em Aparência com três níveis (completo · moderado · reduzido) e o catálogo `/ds` com Material e Molas; ✅ K3-1 (G-358) superfície por luz e grão: o veio sai do fundo (luz de cima + grão), cartões em E3 com laca, aresta e duas sombras, folhas e diálogos em E4; ✅ MV-4 (G-359) família de espera: nada até 300 ms, fio que percorre no lugar do anel que gira, esqueleto com luz em vez de pulso; ✅ K3-2 (G-362) barra inferior flutuante: pílula de 64 px a 14 px das bordas e da área segura, raio 22, vidro (E4 a 92 % + desfoque) só nela e reserva opaca sem backdrop-filter, com Movimento reduzido, transparência reduzida ou contraste alto, Jogar em latão de 56 px que sobe 16 px; próxima MV-1 navegação com direção. **MV-10 (abertura e marca "The Shelf") adiada pelo dono:** volta depois da FA-2 | DS-K3 | 4 de 22 | DS-K, DS-K2 |
 | 16º-sa 🟡 | B22 Shark profissional com cinco listas: fatia 1 ✅ (B-173) listas de torneio embutidas e seletor do Shark só com elas; fatia 2 ✅ (B-174) linha de base: Madness 75% · Elves 63% · Faeries 50% · Control 38% · Terror 25% contra o campo; fatia 3 ✅ (B-175) perfil do Terror + o terreno que falta (pareado 50% × 38% em 32 pares: dentro da margem); fatia 4 (B-176) ameaças do campo no Control: sem ganho (41% × 42% em 64 pares), desligada; fatia 5 (B-177) mulligan por fontes e cores: neutro em força (79 × 81 em 160 pares), ligado pelo comportamento; fatia 6 (B-178) prazo da decisão: p95 430 → 366 ms, pior 4,3 → 0,8 s, força 48 × 47; fatia 7 (B-179) quando anular: a resposta é lida primeiro e a anulação guardada tem valor, neutro em força (38 × 39 em 96 pares), ligado pelo comportamento; fatias 8–9 viraram a B23 (16º-sd); força final (B-185, 208 decididas por lista, Shark × Shark): Madness 66% · Terror 59% · Elfos 50% · Faeries 47% · Control 29% — o aceite "nenhuma abaixo de 45%" fica aberto pelo Control (B24, 16º-se) | B22 | 9 | 16º-z2 |
 | 16º-sd ✅ | B23 o Shark usa bem cada carta das cinco listas: fatia 1 ✅ (B-180) auditoria carta a carta (`bot.cartas.mjs`, 76 cartas, 40 partidas): 6 cartas ficam na mão, 5 com alvo no próprio lado por erro; fatia 2 ✅ (B-181) alvo no próprio lado + avaliaV6 (o −3/−0 na própria criatura dava +4), neutro em força (47 × 48), ligado; fatia 3 ✅ (B-182) loucura e descarte conferidos (Fiery Temper 14/20 contando a loucura), sem mudança no Shark; fatia 4 ✅ (B-183) a decisão do outro na resolução (Deem Inferior 1/13 → 13/14), 49 × 47, ligado; fatia 5 ✅ (B-184) jogar em volta: o outro responde com a mágica do Shark na pilha (anula, tira o alvo), 51 × 47, ligado; fatia 6 ✅ (B-185) fechamento: reserva pelo alvo (29 × 24) e resposta no meu turno (o Dispel na Counterspell que anulava a minha ameaça; 48 × 46), auditoria final sem "não usa" (69 usam, 5 a revisar declaradas), força por lista com 208 decididas no painel, p95 dentro do orçamento | B23 | 6 | 16º-sa |
 | 16º-sz ✅ | B6 estável: o torneio Shark × sparring mede força por trabalho feito (relógio de contas), não pelo relógio da máquina — caía no CI (mais lento) e passava no clone, deixando o `main` vermelho e a fila parada (B-186, 01/11/2026) | B | 1 | 16º-sd |
@@ -14674,12 +14674,15 @@ o dedo manda · uma coisa por vez (um herói por tela, `--calma` entre dois movi
 **Ordem (22 levas):** K3-0+MV-0 → K3-1 → MV-4 → K3-2 → MV-1 → K3-3+K3-4 → K3-5 → K3-6 → K3-7 → K3-8+MV-3 → K3-9 → MV-2 → K3-10 →
 K3-11 → MV-5 → MV-6 → K3-12 → MV-11 → MV-8 → MV-9 → FA-1 → FA-M → FA-2; depois, MV-10 com o dono.
 
+Especificação por fatia: `docs/DS-K3-especificacao.md` (valores das duas propostas, condensados em 09/11/2026 na G-362, para
+implementar sem abrir os artefatos).
+
 | Fatia | O que entrega | Estado |
 |---|---|---|
 | **K3-0 + MV-0** | tokens de material e de movimento, três níveis em Aparência, `/ds` Material e Molas | ✅ G-357 |
 | K3-1 | superfície por luz e grão (cartões e folhas em degraus, veio sai do fundo); capturas antes e depois | ✅ G-358 |
 | MV-4 | família de espera: imperceptível · curta (fio que percorre) · média (esqueleto com luz) · longa (anel + odômetro + frase) · imagem de carta · sem rede | ✅ G-359 (parcial: longa e imagem seguem com as cartas que se arrumam e a moldura com luz de antes) |
-| K3-2 | barra inferior flutuante (vidro só nela, com reserva opaca) | ⬜ |
+| K3-2 | barra inferior flutuante (vidro só nela, com reserva opaca) | ✅ G-362 |
 | MV-1 | navegação com direção (avançar afasta, voltar aproxima) e elemento compartilhado; reserva em esmaecer sem View Transitions | ⬜ |
 | K3-3 + K3-4 (+ MV-7) | barra que recolhe ao rolar; cabeçalho editorial que recolhe | ⬜ |
 | K3-5 | ladrilho com arte da carta-chave sob véu | ⬜ |
@@ -14741,6 +14744,30 @@ K3-11 → MV-5 → MV-6 → K3-12 → MV-11 → MV-8 → MV-9 → FA-1 → FA-M 
   dois temas, `auditaTela`, reduzido); J4 ajustado (o esqueleto anima a luz, não a opacidade).
 - **Fora (parcial):** a espera longa com anel + odômetro + frase, a moldura de carta e a `ArteDeEspera` como mini-vitrine ficam com
   o desenho de antes (cartas que se arrumam, brilho na moldura); o giro do botão ocupado (`aria-busy`) também — voltam na MV-5.
+
+#### K3-2 · barra inferior flutuante (✅ G-362, 09/11/2026)
+- **Valor:** a barra de baixo deixa de ser uma faixa colada no pé e vira uma peça que flutua sobre o conteúdo, com o Jogar como
+  o ponto mais alto da tela; o fim de toda tela continua à vista, acima dela.
+- **Aceite:** a barra é uma pílula de `--navbar-alt` 64 px a `--navbar-folga` 14 px das bordas e da área segura
+  (`env(safe-area-inset-bottom)`), raio `--radius-4` 22, E4 com laca, aresta e `--shadow-float`, no máximo 32rem de largura;
+  vidro (`--vidro`: E4 a 92 % + `--vidro-desfoque` 14 px) só nela, dentro de `@supports (backdrop-filter)` e fora do
+  Movimento reduzido; reserva opaca (`--vidro-reserva` = E4 cheio) sem `backdrop-filter`, com Reduzido, com transparência
+  reduzida, contraste alto ou movimento reduzido do sistema. Destinos com a altura da pílula (≥ 44 px); o atual em acento, com
+  um fio de 16 px; o Jogar em latão de 56 px que sobe `--navbar-ressalto` 16 px. Texto e ícones da barra passam AA nos dois
+  temas mesmo com o oposto do tema por trás do vidro (branco no escuro, preto no claro). `--navbar-h` segue sendo o pé até o
+  topo da barra (Relatar, botão de ação, aviso e docas se apoiam nele) e `#outlet` reserva também o ressalto
+  (`--navbar-reserva`); as três reservas do Relatar e do botão de ação (J7, Y1), que trocavam a da barra por um valor fixo,
+  passam a ter a da barra como piso (`max()`). Na tela Jogar a doca senta no topo da pílula e reserva o ressalto, e o latão não encosta no
+  Começar. Sem sobreposição em 360 px nos dois temas. A mesa (`data-tela="partida"`) não muda: a barra some e nada é reservado.
+- **Testes:** contrato visual "DS-K3 K3-2" (tokens nos três blocos, geometria, vidro só na barra, ordem vidro → reserva, AA no
+  pior caso, reservas); e2e "G-362" (Início, Perfil e `/ds` em 360 nos dois temas: 14/14/14, 64 px, raio 22, desfoque,
+  alvos, AA, `auditaTela`, fim da tela acima da barra e do Jogar; reserva opaca com Reduzido, com contraste alto e sem a regra
+  `@supports`; doca e latão na tela Jogar; partida sem barra e sem reserva). N1 (G-322), Y1, J6, J7 e J2 passam a medir
+  "acima da barra" pelo topo dela (a barra não encosta mais no pé); o latão do N1 é 56 px. Instável da trilha resolvido: o
+  G-357 rolava até o segmentado de Movimento antes de ele se redesenhar ("not attached to the DOM" numa fatia do portão);
+  agora espera o "Reduzido" marcado, como já esperava o "Moderado".
+- **Fora:** a barra que recolhe ao rolar é a K3-3; os outros desfoques que já existiam (fundo de diálogo, troca de cartas,
+  scanner) ficam como estão; `--vidro` e o desfoque não entram em mais nenhuma superfície (o contrato barra).
 
 ## Trilha homologacao · prova de partida do catálogo (H)
 
