@@ -89,6 +89,7 @@ export function ehTela(t) {
   if (/^[\w.$-]+$/.test(s) && /[_.$-]|[a-z][A-Z]/.test(s)) return false; // chave, id, classe, camelCase
   if (/^[a-z0-9_-]+(\s+[a-z0-9_-]+)+$/.test(s) && /[-_]/.test(s)) return false; // lista de classes
   if (/^[A-Z0-9_]+$/.test(s)) return false; // CONSTANTE
+  if (/^[a-z0-9]+$/.test(s) && /\d/.test(s) && /[a-z]/.test(s)) return false; // M-613 · assinatura de revisão (APROVADAS: '1o6ndv' lia o "o" entre dígitos como palavra)
   if (/\(\?[:!=<]|\\[dswbDSWB]|\[\^|^\^|\$$|\|.*\|/.test(s) && !ACENTO.test(s.replace(/\{\d+\}/g, ''))) return false; // expressão regular
   const palavras = s.toLowerCase().match(/[a-zà-ÿ]+/g) || [];
   const pt = palavras.filter(w => PALAVRAS_PT.has(w)).length, en = palavras.filter(w => PALAVRAS_EN.has(w)).length;
