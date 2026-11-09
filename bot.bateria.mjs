@@ -188,6 +188,15 @@ export const POSICOES = [
   { id: 'rem-priest-sim', classe: 'recurso', lista: FAERIES, porque: 'fim do turno dos Elfos, Llanowar Elves e Priest of Titania no campo: a remoção vai no Priest, o motor que cresce com a mesa',
     monta: () => monta(FAERIES, ELFOS, { ativo: 1, vez: 0, passo: 'end', p0: { campo: ['Island', 'Swamp', 'Island'], mao: ['Snuff Out', 'Cast Down', 'Counterspell'] }, p1: { campo: ['Forest', 'Forest', 'Llanowar Elves', 'Priest of Titania'], viradas: ['Forest', 'Forest'] } }),
     certo: (s, j) => j.acao.t === 'cast' && (j.acao.targets || []).some(t => nomeDe(s, t.oid) === 'Priest of Titania') },
+  // B-208 · Faeries (classe A do diagnóstico da B-200; partidas narradas de 09/11, sementes 7134 T6 e 7168 T11): no próprio turno o
+  // Shark gastava em instantânea e lampejo (Brainstorm no início do combate, Spellstutter Sprite sem alvo) a mana da Counterspell
+  // que estava na mão, e chegava ao turno do outro sem ela. O que tem lampejo espera o turno do outro; a ameaça de feitiço não paga.
+  { id: 'seq-faeries-brainstorm-espera', classe: 'sequencia', lista: FAERIES, porque: 'início do combate no meu turno, duas Ilhas, Counterspell e Brainstorm na mão contra o Terror de mão cheia: o Brainstorm espera o fim do turno dele; a Counterspell fica de pé',
+    monta: () => monta(FAERIES, TERROR, { passo: 'combat_begin', p0: { campo: ['Island', 'Island'], mao: ['Counterspell', 'Brainstorm', 'Swamp'] }, p1: { campo: ['Island', 'Island', 'Island'], mao: ['Tolarian Terror', 'Delver of Secrets', 'Ponder', 'Island', 'Counterspell'] } }),
+    certo: (s, j) => !(j.acao.t === 'cast' && nomeDe(s, j.acao.oid) === 'Brainstorm') },
+  { id: 'seq-faeries-sprite-espera', classe: 'sequencia', lista: FAERIES, porque: 'meu turno, três terras, Spellstutter Sprite e Counterspell na mão contra o Terror com a Delver: a Sprite tem lampejo e nada para anular agora — entra no turno dele, com a Counterspell ainda de pé',
+    monta: () => monta(FAERIES, TERROR, { p0: { campo: ['Island', 'Island', 'Swamp'], mao: ['Spellstutter Sprite', 'Counterspell'] }, p1: { campo: ['Island', 'Island', 'Delver of Secrets'], mao: ['Tolarian Terror', 'Ponder', 'Island', 'Counterspell'] } }),
+    certo: (s, j) => !(j.acao.t === 'cast' && nomeDe(s, j.acao.oid) === 'Spellstutter Sprite') },
   // ---- mulligan
   { id: 'mull-sete-terrenos', classe: 'mulligan', lista: TERROR, porque: 'sete terrenos não jogam: mulligan',
     mulligan: true, monta: () => maoInicial(TERROR, MADNESS, ['Island', 'Island', 'Island', 'Island', 'Island', 'Island', 'Island']),
