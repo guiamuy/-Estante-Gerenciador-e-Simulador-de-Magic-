@@ -37,7 +37,10 @@ function cartasReais(raiz = '.', arquivos = ['oficiais.json']) {
     out[c.name] = { name: c.name, type_line: c.type_line, mana_cost: custo, cmc, colors, color_identity: colors, oracle_text: c.oracle_text || '', keywords: [...kws].map(k => k.replace(/\b\w/g, m => m.toUpperCase())),
       ...(c.power != null && c.power !== '' ? { power: String(c.power), toughness: String(c.toughness) } : {}) };
   }
-  for (const [n, cor] of Object.entries({ Island: 'U', Mountain: 'R', Forest: 'G', Plains: 'W', Swamp: 'B' })) out[n] = { name: n, type_line: `Basic Land — ${n}`, mana_cost: '', cmc: 0, colors: [], color_identity: [cor], keywords: [], oracle_text: `({T}: Add {${cor}}.)` };
+  for (const [n, cor] of Object.entries({ Island: 'U', Mountain: 'R', Forest: 'G', Plains: 'W', Swamp: 'B' })) {
+    out[n] = { name: n, type_line: `Basic Land — ${n}`, mana_cost: '', cmc: 0, colors: [], color_identity: [cor], keywords: [], oracle_text: `({T}: Add {${cor}}.)` };
+    if (!out['Snow-Covered ' + n]) out['Snow-Covered ' + n] = { ...out[n], name: 'Snow-Covered ' + n, type_line: `Basic Snow Land — ${n}` }; // B-206 · listas de torneio de fora das cinco usam o básico nevado
+  }
   return out;
 }
 
@@ -49,8 +52,16 @@ function listasDoShark() {
   if (!CARTAS_SHARK) CARTAS_SHARK = cartasReais(RAIZ, oficiaisTodos(RAIZ));
   return (B.LISTAS_DO_SHARK || []).map(l => ({ id: l.id, name: l.nome, arquetipo: l.arquetipo, entries: D.parseDeckText(l.text).entries.filter(e => e.zone === 'main'), reserva: D.parseDeckText(l.text).entries.filter(e => e.zone === 'side'), cartas: CARTAS_SHARK }));
 }
+// B-206 · régua de generalização: seis listas Pauper de torneio do catálogo fora das cinco do Shark (`.listas/regua-fora.json`,
+// escolhidas por critério escrito no próprio arquivo). Nada delas está no código do Shark: medem se a lógica vale para lista nova.
+function listasDeFora() {
+  if (!CARTAS_SHARK) CARTAS_SHARK = cartasReais(RAIZ, oficiaisTodos(RAIZ));
+  const j = JSON.parse(readFileSync(RAIZ + '/.listas/regua-fora.json', 'utf8'));
+  const ent = (xs, zone) => xs.map(([qty, name]) => ({ name, qty, zone }));
+  return j.listas.map(l => ({ id: l.id, name: l.nome, arquetipo: l.nome, catalogo: l.catalogo, entries: ent(l.principal, 'main'), reserva: ent(l.reserva, 'side'), cartas: CARTAS_SHARK }));
+}
 const listas = ST.STARTER_DECKS.filter(d => d.format === 'pauper').map(d => ({ name: d.name, entries: D.parseDeckText(d.text).entries.filter(e => e.zone !== 'side') }));
-export { cartasReais, oficiaisTodos, listas, partida, listasDoShark };
+export { cartasReais, oficiaisTodos, listas, partida, listasDoShark, listasDeFora };
 // leva 126 · ORC=<ms> e MUNDOS=<n> trocam o orçamento e o número de mundos dos Sharks de informação justa (busca de pesos
 // em partidas rápidas); 'p:mao=0.5,poder=1.5' é o Shark atual com multiplicadores nas parcelas da avaliação.
 const ORC = +(process.env.ORC || 250), MUNDOSN = +(process.env.MUNDOS || 0);
@@ -86,7 +97,7 @@ function partida(seed, n0, n1, d0, d1, max = 1500) {
 if (process.argv[1] && process.argv[1].endsWith('torneio.listas.mjs')) {
 const [forte, fraco, rodadas, base] = [process.argv[2] || 'shark', process.argv[3] || 'shark-v2', +(process.argv[4] || 2), +(process.argv[5] || 100)];
 // B-22 · LISTAS=shark: o torneio usa as cinco listas do Shark no lugar das sete prontas
-const EM_USO = process.env.LISTAS === 'shark' ? listasDoShark() : listas;
+const EM_USO = process.env.LISTAS === 'shark' ? listasDoShark() : process.env.LISTAS === 'fora' ? listasDeFora() : listas; // B-206 · LISTAS=fora: as seis da régua de generalização
 // B-174 · MODO=confrontos: um nível só nos dois assentos, todos contra todos, placar por confronto e por lista contra o campo
 // (a força de cada LISTA com o Shark de hoje, não a força do Shark). `rodadas` sementes por confronto, cada uma nos dois assentos.
 if (process.env.MODO === 'confrontos') {
