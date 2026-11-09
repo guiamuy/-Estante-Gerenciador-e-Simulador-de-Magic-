@@ -1548,3 +1548,43 @@ test('S-622 · realcaEstouro com fundo escuro devolve as letras claras sob o ref
   assert.equal(X.realcaEstouro(nome, w, h, y0, y1), 0);
   assert.deepEqual(nome, cn);
 });
+
+// S-623 · relato #90 fatia 1 (opção A): a edição que só existe em um acabamento entra com ele, sem erro possível
+test('S-623 · acabamento certeiro: só foil ou só etched entra assim; normal, os dois ou sem finishes, nada muda', () => {
+  assert.equal(X.acabamentoCerteiro({ finishes: ['foil'] }), 'foil');
+  assert.equal(X.acabamentoCerteiro({ finishes: ['etched'] }), 'etched');
+  assert.equal(X.acabamentoCerteiro({ finishes: ['nonfoil'] }), '');
+  assert.equal(X.acabamentoCerteiro({ finishes: ['nonfoil', 'foil'] }), '', 'existe nas duas: a câmera é que decide (fatia 2)');
+  assert.equal(X.acabamentoCerteiro({ finishes: ['foil', 'etched'] }), '', 'dois acabamentos de foil: não chuta');
+  assert.equal(X.acabamentoCerteiro({ prices: { usd_foil: '3.00' } }), '', 'preço só de foil não prova que o normal não existe');
+  assert.equal(X.acabamentoCerteiro(null), '');
+});
+
+test('S-623 · a impressão resolvida carrega os acabamentos da Scryfall (linha de coleção e evidências)', () => {
+  const PR = [{ set: 'sld', collector_number: '1', id: 'a', finishes: ['foil'] }, { set: 'cmr', collector_number: '79', id: 'b', finishes: ['nonfoil', 'foil'] }, { set: 'lea', collector_number: '2', id: 'c' }];
+  assert.deepEqual([...X.resolvePrinting(PR, { set: 'sld', number: '1' }).exact.finishes], ['foil']);
+  assert.equal(X.resolvePrinting(PR, { set: 'lea', number: '2' }).exact.finishes, undefined, 'sem o campo, nada inventado');
+  assert.deepEqual([...X.resolveEdicao(PR, { textos: ['0001 M\nSLD • EN'] }).exact.finishes], ['foil']);
+});
+
+test('S-623 · lote: a edição só foil entra Foil (na hora ou quando a edição chega depois), separada do normal; escolher na mão manda', async () => {
+  const lot = X.createLot({ store: P.memoryStore() });
+  const kNa = await lot.add('Sol Ring', 1, { set: 'sld', number: '1', id: 'a', verified: true, finishes: ['foil'] });
+  let [it] = await lot.list();
+  assert.equal(it.finish, 'foil'); assert.equal(it.finishCerto, true);
+  assert.match(kNa, /\|foil$/, 'a chave separa a cópia foil');
+  // entra sem edição (o nome lido primeiro); a edição só etched chega depois
+  const k = await lot.add('Arcane Signet', 1, null, { score: 0.99 });
+  const nova = await lot.enrich(k, { printing: { set: 'sld', number: '9', id: 'e', verified: true, finishes: ['etched'] } });
+  it = (await lot.list()).find(x => x.key === nova);
+  assert.equal(it.finish, 'etched'); assert.match(nova, /\|etched$/);
+  // a edição que existe em normal e foil não muda nada
+  const k2 = await lot.add('Island', 1, null, { score: 0.99 });
+  const n2 = await lot.enrich(k2, { printing: { set: 'cmr', number: '79', id: 'b', verified: true, finishes: ['nonfoil', 'foil'] } });
+  it = (await lot.list()).find(x => x.key === n2);
+  assert.equal(it.finish, undefined); assert.doesNotMatch(n2, /foil|etched/);
+  // a escolha da pessoa na folha manda e tira a marca de certeza
+  const r = await lot.escolhe(kNa, { set: 'sld', number: '1', set_name: 'Secret Lair', id: 'a' }, 'nonfoil');
+  it = (await lot.list()).find(x => x.key === r.key);
+  assert.equal(it.finish, undefined); assert.equal(it.finishCerto, undefined);
+});

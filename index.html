@@ -46334,7 +46334,8 @@ function createLot({ store }) {
     async total() { return (await load()).reduce((s, x) => s + x.qty, 0); },
     async add(name, qty = 1, printing = null, meta = null) {
       await load();
-      const key = lotKey(name, printing);
+      const fin = acabamentoCerteiro(printing);   // S-623 · relato #90: edição só foil (ou só etched) entra com ele
+      const key = lotKey(name, printing && fin ? { ...printing, finish: fin } : printing);
       const cur = find(key);
       // X8 · a pilha mostra confiança e miniatura: a leitura mais recente manda
       // X9 · confiança alta entra confirmada; o resto fica marcado para conferir,
@@ -46346,7 +46347,7 @@ function createLot({ store }) {
         ...(meta.alternativas && meta.alternativas.length ? { alternativas: meta.alternativas.slice(0, 3) } : {})
       } : {};
       if (cur) Object.assign(cur, extra, { qty: cur.qty + qty });
-      else items.push({ key, name, qty, ...extra, ...(printing && printing.set ? { set: printing.set, number: printing.number || '', set_name: printing.set_name || '', id: printing.id || '', verified: !!printing.verified, ...(printing.lang && printing.lang !== 'en' ? { lang: printing.lang } : {}) } : {}) });
+      else items.push({ key, name, qty, ...extra, ...(printing && printing.set ? { set: printing.set, number: printing.number || '', set_name: printing.set_name || '', id: printing.id || '', verified: !!printing.verified, ...(fin ? { finish: fin, finishCerto: true } : {}), ...(printing.lang && printing.lang !== 'en' ? { lang: printing.lang } : {}) } : {}) });
       history.push(key); await persist();
       // G-286 · uso agregado opt-in: o aparelho conta quantas cartas o scanner registrou (só o número; só sai com a chave ligada)
       store.get('uso.scanner').then(n => store.set('uso.scanner', (Number(n) || 0) + Math.max(1, qty | 0))).catch(() => {});
@@ -46360,8 +46361,11 @@ function createLot({ store }) {
       // G-350 · relato #65 · de que impressão é a miniatura: a pilha refaz a que não bate com a edição atual
       if (imgDe != null) { cur.imgDe = imgDe; if (!img) delete cur.img; }
       if (!(printing && printing.set)) { await persist(); return key; }
-      const nova = lotKey(cur.name, { ...printing, lang: cur.lang });
-      const ed = { set: printing.set, number: printing.number || '', set_name: printing.set_name || '', id: printing.id || '', verified: !!printing.verified };
+      // S-623 · relato #90: a edição que chega depois traz o acabamento certeiro; sem ele, fica o que a cópia já tinha
+      const certo = acabamentoCerteiro(printing), fin = certo || cur.finish || '';
+      const nova = lotKey(cur.name, { ...printing, finish: fin, lang: cur.lang });
+      const ed = { set: printing.set, number: printing.number || '', set_name: printing.set_name || '', id: printing.id || '', verified: !!printing.verified,
+        ...(fin ? { finish: fin } : {}), ...(certo ? { finishCerto: true } : {}) };
       if (nova === key) { Object.assign(cur, ed); await persist(); return key; }
       const dup = find(nova);
       if (dup) { dup.qty += cur.qty; if (cur.img && !dup.img) dup.img = cur.img; items.splice(items.indexOf(cur), 1); }
@@ -46384,7 +46388,7 @@ function createLot({ store }) {
       if (dup) { dup.qty += cur.qty; if (cur.img && !dup.img) dup.img = cur.img; delete dup.conferir; delete dup.alternativas; items.splice(pos, 1); }
       // G-350 · na fusão, a miniatura que fica é a da impressão escolhida: a nova, se veio; senão sai a que não é dela
       if (dup) { if (img) { dup.img = img; dup.imgDe = imgDe; } else if (dup.imgDe !== imgDe) { delete dup.img; dup.imgDe = ''; } }
-      else { Object.assign(cur, ed, { key: nova }); if (img) cur.img = img; else delete cur.img; cur.imgDe = img ? imgDe : ''; if (fin) cur.finish = fin; else delete cur.finish; delete cur.conferir; delete cur.alternativas; }
+      else { Object.assign(cur, ed, { key: nova }); if (img) cur.img = img; else delete cur.img; cur.imgDe = img ? imgDe : ''; if (fin) cur.finish = fin; else delete cur.finish; delete cur.finishCerto; delete cur.conferir; delete cur.alternativas; }
       if (!dup) history = history.map(k => k === key ? nova : k);
       await persist();
       let feito = false;
@@ -46507,7 +46511,7 @@ function criaLinhaSemNome({ repeticoes = 2 } = {}) {
 /** Casa a leitura com as impressões da carta. exact: uma impressão certa;
     candidates: até 3 prováveis quando a leitura é parcial ou ambígua. */
 function resolvePrinting(prints, parsed) {
-  const P = (prints || []).map(p => ({ set: String(p.set || '').toLowerCase(), number: String(p.collector_number || p.number || '').toLowerCase().replace(/^0+(?=\d)/, ''), set_name: p.set_name || '', id: p.id || '' }));
+  const P = (prints || []).map(p => ({ set: String(p.set || '').toLowerCase(), number: String(p.collector_number || p.number || '').toLowerCase().replace(/^0+(?=\d)/, ''), set_name: p.set_name || '', id: p.id || '', ...acabamentosSabidos(p) }));
   const num = String(parsed.number || '').replace(/^0+(?=\d)/, ''), set = parsed.set || '';
   const both = P.filter(p => p.set === set && p.number === num);
   if (both.length === 1) return { exact: { ...both[0], verified: true }, candidates: [] };
@@ -46533,6 +46537,19 @@ function acabamentosDa(p) {
   const pr = (p && p.prices) || {};
   const out = ACABAMENTOS.filter(x => (x === 'nonfoil' ? pr.usd || pr.eur : x === 'foil' ? pr.usd_foil || pr.eur_foil : pr.usd_etched));
   return out.length ? out : ['nonfoil'];
+}
+/* S-623 · relato #90 fatia 1 (opção A, modo agilidade 09/11): o acabamento que não tem como errar. A impressão que a
+   Scryfall diz existir em UM acabamento só (`finishes`: só foil, ou só etched) entra na pilha já com ele; a que existe em
+   normal, ou em mais de um, ou sem `finishes` sabido (preço não prova que o normal não existe), não muda nada. */
+/** Os `finishes` da impressão, só quando a Scryfall os mandou: { finishes } ou {} (para espalhar no objeto da impressão). */
+function acabamentosSabidos(p) {
+  const f = p && Array.isArray(p.finishes) ? ACABAMENTOS.filter(x => p.finishes.includes(x)) : [];
+  return f.length ? { finishes: f } : {};
+}
+/** '' (normal ou incerto), 'foil' ou 'etched': o acabamento da coleção quando a impressão só existe nele. Pura. */
+function acabamentoCerteiro(printing) {
+  const f = acabamentosSabidos(printing).finishes || [];
+  return f.length === 1 && f[0] !== 'nonfoil' ? ACABAMENTO_NA_COLECAO[f[0]] : '';
 }
 /** G-350 · relato #65 · a miniatura da pilha é a da impressão da cópia: casa pelo id, senão pela coleção e pelo número.
     Sem edição, ou impressão que não está na lista, devolve '' (a pilha mostra a arte desconhecida) — nunca a primeira
@@ -46601,10 +46618,10 @@ function artistaNoTexto(artista, tokens) {
     linha de coleção; arte: { ilustracao, set, numero } da arte achada }. Devolve { exact, candidates, pontos, por }. */
 function resolveEdicao(prints, { textos = [], arte = null } = {}) {
   const P = (prints || []).map(p => ({ set: String(p.set || '').toLowerCase(), number: semZeros(p.collector_number || p.number), set_name: p.set_name || '', id: p.id || '',
-    artista: p.artist || p.artista || '', ilustracao: p.illustration_id || p.ilustracao || '' }));
+    artista: p.artist || p.artista || '', ilustracao: p.illustration_id || p.ilustracao || '', ...acabamentosSabidos(p) }));
   const sai = (exact, candidates, pontos = [], por = []) => ({ exact, candidates, pontos, por });
   if (!P.length) return sai(null, []);
-  const limpa = p => ({ set: p.set, number: p.number, set_name: p.set_name, id: p.id });
+  const limpa = p => ({ set: p.set, number: p.number, set_name: p.set_name, id: p.id, ...(p.finishes ? { finishes: p.finishes } : {}) });
   if (P.length === 1) return sai({ ...limpa(P[0]), verified: true }, [], [], ['única impressão']);
   const { tokens } = tokensDaColecao(textos);
   const nums = new Set(tokens.map(t => t.replace(/[A-Z]$/, '')).filter(t => /^\d{1,4}$/.test(t)).map(semZeros));
@@ -47603,7 +47620,7 @@ const LIMIARES_LINHA = { borrada: 0.5, deslocamentoMax: 0.05, correndo: 0.12, al
     mas a carta não conta como parada (nada entra na primeira passada; o porteiro pede repetição). */
 function pulaPorMovimento(mov, { via = 'auto', contorno = true } = {}) { return via !== 'manual' && contorno && mov > LIMIARES_LINHA.correndo; }
 
-return { criaLinhaSemNome, imagemDaImpressao, cleanOcr, matchName, matchLines, criaVotacao, criaPorteiro, PORTEIRO, leituraConfiavel, nitidezDaFaixa, movimentoEntre, LIMIARES_FAIXA, criaDiario, criaCronometro, criaRefoco, EXATA, buildIndex, candidatosDoIndice, createNameIndex, IDIOMAS_DOS_NOMES, LINGUAS_DO_LEITOR, linguaDoLeitor, temCjk, chaveCjk, indiceCjk, matchCjk, createLot, coverRegion, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, resolveEdicao, artistaNoTexto, acabamentosDa, edicoesDaCarta, arteDaImpressao, filtraEdicoes, iconeDoSet, ACABAMENTO_NA_COLECAO, NOME_DO_ACABAMENTO, ACCEPT, ALTA, SUGGEST, lev,
+return { criaLinhaSemNome, imagemDaImpressao, cleanOcr, matchName, matchLines, criaVotacao, criaPorteiro, PORTEIRO, leituraConfiavel, nitidezDaFaixa, movimentoEntre, LIMIARES_FAIXA, criaDiario, criaCronometro, criaRefoco, EXATA, buildIndex, candidatosDoIndice, createNameIndex, IDIOMAS_DOS_NOMES, LINGUAS_DO_LEITOR, linguaDoLeitor, temCjk, chaveCjk, indiceCjk, matchCjk, createLot, coverRegion, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, resolveEdicao, artistaNoTexto, acabamentosDa, acabamentoCerteiro, acabamentosSabidos, edicoesDaCarta, arteDaImpressao, filtraEdicoes, iconeDoSet, ACABAMENTO_NA_COLECAO, NOME_DO_ACABAMENTO, ACCEPT, ALTA, SUGGEST, lev,
   detectaCarta, detectaEmEscalas, ESCALAS_DETECTOR, brilho, nitidez, prontoParaLer, criaDetector, paradaEm, screenRect, LIMIARES, PROPORCAO_CARTA, realcaTexto, trechoEscuroEmbaixo, limpaBordas, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, faixaDaCarta, escalaOcr,
   retasDoQuadro, achaQuadrilatero, ordenaCantos, homografia, cantosDaFaixa, cantosDeitada, cartaDeitada, cantosDaImagemDaArte, retifica, maisNitida, FAIXA_NOME, FAIXA_COLECAO, LARGURA_NOME, linhaDoNome, binarizaLinha, limpaLinha, nitidezDaLinha, afiaLinha, realcaEstouro, FAIXA_ARTE, BITS_ARTE, impressaoDaArte, distanciaDaArte, buscaArte, abreBaseDeArtes, binDasArtes, criaBaseDeArtes, decideArte, arteDaEdicao, LIMIAR_ARTE, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, alturaDaCarta, deslocamento, LIMIARES_LINHA, pulaPorMovimento, QUAD };
 })();
@@ -47618,7 +47635,7 @@ const __m22 = (function () {
    o scanner abre); correspondência contra a base de nomes (C6).
    ===================================================================== */
 const { h, mount, Stack, Row, Surface, Text, Button, Field, Input, Select, Badge, Chip, Empty, Note, Spinner, Dialog, closeDialog, toast, reservaDoca, Simbolo, Icone, IconButton, AvisoRede, ArteDesconhecida } = __m3;
-const { criaLinhaSemNome, imagemDaImpressao, createLot, coverRegion, screenRect, parseCollectorLine, resolvePrinting, resolveEdicao, edicoesDaCarta, filtraEdicoes, ACABAMENTO_NA_COLECAO, NOME_DO_ACABAMENTO, ACCEPT, EXATA, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, criaPorteiro, PORTEIRO, leituraConfiavel, criaDiario, criaCronometro, criaRefoco, realcaTexto,
+const { criaLinhaSemNome, imagemDaImpressao, createLot, coverRegion, screenRect, parseCollectorLine, resolvePrinting, resolveEdicao, acabamentosSabidos, edicoesDaCarta, filtraEdicoes, ACABAMENTO_NA_COLECAO, NOME_DO_ACABAMENTO, ACCEPT, EXATA, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, criaPorteiro, PORTEIRO, leituraConfiavel, criaDiario, criaCronometro, criaRefoco, realcaTexto,
   achaQuadrilatero, cantosDeitada, cartaDeitada, preparaNome, preparaColecao, maisNitida, larguraColecao, recorteDaFaixa, FAIXA_NOME, FAIXA_COLECAO, alturaDaCarta, deslocamento, LIMIARES_LINHA, pulaPorMovimento, brilho,
   FAIXA_ARTE, impressaoDaArte, criaBaseDeArtes, decideArte, arteDaEdicao, LIMIAR_ARTE, LINGUAS_DO_LEITOR, linguaDoLeitor } = __m21;
 const { pulse } = __m20;
@@ -48155,7 +48172,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     let carta = null;
     try { carta = scryfall.impressao ? await scryfall.impressao(p.set, p.number, p.lang, { prioridade: 'alta' }) : null; } catch (e) { carta = null; }
     if (!carta || !state.alive) { dicaTexto(DICAS.linhaNaoAchada); return `linha ${rotulo}: não achada`; }
-    const printing = { set: p.set, number: p.number, set_name: carta.set_name || '', id: carta.id || '', verified: true, ...(p.lang && p.lang !== 'en' ? { lang: p.lang } : {}) };
+    const printing = { set: p.set, number: p.number, set_name: carta.set_name || '', id: carta.id || '', verified: true, ...acabamentosSabidos(carta), ...(p.lang && p.lang !== 'en' ? { lang: p.lang } : {}) };
     const key = await lot.add(carta.name, 1, printing, { conferir: true });
     announce(carta.name); state.aceitoEm = Date.now();
     state.last = { text: lido.texto, found: [], key, printing, candidates: [], pendente: false };
