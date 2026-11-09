@@ -707,6 +707,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ui 🟡 | T-IDIOMA relatos #53/#66, fatia 1: o português cobre a interface (Rulings → Esclarecimentos, Near Mint → Quase nova, Etched → Foil gravado, Offline → Sem internet, cinco palavras-chave e os marcadores com nome em português na mesa e no registro); falta troca de idioma, pacotes es/en e texto das cartas (leva G-353, 07/11/2026) | T | 1 | — |
 | 16º-up ✅ | T-IDIOMA relatos #53/#66, fatia 2: a folha da carta mostra nome, tipo e texto oficiais impressos em português (Scryfall), com a troca para o original, guardados no aparelho; nunca impressa fica em inglês com aviso até a fatia 3 (leva G-356, 08/11/2026) | T | 1 | 16º-ui |
 | 16º-us ✅ | T-IDIOMA relatos #53/#66, fatia 4: Perfil › Idioma (português, inglês, espanhol, com bandeira e nome no próprio idioma), o app inteiro na hora pela camada de tradução da tela e pelos pacotes idiomas/en.json e es.json, a folha da carta no idioma (oficial impresso; Oracle em inglês) com o texto antes da imagem, e a camada obrigatória (texto novo sem tradução derruba o portão) (leva G-361, 08/11/2026) | T | 1 | 16º-up |
+| 16º-uu ✅ | T-IDIOMA relatos #53/#66, fatia 3: a carta que nunca saiu impressa em português ou espanhol mostra a tradução precisa do robô (idiomas/cartas-pt.json e cartas-es.json, 113 e 19 cartas das listas Pauper e do Shark), marcada "Tradução", com o original a um toque, conferida por idioma-cartas.mjs (símbolos, números, palavras-chave e nome) e só para o Oracle que ela traduziu (leva G-365, 09/11/2026) | T | 1 | 16º-us |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -13511,6 +13512,26 @@ trilha `geral`, 09/11/2026; relato do dono de 09/11: o Enviar abria o GitHub e o
   seguem em inglês/português de origem (são dados); a carta que nunca saiu impressa no idioma fica em inglês com aviso até a
   fatia 3; o registro e as escolhas da mesa traduzem pelo pacote, mas o texto das cartas dentro da mesa (fora da folha) segue
   o Oracle.
+- **Fatia 3 · tradução precisa da carta nunca impressa (G-365, `16º-uu`, rotina Relatos contínuo, 09/11/2026) ✅:** meio
+  "robô" (o recomendado; modo agilidade): a rotina na nuvem do Claude traduz uma vez cada carta das listas que nunca saiu
+  impressa no idioma e grava em `idiomas/cartas-pt.json` / `cartas-es.json` (`{ original, tipo, texto }` por nome inglês;
+  o nome fica o inglês, porque a carta nunca teve nome no idioma). Primeiro lote: 113 cartas em português e 19 em espanhol
+  (as das 685 listas Pauper do catálogo e das listas do Shark sem nome impresso em `artes:nomes-<idioma>.json`, com o Oracle
+  dos textos conferidos em `.listas/oficiais*.json`). **Conferidor** (`idioma-cartas.mjs`, `--conferir`): barra tradução que
+  muda símbolo de mana/custo, número em algarismos, perde palavra-chave (glossário oficial pt/es, o mesmo nome da mesa) ou o
+  nome da carta citado, vazia ou igual ao inglês. **App:** a folha da carta, quando a Scryfall diz que não há impressão no
+  idioma, busca a tradução (`__m7.createTraducaoCartas`: pacote baixado na primeira carta que precisa, guardado em
+  `cartas.texto.traducao.<idioma>`, vale sem internet, renova depois de 7 dias) e mostra tipo e texto traduzidos com o selo
+  "Tradução para o português/espanhol" e "Ver o original". Só vale se o Oracle traduzido ainda é o da carta (comparação sem
+  espaço, aspas e travessão): regra mudou, fica em inglês com o aviso de antes. A partida segue no Oracle em inglês.
+  `node idioma-cartas.mjs --faltam pt|es` lista o que falta para o próximo lote. Testes: U `idioma-traducao.unit` (novo:
+  conferidor, pacotes inteiros, faltam, regra do Oracle, guarda e prazo) e e2e "G-365" (tradução marcada, original, Oracle
+  mudado, pacote guardado). `vercel-publico.unit` mudou de propósito (dois arquivos novos em `idiomas/`).
+  **Parcial, declarado:** 17 cartas Pauper em português e 4 em espanhol ficaram de fora por falta do Oracle no repositório
+  (a sessão não alcança a Scryfall; ex.: Holy Light, Flash Flood, Fang Dragon); cartas de duas faces só têm a primeira face
+  traduzida; textos do repositório que já envelheceram em relação ao Oracle atual não aparecem (a carta fica em inglês) até o
+  robô refazer com o Oracle novo; Commander e os outros formatos ficam para os próximos lotes; o texto das cartas dentro da
+  mesa (fora da folha) segue o Oracle.
 - **Fora, declarado (fatias seguintes):** a troca de idioma no Perfil (item 2); os pacotes **es** e **en** (item 3: extrair os
   textos para um dicionário por idioma, história de várias rodadas); texto e nome das cartas (item 4, aguarda decisão
   "oficial"/"automática"); a **camada obrigatória de idioma em toda entrega** (texto novo nasce no dicionário e o teste barra

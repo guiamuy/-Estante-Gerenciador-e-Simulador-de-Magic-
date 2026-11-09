@@ -22,6 +22,9 @@ export const ARQUIVOS = [
   // G-361 · T-IDIOMA: os pacotes de idioma (baixados só por quem escolhe inglês ou espanhol)
   'idiomas/en.json',
   'idiomas/es.json',
+  // G-365 · T-IDIOMA fatia 3: a tradução do robô das cartas nunca impressas em português e em espanhol
+  'idiomas/cartas-pt.json',
+  'idiomas/cartas-es.json',
 ];
 
 export async function monta({ raiz = '.', destino = join(raiz, PASTA), arquivos = ARQUIVOS } = {}) {
