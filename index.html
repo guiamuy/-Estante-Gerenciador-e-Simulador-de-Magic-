@@ -38016,7 +38016,7 @@ function jogadaProfissional(s, p, opts = {}) {
     const custoDescarte = opts.recursos && a.t === 'discard' && a.oid ? valorNaMao(s, p, a.oid) * 0.5 : 0;
     // B10b · efeito opcional de graça ("você pode comprar"): em empate, aceita. Antes o empate caía em "não fazer".
     const aceite = opts.aceita && minhaDecisao && pend.kind === 'may_pay' && !pend.cost && !pend.extra && a.t === 'pay' ? 1 : 0;
-    return notaComResposta(depois, p, opts) - custoDescarte + aceite - gastaAResposta(w, a, depois) - reservaDaAnulacao(a) - alvoProprio(a) - guardaONinja(w, a, depois);
+    return notaComResposta(depois, p, opts) - custoDescarte + aceite - gastaAResposta(w, a, depois) - reservaDaAnulacao(a) - reservaDaRemocao(a) - alvoProprio(a) - guardaONinja(w, a, depois);
   };
   // B-192 · `habilita` (B25, fase 4, Control): a habilidade ativada que só prepara (equipar o Viridian Longbow) vale pelo que
   // ela abre no mesmo turno — até quatro habilidades ativadas novas, a melhor delas resolvida. Antes equipar valia zero (o
@@ -38124,6 +38124,28 @@ function jogadaProfissional(s, p, opts = {}) {
     }
     const minhas = s.zones[p].hand.filter(ANULA).length || 1;
     return Math.max(0, refAnula[nome] - valorDeMana(alvo.name)) * PESOS.mao / minhas;
+  }
+  // B-207 · `reservaRemocao` (B25, classe B do diagnóstico da B-200): a remoção guardada vale pela criatura do oponente que ela
+  // ainda pode pegar, como a anulação na B-179. Gastar remoção de alvo único (destruir, exilar, dano, −X/−X) numa criatura mais
+  // barata que a média das criaturas que restam na lista dele (mão e grimório juntos: a composição é a mesma em todo mundo
+  // possível, informação justa) custa a diferença em valor de mana × o dobro do peso de uma carta na mão, dividido pelas remoções
+  // que tenho (com o peso simples, o Cast Down ainda ia no Llanowar Elves no fim do turno dos Elfos: posição `rem-elfo-de-mana`). A criatura que é ameaça pelo efeito (ameacaPeloEfeito: cresce com a mesa, gatilho a cada mágica) não paga: matar o
+  // motor é o certo, não o desperdício. Antes o Snuff Out ia no elfo de mana e a Hydra 1/2 (partidas narradas de 02/11).
+  const REMOVE = /"do":"(destroy|exile|damage)"/;
+  const ehRemocao = oid => { const o = s.objects[oid]; if (!o) return false; const sc = (s.facts[o.name] || {}).script || {}; if (!(sc.effects || []).length || ANULA(oid)) return false; const js = JSON.stringify(sc.effects); return REMOVE.test(js) || /"do":"pump"[^}]*"toughness":-\d/.test(js); };
+  let refRemove = null;
+  function reservaDaRemocao(a) {
+    if (!opts.reservaRemocao || a.t !== 'cast' || (a.targets || []).length !== 1 || !ehRemocao(a.oid)) return 0;
+    const alvo = s.objects[(a.targets[0] || {}).oid];
+    if (!alvo || alvo.controller === p || !s.zones[alvo.controller].battlefield.includes(alvo.oid) || !((s.facts[alvo.name] || {}).types || []).includes('creature')) return 0;
+    if (alvo.token || ameacaPeloEfeito(s, alvo)) return 0;
+    if (refRemove == null) {
+      const d = oponenteDe(s, p), w = W[0], vals = [];
+      for (const oid of [...w.zones[d].hand, ...w.zones[d].library]) { const o = w.objects[oid]; if (o && ((s.facts[o.name] || {}).types || []).includes('creature')) vals.push(valorDeMana(o.name)); }
+      refRemove = vals.length ? vals.reduce((x, y) => x + y, 0) / vals.length : 0;
+    }
+    const minhas = s.zones[p].hand.filter(ehRemocao).length || 1;
+    return Math.max(0, refRemove - valorDeMana(alvo.name)) * PESOS.mao * 2 / minhas;
   }
   // B10b · segurar a anulação: com uma resposta na mão que as minhas fontes desviradas pagam, a jogada que me deixa
   // sem essa mana no turno do oponente custa 6 pontos (a resposta em si não paga o pedágio).
@@ -39037,6 +39059,7 @@ const NOVO24 = { ...NOVO23, desligaNoPerfil: true }; // congelado como 'shark-v2
 const NOVO25 = { ...NOVO24, ninjaDepois: true }; // congelado como 'shark-v25' (B-203) · B-200 · B25 · o ninja entra pelo ninjútsu depois do ataque, não pela mão antes do combate (guardaONinja): piloto Faeries 13 × 10 em 32 pares (5 só do novo, 2 só do antigo)
 const NOVO26 = { ...NOVO25, perfilDerivado: true }; // congelado como 'shark-v26' (B-205) · B-203 · B25 · o perfil sai do que as cartas fazem (perfilDerivado), não dos nomes exigidos: nas cinco listas dá as mesmas chaves que os PERFIS à mão; numa lista nova, as mesmas regras valem sem código novo
 const NOVO = { ...NOVO26, perfilPeloPadrao: true }; // B-205 · B25 · o combo pelo padrão (comboDaLista) e as ameaças do campo pelo efeito (ameacaPeloEfeito): nenhum nome de carta escrito no código chega à decisão do Shark publicado; nas cinco listas, as mesmas jogadas do shark-v26
+// B-207 · `reservaRemocao` (remoção guardada para a criatura que importa, B25 classe B) foi medida e fica desligada: piloto Faeries 21 × 23 em 48 pares (3 só do novo, 5 só do antigo), Control 16 × 15 em 32 (1 só do novo); acerta a posição `rem-elfo-de-mana` da bateria, mas não se paga em partida
 // B-176 · `ameacas` (ameaças do campo no perfil do Dimir Control) foi medida e fica desligada: 26 de 64 contra 27 de 64 pilotando o Control
 function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date.now(), mundos: mundosN = 0, extra: extraOpts = null, pesos = null } = {}) {
   // Leva 117 · 'profissional' e 'shark' são o Shark atual (v4: o v3 com informação justa). 'shark-v3', 'shark-v2'

@@ -179,6 +179,15 @@ export const POSICOES = [
   { id: 'seq-ninja-pelo-ataque', classe: 'sequencia', lista: FAERIES, porque: 'Augur desvirado, o outro lado sem bloqueador, Ninja of the Deep Hours na mão e quatro terras: o ninja entra pelo ninjútsu depois do ataque (2 manas, compra), não pela mão por 4',
     monta: () => monta(FAERIES, MADNESS, { p0: { campo: ['Contaminated Aquifer', 'Swamp', 'Island', 'Island', 'Augur of Bolas'], mao: ['Ninja of the Deep Hours', 'Counterspell', 'Cast Down'], vida: 13 }, p1: { campo: ['Mountain', 'Mountain', 'Mountain', 'Sneaky Snacker'], viradas: ['Mountain', 'Mountain', 'Mountain', 'Sneaky Snacker'] } }),
     certo: (s, j) => !(j.acao.t === 'cast' && nomeDe(s, j.acao.oid) === 'Ninja of the Deep Hours') },
+  // B-207 · Faeries (classe B do diagnóstico da B-200: remoção em alvo barato): o Cast Down ia no Llanowar Elves no fim do turno
+  // dos Elfos, com o Priest of Titania, a Avenging Hunter e o Generous Ent ainda na lista. O Priest (ameaça pelo efeito) continua alvo.
+  // O Shark publicado erra `rem-elfo-de-mana` de propósito (fila de trabalho): a opção `reservaRemocao` acerta, mas mediu 21 × 23 nas Faeries.
+  { id: 'rem-elfo-de-mana', classe: 'recurso', lista: FAERIES, porque: 'fim do turno dos Elfos, só um Llanowar Elves no campo, Snuff Out e Cast Down na mão: a remoção espera a criatura que importa',
+    monta: () => monta(FAERIES, ELFOS, { ativo: 1, vez: 0, passo: 'end', p0: { campo: ['Island', 'Swamp', 'Island'], mao: ['Snuff Out', 'Cast Down', 'Counterspell'] }, p1: { campo: ['Forest', 'Forest', 'Llanowar Elves'], viradas: ['Forest', 'Forest'] } }),
+    certo: (s, j) => j.acao.t === 'pass' },
+  { id: 'rem-priest-sim', classe: 'recurso', lista: FAERIES, porque: 'fim do turno dos Elfos, Llanowar Elves e Priest of Titania no campo: a remoção vai no Priest, o motor que cresce com a mesa',
+    monta: () => monta(FAERIES, ELFOS, { ativo: 1, vez: 0, passo: 'end', p0: { campo: ['Island', 'Swamp', 'Island'], mao: ['Snuff Out', 'Cast Down', 'Counterspell'] }, p1: { campo: ['Forest', 'Forest', 'Llanowar Elves', 'Priest of Titania'], viradas: ['Forest', 'Forest'] } }),
+    certo: (s, j) => j.acao.t === 'cast' && (j.acao.targets || []).some(t => nomeDe(s, t.oid) === 'Priest of Titania') },
   // ---- mulligan
   { id: 'mull-sete-terrenos', classe: 'mulligan', lista: TERROR, porque: 'sete terrenos não jogam: mulligan',
     mulligan: true, monta: () => maoInicial(TERROR, MADNESS, ['Island', 'Island', 'Island', 'Island', 'Island', 'Island', 'Island']),
