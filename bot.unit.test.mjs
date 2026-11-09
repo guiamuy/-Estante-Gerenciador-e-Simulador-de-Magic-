@@ -1540,3 +1540,53 @@ test('B-203 · contrato: o código de decisão do Shark não tem nome de carta d
   const achados = [...nomes].filter(n => src.includes("'" + n + "'") || src.includes('"' + n + '"'));
   assert.deepEqual(achados, [], 'nome de carta no código de decisão');
 });
+
+// B-205 · B25 · o combo pelo padrão e as ameaças do campo pelo efeito (pedido do dono de 08/11/2026: o Shark melhora por lógica).
+test('B-205 · combo pelo padrão: na Walls Combo, comboDaLista dá o mesmo combo que o perfil walls-combo escrito à mão; em nenhuma outra lista do catálogo de torneio nem nas cinco do Shark há combo', async () => {
+  const { cartasReais, listas, listasDoShark } = await import('./torneio.listas.mjs');
+  const CR = cartasReais(), cartasDe = d => Object.fromEntries(d.entries.filter(e => CR[e.name]).map(e => [e.name, CR[e.name]]));
+  const comCombo = [];
+  listas.forEach((d, i) => { const s = jogoDaLista({ ...d, cartas: cartasDe(d) }); const k = B.comboDaLista(s, 0); if (k) comCombo.push(i);
+    const h = B.perfilDe(s, 0);
+    if (h && h.combo) assert.deepEqual({ ...J(k), rende: undefined, finalizadores: [...k.finalizadores].sort() }, { ...J(h.combo), rende: undefined, finalizadores: [...h.combo.finalizadores].sort() }, d.name); });
+  assert.deepEqual(comCombo, [4], 'só a Walls Combo');
+  for (const d of listasDoShark()) assert.equal(B.comboDaLista(jogoDaLista(d), 0), null, d.id);
+});
+test('B-205 · ameaças pelo efeito: nas cinco listas do Shark, ameacaPeloEfeito pega as seis de AMEACAS_DO_CAMPO e só mais o Moon-Circuit Hacker (compra a cada dano de combate, como o Ninja)', async () => {
+  const { listasDoShark } = await import('./torneio.listas.mjs');
+  const achadas = new Set();
+  for (const d of listasDoShark()) { const s = jogoDaLista(d); for (const o of Object.values(s.objects)) if (o.owner === 0 && B.ameacaPeloEfeito(s, o)) achadas.add(o.name); }
+  for (const n of B.AMEACAS_DO_CAMPO) assert.ok(achadas.has(n), n);
+  assert.deepEqual([...achadas].filter(n => !B.AMEACAS_DO_CAMPO.includes(n)), ['Moon-Circuit Hacker']);
+});
+test('B-205 · com a opção ameacas, o Shark publicado (ameaças pelo efeito) mata o Timberwatch Elf antes do Masked Vandal, como o shark-v25 pelos nomes', async () => {
+  const { s, ids } = await montaShark(CONTROLE, ELFOS, { ativo: 1, vez: 0, passo: 'upkeep',
+    p0: { campo: ['Island', 'Swamp'], mao: ['Cast Down'] }, p1: { campo: ['Forest', 'Forest', 'Masked Vandal', 'Timberwatch Elf'] } });
+  const j = B.criaBot({ nivel: 'shark', agora: relogioParado, extra: { ameacas: true } }).jogada(s, 0);
+  assert.deepEqual([j.acao.t, (j.acao.targets || [])[0] && j.acao.targets[0].oid], ['cast', ids[1]['Timberwatch Elf']], j.motivo);
+  const pf = B.perfilPeloPadrao(s, 0), av = B.avaliadorDoPlano(B.avaliaV5, pf, 0, { ameacas: true }), sem = B.avaliadorDoPlano(B.avaliaV5, pf, 0);
+  assert.equal(av(s, 0).nota - sem(s, 0).nota, -6, 'uma ameaça pelo efeito em campo: −6');
+});
+test('B-205 · contrato: sem PERFIS e sem AMEACAS_DO_CAMPO (os nomes escritos à mão), o Shark publicado fecha o combo da Walls Combo e acha a ameaça; o shark-v26 perde o combo', async () => {
+  const guardaP = B.PERFIS.splice(0), guardaA = B.AMEACAS_DO_CAMPO.splice(0);
+  try {
+    const fecha = async nivel => {
+      let { s } = await monta(4, 3, { ativo: 0, vez: 0, passo: 'main1', p0: { ...MURO, mao: ['Freed from the Real'] } });
+      const bot = shark(nivel);
+      for (let i = 0; i < 400 && s.status === 'playing' && s.turn.active === 0; i++) {
+        const q = s.pending ? s.pending.p : s.turn.priority;
+        const j = q === 0 ? bot.jogada(s, 0) : { acao: { t: 'pass', p: 1 } };
+        if (q === 0 && j.acao.t === 'pass' && !s.stack.length) break;
+        s = act(s, j.acao);
+      }
+      return s;
+    };
+    const novo = await fecha('shark');
+    assert.equal(novo.status, 'over'); assert.equal(novo.winner, 0);
+    const v26 = await fecha('shark-v26');
+    assert.notEqual(v26.status, 'over', 'o v26 só achava o combo pelo nome');
+    const { s } = await montaShark(CONTROLE, ELFOS, { p1: { campo: ['Forest', 'Timberwatch Elf'] } });
+    const elfo = Object.values(s.objects).find(o => o.name === 'Timberwatch Elf' && o.zone === 'battlefield');
+    assert.ok(B.ameacaPeloEfeito(s, elfo));
+  } finally { B.PERFIS.push(...guardaP); B.AMEACAS_DO_CAMPO.push(...guardaA); }
+});
