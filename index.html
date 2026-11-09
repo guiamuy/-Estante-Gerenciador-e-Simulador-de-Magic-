@@ -2433,12 +2433,9 @@ body:has(#outlet .ds-fab[data-acoes="1"]) #outlet { padding-bottom: max(var(--na
 /* G-330 · relato #50 · o tom da linha de estado: em andamento (latão), atenção (texto), falha (vermelho) */
 .relato-item__aviso[data-tom="andamento"] .ds-icon, .relato-item__aviso[data-tom="andamento"] b { color: var(--accent-lo); }
 .relato-item__aviso[data-tom="falha"], .relato-item__aviso[data-tom="falha"] b { color: var(--negative); }
+.relato-item__aviso[data-tom="feito"] .ds-icon, .relato-item__aviso[data-tom="feito"] b { color: var(--positive); } /* G-364 · entregue em produção (a etapa do registro mora na linha de estado) */
 .relato-item__topo { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
 .relato-item__quando { font-size: var(--text-xs); color: var(--fg-muted); font-variant-numeric: tabular-nums; }
-.relato-item__registro { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-xs); color: var(--fg-muted); } /* G-243 · registro no GitHub e a situação de lá */
-.relato-item__numero { display: inline-flex; align-items: center; gap: 2px; min-height: var(--tap-min); padding-right: var(--space-2); color: var(--accent); font-weight: 600; text-decoration: none; }
-.relato-item__resolvido { display: inline-flex; align-items: center; gap: var(--space-1); }
-.relato-item__registro[data-situacao="resolvido"] .relato-item__resolvido { color: var(--positive); }
 .relato-item__texto { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--text-md); }
 .relato-item__acoes { display: flex; flex-wrap: wrap; gap: var(--space-1); justify-content: flex-end; }
 .relato-item__motivo { text-align: right; }
@@ -18265,13 +18262,12 @@ const DESTINOS = [
     origens: ['https://identitytoolkit.googleapis.com', 'https://securetoken.googleapis.com', 'https://*.firebaseio.com', 'wss://*.firebaseio.com', 'https://*.firebasedatabase.app'],
     // P-15 · a sincronia do perfil (A-263) e a lista de bloqueados também vão para a conta: a lista diz isso agora
     vai: 'Na sala: o código, seu nome e foto do perfil, a lista que você escolheu, as jogadas e as mensagens da conversa. Cada assento leva o código da conta da Estante de quem sentou, para que ninguém jogue no seu lugar. Com a conta da Estante conectada, também vão para ela, e só você lê: o seu perfil (nome, foto e preferências), para os seus outros aparelhos, e as contas que você bloqueou (código e nome). O nome de usuário (@), se você escolher um, fica reservado para a sua conta: quem tem conta consegue ver que ele está em uso e de que conta é. Ao criar a conta ou entrar com e-mail e senha, os dois vão para o serviço de contas do Google (Firebase Authentication), que guarda a senha protegida; no aparelho fica só o e-mail. Ao enviar um relato com a conta conectada, o relato (texto, tela e contexto, sem a partida anexada) vai para a fila da conta, de onde o repositório cria o registro público no GitHub e o tira da fila. O dono da Estante vê, uma vez por dia, só totais: quantas contas existem, quantas nasceram no dia, quantos perfis estão sincronizados e quantas salas foram criadas — sem nome, e-mail, código de conta ou de sala (R-27).',
-    quando: 'Ao criar ou entrar numa sala online. Com a conta conectada, também ao abrir o app, ao mudar uma preferência, ao abrir o Perfil, ao bloquear ou desbloquear alguém e ao tocar em Enviar num relato.',
+    quando: 'Ao criar ou entrar numa sala online. Com a conta conectada, também ao abrir o app, ao mudar uma preferência, ao abrir o Perfil, ao bloquear ou desbloquear alguém, ao tocar em Enviar num relato e, com relato guardado esperando a conta ou a rede, quando ela conecta ou a rede volta (G-364).',
     evitar: 'Jogar contra o bot ou a dois no mesmo aparelho e não conectar a conta da Estante: nada sai. O que já foi sai em Perfil › Dados › Apagar tudo, com "Apagar também da nuvem", ou de vez em Perfil › Conta › Excluir a conta (G-269).' }
 ];
 /** Endereços que o app só abre numa aba quando você toca: nada vai além do endereço. */
 const LINKS = [
-  { id: 'relatos', nome: 'Relatos no GitHub', icone: 'relato', origens: ['https://github.com'],
-    vai: 'Ao tocar em Enviar: o texto do relato, a tela, a versão do app e o tamanho da tela abrem numa página do GitHub; nada é publicado sem você confirmar lá.' },
+  // G-364 · o app não abre mais o GitHub para relatar: o relato vai pela conta da Estante (destino firebase, acima)
   { id: 'sites', nome: 'Sites das cartas e das listas', icone: 'externo', origens: ['https://scryfall.com', 'https://topdeck.gg', 'https://www.mtgo.com', 'https://guiamuy.github.io', 'https://estante-magic.vercel.app'],
     vai: 'Ao tocar em um link: o site abre noutra aba.' },
   // P-21 · MON1 · a página de doação abre fora do app; nada da Estante vai junto (nem lista, nem conta)
@@ -18848,21 +18844,24 @@ const textoDosRelatos = lista => ordena(lista).map(textoDoRelato).join('\n\n---\
    também é (decisão do dono, 09/10/2026). A partida anexada não cabe no endereço: fica no aparelho (Exportar JSON). */
 const REPOSITORIO = 'guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-';
 const MARCA = 'estante-relato';
-const CORPO_MAX = 3000; // o endereço do GitHub tem limite; o texto longo é cortado com aviso
+const CORPO_MAX = 3000; // o texto longo é cortado com aviso (era o limite do endereço do GitHub; o registro segue igual)
 function dadosDoRelato(r) {
   const c = r.contexto || {};
   return { v: 1, id: r.id, criadoEm: r.criadoEm, ...(r.editadoEm ? { editadoEm: r.editadoEm } : {}), tipo: r.tipo, urgencia: r.urgencia, area: r.area, rota: r.rota, endereco: r.endereco || r.rota,
     tela: r.tela || null, app: c.app || '', motor: c.motor ?? null, tema: c.tema || '', viewport: c.tela || '', online: c.online !== false, partidaAnexada: !!r.partida,
     partida: c.partida ? { modo: c.partida.modo, turno: c.partida.turno, etapa: c.partida.etapa } : null };
 }
-/** O endereço da página de novo registro, já preenchida: título curto, texto do relato e os dados em JSON. */
-function enderecoDoRegistro(r, repo = REPOSITORIO) {
+/** O registro que o relato vira: título curto, texto do relato e os dados em JSON, com a etiqueta `relato`.
+    G-364 · era o endereço da página de novo registro do GitHub, que o Enviar abria; o app não abre mais o GitHub e o endereço
+    saiu. Quem usa é só o fluxo "Relatos pela fila" (relatos-fila.mjs), para criar o registro com o mesmo título e corpo
+    (relatos.conexao.unit confere que nenhuma tela o chama). Puro. */
+function registroDoApp(r) {
   let texto = textoDoRelato(r);
   if (texto.length > CORPO_MAX) texto = texto.slice(0, CORPO_MAX - 40).trimEnd() + '\n\n…(texto cortado: o relato inteiro está no aparelho)';
   const resumo = r.descricao.replace(/\s+/g, ' ').trim();
   const titulo = `[${rotuloDe(TIPOS, r.tipo)} · ${rotuloDe(URGENCIAS, r.urgencia)}] ${nomeDaTela(r)} — ${resumo.length > 60 ? resumo.slice(0, 59).trimEnd() + '…' : resumo}`;
   const corpo = `${texto}\n\n<!-- ${MARCA} ${JSON.stringify(dadosDoRelato(r))} -->`;
-  return `https://github.com/${repo}/issues/new?` + new URLSearchParams({ title: titulo, body: corpo, labels: 'relato' }).toString();
+  return { title: titulo, body: corpo, labels: ['relato'] };
 }
 
 /** Y2 · o que a partida diz de si num relato: modo, turno, etapa, de quem é a vez e a prioridade, vida, decisão em curso e
@@ -18881,15 +18880,27 @@ function contextoDaPartida({ s, v = 0, entradas = [], options = {}, setup = {}, 
    (id, número e situação de cada registro do app, sem o texto); o app concilia com os relatos do aparelho. */
 const URL_SITUACAO = baseDosDados('relatos') + 'situacao.json';
 const BUSCA_SITUACAO_MS = 10 * 60 * 1000; // no máximo uma busca a cada 10 minutos (a tabela muda a cada registro)
-const urlDoRegistro = n => `https://github.com/${REPOSITORIO}/issues/${n}`;
-/** Valida o arquivo publicado e devolve id → { numero, situacao, resolvidoEm }. Endereço montado aqui (nunca o do arquivo). Puro. */
+// G-364 · o número do registro deixou de ser link para o GitHub (urlDoRegistro saiu): mora na linha de estado do cartão
+/** Valida o arquivo publicado e devolve id → { numero, situacao, resolvidoEm, etapa }. Endereço montado aqui (nunca o do arquivo). Puro.
+    G-364 · `etapa` (registrado, em atuação, aguarda você, resolvido, descartado) vem das etiquetas do registro; a tabela velha
+    não tem: aberto vira 'registrado' e resolvido vira 'resolvido'. `motivo` (aguarda você) e `juntadoA` (descartado como
+    duplicata) só entram limpos: texto curto sem controle, número inteiro. `situacao` segue aberto/resolvido (o app velho lê). */
+const MOTIVO_MAX = 160;
+const limpaMotivo = t => { const s = String(t).replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim(); return s.length > MOTIVO_MAX ? s.slice(0, MOTIVO_MAX - 1).trimEnd() + '…' : s; };
 function situacaoDosRegistros(dados) {
   const m = new Map();
   if (!dados || dados.versao !== 1 || !Array.isArray(dados.relatos)) return m;
   for (const x of dados.relatos) {
     if (!x || typeof x.id !== 'string' || !/^[a-z0-9]{4,40}$/i.test(x.id) || !Number.isInteger(x.numero) || x.numero < 1 || !['aberto', 'resolvido'].includes(x.situacao)) continue;
     const resolvidoEm = x.situacao === 'resolvido' && typeof x.resolvidoEm === 'string' && !isNaN(Date.parse(x.resolvidoEm)) ? x.resolvidoEm : null;
-    m.set(x.id, { numero: x.numero, situacao: x.situacao, resolvidoEm });
+    const fechado = x.situacao === 'resolvido', pedida = ETAPAS_DO_REGISTRO.includes(x.etapa) ? x.etapa : null;
+    // etapa que contradiz a situação (fechado com etapa de aberto, ou o contrário) cai na que a situação diz
+    const etapa = pedida && fechado === ['resolvido', 'descartado'].includes(pedida) ? pedida : fechado ? 'resolvido' : 'registrado';
+    const info = { numero: x.numero, situacao: x.situacao, resolvidoEm, etapa };
+    const motivo = etapa === 'aguarda-dono' && typeof x.motivo === 'string' ? limpaMotivo(x.motivo) : '';
+    if (motivo) info.motivo = motivo;
+    if (etapa === 'descartado' && Number.isInteger(x.juntadoA) && x.juntadoA > 0 && x.juntadoA !== x.numero) info.juntadoA = x.juntadoA;
+    m.set(x.id, info);
   }
   return m;
 }
@@ -18900,7 +18911,9 @@ function concilia(r, info) {
   if (!info) return r;
   let n = r;
   const muda = campos => { n = { ...n, ...campos }; };
-  if (!r.registro || r.registro.numero !== info.numero) muda({ registro: { numero: info.numero } });
+  // G-364 · o registro guarda também a etapa (e o motivo, ou com quem foi juntado): muda quando qualquer um muda
+  const reg = { numero: info.numero, ...(info.etapa ? { etapa: info.etapa } : {}), ...(info.motivo ? { motivo: info.motivo } : {}), ...(info.juntadoA ? { juntadoA: info.juntadoA } : {}) };
+  if (!r.registro || JSON.stringify(r.registro) !== JSON.stringify(reg)) muda({ registro: reg });
   if (info.situacao === 'resolvido' && info.resolvidoEm && n.resolvidoPeloRegistro !== info.resolvidoEm) {
     if (n.status !== 'resolvido') muda({ status: 'resolvido', resolvidoEm: info.resolvidoEm });
     muda({ resolvidoPeloRegistro: info.resolvidoEm });
@@ -19017,7 +19030,7 @@ function abreRelato(editando = null) {
       if (r.enviado) { closeDialog(); toast('Relato já enviado: ele não muda mais'); return; }
       if (!r.ok) { erros = r.erros; pintaCampos(); const prim = ['tipo', 'urgencia', 'descricao'].find(k => erros[k]); const el = document.getElementById('relato-' + prim); if (el) el.focus({ preventScroll: false }); return; }
       closeDialog();
-      toast(r.relato.enviadoEm ? 'Relato corrigido · se você não confirmou no GitHub, toque em Enviar de novo' : 'Relato corrigido', 4200); // G-261
+      toast(r.relato.enviadoEm ? 'Relato corrigido · toque em Enviar de novo' : 'Relato corrigido', 4200); // G-261 · G-364: sem falar em GitHub
       return;
     }
     const agoraExtra = contextoExtra ? contextoExtra() : null;
@@ -19160,25 +19173,60 @@ let filtroAtual = { ...FILTRO_VAZIO }, filtrosAbertos = false; // ficam enquanto
 /* ---------------- T6e-2 · relato #13 · Enviar sem sair do app ----------------
    Com a conta da Estante conectada e a fila ligada (o fluxo "Relatos pela fila" grava `fila.json` no ramo `relatos` na
    primeira rodada com a conta de serviço), Enviar põe o relato na fila do Firebase (`relatos/fila/<conta>/<id>`, A-262)
-   e o fluxo do repositório cria o registro na rodada seguinte; o número volta pela situação de sempre (G-243). Sem
-   conta, sem rede ou com a fila desligada, Enviar abre o GitHub como antes.
-   G-256 · o fluxo é agendado a cada 10 minutos, mas o GitHub atrasa agendamentos deste repositório em horas (12/10/2026:
-   uma rodada em 4 horas); a tela diz o prazo real (PRAZO_FILA) e a conversa que lê relatos roda a fila antes (CLAUDE.md). */
-const PRAZO_FILA = 'O número do registro chega em algumas horas'; // G-330 · relato #50 · uma linha, sem "de minutos a…"
+   e o fluxo do repositório cria o registro na rodada seguinte; o número volta pela situação de sempre (G-243).
+   G-364 · o app nunca mais abre o GitHub para relatar: sem a sessão da Estante, Enviar tenta retomá-la em silêncio; se não
+   der, o relato fica guardado ("Aguardando conexão" ou "Sem internet") e segue sozinho quando a conta conecta ou a rede
+   volta (createEnvioAutomatico). A rotina da nuvem roda a fila de hora em hora: o prazo da tela é o real (PRAZO_FILA). */
+const PRAZO_FILA = 'O registro sai em até 1 hora'; // G-364 · a fila roda de hora em hora (antes: "em algumas horas")
 /** G-330 · relato #50 · o motivo da falha em duas ou três palavras, para a linha de estado do cartão. Puro. */
 const MOTIVO_CURTO = { 'sem-rede': 'Sem internet', grande: 'Grande demais para a fila', 'sem-conta': 'Conecte a conta da Estante', erro: 'A fila não respondeu' };
 const motivoCurto = r => (r && r.envioFalhou && MOTIVO_CURTO[r.envioFalhou.motivo]) || 'Não deu certo';
 /** G-330 · relato #50 · a linha de estado do envio, igual em todo cartão: ícone · título curto · uma linha do que acontece ou do
-    que fazer. 'nao-enviado' e 'registrado' não têm linha (o botão Enviar e o registro já dizem). Puro: devolve dado para a tela. */
+    que fazer. 'nao-enviado' não tem linha (o botão Enviar diz). Puro: devolve dado para a tela.
+    G-364 · cada passo até a produção: no aparelho (aguardando conexão, sem internet), na fila, registrado, em atuação,
+    aguarda você, entregue em produção (ou descartado). `comNumero` põe o número do registro no título. */
 const ESTADO_DO_ENVIO = {
+  'aguarda-conexao': { icone: 'pessoa', titulo: 'Aguardando conexão', linha: 'Conecte a conta e ele segue sozinho.', tom: 'atencao' },
+  'sem-internet': { icone: 'semRede', titulo: 'Sem internet', linha: 'Segue sozinho quando a rede voltar.', tom: 'atencao' },
   'na-fila': { icone: 'subir', titulo: 'Na fila', linha: `${PRAZO_FILA}.`, tom: 'andamento' },
-  'no-github': { icone: 'externo', titulo: 'Aberto no GitHub', linha: 'Confirme lá, ou envie de novo.', tom: 'atencao' },
+  registrado: { icone: 'registro', titulo: 'Registrado', linha: 'Esperando a vez de ser atendido.', tom: 'andamento', comNumero: true },
+  'em-atuacao': { icone: 'editar', titulo: 'Em atuação', linha: 'A correção está sendo feita.', tom: 'andamento', comNumero: true },
+  'aguarda-dono': { icone: 'conversa', titulo: 'Aguarda você', linha: 'Há uma pergunta para você.', tom: 'atencao', comNumero: true },
+  resolvido: { icone: 'marcar', titulo: 'Entregue em produção', linha: 'Já está no app.', tom: 'feito' },
+  descartado: { icone: 'fechar', titulo: 'Descartado', linha: 'Não vai ser feito.', tom: 'atencao', comNumero: true },
+  'no-github': { icone: 'alerta', titulo: 'Não confirmado', linha: 'Envie de novo pela fila.', tom: 'atencao' },
   falhou: { icone: 'alerta', titulo: 'Não enviado', linha: null, tom: 'falha' }
 };
-function estadoDoEnvio(r) {
-  const k = situacaoDoEnvio(r), e = ESTADO_DO_ENVIO[k];
-  return e ? { ...e, situacao: k, linha: k === 'falhou' ? `${motivoCurto(r)}.` : e.linha } : null;
+/** G-364 · as etapas que a tabela de relatos traz de cada registro (campo `etapa` do situacao.json). */
+const ETAPAS_DO_REGISTRO = ['registrado', 'em-atuacao', 'aguarda-dono', 'resolvido', 'descartado'];
+/** G-364 · a chave da linha de estado: o envio no aparelho e, depois do registro, a etapa que voltou da tabela. Puro. */
+function etapaDoRelato(r) {
+  const k = situacaoDoEnvio(r);
+  if (k === 'registrado') {
+    const e = r.registro && r.registro.etapa;
+    if (ETAPAS_DO_REGISTRO.includes(e)) return e;
+    return r.status === 'resolvido' && r.resolvidoPeloRegistro ? 'resolvido' : 'registrado'; // tabela velha: só aberto/resolvido
+  }
+  if (k === 'falhou') { const m = r.envioFalhou.motivo; return m === 'sem-conta' ? 'aguarda-conexao' : m === 'sem-rede' ? 'sem-internet' : 'falhou'; }
+  return k;
 }
+function estadoDoEnvio(r) {
+  const k = etapaDoRelato(r), e = ESTADO_DO_ENVIO[k];
+  if (!e) return null;
+  const reg = (r && r.registro) || {};
+  let linha = e.linha;
+  if (k === 'falhou') linha = `${motivoCurto(r)}.`;
+  else if (k === 'aguarda-dono' && reg.motivo) linha = reg.motivo;
+  else if (k === 'resolvido' && (r.resolvidoPeloRegistro || r.resolvidoEm)) linha = `Em ${quando(r.resolvidoPeloRegistro || r.resolvidoEm)}.`;
+  else if (k === 'descartado' && reg.juntadoA) linha = `Juntado a #${reg.juntadoA}.`;
+  const { comNumero, ...resto } = e;
+  return { ...resto, titulo: comNumero && reg.numero ? `${e.titulo} #${reg.numero}` : e.titulo, linha, situacao: k };
+}
+/** G-364 · o que segue sozinho quando a conta conecta ou a rede volta: o que a pessoa mandou enviar e não foi (sem conta,
+    sem rede ou a fila não respondeu). Já enviado (`enviadoEm`, `pelaFila`, registro) nunca se reenvia; grande demais e
+    rascunho que ninguém mandou enviar ficam. Puro. */
+const MOTIVOS_QUE_SEGUEM = ['sem-conta', 'sem-rede', 'erro'];
+const pendentesDeEnvio = lista => (Array.isArray(lista) ? lista : []).filter(r => r && !r.enviadoEm && !r.pelaFila && !r.registro && r.envioFalhou && MOTIVOS_QUE_SEGUEM.includes(r.envioFalhou.motivo));
 const URL_FILA_LIGADA = baseDosDados('relatos') + 'fila.json';
 const FILA_MEMORIA_MS = 10 * 60 * 1000;
 /** O aviso publicado pelo fluxo vale? Puro. */
@@ -19189,8 +19237,11 @@ function relatoParaFila(r) {
   return { ...resto, partida: null };
 }
 /** `filaDe()` devolve a fila da conta conectada (createFilaDeRelatos) ou null. A resposta "a fila está ligada?" fica
-    guardada na memória por 10 minutos; sem rede, a fila conta como desligada (o GitHub também pede rede). */
-function createEnvioPelaFila({ filaDe = () => null, busca = typeof fetch !== 'undefined' ? fetch.bind(globalThis) : null, agora = () => Date.now() } = {}) {
+    guardada na memória por 10 minutos; sem rede, a fila conta como desligada.
+    G-364 · `conecta()` tenta retomar a sessão da Estante em silêncio (a guardada no aparelho; depois o Google sem tela de
+    consentimento) quando Enviar encontra a conta desconectada; `haRede()` diz se há rede (sem rede: 'sem-rede', não 'sem-conta'). */
+const naRede = () => typeof navigator === 'undefined' || navigator.onLine !== false;
+function createEnvioPelaFila({ filaDe = () => null, busca = typeof fetch !== 'undefined' ? fetch.bind(globalThis) : null, agora = () => Date.now(), conecta = async () => false, haRede = naRede } = {}) {
   let ligada = null, em = 0;
   async function estaLigada() {
     if (ligada !== null && agora() - em < FILA_MEMORIA_MS) return ligada;
@@ -19201,30 +19252,71 @@ function createEnvioPelaFila({ filaDe = () => null, busca = typeof fetch !== 'un
   return {
     async disponivel() { return !!filaDe() && await estaLigada(); },
     /** Põe na fila e lê de volta: { ok, enviadoEm } ou { ok: false, motivo: 'sem-conta' | 'sem-rede' | 'grande' | 'erro' }. */
-    async envia(r) {
-      const f = filaDe(); if (!f) return { ok: false, motivo: 'sem-conta' };
+    async envia(r, { conectar = true } = {}) {
+      let f = filaDe();
+      if (!f) {
+        if (!haRede()) return { ok: false, motivo: 'sem-rede' };
+        if (conectar) { try { await conecta(); } catch (e) { /* não deu em silêncio: fica aguardando a conexão */ } f = filaDe(); }
+        if (!f) return { ok: false, motivo: haRede() ? 'sem-conta' : 'sem-rede' };
+      }
       try { const x = await f.enfileira(relatoParaFila(r)); return x.conferido ? { ok: true, enviadoEm: x.enviadoEm } : { ok: false, motivo: 'erro' }; }
       catch (e) { return { ok: false, motivo: e && e.message === 'sem-rede' ? 'sem-rede' : e && e.message === 'relato-grande' ? 'grande' : 'erro' }; }
     }
   };
 }
+/** G-364 · grava no relato o resultado de um envio pela fila (o mesmo para Enviar, pedido de cobertura e envio automático). */
+async function registraEnvio(relatos, id, x) {
+  if (x.ok) return relatos.muda(id, { enviadoEm: x.enviadoEm, pelaFila: true, envioFalhou: null });
+  return relatos.muda(id, { envioFalhou: { em: new Date().toISOString(), motivo: x.motivo || 'erro' } });
+}
+/** G-364 · envio automático: quando a conta fica conectada (na abertura ou depois do login) ou a rede volta, os pendentes
+    (`pendentesDeEnvio`) seguem pela fila, um de cada vez, sem tela de login (conectar: false). Duas chamadas juntas viram
+    uma; sem conta ou sem rede, para no primeiro. O nó da fila é o id do relato: reenviar o mesmo relato não duplica. */
+function createEnvioAutomatico({ relatos, fila }) {
+  let rodando = null;
+  async function roda() {
+    let enviados = 0;
+    for (const r of pendentesDeEnvio(await relatos.todos())) {
+      const x = await fila.envia(r, { conectar: false });
+      await registraEnvio(relatos, r.id, x);
+      if (x.ok) enviados++;
+      else if (x.motivo === 'sem-conta' || x.motivo === 'sem-rede') break;
+    }
+    return enviados;
+  }
+  return {
+    envia() { if (!rodando) rodando = roda().catch(() => 0).finally(() => { rodando = null; }); return rodando; }
+  };
+}
 
-function createRelatosScreen({ relatos, share, files = null, partidas = null, fila = null }) {
+/** G-364 · o aviso de quando o envio não sai agora: o relato fica guardado e segue sozinho (menos o grande demais). */
+const AVISO_DA_FALHA = { 'sem-conta': 'Relato guardado. Conecte a conta e ele segue sozinho.', 'sem-rede': 'Sem internet. O relato segue sozinho quando a rede voltar.',
+  grande: 'Relato grande demais para a fila.', erro: 'Não deu para enviar agora. O relato segue sozinho mais tarde.' };
+/** G-364 · "Conectar e enviar": `conectar()` abre o mesmo Conectar do Perfil e devolve 'ok' (conectou e os guardados seguiram),
+    'perfil' (sem conta Google neste aparelho: entrar é no Perfil) ou 'falhou'. */
+async function conectaEEnvia(conectar) {
+  if (!conectar) return 'falhou';
+  let x; try { x = await conectar(); } catch (e) { x = 'falhou'; }
+  if (x === 'perfil') { toast('Entre na conta no Perfil. Os relatos guardados seguem sozinhos.', 5000); location.hash = '#/perfil'; }
+  else if (x === 'ok') toast('Conta conectada. Os relatos guardados seguiram para a fila.', 4200);
+  else toast('Não deu para conectar agora.', 4200);
+  return x;
+}
+function createRelatosScreen({ relatos, share, files = null, partidas = null, fila = null, conectar = null }) {
   const root = Stack({ class: 'ds-wrap', style: { paddingTop: 'var(--space-5)' } }, __m3.Carregando('Abrindo relatos…', { tamanho: 'tela' }));
   const motor = typeof __m16 !== 'undefined' ? __m16.ENGINE_VERSION : null;
-  // T6e-2 · a fila decide como o Enviar funciona; sem resposta ainda, o Enviar de sempre (abre o GitHub)
-  let pelaFila = false;
-  if (fila) fila.disponivel().then(sim => { if (sim !== pelaFila) { pelaFila = sim; if (root.isConnected) pinta(); } }).catch(() => {});
+  // G-364 · Enviar vai sempre pela fila: sem a sessão da Estante, `fila.envia` tenta retomá-la em silêncio; se não der, o
+  // relato fica guardado com a situação ("Aguardando conexão", "Sem internet") e segue sozinho depois. O GitHub nunca abre.
+  const enviando = new Set();
   async function envia(r) {
-    const abreGitHub = async () => { try { window.open(enderecoDoRegistro(r), '_blank', 'noopener'); } catch (e) { /* bloqueado: o aviso diz */ }
-      await relatos.muda(r.id, { enviadoEm: new Date().toISOString(), envioFalhou: null }); pinta(); toast('No GitHub, toque em "Submit new issue" para confirmar'); };
     if (foiEnviado(r)) return toast('Este relato já foi enviado'); // G-261 · relato #16: enviado não se reenvia
-    if (!pelaFila) return abreGitHub();
-    const x = await fila.envia(r);
-    if (x.ok) { await relatos.muda(r.id, { enviadoEm: x.enviadoEm, pelaFila: true, envioFalhou: null }); pinta(); return toast(`Relato enviado. ${PRAZO_FILA}.`, 5200); }
-    await relatos.muda(r.id, { envioFalhou: { em: new Date().toISOString(), motivo: x.motivo || 'erro' } }); pinta(); // G-261 · a falha fica no cartão, com o motivo
-    toast(x.motivo === 'sem-rede' ? 'Sem internet. O relato fica aqui para enviar depois.' : x.motivo === 'grande' ? 'Relato grande demais para a fila.' : 'Não deu para enviar agora.', 5000,
-      x.motivo === 'sem-rede' ? undefined : { acao: { rotulo: 'Pelo GitHub', icone: 'externo', onClick: abreGitHub } });
+    if (enviando.has(r.id)) return;
+    enviando.add(r.id); pinta();
+    let x; try { x = fila ? await fila.envia(r) : { ok: false, motivo: 'sem-conta' }; } catch (e) { x = { ok: false, motivo: 'erro' }; }
+    enviando.delete(r.id);
+    await registraEnvio(relatos, r.id, x); pinta(); // G-261 · a falha fica no cartão, com o motivo
+    if (x.ok) return toast(`Relato enviado. ${PRAZO_FILA}.`, 5200);
+    toast(AVISO_DA_FALHA[x.motivo] || AVISO_DA_FALHA.erro, 5000);
   }
   const opcoes = (lista, vazio) => [{ value: '', label: vazio }, ...lista.map(([v, l]) => ({ value: v, label: l }))];
   function abrePartida(r) {
@@ -19256,7 +19348,8 @@ function createRelatosScreen({ relatos, share, files = null, partidas = null, fi
     const recorte = filtra(lista, filtroAtual), abertosDoRecorte = recorte.filter(r => r.status !== 'resolvido');
     const abertos = lista.filter(r => r.status !== 'resolvido').length;
     const muda = patch => { filtroAtual = { ...filtroAtual, ...patch }; pinta(); };
-    const linha = r => { const pa = partidaAbrivel(r, motor), envio = situacaoDoEnvio(r), enviado = foiEnviado(r), estado = estadoDoEnvio(r);
+    const linha = r => { const pa = partidaAbrivel(r, motor), envio = situacaoDoEnvio(r), enviado = foiEnviado(r), estado = estadoDoEnvio(r), ocupado = enviando.has(r.id);
+      const aguarda = !!estado && estado.situacao === 'aguarda-conexao' && !!conectar;
       return h('article', { class: 'relato-item', dataset: { urgencia: r.urgencia, status: r.status, tipo: r.tipo, envio }, id: 'relato-' + r.id },
         h('div', { class: 'relato-item__topo' },
           Badge(rotuloDe(URGENCIAS, r.urgencia), { tone: r.urgencia === 'bloqueia' || r.urgencia === 'alta' ? 'negative' : r.urgencia === 'media' ? 'accent' : undefined }),
@@ -19266,12 +19359,11 @@ function createRelatosScreen({ relatos, share, files = null, partidas = null, fi
         // G-261 · relato #16: o que falta para chegar a quem corrige, no próprio cartão. G-330 · relato #50: uma linha de estado só,
         // igual para na fila, aberto no GitHub e falhou — ícone, título curto (o selo de antes) e uma linha; o prazo da fila deixou
         // de morar num title (que o celular não mostra)
-        estado ? h('p', { class: 'relato-item__aviso', dataset: { aviso: estado.situacao, tom: estado.tom }, role: estado.situacao === 'falhou' ? 'status' : null, title: r.enviadoEm ? `Enviado em ${quando(r.enviadoEm)}` : null },
+        // G-364 · a etapa do registro (registrado, em atuação, aguarda você, entregue) também mora nesta linha, com o número no
+        // título; o número deixou de ser um link para o GitHub (nenhum botão da tela de relatos leva ao GitHub). O texto vem do
+        // código ou da tabela, sempre como texto (h com filhos de texto), nunca como HTML.
+        estado ? h('p', { class: 'relato-item__aviso', dataset: { aviso: estado.situacao, tom: estado.tom }, role: ['falhou', 'aguarda-conexao', 'sem-internet'].includes(estado.situacao) ? 'status' : null, title: r.enviadoEm ? `Enviado em ${quando(r.enviadoEm)}` : null },
           Icone(estado.icone, { tamanho: 16 }), h('span', { class: 'relato-item__aviso-texto' }, h('b', { class: 'relato-item__enviado' }, estado.titulo), ' ', estado.linha)) : null,
-        // G-243 · o registro achado no GitHub: o número (abre o registro) e a situação que voltou de lá
-        r.registro ? h('div', { class: 'relato-item__registro', dataset: { situacao: r.status === 'resolvido' && r.resolvidoPeloRegistro ? 'resolvido' : 'aberto' } },
-          h('a', { class: 'relato-item__numero', href: urlDoRegistro(r.registro.numero), target: '_blank', rel: 'noopener', title: `Abrir o registro #${r.registro.numero} no GitHub`, 'aria-label': `Registro ${r.registro.numero} no GitHub` }, Icone('externo', { tamanho: 14 }), `#${r.registro.numero}`),
-          h('span', { class: 'relato-item__resolvido' }, r.status === 'resolvido' && r.resolvidoPeloRegistro && r.resolvidoEm ? [Icone('marcar', { tamanho: 14 }), `Resolvido em ${quando(r.resolvidoEm)}`] : 'Registrado no GitHub')) : null, // G-330 · fica: curto e diz onde
         r.partida && !pa.ok && pa.motivo ? Text(pa.motivo, { size: 'xs', tone: 'subtle', attrs: { class: 'ds-text ds-text--xs relato-item__motivo' } }) : null,
         h('div', { class: 'relato-item__acoes' },
           r.partida ? Button('Partida', { variant: 'ghost', icone: 'jogar', disabled: !pa.ok, title: pa.ok ? 'Abrir a partida anexada, no ponto do relato' : pa.motivo, dataset: { acao: 'partida' }, onClick: () => abrePartida(r) }) : null,
@@ -19282,8 +19374,10 @@ function createRelatosScreen({ relatos, share, files = null, partidas = null, fi
           // Y5 · Enviar: abre o registro no GitHub já preenchido (quem relata confirma lá); fica marcado como enviado
           // T6e-2 · com a fila ligada e a conta conectada, Enviar manda sem sair do app; senão, abre o GitHub já preenchido
           // G-261 · enviado não se reenvia nem se exclui; "Enviar de novo" só depois de falha ou do GitHub sem confirmação
-          enviado ? null : Button(envio === 'nao-enviado' ? 'Enviar' : 'Enviar de novo', { variant: envio === 'falhou' ? 'primary' : 'ghost', icone: pelaFila ? 'subir' : 'externo', dataset: { acao: 'enviar', via: pelaFila ? 'fila' : 'github' },
-            title: pelaFila ? 'Enviar para a correção sem sair do app' : 'Abrir o registro no GitHub, já preenchido, para a correção', onClick: () => envia(r) }),
+          // G-364 · sempre pela fila; aguardando a conexão, o primário é "Conectar e enviar" (o Conectar do Perfil)
+          enviado ? null : aguarda ? Button('Conectar e enviar', { variant: 'primary', icone: 'pessoa', dataset: { acao: 'conectar' }, title: 'Conectar a conta da Estante e enviar os relatos guardados', onClick: () => conectaEEnvia(conectar) })
+            : Button(ocupado ? 'Enviando…' : envio === 'nao-enviado' ? 'Enviar' : 'Enviar de novo', { variant: envio === 'falhou' ? 'primary' : 'ghost', icone: 'subir', disabled: ocupado, dataset: { acao: 'enviar', via: 'fila' },
+              title: 'Enviar para a correção sem sair do app', onClick: () => envia(r) }),
           enviado ? null : IconButton('lixeira', 'Excluir relato', { variant: 'ghost', classe: 'ds-btn--perigo', dataset: { acao: 'excluir' }, onClick: async () => {
             const tirado = await relatos.remove(r.id); pinta();
             toast('Relato excluído', 4200, { acao: { rotulo: 'Desfazer', icone: 'desfazer', onClick: async () => { await relatos.restaura(tirado); pinta(); } } }); } }))); };
@@ -19324,7 +19418,8 @@ function createRelatosScreen({ relatos, share, files = null, partidas = null, fi
   pinta();
   relatos.onMuda(() => { if (root.isConnected) pinta(); });
   // G-243 · ao abrir, a situação dos registros volta do GitHub (no máximo a cada 10 minutos); sem rede, nada muda
-  relatos.sincroniza && relatos.sincroniza().then(r => { if (root.isConnected && r && r.resolvidos) toast(r.resolvidos === 1 ? '1 relato resolvido no GitHub' : `${r.resolvidos} relatos resolvidos no GitHub`); }).catch(() => {});
+  // G-364 · (o app também relê ao voltar ao primeiro plano, pela ligação); o aviso não fala mais em GitHub
+  relatos.sincroniza && relatos.sincroniza().then(r => { if (root.isConnected && r && r.resolvidos) toast(r.resolvidos === 1 ? '1 relato concluído' : `${r.resolvidos} relatos concluídos`); }).catch(() => {});
   return root;
 }
 
@@ -19371,21 +19466,22 @@ function etapaDoPedido(p, coberta = false) {
 }
 const ETAPAS_DO_PEDIDO = [['relato', 'Enviado', 'O pedido saiu do aparelho com a lista das cartas.'], ['ampulheta', 'Na fila do motor', 'O pedido virou um registro; as cartas entram na revisão das regras.'],
   ['marcar', 'Coberto', 'O motor joga a lista inteira: ela aparece entre as que jogam.']];
-/** O serviço: pedir (salva o relato e envia pela fila; sem conta, devolve o endereço do GitHub) e listar. */
-function createCobertura({ relatos, fila = null }) {
+/** O serviço: pedir (salva o relato e envia pela fila) e listar. G-364 · sem conta ou sem rede, o pedido fica guardado e segue
+    sozinho (envio automático); o GitHub nunca abre. Pedido da mesma lista que ainda espera o envio é o mesmo relato: pedir
+    de novo reenvia esse, sem criar outro. `conectar` é o "Conectar e enviar" (o mesmo da tela de relatos). */
+function createCobertura({ relatos, fila = null, conectar = null }) {
   return {
+    conectar,
     async pedidos() { return pedidosDeCobertura(await relatos.todos()); },
     async pede(dados) {
-      const r = await relatos.salva(relatoDeCobertura(dados));
-      if (!r.ok) return { ok: false, motivo: 'erro' };
-      if (!fila || !(await fila.disponivel())) return { ok: false, motivo: 'sem-conta', relato: r.relato, github: enderecoDoRegistro(r.relato) };
-      const x = await fila.envia(r.relato);
-      if (x.ok) { await relatos.muda(r.relato.id, { enviadoEm: x.enviadoEm, pelaFila: true, envioFalhou: null }); return { ok: true, relato: r.relato }; }
-      await relatos.muda(r.relato.id, { envioFalhou: { em: new Date().toISOString(), motivo: x.motivo || 'erro' } });
-      return { ok: false, motivo: x.motivo || 'erro', relato: r.relato, github: enderecoDoRegistro(r.relato) };
-    },
-    /** Sem conta: o GitHub abre preenchido e o pedido conta como "enviado pelo GitHub" (só lá se confirma). */
-    async peloGitHub(r) { try { window.open(enderecoDoRegistro(r), '_blank', 'noopener'); } catch (e) { /* bloqueado */ } await relatos.muda(r.id, { enviadoEm: new Date().toISOString(), envioFalhou: null }); }
+      const pede = new Set((dados.cartas || []).map(nomeCurto).filter(Boolean));
+      const guardado = pedidosDeCobertura(await relatos.todos()).find(p => p.listaId === String(dados.listaId) && pendentesDeEnvio([p.relato]).length && [...pede].every(n => p.cartas.includes(n)));
+      let relato = guardado ? guardado.relato : null;
+      if (!relato) { const r = await relatos.salva(relatoDeCobertura(dados)); if (!r.ok) return { ok: false, motivo: 'erro' }; relato = r.relato; }
+      let x; try { x = fila ? await fila.envia(relato) : { ok: false, motivo: 'sem-conta' }; } catch (e) { x = { ok: false, motivo: 'erro' }; }
+      await registraEnvio(relatos, relato.id, x);
+      return x.ok ? { ok: true, relato } : { ok: false, motivo: x.motivo || 'erro', relato };
+    }
   };
 }
 /** A folha "Pedir cobertura": a lista, as cartas que vão, as três etapas e o envio num toque. `lista` = { id, nome, formato,
@@ -19424,19 +19520,23 @@ function abrePedidoDeCobertura({ cobertura, lista, motor, aoMudar = () => {} }) 
     catch (e) { x = { ok: false, motivo: 'erro' }; }
     ocupado = false; aoMudar();
     if (x.ok) { toast('Pedido enviado ao motor', 3600); return pinta(1); }
-    // sem conta (ou a fila não respondeu): o pedido fica guardado; o GitHub abre preenchido, a um toque
-    const aviso = Note(x.motivo === 'sem-conta' ? 'Para enviar daqui, conecte a conta da Estante no Perfil. Ou envie pelo GitHub: abre o pedido já preenchido.'
-      : x.motivo === 'sem-rede' ? 'Sem internet: o pedido ficou guardado em Relatos e você envia depois.' : 'A fila não respondeu agora. O pedido ficou guardado em Relatos; dá para enviar pelo GitHub.', 'warning');
+    // G-364 · sem conta, sem rede ou a fila não respondeu: o pedido fica guardado em Relatos e segue sozinho; sem conta, o
+    // primário é "Conectar e enviar" (o mesmo Conectar do Perfil). O GitHub nunca abre.
+    const aviso = Note(x.motivo === 'sem-conta' ? 'O pedido ficou guardado em Relatos. Conecte a conta da Estante e ele segue sozinho.'
+      : x.motivo === 'sem-rede' ? 'Sem internet: o pedido ficou guardado em Relatos e segue sozinho quando a rede voltar.'
+      : x.motivo === 'grande' ? 'O pedido ficou grande demais para a fila.' : 'A fila não respondeu agora. O pedido ficou guardado em Relatos e segue sozinho mais tarde.', 'warning');
     aviso.id = 'cobertura-aviso';
     await pinta(0, aviso);
-    if (x.relato && x.motivo !== 'sem-rede') mount(acoes, Button('Voltar', { onClick: closeDialog }),
-      Button('Pelo GitHub', { variant: 'primary', icone: 'externo', id: 'cobertura-github', onClick: async () => { await cobertura.peloGitHub(x.relato); aoMudar(); pinta(1); } }));
+    if (x.relato && x.motivo === 'sem-conta' && cobertura.conectar) mount(acoes, Button('Voltar', { onClick: closeDialog }),
+      Button('Conectar e enviar', { variant: 'primary', icone: 'pessoa', id: 'cobertura-conectar', onClick: async () => {
+        const r = await conectaEEnvia(cobertura.conectar); aoMudar();
+        if (r === 'ok') pinta(); else if (r === 'perfil') closeDialog(); } }));
   }
   Dialog({ title: 'Pedir cobertura', body: corpo, actions: [acoes] });
   pinta();
 }
 
-return { estadoDoEnvio, motivoCurto, IDIOMAS_DO_DITADO, idiomaDoDitado, juntaDitado, pontuaDitado, fechaDitado, textoDaSessao, sinalDaPausa, PAUSAS_DO_DITADO, textoDaFalhaDoDitado, usaFala, relatoDeCobertura, pedidosDeCobertura, pedidoDaLista, etapaDoPedido, ETAPAS_DO_PEDIDO, createCobertura, abrePedidoDeCobertura, situacaoDoEnvio, foiEnviado, textoDaFalha, PRAZO_FILA, URL_FILA_LIGADA, FILA_MEMORIA_MS, filaLigada, relatoParaFila, createEnvioPelaFila, AREAS, URL_SITUACAO, BUSCA_SITUACAO_MS, urlDoRegistro, situacaoDosRegistros, concilia, EDITAR_JANELA_MS, podeEditar, editavelAte, editaRelato, REPOSITORIO, MARCA, dadosDoRelato, enderecoDoRegistro, limpaTela, nomeDaTela, FILTRO_VAZIO, filtra, contaFiltros, areasDe, csvDosRelatos, jsonDosRelatos, partidaAbrivel, contextoDaPartida, CHAVE, TIPOS, URGENCIAS, DESCRICAO_MIN, DESCRICAO_MAX, RELATOS_MAX, areaDaRota, confere, novoRelato, ordena, textoDoRelato, textoDosRelatos, createRelatos, usa, usaContexto, abreRelato, BotaoRelatar, createRelatosScreen, rotuloDe };
+return { estadoDoEnvio, etapaDoRelato, ESTADO_DO_ENVIO, ETAPAS_DO_REGISTRO, pendentesDeEnvio, createEnvioAutomatico, registraEnvio, AVISO_DA_FALHA, motivoCurto, IDIOMAS_DO_DITADO, idiomaDoDitado, juntaDitado, pontuaDitado, fechaDitado, textoDaSessao, sinalDaPausa, PAUSAS_DO_DITADO, textoDaFalhaDoDitado, usaFala, relatoDeCobertura, pedidosDeCobertura, pedidoDaLista, etapaDoPedido, ETAPAS_DO_PEDIDO, createCobertura, abrePedidoDeCobertura, situacaoDoEnvio, foiEnviado, textoDaFalha, PRAZO_FILA, URL_FILA_LIGADA, FILA_MEMORIA_MS, filaLigada, relatoParaFila, createEnvioPelaFila, AREAS, URL_SITUACAO, BUSCA_SITUACAO_MS, situacaoDosRegistros, concilia, EDITAR_JANELA_MS, podeEditar, editavelAte, editaRelato, REPOSITORIO, MARCA, dadosDoRelato, registroDoApp, limpaTela, nomeDaTela, FILTRO_VAZIO, filtra, contaFiltros, areasDe, csvDosRelatos, jsonDosRelatos, partidaAbrivel, contextoDaPartida, CHAVE, TIPOS, URGENCIAS, DESCRICAO_MIN, DESCRICAO_MAX, RELATOS_MAX, areaDaRota, confere, novoRelato, ordena, textoDoRelato, textoDosRelatos, createRelatos, usa, usaContexto, abreRelato, BotaoRelatar, createRelatosScreen, rotuloDe };
 })();
 
 /* ==== src/app/catalogo.js ==== */
@@ -49649,13 +49749,15 @@ const online = (() => {
     /** P-8 · liga a conta da Estante a partir da sala: 'perfil' quando ainda não há conta Google neste aparelho (entrar é no Perfil). */
     async conectar() { const c = contaJa(); if (!c || !(await c.get())) return 'perfil'; await c.conectarEstante(); return c.estante().estado === 'conectada' ? 'ok' : 'falhou'; } };
 })();
+let aoConectarConta = null; // G-364 · ligado mais abaixo, quando o envio automático dos relatos existe
 const conta = __m29.createConta({
   clientId: (typeof window !== 'undefined' && window.__GOOGLE_CLIENT_ID) || GOOGLE_CLIENT_ID,
   store: platform.store,
   google: typeof window !== 'undefined' && window.__GOOGLE_FALSO ? () => window.__GOOGLE_FALSO : null,
   carregaScript: __m29.carregaScriptWeb,
   sessao: __m29.createSessaoFirebase({ apiKey: FIREBASE_API_KEY, fetch: typeof window !== 'undefined' && window.__FIREBASE_FETCH ? window.__FIREBASE_FETCH : null, // P-7
-    guarda: d => (d ? platform.store.set('conta.sessao', d) : platform.store.remove('conta.sessao')) }) // P-9
+    // G-364 · sessão nova da Estante (login no Perfil, "Conectar e enviar", senha): os relatos guardados seguem sozinhos
+    guarda: d => { if (d) setTimeout(() => { if (typeof aoConectarConta === 'function') aoConectarConta(); }, 0); return d ? platform.store.set('conta.sessao', d) : platform.store.remove('conta.sessao'); } }) // P-9
 });
 // P-9 · a conta da Estante volta conectada ao abrir o app (o primeiro pedido ao banco renova o acesso)
 conta.pronta = (async () => { try { await conta.retomaEstante(await platform.store.get('conta.sessao')); } catch (e) { /* sem sessão guardada: segue desconectada */ } })();
@@ -49714,8 +49816,42 @@ const som = __m33.createSom({ store: platform.store }); som.init(); // G4 · som
 /* A-263 · T6d · PERFIL SINCRONIZADO: com a conta da Estante conectada e o banco ligado, as preferências, o nome e a foto
    vão e voltam entre aparelhos (árvore v1 da A-262, regras da P-4). O que desce é reaplicado como na restauração do backup. */
 // T6e-2 · relato #13 · a fila de relatos da conta conectada (a mesma conta e o mesmo transporte da sincronia do perfil)
-const envioPelaFila = __m38.createEnvioPelaFila({ filaDe: () => { if (online.modo !== 'firebase' || conta.estante().estado !== 'conectada') return null; const uid = conta.sessao.uid(); return uid ? __m40.createFilaDeRelatos({ transporte: online.transporte, uid }) : null; } });
-const cobertura = __m38.createCobertura({ relatos, fila: envioPelaFila }); // G-313 · relato #36 · pedir cobertura do motor pelo Jogar
+// G-364 · Enviar sem a sessão ativa: primeiro a sessão guardada no aparelho (sem rede, sem tela), depois o Google sem a tela
+// de consentimento (dentro do toque). Conta de e-mail e senha só volta pela senha: fica "Aguardando conexão".
+const filaDaConta = () => { if (online.modo !== 'firebase' || conta.estante().estado !== 'conectada') return null; const uid = conta.sessao.uid(); return uid ? __m40.createFilaDeRelatos({ transporte: online.transporte, uid }) : null; };
+async function retomaContaEmSilencio() {
+  if (online.modo !== 'firebase') return false;
+  await conta.pronta;
+  if (conta.estante().estado === 'conectada') return true;
+  try { await conta.retomaEstante(await platform.store.get('conta.sessao')); } catch (e) { /* nada guardado */ }
+  if (conta.estante().estado === 'conectada') return true;
+  const c = await conta.get(); if (!c || c.provedor === 'senha') return false;
+  await conta.conectarEstante(); // prompt '' (silencioso): o Google só mostra tela se precisar
+  return conta.estante().estado === 'conectada';
+}
+const envioPelaFila = __m38.createEnvioPelaFila({ filaDe: filaDaConta, conecta: retomaContaEmSilencio });
+const envioAutomatico = __m38.createEnvioAutomatico({ relatos, fila: envioPelaFila });
+aoConectarConta = () => { envioAutomatico.envia(); };
+/** G-364 · "Conectar e enviar": o mesmo Conectar do Perfil (conta Google deste aparelho); sem ela, entrar é no Perfil e, ao
+    voltar conectado, o envio automático manda os guardados. */
+async function conectaRelatos() {
+  if (online.modo !== 'firebase') return 'perfil';
+  const c = await conta.get(); if (!c || c.provedor === 'senha') return 'perfil';
+  await conta.conectarEstante();
+  if (conta.estante().estado !== 'conectada') return 'falhou';
+  await envioAutomatico.envia();
+  return 'ok';
+}
+// G-364 · os guardados seguem sozinhos: na abertura (depois de a sessão guardada voltar), quando a rede volta e quando o app
+// volta ao primeiro plano (aí também relê a tabela de situação, respeitando os 10 minutos de intervalo). Nunca em laço.
+conta.pronta.then(() => setTimeout(() => envioAutomatico.envia(), 3000));
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') window.addEventListener('online', () => envioAutomatico.envia());
+if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  envioAutomatico.envia();
+  relatos.todos().then(l => { if (l.some(r => (r.enviadoEm || r.registro) && r.status !== 'resolvido')) return relatos.sincroniza(); }).catch(() => {});
+});
+const cobertura = __m38.createCobertura({ relatos, fila: envioPelaFila, conectar: conectaRelatos }); // G-313 · relato #36 · pedir cobertura do motor pelo Jogar
 const notificacoes = __m44.createNotificacoes({ store: platform.store }); // G-314 · central de notificações (a primeira: cobertura atendida)
 const confereNotificacoes = () => __m44.confereCoberturas({ notificacoes, cobertura, decks, cardRepo }).catch(() => 0);
 const sincronia = __m40.createSincronia({
@@ -49809,7 +49945,7 @@ const ROUTES = [
   { path: '/perfil/convidar', title: 'Convidar amigos', render: () => __m41.createConvidarScreen({ share: platform.share }) }, // G-325
   { path: '/perfil/apoiar', title: 'Apoiar a Estante', render: () => __m41.createApoioScreen() }, // P-20 · MON1 (com dados de exemplo: só por este endereço, como prévia)
   { path: '/perfil/saida', title: 'O que sai do aparelho', render: () => __m41.createSaidaScreen({ config: { google: !!((typeof window !== 'undefined' && window.__GOOGLE_CLIENT_ID) || GOOGLE_CLIENT_ID), firebase: !!((typeof window !== 'undefined' && window.__FIREBASE_DB_URL) || FIREBASE_DB_URL) }, uso, conectada: () => { try { return online.modo === 'firebase' && conta.estante().estado === 'conectada' && !!conta.sessao.uid(); } catch (e) { return false; } } }) }, // P-6 · SEG5 · G-286 · a chave do uso opt-in
-  { path: '/perfil/relatos', title: 'Relatos', render: () => __m38.createRelatosScreen({ relatos, share: platform.share, files: platform.files, fila: envioPelaFila, // T6e-2
+  { path: '/perfil/relatos', title: 'Relatos', render: () => __m38.createRelatosScreen({ relatos, share: platform.share, files: platform.files, fila: envioPelaFila, conectar: conectaRelatos, // T6e-2 · G-364
     // Y3 · abrir a partida anexada: entra no lugar da salva (sem a parte online) e a série em curso sai
     partidas: { temSalva: async () => { try { const d = await platform.store.get(__m18.SAVE_KEY); return !!(d && d.kind === 'estante.match'); } catch (e) { return false; } },
       abre: async p => { const { online: _fora, ...opcoes } = p.options || {}; await platform.store.set(__m18.SAVE_KEY, { ...p, options: opcoes, savedAt: Date.now() }); await platform.store.remove(__m18.SERIE_KEY).catch(() => {}); location.hash = '#/partida'; } } }) }, // Y1 · Y3

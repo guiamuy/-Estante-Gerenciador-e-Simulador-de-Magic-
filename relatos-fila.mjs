@@ -62,11 +62,11 @@ export function registroDoRelato(R, relato, { uid, id }) {
   if (!relato || relato.id !== id || typeof relato.descricao !== 'string' || typeof relato.criadoEm !== 'string' || isNaN(Date.parse(relato.criadoEm))) return null;
   if (Object.keys(R.confere(relato)).length) return null;
   const limpo = { ...relato, contexto: relato.contexto && typeof relato.contexto === 'object' ? relato.contexto : {}, tela: R.limpaTela(relato.tela), partida: null };
-  const q = new URL(R.enderecoDoRegistro(limpo)).searchParams;
-  const [texto, ...resto] = q.get('body').split('\n\n<!-- ');
+  const q = R.registroDoApp(limpo); // G-364 · o mesmo título e corpo de antes, sem passar por um endereço do GitHub
+  const [texto, ...resto] = q.body.split('\n\n<!-- ');
   const origem = `- Enviado de dentro do app, pela fila da Estante (conta …${uid.slice(-6)})`;
   // quem escrevia no GitHub era a própria pessoa; agora é o robô: "@alguém" no texto não pode virar aviso para essa conta
-  return { title: semMencao(q.get('title')), body: `${semMencao(texto)}\n${origem}\n\n<!-- ${resto.join('\n\n<!-- ')}`, labels: ['relato', ETIQUETA_FILA] };
+  return { title: semMencao(q.title), body: `${semMencao(texto)}\n${origem}\n\n<!-- ${resto.join('\n\n<!-- ')}`, labels: ['relato', ETIQUETA_FILA] };
 }
 /** "@conta" e "#123" do texto viram texto (com um separador invisível): o registro não menciona ninguém nem liga a outro registro. */
 export const semMencao = t => String(t).replace(/@(?=[A-Za-z0-9-])/g, '@\u200b').replace(/#(?=\d)/g, '#\u200b');
@@ -89,9 +89,11 @@ export async function rodada({ conta, banco, repo, githubToken, busca = globalTh
   const { escolhidos, ficaram } = escolhe(fila);
   const out = { criados: [], repetidos: 0, invalidos: 0, ficaram };
   if (!escolhidos.length) return out;
-  // registro que já existe (rodada anterior caiu entre criar e tirar da fila): não duplica
+  // registro que já existe (rodada anterior caiu entre criar e tirar da fila): não duplica. G-364 · vale também o registro
+  // aberto à mão pela página do GitHub (o Enviar de antes, etiqueta `relato` só): "Enviar de novo" de um relato que ficou
+  // "não confirmado" não vira um segundo registro. A etiqueta `relato` só quem tem acesso ou um fluxo daqui põe.
   const ja = new Set();
-  for (let p = 1; p < 20; p++) { const pg = await gh(`/repos/${repo}/issues?state=all&labels=${ETIQUETA_FILA}&per_page=100&page=${p}`); if (!Array.isArray(pg) || !pg.length) break; for (const i of pg) { const x = idDoCorpo(i.body, R.MARCA); if (x) ja.add(x); } if (pg.length < 100) break; }
+  for (let p = 1; p < 20; p++) { const pg = await gh(`/repos/${repo}/issues?state=all&labels=relato&per_page=100&page=${p}`); if (!Array.isArray(pg) || !pg.length) break; for (const i of pg) { const x = idDoCorpo(i.body, R.MARCA); if (x) ja.add(x); } if (pg.length < 100) break; }
   for (const x of escolhidos) {
     const caminho = `relatos/fila/${x.uid}/${x.id}`;
     const relato = remoto.relatoDaFila(x.no), reg = relato && registroDoRelato(R, relato, x);

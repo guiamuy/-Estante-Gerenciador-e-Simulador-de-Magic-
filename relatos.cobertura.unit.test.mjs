@@ -36,16 +36,21 @@ test('G-313 · pedidosDeCobertura, pedidoDaLista e etapaDoPedido: o pedido é o 
   assert.equal(R.ETAPAS_DO_PEDIDO.length, 3);
 });
 
-test('G-313 · createCobertura: com a fila, salva e envia (lê de volta pelo relato); sem conta, guarda e devolve o GitHub preenchido; falha da fila fica no relato', async () => {
+// G-364 · expectativa mudou de propósito (decisão do dono, 09/11/2026: o app nunca abre o GitHub para relatar): sem conta, o
+// pedido fica guardado ("Aguardando conexão") sem endereço do GitHub, e pedir de novo a mesma lista reenvia o mesmo relato
+test('G-313 · createCobertura: com a fila, salva e envia (lê de volta pelo relato); sem conta, guarda sem GitHub e pedir de novo não duplica; falha da fila fica no relato', async () => {
   const relatos = R.createRelatos({ store: P.memoryStore(), busca: null });
-  const enviados = []; let ligada = true, falha = false;
-  const fila = { disponivel: async () => ligada, envia: async r => { enviados.push(r.id); return falha ? { ok: false, motivo: 'erro' } : { ok: true, enviadoEm: '2026-10-27T02:00:09Z' }; } };
+  const enviados = []; let conta = true, falha = false;
+  const fila = { envia: async r => { if (!conta) return { ok: false, motivo: 'sem-conta' }; enviados.push(r.id); return falha ? { ok: false, motivo: 'erro' } : { ok: true, enviadoEm: '2026-10-27T02:00:09Z' }; } };
   const C = R.createCobertura({ relatos, fila });
   const a = await C.pede(DADOS); assert.equal(a.ok, true); assert.equal(enviados.length, 1);
   let ps = await C.pedidos(); assert.deepEqual(J(ps.map(p => p.envio)), ['na-fila']);
-  ligada = false; const b = await C.pede({ ...DADOS, listaId: 'd9' }); assert.deepEqual([b.ok, b.motivo], [false, 'sem-conta']);
-  assert.match(b.github, /^https:\/\/github\.com\/.+\/issues\/new\?/); assert.equal(enviados.length, 1, 'sem conta não vai à fila');
-  ligada = true; falha = true; const c = await C.pede({ ...DADOS, listaId: 'd10' }); assert.deepEqual([c.ok, c.motivo], [false, 'erro']);
+  conta = false; const b = await C.pede({ ...DADOS, listaId: 'd9' }); assert.deepEqual([b.ok, b.motivo], [false, 'sem-conta']);
+  assert.equal('github' in b, false, 'sem endereço do GitHub'); assert.equal(enviados.length, 1, 'sem conta não vai à fila');
+  assert.equal(R.etapaDoRelato((await relatos.todos()).find(r => r.id === b.relato.id)), 'aguarda-conexao');
+  const b2 = await C.pede({ ...DADOS, listaId: 'd9' }); assert.equal(b2.relato.id, b.relato.id, 'o mesmo pedido guardado, não outro');
+  conta = true; const b3 = await C.pede({ ...DADOS, listaId: 'd9' }); assert.equal(b3.ok, true); assert.equal(b3.relato.id, b.relato.id);
+  falha = true; const c = await C.pede({ ...DADOS, listaId: 'd10' }); assert.deepEqual([c.ok, c.motivo], [false, 'erro']);
   ps = await C.pedidos(); assert.equal(ps.find(p => p.listaId === 'd10').envio, 'falhou');
   assert.equal((await relatos.todos()).length, 3, 'os três pedidos ficam em Relatos');
 });

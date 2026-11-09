@@ -76,7 +76,7 @@ const EXCECOES = [
   [l => /Section\('Tokens'/.test(l), 'rota /ds: catálogo do design system para quem desenvolve; "tokens" é o nome técnico'],
   [l => /"Sideboard"|'Sideboard'/.test(l) && /Moxfield|Arena|sob \\?"Sideboard|cabeçalho/i.test(l), 'cabeçalho do formato de exportação de listas: é o que o usuário cola de outro app'],
   [l => /block\('side', 'Sideboard'\)/.test(l), 'texto exportado da lista (formato Moxfield/Arena), lido por outros apps'],
-  [l => /Submit new issue/.test(l), 'nome do botão na página do GitHub, que é em inglês'],
+  // G-364 · saiu a exceção "Submit new issue": o app não abre mais a página de registro do GitHub
 ];
 const pareceTexto = s => / /.test(s.replace(/\$\{[^}]*\}/g, 'X').trim()) || /^[A-Z][a-z]+$/.test(s);
 

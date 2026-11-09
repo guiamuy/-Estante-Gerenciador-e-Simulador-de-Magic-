@@ -38,6 +38,12 @@ Regras:
 - Nunca grave um arquivo inteiro a partir de cópia que não veio do `main` de agora. Edite por patch em cima do que está no clone.
 - Leva pequena, um assunto, enviada ao terminar. Quanto mais tempo sem publicar, mais conflito.
 
+## Modo agilidade (decisão do dono, 09/11/2026; vale até ele revogar)
+
+- Toda leva, de conversa ou de rotina, vai para a prévia e para a produção na mesma leva: portão verde e prévia Ready, então merge (rebase) e conferência em produção, sem esperar o "pode fazer merge".
+- As exclusões da I-328 (`ENGINE_VERSION`, golden, `Sobrescreve:`, infra, formato de dado salvo) ficam suspensas; continuam valendo o portão inteiro, nunca push direto no `main`, nunca `--force` e o aviso ao dono.
+- Quando o dono revogar, volta o fluxo prévia → OK do dono → produção.
+
 ## Exceção: rotinas agendadas publicam sozinhas
 
 Decisão do dono, 08/11/2026, leva I-328: uma sessão aberta por **rotina agendada** (a conversa começa como tarefa agendada, sem o dono presente) junta o próprio pull request no `main` sem esperar a homologação, desde que cumpra **todas** as condições abaixo. Conversa com o dono presente segue a regra geral (prévia e "pode fazer merge").

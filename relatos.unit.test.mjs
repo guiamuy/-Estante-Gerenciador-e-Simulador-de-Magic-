@@ -177,8 +177,10 @@ test('G-243 · relato #11: a situação dos registros volta do GitHub — resolv
   const m = R.situacaoDosRegistros({ versao: 1, relatos: [
     { id: 'rmv2d168pihzr', numero: 11, situacao: 'resolvido', resolvidoEm: '2026-10-10T14:00:00Z', url: 'https://evil.example/x' },
     { id: '<img src=x>', numero: 3, situacao: 'aberto' }, { id: 'ok1234', numero: 0, situacao: 'aberto' }, { id: 'ok5678', numero: 4, situacao: 'talvez' }, null] });
-  assert.deepEqual(J([...m]), [['rmv2d168pihzr', { numero: 11, situacao: 'resolvido', resolvidoEm: '2026-10-10T14:00:00Z' }]]);
-  assert.equal(R.urlDoRegistro(11), `https://github.com/${R.REPOSITORIO}/issues/11`);
+  // G-364 · expectativa mudou de propósito: a tabela velha (sem `etapa`) ganha a etapa que a situação diz
+  assert.deepEqual(J([...m]), [['rmv2d168pihzr', { numero: 11, situacao: 'resolvido', resolvidoEm: '2026-10-10T14:00:00Z', etapa: 'resolvido' }]]);
+  // G-364 · urlDoRegistro saiu (o número não é mais link para o GitHub); o endereço do arquivo continua ignorado (o mapa não o guarda)
+  assert.equal('url' in [...m.values()][0], false);
   assert.equal(R.situacaoDosRegistros({ versao: 2, relatos: [] }).size, 0); assert.equal(R.situacaoDosRegistros('lixo').size, 0);
 
   let agora = Date.UTC(2026, 9, 10, 12); let resposta = null, pedidos = 0;
@@ -194,7 +196,7 @@ test('G-243 · relato #11: a situação dos registros volta do GitHub — resolv
   resposta = 404; assert.equal((await S.sincroniza({ forcar: true })).estado, 'ausente');
   // registrado e aberto: ganha o número
   resposta = arquivo('aberto'); let r = await S.sincroniza({ forcar: true });
-  assert.deepEqual([r.estado, r.mudados, r.resolvidos], ['ok', 2, 0]); assert.deepEqual(J((await um(a.id)).registro), { numero: 11 }); assert.equal((await um(a.id)).status, 'aberto');
+  assert.deepEqual([r.estado, r.mudados, r.resolvidos], ['ok', 2, 0]); assert.deepEqual(J((await um(a.id)).registro), { numero: 11, etapa: 'registrado' }); // G-364 · o registro guarda a etapa assert.equal((await um(a.id)).status, 'aberto');
   // a busca respeita o intervalo de 10 minutos
   const antes = pedidos; assert.equal((await S.sincroniza()).estado, 'recente'); assert.equal(pedidos, antes);
   // fechado no GitHub: resolvido, com a data; de novo não muda nada
@@ -226,15 +228,20 @@ test('G-261 · relato #16: onde está o envio — registrado e na fila são envi
 });
 
 // G-330 · relato #50 · a linha de estado do envio: curta, igual em todo cartão, e nenhuma dentro de um title
-test('G-330 · estadoDoEnvio: título curto e uma linha por situação; sem linha para o que o botão ou o registro já dizem', () => {
+// G-364 · expectativas mudaram de propósito (decisão do dono, 09/11/2026): o registro também tem linha de estado (cada passo até
+// a produção), "Na fila" diz o prazo real de 1 hora, sem conta e sem rede viram "Aguardando conexão" e "Sem internet" (seguem
+// sozinhos), e o legado "Aberto no GitHub" vira "Não confirmado" (o app não abre mais o GitHub)
+test('G-330 · estadoDoEnvio: título curto e uma linha por situação; sem linha para o que o botão já diz', () => {
   const J = x => JSON.parse(JSON.stringify(x));
   assert.equal(R.estadoDoEnvio({}), null, 'não enviado: o botão Enviar diz');
-  assert.equal(R.estadoDoEnvio({ registro: { numero: 41 } }), null, 'registrado: o número diz');
-  assert.deepEqual(J(R.estadoDoEnvio({ enviadoEm: 'x', pelaFila: true })), { icone: 'subir', titulo: 'Na fila', linha: 'O número do registro chega em algumas horas.', tom: 'andamento', situacao: 'na-fila' });
-  assert.deepEqual(J(R.estadoDoEnvio({ enviadoEm: 'x' })), { icone: 'externo', titulo: 'Aberto no GitHub', linha: 'Confirme lá, ou envie de novo.', tom: 'atencao', situacao: 'no-github' });
-  assert.deepEqual(J(R.estadoDoEnvio({ envioFalhou: { motivo: 'sem-rede' } })), { icone: 'alerta', titulo: 'Não enviado', linha: 'Sem internet.', tom: 'falha', situacao: 'falhou' });
+  assert.deepEqual(J(R.estadoDoEnvio({ registro: { numero: 41 } })), { icone: 'registro', titulo: 'Registrado #41', linha: 'Esperando a vez de ser atendido.', tom: 'andamento', situacao: 'registrado' });
+  assert.deepEqual(J(R.estadoDoEnvio({ enviadoEm: 'x', pelaFila: true })), { icone: 'subir', titulo: 'Na fila', linha: 'O registro sai em até 1 hora.', tom: 'andamento', situacao: 'na-fila' });
+  assert.deepEqual(J(R.estadoDoEnvio({ enviadoEm: 'x' })), { icone: 'alerta', titulo: 'Não confirmado', linha: 'Envie de novo pela fila.', tom: 'atencao', situacao: 'no-github' });
+  assert.deepEqual(J(R.estadoDoEnvio({ envioFalhou: { motivo: 'sem-rede' } })), { icone: 'semRede', titulo: 'Sem internet', linha: 'Segue sozinho quando a rede voltar.', tom: 'atencao', situacao: 'sem-internet' });
+  assert.deepEqual(J(R.estadoDoEnvio({ envioFalhou: { motivo: 'erro' } })), { icone: 'alerta', titulo: 'Não enviado', linha: 'A fila não respondeu.', tom: 'falha', situacao: 'falhou' });
   assert.deepEqual(['sem-rede', 'grande', 'sem-conta', 'erro', 'outro'].map(m => R.motivoCurto({ envioFalhou: { motivo: m } })), ['Sem internet', 'Grande demais para a fila', 'Conecte a conta da Estante', 'A fila não respondeu', 'Não deu certo']);
-  for (const e of [R.estadoDoEnvio({ enviadoEm: 'x', pelaFila: true }), R.estadoDoEnvio({ enviadoEm: 'x' }), R.estadoDoEnvio({ envioFalhou: { motivo: 'erro' } })]) {
+  for (const e of [R.estadoDoEnvio({ enviadoEm: 'x', pelaFila: true }), R.estadoDoEnvio({ enviadoEm: 'x' }), R.estadoDoEnvio({ envioFalhou: { motivo: 'erro' } }), R.estadoDoEnvio({ envioFalhou: { motivo: 'sem-conta' } }),
+    R.estadoDoEnvio({ envioFalhou: { motivo: 'sem-rede' } }), ...R.ETAPAS_DO_REGISTRO.map(etapa => R.estadoDoEnvio({ registro: { numero: 1234, etapa }, status: 'resolvido', resolvidoPeloRegistro: '2026-11-09T12:00:00Z' }))]) {
     assert.ok(e.titulo.split(' ').length <= 4, 'título até 4 palavras: ' + e.titulo);
     assert.ok(e.linha.split(' ').length <= 12, 'linha até 12 palavras: ' + e.linha);
     assert.doesNotMatch(e.titulo + ' ' + e.linha, /fila do Firebase|workflow|sha|uid|token/i, 'sem jargão de implementação');

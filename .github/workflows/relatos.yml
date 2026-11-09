@@ -1,11 +1,11 @@
-# Y5 · Relatos. A cada registro (issue) aberto, editado, fechado ou reaberto, etiqueta os que o app preencheu (tipo,
+# Y5 · Relatos. A cada registro (issue) aberto, editado, fechado, reaberto ou com etiqueta posta ou tirada (G-364), etiqueta os que o app preencheu (tipo,
 # urgência, área) e regrava a tabela relatos.json/relatos.csv no ramo `relatos`, que a conversa de correção consulta.
 # O `main` não recebe commit daqui. Trilha: geral (arquivo de fluxo novo, no molde dos de Notícias e Catálogo).
 name: Relatos
 
 on:
   issues:
-    types: [opened, edited, closed, reopened, deleted]
+    types: [opened, edited, closed, reopened, deleted, labeled, unlabeled] # G-364 · etiqueta muda a etapa (em-atuacao, aguarda-dono)
   workflow_dispatch:
 
 permissions:

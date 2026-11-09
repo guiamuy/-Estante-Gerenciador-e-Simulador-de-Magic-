@@ -13388,6 +13388,38 @@ regras** (`database.rules.json`) no console; até lá a tela diz "Nomes de usuá
   ainda sem registro pode duplicar se a pessoa confirmar lá e também enviar de novo pela fila (a conciliação G-243 mostra o
   primeiro registro achado).
 
+**T6e-4 · Relatos sem GitHub: envio direto pela fila com a conta e a situação de cada relato até a produção** ✅ (leva G-364,
+trilha `geral`, 09/11/2026; relato do dono de 09/11: o Enviar abria o GitHub e o app não mostrava que o relato estava na fila)
+- **Causa:** sem a sessão da Estante ativa (ou antes de o aviso "fila ligada" chegar), `filaDe()` voltava null e o Enviar caía
+  em silêncio no `window.open` da página de novo registro.
+- **Como:** o app nunca mais abre o GitHub para relatar (saíram `abreGitHub`, "Pelo GitHub" do Enviar e do pedido de
+  cobertura, `peloGitHub`, `urlDoRegistro` e o endereço `issues/new`; o registro virou `registroDoApp`, só título e corpo,
+  usado pelo fluxo da fila; o link "Relatos no GitHub" saiu de "O que sai do aparelho"). Enviar vai sempre pela fila: sem a
+  sessão, retoma em silêncio (a sessão guardada no aparelho; depois o Google sem consentimento, dentro do toque); se não
+  der, o relato fica "Aguardando conexão" com **Conectar e enviar** (o Conectar do Perfil; sem conta Google no aparelho,
+  leva ao Perfil) ou "Sem internet". Envio automático (`createEnvioAutomatico`): na abertura, a cada sessão nova (login,
+  senha, Conectar), quando a rede volta e quando o app volta ao primeiro plano, os pendentes (`pendentesDeEnvio`: falha sem
+  conta, sem rede ou da fila, sem `enviadoEm`/`pelaFila`/registro) seguem um de cada vez; rascunho e "grande demais" ficam.
+  Pedido de cobertura guardado da mesma lista é reenviado, não duplicado.
+- **Situação até a produção:** a linha de estado do cartão diz Aguardando conexão · Sem internet · Na fila ("O registro sai
+  em até 1 hora") · Registrado #N · Em atuação #N · Aguarda você #N (com a pergunta) · Entregue em produção (com a data) ·
+  Descartado #N ("Juntado a #M"). O `relatos-tabela.mjs` grava `etapa` (das etiquetas `em-atuacao`/`aguarda-dono` e do
+  fechamento: concluído = resolvido; "not planned"/duplicata = descartado), `motivo` (último comentário de quem tem acesso)
+  e `juntadoA`; `situacao` continua aberto/resolvido (o app velho lê a tabela nova; o app novo lê a velha). O fluxo
+  `relatos.yml` passa a rodar em `labeled`/`unlabeled`. O app relê a tabela ao abrir Relatos e ao voltar ao primeiro plano
+  (intervalo de 10 minutos de sempre). A fila não duplica o registro aberto à mão pelo GitHub (procura pela etiqueta `relato`).
+- **Segurança:** motivo e etapa da tabela só como texto (sanidade de tamanho, sem controle, etapa de lista fechada; etapa
+  que contradiz a situação cai na da situação); nenhum token novo no aparelho; o tamanho segue a regra da fila.
+- **Testes:** U `relatos.conexao.unit` (nenhum caminho monta `issues/new`; retomada que dá certo envia; que falha deixa
+  "Aguardando conexão"; pendentes vão uma vez só; linha de estado de cada etapa; tabela velha e nova); `relatos.tabela.unit`
+  (etapas pelas etiquetas, motivo e juntado só de quem tem acesso); `relatos.fila.unit` (registro à mão não duplica);
+  ajustados com causa escrita: G-330, G-243, G-256, G-313, Y5 (tabela), P-6. e2e "G-364" (Aguardando conexão → Conectar e
+  enviar → login no Perfil → fila sozinha → em atuação → aguarda você → Entregue em produção; duas medidas, dois temas);
+  e2e G-313, T6e-2, G-243, Y5 e P-6 ajustados (sem GitHub). Pacotes en/es com os textos novos.
+- **Depende do dono:** quando a sessão guardada não existe (primeira vez no aparelho, ou o Firebase recusou a renovação), o
+  Google pode pedir um toque: o relato fica "Aguardando conexão" e o botão resolve. Conta de e-mail e senha volta pela senha
+  no Perfil.
+
 **T-IDIOMA · O app inteiro num idioma só: português (padrão), espanhol e inglês (relatos #53 e #66)** 🟡 (fatia 1 na leva G-353, trilha `geral`, 07/11/2026; `16º-ui`)
 - **Pedido (relato #66, repete o #53):** pacotes de idioma pt (padrão), es e en para o app inteiro; "hoje a aplicação está
   misturada em inglês e português, e isso não pode acontecer. Apenas as imagens das cartas podem estar em inglês".

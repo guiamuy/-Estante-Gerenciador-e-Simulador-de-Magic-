@@ -57,7 +57,7 @@ export function linhaDe(issue) {
   const d = leDados(issue.body); if (!d) return null;
   const tela = d.tela || {};
   return {
-    numero: issue.number, url: issue.html_url, situacao: issue.state === 'closed' ? 'resolvido' : 'aberto',
+    numero: issue.number, url: issue.html_url, situacao: issue.state === 'closed' ? 'resolvido' : 'aberto', etapa: etapaDe(issue),
     tipo: d.tipo, tipoRotulo: TIPOS[d.tipo] || d.tipo, urgencia: d.urgencia, urgenciaRotulo: URGENCIAS[d.urgencia] || d.urgencia,
     area: d.area || '', titulo_da_tela: tela.cabecalho || tela.titulo || '', endereco: d.endereco || d.rota || '', dialogo: tela.dialogo || '', rolagem: tela.rolagem ?? null,
     criadoEm: d.criadoEm || issue.created_at, enviadoEm: issue.created_at, resolvidoEm: issue.state === 'closed' ? issue.closed_at : null,
@@ -66,9 +66,54 @@ export function linhaDe(issue) {
     autor: (issue.user && issue.user.login) || '' // G-243 · quem abriu: o reenvio só vale da mesma conta
   };
 }
-/** G-243 · o que o app lê para marcar os seus relatos: só id, número, endereço e situação (sem o texto). */
+/* G-364 · a etapa de cada registro, para o app mostrar cada passo até a produção. Vem do estado e das etiquetas:
+   fechado como "not planned" ou duplicata = descartado; fechado (o merge com "Resolve #N") = resolvido (entregue em
+   produção); aberto com `aguarda-dono` = aguarda o dono; com `em-atuacao` (a rotina "Relatos contínuo" põe ao começar e tira
+   ao entregar) = em atuação; senão, registrado. "Na fila" só o app sabe (o registro ainda não existe). `situacao` continua
+   aberto/resolvido: o app de antes lê só ela. */
+export const ETAPAS = ['registrado', 'em-atuacao', 'aguarda-dono', 'resolvido', 'descartado'];
+export const EM_ATUACAO = 'em-atuacao', AGUARDA_DONO = 'aguarda-dono';
+const nomesDasEtiquetas = issue => (issue.labels || []).map(l => (typeof l === 'string' ? l : l && l.name)).filter(Boolean);
+export function etapaDe(issue) {
+  if (!issue) return 'registrado';
+  if (issue.state === 'closed') return ['not_planned', 'duplicate'].includes(issue.state_reason) ? 'descartado' : 'resolvido';
+  const n = nomesDasEtiquetas(issue);
+  return n.includes(AGUARDA_DONO) ? 'aguarda-dono' : n.includes(EM_ATUACAO) ? 'em-atuacao' : 'registrado';
+}
+/** G-364 · o motivo de "aguarda você": a primeira linha com texto do comentário (sem marcação), até 160 caracteres. */
+export const MOTIVO_MAX = 160;
+export function motivoDoComentario(corpo) {
+  const linhas = String(corpo || '').replace(/\r/g, '').replace(/<!--[\s\S]*?-->/g, '').split('\n')
+    .filter(l => !/^\s*#{1,6}\s/.test(l)) // título de seção não é a pergunta
+    .map(l => l.replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1').replace(/[`*_>#~|]/g, '').replace(/^\s*[-+]\s+/, '').replace(/\s+/g, ' ').trim()).filter(l => /\p{L}/u.test(l));
+  const t = linhas[0] || '';
+  return t.length > MOTIVO_MAX ? t.slice(0, MOTIVO_MAX - 1).trimEnd() + '…' : t;
+}
+/** G-364 · "Juntado a #N": o número citado num comentário de fechamento por duplicata ("duplicata de #N", "juntado ao #N"). */
+export function juntadoDe(corpo, proprio = 0) {
+  const m = String(corpo || '').match(/(?:duplicat\w*|duplicad\w*|juntad\w*|junto\s+(?:a|ao|com)|duplicate\s+of)\D{0,30}#(\d+)/i);
+  const n = m ? Number(m[1]) : 0;
+  return Number.isInteger(n) && n > 0 && n !== proprio ? n : null;
+}
+/** G-243 · o que o app lê para marcar os seus relatos: só id, número, endereço e situação (sem o texto do relato).
+    G-364 · mais a etapa e, quando há, o motivo de "aguarda você" e com quem foi juntado. */
 export function situacoes(linhas, agora = new Date()) {
-  return { versao: 1, geradoEm: agora.toISOString(), relatos: (linhas || []).filter(l => l.id).map(l => ({ id: l.id, numero: l.numero, url: l.url, situacao: l.situacao, resolvidoEm: l.resolvidoEm || null, reenvios: l.reenvios || [] })) };
+  return { versao: 1, geradoEm: agora.toISOString(), relatos: (linhas || []).filter(l => l.id).map(l => ({ id: l.id, numero: l.numero, url: l.url, situacao: l.situacao, etapa: l.etapa || (l.situacao === 'resolvido' ? 'resolvido' : 'registrado'),
+    ...(l.motivo ? { motivo: l.motivo } : {}), ...(l.juntadoA ? { juntadoA: l.juntadoA } : {}), resolvidoEm: l.resolvidoEm || null, reenvios: l.reenvios || [] })) };
+}
+/** G-364 · completa o motivo (aguarda o dono) e o "juntado a" (descartado) pelos comentários de quem tem acesso ao
+    repositório (ou deste fluxo). Só esses registros, no máximo `max` por rodada; falha de um não derruba a tabela. */
+export async function completaPelosComentarios(linhas, pede, repo, { max = 40 } = {}) {
+  const alvo = (linhas || []).filter(l => l.etapa === 'aguarda-dono' || l.etapa === 'descartado').slice(0, max);
+  for (const l of alvo) {
+    let cs; try { cs = await pede(`/repos/${repo}/issues/${l.numero}/comments?per_page=100`); } catch (e) { continue; }
+    const confiaveis = (Array.isArray(cs) ? cs : []).filter(c => c && (VINCULOS.includes(c.author_association) || (c.user && c.user.login === ROBO && c.user.type === 'Bot')));
+    for (const c of [...confiaveis].reverse()) {
+      if (l.etapa === 'aguarda-dono') { const m = motivoDoComentario(c.body); if (m) { l.motivo = m; break; } }
+      else { const n = juntadoDe(c.body, l.numero); if (n) { l.juntadoA = n; break; } }
+    }
+  }
+  return linhas;
 }
 /** A tabela: abertos primeiro, depois a urgência maior, depois o mais recente. */
 export function tabela(issues) {
@@ -126,6 +171,7 @@ export async function atualiza(pasta, { token, repo, busca = globalThis.fetch, l
     log(`#${issue.number}: ${faltam.map(e => e.nome).join(', ')}`);
   }
   const linhas = tabela(issues);
+  await completaPelosComentarios(linhas, pede, repo); // G-364
   await mkdir(pasta, { recursive: true });
   await writeFile(join(pasta, 'relatos.json'), JSON.stringify({ versao: 1, repositorio: repo, total: linhas.length, abertos: linhas.filter(l => l.situacao === 'aberto').length, relatos: linhas }, null, 1) + '\n');
   await writeFile(join(pasta, 'relatos.csv'), csv(linhas));
