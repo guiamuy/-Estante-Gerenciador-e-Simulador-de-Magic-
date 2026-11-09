@@ -2015,6 +2015,9 @@ test('e2e · S-607 relato #60/#64: carta sem edição é marcada na pilha, a fol
   // guardar: a coleção recebe a edição e o acabamento escolhidos
   await abrePilha(page);
   assert.match(await page.innerText('#scan-pile .scan-pile__card[data-name="Island"]'), /MH2 #267 · Foil/);
+  // I-329 · a edição do Counterspell (linha de coleção MH2 #267) chega da Scryfall depois que a carta entra na pilha: com a máquina
+  // carregada (quatro navegadores no portão) o lote abria antes e mostrava, com razão, "sem edição". O teste espera a resposta.
+  await page.waitForFunction(() => !/Escolha a edição|sem edição/.test((document.querySelector('#scan-pile') || {}).innerText || 'sem edição'), null, { timeout: 15000 });
   await page.click('#scan-pile-commit'); await page.waitForSelector('#scan-lot-list');
   assert.equal(await page.locator('#scan-lot-sem-edicao').count(), 0, 'nada sem edição: sem aviso');
   await page.click('#scan-commit');
