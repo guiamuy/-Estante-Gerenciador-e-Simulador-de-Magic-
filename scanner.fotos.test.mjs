@@ -67,16 +67,17 @@ async function leNome(worker, index, img, cantosFr, { podeAfiar = true, deitada 
   if (!pr) return null;
   if (process.env.FOTOS_DEBUG) (await import('node:fs')).writeFileSync(join(process.env.FOTOS_DEBUG, 'nome-' + nomeDebug + '-' + Math.round(cantosFr[0].x * 1000) + '.png'), paraPng(pr));
   await worker.setParameters(X.OCR_MODES.linha);
-  let texto = (await worker.recognize(paraPng(pr))).data.text || '', found = X.matchName(index, texto), afiada = false;
+  let texto = (await worker.recognize(paraPng(pr))).data.text || '', found = X.matchName(index, texto), afiada = false, leituras = 1;
   // S-594 · como lerUmaVez: linha borrada que não deu nome é lida de novo, realçada (uma vez por passada)
   if (podeAfiar && !(found[0] && found[0].score >= X.ACCEPT) && pr.nitidez < X.LIMIARES_LINHA.borrada) {
     const p2 = X.preparaNome(pedaco(img, rec), rec.w, rec.h, rec.cantos, { afia: true, deitada });
     if (p2) {
+      leituras++;
       const t2 = (await worker.recognize(paraPng(p2))).data.text || '', f2 = X.matchName(index, t2);
       if ((f2[0] ? f2[0].score : 0) > (found[0] ? found[0].score : 0)) { texto = t2; found = f2; afiada = true; }
     }
   }
-  return { texto, found, nitidez: pr.nitidez, afiada, tentouAfiar: podeAfiar && pr.nitidez < X.LIMIARES_LINHA.borrada };
+  return { texto, found, nitidez: pr.nitidez, afiada, leituras, estouro: pr.estouro || 0, tentouAfiar: podeAfiar && pr.nitidez < X.LIMIARES_LINHA.borrada };
 }
 /** A linha de coleção, como identify() no app: preparaColecao (retifica, acha o bloco, binariza) e OCR em bloco. */
 let nomeDebug = '';
@@ -126,13 +127,17 @@ async function mede(fotos = manifest.fotos, { degrada = null } = {}) {
       if (!caminhos.length) { linha.erro = 'carta não encontrada no quadro e foto sem moldura'; linhas.push(linha); continue; }
       let melhor = null, afiou = false;
       const t0 = Date.now();
+      linha.leituras = 0;
       for (const [nome, cantos, lado] of caminhos) {
         const r = await leNome(worker, index, img, cantos, { podeAfiar: !afiou, deitada: nome === 'deitada' });
+        if (r) linha.leituras += r.leituras;
         if (r && r.tentouAfiar) afiou = true;
         if (r && (!melhor || nota(r) > nota(melhor))) melhor = { ...r, caminho: nome, cantos, lado: lado || 0 };
         if (nota(r) >= X.ACCEPT) break;
       }
+      linha.msNome = Date.now() - t0;   // S-621 · só o nome (preparo + OCR de teste de todos os caminhos tentados)
       if (!melhor) { linha.erro = 'sem linha de nome'; linhas.push(linha); continue; }
+      linha.estouro = Math.round((melhor.estouro || 0) * 100) / 100;
       const cand = melhor.found;
       linha.caminho = melhor.caminho + (melhor.lado ? (melhor.lado > 0 ? ' →' : ' ←') : ''); linha.cantos = melhor.cantos; linha.nitidez = Math.round(melhor.nitidez * 10) / 10;
       // S-594 · a régua que pulava a leitura saiu (LIMIARES_LINHA.nitidezMin): se voltar, conta aqui como foto pulada
@@ -163,7 +168,8 @@ async function mede(fotos = manifest.fotos, { degrada = null } = {}) {
     }
   } finally { await worker.terminate(); }
   const erradas = linhas.filter(l => !l.erro && !l.pulada && !l.nomeOk && /\((\d+)%\)$/.test(l.melhor || '') && +/\((\d+)%\)$/.exec(l.melhor)[1] >= X.ACCEPT * 100 && !l.melhor.startsWith(l.esperado + ' ('));
-  return { linhas, n: fotos.length, nomeOk, edOk, detectadas, puladas: linhas.filter(l => l.pulada).length, erradas: erradas.length, afiadas: linhas.filter(l => l.afiada).length, primeira: linhas.filter(l => l.primeira).length, primeiraErrada: linhas.filter(l => l.primeira && !l.nomeOk).length };
+  return { linhas, n: fotos.length, nomeOk, edOk, detectadas, puladas: linhas.filter(l => l.pulada).length, erradas: erradas.length, afiadas: linhas.filter(l => l.afiada).length, primeira: linhas.filter(l => l.primeira).length, primeiraErrada: linhas.filter(l => l.primeira && !l.nomeOk).length,
+    leituras: linhas.reduce((s, l) => s + (l.leituras || 0), 0), msNome: linhas.reduce((s, l) => s + (l.msNome || 0), 0) };
 }
 
 function relatorio(r) {
@@ -338,4 +344,67 @@ test('S-616 · a edição lê o mais nítido de três quadros seguidos da mesma 
   assert.equal(escolheu, n, 'para a mesma carta no mesmo lugar, a nitidez da linha cai com o desfoque');
   assert.ok(edOk >= n - 2, `edição no quadro escolhido: ${edOk}/${n}`);
   assert.ok(edOk > edPrimeiro, 'escolher o quadro tem de acertar mais que ler o primeiro');
+});
+
+/* ---------------- S-621 · relato #79 F2 · reflexo forte sobre o nome ---------------- */
+/** Reflexo especular forte (luz de teto no protetor ou na carta brilhante): uma mancha que ESTOURA (o miolo chega perto de 255:
+    a letra preta vira 248 sobre o fundo 254, o que sobra de uma foto de celular quase saturada; branco puro não tem o que ler) sobre
+    parte da linha do nome, com borda suave. Fica nos cantos da carta achados na foto limpa (sem contorno, a moldura guia), cobre
+    ~40% da largura do nome e muda de lugar de foto para foto (determinístico pelo nome do arquivo); `veu` soma o véu claro
+    do protetor. Nada aqui depende do scanner além de achar onde a carta está. */
+function reflexoForte(img, f, { veu = false } = {}) {
+  const q = cinzaReduzido(img), quad = X.achaQuadrilatero(q.cinza, q.w, q.h), m = molduraDaFoto(f);
+  const c = (quad ? quad.cantos : m ? cantosDe(m) : null);
+  if (!c) return img;
+  const { width: w, height: h } = img, o = new Uint8ClampedArray(img.data);
+  const [a, b, cc, d, e, ff, g, hh] = X.homografia(c.map(p => ({ x: p.x * w, y: p.y * h }))).k;
+  // inversa da homografia (quadrado unitário → carta): pixel → (u, v) da carta
+  const M = [a, b, cc, d, e, ff, g, hh, 1];
+  const det = M[0] * (M[4] * M[8] - M[5] * M[7]) - M[1] * (M[3] * M[8] - M[5] * M[6]) + M[2] * (M[3] * M[7] - M[4] * M[6]);
+  const I = [M[4] * M[8] - M[5] * M[7], M[2] * M[7] - M[1] * M[8], M[1] * M[5] - M[2] * M[4], M[5] * M[6] - M[3] * M[8], M[0] * M[8] - M[2] * M[6], M[2] * M[3] - M[0] * M[5], M[3] * M[7] - M[4] * M[6], M[1] * M[6] - M[0] * M[7], M[0] * M[4] - M[1] * M[3]].map(x => x / det);
+  let s = 0; for (const ch of f.arquivo) s = (s * 31 + ch.charCodeAt(0)) >>> 0;
+  const u0 = 0.18 + (s % 1000) / 1000 * 0.42, v0 = 0.062, ru = 0.13, rv = 0.04, ang = ((s >> 10) % 100 / 100 - 0.5) * 0.6;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const z = I[6] * x + I[7] * y + I[8], u = (I[0] * x + I[1] * y + I[2]) / z, v = (I[3] * x + I[4] * y + I[5]) / z;
+    const du = u - u0, dv = v - v0, pu = du * Math.cos(ang) + dv * Math.sin(ang), pv = -du * Math.sin(ang) + dv * Math.cos(ang);
+    const k = 0.96 * Math.min(1, 1.5 * Math.exp(-((pu / ru) ** 2 + (pv / rv) ** 2) * 1.2));
+    const i = (y * w + x) * 4;
+    for (let ch = 0; ch < 3; ch++) { let val = o[i + ch]; if (veu) val += (235 - val) * 0.16; val += (255 - val) * k; o[i + ch] = val; }
+  }
+  return { data: o, width: w, height: h };
+}
+const resumo = r => `nome ${r.nomeOk}/${r.n}, na 1ª leitura ${r.primeira}/${r.n}, errados ${r.erradas}, errados na 1ª ${r.primeiraErrada}, leituras do nome ${r.leituras}, ${r.msNome} ms no nome`;
+test('S-621 · reflexo forte que estoura parte do nome (com e sem véu do protetor): o nome é lido, mais na 1ª leitura, sem nome errado', { skip, timeout: 240000 }, async () => {
+  const r = await mede(AMOSTRA, { degrada: (img, f) => reflexoForte(img, f) });
+  const rv = await mede(AMOSTRA, { degrada: (img, f) => reflexoForte(img, f, { veu: true }) });
+  console.log('S-621 · reflexo · ' + resumo(r) + '\n' + relatorio(r) + '\nS-621 · reflexo + véu · ' + resumo(rv) + '\n' + relatorio(rv));
+  console.log(`# medida · scanner · S-621 reflexo nome=${r.nomeOk}/${r.n} primeira=${r.primeira} leituras=${r.leituras} · com véu nome=${rv.nomeOk}/${rv.n} primeira=${rv.primeira} leituras=${rv.leituras}`);
+  /* medido em 09/11/2026 (antes → depois da S-621): sem véu nome 2/9 → 7/9, na 1ª leitura 1/9 → 5/9, leituras do nome 30 → 16;
+     com véu nome 2/9 → 7/9, na 1ª leitura 1/9 → 4/9, leituras 30 → 15; nenhum nome errado nos dois. As duas que faltam: a
+     Llanowar "clara" (a barra já é quase branca: o reflexo não muda o fundo e não há como medir quanto ele somou) e o Snuff
+     Out pequeno (o reflexo cai na borda preta e no começo do nome ao mesmo tempo). */
+  for (const [nome, m] of [['sem véu', r], ['com véu', rv]]) {
+    assert.ok(m.nomeOk >= 6, `${nome}: nome ${m.nomeOk}/${m.n} (eram 2/9 antes da S-621)\n${relatorio(m)}`);
+    assert.ok(m.primeira >= 3, `${nome}: na 1ª leitura ${m.primeira}/${m.n} (era 1/9)`);
+    assert.equal(m.erradas, 0, `${nome}: nenhum nome errado com nota de aceite`);
+    assert.equal(m.primeiraErrada, 0, `${nome}: nenhuma entra na primeira leitura com o nome errado`);
+    assert.ok(m.leituras <= 22, `${nome}: leituras do nome ${m.leituras} (eram 30: cada foto sem nome pagava a passada realçada e a moldura)`);
+  }
+});
+/* S-621 · a foto normal não muda: em todas as fotos do conjunto, sem degradar, pelo contorno e pela moldura, o preparo da linha
+   do nome não acha estouro (nada é esticado) — o realce só existe com reflexo. */
+test('S-621 · sem reflexo, o preparo do nome não mexe em nenhuma foto do conjunto', { skip, timeout: 120000 }, () => {
+  let preparos = 0;
+  const mexeu = [];
+  for (const f of manifest.fotos) {
+    const img = decodifica(join(dir, f.arquivo)), q = cinzaReduzido(img), quad = X.achaQuadrilatero(q.cinza, q.w, q.h), m = molduraDaFoto(f);
+    for (const c of [...(quad ? [quad.cantos] : []), ...(m ? [cantosDe(m)] : [])]) {
+      const rec = X.recorteDaFaixa(c, X.FAIXA_NOME, img.width, img.height); if (!rec) continue;
+      const pr = X.preparaNome(pedaco(img, rec), rec.w, rec.h, rec.cantos); if (!pr) continue;
+      preparos++;
+      if (pr.estouro) mexeu.push(`${f.arquivo} (${pr.estouro.toFixed(2)})`);
+    }
+  }
+  assert.ok(preparos >= 50, 'o conjunto precisa das leituras pelo contorno e pela moldura: ' + preparos);
+  assert.deepEqual(mexeu, [], 'foto normal com estouro achado');
 });

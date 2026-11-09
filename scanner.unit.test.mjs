@@ -1483,3 +1483,31 @@ test('S-620 · a grafia com "l" no lugar do "!" nunca toma a chave de outra cart
   assert.equal(X.matchName(ix, 'Booml')[0].name, 'Booml');
   assert.equal(X.matchName(ix, 'Boomi')[0].name, 'Boom!');
 });
+
+/* S-621 · relato #79 F2 · reflexo forte sobre o nome: o trecho estourado (o reflexo soma branco: 255 − visto = (255 − tom) × (1 − k))
+   volta a ter o contraste das letras; sem estouro, a linha sai idêntica (as fotos normais não mudam). */
+test('S-621 · realcaEstouro desfaz o reflexo que estoura parte da linha e não mexe na linha sem reflexo', () => {
+  const w = 600, h = 80, y0 = 30, y1 = 60;
+  // barra do título (fundo 205) com "letras": traços verticais de 4 px (tom 40) a cada 14 px, nas linhas do nome
+  const barra = () => { const g = new Float32Array(w * h).fill(205); for (let y = y0 + 3; y < y1 - 3; y++) for (let x = 20; x < 560; x++) if (x % 14 < 4) g[y * w + x] = 40; return g; };
+  const reflexo = (g, k) => { for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const d = Math.abs(x - 300) / 90, kk = k * Math.max(0, Math.min(1, 1.6 - d)); g[y * w + x] = 255 - (255 - g[y * w + x]) * (1 - kk); } return g; };
+  const contraste = (g, x0, x1) => { let lo = 255, hi = 0; for (let x = x0; x < x1; x++) { const v = g[45 * w + x]; if (v < lo) lo = v; if (v > hi) hi = v; } return hi - lo; };
+  assert.equal(typeof X.realcaEstouro, 'function', 'S-621 · falta realcaEstouro');
+  // sem reflexo: nada muda, nem um tom
+  const limpa = barra(), copia = Float32Array.from(limpa);
+  assert.equal(X.realcaEstouro(limpa, w, h, y0, y1), 0);
+  assert.deepEqual(limpa, copia);
+  // barra clara sem reflexo (carta branca, 240): também não mexe
+  const clara = barra().map(v => v === 205 ? 240 : v), cc = Float32Array.from(clara);
+  assert.equal(X.realcaEstouro(clara, w, h, y0, y1), 0);
+  assert.deepEqual(clara, cc);
+  // reflexo de 96% no meio da linha: as letras ali ficam com ~7 tons de contraste (eram 165) e voltam a ~100 (o ganho para em 15×)
+  const g = reflexo(barra(), 0.96);
+  assert.ok(contraste(g, 280, 320) < 10);
+  const frac = X.realcaEstouro(g, w, h, y0, y1);
+  assert.ok(frac > 0.1 && frac < 0.6, 'fração estourada ' + frac);
+  assert.ok(contraste(g, 280, 320) > 90, 'contraste devolvido ' + contraste(g, 280, 320));
+  // longe do reflexo, a linha fica como estava
+  const ref = barra();
+  for (let x = 20; x < 120; x++) assert.equal(g[45 * w + x], ref[45 * w + x]);
+});

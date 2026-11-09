@@ -46895,6 +46895,67 @@ function afiaLinha(g, w, h, y0, y1, { quanto = 1.5, margem = 0.35 } = {}) {
   for (let j = 0; j < w * hh; j++) g[ya * w + j] = max(0, min(255, base[j] + quanto * (base[j] - b[j])));
   return g;
 }
+/** S-621 · relato #79 F2 · reflexo forte sobre o nome (no lugar). O reflexo de luz no protetor ou na carta brilhante soma
+    branco à foto: onde ele bate, cada tom vai para 255 na mesma proporção (255 − visto = (255 − tom) × (1 − k)) e as letras
+    sobram com poucos tons de diferença; a binarização divide pelo contraste da linha INTEIRA e o trecho some. Aqui: o teto
+    local (o fundo em volta, com as letras preenchidas: fechamento de ±0,35 da altura da linha — a barra, ou o reflexo) comparado com o teto normal
+    da linha dá o (1 − k) de cada ponto, e a conta é desfeita (até 15×). Onde o teto é o normal da barra, o ganho é 1 e nada
+    muda; com menos de `min` da linha estourada, nada muda em lugar nenhum: as fotos normais leem como antes. Branco puro
+    (255) não tem o que devolver. Devolve a fração estourada da linha (0 quando não mexeu). */
+function realcaEstouro(g, w, h, y0, y1, { margem = 0.35, min = 0.03, ganhoMax = 15 } = {}) {
+  const { max, min: mn, round } = Math;
+  const a = y1 - y0; if (a < 4 || w < 16) return 0;
+  const ya = max(0, y0 - round(a * margem)), yb = mn(h, y1 + round(a * margem)), hh = yb - ya, n = w * hh;
+  // sem nada perto do branco na linha (1%), não há reflexo estourado: sai antes de qualquer conta (custo ~0 na foto normal)
+  let claros = 0; for (let j = y0 * w; j < y1 * w; j++) if (g[j] >= 240) claros++;
+  if (claros < a * w * 0.01) return 0;
+  /* uma passada 1D em cada linha (passo 1) ou coluna (passo w), em O(1) por ponto: média da caixa (s = 0) por soma
+     corrente, máximo (s = 1) ou mínimo (s = −1) pelo método de van Herk / Gil-Werman */
+  const tmp = new Float32Array(max(w, hh) + 2), pre = new Float32Array(max(w, hh) + 2), suf = new Float32Array(max(w, hh) + 2);
+  const passa = (src, dst, r, s, horiz) => {
+    const L = horiz ? w : hh, M = horiz ? hh : w, st = horiz ? 1 : w;
+    for (let m = 0; m < M; m++) {
+      const b = horiz ? m * w : m;
+      for (let k = 0; k < L; k++) tmp[k] = src[b + k * st];
+      if (!s) { let acc = 0; for (let k = 0; k <= mn(L - 1, r); k++) acc += tmp[k]; for (let k = 0; k < L; k++) { const lo = k - r, hi = k + r; dst[b + k * st] = acc / (mn(L - 1, hi) - max(0, lo) + 1); if (hi + 1 < L) acc += tmp[hi + 1]; if (lo >= 0) acc -= tmp[lo]; } continue; }
+      // mínimo = −máximo(−x): uma conta só, com comparação direta (sem chamada de função no laço)
+      const T = 2 * r + 1;
+      for (let k = 0; k < L; k++) tmp[k] *= s;
+      for (let k = 0; k < L; k++) pre[k] = k % T === 0 || tmp[k] > pre[k - 1] ? tmp[k] : pre[k - 1];
+      for (let k = L - 1; k >= 0; k--) suf[k] = k % T === T - 1 || k === L - 1 || tmp[k] > suf[k + 1] ? tmp[k] : suf[k + 1];
+      let tudo = tmp[0]; for (let k = 1; k < L; k++) if (tmp[k] > tudo) tudo = tmp[k];
+      for (let k = 0; k < L; k++) {
+        const lo = k - r, hi = k + r;   // janela [lo, hi] cortada nas pontas; no meio, os dois blocos de van Herk
+        let v;
+        if (lo <= 0) v = hi >= L - 1 ? tudo : pre[hi];
+        else if (hi < L - 1) v = suf[lo] > pre[hi] ? suf[lo] : pre[hi];
+        else v = lo - lo % T + T - 1 >= L - 1 || suf[lo] > pre[L - 1] ? suf[lo] : pre[L - 1];
+        dst[b + k * st] = s * v;
+      }
+    }
+  };
+  const A = Float32Array.from(g.subarray(ya * w, yb * w)), B = new Float32Array(n);
+  const filtro = (r, s) => { passa(A, B, r, s, true); passa(B, A, r, s, false); };
+  // o teto: fechamento (máximo e depois mínimo) maior que o traço da letra — preenche as letras e segue a borda do reflexo
+  const rm = max(3, round(a * 0.35));
+  filtro(1, 0); filtro(rm, 1); filtro(rm, -1); filtro(2, 0);
+  const U = A;
+  // o teto normal da linha: 40º percentil do teto nas linhas do nome (histograma: sem ordenar)
+  const i0 = (y0 - ya) * w, i1 = (y1 - ya) * w, hist = new Uint32Array(256);
+  for (let j = i0; j < i1; j++) hist[mn(255, max(0, U[j] | 0))]++;
+  let teto = 0; for (let acc = 0, alvo = (i1 - i0) * 0.4; teto < 255; teto++) { acc += hist[teto]; if (acc >= alvo) break; }
+  const folga = max(1.5, 255 - teto);
+  const ganho = new Float32Array(n); let est = 0;
+  for (let j = 0; j < n; j++) {
+    const k = mn(ganhoMax, folga / max(1.5, 255 - U[j]));
+    ganho[j] = k < 1.4 ? 1 : 1 + (k - 1) * mn(1, (k - 1.4) / 0.6);
+    if (j >= i0 && j < i1 && k >= 2.5) est++;
+  }
+  const frac = est / (i1 - i0);
+  if (frac < min) return 0;
+  for (let j = 0; j < n; j++) if (ganho[j] > 1) { const q = ya * w + j; g[q] = max(0, 255 - (255 - g[q]) * ganho[j]); }
+  return frac;
+}
 /* ---------------- X12 · impressão digital da arte (S-595) ----------------
    A carta endireitada (X11) tem a arte sempre no mesmo lugar. Dela sai uma impressão perceptual de 192 bits: a arte,
    reduzida a 32 × 32 por média em três canais (cinza, vermelho−verde, amarelo−azul), passa pela DCT; os 8 × 8
@@ -47065,11 +47126,13 @@ function preparaNome(src, sw, sh, cantos, { inverte = false, largura, afia = fal
   const L = linhaDoNome(faixa.data, faixa.w, faixa.h, deitada ? { altMin: ALTURA_NOME.min / FAIXA_NOME.h / PROPORCAO_CARTA, altMax: ALTURA_NOME.max / FAIXA_NOME.h / PROPORCAO_CARTA } : undefined);
   if (!L || !(L.nota > 0)) return null;
   const nit = nitidezDaLinha(L.cinza, faixa.w, L.y0, L.y1);
+  // S-621 · reflexo forte: o trecho estourado volta a ter o contraste das letras antes de binarizar (sem estouro, não mexe)
+  const estouro = realcaEstouro(L.cinza, faixa.w, faixa.h, L.y0, L.y1);
   // S-594 · segunda tentativa com a linha borrada: realça as bordas antes de binarizar (na linha limpa piora: só depois de falhar)
   if (afia) afiaLinha(L.cinza, faixa.w, faixa.h, L.y0, L.y1);
   const bin = binarizaLinha(L.cinza, faixa.w, faixa.h, L.y0, L.y1, { inverte });
   limpaLinha(bin.data, bin.w, bin.h);
-  return { data: bin.data, w: bin.w, h: bin.h, claro: bin.claro, nitidez: nit, linha: { y0: L.y0 / faixa.h, y1: L.y1 / faixa.h, nota: L.nota } };
+  return { data: bin.data, w: bin.w, h: bin.h, claro: bin.claro, nitidez: nit, estouro, linha: { y0: L.y0 / faixa.h, y1: L.y1 / faixa.h, nota: L.nota } };
 }
 /** Caixa (em frações do quadro) que contém uma faixa da carta, com folga: é o pedaço do vídeo que o app
     copia na resolução cheia. Devolve também os cantos da CARTA em pixels desse pedaço. */
@@ -47153,7 +47216,7 @@ function pulaPorMovimento(mov, { via = 'auto', contorno = true } = {}) { return 
 
 return { criaLinhaSemNome, imagemDaImpressao, cleanOcr, matchName, matchLines, criaVotacao, criaPorteiro, PORTEIRO, leituraConfiavel, nitidezDaFaixa, movimentoEntre, LIMIARES_FAIXA, criaDiario, criaCronometro, criaRefoco, EXATA, buildIndex, candidatosDoIndice, createNameIndex, IDIOMAS_DOS_NOMES, LINGUAS_DO_LEITOR, linguaDoLeitor, temCjk, chaveCjk, indiceCjk, matchCjk, createLot, coverRegion, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, resolveEdicao, artistaNoTexto, acabamentosDa, edicoesDaCarta, arteDaImpressao, filtraEdicoes, iconeDoSet, ACABAMENTO_NA_COLECAO, NOME_DO_ACABAMENTO, ACCEPT, ALTA, SUGGEST, lev,
   detectaCarta, detectaEmEscalas, ESCALAS_DETECTOR, brilho, nitidez, prontoParaLer, criaDetector, paradaEm, screenRect, LIMIARES, PROPORCAO_CARTA, realcaTexto, trechoEscuroEmbaixo, limpaBordas, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, faixaDaCarta, escalaOcr,
-  retasDoQuadro, achaQuadrilatero, ordenaCantos, homografia, cantosDaFaixa, cantosDeitada, cartaDeitada, cantosDaImagemDaArte, retifica, maisNitida, FAIXA_NOME, FAIXA_COLECAO, LARGURA_NOME, linhaDoNome, binarizaLinha, limpaLinha, nitidezDaLinha, afiaLinha, FAIXA_ARTE, BITS_ARTE, impressaoDaArte, distanciaDaArte, buscaArte, abreBaseDeArtes, binDasArtes, criaBaseDeArtes, decideArte, arteDaEdicao, LIMIAR_ARTE, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, alturaDaCarta, deslocamento, LIMIARES_LINHA, pulaPorMovimento, QUAD };
+  retasDoQuadro, achaQuadrilatero, ordenaCantos, homografia, cantosDaFaixa, cantosDeitada, cartaDeitada, cantosDaImagemDaArte, retifica, maisNitida, FAIXA_NOME, FAIXA_COLECAO, LARGURA_NOME, linhaDoNome, binarizaLinha, limpaLinha, nitidezDaLinha, afiaLinha, realcaEstouro, FAIXA_ARTE, BITS_ARTE, impressaoDaArte, distanciaDaArte, buscaArte, abreBaseDeArtes, binDasArtes, criaBaseDeArtes, decideArte, arteDaEdicao, LIMIAR_ARTE, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, alturaDaCarta, deslocamento, LIMIARES_LINHA, pulaPorMovimento, QUAD };
 })();
 
 
