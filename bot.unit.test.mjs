@@ -1590,3 +1590,62 @@ test('B-205 · contrato: sem PERFIS e sem AMEACAS_DO_CAMPO (os nomes escritos à
     assert.ok(B.ameacaPeloEfeito(s, elfo));
   } finally { B.PERFIS.push(...guardaP); B.AMEACAS_DO_CAMPO.push(...guardaA); }
 });
+
+// B-206 · B25 · régua de generalização: seis listas Pauper de torneio do catálogo fora das cinco do Shark (`.listas/regua-fora.json`).
+// Medem se a lógica do Shark vale para lista que ele nunca viu; o torneio fica fora do portão (`LISTAS=fora node torneio.listas.mjs`).
+test('B-206 · régua de fora: seis listas de torneio com origem e data, 60 no principal e 15 na reserva, nenhuma das cinco do Shark e no máximo 20% das mágicas em comum com qualquer uma delas', async () => {
+  const { listasDeFora, listasDoShark } = await import('./torneio.listas.mjs');
+  const { readFileSync } = await import('node:fs');
+  const dado = JSON.parse(readFileSync(new URL('./.listas/regua-fora.json', import.meta.url), 'utf8'));
+  const F = listasDeFora(), C = listasDoShark();
+  assert.equal(F.length, 6);
+  assert.equal(new Set(F.map(l => l.id)).size, 6, 'ids únicos');
+  assert.equal(new Set(F.map(l => l.name)).size, 6, 'seis estratégias, um nome cada');
+  for (const l of dado.listas) {
+    for (const k of ['nome', 'tipo', 'jogador', 'torneio', 'origem', 'catalogo']) assert.ok(l[k], `${l.id} tem ${k}`);
+    assert.match(l.data, /^2026-\d\d-\d\d$/, l.id + ' tem data');
+    assert.match(l.tipo, /5-0|[1-4]º/, l.id + ' é 5-0 ou top 4');
+  }
+  const naoTerreno = d => { const m = {}; for (const e of d.entries) if (d.cartas[e.name] && !/Land/.test(d.cartas[e.name].type_line)) m[e.name] = (m[e.name] || 0) + e.qty; return m; };
+  const emComum = (a, b) => { let s = 0, t = 0; for (const [n, q] of Object.entries(a)) { t += q; s += Math.min(q, b[n] || 0); } return t ? s / t : 0; };
+  const cinco = C.map(naoTerreno);
+  for (const l of F) {
+    assert.equal(l.entries.reduce((n, e) => n + e.qty, 0), 60, l.id + ' principal');
+    assert.equal(l.reserva.reduce((n, e) => n + e.qty, 0), 15, l.id + ' reserva');
+    assert.ok(!C.some(c => c.catalogo === l.catalogo), l.id + ' não é uma das cinco');
+    const mx = Math.max(...cinco.map(c => emComum(naoTerreno(l), c)));
+    assert.ok(mx <= 0.2, `${l.id}: ${(100 * mx).toFixed(0)}% das mágicas em comum com uma das cinco`);
+  }
+});
+test('B-206 · cada lista de fora tem dado oficial para toda carta e cobertura 100% no motor', async () => {
+  const { listasDeFora } = await import('./torneio.listas.mjs');
+  const { scripts: S } = loadModules();
+  for (const l of listasDeFora()) {
+    assert.deepEqual(J(l.entries.filter(e => !l.cartas[e.name]).map(e => e.name)), [], l.id + ' sem dado oficial');
+    const cv = S.deckCoverage(l.entries, l.cartas);
+    assert.equal(cv.pct, 100, `${l.id}: ${cv.pending.map(p => p.name + ' (' + p.level + ')').join(', ')}`);
+  }
+});
+test('B-206 · contrato: nenhum nome de carta das listas de fora no módulo do Shark, nem no código nem nos dados (comentários à parte)', async () => {
+  const { readFileSync } = await import('node:fs');
+  const html = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
+  const ini = html.indexOf('/* ==== src/engine/bot.js'), fim = html.indexOf('/* ==== src/', ini + 10);
+  const src = html.slice(ini, fim).replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+  const { listasDeFora, listasDoShark } = await import('./torneio.listas.mjs');
+  const cinco = new Set(listasDoShark().flatMap(d => [...d.entries, ...d.reserva].map(e => e.name)));
+  const nomes = new Set(listasDeFora().flatMap(d => d.entries.map(e => e.name)).filter(n => !cinco.has(n) && !/^(Snow-Covered )?(Island|Forest|Swamp|Mountain|Plains)$/.test(n)));
+  assert.ok(nomes.size > 60, `${nomes.size} nomes conferidos`);
+  assert.deepEqual([...nomes].filter(n => src.includes(n)), [], 'nome de carta de fora no módulo do Shark');
+});
+test('B-206 · cada lista de fora joga uma partida Shark × Shark sem jogada ilegal e sem travar (orçamento curto); nenhuma ganha perfil pelo nome', async () => {
+  const { listasDeFora, partida } = await import('./torneio.listas.mjs');
+  const L = listasDeFora();
+  for (let i = 0; i < L.length; i++) {
+    const g = partida(9100 + i, 'shark', 'shark', L[i], L[(i + 1) % L.length], 400);
+    assert.equal(g.ilegal, null, `${L[i].id} × ${L[(i + 1) % L.length].id}: ${g.ilegal}`);
+    assert.ok(g.acoes > 20, `${L[i].id}: a partida andou (${g.acoes} ações)`);
+    const cards = {}; for (const e of L[i].entries) cards[e.name] = L[i].cartas[e.name];
+    const s = E.createGame({ format: 'pauper', seed: 1, mode: 'full', manaCheck: true, cards, players: [{ name: 'A', deck: L[i].entries }, { name: 'B', deck: L[i].entries }] });
+    assert.equal(B.perfilDe(s, 0), null, L[i].id + ' não casa com PERFIS escrito à mão');
+  }
+});
