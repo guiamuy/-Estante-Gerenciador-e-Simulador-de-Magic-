@@ -826,6 +826,24 @@ a { color: var(--accent); }
   font-size: var(--text-md); line-height: 1.5; white-space: pre-wrap; color: var(--fg); }
 /* G-356 · a linha do idioma do texto: selo (oficial em português / original em inglês) e a troca, no mesmo respiro do texto */
 .ds-visor__idioma { margin-top: var(--space-2); gap: var(--space-2); align-items: center; }
+.ds-visor__texto[data-primeiro="true"] { margin-bottom: var(--space-3); }
+/* G-361 · T-IDIOMA fatia 4 · Perfil › Idioma: uma opção por idioma, com a bandeira, o nome escrito no próprio idioma e uma
+   frase de amostra; a escolhida ganha o aro de latão e o selo de marcado. Uma coluna, alvo de toque de 64 px. */
+.idioma-opcoes { display: grid; gap: var(--space-2); }
+.idioma-opcao { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: var(--space-3); min-height: 64px;
+  padding: var(--space-3) var(--space-4); border-radius: var(--radius-2); border: 1px solid var(--border); background: var(--bg-elev-1);
+  color: var(--fg); text-align: left; font: inherit; cursor: pointer; transition: border-color var(--dur-1) ease, background-color var(--dur-1) ease, box-shadow var(--dur-1) ease; }
+.idioma-opcao .ds-bandeira { border-radius: var(--radius-1); box-shadow: 0 0 0 1px var(--border-strong), var(--shadow-1); }
+.idioma-opcao__texto { display: grid; gap: 2px; min-width: 0; }
+.idioma-opcao__nome { font-weight: 600; font-size: var(--text-md); overflow-wrap: anywhere; }
+.idioma-opcao__amostra { font-size: var(--text-sm); color: var(--fg-muted); overflow-wrap: anywhere; }
+.idioma-opcao__marca { display: inline-flex; width: 28px; height: 28px; align-items: center; justify-content: center; border-radius: 50%;
+  border: 1px solid var(--border-strong); color: transparent; }
+.idioma-opcao[aria-checked="true"] { border-color: var(--accent); background: var(--bg-elev-2); box-shadow: 0 0 0 1px var(--accent) inset; }
+.idioma-opcao[aria-checked="true"] .idioma-opcao__marca { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.idioma-opcao:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.idioma-opcao[aria-busy="true"] { opacity: .7; }
+@media (prefers-reduced-motion: reduce) { .idioma-opcao { transition: none; } }
 
 /* U4 · sem internet mais visual: anel de progresso, linha por item com estado desenhado, aviso de uma linha */
 .ds-anel { position: relative; flex: none; width: var(--anel, 64px); height: var(--anel, 64px); display: grid; place-items: center; }
@@ -5301,6 +5319,8 @@ function Chave(rotulo, { ligada = false, id = null, detalhe = '', onMuda = null,
 const BANDEIRAS = {
   br: '<rect width="24" height="16" style="fill:var(--bandeira-verde)"/><path d="M12 2.2 21.2 8 12 13.8 2.8 8Z" style="fill:var(--bandeira-amarelo)"/><circle cx="12" cy="8" r="3.3" style="fill:var(--bandeira-azul)"/>',
   us: '<rect width="24" height="16" style="fill:var(--bandeira-branco)"/><path d="M0 0h24v2.29H0zM0 4.57h24v2.29H0zM0 9.14h24v2.29H0zM0 13.71h24V16H0z" style="fill:var(--bandeira-vermelho)"/><rect width="10.5" height="9.14" style="fill:var(--bandeira-azul)"/><path d="M2.2 2.2h.01M5.25 2.2h.01M8.3 2.2h.01M3.7 4.6h.01M6.8 4.6h.01M2.2 7h.01M5.25 7h.01M8.3 7h.01" style="stroke:var(--bandeira-branco);stroke-width:1.1;stroke-linecap:round"/>',
+  // G-361 · T-IDIOMA: Espanha (vermelho, amarelo em dobro, vermelho), para o seletor de idioma
+  es: '<rect width="24" height="16" style="fill:var(--bandeira-vermelho)"/><rect y="4" width="24" height="8" style="fill:var(--bandeira-amarelo)"/>',
 };
 function Bandeira(pais, { tamanho = 14 } = {}) {
   const el = h('span', { class: 'ds-bandeira', 'aria-hidden': 'true', dataset: { bandeira: pais } });
@@ -5565,6 +5585,218 @@ const RECEITAS_DE_ANIMACAO = Object.freeze([
 ]);
 return { h, seguro, Text, Button, Field, Select, Chip, ManaPips, Tabs, CardFace, EsperaDaCarta, ArteDesconhecida, Dialog, closeDialog, toast, fechaToast, usaDestinoDoAviso, reservaDoca, Avatar, clear, mount, Stack, Row, Surface, Input, Textarea, Badge, List, ListItem, ListGroup, Empty, Note, Spinner, CardGrid,
   analisaSimbolos, SIMBOLO_RX, nomeDoSimbolo, Simbolo, ComSimbolos, simbolizar, srcsetDaCarta, ImagemCarta, ICONES, MOVIMENTOS_DE_ICONE, MOVIMENTO_DO_ICONE, movimentoDoToque, instalaIconesVivos, Icone, IconButton, Atalho, NavBotao, AvisoRede, AnelProgresso, Expansivel, Range, LinhaEstado, confirmaBotao, Dica, rotuloDeCampo, deveAncorar, instalaAncora, levaAte, levaSeEscondido, oQueEsconde, Carregando, Esqueleto, ArteDeEspera, Transicao, BotaoDeAcao, usaRelatar, Bandeira, Chave, RECEITAS_DE_ANIMACAO, Cabecalho };
+})();
+
+/* ==== src/ui/idioma.js ==== */
+const __m47 = (function () {
+/* =====================================================================
+   G-361 · T-IDIOMA fatia 4 (relatos #53/#66): o app no idioma que a pessoa escolhe — português (padrão), inglês, espanhol.
+   O código continua escrito em português. Fora do português, uma camada só traduz a TELA: um observador de mudanças lê
+   cada texto e atributo visível (title, aria-label, placeholder, alt) e troca pelo do pacote do idioma (idiomas/en.json,
+   idiomas/es.json): primeiro a frase exata, depois a frase com números no lugar de "#", depois os modelos com lacunas
+   ({0}, {1}…). O que vem de fora fica como está: texto dentro de elemento com `lang` próprio (o Oracle e o texto impresso
+   das cartas), `translate="no"`, campos de digitação, scripts e estilos. Em português o observador nem liga: custo zero.
+   Pacote baixado uma vez fica guardado no aparelho (vale sem internet).
+   A camada obrigatória: `idioma-pacotes.unit` extrai do código todo texto de tela e barra o que não tiver tradução nos
+   pacotes — texto novo só entra no app com a tradução junto.
+   ===================================================================== */
+const IDIOMAS = [
+  { id: 'pt', lang: 'pt-BR', nome: 'Português', pais: 'br', regiao: 'Brasil', amostra: 'A Estante inteira em português.' },
+  { id: 'en', lang: 'en', nome: 'English', pais: 'us', regiao: 'United States', amostra: 'The whole Estante in English.' },
+  { id: 'es', lang: 'es', nome: 'Español', pais: 'es', regiao: 'España y Latinoamérica', amostra: 'Toda la Estante en español.' }
+];
+const PADRAO = 'pt';
+const CHAVE_LOCAL = 'estante.idioma'; // lido na abertura, antes de pintar (sem piscar em português)
+const PACOTE = id => `idioma.pacote.${id}`; // a cópia do pacote no aparelho
+const valido = id => IDIOMAS.some(i => i.id === id);
+const doId = id => IDIOMAS.find(i => i.id === id) || IDIOMAS[0];
+
+/* ---------- motor da tradução (puro: testável sem tela) ---------- */
+const NUM = /\d+(?:[.,]\d+)*/g;
+const limpa = s => String(s).replace(/\s+/g, ' ').trim();
+/** Modelo "Você tem {0} cartas" vira expressão; as lacunas aceitam qualquer trecho. */
+function compilaModelo(modelo) {
+  const partes = String(modelo).split(/\{(\d+)\}/);
+  let rx = '^', ordem = [];
+  partes.forEach((p, i) => { if (i % 2) { rx += '([\\s\\S]*?)'; ordem.push(Number(p)); } else rx += p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); });
+  return { rx: new RegExp(rx + '$'), ordem, fixo: partes.filter((p, i) => !(i % 2)).join('').length };
+}
+const preenche = (alvo, valores) => String(alvo).replace(/\{(\d+)\}/g, (m, n) => (valores[Number(n)] !== undefined ? valores[Number(n)] : m));
+/** O dicionário pronto para traduzir: `{ exato: {pt: tr}, modelos: [[pt, tr]] }`. */
+function criaTradutor(pacote) {
+  const exato = new Map(), numeros = new Map(), modelos = [];
+  for (const [pt, tr] of Object.entries((pacote && pacote.exato) || {})) {
+    if (typeof tr !== 'string' || !tr) continue;
+    const k = limpa(pt); exato.set(k, tr);
+    if (/\d/.test(k)) numeros.set(k.replace(NUM, "#"), tr);
+  }
+  for (const par of (pacote && pacote.modelos) || []) {
+    if (!Array.isArray(par) || typeof par[0] !== 'string' || typeof par[1] !== 'string') continue;
+    const c = compilaModelo(limpa(par[0]));
+    if (c.fixo >= 2) modelos.push({ ...c, tr: par[1] });
+  }
+  modelos.sort((a, b) => b.fixo - a.fixo); // o modelo mais específico primeiro
+  const cache = new Map();
+  function traduz(texto) {
+    const k = limpa(texto);
+    if (!k || !/[a-zA-ZÀ-ÿ]/.test(k)) return null;
+    if (cache.has(k)) return cache.get(k);
+    let r = exato.has(k) ? exato.get(k) : null;
+    if (r == null && /\d/.test(k)) {
+
+      const vals = k.match(NUM); const m = numeros.get(k.replace(NUM, '#'));
+      if (m != null) { let i = 0; r = m.replace(NUM, () => (vals[i++] ?? '')); }
+    }
+
+    if (r == null) for (const md of modelos) {
+      const achou = md.rx.exec(k); if (!achou) continue;
+      const valores = []; md.ordem.forEach((n, i) => { const v = achou[i + 1]; valores[n] = (v && traduz(v)) || v; });
+      r = preenche(md.tr, valores); break;
+    }
+    // frases juntadas pelo código ("A · B", "Frase um. Frase dois."): traduz pedaço a pedaço
+    // número ou sinal na ponta ("0% guardado…", "Motor 100%"): traduz o miolo
+    if (r == null) {
+      const p = /^([\d.,%+\-–×/:#()\s]*)([\s\S]*?)([\d.,%+\-–×/:#()\s]*)$/.exec(k);
+      if (p && /[\d%#]/.test(p[1] + p[3]) && /[a-zA-ZÀ-ÿ]/.test(p[2])) { const t = traduz(p[2]); if (t != null) r = p[1] + t + p[3]; }
+    }
+    if (r == null) for (const sep of [/( · )/, /( — )/, /(?<=[.!?…])( )(?=[A-ZÀ-Ý])/, /(, )/]) {
+      const partes = k.split(sep); if (partes.length < 3) continue;
+      let algum = false;
+      const tr = partes.map((p, i) => { if (i % 2) return p; const t = traduz(p); if (t != null) algum = true; return t != null ? t : p; });
+      if (algum) { r = tr.join(''); break; }
+    }
+    if (cache.size > 5000) cache.clear();
+    cache.set(k, r);
+    return r;
+  }
+  return { traduz, tamanho: exato.size + modelos.length };
+}
+
+/* ---------- a tela ---------- */
+const ATRIBUTOS = ['title', 'aria-label', 'placeholder', 'alt', 'aria-description'];
+const PULA = new Set(['SCRIPT', 'STYLE', 'TEXTAREA', 'INPUT', 'CODE', 'PRE', 'svg', 'SVG']);
+/** O elemento (ou um acima dele) diz que o texto é de fora: idioma próprio, "não traduzir" ou campo de digitação. */
+function protegido(el) {
+  for (let e = el; e && e.nodeType === 1; e = e.parentElement) {
+    if (PULA.has(e.tagName) || e.isContentEditable) return true;
+    if (e.getAttribute('translate') === 'no') return true;
+    if (e.hasAttribute('lang') && e !== document.documentElement) return true;
+  }
+  return false;
+}
+function criaCamada(tradutor, raiz = document) {
+  const original = new WeakMap(); // nó → texto em português (para voltar ao português sem recarregar)
+  const originalAttr = new WeakMap();
+  const vistos = new WeakMap(); // nó → o texto que a camada escreveu (não traduz de novo o que ela mesma pôs)
+  function texto(n) {
+    if (!n.parentElement || protegido(n.parentElement)) return;
+    const atual = n.data;
+    if (vistos.get(n) === atual) return;
+    const tr = tradutor.traduz(atual); if (tr == null) return;
+    const m = atual.match(/^(\s*)[\s\S]*?(\s*)$/);
+    const novo = (m ? m[1] : '') + tr + (m ? m[2] : '');
+    if (novo === atual) return;
+    original.set(n, atual); vistos.set(n, novo); n.data = novo;
+  }
+  function atributos(el) {
+    // o placeholder e o rótulo de um campo são tela; o que se digita nele, não (o texto do campo nem passa por aqui)
+    if (/^(INPUT|TEXTAREA)$/.test(el.tagName) ? (el.getAttribute('translate') === 'no' || (el.parentElement && protegido(el.parentElement))) : protegido(el)) return;
+    for (const a of ATRIBUTOS) {
+      const v = el.getAttribute(a); if (!v) continue;
+      const mapa = originalAttr.get(el) || {};
+      if (mapa['w:' + a] === v) continue;
+      const tr = tradutor.traduz(v); if (tr == null || tr === v) continue;
+      mapa[a] = v; mapa['w:' + a] = tr; originalAttr.set(el, mapa); el.setAttribute(a, tr);
+    }
+  }
+  function percorre(no) {
+    if (!no) return;
+    if (no.nodeType === 3) return texto(no);
+    if (no.nodeType !== 1 && no.nodeType !== 9 && no.nodeType !== 11) return;
+    if (no.nodeType === 1) { if (protegido(no)) return; atributos(no); }
+    const w = (no.ownerDocument || no).createTreeWalker(no, 5 /* elementos e textos */, {
+      acceptNode: n => {
+        if (n.nodeType !== 1) return 1; // texto: aceita
+        if (/^(INPUT|TEXTAREA)$/.test(n.tagName)) { atributos(n); return 2; } // campo: só o placeholder e o rótulo
+        return PULA.has(n.tagName) || n.getAttribute('translate') === 'no' || (n.hasAttribute('lang') && n !== document.documentElement) ? 2 /* rejeita o galho */ : 1;
+      } });
+    for (let n = w.nextNode(); n; n = w.nextNode()) { if (n.nodeType === 3) texto(n); else atributos(n); }
+  }
+  const obs = new MutationObserver(lista => {
+    for (const m of lista) {
+      if (m.type === 'characterData') texto(m.target);
+      else if (m.type === 'attributes') atributos(m.target);
+      else m.addedNodes.forEach(percorre);
+    }
+  });
+  return {
+    liga() { percorre(raiz.head || raiz); percorre(raiz.body || raiz); obs.observe(raiz.documentElement || raiz, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ATRIBUTOS }); },
+    desliga() {
+      obs.disconnect();
+      // volta ao português o que ainda está na tela
+      const w = raiz.createTreeWalker(raiz.documentElement || raiz, 5);
+      for (let n = w.nextNode(); n; n = w.nextNode()) {
+        if (n.nodeType === 3) { if (original.has(n) && vistos.get(n) === n.data) n.data = original.get(n); }
+        else { const mapa = originalAttr.get(n); if (mapa) for (const a of ATRIBUTOS) if (mapa[a] && n.getAttribute(a) === mapa['w:' + a]) n.setAttribute(a, mapa[a]); }
+      }
+    },
+    percorre
+  };
+}
+
+/* ---------- serviço: escolha guardada, pacote baixado e guardado ---------- */
+function createIdioma({ store = null, fetch: doFetch = null, base = 'idiomas/', local = (typeof localStorage !== 'undefined' ? localStorage : null), raiz = (typeof document !== 'undefined' ? document : null) } = {}) {
+  let atual = PADRAO, camada = null; const ouvintes = new Set();
+  try { const v = local && local.getItem(CHAVE_LOCAL); if (valido(v)) atual = v; } catch (e) { /* sem armazenamento: português */ }
+  async function baixa(id) {
+    if (!doFetch) throw new Error('sem rede');
+    const r = await doFetch(base + id + '.json', { cache: 'no-cache' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const p = await r.json();
+    if (!p || typeof p.exato !== 'object') throw new Error('pacote inválido');
+    if (store) { try { await store.set(PACOTE(id), p); } catch (e) { /* sem disco: vale nesta sessão */ } }
+    return p;
+  }
+  /** O guardado vale na hora (sem piscar, sem internet) e renova em segundo plano; sem cópia, baixa agora. */
+  async function pacote(id) {
+    let guardado = null;
+    try { guardado = store ? await store.get(PACOTE(id)) : null; } catch (e) { guardado = null; }
+    if (guardado && typeof guardado.exato === 'object') { baixa(id).catch(() => {}); return guardado; }
+    return baixa(id);
+  }
+  async function aplica(id) {
+    if (camada) { camada.desliga(); camada = null; }
+    if (raiz && raiz.documentElement) raiz.documentElement.lang = doId(id).lang;
+    if (id === PADRAO) return;
+    const p = await pacote(id);
+    if (atual !== id || !raiz) return; // trocou de novo enquanto baixava (ou sem tela: testes)
+    camada = criaCamada(criaTradutor(p), raiz); camada.liga();
+  }
+  return {
+    IDIOMAS,
+    get atual() { return atual; },
+    /** Na abertura: liga a camada do idioma guardado (português não faz nada). Falha sem internet e sem cópia: fica em português. */
+    async inicia() { try { await aplica(atual); return true; } catch (e) { atual = PADRAO; if (raiz && raiz.documentElement) raiz.documentElement.lang = 'pt-BR'; return false; } },
+    /** Troca o idioma do app inteiro, na hora. Erro (sem internet e sem o pacote guardado): o idioma anterior continua. */
+    async escolhe(id) {
+      if (!valido(id)) throw new Error('idioma desconhecido');
+      const antes = atual; atual = id;
+      try { await aplica(id); } catch (e) { atual = antes; try { await aplica(antes); } catch (e2) { /* fica em português */ } throw e; }
+      try { if (local) local.setItem(CHAVE_LOCAL, id); } catch (e) { /* sem armazenamento: vale nesta sessão */ }
+      if (store) store.set('idioma', id).catch(() => {});
+      ouvintes.forEach(f => { try { f(id); } catch (e) { /* ouvinte quebrado não derruba a troca */ } });
+      return id;
+    },
+    aoTrocar(f) { ouvintes.add(f); return () => ouvintes.delete(f); },
+    /** O pacote já está no aparelho? (para o seletor dizer "baixa ao escolher" sem internet) */
+    async guardado(id) { if (id === PADRAO) return true; try { return !!(store && await store.get(PACOTE(id))); } catch (e) { return false; } }
+  };
+}
+let servico = null;
+const usa = s => { servico = s || null; };
+/** O idioma das cartas e da tela, para quem não tem o serviço à mão (folha da carta). */
+const atual = () => (servico ? servico.atual : PADRAO);
+return { IDIOMAS, PADRAO, doId, criaTradutor, compilaModelo, criaCamada, createIdioma, usa, atual, get servico() { return servico; } };
 })();
 
 /* ==== src/ui/brand.js ==== */
@@ -7516,7 +7748,9 @@ function usaRulings(servico) { rulings = servico || null; }
    O idioma das cartas é o português até a troca de idioma no Perfil (fatia 4); o motor segue no Oracle em inglês. */
 let textoImpresso = null;
 function usaTextoImpresso(servico) { textoImpresso = servico || null; }
-const IDIOMA_DAS_CARTAS = 'pt';
+/* G-361 · fatia 4: o idioma das cartas é o do app (Perfil › Idioma). Inglês não busca nada: o Oracle já é o texto. */
+const NOME_DO_IDIOMA = { pt: 'português', es: 'espanhol' };
+const idiomaDasCartas = () => { const id = __m47.atual(); return NOME_DO_IDIOMA[id] ? id : null; };
 const dataDoRuling = d => (d ? d.split('-').reverse().join('/') : 'sem data');
 function secaoRulings(card) {
   if (!rulings || !__m7.temRulings(card)) return null;
@@ -7577,15 +7811,16 @@ function openCardViewer(card, extra = [], { quantidade = null, arteDesconhecida 
   const body = h('div', { id: 'card-viewer' });
   // G-356 · o texto impresso em português: estado 'sem' (carta sem oracle_id ou sem o serviço), 'buscando', 'pronto'
   // (dado = texto impresso, ou null = nunca saiu em português), 'semRede', 'erro'. `original` mostra o inglês por escolha.
-  const tr = { estado: textoImpresso && textoImpresso.temChave(card) ? 'buscando' : 'sem', dado: null, original: false, run: 0 };
+  const LANG = idiomaDasCartas(), nomeLang = LANG ? NOME_DO_IDIOMA[LANG] : '';
+  const tr = { estado: LANG && textoImpresso && textoImpresso.temChave(card) ? 'buscando' : 'sem', dado: null, original: false, run: 0 };
   async function carregaTexto(forcar = false) {
     const run = ++tr.run;
     let g = null;
-    if (!forcar) { try { g = await textoImpresso.guardado(card, IDIOMA_DAS_CARTAS); } catch (e) { g = null; } if (run !== tr.run) return;
+    if (!forcar) { try { g = await textoImpresso.guardado(card, LANG); } catch (e) { g = null; } if (run !== tr.run) return;
       if (g) { tr.dado = g.dado; tr.estado = 'pronto'; paint(); } }
     if (!g && tr.estado !== 'buscando') { tr.estado = 'buscando'; paint(); }
     try {
-      const r = await textoImpresso.busca(card, IDIOMA_DAS_CARTAS, { forcar });
+      const r = await textoImpresso.busca(card, LANG, { forcar });
       if (run !== tr.run) return;
       if (!g || r.origem === 'rede') { tr.dado = r.dado; tr.estado = 'pronto'; paint(); }
     } catch (e) {
@@ -7594,16 +7829,16 @@ function openCardViewer(card, extra = [], { quantidade = null, arteDesconhecida 
     }
   }
   const linhaDoIdioma = () => {
-    if (tr.estado === 'buscando') return __m3.Carregando('Buscando o texto em português…', { tamanho: 'linha', id: 'card-idioma-buscando' });
-    if (tr.estado === 'semRede') return AvisoRede('Sem internet: o texto em português aparece quando houver conexão.', { id: 'card-idioma-sem-rede' });
+    if (tr.estado === 'buscando') return __m3.Carregando(`Buscando o texto em ${nomeLang}…`, { tamanho: 'linha', id: 'card-idioma-buscando' });
+    if (tr.estado === 'semRede') return AvisoRede(`Sem internet: o texto em ${nomeLang} aparece quando houver conexão.`, { id: 'card-idioma-sem-rede' });
     if (tr.estado === 'erro') return Row({ class: 'ds-row--wrap ds-visor__idioma', id: 'card-idioma-erro' },
-      Text('Não foi possível buscar o texto em português.', { size: 'xs', tone: 'subtle' }), h('div', { class: 'ds-grow' }),
+      Text(`Não foi possível buscar o texto em ${nomeLang}.`, { size: 'xs', tone: 'subtle' }), h('div', { class: 'ds-grow' }),
       Button('Tentar de novo', { variant: 'ghost', icone: 'atualizar', id: 'card-idioma-de-novo', onClick: () => carregaTexto(true) }));
     if (tr.estado !== 'pronto') return null;
-    if (!tr.dado) return Text('Esta carta não saiu impressa em português: o texto fica em inglês por enquanto.', { size: 'xs', tone: 'subtle', attrs: { id: 'card-idioma-nenhum' } });
+    if (!tr.dado) return Text(`Esta carta não saiu impressa em ${nomeLang}: o texto fica em inglês por enquanto.`, { size: 'xs', tone: 'subtle', attrs: { id: 'card-idioma-nenhum' } });
     return Row({ class: 'ds-row--wrap ds-visor__idioma', id: 'card-idioma' },
-      Badge(tr.original ? 'Original em inglês' : 'Texto oficial em português', { tone: tr.original ? undefined : 'accent' }), h('div', { class: 'ds-grow' }),
-      Button(tr.original ? 'Ver em português' : 'Ver o original', { variant: 'ghost', id: 'card-idioma-alterna', onClick: () => { tr.original = !tr.original; paint(); const b = body.querySelector('#card-idioma-alterna'); if (b) b.focus({ preventScroll: true }); } }));
+      Badge(tr.original ? 'Original em inglês' : `Texto oficial em ${nomeLang}`, { tone: tr.original ? undefined : 'accent' }), h('div', { class: 'ds-grow' }),
+      Button(tr.original ? `Ver em ${nomeLang}` : 'Ver o original', { variant: 'ghost', id: 'card-idioma-alterna', onClick: () => { tr.original = !tr.original; paint(); const b = body.querySelector('#card-idioma-alterna'); if (b) b.focus({ preventScroll: true }); } }));
   };
   const rulingsBox = secaoRulings(card); // V2 · a mesma seção nas duas faces (os rulings são da carta)
 
@@ -7622,7 +7857,7 @@ function openCardViewer(card, extra = [], { quantidade = null, arteDesconhecida 
     const typeLine = doImp.tipo || (f ? f.type_line : card.type_line);
     const oracleEn = f ? f.oracle_text : card.oracle_text;
     const oracle = doImp.texto || oracleEn;
-    const oracleLang = doImp.texto ? 'pt-BR' : 'en';
+    const oracleLang = doImp.texto ? (LANG === 'es' ? 'es' : 'pt-BR') : 'en';
     const cost = f ? f.mana_cost : card.mana_cost;
     const titulo = typeof document !== 'undefined' && body.isConnected ? document.getElementById('ds-dialog-title') : null;
     if (titulo) titulo.textContent = (imp && imp.nome) || card.name;
@@ -7660,16 +7895,18 @@ function openCardViewer(card, extra = [], { quantidade = null, arteDesconhecida 
     const foto = img && !arteDesconhecida ? ImagemCarta(imgs, { alt: name, sizes: 'min(86vw, 380px)', lazy: false, classe: 'ds-visor__img', onFalha: el => { moldura.dataset.carregando = 'false'; el.replaceWith(semImagem()); } }) : null;
     if (arteDesconhecida) { moldura.dataset.carregando = 'false'; moldura.appendChild(ArteDesconhecida({ motivo: arteDesconhecida, tamanho: 'carta', id: 'card-viewer-arte-desconhecida' })); }
     else if (foto) { foto.addEventListener('load', () => { moldura.dataset.carregando = 'false'; }); moldura.append(foto, EsperaDaCarta()); } else { moldura.dataset.carregando = 'false'; moldura.appendChild(semImagem()); } // G-282 · a prateleira por cima enquanto carrega
-    mount(body,
-      moldura,
-      h('div', { class: 'ds-visor__texto' },
+    // G-361 · com o texto no idioma do app, ele vem antes da imagem (a imagem está em inglês; o texto é o que se lê)
+    const textoBox = h('div', { class: 'ds-visor__texto', dataset: { primeiro: String(!!doImp.texto) } },
         // o nome já está no título do diálogo; aqui só aparece o da face, em carta de duas faces
-        (hasFaces || cost) ? Row({ class: 'ds-visor__cabeca' }, hasFaces ? Text(name, { size: 'lg', display: true }) : null, h('div', { class: 'ds-grow' }),
+        (hasFaces || cost) ? Row({ class: 'ds-visor__cabeca' }, hasFaces ? Text(name, { size: 'lg', display: true, attrs: { lang: doImp.nome ? oracleLang : 'en' } }) : null, h('div', { class: 'ds-grow' }),
           cost ? h('span', { class: 'ds-visor__custo' }, ComSimbolos(String(cost))) : null) : null,
-        Row({ class: 'ds-row--wrap ds-visor__tipo' }, Text(typeLine || '', { size: 'sm', tone: 'muted' }), pt ? Badge(pt) : null, quantidade ? Badge(`você tem ${quantidade}`, { tone: 'accent' }) : null),
+        Row({ class: 'ds-row--wrap ds-visor__tipo' }, Text(typeLine || '', { size: 'sm', tone: 'muted', attrs: { lang: doImp.tipo ? oracleLang : 'en' } }), pt ? Badge(pt) : null, quantidade ? Badge(`você tem ${quantidade}`, { tone: 'accent' }) : null),
         oracle ? h('p', { class: 'ds-visor__oracle', lang: oracleLang, id: 'card-oracle' }, ComSimbolos(oracle))
                : Text('Sem texto de regras.', { size: 'sm', tone: 'subtle' }),
-        linhaDoIdioma()),
+        linhaDoIdioma());
+    mount(body,
+      doImp.texto ? textoBox : moldura,
+      doImp.texto ? moldura : textoBox,
       rulingsBox ? h('div', { style: { height: 'var(--space-3)' } }) : null,
       rulingsBox,
       h('div', { style: { height: 'var(--space-4)' } }),
@@ -7693,6 +7930,9 @@ function openCardViewer(card, extra = [], { quantidade = null, arteDesconhecida 
   actions.push(Button('Fechar', { variant: 'primary', onClick: closeDialog }));
 
   const dlg = Dialog({ title: card.name, body, actions });
+  // G-361 · o título é o nome da carta: a camada de idioma não mexe nele (o nome no idioma vem da Scryfall, acima)
+  const tituloDaFolha = typeof document !== 'undefined' ? document.getElementById('ds-dialog-title') : null;
+  if (tituloDaFolha) tituloDaFolha.setAttribute('translate', 'no');
   if (tr.estado !== 'sem') carregaTexto();
   return dlg;
 }
@@ -15137,10 +15377,10 @@ const REGISTRO = [
   ['scanner.zoom', 'aparelho', false], ['scanner.lente', 'aparelho', false], ['scanner.idioma', 'aparelho', false], /* S-601 · idioma impresso que o leitor do nome lê */ ['scanner.lot', 'aparelho', false],
   ['offline.', 'aparelho', false], ['ocr.ready', 'aparelho', false], ['noticias.vista', 'aparelho', false],
   ['ui.ultimaLista', 'aparelho', false], ['collection.pending', 'aparelho', false], ['match.', 'aparelho', false],
-  ['ui.entrada', 'aparelho', false], ['ponte.levada', 'aparelho', false], /* I-329 · quando este aparelho levou tudo do github.io para a Vercel */ // G-274 · a porta de entrada já foi atravessada neste aparelho (com conta ou sem)
+  ['ui.entrada', 'aparelho', false], ['ponte.levada', 'aparelho', false], /* I-329 · quando este aparelho levou tudo do github.io para a Vercel */ ['idioma', 'aparelho', false], /* G-361 · idioma do app, por aparelho (sem regra nova no banco) */ ['estante.idioma', 'aparelho', false], /* G-361 · cópia do idioma no localStorage, lida antes de pintar */ // G-274 · a porta de entrada já foi atravessada neste aparelho (com conta ou sem)
   ['uso.compartilhar', 'aparelho', false], ['uso.envio', 'aparelho', false], ['uso.scanner', 'aparelho', false], // G-286 · uso agregado opt-in: consentimento deste aparelho, último envio e leituras do scanner
   // derivado
-  ['card.', 'derivado', false], ['rulings.', 'derivado', false], ['cartas.texto.', 'derivado', false], /* G-356 · texto impresso em português, pela Scryfall */ ['scanner.artes', 'derivado', false], /* S-596 · base de artes do scanner (ramo artes) */ ['names.pt', 'derivado', false], ['names.es', 'derivado', false], ['names.it', 'derivado', false], ['names.fr', 'derivado', false], ['names.de', 'derivado', false], ['names.ja', 'derivado', false], ['names.zhs', 'derivado', false], ['names.zht', 'derivado', false], ['names.ko', 'derivado', false], ['names.ru', 'derivado', false], /* S-597 · S-598 · S-601 · S-614 · nomes impressos em outras línguas */ ['cambio.usd', 'derivado', false], ['names.catalog', 'derivado', false],
+  ['card.', 'derivado', false], ['rulings.', 'derivado', false], ['cartas.texto.', 'derivado', false], ['idioma.pacote.', 'derivado', false], /* G-361 · pacote de idioma baixado */ /* G-356 · texto impresso em português, pela Scryfall */ ['scanner.artes', 'derivado', false], /* S-596 · base de artes do scanner (ramo artes) */ ['names.pt', 'derivado', false], ['names.es', 'derivado', false], ['names.it', 'derivado', false], ['names.fr', 'derivado', false], ['names.de', 'derivado', false], ['names.ja', 'derivado', false], ['names.zhs', 'derivado', false], ['names.zht', 'derivado', false], ['names.ko', 'derivado', false], ['names.ru', 'derivado', false], /* S-597 · S-598 · S-601 · S-614 · nomes impressos em outras línguas */ ['cambio.usd', 'derivado', false], ['names.catalog', 'derivado', false],
   ['catalogo.indice', 'derivado', false], ['catalogo.lista.', 'derivado', false], ['catalogo.fichas', 'derivado', false], ['catalogo.motor', 'derivado', false], ['notificacoes', 'aparelho', false], // G-314 · a leitura é deste aparelho; a de cobertura nasce de novo dos pedidos (que vão no backup)
  
   ['fichas.opcoes', 'derivado', false], ['fichas.opcoes.fila', 'derivado', false], ['fichas.partes', 'derivado', false],
@@ -20554,6 +20794,32 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
   }
 
   /* ---- D2 · Aparência: tema, acento, densidade, texto, movimento, vibração — aplica na hora e guarda ---- */
+  /** G-361 · T-IDIOMA fatia 4 (relatos #53/#66): o idioma do app, escolhido por bandeira e nome escrito no próprio idioma.
+      Vale na hora para o app inteiro e para o texto das cartas; o pacote baixa uma vez e fica no aparelho. */
+  function secaoIdioma() {
+    const servico = __m47.servico; if (!servico) return null;
+    const s = st.idioma || (st.idioma = { trocando: null, erro: null });
+    const escolhe = async id => {
+      if (s.trocando || id === servico.atual) return;
+      s.trocando = id; s.erro = null; paint();
+      try { await servico.escolhe(id); s.trocando = null; paint(); }
+      catch (e) { s.trocando = null; s.erro = id; paint(); }
+    };
+    const atual = servico.atual;
+    const opcao = i => h('button', { class: 'idioma-opcao', type: 'button', role: 'radio', id: 'idioma-' + i.id, lang: i.lang, translate: 'no',
+      'aria-checked': String(atual === i.id), 'aria-busy': String(s.trocando === i.id), dataset: { idioma: i.id }, onClick: () => escolhe(i.id) },
+      __m3.Bandeira(i.pais, { tamanho: 24 }),
+      h('span', { class: 'idioma-opcao__texto' }, h('span', { class: 'idioma-opcao__nome' }, i.nome), h('span', { class: 'idioma-opcao__amostra' }, i.amostra)),
+      h('span', { class: 'idioma-opcao__marca', 'aria-hidden': 'true' }, Icone('marcar', { tamanho: 16 })));
+    const nomeDe = id => (__m47.IDIOMAS.find(i => i.id === id) || {}).nome || id;
+    return Surface({ class: 'ds-surface--pad', id: 'perfil-idioma' }, Stack({},
+      Text('Idioma', { size: 'sm', as: 'h2', display: true }),
+      Text('O app inteiro e o texto das cartas no idioma que você escolher. A imagem da carta fica como foi impressa.', { size: 'sm', tone: 'muted' }),
+      h('div', { class: 'idioma-opcoes', role: 'radiogroup', 'aria-label': 'Idioma do app', id: 'idioma-opcoes' }, ...__m47.IDIOMAS.map(opcao)),
+      s.trocando ? __m3.Carregando('Preparando o idioma…', { tamanho: 'linha', id: 'idioma-trocando' }) : null,
+      s.erro ? Row({ class: 'ds-row--wrap', id: 'idioma-erro' }, AvisoRede(`Sem internet: o idioma ${nomeDe(s.erro)} baixa quando houver conexão.`, {}), h('div', { class: 'ds-grow' }),
+        Button('Tentar de novo', { variant: 'ghost', icone: 'atualizar', id: 'idioma-de-novo', onClick: () => { const id = s.erro; s.erro = null; escolhe(id); } })) : null));
+  }
   function secaoAparencia() {
     if (!theme) return null;
     const a = theme.aparencia;
@@ -20649,6 +20915,7 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
           Button('Salvar', { variant: 'primary', id: 'perfil-salvar', icone: 'marcar', disabled: !mudou() || st.ocupado, onClick: salvar })),
         fotoInput)),
       secaoAparencia(),
+      secaoIdioma(),
       // I5 · histórico e estatísticas das partidas deste perfil
       partidas ? h('button', { class: 'ds-surface ds-expansivel__cabeca perfil-atalho', type: 'button', id: 'perfil-partidas', onClick: () => go('/perfil/partidas') },
         h('span', { class: 'ds-expansivel__selo' }, Icone('trofeu', { tamanho: 20 })), h('span', { class: 'ds-expansivel__titulo' }, 'Partidas'),
@@ -49095,6 +49362,10 @@ const localIndex = createLocalIndex({ store: platform.store });
 const cardRepo = createCardRepo({ store: platform.store, scryfall, local: localIndex });
 __m12.usaRulings(__m7.createRulings({ store: platform.store, scryfall })); // V2 · rulings no visualizador, guardados no aparelho
 __m12.usaTextoImpresso(__m7.createTextoImpresso({ store: platform.store, scryfall })); // G-356 · texto impresso em português na folha da carta
+// G-361 · T-IDIOMA fatia 4: o idioma do app (Perfil › Idioma); fora do português, a camada traduz a tela e a folha da carta busca o texto impresso no idioma
+const idioma = __m47.createIdioma({ store: platform.store, fetch: typeof fetch !== 'undefined' ? (u, o) => fetch(u, o) : null });
+__m47.usa(idioma);
+idioma.inicia();
 const decks = createDeckStore({ store: platform.store });
 const collection = createCollection({ store: platform.store });
 // Leva 128 · perfil local e backup completo (listas + coleção + perfil + preferências), usado pelas telas Perfil e Listas

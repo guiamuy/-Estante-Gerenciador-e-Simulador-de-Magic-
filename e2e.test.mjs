@@ -21475,3 +21475,114 @@ test('e2e · G-359 DS-K3 MV-4: a espera curta é o fio que percorre (sem anel qu
   assert.equal(await page.$eval('#ds-espera-curta .ds-spinner', e => getComputedStyle(e, '::after').animationName), 'none', 'reduzido: o fio parado');
   assert.deepEqual(errors, []);
 });
+
+// G-361 · T-IDIOMA fatia 4: o que ainda aparece em português numa tela em outro idioma (texto visível, fora de conteúdo com
+// `lang` próprio, `translate="no"` e campos de digitação). Português: acento ou palavra comum só do português.
+async function sobrasEmPortugues(page, lingua = 'en') {
+  return page.evaluate(lingua => {
+    // em espanhol, só o que é do português e não do espanhol (cartas, para, abrir… são as duas línguas)
+    const PT = lingua === 'es' ? /[ãõçÃÕÇ]|\b(você|não|com|sem|uma|aparelho|coleção|jogar|nenhum|nenhuma|fechar|voltar|também|então|sua|seu)\b/i
+      : /[ãõçÃÕÇ]|\b(você|não|para|com|sem|uma|cartas?|listas?|partida|aparelho|coleção|toque|jogar|nenhum|guardad[oa]s?|buscar|abrir|fechar|voltar|salvar)\b/i;
+    const fora = el => { for (let e = el; e; e = e.parentElement) { if (e.getAttribute && (e.getAttribute('translate') === 'no' || (e.hasAttribute('lang') && e !== document.documentElement))) return true; if (/^(SCRIPT|STYLE|TEXTAREA|INPUT|CODE|PRE)$/.test(e.tagName)) return true; } return false; };
+    const visivel = el => { const r = el.getBoundingClientRect(); const cs = getComputedStyle(el); return r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && cs.display !== 'none'; };
+    const out = new Set(); const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    for (let n = w.nextNode(); n; n = w.nextNode()) { const t = n.data.replace(/\s+/g, ' ').trim(); if (t.length > 1 && PT.test(t) && !fora(n.parentElement) && visivel(n.parentElement)) out.add(t.slice(0, 80)); }
+    for (const el of document.querySelectorAll('[aria-label],[title],[placeholder]')) for (const a of ['aria-label', 'title', 'placeholder']) { const v = el.getAttribute(a); if (v && PT.test(v) && !fora(el) && visivel(el)) out.add('@' + a + ': ' + v.slice(0, 80)); }
+    return [...out];
+  }, lingua);
+}
+
+test('e2e · G-361 T-IDIOMA fatia 4: Perfil › Idioma com bandeira e nome no próprio idioma; inglês e espanhol mudam o app inteiro na hora, ficam na próxima abertura e voltam ao português sem recarregar; a folha da carta segue o idioma (oficial em espanhol, Oracle em inglês); sem internet e sem o pacote, aviso e nova tentativa', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  // dados de teste (não o texto oficial): as cartas ganham oracle_id; a busca "oracleid:… lang:es" responde por carta
+  const pedidos = [];
+  await page.route('https://api.scryfall.com/cards/collection', r => {
+    const ids = JSON.parse(r.request().postData()).identifiers;
+    const data = ids.map(i => achaNoDB(i)).filter(Boolean).map(c => ({ ...c, oracle_id: 'o-' + c.name, ...(c.name === 'Counterspell' ? { oracle_text: 'Counter target spell.' } : {}) }));
+    return r.fulfill({ json: { data, not_found: ids.filter(i => !achaNoDB(i)) } });
+  });
+  await page.route('https://api.scryfall.com/cards/search**', r => {
+    const q = new URL(r.request().url()).searchParams.get('q') || '';
+    const m = q.match(/^oracleid:o-(.+) lang:(\w+)$/);
+    if (!m) return r.fallback();
+    pedidos.push(m[2] + ':' + m[1]);
+    if (m[2] !== 'es') return r.fulfill({ status: 404, json: { object: 'error' } });
+    return r.fulfill({ json: { object: 'list', has_more: false, data: [{ object: 'card', lang: 'es', name: 'Counterspell', set: 'tst', collector_number: '7',
+      oracle_text: 'Counter target spell.', printed_name: 'Contrahechizo de Prueba', printed_type_line: 'Instantáneo', printed_text: 'Contrarresta el hechizo objetivo, texto de prueba.' }] } });
+  });
+  await createDeck(page, base, 'Azul', '4 Counterspell\n4 Delver of Secrets\n12 Island', 'livre');
+  // 1 · o seletor: três opções com bandeira, nome no próprio idioma e amostra; português marcado; alvo de toque ≥ 44
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-idioma');
+  assert.deepEqual(await page.$$eval('#idioma-opcoes .idioma-opcao', bs => bs.map(b => [b.dataset.idioma, b.getAttribute('aria-checked'), b.querySelector('.idioma-opcao__nome').textContent, !!b.querySelector('.ds-bandeira svg')])),
+    [['pt', 'true', 'Português', true], ['en', 'false', 'English', true], ['es', 'false', 'Español', true]]);
+  for (const b of await page.$$('#idioma-opcoes .idioma-opcao')) assert.ok((await b.boundingBox()).height >= 44);
+  await page.locator('#perfil-idioma').scrollIntoViewIfNeeded();
+  await auditaTela(page, 'perfil · idioma (escuro)');
+  if (process.env.SHOTS) await page.locator('#perfil-idioma').screenshot({ path: process.env.SHOTS + '/g359-idioma.png' });
+  // 1b · sem internet e sem o pacote guardado: aviso com "Tentar de novo"; o português continua
+  await page.route('**/idiomas/es.json', r => r.abort('internetdisconnected'));
+  await page.click('#idioma-es'); await page.waitForSelector('#idioma-erro');
+  assert.match(await page.innerText('#idioma-erro'), /Sem internet: o idioma Español baixa quando houver conexão/);
+  assert.equal(await page.getAttribute('#idioma-pt', 'aria-checked'), 'true');
+  assert.ok((await page.$eval('#idioma-de-novo', b => b.offsetHeight)) >= 44);
+  await page.unroute('**/idiomas/es.json');
+  // 2 · inglês: o app inteiro na hora (sem recarregar), o html diz o idioma, o escolhido fica marcado
+  await page.click('#idioma-en');
+  await page.waitForFunction(() => document.documentElement.lang === 'en' && document.querySelector('#idioma-en[aria-checked="true"]'));
+  await page.waitForFunction(() => /Language/.test(document.querySelector('#perfil-idioma h2').textContent));
+  assert.equal(await page.textContent('#idioma-en .idioma-opcao__nome'), 'English', 'o nome do idioma não é traduzido');
+  const sobras = {};
+  for (const rota of ['#/perfil', '#/', '#/listas', '#/colecao', '#/mesa', '#/cartas', '#/perfil/relatos']) {
+    await page.goto(base + rota); await page.waitForTimeout(900);
+    const s = await sobrasEmPortugues(page); if (s.length) sobras[rota] = s;
+  }
+  assert.deepEqual(sobras, {}, 'nada em português nas telas principais, em inglês');
+  // 2b · a mesa em inglês: escolher a lista, oponente, guardar a mão e algumas passadas; o que a mesa escreve sai em inglês
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start'); await page.fill('#mesa-seed', '9');
+  await page.click('[data-opponent="goldfish"]'); await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep'); await page.waitForTimeout(400);
+  const sobrasMulligan = await sobrasEmPortugues(page);
+  await page.click('#tb-keep'); await page.waitForSelector('#tb-pass');
+  for (let i = 0; i < 6; i++) {
+    const b = ['#tb-no-attack', '#tb-pass-turn', '#tb-pass'];
+    let tocou = false; for (const sel of b) if (await page.locator(sel).count()) { await page.click(sel, { timeout: 5000 }).catch(() => {}); tocou = true; break; }
+    await page.waitForTimeout(400); if (!tocou) break;
+  }
+  assert.deepEqual({ mulligan: sobrasMulligan, mesa: await sobrasEmPortugues(page) }, { mulligan: [], mesa: [] }, 'a mesa em inglês');
+  // 3 · a folha da carta em inglês: o Oracle, sem busca e sem selo
+  await page.goto(base + '#/listas'); await page.click('text=Azul'); await page.waitForSelector('.deck-slot[data-name="Counterspell"]');
+  await page.click('.deck-slot[data-name="Counterspell"] .ds-card'); await page.waitForSelector('#card-oracle');
+  assert.equal(await page.textContent('#card-oracle'), 'Counter target spell.');
+  assert.equal(await page.locator('#card-idioma, #card-idioma-buscando').count(), 0);
+  assert.equal(await page.textContent('#ds-dialog-title'), 'Counterspell', 'o nome da carta não passa pela tradução');
+  await page.click('#ds-dialog-close');
+  // 4 · próxima abertura: continua em inglês
+  await page.reload(); await page.waitForFunction(() => document.documentElement.lang === 'en');
+  await page.goto(base + '#/perfil'); await page.waitForFunction(() => /Language/.test((document.querySelector('#perfil-idioma h2') || {}).textContent || ''));
+  // 5 · espanhol: o app e a carta (oficial em espanhol, antes da imagem)
+  await page.click('#idioma-es'); await page.waitForFunction(() => document.documentElement.lang === 'es' && /Idioma/.test(document.querySelector('#perfil-idioma h2').textContent));
+  await page.goto(base + '#/perfil'); await page.waitForTimeout(600);
+  const sobrasEs = {};
+  for (const rota of ['#/perfil', '#/', '#/listas', '#/colecao', '#/mesa', '#/cartas']) {
+    await page.goto(base + rota); await page.waitForTimeout(700);
+    const s = await sobrasEmPortugues(page, 'es'); if (s.length) sobrasEs[rota] = s;
+  }
+  assert.deepEqual(sobrasEs, {}, 'nada em português nas telas principais, em espanhol');
+  await page.goto(base + '#/listas'); await page.click('text=Azul'); await page.waitForSelector('.deck-slot[data-name="Counterspell"]');
+  await page.click('.deck-slot[data-name="Counterspell"] .ds-card'); await page.waitForSelector('#card-idioma');
+  assert.equal(await page.textContent('#ds-dialog-title'), 'Contrahechizo de Prueba');
+  assert.match(await page.textContent('#card-oracle'), /Contrarresta el hechizo objetivo/);
+  assert.equal(await page.getAttribute('#card-oracle', 'lang'), 'es');
+  assert.match(await page.innerText('#card-idioma'), /Texto oficial en español/);
+  assert.equal(await page.$eval('#card-viewer', b => b.firstElementChild.classList.contains('ds-visor__texto')), true, 'o texto vem antes da imagem');
+  assert.ok(pedidos.includes('es:Counterspell'));
+  await auditaTela(page, 'carta · espanhol');
+  await page.click('#ds-dialog-close');
+  // 6 · de volta ao português, sem recarregar: o que estava traduzido volta
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#idioma-pt'); await page.click('#idioma-pt');
+  await page.waitForFunction(() => document.documentElement.lang === 'pt-BR' && /^Idioma$/.test(document.querySelector('#perfil-idioma h2').textContent));
+  assert.match(await page.innerText('#perfil-idioma'), /O app inteiro e o texto das cartas/);
+  assert.deepEqual(errors.filter(e => !/status of 404/.test(e)), [], 'o 404 da Scryfall (carta nunca impressa no idioma) é o estado esperado');
+});
