@@ -714,6 +714,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-uz ✅ | T-IDIOMA relatos #53/#66/#108, lote 3 da fatia 3: as cartas das listas de Standard do catálogo que nunca saíram impressas no idioma (248 em português, 19 em espanhol), todas pelo conferidor; --faltam ganha --formato (padrão pauper) (leva G-373, 10/11/2026) | T | 1 | 16º-uv |
 | 16º-ux ✅ | T-IDIOMA relato #108 (G-371): a carta guardada no aparelho sem `oracle_id` (antes da S-616, 07/11, ou fixada para jogar sem internet) busca o texto impresso no idioma pelo nome exato; antes a folha nem tentava e a Coleção ficava em inglês | T | 1 | 16º-up |
 | 16º-vc ✅ | T6e-5 relatos na Vercel (relato do dono, 09/11/2026): a conta recusada pelo endereço diz a causa e a sessão guardada fica; restaurar o backup e trazer pela ponte do github.io juntam os relatos (e as outras listas com id) em vez de trocar — antes os relatos da Vercel sumiam (leva G-370). Chave do Google liberada pelo dono em 09/11 | T6e-4 | 1 | 16º-uv |
+| 16º-uy ✅ | Relato #107: o idioma do app ao lado do sino na Início — globo (gira no toque) com a bandeira do idioma atual num selo de latão; o toque abre a folha "Idioma" com os três idiomas; escolher vale na hora, a folha fecha e a bandeira vira para a nova (menos movimento: troca sem virar). O Perfil › Idioma continua (leva G-372, 10/11/2026) | G | 1 | 16º-uu |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -13653,6 +13654,7 @@ trilha `geral`, 09/11/2026; relato do dono de 09/11: o Enviar abria o GitHub e o
   robô refazer com o Oracle novo; Commander e os outros formatos ficam para os próximos lotes; o texto das cartas dentro da
   mesa (fora da folha) segue o Oracle.
 - **Lote 2 da fatia 3 (G-368, `16º-uv`, rotina Relatos contínuo, 10/11/2026) ✅:** o `--faltam` agora lê também o Oracle da
+- **Idioma ao lado do sino (G-372, `16º-uy`, relato #107, rotina Relatos do dono, 10/11/2026) ✅:** `__m47.BotaoIdioma` na linha do título da Início, antes do sino: globo vivo com a bandeira do idioma atual; folha `Idioma` com as mesmas três opções do Perfil (ids `idioma-folha-*`), erro sem internet com "Tentar de novo". Teste: e2e "G-372" (falhava antes). Fora: o botão só mora na Início (onde está o sino); nas outras telas a troca segue pelo Perfil.
   cobertura do catálogo (`catalogo:cobertura/*.json`, Scryfall) e `idiomas/oficiais-forge.json` (Oracle do Forge, lido em
   10/11 para as cartas que nenhuma fonte do repositório tinha), e junta a carta de duas faces (`verso` ou `card_faces`) pelo
   nome inteiro da Scryfall, que é a chave que o app procura. Achado: o lote 1 tinha oito cartas de duas faces gravadas pela
