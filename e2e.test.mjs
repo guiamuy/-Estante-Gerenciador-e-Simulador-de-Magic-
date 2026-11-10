@@ -22334,3 +22334,30 @@ test('e2e · S-624 relato #90: o selo "Foil?" na pilha confirma ou desfaz com um
   assert.deepEqual(guardado.map(x => [x.key, x.finish || '', !!x.foilTalvez]), [['Counterspell|mh2|267|foil', 'foil', false], ['Lightning Bolt|m10|146', '', false]]);
   assert.deepEqual(errors.filter(e => !/internetdisconnected|ERR_INTERNET|Failed to load resource/.test(e)), []);
 });
+
+test('e2e · G-372 relato #107: o idioma ao lado do sino na Início — globo com a bandeira do idioma atual, folha com os três idiomas, troca na hora e a bandeira vira para a nova; 360', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base + '#/'); await page.waitForSelector('#home-notificacoes');
+  // 1 · o botão mora junto do sino, no mesmo grupo de ações do título, com alvo de toque ≥ 44 e a bandeira do idioma atual
+  const lado = await page.evaluate(() => { const b = document.querySelector('#home-idioma'), s = document.querySelector('#home-notificacoes');
+    return b && { mesmoGrupo: b.parentElement === s.parentElement, vizinho: b.nextElementSibling === s, h: Math.round(b.getBoundingClientRect().height), w: Math.round(b.getBoundingClientRect().width),
+      idioma: b.dataset.idioma, bandeira: (b.querySelector('.idioma-botao__selo .ds-bandeira') || {}).dataset?.bandeira, fala: b.getAttribute('aria-label') }; });
+  assert.deepEqual(lado, { mesmoGrupo: true, vizinho: true, h: 44, w: 44, idioma: 'pt', bandeira: 'br', fala: 'Idioma do app' });
+  // 2 · o toque abre a folha "Idioma" com os três idiomas, português marcado
+  await page.click('#home-idioma'); await page.waitForSelector('#idioma-folha-opcoes');
+  assert.equal(await page.textContent('#ds-dialog-title'), 'Idioma');
+  assert.deepEqual(await page.$$eval('#idioma-folha-opcoes .idioma-opcao', bs => bs.map(b => [b.dataset.idioma, b.getAttribute('aria-checked')])), [['pt', 'true'], ['en', 'false'], ['es', 'false']]);
+  for (const b of await page.$$('#idioma-folha-opcoes .idioma-opcao')) assert.ok((await b.boundingBox()).height >= 44);
+  await auditaTela(page, 'início · folha do idioma (escuro)');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/g372-idioma-folha.png' });
+  // 3 · inglês: vale na hora, a folha fecha, o botão passa à bandeira nova (com o giro de troca)
+  await page.click('#idioma-folha-en');
+  await page.waitForFunction(() => document.documentElement.lang === 'en' && document.querySelector('#ds-overlay')?.dataset.open !== 'true');
+  assert.deepEqual(await page.$eval('#home-idioma', b => [b.dataset.idioma, b.querySelector('.idioma-botao__selo .ds-bandeira').dataset.bandeira]), ['en', 'us']);
+  // 4 · de volta ao português pelo mesmo botão
+  await page.click('#home-idioma'); await page.waitForSelector('#idioma-folha-pt'); await page.click('#idioma-folha-pt');
+  await page.waitForFunction(() => document.documentElement.lang === 'pt-BR' && document.querySelector('#home-idioma')?.dataset.idioma === 'pt');
+  if (process.env.SHOTS) { await page.waitForTimeout(1500); await page.screenshot({ path: process.env.SHOTS + '/g372-idioma-inicio.png' }); }
+  assert.deepEqual(errors, []);
+});

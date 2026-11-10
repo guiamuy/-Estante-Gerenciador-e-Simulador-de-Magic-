@@ -1011,6 +1011,16 @@ a { color: var(--accent); }
 
 /* G-314 · relato #36 · central de notificações: sino com selo de latão; lista por dia; não lida com ponto e título forte */
 .nt-sino { position: relative; }
+/* G-372 · relato #107 · o idioma ao lado do sino: globo (gira no toque) com a bandeira do idioma atual num selo de latão;
+   a bandeira vira (giro em Y, mola curta) quando o idioma troca. Menos movimento: troca sem virar. */
+.idioma-botao { position: relative; }
+.idioma-botao__selo { position: absolute; right: 3px; bottom: 5px; display: grid; place-items: center; padding: 1px; border-radius: var(--radius-1);
+  background: linear-gradient(160deg, var(--accent-hi), var(--accent) 55%, var(--accent-lo)); box-shadow: 0 0 0 2px var(--bg); pointer-events: none; }
+.idioma-botao__selo .ds-bandeira { display: block; line-height: 0; border-radius: var(--radius-1); overflow: hidden; }
+.idioma-botao__selo--vira { animation: idioma-vira var(--dur-4) var(--ease-spring) both; }
+@keyframes idioma-vira { from { transform: perspective(80px) rotateY(-180deg) scale(.6); opacity: .2; } 60% { opacity: 1; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .idioma-botao__selo--vira { animation: none; } }
+:root[data-movimento="reduzido"] .idioma-botao__selo--vira { animation: none !important; }
 .nt-sino__selo { position: absolute; top: 4px; right: 2px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: var(--radius-full); display: grid; place-items: center;
   font-size: var(--text-xs); line-height: 1; font-weight: 700; color: var(--accent-fg); background: linear-gradient(160deg, var(--accent-hi), var(--accent) 55%, var(--accent-lo)); box-shadow: 0 0 0 2px var(--bg); pointer-events: none; }
 .nt-tela { display: grid; gap: var(--space-4); padding-top: var(--space-5); padding-bottom: var(--space-8); }
@@ -5968,7 +5978,51 @@ let servico = null;
 const usa = s => { servico = s || null; };
 /** O idioma das cartas e da tela, para quem não tem o serviço à mão (folha da carta). */
 const atual = () => (servico ? servico.atual : PADRAO);
-return { IDIOMAS, PADRAO, doId, criaTradutor, compilaModelo, criaCamada, createIdioma, usa, atual, get servico() { return servico; } };
+/** G-372 · relato #107: o idioma ao alcance de um toque, ao lado do sino. Um globo (gira no toque, como todo ícone
+    vivo) com a bandeira do idioma atual num selo; a bandeira vira para a nova quando o idioma troca. O toque abre a
+    folha com os três idiomas (os mesmos do Perfil): escolher vale na hora para o app inteiro e a folha fecha. */
+function BotaoIdioma({ id = 'home-idioma' } = {}) {
+  const { h, IconButton, Bandeira, Dialog, closeDialog, Stack, Text, Row, Button, AvisoRede, Carregando, Icone, mount } = __m3;
+  const s = servico; if (!s) return null;
+  const selo = h('span', { class: 'idioma-botao__selo', 'aria-hidden': 'true' });
+  const b = IconButton('globo', 'Idioma do app', { id, variant: 'ghost', onClick: () => abre() });
+  b.classList.add('idioma-botao'); b.title = 'Idioma do app'; b.appendChild(selo);
+  const pinta = (vira = false) => {
+    const i = doId(s.atual); b.dataset.idioma = i.id; mount(selo, Bandeira(i.pais, { tamanho: 12 }));
+    if (vira) { selo.classList.remove('idioma-botao__selo--vira'); void selo.offsetWidth; selo.classList.add('idioma-botao__selo--vira'); }
+  };
+  selo.addEventListener('animationend', () => selo.classList.remove('idioma-botao__selo--vira'));
+  const sai = s.aoTrocar(() => { if (b.isConnected) pinta(true); else sai(); });
+  pinta();
+  function abre() {
+    const st = { trocando: null, erro: null };
+    const corpo = h('div', {});
+    const escolhe = async idEscolhido => {
+      if (st.trocando) return;
+      if (idEscolhido === s.atual) { closeDialog(); return; }
+      st.trocando = idEscolhido; st.erro = null; desenha();
+      try { await s.escolhe(idEscolhido); st.trocando = null; if (corpo.isConnected) closeDialog(); }
+      catch (e) { st.trocando = null; st.erro = idEscolhido; if (corpo.isConnected) desenha(); }
+    };
+    const opcao = i => h('button', { class: 'idioma-opcao', type: 'button', role: 'radio', id: 'idioma-folha-' + i.id, lang: i.lang, translate: 'no',
+      'aria-checked': String(s.atual === i.id), 'aria-busy': String(st.trocando === i.id), dataset: { idioma: i.id }, onClick: () => escolhe(i.id) },
+      Bandeira(i.pais, { tamanho: 24 }),
+      h('span', { class: 'idioma-opcao__texto' }, h('span', { class: 'idioma-opcao__nome' }, i.nome), h('span', { class: 'idioma-opcao__amostra' }, i.amostra)),
+      h('span', { class: 'idioma-opcao__marca', 'aria-hidden': 'true' }, Icone('marcar', { tamanho: 16 })));
+    function desenha() {
+      mount(corpo, Stack({},
+        Text('O app inteiro e o texto das cartas no idioma que você escolher. A imagem da carta fica como foi impressa.', { size: 'sm', tone: 'muted' }),
+        h('div', { class: 'idioma-opcoes', role: 'radiogroup', 'aria-label': 'Idioma do app', id: 'idioma-folha-opcoes' }, ...IDIOMAS.map(opcao)),
+        st.trocando ? Carregando('Preparando o idioma…', { tamanho: 'linha', id: 'idioma-folha-trocando' }) : null,
+        st.erro ? Row({ class: 'ds-row--wrap', id: 'idioma-folha-erro' }, AvisoRede(`Sem internet: o idioma ${doId(st.erro).nome} baixa quando houver conexão.`, {}), h('div', { class: 'ds-grow' }),
+          Button('Tentar de novo', { variant: 'ghost', icone: 'atualizar', id: 'idioma-folha-de-novo', onClick: () => { const e = st.erro; st.erro = null; escolhe(e); } })) : null));
+    }
+    desenha();
+    Dialog({ title: 'Idioma', body: corpo });
+  }
+  return b;
+}
+return { IDIOMAS, PADRAO, doId, criaTradutor, compilaModelo, criaCamada, createIdioma, usa, atual, BotaoIdioma, get servico() { return servico; } };
 })();
 
 /* ==== src/ui/brand.js ==== */
@@ -50532,7 +50586,7 @@ function renderHome({ ancora = false } = {}) {
   const continuar = h('div', { id: 'home-continuar-slot' });
   const rapido = (rotulo, icone, id, rota) => Atalho(rotulo, { icone, id, onClick: () => { location.hash = '#' + rota; } });
   // G-314 · o sino das notificações à direita do título (com o selo de não lidas); Sair da conta (G-276) entra ao lado dele
-  const acoesDoTitulo = h('span', { class: 'inicio__acoes' }, __m44.BotaoNotificacoes({ notificacoes, onClick: () => { location.hash = '#/notificacoes'; } }));
+  const acoesDoTitulo = h('span', { class: 'inicio__acoes' }, __m47.BotaoIdioma(), __m44.BotaoNotificacoes({ notificacoes, onClick: () => { location.hash = '#/notificacoes'; } }));
   const tituloLinha = h('div', { class: 'inicio__titulo-linha' }, titulo, acoesDoTitulo); // G-276 · com a conta conectada, Sair da conta à direita do título
   confereNotificacoes(); // G-314 · pedido de cobertura atendido vira notificação
   const el = h('div', { class: 'ds-wrap inicio', id: 'home' },
