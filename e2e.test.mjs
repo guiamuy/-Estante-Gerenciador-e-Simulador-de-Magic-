@@ -3306,6 +3306,63 @@ async function auditaTela(page, nome) {
   assert.deepEqual(await sobreposicoes(page), [], `${nome}: texto por cima de texto ou de selo/botão`);
 }
 
+/** MK3-2 (J-65, trilha jogabilidade) · simetria da mesa (S1–S4 do contrato MK3): os dois lados são espelho pelo eixo da mesa.
+    S1 mesma largura, esquerda, raio, borda, preenchimento e material (laca, playmat e poço; o brilho do lado ativo, que é
+    estado e tem a cor de cada um, sai da conta) e a mesma escala de carta por fileira; S2 a faixa de identidade (nome ·
+    zonas) à mesma distância da borda de fora (a do outro em cima, a sua embaixo), cada zona no mesmo x, com a caixa do
+    contador à mesma distância da borda; S3 o eixo (o vão entre os lados) não se desloca de lado e a pilha, quando há, fica
+    no meio dele; S4 o que só existe de um lado leva `data-assimetria` com o motivo. Devolve a lista do que quebra. */
+async function auditaSimetria(page, nome) {
+  console.log(`# auditaSimetria · ${nome}`);
+  const r = await page.evaluate(() => {
+    const opp = document.querySelector('.tb-board > .tb-side--opp'), eu = document.querySelector('.tb-board > .tb-side--me');
+    if (!opp || !eu) return { erro: 'os dois lados não estão na mesa' };
+    const R = e => e.getBoundingClientRect(), ruins = [], perto = (a, b, tol = 1) => Math.abs(a - b) <= tol;
+    // o ativo acende na cor de quem joga (U7): é estado, não material; mede os dois apagados e devolve como estava
+    const ativos = [opp, eu].map(l => l.dataset.ativo); [opp, eu].forEach(l => { l.dataset.ativo = 'false'; l.style.transition = 'none'; });
+    const mat = l => { const c = getComputedStyle(l); return { fundo: c.backgroundImage, cor: c.backgroundColor, sombra: c.boxShadow, raio: c.borderTopLeftRadius + ' ' + c.borderBottomRightRadius, borda: c.borderTopWidth + ' ' + c.borderBottomWidth + ' ' + c.borderTopColor, pad: c.padding, gap: c.rowGap }; };
+    const mo = mat(opp), me = mat(eu);
+    [opp, eu].forEach((l, i) => { l.dataset.ativo = ativos[i]; l.style.transition = ''; });
+    for (const k of Object.keys(mo)) if (mo[k] !== me[k]) ruins.push(`S1 material (${k}): ${mo[k]} × ${me[k]}`);
+    const bo = R(opp), be = R(eu);
+    if (!perto(bo.width, be.width) || !perto(bo.left, be.left)) ruins.push(`S1 largura/esquerda: ${bo.left},${bo.width} × ${be.left},${be.width}`);
+    // escala de carta: o token de cada fileira (a fileira com folga cresce pela própria largura, J-57: é conteúdo, não lado)
+    const escala = (l, z) => { const f = l.querySelector(`[data-zone="${z}"] .tb-row`) || l.querySelector(`[data-zone="${z}"]`); return f ? getComputedStyle(f).getPropertyValue('--carta-campo').trim() : null; };
+    for (const z of ['permanents', 'lands']) { const a = escala(opp, z), b = escala(eu, z); if (a && b && a !== b) ruins.push(`S1 escala de carta (${z}): ${a} × ${b}`); }
+    // S2 · a faixa de identidade à mesma distância da borda de fora
+    const ho = opp.querySelector(':scope > .tb-side__head'), he = eu.querySelector(':scope > .tb-side__head');
+    if (!ho || !he) ruins.push('S2 faixa de identidade faltando'); else {
+      const dO = R(ho).top - bo.top, dE = be.bottom - R(he).bottom;
+      if (!perto(dO, dE)) ruins.push(`S2 faixa à mesma distância da borda de fora: ${dO} (outro, de cima) × ${dE} (você, de baixo)`);
+      if (!perto(R(ho).height, R(he).height)) ruins.push(`S2 faixa da mesma altura: ${R(ho).height} × ${R(he).height}`);
+      const lado = l => [...l.querySelectorAll(':scope > .tb-side__head *')];
+      if (!eu.querySelector(':scope > .tb-side__head .tb-side__info b') || !opp.querySelector(':scope > .tb-side__head .tb-side__info b')) ruins.push('S2 o nome nos dois lados');
+      const chips = l => Object.fromEntries([...l.querySelectorAll(':scope > .tb-side__head .tb-chip[data-zona]')].map(c => { const b = R(c), ps = getComputedStyle(c, '::before');
+        return [c.dataset.zona, { x: b.left, w: b.width, cTop: b.top + parseFloat(ps.top) - R(l).top, cBot: R(l).bottom - (b.bottom - parseFloat(ps.bottom)), assim: c.dataset.assimetria || null }]; }));
+      const co = chips(opp), ce = chips(eu);
+      for (const z of new Set([...Object.keys(co), ...Object.keys(ce)])) {
+        const a = co[z], b = ce[z];
+        if (!a || !b) { const so = a || b; if (!so.assim) ruins.push(`S4 a zona ${z} só de um lado, sem data-assimetria`); continue; }
+        if (!perto(a.x, b.x) || !perto(a.w, b.w)) ruins.push(`S2 ${z} no mesmo x: ${a.x},${a.w} × ${b.x},${b.w}`);
+        if (!perto(a.cTop, b.cBot)) ruins.push(`S2 caixa de ${z} à mesma distância da borda de fora: ${a.cTop} × ${b.cBot}`);
+      }
+      void lado;
+    }
+    // S3 · o eixo: o vão entre os lados, sem deslocamento lateral; a pilha (se houver) no meio do vão
+    const vao = { t: bo.bottom, b: be.top };
+    if (vao.b < vao.t - 0.5) ruins.push(`S3 os lados se cruzam: ${vao.t} × ${vao.b}`);
+    const linha = document.querySelector('.tb-camada__linha'), pilha = linha && R(linha).height ? R(linha) : null;
+    if (pilha) { const meio = (vao.t + vao.b) / 2, cx = (bo.left + bo.right) / 2;
+      if (!perto(pilha.top + pilha.height / 2, meio, 2)) ruins.push(`S3 a pilha no meio do vão: ${pilha.top + pilha.height / 2} × ${meio}`);
+      if (!perto(pilha.left + pilha.width / 2, cx, 2) && pilha.width < bo.width - 2) ruins.push(`S3 a pilha no eixo: ${pilha.left + pilha.width / 2} × ${cx}`); }
+    // S4 · todo data-assimetria diz o motivo
+    for (const el of document.querySelectorAll('.tb-board [data-assimetria]')) if (el.dataset.assimetria.trim().length < 8) ruins.push('S4 assimetria sem motivo: ' + el.className);
+    return { ruins };
+  });
+  assert.ok(!r.erro, `${nome}: ${r.erro}`);
+  assert.deepEqual(r.ruins, [], `${nome}: a mesa não é espelho (MK3-2)`);
+}
+
 /** Leva 100 · guarda-corpo de sobreposição: nenhum texto visível pode cair por cima de outro texto nem de um selo,
     chip ou botão que não o contém. Mede o retângulo de cada linha de texto (Range), recortado pelos ancestrais com
     overflow (texto com reticências não "vaza"), e só compara o que está na mesma camada (fixa, grudada ou página).
@@ -11116,8 +11173,9 @@ test('e2e · DS-K2 M3 barra da mesa: Sair · vida dele · faixa de vez · sua vi
   await noMais(page, '#tb-concede'); await page.waitForSelector('.ds-dialog'); assert.equal(await page.isVisible('#tb-mais-menu'), false, 'escolher fecha o menu');
   await page.keyboard.press('Escape'); await page.waitForSelector('.ds-dialog', { state: 'detached' }); assert.equal(await page.evaluate(() => document.activeElement.id), 'tb-mais', 'a folha devolve o foco ao ⋯');
   await page.click('#tb-life-opp'); await page.waitForSelector('.ds-dialog, .ds-overlay[data-open="true"]'); await page.keyboard.press('Escape');
-  // o nome do outro continua no lado dele; o seu lado, sem nada que acompanhe a vida (veneno, monarca…), não ganha linha
-  assert.deepEqual(await page.evaluate(() => [(document.querySelector('#tb-info-opp') || {}).textContent || null, !!document.querySelector('#tb-info-me')]), ['Goldfish', false]);
+  // o nome do outro continua no lado dele. MK3-2 (J-65) · a expectativa muda de propósito: a simetria (S2) dá aos dois lados a
+  // mesma faixa de identidade, então o seu lado também mostra o seu nome (antes ficava sem linha)
+  assert.deepEqual(await page.evaluate(() => [(document.querySelector('#tb-info-opp') || {}).textContent || null, (document.querySelector('#tb-info-me') || {}).textContent || null]), ['Goldfish', 'Você']);
   // /ds: as duas vidas da barra no catálogo
   await page.goto(base + '#/ds'); await page.waitForSelector('#ds-barra');
   assert.deepEqual(await page.$$eval('#ds-barra .tb-life--barra', ls => ls.map(l => [l.dataset.lado, l.textContent])), [['oponente', '11'], ['eu', '14']]);
@@ -17854,6 +17912,7 @@ test('e2e · MJ1c pilha e resumo por cima da mesa: o campo não desce, a faixa n
     assert.deepEqual(m.cobertos, [], `${nome}: a faixa fica no vão, sem cobrir carta, vida ou contador`);
     assert.equal(m.aberto, 'false'); assert.equal(m.painel, false);
     await auditaTela(page, `MJ1c · pilha recolhida ${nome}`);
+    await auditaSimetria(page, `MJ1c · pilha no eixo ${nome}`); // MK3-2 (J-65) · S3: a faixa da pilha no meio do vão, os lados espelho
   }
   await page.setViewportSize({ width: 360, height: 780 });
   const fechada = await mede();
@@ -22093,6 +22152,88 @@ test('e2e · J-64 MK3-1 estojo das fases: trilho num estojo rebaixado no eixo da
     if (nivel === 'moderado') assert.match(x.ini.curva, /^cubic-bezier/, onde + 'sem repique (a mola vira --ease-out)');
     assert.ok(x.fim.tf === 'none' || /matrix\(1, 0, 0, 1, 0, 0\)/.test(x.fim.tf), onde + 'assenta sem deslocamento ' + x.fim.tf);
     await auditaTela(page, `J-64 · MK3-1 troca ${nivel}`);
+  }
+  assert.deepEqual(errors, []);
+});
+
+// MK3-2 (J-65, trilha jogabilidade) · simetria: os dois lados da mesa viram espelho pelo eixo. A faixa de identidade (nome ·
+// grimório · cemitério · exílio) é a mesma nos dois lados e fica na borda de fora de cada um: a do outro em cima do campo dele
+// (como já era), a sua embaixo do seu (antes ficava colada no eixo e sem o seu nome); as fileiras de permanentes se olham pelo
+// eixo e os terrenos ficam atrás, dos dois lados. Cada zona no mesmo x; a caixa do contador à mesma distância da borda de fora
+// (o toque de 44 px sobra para fora nos dois). A mão do outro (a sua está na bandeja) e o grimório que o goldfish não tem são
+// assimetrias declaradas (data-assimetria). Deitado, lado a lado, as duas faixas ficam em cima. auditaSimetria nas quatro
+// medidas e nos dois temas, com o campo vazio, com o mesmo campo dos dois lados e com a pilha no eixo.
+test('e2e · J-65 MK3-2 simetria: faixa de identidade igual nos dois lados, na borda de fora de cada um (a sua embaixo do seu campo, com o seu nome), zonas no mesmo x, permanentes se olham pelo eixo, mesma altura com o mesmo campo, pilha no meio do vão, assimetrias declaradas; deitado, as duas faixas em cima; quatro medidas, dois temas, auditaSimetria e auditaTela', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  const ELFOS = '4 Elvish Mystic\n11 Forest\n1 Fyndhorn Elves\n4 Generous Ent\n4 Llanowar Elves\n4 Masked Vandal\n4 Nyxborn Hydra\n4 Priest of Titania\n4 Quirion Ranger\n2 Sagu Wildling\n3 Timberwatch Elf\n4 Lead the Stampede\n4 Winding Way\n2 Land Grant\n1 Gingerbread Cabin';
+  await createDeck(page, base, 'Elfos', ELFOS);
+  await page.goto(base + '#/mesa'); await page.fill('#mesa-seed', '1');
+  await page.waitForFunction(() => { const c = document.querySelector('[data-opponent="shark"]'); return c && !c.disabled; }, null, { timeout: 8000 });
+  await page.click('[data-opponent="shark"]'); await page.waitForSelector('#mesa-bot-deck');
+  await escolheLista(page, 'mesa-bot-deck', 'shark-elfos');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await semPensar(page); await page.waitForSelector('#tb-pass, #tb-pass-turn');
+  const ordem = () => page.evaluate(() => { const r = e => e.getBoundingClientRect(), lado = s => document.querySelector('.tb-board > ' + s);
+    const fila = (l, z) => { const e = l.querySelector(`[data-zone="${z}"]`); return e ? r(e) : null; };
+    const o = lado('.tb-side--opp'), m = lado('.tb-side--me'), ho = o.querySelector(':scope > .tb-side__head'), hm = m.querySelector(':scope > .tb-side__head');
+    return { alturas: [r(o).height, r(m).height], nomes: [o.querySelector('.tb-side__info b').textContent, m.querySelector('.tb-side__info b').textContent],
+      // a faixa do outro antes do campo dele; a sua depois do seu (também na ordem de leitura, não só no desenho)
+      ordem: [ho === o.firstElementChild, hm === m.lastElementChild],
+      fileiras: { opp: [fila(o, 'lands'), fila(o, 'permanents')].map(x => x && Math.round(x.top)), eu: [fila(m, 'permanents'), fila(m, 'lands')].map(x => x && Math.round(x.top)) },
+      faixa: { opp: Math.round(r(ho).top), eu: Math.round(r(hm).top) },
+      mao: (o.querySelector('.tb-chip[data-zona="hand"]') || {}).dataset?.assimetria || null };
+  });
+  const rodada = async (rotulo, campo) => {
+    for (const [w, hgt] of [[360, 780], [384, 832], [390, 844], [412, 891]]) for (const tema of ['dark', 'light']) {
+      await page.setViewportSize({ width: w, height: hgt }); await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(250);
+      const onde = `${rotulo} ${w}×${hgt} ${tema}`, x = await ordem();
+      assert.deepEqual(x.ordem, [true, true], `${onde}: a faixa do outro em cima do campo dele e a sua embaixo do seu ` + JSON.stringify(x));
+      assert.equal(x.nomes[1], 'Você', `${onde}: o seu nome na sua faixa`); assert.ok(x.nomes[0].length, `${onde}: o nome do outro na dele`);
+      assert.equal(x.mao, 'a sua mão está na bandeja', `${onde}: a mão do outro é assimetria declarada`);
+      assert.ok(Math.abs(x.alturas[0] - x.alturas[1]) <= 1, `${onde}: com o mesmo campo, os dois lados da mesma altura ` + JSON.stringify(x.alturas));
+      if (campo) {
+        assert.ok(x.fileiras.opp[0] < x.fileiras.opp[1] && x.fileiras.eu[0] < x.fileiras.eu[1], `${onde}: permanentes se olham pelo eixo, terrenos atrás ` + JSON.stringify(x.fileiras));
+        assert.ok(x.faixa.opp < x.fileiras.opp[0] && x.faixa.eu > x.fileiras.eu[1], `${onde}: as faixas na borda de fora ` + JSON.stringify(x));
+      }
+      await auditaSimetria(page, `J-65 · MK3-2 ${onde}`);
+      await auditaTela(page, `J-65 · MK3-2 ${onde}`);
+      if (process.env.SHOTS && w === 360) await page.screenshot({ path: process.env.SHOTS + `/j-65-mk3-2-${rotulo}-${tema}.png`, fullPage: true });
+    }
+  };
+  // 1) começo da partida: os dois campos vazios (a linha do lado é só a faixa)
+  await page.evaluate(() => window.__estanteMesa.verJogadas(false));
+  await rodada('vazio', false);
+  // 2) o mesmo campo dos dois lados: dois Llanowar Elves e dois Forest em cada
+  await page.evaluate(() => { const M = window.__estanteMesa, s = M.estado();
+    const pega = (p, nome, n) => s.zones[p].library.map(x => s.objects[x]).filter(o => o.name === nome).slice(0, n);
+    for (const p of [0, 1]) for (const o of [...pega(p, 'Llanowar Elves', 2), ...pega(p, 'Forest', 2)]) M.act({ t: 'move', p: M.estado().turn.priority, oid: o.oid, to: 'battlefield' }); });
+  await page.waitForFunction(() => document.querySelectorAll('.tb-side--opp .tb-card').length >= 2 && document.querySelectorAll('.tb-side--me .tb-card').length >= 2);
+  await rodada('campo', true);
+  // (a pilha no meio do vão: o MJ1c chama auditaSimetria com a faixa da pilha aberta)
+  // 4) deitado (lado a lado): o espelho é pelo eixo vertical, as duas faixas em cima, na mesma altura
+  await page.setViewportSize({ width: 780, height: 360 }); await page.waitForTimeout(250);
+  const deitado = await page.evaluate(() => { const r = e => e.getBoundingClientRect(), o = document.querySelector('.tb-side--opp'), m = document.querySelector('.tb-side--me');
+    const ho = r(o.querySelector(':scope > .tb-side__head')), hm = r(m.querySelector(':scope > .tb-side__head')), fm = m.querySelector('[data-zone]');
+    return { topo: [ho.top - r(o).top, hm.top - r(m).top], ladoALado: r(m).left > r(o).right - 1, faixaAntesDoCampo: !fm || hm.bottom <= r(fm).top + 1 }; });
+  assert.ok(deitado.ladoALado, 'deitado: lado a lado ' + JSON.stringify(deitado));
+  assert.ok(Math.abs(deitado.topo[0] - deitado.topo[1]) <= 1 && deitado.faixaAntesDoCampo, 'deitado: as duas faixas em cima, à mesma distância do topo ' + JSON.stringify(deitado));
+  assert.deepEqual(errors, []);
+});
+
+// MK3-2 (J-65) · contra o goldfish (sem mão nem grimório): o seu grimório é a assimetria declarada, o resto continua espelho
+test('e2e · J-65 MK3-2 simetria contra o goldfish: o seu grimório leva data-assimetria (o goldfish não tem), cemitério e exílio no mesmo x; auditaSimetria nos dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'Espelho', PAUPER);
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start'); await page.fill('#mesa-seed', '4');
+  await page.click('[data-opponent="goldfish"]');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-pass');
+  for (const tema of ['dark', 'light']) {
+    await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(250);
+    assert.equal(await page.getAttribute('#tb-lib-me', 'data-assimetria'), 'o goldfish não tem grimório');
+    await auditaSimetria(page, `J-65 · MK3-2 goldfish ${tema}`); await auditaTela(page, `J-65 · MK3-2 goldfish ${tema}`);
   }
   assert.deepEqual(errors, []);
 });

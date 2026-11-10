@@ -704,7 +704,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ud ✅ | MJ25 mesa pelo print 2 (decisão do dono, 02/11/2026), sete fatias: .1 ícones de estado que cabem e rolagem afastada da carta (J-53 ✅) · .2 nome na faixa de cima, girando com a carta virada (J-54 ✅) · .3 a carta de origem na pilha e nas decisões (Roost Seek) (J-55 ✅) · .4 escolher carta vendo a carta ampliada (J-56 ✅) · .5 cartas ocupam o espaço da fileira (J-57 ✅) · .6 layout em paisagem (J-58 ✅) · .7 opção "Orientação: automática / só retrato" (J-59 ✅) | MJ24 | jogabilidade |
 | 16º-uf ✅ | MJ26 relato #55: as setas do combate (e a prévia do dano) acompanham a rolagem da página e de qualquer contêiner da mesa; "Cancelar" na declaração de atacantes e de bloqueadores desmarca a escolha sem mandar nada ao motor (J-61, 03/11/2026) | J | 1 | 16º-ud |
 | 16º-ug ✅ | MJ27 relato #55, o resto do "cancelar jogada em curso": um Cancelar com o mesmo nome e lugar em toda escolha encadeada antes de jogar (alvo → custo → X → cor), que volta um passo em vez de fechar tudo, e a mira por arrasto com Cancelar à vista (J-62, 03/11/2026) | J | 1 | 16º-uf |
-| 16º-va 🟡 | MK3 · Mesa Vitrine (pedido do dono de 09/11/2026: a mesa no patamar do DS-K3 — simetria, profundidade por luz e sombra, material, animação de alto padrão em todo elemento; rotina "Mesa MK3" a cada 4 h; modo agilidade): ✅ MK3-0 (J-63) material — carta como objeto (espessura, contato, chave, face laqueada) e playmat em poço igual nos dois lados, levantar com a mola do DS-K3; ✅ MK3-1 (J-64) estojo das fases — trilho num estojo rebaixado no eixo da faixa de vez, o filete de latão não passa mais por baixo, o traço desliza com mola; próxima MK3-2 simetria. Revisão das 22h15: benchmarks, mão e gesto (arrastar para jogar, toque duplo), zonas, organizar o campo, combate sem setas. Playmats (23h36): da casa e criados pelo jogador (MK3-P1…P5). Especificação: `docs/MK3-especificacao.md`. A MV-9 do DS-K3 passa a ser a MK3-17 | MK3 | 2 de 27 | DS-K3 K3-0/MV-0, MJ, DS-K2 M1–M6 |
+| 16º-va 🟡 | MK3 · Mesa Vitrine (pedido do dono de 09/11/2026: a mesa no patamar do DS-K3 — simetria, profundidade por luz e sombra, material, animação de alto padrão em todo elemento; rotina "Mesa MK3" a cada 4 h; modo agilidade): ✅ MK3-0 (J-63) material — carta como objeto (espessura, contato, chave, face laqueada) e playmat em poço igual nos dois lados, levantar com a mola do DS-K3; ✅ MK3-1 (J-64) estojo das fases — trilho num estojo rebaixado no eixo da faixa de vez, o filete de latão não passa mais por baixo, o traço desliza com mola; ✅ MK3-2 (J-65) simetria — a mesma faixa de identidade (nome · zonas) na borda de fora de cada lado, a sua embaixo do seu campo, permanentes que se olham pelo eixo, `auditaSimetria`; próxima MK3-3 carta-objeto. Revisão das 22h15: benchmarks, mão e gesto (arrastar para jogar, toque duplo), zonas, organizar o campo, combate sem setas. Playmats (23h36): da casa e criados pelo jogador (MK3-P1…P5). Especificação: `docs/MK3-especificacao.md`. A MV-9 do DS-K3 passa a ser a MK3-17 | MK3 | 3 de 27 | DS-K3 K3-0/MV-0, MJ, DS-K2 M1–M6 |
 | 16º-ui 🟡 | T-IDIOMA relatos #53/#66, fatia 1: o português cobre a interface (Rulings → Esclarecimentos, Near Mint → Quase nova, Etched → Foil gravado, Offline → Sem internet, cinco palavras-chave e os marcadores com nome em português na mesa e no registro); falta troca de idioma, pacotes es/en e texto das cartas (leva G-353, 07/11/2026) | T | 1 | — |
 | 16º-up ✅ | T-IDIOMA relatos #53/#66, fatia 2: a folha da carta mostra nome, tipo e texto oficiais impressos em português (Scryfall), com a troca para o original, guardados no aparelho; nunca impressa fica em inglês com aviso até a fatia 3 (leva G-356, 08/11/2026) | T | 1 | 16º-ui |
 | 16º-us ✅ | T-IDIOMA relatos #53/#66, fatia 4: Perfil › Idioma (português, inglês, espanhol, com bandeira e nome no próprio idioma), o app inteiro na hora pela camada de tradução da tela e pelos pacotes idiomas/en.json e es.json, a folha da carta no idioma (oficial impresso; Oracle em inglês) com o texto antes da imagem, e a camada obrigatória (texto novo sem tradução derruba o portão) (leva G-361, 08/11/2026) | T | 1 | 16º-up |
@@ -15025,7 +15025,7 @@ Especificação por fatia (valores e roteiros): `docs/MK3-especificacao.md`.
 |---|---|---|
 | **MK3-0** | material: carta como objeto (espessura, contato, chave, face laqueada), playmat em poço igual nos dois lados, levantar com mola | ✅ J-63 |
 | MK3-1 | estojo das fases: o trilho de pontos e traço sob "Seu turno" num estojo rebaixado, sem cruzar a linha do topo | ✅ J-64 |
-| MK3-2 | simetria: os dois lados espelhados (faixa de identidade igual, eixo central), `auditaSimetria` | ⬜ |
+| MK3-2 | simetria: os dois lados espelhados (faixa de identidade igual, eixo central), `auditaSimetria` | ✅ J-65 |
 | MK3-3 | carta-objeto: virar e desvirar com massa, sombra que gira, selos em laca | ⬜ |
 | MK3-P1 | playmats da casa: seis modelos no design system (Ébano, Feltro, Oceano, Vinho, Pergaminho, Latão gravado), nos dois temas | ⬜ |
 | MK3-P2 | galeria e escolha: Perfil › Playmats com prévia ao vivo numa mini-mesa; vale na mesa na hora | ⬜ |
@@ -15076,6 +15076,35 @@ Cloudflare) ficam do nosso lado, para gerar e validar. Cinco fatias MK3-P1…P5 
   `--carta-laca`, `--mesa-poco`; `--sombra-carta` e `--sombra-carta-alta` passam a ser compostas só de tokens K3 (valem
   também no palco do `/ds`, no leque e na pilha).
 - **Fora:** estojo das fases (MK3-1), simetria da faixa de identidade (MK3-2), gestos e receitas por evento (MK3-3 em diante).
+
+#### MK3-2 · simetria (✅ J-65, 10/11/2026)
+- **Valor:** a mesa passa a ser um espelho: os dois jogadores têm a mesma faixa de identidade (nome, grimório, cemitério e
+  exílio), cada um na borda de fora do próprio campo — a do outro em cima, a sua embaixo, junto da bandeja —, e as duas
+  fileiras de permanentes se olham pelo eixo da mesa, com os terrenos atrás, como numa mesa de verdade. O seu lado ganha o
+  seu nome (antes só o do outro aparecia).
+- **Aceite:** nas quatro medidas e nos dois temas, com o campo vazio e com o mesmo campo dos dois lados (`auditaSimetria`):
+  S1 mesma largura, esquerda, raio, borda, preenchimento e material (laca, playmat, poço; o brilho do lado ativo é estado e
+  fica fora da conta) e o mesmo token de carta por fileira; S2 a faixa à mesma distância da borda de fora (±1 px), com o
+  nome nos dois lados, cada zona no mesmo x e a caixa do contador à mesma distância da borda (o toque de 44 px sobra para
+  fora nos dois: para cima no do outro, para baixo no seu); com o mesmo campo, os dois lados da mesma altura; S3 a faixa da
+  pilha no meio do vão (MJ1c); S4 o que só existe de um lado leva `data-assimetria` com o motivo (a mão do outro, "a sua mão
+  está na bandeja"; o seu grimório contra o goldfish, que não tem). A ordem de leitura acompanha o desenho (a sua faixa vem
+  depois do seu campo no DOM). Deitado (lado a lado, J-58) o espelho é pelo eixo vertical: as duas faixas em cima.
+  `auditaTela` limpa; MJ11b verde.
+- **Pixels de campo (360 × 780):** zero perdido; com o campo cheio, as suas cartas sobem 42 px (a faixa e o vão saem de cima
+  do seu campo), então cabe mais do seu campo acima da bandeja. Contrapartida declarada: com o campo cheio a sua faixa fica
+  junto da bandeja e aparece ao rolar até o fim (como os seus terrenos já ficavam).
+- **Receita:** nenhuma nova (é composição, sem movimento); nada a declarar nos três níveis de Movimento.
+- **Testes:** contrato visual "MK3-2" e e2e "J-65 MK3-2" (Shark e goldfish; quatro medidas, dois temas, campo vazio, mesmo
+  campo, deitado), que falhavam no `main` de antes; `auditaSimetria` nova no e2e (vale para as próximas fatias) e chamada
+  também no MJ1c (pilha no eixo). Expectativa antiga que muda de propósito, com o motivo no teste: DS-K2 M3 (o seu lado agora
+  mostra o seu nome).
+- **Parcial declarado:** a "vida pequena" da faixa fica fora — a vida dos dois já está na barra (vida · vez · vida, DS-K2 M3)
+  e repeti-la custaria espaço e duas fontes do mesmo número; a MK3-10 (barra em latão) decide. O eixo único com o selo da
+  Conversa no online (parcial da MK3-1) continua com a MK3-10.
+- **Fora:** zonas como objetos (MK3-8); trazer as suas zonas para a bandeja quando o campo enche (decidir na MK3-8); a
+  altura mínima de campo além do que o conteúdo pede (os dois lados já medem igual com o mesmo campo; reservar altura vazia
+  custaria campo).
 
 #### MK3-1 · estojo das fases (✅ J-64, 10/11/2026)
 - **Valor:** o trilho das fases sob "Seu turno" deixa de sentar em cima do filete de latão da barra (a linha passava por

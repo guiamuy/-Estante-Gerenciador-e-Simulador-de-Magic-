@@ -976,6 +976,22 @@ test('DS-K3 K3-3 · a barra recolhe ao rolar: uma variável (--barra-recolhe) le
   assert.match(HTML, /__m2\.barraAoRolar\(est, y,/);
 });
 
+// MK3-2 (J-65, trilha jogabilidade) · simetria: os dois lados são espelho pelo eixo. A faixa de identidade (nome · zonas) é a
+// mesma nos dois lados e fica na borda de fora: a do outro antes do campo dele, a sua depois do seu (também na ordem de
+// leitura); o seu nome aparece na sua faixa; o que só existe de um lado leva data-assimetria com o motivo (a mão do outro; o
+// grimório que o goldfish não tem); deitado, lado a lado, as duas faixas ficam em cima. Falhava no main de antes (a sua faixa
+// vinha antes do campo e sem nome; nenhuma assimetria declarada).
+test('MK3-2 · simetria: faixa de identidade na borda de fora dos dois lados, nome nos dois, assimetria só declarada, deitado as duas em cima', () => {
+  assert.ok(HTML.includes("...(mine ? [...field, h('div', { class: 'tb-side__head' }, life, selo, chips)] : [h('div', { class: 'tb-side__head' }, life, selo, chips), ...field.reverse()])"), 'a sua faixa depois do seu campo; a do outro antes do dele');
+  assert.match(HTML, /const nomeNoLado = pl\.name \+ \(pl\.lost \? ' \(fora\)' : ''\);/, 'o nome nos dois lados');
+  assert.match(HTML, /const comAssimetria = \(el, motivo\) => \{ if \(el && motivo\) el\.dataset\.assimetria = motivo; return el; \};/);
+  assert.ok(HTML.includes("comAssimetria(ZoneChip('Mão', z.hand.length, null), 'a sua mão está na bandeja')"), 'a mão do outro é assimetria declarada');
+  assert.ok(HTML.includes("'o goldfish não tem grimório'"), 'o grimório sem par no goldfish é assimetria declarada');
+  assert.ok(componentCss.includes(':root:not([data-orientacao="retrato"]) .tb-board > .tb-side--me > .tb-side__head { order: -1; }'), 'deitado, a sua faixa volta para cima (espelho pelo eixo vertical)');
+  // o toque de 44 px dos contadores sobra para fora nos dois lados: para cima no do outro, para baixo no seu (o padrão)
+  assert.match(componentCss, /\.tb-side--opp \.tb-chip \{ margin: calc\(var\(--chip-zona-h\) - var\(--tap-min\)\) 0 0;/);
+});
+
 // MK3-1 (J-64, trilha jogabilidade) · estojo das fases: o trilho de pontos e traço num estojo rebaixado (pílula --elev-1 com
 // poço pequeno e aresta), no eixo da mesa, com folga igual acima e abaixo; a barra ganha a folga de baixo e o vão de cima do
 // campo encolhe o mesmo (zero pixel de campo); atual em latão com fio de luz, passadas cheias, futuras vazadas; o traço desliza
