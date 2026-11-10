@@ -941,3 +941,34 @@ test('DS-K3 MV-1 · navegação com direção: tokens de perspectiva, escurecer 
   const red = vars(tokenCss.slice(tokenCss.indexOf(':root[data-movimento="reduzido"] {')).split('}')[0]);
   assert.deepEqual([red['--z-recuo'], red['--z-chega'], red['--desloc-1'], red['--desloc-3']], ['0px', '0px', '0px', '0px']);
 });
+
+/* ---------------- DS-K3 K3-3 (G-367) · a barra que recolhe ao rolar ---------------- */
+test('DS-K3 K3-3 · a barra recolhe ao rolar: uma variável (--barra-recolhe) leva a pílula para fora da tela (altura + ressalto + folga) e o Relatar e o botão de ação só a altura da barra; saída --sai · --dur-2, volta --mola-firme · --dur-3; só translate (não mexe em layout); Reduzido, o aparelho com menos movimento e as telas sem barra ou com doca (Jogar) nunca recolhem; nenhum literal de duração, curva ou distância', () => {
+  const regra = sel => { const i = componentCss.indexOf(sel + ' {'); assert.ok(i >= 0, sel); return componentCss.slice(i, componentCss.indexOf('}', i) + 1); };
+  const desde = ini => { const i = componentCss.indexOf(ini); assert.ok(i >= 0, ini); return componentCss.slice(i, componentCss.indexOf('}', i) + 1); };
+  assert.match(componentCss, /:root \{ --barra-recolhe: 0; \}/);
+  // a regra que liga só existe sem menos movimento (do aparelho e da escolha) e fora das telas sem barra ou com doca sobre ela
+  const i = componentCss.indexOf('@media (prefers-reduced-motion: no-preference) {\n  :root:not([data-movimento="reduzido"]) body[data-barra="fora"]');
+  assert.ok(i >= 0, 'a regra que recolhe mora dentro de prefers-reduced-motion: no-preference e fora do Reduzido');
+  const liga = componentCss.slice(i, componentCss.indexOf('}', i) + 1);
+  for (const tela of ['partida', 'scanner', 'entrar', 'mesa']) assert.ok(liga.includes(`:not([data-tela="${tela}"])`), tela);
+  assert.ok(liga.includes(':not([data-mesa-cheia="true"])') && liga.includes('--barra-recolhe: 1;'));
+  assert.equal([...componentCss.matchAll(/--barra-recolhe: 1/g)].length, 1, 'um só lugar liga');
+  // geometria: a pílula sai inteira (com o latão que sobe o ressalto); os flutuantes descem só a altura da barra
+  assert.match(desde('.ds-navbar { translate'), /translate: 0 calc\(var\(--barra-recolhe\) \* \(var\(--navbar-h\) \+ var\(--navbar-ressalto\) \+ var\(--navbar-folga\)\)\); transition: translate var\(--dur-3\) var\(--mola-firme\);/);
+  assert.match(desde('.ds-fab { translate'), /translate: 0 calc\(var\(--barra-recolhe\) \* var\(--navbar-h\)\); transition: translate var\(--dur-3\) var\(--mola-firme\);/);
+  assert.match(regra('body[data-barra="fora"] :is(.ds-navbar, .ds-fab)'), /transition: translate var\(--dur-2\) var\(--sai\);/);
+  const relatar = desde('.ds-relatar { position: fixed');
+  assert.match(relatar, /translate var\(--dur-3\) var\(--mola-firme\); translate: 0 calc\(var\(--barra-recolhe\) \* var\(--navbar-h\)\);/);
+  assert.match(relatar, /transition: transform var\(--dur-1\) var\(--ease-out\), color var\(--dur-1\) var\(--ease-out\), translate/, 'as transições que o Relatar já tinha continuam');
+  assert.match(regra('body[data-barra="fora"] .ds-relatar'), /translate var\(--dur-2\) var\(--sai\);/);
+  // R3: a saída é mais curta que a volta; no Moderado a mola firme vira a saída suave (os tokens)
+  assert.deepEqual([DARK['--dur-2'], DARK['--dur-3']], ['180ms', '280ms']);
+  const mod = vars(tokenCss.slice(tokenCss.indexOf(':root[data-movimento="moderado"] {')).split('}')[0]);
+  assert.equal(mod['--mola-firme'], 'var(--ease-out)');
+  // a reserva do fim da tela não muda com a barra recolhida (o #outlet não usa a variável)
+  assert.doesNotMatch(regra('#outlet'), /barra-recolhe/);
+  // e o JS: ouvinte passivo, uma leitura por quadro, decisão pura no roteador
+  assert.match(HTML, /window\.addEventListener\('scroll', \(\) => \{ if \(!quadro\) quadro = requestAnimationFrame\(le\); \}, \{ passive: true \}\);/);
+  assert.match(HTML, /__m2\.barraAoRolar\(est, y,/);
+});

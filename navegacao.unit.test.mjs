@@ -40,3 +40,19 @@ test('MV-1 · nenhuma: primeira tela, mesmo endereço, mesma tela com outra cons
   assert.equal(d('#/partida', '#/'), 'nenhuma');
   assert.equal(d('#/entrar', '#/'), 'nenhuma', 'a porta tem a saída dela (G-274)');
 });
+
+// DS-K3 K3-3 (G-367) · a barra que recolhe ao rolar
+const rola = ys => ys.reduce((e, y) => R.barraAoRolar(e, y), null);
+test('K3-3 · rolar para baixo além do limiar (12 px acumulados) recolhe a barra; perto do topo ela fica', () => {
+  assert.equal(rola([0, 40, 50]).recolhida, false, 'até o topo (64 px), sempre à vista');
+  assert.equal(rola([100, 105, 110]).recolhida, false, '10 px acumulados: ainda não');
+  assert.equal(rola([100, 105, 110, 113]).recolhida, true, '13 px acumulados: recolhe');
+  assert.equal(rola([100, 400]).recolhida, true, 'um salto grande recolhe de uma vez');
+});
+test('K3-3 · o primeiro gesto para cima (4 px ou mais) traz de volta; o repique menor não', () => {
+  assert.equal(rola([100, 400, 396]).recolhida, false, '4 px para cima: volta');
+  assert.equal(rola([100, 400, 398]).recolhida, true, '2 px para cima (repique do fim da página): fica recolhida');
+  assert.equal(rola([100, 400, 380, 390]).recolhida, false, 'depois de voltar, precisa de 12 px de novo para recolher');
+  assert.equal(rola([100, 400, 380, 390, 395]).recolhida, true);
+  assert.equal(rola([100, 400, 30]).recolhida, false, 'no topo, à vista');
+});
