@@ -712,6 +712,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-uv ✅ | T-IDIOMA relatos #53/#66, lote 2 da fatia 3: as 16 cartas Pauper que faltavam em português e as 2 em espanhol (Oracle da cobertura do catálogo e do Forge, idiomas/oficiais-forge.json), as cartas de duas faces com as duas faces traduzidas e pelo nome inteiro da Scryfall (o lote 1 tinha oito pela frente, que o app nunca achava); --faltam junta frente + verso (leva G-368, 10/11/2026) | T | 1 | 16º-uu |
 | 16º-uw ✅ | Y6d relato #106: ditado sem palavra dobrada — final ou parcial que começa pelo último final inteiro (mesmo de uma palavra) entra só o resto, e a cauda dele repetida não entra; com internet o ditado usa o serviço de fala (mais preciso), o reconhecimento no aparelho fica para quando não há internet (G-369, 10/11/2026) | G | 1 | 16º-ue |
 | 16º-uz ✅ | T-IDIOMA relatos #53/#66/#108, lote 3 da fatia 3: as cartas das listas de Standard do catálogo que nunca saíram impressas no idioma (248 em português, 19 em espanhol), todas pelo conferidor; --faltam ganha --formato (padrão pauper) (leva G-373, 10/11/2026) | T | 1 | 16º-uv |
+| 16º-ux ✅ | T-IDIOMA relato #108 (G-371): a carta guardada no aparelho sem `oracle_id` (antes da S-616, 07/11, ou fixada para jogar sem internet) busca o texto impresso no idioma pelo nome exato; antes a folha nem tentava e a Coleção ficava em inglês | T | 1 | 16º-up |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -13639,6 +13640,14 @@ trilha `geral`, 09/11/2026; relato do dono de 09/11: o Enviar abria o GitHub e o
   37), todas pelo conferidor. Teste U `idioma-traducao.unit` G-373 (2; o de pacotes falhava antes). **Parcial, declarado:**
   262 cartas de Standard em português e 41 em espanhol seguem em inglês por falta do Oracle no repositório (a sessão não alcança
   a Scryfall); Pioneer, Modern, Legacy, Vintage e Commander ficam para os próximos lotes (`--formato pioneer` etc.).
+- **Relato #108 · carta guardada sem `oracle_id` (G-371, `16º-ux`, rotina Relatos contínuo, 10/11/2026) ✅:** a chave do
+  texto impresso era só o `oracle_id`, que o `normalizeCard` grava desde a S-616 (07/11). Carta guardada antes disso, e a
+  fixada para jogar sem internet (S64, nunca vence), não tinha a chave: a folha da carta não buscava nada e a Coleção
+  ficava toda em inglês. Agora, sem o `oracle_id`, a carta da Scryfall (não o básico embutido; nome sem aspas) busca pelo
+  nome exato (`nome:<nome>` → `!"<nome>" lang:<idioma>`), guardada no aparelho com o mesmo prazo; a tradução do robô entra
+  depois, como antes. Teste U `idioma-cartas.unit` G-371 (falhava antes). **Parcial, declarado:** a carta que nunca saiu
+  no idioma e ainda não está nos pacotes do robô segue em inglês, com o aviso; a cobertura de todas segue pelos lotes do
+  #53/#66.
 - **Fora, declarado (fatias seguintes):** a troca de idioma no Perfil (item 2); os pacotes **es** e **en** (item 3: extrair os
   textos para um dicionário por idioma, história de várias rodadas); texto e nome das cartas (item 4, aguarda decisão
   "oficial"/"automática"); a **camada obrigatória de idioma em toda entrega** (texto novo nasce no dicionário e o teste barra

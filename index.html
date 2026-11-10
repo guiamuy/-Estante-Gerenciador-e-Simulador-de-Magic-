@@ -6752,7 +6752,9 @@ function createScryfall(opts = {}) {
         daquele idioma. null quando a carta nunca saiu impressa nele. O motor continua lendo o Oracle em inglês. */
     async textoImpresso(oracleId, lang) {
       if (!oracleId || !lang) return null;
-      const qs = `?q=${encodeURIComponent(`oracleid:${oracleId} lang:${lang}`)}&unique=prints&order=released&dir=desc&include_extras=true`;
+      // G-371 · `nome:<nome>`: a carta guardada sem oracle_id busca pelo nome exato
+      const porNome = oracleId.startsWith('nome:') ? oracleId.slice(5) : null;
+      const qs = `?q=${encodeURIComponent(porNome ? `!"${porNome}" lang:${lang}` : `oracleid:${oracleId} lang:${lang}`)}&unique=prints&order=released&dir=desc&include_extras=true`;
       const data = await schedule(() => request('/cards/search' + qs));
       return !data || data.notFound || !Array.isArray(data.data) ? null : textoImpressoDe(data.data, lang);
     }
@@ -7198,7 +7200,16 @@ function createRulings({ store, scryfall, agora = () => Date.now(), prazo = RULI
 const TEXTO_IMPRESSO = (lang, k) => `cartas.texto.${lang}.${k}`;
 const TEXTO_IMPRESSO_PRAZO_MS = 30 * 24 * 60 * 60 * 1000;
 const TEXTO_IMPRESSO_NENHUM_MS = 7 * 24 * 60 * 60 * 1000;
-const chaveDoTextoImpresso = card => (card && typeof card.oracle_id === 'string' && card.oracle_id ? card.oracle_id : null);
+/* G-371 · relato #108: a carta guardada no aparelho antes de 07/11 (S-616), e a fixada para jogar sem internet (nunca vence),
+   não tem o oracle_id; sem chave a folha nem buscava o texto no idioma e a Coleção ficava toda em inglês. Sem o oracle_id,
+   a carta da Scryfall (id dela, não o básico embutido) busca pelo nome exato: `nome:<nome>`. */
+const CHAVE_POR_NOME = 'nome:';
+const chaveDoTextoImpresso = card => {
+  if (!card) return null;
+  if (typeof card.oracle_id === 'string' && card.oracle_id) return card.oracle_id;
+  const nome = typeof card.name === 'string' ? card.name.trim() : '';
+  return temRulings(card) && nome && !nome.includes('"') ? CHAVE_POR_NOME + nome : null;
+};
 function createTextoImpresso({ store, scryfall, agora = () => Date.now() }) {
   const le = async (lang, k) => { try { const g = await store.get(TEXTO_IMPRESSO(lang, k)); return g && typeof g.em === 'number' && 'dado' in g ? g : null; } catch (e) { return null; } };
   const noPrazo = g => agora() - g.em < (g.dado ? TEXTO_IMPRESSO_PRAZO_MS : TEXTO_IMPRESSO_NENHUM_MS);
@@ -8166,6 +8177,8 @@ function openCardViewer(card, extra = [], { quantidade = null, arteDesconhecida 
         oracle ? h('p', { class: 'ds-visor__oracle', lang: oracleLang, id: 'card-oracle' }, ComSimbolos(oracle))
                : Text('Sem texto de regras.', { size: 'sm', tone: 'subtle' }),
         linhaDoIdioma());
+    // G-371 · redesenhar (o texto no idioma chega depois) tira e põe a seção de esclarecimentos: o foco que estava na folha volta
+    const focoAntes = typeof document !== 'undefined' && body.contains(document.activeElement) ? document.activeElement : null;
     mount(body,
       doImp.texto ? textoBox : moldura,
       doImp.texto ? moldura : textoBox,
@@ -8182,6 +8195,10 @@ function openCardViewer(card, extra = [], { quantidade = null, arteDesconhecida 
       h('div', { style: { height: 'var(--space-3)' } }),
       Text('Preço', { size: 'sm', caps: true, as: 'h3' }),
       precoBox);
+    if (focoAntes && document.activeElement !== focoAntes) {
+      const volta = focoAntes.isConnected ? focoAntes : focoAntes.id ? body.querySelector('#' + CSS.escape(focoAntes.id)) : null;
+      if (volta) volta.focus({ preventScroll: true });
+    }
   };
   paint();
 

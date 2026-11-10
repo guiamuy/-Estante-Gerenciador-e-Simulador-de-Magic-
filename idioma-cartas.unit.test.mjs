@@ -82,3 +82,26 @@ test('G-356 · serviço: guarda por oracle_id e idioma (vale para outra impress�
   // sem oracle_id: não busca
   const s = await T.busca({ id: 'basic-island' }, 'pt'); assert.equal(s.semChave, true); assert.equal(chamadas, c0 + 1);
 });
+
+test('G-371 · relato #108: carta guardada sem oracle_id (antes da S-616, ou fixada para jogar sem internet) busca o texto no idioma pelo nome exato; básico embutido e nome com aspas não', async () => {
+  const pedidos = [];
+  const scryfall = { textoImpresso: async (k, lang) => { pedidos.push(k); return SF.textoImpressoDe([PT], lang); } };
+  const T = C.createTextoImpresso({ store: P.memoryStore(), scryfall });
+  const antiga = { id: 'imp-1', name: 'Teste Bolt', oracle_text: 'Deals 3 damage to any target.' }; // sem oracle_id
+  assert.equal(T.temChave(antiga), true);
+  const r = await T.busca(antiga, 'pt');
+  assert.equal(r.dado.nome, 'Raio de Teste');
+  assert.deepEqual(pedidos, ['nome:Teste Bolt']);
+  assert.equal((await T.guardado(antiga, 'pt')).dado.texto, 'Causa 3 pontos de dano a qualquer alvo.', 'fica guardado no aparelho pelo nome');
+  assert.equal(T.temChave({ id: 'basic-island', name: 'Island' }), false);
+  assert.equal(T.temChave({ id: 'imp-2', name: 'Say "Cheese"' }), false);
+  assert.equal(T.temChave({ id: 'imp-3', oracle_id: 'o-3', name: 'Outra' }), true);
+  // o cliente da Scryfall: `nome:<nome>` vira a busca pelo nome exato no idioma
+  const urls = [];
+  const res = (status, body) => ({ status, ok: status < 300, headers: { get: () => null }, json: async () => body });
+  const sf = SF.createScryfall({ sleep: async () => {}, fetch: async url => { urls.push(url); return res(200, { object: 'list', data: [PT] }); } });
+  assert.equal((await sf.textoImpresso('nome:Teste Bolt', 'pt')).nome, 'Raio de Teste');
+  assert.equal(new URL(urls[0]).searchParams.get('q'), '!"Teste Bolt" lang:pt');
+  await sf.textoImpresso('o-1', 'pt');
+  assert.equal(new URL(urls[1]).searchParams.get('q'), 'oracleid:o-1 lang:pt');
+});

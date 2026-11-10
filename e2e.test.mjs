@@ -2226,6 +2226,8 @@ test('e2e · G-350 relato #65: a arte da pilha e da Coleção é a da edição e
   await page.route('https://api.scryfall.com/sets', r => r.fulfill({ json: { object: 'list', has_more: false, data: [{ code: 'mh2', name: 'Modern Horizons 2', released_at: '2021-06-18' }] } }));
   await page.route('https://api.scryfall.com/cards/search**', r => {
     const q = decodeURIComponent(new URL(r.request().url()).searchParams.get('q') || '');
+    // G-371 · a Ilha guardada sem oracle_id busca o texto em português pelo nome: aqui não há impressão em português (lista vazia)
+    if (/ lang:pt$/.test(q)) return r.fulfill({ json: { object: 'list', has_more: false, data: [] } });
     return r.fulfill({ json: q === '!"Island"' ? { object: 'list', has_more: false, data: [MH2, LEA] } : { object: 'error', status: 404 }, status: q === '!"Island"' ? 200 : 404 });
   });
   // a arte padrão do nome (byNames) é a da LEA: se ela aparecer na Coleção, a cópia MH2 está com a arte errada
