@@ -6,7 +6,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { loadModules } from './_load.mjs';
-import { confere, confereTexto, conferePacote, palavrasDe, lePacote, faltam, IDIOMAS, registraTexto, juntaTextos, textosDoIdioma } from './idioma-cartas.mjs';
+import { confere, confereTexto, conferePacote, palavrasDe, lePacote, faltam, IDIOMAS, registraTexto, juntaTextos, textosDoIdioma, formatosDe, FORMATOS_PADRAO } from './idioma-cartas.mjs';
 import { ARQUIVOS } from './vercel-publico.mjs';
 const { platform: P, cards: C } = loadModules();
 const J = x => JSON.parse(JSON.stringify(x));
@@ -144,4 +144,28 @@ test('G-368 · pacotes: nenhuma tradução fica pela frente de uma carta de duas
   const d = C.traducaoDaCarta(lePacote('pt'), card, 'pt');
   assert.equal(d.faces.length, 2);
   assert.match(d.faces[0].texto, /^Voar/); assert.match(d.faces[1].texto, /grimório/); assert.equal(d.faces[1].tipo, 'Feitiço — Presságio');
+});
+
+// G-373 · lote 3 (relatos #53/#66/#108): as cartas das listas de Standard que nunca saíram impressas no idioma. O --faltam
+// ganhou --formato (padrão: pauper, como antes), e o pacote traz o lote, todo pelo conferidor.
+const AMOSTRA_G371_PT = ['Wild Ride', 'Impractical Joke', 'Cosmogrand Zenith', 'Fountainport Bell', 'Rewrite Regrets', 'Ashling, Rekindled'];
+const AMOSTRA_G371_ES = ["Agna Qel'a", 'Ashling, Rekindled', 'Ba Sing Se'];
+test('G-373 · --formato escolhe os formatos do catálogo; sem ele, só o Pauper', () => {
+  assert.deepEqual(J(formatosDe([])), ['pauper']);
+  assert.deepEqual(J(FORMATOS_PADRAO), ['pauper']);
+  assert.deepEqual(J(formatosDe(['--formato', 'Standard, pioneer'])), ['standard', 'pioneer']);
+  assert.deepEqual(J(formatosDe(['--formato'])), ['pauper']);
+});
+
+test('G-373 · pacotes: o lote de Standard está lá, passa no conferidor e vale no app', () => {
+  const pt = lePacote('pt'), es = lePacote('es');
+  assert.ok(Object.keys(pt.cartas).length >= 126 + 240, `pt: ${Object.keys(pt.cartas).length} traduções`);
+  assert.ok(Object.keys(es.cartas).length >= 18 + 15, `es: ${Object.keys(es.cartas).length} traduções`);
+  for (const lang of IDIOMAS) assert.deepEqual(conferePacote(lePacote(lang), lang), {}, lang);
+  for (const nome of AMOSTRA_G371_PT) {
+    const e = pt.cartas[nome]; assert.ok(e, `pt · ${nome}`);
+    const card = Array.isArray(e.original) ? { name: nome, faces: e.original.map(o => ({ oracle_text: o })) } : { name: nome, oracle_text: e.original };
+    assert.ok(C.traducaoDaCarta(pt, card, 'pt'), `pt · ${nome} aparece no app`);
+  }
+  for (const nome of AMOSTRA_G371_ES) assert.ok(es.cartas[nome], `es · ${nome}`);
 });
