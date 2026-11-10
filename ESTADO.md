@@ -79,4 +79,4 @@ Os documentos `claude/…` moram no Projeto do claude.ai, fora do repositório: 
 
 No commit de docs de cada leva (o mesmo que atualiza o ROADMAP): reescreva a **sua** linha na tabela de trilhas, atualize relatos e pendências se mudaram e troque a data abaixo. Edite por patch, nunca o arquivo inteiro. Conflito no rebase: fique com as linhas das outras trilhas e a sua. Passou de 8 KB: resuma, não acrescente.
 
-Atualizado: 10/11/2026 · I-328 (rotinas publicam) · M-612 (motor) · I-329 (ponte) · S-622 (scanner) · B-206 · B-207 · B-208 (bot) · G-362 a G-367 (geral) · S-623 (scanner) · G-368 (geral) · G-369 (geral) · M-613 (motor) · G-373 (geral) · M-615 (motor) · B-209 (bot)
+Atualizado: 10/11/2026 · I-328 (rotinas publicam) · M-612 (motor) · I-329 (ponte) · S-622 (scanner) · B-206 · B-207 · B-208 (bot) · G-362 a G-367 (geral) · S-623 (scanner) · G-368 (geral) · G-369 (geral) · M-613 (motor) · G-373 (geral) · M-615 (motor) · B-209 (bot) · G-371
