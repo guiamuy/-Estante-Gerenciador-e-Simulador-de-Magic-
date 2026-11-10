@@ -3228,6 +3228,14 @@ body[data-mesa-cheia="true"] .tb > .tb-board { padding-top: var(--space-1); }
 .tb-estado .ds-icon svg { width: calc(var(--estado-tam) * .68); height: calc(var(--estado-tam) * .68); }
 .tb-estado:has(.tb-estado__num) .ds-icon { transform: translate(-12%, -10%); }
 .tb-estado .tb-estado__num { position: absolute; right: 0; bottom: 0; padding: 0 1px; border-radius: var(--radius-1) 0 var(--radius-1) 0; background: inherit; font-size: calc(var(--estado-tam) * .5); line-height: 1.05; }
+/* J-66 · relato 124 · proteção ganha: o escudo leva embaixo uma faixa por cor protegida, na cor do mana (tokens --mana-*) */
+.tb-estado__cores { position: absolute; left: 1px; right: 1px; bottom: 1px; height: max(2px, calc(var(--estado-tam) * .2)); display: flex; gap: 1px; border-radius: 0 0 var(--radius-1) var(--radius-1); overflow: hidden; pointer-events: none; }
+.tb-estado__cores i { flex: 1 1 0; background: var(--mana-c); }
+.tb-estado__cores i[data-cor="W"] { background: var(--mana-w); } .tb-estado__cores i[data-cor="U"] { background: var(--mana-u); } .tb-estado__cores i[data-cor="B"] { background: var(--mana-b); }
+.tb-estado__cores i[data-cor="R"] { background: var(--mana-r); } .tb-estado__cores i[data-cor="G"] { background: var(--mana-g); }
+.tb-estado--cores .ds-icon { transform: translateY(-14%); }
+.tb-estado-chip__cores { margin-left: var(--space-2); font-size: var(--text-xs); }
+.tb-estado-chip__cores .ds-pip { width: 12px; height: 12px; }
 .tb-estado[data-familia="enjoo"] { color: var(--estado-enjoo); border-color: var(--estado-enjoo); }
 .tb-estado[data-familia="ataque"] { color: var(--negative); border-color: var(--negative); }
 .tb-estado[data-familia="bloqueio"] { color: var(--accent); border-color: var(--accent); }
@@ -39770,6 +39778,7 @@ const ESTADOS = {
   dano:           { icone: 'dano',     familia: 'perda',    rotulo: 'Dano', explica: 'Dano marcado neste turno' },
   ganhou:         { icone: 'raio',     familia: 'ganho',    rotulo: 'Ganhou', explica: 'Ganhou habilidade' },
   perdeu:         { icone: 'bloquear', familia: 'perda',    rotulo: 'Perdeu', explica: 'Perdeu habilidade' },
+  protecao:       { icone: 'proteger', familia: 'ganho',    rotulo: 'Proteção', explica: 'Ganhou proteção' }, // J-66 · relato #124
 };
 const FAMILIAS = ['enjoo', 'ataque', 'bloqueio', 'alvo', 'anexo', 'ganho', 'perda', 'acento', 'neutro'];
 /** Nome em português de cada tipo de marcador que o motor usa (para o nome falado e a folha); tipo sem nome sai como está. */
@@ -39795,10 +39804,11 @@ function estadoDesenhavel(m) {
   else if (m.k === 'ataca' && m.texto === 'livre') e.rotulo = 'Sem bloqueio';
   if (m.k === 'dano') { e.rotulo = `${m.qtd} dano`; e.explica = `${m.qtd} de dano marcado neste turno`; }
   if ((m.k === 'ganhou' || m.k === 'perdeu') && m.texto) e.rotulo = m.texto.replace(/^\+/, '');
+  if (m.k === 'protecao') e.cores = [...(m.cores || [])]; // J-66 · relato #124: as cores vão para o ícone; a explicação diz contra o quê
   return e;
 }
 /** Os estados de uma carta da mesa, na ordem em que importam de relance: combate e alvo, enjoo, marcadores, dano, o resto. */
-const ORDEM_DOS_ESTADOS = ['ataca', 'bloqueia', 'obrigada', 'alvo', 'enjoo', 'marcador', 'dano', 'ganhou', 'perdeu', 'anexo', 'encantada', 'protetor', 'tramada', 'virada-baixo', 'fora-de-fase', 'ficha', 'virada'];
+const ORDEM_DOS_ESTADOS = ['ataca', 'bloqueia', 'obrigada', 'alvo', 'enjoo', 'marcador', 'dano', 'ganhou', 'perdeu', 'protecao', 'anexo', 'encantada', 'protetor', 'tramada', 'virada-baixo', 'fora-de-fase', 'ficha', 'virada'];
 function estadosDaCarta(est, card, opts = {}) {
   const marcas = est ? est.marcas : [];
   const lista = marcas.map(estadoDesenhavel);
@@ -39819,14 +39829,17 @@ function BarraDeEstados(estados, { max = ESTADOS_NA_CARTA } = {}) {
   // J-53 · todos os ícones nascem (o número do marcador ou do dano vai num selo no canto do próprio ícone, sem alargar);
   // quantos aparecem e com que tamanho é a medida da barra que decide (ajustaEstados). Antes da medida, o padrão de antes:
   // até três, o resto em "+N"
-  const chips = estados.map(e => h('span', { class: 'tb-estado', dataset: { marca: e.k, familia: e.familia, rotulo: e.rotulo || '' }, title: e.explica || e.rotulo },
-    e.icone ? Icone(e.icone, { tamanho: 11 }) : h('b', {}, e.rotulo), e.icone && e.qtd != null && (e.qtd > 1 || e.k === 'dano' || e.k === 'marcador') ? h('b', { class: 'tb-estado__num' }, String(e.qtd)) : null));
+  const chips = estados.map(e => h('span', { class: e.cores && e.cores.length ? 'tb-estado tb-estado--cores' : 'tb-estado', dataset: { marca: e.k, familia: e.familia, rotulo: e.rotulo || '' }, title: e.explica || e.rotulo },
+    e.icone ? Icone(e.icone, { tamanho: 11 }) : h('b', {}, e.rotulo), e.icone && e.qtd != null && (e.qtd > 1 || e.k === 'dano' || e.k === 'marcador') ? h('b', { class: 'tb-estado__num' }, String(e.qtd)) : null,
+    CoresDoEstado(e)));
   const barra = h('span', { class: 'tb-card__estados', 'aria-hidden': 'true', dataset: { estados: String(chips.length) } });
   barra.__chips = chips;
   const mostra = chips.length > max ? max - 1 : chips.length;
   barra.append(...chips.slice(0, mostra), ...(chips.length > mostra ? [maisEstados(chips, mostra)] : []));
   return barra;
 }
+/** J-66 · relato #124 · as cores da proteção no pé do ícone: uma faixa por cor, na cor do mana (token), na ordem WUBRG. */
+const CoresDoEstado = e => (e.cores && e.cores.length ? h('span', { class: 'tb-estado__cores', dataset: { cores: e.cores.join('') } }, ...e.cores.map(c => h('i', { dataset: { cor: c } }))) : null);
 const maisEstados = (chips, mostra) => h('span', { class: 'tb-estado tb-estado--mais', dataset: { familia: 'neutro' }, title: chips.slice(mostra).map(c => c.dataset.rotulo).join(', ') }, h('b', {}, `+${chips.length - mostra}`));
 /** J-53 (decisão do dono, 02/11/2026) · a barra de estados cabe sempre, sem um ícone sobre o outro nem sobre o P/R: mede a largura
     livre de cada barra (o pé da carta menos o P/R) e decide quantos ícones aparecem e o tamanho deles, entre o piso
@@ -41121,6 +41134,23 @@ function calculaModificacoes(s, o, pt) {
 }
 const nomeDaPalavra = k => PALAVRA_PT[k] || k;
 
+/* J-66 · relato #124 · a proteção que a permanente ganhou (CR 702.16): as qualidades do motor (cor de uma letra, 'tudo', 'tipo:…',
+   'sub:…'…) menos as impressas na própria carta, com o nome em português e as cores (WUBRG, na ordem do mana) para o ícone. Puro. */
+const COR_DA_PROTECAO_PT = { W: 'branco', U: 'azul', B: 'preto', R: 'vermelho', G: 'verde' };
+const QUALIDADE_DA_PROTECAO_PT = { tudo: 'tudo', multicolorida: 'multicoloridas', monocolorida: 'monocoloridas', incolor: 'incolores', ficha: 'fichas',
+  'tipo:creature': 'criaturas', 'tipo:artifact': 'artefatos', 'tipo:enchantment': 'encantamentos', 'tipo:instant': 'mágicas instantâneas', 'tipo:sorcery': 'feitiços', 'tipo:planeswalker': 'planeswalkers', 'tipo:land': 'terrenos',
+  'sub:aura': 'Auras', 'sub:equipment': 'Equipamentos', 'sub:vehicle': 'Veículos', 'sub:curse': 'Maldições', 'sub:fortification': 'Fortificações' };
+function protecaoGanha(s, o) {
+  if (!o || o.zone !== 'battlefield' || !E.protections) return null;
+  let todas; try { todas = E.protections(s, o) || []; } catch (e) { return null; }
+  const facts = (s.facts && s.facts[o.name]) || {}, impressas = new Set(o.faceDown ? [] : [].concat(facts.prot || [], facts.protK || []));
+  const ganhas = [...new Set(todas.filter(q => q && !impressas.has(q)))];
+  if (!ganhas.length) return null;
+  const cores = 'WUBRG'.split('').filter(c => ganhas.includes(c));
+  const outras = ganhas.filter(q => !COR_DA_PROTECAO_PT[q]).map(q => QUALIDADE_DA_PROTECAO_PT[q] || (q.startsWith('sub:') ? q.slice(4) : q));
+  const partes = [...cores.map(c => COR_DA_PROTECAO_PT[c]), ...outras];
+  return { cores, nomes: partes.length > 1 ? partes.slice(0, -1).join(', ') + ' e ' + partes[partes.length - 1] : partes[0] };
+}
 /* ---- A13 · o que a carta mostra sem ninguém tocar ----
    Puro: a tela só desenha o que sai daqui. `plano` é o ataque/bloqueio em montagem. */
 function estadoDaCarta(s, o, plano = null) {
@@ -41163,6 +41193,10 @@ function estadoDaCarta(s, o, plano = null) {
   const mod = modificacoesDaCarta(s, o, pt);
   if (mod && mod.ganhas.length) marcas.push({ k: 'ganhou', texto: mod.ganhas.length === 1 ? '+' + nomeDaPalavra(mod.ganhas[0]) : `+${mod.ganhas.length} hab.`, rotulo: 'Ganhou ' + mod.ganhas.map(nomeDaPalavra).join(', ') });
   if (mod && mod.perdidas.length) marcas.push({ k: 'perdeu', texto: mod.perdidas.length === 1 ? nomeDaPalavra(mod.perdidas[0]) : `${mod.perdidas.length} hab.`, rotulo: 'Perdeu ' + mod.perdidas.map(nomeDaPalavra).join(', ') });
+  // J-66 · relato #124 · CR 702.16: proteção que a carta GANHOU (Aura, Equipamento, mágica do turno) diz contra o quê, com as cores do
+  // mana no ícone; a impressa fica no texto da carta (como as palavras-chave impressas, que também não viram "ganhou")
+  const protecao = protecaoGanha(s, o);
+  if (protecao) marcas.push({ k: 'protecao', texto: 'proteção', icone: 'proteger', cores: protecao.cores, rotulo: 'Proteção contra ' + protecao.nomes });
   let impeto = (facts.kw || []).includes('haste');
   try { impeto = impeto || !!E.hasKeyword(s, o, 'haste'); } catch (e) { impeto = impeto || (o.tempKeywords || []).includes('haste'); }   // H13
   const enjoo = !!o.sick && criatura && !impeto;
@@ -45086,7 +45120,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     // rótulo e a explicação, na cor da família (a tabela ESTADOS é uma só); sem estado, nada aparece
     const estados = o.zone === 'battlefield' || o.zone === 'exile' ? estadosDaCarta(T.estadoDaCarta(s, o, plan), o) : [];
     const chips = estados.length ? h('div', { class: 'tb-estados-folha', id: 'tb-sheet-estados', role: 'list', 'aria-label': 'estados da carta' }, ...estados.map(e => h('span', { class: 'tb-estado-chip', role: 'listitem', dataset: { marca: e.k, familia: e.familia } },
-      e.icone ? h('span', { class: 'tb-estado-chip__icone' }, Icone(e.icone, { tamanho: 16 })) : null, h('span', { class: 'tb-estado-chip__texto' }, h('b', {}, e.rotulo), e.explica && e.explica !== e.rotulo ? h('small', {}, e.explica) : null)))) : null;
+      e.icone ? h('span', { class: 'tb-estado-chip__icone' }, Icone(e.icone, { tamanho: 16 })) : null, h('span', { class: 'tb-estado-chip__texto' }, h('b', {}, e.rotulo, e.cores && e.cores.length ? h('span', { class: 'ds-pips tb-estado-chip__cores', 'aria-hidden': 'true' }, ...e.cores.map(c => h('span', { class: 'ds-pip ds-pip--' + c.toLowerCase() }))) : null), e.explica && e.explica !== e.rotulo ? h('small', {}, e.explica) : null)))) : null;
     const where = h('div', { class: 'tb-sheet__quem' }, linha, chips);
     return { o, acoes: [...enxugaAlvos(agrupaEscolhas(legal), d => efeitosDe(d.action || {})), ...direct], where, st, anexos, costTxt, estados };
   }

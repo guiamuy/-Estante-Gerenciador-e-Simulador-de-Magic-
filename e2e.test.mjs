@@ -22538,3 +22538,48 @@ test('e2e · J-67 MK3-3 carta-objeto: virar e desvirar com massa nos três níve
   assert.equal(ds.tapped, 'true'); assert.equal(ds.gira, 'vira'); assert.ok(ds.nomes.includes('tb-carta-vira'), 'palco: ' + JSON.stringify(ds));
   assert.deepEqual(errors, []);
 });
+// J-66 · relato #124 (Benevolent Blessing dava proteção contra verde e a carta não dizia nada): a permanente que ganhou proteção mostra o
+// escudo na barra de estados, com uma faixa por cor protegida na cor do mana; o nome falado e a folha da carta dizem contra o quê.
+test('e2e · J-66 proteção ganha: escudo com as cores do mana na carta do campo, nome falado e folha dizem contra o quê; dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await createDeck(page, base, 'Protecao', '24 Mountain\n36 Delver of Secrets');
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start'); await page.fill('#mesa-seed', '3');
+  await page.click('[data-opponent="goldfish"]');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-pass');
+  const [semProt, comProt] = await page.evaluate(() => { const M = window.__estanteMesa, s = M.estado(), p = s.turn.active;
+    const ds = Object.values(s.objects).filter(o => o.owner === p && o.name === 'Delver of Secrets' && o.zone === 'library').slice(0, 2).map(o => o.oid);
+    for (const oid of ds) M.act({ t: 'move', p, oid, to: 'battlefield' });
+    M.estado().objects[ds[1]].tempProtection = ['G', 'W']; // o que uma Aura ou mágica do turno deixa (o motor junta em protections)
+    M.repinta(); return ds; });
+  await page.waitForSelector(`.tb-side--me .tb-card[data-oid="${comProt}"] .tb-estado[data-marca="protecao"]`);
+  for (const tema of ['dark', 'light']) {
+    await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(200);
+    const m = await page.evaluate(([a, b]) => {
+      const carta = oid => document.querySelector(`.tb-side--me .tb-card[data-oid="${oid}"]`), chip = carta(b).querySelector('.tb-estado[data-marca="protecao"]');
+      const tok = n => { const x = document.createElement('i'); x.style.background = `var(${n})`; document.body.append(x); const c = getComputedStyle(x).backgroundColor; x.remove(); return c; };
+      const faixas = [...chip.querySelectorAll('.tb-estado__cores i')], R = e => e.getBoundingClientRect(), rc = R(chip);
+      return { semMarca: !carta(a).querySelector('[data-marca="protecao"]'), familia: chip.dataset.familia, titulo: chip.title, cores: faixas.map(f => f.dataset.cor).join(''),
+        pintadas: faixas.map(f => getComputedStyle(f).backgroundColor), esperadas: [tok('--mana-w'), tok('--mana-g')],
+        dentro: faixas.every(f => { const r = R(f); return r.height >= 1.5 && r.left >= rc.left - .5 && r.right <= rc.right + .5 && r.bottom <= rc.bottom + .5; }),
+        falado: carta(b).getAttribute('aria-label') || '' };
+    }, [semProt, comProt]);
+    const ctx = `${tema}: ` + JSON.stringify(m);
+    assert.ok(m.semMarca, `a carta sem proteção não ganha marca (${ctx})`);
+    assert.equal(m.familia, 'ganho', ctx);
+    assert.equal(m.titulo, 'Proteção contra branco e verde', ctx);
+    assert.equal(m.cores, 'WG', `uma faixa por cor, na ordem do mana (${ctx})`);
+    assert.deepEqual(m.pintadas, m.esperadas, `cada faixa na cor do token do mana (${ctx})`);
+    assert.ok(m.dentro, `as faixas ficam dentro do ícone (${ctx})`);
+    assert.match(m.falado, /Proteção contra branco e verde/, `o nome falado diz contra o quê (${ctx})`);
+    await auditaTela(page, `J-66 · proteção ${tema}`);
+    if (process.env.SHOTS) await page.locator(`.tb-side--me .tb-card[data-oid="${comProt}"]`).screenshot({ path: process.env.SHOTS + `/j66-protecao-${tema}.png` });
+  }
+  await page.click(`.tb-side--me .tb-card[data-oid="${comProt}"]`);
+  await page.waitForSelector('#tb-sheet-estados [data-marca="protecao"]');
+  const folha = await page.evaluate(() => { const c = document.querySelector('#tb-sheet-estados [data-marca="protecao"]'); return { texto: c.textContent, pips: [...c.querySelectorAll('.ds-pip')].map(p => p.classList[1]).join(' ') }; });
+  assert.match(folha.texto, /Proteção contra branco e verde/, JSON.stringify(folha));
+  assert.equal(folha.pips, 'ds-pip--w ds-pip--g', JSON.stringify(folha));
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/j66-protecao-folha.png' });
+  assert.deepEqual(errors, []);
+});
