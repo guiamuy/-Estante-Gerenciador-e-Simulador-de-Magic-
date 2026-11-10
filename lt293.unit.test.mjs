@@ -30,7 +30,7 @@ test(`M-614 · as ${LOTE9.length} cartas do lote 9 jogam no app: texto da Scryfa
     assert.equal(S.coverage(c, S.SCRIPTS, n).level, "completo", `${n} joga`);
     assert.ok(S.scriptLido(c), `${n}: o app joga pelo script lido`);
   }
-  assert.ok(!S.APROVADAS["Sheoldred's Edict"], "Sheoldred's Edict recusada (701.21a: a escolha do sacrifício olha os tipos impressos, não os atuais)");
+  assert.equal((S.APROVADAS["Sheoldred's Edict"] || {}).leva, 'M-615', "Sheoldred's Edict: recusada na M-614 (701.21a), aprovada na M-615 depois que o sacrifício passou a olhar os tipos de agora (mudança de propósito)");
   assert.ok(!S.APROVADAS['Pop Quiz'], 'Pop Quiz recusada (701.48a: learn sem a Lição de fora do jogo)');
   assert.ok(!S.APROVADAS['Logic Knot'], 'Logic Knot recusada (702.66a: o delve não paga a parte {X} do custo)');
 });
