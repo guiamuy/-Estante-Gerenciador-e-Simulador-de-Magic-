@@ -109,8 +109,10 @@ export function scriptsDo(html) {
 }
 /** Tudo o que os pacotes traduzem: { exatos: [...], modelos: [...] } (texto limpo, sem repetição). */
 export function extrai(html) {
-  const exatos = new Set(), modelos = new Set();
+  const exatos = new Set(), modelos = new Set(), js = scriptsDo(html);
+  const CHAVE_REVISAO = /(['"])(?:\\.|(?!\1)[^\\\n])*\1\s*:\s*\{\s*texto:\s*'[a-z0-9]+',\s*leva:/y; // M-614 · nome de carta como chave de APROVADAS ('Once Upon a Time': { texto, leva }) não é texto de tela
   for (const l of literais(scriptsDo(html))) {
+    CHAVE_REVISAO.lastIndex = l.pos; if (CHAVE_REVISAO.test(js)) continue;
     for (const p of pedacos(l.texto)) {
       const s = p.replace(/\s+/g, ' ').trim();
       const semLacunas = s.replace(/\{\d+\}/g, ' ');
