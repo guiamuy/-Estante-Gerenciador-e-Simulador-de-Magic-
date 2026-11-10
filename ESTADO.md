@@ -21,7 +21,7 @@ Marcos: Pauper 100% (as sete listas revisadas carta a carta; 682 de 685 listas P
 |---|---|---|---|---|
 | `scanner` | S | X16: #90 foil (F1: edição só foil entra Foil); #79 fechado | S-623 · 09/11 | #90 F2: selo "Foil?" pelo brilho; #79 no aparelho |
 | `geral` | G | T-IDIOMA lote 3 Standard (G-373); #106 ditado (G-369) | G-373 · 10/11; G-369 · 10/11 | lotes Pioneer/Modern/Commander (`--formato`); DS-K3 K3-4 (+ MV-7); Darval |
-| `motor` | M | CR-PLANO (lidas dos competitivos); Pauper | M-613 · 10/11 | Umbral Collar Zealot; CR2c.2; #58 |
+| `motor` | M | CR-PLANO; Pauper | M-614 · 10/11 | 701.21a (éditos); delve {X}; {E}; #58 |
 | `radar` | R | BI4 · Painel Estante: comparar períodos, metas, tendência | R-44 · 07/11 | BI4-6 em diante; validação do dono após os primeiros pilares |
 | `jogabilidade` | J | MJ25/MJ27 · mesa de patamar: paisagem, orientação, Cancelar em toda escolha | J-62 · 03/11 | relato #54 (efeito da Cidade Baixa) |
 | `bot` | B | B25 · força 55% (alvo 60%), Faeries 32,5%; fora 47% (B-206); B-207 e B-208 medidas e desligadas | B-208 · 09/11 | Faeries: (D)/(E) ou narrada nova × Madness e Elfos; Temur e Azorius |
@@ -79,4 +79,4 @@ Os documentos `claude/…` moram no Projeto do claude.ai, fora do repositório: 
 
 No commit de docs de cada leva (o mesmo que atualiza o ROADMAP): reescreva a **sua** linha na tabela de trilhas, atualize relatos e pendências se mudaram e troque a data abaixo. Edite por patch, nunca o arquivo inteiro. Conflito no rebase: fique com as linhas das outras trilhas e a sua. Passou de 8 KB: resuma, não acrescente.
 
-Atualizado: 10/11/2026 · I-328 (rotinas publicam) · M-612 (motor) · I-329 (ponte) · S-622 (scanner) · B-206 · B-207 · B-208 (bot) · G-362 a G-367 (geral) · S-623 (scanner) · G-368 (geral) · G-369 (geral) · M-613 (motor) · G-373 (geral)
+Atualizado: 10/11/2026 · I-328 (rotinas publicam) · M-612 (motor) · I-329 (ponte) · S-622 (scanner) · B-206 · B-207 · B-208 (bot) · G-362 a G-367 (geral) · S-623 (scanner) · G-368 (geral) · G-369 (geral) · M-613 (motor) · G-373 (geral) · M-614 (motor)

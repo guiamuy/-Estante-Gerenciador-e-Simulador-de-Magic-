@@ -13,7 +13,7 @@ const PN = 'Planar Nexus', UR = 'Urborg, Tomb of Yawgmoth';
 const TODOS = ['Cave', 'Desert', 'Gate', 'Lair', 'Locus', 'Mine', 'Power-Plant', 'Sphere', 'Tower', "Urza's"];
 
 test('K-89 · Planar Nexus lida por inteiro; o validador só aceita true', () => {
-  const l = S.leitura(of(PN)); assert.ok(l, 'leitura completa'); assert.equal(S.coverage(of(PN)).level, 'lida');
+  const l = S.leitura(of(PN)); assert.ok(l, 'leitura completa'); assert.equal(S.coverage(of(PN)).level, 'completo', 'aprovada na revisão em lote 9 (M-614)');
   assert.equal(l.script.self.todosNaoBasicosK, true);
   assert.deepEqual(J(S.validateScript({ ...l.script, example: EX })), []);
   assert.ok(S.validateScript({ name: 'X', self: { todosNaoBasicosK: 'sim' }, example: EX }).length);
