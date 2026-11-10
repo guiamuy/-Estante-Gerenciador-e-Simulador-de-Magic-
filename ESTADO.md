@@ -20,7 +20,7 @@ Marcos: Pauper 100% (as sete listas revisadas carta a carta; 682 de 685 listas P
 | Trilha | Prefixo | Foco atual | Última leva | Próximo |
 |---|---|---|---|---|
 | `scanner` | S | X16: #90 foil (F1: edição só foil entra Foil); #79 fechado | S-623 · 09/11 | #90 F2: selo "Foil?" pelo brilho; #79 no aparelho |
-| `geral` | G | T-IDIOMA lote 3 Standard (G-373); #106 ditado (G-369) | G-373 · 10/11; G-369 · 10/11 | lotes Pioneer/Modern/Commander (`--formato`); DS-K3 K3-4 (+ MV-7); Darval |
+| `geral` | G | T-IDIOMA Standard (G-373); #108 (G-371); #106 (G-369) | G-371 · 10/11; G-373 | lotes Pioneer/Modern/Commander (`--formato`); DS-K3 K3-4 (+ MV-7); Darval |
 | `motor` | M | CR-PLANO (701.21a feita); Pauper | M-615 · 10/11 | delve {X}; learn; {E}; #58 |
 | `radar` | R | BI4 · Painel Estante: comparar períodos, metas, tendência | R-44 · 07/11 | BI4-6 em diante; validação do dono após os primeiros pilares |
 | `jogabilidade` | J | MJ25/MJ27 · mesa de patamar: paisagem, orientação, Cancelar em toda escolha | J-62 · 03/11 | relato #54 (efeito da Cidade Baixa) |
