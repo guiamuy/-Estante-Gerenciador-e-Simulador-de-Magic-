@@ -1649,3 +1649,61 @@ test('B-206 · cada lista de fora joga uma partida Shark × Shark sem jogada ile
     assert.equal(B.perfilDe(s, 0), null, L[i].id + ' não casa com PERFIS escrito à mão');
   }
 });
+
+// B-210 · B25 · régua de fora, combo de mágicas: o Shark com o Temur Desperate Ritual (lista de fora, nada dela no código)
+// nunca conjurava o ritual nem o impulso (0 Desperate Ritual, 0 Seething Song, 0 Wrenn's Resolve em 10 partidas narradas de
+// 10/11). Posições montadas com a lista de torneio: o Shark é o jogador 0, na própria primeira fase principal.
+async function montaFora(a, b, { p0 = {}, p1 = {} } = {}) {
+  const { listasDeFora } = await import('./torneio.listas.mjs');
+  const L = listasDeFora(), d0 = L.find(d => d.name === a), d1 = L.find(d => d.name === b);
+  const cards = {}; for (const e of [...d0.entries, ...d1.entries]) cards[e.name] = d0.cartas[e.name];
+  let s = E.createGame({ format: 'pauper', seed: 9, mode: 'full', manaCheck: true, cards, players: [{ name: 'P0', deck: d0.entries }, { name: 'P1', deck: d1.entries }] });
+  for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
+  for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
+  s = J(s);
+  [p0, p1].forEach((cfg, p) => {
+    const z = s.zones[p];
+    for (const oid of [...z.hand]) { z.hand.splice(z.hand.indexOf(oid), 1); z.library.push(oid); s.objects[oid].zone = 'library'; }
+    const tira = (nome, para) => { const oid = z.library.find(o => s.objects[o].name === nome); assert.ok(oid, 'falta ' + nome);
+      z.library.splice(z.library.indexOf(oid), 1); z[para].push(oid); Object.assign(s.objects[oid], { zone: para, sick: false, tapped: false }); };
+    for (const n of cfg.campo || []) tira(n, 'battlefield');
+    for (const n of cfg.mao || []) tira(n, 'hand');
+    for (const n of cfg.cemiterio || []) tira(n, 'graveyard');
+    s.players[p].landsPlayed = p === 0 ? 1 : 0;
+  });
+  Object.assign(s.turn, { active: 0, priority: 0, step: 'main1' }); s.stack = []; s.pending = null;
+  return s;
+}
+const TEMUR = 'Temur Desperate Ritual', BANT = 'Bant Ancestral Mask';
+const nomeCast = (s, j) => j && j.acao && j.acao.t === 'cast' ? (s.objects[j.acao.oid] || {}).name : null;
+test('B-210 · impulso: a carta exilada que eu posso jogar vale como carta na mão, pelo Shark publicado; sem a opção, não', async () => {
+  const s = await montaFora(TEMUR, BANT, { p0: { campo: ['Mountain', 'Mountain'], mao: ["Wrenn's Resolve"] } });
+  const c = E.legalActions(s, 0).find(a => a.t === 'cast' && s.objects[a.oid].name === "Wrenn's Resolve");
+  const d = (() => { let x = act(s, c); for (let i = 0; i < 6 && x.stack.length; i++) x = act(x, { t: 'pass', p: x.turn.priority }); return x; })();
+  const exiladas = d.zones[0].exile.filter(o => d.objects[o].playableFromExile === 0);
+  assert.equal(exiladas.length, 2, 'o motor exila duas jogáveis');
+  const sem = B.criaBot({ nivel: 'shark', agora: relogioParado, extra: { impulso: false } }), com = B.criaBot({ nivel: 'shark', agora: relogioParado });
+  const jSem = sem.jogada(s, 0), jCom = com.jogada(s, 0);
+  assert.notEqual(nomeCast(s, jSem), "Wrenn's Resolve", 'sem a opção o impulso troca uma carta por nada: ' + jSem.motivo);
+  assert.equal(nomeCast(s, jCom), "Wrenn's Resolve", 'com a opção: ' + jCom.motivo);
+  assert.ok(B.criaBot({ nivel: 'shark-v27', agora: relogioParado }).jogada(s, 0).acao.t !== 'cast' || nomeCast(s, B.criaBot({ nivel: 'shark-v27', agora: relogioParado }).jogada(s, 0)) !== "Wrenn's Resolve", 'shark-v27 congelado sem o impulso');
+});
+test('B-210 · ritual: o Desperate Ritual entra no plano de mana quando abre a jogada que antes não dava (Seize the Storm com o Anarchomancer), no Shark publicado; sem a opção, não', async () => {
+  const s = await montaFora(TEMUR, BANT, { p0: { campo: ['Mountain', 'Mountain', 'Mountain', 'Goblin Anarchomancer'], mao: ['Desperate Ritual', 'Seize the Storm'],
+    cemiterio: ['Twinned Vision', 'Twinned Vision', 'Big Score', "Wrenn's Resolve"] }, p1: { campo: ['Forest', 'Forest', 'Plains'] } });
+  assert.ok(!E.legalActions(s, 0).some(a => a.t === 'cast' && s.objects[a.oid].name === 'Seize the Storm'), 'três terras não pagam o Seize');
+  const sem = B.criaBot({ nivel: 'shark', agora: relogioParado, extra: { ritual: false } }), com = B.criaBot({ nivel: 'shark', agora: relogioParado });
+  const jSem = sem.jogada(s, 0);
+  assert.notEqual(nomeCast(s, jSem), 'Desperate Ritual', 'sem a opção o ritual sozinho só gasta uma carta: ' + jSem.motivo);
+  let x = s, j = com.jogada(x, 0);
+  assert.equal(nomeCast(x, j), 'Desperate Ritual', 'com a opção: ' + j.motivo);
+  // o plano segue sozinho: resolve o ritual e conjura o Seize the Storm com a reserva
+  const feitos = ['Desperate Ritual']; x = act(x, j.acao);
+  for (let i = 0; i < 12 && x.status === 'playing' && !feitos.includes('Seize the Storm'); i++) {
+    const quem = x.pending ? x.pending.p : x.turn.priority;
+    const jj = quem === 0 ? com.jogada(x, 0) : { acao: { t: 'pass', p: 1 } };
+    if (jj.acao.t === 'cast') feitos.push(x.objects[jj.acao.oid].name);
+    x = act(x, jj.acao);
+  }
+  assert.deepEqual(feitos, ['Desperate Ritual', 'Seize the Storm']);
+});
