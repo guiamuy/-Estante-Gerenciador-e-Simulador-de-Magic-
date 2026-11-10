@@ -708,6 +708,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-up ✅ | T-IDIOMA relatos #53/#66, fatia 2: a folha da carta mostra nome, tipo e texto oficiais impressos em português (Scryfall), com a troca para o original, guardados no aparelho; nunca impressa fica em inglês com aviso até a fatia 3 (leva G-356, 08/11/2026) | T | 1 | 16º-ui |
 | 16º-us ✅ | T-IDIOMA relatos #53/#66, fatia 4: Perfil › Idioma (português, inglês, espanhol, com bandeira e nome no próprio idioma), o app inteiro na hora pela camada de tradução da tela e pelos pacotes idiomas/en.json e es.json, a folha da carta no idioma (oficial impresso; Oracle em inglês) com o texto antes da imagem, e a camada obrigatória (texto novo sem tradução derruba o portão) (leva G-361, 08/11/2026) | T | 1 | 16º-up |
 | 16º-uu ✅ | T-IDIOMA relatos #53/#66, fatia 3: a carta que nunca saiu impressa em português ou espanhol mostra a tradução precisa do robô (idiomas/cartas-pt.json e cartas-es.json, 113 e 19 cartas das listas Pauper e do Shark), marcada "Tradução", com o original a um toque, conferida por idioma-cartas.mjs (símbolos, números, palavras-chave e nome) e só para o Oracle que ela traduziu (leva G-365, 09/11/2026) | T | 1 | 16º-us |
+| 16º-uv ✅ | T-IDIOMA relatos #53/#66, lote 2 da fatia 3: as 16 cartas Pauper que faltavam em português e as 2 em espanhol (Oracle da cobertura do catálogo e do Forge, idiomas/oficiais-forge.json), as cartas de duas faces com as duas faces traduzidas e pelo nome inteiro da Scryfall (o lote 1 tinha oito pela frente, que o app nunca achava); --faltam junta frente + verso (leva G-368, 10/11/2026) | T | 1 | 16º-uu |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -13533,6 +13534,20 @@ trilha `geral`, 09/11/2026; relato do dono de 09/11: o Enviar abria o GitHub e o
   traduzida; textos do repositório que já envelheceram em relação ao Oracle atual não aparecem (a carta fica em inglês) até o
   robô refazer com o Oracle novo; Commander e os outros formatos ficam para os próximos lotes; o texto das cartas dentro da
   mesa (fora da folha) segue o Oracle.
+- **Lote 2 da fatia 3 (G-368, `16º-uv`, rotina Relatos contínuo, 10/11/2026) ✅:** o `--faltam` agora lê também o Oracle da
+  cobertura do catálogo (`catalogo:cobertura/*.json`, Scryfall) e `idiomas/oficiais-forge.json` (Oracle do Forge, lido em
+  10/11 para as cartas que nenhuma fonte do repositório tinha), e junta a carta de duas faces (`verso` ou `card_faces`) pelo
+  nome inteiro da Scryfall, que é a chave que o app procura. Achado: o lote 1 tinha oito cartas de duas faces gravadas pela
+  frente (Sagu Wildling, Feral Deathgorger, Stormshriek Feral, Delver of Secrets, Pegasus Guardian, The Modern Age, Tithing
+  Blade, Elite Interceptor), e a tradução nunca aparecia; agora todas estão pelo nome inteiro, e as três de presságio e a
+  Elite Interceptor têm as duas faces. Pacotes: 126 cartas em português, 18 em espanhol, todas pelo conferidor. Fang Dragon
+  saiu da fila: tem impressão em português (o `--faltam` antigo comparava só a frente). Teste U `idioma-traducao.unit` G-368
+  (3, o de pacotes falhava antes). **Parcial, declarado:** Darval, Whose Web Protects segue em inglês (nenhuma fonte com o
+  Oracle alcançável); o Oracle do Forge, se diferir do da Scryfall, deixa a carta em inglês (o app confere).
+  Na mesma leva, achado pelo portão numa terça-feira: a data do Início era sempre `pt-BR`, e em inglês a camada trocava só o
+  "de" ("terça-feira, 10 of novembro"; o e2e "G-361" caía nas terças). A G-367 (K3-3) consertou ao mesmo tempo; esta leva
+  fica com o conserto dela, tira a data da camada (`translate="no"`) e acrescenta o e2e "G-368" (relógio fixo numa terça,
+  inglês, espanhol e de volta ao português; falhava antes do conserto).
 - **Fora, declarado (fatias seguintes):** a troca de idioma no Perfil (item 2); os pacotes **es** e **en** (item 3: extrair os
   textos para um dicionário por idioma, história de várias rodadas); texto e nome das cartas (item 4, aguarda decisão
   "oficial"/"automática"); a **camada obrigatória de idioma em toda entrega** (texto novo nasce no dicionário e o teste barra

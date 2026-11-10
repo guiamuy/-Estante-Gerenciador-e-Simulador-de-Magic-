@@ -21940,3 +21940,21 @@ test('e2e · G-366 DS-K3 MV-1: avançar afasta (recua em Z, nova chega da profun
   for (const tema of ['dark', 'light']) { await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(120); await auditaTela(page, `MV-1 Coleção pela reserva (${tema})`); }
   assert.deepEqual(errors, []);
 });
+
+// G-368 · a data do Início segue o idioma do app (antes era sempre pt-BR e a camada de tradução trocava só o "de":
+// "terça-feira, 10 of novembro" em inglês, numa terça; o G-361 caía nos dias com letra acentuada)
+test('e2e · G-368 a data do Início no idioma do app: inglês, espanhol e de volta ao português, numa terça-feira', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.clock.setFixedTime(new Date('2026-11-10T15:00:00Z'));
+  await page.goto(base + '#/'); await page.waitForSelector('#home-data');
+  assert.equal(await page.textContent('#home-data'), 'terça-feira, 10 de novembro');
+  for (const [id, esperado] of [['en', 'Tuesday, November 10'], ['es', 'martes, 10 de noviembre'], ['pt', 'terça-feira, 10 de novembro']]) {
+    await page.goto(base + '#/perfil'); await page.waitForSelector('#idioma-' + id);
+    await page.click('#idioma-' + id);
+    await page.waitForSelector(`#idioma-${id}[aria-checked="true"]`);
+    await page.goto(base + '#/'); await page.waitForSelector('#home-data');
+    await page.waitForFunction(e => document.querySelector('#home-data').textContent === e, esperado, { timeout: 5000 }).catch(() => {});
+    assert.equal(await page.textContent('#home-data'), esperado, id);
+  }
+  assert.deepEqual(errors, []);
+});

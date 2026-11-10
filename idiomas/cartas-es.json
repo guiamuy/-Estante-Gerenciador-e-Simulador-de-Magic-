@@ -2,7 +2,7 @@
  "v": 1,
  "idioma": "es",
  "fonte": "Tradução do robô da Estante (rotina na nuvem do Claude), conferida por idioma-cartas.mjs; o original é o Oracle em inglês da Scryfall",
- "geradoEm": "2026-11-09",
+ "geradoEm": "2026-11-10",
  "cartas": {
   "Clowning Around": {
    "original": "Create two 1/1 white Clown Robot artifact creature tokens, then roll a six-sided die. If the result is equal to or less than the number of Robots you control, create a 1/1 white Clown Robot artifact creature token.",
@@ -14,7 +14,7 @@
    "tipo": "Instantáneo",
    "texto": "Trabajo en equipo 2 (Como coste adicional para lanzar este hechizo, puedes girar cualquier número de criaturas que controlas con una fuerza total de 2 o más.)\nExilia las dos primeras cartas de tu biblioteca. Hasta el final de tu próximo turno, puedes jugar esas cartas. Si este hechizo se lanzó usando trabajo en equipo, crea una ficha de Tesoro. (Es un artefacto con \"{T}, sacrificar esta ficha: Agrega un maná de cualquier color\".)"
   },
-  "Delver of Secrets": {
+  "Delver of Secrets // Insectile Aberration": {
    "original": "At the beginning of your upkeep, look at the top card of your library. You may reveal that card. If an instant or sorcery card is revealed this way, transform Delver of Secrets.",
    "tipo": "Criatura — Humano Hechicero",
    "texto": "Al comienzo de tu mantenimiento, mira la primera carta de tu biblioteca. Puedes mostrar esa carta. Si se muestra de esta manera una carta de instantáneo o de conjuro, transforma Delver of Secrets."
@@ -24,7 +24,7 @@
    "tipo": "Conjuro",
    "texto": "Pon cualquier número de cartas de artefacto objetivo del cementerio del jugador objetivo en la parte superior de su biblioteca en cualquier orden."
   },
-  "Elite Interceptor": {
+  "Elite Interceptor // Rejoinder": {
    "original": "This creature enters prepared. (While it's prepared, you may cast a copy of its spell. Doing so unprepares it.)",
    "tipo": "Criatura — Humano Hechicero",
    "texto": "Esta criatura entra preparada. (Mientras esté preparada, puedes lanzar una copia de su hechizo. Hacerlo hace que deje de estar preparada.)"
@@ -34,10 +34,15 @@
    "tipo": "Instantáneo",
    "texto": "Hasta el final del turno, la criatura objetivo que no sea Brushwagg obtiene +1/+1 por cada supertipo, tipo de carta y subtipo que tenga."
   },
-  "Feral Deathgorger": {
-   "original": "Flying, deathtouch\nWhen this creature enters, exile up to two target cards from a single graveyard.",
-   "tipo": "Criatura — Dragón",
-   "texto": "Vuela, toque mortal\nCuando esta criatura entre, exilia hasta dos cartas objetivo de un mismo cementerio."
+  "Flash Flood": {
+   "original": "Choose one —\n• Destroy target red permanent.\n• Return target Mountain to its owner's hand.",
+   "tipo": "Instantáneo",
+   "texto": "Elige uno —\n• Destruye el permanente rojo objetivo.\n• Regresa la Montaña objetivo a la mano de su propietario."
+  },
+  "Holy Light": {
+   "original": "Nonwhite creatures get -1/-1 until end of turn.",
+   "tipo": "Instantáneo",
+   "texto": "Las criaturas que no son blancas obtienen -1/-1 hasta el final del turno."
   },
   "Kytheon, Hero of Akros": {
    "original": "At end of combat, if Kytheon, Hero of Akros and at least two other creatures attacked this combat, exile Kytheon, then return him to the battlefield transformed under his owner's control.\n{2}{W}: Kytheon gains indestructible until end of turn.",
@@ -49,7 +54,7 @@
    "tipo": "Criatura — Humano Clérigo",
    "texto": "Siempre que otra criatura entre al campo de batalla bajo tu control, ganas 1 vida.\nPerturbar {1}{W} (Puedes lanzar esta carta desde tu cementerio transformada por su coste de perturbar.)"
   },
-  "Pegasus Guardian": {
+  "Pegasus Guardian // Rescue the Foal": {
    "original": "Flying\nAt the beginning of your end step, if a permanent you controlled left the battlefield this turn, create a 1/1 white Pegasus creature token with flying.",
    "tipo": "Criatura — Pegaso",
    "texto": "Vuela\nAl comienzo de tu paso final, si un permanente que controlabas dejó el campo de batalla este turno, crea una ficha de criatura Pegaso blanca 1/1 con la habilidad de volar."
@@ -58,11 +63,6 @@
    "original": "Flying\n{2}, {Q}: Add one mana of any color. ({Q} is the untap symbol.)",
    "tipo": "Criatura artefacto — Espantapájaros",
    "texto": "Vuela\n{2}, {Q}: Agrega un maná de cualquier color. ({Q} es el símbolo de enderezar.)"
-  },
-  "Sagu Wildling": {
-   "original": "Flying\nWhen this creature enters, you gain 3 life.",
-   "tipo": "Criatura — Dragón",
-   "texto": "Vuela\nCuando esta criatura entre, ganas 3 vidas."
   },
   "Skred": {
    "original": "Skred deals damage to target creature equal to the number of snow permanents you control.",
@@ -74,17 +74,12 @@
    "tipo": "Criatura legendaria — Humano Noble",
    "texto": "Vínculo vital\nExtorsionar (Siempre que lances un hechizo, puedes pagar {W/B}. Si lo haces, cada oponente pierde 1 vida y tú ganas esa misma cantidad de vidas.)\nAl comienzo de cada una de tus fases principales poscombate, si ganaste 3 o más vidas este turno, exilia a Sorin, luego regrésalo al campo de batalla transformado bajo el control de su propietario."
   },
-  "Stormshriek Feral": {
-   "original": "Flying, haste\n{1}{R}: This creature gets +1/+0 until end of turn.",
-   "tipo": "Criatura — Dragón",
-   "texto": "Vuela, prisa\n{1}{R}: Esta criatura obtiene +1/+0 hasta el final del turno."
-  },
-  "The Modern Age": {
+  "The Modern Age // Vector Glider": {
    "original": "(As this Saga enters and after your draw step, add a lore counter.)\nI, II — Draw a card, then discard a card.\nIII — Exile this Saga, then return it to the battlefield transformed under your control.",
    "tipo": "Encantamiento — Saga",
    "texto": "(Al entrar esta Saga y después de tu paso de robar, agrega un contador de historia.)\nI, II — Roba una carta, luego descarta una carta.\nIII — Exilia esta Saga, luego regrésala al campo de batalla transformada bajo tu control."
   },
-  "Tithing Blade": {
+  "Tithing Blade // Consuming Sepulcher": {
    "original": "When Tithing Blade enters, each opponent sacrifices a creature.\nCraft with creature {4}{B} ({4}{B}, Exile this artifact, Exile a creature you control or a creature card from your graveyard: Return this card transformed under its owner's control. Craft only as a sorcery.)",
    "tipo": "Artefacto",
    "texto": "Cuando Tithing Blade entre, cada oponente sacrifica una criatura.\nFabricar con criatura {4}{B} ({4}{B}, exiliar este artefacto, exiliar una criatura que controlas o una carta de criatura de tu cementerio: Regresa esta carta transformada bajo el control de su propietario. Fabrica solo como un conjuro.)"

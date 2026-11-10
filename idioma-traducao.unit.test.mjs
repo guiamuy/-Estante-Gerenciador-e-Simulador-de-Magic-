@@ -4,9 +4,9 @@
 // Textos de carta abaixo marcados "teste" são dados de teste.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { loadModules } from './_load.mjs';
-import { confere, confereTexto, conferePacote, palavrasDe, lePacote, faltam, IDIOMAS } from './idioma-cartas.mjs';
+import { confere, confereTexto, conferePacote, palavrasDe, lePacote, faltam, IDIOMAS, registraTexto, juntaTextos, textosDoIdioma } from './idioma-cartas.mjs';
 import { ARQUIVOS } from './vercel-publico.mjs';
 const { platform: P, cards: C } = loadModules();
 const J = x => JSON.parse(JSON.stringify(x));
@@ -96,4 +96,52 @@ test('G-365 · a folha da carta usa a tradução só quando a carta nunca saiu i
   assert.match(html, /__m12\.usaTraducaoCartas\(__m7\.createTraducaoCartas\(/);
   assert.match(html, /if \(!r\.dado\) traduz\(run\)/);
   assert.match(html, /`Tradução para o \$\{nomeLang\}`/);
+});
+
+// G-368 · lote 2 (relatos #53/#66): a carta de duas faces (aventura, presságio, preparar, Sala) é procurada no app pelo nome
+// inteiro da Scryfall; o lote 1 tinha gravado três delas pela frente ("Sagu Wildling"), e a tradução nunca aparecia.
+test('G-368 · Oracle de duas faces: frente + verso viram o nome inteiro com as faces; a frente aponta para ele; a Sala não dobra o nome', () => {
+  const t = new Map();
+  registraTexto(t, 'Teste Frente', { type_line: 'Creature — Teste', oracle_text: 'Flying', verso: { name: 'Teste Verso', types: 'Sorcery Omen', oracle_text: 'Draw a card.' } });
+  const e = t.get('Teste Frente // Teste Verso');
+  assert.equal(e.nome, 'Teste Frente // Teste Verso');
+  assert.deepEqual(J(e.card_faces.map(f => [f.name, f.type_line, f.oracle_text])), [['Teste Frente', 'Creature — Teste', 'Flying'], ['Teste Verso', 'Sorcery Omen', 'Draw a card.']]);
+  assert.equal(t.get('Teste Frente'), e, 'a frente aponta para o nome inteiro');
+  registraTexto(t, 'Teste Sala // Teste Porta', { oracle_text: 'A.', verso: { name: 'Teste Porta', oracle_text: 'B.' } });
+  assert.ok(t.has('Teste Sala // Teste Porta') && !t.has('Teste Sala // Teste Porta // Teste Porta'));
+  // a primeira fonte vale; a cobertura do catálogo traz { name, texto } e o Forge do idioma, o formato das oficiais
+  const j = juntaTextos([{ cartas: [{ name: 'Teste Um', oracle_text: 'Primeiro.' }] }, { pendentes: [{ name: 'Teste Um', texto: { oracle_text: 'Segundo.' } }, { name: 'Teste Dois', texto: { oracle_text: 'Da cobertura.', type_line: 'Sorcery' } }, { name: 'Teste Três', texto: null }] }]);
+  assert.equal(j.get('Teste Um').oracle_text, 'Primeiro.');
+  assert.equal(j.get('Teste Dois').oracle_text, 'Da cobertura.');
+  assert.ok(!j.has('Teste Três'));
+});
+
+test('G-368 · faltam: a lista que cita a frente devolve o nome inteiro, com as faces; a tradução pelo nome inteiro tira a carta da fila', () => {
+  const textos = new Map();
+  registraTexto(textos, 'Teste Frente', { type_line: 'Creature', oracle_text: 'Flying', verso: { name: 'Teste Verso', type_line: 'Sorcery — Omen', oracle_text: 'Draw a card.' } });
+  const r = faltam('pt', { impressos: [], listas: ['Teste Frente', 'Teste Frente // Teste Verso'], textos, pacote: { cartas: {} } });
+  assert.equal(r.length, 1);
+  assert.equal(r[0].nome, 'Teste Frente // Teste Verso');
+  assert.deepEqual(J(r[0].oracle.card_faces.map(f => f.oracle_text)), ['Flying', 'Draw a card.']);
+  assert.deepEqual(faltam('pt', { impressos: [], listas: ['Teste Frente'], textos, pacote: { cartas: { 'Teste Frente // Teste Verso': {} } } }), []);
+  // impressa no idioma pelo nome inteiro (é o que artes:nomes-<idioma>.json traz): fora da fila
+  assert.deepEqual(faltam('pt', { impressos: ['Teste Frente // Teste Verso'], listas: ['Teste Frente'], textos, pacote: { cartas: {} } }), []);
+});
+
+test('G-368 · pacotes: nenhuma tradução fica pela frente de uma carta de duas faces; o lote 2 está lá e vale no app', () => {
+  const oficiais = readdirSync(new URL('./.listas/', import.meta.url)).filter(f => /^oficiais.*\.json$/.test(f)).map(f => JSON.parse(readFileSync(new URL(`./.listas/${f}`, import.meta.url), 'utf8')));
+  const textos = juntaTextos([...oficiais, ...textosDoIdioma()]);
+  for (const lang of IDIOMAS) for (const nome of Object.keys(lePacote(lang).cartas)) {
+    const t = textos.get(nome);
+    assert.ok(!t || t.nome === nome, `${lang} · "${nome}" é a frente de "${t && t.nome}": o app nunca acharia a tradução`);
+  }
+  const pt = lePacote('pt').cartas;
+  for (const nome of ['Yip Yip!', 'Bestial Incursion', 'Waterbending Lesson', 'Holy Light', 'Elite Interceptor // Rejoinder']) assert.ok(pt[nome], nome);
+  for (const nome of ['Flash Flood', 'Holy Light']) assert.ok(lePacote('es').cartas[nome], `es · ${nome}`);
+  // a carta de presságio, como a Scryfall a entrega ao app (nome inteiro, duas faces), mostra as duas faces traduzidas
+  const sagu = pt['Sagu Wildling // Roost Seek'];
+  const card = { name: 'Sagu Wildling // Roost Seek', faces: sagu.original.map(o => ({ oracle_text: o })) };
+  const d = C.traducaoDaCarta(lePacote('pt'), card, 'pt');
+  assert.equal(d.faces.length, 2);
+  assert.match(d.faces[0].texto, /^Voar/); assert.match(d.faces[1].texto, /grimório/); assert.equal(d.faces[1].tipo, 'Feitiço — Presságio');
 });
