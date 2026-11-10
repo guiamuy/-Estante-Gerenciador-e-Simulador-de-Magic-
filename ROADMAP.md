@@ -713,6 +713,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-uw ✅ | Y6d relato #106: ditado sem palavra dobrada — final ou parcial que começa pelo último final inteiro (mesmo de uma palavra) entra só o resto, e a cauda dele repetida não entra; com internet o ditado usa o serviço de fala (mais preciso), o reconhecimento no aparelho fica para quando não há internet (G-369, 10/11/2026) | G | 1 | 16º-ue |
 | 16º-uz ✅ | T-IDIOMA relatos #53/#66/#108, lote 3 da fatia 3: as cartas das listas de Standard do catálogo que nunca saíram impressas no idioma (248 em português, 19 em espanhol), todas pelo conferidor; --faltam ganha --formato (padrão pauper) (leva G-373, 10/11/2026) | T | 1 | 16º-uv |
 | 16º-ux ✅ | T-IDIOMA relato #108 (G-371): a carta guardada no aparelho sem `oracle_id` (antes da S-616, 07/11, ou fixada para jogar sem internet) busca o texto impresso no idioma pelo nome exato; antes a folha nem tentava e a Coleção ficava em inglês | T | 1 | 16º-up |
+| 16º-vc ✅ | T6e-5 relatos na Vercel (relato do dono, 09/11/2026): a conta recusada pelo endereço diz a causa e a sessão guardada fica; restaurar o backup e trazer pela ponte do github.io juntam os relatos (e as outras listas com id) em vez de trocar — antes os relatos da Vercel sumiam (leva G-370). Chave do Google liberada pelo dono em 09/11 | T6e-4 | 1 | 16º-uv |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -13522,6 +13523,34 @@ trilha `geral`, 09/11/2026; relato do dono de 09/11: o Enviar abria o GitHub e o
 - **Depende do dono:** quando a sessão guardada não existe (primeira vez no aparelho, ou o Firebase recusou a renovação), o
   Google pode pedir um toque: o relato fica "Aguardando conexão" e o botão resolve. Conta de e-mail e senha volta pela senha
   no Perfil.
+
+**T6e-5 · Relatos na Vercel: a conta que não conecta diz a causa; trazer do endereço antigo junta os relatos** ✅ (leva G-370, trilha `geral`, relato do dono de 09/11/2026; `16º-vc`)
+- **Pedido do dono (09/11):** na Vercel o relato não sai ("não está conseguindo conectar a conta"); os relatos guardados no
+  aparelho, na Vercel e no app antigo do github.io, precisam ser enviados e processados; a coleção da Vercel está sem cartas que
+  estão no app antigo (≈ R$ 400 de diferença). Daqui em diante, foco só na Vercel.
+- **Medido (10/11, 00:00 UTC, por uma sandbox da Vercel, sem tocar em dado do dono):** os domínios autorizados do Firebase já têm
+  `estante-magic.vercel.app` e `estante-magic-previa.vercel.app`, mas a **chave web do app recusa os dois endereços** (403
+  `API_KEY_HTTP_REFERRER_BLOCKED`, "Requests from referer https://estante-magic.vercel.app/ are blocked"); o github.io passa. Toda
+  entrada e renovação da conta da Estante na Vercel cai aí: sem conta, a fila de relatos (G-364) não recebe nada e o relato fica
+  "Aguardando conexão". O app da Vercel e o do github.io servem a mesma versão do `main` (conferido no mesmo instante).
+- **Entregue:** (1) a recusa pelo endereço vira o motivo `endereco-bloqueado` ("Este endereço do app ainda não foi liberado na
+  chave do Google. O resto funciona; os relatos ficam guardados e seguem sozinhos quando liberar."), no lugar de "Entrada
+  recusada. Saia e entre de novo."; e a renovação recusada pelo endereço **não apaga mais a sessão guardada** (antes, `firebase-recusou`
+  apagava `conta.sessao`), para a conta voltar sozinha quando o endereço for liberado. (2) Restaurar o backup — e trazer pela ponte
+  do github.io (I-329), que restaura do mesmo jeito — **trocava** as listas de conteúdo do aparelho pelas do arquivo: os relatos
+  guardados na Vercel sumiam. Agora toda lista de itens com `id` (relatos, histórico de partidas, notícias guardadas) **junta**: o
+  que só existe de um lado fica; o mesmo relato nos dois lados fica com o mais adiantado (registrado > na fila > aberto no GitHub >
+  guardado; depois, o editado por último); empate, o deste aparelho. O relato já registrado chega registrado e não sai de novo; o
+  guardado segue pela fila quando a conta conectar (G-364).
+- **Coleção:** a ponte já junta a coleção sem apagar (por impressão, fica a maior quantidade de cada uma). As cartas do app antigo
+  entram na Vercel quando o dono toca "Levar tudo para o endereço novo" no Início do github.io e "Trazer" na Vercel — o dado mora no
+  aparelho, preso ao endereço; nada fora do aparelho tem a coleção.
+- **Chave do Google (dono, feito em 09/11, 22:07):** a chave web do app passou a aceitar `estante-magic.vercel.app` e
+  `estante-magic-previa.vercel.app`; conferido pela sandbox da Vercel (as três origens respondem 200).
+- **Testes:** `g370.unit` (junção por id, restaurar que junta e preferência simples que troca, recusa pelo endereço com a sessão
+  mantida; falhavam antes) e e2e "G-370" (ponte entre dois endereços: os três relatos ficam e o registrado chega registrado; conta
+  recusada pelo endereço com a causa certa; falhava antes).
+- **Fora:** desligar o github.io (repositório privado, infra) e a chave do Google (dono).
 
 **T-IDIOMA · O app inteiro num idioma só: português (padrão), espanhol e inglês (relatos #53 e #66)** 🟡 (fatia 1 na leva G-353, trilha `geral`, 07/11/2026; `16º-ui`)
 - **Pedido (relato #66, repete o #53):** pacotes de idioma pt (padrão), es e en para o app inteiro; "hoje a aplicação está

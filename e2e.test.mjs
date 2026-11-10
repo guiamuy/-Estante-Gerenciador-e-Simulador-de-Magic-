@@ -21585,6 +21585,59 @@ test('e2e · I-329 ponte das coleções: no endereço antigo a faixa leva listas
   assert.deepEqual(errors, []); assert.deepEqual(errosDaNova, []);
 });
 
+/* ---------------- G-370 · relatos na Vercel: a ponte junta os relatos; a conta diz por que não conecta ---------------- */
+test('e2e · G-370 relato do dono: trazer do endereço antigo junta os relatos dos dois endereços (antes os da Vercel sumiam) e a conta recusada pelo endereço diz a causa', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  const porta = new URL(base).port;
+  const antigo = `http://127.0.0.1:${porta}`, novo = `http://localhost:${porta}`;
+  const ctx = page.context();
+  await ctx.addInitScript(([a, n]) => { window.__PONTE = { antigo: a, novo: n }; }, [antigo, novo]);
+  await ctx.route('https://api.scryfall.com/**', r => r.fulfill({ json: r.request().url().includes('/cards/collection') ? { data: [], not_found: [] } : { object: 'list', data: [], has_more: false } }));
+  const poeRelatos = (pg, itens) => pg.evaluate(async lista => {
+    const r = indexedDB.open('mtg'); await new Promise(ok => { r.onsuccess = ok; }); const db = r.result;
+    const tx = db.transaction('kv', 'readwrite'); tx.objectStore('kv').put(lista, 'relatos.itens'); await new Promise(ok => { tx.oncomplete = ok; });
+  }, itens);
+  const rel = (id, descricao, extra = {}) => ({ id, criadoEm: '2026-11-08T12:00:00.000Z', tipo: 'erro', urgencia: 'alta', area: 'Coleção', rota: '/colecao', descricao, ...extra });
+  // no endereço novo (a Vercel) já há um relato guardado, que não saiu porque a conta não conecta
+  await page.goto(`${novo}/index.html#/`); await page.waitForSelector('#home');
+  await poeRelatos(page, [rel('rvercel1', 'Relato feito na Vercel que ainda não saiu')]);
+  // no endereço antigo, dois relatos: um que já virou registro e um que ficou guardado lá
+  await page.goto(`${antigo}/index.html#/`); await page.waitForSelector('#home');
+  await poeRelatos(page, [rel('rgithub1', 'Relato do app antigo registrado', { enviadoEm: '2026-11-08T12:05:00.000Z', registro: { numero: 88 } }),
+    rel('rgithub2', 'Relato do app antigo guardado sem enviar')]);
+  await page.reload(); await page.waitForSelector('#home-ponte[data-estado="pendente"]');
+  const [nova] = await Promise.all([ctx.waitForEvent('page'), page.click('#home-ponte-levar')]);
+  const errosDaNova = []; nova.on('pageerror', e => errosDaNova.push(String(e)));
+  await nova.setViewportSize({ width: 360, height: 780 });
+  await nova.waitForSelector('#ponte-trazer', { timeout: 15000 });
+  await nova.click('#ponte-trazer');
+  await nova.waitForFunction(() => location.hash === '#/listas');
+  await nova.goto(`${novo}/index.html#/perfil/relatos`); await nova.waitForSelector('#relatos-lista .relato-item');
+  const ids = await nova.$$eval('#relatos-lista .relato-item', els => els.map(e => e.id).sort());
+  assert.deepEqual(ids, ['relato-rgithub1', 'relato-rgithub2', 'relato-rvercel1'], 'os três ficam: o da Vercel não some com o que chegou');
+  assert.equal(await nova.getAttribute('#relato-rgithub1', 'data-envio'), 'registrado', 'o já registrado chega registrado (não sai de novo)');
+  await auditaTela(nova, 'relatos depois de trazer do endereço antigo');
+  // a conta: a chave do Google recusa este endereço (403 "Requests from referer … are blocked") → a tela diz a causa
+  await nova.addInitScript(() => {
+    window.__GOOGLE_CLIENT_ID = 'e2e.apps.googleusercontent.com';
+    window.__FIREBASE_API_KEY = 'chave-e2e';
+    window.__FIREBASE_FETCH = async () => new Response(JSON.stringify({ error: { code: 403, message: 'Requests from referer https://estante-magic.vercel.app/ are blocked.', status: 'PERMISSION_DENIED',
+      details: [{ '@type': 'type.googleapis.com/google.rpc.ErrorInfo', reason: 'API_KEY_HTTP_REFERRER_BLOCKED' }] } }), { status: 403, headers: { 'content-type': 'application/json' } });
+    window.__GOOGLE_FALSO = { accounts: { oauth2: {
+      initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }),
+      revoke: (tk, cb) => cb && cb() } } };
+  });
+  await nova.route('https://www.googleapis.com/**', r => r.request().url().includes('/oauth2/v3/userinfo') ? r.fulfill({ json: { name: 'Gui', email: 'gui@example.com' } }) : r.fulfill({ status: 404, json: {} }));
+  await nova.goto(`${novo}/index.html#/perfil`); await nova.reload(); await nova.waitForSelector('#conta-entrar:not([disabled])');
+  await nova.click('#conta-entrar'); await nova.waitForSelector('#conta-estante[data-estado="desconectada"]');
+  const linha = await nova.innerText('#conta-estante');
+  assert.match(linha, /endereço do app ainda não foi liberado/, 'antes: "Entrada recusada. Saia e entre de novo."');
+  assert.doesNotMatch(linha, /Saia e entre de novo/);
+  await auditaTela(nova, 'perfil · conta recusada pelo endereço');
+  assert.deepEqual(errors, []); assert.deepEqual(errosDaNova, []);
+});
+
 /* ---------------- DS-K3 K3-0 + MV-0 (G-357) · material e três níveis de movimento ---------------- */
 test('e2e · G-357 DS-K3: o /ds mostra o material (cinco degraus, arte com véu) e as três molas; Movimento em Aparência tem três níveis que trocam distâncias e curvas na hora, em 360 nos dois temas', { skip }, async t => {
   const { page, errors, base } = await open(t);
