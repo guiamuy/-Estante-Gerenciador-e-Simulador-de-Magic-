@@ -58,3 +58,34 @@ test('ESTADOS · o estado real de uma partida só produz marcas com entrada (enj
     assert.ok(vistos > 0, 'a partida produziu estados');
   });
 });
+
+// J-66 · relato #124: a permanente que GANHOU proteção (Aura, Equipamento, mágica do turno) diz contra o quê, com a cor do mana;
+// a proteção impressa na própria carta não vira marca (está no texto da carta, como as palavras-chave impressas no "ganhou")
+test('ESTADOS · J-66 · proteção ganha vira a marca "protecao" com as cores (W U B R G) e o nome em português; a impressa não', () => {
+  return import('./fixtures.mjs').then(F => {
+    const t = T.createTable(T.buildSetup({ format: 'pauper', seed: 7, cards: F.CARDS, seats: [{ name: 'Você', deck: { entries: F.PAUPER_DECK } }, { name: 'Goldfish', dummy: true }] }));
+    t.act({ t: 'keep', p: 0, bottom: [] });
+    for (const oid of [...t.state.zones[0].library].slice(0, 30)) { try { t.act({ t: 'move', p: 0, oid, to: 'battlefield' }); } catch (e) { /* o modo não move */ } }
+    const s = structuredClone(t.state);
+    const oid = s.zones[0].battlefield.find(x => ((s.facts[s.objects[x].name] || {}).types || []).includes('creature') && !(s.facts[s.objects[x].name].prot || []).length && !s.facts[s.objects[x].name].protK);
+    assert.ok(oid, 'a partida tem uma criatura sem proteção impressa');
+    const o = s.objects[oid];
+    assert.equal(T.estadoDaCarta(s, o).marcas.some(m => m.k === 'protecao'), false, 'sem proteção, sem marca');
+    o.tempProtection = ['G'];
+    const m = T.estadoDaCarta(s, o).marcas.find(x => x.k === 'protecao');
+    assert.ok(m, 'ganhou proteção: a carta mostra a marca');
+    assert.equal(m.cores.join(), 'G');
+    assert.equal(m.rotulo, 'Proteção contra verde');
+    o.tempProtection = ['W', 'B', 'tudo', 'tipo:creature'];
+    const m2 = T.estadoDaCarta(s, o).marcas.find(x => x.k === 'protecao');
+    assert.equal(m2.cores.join(), 'W,B');
+    assert.equal(m2.rotulo, 'Proteção contra branco, preto, tudo e criaturas');
+    const d = U.estadoDesenhavel(m2);
+    assert.equal([d.icone, d.familia].join('|'), 'proteger|ganho');
+    assert.equal(d.cores.join(), 'W,B', 'as cores chegam ao desenho do ícone');
+    assert.equal(d.explica, 'Proteção contra branco, preto, tudo e criaturas');
+    // a impressa (White Knight e afins) fica no texto da carta: tira a ganha e põe a cor na carta, sem marca
+    delete o.tempProtection; s.facts[o.name] = { ...s.facts[o.name], prot: ['B'] };
+    assert.equal(T.estadoDaCarta(s, o).marcas.some(x => x.k === 'protecao'), false, 'proteção impressa não vira marca');
+  });
+});

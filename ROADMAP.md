@@ -716,6 +716,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-vc ✅ | T6e-5 relatos na Vercel (relato do dono, 09/11/2026): a conta recusada pelo endereço diz a causa e a sessão guardada fica; restaurar o backup e trazer pela ponte do github.io juntam os relatos (e as outras listas com id) em vez de trocar — antes os relatos da Vercel sumiam (leva G-370). Chave do Google liberada pelo dono em 09/11 | T6e-4 | 1 | 16º-uv |
 | 16º-uy ✅ | Relato #107: o idioma do app ao lado do sino na Início — globo (gira no toque) com a bandeira do idioma atual num selo de latão; o toque abre a folha "Idioma" com os três idiomas; escolher vale na hora, a folha fecha e a bandeira vira para a nova (menos movimento: troca sem virar). O Perfil › Idioma continua (leva G-372, 10/11/2026) | G | 1 | 16º-uu |
 | 16º-vb ✅ | T-IDIOMA relatos #53/#66, lote 4 da fatia 3: Pioneer e Modern (65 cartas em português, 23 em espanhol), pelo conferidor; as 11 cartas de duas faces gravadas pela frente (nunca apareciam) passam ao nome inteiro, o conferidor barra a chave pela frente e o app acha a tradução só da frente pela frente (leva G-374, 10/11/2026) | T | 1 | 16º-uz |
+| 16º-vd ✅ | Relato #124 (J-66): a permanente que ganhou proteção (Aura como Benevolent Blessing, Equipamento, mágica do turno) mostra o escudo na barra de estados com uma faixa por cor protegida na cor do mana; o nome falado e a folha da carta dizem contra o quê ("Proteção contra verde"). Parcial: a proteção impressa na própria carta não vira marca (está no texto, como as palavras-chave impressas); proteção dada por efeito estático de outra permanente que o motor não põe em `protections` também não aparece. |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -15258,6 +15259,17 @@ Cloudflare) ficam do nosso lado, para gerar e validar. Cinco fatias MK3-P1…P5 
 - **Parcial / fora:** Início e Notícias têm cabeçalho próprio (data, saudação, sino; faixa de notícias) e entram no editorial
   com a K3-7 (Início na direção Vitrine) e a K3-10 (Notícias); as subtelas seguem no 44 · 1fr · 44 (a faixa compacta de 18 px
   nelas fica para a FA-2, que fecha contra as telas-modelo); a paralaxe do hero por `scroll()` entra com o hero da K3-9.
+#### Relato #124 · proteção ganha à vista (✅ J-66, 10/11/2026; `16º-vd`)
+- **Valor:** a criatura que recebeu proteção contra uma cor (Benevolent Blessing, no print do dono) não dizia nada na mesa: agora
+  mostra o escudo na barra de estados, e se vê de relance contra que cor.
+- **Aceite:** marca `protecao` no modelo (`estadoDaCarta`, por `protecaoGanha`: `E.protections` menos as impressas), família
+  `ganho`, ícone `proteger`, uma faixa por cor (W U B R G, na ordem do mana) no pé do ícone nos tokens `--mana-*`; qualidades que
+  não são cor (tudo, criaturas, Demon…) vão no texto; nome falado e folha da carta: "Proteção contra branco e verde", com os pips
+  na folha. Sem token novo.
+- **Testes:** `estados.unit` "J-66" (falhava antes) e e2e "J-66 proteção ganha" (dois temas, cor de cada faixa contra o token,
+  folha, `auditaTela`).
+- **Parcial declarado:** a proteção impressa não vira marca; proteção concedida por efeito estático que o motor não junta em
+  `protections` não aparece até o motor juntá-la.
 
 ## Trilha homologacao · prova de partida do catálogo (H)
 
