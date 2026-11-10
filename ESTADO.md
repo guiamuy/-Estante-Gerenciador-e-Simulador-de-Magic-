@@ -20,7 +20,7 @@ Marcos: Pauper 100% (as sete listas revisadas carta a carta; 682 de 685 listas P
 | Trilha | Prefixo | Foco atual | Última leva | Próximo |
 |---|---|---|---|---|
 | `scanner` | S | X16: #90 foil (F1: edição só foil entra Foil); #79 fechado | S-623 · 09/11 | #90 F2: selo "Foil?" pelo brilho; #79 no aparelho |
-| `geral` | G | DS-K3 K3-3 barra que recolhe ao rolar (G-367); T-IDIOMA lote 2: duas faces e as cartas que faltavam (G-368) | G-368 · 10/11; G-367 · 10/11 | DS-K3 K3-4 cabeçalho que recolhe (+ MV-7); Darval; lotes Commander (`idioma-cartas.mjs --faltam`) |
+| `geral` | G | #106 ditado (G-369); T-IDIOMA lote 2 (G-368); DS-K3 K3-3 (G-367) | G-369 · 10/11; G-368 · 10/11 | DS-K3 K3-4 cabeçalho que recolhe (+ MV-7); Darval; lotes Commander (`idioma-cartas.mjs --faltam`) |
 | `motor` | M | leitor dos competitivos (Requiting Hex, afligir como custo); sentinela Pauper | M-612 · 08/11 | M-613 Umbral Collar Zealot ▶; CR2c.2 "destruir todas"; #58 espera o dono |
 | `radar` | R | BI4 · Painel Estante: comparar períodos, metas, tendência | R-44 · 07/11 | BI4-6 em diante; validação do dono após os primeiros pilares |
 | `jogabilidade` | J | MJ25/MJ27 · mesa de patamar: paisagem, orientação, Cancelar em toda escolha | J-62 · 03/11 | relato #54 (efeito da Cidade Baixa) |
@@ -44,7 +44,7 @@ Datas no formato dia/mês, horário de Brasília. Trilha que muda de foco atuali
 
 ## Relatos do dono abertos (etiqueta `relato`)
 
-Fila da Relatos contínuo: #90 foil (opção A, fatias em curso: S-623). #66/#53 idiomas: fatias 1 a 4 feitas (3 na G-365, lote 2 na G-368: Pauper e Shark completos, menos Darval). #95 resolvido (G-363, 09/11; #97 duplicata).
+Fila da Relatos contínuo: #90 foil (opção A, fatias em curso: S-623). #66/#53 idiomas: fatias 1 a 4 feitas (3 na G-365, lote 2 na G-368: Pauper e Shark completos, menos Darval). #95 resolvido (G-363, 09/11; #97 duplicata). #106: G-369. Novos: #108, #107.
 Leitura e fila dos relatos: seção "Relatos do dono" do `CLAUDE.md`.
 
 ## Decisões e pendências do dono
@@ -78,4 +78,4 @@ Os documentos `claude/…` moram no Projeto do claude.ai, fora do repositório: 
 
 No commit de docs de cada leva (o mesmo que atualiza o ROADMAP): reescreva a **sua** linha na tabela de trilhas, atualize relatos e pendências se mudaram e troque a data abaixo. Edite por patch, nunca o arquivo inteiro. Conflito no rebase: fique com as linhas das outras trilhas e a sua. Passou de 8 KB: resuma, não acrescente.
 
-Atualizado: 10/11/2026 · I-328 (rotinas publicam) · M-612 (motor) · I-329 (ponte) · S-622 (scanner) · B-206 · B-207 (bot) · G-362 a G-367 (geral) · S-623 (scanner) · G-368 (geral)
+Atualizado: 10/11/2026 · I-328 (rotinas publicam) · M-612 (motor) · I-329 (ponte) · S-622 (scanner) · B-206 · B-207 (bot) · G-362 a G-367 (geral) · S-623 (scanner) · G-368 (geral) · G-369 (geral)
