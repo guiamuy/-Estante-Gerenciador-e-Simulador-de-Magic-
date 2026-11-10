@@ -704,7 +704,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ud ✅ | MJ25 mesa pelo print 2 (decisão do dono, 02/11/2026), sete fatias: .1 ícones de estado que cabem e rolagem afastada da carta (J-53 ✅) · .2 nome na faixa de cima, girando com a carta virada (J-54 ✅) · .3 a carta de origem na pilha e nas decisões (Roost Seek) (J-55 ✅) · .4 escolher carta vendo a carta ampliada (J-56 ✅) · .5 cartas ocupam o espaço da fileira (J-57 ✅) · .6 layout em paisagem (J-58 ✅) · .7 opção "Orientação: automática / só retrato" (J-59 ✅) | MJ24 | jogabilidade |
 | 16º-uf ✅ | MJ26 relato #55: as setas do combate (e a prévia do dano) acompanham a rolagem da página e de qualquer contêiner da mesa; "Cancelar" na declaração de atacantes e de bloqueadores desmarca a escolha sem mandar nada ao motor (J-61, 03/11/2026) | J | 1 | 16º-ud |
 | 16º-ug ✅ | MJ27 relato #55, o resto do "cancelar jogada em curso": um Cancelar com o mesmo nome e lugar em toda escolha encadeada antes de jogar (alvo → custo → X → cor), que volta um passo em vez de fechar tudo, e a mira por arrasto com Cancelar à vista (J-62, 03/11/2026) | J | 1 | 16º-uf |
-| 16º-va 🟡 | MK3 · Mesa Vitrine (pedido do dono de 09/11/2026: a mesa no patamar do DS-K3 — simetria, profundidade por luz e sombra, material, animação de alto padrão em todo elemento; rotina "Mesa MK3" a cada 4 h; modo agilidade): ✅ MK3-0 (J-63) material — carta como objeto (espessura, contato, chave, face laqueada) e playmat em poço igual nos dois lados, levantar com a mola do DS-K3; ✅ MK3-1 (J-64) estojo das fases — trilho num estojo rebaixado no eixo da faixa de vez, o filete de latão não passa mais por baixo, o traço desliza com mola; ✅ MK3-2 (J-65) simetria — a mesma faixa de identidade (nome · zonas) na borda de fora de cada lado, a sua embaixo do seu campo, permanentes que se olham pelo eixo, `auditaSimetria`; próxima MK3-3 carta-objeto. Revisão das 22h15: benchmarks, mão e gesto (arrastar para jogar, toque duplo), zonas, organizar o campo, combate sem setas. Playmats (23h36): da casa e criados pelo jogador (MK3-P1…P5). Especificação: `docs/MK3-especificacao.md`. A MV-9 do DS-K3 passa a ser a MK3-17 | MK3 | 3 de 27 | DS-K3 K3-0/MV-0, MJ, DS-K2 M1–M6 |
+| 16º-va 🟡 | MK3 · Mesa Vitrine (pedido do dono de 09/11/2026: a mesa no patamar do DS-K3 — simetria, profundidade por luz e sombra, material, animação de alto padrão em todo elemento; rotina "Mesa MK3" a cada 4 h; modo agilidade): ✅ MK3-0 (J-63) material — carta como objeto (espessura, contato, chave, face laqueada) e playmat em poço igual nos dois lados, levantar com a mola do DS-K3; ✅ MK3-1 (J-64) estojo das fases — trilho num estojo rebaixado no eixo da faixa de vez, o filete de latão não passa mais por baixo, o traço desliza com mola; ✅ MK3-2 (J-65) simetria — a mesma faixa de identidade (nome · zonas) na borda de fora de cada lado, a sua embaixo do seu campo, permanentes que se olham pelo eixo, `auditaSimetria`; ✅ MK3-3 (J-67) carta-objeto — virar e desvirar com massa (mola, a sombra gira junto e acaba embaixo, mais curta), selos e P/T em laca, enjoo apaga o P/T; próxima MK3-P1 playmats da casa. Revisão das 22h15: benchmarks, mão e gesto (arrastar para jogar, toque duplo), zonas, organizar o campo, combate sem setas. Playmats (23h36): da casa e criados pelo jogador (MK3-P1…P5). Especificação: `docs/MK3-especificacao.md`. A MV-9 do DS-K3 passa a ser a MK3-17 | MK3 | 4 de 27 | DS-K3 K3-0/MV-0, MJ, DS-K2 M1–M6 |
 | 16º-ui 🟡 | T-IDIOMA relatos #53/#66, fatia 1: o português cobre a interface (Rulings → Esclarecimentos, Near Mint → Quase nova, Etched → Foil gravado, Offline → Sem internet, cinco palavras-chave e os marcadores com nome em português na mesa e no registro); falta troca de idioma, pacotes es/en e texto das cartas (leva G-353, 07/11/2026) | T | 1 | — |
 | 16º-up ✅ | T-IDIOMA relatos #53/#66, fatia 2: a folha da carta mostra nome, tipo e texto oficiais impressos em português (Scryfall), com a troca para o original, guardados no aparelho; nunca impressa fica em inglês com aviso até a fatia 3 (leva G-356, 08/11/2026) | T | 1 | 16º-ui |
 | 16º-us ✅ | T-IDIOMA relatos #53/#66, fatia 4: Perfil › Idioma (português, inglês, espanhol, com bandeira e nome no próprio idioma), o app inteiro na hora pela camada de tradução da tela e pelos pacotes idiomas/en.json e es.json, a folha da carta no idioma (oficial impresso; Oracle em inglês) com o texto antes da imagem, e a camada obrigatória (texto novo sem tradução derruba o portão) (leva G-361, 08/11/2026) | T | 1 | 16º-up |
@@ -15078,7 +15078,7 @@ Especificação por fatia (valores e roteiros): `docs/MK3-especificacao.md`.
 | **MK3-0** | material: carta como objeto (espessura, contato, chave, face laqueada), playmat em poço igual nos dois lados, levantar com mola | ✅ J-63 |
 | MK3-1 | estojo das fases: o trilho de pontos e traço sob "Seu turno" num estojo rebaixado, sem cruzar a linha do topo | ✅ J-64 |
 | MK3-2 | simetria: os dois lados espelhados (faixa de identidade igual, eixo central), `auditaSimetria` | ✅ J-65 |
-| MK3-3 | carta-objeto: virar e desvirar com massa, sombra que gira, selos em laca | ⬜ |
+| MK3-3 | carta-objeto: virar e desvirar com massa, sombra que gira, selos em laca | ✅ J-67 |
 | MK3-P1 | playmats da casa: seis modelos no design system (Ébano, Feltro, Oceano, Vinho, Pergaminho, Latão gravado), nos dois temas | ⬜ |
 | MK3-P2 | galeria e escolha: Perfil › Playmats com prévia ao vivo numa mini-mesa; vale na mesa na hora | ⬜ |
 | MK3-4 | mão viva: pegar a carta, ela segue o dedo e inclina pela velocidade, as vizinhas fecham o vão; comprar sai do grimório | ⬜ |
@@ -15128,6 +15128,33 @@ Cloudflare) ficam do nosso lado, para gerar e validar. Cinco fatias MK3-P1…P5 
   `--carta-laca`, `--mesa-poco`; `--sombra-carta` e `--sombra-carta-alta` passam a ser compostas só de tokens K3 (valem
   também no palco do `/ds`, no leque e na pilha).
 - **Fora:** estojo das fases (MK3-1), simetria da faixa de identidade (MK3-2), gestos e receitas por evento (MK3-3 em diante).
+
+#### MK3-3 · carta-objeto (✅ J-67, 10/11/2026)
+- **Valor:** virar e desvirar deixam de ser um salto: a carta gira no lugar como um objeto com peso (passa um pouco dos 90° e
+  assenta), a sombra gira junto e, deitada, fica embaixo dela e mais curta, como numa mesa de verdade; os selos e o P/T
+  ganham a laca do resto da carta; a criatura que acabou de entrar se lê pelo P/T apagado.
+- **Aceite:** a carta do campo que mudou de virada nesta jogada (virar por custo, por pagar mana, por atacar ou por efeito;
+  desvirar no passo de desvirar ou por efeito; `girosDeVirar`, puro, até 16 por jogada) gira da posição de antes até a de
+  agora: completo `--mola-macia` `--dur-4`, com a sombra alta acendendo e apagando no caminho (Z só no movimento); moderado
+  `--ease-out` `--dur-3`, sem a sombra alta; reduzido: estado final num quadro (nada gira). Só `transform` e `opacity`; o
+  próximo toque conclui o giro (R4). Deitada, a face usa `--sombra-carta-deitada` (o fio de lado e as sombras nascem em x e,
+  giradas, apontam para baixo, L1; a escala .78 encurta), e a sombra alta e as cópias de trás do leque também. P/T e selos com
+  `--lacquer` e aresta `--edge`; `data-sick` apaga o P/T (`--fg-muted`; o relógio do enjoo, J-48, fica). Palco "Virar" no
+  `/ds` (`#ds-giro`). R5: a carta que vira junto com um efeito G5/MJ (a investida de quem ataca) fica com a sombra daquele
+  efeito; o giro da face continua. `auditaTela` limpa nas quatro medidas e nos dois temas; MJ11b verde.
+- **Receita "virar"** · plano: objeto (a face, com a sombra presa a ela) sobre o tampo, que fica parado · luz: a sombra gira
+  com a carta e assenta embaixo, encurtada; no completo a sombra alta no primeiro terço · curva: `--mola-macia` (moderado
+  `--ease-out`) · etapas: giro e escala juntos · reduzido: estado final · o que a separa de uma troca linear 2D: massa (a mola
+  passa do ponto e volta) e luz (a sombra gira com o objeto e acaba sob ele).
+- **Pixels de campo (360 × 780):** zero (a carta deitada ocupa o mesmo lugar de antes; a camada não muda o layout).
+- **Tokens novos** (três blocos e `painel.html`): `--sombra-carta-deitada`, `--sombra-carta-alta-deitada` (os valores de
+  `--shadow-contact`, `--shadow-key` e `--shadow-float` com x e y trocados).
+- **Testes:** contrato visual "MK3-3", unidade "MK3-3 · giros de virar" (`sentidos.unit`) e e2e "J-67 MK3-3" (três níveis,
+  virar e desvirar, o toque que conclui, laca, enjoo, quatro medidas, dois temas, palco), que falhavam no `main` de antes.
+- **Parcial declarado:** a carta que vira e entra num leque de cópias (ou sai dele) muda sem girar (o leque se refaz no
+  desenho; continuidade de grupo fica com a MK3-7); as vizinhas abrem o espaço da carta deitada na hora (o deslizar das
+  vizinhas é da MK3-7, que já abre o vão com mola); durante o giro a sombra nasce de lado e só assenta embaixo no fim.
+- **Fora:** terreno que entra virado (voa e pousa, MK3-11); virar o atacante na linha de combate (MK3-13).
 
 #### MK3-2 · simetria (✅ J-65, 10/11/2026)
 - **Valor:** a mesa passa a ser um espelho: os dois jogadores têm a mesma faixa de identidade (nome, grimório, cemitério e
