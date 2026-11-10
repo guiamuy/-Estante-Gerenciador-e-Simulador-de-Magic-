@@ -50242,7 +50242,7 @@ function renderHome({ ancora = false } = {}) {
   const tituloLinha = h('div', { class: 'inicio__titulo-linha' }, titulo, acoesDoTitulo); // G-276 · com a conta conectada, Sair da conta à direita do título
   confereNotificacoes(); // G-314 · pedido de cobertura atendido vira notificação
   const el = h('div', { class: 'ds-wrap inicio', id: 'home' },
-    h('header', { class: 'inicio__cab' }, h('span', { class: 'inicio__data', id: 'home-data' }, hoje), tituloLinha, frase),
+    h('header', { class: 'inicio__cab' }, h('span', { class: 'inicio__data', id: 'home-data', translate: 'no' }, hoje), tituloLinha, frase),
     faixaDaPonte(), // I-329 · só no endereço antigo
     continuar,
     // U2 · atalhos com ícone e uma palavra; K4 · Jogar continua o primário, os outros quatro numa linha

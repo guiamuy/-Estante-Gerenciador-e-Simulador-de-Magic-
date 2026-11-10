@@ -2,7 +2,7 @@
  "v": 1,
  "idioma": "pt",
  "fonte": "Tradução do robô da Estante (rotina na nuvem do Claude), conferida por idioma-cartas.mjs; o original é o Oracle em inglês da Scryfall",
- "geradoEm": "2026-11-09",
+ "geradoEm": "2026-11-10",
  "cartas": {
   "Abandon Attachments": {
    "original": "You may discard a card. If you do, draw two cards.",
@@ -13,6 +13,11 @@
    "original": "Airbend target nonland permanent. (Exile it. While it's exiled, its owner may cast it for {2} rather than its mana cost.)\nDraw a card.",
    "tipo": "Mágica Instantânea — Lição",
    "texto": "Dobre o ar da permanente alvo que não seja um terreno. (Exile-a. Enquanto ela estiver exilada, seu dono pode conjurá-la por {2} em vez de pagar seu custo de mana.)\nCompre um card."
+  },
+  "Barkform Harvester": {
+   "original": "Changeling (This card is every creature type.)\nReach\n{2}: Put target card from your graveyard on the bottom of your library.",
+   "tipo": "Criatura Artefato — Metamorfo",
+   "texto": "Mutável (Este card é de todos os tipos de criatura.)\nAlcance\n{2}: Coloque o card alvo de seu cemitério no fundo de seu grimório."
   },
   "Barrels of Blasting Jelly": {
    "original": "{1}: Add one mana of any color. Activate only once each turn.\n{5}, {T}, Sacrifice this artifact: It deals 5 damage to target creature.",
@@ -29,6 +34,11 @@
    "tipo": "Artefato",
    "texto": "Desvire este artefato durante a etapa de desvirar de cada outro jogador.\n{T}: Adicione um mana de qualquer cor."
   },
+  "Bestial Incursion": {
+   "original": "Create a 4/4 green Beast creature token with trample.\nFlashback {5}{G} (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
+   "tipo": "Feitiço",
+   "texto": "Crie uma ficha de criatura Fera verde 4/4 com atropelar.\nLampejo do passado {5}{G} (Você pode conjurar este card de seu cemitério pagando seu custo de lampejo do passado. Depois, exile-o.)"
+  },
   "Black Mage's Rod": {
    "original": "Job select (When this Equipment enters, create a 1/1 colorless Hero creature token, then attach this to it.)\nEquipped creature gets +1/+0, has \"Whenever you cast a noncreature spell, this creature deals 1 damage to each opponent,\" and is a Wizard in addition to its other types.\nEquip {3}",
    "tipo": "Artefato — Equipamento",
@@ -43,6 +53,11 @@
    "original": "When this artifact enters and when you sacrifice it, create a 1/1 white Rabbit creature token and scry 1. (Look at the top card of your library. You may put that card on the bottom.)\n{2}, {T}, Sacrifice this artifact: You gain 3 life.",
    "tipo": "Artefato — Comida",
    "texto": "Quando este artefato entrar e quando você o sacrificar, crie uma ficha de criatura Coelho branca 1/1 e use vidência 1. (Olhe o card do topo de seu grimório. Você pode colocar aquele card no fundo.)\n{2}, {T}, sacrifique este artefato: Você ganha 3 pontos de vida."
+  },
+  "Chitin Gravestalker": {
+   "original": "This spell costs {1} less to cast for each artifact and/or creature card in your graveyard.\nCycling {2} ({2}, Discard this card: Draw a card.)",
+   "tipo": "Criatura — Inseto Guerreiro",
+   "texto": "Esta mágica custa {1} a menos para ser conjurada para cada card de artefato e/ou de criatura em seu cemitério.\nReciclar {2} ({2}, descarte este card: Compre um card.)"
   },
   "Clockwork Percussionist": {
    "original": "Haste\nWhen this creature dies, exile the top card of your library. You may play it until the end of your next turn.",
@@ -74,7 +89,7 @@
    "tipo": "Criatura — Javali Alce Ave Boi",
    "texto": "Quando esta criatura morrer, você ganha 3 pontos de vida.\n{2}, sacrifique esta criatura: Destrua até um artefato ou encantamento alvo."
   },
-  "Delver of Secrets": {
+  "Delver of Secrets // Insectile Aberration": {
    "original": "At the beginning of your upkeep, look at the top card of your library. You may reveal that card. If an instant or sorcery card is revealed this way, transform Delver of Secrets.",
    "tipo": "Criatura — Humano Mago",
    "texto": "No início de sua manutenção, olhe o card do topo de seu grimório. Você pode revelar aquele card. Se um card de mágica instantânea ou de feitiço for revelado dessa forma, transforme Delver of Secrets."
@@ -109,10 +124,21 @@
    "tipo": "Criatura — Lobo",
    "texto": "Esta criatura não pode ser bloqueada por fichas.\nQuando esta criatura entrar, coloque um marcador +1/+1 na criatura alvo."
   },
-  "Elite Interceptor": {
-   "original": "This creature enters prepared. (While it's prepared, you may cast a copy of its spell. Doing so unprepares it.)",
-   "tipo": "Criatura — Humano Mago",
-   "texto": "Esta criatura entra preparada. (Enquanto ela estiver preparada, você pode conjurar uma cópia da mágica dela. Fazer isso a despreparará.)"
+  "Elite Interceptor // Rejoinder": {
+   "original": [
+    "This creature enters prepared. (While it's prepared, you may cast a copy of its spell. Doing so unprepares it.)",
+    "You may tap or untap target creature.\nDraw a card."
+   ],
+   "faces": [
+    {
+     "tipo": "Criatura — Humano Mago",
+     "texto": "Esta criatura entra preparada. (Enquanto ela estiver preparada, você pode conjurar uma cópia da mágica dela. Fazer isso a despreparará.)"
+    },
+    {
+     "tipo": "Feitiço",
+     "texto": "Você pode virar ou desvirar a criatura alvo.\nCompre um card."
+    }
+   ]
   },
   "Embiggen": {
    "original": "Until end of turn, target non-Brushwagg creature gets +1/+1 for each supertype, card type, and subtype it has.",
@@ -129,10 +155,21 @@
    "tipo": "Terreno",
    "texto": "Este terreno entra virado, a menos que um jogador tenha 13 ou menos pontos de vida.\n{T}: Adicione {G} ou {W}."
   },
-  "Feral Deathgorger": {
-   "original": "Flying, deathtouch\nWhen this creature enters, exile up to two target cards from a single graveyard.",
-   "tipo": "Criatura — Dragão",
-   "texto": "Voar, toque mortífero\nQuando esta criatura entrar, exile até dois cards alvo de um único cemitério."
+  "Feral Deathgorger // Dusk Sight": {
+   "original": [
+    "Flying, deathtouch\nWhen this creature enters, exile up to two target cards from a single graveyard.",
+    "Put a +1/+1 counter on up to one target creature. Draw a card. (Then shuffle this card into its owner's library.)"
+   ],
+   "faces": [
+    {
+     "tipo": "Criatura — Dragão",
+     "texto": "Voar, toque mortífero\nQuando esta criatura entrar, exile até dois cards alvo de um único cemitério."
+    },
+    {
+     "tipo": "Feitiço — Presságio",
+     "texto": "Coloque um marcador +1/+1 em até uma criatura alvo. Compre um card. (Depois, embaralhe este card no grimório de seu dono.)"
+    }
+   ]
   },
   "Fields of Strife": {
    "original": "This land enters tapped.\n{T}: Add {R} or {W}.\n{2}{R}{W}, {T}: Surveil 1. (Look at the top card of your library. You may put it into your graveyard.)",
@@ -143,6 +180,11 @@
    "original": "Kicker {4} (You may pay an additional {4} as you cast this spell.)\nFirebending Lesson deals 2 damage to target creature. If this spell was kicked, it deals 5 damage to that creature instead.",
    "tipo": "Mágica Instantânea — Lição",
    "texto": "Reforço {4} (Você pode pagar {4} adicionais ao conjurar esta mágica.)\nFirebending Lesson causa 2 pontos de dano à criatura alvo. Se esta mágica foi reforçada, em vez disso, ela causa 5 pontos de dano àquela criatura."
+  },
+  "Flash Flood": {
+   "original": "Choose one —\n• Destroy target red permanent.\n• Return target Mountain to its owner's hand.",
+   "tipo": "Mágica Instantânea",
+   "texto": "Escolha um —\n• Destrua a permanente vermelha alvo.\n• Devolva a Montanha alvo para a mão de seu dono."
   },
   "Foot Headquarters": {
    "original": "This land enters tapped.\nWhen this land enters, you gain 1 life.\n{T}: Add {W} or {B}.",
@@ -203,6 +245,16 @@
    "original": "Whenever another creature you control enters, you gain 1 life.",
    "tipo": "Criatura — Coelho Clérigo",
    "texto": "Toda vez que outra criatura que você controla entrar, você ganha 1 ponto de vida."
+  },
+  "Holy Light": {
+   "original": "Nonwhite creatures get -1/-1 until end of turn.",
+   "tipo": "Mágica Instantânea",
+   "texto": "Criaturas que não são brancas recebem -1/-1 até o final do turno."
+  },
+  "How to Start a Riot": {
+   "original": "Target creature gains menace until end of turn. (It can't be blocked except by two or more creatures.)\nCreatures target player controls get +2/+0 until end of turn.",
+   "tipo": "Mágica Instantânea — Lição",
+   "texto": "A criatura alvo ganha ameaçar até o final do turno. (Ela não pode ser bloqueada, exceto por duas ou mais criaturas.)\nAs criaturas controladas pelo jogador alvo recebem +2/+0 até o final do turno."
   },
   "Humbling Elder": {
    "original": "Flash\nWhen this creature enters, target creature an opponent controls gets -2/-0 until end of turn.",
@@ -324,6 +376,11 @@
    "tipo": "Criatura — Ave",
    "texto": "Voar\nQuando esta criatura entrar, você ganha 2 pontos de vida. Você pode procurar em seu grimório um card de terreno básico, revelá-lo e, depois, embaralhar e colocar aquele card no topo."
   },
+  "Origin of Metalbending": {
+   "original": "Choose one —\n• Destroy target artifact or enchantment.\n• Put a +1/+1 counter on target creature you control. It gains indestructible until end of turn. (Damage and effects that say \"destroy\" don't destroy it.)",
+   "tipo": "Mágica Instantânea — Lição",
+   "texto": "Escolha um —\n• Destrua o artefato ou encantamento alvo.\n• Coloque um marcador +1/+1 na criatura alvo que você controla. Ela ganha indestrutível até o final do turno. (Dano e efeitos que dizem \"destrua\" não a destroem.)"
+  },
   "Oroku Saki, Shredder Rising": {
    "original": "Sneak {1}{B} (You may cast this spell for {1}{B} if you also return an unblocked attacker you control to hand during the declare blockers step. He enters tapped and attacking.)\nWhenever Oroku Saki deals combat damage to a player, you draw a card and lose 1 life.",
    "tipo": "Criatura Lendária — Humano Ninja",
@@ -349,7 +406,7 @@
    "tipo": "Criatura — Humano Cidadão",
    "texto": "Vigilância\nQuando esta criatura entrar, recrute. (Compre um card e, depois, descarte um card. Se você descartou um card que não é de terreno, crie uma ficha de criatura 1/1 branca do tipo Humano Soldado.)"
   },
-  "Pegasus Guardian": {
+  "Pegasus Guardian // Rescue the Foal": {
    "original": "Flying\nAt the beginning of your end step, if a permanent you controlled left the battlefield this turn, create a 1/1 white Pegasus creature token with flying.",
    "tipo": "Criatura — Pégaso",
    "texto": "Voar\nNo início de sua etapa final, se uma permanente que você controlava saiu do campo de batalha neste turno, crie uma ficha de criatura 1/1 branca do tipo Pégaso com voar."
@@ -373,6 +430,11 @@
    "original": "Draw a card. If this spell was cast from a graveyard, draw two cards instead.\nFlashback {3}{U} (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
    "tipo": "Mágica Instantânea",
    "texto": "Compre um card. Se esta mágica foi conjurada de um cemitério, em vez disso, compre dois cards.\nLampejo do passado {3}{U} (Você pode conjurar este card de seu cemitério pagando seu custo de lampejo do passado. Depois, exile-o.)"
+  },
+  "Primordial Pachyderm": {
+   "original": "Reach, trample\nWhen this creature enters, you gain 2 life.",
+   "tipo": "Criatura — Elefante Avatar",
+   "texto": "Alcance, atropelar\nQuando esta criatura entrar, você ganha 2 pontos de vida."
   },
   "Pursue the Past": {
    "original": "You gain 2 life. You may discard a card. If you do, draw two cards.\nFlashback {2}{R}{W} (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
@@ -419,10 +481,21 @@
    "tipo": "Terreno",
    "texto": "Vigilância\nQuando este terreno entrar, faça vidência 1. (Olhe o card do topo de seu grimório. Você pode colocá-lo no fundo.)\n{T}: Adicione {C}.\n{1}, {T}: Adicione um mana de qualquer cor."
   },
-  "Sagu Wildling": {
-   "original": "Flying\nWhen this creature enters, you gain 3 life.",
-   "tipo": "Criatura — Dragão",
-   "texto": "Voar\nQuando esta criatura entrar, você ganha 3 pontos de vida."
+  "Sagu Wildling // Roost Seek": {
+   "original": [
+    "Flying\nWhen this creature enters, you gain 3 life.",
+    "Search your library for a basic land card, reveal it, put it into your hand, then shuffle. (Also shuffle this card.)"
+   ],
+   "faces": [
+    {
+     "tipo": "Criatura — Dragão",
+     "texto": "Voar\nQuando esta criatura entrar, você ganha 3 pontos de vida."
+    },
+    {
+     "tipo": "Feitiço — Presságio",
+     "texto": "Procure em seu grimório um card de terreno básico, revele-o, coloque-o em sua mão e depois embaralhe. (Embaralhe também este card.)"
+    }
+   ]
   },
   "Salt Road Packbeast": {
    "original": "Affinity for creatures (This spell costs {1} less to cast for each creature you control.)\nWhen this creature enters, draw a card.",
@@ -459,6 +532,11 @@
    "tipo": "Criatura Lendária — Humano Nobre",
    "texto": "Vínculo com a vida\nExtorquir (Toda vez que você conjurar uma mágica, você pode pagar {W/B}. Se fizer isso, cada oponente perde 1 ponto de vida e você ganha a mesma quantidade de pontos de vida.)\nNo início de cada uma de suas fases principais pós-combate, se você ganhou 3 ou mais pontos de vida neste turno, exile Sorin e depois devolva-o ao campo de batalha transformado sob o controle de seu dono."
   },
+  "Spectacular Tactics": {
+   "original": "Choose one —\n• Put a +1/+1 counter on target creature you control. It gains hexproof until end of turn.\n• Destroy target creature with power 4 or greater.",
+   "tipo": "Mágica Instantânea",
+   "texto": "Escolha um —\n• Coloque um marcador +1/+1 na criatura alvo que você controla. Ela ganha resistência a magia até o final do turno.\n• Destrua a criatura alvo com poder 4 ou mais."
+  },
   "Spider-Man, Web-Slinger": {
    "original": "Web-slinging {W} (You may cast this spell for {W} if you also return a tapped creature you control to its owner's hand.)",
    "tipo": "Criatura Lendária — Aranha Humano Herói",
@@ -474,10 +552,21 @@
    "tipo": "Criatura — Sapo Guerreiro",
    "texto": "Alcance\nQuando Stickytongue Sentinel entrar, devolva até uma outra permanente alvo que você controla para a mão de seu dono."
   },
-  "Stormshriek Feral": {
-   "original": "Flying, haste\n{1}{R}: This creature gets +1/+0 until end of turn.",
-   "tipo": "Criatura — Dragão",
-   "texto": "Voar, ímpeto\n{1}{R}: Esta criatura recebe +1/+0 até o final do turno."
+  "Stormshriek Feral // Flush Out": {
+   "original": [
+    "Flying, haste\n{1}{R}: This creature gets +1/+0 until end of turn.",
+    "Discard a card. If you do, draw two cards. (Then shuffle this card into its owner's library.)"
+   ],
+   "faces": [
+    {
+     "tipo": "Criatura — Dragão",
+     "texto": "Voar, ímpeto\n{1}{R}: Esta criatura recebe +1/+0 até o final do turno."
+    },
+    {
+     "tipo": "Feitiço — Presságio",
+     "texto": "Descarte um card. Se fizer isso, compre dois cards. (Depois, embaralhe este card no grimório de seu dono.)"
+    }
+   ]
   },
   "Suplex": {
    "original": "Choose one —\n• Suplex deals 3 damage to target creature. If that creature would die this turn, exile it instead.\n• Exile target artifact.",
@@ -489,12 +578,12 @@
    "tipo": "Terreno",
    "texto": "Quando este terreno entrar, vigie 1. (Olhe o card do topo de seu grimório. Você pode colocá-lo em seu cemitério.)\n{T}: Adicione {C}.\n{1}, {T}: Adicione um mana de qualquer cor."
   },
-  "The Modern Age": {
+  "The Modern Age // Vector Glider": {
    "original": "(As this Saga enters and after your draw step, add a lore counter.)\nI, II — Draw a card, then discard a card.\nIII — Exile this Saga, then return it to the battlefield transformed under your control.",
    "tipo": "Encantamento — Saga",
    "texto": "(Conforme esta Saga entrar e após sua etapa de compra, adicione um marcador de conhecimento.)\nI, II — Compre um card e depois descarte um card.\nIII — Exile esta Saga e depois devolva-a ao campo de batalha transformada sob seu controle."
   },
-  "Tithing Blade": {
+  "Tithing Blade // Consuming Sepulcher": {
    "original": "When Tithing Blade enters, each opponent sacrifices a creature.\nCraft with creature {4}{B} ({4}{B}, Exile this artifact, Exile a creature you control or a creature card from your graveyard: Return this card transformed under its owner's control. Craft only as a sorcery.)",
    "tipo": "Artefato",
    "texto": "Quando Tithing Blade entrar, cada oponente sacrifica uma criatura.\nCriar com criatura {4}{B} ({4}{B}, Exile este artefato, Exile uma criatura que você controla ou um card de criatura de seu cemitério: Devolva este card transformado sob o controle de seu dono. Crie apenas como um feitiço.)"
@@ -523,6 +612,16 @@
    "original": "Ultimate Alliance deals damage equal to the number of creatures you control to target creature.",
    "tipo": "Mágica Instantânea",
    "texto": "Ultimate Alliance causa à criatura alvo uma quantidade de dano igual ao número de criaturas que você controla."
+  },
+  "Unable to Scream": {
+   "original": "Enchant creature\nEnchanted creature loses all abilities and is a Toy artifact creature with base power and toughness 0/2 in addition to its other types.\nAs long as enchanted creature is face down, it can't be turned face up.",
+   "tipo": "Encantamento — Aura",
+   "texto": "Encantar criatura\nA criatura encantada perde todas as habilidades e é uma criatura artefato Brinquedo com poder e resistência base 0/2, além de seus outros tipos.\nEnquanto a criatura encantada estiver com a face para baixo, ela não pode ser virada com a face para cima."
+  },
+  "Undergrowth Leopard": {
+   "original": "Vigilance\n{1}, Sacrifice this creature: Destroy target artifact or enchantment.",
+   "tipo": "Criatura — Felino",
+   "texto": "Vigilância\n{1}, sacrifique esta criatura: Destrua o artefato ou encantamento alvo."
   },
   "Unending Whisper": {
    "original": "Draw a card.\nHarmonize {5}{U} (You may cast this card from your graveyard for its harmonize cost. You may tap a creature you control to reduce that cost by {X}, where X is its power. Then exile this spell.)",
@@ -554,6 +653,11 @@
    "tipo": "Criatura — Lobo",
    "texto": "Feroz — Toda vez que esta criatura atacar enquanto você controla uma criatura com poder igual ou superior a 4, até o final do turno, esta criatura recebe +1/+0 e as criaturas que você controla ganham atropelar."
   },
+  "Waterbending Lesson": {
+   "original": "Draw three cards. Then discard a card unless you waterbend {2}. (While paying a waterbend cost, you can tap your artifacts and creatures to help. Each one pays for {1}.)",
+   "tipo": "Feitiço — Lição",
+   "texto": "Compre três cards. Depois, descarte um card, a menos que você dobre a água {2}. (Ao pagar um custo de dobra de água, você pode virar seus artefatos e criaturas para ajudar. Cada um paga {1}.)"
+  },
   "Well-Worn Spatula": {
    "original": "When this Equipment enters, you gain 2 life.\nEquipped creature gets +1/+1.\nEquip {1} ({1}: Attach to target creature you control. Equip only as a sorcery.)",
    "tipo": "Artefato — Equipamento",
@@ -563,6 +667,11 @@
    "original": "{1}, {T}, Sacrifice this artifact: Search your library for a basic land card, reveal it, put it into your hand, then shuffle.\n{3}, {T}, Sacrifice this artifact: Search your library for a land card, reveal it, put it into your hand, then shuffle.",
    "tipo": "Artefato",
    "texto": "{1}, {T}, Sacrifique este artefato: Procure em seu grimório um card de terreno básico, revele-o, coloque-o em sua mão e depois embaralhe.\n{3}, {T}, Sacrifique este artefato: Procure em seu grimório um card de terreno, revele-o, coloque-o em sua mão e depois embaralhe."
+  },
+  "Yip Yip!": {
+   "original": "Target creature you control gets +2/+2 until end of turn. If that creature is an Ally, it also gains flying until end of turn.",
+   "tipo": "Mágica Instantânea — Lição",
+   "texto": "A criatura alvo que você controla recebe +2/+2 até o final do turno. Se aquela criatura for um Aliado, ela também ganha voar até o final do turno."
   },
   "Zealous Display": {
    "original": "Creatures you control get +2/+0 until end of turn. If it's not your turn, untap those creatures.",

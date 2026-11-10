@@ -130,8 +130,40 @@ const git = (...a) => execFileSync('git', a, { cwd: RAIZ, encoding: 'utf8', maxB
 /** Cartas das listas sem impressão no idioma e sem tradução no pacote, com o Oracle conhecido (ou null). */
 export function faltam(lang, { impressos, listas, textos, pacote = lePacote(lang) } = {}) {
   const tem = new Set(impressos);
-  const fora = [...new Set(listas)].filter(n => !tem.has(n) && !tem.has(n.split(' // ')[0]) && !(pacote.cartas || {})[n]);
-  return fora.sort().map(n => ({ nome: n, oracle: textos.get(n) || null }));
+  // G-368 · a lista cita a carta de duas faces pela frente ("Fang Dragon"); o app procura pelo nome inteiro da Scryfall
+  // ("Fang Dragon // Forktail Sweep"): o --faltam devolve o nome inteiro, que é a chave do pacote
+  const inteiro = n => (textos.get(n) && textos.get(n).nome) || n;
+  const fora = [...new Set(listas.map(inteiro))].filter(n => !tem.has(n) && !tem.has(n.split(' // ')[0]) && !(pacote.cartas || {})[n]);
+  return fora.sort().map(n => { const t = textos.get(n); return { nome: n, oracle: t ? { type_line: t.type_line, oracle_text: t.oracle_text, card_faces: t.card_faces } : null }; });
+}
+
+/** G-368 · guarda o Oracle de uma carta lida de uma fonte. A carta de duas faces vem como frente + `verso` (formato de
+    .listas/oficiais*.json) ou com `card_faces` (Scryfall): fica pelo nome inteiro "Frente // Verso", com as faces, e a
+    frente sozinha aponta para ele. A primeira fonte que traz a carta vale. */
+export function registraTexto(textos, nome, x) {
+  if (!x || typeof nome !== 'string' || !nome) return;
+  const v = x.verso && typeof x.verso === 'object' && typeof x.verso.name === 'string' ? x.verso : null;
+  if (v) {
+    const inteiro = nome.includes(' // ') ? nome : `${nome} // ${v.name}`; // a Sala já vem com o nome inteiro
+    if (textos.has(inteiro)) return;
+    const faces = [{ name: inteiro.split(' // ')[0], type_line: x.type_line, oracle_text: x.oracle_text }, { name: v.name, type_line: v.type_line || v.types, oracle_text: v.oracle_text }];
+    const e = { nome: inteiro, type_line: `${x.type_line || ''} // ${v.type_line || v.types || ''}`, oracle_text: undefined, card_faces: faces };
+    textos.set(inteiro, e);
+    const frente = inteiro.split(' // ')[0];
+    if (!textos.has(frente)) textos.set(frente, e);
+    return;
+  }
+  const faces = Array.isArray(x.card_faces) && x.card_faces.length > 1 ? x.card_faces : null;
+  if (faces && nome.includes(' // ')) {
+    if (textos.has(nome)) return;
+    const e = { nome, type_line: x.type_line, oracle_text: undefined, card_faces: faces.map(f => ({ name: f.name, type_line: f.type_line, oracle_text: f.oracle_text })) };
+    textos.set(nome, e);
+    const frente = nome.split(' // ')[0];
+    if (!textos.has(frente)) textos.set(frente, e);
+    return;
+  }
+  if (typeof x.oracle_text !== 'string' || textos.has(nome)) return;
+  textos.set(nome, { nome, type_line: x.type_line, oracle_text: x.oracle_text, card_faces: x.card_faces });
 }
 
 function fontes(lang) {
@@ -142,15 +174,29 @@ function fontes(lang) {
     if (j.formato === 'pauper') for (const e of j.entradas || []) listas.push(e.name);
   }
   for (const l of Object.values(JSON.parse(readFileSync(join(RAIZ, '.listas/decks.json'), 'utf8')))) listas.push(...Object.keys(l));
-  const textos = new Map();
-  for (const f of readdirSync(join(RAIZ, '.listas')).filter(f => /^oficiais.*\.json$/.test(f)).sort((a, b) => (b === 'oficiais-revisadas.json') - (a === 'oficiais-revisadas.json'))) {
-    const j = JSON.parse(readFileSync(join(RAIZ, '.listas', f), 'utf8'));
-    const anda = x => { if (!x || typeof x !== 'object') return; if (Array.isArray(x)) return x.forEach(anda);
-      if (typeof x.name === 'string' && typeof x.oracle_text === 'string' && !textos.has(x.name)) textos.set(x.name, { type_line: x.type_line, oracle_text: x.oracle_text, card_faces: x.card_faces });
-      for (const [k, v] of Object.entries(x)) { if (v && typeof v === 'object' && typeof v.oracle_text === 'string' && !textos.has(k) && !v.name) textos.set(k, { type_line: v.type_line, oracle_text: v.oracle_text, card_faces: v.card_faces }); anda(v); } };
-    anda(j);
-  }
+  const textos = juntaTextos([
+    ...readdirSync(join(RAIZ, '.listas')).filter(f => /^oficiais.*\.json$/.test(f)).sort((a, b) => (b === 'oficiais-revisadas.json') - (a === 'oficiais-revisadas.json'))
+      .map(f => JSON.parse(readFileSync(join(RAIZ, '.listas', f), 'utf8'))),
+    // G-368 · depois das oficiais: o Oracle que a cobertura do catálogo guardou (Scryfall) e o lido do Forge para o idioma
+    ...git('ls-tree', '--name-only', 'origin/catalogo', 'cobertura/').split('\n').filter(f => f.endsWith('.json')).map(f => { try { return JSON.parse(git('show', `origin/catalogo:${f}`)); } catch (e) { return null; } }),
+    ...textosDoIdioma(),
+  ]);
   return { impressos, listas, textos };
+}
+
+/** G-368 · o Oracle lido do Forge para o idioma (idiomas/oficiais-*.json), local: o teste usa sem os ramos de dados. */
+export const textosDoIdioma = () => readdirSync(join(RAIZ, 'idiomas')).filter(f => /^oficiais-.*\.json$/.test(f)).map(f => JSON.parse(readFileSync(join(RAIZ, 'idiomas', f), 'utf8')));
+
+/** O Oracle de cada carta, de várias fontes em ordem (a primeira que traz a carta vale). */
+export function juntaTextos(fontes) {
+  const textos = new Map();
+  const anda = x => { if (!x || typeof x !== 'object') return; if (Array.isArray(x)) return x.forEach(anda);
+    if (typeof x.name === 'string' && (typeof x.oracle_text === 'string' || x.verso || Array.isArray(x.card_faces))) registraTexto(textos, x.name, x);
+    // G-368 · cobertura do catálogo: { name, texto: { oracle_text, type_line, card_faces } }
+    if (typeof x.name === 'string' && x.texto && typeof x.texto === 'object') registraTexto(textos, x.name, x.texto);
+    for (const [k, v] of Object.entries(x)) { if (v && typeof v === 'object' && typeof v.oracle_text === 'string' && !v.name) registraTexto(textos, k, v); if (k !== 'verso') anda(v); } };
+  for (const f of fontes) anda(f);
+  return textos;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
