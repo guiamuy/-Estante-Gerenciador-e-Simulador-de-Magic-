@@ -715,6 +715,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ux ✅ | T-IDIOMA relato #108 (G-371): a carta guardada no aparelho sem `oracle_id` (antes da S-616, 07/11, ou fixada para jogar sem internet) busca o texto impresso no idioma pelo nome exato; antes a folha nem tentava e a Coleção ficava em inglês | T | 1 | 16º-up |
 | 16º-vc ✅ | T6e-5 relatos na Vercel (relato do dono, 09/11/2026): a conta recusada pelo endereço diz a causa e a sessão guardada fica; restaurar o backup e trazer pela ponte do github.io juntam os relatos (e as outras listas com id) em vez de trocar — antes os relatos da Vercel sumiam (leva G-370). Chave do Google liberada pelo dono em 09/11 | T6e-4 | 1 | 16º-uv |
 | 16º-uy ✅ | Relato #107: o idioma do app ao lado do sino na Início — globo (gira no toque) com a bandeira do idioma atual num selo de latão; o toque abre a folha "Idioma" com os três idiomas; escolher vale na hora, a folha fecha e a bandeira vira para a nova (menos movimento: troca sem virar). O Perfil › Idioma continua (leva G-372, 10/11/2026) | G | 1 | 16º-uu |
+| 16º-vb ✅ | T-IDIOMA relatos #53/#66, lote 4 da fatia 3: Pioneer e Modern (65 cartas em português, 23 em espanhol), pelo conferidor; as 11 cartas de duas faces gravadas pela frente (nunca apareciam) passam ao nome inteiro, o conferidor barra a chave pela frente e o app acha a tradução só da frente pela frente (leva G-374, 10/11/2026) | T | 1 | 16º-uz |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -13682,6 +13683,15 @@ trilha `geral`, 09/11/2026; relato do dono de 09/11: o Enviar abria o GitHub e o
   depois, como antes. Teste U `idioma-cartas.unit` G-371 (falhava antes). **Parcial, declarado:** a carta que nunca saiu
   no idioma e ainda não está nos pacotes do robô segue em inglês, com o aviso; a cobertura de todas segue pelos lotes do
   #53/#66.
+- **Lote 4 da fatia 3 (G-374, `16º-vb`, rotina Relatos contínuo, 10/11/2026) ✅:** `--faltam pt|es --formato pioneer,modern`:
+  65 cartas em português e 23 em espanhol (pacotes: 439 e 60), pelo conferidor (Tarmogoyf, Griselbrand, Vivi Ornitier, os
+  Talents, as Pathways…). Conserto: 11 cartas de duas faces ou com aventura dos lotes 1 e 3 (Ashling, Callous Sell-Sword,
+  Cecil, Elusive Otter…) estavam gravadas pela frente e o app, que procura pelo `name` da Scryfall ("Frente // Verso"), nunca
+  as achava: passam ao nome inteiro; o `--faltam` tira o nome inteiro das `card_faces`; o conferidor barra entrada de duas faces
+  sem " // " na chave; `traducaoDaCarta` acha a tradução só da frente pelo nome da frente (Pathways, Brazen Borrower, Tamiyo,
+  cuja fonte só traz a frente). Testes U `idioma-traducao.unit` G-374 (3, falhavam antes; a amostra da G-373 passa a usar o
+  nome inteiro de Ashling). **Parcial, declarado:** 171 de Pioneer/Modern em português e 58 em espanhol seguem sem Oracle no
+  repositório; Legacy, Vintage e Commander nos próximos lotes.
 - **Fora, declarado (fatias seguintes):** a troca de idioma no Perfil (item 2); os pacotes **es** e **en** (item 3: extrair os
   textos para um dicionário por idioma, história de várias rodadas); texto e nome das cartas (item 4, aguarda decisão
   "oficial"/"automática"); a **camada obrigatória de idioma em toda entrega** (texto novo nasce no dicionário e o teste barra

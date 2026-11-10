@@ -104,11 +104,13 @@ export function confere(nome, e, lang) {
   if (!e || typeof e !== 'object') return ['entrada inválida'];
   if (Array.isArray(e.original)) {
     if (!Array.isArray(e.faces) || e.faces.length !== e.original.length) return ['faces e original não batem'];
-    return e.faces.flatMap((f, i) => {
+    // G-374 · o app procura a carta pelo `name` da Scryfall, que na carta de duas faces é "Frente // Verso"
+    const chave = String(nome).split(' // ').length !== e.faces.length ? [`chave "${nome}" sem o nome inteiro "Frente // Verso" (o app nunca acha)`] : [];
+    return chave.concat(e.faces.flatMap((f, i) => {
       const er = confereTexto(e.original[i], f && f.texto, lang, nome);
       if (!f || typeof f.tipo !== 'string' || !f.tipo.trim()) er.push('face sem tipo');
       return er.map(x => `face ${i + 1}: ${x}`);
-    });
+    }));
   }
   const er = confereTexto(e.original, e.texto, lang, nome);
   if (typeof e.tipo !== 'string' || !e.tipo.trim()) er.push('sem tipo');
@@ -133,9 +135,13 @@ export function faltam(lang, { impressos, listas, textos, pacote = lePacote(lang
   const tem = new Set(impressos);
   // G-368 · a lista cita a carta de duas faces pela frente ("Fang Dragon"); o app procura pelo nome inteiro da Scryfall
   // ("Fang Dragon // Forktail Sweep"): o --faltam devolve o nome inteiro, que é a chave do pacote
-  const inteiro = n => (textos.get(n) && textos.get(n).nome) || n;
+  // G-374 · e a carta de duas faces (ou com aventura) que a fonte guardou pela frente, com `card_faces`: o nome inteiro sai
+  // das faces ("Callous Sell-Sword // Burn Together"), que é o `name` da Scryfall que o app procura
+  const inteiro = n => { const t = textos.get(n); if (!t) return n;
+    const fs = Array.isArray(t.card_faces) && t.card_faces.length > 1 && t.card_faces.every(f => f && typeof f.name === 'string' && f.name) ? t.card_faces : null;
+    return t.nome && t.nome.includes(' // ') ? t.nome : fs ? fs.map(f => f.name).join(' // ') : (t.nome || n); };
   const fora = [...new Set(listas.map(inteiro))].filter(n => !tem.has(n) && !tem.has(n.split(' // ')[0]) && !(pacote.cartas || {})[n]);
-  return fora.sort().map(n => { const t = textos.get(n); return { nome: n, oracle: t ? { type_line: t.type_line, oracle_text: t.oracle_text, card_faces: t.card_faces } : null }; });
+  return fora.sort().map(n => { const t = textos.get(n) || textos.get(n.split(' // ')[0]); return { nome: n, oracle: t ? { type_line: t.type_line, oracle_text: t.oracle_text, card_faces: t.card_faces } : null }; });
 }
 
 /** G-368 · guarda o Oracle de uma carta lida de uma fonte. A carta de duas faces vem como frente + `verso` (formato de
@@ -174,7 +180,7 @@ export function formatosDe(args = []) {
   const f = i >= 0 && args[i + 1] ? args[i + 1].split(',').map(x => x.trim().toLowerCase()).filter(Boolean) : [];
   return f.length ? f : FORMATOS_PADRAO;
 }
-function fontes(lang, formatos = FORMATOS_PADRAO) {
+export function fontes(lang, formatos = FORMATOS_PADRAO) {
   const impressos = JSON.parse(git('show', `origin/artes:nomes-${lang}.json`)).pares.map(p => p[1]);
   const listas = [];
   for (const f of git('ls-tree', '--name-only', 'origin/catalogo', 'listas/').split('\n').filter(Boolean)) {
