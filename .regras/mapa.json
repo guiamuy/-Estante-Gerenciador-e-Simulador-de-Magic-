@@ -548,8 +548,13 @@
    "n": "107.14",
    "regra": "Numbers and Symbols",
    "titulo": "Símbolo de energia {E}",
-   "status": "ausente",
-   "falta": "Jogador não tem marcadores de energia nem custo {E}.",
+   "status": "parcial",
+   "evidencia": "marcadores de energia no jogador (efeito `energia`, s.players[p].energia, M-367); custo {E} em habilidade ativada e equipar (cost.energia, M-367); \"pay any amount of {E}\" com a quantia escolhida na resolução (ação `quantia`): dano (`energia_dano`, M-405) e varredura pelo valor pago (`energia_varre`, M-616, Wrath of the Skies)",
+   "falta": "{E} como custo de habilidade de mana (Aether Hub), \"sacrifice unless you pay {E}\" (Static Prison) e pagar {E} num gatilho reflexivo (Guide of Souls).",
+   "testes": [
+    "M-616 · X = 2: ganha 2 de energia, paga 2 e destrói cada artefato, criatura e encantamento de valor 2 ou menos, dos dois lados",
+    "M-616 · a energia guardada de antes conta: X = 0 com 3 guardados, paga 3 e o Gigante (valor 3) sai; indestrutível fica"
+   ],
    "esforco": "M",
    "depende": [
     "122"

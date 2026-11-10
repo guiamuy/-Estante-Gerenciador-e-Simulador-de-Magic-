@@ -21,7 +21,7 @@ Marcos: Pauper 100% (as sete listas revisadas carta a carta; 682 de 685 listas P
 |---|---|---|---|---|
 | `scanner` | S | X16: #90 foil (F1 só foil; F2 selo "Foil?") | S-624 · 10/11 | calibrar o foil e #79 no aparelho |
 | `geral` | G | relatos Vercel (G-370); T-IDIOMA Standard (G-373); #108 G-371 | G-370 · 10/11 | lotes Pioneer/Modern/Commander (`--formato`); DS-K3 K3-4 (+ MV-7); Darval |
-| `motor` | M | CR-PLANO (701.21a feita); Pauper | M-615 · 10/11 | delve {X}; learn; {E}; #58 |
+| `motor` | M | CR-PLANO Modern (34/716) | M-616 · 10/11 | {E}; delve {X}; learn; #58 |
 | `radar` | R | BI4 · Painel Estante: comparar períodos, metas, tendência | R-44 · 07/11 | BI4-6 em diante; validação do dono após os primeiros pilares |
 | `jogabilidade` | J | MK3 · Mesa Vitrine (rotina Mesa MK3) | J-65 · 10/11 | MK3-3 carta-objeto; relato #54 (Cidade Baixa) |
 | `bot` | B | B25 · força 55% (alvo 60%), Faeries 32,5%; fora 47% (B-206); B-207…B-209 desligadas | B-209 · 10/11 | Faeries: mulligan e curva × Madness; Temur e Azorius |
@@ -41,7 +41,7 @@ Datas no formato dia/mês, horário de Brasília. Trilha que muda de foco atuali
 - **Shark contínuo**, a cada 4 h: B25 até as quatro réguas verdes, depois o portfólio de listas (B26); trilha `bot`, publica sozinha (B-204).
 - **Design DS-K3**, a cada 4 h: uma fatia do DS-K3 por rodada (trilha `geral`).
 - **Pendências do dono**, diária 7h43: mantém o artefato "Pendências da Estante" (estado em `claude/ROTINA-pendencias-estado.md`).
-- **Motor contínuo**, a cada 3 h: motor por formato (ROADMAP "CR-PLANO").
+- **Motor contínuo**, a cada 3 h: campanha de formato (hoje Modern), primitiva antes de carta.
 
 ## Relatos do dono abertos (etiqueta `relato`)
 
@@ -79,4 +79,4 @@ Os documentos `claude/…` moram no Projeto do claude.ai, fora do repositório: 
 
 No commit de docs de cada leva (o mesmo que atualiza o ROADMAP): reescreva a **sua** linha na tabela de trilhas, atualize relatos e pendências se mudaram e troque a data abaixo. Edite por patch, nunca o arquivo inteiro. Conflito no rebase: fique com as linhas das outras trilhas e a sua. Passou de 8 KB: resuma, não acrescente.
 
-Atualizado: 10/11/2026 · I-328 (rotinas publicam) · M-612 (motor) · I-329 (ponte) · S-622 (scanner) · B-206 · B-207 · B-208 (bot) · G-362 a G-367 (geral) · S-623 (scanner) · G-368 (geral) · G-369 (geral) · M-613 (motor) · G-373 (geral) · M-615 (motor) · B-209 (bot) · G-371 · J-64 · J-65 · S-624 (scanner)
+Atualizado: 10/11/2026 · I-328 (rotinas publicam) · M-612 (motor) · I-329 (ponte) · S-622 (scanner) · B-206 · B-207 · B-208 (bot) · G-362 a G-367 (geral) · S-623 (scanner) · G-368 (geral) · G-369 (geral) · M-613 (motor) · G-373 (geral) · M-615 (motor) · B-209 (bot) · G-371 · J-64 · J-65 · S-624 (scanner) · M-616

@@ -8407,6 +8407,7 @@ const EFFECTS = {
   energia: { fields: ['amount'], targets: ['self'] },
   energia_reanima: { fields: [], targets: ['card-in-your-graveyard'] },
   energia_dano: { fields: [], targets: ['creature', 'planeswalker'] },
+  energia_varre: { fields: [], targets: ['self'] }, // M-616 · "you may pay any amount of {E}. Destroy each <tipos> with mana value less than or equal to the amount of {E} paid this way" (Wrath of the Skies)
   mordedor: { fields: [], targets: ['creature-you-control'] }, // M-407 · "Target creature you control deals damage equal to its power to …": o primeiro alvo (a fonte do dano)
   morde: { fields: [], targets: ['creature', 'planeswalker'] }, // M-407 · o segundo alvo recebe o dano da criatura do "mordedor" (Rabid Bite, Ram Through, Bite Down, Tail Slash…) // M-405 · 107.14 · "then you may pay any amount of {E}. ~ deals that much damage to that creature/permanent" (Galvanic Discharge, Harnessed Lightning): alvo seletor // M-393 · "you may pay an amount of {E} equal to that card's mana value. If you do, return it from your graveyard to the battlefield" (Jolted Awake) // M-367 · 107.14 · "you get {E}{E}": marcadores de energia do jogador (122.1)
   mana_combinada: { fields: ['amount'], targets: ['self'] }, // M-357 · "Add two mana in any combination of colors" (Manamorphose): cada mana pede a cor na resolução
@@ -9548,6 +9549,7 @@ function effectErrors(effects, label, opcional) {
       if (!e.upTo || !isTargeted(e)) errs.push(`${label} ${i + 1}: número variável de alvos só em "até N alvos"`);
     }
     if (e.totalMvMax != null && !(Number.isInteger(e.totalMvMax) && e.targetCount != null)) errs.push(`${label} ${i + 1}: valor de mana total precisa de número de alvos e de um inteiro`); // CR2c.5
+    if (e.do === 'energia_varre' && (!(e.types || []).length || e.types.some(x => !FILTER_TYPES.includes(x)))) errs.push(`${label} ${i + 1}: varrer pela energia paga precisa de tipos conhecidos`); // M-616
     if (e.do === 'reanimate_all') { if (!(e.types || []).length || (e.types || []).some(x => !FILTER_TYPES.includes(x))) errs.push(`${label} ${i + 1}: devolver todas precisa de tipos conhecidos`); if (e.mvMax != null) errs.push(...valueErrors(e.mvMax, `${label} ${i + 1}: valor de mana máximo`)); }
     if (e.do === 'reveal_until') { // M-222
       if (!['creature', 'shares-type', 'creature-greater-mv'].includes(e.match)) errs.push(`${label} ${i + 1}: revelar até precisa de "match" conhecido`);
@@ -13524,6 +13526,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Floodpits Drowner': { texto: '1kb7plt', leva: 'M-614' }, 'Mightform Harmonizer': { texto: '1x0j27g', leva: 'M-614' }, 'Shadowspear': { texto: '3a1fiz', leva: 'M-614' }, 'Manifold Key': { texto: '1ri8rxq', leva: 'M-614' }, 'Fountainport': { texto: '1kvk3rm', leva: 'M-614' }, 'Mossborn Hydra': { texto: '18gh0af', leva: 'M-614' }, 'Demolition Field': { texto: '1xgsqxr', leva: 'M-614' }, 'Once Upon a Time': { texto: 'z7uejy', leva: 'M-614' }, 'Merchant Scroll': { texto: '1jzie5m', leva: 'M-614' }, 'Planar Nexus': { texto: 'cv79tv', leva: 'M-614' }, 'Collector Ouphe': { texto: '1vp6cnn', leva: 'M-614' }, 'Harbinger of the Seas': { texto: '6kyymq', leva: 'M-614' }, 'Vraska\'s Final Mercy': { texto: '1h5td6y', leva: 'M-614' }, 'Razorgrass Ambush // Razorgrass Field': { texto: 'vaqj4f', leva: 'M-614' }, 'Magus of the Moon': { texto: 'bhuthg', leva: 'M-614' }, 'Stony Silence': { texto: '1vp6cnn', leva: 'M-614' }, 'Ashen Rider': { texto: '1sjmswv', leva: 'M-614' }, 'Censor': { texto: '1y8yuw8', leva: 'M-614' },
   // M-615 · rotina Motor contínuo · 701.21a: o sacrifício passa a olhar os tipos de agora (sacrificeOptions → selTemTipo); a recusa da M-614 cai e o edito joga (cobertura de 08/11/2026)
   'Sheoldred\'s Edict': { texto: 'ynb7t9', leva: 'M-615' },
+  // M-616 · rotina Motor contínuo · 107.14 / 608.2d: pagar energia em quantia escolhida na resolução e varrer pela energia paga (energia_varre); texto da Scryfall de 08/11/2026 (cobertura do ramo catalogo)
+  'Wrath of the Skies': { texto: '1qyq2jg', leva: 'M-616' },
   'Geothermal Bog': { texto: '1amo2my', leva: 'M-607' }, 'Dawnbringer Cleric': { texto: '3kngfl', leva: 'M-607' }, 'Thought Vessel': { texto: 'xi1v9x', leva: 'M-607' }, // M-607 · Sentinela do Pauper (Scryfall de 03/11/2026)
   'Flawless Maneuver': { texto: '1dbabfl', leva: 'M-577' },
   'Deadly Rollick': { texto: 'mi4hfd', leva: 'M-577' },
@@ -24124,6 +24128,8 @@ const __m42 = (function () {
       m => [{ do: 'damage', amount: { per: 'trigger-value' }, target: { tipos: ['creature', 'planeswalker', 'battle'], jogadores: 'any', outra: true }, ...(m[1] ? { semGanharVidaM: true } : {}) }]], // M-550 · Screaming Nemesis
     [/^exile (up to one )?(another|other) target (nonland )?permanent\. (?:at the beginning of the next end step, return that card to the battlefield under its owner's control|return that card to the battlefield under its owner's control at the beginning of the next end step)(\. if it entered under your control, put a \+1\/\+1 counter on ~)?(?:\.\s*|$)/i,
       m => [{ do: 'exila_ate_final', target: { ...(m[3] ? { semTipos: ['land'] } : {}), outra: true }, ...(m[1] ? { upTo: true } : {}), ...(m[4] ? { marcaFonteM: true } : {}) }]], // M-548 · Flickerwisp, Phelia (603.7)
+    [/^you get x \{E\}(?: \([^)]*\))?, then you may pay any amount of \{E\}\. destroy each ((?:artifact|creature|enchantment|planeswalker|battle)(?:,? (?:and )?(?:artifact|creature|enchantment|planeswalker|battle))*) with mana value less than or equal to the amount of \{E\} paid this way(?:\.\s*|$)/i,
+      m => [{ do: 'energia', amount: { per: 'x' } }, { do: 'energia_varre', types: [...new Set(m[1].toLowerCase().match(/artifact|creature|enchantment|planeswalker|battle/g))] }]], // M-616 · 107.14 / 608.2d · Wrath of the Skies: a quantia paga é escolhida na resolução e vira o teto de valor de mana da varredura
     [/^choose (target creature or planeswalker|target creature)\. you get ((?:\{E\})+)(?: \([^)]*\))?, then you may pay any amount of \{E\}\. ~ deals that much damage to that (?:creature|permanent)(?:\.\s*|$)/i, m => [{ do: 'energia', amount: m[2].length / 3 }, { do: 'energia_dano', target: /planeswalker/i.test(m[1]) ? { tipos: ['creature', 'planeswalker'] } : { tipos: ['creature'] } }]], // M-405 · Galvanic Discharge, Harnessed Lightning
     [/^~ deals (\d+) damage to (target creature you don't control) and (\d+) damage to (target creature you control)(?:\.\s*|$)/i, m => [{ do: 'damage', amount: +m[1], target: { tipos: ['creature'], de: 'opponent' } }, { do: 'damage', amount: +m[3], target: { tipos: ['creature'], de: 'you' } }]], // M-536 · Reckless Rage (dois alvos, cada um com a sua quantia)
     [/^~ deals (\d+) damage to target player or planeswalker and (\d+) damage to target creature that player or that planeswalker's controller controls(?:\.\s*|$)/i, m => [{ do: 'damage', amount: +m[1], target: { tipos: ['planeswalker'], jogadores: 'any' } }, { do: 'damage', amount: +m[2], target: { tipos: ['creature'] }, doJogadorDoPrimeiro: true }]], // M-437 · Searing Blaze
@@ -28871,6 +28877,13 @@ function applyEffectM449(s, src, eff, tgt, events) {
       causouDano(s, m, lote.n, lote.jogador);
       break;
     }
+    case 'energia_varre': { // M-616 · 107.14 · 608.2d: a quantia é escolhida na resolução, de 0 até a energia que você tem; pagar 0 ainda destrói o que tem valor de mana 0 (fichas)
+      const max = s.players[ctrl].energia || 0, tipos = eff.types || [];
+      if (!max) { note({ amount: 0 }); applyEffect(s, src, { do: 'destroy_all', types: tipos, mvMax: 0 }, tgt, events); break; }
+      s.pending = { kind: 'quantia', p: ctrl, min: 0, max, name: `${src.name}: quanta energia pagar?`, dica: `Destrói cada ${tipos.map(t => ({ artifact: 'artefato', creature: 'criatura', enchantment: 'encantamento', planeswalker: 'planeswalker', battle: 'batalha' }[t] || t)).join(', ')} com valor de mana até a energia que você pagar.`,
+        quantia: { do: 'energia_varre', srcOid: src.oid, name: src.name, controller: ctrl, types: tipos } };
+      note({ pending: true }); break;
+    }
     case 'energia_dano': { // M-405 · 107.14 · 608.2d: a quantia é escolhida na resolução, de 0 até a energia que você tem
       if (!obj || obj.zone !== 'battlefield') { note({ failed: true }); break; }
       const max = s.players[ctrl].energia || 0;
@@ -31352,8 +31365,10 @@ const HANDLERS = {
     s.pending = null;
     s.players[a.p].energia -= n;
     ev.push({ kind: 'effect', do: 'gasta_energia', name: q.name, amount: n });
+    const fonteQ = s.objects[q.srcOid] || { oid: q.srcOid, name: q.name, controller: q.controller };
+    if (q.do === 'energia_varre') { applyEffect(s, fonteQ, { do: 'destroy_all', types: q.types || [], mvMax: n }, null, ev); resumeEffects(s, ev); return; } // M-616 · Wrath of the Skies: o teto é o que foi pago
     const alvo = s.objects[q.alvo.oid];
-    if (n > 0 && alvo && alvo.zone === 'battlefield' && mesmaEncarnacao(s, q.alvo)) applyEffect(s, s.objects[q.srcOid] || { oid: q.srcOid, name: q.name, controller: q.controller }, { do: 'damage', amount: n }, { oid: alvo.oid }, ev);
+    if (n > 0 && alvo && alvo.zone === 'battlefield' && mesmaEncarnacao(s, q.alvo)) applyEffect(s, fonteQ, { do: 'damage', amount: n }, { oid: alvo.oid }, ev);
     resumeEffects(s, ev);
   },
   choose_type(s, a, ev) { // S50 · escolhe o tipo de criatura e segue a mágica
@@ -41494,7 +41509,7 @@ function descreveEfeito(e) {
     case 'volta_ao_acaso': return `uma carta${e.tipos ? ' de ' + ({ creature: 'criatura', artifact: 'artefato', land: 'terreno', instant: 'mágica instantânea', sorcery: 'feitiço', enchantment: 'encantamento' }[e.tipos[0]] || e.tipos[0]) : ''} do seu cemitério, escolhida ao acaso, volta para a sua mão`; // M-369
     case 'dado': return `role ${e.quantos === 2 ? 'dois' : 'um'} d${e.lados}${e.ignora ? ' e ignore o menor' : ''}${Number.isInteger(e.mais) && e.mais ? ` e some ${e.mais}` : e.mais ? ' e some o modificador' : ''}`; // T-66 · CR 706
     case 'moeda': return `jogue uma moeda${e.ateperder ? ' até perder um lance' : ''}`; // T-65 · CR 705
-    case 'energia': return `você ganha ${e.amount === 1 ? 'um marcador' : (e.amount || 1) + ' marcadores'} de energia`; // M-367
+    case 'energia': return `você ganha ${e.amount === 1 ? 'um marcador' : e.amount && e.amount.per === 'x' ? 'X marcadores' : (e.amount || 1) + ' marcadores'} de energia`; // M-367 · M-616: "you get X {E}"
     case 'mana_combinada': return e.amount === 1 ? 'adiciona uma mana da cor que você escolher' : `adiciona ${(e.amount || 2) + ' manas'} das cores que você escolher (pode misturar)`; // M-553 · uma mana só não "mistura" // M-357 · 106.1a
     case 'add_mana': if (e.symbols && !e.identity && !e.opponentLands) return `adiciona ${e.symbols.map(c => `{${c}}`).join('')}${e.porContagem ? ` para cada ${({ 'creature-cards-in-your-graveyard': 'carta de criatura no seu cemitério' })[e.porContagem] /* M-428 · "para cada cartas" */ || X_PT[e.porContagem] || 'um'}` : ''}`; /* M-423 · a mana dita (achado da revisão da M-409: "adiciona mana") */ if (Array.isArray(e.cores)) return `adiciona ${e.cores.map(c => `{${c}}`).join(', ').replace(/, (\{[A-Z]\})$/, ' ou $1')}`; /* M-610 */ return e.identity ? 'adiciona mana de uma cor da identidade do seu comandante' : e.opponentLands ? 'adiciona mana de uma cor que um terreno de um oponente poderia produzir' : e.anyColor ? 'adiciona mana de qualquer cor' : 'adiciona mana';
     case 'search': return `procura ${plural(n, 'carta', 'cartas')}${e.filter && e.filter.types && e.filter.types.includes('creature') && e.filter.cores ? ` de criatura ${e.filter.cores.map(c => ({ W: 'branca', U: 'azul', B: 'preta', R: 'vermelha', G: 'verde' })[c]).join(' e ')}` : ''}${e.filter && e.filter.mvMax != null ? ` de valor de mana ${typeof e.filter.mvMax === 'object' ? 'X' : e.filter.mvMax} ou menos` : ''} ${e.filter && e.filter.name ? `chamada ${e.filter.name} ` : ''}no grimório${e.to === 'battlefield' && !e.reparte ? ' e põe no campo de batalha' : ''}${e.to === 'battlefield-tapped' && !e.reparte ? ' e põe no campo de batalha virada' : ''}${e.compartilhaTipoM ? ' com um tipo de terreno em comum' : ''}${e.reparte ? ' (a primeira entra virada, a segunda vai para a mão)' : ''}${e.desviraSeTerrenos ? ` (desvira a terra achada se você tiver ${e.desviraSeTerrenos} terrenos ou mais)` : ''}`; // M-343
@@ -41669,6 +41684,7 @@ function descreveEfeito(e) {
     case 'choose_type': return 'escolhe um tipo de criatura';
     case 'mordedor': return ''; // M-407 · a frase sai no "morde"
     case 'morde': return `a criatura sua alvo causa dano igual ao poder dela a ${(alvo || 'uma criatura').replace(/ que um oponente controla$/, '') + ' que você não controla'}${e.excessoComAtropelar ? '; se ela tiver atropelar, o dano além do letal vai para o controlador da outra' : ''}`; // M-407
+    case 'energia_varre': { const ns = (e.types || []).map(t => ({ artifact: 'artefato', creature: 'criatura', enchantment: 'encantamento', planeswalker: 'planeswalker', battle: 'batalha' }[t] || t)); return `paga quanta energia quiser e destrói cada ${ns.length > 1 ? ns.slice(0, -1).join(', ') + ' e ' + ns[ns.length - 1] : ns[0] || 'permanente'} com valor de mana até o que pagou`; } // M-616
     case 'energia_dano': return `paga quanta energia quiser e causa esse tanto de dano a ${alvo || 'o alvo'}`; // M-405
     case 'tipo_basico': return `${alvo || 'o terreno alvo'} ganha o tipo básico de terreno que você escolher (e a mana dele) até o fim do turno, além dos outros tipos`; // M-388
     case 'put_back': return `devolve ${plural(n, 'carta', 'cartas')} da mão ao topo do grimório`;
