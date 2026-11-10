@@ -20,7 +20,7 @@ Marcos: Pauper 100% (as sete listas revisadas carta a carta; 682 de 685 listas P
 | Trilha | Prefixo | Foco atual | Última leva | Próximo |
 |---|---|---|---|---|
 | `scanner` | S | X16: #90 foil (F1 só foil; F2 selo "Foil?") | S-625 · 11/11 | calibrar o foil e #79 no aparelho |
-| `geral` | G | idioma no sino (G-372); T-IDIOMA (G-373, G-374); #108 (G-371) | G-374 · 11/11 | lotes Legacy/Vintage/Commander; DS-K3 K3-4 (+ MV-7); Darval |
+| `geral` | G | DS-K3 K3-4 + MV-7 (G-375); idioma no sino (G-372); T-IDIOMA (G-373, G-374) | G-375 · 11/11 | DS-K3 K3-5; lotes Legacy/Vintage/Commander; Darval |
 | `motor` | M | CR-PLANO Modern (34/716) | M-616 · 10/11 | {E}; delve {X}; learn; #58 |
 | `radar` | R | BI4 · Painel Estante: comparar períodos, metas, tendência | R-44 · 07/11 | BI4-6 em diante; validação do dono após os primeiros pilares |
 | `jogabilidade` | J | MK3 · Mesa Vitrine (rotina Mesa MK3) | J-67 · 11/11 | MK3-P1 playmats da casa; relato #54 |
@@ -79,4 +79,4 @@ Os documentos `claude/…` moram no Projeto do claude.ai, fora do repositório: 
 
 No commit de docs de cada leva (o mesmo que atualiza o ROADMAP): reescreva a **sua** linha na tabela de trilhas, atualize relatos e pendências se mudaram e troque a data abaixo. Edite por patch, nunca o arquivo inteiro. Conflito no rebase: fique com as linhas das outras trilhas e a sua. Passou de 8 KB: resuma, não acrescente.
 
-Atualizado: 11/11/2026 · I-328 (rotinas publicam) · M-612 (motor) · I-329 (ponte) · S-622 (scanner) · B-206 · B-207 · B-208 (bot) · G-362 a G-369 (geral) · S-623 (scanner) · M-613 · G-373 · M-615 · B-209 (bot) · G-371 · J-64 · J-65 · S-624 (scanner) · M-616 · G-372 · G-374 · S-625 · J-67
+Atualizado: 11/11/2026 · I-328 (rotinas publicam) · M-612 (motor) · I-329 (ponte) · S-622 (scanner) · B-206 · B-207 · B-208 (bot) · G-362 a G-369 (geral) · S-623 (scanner) · M-613 · G-373 · M-615 · B-209 (bot) · G-371 · J-64 · J-65 · S-624 (scanner) · M-616 · G-372 · G-374 · S-625 · J-67 · G-375

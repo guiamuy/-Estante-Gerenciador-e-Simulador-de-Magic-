@@ -514,7 +514,8 @@ test('DS-K · F2.2 o cabeçalho de tela é a grade 44 · 1fr · 44 com o título
 
 /* ---------------- DS-K (G-308) · F4.2 Perfil e subtelas ---------------- */
 test('DS-K · F4.2 Perfil e as subtelas usam o cabeçalho 44 · 1fr · 44 (o voltar sai da linha do título e vai para o lado esquerdo); o topo do Perfil é o destaque', () => {
-  for (const t of ["Cabecalho('Perfil')", "Cabecalho('Partidas'", "Cabecalho(C.titulo", "Cabecalho('Relatos'", "Cabecalho('O que sai do aparelho'", "Cabecalho('Apoiar a Estante'", "Cabecalho('Guardadas'"]) assert.ok(HTML.includes(t), t);
+  // DS-K3 K3-4 (G-375) · o Perfil passa ao editorial (`Cabecalho('Perfil', { rotulo: … })`, conferido no teste "DS-K3 K3-4"); as subtelas seguem aqui
+  for (const t of ["Cabecalho('Perfil', { rotulo: 'Conta e aparelho' })", "Cabecalho('Partidas'", "Cabecalho(C.titulo", "Cabecalho('Relatos'", "Cabecalho('O que sai do aparelho'", "Cabecalho('Apoiar a Estante'", "Cabecalho('Guardadas'"]) assert.ok(HTML.includes(t), t);
   for (const id of ['partidas-voltar', 'relatos-voltar', 'saida-voltar', 'apoio-voltar', 'guardadas-voltar']) assert.ok(new RegExp(`esquerda: IconButton\\('voltar', '[^']+', \\{ id: '${id}'`).test(HTML), `${id} no lado esquerdo do cabeçalho`);
   assert.ok(!/IconButton\('voltar', 'Voltar ao perfil', \{[^}]*variant: 'ghost'/.test(HTML), 'nenhum voltar ao perfil ficou na linha antiga');
   assert.match(HTML, /Surface\(\{ class: 'ds-surface--pad ds-destaque perfil-topo' \}/);
@@ -1088,3 +1089,35 @@ test('MK3-0 · Mesa Vitrine, material: tokens da carta e do poço nos três bloc
   assert.match(componentCss, /scroll-snap-align: start; transition: transform var\(--dur-3\) var\(--mola-firme\);/, 'a carta levanta e assenta com a mola');
   assert.match(componentCss, /\.tb-card::before \{[^}]*transform var\(--dur-3\) var\(--mola-firme\); \}/, 'a sombra que cresce acompanha a mesma mola');
 });
+
+/* ---------------- DS-K3 K3-4 + MV-7 (G-375) · o cabeçalho editorial que recolhe ---------------- */
+test('DS-K3 K3-4 + MV-7 · cabeçalho editorial: Listas, Coleção e Perfil com rótulo acima e título de 34 px à esquerda; caixa fixa de 40 + 48 px que gruda 40 px acima do pé da barra de cima (só sobe, não muda layout); --cab-p registrado (0 → 1) guiado por scroll() dentro de @supports e fora do Reduzido; título encolhe por scale até 18 px; fundo E0 até .98 sem desfoque; Reduzido troca direto; subtelas seguem 44 · 1fr · 44', () => {
+  const regra = sel => { const i = componentCss.indexOf(sel + ' {'); assert.ok(i >= 0, sel); return componentCss.slice(i, componentCss.indexOf('}', i) + 1); };
+  assert.match(componentCss, /@property --cab-p \{ syntax: '<number>'; inherits: true; initial-value: 0; \}/);
+  assert.match(componentCss, /--cab-recolhe: 40px;[^}]*--cab-faixa-h: 48px; --cab-titulo: 34px; --cab-escala-compacta: \.5294;/);
+  assert.ok(Math.abs(34 * 0.5294 - 18) < 0.01, 'a escala compacta dá 18 px');
+  const cab = regra('.ds-cabecalho--editorial');
+  assert.match(cab, /position: sticky; top: calc\(var\(--appbar-h\) - var\(--cab-recolhe\)\);/);
+  assert.match(cab, /grid-template-rows: var\(--cab-recolhe\) var\(--cab-faixa-h\);/);
+  assert.match(cab, /color-mix\(in srgb, var\(--elev-0\) calc\(var\(--cab-p\) \* 98%\), transparent\)/, 'E0 até .98');
+  assert.doesNotMatch(cab, /backdrop-filter|blur/, 'sem desfoque: a faixa é opaca (o vidro fica só na barra de baixo, K3-2)');
+  const tit = regra('.ds-cabecalho--editorial .ds-cabecalho__titulo');
+  assert.match(tit, /text-align: left; font-size: var\(--cab-titulo\);/);
+  assert.match(tit, /scale: calc\(1 - var\(--cab-p\) \* \(1 - var\(--cab-escala-compacta\)\)\);/);
+  assert.doesNotMatch(tit, /font-size: calc|transition/, 'encolhe por scale (sem refazer layout a cada quadro)');
+  // MV-7: o CSS guia pela rolagem onde existe, só com movimento e fora do Reduzido
+  const i = componentCss.indexOf('@supports (animation-timeline: scroll()) {\n  @media (prefers-reduced-motion: no-preference) {\n    :root:not([data-movimento="reduzido"]) .ds-cabecalho--editorial { animation: cab-recolhe linear both; animation-timeline: scroll(root block);');
+  assert.ok(i >= 0, 'scroll() dentro de @supports, do prefers-reduced-motion e fora do Reduzido');
+  assert.match(componentCss, /@keyframes cab-recolhe \{ from \{ --cab-p: 0; \} to \{ --cab-p: 1; \} \}/);
+  assert.match(componentCss, /:root\[data-movimento="reduzido"\] body\[data-cab="compacto"\] \.ds-cabecalho--editorial \{ --cab-p: 1; \}/);
+  assert.match(componentCss, /@media \(prefers-reduced-motion: reduce\) \{ body\[data-cab="compacto"\] \.ds-cabecalho--editorial \{ --cab-p: 1; \} \}/);
+  // as três telas de destino ligam o editorial; a reserva em JS é passiva, uma leitura por quadro, decisão pura no roteador
+  assert.match(HTML, /__m3\.Cabecalho\('Listas', \{ classe: 'decks-topo', rotulo: rotuloListas \}\)/);
+  assert.match(HTML, /__m3\.Cabecalho\('Coleção', \{ classe: 'col-topo', rotulo: 'Minha coleção',/);
+  assert.equal([...HTML.matchAll(/__m3\.Cabecalho\('Perfil', \{ rotulo: 'Conta e aparelho' \}\)/g)].length, 2);
+  assert.match(HTML, /window\.addEventListener\('scroll', pede, \{ passive: true \}\);/);
+  assert.match(HTML, /__m2\.cabecalhoAoRolar\(y - inicio, \{ parado: parado\(\) \}\)/);
+  // subtelas seguem no cabeçalho de sempre (o editorial só com rótulo)
+  assert.match(HTML, /__m3\.Cabecalho\('Partidas', \{ esquerda:/);
+});
+
