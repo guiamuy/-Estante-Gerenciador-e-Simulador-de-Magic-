@@ -197,6 +197,9 @@ export const POSICOES = [
   { id: 'seq-faeries-sprite-espera', classe: 'sequencia', lista: FAERIES, porque: 'meu turno, três terras, Spellstutter Sprite e Counterspell na mão contra o Terror com a Delver: a Sprite tem lampejo e nada para anular agora — entra no turno dele, com a Counterspell ainda de pé',
     monta: () => monta(FAERIES, TERROR, { p0: { campo: ['Island', 'Island', 'Swamp'], mao: ['Spellstutter Sprite', 'Counterspell'] }, p1: { campo: ['Island', 'Island', 'Delver of Secrets'], mao: ['Tolarian Terror', 'Ponder', 'Island', 'Counterspell'] } }),
     certo: (s, j) => !(j.acao.t === 'cast' && nomeDe(s, j.acao.oid) === 'Spellstutter Sprite') },
+  { id: 'seq-faeries-duas-anulacoes', classe: 'sequencia', lista: FAERIES, porque: 'meu turno, quatro terras, duas Counterspell e a Baleful Strix na mão contra o Madness com quatro cartas: a Strix tira um dos dois azuis (só Island e Aquifer dão U); com duas anulações, a mana aberta é o plano (partida narrada 9500 de 10/11, B-209)',
+    monta: () => monta(FAERIES, MADNESS, { p0: { campo: ['Island', 'Contaminated Aquifer', 'Swamp', 'Bojuka Bog'], mao: ['Counterspell', 'Counterspell', 'Baleful Strix'], vida: 15 }, p1: { campo: ['Mountain', 'Mountain', 'Mountain', 'Mountain', 'Sneaky Snacker'], mao: ['Kessig Flamebreather', 'Lightning Bolt', 'Grab the Prize', 'Lava Dart'] } }),
+    certo: (s, j) => !(j.acao.t === 'cast' && nomeDe(s, j.acao.oid) === 'Baleful Strix') },
   // ---- mulligan
   { id: 'mull-sete-terrenos', classe: 'mulligan', lista: TERROR, porque: 'sete terrenos não jogam: mulligan',
     mulligan: true, monta: () => maoInicial(TERROR, MADNESS, ['Island', 'Island', 'Island', 'Island', 'Island', 'Island', 'Island']),

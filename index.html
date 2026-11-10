@@ -37560,6 +37560,29 @@ function fontesDeMana(s, p) {
   return n;
 }
 
+/** B-209 · as fontes desviradas pagam o custo da carta, com as cores? `fontesDeMana` só conta fontes: duas terras de pé passavam por
+    "UU de pé" mesmo com só uma azul. Cada fonte dá uma mana de uma das cores que ela produz; a conta casa as cores pedidas por busca
+    (poucas fontes) e o resto vai no genérico. */
+function pagaComCores(s, p, oid) {
+  const f = s.facts[(s.objects[oid] || {}).name] || {}, c = f.cost || {};
+  const fontes = [];
+  for (const x of s.zones[p].battlefield) {
+    const o = s.objects[x];
+    if (o.tapped || (ehCriatura(s, o) && o.sick && !E.hasKeyword(s, o, 'haste')) || !produzMana(s, o)) continue;
+    const g = s.facts[o.name] || {}, txt = JSON.stringify([g.produces || [], (g.script || {}).produces || [], g.types || [], g.subtypes || []]);
+    const cores = new Set(/anyColor/.test(txt) ? 'WUBRG' : '');
+    for (const m of txt.match(/"[WUBRG]"/g) || []) cores.add(m[1]);
+    for (const [t, k] of [['Plains', 'W'], ['Island', 'U'], ['Swamp', 'B'], ['Mountain', 'R'], ['Forest', 'G']]) if (txt.includes('"' + t + '"')) cores.add(k);
+    fontes.push(cores);
+  }
+  const pede = []; for (const [k, n] of Object.entries(c.colored || {})) for (let i = 0; i < n; i++) pede.push(k);
+  const total = pede.length + (c.generic || 0) + (c.hybrid || []).length;
+  if (fontes.length < total) return false;
+  const usada = fontes.map(() => false);
+  const casa = i => { if (i === pede.length) return true; for (let j = 0; j < fontes.length; j++) if (!usada[j] && fontes[j].has(pede[i])) { usada[j] = true; if (casa(i + 1)) return true; usada[j] = false; } return false; };
+  return casa(0);
+}
+
 /** Soma por jogador, sem depender da ordem dos objetos. */
 function lado(s, p) {
   const campo = s.zones[p].battlefield.map(oid => s.objects[oid]);
@@ -38337,7 +38360,12 @@ function jogadaProfissional(s, p, opts = {}) {
   }
   // B10b · segurar a anulação: com uma resposta na mão que as minhas fontes desviradas pagam, a jogada que me deixa
   // sem essa mana no turno do oponente custa 6 pontos (a resposta em si não paga o pedágio).
-  const custoResposta = opts.segura && !minhaDecisao && s.turn.active === p && !s.stack.length ? custoDaResposta(s, p) : null;
+  // B-209 · `seguraComDuas` (B25, classe A das Faeries, terceira tentativa): o mesmo pedágio, só com duas anulações ou mais na mão.
+  // Com uma só, segurar a mana custa o tempo que as Faeries não têm (B-196 8 × 11, B-208 31 × 33); com duas, a segunda já está
+  // sobrando e a mana aberta é o plano (partidas narradas de 10/11: três Counterspell na mão, Strix e Seer no meu turno, nove de
+  // dano do Madness no turno dele).
+  const custoResposta0 = (opts.segura || opts.seguraComDuas) && !minhaDecisao && s.turn.active === p && !s.stack.length ? custoDaResposta(s, p) : null;
+  const custoResposta = custoResposta0 && (opts.segura || custoResposta0.oids.length >= 2) ? custoResposta0 : null;
   // B-200 · `ninjaDepois` (B25, Faeries): na primeira fase principal, com uma carta de ninjútsu na mão que a minha mana paga e
   // uma criatura que pode atacar, o ninja entra pelo ataque (mais barato, devolve o atacante), não pela mão; e a jogada que
   // deixa a mana abaixo do ninjútsu custa. Antes o Shark conjurava o Ninja of the Deep Hours por 4 antes do combate e o Augur
@@ -38352,9 +38380,15 @@ function jogadaProfissional(s, p, opts = {}) {
     if (!custoResposta || custoResposta.oids.includes(a.oid)) return 0;
     // B-196 · o terreno que ainda posso baixar neste turno conta (ciclar o Lórien Revealed por uma Ilha não deixa a anulação sem mana)
     const baixa = opts.seguraNoPerfil && !(depois.players[p].landsPlayed > 0) && depois.zones[p].hand.some(oid => ehTerreno(depois, depois.objects[oid])) ? 1 : 0;
+    if (opts.seguraComDuas && !opts.segura) { // B-209 · pelas cores: alguma das anulações a mana pagava antes e nenhuma paga depois;
+      // o pedágio cresce com as anulações que ficam presas (com 6 fixo, a Baleful Strix ainda saía e deixava duas Counterspell sem UU)
+      const paga = st => custoResposta.oids.some(oid => pagaComCores(st, p, oid));
+      return paga(w) && !baixa && !paga(depois) ? 6 * Math.min(3, custoResposta.oids.length) : 0; // cada anulação presa na mão custa 6
+    }
     return fontesDeMana(w, p) >= custoResposta.custo && fontesDeMana(depois, p) + baixa < custoResposta.custo ? 6 : 0;
   }
-  // B-208 · `esperaOLampejo` (B25, classe A das Faeries): no meu turno, com a pilha vazia e uma anulação na mão que a mana desvirada
+  // B-209 · `seguraComDuas` (o pedágio da mana da anulação só com duas anulações ou mais na mão, pelas cores, 6 por anulação presa; B25 classe A das Faeries, terceira tentativa) foi medida e fica desligada: piloto Faeries 30 × 38 em 96 pares (4 só do novo, 12 só do antigo); acerta a posição `seq-faeries-duas-anulacoes`, mas não se paga em partida
+// B-208 · `esperaOLampejo` (B25, classe A das Faeries): no meu turno, com a pilha vazia e uma anulação na mão que a mana desvirada
   // paga, a instantânea ou a mágica com lampejo que não responde a nada e me deixa sem a mana dessa anulação custa 6 — ela pode
   // esperar o turno do outro (o Brainstorm no fim do turno dele, a Spellstutter Sprite quando houver o que anular). Diferente do
   // `segura` (B10b, que mediu 8 × 11 nas Faeries): a ameaça de feitiço (Augur, ninjútsu) não paga — é o tempo do baralho.
