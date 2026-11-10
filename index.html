@@ -1667,7 +1667,6 @@ body[data-barra="fora"] :is(.ds-navbar, .ds-fab) { transition: translate var(--d
   box-shadow: 0 0 0 100vmax var(--overlay); /* I7 · sem faixa descoberta embaixo quando a barra do navegador recolhe */
   display: none; align-items: center; justify-content: center;
   padding: calc(var(--space-4) + env(safe-area-inset-top, 0px)) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
-  animation: ds-fade var(--dur-2) var(--ease-out);
 }
 .ds-overlay[data-open="true"] { display: flex; }
 .ds-dialog {
@@ -1676,9 +1675,12 @@ body[data-barra="fora"] :is(.ds-navbar, .ds-fab) { transition: translate var(--d
   box-shadow: var(--shadow-3); padding: var(--space-5);
   animation: ds-rise var(--dur-2) var(--ease-out);
 }
-/* DS-K F1.4 (G-292) · receita "folha" no diálogo: três planos — o véu escurece com vinheta (fundo, --dur-2), a folha
-   sobe com mola e cresce até o tamanho (objeto, --dur-3, --ease-spring) e a sombra nasce curta e assenta longa
-   (sombra) — os três começam juntos; um fio de luz no alto da folha. Menos movimento: tudo aparece no lugar. */
+/* DS-K F1.4 (G-292) · receita "folha" no diálogo: três planos — o véu com vinheta (fundo), a folha sobe com mola e
+   cresce até o tamanho (objeto, --dur-3, --ease-spring) e a sombra longa (sombra); um fio de luz no alto da folha.
+   Menos movimento: tudo aparece no lugar.
+   G-376 (decisão do dono, 10/11/2026) · o véu já nasce escuro e a sombra já nasce longa: só a folha anda, em transform
+   e opacity. O véu é uma camada da tela inteira com desfoque; animar a opacidade dele e a sombra da folha refazia a
+   pintura a cada quadro e a abertura caía para 30–40 quadros/s com a CPU 4× (FA.1, régua 45). */
 .ds-overlay { background-image: radial-gradient(ellipse 120% 90% at 50% 42%, transparent 38%, var(--overlay)); }
 .ds-dialog { animation: ds-folha-sobe var(--dur-3) var(--ease-spring) both; box-shadow: var(--shadow-3), inset 0 1px 0 var(--latao-luz); }
 /* DS-K FA.2 (G-299) · saída: a silhueta da folha desce e some, o véu clareia junto; nada recebe toque */
@@ -1697,7 +1699,7 @@ body[data-barra="fora"] :is(.ds-navbar, .ds-fab) { transition: translate var(--d
 @media (prefers-reduced-motion: reduce) { .ds-dialog { animation: none; } }
 @keyframes ds-veu-some { from { opacity: 1; } to { opacity: 0; } }
 @keyframes ds-folha-desce { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(18px) scale(.98); } }
-@keyframes ds-folha-sobe { from { opacity: 0; transform: translateY(24px) scale(.97); box-shadow: var(--shadow-1), inset 0 1px 0 var(--latao-luz); } to { opacity: 1; transform: none; box-shadow: var(--shadow-3), inset 0 1px 0 var(--latao-luz); } }
+@keyframes ds-folha-sobe { from { opacity: 0; transform: translateY(24px) scale(.97); } to { opacity: 1; transform: none; } }
 .ds-dialog__head { position: sticky; top: calc(-1 * var(--space-5)); z-index: 1; display: flex; align-items: flex-start; gap: var(--space-2);
   margin: calc(-1 * var(--space-5)) calc(-1 * var(--space-5)) var(--space-3); padding: var(--space-4) var(--space-3) var(--space-2) var(--space-5);
   background: var(--bg-elev-1); border-bottom: 1px solid transparent; }
@@ -1797,7 +1799,6 @@ body[data-tutorial="true"] { overflow: hidden; }
 .guia__texto { margin: 0; font-size: var(--text-md); line-height: var(--lh-md); color: var(--fg-muted); text-wrap: pretty; }
 .guia__acoes { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); margin-top: var(--space-1); }
 .guia__acoes .ds-btn { width: 100%; min-width: 0; }
-@keyframes ds-fade { from { opacity: 0 } to { opacity: 1 } }
 @keyframes ds-rise { from { opacity: 0; transform: translateY(12px) scale(.985) } to { opacity: 1; transform: none } }
 
 /* ---------------- toast ---------------- */

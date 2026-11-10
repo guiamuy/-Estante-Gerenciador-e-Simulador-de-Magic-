@@ -786,12 +786,15 @@ test('DS-K · FA.2 fechar a folha tem saída pela receita (mais curta que a entr
 });
 
 /* ---------------- DS-K (G-292) · F1.4 folha, diálogo e aviso pela receita ---------------- */
-test('DS-K · F1.4 diálogo e aviso seguem a receita "folha": véu com vinheta, a folha sobe com mola e a sombra assenta (só por token); o aviso sobe com mola e sai reto', () => {
+test('DS-K · F1.4 diálogo e aviso seguem a receita "folha": véu com vinheta, a folha sobe com mola (só transform e opacity, G-376) e a sombra longa (só por token); o aviso sobe com mola e sai reto', () => {
   assert.match(componentCss, /\.ds-overlay \{ background-image: radial-gradient\(ellipse 120% 90% at 50% 42%, transparent 38%, var\(--overlay\)\); \}/, 'véu com vinheta');
   assert.match(componentCss, /\.ds-dialog \{ animation: ds-folha-sobe var\(--dur-3\) var\(--ease-spring\) both;/, 'a folha sobe com mola');
   const k = componentCss.match(/@keyframes ds-folha-sobe \{([^\n]*)\}/); assert.ok(k, 'keyframes da folha');
-  assert.match(k[1], /from \{ opacity: 0; transform: translateY\(24px\) scale\(\.97\); box-shadow: var\(--shadow-1\)/, 'sombra curta no começo');
-  assert.match(k[1], /to \{ opacity: 1; transform: none; box-shadow: var\(--shadow-3\)/, 'sombra longa no fim');
+  // G-376 (decisão do dono, 10/11/2026) · a folha anda só em transform e opacity; a sombra já nasce longa e o véu já nasce
+  // escuro (animar os dois refazia a pintura a cada quadro: FA.1 caía para 30–40 quadros/s com a CPU 4×)
+  assert.match(k[1], /^ from \{ opacity: 0; transform: translateY\(24px\) scale\(\.97\); \} to \{ opacity: 1; transform: none; \} $/, 'a folha anda só em transform e opacity');
+  assert.match(componentCss, /\.ds-dialog \{ animation: ds-folha-sobe [^}]*box-shadow: var\(--shadow-3\), inset 0 1px 0 var\(--latao-luz\); \}/, 'a sombra já nasce longa');
+  const veu = componentCss.match(/\.ds-overlay \{\n([^}]*)\}/); assert.ok(veu && !/animation/.test(veu[1]), 'o véu não anima (camada da tela inteira com desfoque)');
   assert.match(componentCss, /\.ds-toast\[data-open="true"\] \{ transform: translateX\(-50%\) translateY\(0\); transition: opacity var\(--dur-2\) var\(--ease-out\), transform var\(--dur-3\) var\(--ease-spring\); \}/, 'aviso entra com mola');
   assert.match(componentCss, /\.ds-toast \{ transform: translateX\(-50%\) translateY\(14px\); \}/, 'sem encolher: fechado, o botão do aviso segue com 44 px');
 });
