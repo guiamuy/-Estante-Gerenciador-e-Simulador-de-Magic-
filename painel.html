@@ -160,8 +160,14 @@
   --relevo-sombra: 0 16px 24px -14px rgba(0, 0, 0, .78);
   /* MJ7 (J-17) · material da mesa: a carta tem espessura (sombra curta e firme) e, levantada, uma sombra que cresce;
      o feltro tem luz (claridade no centro, penumbra nas bordas); o latão tem fio de luz no topo e lábio escuro embaixo */
-  --sombra-carta: 0 1px 1px rgba(0, 0, 0, .5), 0 2px 4px -1px rgba(0, 0, 0, .45);
-  --sombra-carta-alta: 0 14px 22px -8px rgba(0, 0, 0, .72), 0 4px 8px rgba(0, 0, 0, .35);
+  /* MK3-0 (J-63) · Mesa Vitrine: a carta passa a ser objeto no material do DS-K3 — fio de lado (espessura) + sombra de contato no
+     tampo + sombra chave; levantada (na mão, no ar, escolhida), a flutuante. O playmat é um poço no tampo (sombra interna de cima). */
+  --carta-espessura: 2px;
+  --carta-lado: #050302;
+  --carta-laca: linear-gradient(180deg, rgba(255, 246, 226, .09) 0%, rgba(255, 246, 226, 0) 32%); /* luz de cima na face, leve: a arte manda */
+  --mesa-poco: inset 0 2px 8px rgba(0, 0, 0, .55), inset 0 -1px 0 var(--edge);
+  --sombra-carta: 0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-contact), var(--shadow-key);
+  --sombra-carta-alta: 0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-float);
   --mesa-luz: rgba(255, 246, 220, .07);
   --mesa-penumbra: rgba(0, 0, 0, .34);
   --latao-luz: rgba(255, 250, 235, .3);
@@ -265,8 +271,11 @@
   --relevo-escuro: rgba(34, 20, 4, .5);
   --relevo-claro: rgba(255, 248, 228, .34);
   --relevo-sombra: 0 14px 22px -14px rgba(64, 42, 10, .55);
-  --sombra-carta: 0 1px 1px rgba(74, 56, 26, .24), 0 2px 4px -1px rgba(74, 56, 26, .2);
-  --sombra-carta-alta: 0 14px 22px -8px rgba(74, 56, 26, .34), 0 4px 8px rgba(74, 56, 26, .16);
+  --carta-lado: #b8a47c; /* MK3-0 · o lado do cartão de papel */
+  --carta-laca: linear-gradient(180deg, rgba(255, 255, 255, .16) 0%, rgba(255, 255, 255, 0) 30%);
+  --mesa-poco: inset 0 2px 8px rgba(60, 40, 10, .16), inset 0 -1px 0 var(--edge);
+  --sombra-carta: 0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-contact), var(--shadow-key);
+  --sombra-carta-alta: 0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-float);
   --mesa-luz: rgba(255, 253, 245, .42);
   --mesa-penumbra: rgba(74, 56, 26, .16);
   --latao-luz: rgba(255, 250, 235, .1); /* no claro o latão é escuro e o texto é claro: o fio de luz fica discreto para o texto seguir AA até no topo */
@@ -334,8 +343,11 @@
     --relevo-escuro: rgba(34, 20, 4, .5);
     --relevo-claro: rgba(255, 248, 228, .34);
     --relevo-sombra: 0 14px 22px -14px rgba(64, 42, 10, .55);
-    --sombra-carta: 0 1px 1px rgba(74, 56, 26, .24), 0 2px 4px -1px rgba(74, 56, 26, .2);
-    --sombra-carta-alta: 0 14px 22px -8px rgba(74, 56, 26, .34), 0 4px 8px rgba(74, 56, 26, .16);
+    --carta-lado: #b8a47c; /* MK3-0 · o lado do cartão de papel */
+    --carta-laca: linear-gradient(180deg, rgba(255, 255, 255, .16) 0%, rgba(255, 255, 255, 0) 30%);
+    --mesa-poco: inset 0 2px 8px rgba(60, 40, 10, .16), inset 0 -1px 0 var(--edge);
+    --sombra-carta: 0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-contact), var(--shadow-key);
+    --sombra-carta-alta: 0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-float);
     --mesa-luz: rgba(255, 253, 245, .42);
     --mesa-penumbra: rgba(74, 56, 26, .16);
     --latao-luz: rgba(255, 250, 235, .1);

@@ -165,8 +165,14 @@
   --relevo-sombra: 0 16px 24px -14px rgba(0, 0, 0, .78);
   /* MJ7 (J-17) · material da mesa: a carta tem espessura (sombra curta e firme) e, levantada, uma sombra que cresce;
      o feltro tem luz (claridade no centro, penumbra nas bordas); o latão tem fio de luz no topo e lábio escuro embaixo */
-  --sombra-carta: 0 1px 1px rgba(0, 0, 0, .5), 0 2px 4px -1px rgba(0, 0, 0, .45);
-  --sombra-carta-alta: 0 14px 22px -8px rgba(0, 0, 0, .72), 0 4px 8px rgba(0, 0, 0, .35);
+  /* MK3-0 (J-63) · Mesa Vitrine: a carta passa a ser objeto no material do DS-K3 — fio de lado (espessura) + sombra de contato no
+     tampo + sombra chave; levantada (na mão, no ar, escolhida), a flutuante. O playmat é um poço no tampo (sombra interna de cima). */
+  --carta-espessura: 2px;
+  --carta-lado: #050302;
+  --carta-laca: linear-gradient(180deg, rgba(255, 246, 226, .09) 0%, rgba(255, 246, 226, 0) 32%); /* luz de cima na face, leve: a arte manda */
+  --mesa-poco: inset 0 2px 8px rgba(0, 0, 0, .55), inset 0 -1px 0 var(--edge);
+  --sombra-carta: 0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-contact), var(--shadow-key);
+  --sombra-carta-alta: 0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-float);
   --mesa-luz: rgba(255, 246, 220, .07);
   --mesa-penumbra: rgba(0, 0, 0, .34);
   --latao-luz: rgba(255, 250, 235, .3);
@@ -270,8 +276,11 @@
   --relevo-escuro: rgba(34, 20, 4, .5);
   --relevo-claro: rgba(255, 248, 228, .34);
   --relevo-sombra: 0 14px 22px -14px rgba(64, 42, 10, .55);
-  --sombra-carta: 0 1px 1px rgba(74, 56, 26, .24), 0 2px 4px -1px rgba(74, 56, 26, .2);
-  --sombra-carta-alta: 0 14px 22px -8px rgba(74, 56, 26, .34), 0 4px 8px rgba(74, 56, 26, .16);
+  --carta-lado: #b8a47c; /* MK3-0 · o lado do cartão de papel */
+  --carta-laca: linear-gradient(180deg, rgba(255, 255, 255, .16) 0%, rgba(255, 255, 255, 0) 30%);
+  --mesa-poco: inset 0 2px 8px rgba(60, 40, 10, .16), inset 0 -1px 0 var(--edge);
+  --sombra-carta: 0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-contact), var(--shadow-key);
+  --sombra-carta-alta: 0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-float);
   --mesa-luz: rgba(255, 253, 245, .42);
   --mesa-penumbra: rgba(74, 56, 26, .16);
   --latao-luz: rgba(255, 250, 235, .1); /* no claro o latão é escuro e o texto é claro: o fio de luz fica discreto para o texto seguir AA até no topo */
@@ -339,8 +348,11 @@
     --relevo-escuro: rgba(34, 20, 4, .5);
     --relevo-claro: rgba(255, 248, 228, .34);
     --relevo-sombra: 0 14px 22px -14px rgba(64, 42, 10, .55);
-    --sombra-carta: 0 1px 1px rgba(74, 56, 26, .24), 0 2px 4px -1px rgba(74, 56, 26, .2);
-    --sombra-carta-alta: 0 14px 22px -8px rgba(74, 56, 26, .34), 0 4px 8px rgba(74, 56, 26, .16);
+    --carta-lado: #b8a47c; /* MK3-0 · o lado do cartão de papel */
+    --carta-laca: linear-gradient(180deg, rgba(255, 255, 255, .16) 0%, rgba(255, 255, 255, 0) 30%);
+    --mesa-poco: inset 0 2px 8px rgba(60, 40, 10, .16), inset 0 -1px 0 var(--edge);
+    --sombra-carta: 0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-contact), var(--shadow-key);
+    --sombra-carta-alta: 0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-float);
     --mesa-luz: rgba(255, 253, 245, .42);
     --mesa-penumbra: rgba(74, 56, 26, .16);
     --latao-luz: rgba(255, 250, 235, .1);
@@ -2865,8 +2877,8 @@ body[data-mesa-cheia="true"] .tb-steps__list > li::after { inset: 0; height: aut
 .tb-board { display: flex; flex-direction: column; gap: var(--space-4); padding-top: var(--space-3); } /* MJ1c (J-4) · vão de 16 px: com o fundo do lado de cima (12 + 3) e o topo do de baixo (12 + 1), a faixa da pilha (44 px) cabe sem cobrir nada */
 .tb-side {
   display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3);
-  background: var(--playmat); border: 1px solid var(--border); border-radius: var(--radius-2);
-  border-bottom: 3px solid var(--shelf-edge);
+  background: var(--lacquer), var(--playmat); border: 1px solid var(--edge); border-radius: var(--radius-2);
+  box-shadow: var(--mesa-poco), var(--shadow-contact); /* MK3-0 (J-63) · o playmat é um poço no tampo: luz de cima, sombra interna, aresta; os dois lados iguais (S1) */
 }
 /* J-43 (relato #48) · token do playmat: o papel do lado (--bg-elev-1), que já muda com o tema, então vale nos dois temas e no
    claro automático; outro playmat troca só este token (sob o data-playmat do lado). Fica aqui, fora do bloco F4, que o painel espelha */
@@ -2875,8 +2887,8 @@ body[data-mesa-cheia="true"] .tb-steps__list > li::after { inset: 0; height: aut
    o feltro (veio e luz) continua em volta, no vão entre os lados. Cada lado diz o playmat em data-playmat, para a escolha futura */
 /* U7 · o lado de quem tem o turno acende na cor do jogador (a sua é o acento; a do outro, azul) */
 .tb-side { transition: border-color var(--dur-3) var(--ease-out), box-shadow var(--dur-3) var(--ease-out); }
-.tb-side[data-ativo="true"] { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft), 0 0 20px var(--accent-soft); }
-.tb-side--opp[data-ativo="true"] { border-color: var(--player-opp); box-shadow: 0 0 0 2px var(--player-opp-soft), 0 0 20px var(--player-opp-soft); }
+.tb-side[data-ativo="true"] { border-color: var(--accent); box-shadow: var(--mesa-poco), 0 0 0 2px var(--accent-soft), 0 0 20px var(--accent-soft); }
+.tb-side--opp[data-ativo="true"] { border-color: var(--player-opp); box-shadow: var(--mesa-poco), 0 0 0 2px var(--player-opp-soft), 0 0 20px var(--player-opp-soft); }
 .tb-vez { flex: 1 1 100%; display: flex; align-items: stretch; min-height: var(--tap-min);
   border-radius: var(--radius-full); background: var(--accent); color: var(--accent-fg); font-weight: var(--weight-bold); box-shadow: var(--shadow-1); }
 /* MJ7 (J-17) · latão com brilho leve: fio de luz no topo e lábio escuro embaixo na faixa de vez, no marcador de vida de
@@ -3054,14 +3066,14 @@ body[data-mesa-cheia="true"] .tb-steps__list > li::after { inset: 0; height: aut
 .tb-card {
   -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;   /* H10 · segurar não abre o menu da imagem no iPhone */
   position: relative; flex: none; width: var(--carta-campo); aspect-ratio: 488 / 680; padding: 0; border: none; background: none;
-  scroll-snap-align: start; transition: transform var(--dur-2) var(--ease-out);
+  scroll-snap-align: start; transition: transform var(--dur-3) var(--mola-firme); /* MK3-0 · levantar e assentar com a mola do DS-K3 (R3) */
   isolation: isolate; /* MJ7 · a sombra alta (::before, atrás da face) fica dentro da carta, sem cair atrás do lado */
 }
 /* MJ7 (J-17) · peso e material: a carta em repouso tem espessura (--sombra-carta, na face); levantada — escolhida para a
    decisão, segurada para espiar, pressionada, no topo da pilha ou mirando — a sombra cresce por baixo dela (::before com
    --sombra-carta-alta, só opacidade: o compositor pinta sozinho) e a carta sobe um pouco. Com menos movimento, estado final na hora. */
 .tb-card::before { content: ''; position: absolute; inset: 0; z-index: -1; border-radius: var(--radius-card); box-shadow: var(--sombra-carta-alta); opacity: 0; pointer-events: none;
-  transition: opacity var(--dur-2) var(--ease-out), transform var(--dur-2) var(--ease-out); }
+  transition: opacity var(--dur-2) var(--ease-out), transform var(--dur-3) var(--mola-firme); }
 .tb-card[data-tapped="true"]::before { transform: rotate(90deg) scale(.78); }
 .tb-card[data-selected="true"]::before { opacity: 1; transform: translateY(calc(var(--space-2) * -1)); }
 .tb-card[data-segurando="true"]::before, .tb-card:active::before, .tb-stack__item[data-top="true"] .tb-stack__card > .tb-card::before { opacity: 1; }
@@ -3100,6 +3112,8 @@ body[data-mesa-cheia="true"] .tb-steps__list > li::after { inset: 0; height: aut
   transition: transform var(--dur-2) var(--ease-out);
 }
 .tb-card__face img { width: 100%; height: 100%; object-fit: cover; }
+/* MK3-0 (J-63) · a face é laqueada: luz de cima e aresta clara no topo, por cima da arte, sem toque */
+.tb-card__face::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: var(--carta-laca); box-shadow: inset 0 1px 0 var(--edge-strong); pointer-events: none; }
 /* DS-K2 M1 (J-38) · moldura K na carta do campo: a face é o papel da carta (elev-2 com fio forte); o nome (fora da face, como
    sempre, para a carta virada não levar o nome junto) vira a faixa opaca de cima; a arte fica numa janela com 3 px de borda */
 .tb-card[data-moldura="true"] .tb-card__face { background: var(--bg-elev-2); border-color: var(--border-strong); }
