@@ -1,14 +1,15 @@
 // B-178 · Cronometra cada decisão do Shark em partidas Shark × Shark com as cinco listas do Shark (os 20 confrontos).
-// Fora do portão (não é teste). Uso: node bot.tempo.mjs [orcamentoMs=400] [nivel=shark | shark-v12 | z:peça,…] [semente=1] [saida.json]
+// Fora do portão (não é teste). Uso: [LISTAS=fora] [SO=<i>] node bot.tempo.mjs [orcamentoMs=400] [nivel=shark | shark-v12 | z:peça,…] [semente=1] [saida.json]
 // Imprime p50/p90/p95/p99/pior, quantas decisões passaram do orçamento e as dez piores com o contexto.
 const [ORC, NIVEL, SEM, SAIDA] = [+(process.argv[2] || 400), process.argv[3] || 'shark', +(process.argv[4] || 1), process.argv[5]];
 const { loadModules } = await import('./_load.mjs');
-const { listasDoShark } = await import('./torneio.listas.mjs');
+const { listasDoShark, listasDeFora } = await import('./torneio.listas.mjs');
 const { engine: E, bot: B } = loadModules();
-const L = listasDoShark(); const tempos = [], lentas = [];
+const L = process.env.LISTAS === 'fora' ? listasDeFora() : listasDoShark(); // B-210 · LISTAS=fora: as seis da régua de generalização; SO=<i>: só os confrontos da lista i
+const SO = process.env.SO != null ? +process.env.SO : null; const tempos = [], lentas = [];
 let ilegais = 0;
 for (let i = 0; i < L.length; i++) for (let j = 0; j < L.length; j++) {
-  if (i === j) continue;
+  if (i === j || (SO != null && i !== SO && j !== SO)) continue;
   const a = L[i], b = L[j], cards = {}; for (const x of [a, b]) for (const e of x.entries) cards[e.name] = x.cartas[e.name];
   let s = E.createGame({ format: 'pauper', seed: SEM * 100 + i * 7 + j, mode: 'full', manaCheck: true, cards, players: [{ name: 'A', deck: a.entries }, { name: 'B', deck: b.entries }] });
   const cria = () => NIVEL.startsWith('z:') ? B.criaBot({ nivel: 'shark', orcamentoMs: ORC, extra: Object.fromEntries(NIVEL.slice(2).split(',').map(k => [k, true])) }) : B.criaBot({ nivel: NIVEL, orcamentoMs: ORC });
