@@ -3248,6 +3248,7 @@ body[data-mesa-cheia="true"] .tb > .tb-board { padding-top: var(--space-1); }
   :root:not([data-orientacao="retrato"]) .tb-board > .tb-camada > .tb-camada__linha { position: static; }
   :root:not([data-orientacao="retrato"]) .tb-board > .tb-side--opp { grid-column: 1; grid-row: 3; }
   :root:not([data-orientacao="retrato"]) .tb-board > .tb-side--me { grid-column: 2; grid-row: 3; }
+  :root:not([data-orientacao="retrato"]) .tb-board > .tb-side--me > .tb-side__head { order: -1; } /* MK3-2 · lado a lado, o espelho é pelo eixo vertical: as duas faixas em cima */
   :root:not([data-orientacao="retrato"]) .tb > .tb-top { padding-top: var(--space-2); padding-bottom: var(--space-1); }
   :root:not([data-orientacao="retrato"]) .tb-top > .tb-steps { order: 1; flex: 1 1 200px; }
 }
@@ -44975,6 +44976,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     return TableCard({ ...s.objects[alvo], image: imgOf(s.objects[alvo]), images: imagensOf(s.objects[alvo]) }, { onClick: () => onBoardTap(alvo) || onClick(alvo), estado: T.estadoDaCarta(s, s.objects[alvo], plan), entrou: pilha.oids.some(entrou), pilha, selected: plan.attack.has(alvo) || plan.blocks.has(alvo), eligible: plan.eligible.has(alvo) || alvoPendente(s, alvo), ...comPeek(alvo) });
   });
   const isLand = (s, oid) => s.facts[s.objects[oid].name].types.includes('land');
+  const comAssimetria = (el, motivo) => { if (el && motivo) el.dataset.assimetria = motivo; return el; }; // MK3-2 · S4: só por intenção, com motivo
 
   function side(s, p, mine) {
     const z = s.zones[p];
@@ -44982,13 +44984,14 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const pl = s.players[p];
     const naZona = (k, el) => { if (el) el.dataset.zona = k; return el; }; // MJ3b · o voo de saída procura o contador pela zona
     const chips = h('div', { class: 'tb-chips' },
-      mine || pl.dummy ? null : naZona('hand', ZoneChip('Mão', z.hand.length, null)),
-      pl.dummy ? null : naZona('library', ZoneChip('Grimório', z.library.length, () => {
+      // MK3-2 (J-65) · S4: a mão do outro é contada no lado dele; a sua está na bandeja (assimetria declarada, não desloca o eixo)
+      mine || pl.dummy ? null : naZona('hand', comAssimetria(ZoneChip('Mão', z.hand.length, null), 'a sua mão está na bandeja')),
+      pl.dummy ? null : naZona('library', comAssimetria(ZoneChip('Grimório', z.library.length, () => {
         const v = table.viewer();
         if (!hasPriority(v)) return;
         Dialog({ title: `Grimório de ${pl.name}`, body: Text(`${z.library.length} carta(s).`, { tone: 'muted' }),
           actions: [Button('Comprar 1', { onClick: () => { closeDialog(); act({ t: 'draw', p: v, target: p, n: 1 }); } }), Button('Fechar', { onClick: closeDialog })] });
-      }, mine ? 'tb-lib-me' : 'tb-lib-opp')),
+      }, mine ? 'tb-lib-me' : 'tb-lib-opp'), s.players.some(x => x !== pl && x.dummy) ? 'o goldfish não tem grimório' : null)),
       naZona('graveyard', ZoneChip('Cemitério', z.graveyard.length, () => openZone(p, 'graveyard', 'Cemitério'), mine ? 'tb-cemiterio-me' : null, mine ? jogaveisEm(z.graveyard) : 0)),
       // as tramadas já aparecem na bandeja: o ponto do exílio conta só o resto
       naZona('exile', ZoneChip('Exílio', z.exile.length, () => openZone(p, 'exile', 'Exílio'), mine ? 'tb-exilio-me' : null, mine ? jogaveisEm(z.exile.filter(oid => s.objects[oid].plotted == null)) : 0)),
@@ -45012,8 +45015,9 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     // DS-K2 M3 (J-39) · a vida vai para a barra de cima (vidasDaBarra); o que a acompanhava (monarca, veneno, energia,
     // masmorra, radiação, encantado por, dano de comandante) fica no lado, numa linha à esquerda das zonas
     vidasDaBarra[mine ? 'eu' : 'oponente'] = LifeCounter({ name: pl.name + (pl.lost ? ' (fora)' : ''), life: pl.life, active: s.turn.active === p, sub: subVida, onClick: () => openLife(p), id: mine ? 'tb-life-me' : 'tb-life-opp', lado: mine ? 'eu' : 'oponente' });
-    // o nome do outro continua à vista no lado dele (você é a vida em latão); o seu lado só ganha linha quando há o que dizer
-    const nomeNoLado = mine ? null : pl.name + (pl.lost ? ' (fora)' : '');
+    // MK3-2 (J-65) · simetria S2: os dois lados têm a mesma faixa de identidade (nome · zonas), a do outro em cima do campo dele
+    // e a sua embaixo do seu (espelho pelo eixo da mesa); antes o seu lado não tinha nome e a faixa ficava colada no eixo
+    const nomeNoLado = pl.name + (pl.lost ? ' (fora)' : '');
     const life = nomeNoLado || subVisivel ? h('span', { class: 'tb-side__info', id: mine ? 'tb-info-me' : 'tb-info-opp' },
       nomeNoLado ? h('b', {}, nomeNoLado) : null, nomeNoLado && subVisivel ? ' · ' : null, subVisivel) : null;
     // D6 · relance: sem nada em campo, uma linha só ("Campo vazio"); com uma das duas zonas vazia, ela vira uma linha fina
@@ -45024,8 +45028,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const ativo = s.status === 'playing' && s.turn.active === p;   // U7 · o lado de quem joga acende
     return h('section', { class: ['tb-side', mine ? 'tb-side--me' : 'tb-side--opp'].join(' '), dataset: { ativo: String(ativo), campo: campoVazio ? 'vazio' : 'ocupado', p: String(p), playmat: 'padrao' },
       'aria-label': (mine ? 'seu lado' : 'lado do oponente') + (ativo ? ', turno ativo' : '') + (campoVazio ? ', campo vazio' : '') },
-      h('div', { class: 'tb-side__head' }, life, selo, chips),
-      ...(mine ? field : field.reverse()));
+      ...(mine ? [...field, h('div', { class: 'tb-side__head' }, life, selo, chips)] : [h('div', { class: 'tb-side__head' }, life, selo, chips), ...field.reverse()]));
   }
 
   /** J-40 · relato #45 · a folha da masmorra de `p`: o mapa da carta, quem está em qual sala e o efeito de cada sala. */
