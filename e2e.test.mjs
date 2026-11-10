@@ -21958,3 +21958,51 @@ test('e2e · G-368 a data do Início no idioma do app: inglês, espanhol e de vo
   }
   assert.deepEqual(errors, []);
 });
+
+// MK3-0 (J-63, trilha jogabilidade) · Mesa Vitrine, material: a carta do campo é objeto do DS-K3 (fio de lado + contato +
+// chave; face laqueada com aresta de luz), o playmat é um poço igual nos dois lados (S1), e levantar a carta usa a mola
+// do DS-K3 nos três níveis de Movimento (completo: mola; moderado: --ease-out; reduzido: instantâneo).
+test('e2e · J-63 MK3-0 mesa no material da Vitrine: carta com espessura, contato e chave e face laqueada; playmat em poço igual nos dois lados; levantar com mola, moderado sem repique, reduzido parado; 360×780 nos dois temas, auditaTela', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'Vitrine', PAUPER);
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start'); await page.fill('#mesa-seed', '4');
+  await page.click('[data-opponent="goldfish"]');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-pass');
+  await page.evaluate(() => { const M = window.__estanteMesa, s = M.estado(), p = s.turn.active;
+    for (const oid of s.zones[p].hand.slice(0, 2)) M.act({ t: 'move', p: M.estado().turn.priority, oid, to: 'battlefield' }); }); // o Goldfish não tem grimório: o lado dele fica vazio, e o material do poço se compara assim mesmo
+  await page.waitForFunction(() => document.querySelectorAll('.tb-side--me .tb-card__face').length >= 2);
+  for (const tema of ['dark', 'light']) {
+    await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(350);
+    const m = await page.evaluate(() => {
+      const lado = sel => { const e = document.querySelector(sel), cs = getComputedStyle(e); return { sombra: cs.boxShadow, imagem: cs.backgroundImage, borda: cs.borderTopWidth + ' ' + cs.borderBottomWidth, raio: cs.borderTopLeftRadius, largura: Math.round(e.getBoundingClientRect().width), esquerda: Math.round(e.getBoundingClientRect().left) }; };
+      const face = document.querySelector('.tb-side--me .tb-card__face'), csf = getComputedStyle(face), laca = getComputedStyle(face, '::after');
+      return { opp: lado('.tb-side--opp'), me: lado('.tb-side--me'), face: { sombra: csf.boxShadow, laca: laca.backgroundImage, aresta: laca.boxShadow, toque: laca.pointerEvents } };
+    });
+    const onde = `360×780 ${tema}`;
+    // a carta: três camadas (lado de 2 px, contato, chave), a última com desfoque grande (a chave), nada de sombra interna
+    const camadas = m.face.sombra.split(/,(?![^(]*\))/).map(x => x.trim());
+    assert.equal(camadas.length, 3, `${onde}: a carta em repouso tem lado, contato e chave ` + m.face.sombra);
+    assert.match(camadas[0], / 0px 2px 0px 0px$/, `${onde}: o fio de lado é a espessura de 2 px`);
+    assert.match(m.face.laca, /^linear-gradient/, `${onde}: a face é laqueada`); assert.match(m.face.aresta, /inset/, `${onde}: aresta de luz no topo da face`);
+    assert.equal(m.face.toque, 'none', `${onde}: a laca não pega o toque`);
+    // o playmat: poço (sombra interna) com laca, a mesma luz, borda, raio, largura e alinhamento dos dois lados (S1)
+    for (const l of [m.opp, m.me]) { assert.match(l.sombra, /inset/, `${onde}: o lado é um poço ` + l.sombra); assert.match(l.imagem, /^linear-gradient/, `${onde}: laca no playmat`); }
+    assert.deepEqual([m.opp.imagem, m.opp.borda, m.opp.raio, m.opp.largura, m.opp.esquerda], [m.me.imagem, m.me.borda, m.me.raio, m.me.largura, m.me.esquerda], `${onde}: os dois lados são espelho no material e na geometria ` + JSON.stringify(m));
+    assert.equal(m.me.borda, '1px 1px', `${onde}: sem a borda de prateleira de 3 px`);
+    await auditaTela(page, `J-63 · MK3-0 ${onde}`);
+    if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + `/j-63-mk3-0-${tema}.png` });
+  }
+  // levantar: a carta e a sombra que cresce seguem a mola do DS-K3; moderado sem repique; reduzido instantâneo
+  const curva = () => page.evaluate(() => { const c = document.querySelector('.tb-side--me .tb-card'), cs = getComputedStyle(c), sb = getComputedStyle(c, '::before');
+    return { carta: cs.transitionTimingFunction, dur: cs.transitionDuration, sombra: sb.transitionTimingFunction }; });
+  const completo = await curva();
+  assert.match(completo.carta, /^linear\(/, 'completo: a carta levanta com a mola ' + JSON.stringify(completo)); assert.match(completo.sombra, /linear\(/);
+  assert.equal(completo.dur, '0.28s', 'completo: --dur-3');
+  await page.evaluate(() => document.documentElement.setAttribute('data-movimento', 'moderado'));
+  const moderado = await curva(); assert.match(moderado.carta, /^cubic-bezier/, 'moderado: sem repique (a mola vira --ease-out) ' + JSON.stringify(moderado));
+  await page.evaluate(() => document.documentElement.setAttribute('data-movimento', 'reduzido'));
+  const reduzido = await curva(); assert.ok(parseFloat(reduzido.dur) < 0.001, 'reduzido: levantar é instantâneo ' + JSON.stringify(reduzido));
+  assert.deepEqual(errors, []);
+});

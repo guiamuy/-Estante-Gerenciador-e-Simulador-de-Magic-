@@ -317,7 +317,8 @@ test('MJ7 · material: os tokens de sombra da carta, luz do feltro e latão exis
   assert.match(css, /\.tb-card__face \{[^}]*box-shadow: var\(--sombra-carta\)/);
   const after = css.match(/\.tb-card::before \{([^}]*)\}/); assert.ok(after, '.tb-card::before');
   assert.match(after[1], /box-shadow: var\(--sombra-carta-alta\)/); assert.match(after[1], /opacity: 0/);
-  assert.match(after[1], /transition: opacity var\(--dur-2\) var\(--ease-out\), transform var\(--dur-2\) var\(--ease-out\);/, 'só opacidade e transform transicionam');
+  // MK3-0 (J-63) · a expectativa muda de propósito: a sombra que cresce acompanha a carta na mola do DS-K3 (--mola-firme, --dur-3); continua só opacidade e transform
+  assert.match(after[1], /transition: opacity var\(--dur-2\) var\(--ease-out\), transform var\(--dur-3\) var\(--mola-firme\);/, 'só opacidade e transform transicionam');
   for (const sel of ['.tb-card[data-selected="true"]::before', '.tb-card[data-segurando="true"]::before', '.tb-fx-camada > .tb-mira__carta::before']) assert.ok(css.includes(sel), sel + ' levanta a sombra');
   assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{ \.tb-card::before \{ transition: none; \} \}/);
   // a luz do feltro: gradientes parados, só na partida, com os veios por cima; nada em @keyframes
@@ -649,7 +650,8 @@ test('DS-K2 · M1 a carta do campo na moldura K: janela da arte por token sobre 
   assert.match(css, /:root \{ --vida-disco: 34px; \}/, 'o disco da vida é token');
   // J-43 (relato #48 parte 2) · os dois lados com o mesmo playmat, por token nos três blocos de tema; nenhum lado transparente
   assert.match(css, /:root \{ --playmat: var\(--bg-elev-1\); \}/, 'o playmat é o papel do lado, que muda com o tema (vale nos dois temas e no claro automático)');
-  assert.match(componentCss, /\.tb-side \{[^}]*background: var\(--playmat\);/);
+  // MK3-0 (J-63) · a expectativa muda de propósito: o playmat ganha a laca do DS-K3 por cima (luz de cima); o token --playmat continua sendo o fundo
+  assert.match(componentCss, /\.tb-side \{[^}]*background: var\(--lacquer\), var\(--playmat\);/);
   assert.ok(!/\.tb-side--opp \{ background: transparent; \}/.test(componentCss), 'o lado do outro não é mais transparente');
   assert.match(componentCss, /\.tb-top > \.tb-life--barra \{[^}]*padding: calc\(\(var\(--tap-min\) - var\(--vida-disco\)\) \/ 2\);[^}]*background-clip: content-box;/, 'o alvo continua com 44 px; só o disco é pintado');
   assert.match(componentCss, /\.tb-side \.tb-row \{ justify-content: safe center; \}/, 'a fila do campo centraliza; com muitas cartas a rolagem começa na primeira');
@@ -971,4 +973,26 @@ test('DS-K3 K3-3 · a barra recolhe ao rolar: uma variável (--barra-recolhe) le
   // e o JS: ouvinte passivo, uma leitura por quadro, decisão pura no roteador
   assert.match(HTML, /window\.addEventListener\('scroll', \(\) => \{ if \(!quadro\) quadro = requestAnimationFrame\(le\); \}, \{ passive: true \}\);/);
   assert.match(HTML, /__m2\.barraAoRolar\(est, y,/);
+});
+
+// MK3-0 (J-63, trilha jogabilidade) · Mesa Vitrine: a mesa entra no material do DS-K3. A carta é objeto (fio de lado =
+// espessura, contato no tampo, chave; levantada, flutuante), a face é laqueada com aresta de luz, o playmat é um poço no
+// tampo (sombra interna de cima, laca, aresta) igual nos dois lados, e levantar/assentar usa a mola do DS-K3 (R3).
+test('MK3-0 · Mesa Vitrine, material: tokens da carta e do poço nos três blocos; sombras da carta compostas só de tokens K3; playmat em poço sem a borda de prateleira; face laqueada; levantar com --mola-firme', () => {
+  for (const [nome, t] of [['escuro', DARK], ['claro', LIGHT], ['claro automático', { ...DARK, ...AUTO_LIGHT }]]) {
+    for (const k of ['--carta-espessura', '--carta-lado', '--carta-laca', '--mesa-poco']) assert.ok(t[k], `${k} no tema ${nome}`);
+    assert.equal(t['--sombra-carta'], '0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-contact), var(--shadow-key)', `repouso = espessura + contato + chave (${nome})`);
+    assert.equal(t['--sombra-carta-alta'], '0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-float)', `levantada = espessura + flutuante (${nome})`);
+    assert.match(t['--mesa-poco'], /^inset 0 2px 8px rgba\([^)]*\), inset 0 -1px 0 var\(--edge\)$/, `poço: sombra interna de cima e aresta embaixo (${nome})`);
+  }
+  assert.equal(DARK['--carta-espessura'], '2px');
+  assert.notEqual(DARK['--carta-lado'], LIGHT['--carta-lado'], 'o lado da carta muda com o tema (ébano × papel)');
+  const lado = componentCss.match(/\.tb-side \{\s*display: flex;[^}]*\}/); assert.ok(lado, 'regra do lado da mesa');
+  assert.match(lado[0], /background: var\(--lacquer\), var\(--playmat\); border: 1px solid var\(--edge\);/);
+  assert.match(lado[0], /box-shadow: var\(--mesa-poco\), var\(--shadow-contact\);/);
+  assert.doesNotMatch(lado[0], /shelf-edge/, 'a borda de prateleira (DS-K) sai do playmat');
+  for (const q of ['.tb-side[data-ativo="true"]', '.tb-side--opp[data-ativo="true"]']) assert.ok(componentCss.includes(`${q} { border-color:`) && new RegExp(q.replace(/[.[\]"=-]/g, '\\$&') + ' \\{[^}]*box-shadow: var\\(--mesa-poco\\),').test(componentCss), `${q} mantém o poço ao acender`);
+  assert.ok(componentCss.includes('.tb-card__face::after { content: \'\'; position: absolute; inset: 0; border-radius: inherit; background: var(--carta-laca); box-shadow: inset 0 1px 0 var(--edge-strong); pointer-events: none; }'), 'face laqueada por cima da arte, sem toque');
+  assert.match(componentCss, /scroll-snap-align: start; transition: transform var\(--dur-3\) var\(--mola-firme\);/, 'a carta levanta e assenta com a mola');
+  assert.match(componentCss, /\.tb-card::before \{[^}]*transform var\(--dur-3\) var\(--mola-firme\); \}/, 'a sombra que cresce acompanha a mesma mola');
 });

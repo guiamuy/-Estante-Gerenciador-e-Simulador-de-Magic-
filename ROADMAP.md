@@ -704,6 +704,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ud ✅ | MJ25 mesa pelo print 2 (decisão do dono, 02/11/2026), sete fatias: .1 ícones de estado que cabem e rolagem afastada da carta (J-53 ✅) · .2 nome na faixa de cima, girando com a carta virada (J-54 ✅) · .3 a carta de origem na pilha e nas decisões (Roost Seek) (J-55 ✅) · .4 escolher carta vendo a carta ampliada (J-56 ✅) · .5 cartas ocupam o espaço da fileira (J-57 ✅) · .6 layout em paisagem (J-58 ✅) · .7 opção "Orientação: automática / só retrato" (J-59 ✅) | MJ24 | jogabilidade |
 | 16º-uf ✅ | MJ26 relato #55: as setas do combate (e a prévia do dano) acompanham a rolagem da página e de qualquer contêiner da mesa; "Cancelar" na declaração de atacantes e de bloqueadores desmarca a escolha sem mandar nada ao motor (J-61, 03/11/2026) | J | 1 | 16º-ud |
 | 16º-ug ✅ | MJ27 relato #55, o resto do "cancelar jogada em curso": um Cancelar com o mesmo nome e lugar em toda escolha encadeada antes de jogar (alvo → custo → X → cor), que volta um passo em vez de fechar tudo, e a mira por arrasto com Cancelar à vista (J-62, 03/11/2026) | J | 1 | 16º-uf |
+| 16º-va 🟡 | MK3 · Mesa Vitrine (pedido do dono de 09/11/2026: a mesa no patamar do DS-K3 — simetria, profundidade por luz e sombra, material, animação de alto padrão em todo elemento; rotina "Mesa MK3" a cada 4 h; modo agilidade): ✅ MK3-0 (J-63) material — carta como objeto (espessura, contato, chave, face laqueada) e playmat em poço igual nos dois lados, levantar com a mola do DS-K3; próxima MK3-1 estojo das fases. Revisão das 22h15: benchmarks, mão e gesto (arrastar para jogar, toque duplo), zonas, organizar o campo, combate sem setas. Playmats (23h36): da casa e criados pelo jogador (MK3-P1…P5). Especificação: `docs/MK3-especificacao.md`. A MV-9 do DS-K3 passa a ser a MK3-17 | MK3 | 1 de 27 | DS-K3 K3-0/MV-0, MJ, DS-K2 M1–M6 |
 | 16º-ui 🟡 | T-IDIOMA relatos #53/#66, fatia 1: o português cobre a interface (Rulings → Esclarecimentos, Near Mint → Quase nova, Etched → Foil gravado, Offline → Sem internet, cinco palavras-chave e os marcadores com nome em português na mesa e no registro); falta troca de idioma, pacotes es/en e texto das cartas (leva G-353, 07/11/2026) | T | 1 | — |
 | 16º-up ✅ | T-IDIOMA relatos #53/#66, fatia 2: a folha da carta mostra nome, tipo e texto oficiais impressos em português (Scryfall), com a troca para o original, guardados no aparelho; nunca impressa fica em inglês com aviso até a fatia 3 (leva G-356, 08/11/2026) | T | 1 | 16º-ui |
 | 16º-us ✅ | T-IDIOMA relatos #53/#66, fatia 4: Perfil › Idioma (português, inglês, espanhol, com bandeira e nome no próprio idioma), o app inteiro na hora pela camada de tradução da tela e pelos pacotes idiomas/en.json e es.json, a folha da carta no idioma (oficial impresso; Oracle em inglês) com o texto antes da imagem, e a camada obrigatória (texto novo sem tradução derruba o portão) (leva G-361, 08/11/2026) | T | 1 | 16º-up |
@@ -14854,7 +14855,7 @@ implementar sem abrir os artefatos).
 | K3-12 | receitas de movimento no `/ds` (P7: arte que inclina, ±`--tilt-max`, opcional) | ⬜ |
 | MV-11 | ícones vivos 2 (navegação preenche, ação confirma, estado bate uma vez, ilustração se desenha) | ⬜ |
 | MV-8 | momentos e tema que troca em círculo | ⬜ |
-| MV-9 | ponte da mesa: entrar e sair da partida (trilha `jogabilidade`) | ⬜ |
+| MV-9 | ponte da mesa: entrar e sair da partida (trilha `jogabilidade`) | ↪ MK3-17 (épico MK3, 09/11/2026; a rotina Design DS-K3 não a pega) |
 | FA-1 · FA-M | medir no aparelho (quadros, tarefas longas) material e movimento | ⬜ |
 | FA-2 | aposentar os apelidos (`--bg-elev-*`, `--shadow-*`, `--ease-spring`, `--ease-mola`) e fechar contra as telas-modelo | ⬜ |
 | MV-10 | abertura e marca | ⏸ adiada pelo dono (08/11) |
@@ -14975,6 +14976,79 @@ implementar sem abrir os artefatos).
 - **Parcial / fora:** a K3-4 (cabeçalho editorial de duas alturas que recolhe −40 px, faixa compacta de 48 px, nas cinco
   telas) e a MV-7 por `animation-timeline: scroll()` (cabeçalho e paralaxe do hero guiados pela rolagem) são a próxima
   rodada; a barra não usa `scroll()` porque depende do sentido do gesto, não da posição.
+### MK3 · Mesa Vitrine (trilha `jogabilidade`; pedido do dono de 09/11/2026; `16º-va`)
+
+**Pedido (09/11/2026, 21h13):** "nas mesmas diretrizes" do DS-K3, roadmap visual e execução contínua do aprimoramento da
+experiência de jogo: simetria, tridimensionalidade, sombra, estilização e sofisticação de todos os elementos da mesa, com
+animações de alto padrão em cada elemento pertinente; a partida mais fluida e "real", em sinergia com o resto do app.
+Skills avaliadas (curadoria): nenhuma nova; a `mtg-table-experience-architect` ganha o contrato MK3 (simetria, luz e câmera,
+tokens e gramática do DS-K3) e o atalho `/mtg-mesa-mk3`. Entrega por rotina agendada "Mesa MK3" (4 h), uma fatia por
+rodada, prévia e produção sem OK (modo agilidade). Decisões pela opção recomendada (D1 câmera de frente com Z só no
+movimento · D2 espelho · D3 uma luz, a da sala · D4 playmat em poço · D5 fundação → mão e gesto → zonas → eventos →
+cenas → medição · D6 gestos · D7 combate sem setas · D8 organizar o campo); o dono pode
+mudar o rumo. Proposta visual: `claude/DESIGN-proposta-MK3-mesa-2026-11-09.md` (Projeto).
+
+**Contrato.** Só tokens do DS-K3 e de cena (`--carta-*`, `--mesa-*`); gramática R1–R5 e critério de rejeição do DS-K3;
+três níveis de Movimento em toda receita; simetria S1–S4 (`auditaSimetria` a partir da MK3-1); luz L1–L3; pintura do
+campo cheio ≤ 45 ms (MJ11b). Fora: regra, Shark, WebGL, telas fora da mesa, "The Shelf".
+
+Especificação por fatia (valores e roteiros): `docs/MK3-especificacao.md`.
+
+| Fatia | O que entrega | Estado |
+|---|---|---|
+| **MK3-0** | material: carta como objeto (espessura, contato, chave, face laqueada), playmat em poço igual nos dois lados, levantar com mola | ✅ J-63 |
+| MK3-1 | estojo das fases: o trilho de pontos e traço sob "Seu turno" num estojo rebaixado, sem cruzar a linha do topo | ⬜ |
+| MK3-2 | simetria: os dois lados espelhados (faixa de identidade igual, eixo central), `auditaSimetria` | ⬜ |
+| MK3-3 | carta-objeto: virar e desvirar com massa, sombra que gira, selos em laca | ⬜ |
+| MK3-P1 | playmats da casa: seis modelos no design system (Ébano, Feltro, Oceano, Vinho, Pergaminho, Latão gravado), nos dois temas | ⬜ |
+| MK3-P2 | galeria e escolha: Perfil › Playmats com prévia ao vivo numa mini-mesa; vale na mesa na hora | ⬜ |
+| MK3-4 | mão viva: pegar a carta, ela segue o dedo e inclina pela velocidade, as vizinhas fecham o vão; comprar sai do grimório | ⬜ |
+| MK3-5 | arrastar para jogar: soltar no campo joga pela ação legal, o poço mostra onde ela vai pousar; tocar continua valendo | ⬜ |
+| MK3-6 | expandir: toque duplo e segurar abrem a carta grande vinda do lugar, que inclina com o celular (P7) | ⬜ |
+| MK3-7 | organizar o campo: segurar e arrastar troca a ordem na fileira (terrenos atrás, permanentes na frente), sem tocar em regra | ⬜ |
+| MK3-P3 | serviço de criação: `api/playmat` na Vercel, Workers AI (FLUX), prompt base, tradução e filtro, cota por conta | ⬜ |
+| MK3-P4 | ateliê: "Descreva o seu playmat", gerar, guardar, renomear e apagar com desfazer, cota visível | ⬜ |
+| MK3-P5 | o playmat criado na mesa: véu medido para as cartas lerem, sem internet, online com o playmat de cada lado | ⬜ |
+| MK3-8 | zonas-objeto: grimório em maço, cemitério e exílio com a carta do topo | ⬜ |
+| MK3-9 | abrir as zonas: as cartas saem do ícone em leque e voltam a ele | ⬜ |
+| MK3-10 | barra em latão: vida com odômetro, troca de vez com varredura de luz | ⬜ |
+| MK3-11 | pousar: terreno, conjurar e entrar com R1 e mola em Z | ⬜ |
+| MK3-12 | pilha em volume: cartões em Z, resolver desce ao destino | ⬜ |
+| MK3-13 | combate sem setas: atacantes avançam para a linha de combate, a bloqueadora encaixa na frente com um elo de latão | ⬜ |
+| MK3-14 | dano e mira: investida e impacto no alvo, número que sai dele, vida que rola; linha de mira só durante o arrasto | ⬜ |
+| MK3-15 | saídas: morrer, destruir, exilar, devolver e descartar com destino | ⬜ |
+| MK3-16 | ritmo com luz: fio de luz no estojo das fases, luz da cor da mana (MJ12) | ⬜ |
+| MK3-17 | ponte da mesa (MV-9 do DS-K3): entrar e sair da partida | ⬜ |
+| MK3-18 | mulligan e embaralhar como cena | ⬜ |
+| MK3-19 | fim de partida em cena | ⬜ |
+| MK3-20 | orçamento da mesa inteira (CPU 4×, arrastar com campo cheio, `auditaMovimento` da mesa) | ⬜ |
+| MK3-21 | FA no aparelho do dono e fechamento contra a especificação | ⬜ |
+
+**Revisão das 22h15 (dono, 09/11/2026):** faltavam a interação com a mão (arrastar para jogar, pegar e expandir com
+toque duplo), o movimento das zonas, a organização do campo dentro das regras, o estojo do trilho de fases e um combate
+sem setas que cruzam a mesa, tudo a partir de benchmarks. Benchmarks consultados (Marvel Snap, Hearthstone, MTG Arena,
+Legends of Runeterra, Balatro, Pokémon TCG Pocket), gramática de gestos (D6), combate por alinhamento (D7) e organização
+do campo (D8) em `docs/MK3-especificacao.md`; o roadmap passou de 18 para 22 fatias.
+
+**Playmats (dono, 23h36):** escolher entre modelos da casa e criar o próprio a partir de um texto, com um prompt base que
+garante o padrão; a escolha vale na mesa na hora. O app chama uma função nossa na Vercel com o Workers AI da Cloudflare
+(FLUX; 10.000 neurônios por dia grátis ≈ 170 imagens de 1024 px; consulta de 09/11/2026); os MCPs (Hugging Face,
+Cloudflare) ficam do nosso lado, para gerar e validar. Cinco fatias MK3-P1…P5 (D9, D10); o roadmap passa a 27 fatias.
+
+#### MK3-0 · material da Vitrine na mesa (✅ J-63, 09/11/2026)
+- **Valor:** a carta deixa de ser um retângulo chapado e passa a ser um objeto sobre o tampo — com espessura, luz de cima e
+  sombra —, e cada lado da mesa vira um poço com luz, igual nos dois lados; levantar uma carta tem o mesmo peso de mola do
+  resto do app.
+- **Aceite:** em 360 × 780, nos dois temas: a carta do campo tem três sombras (fio de lado de 2 px, contato, chave) e a face
+  laqueada com aresta de luz, sem pegar o toque; os dois lados têm o mesmo material, borda de 1 px, raio, largura e
+  alinhamento, com sombra interna (poço); a borda de prateleira de 3 px sai; levantar usa `--mola-firme` `--dur-3`
+  (completo), `--ease-out` (moderado) e é instantâneo (reduzido); `auditaTela` limpa; MJ11b dentro do orçamento (33 ms
+  escuro, 24 ms claro, CPU 1×; teto 45).
+- **Testes:** contrato visual "MK3-0" (falhava no `main` de antes) e e2e "J-63 MK3-0" (três níveis, dois temas).
+- **Tokens novos** (três blocos): `--carta-espessura` 2 px, `--carta-lado` (ébano `#050302` · papel `#b8a47c`),
+  `--carta-laca`, `--mesa-poco`; `--sombra-carta` e `--sombra-carta-alta` passam a ser compostas só de tokens K3 (valem
+  também no palco do `/ds`, no leque e na pilha).
+- **Fora:** estojo das fases (MK3-1), simetria da faixa de identidade (MK3-2), gestos e receitas por evento (MK3-3 em diante).
 
 ## Trilha homologacao · prova de partida do catálogo (H)
 
