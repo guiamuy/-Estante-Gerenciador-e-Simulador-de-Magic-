@@ -56,3 +56,10 @@ test('K3-3 · o primeiro gesto para cima (4 px ou mais) traz de volta; o repique
   assert.equal(rola([100, 400, 380, 390, 395]).recolhida, true);
   assert.equal(rola([100, 400, 30]).recolhida, false, 'no topo, à vista');
 });
+
+// DS-K3 K3-4 (G-375) · o cabeçalho editorial recolhe na proporção da rolagem
+test('K3-4 · cabecalhoAoRolar: 0 no topo, a metade em 20 px, 1 a partir de 40 px; Reduzido troca direto nos 40 px', () => {
+  assert.deepEqual([0, 10, 20, 40, 400, -30].map(y => R.cabecalhoAoRolar(y)), [0, 0.25, 0.5, 1, 1, 0]);
+  assert.deepEqual([0, 20, 39, 40, 400].map(y => R.cabecalhoAoRolar(y, { parado: true })), [0, 0, 0, 1, 1]);
+  assert.equal(R.cabecalhoAoRolar(30, { faixa: 60 }), 0.5, 'a faixa é parâmetro');
+});

@@ -20482,8 +20482,21 @@ test('e2e · DS-K F2.2 · Listas, Coleção e Scanner têm o cabeçalho 44 · 1f
           const r = c.getBoundingClientRect(), tr = document.createRange(); tr.selectNodeContents(t); const tx = tr.getBoundingClientRect();
           return { titulo: t.textContent, centro: tx.left + tx.width / 2, esq: Math.round(r.left), dir: Math.round(innerWidth - r.right), lados: lados.map(l => Math.round(l.width)), linhas: Math.round(t.getBoundingClientRect().height / parseFloat(getComputedStyle(t).lineHeight)), largura: innerWidth }; });
         assert.equal(m.titulo, titulo);
-        assert.ok(Math.abs(m.centro - m.largura / 2) <= 1, `${titulo} ${w} ${tema}: título no centro (${m.centro.toFixed(1)} de ${m.largura})`);
-        assert.deepEqual(m.lados, [44, 44], `${titulo} ${w}: lados de 44 px`); assert.deepEqual([m.esq, m.dir], [16, 16], `${titulo} ${w}: gutter de 16 px`);
+        // DS-K3 K3-4 (G-375) · expectativa mudada de propósito: Listas e Coleção passam ao cabeçalho editorial (título à
+        // esquerda, no gutter, com o rótulo acima; decisão do dono de 08/11, plano DS-K3). O Scanner segue 44 · 1fr · 44.
+        if (titulo === 'Scanner') {
+          assert.ok(Math.abs(m.centro - m.largura / 2) <= 1, `${titulo} ${w} ${tema}: título no centro (${m.centro.toFixed(1)} de ${m.largura})`);
+          assert.deepEqual(m.lados, [44, 44], `${titulo} ${w}: lados de 44 px`);
+        } else {
+          const ed = await page.evaluate(() => { const c = document.querySelector('#outlet .ds-cabecalho'), t = c.querySelector('.ds-cabecalho__titulo'), tr = document.createRange(); tr.selectNodeContents(t);
+            return { editorial: c.classList.contains('ds-cabecalho--editorial'), esquerda: Math.round(tr.getBoundingClientRect().left), rotulo: c.querySelector('.ds-cabecalho__rotulo')?.textContent || '' }; });
+          assert.deepEqual([ed.editorial, ed.esquerda], [true, 16], `${titulo} ${w} ${tema}: editorial, título à esquerda no gutter`);
+          assert.match(ed.rotulo, titulo === 'Listas' ? /^Minhas listas/ : /^Minha coleção$/, `${titulo} ${w}: rótulo acima do título`);
+          // o lado vazio sai; a busca da Coleção some com a coleção vazia (data-vazia, como antes), e o lado dela fica sem largura
+          const busca = await page.evaluate(() => { const b = document.querySelector('#col-search'); return b ? Math.round(b.getBoundingClientRect().width) : null; });
+          assert.deepEqual(m.lados, titulo === 'Listas' ? [0, 0] : [0, busca ? 44 : 0], `${titulo} ${w}: o lado vazio sai, a ação fica em 44 px`);
+        }
+        assert.deepEqual([m.esq, m.dir], [16, 16], `${titulo} ${w}: gutter de 16 px`);
         assert.equal(m.linhas, 1, `${titulo} ${w}: título numa linha`);
         await auditaTela(page, `DS-K F2.2 · ${titulo} ${w} ${tema}`);
         if (process.env.SHOTS && w === 360) await page.locator('#outlet .ds-cabecalho').screenshot({ path: process.env.SHOTS + `/ds-k-f22-${titulo}-${tema}.png` });
@@ -20756,8 +20769,13 @@ test('e2e · DS-K F4.2 · Perfil e subtelas (Partidas, Fichas, Terrenos, Relatos
       for (const tema of (w === 360 ? ['dark', 'light'] : ['dark'])) {
         await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(450);
         const m = await mede();
-        assert.ok(Math.abs(m.centro - m.largura / 2) <= 1, `${titulo} ${w} ${tema}: título no centro (${m.centro.toFixed(1)})`);
-        assert.deepEqual([m.titulo, m.nivel, m.lados, m.gutter, m.voltar], [titulo, 'H1', [44, 44], [16, 16], voltar], `${titulo} ${w}: título, lados, gutter e voltar à esquerda`);
+        if (rota === '/perfil') { // DS-K3 K3-4 (G-375) · expectativa mudada de propósito: o Perfil passa ao cabeçalho editorial (título à esquerda, rótulo acima)
+          assert.ok(Math.abs(m.centro - m.largura / 2) > 40, `${titulo} ${w} ${tema}: título à esquerda (${m.centro.toFixed(1)})`);
+          assert.deepEqual([m.titulo, m.nivel, m.lados, m.gutter, m.voltar], [titulo, 'H1', [0, 0], [16, 16], null], `${titulo} ${w}: editorial, sem lados vazios, gutter`);
+        } else {
+          assert.ok(Math.abs(m.centro - m.largura / 2) <= 1, `${titulo} ${w} ${tema}: título no centro (${m.centro.toFixed(1)})`);
+          assert.deepEqual([m.titulo, m.nivel, m.lados, m.gutter, m.voltar], [titulo, 'H1', [44, 44], [16, 16], voltar], `${titulo} ${w}: título, lados, gutter e voltar à esquerda`);
+        }
         await auditaTela(page, `DS-K F4.2 · ${titulo} ${w} ${tema}`);
       }
     }
@@ -21997,6 +22015,73 @@ test('e2e · G-367 DS-K3 K3-3: rolar para baixo leva a barra (com o Jogar) para 
   await page.evaluate(() => { location.hash = '#/mesa'; }); await page.waitForSelector('#mesa-doca #mesa-start');
   await page.evaluate(() => document.body.setAttribute('data-barra', 'fora')); await page.waitForTimeout(60);
   assert.equal((await mede()).pe, 14, 'Jogar: a barra fica sob a doca');
+  assert.deepEqual(errors, []);
+});
+
+/* ---------------- DS-K3 K3-4 + MV-7 (G-375) · cabeçalho editorial que recolhe ---------------- */
+test('e2e · G-375 DS-K3 K3-4 + MV-7: Listas, Coleção e Perfil abrem com o cabeçalho editorial (rótulo acima, título de 34 px à esquerda); rolar o leva 40 px para cima na proporção do dedo até a faixa de 48 px com o título de 18 px e fundo E0 .98, guiada por scroll(); Moderado igual; Reduzido troca direto nos 40 px; subtelas seguem 44 · 1fr · 44; 360 nos dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  const mede = () => page.evaluate(() => {
+    const c = document.querySelector('#outlet .ds-cabecalho--editorial'), t = c.querySelector('.ds-cabecalho__titulo'), r = c.querySelector('.ds-cabecalho__rotulo');
+    const cb = c.getBoundingClientRect(), tb = t.getBoundingClientRect(), ab = document.querySelector('.ds-appbar').getBoundingClientRect();
+    const alfa = (getComputedStyle(c).backgroundColor.match(/\/\s*([\d.]+)\)$/) || [0, getComputedStyle(c).backgroundColor === 'rgba(0, 0, 0, 0)' ? 0 : 1])[1];
+    return { y: Math.round(scrollY), topo: Math.round(cb.top - ab.bottom), altura: Math.round(cb.height), titulo: Math.round(tb.height), esquerda: Math.round(tb.left), fonte: getComputedStyle(t).fontSize,
+      rotulo: r.textContent, rotuloVisivel: getComputedStyle(r).visibility === 'visible' && +getComputedStyle(r).opacity > 0, faixaVisivel: Math.round(cb.bottom - ab.bottom), alfa: +(+alfa).toFixed(2), compacto: document.body.dataset.cab === 'compacto' }; });
+  const rola = async y => { await page.evaluate(y => window.scrollTo(0, y), y); await page.waitForFunction(y => Math.round(scrollY) === y, y); await page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
+    // o que não é a própria rolagem (transição de tema, entrada da tela) termina antes de medir
+    await page.waitForFunction(() => { const c = document.querySelector('#outlet .ds-cabecalho--editorial'); return !c || c.getAnimations({ subtree: true }).every(a => a.playState !== 'running' || (a.timeline && a.timeline !== document.timeline)); }, null, { timeout: 2000 }).catch(() => {}); };
+  // uma lista na estante: o rótulo de Listas conta
+  await page.goto(base + '#/listas/editar'); await page.fill('#deck-name', 'Vitrine'); await page.fill('#deck-text', '4 Island'); await page.click('#deck-save'); await page.waitForSelector('.deck-summary');
+  assert.equal(await page.evaluate(() => CSS.supports('animation-timeline: scroll()')), true, 'o Chromium do portão tem scroll(): o caminho principal é o do CSS');
+  for (const [rota, espera, titulo, rotulo] of [['#/listas', '#decks-list .ds-list__item', 'Listas', 'Minhas listas · 1'], ['#/colecao', '#outlet .col-topo', 'Coleção', 'Minha coleção'], ['#/perfil', '.perfil-topo', 'Perfil', 'Conta e aparelho']]) {
+    await page.goto(base + rota); await page.waitForSelector(espera);
+    // página alta o bastante para rolar (a estante de teste é curta)
+    await page.evaluate(() => { document.querySelector('#outlet .ds-cabecalho--editorial').parentElement.style.minHeight = '2400px'; });
+    await rola(0);
+    let m = await mede();
+    // 1 · aberto: rótulo acima, título de 34 px à esquerda no gutter, 40 + 48 px, logo abaixo da barra de cima com o respiro do topo
+    assert.deepEqual([m.rotulo, m.fonte, m.esquerda, m.altura, m.titulo, m.rotuloVisivel, m.alfa, m.compacto], [rotulo, '34px', 16, 88, 44, true, 0, false], `${titulo} aberto: ${JSON.stringify(m)}`);
+    for (const tema of ['dark', 'light']) { await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await auditaTela(page, `K3-4 ${titulo} aberto (${tema})`); }
+    if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + `/k3-4-${titulo}-aberto.png`, clip: { x: 0, y: 0, width: 360, height: 260 } });
+    // 2 · na proporção do dedo: a metade do caminho, metade recolhido
+    // o respiro do topo (12 px) passa com a página; depois dele, 20 dos 40 px: a metade
+    const topo0 = m.topo; assert.equal(topo0, 12, `${titulo}: respiro do topo (24 px menos os 12 que a caixa entra nele)`); await rola(topo0 + 20);
+    const meio = await mede();
+    assert.ok(meio.titulo > 23 && meio.titulo < 44, `${titulo} no meio: o título encolhe na proporção (${JSON.stringify(meio)})`);
+    assert.ok(meio.alfa > 0 && meio.alfa < .98, `${titulo} no meio: o fundo vem na proporção (${meio.alfa})`);
+    // 3 · passados os 40 px: faixa de 48 px logo abaixo da barra de cima, título de 18 px, fundo E0 .98, rótulo fora
+    await rola(topo0 + 400);
+    m = await mede();
+    assert.deepEqual([m.topo, m.faixaVisivel, m.titulo, m.esquerda, m.rotuloVisivel, m.alfa, m.compacto], [-40, 48, 23, 16, false, .98, true], `${titulo} compacto: ${JSON.stringify(m)}`);
+    assert.equal(await page.evaluate(() => { const c = document.querySelector('#outlet .ds-cabecalho--editorial'), b = c.getBoundingClientRect(), e = document.elementFromPoint(180, b.bottom - 24); return !!(e && c.contains(e)); }), true, `${titulo}: a faixa fica por cima do conteúdo que passa`);
+    for (const tema of ['dark', 'light']) { await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await auditaTela(page, `K3-4 ${titulo} compacto (${tema})`); }
+    if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + `/k3-4-${titulo}-compacto.png`, clip: { x: 0, y: 0, width: 360, height: 260 } });
+    await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  }
+  // 4 · Moderado: a mesma proporção (a rolagem é do dedo, não é movimento autônomo)
+  await page.evaluate(() => document.documentElement.setAttribute('data-movimento', 'moderado'));
+  await rola(0); const base0 = (await mede()).topo; await rola(base0 + 20);
+  let m = await mede(); assert.ok(m.titulo > 23 && m.titulo < 44, 'moderado: proporcional ' + JSON.stringify(m));
+  // 5 · Reduzido: nada em proporção; a faixa troca direto nos 40 px
+  await page.evaluate(() => document.documentElement.setAttribute('data-movimento', 'reduzido'));
+  await rola(0); await rola(base0 + 20);
+  m = await mede(); assert.deepEqual([m.titulo, m.alfa, m.compacto], [44, 0, false], 'reduzido antes dos 40 px: aberto ' + JSON.stringify(m));
+  await rola(base0 + 400);
+  m = await mede(); assert.deepEqual([m.titulo, m.alfa, m.compacto], [23, .98, true], 'reduzido depois dos 40 px: compacto ' + JSON.stringify(m) + JSON.stringify(await page.evaluate(() => { const c = document.querySelector('#outlet .ds-cabecalho--editorial'); return [location.hash, document.documentElement.getAttribute('data-movimento'), c.getAnimations({ subtree: true }).map(a => [a.transitionProperty, a.effect.target.className, Math.round(a.effect.getComputedTiming().duration), a.playState]), c.style.cssText, getComputedStyle(c).getPropertyValue('--cab-p'), document.querySelectorAll('.ds-cabecalho--editorial').length, matchMedia('(prefers-reduced-motion: reduce)').matches]; })));
+  await page.evaluate(() => document.documentElement.removeAttribute('data-movimento'));
+  // 6 · a reserva sem scroll() (navegador antigo): o JS leva o --cab-p no próprio cabeçalho, na mesma proporção
+  await page.addInitScript(() => { const s = CSS.supports.bind(CSS); CSS.supports = (...a) => /animation-timeline/.test(a.join(':')) ? false : s(...a); });
+  await page.reload(); await page.waitForSelector('.perfil-topo');
+  await page.evaluate(() => { document.querySelector('.ds-cabecalho--editorial').style.animation = 'none'; document.querySelector('#outlet .ds-cabecalho--editorial').parentElement.style.minHeight = '2400px'; });
+  await rola(base0 + 20);
+  assert.equal(await page.evaluate(() => document.querySelector('.ds-cabecalho--editorial').style.getPropertyValue('--cab-p')), '0.5', 'reserva em JS: metade do caminho');
+  await rola(base0 + 400);
+  assert.deepEqual([(await mede()).titulo, (await mede()).compacto], [23, true], 'reserva em JS: compacto');
+  // 7 · tela nova começa aberta; subtela segue no cabeçalho 44 · 1fr · 44 com o voltar
+  await rola(600);
+  await page.evaluate(() => { location.hash = '#/perfil/partidas'; }); await page.waitForSelector('#partidas-voltar');
+  assert.deepEqual(await page.evaluate(() => [document.body.dataset.cab || null, !!document.querySelector('#outlet .ds-cabecalho--editorial')]), [null, false], 'subtela: sem faixa editorial, data-cab limpo');
   assert.deepEqual(errors, []);
 });
 

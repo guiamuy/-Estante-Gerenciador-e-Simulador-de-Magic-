@@ -540,6 +540,38 @@ a { color: var(--accent); }
 .ds-cabecalho__lado { display: flex; align-items: center; justify-content: flex-start; min-width: 0; }
 .ds-cabecalho__lado--fim { justify-content: flex-end; }
 .ds-cabecalho__titulo { margin: 0; text-align: center; font-size: var(--text-2xl); line-height: var(--lh-2xl); text-wrap: balance; min-width: 0; }
+/* DS-K3 K3-4 (G-375) · cabeçalho editorial que recolhe (Listas, Coleção, Perfil). Duas alturas sem mexer no layout: a caixa
+   tem sempre 40 + 48 px e gruda a 40 px acima do pé da barra de cima, então rolar a leva 40 px para cima na proporção do
+   dedo (depois do respiro do topo da tela, `--cab-inicio`); o rótulo passa sob a barra e some, o título vai de 34 a 18 px (`scale`, origem à esquerda) e a faixa ganha o fundo
+   E0 a .98 (opaca, sem desfoque). `--cab-p` (0 → 1 nos primeiros 40 px) vem da rolagem: `animation-timeline: scroll()`
+   onde existe, senão o JS (`criaCabecalhoQueRecolhe`). Reduzido (escolha ou aparelho): troca direta nos 40 px. */
+@property --cab-p { syntax: '<number>'; inherits: true; initial-value: 0; }
+:root { --appbar-h: calc(57px + env(safe-area-inset-top, 0px)); --cab-recolhe: 40px; --cab-sobe: var(--space-3); --cab-inicio: calc(var(--space-5) - var(--cab-sobe)); --cab-faixa-h: 48px; --cab-titulo: 34px; --cab-escala-compacta: .5294; } /* 18 / 34: o título compacto de 18 px */
+.ds-cabecalho--editorial { position: sticky; top: calc(var(--appbar-h) - var(--cab-recolhe)); z-index: var(--z-sticky);
+  grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: var(--cab-recolhe) var(--cab-faixa-h); column-gap: 0; row-gap: 0; min-height: 0;
+  margin-top: calc(-1 * var(--cab-sobe)); /* o rótulo já tem 20 px de ar acima dele: a caixa entra 12 px no respiro do topo (a tela vazia cabe sem rolar, D4a) */
+  --cab-fundo: color-mix(in srgb, var(--elev-0) calc(var(--cab-p) * 98%), transparent);
+  background: var(--cab-fundo); box-shadow: 0 0 0 100vmax var(--cab-fundo); clip-path: inset(0 -100vmax); }
+.ds-cabecalho--editorial .ds-cabecalho__rotulo { grid-row: 1; grid-column: 1 / -1; align-self: end; margin: 0; font-size: var(--text-sm); line-height: 20px; color: var(--fg-muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: calc(1 - var(--cab-p)); }
+.ds-cabecalho--editorial > .ds-cabecalho__lado { grid-row: 2; }
+.ds-cabecalho--editorial > .ds-cabecalho__lado:empty { display: none; }
+.ds-cabecalho--editorial > .ds-cabecalho__lado:not(.ds-cabecalho__lado--fim):not(:empty) { margin-right: var(--space-2); }
+.ds-cabecalho--editorial > .ds-cabecalho__lado--fim { grid-column: 3; margin-left: var(--space-2); }
+.ds-cabecalho--editorial .ds-cabecalho__titulo { grid-row: 2; grid-column: 2; text-align: left; font-size: var(--cab-titulo); line-height: 44px; font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-wrap: nowrap; transform-origin: left center;
+  scale: calc(1 - var(--cab-p) * (1 - var(--cab-escala-compacta))); }
+body[data-cab="compacto"] .ds-cabecalho--editorial .ds-cabecalho__rotulo { visibility: hidden; }
+:root .ds-cabecalho.ds-cabecalho--editorial.ds-cabecalho--amostra { position: relative; top: auto; animation: none; } /* a amostra do /ds não gruda nem recolhe */
+@keyframes cab-recolhe { from { --cab-p: 0; } to { --cab-p: 1; } }
+@supports (animation-timeline: scroll()) {
+  @media (prefers-reduced-motion: no-preference) {
+    :root:not([data-movimento="reduzido"]) .ds-cabecalho--editorial { animation: cab-recolhe linear both; animation-timeline: scroll(root block); animation-range: var(--cab-inicio) calc(var(--cab-inicio) + var(--cab-recolhe)); }
+  }
+}
+/* Reduzido: sem proporção, a faixa troca direto quando a rolagem passa dos 40 px (o JS marca o body) */
+:root[data-movimento="reduzido"] body[data-cab="compacto"] .ds-cabecalho--editorial { --cab-p: 1; }
+@media (prefers-reduced-motion: reduce) { body[data-cab="compacto"] .ds-cabecalho--editorial { --cab-p: 1; } }
 .ds-text--3xl { font-size: var(--text-3xl); line-height: var(--lh-3xl); }
 .ds-text--muted { color: var(--fg-muted); }
 .ds-text--subtle { color: var(--fg-subtle); }
@@ -4795,7 +4827,14 @@ function barraAoRolar(estado, y, { limiar = 12, volta = 4, topo = 64 } = {}) {
   const acum = Math.max(0, e.acum) + d;
   return { y, acum, recolhida: e.recolhida || acum >= limiar };
 }
-return { createRouter, direcaoDaNavegacao, ABAS, barraAoRolar };
+/* DS-K3 K3-4 (G-375) · quanto o cabeçalho editorial já recolheu: 0 no topo, 1 passados `faixa` px (40), na proporção da
+   rolagem; parado (Reduzido), troca direta no limiar. */
+function cabecalhoAoRolar(y, { faixa = 40, parado = false } = {}) {
+  const v = Math.max(0, Number(y) || 0);
+  if (parado) return v >= faixa ? 1 : 0;
+  return Math.min(1, Math.round(v / faixa * 1000) / 1000);
+}
+return { createRouter, direcaoDaNavegacao, ABAS, barraAoRolar, cabecalhoAoRolar };
 })();
 
 /* ==== src/ui/components.js ==== */
@@ -5156,7 +5195,15 @@ function instalaIconesVivos(raiz) {
 /** Botão só de ícone: o rótulo vira nome acessível e dica; `rotulo: true` mostra o texto ao lado. */
 /** DS-K F2.2 (G-294) · cabeçalho de tela na grade da direção K: 44 · 1fr · 44 — um lado para voltar, o título no
     centro exato, um lado para a ação (só ícone, 44 px). Lado vazio guarda o lugar, para o título nunca sair do centro. */
-function Cabecalho(titulo, { esquerda = null, direita = null, id, classe = '', nivel = 'h1' } = {}) {
+/** DS-K3 K3-4 (G-375) · `rotulo` liga o cabeçalho editorial das telas de destino (Listas, Coleção, Perfil): rótulo acima e
+    título de 34 px à esquerda; ao rolar, sobe 40 px (o rótulo passa sob a barra de cima) e vira a faixa compacta de 48 px
+    com o título de 18 px, guiado pela rolagem (`animation-timeline: scroll()`; reserva em `criaCabecalhoQueRecolhe`). */
+function Cabecalho(titulo, { esquerda = null, direita = null, id, classe = '', nivel = 'h1', rotulo = null } = {}) {
+  if (rotulo != null) return h('header', { class: ('ds-cabecalho ds-cabecalho--editorial ' + classe).trim(), id, dataset: { cab: 'editorial' } },
+    h('p', { class: 'ds-cabecalho__rotulo' }, rotulo),
+    h('div', { class: 'ds-cabecalho__lado' }, esquerda),
+    h(nivel === 'h2' ? 'h2' : 'h1', { class: 'ds-text ds-text--display ds-cabecalho__titulo' }, titulo),
+    h('div', { class: 'ds-cabecalho__lado ds-cabecalho__lado--fim' }, direita));
   return h('header', { class: ('ds-cabecalho ' + classe).trim(), id },
     h('div', { class: 'ds-cabecalho__lado' }, esquerda),
     h(nivel === 'h2' ? 'h2' : 'h1', { class: 'ds-text ds-text--display ds-cabecalho__titulo' }, titulo),
@@ -6404,7 +6451,10 @@ function renderDS() {
     Section('Cabeçalho',
       __m3.Cabecalho('Coleção', { id: 'ds-cabecalho-amostra', nivel: 'h2', esquerda: IconButton('voltar', 'Voltar', { onClick: () => toast('Voltar') }), direita: IconButton('buscar', 'Buscar cartas', { onClick: () => toast('Buscar') }) }),
       __m3.Cabecalho('Listas', { nivel: 'h2' }),
-      Text('Os lados têm 44 px mesmo vazios: o título fica no centro exato da tela.', { size: 'xs', tone: 'subtle' })),
+      Text('Os lados têm 44 px mesmo vazios: o título fica no centro exato da tela.', { size: 'xs', tone: 'subtle' }),
+      // DS-K3 K3-4 (G-375) · o editorial das telas de destino (aqui sem grudar: a amostra fica no lugar)
+      __m3.Cabecalho('Listas', { id: 'ds-cabecalho-editorial', nivel: 'h2', classe: 'ds-cabecalho--amostra', rotulo: 'Minhas listas · 6' }),
+      Text('Editorial (Listas, Coleção, Perfil): rótulo acima e título de 34 px à esquerda. Ao rolar, sobe 40 px na proporção do dedo e vira a faixa de 48 px, com o título de 18 px e fundo opaco. Reduzido: troca direto.', { size: 'xs', tone: 'subtle' })),
 
     // DS-K F1.3 (G-291) · cartão de destaque em ébano (um por tela: o próximo passo)
     Section('Destaque',
@@ -20656,6 +20706,7 @@ function createDecksHome({ decks, collection, files, cardRepo, backup = null, et
     onLimpar: () => { guardaFiltro(FLL.novoFiltroDeListas()); filtroIn.value = ''; paint(); } }) });
   const filtroRow = h('div', { id: 'decks-filtro' });
   const contagemRow = h('div', { id: 'decks-contagem' });
+  const rotuloListas = h('span', { id: 'decks-rotulo' }, 'Minhas listas'); // K3-4 · o rótulo do cabeçalho editorial ganha a contagem
   // G2 · etiquetas das listas: chips de filtro acima da estante (só aparecem quando existe etiqueta)
   const etqRow = h('div', { id: 'decks-etiquetas' });
   const etqLigadas = new Set();
@@ -20697,6 +20748,7 @@ function createDecksHome({ decks, collection, files, cardRepo, backup = null, et
     // D4 · vazio de primeiro uso: os botões do título e o cartão de backup saem (repetiriam o que o cartão oferece);
     // "Restaurar backup" fica na folha "Mais", que é o que quem chega de outro aparelho procura
     root.dataset.vazia = String(!all.length);
+    rotuloListas.textContent = all.length ? `Minhas listas · ${all.length}` : 'Minhas listas';
     let etq = __m32.vazio();
     if (etiquetas) { try { etq = await etiquetas.estado(); } catch (e) { /* sem armazenamento: sem etiquetas */ } }
     const contaEtq = __m32.contagem(etq, 'listas', new Set(all.map(d => d.id)));
@@ -20768,7 +20820,7 @@ function createDecksHome({ decks, collection, files, cardRepo, backup = null, et
   }
   const root = Stack({ ...pad(), class: 'ds-wrap decks-home' },
     // J6 · "Nova" e "Prontas" saíram do topo: moram no botão de ação (canto inferior direito), que é o primário da tela
-    __m3.Cabecalho('Listas', { classe: 'decks-topo' }), // DS-K F2.2 · cabeçalho 44 · 1fr · 44 (os lados guardam o centro)
+    __m3.Cabecalho('Listas', { classe: 'decks-topo', rotulo: rotuloListas }), // DS-K3 K3-4 (G-375) · editorial: "Minhas listas · N" sobre "Listas", recolhe ao rolar
     filtroRow, etqRow, contagemRow, valorRow, baixandoRow,
     list, acaoDaTela,
     // D5 · o backup saiu daqui para Perfil › Dados; a estante vazia oferece "Restaurar backup" em "Mais" (D4a)
@@ -21457,10 +21509,10 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
         title: u.nome ? 'Trocar o nome de usuário' : 'Escolher um nome de usuário', onClick: () => abreNomeDeUsuario(nu, u.nome, u.em) }));
   }
   function paint() {
-    if (st.erro) return mount(root, __m3.Cabecalho('Perfil'), Note('Não foi possível ler o perfil guardado neste aparelho.', 'negative'));
+    if (st.erro) return mount(root, __m3.Cabecalho('Perfil', { rotulo: 'Conta e aparelho' }), Note('Não foi possível ler o perfil guardado neste aparelho.', 'negative'));
     const previa = { nome: st.nome, avatar: st.avatar };
     mount(root,
-      __m3.Cabecalho('Perfil'), // DS-K F4.2 · cabeçalho 44 · 1fr · 44
+      __m3.Cabecalho('Perfil', { rotulo: 'Conta e aparelho' }), // DS-K3 K3-4 (G-375) · editorial, recolhe ao rolar
       Text('Como você aparece na mesa e, mais adiante, para quem joga com você.', { tone: 'muted' }),
       Surface({ class: 'ds-surface--pad ds-destaque perfil-topo' }, Stack({}, // DS-K F4.2 · o destaque em ébano do Perfil
         h('div', { class: 'perfil-cabeca' },
@@ -23517,7 +23569,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
   load();
   root = Stack({ ...pad(), class: 'ds-wrap col-root' },
     // DS-K F2.2 · cabeçalho 44 · 1fr · 44; J6 · "Adicionar" e "Escanear" moram no botão de ação; a busca fica à direita
-    __m3.Cabecalho('Coleção', { classe: 'col-topo', direita: IconButton('buscar', 'Buscar cartas', { id: 'col-search', onClick: () => go('/cartas') }) }),
+    __m3.Cabecalho('Coleção', { classe: 'col-topo', rotulo: 'Minha coleção', direita: IconButton('buscar', 'Buscar cartas', { id: 'col-search', onClick: () => go('/cartas') }) }),
     // Leva 149 · ordem pedida: painel, adicionar carta, depois filtro e visões da coleção; ações da lista e backup no fim
     dashboard,
     secaoAdicionar,
@@ -50986,6 +51038,33 @@ function criaBarraQueRecolhe(navbar) {
   navbar.addEventListener('focusin', () => { est = { y: Math.max(0, window.scrollY || 0), acum: 0, recolhida: false }; marca(false); });
   return () => { est = { y: Math.max(0, window.scrollY || 0), acum: 0, recolhida: false }; marca(false); };
 }
+/** DS-K3 K3-4 + MV-7 (G-375) · o cabeçalho editorial que recolhe. Onde o navegador tem `animation-timeline: scroll()`, o
+    CSS guia o `--cab-p` pela rolagem; aqui fica a reserva (ouvinte `passive`, uma leitura por quadro): `--cab-p` no próprio
+    cabeçalho, de 0 a 1 nos 40 px depois do respiro do topo. Em todos os casos marca `body[data-cab="compacto"]` no fim (o rótulo
+    sai do leitor de toque e o Reduzido troca direto por ele) e mede a barra de cima para a faixa grudar logo abaixo dela. */
+function criaCabecalhoQueRecolhe(appbar) {
+  const R = document.documentElement, B = document.body;
+  const temScroll = !!(window.CSS && CSS.supports && CSS.supports('animation-timeline: scroll()'));
+  let quadro = 0;
+  const parado = () => R.getAttribute('data-movimento') === 'reduzido' || !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const le = () => {
+    quadro = 0;
+    const cab = document.querySelector('#outlet .ds-cabecalho--editorial:not(.ds-cabecalho--amostra)');
+    const y = Math.max(0, window.scrollY || 0);
+    // o respiro do topo da tela (--cab-inicio): o cabeçalho anda junto com a página até começar a recolher
+    const inicio = cab ? Math.max(0, (parseFloat(getComputedStyle(cab.parentElement).paddingTop) || 0) + (parseFloat(getComputedStyle(cab).marginTop) || 0)) : 0;
+    const p = __m2.cabecalhoAoRolar(y - inicio, { parado: parado() });
+    if (cab && !temScroll) cab.style.setProperty('--cab-p', String(p)); else if (cab) cab.style.removeProperty('--cab-p');
+    const compacto = !!cab && p >= 1;
+    if (compacto !== (B.getAttribute('data-cab') === 'compacto')) { if (compacto) B.setAttribute('data-cab', 'compacto'); else B.removeAttribute('data-cab'); }
+  };
+  const pede = () => { if (!quadro) quadro = requestAnimationFrame(le); };
+  window.addEventListener('scroll', pede, { passive: true });
+  const mede = () => { const a = appbar && appbar.offsetHeight; if (a) R.style.setProperty('--appbar-h', a + 'px'); };
+  if (appbar && typeof ResizeObserver === 'function') new ResizeObserver(mede).observe(appbar);
+  mede();
+  return () => { mede(); le(); };
+}
 function pintaRede() { if (chipRede) chipRede.classList.toggle('ds-hidden', temRede()); }
 
 async function boot(root) {
@@ -51016,6 +51095,7 @@ async function boot(root) {
   __m3.instalaIconesVivos(document); // G-340 · relato #59 · o ícone tocado se mexe como o que ele é
   const navega = criaNavegacao(navbar); // DS-K3 MV-1 (G-366) · avançar afasta, voltar aproxima, aba desliza
   const mostraBarra = criaBarraQueRecolhe(navbar); // DS-K3 K3-3 (G-367) · a barra recolhe ao rolar para baixo
+  const pintaCabecalho = criaCabecalhoQueRecolhe(bar); // DS-K3 K3-4 (G-375) · o cabeçalho editorial recolhe ao rolar
   const router = createRouter(ROUTES, ({ route }) => navega(() => {
     __m3.fechaToast(); // D1 · o aviso da tela anterior não atravessa para esta
     document.title = 'Estante · ' + (route.title || '');
@@ -51026,6 +51106,7 @@ async function boot(root) {
     marcaNav(bar, location.hash.replace(/^#/, '').split('?')[0] || '/'); marcaNav(navbar, location.hash.replace(/^#/, '').split('?')[0] || '/');
     window.scrollTo(0, 0);
     mostraBarra(); // K3-3 · toda tela nova começa com a barra à vista
+    pintaCabecalho(); // K3-4 · a tela nova começa com o cabeçalho editorial aberto
   }));
   // E51 · listas prontas salvas antes da separação da reserva: separa sozinho, uma vez
   try {
