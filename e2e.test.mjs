@@ -22290,3 +22290,47 @@ test('e2e · J-65 MK3-2 simetria contra o goldfish: o seu grimório leva data-as
   }
   assert.deepEqual(errors, []);
 });
+
+// S-624 · relato #90 fatia 2 (opção A): a carta cujo brilho pareceu foil entra com o selo "Foil?"; "É foil" passa a cópia a
+// Foil (a edição mostra) e "Não é" só tira o selo. Em 360 px, o selo cabe no cartão e os botões têm 44 px.
+test('e2e · S-624 relato #90: o selo "Foil?" na pilha confirma ou desfaz com um toque', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 697 });
+  await page.route('https://cards.scryfall.io/**', r => r.abort('internetdisconnected'));
+  await page.addInitScript(FAKE_DEVICE(false));
+  await page.goto(base + '#/');
+  const pilha = [
+    { key: 'Counterspell|mh2|267', name: 'Counterspell', qty: 1, score: 0.99, conferir: false, set: 'mh2', number: '267', set_name: 'Modern Horizons 2', id: 'cs-mh2', verified: true, foilTalvez: true },
+    { key: 'Lightning Bolt|m10|146', name: 'Lightning Bolt', qty: 2, score: 0.99, conferir: false, set: 'm10', number: '146', set_name: 'Magic 2010', id: 'lb-m10', verified: true, foilTalvez: true }];
+  await page.evaluate(async itens => { await new Promise((res, rej) => { const r = indexedDB.open('mtg', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv');
+    r.onsuccess = () => { const tx = r.result.transaction('kv', 'readwrite'); tx.objectStore('kv').put(itens, 'scanner.lot'); tx.oncomplete = res; tx.onerror = rej; }; r.onerror = rej; }); }, pilha);
+  await page.goto(base + '#/scanner');
+  await page.waitForSelector('#scan-read:not([disabled])');
+  await pausaAuto(page);
+  await abrePilha(page);
+  assert.equal(await page.locator('#scan-pile .scan-pile__foil').count(), 2, 'as duas cartas com o selo');
+  // a folha abre com animação de escala: mede depois que ela assenta
+  await page.waitForFunction(() => document.getAnimations().every(a => a.playState !== 'running'), null, { timeout: 5000 });
+  await page.waitForTimeout(200);
+  const geo = await page.evaluate(() => [...document.querySelectorAll('#scan-pile .scan-pile__card')].flatMap(c => {
+    const cb = c.getBoundingClientRect();
+    return [...c.querySelectorAll('.scan-pile__foil, .scan-pile__foil *')].filter(e => { const b = e.getBoundingClientRect(); return b.width && (b.right > cb.right + 1 || b.left < cb.left - 1); }).map(e => e.className);
+  }));
+  assert.deepEqual(geo, [], 'o selo cabe no cartão em 360 px');
+  const pequenos = await page.$$eval('#scan-pile .scan-pile__foil button', bs => bs.filter(b => b.getBoundingClientRect().height < 44).map(b => b.textContent.trim()));
+  assert.deepEqual(pequenos, [], 'alvos de toque com 44 px');
+  // "É foil": a cópia passa a Foil e o selo sai
+  await page.click('#scan-pile [data-foil-sim="Counterspell|mh2|267"]');
+  await page.waitForFunction(() => document.querySelectorAll('#scan-pile .scan-pile__foil').length === 1);
+  const cs = page.locator('#scan-pile .scan-pile__card[data-name="Counterspell"]');
+  assert.match(await cs.locator('.scan-pile__edicao').innerText(), /Foil/);
+  assert.equal(await cs.getAttribute('data-key'), 'Counterspell|mh2|267|foil');
+  // "Não é": fica normal, sem selo
+  await page.click('#scan-pile [data-foil-nao="Lightning Bolt|m10|146"]');
+  await page.waitForFunction(() => document.querySelectorAll('#scan-pile .scan-pile__foil').length === 0);
+  const lb = page.locator('#scan-pile .scan-pile__card[data-name="Lightning Bolt"]');
+  assert.doesNotMatch(await lb.locator('.scan-pile__edicao').innerText(), /Foil/);
+  const guardado = await page.evaluate(() => new Promise(res => { const r = indexedDB.open('mtg', 1); r.onsuccess = () => { const q = r.result.transaction('kv').objectStore('kv').get('scanner.lot'); q.onsuccess = () => res(q.result); }; }));
+  assert.deepEqual(guardado.map(x => [x.key, x.finish || '', !!x.foilTalvez]), [['Counterspell|mh2|267|foil', 'foil', false], ['Lightning Bolt|m10|146', '', false]]);
+  assert.deepEqual(errors.filter(e => !/internetdisconnected|ERR_INTERNET|Failed to load resource/.test(e)), []);
+});

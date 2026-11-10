@@ -3844,6 +3844,9 @@ body[data-tela="scanner"] .ds-appbar { display: none; }
 .scan-pile__mini--desconhecida .ds-arte-desc { border-radius: 0; } /* G-350 · relato #65 · cópia com a edição a definir: a arte desconhecida */
 .scan-pile__card--conferir .scan-pile__conferir { grid-column: 1 / -1; align-items: flex-start; }
 .scan-pile__confirma { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); width: 100%; }
+/* S-624 · relato #90 F2: o selo "Foil?" ocupa a largura do cartão, como a conferência; os dois botões dividem a linha */
+.scan-pile__foil { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1); padding-top: var(--space-1); grid-column: 1 / -1; }
+.scan-pile__foil .ds-btn { min-height: 44px; }
 .scan-pile__alt { width: 100%; justify-content: flex-start; min-width: 0; }
 .scan-pile__alt .ds-btn__rotulo { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* S-607 · a edição na pilha e a folha de edição */
@@ -46521,6 +46524,8 @@ function createLot({ store }) {
         ...(meta.score != null ? { score: meta.score, conferir: meta.score < ALTA } : {}),
         ...(meta.conferir ? { conferir: true } : {}),   // S-618 · entrou pela linha de coleção: sem nota de leitura, pede conferência
         ...(meta.img ? { img: meta.img } : {}),
+        // S-624 · relato #90 F2: o brilho entre os quadros pareceu foil e a edição pode ser foil: o selo "Foil?" pede o toque
+        ...(meta.foilTalvez && !fin && podeSerFoil(printing) ? { foilTalvez: true } : {}),
         ...(meta.alternativas && meta.alternativas.length ? { alternativas: meta.alternativas.slice(0, 3) } : {})
       } : {};
       if (cur) Object.assign(cur, extra, { qty: cur.qty + qty });
@@ -46540,6 +46545,8 @@ function createLot({ store }) {
       if (!(printing && printing.set)) { await persist(); return key; }
       // S-623 · relato #90: a edição que chega depois traz o acabamento certeiro; sem ele, fica o que a cópia já tinha
       const certo = acabamentoCerteiro(printing), fin = certo || cur.finish || '';
+      // S-624 · a edição que chega e não pode ser foil (ou já tem o acabamento certo) tira o selo "Foil?"
+      if (cur.foilTalvez && (certo || !podeSerFoil(printing))) delete cur.foilTalvez;
       const nova = lotKey(cur.name, { ...printing, finish: fin, lang: cur.lang });
       const ed = { set: printing.set, number: printing.number || '', set_name: printing.set_name || '', id: printing.id || '', verified: !!printing.verified,
         ...(fin ? { finish: fin } : {}), ...(certo ? { finishCerto: true } : {}) };
@@ -46565,7 +46572,7 @@ function createLot({ store }) {
       if (dup) { dup.qty += cur.qty; if (cur.img && !dup.img) dup.img = cur.img; delete dup.conferir; delete dup.alternativas; items.splice(pos, 1); }
       // G-350 · na fusão, a miniatura que fica é a da impressão escolhida: a nova, se veio; senão sai a que não é dela
       if (dup) { if (img) { dup.img = img; dup.imgDe = imgDe; } else if (dup.imgDe !== imgDe) { delete dup.img; dup.imgDe = ''; } }
-      else { Object.assign(cur, ed, { key: nova }); if (img) cur.img = img; else delete cur.img; cur.imgDe = img ? imgDe : ''; if (fin) cur.finish = fin; else delete cur.finish; delete cur.finishCerto; delete cur.conferir; delete cur.alternativas; }
+      else { Object.assign(cur, ed, { key: nova }); if (img) cur.img = img; else delete cur.img; cur.imgDe = img ? imgDe : ''; if (fin) cur.finish = fin; else delete cur.finish; delete cur.finishCerto; delete cur.foilTalvez; delete cur.conferir; delete cur.alternativas; }
       if (!dup) history = history.map(k => k === key ? nova : k);
       await persist();
       let feito = false;
@@ -46579,6 +46586,22 @@ function createLot({ store }) {
         await persist(); return key;
       };
       return { key: nova, desfaz };
+    },
+    /** S-624 · relato #90 F2: o selo "Foil?" respondido. `foil` true: a cópia passa a Foil (com edição, pela mesma troca da
+     * folha: separa da cópia normal, ou junta com a cópia foil igual); false: fica como estava e o selo sai. Devolve a chave nova. */
+    async respondeFoil(key, foil) {
+      await load(); const cur = find(key); if (!cur) return null;
+      if (!foil || !cur.foilTalvez) { delete cur.foilTalvez; await persist(); return key; }
+      delete cur.foilTalvez; cur.finish = 'foil';   // sem edição, o Foil fica guardado para quando ela chegar (enrich mantém)
+      const nova = lotKey(cur.name, cur);
+      if (nova !== key) {
+        // a mesma edição já tem uma cópia foil na pilha: as duas se juntam (a conferência do nome não muda)
+        const dup = find(nova);
+        if (dup) { dup.qty += cur.qty; if (cur.img && !dup.img) dup.img = cur.img; items.splice(items.indexOf(cur), 1); }
+        else cur.key = nova;
+        history = history.map(k => k === key ? nova : k);
+      }
+      await persist(); return nova;
     },
     /** X9 · "é essa mesmo": a leitura deixa de pedir conferência. */
     async confirmar(key) {
@@ -47566,6 +47589,67 @@ function impressaoDaArte(src, sw, sh, cantos) {
 const bitsLigados = v => { v = v - ((v >>> 1) & 0x55555555); v = (v & 0x33333333) + ((v >>> 2) & 0x33333333); return (((v + (v >>> 4)) & 0x0F0F0F0F) * 0x01010101) >>> 24; };
 /** Bits diferentes entre a impressão `a` e a de posição `j` em `base` (Uint32Array com 8 palavras por arte). */
 function distanciaDaArte(a, base, j = 0) { let d = 0; const o = j * PALAVRAS_ARTE; for (let i = 0; i < PALAVRAS_ARTE; i++) d += bitsLigados((a[i] ^ base[o + i]) >>> 0); return d; }
+/* S-624 · relato #90 fatia 2 (opção A, modo agilidade 09/11): o foil pelo brilho que muda de lugar. A faixa da arte é
+   retificada (as coordenadas são as da carta, então a carta mexer não mexe a arte) e cortada em 8 × 6 células; cada célula
+   guarda a direção da cor (R−G, (R+G)/2−B). Na carta normal a direção fica: o reflexo do protetor clareia a célula (a cor
+   perde força e vira branco, e a célula sem cor não conta), mas não troca de tom; o ajuste de cor automático da câmera gira
+   pouco (±10% nos canais: 1 célula em 10, abaixo da régua de 22%). No foil, o arco-íris anda pela carta quando ela se mexe:
+   as células trocam de tom (mais de 34°). Régua de laboratório (quadros sintéticos): a calibração no aparelho com cartas
+   foil reais fica para o dono, e o selo só pergunta. O medidor guarda os últimos quadros da mesma carta (a arte muda = carta nova: recomeça) e o veredito
+   só diz "parece foil" com quadros suficientes; mesmo assim a carta entra com o selo "Foil?", nunca Foil em silêncio. */
+const FOIL_GRADE = { colunas: 8, linhas: 6 };
+const LIMIARES_FOIL = { croma: 14, giro: 0.6, celulas: 0.22, quadros: 3, guarda: 8, arteNova: 60 };
+/** O mapa de cor da faixa da arte: Float32Array(2 × 48) com a cor média (R−G, (R+G)/2−B) de cada célula. Pura. */
+function mapaDoBrilho(src, sw, sh, cantos) {
+  const { colunas: C, linhas: L } = FOIL_GRADE, W = C * 8, H = L * 8;
+  const A = retifica(src, sw, sh, cantosDaFaixa(cantos, FAIXA_ARTE), W, H), d = A.data !== undefined ? A.data : A;
+  const m = new Float32Array(C * L * 2);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = (y * W + x) * 4, j = ((y >> 3) * C + (x >> 3)) * 2, R = d[i], G = d[i + 1], B = d[i + 2];
+    m[j] += R - G; m[j + 1] += (R + G) / 2 - B;
+  }
+  for (let j = 0; j < m.length; j++) m[j] /= 64;
+  return m;
+}
+/** Fração das células com cor nos dois quadros que trocaram de tom além do giro comum (0 a 1). Pura. */
+function giroDoBrilho(a, b, { croma = LIMIARES_FOIL.croma, giro = LIMIARES_FOIL.giro } = {}) {
+  const giros = [];
+  for (let j = 0; j < a.length; j += 2) {
+    if (Math.hypot(a[j], a[j + 1]) < croma || Math.hypot(b[j], b[j + 1]) < croma) continue;
+    let g = Math.atan2(b[j + 1], b[j]) - Math.atan2(a[j + 1], a[j]);
+    while (g > Math.PI) g -= 2 * Math.PI; while (g < -Math.PI) g += 2 * Math.PI;
+    giros.push(g);
+  }
+  if (giros.length < 4) return 0;
+  return giros.filter(g => Math.abs(g) > giro).length / (a.length / 2);
+}
+/** O medidor da carta na frente da câmera: soma(mapa, arte) a cada quadro lido; veredito() → { foil, giro, quadros }. */
+function criaMedidorFoil(L = LIMIARES_FOIL) {
+  let quadros = [], arte = null;
+  return {
+    soma(mapa, h = null) {
+      if (!mapa) return;
+      if (h && arte && distanciaDaArte(h, arte) > L.arteNova) quadros = [];   // a arte mudou: é outra carta
+      if (h) arte = h;
+      quadros.push(mapa); if (quadros.length > L.guarda) quadros.shift();
+    },
+    veredito() {
+      if (quadros.length < L.quadros) return { foil: false, giro: 0, quadros: quadros.length };
+      const gs = [];
+      for (let i = 1; i < quadros.length; i++) gs.push(giroDoBrilho(quadros[i - 1], quadros[i], L));
+      // a mediana dos pares: um quadro borrado ou com a mão na frente não decide sozinho
+      const giro = gs.slice().sort((x, y) => x - y)[gs.length >> 1];
+      return { foil: giro >= L.celulas, giro: Math.round(giro * 100) / 100, quadros: quadros.length };
+    },
+    zera() { quadros = []; arte = null; }
+  };
+}
+/** Leva o selo "Foil?" para a impressão? Só quando ela pode ser foil: existe em foil e em outro acabamento, ou o
+    acabamento dela ainda não é sabido. Pura. */
+function podeSerFoil(printing) {
+  const f = acabamentosSabidos(printing).finishes;
+  return !f || (f.includes('foil') && f.length > 1);
+}
 /** As `quantas` artes mais próximas de `h` na base, em ordem: [{ i, d }]. Varredura linear: 50 mil artes em poucos ms. */
 function buscaArte(base, h, { quantas = 3 } = {}) {
   const n = Math.floor(base.length / PALAVRAS_ARTE), melhores = [];
@@ -47797,7 +47881,7 @@ const LIMIARES_LINHA = { borrada: 0.5, deslocamentoMax: 0.05, correndo: 0.12, al
     mas a carta não conta como parada (nada entra na primeira passada; o porteiro pede repetição). */
 function pulaPorMovimento(mov, { via = 'auto', contorno = true } = {}) { return via !== 'manual' && contorno && mov > LIMIARES_LINHA.correndo; }
 
-return { criaLinhaSemNome, imagemDaImpressao, cleanOcr, matchName, matchLines, criaVotacao, criaPorteiro, PORTEIRO, leituraConfiavel, nitidezDaFaixa, movimentoEntre, LIMIARES_FAIXA, criaDiario, criaCronometro, criaRefoco, EXATA, buildIndex, candidatosDoIndice, createNameIndex, IDIOMAS_DOS_NOMES, LINGUAS_DO_LEITOR, linguaDoLeitor, temCjk, chaveCjk, indiceCjk, matchCjk, createLot, coverRegion, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, resolveEdicao, artistaNoTexto, acabamentosDa, acabamentoCerteiro, acabamentosSabidos, edicoesDaCarta, arteDaImpressao, filtraEdicoes, iconeDoSet, ACABAMENTO_NA_COLECAO, NOME_DO_ACABAMENTO, ACCEPT, ALTA, SUGGEST, lev,
+return { criaLinhaSemNome, imagemDaImpressao, cleanOcr, matchName, matchLines, criaVotacao, criaPorteiro, PORTEIRO, leituraConfiavel, nitidezDaFaixa, movimentoEntre, LIMIARES_FAIXA, criaDiario, criaCronometro, criaRefoco, EXATA, buildIndex, candidatosDoIndice, createNameIndex, IDIOMAS_DOS_NOMES, LINGUAS_DO_LEITOR, linguaDoLeitor, temCjk, chaveCjk, indiceCjk, matchCjk, createLot, coverRegion, NAME_BAND, COLLECTOR_BAND, parseCollectorLine, resolvePrinting, resolveEdicao, artistaNoTexto, acabamentosDa, acabamentoCerteiro, acabamentosSabidos, mapaDoBrilho, giroDoBrilho, criaMedidorFoil, podeSerFoil, LIMIARES_FOIL, edicoesDaCarta, arteDaImpressao, filtraEdicoes, iconeDoSet, ACABAMENTO_NA_COLECAO, NOME_DO_ACABAMENTO, ACCEPT, ALTA, SUGGEST, lev,
   detectaCarta, detectaEmEscalas, ESCALAS_DETECTOR, brilho, nitidez, prontoParaLer, criaDetector, paradaEm, screenRect, LIMIARES, PROPORCAO_CARTA, realcaTexto, trechoEscuroEmbaixo, limpaBordas, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, faixaDaCarta, escalaOcr,
   retasDoQuadro, achaQuadrilatero, ordenaCantos, homografia, cantosDaFaixa, cantosDeitada, cartaDeitada, cantosDaImagemDaArte, retifica, maisNitida, FAIXA_NOME, FAIXA_COLECAO, LARGURA_NOME, linhaDoNome, binarizaLinha, limpaLinha, nitidezDaLinha, afiaLinha, realcaEstouro, FAIXA_ARTE, BITS_ARTE, impressaoDaArte, distanciaDaArte, buscaArte, abreBaseDeArtes, binDasArtes, criaBaseDeArtes, decideArte, arteDaEdicao, LIMIAR_ARTE, preparaNome, preparaColecao, larguraColecao, recorteDaFaixa, alturaDaCarta, deslocamento, LIMIARES_LINHA, pulaPorMovimento, QUAD };
 })();
@@ -47812,7 +47896,7 @@ const __m22 = (function () {
    o scanner abre); correspondência contra a base de nomes (C6).
    ===================================================================== */
 const { h, mount, Stack, Row, Surface, Text, Button, Field, Input, Select, Badge, Chip, Empty, Note, Spinner, Dialog, closeDialog, toast, reservaDoca, Simbolo, Icone, IconButton, AvisoRede, ArteDesconhecida } = __m3;
-const { criaLinhaSemNome, imagemDaImpressao, createLot, coverRegion, screenRect, parseCollectorLine, resolvePrinting, resolveEdicao, acabamentosSabidos, edicoesDaCarta, filtraEdicoes, ACABAMENTO_NA_COLECAO, NOME_DO_ACABAMENTO, ACCEPT, EXATA, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, criaPorteiro, PORTEIRO, leituraConfiavel, criaDiario, criaCronometro, criaRefoco, realcaTexto,
+const { criaLinhaSemNome, imagemDaImpressao, createLot, coverRegion, screenRect, parseCollectorLine, resolvePrinting, resolveEdicao, acabamentosSabidos, mapaDoBrilho, criaMedidorFoil, podeSerFoil, edicoesDaCarta, filtraEdicoes, ACABAMENTO_NA_COLECAO, NOME_DO_ACABAMENTO, ACCEPT, EXATA, trataFaixa, OCR_ALTURA_MIN, OCR_MODES, criaPorteiro, PORTEIRO, leituraConfiavel, criaDiario, criaCronometro, criaRefoco, realcaTexto,
   achaQuadrilatero, cantosDeitada, cartaDeitada, preparaNome, preparaColecao, maisNitida, larguraColecao, recorteDaFaixa, FAIXA_NOME, FAIXA_COLECAO, alturaDaCarta, deslocamento, LIMIARES_LINHA, pulaPorMovimento, brilho,
   FAIXA_ARTE, impressaoDaArte, criaBaseDeArtes, decideArte, arteDaEdicao, LIMIAR_ARTE, LINGUAS_DO_LEITOR, linguaDoLeitor } = __m21;
 const { pulse } = __m20;
@@ -47994,12 +48078,19 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
   // três canvas reaproveitados: o quadro pequeno do detector, o pedaço do vídeo com o nome e a linha pronta
   const telas = { pequeno: document.createElement('canvas'), faixa: document.createElement('canvas'), linha: document.createElement('canvas'), arte: document.createElement('canvas') };
   /** X12 · S-596 · a impressão da arte da carta achada (o pedaço do vídeo com a arte, até 320 px). */
-  function arteDoQuadro(cantosFr) {
+  // S-624 · relato #90 F2: o mesmo pedaço da arte mede o brilho que muda de lugar entre os quadros (foil)
+  const medidorFoil = criaMedidorFoil();
+  function arteDoQuadro(cantosFr, { mede = false } = {}) {
     const rec = recorteDaFaixa(cantosFr, FAIXA_ARTE, video.videoWidth, video.videoHeight);
     if (!rec) return null;
     const p = pixels(rec.regiao, { maxLado: 320, canvas: telas.arte }), kx = p.w / rec.w, ky = p.h / rec.h;
-    return impressaoDaArte(p.d, p.w, p.h, rec.cantos.map(c => ({ x: c.x * kx, y: c.y * ky })));
+    const cantos = rec.cantos.map(c => ({ x: c.x * kx, y: c.y * ky }));
+    const h = impressaoDaArte(p.d, p.w, p.h, cantos);
+    if (mede) { try { medidorFoil.soma(mapaDoBrilho(p.d, p.w, p.h, cantos), h); } catch (e) { /* sem medida: sem selo */ } }
+    return h;
   }
+  /** O veredito do brilho para a carta que entra agora; o medidor recomeça para a próxima. */
+  const foilDaLeitura = () => { const v = medidorFoil.veredito(); medidorFoil.zera(); return v.foil; };
   function pixels(regiao, opts) {
     const c = camera.capture(regiao, opts);
     return { d: c.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, c.width, c.height).data, w: c.width, h: c.height };
@@ -48258,7 +48349,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
       const ta = relogio();
       try {
         const cartaCantos = deitadaLida ? melhor.cantos : state.invertida ? viraCantos(quad.cantos) : quad.cantos;
-        const h = arteDoQuadro(cartaCantos);
+        const h = arteDoQuadro(cartaCantos, { mede: true });
         if (h) {
           const nomeLido = melhor && nota(melhor) >= ACCEPT ? melhor.found[0].name : null;
           // S-604 · as ilustrações do nome lido, da mais parecida: a primeira é a de sempre (doNome); a lista inteira escolhe a edição
@@ -48297,7 +48388,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
   /** Aceite: entra na pilha na hora; edição e miniatura chegam depois. */
   async function aceita(name, leitura) {
     const best = (leitura.found || []).find(x => x.name === name) || leitura.found[0] || { score: 1 };
-    const meta = { score: best.score, alternativas: (leitura.found || []).filter(x => x.name !== name).slice(0, 3).map(x => x.name) };
+    const meta = { score: best.score, alternativas: (leitura.found || []).filter(x => x.name !== name).slice(0, 3).map(x => x.name), foilTalvez: foilDaLeitura() };
     const key = await lot.add(name, 1, null, meta);
     announce(name); state.aceitoEm = Date.now();
     state.last = { text: leitura.texto, found: leitura.found || [], key, printing: null, candidates: [], pendente: !!leitura.cantos };
@@ -48350,7 +48441,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     try { carta = scryfall.impressao ? await scryfall.impressao(p.set, p.number, p.lang, { prioridade: 'alta' }) : null; } catch (e) { carta = null; }
     if (!carta || !state.alive) { dicaTexto(DICAS.linhaNaoAchada); return `linha ${rotulo}: não achada`; }
     const printing = { set: p.set, number: p.number, set_name: carta.set_name || '', id: carta.id || '', verified: true, ...acabamentosSabidos(carta), ...(p.lang && p.lang !== 'en' ? { lang: p.lang } : {}) };
-    const key = await lot.add(carta.name, 1, printing, { conferir: true });
+    const key = await lot.add(carta.name, 1, printing, { conferir: true, foilTalvez: foilDaLeitura() });
     announce(carta.name); state.aceitoEm = Date.now();
     state.last = { text: lido.texto, found: [], key, printing, candidates: [], pendente: false };
     paintResult(); paintDock();
@@ -48598,6 +48689,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
         x.set && x.set_name ? Text(x.set_name, { size: 'xs', tone: 'muted' }) : null,
         x.score != null ? Badge(`${Math.round(x.score * 100)}%`, { tone: x.conferir ? 'warning' : 'positive' }) : null),
       x.conferir ? conferencia(x, depois) : null,
+      x.foilTalvez ? seloFoil(x, depois) : null,
       h('div', { class: 'scan-pile__qty' },
         IconButton('menos', `Uma a menos de ${x.name}`, { onClick: async () => { await lot.setQty(x.key, x.qty - 1); depois(); } }),
         h('span', {}, String(x.qty)),
@@ -48744,6 +48836,15 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
       if (sua && sua.scrollIntoView) sua.scrollIntoView({ block: 'nearest' });
     }
     await carrega();
+  }
+  /* S-624 · relato #90 F2 (opção A): o brilho pareceu foil; um toque confirma (a cópia passa a Foil) ou desfaz. */
+  function seloFoil(x, depois) {
+    return h('div', { class: 'scan-pile__foil', dataset: { foil: x.key } },
+      Badge('Foil?', { tone: 'accent' }),
+      Text('O brilho pareceu de foil.', { size: 'xs', tone: 'muted' }),
+      h('div', { class: 'scan-pile__confirma' },
+        Button('É foil', { variant: 'primary', dataset: { foilSim: x.key }, onClick: async () => { await lot.respondeFoil(x.key, true); depois(); toast(`${x.name}: Foil`, 1200); } }),
+        Button('Não é', { variant: 'ghost', dataset: { foilNao: x.key }, onClick: async () => { await lot.respondeFoil(x.key, false); depois(); } })));
   }
   function conferencia(x, depois) {
     // S-613 · relato #65: "É essa" e "Corrigir" lado a lado; cada alternativa numa linha da largura do cartão, o nome

@@ -1588,3 +1588,81 @@ test('S-623 · lote: a edição só foil entra Foil (na hora ou quando a ediçã
   it = (await lot.list()).find(x => x.key === r.key);
   assert.equal(it.finish, undefined); assert.equal(it.finishCerto, undefined);
 });
+
+// S-624 · relato #90 fatia 2 (opção A): o brilho que muda de lugar entre os quadros põe o selo "Foil?" (nunca Foil em silêncio)
+{
+  const W = 200, H = 280, CANTOS = [{ x: 0, y: 0 }, { x: W, y: 0 }, { x: W, y: H }, { x: 0, y: H }];
+  // a arte: manchas de cor fixas na carta (a mesma em todos os quadros)
+  const arte = (x, y) => { const c = (Math.floor(x / 23) * 7 + Math.floor(y / 19) * 13) % 5;
+    return [[170, 60, 50], [60, 140, 70], [50, 80, 170], [180, 160, 50], [120, 60, 150]][c]; };
+  /** Um quadro: `ajuste` muda a cor do quadro inteiro (balanço de branco da câmera); `reflexo` é um borrão branco do
+      protetor em (rx, ry); `arcoIris` é a fase do arco-íris do foil, que anda pela carta com o ângulo. */
+  const quadro = ({ ajuste = [1, 1, 1], reflexo = null, arcoIris = null } = {}) => {
+    const d = new Uint8ClampedArray(W * H * 4);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      let [r, g, b] = arte(x, y);
+      if (arcoIris != null) {   // o foil: um arco-íris forte que muda de tom conforme a posição e a fase
+        const t = (x * 0.045 + y * 0.03 + arcoIris) * 2 * Math.PI / 3;
+        r = r * 0.35 + 150 * (1 + Math.cos(t)) / 2 + 20; g = g * 0.35 + 150 * (1 + Math.cos(t - 2.1)) / 2 + 20; b = b * 0.35 + 150 * (1 + Math.cos(t + 2.1)) / 2 + 20;
+      }
+      if (reflexo) { const k = Math.max(0, 1 - Math.hypot(x - reflexo[0], y - reflexo[1]) / 45); r += (255 - r) * k; g += (255 - g) * k; b += (255 - b) * k; }
+      const i = (y * W + x) * 4; d[i] = r * ajuste[0]; d[i + 1] = g * ajuste[1]; d[i + 2] = b * ajuste[2]; d[i + 3] = 255;
+    }
+    return d;
+  };
+  const mede = quadros => { const m = X.criaMedidorFoil(); for (const q of quadros) m.soma(X.mapaDoBrilho(q, W, H, CANTOS)); return m.veredito(); };
+
+  test('S-624 · carta normal: reflexo branco do protetor andando e a câmera mudando a cor não parecem foil', () => {
+    const v = mede([quadro({ reflexo: [40, 60] }), quadro({ reflexo: [90, 80], ajuste: [1.08, 1, 0.92] }),
+      quadro({ reflexo: [150, 70], ajuste: [0.92, 1, 1.1] }), quadro({ reflexo: [120, 110] })]);
+    assert.equal(v.foil, false, `giro ${v.giro}`);
+    assert.equal(mede([quadro(), quadro(), quadro()]).foil, false, 'parada, sem reflexo');
+  });
+
+  test('S-624 · foil: o arco-íris que anda pela carta entre os quadros parece foil; com poucos quadros, ainda não diz', () => {
+    const v = mede([quadro({ arcoIris: 0 }), quadro({ arcoIris: 0.8 }), quadro({ arcoIris: 1.7 }), quadro({ arcoIris: 2.4 })]);
+    assert.equal(v.foil, true, `giro ${v.giro}`);
+    assert.equal(mede([quadro({ arcoIris: 0 }), quadro({ arcoIris: 0.8 })]).foil, false, 'dois quadros não bastam');
+    // foil parado (o arco-íris não andou): sem prova, sem selo
+    assert.equal(mede([quadro({ arcoIris: 1 }), quadro({ arcoIris: 1 }), quadro({ arcoIris: 1 })]).foil, false);
+  });
+
+  test('S-624 · o medidor recomeça quando a arte muda (outra carta) e no zera()', () => {
+    const m = X.criaMedidorFoil();
+    const h1 = new Uint32Array(6), h2 = new Uint32Array(6).fill(0xffffffff);
+    for (const f of [0, 0.8, 1.7]) m.soma(X.mapaDoBrilho(quadro({ arcoIris: f }), W, H, CANTOS), h1);
+    assert.equal(m.veredito().foil, true);
+    m.soma(X.mapaDoBrilho(quadro(), W, H, CANTOS), h2);
+    assert.equal(m.veredito().quadros, 1, 'carta nova: só o quadro dela');
+    m.zera(); assert.equal(m.veredito().quadros, 0);
+  });
+
+  test('S-624 · lote: o selo "Foil?" só onde a edição pode ser foil; "É foil" passa a Foil, "Não é" tira o selo', async () => {
+    assert.equal(X.podeSerFoil({ finishes: ['nonfoil', 'foil'] }), true);
+    assert.equal(X.podeSerFoil(null), true, 'edição ainda a chegar: pode');
+    assert.equal(X.podeSerFoil({ finishes: ['nonfoil'] }), false, 'só normal: nunca pergunta');
+    const lot = X.createLot({ store: P.memoryStore() });
+    // entra pelo nome com o selo; a edição que chega existe nos dois: o selo fica
+    const k = await lot.add('Counterspell', 1, null, { score: 0.99, foilTalvez: true });
+    const k1 = await lot.enrich(k, { printing: { set: 'mh2', number: '267', id: 'c', verified: true, finishes: ['nonfoil', 'foil'] } });
+    let it = (await lot.list()).find(x => x.key === k1);
+    assert.equal(it.foilTalvez, true); assert.equal(it.finish, undefined, 'nunca Foil em silêncio');
+    const k2 = await lot.respondeFoil(k1, true);
+    it = (await lot.list()).find(x => x.key === k2);
+    assert.equal(it.finish, 'foil'); assert.equal(it.foilTalvez, undefined); assert.match(k2, /\|foil$/);
+    assert.equal(it.conferir, false, 'responder o foil não mexe na conferência do nome');
+    // a edição que só existe em normal tira o selo
+    const n = await lot.add('Island', 1, null, { score: 0.99, foilTalvez: true });
+    const n1 = await lot.enrich(n, { printing: { set: 'lea', number: '288', id: 'i', verified: true, finishes: ['nonfoil'] } });
+    assert.equal((await lot.list()).find(x => x.key === n1).foilTalvez, undefined);
+    // "Não é": fica normal e o selo sai
+    const s = await lot.add('Sol Ring', 1, { set: 'cmr', number: '472', id: 's', verified: true, finishes: ['nonfoil', 'foil'] }, { score: 0.99, foilTalvez: true });
+    assert.equal((await lot.list()).find(x => x.key === s).foilTalvez, true);
+    assert.equal(await lot.respondeFoil(s, false), s);
+    it = (await lot.list()).find(x => x.key === s);
+    assert.equal(it.foilTalvez, undefined); assert.equal(it.finish, undefined);
+    // a edição só foil já entra Foil (S-623): sem selo
+    const f = await lot.add('Arcane Signet', 1, { set: 'sld', number: '9', id: 'f', verified: true, finishes: ['foil'] }, { foilTalvez: true });
+    assert.equal((await lot.list()).find(x => x.key === f).foilTalvez, undefined);
+  });
+}
