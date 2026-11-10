@@ -20,7 +20,7 @@ Marcos: Pauper 100% (as sete listas revisadas carta a carta; 682 de 685 listas P
 | Trilha | Prefixo | Foco atual | Última leva | Próximo |
 |---|---|---|---|---|
 | `scanner` | S | X16: relato #79 fechado (Yip Yip!: o "!", nome e edição sob reflexo) e #65 velocidade | S-621 · 09/11; S-622 · 09/11 | teste no aparelho do #79; #90 foil espera o dono |
-| `geral` | G | DS-K3 MV-1 navegação com direção (G-366); T-IDIOMA fatia 3: tradução das cartas nunca impressas (G-365); relatos sem GitHub (G-364) | G-366 · 09/11; G-365 · 09/11 | DS-K3 K3-3 + K3-4; próximos lotes de tradução (`idioma-cartas.mjs --faltam`) |
+| `geral` | G | DS-K3 K3-3 barra que recolhe ao rolar (G-367); MV-1 navegação com direção (G-366); T-IDIOMA fatia 3 (G-365) | G-367 · 10/11; G-366 · 09/11 | DS-K3 K3-4 cabeçalho que recolhe (+ MV-7); próximos lotes de tradução (`idioma-cartas.mjs --faltam`) |
 | `motor` | M | leitor dos competitivos (Requiting Hex, afligir como custo); sentinela Pauper | M-612 · 08/11 | M-613 Umbral Collar Zealot ▶; CR2c.2 "destruir todas"; #58 espera o dono |
 | `radar` | R | BI4 · Painel Estante: comparar períodos, metas, tendência | R-44 · 07/11 | BI4-6 em diante; validação do dono após os primeiros pilares |
 | `jogabilidade` | J | MJ25/MJ27 · mesa de patamar: paisagem, orientação, Cancelar em toda escolha | J-62 · 03/11 | relato #54 (efeito da Cidade Baixa) |
@@ -78,4 +78,4 @@ Os documentos `claude/…` moram no Projeto do claude.ai, fora do repositório: 
 
 No commit de docs de cada leva (o mesmo que atualiza o ROADMAP): reescreva a **sua** linha na tabela de trilhas, atualize relatos e pendências se mudaram e troque a data abaixo. Edite por patch, nunca o arquivo inteiro. Conflito no rebase: fique com as linhas das outras trilhas e a sua. Passou de 8 KB: resuma, não acrescente.
 
-Atualizado: 09/11/2026 · I-328 (rotinas publicam) · M-612 (motor) · I-329 (ponte) · S-622 (scanner) · B-206 · B-207 (bot) · G-362 a G-366 (geral)
+Atualizado: 10/11/2026 · I-328 (rotinas publicam) · M-612 (motor) · I-329 (ponte) · S-622 (scanner) · B-206 · B-207 (bot) · G-362 a G-367 (geral)

@@ -89,7 +89,7 @@ function achaNoDB(i, db = DB) {
 DB['goliath paladin'] = { ...card('Goliath Paladin', 'Creature — Giant Knight', ['W'], 5), mana_cost: '{4}{W}', power: '3', toughness: '6', oracle_text: 'Vigilance\nWhen Goliath Paladin enters, you take the initiative.' };
 for (const l of listasDoShark()) for (const e of [...l.entries, ...l.reserva]) { const c = l.cartas[e.name], k = e.name.toLowerCase(); if (c && !DB[k]) DB[k] = { ...card(c.name, c.type_line, c.colors, c.cmc), ...c, id: c.name }; }
 
-async function open(t, { dev = true, apresentacao = false, cena = false, porta = false, formato = false, preparo = false, navegacao = false } = {}) {
+async function open(t, { dev = true, apresentacao = false, cena = false, porta = false, formato = false, preparo = false, navegacao = false, barra = false } = {}) {
   const srv = await serve();
   const browser = await pw.chromium.launch(process.env.PW_CHROMIUM ? { executablePath: process.env.PW_CHROMIUM } : {});
   // capturas de tela nas outras medidas e no tema escuro (ROADMAP §4): SHOT_W=360 SHOT_TEMA=dark
@@ -124,6 +124,9 @@ async function open(t, { dev = true, apresentacao = false, cena = false, porta =
   // DS-K3 MV-1 (G-366) · a troca de tela anima (View Transitions): os testes medem a tela assentada, como antes; só o teste
   // da navegação (`navegacao: true`) vê o movimento
   if (!navegacao) await ctx.addInitScript(() => { window.__SEM_NAVEGACAO_ANIMADA = true; });
+  // DS-K3 K3-3 (G-367) · a barra recolhe ao rolar para baixo: os testes que rolam e depois tocam na barra continuam como
+  // antes; só o teste da barra (`barra: true`) a vê recolher
+  if (!barra) await ctx.addInitScript(() => { window.__SEM_BARRA_RECOLHE = true; });
   // H6 · a folha de pagamento abre antes de toda mágica que vira terreno; os testes que não são dela continuam com o
   // pagamento automático (um toque a menos por mágica). O teste da H6 liga por `window.__estanteMesa.manaManual(true)`.
   await ctx.addInitScript(() => { window.__SEM_PAGAMENTO = true; });
@@ -21781,6 +21784,85 @@ test('e2e · G-362 DS-K3 K3-2: a barra flutua a 14 px das bordas (64 px, raio 22
   // a mesa não muda: na partida a barra some e nada é reservado
   await page.evaluate(() => document.body.setAttribute('data-tela', 'partida'));
   assert.deepEqual(await page.evaluate(() => [getComputedStyle(document.querySelector('#ds-navbar')).display, getComputedStyle(document.body).getPropertyValue('--navbar-h').trim(), getComputedStyle(document.body).getPropertyValue('--navbar-reserva').trim(), getComputedStyle(document.getElementById('outlet')).paddingBottom]), ['none', '0px', '0px', '0px']);
+  assert.deepEqual(errors, []);
+});
+
+/* ---------------- DS-K3 K3-3 (G-367) · a barra que recolhe ao rolar ---------------- */
+test('e2e · G-367 DS-K3 K3-3: rolar para baixo leva a barra (com o Jogar) para fora da tela com saída curta e o Relatar desce junto até 16 px do pé; o primeiro gesto para cima a traz de volta com mola firme; o conteúdo ganha a altura dela; foco de teclado e tela nova trazem a barra; Moderado troca a mola pela saída suave; Reduzido e o Jogar não recolhem; 360 nos dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t, { barra: true });
+  await page.setViewportSize({ width: 360, height: 780 });
+  const assenta = () => page.waitForFunction(() => document.querySelector('#ds-navbar').getAnimations().length === 0 && !document.querySelector('#relatar-abrir').getAnimations().some(a => a.transitionProperty === 'translate'));
+  const mede = () => page.evaluate(() => { const nb = document.querySelector('#ds-navbar').getBoundingClientRect(), l = document.querySelector('#ds-navbar .ds-navbar__latao').getBoundingClientRect(), rl = document.querySelector('#relatar-abrir').getBoundingClientRect();
+    return { barra: document.body.getAttribute('data-barra') || 'visivel', pe: Math.round(innerHeight - nb.bottom), topo: Math.round(nb.top - innerHeight), jogar: Math.round(l.top - innerHeight), relatar: Math.round(innerHeight - rl.bottom) }; });
+  const ultima = () => page.evaluate(() => window.__barra[window.__barra.length - 1]);
+  const desce = async () => { for (let i = 0; i < 4; i++) { await page.mouse.wheel(0, 160); await page.waitForTimeout(40); } await page.waitForSelector('body[data-barra="fora"]'); await assenta(); };
+  const sobe = async () => { await page.mouse.wheel(0, -40); await page.waitForFunction(() => !document.body.hasAttribute('data-barra')); await assenta(); };
+  await page.goto(base + '#/perfil'); await page.waitForSelector('.perfil-topo'); await page.waitForSelector('#relatar-abrir');
+  // cada troca do data-barra: a transição que ela abre na barra (propriedade, duração e curva), lida na hora
+  await page.evaluate(() => { window.__barra = [];
+    new MutationObserver(() => { const nb = document.querySelector('#ds-navbar');
+      const a = nb.getAnimations().find(x => x.transitionProperty === 'translate');
+      window.__barra.push([document.body.getAttribute('data-barra') || 'visivel', a ? Math.round(a.effect.getComputedTiming().duration) : 0, a ? a.effect.getComputedTiming().easing : '']);
+    }).observe(document.body, { attributes: true, attributeFilter: ['data-barra'] }); });
+  await page.mouse.move(180, 300);
+  // parada: a barra está no lugar de sempre (14 px do pé) e o Relatar acima dela
+  let m = await mede();
+  assert.deepEqual([m.barra, m.pe], ['visivel', 14], JSON.stringify(m)); assert.ok(m.relatar > 64 + 14, `Relatar acima da barra: ${JSON.stringify(m)}`);
+  // 1 · rolar para baixo: a pílula e o latão do Jogar saem da tela inteiros; saída curta (--sai · --dur-2)
+  await desce();
+  m = await mede();
+  assert.equal(m.barra, 'fora'); assert.ok(m.topo >= 0 && m.jogar >= 0, `barra e Jogar fora da tela: ${JSON.stringify(m)}`);
+  assert.equal(m.relatar, 16, `o Relatar desce junto até --space-4 do pé: ${JSON.stringify(m)}`);
+  assert.deepEqual(await ultima(), ['fora', 180, 'cubic-bezier(0.4, 0, 1, 1)']);
+  // o conteúdo ganha a altura da barra: no pé da tela está a própria página
+  assert.equal(await page.evaluate(() => { const e = document.elementFromPoint(180, innerHeight - 40); return !!(e && e.closest('#outlet')); }), true, 'no lugar da barra, o conteúdo');
+  for (const tema of ['dark', 'light']) { await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(120); await auditaTela(page, `K3-3 Perfil com a barra recolhida (${tema})`); }
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/k3-3-recolhida.png' });
+  // 2 · o primeiro gesto para cima traz de volta, com mola firme (--dur-3)
+  await sobe();
+  m = await mede(); assert.deepEqual([m.barra, m.pe], ['visivel', 14], JSON.stringify(m));
+  const volta = await ultima(); assert.deepEqual(volta.slice(0, 2), ['visivel', 280]); assert.match(volta[2], /^linear\(/, 'mola firme em linear()');
+  for (const tema of ['dark', 'light']) { await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(120); await auditaTela(page, `K3-3 Perfil com a barra de volta (${tema})`); }
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  // 3 · foco de teclado na barra a traz de volta
+  await desce();
+  await page.evaluate(() => document.querySelector('#nav-decks').focus());
+  await page.waitForFunction(() => !document.body.hasAttribute('data-barra')); await assenta();
+  assert.equal((await mede()).pe, 14, 'foco na barra: ela volta');
+  // 4 · tela nova começa com a barra à vista
+  await desce();
+  await page.evaluate(() => { location.hash = '#/ds'; }); await page.waitForSelector('#ds-vidros');
+  await page.waitForFunction(() => !document.body.hasAttribute('data-barra')); await assenta();
+  assert.equal((await mede()).pe, 14, 'tela nova: barra à vista');
+  // no /ds o botão de ação toma o lugar do Relatar: ele também desce junto, até --space-4 do pé
+  const fab = () => page.evaluate(() => Math.round(innerHeight - document.querySelector('#outlet .ds-fab').getBoundingClientRect().bottom));
+  const fabAntes = await fab(); await desce();
+  assert.deepEqual([fabAntes > 64 + 14, await fab()], [true, 16], 'o botão de ação desce com a barra');
+  await sobe();
+  // 5 · Moderado: mesma saída; a volta é a saída suave (--ease-out), na mesma duração
+  await page.evaluate(() => document.documentElement.setAttribute('data-movimento', 'moderado'));
+  await page.mouse.move(180, 300); await desce();
+  assert.deepEqual(await ultima(), ['fora', 180, 'cubic-bezier(0.4, 0, 1, 1)'], 'moderado: saída');
+  await sobe();
+  assert.deepEqual(await ultima(), ['visivel', 280, 'cubic-bezier(0.22, 0.61, 0.36, 1)'], 'moderado: volta sem mola');
+  // 6 · Reduzido: a barra fica (nem o atributo é marcado, e o CSS também não recolhe se ele vier)
+  await page.evaluate(() => { document.documentElement.setAttribute('data-movimento', 'reduzido'); window.scrollTo(0, 0); });
+  for (let i = 0; i < 4; i++) { await page.mouse.wheel(0, 160); await page.waitForTimeout(40); }
+  await page.waitForFunction(() => scrollY > 300); await page.waitForTimeout(120);
+  m = await mede(); assert.deepEqual([m.barra, m.pe], ['visivel', 14], 'reduzido: a barra fica ' + JSON.stringify(m));
+  await page.evaluate(() => document.body.setAttribute('data-barra', 'fora')); await page.waitForTimeout(60);
+  assert.equal((await mede()).pe, 14, 'reduzido: o CSS também segura a barra');
+  await page.evaluate(() => { document.body.removeAttribute('data-barra'); document.documentElement.removeAttribute('data-movimento'); });
+  // 7 · o aparelho com menos movimento também segura a barra
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.evaluate(() => document.body.setAttribute('data-barra', 'fora')); await page.waitForTimeout(60);
+  assert.equal((await mede()).pe, 14, 'aparelho com menos movimento: a barra fica');
+  await page.evaluate(() => document.body.removeAttribute('data-barra')); await page.emulateMedia({ reducedMotion: 'no-preference' });
+  // 8 · no Jogar a doca senta na barra: ela não recolhe
+  await page.evaluate(() => { location.hash = '#/mesa'; }); await page.waitForSelector('#mesa-doca #mesa-start');
+  await page.evaluate(() => document.body.setAttribute('data-barra', 'fora')); await page.waitForTimeout(60);
+  assert.equal((await mede()).pe, 14, 'Jogar: a barra fica sob a doca');
   assert.deepEqual(errors, []);
 });
 
