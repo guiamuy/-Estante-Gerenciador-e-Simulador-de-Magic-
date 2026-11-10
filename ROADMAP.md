@@ -14019,6 +14019,14 @@ prevista no fim para medir quadros no Galaxy S e corrigir o que o portão pegar.
   quadros. A varredura é acionada pela marca `data-varre`, sem o aviso que o botão do catálogo abre.
 - **Testes:** e2e "DS-K FA.1" (folha e varredura ≥ 45 quadros/s e sem tarefa > 100 ms com CPU 4×; abertura anotada);
   contrato visual +1 (abertura só transform e opacity); J5 e F2.1 seguem verdes.
+- **G-376 · folha leve (10/11/2026, decisão do dono):** o FA.1 passou a cair no `main` numa máquina de 2 núcleos
+  (folha 30–40 quadros/s contra 51–54 do controle sem a receita; régua 45; 6 de 6 tentativas, com e sem a G-370; antes da
+  J-64, 44–46). Causa medida: o véu é uma camada da tela inteira com desfoque e vinheta; animar a opacidade dele e a
+  sombra da folha refazia a pintura a cada quadro. Agora o véu já nasce escuro e a sombra já nasce longa; só a folha anda
+  (transform e opacity, com a mola). Medido depois: 41–49 quadros/s (passa em cerca de metade das rodadas sozinho nessa
+  máquina; o portão repete uma vez). Tentado sem ganho: desfoque só no fim do véu, véu numa camada interna, folha sem
+  escala, camada própria da folha. Contrato "DS-K · F1.4" e e2e "DS-K F1.4" mudam de propósito (o véu não anima; a
+  folha só em transform e opacity). Fica para a `infra`: o FA.1 numa máquina de 2 núcleos segue no limite.
 
 **F2 · Telas de gestão — fatias** (fatiamento de 24/10/2026)
 

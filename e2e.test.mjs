@@ -20446,7 +20446,7 @@ test('e2e · DS-K F1.4 · o diálogo abre pela receita "folha" (véu com vinheta
   const abre = await page.evaluate(() => { const d = document.querySelector('.ds-dialog'), o = document.querySelector('#ds-overlay');
     const a = d.getAnimations().find(x => x.animationName === 'ds-folha-sobe'); return { nome: a && a.animationName, dur: a && a.effect.getTiming().duration, veu: getComputedStyle(o).backgroundImage, veuAnim: o.getAnimations().map(x => x.animationName) }; });
   assert.equal(abre.nome, 'ds-folha-sobe', 'a folha sobe pela receita'); assert.equal(abre.dur, 280, '--dur-3');
-  assert.match(abre.veu, /radial-gradient/, 'véu com vinheta'); assert.ok(abre.veuAnim.includes('ds-fade'), 'o véu escurece junto');
+  assert.match(abre.veu, /radial-gradient/, 'véu com vinheta'); assert.deepEqual(abre.veuAnim, [], 'G-376 · o véu já nasce escuro (não anima)');
   await auditaTela(page, 'DS-K F1.4 · diálogo');
   const fim = await page.evaluate(() => getComputedStyle(document.querySelector('.ds-dialog')).boxShadow);
   assert.match(fim, /12px 34px/, 'a sombra assentou longa (--shadow-3): ' + fim);
