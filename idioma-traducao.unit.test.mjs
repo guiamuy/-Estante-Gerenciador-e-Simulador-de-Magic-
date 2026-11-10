@@ -148,8 +148,8 @@ test('G-368 · pacotes: nenhuma tradução fica pela frente de uma carta de duas
 
 // G-373 · lote 3 (relatos #53/#66/#108): as cartas das listas de Standard que nunca saíram impressas no idioma. O --faltam
 // ganhou --formato (padrão: pauper, como antes), e o pacote traz o lote, todo pelo conferidor.
-const AMOSTRA_G371_PT = ['Wild Ride', 'Impractical Joke', 'Cosmogrand Zenith', 'Fountainport Bell', 'Rewrite Regrets', 'Ashling, Rekindled'];
-const AMOSTRA_G371_ES = ["Agna Qel'a", 'Ashling, Rekindled', 'Ba Sing Se'];
+const AMOSTRA_G371_PT = ['Wild Ride', 'Impractical Joke', 'Cosmogrand Zenith', 'Fountainport Bell', 'Rewrite Regrets', 'Ashling, Rekindled // Ashling, Rimebound'];
+const AMOSTRA_G371_ES = ["Agna Qel'a", 'Ashling, Rekindled // Ashling, Rimebound', 'Ba Sing Se'];
 test('G-373 · --formato escolhe os formatos do catálogo; sem ele, só o Pauper', () => {
   assert.deepEqual(J(formatosDe([])), ['pauper']);
   assert.deepEqual(J(FORMATOS_PADRAO), ['pauper']);
@@ -168,4 +168,49 @@ test('G-373 · pacotes: o lote de Standard está lá, passa no conferidor e vale
     assert.ok(C.traducaoDaCarta(pt, card, 'pt'), `pt · ${nome} aparece no app`);
   }
   for (const nome of AMOSTRA_G371_ES) assert.ok(es.cartas[nome], `es · ${nome}`);
+});
+
+// G-374 · lote 4 (relatos #53/#66): Pioneer e Modern. A carta de duas faces gravada pela frente nunca aparecia: o app
+// procura pelo `name` da Scryfall ("Frente // Verso"). O conferidor barra a chave pela frente com as duas faces, as 11
+// gravadas assim nos lotes 1 e 3 passam para o nome inteiro, e a tradução só da frente vale pela frente.
+const AMOSTRA_G374_PT = ['Tarmogoyf', 'Griselbrand', 'Vivi Ornitier', "Artist's Talent", 'Jadzi, Steward of Fate // Oracle\'s Gift', 'Heartfire Hero', 'Screaming Nemesis'];
+const AMOSTRA_G374_ES = ['Tarmogoyf', 'Griselbrand', 'Mirrex', 'Waterlogged Teachings'];
+test('G-374 · conferidor: tradução de duas faces pela frente é barrada (o app nunca acha)', () => {
+  const e = { original: ['Flying', 'Draw a card.'], faces: [{ tipo: 'Criatura', texto: 'Voar' }, { tipo: 'Feitiço', texto: 'Compre um card.' }] };
+  assert.equal(confere('Teste Frente', e, 'pt').length, 1);
+  assert.match(confere('Teste Frente', e, 'pt')[0], /nome inteiro/);
+  assert.deepEqual(confere('Teste Frente // Teste Verso', e, 'pt'), []);
+  for (const lang of IDIOMAS) for (const [nome, x] of Object.entries(lePacote(lang).cartas))
+    if (Array.isArray(x.original)) assert.ok(nome.includes(' // '), `${lang} · "${nome}" tem duas faces e está pela frente`);
+  assert.ok(lePacote('pt').cartas['Callous Sell-Sword // Burn Together']);
+  assert.ok(lePacote('es').cartas['Ashling, Rekindled // Ashling, Rimebound']);
+});
+
+test('G-374 · app: a tradução só da frente vale para a carta "Frente // Verso" na primeira face; a de duas faces não cai na frente', () => {
+  const pacote = { cartas: { 'Teste Pathway': { original: '{T}: Add {U}.', tipo: 'Terreno', texto: '{T}: Adicione {U}.' },
+    'Teste Duas': { original: ['a', 'b'], faces: [{ tipo: 'x', texto: 'A' }, { tipo: 'y', texto: 'B' }] } } };
+  const card = { name: 'Teste Pathway // Teste Verso', faces: [{ oracle_text: '{T}: Add {U}.' }, { oracle_text: '{T}: Add {R}.' }] };
+  const d = C.traducaoDaCarta(pacote, card, 'pt');
+  assert.ok(d, 'a frente traduzida aparece');
+  assert.equal(d.faces[0].texto, '{T}: Adicione {U}.'); assert.equal(d.faces[1], null);
+  assert.equal(C.traducaoDaCarta(pacote, { ...card, faces: [{ oracle_text: '{T}: Add {B}.' }, card.faces[1]] }, 'pt'), null, 'Oracle mudou');
+  assert.equal(C.traducaoDaCarta(pacote, { name: 'Teste Duas // Outra', faces: [{ oracle_text: 'a' }, { oracle_text: 'b' }] }, 'pt'), null);
+  assert.equal(C.traducaoDaCarta(pacote, { name: 'Teste Pathway', oracle_text: '{T}: Add {U}.' }, 'pt').texto, '{T}: Adicione {U}.');
+  // a carta real do lote: Brazen Borrower // Petty Theft, como a Scryfall entrega
+  const pt = lePacote('pt'); const bb = pt.cartas['Brazen Borrower'];
+  assert.ok(bb, 'Brazen Borrower no pacote');
+  const r = C.traducaoDaCarta(pt, { name: 'Brazen Borrower // Petty Theft', faces: [{ oracle_text: bb.original }, { oracle_text: 'Return target nonland permanent an opponent controls to its owner\'s hand.' }] }, 'pt');
+  assert.match(r.faces[0].texto, /^Lampejo\nVoar/);
+});
+
+test('G-374 · pacotes: o lote de Pioneer e Modern está lá, passa no conferidor e vale no app', () => {
+  const pt = lePacote('pt'), es = lePacote('es');
+  assert.ok(Object.keys(pt.cartas).length >= 374 + 60, `pt: ${Object.keys(pt.cartas).length}`);
+  assert.ok(Object.keys(es.cartas).length >= 37 + 20, `es: ${Object.keys(es.cartas).length}`);
+  for (const lang of IDIOMAS) assert.deepEqual(conferePacote(lePacote(lang), lang), {}, lang);
+  for (const [P, amostra, lang] of [[pt, AMOSTRA_G374_PT, 'pt'], [es, AMOSTRA_G374_ES, 'es']]) for (const nome of amostra) {
+    const e = P.cartas[nome]; assert.ok(e, `${lang} · ${nome}`);
+    const card = Array.isArray(e.original) ? { name: nome, faces: e.original.map(o => ({ oracle_text: o })) } : { name: nome, oracle_text: e.original };
+    assert.ok(C.traducaoDaCarta(P, card, lang), `${lang} · ${nome} aparece no app`);
+  }
 });

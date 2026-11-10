@@ -7335,9 +7335,16 @@ const oracleComparavel = t => String(t || '').replace(/[“”]/g, '"').replace(
 /** A entrada do pacote vale para esta carta? Devolve o dado no formato do texto impresso (sem nome: a carta nunca teve
     nome no idioma) ou null. Duas faces: por face; entrada de uma face só vale para a primeira. */
 function traducaoDaCarta(pacote, card, lang) {
-  const e = pacote && pacote.cartas && card && Object.prototype.hasOwnProperty.call(pacote.cartas, card.name) ? pacote.cartas[card.name] : null;
+  const proprio = n => pacote && pacote.cartas && Object.prototype.hasOwnProperty.call(pacote.cartas, n) ? pacote.cartas[n] : null;
+  const faces = card && Array.isArray(card.faces) && card.faces.length > 1 ? card.faces : null;
+  let e = card ? proprio(card.name) : null;
+  // G-374 · a carta de duas faces (Pathway, aventura, Tamiyo) cuja fonte só trouxe a frente: a tradução da frente fica
+  // pelo nome da frente; vale para a primeira face da carta "Frente // Verso" que a Scryfall entrega
+  if (!e && faces && typeof card.name === 'string' && card.name.includes(' // ')) {
+    const f = proprio(card.name.split(' // ')[0]);
+    if (f && typeof f === 'object' && typeof f.original === 'string') e = f;
+  }
   if (!e || typeof e !== 'object') return null;
-  const faces = Array.isArray(card.faces) && card.faces.length > 1 ? card.faces : null;
   const base = { lang, nome: '', traducao: true };
   if (Array.isArray(e.original)) {
     if (!faces || !Array.isArray(e.faces) || e.original.length !== faces.length) return null;
