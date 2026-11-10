@@ -234,13 +234,13 @@ test('G-333 · plataforma: queda de rede passageira e sessão abortada reabrem s
   assert.deepEqual(erros, ['network']); assert.deepEqual(fins, ['erro']); assert.equal(f.ouvindo(), false);
 });
 
-test('G-333 · plataforma: avisa quando há voz (pulso) e usa o reconhecimento no aparelho só quando ele diz que tem', async () => {
+test('G-333 · plataforma: avisa quando há voz (pulso) e usa o reconhecimento no aparelho só quando ele diz que tem (G-369: e só sem internet)', async () => {
   const { Rec, criadas } = falsoReconhecimento();
   const vozes = [];
   let pedido = null;
   class Local extends Rec { constructor() { super(); this.processLocally = false; } }
   Local.available = async o => { pedido = o; return 'available'; };
-  const f = P.webFala({ SpeechRecognition: Local }, { setTimeout: () => {} });
+  const f = P.webFala({ SpeechRecognition: Local, navigator: { onLine: false } }, { setTimeout: () => {} });
   f.start({ idioma: 'es-ES', aoVoz: v => vozes.push(v) });
   criadas[0].onspeechstart(); criadas[0].onspeechend();
   assert.deepEqual(vozes, [true, false]);
@@ -265,4 +265,50 @@ test('G-333 · plataforma: o teto de tempo vale no meio de uma sessão contínua
   teto[1](); assert.ok(criadas[0].parado, 'pede para parar (entrega o que ouviu)');
   criadas[0].termina();
   assert.deepEqual(fins, ['tempo']); assert.equal(f.ouvindo(), false); assert.equal(criadas.length, 1);
+});
+
+/* G-369 · relato #106: o ditado ainda dobrava palavra e errava mais do que o ditado do teclado. */
+test('G-369 · semFinalAnterior: resultado que começa pelo último final inteiro (mesmo de uma palavra) é o mesmo dizer crescendo', () => {
+  const s = P.semFinalAnterior;
+  assert.equal(s('eu', 'eu quero relatar'), 'quero relatar', 'uma palavra só, cumulativo: corta');
+  assert.equal(s('Então', 'então, eu cliquei'), 'eu cliquei', 'maiúscula e sinal não atrapalham');
+  assert.equal(s('eu', 'eu'), '', 'o mesmo final de novo vira nada');
+  assert.equal(s('a carta', 'a carta não virou'), 'não virou');
+  assert.equal(s('eu ataquei', 'depois ela voltou'), 'depois ela voltou', 'frase nova inteira');
+  assert.equal(s('a carta não virou', 'a carta'), 'a carta', 'mais curto e não é a cauda: não é o mesmo dizer');
+  assert.equal(s('eu quero relatar', 'relatar'), '', 'a cauda do último final de novo (uma palavra): não entra');
+  assert.equal(s('', 'oi gente'), 'oi gente'); assert.equal(s('oi', ''), '');
+});
+
+test('G-369 · plataforma: final de uma palavra seguido do cumulativo (Android) escreve cada palavra uma vez, no final e no parcial', () => {
+  const { Rec, criadas } = falsoReconhecimento();
+  const finais = [], textos = [];
+  const f = P.webFala({ SpeechRecognition: Rec }, { setTimeout: () => {} });
+  f.start({ aoFinal: x => finais.push(x), aoTexto: x => textos.push(JSON.parse(JSON.stringify(x))) });
+  const a = criadas[0];
+  const ev = lista => a.onresult({ resultIndex: 0, results: lista.map(([x, fin]) => Object.assign([{ transcript: x }], { isFinal: fin })) });
+  ev([['eu', true]]);
+  ev([['eu', true], ['eu quero', false]]);                       // o parcial cumulativo não mostra "eu eu"
+  assert.equal(textos.at(-1).parcial, 'quero');
+  ev([['eu', true], ['eu quero relatar', true]]);                 // o final cumulativo entra só o novo
+  ev([['eu', true], ['eu quero relatar', true], ['relatar', true]]); // a cauda repetida não entra
+  a.termina();
+  criadas[1].onresult({ resultIndex: 0, results: [Object.assign([{ transcript: 'relatar' }], { isFinal: true })] }); // a sessão seguinte repete a última palavra
+  assert.deepEqual(finais, ['eu', 'quero relatar']);
+  assert.deepEqual(textos.at(-1).segmentos.map(x => x.texto), ['eu', 'quero relatar']);
+});
+
+test('G-369 · plataforma: com internet o ditado usa o serviço de fala (mais preciso), mesmo que o aparelho reconheça o idioma', async () => {
+  const { Rec, criadas } = falsoReconhecimento();
+  class Local extends Rec { constructor() { super(); this.processLocally = false; } }
+  Local.available = async () => 'available';
+  for (const navigator of [{ onLine: true }, undefined]) {
+    criadas.length = 0;
+    const f = P.webFala({ SpeechRecognition: Local, navigator }, { setTimeout: () => {} });
+    f.start({ idioma: 'pt-BR' });
+    await new Promise(r => setTimeout(r, 0));
+    criadas[0].termina();
+    assert.equal(criadas[1].processLocally, false, 'com internet, o serviço de fala');
+    f.stop();
+  }
 });

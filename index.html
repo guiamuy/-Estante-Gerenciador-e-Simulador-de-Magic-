@@ -4046,7 +4046,7 @@ const haptics = webHaptics(typeof navigator !== 'undefined' ? navigator : null);
    tempo real. Quando o navegador encerra a sessão, o adaptador abre a seguinte sozinho até a pessoa tocar em Parar, até
    `silencios` sessões seguidas sem fala, três quedas de rede seguidas ou `limiteMs`; queda de rede e sessão abortada pelo
    navegador reabrem. Parar entrega o que já foi ouvido. Se o navegador diz que reconhece o idioma no próprio aparelho
-   (`available({ processLocally })`), as sessões seguintes usam isso. Nunca lança; sem suporte, `available()` é falso. */
+   (`available({ processLocally })`), as sessões seguintes usam isso só sem internet (G-369: o do aparelho erra mais). Nunca lança; sem suporte, `available()` é falso. */
 /** Palavra comparável: minúscula, sem acento, sem sinal. */
 const chaveDaPalavra = w => w.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\p{L}\p{N}]/gu, '');
 /** G-337 · o que um resultado acrescenta ao que a sessão já tem, pela sobreposição de palavras. Casos do Android: o
@@ -4067,6 +4067,19 @@ function mesclaFala(acumulado, resultado) {
   const novo = T.slice(corte).join(' ');
   return { novo, acumulado: novo ? [...A, ...T.slice(corte)].join(' ') : A.join(' ') };
 }
+/** G-369 · relato #106: o Android ainda dobrava palavra. Quando o último final da sessão tem uma palavra só ("eu"), o
+    final ou o parcial seguinte chega cumulativo ("eu quero") e a sobreposição de uma palavra não cortava: saía "eu eu
+    quero". O resultado que começa pelo último final inteiro (de qualquer tamanho) é o mesmo dizer crescendo: tira-se o
+    começo repetido; o mesmo final (ou a cauda dele) de novo vira nada. Só olha o último final bruto da sessão, não o texto todo. Puro. */
+function semFinalAnterior(anterior, resultado) {
+  const P = String(anterior || '').split(/\s+/).filter(Boolean).map(chaveDaPalavra).filter(Boolean);
+  const T = String(resultado || '').split(/\s+/).filter(Boolean);
+  if (!P.length || !T.length) return T.join(' ');
+  const t = T.map(chaveDaPalavra);
+  if (t.length <= P.length && t.every((w, i) => w === P[P.length - t.length + i])) return ''; // a cauda do último final, de novo
+  if (t.length < P.length || P.some((w, i) => t[i] !== w)) return T.join(' ');
+  return T.slice(P.length).join(' ');
+}
 /** Compatibilidade com a G-333 (mesmo contrato): `trechoNovo` passa a ser a mescla por sobreposição. */
 const trechoNovo = mesclaFala;
 function webFala(win, relogio = {}) {
@@ -4085,7 +4098,7 @@ function webFala(win, relogio = {}) {
       if (!R) { if (aoErro) aoErro('sem-suporte'); return false; }
       this.stop();
       consultaLocal(idioma);
-      const sessao = { ativa: true, parando: false, vazias: 0, redes: 0, inicio: agora(), rec: null, acumulado: '', segmentos: [], ultimoFinalEm: 0, desde: 0 };
+      const sessao = { ativa: true, parando: false, vazias: 0, redes: 0, inicio: agora(), rec: null, acumulado: '', ultimoBruto: '', segmentos: [], ultimoFinalEm: 0, desde: 0 };
       atual = sessao;
       const voz = v => { if (aoVoz) aoVoz(v); };
       let pendenteDaSessao = '';
@@ -4097,7 +4110,9 @@ function webFala(win, relogio = {}) {
       };
       /** Um resultado final chegou (ou o parcial foi entregue ao fechar): mescla ao acumulado e vira segmento com a pausa. */
       const entregaFinal = t => {
-        const n = mesclaFala(sessao.acumulado, t); sessao.acumulado = n.acumulado;
+        const bruto = String(t || '').trim(), resto = semFinalAnterior(sessao.ultimoBruto, bruto);
+        if (bruto) sessao.ultimoBruto = bruto;
+        const n = mesclaFala(sessao.acumulado, resto); sessao.acumulado = n.acumulado;
         if (!n.novo) return false;
         const em = agora();
         const pausa = sessao.ultimoFinalEm ? Math.max(0, (sessao.desde || em) - sessao.ultimoFinalEm) : 0;
@@ -4129,7 +4144,9 @@ function webFala(win, relogio = {}) {
         try { rec = new R(); } catch (e) { if (aoErro) aoErro('falhou'); fim('erro'); return; }
         sessao.rec = rec;
         rec.lang = idioma; rec.continuous = true; rec.interimResults = true; rec.maxAlternatives = 1;
-        if (locais[idioma] && 'processLocally' in rec) { try { rec.processLocally = true; } catch (e) { /* fica na nuvem do navegador */ } }
+        // G-369 · o reconhecimento no aparelho erra mais que o do serviço de fala: com internet, vai o mais preciso
+        const semRede = !!(win.navigator && win.navigator.onLine === false);
+        if (semRede && locais[idioma] && 'processLocally' in rec) { try { rec.processLocally = true; } catch (e) { /* fica na nuvem do navegador */ } }
         let ouviu = false, erro = null, pendente = '';
         const feitos = new Set();
         rec.onspeechstart = () => voz(true);
@@ -4143,7 +4160,8 @@ function webFala(win, relogio = {}) {
             if (r.isFinal) { if (!feitos.has(i)) { feitos.add(i); if (entregaFinal(t)) ouviu = true; } }
             else if (i > ultimoFinal) parcial += ' ' + t; // parcial que ficou para trás de um final é resto do Android, não fala nova
           }
-          pendente = parcial.trim() ? mesclaFala(sessao.acumulado, parcial).novo : '';
+          const parcialNovo = semFinalAnterior(sessao.ultimoBruto, parcial);
+          pendente = parcialNovo ? mesclaFala(sessao.acumulado, parcialNovo).novo : '';
           if (pendente) { sessao.redes = 0; if (!sessao.desde) sessao.desde = agora(); } // a fala recomeçou: marca para medir a pausa
           pendenteDaSessao = pendente; avisa();
         };
@@ -4552,7 +4570,7 @@ function createPlatform(env = {}) {
     fala: env.fala || webFala(win)
   };
 }
-return { memoryStore, createPlatform, PLATFORM_CONTRACT, webFala, trechoNovo, mesclaFala, webPersistence, descreveEspaco, webCamera, degrausDeResolucao, medeFpsDoVideo, FPS_MINIMO, webHaptics, haptics, EVENTOS_HAPTICOS };
+return { memoryStore, createPlatform, PLATFORM_CONTRACT, webFala, trechoNovo, mesclaFala, semFinalAnterior, webPersistence, descreveEspaco, webCamera, degrausDeResolucao, medeFpsDoVideo, FPS_MINIMO, webHaptics, haptics, EVENTOS_HAPTICOS };
 })();
 
 /* ==== src/ui/theme.js ==== */
@@ -18426,7 +18444,7 @@ const LINKS = [
     navegador fala com o serviço dele. Só ao toque da pessoa. */
 const PELO_NAVEGADOR = [
   { id: 'fala', nome: 'Ditado do relato', icone: 'microfone', origens: [],
-    vai: 'Só quando você toca em Ditar: sua voz vai para o reconhecimento de fala do navegador (no Chrome, um serviço do Google, o mesmo do ditado do teclado), que devolve o texto para o campo. Se o aparelho reconhece o idioma sem internet, a voz fica nele. A pontuação é feita no aparelho. A Estante não grava nem guarda áudio.',
+    vai: 'Só quando você toca em Ditar: sua voz vai para o reconhecimento de fala do navegador (no Chrome, um serviço do Google, o mesmo do ditado do teclado), que devolve o texto para o campo. Sem internet, se o aparelho reconhece o idioma, a voz fica nele. A pontuação é feita no aparelho. A Estante não grava nem guarda áudio.',
     quando: 'Enquanto o Ditar está ligado no formulário de relato. Ele desliga em Parar, depois de três silêncios seguidos, em três minutos ou ao fechar o formulário.',
     evitar: 'Digitar o relato. Sem reconhecimento de fala no aparelho, Ditar não liga o microfone.' }
 ];
