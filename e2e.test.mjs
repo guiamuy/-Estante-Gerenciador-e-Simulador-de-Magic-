@@ -21665,6 +21665,9 @@ test('e2e · G-361 T-IDIOMA fatia 4: Perfil › Idioma com bandeira e nome no pr
     const s = await sobrasEmPortugues(page); if (s.length) sobras[rota] = s;
   }
   assert.deepEqual(sobras, {}, 'nada em português nas telas principais, em inglês');
+  // S-623 · a data do Início segue o idioma em qualquer dia da semana (antes, sempre pt-BR)
+  await page.goto(base + '#/'); await page.waitForSelector('#home-data');
+  assert.match(await page.textContent('#home-data'), /^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday), [A-Z][a-z]+ \d{1,2}$/, 'a data do Início em inglês');
   // 2b · a mesa em inglês: escolher a lista, oponente, guardar a mão e algumas passadas; o que a mesa escreve sai em inglês
   await createDeck(page, base, 'Delver', PAUPER);
   await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start'); await page.fill('#mesa-seed', '9');
