@@ -6,7 +6,7 @@ import { loadModules } from './_load.mjs';
 import { POSICOES, pontua } from './bot.bateria.mjs';
 const { engine: E, bot: B } = loadModules();
 
-const PISO = 32; // B-208 · 32 de 35 (posições novas `seq-faeries-brainstorm-espera`, que o Shark publicado já acerta, e `seq-faeries-sprite-espera`, que ele erra: a opção `esperaOLampejo` acerta e mediu 31 × 33 nas Faeries) · B-207 · 31 de 33 (posições novas `rem-elfo-de-mana`, que o Shark publicado erra, e `rem-priest-sim`) · B-200 · 30 de 31 com o ninja pelo ataque (erra só a isca `volta-isca`). Era 29 (B-196), 27 (B-195), 26 (B-192), 25 (B-191), 24 (B-190), 22 (B-188)
+const PISO = 32; // B-209 · 32 de 36 (posição nova `seq-faeries-duas-anulacoes`, que o Shark publicado erra: a opção `seguraComDuas` acerta e mediu 30 × 38 nas Faeries) · B-208 · 32 de 35 (posições novas `seq-faeries-brainstorm-espera`, que o Shark publicado já acerta, e `seq-faeries-sprite-espera`, que ele erra: a opção `esperaOLampejo` acerta e mediu 31 × 33 nas Faeries) · B-207 · 31 de 33 (posições novas `rem-elfo-de-mana`, que o Shark publicado erra, e `rem-priest-sim`) · B-200 · 30 de 31 com o ninja pelo ataque (erra só a isca `volta-isca`). Era 29 (B-196), 27 (B-195), 26 (B-192), 25 (B-191), 24 (B-190), 22 (B-188)
 
 test('B-188 · toda posição da bateria monta, tem classe, porquê, e a jogada certa está entre as legais', () => {
   const ids = new Set();
