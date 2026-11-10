@@ -893,6 +893,17 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
   // visualizador: imagem não guardada vira texto, não ícone quebrado
   await page.click('.col-row[data-name="Sol Ring"] .col-row__thumb');
   await page.waitForSelector('#card-viewer [data-sem-imagem]', { timeout: 8000 });
+  // G-371 · a carta guardada sem oracle_id pergunta pelo texto no idioma; sem rede a folha se redesenha com o aviso, e a
+  // imagem que já falhou continua como texto (antes o redesenho voltava a carregar e o aviso sumia)
+  // o retrato é tirado no mesmo instante em que o redesenho põe o aviso (observador), sem esperar a imagem falhar de novo
+  const aoRedesenhar = await page.evaluate(() => new Promise(ok => {
+    const v = document.querySelector('#card-viewer');
+    const olha = () => /Sem internet: o texto em português/.test(v.innerText) ? !!v.querySelector('[data-sem-imagem]') : null;
+    const ja = olha(); if (ja !== null) return ok(ja);
+    const mo = new MutationObserver(() => { const r = olha(); if (r !== null) { mo.disconnect(); ok(r); } });
+    mo.observe(v, { childList: true, subtree: true }); setTimeout(() => { mo.disconnect(); ok('sem aviso'); }, 8000);
+  }));
+  assert.equal(aoRedesenhar, true, 'o redesenho com o aviso sem internet mantém "Imagem ainda não guardada"');
   assert.match(await page.innerText('#card-viewer'), /Imagem ainda não guardada/);
   await page.keyboard.press('Escape');
   // Q10 · imagem GUARDADA aparece sem rede: o visualizador pede a "normal" (a que o guardião guarda), não a "large"

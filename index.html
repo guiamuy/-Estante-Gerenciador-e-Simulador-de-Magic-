@@ -8114,6 +8114,9 @@ function openCardViewer(card, extra = [], { quantidade = null, arteDesconhecida 
       Button(tr.original ? `Ver em ${nomeLang}` : 'Ver o original', { variant: 'ghost', id: 'card-idioma-alterna', onClick: () => { tr.original = !tr.original; paint(); const b = body.querySelector('#card-idioma-alterna'); if (b) b.focus({ preventScroll: true }); } }));
   };
   const rulingsBox = secaoRulings(card); // V2 · a mesma seção nas duas faces (os rulings são da carta)
+  // G-371 · a imagem que já falhou (sem rede, não guardada) não volta a carregar a cada redesenho (o texto no idioma
+  // chega depois e redesenha a folha): o aviso "Imagem ainda não guardada" fica, em vez da espera de novo
+  const imagensQueFalharam = new Set();
 
   const paint = () => {
     const f = hasFaces ? card.faces[face] : null;
@@ -8165,7 +8168,7 @@ function openCardViewer(card, extra = [], { quantidade = null, arteDesconhecida 
     // leva 102 · a carta grande: moldura com a proporção da carta (nada pula ao carregar), brilho enquanto carrega,
     // o tamanho nítido para a tela (large/png num celular 3×) e, sem rede, cai para a imagem guardada
     const moldura = h('div', { class: 'ds-visor__moldura', dataset: { carregando: 'true' } });
-    const foto = img && !arteDesconhecida ? ImagemCarta(imgs, { alt: name, sizes: 'min(86vw, 380px)', lazy: false, classe: 'ds-visor__img', onFalha: el => { moldura.dataset.carregando = 'false'; el.replaceWith(semImagem()); } }) : null;
+    const foto = img && !arteDesconhecida && !imagensQueFalharam.has(img) ? ImagemCarta(imgs, { alt: name, sizes: 'min(86vw, 380px)', lazy: false, classe: 'ds-visor__img', onFalha: el => { imagensQueFalharam.add(img); moldura.dataset.carregando = 'false'; el.replaceWith(semImagem()); } }) : null;
     if (arteDesconhecida) { moldura.dataset.carregando = 'false'; moldura.appendChild(ArteDesconhecida({ motivo: arteDesconhecida, tamanho: 'carta', id: 'card-viewer-arte-desconhecida' })); }
     else if (foto) { foto.addEventListener('load', () => { moldura.dataset.carregando = 'false'; }); moldura.append(foto, EsperaDaCarta()); } else { moldura.dataset.carregando = 'false'; moldura.appendChild(semImagem()); } // G-282 · a prateleira por cima enquanto carrega
     // G-361 · com o texto no idioma do app, ele vem antes da imagem (a imagem está em inglês; o texto é o que se lê)
