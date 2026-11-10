@@ -171,6 +171,10 @@
   --carta-lado: #050302;
   --carta-laca: linear-gradient(180deg, rgba(255, 246, 226, .09) 0%, rgba(255, 246, 226, 0) 32%); /* luz de cima na face, leve: a arte manda */
   --mesa-poco: inset 0 2px 8px rgba(0, 0, 0, .55), inset 0 -1px 0 var(--edge);
+  /* MK3-1 (J-64) · estojo das fases: um poço pequeno (sombra interna curta de cima e aresta embaixo); o ponto, o traço e o latão do traço */
+  --mesa-estojo: inset 0 1px 2px rgba(0, 0, 0, .7), inset 0 -1px 0 var(--edge);
+  --mesa-fase-ponto: 6px; --mesa-fase-traco: 18px;
+  --mesa-fase-latao: linear-gradient(180deg, var(--accent-hi), var(--accent) 60%, var(--accent-lo));
   --sombra-carta: 0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-contact), var(--shadow-key);
   --sombra-carta-alta: 0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-float);
   --mesa-luz: rgba(255, 246, 220, .07);
@@ -279,6 +283,7 @@
   --carta-lado: #b8a47c; /* MK3-0 · o lado do cartão de papel */
   --carta-laca: linear-gradient(180deg, rgba(255, 255, 255, .16) 0%, rgba(255, 255, 255, 0) 30%);
   --mesa-poco: inset 0 2px 8px rgba(60, 40, 10, .16), inset 0 -1px 0 var(--edge);
+  --mesa-estojo: inset 0 1px 2px rgba(60, 40, 10, .24), inset 0 -1px 0 var(--edge); /* MK3-1 */
   --sombra-carta: 0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-contact), var(--shadow-key);
   --sombra-carta-alta: 0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-float);
   --mesa-luz: rgba(255, 253, 245, .42);
@@ -351,6 +356,7 @@
     --carta-lado: #b8a47c; /* MK3-0 · o lado do cartão de papel */
     --carta-laca: linear-gradient(180deg, rgba(255, 255, 255, .16) 0%, rgba(255, 255, 255, 0) 30%);
     --mesa-poco: inset 0 2px 8px rgba(60, 40, 10, .16), inset 0 -1px 0 var(--edge);
+    --mesa-estojo: inset 0 1px 2px rgba(60, 40, 10, .24), inset 0 -1px 0 var(--edge); /* MK3-1 */
     --sombra-carta: 0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-contact), var(--shadow-key);
     --sombra-carta-alta: 0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-float);
     --mesa-luz: rgba(255, 253, 245, .42);
@@ -2772,7 +2778,7 @@ body[data-mesa-cheia="true"] .tb:has(.tb-dock) { padding-bottom: var(--doca-base
 body[data-mesa-cheia="true"] .tb:has(.tb-dock) > .tb-dock { position: fixed; left: 0; right: 0; bottom: 0; margin: 0 auto; max-width: 1120px; }
 /* a linha de cima usa a borda da tela até 8 px (o tabuleiro continua com 16): sobra folga para fonte de sistema mais larga
    (a fonte do aparelho e a do CI são mais largas que a do teste local; a J-2 foi recusada pelo rótulo cortado no CI) */
-body[data-mesa-cheia="true"] .tb > .tb-top { column-gap: var(--space-1); row-gap: var(--space-1); padding: var(--space-2) var(--space-2) 0; }
+body[data-mesa-cheia="true"] .tb > .tb-top { column-gap: var(--space-1); row-gap: var(--space-1); padding: var(--space-2) var(--space-2) var(--space-1); } /* MK3-1 · a folga de baixo do estojo das fases, igual à de cima (row-gap) */
 .tb-top > #tb-sair { flex: none; order: 0; color: var(--fg-muted); }
 /* a linha de cima nunca quebra: a faixa de vez cede o que sobra entre o Sair e as ferramentas (três ícones; quatro online) */
 /* abaixo de 360 px (fora das faixas suportadas) as ferramentas podem descer de linha e o rótulo segue inteiro, como antes */
@@ -2807,7 +2813,7 @@ body[data-mesa-cheia="true"] .tb > .tb-top > .tb-top__actions { flex: none; }
 /* o trilho de fases vira uma régua fina na linha de baixo; a linha "Turno N · Fulano … Principal 1" repetia a faixa e a
    bandeja e sai em todas as larguras (o leitor de tela continua lendo pelo nome falado do trilho) */
 body[data-mesa-cheia="true"] .tb > .tb-top > .tb-steps { gap: 0; }
-body[data-mesa-cheia="true"] .tb-steps__head { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+:is(body[data-mesa-cheia="true"], .ds-estojo) .tb-steps__head { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 body[data-mesa-cheia="true"] .tb-steps__list li { padding: 0 0 1px; border-bottom-width: 2px; font-size: var(--text-2xs); line-height: var(--lh-xs); }
 #tb[data-cena="true"] #tb-sair { pointer-events: none; }
 .tb-top { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding-top: var(--space-3); }
@@ -2839,11 +2845,29 @@ body[data-mesa-cheia="true"] .tb-steps__list li { padding: 0 0 1px; border-botto
 .tb-mais:not([hidden]) { animation: tb-mais-abre var(--dur-1) var(--ease-out); }
 @media (prefers-reduced-motion: reduce) { .tb-mais:not([hidden]) { animation: none; } }
 body[data-mesa-cheia="true"] .tb > .tb-top > .tb-steps { order: 3; flex-basis: 100%; }
-body[data-mesa-cheia="true"] .tb-steps__list { display: flex; justify-content: center; gap: var(--space-2); }
-body[data-mesa-cheia="true"] .tb-steps__list li { width: 6px; height: 6px; padding: 0; border: none; border-radius: var(--radius-full); background: var(--border-strong); }
-body[data-mesa-cheia="true"] .tb-steps__list li[data-current="true"] { width: 18px; background: var(--accent); }
-body[data-mesa-cheia="true"] .tb-steps__list li > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-body[data-mesa-cheia="true"] .tb-steps__list > li::after { inset: 0; height: auto; border-radius: inherit; }
+/* MK3-1 (J-64) · estojo das fases: o trilho de pontos e traço deixa de sentar em cima do filete de latão da barra (a linha
+   passava por baixo dos pontos) e vira um estojo rebaixado no eixo da mesa (o mesmo da faixa de vez), com a mesma folga
+   acima e abaixo (--space-1); o filete fica abaixo dele, inteiro. Pontos: a fase atual é o traço em latão com fio de luz
+   no topo; as que já passaram neste turno, cheias em --fg-subtle; as que vêm, vazadas. Os 8 px a mais da barra saem do
+   vão de cima do campo (12 → 4 px): o primeiro lado continua no mesmo y, zero pixel de campo perdido.
+   Receita "fase que troca" · plano: objeto (o traço) dentro do estojo, que é fundo e não se move · luz: o fio de luz do
+   traço (fixo) e o MJ8 (as fases que passam piscam) · curva: --mola-firme (--dur-3); moderado = --ease-out sem repique;
+   reduzido = o traço já no lugar, num quadro · etapas: o traço desliza da fase de antes (--de, em pontos) até a de agora
+   enquanto as que ficaram no meio piscam em sequência (--i × --dur-1); a atual acende por último · o que a separa de uma
+   troca linear 2D: o traço tem massa (sai de onde estava, passa por cima das fases do caminho e assenta com mola) e o
+   estojo é material (poço com aresta), não uma linha desenhada. */
+:is(body[data-mesa-cheia="true"], .ds-estojo) .tb-steps__list { display: flex; justify-content: center; gap: var(--space-2); width: max-content; margin-inline: auto;
+  padding: calc(var(--space-1) / 2) var(--space-2); border-radius: var(--radius-full); background: var(--elev-1); box-shadow: var(--mesa-estojo); }
+:is(body[data-mesa-cheia="true"], .ds-estojo) .tb-steps__list li { width: var(--mesa-fase-ponto); height: var(--mesa-fase-ponto); padding: 0; border: none; border-radius: var(--radius-full); background: transparent; box-shadow: inset 0 0 0 1px var(--fg-subtle); }
+:is(body[data-mesa-cheia="true"], .ds-estojo) .tb-steps__list li[data-passou="true"] { background: var(--fg-subtle); box-shadow: none; }
+:is(body[data-mesa-cheia="true"], .ds-estojo) .tb-steps__list li[data-current="true"] { z-index: calc(var(--z-base) + 1); width: var(--mesa-fase-traco); background: var(--mesa-fase-latao); box-shadow: inset 0 1px 0 var(--edge-strong); }
+:is(body[data-mesa-cheia="true"], .ds-estojo) .tb-steps__list li > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+:is(body[data-mesa-cheia="true"], .ds-estojo) .tb-steps__list > li::after { inset: 0; height: auto; border-radius: inherit; }
+:is(body[data-mesa-cheia="true"], .ds-estojo) .tb-steps__list > li[data-current="true"]::after { background: var(--mesa-fase-latao); box-shadow: inset 0 1px 0 var(--edge-strong); } /* a luz do MJ8 que fica é o próprio latão: acender não achata o fio de luz */
+:is(body[data-mesa-cheia="true"], .ds-estojo) .tb-steps__list li[data-acende="fica"] { animation: tb-traco-desliza var(--dur-3) var(--mola-firme) both; }
+@keyframes tb-traco-desliza { from { transform: translateX(calc(var(--de, 0) * (var(--mesa-fase-ponto) + var(--space-2)))); } }
+@media (prefers-reduced-motion: reduce) { :is(body[data-mesa-cheia="true"], .ds-estojo) .tb-steps__list li[data-acende="fica"] { animation: none; } }
+body[data-mesa-cheia="true"] .tb > .tb-board { padding-top: var(--space-1); }
 .tb-side__info b { color: var(--fg); font-weight: var(--weight-medium); font-size: var(--text-sm); }
 .tb-side__info { min-width: 0; flex: 1 1 auto; overflow: hidden; color: var(--fg-muted); font-size: var(--text-xs); line-height: var(--lh-xs);
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
@@ -6345,6 +6369,12 @@ function renderDS() {
       const demo = (name, extra = {}) => ({ name, oid: 'ds-' + name, ...extra });
       return [
         M.StepBar({ turn: 3, step: 'combat_attackers', active: 'Você', label: 'Declarar atacantes' }),
+        // MK3-1 (J-64) · o estojo das fases como na mesa: "Trocar fase" avança uma fase e o traço desliza com a mola
+        (() => { const STEPS = ['upkeep', 'main1', 'combat_attackers', 'main2', 'end']; let f = 1;
+          const palco = h('div', { class: 'ds-estojo', id: 'ds-estojo' }, M.StepBar({ turn: 3, step: STEPS[f], active: 'Você', label: 'Principal 1' }));
+          const troca = () => { const antes = f; f = (f + 1) % STEPS.length; palco.replaceChildren(M.StepBar({ turn: f ? 3 : 4, step: STEPS[f], active: 'Você', label: STEPS[f],
+            acende: __m33.fasesQueAcendem({ fase: antes, turno: 3 }, { fase: f, turno: f ? 3 : 4 }) })); };
+          return h('div', { class: 'ds-row ds-row--wrap' }, palco, Button('Trocar fase', { icone: 'seguir', id: 'ds-estojo-troca', variant: 'ghost', onClick: troca })); })(),
         h('div', { class: 'ds-row ds-row--wrap', id: 'ds-table' },
           M.LifeCounter({ name: 'Você', life: 17, active: true, onClick: () => toast('Vida') }),
           M.LifeCounter({ name: 'Goldfish', life: 20, sub: 'goldfish' }),
@@ -39752,11 +39782,14 @@ const faseDoPasso = step => PHASES.findIndex(([, steps]) => steps.includes(step)
     as que só passam piscam uma luz; a que fica é a atual, que acende por último. */
 function StepBar({ turn, step, active, label, ciclo, acende = [] }) {
   const luz = i => acende.find(a => a.fase === i);
+  // MK3-1 (J-64) · estojo: as fases que já passaram neste turno ficam cheias; o traço que fica desliza de onde estava (--de,
+  // em pontos: a fase de antes menos a de agora; turno novo volta do fim do trilho)
+  const atual = PHASES.findIndex(([, steps]) => steps.includes(step)), primeira = acende[0], de = primeira ? (primeira.fase + PHASES.length - 1) % PHASES.length : null;
   return h('div', { class: 'tb-steps', 'aria-label': `Turno ${turn}, ${label}, vez de ${active}${ciclo ? ', ' + ciclo.toLowerCase() : ''}` }, // T-48 · CR 731.1: dia ou noite, quando a partida tiver
     h('div', { class: 'tb-steps__head' }, h('span', {}, `Turno ${turn} · ${active}${ciclo ? ' · ' + ciclo : ''}`), h('strong', {}, label)),
     // U8 · na tela de 360 os nomes longos viram curtos ("princ. 1"); o nome inteiro fica no title
     h('ol', { class: 'tb-steps__list' }, ...PHASES.map(([name, steps], i) => { const a = luz(i);
-      return h('li', { dataset: { current: String(steps.includes(step)), ...(a ? { acende: a.fica ? 'fica' : 'passa' } : {}) }, title: name, ...(a ? { style: { '--i': String(a.k) } } : {}) },
+      return h('li', { dataset: { current: String(steps.includes(step)), passou: String(atual >= 0 && i < atual), ...(a ? { acende: a.fica ? 'fica' : 'passa' } : {}) }, title: name, ...(a ? { style: { '--i': String(a.k), ...(a.fica && de != null ? { '--de': String(de - i) } : {}) } } : {}) },
         h('span', { class: 'tb-steps__longo' }, name), h('span', { class: 'tb-steps__curto', 'aria-hidden': 'true' }, name.replace('principal', 'princ.'))); })));
 }
 

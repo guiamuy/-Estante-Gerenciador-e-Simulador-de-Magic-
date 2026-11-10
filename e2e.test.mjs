@@ -19597,7 +19597,9 @@ test('e2e · MJ8 ritmo do turno: trilho acende em sequência, faixa de vez desli
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/mj8-trilho-acende.png', clip: { x: 0, y: 0, width: 360, height: 90 } });
   const t1 = await trilho();
   assert.deepEqual(t1.map(x => [x.acende, x.k]), [[null, null], [null, null], ['passa', '0'], ['fica', '1'], [null, null]], 'o combate passa e a principal 2 fica ' + JSON.stringify(t1));
-  assert.equal(t1[2].fio, 'tb-fase-passa'); assert.equal(t1[3].fio, 'tb-fase-chega'); assert.equal(t1[3].li, 'tb-fase-fica'); assert.ok(t1[3].atual);
+  assert.equal(t1[2].fio, 'tb-fase-passa'); assert.equal(t1[3].fio, 'tb-fase-chega'); assert.ok(t1[3].atual);
+  // MK3-1 (J-64) · a expectativa muda de propósito: na mesa cheia a fase que fica não troca de cor (o estojo esconde o nome): o traço desliza de onde estava
+  assert.equal(t1[3].li, 'tb-traco-desliza');
   await page.waitForTimeout(700);
   const t1b = await trilho(); assert.ok(t1b[3].atual && t1b[2].op === '0' && t1b[3].op === '1', 'a luz que passa some sozinha; a atual fica acesa ' + JSON.stringify([t1b[2], t1b[3]]));
   // (mesma fase redesenhada não acende de novo: `fasesQueAcendem` devolve vazio — sentidos.unit)
@@ -22017,5 +22019,80 @@ test('e2e · J-63 MK3-0 mesa no material da Vitrine: carta com espessura, contat
   const moderado = await curva(); assert.match(moderado.carta, /^cubic-bezier/, 'moderado: sem repique (a mola vira --ease-out) ' + JSON.stringify(moderado));
   await page.evaluate(() => document.documentElement.setAttribute('data-movimento', 'reduzido'));
   const reduzido = await curva(); assert.ok(parseFloat(reduzido.dur) < 0.001, 'reduzido: levantar é instantâneo ' + JSON.stringify(reduzido));
+  assert.deepEqual(errors, []);
+});
+
+// MK3-1 (J-64, trilha jogabilidade) · estojo das fases: o trilho de pontos e traço sentava em cima do filete de latão da barra
+// (a linha passava por baixo dos pontos). Vira um estojo rebaixado no eixo da faixa de vez, com a mesma folga acima e abaixo,
+// e o filete fica inteiro abaixo dele; o primeiro lado do campo continua no mesmo y (zero pixel de campo). Fase atual = traço
+// em latão com fio de luz; passadas cheias; futuras vazadas. Trocar de fase: o traço desliza de onde estava (mola no
+// completo, --ease-out no moderado, no lugar num quadro no reduzido), medido pelo fim da animação.
+test('e2e · J-64 MK3-1 estojo das fases: trilho num estojo rebaixado no eixo da faixa, folga simétrica, o filete não passa por baixo, campo no mesmo y; traço desliza nos três níveis de Movimento; quatro medidas, dois temas, auditaTela', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'Estojo', PAUPER);
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start'); await page.fill('#mesa-seed', '4');
+  await page.click('[data-opponent="goldfish"]');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-pass');
+  const mede = () => page.evaluate(() => {
+    const r = e => { const b = e.getBoundingClientRect(); return { l: b.left, r: b.right, t: b.top, b: b.bottom, w: b.width, c: b.left + b.width / 2 }; };
+    const lista = document.querySelector('.tb-steps__list'), cs = getComputedStyle(lista), top = document.querySelector('.tb > .tb-top'), tcs = getComputedStyle(top);
+    const pts = [...lista.children].map(li => { const c = getComputedStyle(li); return { w: li.getBoundingClientRect().width, atual: li.dataset.current === 'true', passou: li.dataset.passou === 'true', fundo: c.backgroundImage, cor: c.backgroundColor, sombra: c.boxShadow }; });
+    return { lista: r(lista), sombra: cs.boxShadow, raio: cs.borderTopLeftRadius, vez: r(document.querySelector('#tb-vez')), top: r(top), filete: [tcs.backgroundImage, tcs.backgroundPosition, tcs.backgroundSize],
+      opp: r(document.querySelector('.tb-side--opp')), pts, doc: document.documentElement.scrollWidth - innerWidth };
+  });
+  for (const [w, hgt] of [[360, 780], [384, 832], [390, 844], [412, 891]]) for (const tema of ['dark', 'light']) {
+    await page.setViewportSize({ width: w, height: hgt }); await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(300);
+    const m = await mede(), onde = `${w}×${hgt} ${tema}`;
+    assert.match(m.sombra, /inset/, `${onde}: o estojo é rebaixado (sombra interna) ` + m.sombra); assert.equal(m.raio, '999px', `${onde}: estojo em pílula`);
+    assert.ok(Math.abs(m.lista.c - m.vez.c) <= 1, `${onde}: o estojo no eixo da faixa de vez (${m.lista.c} × ${m.vez.c})`);
+    const acima = m.lista.t - m.vez.b, abaixo = (m.top.b - 1) - m.lista.b; // o filete é o último pixel da barra
+    assert.ok(acima >= 3 && Math.abs(acima - abaixo) <= 1, `${onde}: folga igual acima (${acima}) e abaixo (${abaixo}) do estojo`);
+    assert.match(m.filete[0], /^linear-gradient/, `${onde}: o filete de latão continua`); assert.match(m.filete[1], /100%$/, `${onde}: o filete embaixo da barra`);
+    assert.ok(m.lista.b < m.top.b - 1, `${onde}: o filete não passa por baixo do estojo`);
+    assert.ok(m.opp.t - m.vez.b <= 22, `${onde}: o primeiro lado no mesmo y de antes (22 px abaixo da faixa): ${m.opp.t - m.vez.b}`);
+    assert.equal(m.pts.length, 5); const atual = m.pts.findIndex(p => p.atual); assert.ok(atual >= 0, `${onde}: uma fase atual`);
+    assert.match(m.pts[atual].fundo, /^linear-gradient/, `${onde}: o traço em latão`); assert.match(m.pts[atual].sombra, /0px 1px 0px 0px inset/, `${onde}: com fio de luz no topo`);
+    assert.ok(m.pts[atual].w > m.pts[(atual + 1) % 5].w, `${onde}: o traço mais longo que o ponto`);
+    m.pts.forEach((p, i) => { if (i === atual) return; assert.equal(p.passou, i < atual, `${onde}: fase ${i} passou?`);
+      if (p.passou) assert.notEqual(p.cor, 'rgba(0, 0, 0, 0)', `${onde}: a fase que passou é cheia`); else assert.match(p.sombra, /0px 0px 0px 1px inset/, `${onde}: a fase que vem é vazada`); });
+    assert.equal(m.doc, 0, `${onde}: nada rola de lado`);
+    await auditaTela(page, `J-64 · MK3-1 ${onde}`);
+    if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + `/j-64-mk3-1-${w}-${tema}.png`, clip: { x: 0, y: 0, width: w, height: 120 } });
+  }
+  // trocar de fase: o traço desliza de onde estava até o lugar dele; mede o fim (finished), nunca tempo fixo
+  await page.setViewportSize({ width: 360, height: 780 }); await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  const troca = async nivel => {
+    const antes = await page.evaluate(() => { const li = document.querySelector('.tb-steps__list li[data-current="true"]'), r = li.getBoundingClientRect(); return { i: [...li.parentNode.children].indexOf(li), c: r.left + r.width / 2 }; });
+    // a mesa redesenha a cada jogada; o trilho do redesenho é sondado no quadro em que nasce
+    await page.evaluate(() => { window.__estojo = null; const ob = new MutationObserver(() => { const li = document.querySelector('.tb-steps__list li[data-acende="fica"]'); if (!li || window.__estojo) return;
+      const cs = getComputedStyle(li), a = li.getAnimations().find(x => x.animationName === 'tb-traco-desliza');
+      window.__estojo = { nome: cs.animationName, curva: cs.animationTimingFunction, dur: cs.animationDuration, de: li.style.getPropertyValue('--de'), i: [...li.parentNode.children].indexOf(li), x0: a ? new DOMMatrix(getComputedStyle(li).transform).m41 : null };
+      window.__estojoFim = a ? a.finished.then(() => true) : Promise.resolve(true); ob.disconnect(); }); ob.observe(document.querySelector('#tb'), { childList: true, subtree: true }); });
+    await page.evaluate(() => { const M = window.__estanteMesa, L = M.legais(); M.act(L.find(x => x.t === 'pass') || L.find(x => x.t === 'discard') || L[0]); });
+    if (nivel === 'reduzido') { // menos movimento: nada voa nem acende (MJ3a/MJ8); o traço já nasce no lugar, sem animação
+      await page.waitForTimeout(150);
+      return { reduzido: await page.evaluate(() => ({ acende: document.querySelectorAll('.tb-steps__list li[data-acende]').length, anim: document.querySelector('.tb-steps__list li[data-current="true"]').getAnimations().length })) };
+    }
+    await page.waitForFunction(() => window.__estojo, null, { timeout: 4000 });
+    const ini = await page.evaluate(() => window.__estojo);
+    await page.evaluate(() => window.__estojoFim);
+    const fim = await page.evaluate(() => { const li = document.querySelector('.tb-steps__list li[data-current="true"]'), r = li.getBoundingClientRect(); return { i: [...li.parentNode.children].indexOf(li), c: r.left + r.width / 2, tf: getComputedStyle(li).transform }; });
+    return { antes, ini, fim };
+  };
+  for (const nivel of ['completo', 'moderado', 'reduzido']) {
+    await page.evaluate(n => document.documentElement.setAttribute('data-movimento', n), nivel);
+    const x = await troca(nivel), onde = `${nivel}: `;
+    if (x.reduzido) { assert.deepEqual(x.reduzido, { acende: 0, anim: 0 }, onde + 'o traço no lugar num quadro'); continue; }
+    if (x.fim.i === x.antes.i) continue; // a fase não mudou (o motor parou de novo na mesma): nada desliza, nada a medir
+    assert.equal(x.ini.nome, 'tb-traco-desliza', onde + 'o traço que fica desliza ' + JSON.stringify(x));
+    assert.equal(Number(x.ini.de), x.antes.i - x.fim.i, onde + 'sai da fase de antes ' + JSON.stringify(x));
+    assert.ok(Math.abs(x.ini.x0 - Number(x.ini.de) * 14) <= 2, onde + 'no primeiro quadro o traço está onde a fase de antes estava (ponto 6 + vão 8 por fase) ' + JSON.stringify(x.ini));
+    if (nivel === 'completo') { assert.match(x.ini.curva, /^linear\(/, onde + 'com a mola'); assert.equal(x.ini.dur, '0.28s', onde + '--dur-3'); }
+    if (nivel === 'moderado') assert.match(x.ini.curva, /^cubic-bezier/, onde + 'sem repique (a mola vira --ease-out)');
+    assert.ok(x.fim.tf === 'none' || /matrix\(1, 0, 0, 1, 0, 0\)/.test(x.fim.tf), onde + 'assenta sem deslocamento ' + x.fim.tf);
+    await auditaTela(page, `J-64 · MK3-1 troca ${nivel}`);
+  }
   assert.deepEqual(errors, []);
 });
