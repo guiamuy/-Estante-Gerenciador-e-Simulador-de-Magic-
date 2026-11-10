@@ -1,84 +1,91 @@
 {
  "versao": 1,
  "formato": "vintage",
- "geradoEm": "2026-11-08T13:50:31.473Z",
+ "geradoEm": "2026-11-10T21:48:54.987Z",
  "motor": 112,
  "fonte": "api.scryfall.com/cards/collection",
- "listas": 260,
+ "listas": 262,
  "listas100": 0,
- "cartasPendentes": 174,
+ "cartasPendentes": 155,
  "parcial": false,
  "lotesComFalha": 0,
  "porClasse": {
   "texto-mudou": 0,
-  "lida": 17,
-  "nova": 156,
+  "lida": 0,
+  "nova": 154,
   "parcial": 0,
   "sem-dados": 1
  },
- "novasDesdeAnterior": [],
+ "novasDesdeAnterior": [
+  "This Town Ain't Big Enough",
+  "Invasion of New Phyrexia"
+ ],
  "resolvidasDesdeAnterior": [
-  "Feed the Swarm",
-  "Repurposing Bay"
+  "Urza's Saga",
+  "Manifold Key",
+  "Sink into Stupor",
+  "Thundertrap Trainer",
+  "Null Rod",
+  "Portable Hole",
+  "Merchant Scroll",
+  "Hexing Squelcher",
+  "Boseiju, Who Endures",
+  "Collector Ouphe",
+  "Once Upon a Time",
+  "Stony Silence",
+  "Yavimaya, Cradle of Growth",
+  "Bloodghast",
+  "Dark Matter Manipulator",
+  "Darklight Phoenix",
+  "Echoing Deeps",
+  "Icetill Explorer",
+  "Step Through",
+  "Stitcher's Supplier",
+  "Vraska's Final Mercy"
  ],
  "curva": [
   {
    "listas": 1,
-   "cartas": 2
+   "cartas": 1
   },
   {
    "listas": 5,
-   "cartas": 4
+   "cartas": 1
   },
   {
    "listas": 10,
-   "cartas": 5
+   "cartas": 1
   },
   {
    "listas": 25,
-   "cartas": 5
+   "cartas": 2
   },
   {
    "listas": 50,
-   "cartas": 26
+   "cartas": 14
   },
   {
    "listas": 100,
-   "cartas": 43
+   "cartas": 29
   },
   {
    "listas": 200,
-   "cartas": 97
+   "cartas": 74
   },
   {
-   "listas": 260,
-   "cartas": 174
+   "listas": 262,
+   "cartas": 155
   }
  ],
  "textos": 0,
  "pendentes": [
   {
-   "name": "Urza's Saga",
-   "classe": "lida",
-   "nivel": "lida",
-   "motivo": "lida pelo motor, em revisão",
-   "listas": 195,
-   "gulosa": 1,
-   "texto": {
-    "mana_cost": "",
-    "type_line": "Enchantment Land — Urza's Saga",
-    "oracle_text": "(As this Saga enters and after your draw step, add a lore counter. Sacrifice after III.)\nI — This Saga gains \"{T}: Add {C}.\"\nII — This Saga gains \"{2}, {T}: Create a 0/0 colorless Construct artifact creature token with 'This token gets +1/+1 for each artifact you control.'\"\nIII — Search your library for an artifact card with mana cost {0} or {1}, put it onto the battlefield, then shuffle.",
-    "keywords": [],
-    "layout": "saga"
-   }
-  },
-  {
    "name": "Mana Crypt",
    "classe": "nova",
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
-   "listas": 179,
-   "gulosa": 51,
+   "listas": 180,
+   "gulosa": 43,
    "texto": {
     "mana_cost": "{0}",
     "type_line": "Artifact",
@@ -93,7 +100,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 95,
-   "gulosa": 28,
+   "gulosa": 33,
    "texto": {
     "mana_cost": "{4}",
     "type_line": "Legendary Planeswalker — Karn",
@@ -108,8 +115,8 @@
    "classe": "nova",
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
-   "listas": 79,
-   "gulosa": 109,
+   "listas": 78,
+   "gulosa": 106,
    "texto": {
     "mana_cost": "{4}",
     "type_line": "Legendary Artifact",
@@ -125,8 +132,8 @@
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
-   "listas": 73,
-   "gulosa": 103,
+   "listas": 75,
+   "gulosa": 98,
    "texto": {
     "mana_cost": "{2}",
     "type_line": "Artifact",
@@ -140,27 +147,12 @@
    "classe": "nova",
    "nivel": "manual",
    "motivo": "mágica sem script",
-   "listas": 70,
-   "gulosa": 66,
+   "listas": 72,
+   "gulosa": 51,
    "texto": {
     "mana_cost": "{3}{U}",
     "type_line": "Instant",
     "oracle_text": "Return any number of target nonland, nontoken permanents you control to their owners' hands. Draw a card for each card returned to your hand this way.",
-    "keywords": [],
-    "layout": "normal"
-   }
-  },
-  {
-   "name": "Manifold Key",
-   "classe": "lida",
-   "nivel": "lida",
-   "motivo": "lida pelo motor, em revisão",
-   "listas": 65,
-   "gulosa": 103,
-   "texto": {
-    "mana_cost": "{1}",
-    "type_line": "Artifact",
-    "oracle_text": "{1}, {T}: Untap another target artifact.\n{3}, {T}: Target creature can't be blocked this turn.",
     "keywords": [],
     "layout": "normal"
    }
@@ -171,7 +163,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 64,
-   "gulosa": 108,
+   "gulosa": 105,
    "texto": {
     "mana_cost": "{3}",
     "type_line": "Legendary Planeswalker — Tezzeret",
@@ -182,41 +174,12 @@
    }
   },
   {
-   "name": "Sink into Stupor",
-   "classe": "lida",
-   "nivel": "lida",
-   "motivo": "lida pelo motor, em revisão",
-   "listas": 61,
-   "gulosa": 52,
-   "texto": {
-    "mana_cost": "",
-    "type_line": "Instant // Land",
-    "oracle_text": "",
-    "keywords": [],
-    "layout": "modal_dfc",
-    "card_faces": [
-     {
-      "name": "Sink into Stupor",
-      "mana_cost": "{1}{U}{U}",
-      "type_line": "Instant",
-      "oracle_text": "Return target spell or nonland permanent an opponent controls to its owner's hand."
-     },
-     {
-      "name": "Soporific Springs",
-      "mana_cost": "",
-      "type_line": "Land",
-      "oracle_text": "As this land enters, you may pay 3 life. If you don't, it enters tapped.\n{T}: Add {U}."
-     }
-    ]
-   }
-  },
-  {
    "name": "Chalice of the Void",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
-   "listas": 60,
-   "gulosa": 114,
+   "listas": 59,
+   "gulosa": 111,
    "texto": {
     "mana_cost": "{X}{X}",
     "type_line": "Artifact",
@@ -230,7 +193,7 @@
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
-   "listas": 55,
+   "listas": 56,
    "gulosa": 1,
    "texto": {
     "mana_cost": "{1}{U}",
@@ -247,8 +210,8 @@
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
-   "listas": 53,
-   "gulosa": 141,
+   "listas": 52,
+   "gulosa": 144,
    "texto": {
     "mana_cost": "{3}",
     "type_line": "Artifact",
@@ -263,7 +226,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 47,
-   "gulosa": 127,
+   "gulosa": 130,
    "texto": {
     "mana_cost": "",
     "type_line": "Land — Gate",
@@ -273,31 +236,12 @@
    }
   },
   {
-   "name": "Thundertrap Trainer",
-   "classe": "lida",
-   "nivel": "lida",
-   "motivo": "lida pelo motor, em revisão",
-   "listas": 46,
-   "gulosa": 66,
-   "texto": {
-    "mana_cost": "{1}{U}",
-    "type_line": "Creature — Otter Wizard",
-    "oracle_text": "Offspring {4} (You may pay an additional {4} as you cast this spell. If you do, when this creature enters, create a 1/1 token copy of it.)\nWhen this creature enters, look at the top four cards of your library. You may reveal a noncreature, nonland card from among them and put it into your hand. Put the rest on the bottom of your library in a random order.",
-    "keywords": [
-     "Offspring"
-    ],
-    "layout": "normal",
-    "power": "1",
-    "toughness": "2"
-   }
-  },
-  {
    "name": "The Fantasticar",
    "classe": "nova",
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
-   "listas": 45,
-   "gulosa": 65,
+   "listas": 43,
+   "gulosa": 115,
    "texto": {
     "mana_cost": "{3}",
     "type_line": "Legendary Artifact — Vehicle",
@@ -311,12 +255,42 @@
    }
   },
   {
+   "name": "Flame of Anor",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "mágica sem script",
+   "listas": 39,
+   "gulosa": 51,
+   "texto": {
+    "mana_cost": "{1}{U}{R}",
+    "type_line": "Instant",
+    "oracle_text": "Choose one. If you control a Wizard as you cast this spell, you may choose two instead.\n• Target player draws two cards.\n• Destroy target artifact.\n• Flame of Anor deals 5 damage to target creature.",
+    "keywords": [],
+    "layout": "normal"
+   }
+  },
+  {
+   "name": "Mystic Forge",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
+   "listas": 38,
+   "gulosa": 131,
+   "texto": {
+    "mana_cost": "{4}",
+    "type_line": "Artifact",
+    "oracle_text": "You may look at the top card of your library any time.\nYou may cast artifact spells and colorless spells from the top of your library.\n{T}, Pay 1 life: Exile the top card of your library.",
+    "keywords": [],
+    "layout": "normal"
+   }
+  },
+  {
    "name": "Coveted Jewel",
    "classe": "nova",
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
-   "listas": 40,
-   "gulosa": 150,
+   "listas": 37,
+   "gulosa": 155,
    "texto": {
     "mana_cost": "{6}",
     "type_line": "Artifact",
@@ -330,8 +304,8 @@
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
-   "listas": 40,
-   "gulosa": 150,
+   "listas": 37,
+   "gulosa": 155,
    "texto": {
     "mana_cost": "{3}{U/P}",
     "type_line": "Artifact Creature — Phyrexian Shapeshifter",
@@ -343,72 +317,12 @@
    }
   },
   {
-   "name": "Flame of Anor",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "mágica sem script",
-   "listas": 39,
-   "gulosa": 66,
-   "texto": {
-    "mana_cost": "{1}{U}{R}",
-    "type_line": "Instant",
-    "oracle_text": "Choose one. If you control a Wizard as you cast this spell, you may choose two instead.\n• Target player draws two cards.\n• Destroy target artifact.\n• Flame of Anor deals 5 damage to target creature.",
-    "keywords": [],
-    "layout": "normal"
-   }
-  },
-  {
-   "name": "Null Rod",
-   "classe": "lida",
-   "nivel": "lida",
-   "motivo": "lida pelo motor, em revisão",
-   "listas": 39,
-   "gulosa": 8,
-   "texto": {
-    "mana_cost": "{2}",
-    "type_line": "Artifact",
-    "oracle_text": "Activated abilities of artifacts can't be activated.",
-    "keywords": [],
-    "layout": "normal"
-   }
-  },
-  {
-   "name": "Mystic Forge",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "texto que o motor não resolve",
-   "listas": 36,
-   "gulosa": 128,
-   "texto": {
-    "mana_cost": "{4}",
-    "type_line": "Artifact",
-    "oracle_text": "You may look at the top card of your library any time.\nYou may cast artifact spells and colorless spells from the top of your library.\n{T}, Pay 1 life: Exile the top card of your library.",
-    "keywords": [],
-    "layout": "normal"
-   }
-  },
-  {
-   "name": "Portable Hole",
-   "classe": "lida",
-   "nivel": "lida",
-   "motivo": "lida pelo motor, em revisão",
-   "listas": 34,
-   "gulosa": 84,
-   "texto": {
-    "mana_cost": "{W}",
-    "type_line": "Artifact",
-    "oracle_text": "When this artifact enters, exile target nonland permanent an opponent controls with mana value 2 or less until this artifact leaves the battlefield.",
-    "keywords": [],
-    "layout": "normal"
-   }
-  },
-  {
    "name": "Scrawling Crawler",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
-   "listas": 32,
-   "gulosa": 128,
+   "listas": 34,
+   "gulosa": 131,
    "texto": {
     "mana_cost": "{3}",
     "type_line": "Artifact Creature — Phyrexian Construct",
@@ -420,44 +334,12 @@
    }
   },
   {
-   "name": "Lodestone Golem",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "texto que o motor não resolve",
-   "listas": 30,
-   "gulosa": 129,
-   "texto": {
-    "mana_cost": "{4}",
-    "type_line": "Artifact Creature — Golem",
-    "oracle_text": "Nonartifact spells cost {1} more to cast.",
-    "keywords": [],
-    "layout": "normal",
-    "power": "5",
-    "toughness": "3"
-   }
-  },
-  {
-   "name": "Merchant Scroll",
-   "classe": "lida",
-   "nivel": "lida",
-   "motivo": "lida pelo motor, em revisão",
-   "listas": 30,
-   "gulosa": 37,
-   "texto": {
-    "mana_cost": "{1}{U}",
-    "type_line": "Sorcery",
-    "oracle_text": "Search your library for a blue instant card, reveal that card, put it into your hand, then shuffle.",
-    "keywords": [],
-    "layout": "normal"
-   }
-  },
-  {
    "name": "Glaring Fleshraker",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
-   "listas": 29,
-   "gulosa": 116,
+   "listas": 31,
+   "gulosa": 114,
    "texto": {
     "mana_cost": "{2}{C}",
     "type_line": "Creature — Eldrazi Drone",
@@ -473,8 +355,8 @@
    "classe": "nova",
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
-   "listas": 29,
-   "gulosa": 132,
+   "listas": 31,
+   "gulosa": 135,
    "texto": {
     "mana_cost": "",
     "type_line": "Legendary Land",
@@ -488,8 +370,8 @@
    "classe": "nova",
    "nivel": "manual",
    "motivo": "mágica sem script",
-   "listas": 28,
-   "gulosa": 69,
+   "listas": 30,
+   "gulosa": 59,
    "texto": {
     "mana_cost": "{X}{R}{W}",
     "type_line": "Sorcery",
@@ -499,12 +381,29 @@
    }
   },
   {
+   "name": "Lodestone Golem",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
+   "listas": 30,
+   "gulosa": 132,
+   "texto": {
+    "mana_cost": "{4}",
+    "type_line": "Artifact Creature — Golem",
+    "oracle_text": "Nonartifact spells cost {1} more to cast.",
+    "keywords": [],
+    "layout": "normal",
+    "power": "5",
+    "toughness": "3"
+   }
+  },
+  {
    "name": "Dress Down",
    "classe": "nova",
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
-   "listas": 26,
-   "gulosa": 2,
+   "listas": 28,
+   "gulosa": 24,
    "texto": {
     "mana_cost": "{1}{U}",
     "type_line": "Enchantment",
@@ -521,7 +420,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 25,
-   "gulosa": 40,
+   "gulosa": 88,
    "texto": {
     "mana_cost": "{2}{U}{U}",
     "type_line": "Instant — Trap",
@@ -531,22 +430,18 @@
    }
   },
   {
-   "name": "Hexing Squelcher",
-   "classe": "lida",
-   "nivel": "lida",
-   "motivo": "lida pelo motor, em revisão",
+   "name": "Underworld Breach",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
    "listas": 23,
-   "gulosa": 39,
+   "gulosa": 44,
    "texto": {
     "mana_cost": "{1}{R}",
-    "type_line": "Creature — Goblin Sorcerer",
-    "oracle_text": "This spell can't be countered.\nWard—Pay 2 life.\nSpells you control can't be countered.\nOther creatures you control have \"Ward—Pay 2 life.\"",
-    "keywords": [
-     "Ward"
-    ],
-    "layout": "normal",
-    "power": "2",
-    "toughness": "2"
+    "type_line": "Enchantment",
+    "oracle_text": "Each nonland card in your graveyard has escape. The escape cost is equal to the card's mana cost plus exile three other cards from your graveyard. (You may cast cards from your graveyard for their escape cost.)\nAt the beginning of the end step, sacrifice this enchantment.",
+    "keywords": [],
+    "layout": "normal"
    }
   },
   {
@@ -554,8 +449,8 @@
    "classe": "nova",
    "nivel": "manual",
    "motivo": "mágica sem script",
-   "listas": 23,
-   "gulosa": 118,
+   "listas": 22,
+   "gulosa": 116,
    "texto": {
     "mana_cost": "{U}{U}",
     "type_line": "Sorcery",
@@ -569,8 +464,8 @@
    "classe": "nova",
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
-   "listas": 22,
-   "gulosa": 226,
+   "listas": 21,
+   "gulosa": 230,
    "texto": {
     "mana_cost": "",
     "type_line": "Land",
@@ -580,27 +475,12 @@
    }
   },
   {
-   "name": "Underworld Breach",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "texto que o motor não resolve",
-   "listas": 22,
-   "gulosa": 52,
-   "texto": {
-    "mana_cost": "{1}{R}",
-    "type_line": "Enchantment",
-    "oracle_text": "Each nonland card in your graveyard has escape. The escape cost is equal to the card's mana cost plus exile three other cards from your graveyard. (You may cast cards from your graveyard for their escape cost.)\nAt the beginning of the end step, sacrifice this enchantment.",
-    "keywords": [],
-    "layout": "normal"
-   }
-  },
-  {
    "name": "Archon of Emeria",
    "classe": "nova",
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
-   "listas": 20,
-   "gulosa": 226,
+   "listas": 19,
+   "gulosa": 230,
    "texto": {
     "mana_cost": "{2}{W}",
     "type_line": "Creature — Archon",
@@ -618,8 +498,8 @@
    "classe": "nova",
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
-   "listas": 20,
-   "gulosa": 192,
+   "listas": 19,
+   "gulosa": 208,
    "texto": {
     "mana_cost": "{4}{W}{W}{W}",
     "type_line": "Creature — Phyrexian Angel",
@@ -637,8 +517,8 @@
    "classe": "nova",
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
-   "listas": 20,
-   "gulosa": 169,
+   "listas": 19,
+   "gulosa": 172,
    "texto": {
     "mana_cost": "{3}{B}{R}",
     "type_line": "Artifact Creature — Demon Construct",
@@ -657,8 +537,8 @@
    "classe": "nova",
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
-   "listas": 20,
-   "gulosa": 226,
+   "listas": 19,
+   "gulosa": 230,
    "texto": {
     "mana_cost": "{2}{W}",
     "type_line": "Creature — Dragon",
@@ -676,8 +556,8 @@
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
-   "listas": 20,
-   "gulosa": 127,
+   "listas": 19,
+   "gulosa": 130,
    "texto": {
     "mana_cost": "{5}",
     "type_line": "Legendary Artifact",
@@ -691,8 +571,8 @@
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
-   "listas": 19,
-   "gulosa": 226,
+   "listas": 18,
+   "gulosa": 230,
    "texto": {
     "mana_cost": "{3}{W}",
     "type_line": "Creature — Human Warrior",
@@ -710,8 +590,8 @@
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
-   "listas": 19,
-   "gulosa": 226,
+   "listas": 18,
+   "gulosa": 230,
    "texto": {
     "mana_cost": "{2}{W}",
     "type_line": "Creature — Orc Cleric",
@@ -727,8 +607,8 @@
    "classe": "nova",
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
-   "listas": 18,
-   "gulosa": 226,
+   "listas": 17,
+   "gulosa": 230,
    "texto": {
     "mana_cost": "{2}{W}",
     "type_line": "Creature — Human Cleric",
@@ -742,29 +622,12 @@
    }
   },
   {
-   "name": "Boseiju, Who Endures",
-   "classe": "lida",
-   "nivel": "lida",
-   "motivo": "lida pelo motor, em revisão",
-   "listas": 18,
-   "gulosa": 42,
-   "texto": {
-    "mana_cost": "",
-    "type_line": "Legendary Land",
-    "oracle_text": "{T}: Add {G}.\nChannel — {1}{G}, Discard this card: Destroy target artifact, enchantment, or nonbasic land an opponent controls. That player may search their library for a land card with a basic land type, put it onto the battlefield, then shuffle. This ability costs {1} less to activate for each legendary creature you control.",
-    "keywords": [
-     "Channel"
-    ],
-    "layout": "normal"
-   }
-  },
-  {
    "name": "Hollow One",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
-   "listas": 18,
-   "gulosa": 207,
+   "listas": 17,
+   "gulosa": 196,
    "texto": {
     "mana_cost": "{5}",
     "type_line": "Artifact Creature — Golem",
@@ -782,8 +645,8 @@
    "classe": "nova",
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
-   "listas": 18,
-   "gulosa": 207,
+   "listas": 16,
+   "gulosa": 197,
    "texto": {
     "mana_cost": "{3}",
     "type_line": "Artifact",
@@ -793,41 +656,11 @@
    }
   },
   {
-   "name": "Bolas's Citadel",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "texto que o motor não resolve",
-   "listas": 15,
-   "gulosa": 65,
-   "texto": {
-    "mana_cost": "{3}{B}{B}{B}",
-    "type_line": "Legendary Artifact",
-    "oracle_text": "You may look at the top card of your library any time.\nYou may play lands and cast spells from the top of your library. If you cast a spell this way, pay life equal to its mana value rather than pay its mana cost.\n{T}, Sacrifice ten nonland permanents: Each opponent loses 10 life.",
-    "keywords": [],
-    "layout": "normal"
-   }
-  },
-  {
-   "name": "Relic of Sauron",
-   "classe": "nova",
-   "nivel": "parcial",
-   "motivo": "parte do texto o motor não resolve",
-   "listas": 15,
-   "gulosa": 174,
-   "texto": {
-    "mana_cost": "{4}",
-    "type_line": "Artifact",
-    "oracle_text": "{T}: Add two mana in any combination of {U}, {B}, and/or {R}.\n{3}, {T}: Draw two cards, then discard a card.",
-    "keywords": [],
-    "layout": "normal"
-   }
-  },
-  {
    "name": "Chain of Vapor",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "mágica sem script",
-   "listas": 14,
+   "listas": 15,
    "gulosa": 50,
    "texto": {
     "mana_cost": "{U}",
@@ -838,12 +671,27 @@
    }
   },
   {
+   "name": "Relic of Sauron",
+   "classe": "nova",
+   "nivel": "parcial",
+   "motivo": "parte do texto o motor não resolve",
+   "listas": 14,
+   "gulosa": 177,
+   "texto": {
+    "mana_cost": "{4}",
+    "type_line": "Artifact",
+    "oracle_text": "{T}: Add two mana in any combination of {U}, {B}, and/or {R}.\n{3}, {T}: Draw two cards, then discard a card.",
+    "keywords": [],
+    "layout": "normal"
+   }
+  },
+  {
    "name": "Yawgmoth's Will",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 14,
-   "gulosa": 103,
+   "gulosa": 100,
    "texto": {
     "mana_cost": "{2}{B}",
     "type_line": "Sorcery",
@@ -853,16 +701,31 @@
    }
   },
   {
-   "name": "Commandeer",
+   "name": "Bolas's Citadel",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
+   "listas": 13,
+   "gulosa": 104,
+   "texto": {
+    "mana_cost": "{3}{B}{B}{B}",
+    "type_line": "Legendary Artifact",
+    "oracle_text": "You may look at the top card of your library any time.\nYou may play lands and cast spells from the top of your library. If you cast a spell this way, pay life equal to its mana value rather than pay its mana cost.\n{T}, Sacrifice ten nonland permanents: Each opponent loses 10 life.",
+    "keywords": [],
+    "layout": "normal"
+   }
+  },
+  {
+   "name": "Misdirection",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "mágica sem script",
-   "listas": 12,
-   "gulosa": 43,
+   "listas": 13,
+   "gulosa": 95,
    "texto": {
-    "mana_cost": "{5}{U}{U}",
+    "mana_cost": "{3}{U}{U}",
     "type_line": "Instant",
-    "oracle_text": "You may exile two blue cards from your hand rather than pay this spell's mana cost.\nGain control of target noncreature spell. You may choose new targets for it. (If that spell is an artifact, enchantment, or planeswalker, the permanent enters under your control.)",
+    "oracle_text": "You may exile a blue card from your hand rather than pay this spell's mana cost.\nChange the target of target spell with a single target.",
     "keywords": [],
     "layout": "normal"
    }
@@ -872,8 +735,8 @@
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
-   "listas": 12,
-   "gulosa": 41,
+   "listas": 13,
+   "gulosa": 94,
    "texto": {
     "mana_cost": "{1}{G}{U}",
     "type_line": "Legendary Planeswalker — Oko",
@@ -886,46 +749,12 @@
    }
   },
   {
-   "name": "Thorn of Amethyst",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "texto que o motor não resolve",
-   "listas": 12,
-   "gulosa": 246,
-   "texto": {
-    "mana_cost": "{2}",
-    "type_line": "Artifact",
-    "oracle_text": "Noncreature spells cost {1} more to cast.",
-    "keywords": [],
-    "layout": "normal"
-   }
-  },
-  {
-   "name": "Vengevine",
-   "classe": "nova",
-   "nivel": "parcial",
-   "motivo": "parte do texto o motor não resolve",
-   "listas": 12,
-   "gulosa": 207,
-   "texto": {
-    "mana_cost": "{2}{G}{G}",
-    "type_line": "Creature — Elemental",
-    "oracle_text": "Haste\nWhenever you cast a spell, if it's the second creature spell you cast this turn, you may return this card from your graveyard to the battlefield.",
-    "keywords": [
-     "Haste"
-    ],
-    "layout": "normal",
-    "power": "4",
-    "toughness": "3"
-   }
-  },
-  {
    "name": "Atraxa, Grand Unifier",
    "classe": "nova",
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
-   "listas": 11,
-   "gulosa": 196,
+   "listas": 12,
+   "gulosa": 211,
    "texto": {
     "mana_cost": "{3}{G}{W}{U}{B}",
     "type_line": "Legendary Creature — Phyrexian Angel",
@@ -942,16 +771,16 @@
    }
   },
   {
-   "name": "Crucible of Worlds",
+   "name": "Commandeer",
    "classe": "nova",
    "nivel": "manual",
-   "motivo": "texto que o motor não resolve",
-   "listas": 11,
-   "gulosa": 247,
+   "motivo": "mágica sem script",
+   "listas": 12,
+   "gulosa": 95,
    "texto": {
-    "mana_cost": "{3}",
-    "type_line": "Artifact",
-    "oracle_text": "You may play lands from your graveyard.",
+    "mana_cost": "{5}{U}{U}",
+    "type_line": "Instant",
+    "oracle_text": "You may exile two blue cards from your hand rather than pay this spell's mana cost.\nGain control of target noncreature spell. You may choose new targets for it. (If that spell is an artifact, enchantment, or planeswalker, the permanent enters under your control.)",
     "keywords": [],
     "layout": "normal"
    }
@@ -961,12 +790,87 @@
    "classe": "nova",
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
-   "listas": 11,
-   "gulosa": 196,
+   "listas": 12,
+   "gulosa": 211,
    "texto": {
     "mana_cost": "",
     "type_line": "Land",
     "oracle_text": "{T}: Add one mana of any color.\nWhenever you tap this land for mana, target opponent creates a 1/1 colorless Spirit creature token.",
+    "keywords": [],
+    "layout": "normal"
+   }
+  },
+  {
+   "name": "Gush",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "mágica sem script",
+   "listas": 12,
+   "gulosa": 36,
+   "texto": {
+    "mana_cost": "{4}{U}",
+    "type_line": "Instant",
+    "oracle_text": "You may return two Islands you control to their owner's hand rather than pay this spell's mana cost.\nDraw two cards.",
+    "keywords": [],
+    "layout": "normal"
+   }
+  },
+  {
+   "name": "Oath of Druids",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
+   "listas": 12,
+   "gulosa": 211,
+   "texto": {
+    "mana_cost": "{1}{G}",
+    "type_line": "Enchantment",
+    "oracle_text": "At the beginning of each player's upkeep, that player chooses target player who controls more creatures than they do and is their opponent. The first player may reveal cards from the top of their library until they reveal a creature card. If the first player does, that player puts that card onto the battlefield and all other cards revealed this way into their graveyard.",
+    "keywords": [],
+    "layout": "normal"
+   }
+  },
+  {
+   "name": "Thorn of Amethyst",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
+   "listas": 12,
+   "gulosa": 248,
+   "texto": {
+    "mana_cost": "{2}",
+    "type_line": "Artifact",
+    "oracle_text": "Noncreature spells cost {1} more to cast.",
+    "keywords": [],
+    "layout": "normal"
+   }
+  },
+  {
+   "name": "Crucible of Worlds",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
+   "listas": 11,
+   "gulosa": 249,
+   "texto": {
+    "mana_cost": "{3}",
+    "type_line": "Artifact",
+    "oracle_text": "You may play lands from your graveyard.",
+    "keywords": [],
+    "layout": "normal"
+   }
+  },
+  {
+   "name": "Gifts Ungiven",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "mágica sem script",
+   "listas": 11,
+   "gulosa": 85,
+   "texto": {
+    "mana_cost": "{3}{U}",
+    "type_line": "Instant",
+    "oracle_text": "Search your library for up to four cards with different names and reveal them. Target opponent chooses two of those cards. Put the chosen cards into your graveyard and the rest into your hand. Then shuffle.",
     "keywords": [],
     "layout": "normal"
    }
@@ -977,7 +881,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 11,
-   "gulosa": 247,
+   "gulosa": 249,
    "texto": {
     "mana_cost": "{5}",
     "type_line": "Legendary Artifact Creature — Scout",
@@ -989,65 +893,16 @@
    }
   },
   {
-   "name": "Gush",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "mágica sem script",
-   "listas": 11,
-   "gulosa": 29,
-   "texto": {
-    "mana_cost": "{4}{U}",
-    "type_line": "Instant",
-    "oracle_text": "You may return two Islands you control to their owner's hand rather than pay this spell's mana cost.\nDraw two cards.",
-    "keywords": [],
-    "layout": "normal"
-   }
-  },
-  {
-   "name": "Master of Death",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "texto que o motor não resolve",
-   "listas": 11,
-   "gulosa": 207,
-   "texto": {
-    "mana_cost": "{1}{U}{B}",
-    "type_line": "Creature — Zombie Wizard",
-    "oracle_text": "When this creature enters, surveil 2. (Look at the top two cards of your library, then put any number of them into your graveyard and the rest on top of your library in any order.)\nAt the beginning of your upkeep, if this card is in your graveyard, you may pay 1 life. If you do, return it to your hand.",
-    "keywords": [
-     "Surveil"
-    ],
-    "layout": "normal",
-    "power": "3",
-    "toughness": "1"
-   }
-  },
-  {
    "name": "Noxious Revival",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 11,
-   "gulosa": 213,
+   "gulosa": 202,
    "texto": {
     "mana_cost": "{G/P}",
     "type_line": "Instant",
     "oracle_text": "({G/P} can be paid with either {G} or 2 life.)\nPut target card from a graveyard on top of its owner's library.",
-    "keywords": [],
-    "layout": "normal"
-   }
-  },
-  {
-   "name": "Oath of Druids",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "texto que o motor não resolve",
-   "listas": 11,
-   "gulosa": 196,
-   "texto": {
-    "mana_cost": "{1}{G}",
-    "type_line": "Enchantment",
-    "oracle_text": "At the beginning of each player's upkeep, that player chooses target player who controls more creatures than they do and is their opponent. The first player may reveal cards from the top of their library until they reveal a creature card. If the first player does, that player puts that card onto the battlefield and all other cards revealed this way into their graveyard.",
     "keywords": [],
     "layout": "normal"
    }
@@ -1058,7 +913,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 11,
-   "gulosa": 247,
+   "gulosa": 249,
    "texto": {
     "mana_cost": "{2}",
     "type_line": "Artifact Creature — Construct",
@@ -1077,7 +932,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 11,
-   "gulosa": 247,
+   "gulosa": 249,
    "texto": {
     "mana_cost": "{2}",
     "type_line": "Artifact",
@@ -1087,29 +942,12 @@
    }
   },
   {
-   "name": "Squee, Goblin Nabob",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "texto que o motor não resolve",
-   "listas": 11,
-   "gulosa": 207,
-   "texto": {
-    "mana_cost": "{2}{R}",
-    "type_line": "Legendary Creature — Goblin",
-    "oracle_text": "At the beginning of your upkeep, you may return this card from your graveyard to your hand.",
-    "keywords": [],
-    "layout": "normal",
-    "power": "1",
-    "toughness": "1"
-   }
-  },
-  {
    "name": "Stonecoil Serpent",
    "classe": "nova",
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 11,
-   "gulosa": 247,
+   "gulosa": 249,
    "texto": {
     "mana_cost": "{X}",
     "type_line": "Artifact Creature — Snake",
@@ -1125,33 +963,41 @@
    }
   },
   {
-   "name": "Gifts Ungiven",
+   "name": "Vengevine",
    "classe": "nova",
-   "nivel": "manual",
-   "motivo": "mágica sem script",
-   "listas": 10,
-   "gulosa": 58,
+   "nivel": "parcial",
+   "motivo": "parte do texto o motor não resolve",
+   "listas": 11,
+   "gulosa": 196,
    "texto": {
-    "mana_cost": "{3}{U}",
-    "type_line": "Instant",
-    "oracle_text": "Search your library for up to four cards with different names and reveal them. Target opponent chooses two of those cards. Put the chosen cards into your graveyard and the rest into your hand. Then shuffle.",
-    "keywords": [],
-    "layout": "normal"
+    "mana_cost": "{2}{G}{G}",
+    "type_line": "Creature — Elemental",
+    "oracle_text": "Haste\nWhenever you cast a spell, if it's the second creature spell you cast this turn, you may return this card from your graveyard to the battlefield.",
+    "keywords": [
+     "Haste"
+    ],
+    "layout": "normal",
+    "power": "4",
+    "toughness": "3"
    }
   },
   {
-   "name": "Misdirection",
+   "name": "Master of Death",
    "classe": "nova",
    "nivel": "manual",
-   "motivo": "mágica sem script",
+   "motivo": "texto que o motor não resolve",
    "listas": 10,
-   "gulosa": 43,
+   "gulosa": 197,
    "texto": {
-    "mana_cost": "{3}{U}{U}",
-    "type_line": "Instant",
-    "oracle_text": "You may exile a blue card from your hand rather than pay this spell's mana cost.\nChange the target of target spell with a single target.",
-    "keywords": [],
-    "layout": "normal"
+    "mana_cost": "{1}{U}{B}",
+    "type_line": "Creature — Zombie Wizard",
+    "oracle_text": "When this creature enters, surveil 2. (Look at the top two cards of your library, then put any number of them into your graveyard and the rest on top of your library in any order.)\nAt the beginning of your upkeep, if this card is in your graveyard, you may pay 1 life. If you do, return it to your hand.",
+    "keywords": [
+     "Surveil"
+    ],
+    "layout": "normal",
+    "power": "3",
+    "toughness": "1"
    }
   },
   {
@@ -1160,7 +1006,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 10,
-   "gulosa": 248,
+   "gulosa": 250,
    "texto": {
     "mana_cost": "{3}",
     "type_line": "Artifact — Equipment",
@@ -1178,7 +1024,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 10,
-   "gulosa": 196,
+   "gulosa": 213,
    "texto": {
     "mana_cost": "{2}{U}",
     "type_line": "Sorcery",
@@ -1188,12 +1034,29 @@
    }
   },
   {
+   "name": "Squee, Goblin Nabob",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
+   "listas": 10,
+   "gulosa": 197,
+   "texto": {
+    "mana_cost": "{2}{R}",
+    "type_line": "Legendary Creature — Goblin",
+    "oracle_text": "At the beginning of your upkeep, you may return this card from your graveyard to your hand.",
+    "keywords": [],
+    "layout": "normal",
+    "power": "1",
+    "toughness": "1"
+   }
+  },
+  {
    "name": "The Endstone",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 10,
-   "gulosa": 110,
+   "gulosa": 107,
    "texto": {
     "mana_cost": "{7}",
     "type_line": "Legendary Artifact",
@@ -1207,8 +1070,8 @@
    "classe": "nova",
    "nivel": "manual",
    "motivo": "mágica sem script",
-   "listas": 8,
-   "gulosa": 198,
+   "listas": 9,
+   "gulosa": 211,
    "texto": {
     "mana_cost": "{1}{G}",
     "type_line": "Sorcery",
@@ -1222,8 +1085,8 @@
    "classe": "nova",
    "nivel": "manual",
    "motivo": "mágica sem script",
-   "listas": 8,
-   "gulosa": 58,
+   "listas": 9,
+   "gulosa": 86,
    "texto": {
     "mana_cost": "{U}{U}",
     "type_line": "Instant",
@@ -1233,12 +1096,27 @@
    }
   },
   {
+   "name": "Flash",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "mágica sem script",
+   "listas": 7,
+   "gulosa": 213,
+   "texto": {
+    "mana_cost": "{1}{U}",
+    "type_line": "Instant",
+    "oracle_text": "You may put a creature card from your hand onto the battlefield. If you do, sacrifice it unless you pay its mana cost reduced by {2}.",
+    "keywords": [],
+    "layout": "normal"
+   }
+  },
+  {
    "name": "Narcomoeba",
    "classe": "nova",
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
-   "listas": 8,
-   "gulosa": 192,
+   "listas": 7,
+   "gulosa": 208,
    "texto": {
     "mana_cost": "{1}{U}",
     "type_line": "Creature — Illusion",
@@ -1252,12 +1130,32 @@
    }
   },
   {
+   "name": "Raph & Mikey, Troublemakers",
+   "classe": "nova",
+   "nivel": "parcial",
+   "motivo": "parte do texto o motor não resolve",
+   "listas": 7,
+   "gulosa": 215,
+   "texto": {
+    "mana_cost": "{5}{R/G}{R/G}",
+    "type_line": "Legendary Creature — Mutant Ninja Turtle",
+    "oracle_text": "Trample, haste\nWhenever Raph & Mikey attack, reveal cards from the top of your library until you reveal a creature card. Put that card onto the battlefield tapped and attacking and the rest on the bottom of your library in a random order.",
+    "keywords": [
+     "Haste",
+     "Trample"
+    ],
+    "layout": "normal",
+    "power": "7",
+    "toughness": "7"
+   }
+  },
+  {
    "name": "Thassa's Oracle",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
-   "listas": 8,
-   "gulosa": 45,
+   "listas": 7,
+   "gulosa": 119,
    "texto": {
     "mana_cost": "{U}{U}",
     "type_line": "Creature — Merfolk Wizard",
@@ -1269,12 +1167,46 @@
    }
   },
   {
+   "name": "Beseech the Mirror",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "mágica sem script",
+   "listas": 6,
+   "gulosa": 125,
+   "texto": {
+    "mana_cost": "{1}{B}{B}{B}",
+    "type_line": "Sorcery",
+    "oracle_text": "Bargain (You may sacrifice an artifact, enchantment, or token as you cast this spell.)\nSearch your library for a card, exile it face down, then shuffle. If this spell was bargained, you may cast the exiled card without paying its mana cost if that spell's mana value is 4 or less. Put the exiled card into your hand if it wasn't cast this way.",
+    "keywords": [
+     "Bargain"
+    ],
+    "layout": "normal"
+   }
+  },
+  {
+   "name": "Council of Reeds",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
+   "listas": 6,
+   "gulosa": 35,
+   "texto": {
+    "mana_cost": "{2}{U}",
+    "type_line": "Legendary Creature — Human Scientist Hero",
+    "oracle_text": "The \"legend rule\" doesn't apply to creatures you control.\nAt the beginning of combat on your turn, if you've cast a noncreature spell this turn, create a token that's a copy of Council of Reeds.",
+    "keywords": [],
+    "layout": "normal",
+    "power": "2",
+    "toughness": "2"
+   }
+  },
+  {
    "name": "Creeping Chill",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "mágica sem script",
-   "listas": 7,
-   "gulosa": 219,
+   "listas": 6,
+   "gulosa": 223,
    "texto": {
     "mana_cost": "{3}{B}",
     "type_line": "Sorcery",
@@ -1284,16 +1216,31 @@
    }
   },
   {
-   "name": "Flash",
+   "name": "Doomsday",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "mágica sem script",
-   "listas": 7,
-   "gulosa": 196,
+   "listas": 6,
+   "gulosa": 119,
    "texto": {
-    "mana_cost": "{1}{U}",
-    "type_line": "Instant",
-    "oracle_text": "You may put a creature card from your hand onto the battlefield. If you do, sacrifice it unless you pay its mana cost reduced by {2}.",
+    "mana_cost": "{B}{B}{B}",
+    "type_line": "Sorcery",
+    "oracle_text": "Search your library and graveyard for five cards and exile the rest. Put the chosen cards on top of your library in any order. You lose half your life, rounded up.",
+    "keywords": [],
+    "layout": "normal"
+   }
+  },
+  {
+   "name": "Extrapolate the Impossible",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "mágica sem script",
+   "listas": 6,
+   "gulosa": 125,
+   "texto": {
+    "mana_cost": "{1}{B}",
+    "type_line": "Sorcery",
+    "oracle_text": "You may reveal exactly two cards you own with different names from outside the game. An opponent chooses one of them. You put that card into your hand.",
     "keywords": [],
     "layout": "normal"
    }
@@ -1303,8 +1250,8 @@
    "classe": "nova",
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
-   "listas": 7,
-   "gulosa": 219,
+   "listas": 6,
+   "gulosa": 223,
    "texto": {
     "mana_cost": "{4}{G}",
     "type_line": "Creature — Troll Skeleton",
@@ -1324,8 +1271,8 @@
    "classe": "nova",
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
-   "listas": 7,
-   "gulosa": 219,
+   "listas": 6,
+   "gulosa": 223,
    "texto": {
     "mana_cost": "{3}{B}",
     "type_line": "Creature — Horror",
@@ -1339,111 +1286,12 @@
    }
   },
   {
-   "name": "Raph & Mikey, Troublemakers",
-   "classe": "nova",
-   "nivel": "parcial",
-   "motivo": "parte do texto o motor não resolve",
-   "listas": 7,
-   "gulosa": 200,
-   "texto": {
-    "mana_cost": "{5}{R/G}{R/G}",
-    "type_line": "Legendary Creature — Mutant Ninja Turtle",
-    "oracle_text": "Trample, haste\nWhenever Raph & Mikey attack, reveal cards from the top of your library until you reveal a creature card. Put that card onto the battlefield tapped and attacking and the rest on the bottom of your library in a random order.",
-    "keywords": [
-     "Haste",
-     "Trample"
-    ],
-    "layout": "normal",
-    "power": "7",
-    "toughness": "7"
-   }
-  },
-  {
-   "name": "Beseech the Mirror",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "mágica sem script",
-   "listas": 6,
-   "gulosa": 122,
-   "texto": {
-    "mana_cost": "{1}{B}{B}{B}",
-    "type_line": "Sorcery",
-    "oracle_text": "Bargain (You may sacrifice an artifact, enchantment, or token as you cast this spell.)\nSearch your library for a card, exile it face down, then shuffle. If this spell was bargained, you may cast the exiled card without paying its mana cost if that spell's mana value is 4 or less. Put the exiled card into your hand if it wasn't cast this way.",
-    "keywords": [
-     "Bargain"
-    ],
-    "layout": "normal"
-   }
-  },
-  {
-   "name": "Collector Ouphe",
-   "classe": "lida",
-   "nivel": "lida",
-   "motivo": "lida pelo motor, em revisão",
-   "listas": 6,
-   "gulosa": 51,
-   "texto": {
-    "mana_cost": "{1}{G}",
-    "type_line": "Creature — Ouphe",
-    "oracle_text": "Activated abilities of artifacts can't be activated.",
-    "keywords": [],
-    "layout": "normal",
-    "power": "2",
-    "toughness": "2"
-   }
-  },
-  {
-   "name": "Demonic Consultation",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "mágica sem script",
-   "listas": 6,
-   "gulosa": 38,
-   "texto": {
-    "mana_cost": "{B}",
-    "type_line": "Instant",
-    "oracle_text": "Choose a card name. Exile the top six cards of your library, then reveal cards from the top of your library until you reveal a card with the chosen name. Put that card into your hand and exile all other cards revealed this way.",
-    "keywords": [],
-    "layout": "normal"
-   }
-  },
-  {
-   "name": "Doomsday",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "mágica sem script",
-   "listas": 6,
-   "gulosa": 45,
-   "texto": {
-    "mana_cost": "{B}{B}{B}",
-    "type_line": "Sorcery",
-    "oracle_text": "Search your library and graveyard for five cards and exile the rest. Put the chosen cards on top of your library in any order. You lose half your life, rounded up.",
-    "keywords": [],
-    "layout": "normal"
-   }
-  },
-  {
-   "name": "Extrapolate the Impossible",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "mágica sem script",
-   "listas": 6,
-   "gulosa": 122,
-   "texto": {
-    "mana_cost": "{1}{B}",
-    "type_line": "Sorcery",
-    "oracle_text": "You may reveal exactly two cards you own with different names from outside the game. An opponent chooses one of them. You put that card into your hand.",
-    "keywords": [],
-    "layout": "normal"
-   }
-  },
-  {
    "name": "Prized Amalgam",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 6,
-   "gulosa": 219,
+   "gulosa": 223,
    "texto": {
     "mana_cost": "{1}{U}{B}",
     "type_line": "Creature — Zombie",
@@ -1460,7 +1308,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 6,
-   "gulosa": 219,
+   "gulosa": 223,
    "texto": {
     "mana_cost": "{2}{B}",
     "type_line": "Creature — Zombie Vampire",
@@ -1472,12 +1320,27 @@
    }
   },
   {
+   "name": "Demonic Consultation",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "mágica sem script",
+   "listas": 5,
+   "gulosa": 42,
+   "texto": {
+    "mana_cost": "{B}",
+    "type_line": "Instant",
+    "oracle_text": "Choose a card name. Exile the top six cards of your library, then reveal cards from the top of your library until you reveal a card with the chosen name. Put that card into your hand and exile all other cards revealed this way.",
+    "keywords": [],
+    "layout": "normal"
+   }
+  },
+  {
    "name": "Force of Vigor",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 5,
-   "gulosa": 213,
+   "gulosa": 202,
    "texto": {
     "mana_cost": "{2}{G}{G}",
     "type_line": "Instant",
@@ -1492,7 +1355,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 5,
-   "gulosa": 5,
+   "gulosa": 28,
    "texto": {
     "mana_cost": "{2}{U}",
     "type_line": "Sorcery",
@@ -1502,46 +1365,12 @@
    }
   },
   {
-   "name": "Council of Reeds",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "texto que o motor não resolve",
-   "listas": 4,
-   "gulosa": 107,
-   "texto": {
-    "mana_cost": "{2}{U}",
-    "type_line": "Legendary Creature — Human Scientist Hero",
-    "oracle_text": "The \"legend rule\" doesn't apply to creatures you control.\nAt the beginning of combat on your turn, if you've cast a noncreature spell this turn, create a token that's a copy of Council of Reeds.",
-    "keywords": [],
-    "layout": "normal",
-    "power": "2",
-    "toughness": "2"
-   }
-  },
-  {
-   "name": "Momentum Breaker",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "texto que o motor não resolve",
-   "listas": 4,
-   "gulosa": 34,
-   "texto": {
-    "mana_cost": "{1}{B}",
-    "type_line": "Enchantment",
-    "oracle_text": "Start your engines! (If you have no speed, it starts at 1. It increases once on each of your turns when an opponent loses life. Max speed is 4.)\nWhen this enchantment enters, each opponent sacrifices a creature or Vehicle of their choice. Each opponent who can't discards a card.\n{2}, Sacrifice this enchantment: You gain life equal to your speed.",
-    "keywords": [
-     "Start your engines!"
-    ],
-    "layout": "normal"
-   }
-  },
-  {
    "name": "Wrenn and Six",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
-   "listas": 4,
-   "gulosa": 63,
+   "listas": 5,
+   "gulosa": 192,
    "texto": {
     "mana_cost": "{R}{G}",
     "type_line": "Legendary Planeswalker — Wrenn",
@@ -1552,27 +1381,12 @@
    }
   },
   {
-   "name": "The Tabernacle at Pendrell Vale",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "texto que o motor não resolve",
-   "listas": 3,
-   "gulosa": 225,
-   "texto": {
-    "mana_cost": "",
-    "type_line": "Legendary Land",
-    "oracle_text": "All creatures have \"At the beginning of your upkeep, destroy this creature unless you pay {1}.\"",
-    "keywords": [],
-    "layout": "normal"
-   }
-  },
-  {
    "name": "Wistfulness",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
-   "listas": 3,
-   "gulosa": 41,
+   "listas": 4,
+   "gulosa": 94,
    "texto": {
     "mana_cost": "{3}{G/U}{G/U}",
     "type_line": "Creature — Elemental Incarnation",
@@ -1586,12 +1400,44 @@
    }
   },
   {
+   "name": "Momentum Breaker",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
+   "listas": 3,
+   "gulosa": 39,
+   "texto": {
+    "mana_cost": "{1}{B}",
+    "type_line": "Enchantment",
+    "oracle_text": "Start your engines! (If you have no speed, it starts at 1. It increases once on each of your turns when an opponent loses life. Max speed is 4.)\nWhen this enchantment enters, each opponent sacrifices a creature or Vehicle of their choice. Each opponent who can't discards a card.\n{2}, Sacrifice this enchantment: You gain life equal to your speed.",
+    "keywords": [
+     "Start your engines!"
+    ],
+    "layout": "normal"
+   }
+  },
+  {
+   "name": "Veil of Summer",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "mágica sem script",
+   "listas": 3,
+   "gulosa": 211,
+   "texto": {
+    "mana_cost": "{G}",
+    "type_line": "Instant",
+    "oracle_text": "Draw a card if an opponent has cast a blue or black spell this turn. Spells you control can't be countered this turn. You and permanents you control gain hexproof from blue and from black until end of turn. (You and they can't be the targets of blue or black spells or abilities your opponents control.)",
+    "keywords": [],
+    "layout": "normal"
+   }
+  },
+  {
    "name": "Avatar of Burgeoning Echoes",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 2,
-   "gulosa": 193,
+   "gulosa": 209,
    "texto": {
     "mana_cost": "{G}{U}",
     "type_line": "Creature — Avatar",
@@ -1612,7 +1458,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 2,
-   "gulosa": 193,
+   "gulosa": 209,
    "texto": {
     "mana_cost": "{1}{U}{R}",
     "type_line": "Legendary Planeswalker — Dack",
@@ -1628,7 +1474,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 2,
-   "gulosa": 36,
+   "gulosa": 41,
    "texto": {
     "mana_cost": "{B}{B}",
     "type_line": "Creature — Dauthi Rogue",
@@ -1647,7 +1493,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 2,
-   "gulosa": 63,
+   "gulosa": 192,
    "texto": {
     "mana_cost": "{B/G}",
     "type_line": "Creature — Elf Shaman",
@@ -1664,7 +1510,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 2,
-   "gulosa": 42,
+   "gulosa": 31,
    "texto": {
     "mana_cost": "{G}",
     "type_line": "Enchantment",
@@ -1679,7 +1525,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 2,
-   "gulosa": 212,
+   "gulosa": 201,
    "texto": {
     "mana_cost": "{3}{R}{R}",
     "type_line": "Creature — Elemental Incarnation",
@@ -1699,7 +1545,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 2,
-   "gulosa": 27,
+   "gulosa": 32,
    "texto": {
     "mana_cost": "{W}{U}",
     "type_line": "Legendary Creature — Human Soldier",
@@ -1716,7 +1562,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 2,
-   "gulosa": 243,
+   "gulosa": 246,
    "texto": {
     "mana_cost": "{2}{W}",
     "type_line": "Legendary Creature — Human Artificer",
@@ -1735,7 +1581,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 2,
-   "gulosa": 148,
+   "gulosa": 153,
    "texto": {
     "mana_cost": "{5}",
     "type_line": "Artifact",
@@ -1750,7 +1596,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 2,
-   "gulosa": 193,
+   "gulosa": 209,
    "texto": {
     "mana_cost": "{2}{R}{G}",
     "type_line": "Legendary Planeswalker — Minsc",
@@ -1766,7 +1612,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 2,
-   "gulosa": 245,
+   "gulosa": 229,
    "texto": {
     "mana_cost": "{2}{G}",
     "type_line": "Legendary Creature — Human Villain",
@@ -1786,7 +1632,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 2,
-   "gulosa": 48,
+   "gulosa": 123,
    "texto": {
     "mana_cost": "{B}{B}{B}",
     "type_line": "Enchantment",
@@ -1796,31 +1642,31 @@
    }
   },
   {
-   "name": "Once Upon a Time",
-   "classe": "lida",
-   "nivel": "lida",
-   "motivo": "lida pelo motor, em revisão",
+   "name": "The Tabernacle at Pendrell Vale",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
    "listas": 2,
-   "gulosa": 218,
+   "gulosa": 229,
    "texto": {
-    "mana_cost": "{1}{G}",
-    "type_line": "Instant",
-    "oracle_text": "If this spell is the first spell you've cast this game, you may cast it without paying its mana cost.\nLook at the top five cards of your library. You may reveal a creature or land card from among them and put it into your hand. Put the rest on the bottom of your library in a random order.",
+    "mana_cost": "",
+    "type_line": "Legendary Land",
+    "oracle_text": "All creatures have \"At the beginning of your upkeep, destroy this creature unless you pay {1}.\"",
     "keywords": [],
     "layout": "normal"
    }
   },
   {
-   "name": "Stony Silence",
-   "classe": "lida",
-   "nivel": "lida",
-   "motivo": "lida pelo motor, em revisão",
+   "name": "This Town Ain't Big Enough",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "mágica sem script",
    "listas": 2,
-   "gulosa": 32,
+   "gulosa": 98,
    "texto": {
-    "mana_cost": "{1}{W}",
-    "type_line": "Enchantment",
-    "oracle_text": "Activated abilities of artifacts can't be activated.",
+    "mana_cost": "{4}{U}",
+    "type_line": "Instant",
+    "oracle_text": "This spell costs {3} less to cast if it targets a permanent you control.\nReturn up to two target nonland permanents to their owners' hands.",
     "keywords": [],
     "layout": "normal"
    }
@@ -1831,7 +1677,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 2,
-   "gulosa": 46,
+   "gulosa": 121,
    "texto": {
     "mana_cost": "{U}",
     "type_line": "Enchantment — Aura",
@@ -1843,46 +1689,16 @@
    }
   },
   {
-   "name": "Veil of Summer",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "mágica sem script",
-   "listas": 2,
-   "gulosa": 199,
-   "texto": {
-    "mana_cost": "{G}",
-    "type_line": "Instant",
-    "oracle_text": "Draw a card if an opponent has cast a blue or black spell this turn. Spells you control can't be countered this turn. You and permanents you control gain hexproof from blue and from black until end of turn. (You and they can't be the targets of blue or black spells or abilities your opponents control.)",
-    "keywords": [],
-    "layout": "normal"
-   }
-  },
-  {
    "name": "Voltaic Key",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 2,
-   "gulosa": 168,
+   "gulosa": 171,
    "texto": {
     "mana_cost": "{1}",
     "type_line": "Artifact",
     "oracle_text": "{1}, {T}: Untap target artifact.",
-    "keywords": [],
-    "layout": "normal"
-   }
-  },
-  {
-   "name": "Yavimaya, Cradle of Growth",
-   "classe": "lida",
-   "nivel": "lida",
-   "motivo": "lida pelo motor, em revisão",
-   "listas": 2,
-   "gulosa": 245,
-   "texto": {
-    "mana_cost": "",
-    "type_line": "Legendary Land",
-    "oracle_text": "Each land is a Forest in addition to its other land types.",
     "keywords": [],
     "layout": "normal"
    }
@@ -1893,8 +1709,14 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 259,
-   "texto": null
+   "gulosa": 261,
+   "texto": {
+    "mana_cost": "",
+    "type_line": "Land",
+    "oracle_text": "{T}: Add {C}.\n{T}: Add one mana of any color. Spend this mana only to cast a creature spell.\n{6}, {T}: Create a 1/1 colorless Shapeshifter creature token with changeling. (It's every creature type.)",
+    "keywords": [],
+    "layout": "normal"
+   }
   },
   {
    "name": "Arena of Glory",
@@ -1902,8 +1724,16 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 260,
-   "texto": null
+   "gulosa": 262,
+   "texto": {
+    "mana_cost": "",
+    "type_line": "Land",
+    "oracle_text": "This land enters tapped unless you control a Mountain.\n{T}: Add {R}.\n{R}, {T}, Exert this land: Add {R}{R}. If any of that mana is spent on a creature spell, it gains haste until end of turn. (An exerted permanent won't untap during your next untap step.)",
+    "keywords": [
+     "Exert"
+    ],
+    "layout": "normal"
+   }
   },
   {
    "name": "Assassin's Trophy",
@@ -1911,7 +1741,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 1,
-   "gulosa": 64,
+   "gulosa": 193,
    "texto": {
     "mana_cost": "{B}{G}",
     "type_line": "Instant",
@@ -1926,7 +1756,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 1,
-   "gulosa": 115,
+   "gulosa": 112,
    "texto": {
     "mana_cost": "{1}{W}",
     "type_line": "Sorcery",
@@ -1941,7 +1771,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 195,
+   "gulosa": 207,
    "texto": {
     "mana_cost": "{2}{B}",
     "type_line": "Creature — Lhurgoyf",
@@ -1957,31 +1787,12 @@
    }
   },
   {
-   "name": "Bloodghast",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "texto que o motor não resolve",
-   "listas": 1,
-   "gulosa": 225,
-   "texto": {
-    "mana_cost": "{B}{B}",
-    "type_line": "Creature — Vampire Spirit",
-    "oracle_text": "This creature can't block.\nThis creature has haste as long as an opponent has 10 or less life.\nLandfall — Whenever a land you control enters, you may return this card from your graveyard to the battlefield.",
-    "keywords": [
-     "Landfall"
-    ],
-    "layout": "normal",
-    "power": "2",
-    "toughness": "1"
-   }
-  },
-  {
    "name": "Bridgeworks Battle",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 1,
-   "gulosa": 246,
+   "gulosa": 248,
    "texto": {
     "mana_cost": "",
     "type_line": "Sorcery // Land",
@@ -2012,8 +1823,20 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 260,
-   "texto": null
+   "gulosa": 262,
+   "texto": {
+    "mana_cost": "{2}{R}",
+    "type_line": "Creature — Goblin Pirate",
+    "oracle_text": "Menace, haste\nBoast — Sacrifice another creature or artifact: This creature deals damage equal to 2 plus the sacrificed permanent's mana value to any target. (Activate only if this creature attacked this turn and only once each turn.)",
+    "keywords": [
+     "Boast",
+     "Haste",
+     "Menace"
+    ],
+    "layout": "normal",
+    "power": "2",
+    "toughness": "2"
+   }
   },
   {
    "name": "Cloak and Dagger, Entwined",
@@ -2021,8 +1844,19 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 259,
-   "texto": null
+   "gulosa": 261,
+   "texto": {
+    "mana_cost": "{1}{W}{B}",
+    "type_line": "Legendary Creature — Human Hero",
+    "oracle_text": "Deathtouch, lifelink\nWhen Cloak and Dagger enter, choose target opponent and up to one target creature they control. They reveal their hand. You may exile a nonland card from their hand or the chosen creature until Cloak and Dagger leave the battlefield.",
+    "keywords": [
+     "Lifelink",
+     "Deathtouch"
+    ],
+    "layout": "normal",
+    "power": "2",
+    "toughness": "2"
+   }
   },
   {
    "name": "Conspicuous Snoop",
@@ -2030,8 +1864,16 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 260,
-   "texto": null
+   "gulosa": 262,
+   "texto": {
+    "mana_cost": "{R}{R}",
+    "type_line": "Creature — Goblin Rogue",
+    "oracle_text": "Play with the top card of your library revealed.\nYou may cast Goblin spells from the top of your library.\nAs long as the top card of your library is a Goblin card, this creature has all activated abilities of that card.",
+    "keywords": [],
+    "layout": "normal",
+    "power": "2",
+    "toughness": "2"
+   }
   },
   {
    "name": "Containment Priest",
@@ -2039,8 +1881,18 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 259,
-   "texto": null
+   "gulosa": 261,
+   "texto": {
+    "mana_cost": "{1}{W}",
+    "type_line": "Creature — Human Cleric",
+    "oracle_text": "Flash\nIf a nontoken creature would enter and it wasn't cast, exile it instead.",
+    "keywords": [
+     "Flash"
+    ],
+    "layout": "normal",
+    "power": "2",
+    "toughness": "2"
+   }
   },
   {
    "name": "Crystal Skull, Isu Spyglass",
@@ -2048,7 +1900,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 191,
+   "gulosa": 195,
    "texto": {
     "mana_cost": "{2}{U}{U}",
     "type_line": "Legendary Artifact",
@@ -2063,45 +1915,17 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 259,
-   "texto": null
-  },
-  {
-   "name": "Dark Matter Manipulator",
-   "classe": "lida",
-   "nivel": "lida",
-   "motivo": "lida pelo motor, em revisão",
-   "listas": 1,
-   "gulosa": 218,
+   "gulosa": 261,
    "texto": {
-    "mana_cost": "{B}",
-    "type_line": "Creature — Human Warlock",
-    "oracle_text": "When this creature enters, mill three cards.\nThis creature gets +2/+0 for every seven cards in your graveyard.",
+    "mana_cost": "{1}{W}",
+    "type_line": "Legendary Creature — Dwarf Noble",
+    "oracle_text": "Vigilance\nStoried (If you control three or more artifacts, legendaries, and/or Sagas, you have an enduring story for the rest of the game.)\nAs long as you have an enduring story, creatures can't attack you unless their controller pays {1} for each of those creatures.",
     "keywords": [
-     "Mill"
+     "Vigilance",
+     "Storied"
     ],
     "layout": "normal",
-    "power": "1",
-    "toughness": "2"
-   }
-  },
-  {
-   "name": "Darklight Phoenix",
-   "classe": "nova",
-   "nivel": "parcial",
-   "motivo": "parte do texto o motor não resolve",
-   "listas": 1,
-   "gulosa": 225,
-   "texto": {
-    "mana_cost": "{3}{B}",
-    "type_line": "Creature — Phoenix",
-    "oracle_text": "Flying, haste\nAt the beginning of combat on your turn, if two or more creatures died this turn, return this card from your graveyard to the battlefield.",
-    "keywords": [
-     "Flying",
-     "Haste"
-    ],
-    "layout": "normal",
-    "power": "3",
+    "power": "2",
     "toughness": "2"
    }
   },
@@ -2111,8 +1935,14 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 259,
-   "texto": null
+   "gulosa": 261,
+   "texto": {
+    "mana_cost": "{W}",
+    "type_line": "Enchantment",
+    "oracle_text": "Each player can't cast more than one noncreature spell each turn.",
+    "keywords": [],
+    "layout": "normal"
+   }
   },
   {
    "name": "Displacer Kitten",
@@ -2120,7 +1950,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 121,
+   "gulosa": 113,
    "texto": {
     "mana_cost": "{3}{U}",
     "type_line": "Creature — Cat Beast",
@@ -2134,27 +1964,12 @@
    }
   },
   {
-   "name": "Echoing Deeps",
-   "classe": "nova",
-   "nivel": "parcial",
-   "motivo": "parte do texto o motor não resolve",
-   "listas": 1,
-   "gulosa": 225,
-   "texto": {
-    "mana_cost": "",
-    "type_line": "Land — Cave",
-    "oracle_text": "You may have this land enter tapped as a copy of any land card in a graveyard, except it's a Cave in addition to its other types.\n{T}: Add {C}.",
-    "keywords": [],
-    "layout": "normal"
-   }
-  },
-  {
    "name": "Endurance",
    "classe": "nova",
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 258,
+   "gulosa": 260,
    "texto": {
     "mana_cost": "{1}{G}{G}",
     "type_line": "Creature — Elemental Incarnation",
@@ -2175,7 +1990,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 245,
+   "gulosa": 229,
    "texto": {
     "mana_cost": "{G}",
     "type_line": "Enchantment",
@@ -2190,7 +2005,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 190,
+   "gulosa": 194,
    "texto": {
     "mana_cost": "{U}",
     "type_line": "Enchantment — Class",
@@ -2205,7 +2020,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 191,
+   "gulosa": 195,
    "texto": {
     "mana_cost": "{1}{U}",
     "type_line": "Legendary Creature — Spirit Cleric",
@@ -2224,7 +2039,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 245,
+   "gulosa": 229,
    "texto": {
     "mana_cost": "",
     "type_line": "Land",
@@ -2241,8 +2056,16 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 260,
-   "texto": null
+   "gulosa": 262,
+   "texto": {
+    "mana_cost": "{1}{R}",
+    "type_line": "Creature — Goblin Warrior",
+    "oracle_text": "{1}, Sacrifice this creature: Choose one —\n• This creature deals 2 damage to target creature.\n• Destroy target colorless nonland permanent.",
+    "keywords": [],
+    "layout": "normal",
+    "power": "2",
+    "toughness": "2"
+   }
   },
   {
    "name": "Goblin Lackey",
@@ -2250,8 +2073,16 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 260,
-   "texto": null
+   "gulosa": 262,
+   "texto": {
+    "mana_cost": "{R}",
+    "type_line": "Creature — Goblin",
+    "oracle_text": "Whenever this creature deals damage to a player, you may put a Goblin permanent card from your hand onto the battlefield.",
+    "keywords": [],
+    "layout": "normal",
+    "power": "1",
+    "toughness": "1"
+   }
   },
   {
    "name": "Goblin Recruiter",
@@ -2259,8 +2090,16 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 260,
-   "texto": null
+   "gulosa": 262,
+   "texto": {
+    "mana_cost": "{1}{R}",
+    "type_line": "Creature — Goblin",
+    "oracle_text": "When this creature enters, search your library for any number of Goblin cards, reveal them, then shuffle and put those cards on top in any order.",
+    "keywords": [],
+    "layout": "normal",
+    "power": "1",
+    "toughness": "1"
+   }
   },
   {
    "name": "Hogaak, Arisen Necropolis",
@@ -2268,7 +2107,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 218,
+   "gulosa": 196,
    "texto": {
     "mana_cost": "{5}{B/G}{B/G}",
     "type_line": "Legendary Creature — Avatar",
@@ -2284,23 +2123,34 @@
    }
   },
   {
-   "name": "Icetill Explorer",
-   "classe": "lida",
-   "nivel": "lida",
-   "motivo": "lida pelo motor, em revisão",
+   "name": "Invasion of New Phyrexia",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 245,
+   "gulosa": 99,
    "texto": {
-    "mana_cost": "{2}{G}{G}",
-    "type_line": "Creature — Insect Scout",
-    "oracle_text": "You may play an additional land on each of your turns.\nYou may play lands from your graveyard.\nLandfall — Whenever a land you control enters, mill a card.",
+    "mana_cost": "",
+    "type_line": "Battle — Siege // Legendary Planeswalker — Teferi",
+    "oracle_text": "",
     "keywords": [
-     "Mill",
-     "Landfall"
+     "Transform"
     ],
-    "layout": "normal",
-    "power": "2",
-    "toughness": "4"
+    "layout": "transform",
+    "card_faces": [
+     {
+      "name": "Invasion of New Phyrexia",
+      "mana_cost": "{X}{W}{U}",
+      "type_line": "Battle — Siege",
+      "oracle_text": "(As a Siege enters, choose an opponent to protect it. You and others can attack it. When it's defeated, exile it, then cast it transformed.)\nWhen this Siege enters, create X 2/2 white and blue Knight creature tokens with vigilance."
+     },
+     {
+      "name": "Teferi Akosa of Zhalfir",
+      "mana_cost": "",
+      "type_line": "Legendary Planeswalker — Teferi",
+      "oracle_text": "+1: Draw two cards. Then discard two cards unless you discard a creature card.\n−2: You get an emblem with \"Knights you control get +1/+0 and have ward {1}.\"\n−3: Tap any number of untapped creatures you control. When you do, shuffle target nonland permanent an opponent controls with mana value X or less into its owner's library, where X is the number of creatures tapped this way."
+     }
+    ]
    }
   },
   {
@@ -2309,8 +2159,18 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 260,
-   "texto": null
+   "gulosa": 262,
+   "texto": {
+    "mana_cost": "{2}{R}{R}{R}",
+    "type_line": "Legendary Creature — Goblin Shaman",
+    "oracle_text": "Haste\n{T}: Create a token that's a copy of target nonlegendary creature you control, except it has haste. Sacrifice it at the beginning of the next end step.",
+    "keywords": [
+     "Haste"
+    ],
+    "layout": "normal",
+    "power": "2",
+    "toughness": "2"
+   }
   },
   {
    "name": "Kishla Skimmer",
@@ -2318,7 +2178,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 64,
+   "gulosa": 193,
    "texto": {
     "mana_cost": "{G}{U}",
     "type_line": "Creature — Bird Scout",
@@ -2337,7 +2197,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 195,
+   "gulosa": 207,
    "texto": {
     "mana_cost": "{1}{B}",
     "type_line": "Legendary Creature — Human Noble Ally",
@@ -2356,7 +2216,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 1,
-   "gulosa": 242,
+   "gulosa": 245,
    "texto": {
     "mana_cost": "{X}{W}",
     "type_line": "Instant",
@@ -2371,7 +2231,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 260,
+   "gulosa": 262,
    "texto": null
   },
   {
@@ -2380,7 +2240,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 260,
+   "gulosa": 262,
    "texto": null
   },
   {
@@ -2389,7 +2249,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 258,
+   "gulosa": 260,
    "texto": {
     "mana_cost": "{1}{G}{U}",
     "type_line": "Legendary Creature — Bird Wizard",
@@ -2408,7 +2268,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 258,
+   "gulosa": 260,
    "texto": {
     "mana_cost": "{W}",
     "type_line": "Creature — Kor Nomad Soldier",
@@ -2425,7 +2285,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 258,
+   "gulosa": 260,
    "texto": {
     "mana_cost": "",
     "type_line": "Creature — Human Werewolf // Creature — Werewolf",
@@ -2462,7 +2322,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 1,
-   "gulosa": 192,
+   "gulosa": 208,
    "texto": {
     "mana_cost": "{0}",
     "type_line": "Instant",
@@ -2477,7 +2337,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 1,
-   "gulosa": 195,
+   "gulosa": 207,
    "texto": {
     "mana_cost": "{B}",
     "type_line": "Sorcery",
@@ -2492,7 +2352,7 @@
    "nivel": "manual",
    "motivo": "a Scryfall não devolveu a carta",
    "listas": 1,
-   "gulosa": 259,
+   "gulosa": 261,
    "texto": null
   },
   {
@@ -2501,8 +2361,16 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 259,
-   "texto": null
+   "gulosa": 261,
+   "texto": {
+    "mana_cost": "{1}{W}{W}",
+    "type_line": "Creature — Human Cleric",
+    "oracle_text": "As this creature enters, choose a number.\nNoncreature spells with mana value equal to the chosen number can't be cast.",
+    "keywords": [],
+    "layout": "normal",
+    "power": "2",
+    "toughness": "2"
+   }
   },
   {
    "name": "Scryb Ranger",
@@ -2510,7 +2378,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 258,
+   "gulosa": 260,
    "texto": {
     "mana_cost": "{1}{G}",
     "type_line": "Creature — Faerie Ranger",
@@ -2531,7 +2399,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 197,
+   "gulosa": 222,
    "texto": {
     "mana_cost": "{4}{W}{W}{W}",
     "type_line": "Creature — Angel",
@@ -2550,7 +2418,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 1,
-   "gulosa": 260,
+   "gulosa": 262,
    "texto": null
   },
   {
@@ -2559,7 +2427,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 245,
+   "gulosa": 229,
    "texto": {
     "mana_cost": "",
     "type_line": "Land",
@@ -2576,7 +2444,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 189,
+   "gulosa": 191,
    "texto": {
     "mana_cost": "{2}{U}",
     "type_line": "Artifact",
@@ -2593,7 +2461,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 260,
+   "gulosa": 262,
    "texto": null
   },
   {
@@ -2602,7 +2470,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 246,
+   "gulosa": 248,
    "texto": {
     "mana_cost": "{3}{G}",
     "type_line": "Creature — Eldrazi Fungus",
@@ -2622,8 +2490,19 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 259,
-   "texto": null
+   "gulosa": 261,
+   "texto": {
+    "mana_cost": "{1}{W/U}",
+    "type_line": "Legendary Creature — Spider Human Hero",
+    "oracle_text": "Flying\nVenom Blast — Artifacts and creatures your opponents control enter tapped.",
+    "keywords": [
+     "Flying",
+     "Venom Blast"
+    ],
+    "layout": "normal",
+    "power": "2",
+    "toughness": "2"
+   }
   },
   {
    "name": "Springheart Nantuko",
@@ -2631,8 +2510,19 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 258,
-   "texto": null
+   "gulosa": 260,
+   "texto": {
+    "mana_cost": "{1}{G}",
+    "type_line": "Enchantment Creature — Insect Monk",
+    "oracle_text": "Bestow {1}{G}\nEnchanted creature gets +1/+1.\nLandfall — Whenever a land you control enters, you may pay {1}{G} if this permanent is attached to a creature you control. If you do, create a token that's a copy of that creature. If you didn't create a token this way, create a 1/1 green Insect creature token.",
+    "keywords": [
+     "Bestow",
+     "Landfall"
+    ],
+    "layout": "normal",
+    "power": "1",
+    "toughness": "1"
+   }
   },
   {
    "name": "Staff of the Storyteller",
@@ -2640,7 +2530,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 101,
+   "gulosa": 93,
    "texto": {
     "mana_cost": "{1}{W}",
     "type_line": "Artifact",
@@ -2650,51 +2540,21 @@
    }
   },
   {
-   "name": "Step Through",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "mágica sem script",
-   "listas": 1,
-   "gulosa": 102,
-   "texto": {
-    "mana_cost": "{3}{U}{U}",
-    "type_line": "Sorcery",
-    "oracle_text": "Return two target creatures to their owners' hands.\nWizardcycling {2} ({2}, Discard this card: Search your library for a Wizard card, reveal it, put it into your hand, then shuffle.)",
-    "keywords": [
-     "Wizardcycling",
-     "Typecycling",
-     "Cycling"
-    ],
-    "layout": "normal"
-   }
-  },
-  {
-   "name": "Stitcher's Supplier",
-   "classe": "lida",
-   "nivel": "lida",
-   "motivo": "lida pelo motor, em revisão",
-   "listas": 1,
-   "gulosa": 218,
-   "texto": {
-    "mana_cost": "{B}",
-    "type_line": "Creature — Zombie",
-    "oracle_text": "When this creature enters or dies, mill three cards. (Put the top three cards of your library into your graveyard.)",
-    "keywords": [
-     "Mill"
-    ],
-    "layout": "normal",
-    "power": "1",
-    "toughness": "1"
-   }
-  },
-  {
    "name": "Sylvan Safekeeper",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 258,
-   "texto": null
+   "gulosa": 260,
+   "texto": {
+    "mana_cost": "{G}",
+    "type_line": "Creature — Human Wizard",
+    "oracle_text": "Sacrifice a land: Target creature you control gains shroud until end of turn. (It can't be the target of spells or abilities.)",
+    "keywords": [],
+    "layout": "normal",
+    "power": "1",
+    "toughness": "1"
+   }
   },
   {
    "name": "Thalia, Guardian of Thraben",
@@ -2702,7 +2562,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 244,
+   "gulosa": 247,
    "texto": {
     "mana_cost": "{1}{W}",
     "type_line": "Legendary Creature — Human Soldier",
@@ -2721,7 +2581,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 244,
+   "gulosa": 247,
    "texto": {
     "mana_cost": "{2}{W}",
     "type_line": "Legendary Creature — Human Soldier",
@@ -2740,7 +2600,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 190,
+   "gulosa": 194,
    "texto": {
     "mana_cost": "{3}{U}",
     "type_line": "Enchantment — Saga",
@@ -2755,8 +2615,20 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 259,
-   "texto": null
+   "gulosa": 261,
+   "texto": {
+    "mana_cost": "{1}{U}",
+    "type_line": "Legendary Creature — Human Hero",
+    "oracle_text": "Flash\nFlying\nWasp's Sting — When The Wondrous Wasp enters, tap up to one target creature. It loses all abilities for as long as The Wondrous Wasp remains on the battlefield.",
+    "keywords": [
+     "Flying",
+     "Wasp's Sting",
+     "Flash"
+    ],
+    "layout": "normal",
+    "power": "2",
+    "toughness": "1"
+   }
   },
   {
    "name": "Thief of Existence",
@@ -2764,7 +2636,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 246,
+   "gulosa": 248,
    "texto": {
     "mana_cost": "{1}{C}{G}",
     "type_line": "Creature — Eldrazi",
@@ -2783,7 +2655,7 @@
    "nivel": "parcial",
    "motivo": "parte do texto o motor não resolve",
    "listas": 1,
-   "gulosa": 260,
+   "gulosa": 262,
    "texto": null
   },
   {
@@ -2792,7 +2664,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 191,
+   "gulosa": 195,
    "texto": {
     "mana_cost": "{1}{U}{R}",
     "type_line": "Legendary Creature — Wizard",
@@ -2804,30 +2676,12 @@
    }
   },
   {
-   "name": "Vraska's Final Mercy",
-   "classe": "lida",
-   "nivel": "lida",
-   "motivo": "lida pelo motor, em revisão",
-   "listas": 1,
-   "gulosa": 195,
-   "texto": {
-    "mana_cost": "{B}{B}",
-    "type_line": "Sorcery",
-    "oracle_text": "Choose one —\n• You lose 2 life. Destroy target creature or planeswalker.\n• You lose 2 life. Empower Jace 6. (Put six loyalty counters on a Jace token you control. If you don't control one, first create a blue Jace planeswalker token with \"[−1]: Surveil 1\" and \"[−3]: Draw a card.\")",
-    "keywords": [
-     "Surveil",
-     "Empower Jace"
-    ],
-    "layout": "normal"
-   }
-  },
-  {
    "name": "Wastescape Battlemage",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 246,
+   "gulosa": 248,
    "texto": {
     "mana_cost": "{1}{C}",
     "type_line": "Creature — Eldrazi Wizard",
@@ -2846,24 +2700,223 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 259,
-   "texto": null
+   "gulosa": 261,
+   "texto": {
+    "mana_cost": "{2}{R}{W}",
+    "type_line": "Legendary Creature — Human Warrior",
+    "oracle_text": "Whenever a non-Human creature you control attacks, look at the top six cards of your library. You may put a Human creature card from among them onto the battlefield tapped and attacking. It gains indestructible until end of turn. Put the rest of the cards on the bottom of your library in a random order.",
+    "keywords": [],
+    "layout": "normal",
+    "power": "4",
+    "toughness": "4"
+   }
   }
  ],
  "listasIncompletas": [
   {
+   "id": "mtgo-vintage-challenge-32-2026-11-0812857701-7",
+   "nome": "Bant Wistfulness",
+   "faltam": [
+    "Wistfulness",
+    "Commandeer",
+    "Misdirection",
+    "Mindbreak Trap",
+    "Gush"
+   ]
+  },
+  {
+   "id": "mtgo-vintage-challenge-16-2026-11-0812857694-6",
+   "nome": "Cinco cores Archon of Emeria",
+   "faltam": [
+    "Mana Crypt",
+    "Anointed Peacekeeper",
+    "Archon of Emeria",
+    "Chancellor of the Annex",
+    "Cavern of Souls",
+    "Seasoned Dungeoneer",
+    "White Plume Adventurer",
+    "Clarion Conqueror"
+   ]
+  },
+  {
    "id": "mtgo-vintage-league-2026-11-0811185-1",
    "nome": "Cinco cores Stock Up",
    "faltam": [
-    "Thundertrap Trainer",
-    "Merchant Scroll",
     "Mana Crypt",
     "Paradoxical Outcome",
     "Flame of Anor",
     "Underworld Breach",
-    "Urza's Saga",
-    "Hexing Squelcher",
     "Chain of Vapor"
+   ]
+  },
+  {
+   "id": "mtgo-vintage-challenge-32-2026-11-0812857701-2",
+   "nome": "Cinco cores Stock Up",
+   "faltam": [
+    "Relic of Sauron",
+    "Mana Crypt",
+    "Paradox Engine",
+    "Chaos Defiler",
+    "The One Ring",
+    "Coveted Jewel",
+    "Transmute Artifact",
+    "Karn, the Great Creator",
+    "Paradoxical Outcome",
+    "Phyrexian Metamorph"
+   ]
+  },
+  {
+   "id": "mtgo-vintage-challenge-32-2026-11-0812857701-3",
+   "nome": "Cinco cores Stock Up",
+   "faltam": [
+    "Council of Reeds",
+    "Tezzeret, Cruel Captain",
+    "The One Ring",
+    "Karn, the Great Creator",
+    "Paradoxical Outcome",
+    "Mana Crypt",
+    "The Endstone",
+    "Forth Eorlingas!",
+    "Time Vault"
+   ]
+  },
+  {
+   "id": "mtgo-vintage-challenge-32-2026-11-0812857701-4",
+   "nome": "Cinco cores Stock Up",
+   "faltam": [
+    "Mana Crypt",
+    "Paradoxical Outcome",
+    "Misdirection",
+    "This Town Ain't Big Enough",
+    "Time Vault"
+   ]
+  },
+  {
+   "id": "mtgo-vintage-challenge-32-2026-11-0812857701-5",
+   "nome": "Cinco cores Stock Up",
+   "faltam": [
+    "Mana Crypt",
+    "Bilbo, Thief in the Night",
+    "Underworld Breach",
+    "Dress Down"
+   ]
+  },
+  {
+   "id": "mtgo-vintage-challenge-16-2026-11-0812857694-1",
+   "nome": "Cinco cores Stock Up",
+   "faltam": [
+    "Mana Crypt",
+    "Underworld Breach",
+    "Mana Drain",
+    "Gifts Ungiven",
+    "Chain of Vapor",
+    "Mindbreak Trap"
+   ]
+  },
+  {
+   "id": "mtgo-vintage-challenge-16-2026-11-0812857694-2",
+   "nome": "Cinco cores Stock Up",
+   "faltam": [
+    "Wrenn and Six",
+    "Oath of Druids",
+    "Oko, Thief of Crowns",
+    "Gaea's Blessing",
+    "Atraxa, Grand Unifier",
+    "Forbidden Orchard",
+    "Veil of Summer"
+   ]
+  },
+  {
+   "id": "mtgo-vintage-challenge-16-2026-11-0812857694-3",
+   "nome": "Cinco cores Stock Up",
+   "faltam": [
+    "Bilbo, Thief in the Night",
+    "Council of Reeds",
+    "Karn, the Great Creator"
+   ]
+  },
+  {
+   "id": "mtgo-vintage-challenge-16-2026-11-0812857694-5",
+   "nome": "Cinco cores Stock Up",
+   "faltam": [
+    "Mana Crypt",
+    "Paradoxical Outcome",
+    "Misdirection",
+    "This Town Ain't Big Enough",
+    "Time Vault",
+    "Invasion of New Phyrexia"
+   ]
+  },
+  {
+   "id": "mtgo-vintage-challenge-16-2026-11-0812857694-8",
+   "nome": "Cinco cores Stock Up",
+   "faltam": [
+    "Dress Down",
+    "Paradoxical Outcome",
+    "Mana Crypt",
+    "Forth Eorlingas!",
+    "Flame of Anor"
+   ]
+  },
+  {
+   "id": "mtgo-vintage-challenge-32-2026-11-0812857701-6",
+   "nome": "Cinco cores The One Ring",
+   "faltam": [
+    "Talon Gates of Madara",
+    "Inventors' Fair",
+    "Lodestone Golem",
+    "Mana Crypt",
+    "Mystic Forge",
+    "Scrawling Crawler",
+    "The One Ring",
+    "Karn, the Great Creator",
+    "Tezzeret, Cruel Captain",
+    "The Fantasticar",
+    "Time Vault",
+    "Trinisphere",
+    "Chalice of the Void",
+    "Glaring Fleshraker"
+   ]
+  },
+  {
+   "id": "mtgo-vintage-challenge-16-2026-11-0812857694-4",
+   "nome": "Cinco cores The One Ring",
+   "faltam": [
+    "Trinisphere",
+    "Glaring Fleshraker",
+    "The One Ring",
+    "Inventors' Fair",
+    "Karn, the Great Creator",
+    "Talon Gates of Madara",
+    "Mystic Forge",
+    "Scrawling Crawler",
+    "Mana Crypt",
+    "Tezzeret, Cruel Captain",
+    "The Fantasticar",
+    "Time Vault",
+    "Chalice of the Void"
+   ]
+  },
+  {
+   "id": "mtgo-vintage-challenge-32-2026-11-0812857701-1",
+   "nome": "Esper Psychic Frog",
+   "faltam": [
+    "Bilbo, Thief in the Night",
+    "Dress Down"
+   ]
+  },
+  {
+   "id": "mtgo-vintage-challenge-32-2026-11-0812857701-8",
+   "nome": "Esper Psychic Frog",
+   "faltam": [
+    "Bilbo, Thief in the Night"
+   ]
+  },
+  {
+   "id": "mtgo-vintage-challenge-16-2026-11-0812857694-7",
+   "nome": "Esper Psychic Frog",
+   "faltam": [
+    "Bilbo, Thief in the Night"
    ]
   },
   {
@@ -2874,9 +2927,7 @@
     "Forth Eorlingas!",
     "Mana Crypt",
     "Paradoxical Outcome",
-    "Urza's Saga",
-    "Flame of Anor",
-    "Thundertrap Trainer"
+    "Flame of Anor"
    ]
   },
   {
@@ -2887,10 +2938,8 @@
     "Chalice of the Void",
     "Scrawling Crawler",
     "Glaring Fleshraker",
-    "Urza's Saga",
     "Trinisphere",
     "Time Vault",
-    "Manifold Key",
     "Mystic Forge",
     "Talon Gates of Madara",
     "Mana Crypt",
@@ -2909,13 +2958,11 @@
     "Glaring Fleshraker",
     "Tezzeret, Cruel Captain",
     "Inventors' Fair",
-    "Manifold Key",
     "Mystic Forge",
     "Mana Crypt",
     "Karn, the Great Creator",
     "The Fantasticar",
     "Chalice of the Void",
-    "Urza's Saga",
     "Scrawling Crawler",
     "Memory Jar",
     "Talon Gates of Madara"
@@ -2929,7 +2976,6 @@
     "Inventors' Fair",
     "Lodestone Golem",
     "Mana Crypt",
-    "Manifold Key",
     "Mystic Forge",
     "Scrawling Crawler",
     "Talon Gates of Madara",
@@ -2939,7 +2985,6 @@
     "The Fantasticar",
     "Time Vault",
     "Trinisphere",
-    "Urza's Saga",
     "Chalice of the Void"
    ]
   },
@@ -2948,8 +2993,7 @@
    "nome": "Esper Psychic Frog",
    "faltam": [
     "Bilbo, Thief in the Night",
-    "Dress Down",
-    "Urza's Saga"
+    "Dress Down"
    ]
   },
   {
@@ -2972,8 +3016,7 @@
    "nome": "Quatro cores Ragavan",
    "faltam": [
     "Bilbo, Thief in the Night",
-    "Timetwister",
-    "Urza's Saga"
+    "Timetwister"
    ]
   },
   {
@@ -3016,7 +3059,6 @@
     "Mana Crypt",
     "Karn, the Great Creator",
     "Archon of Emeria",
-    "Urza's Saga",
     "White Plume Adventurer",
     "Seasoned Dungeoneer",
     "Anointed Peacekeeper",
@@ -3028,10 +3070,8 @@
    "id": "mtgo-vintage-league-2026-11-0611185-1",
    "nome": "Cinco cores Stock Up",
    "faltam": [
-    "Boseiju, Who Endures",
     "Forbidden Orchard",
     "Oath of Druids",
-    "Merchant Scroll",
     "Show and Tell",
     "Flash",
     "Underworld Breach",
@@ -3043,15 +3083,11 @@
    "id": "mtgo-vintage-league-2026-11-0611185-2",
    "nome": "Cinco cores Stock Up",
    "faltam": [
-    "Thundertrap Trainer",
-    "Hexing Squelcher",
-    "Merchant Scroll",
     "Chain of Vapor",
     "Flame of Anor",
     "Gifts Ungiven",
     "Paradoxical Outcome",
     "Mana Crypt",
-    "Urza's Saga",
     "Underworld Breach"
    ]
   },
@@ -3059,14 +3095,12 @@
    "id": "mtgo-vintage-league-2026-11-0611185-3",
    "nome": "Cinco cores The One Ring",
    "faltam": [
-    "Urza's Saga",
     "Mystic Forge",
     "Karn, the Great Creator",
     "Talon Gates of Madara",
     "Mana Crypt",
     "The One Ring",
     "Time Vault",
-    "Manifold Key",
     "Tezzeret, Cruel Captain",
     "Chalice of the Void",
     "Scrawling Crawler",
@@ -3082,7 +3116,6 @@
    "nome": "Bant Wistfulness",
    "faltam": [
     "Wistfulness",
-    "Urza's Saga",
     "Oko, Thief of Crowns"
    ]
   },
@@ -3112,15 +3145,13 @@
     "Lodestone Golem",
     "Mystic Forge",
     "Nettlecyst",
-    "Null Rod",
     "Patchwork Automaton",
     "Scrawling Crawler",
     "Crucible of Worlds",
     "Sphere of Resistance",
     "Stonecoil Serpent",
     "Thorn of Amethyst",
-    "Chalice of the Void",
-    "Urza's Saga"
+    "Chalice of the Void"
    ]
   },
   {
@@ -3128,11 +3159,7 @@
    "nome": "Cinco cores Stock Up",
    "faltam": [
     "Time Vault",
-    "Merchant Scroll",
     "Yawgmoth's Will",
-    "Manifold Key",
-    "Sink into Stupor",
-    "Urza's Saga",
     "Bilbo, Thief in the Night",
     "Mana Crypt",
     "Chain of Vapor",
@@ -3144,11 +3171,9 @@
    "id": "mtgo-vintage-league-2026-11-0511185-3",
    "nome": "Cinco cores Stock Up",
    "faltam": [
-    "Merchant Scroll",
     "Mana Drain",
     "Mindbreak Trap",
     "Gifts Ungiven",
-    "Urza's Saga",
     "Underworld Breach",
     "Mana Crypt",
     "Chain of Vapor",
@@ -3161,12 +3186,8 @@
    "faltam": [
     "Paradoxical Outcome",
     "Forth Eorlingas!",
-    "Urza's Saga",
     "Flame of Anor",
-    "Thundertrap Trainer",
-    "Portable Hole",
-    "Mana Crypt",
-    "Hexing Squelcher"
+    "Mana Crypt"
    ]
   },
   {
@@ -3178,7 +3199,6 @@
     "Tezzeret, Cruel Captain",
     "Trinisphere",
     "The One Ring",
-    "Manifold Key",
     "Mystic Forge",
     "The Fantasticar",
     "Time Vault",
@@ -3186,7 +3206,6 @@
     "Chalice of the Void",
     "Inventors' Fair",
     "Karn, the Great Creator",
-    "Urza's Saga",
     "Talon Gates of Madara"
    ]
   },
@@ -3197,10 +3216,8 @@
     "The One Ring",
     "Chalice of the Void",
     "Glaring Fleshraker",
-    "Urza's Saga",
     "Trinisphere",
     "Time Vault",
-    "Manifold Key",
     "Tezzeret, Cruel Captain",
     "Mystic Forge",
     "Scrawling Crawler",
@@ -3216,26 +3233,20 @@
    "id": "mtgo-vintage-league-2026-11-0511185-2",
    "nome": "Esper Psychic Frog",
    "faltam": [
-    "Null Rod",
-    "Bilbo, Thief in the Night",
-    "Urza's Saga"
+    "Bilbo, Thief in the Night"
    ]
   },
   {
    "id": "mtgo-vintage-league-2026-11-0511185-4",
    "nome": "Esper Psychic Frog",
    "faltam": [
-    "Bilbo, Thief in the Night",
-    "Null Rod",
-    "Urza's Saga"
+    "Bilbo, Thief in the Night"
    ]
   },
   {
    "id": "mtgo-vintage-challenge-32-2026-11-0512857669-1",
    "nome": "Esper Psychic Frog",
    "faltam": [
-    "Urza's Saga",
-    "Null Rod",
     "Bilbo, Thief in the Night"
    ]
   },
@@ -3243,7 +3254,6 @@
    "id": "mtgo-vintage-challenge-32-2026-11-0512857669-5",
    "nome": "Esper Psychic Frog",
    "faltam": [
-    "Urza's Saga",
     "Timetwister",
     "Bilbo, Thief in the Night"
    ]
@@ -3252,23 +3262,19 @@
    "id": "mtgo-vintage-challenge-32-2026-11-0512857669-8",
    "nome": "Esper Psychic Frog",
    "faltam": [
-    "Bilbo, Thief in the Night",
-    "Null Rod",
-    "Urza's Saga"
+    "Bilbo, Thief in the Night"
    ]
   },
   {
    "id": "mtgo-vintage-league-2026-11-0411185-2",
    "nome": "Cinco cores The One Ring",
    "faltam": [
-    "Urza's Saga",
     "Mystic Forge",
     "Karn, the Great Creator",
     "Glaring Fleshraker",
     "Mana Crypt",
     "Talon Gates of Madara",
     "Time Vault",
-    "Manifold Key",
     "The One Ring",
     "Chalice of the Void",
     "Tezzeret, Cruel Captain",
@@ -3289,10 +3295,8 @@
     "Karn, the Great Creator",
     "The Fantasticar",
     "Time Vault",
-    "Manifold Key",
     "Chalice of the Void",
     "The One Ring",
-    "Urza's Saga",
     "Mana Crypt",
     "Lodestone Golem",
     "Scrawling Crawler",
@@ -3303,15 +3307,11 @@
    "id": "mtgo-vintage-league-2026-11-0411185-1",
    "nome": "Mono Green Icetill Explorer",
    "faltam": [
-    "Boseiju, Who Endures",
     "Fastbond",
     "Glacial Chasm",
-    "Icetill Explorer",
     "Chalice of the Void",
-    "Null Rod",
     "Shifting Woodland",
     "The Tabernacle at Pendrell Vale",
-    "Yavimaya, Cradle of Growth",
     "Mole Man, Moloid Master",
     "Exploration"
    ]
@@ -3328,7 +3328,6 @@
     "Karn, the Great Creator",
     "Seasoned Dungeoneer",
     "White Plume Adventurer",
-    "Urza's Saga",
     "Clarion Conqueror"
    ]
   },
@@ -3352,10 +3351,7 @@
    "id": "mtgo-vintage-league-2026-11-0311185-3",
    "nome": "Sultai Carnivorous Cultivator",
    "faltam": [
-    "Null Rod",
-    "Boseiju, Who Endures",
-    "Fastbond",
-    "Urza's Saga"
+    "Fastbond"
    ]
   },
   {
@@ -3365,40 +3361,29 @@
     "Mana Crypt",
     "Paradoxical Outcome",
     "Flame of Anor",
-    "Portable Hole",
-    "Underworld Breach",
-    "Thundertrap Trainer",
-    "Urza's Saga",
-    "Merchant Scroll"
+    "Underworld Breach"
    ]
   },
   {
    "id": "mtgo-vintage-league-2026-11-0211185-3",
    "nome": "Cinco cores Stock Up",
    "faltam": [
-    "Thundertrap Trainer",
-    "Merchant Scroll",
     "Mana Crypt",
     "Paradoxical Outcome",
-    "Sink into Stupor",
     "Flame of Anor",
-    "Underworld Breach",
-    "Urza's Saga",
-    "Hexing Squelcher"
+    "Underworld Breach"
    ]
   },
   {
    "id": "mtgo-vintage-league-2026-11-0211185-4",
    "nome": "Cinco cores The One Ring",
    "faltam": [
-    "Urza's Saga",
     "Mystic Forge",
     "Karn, the Great Creator",
     "Glaring Fleshraker",
     "Mana Crypt",
     "Talon Gates of Madara",
     "Time Vault",
-    "Manifold Key",
     "The One Ring",
     "Chalice of the Void",
     "Tezzeret, Cruel Captain",
@@ -3412,14 +3397,12 @@
    "id": "mtgo-vintage-league-2026-11-0211185-6",
    "nome": "Cinco cores The One Ring",
    "faltam": [
-    "Urza's Saga",
     "Mystic Forge",
     "Karn, the Great Creator",
     "Glaring Fleshraker",
     "Mana Crypt",
     "Talon Gates of Madara",
     "Time Vault",
-    "Manifold Key",
     "The One Ring",
     "Chalice of the Void",
     "Tezzeret, Cruel Captain",
@@ -3433,14 +3416,12 @@
    "id": "mtgo-vintage-league-2026-11-0211185-7",
    "nome": "Cinco cores The One Ring",
    "faltam": [
-    "Urza's Saga",
     "Mystic Forge",
     "Karn, the Great Creator",
     "Talon Gates of Madara",
     "Mana Crypt",
     "The One Ring",
     "Time Vault",
-    "Manifold Key",
     "Tezzeret, Cruel Captain",
     "Chalice of the Void",
     "Scrawling Crawler",
@@ -3454,9 +3435,7 @@
    "id": "mtgo-vintage-league-2026-11-0211185-1",
    "nome": "Esper Psychic Frog",
    "faltam": [
-    "Urza's Saga",
-    "Bilbo, Thief in the Night",
-    "Null Rod"
+    "Bilbo, Thief in the Night"
    ]
   },
   {
@@ -3526,15 +3505,13 @@
     "Mana Crypt",
     "Mystic Forge",
     "Nettlecyst",
-    "Null Rod",
     "Patchwork Automaton",
     "Crucible of Worlds",
     "Sphere of Resistance",
     "Stonecoil Serpent",
     "Chalice of the Void",
     "Thorn of Amethyst",
-    "Trinisphere",
-    "Urza's Saga"
+    "Trinisphere"
    ]
   },
   {
@@ -3544,10 +3521,8 @@
     "Dress Down",
     "Flame of Anor",
     "Forth Eorlingas!",
-    "Thundertrap Trainer",
     "Paradoxical Outcome",
-    "Mana Crypt",
-    "Urza's Saga"
+    "Mana Crypt"
    ]
   },
   {
@@ -3556,9 +3531,7 @@
    "faltam": [
     "Wrenn and Six",
     "Oath of Druids",
-    "Null Rod",
     "Oko, Thief of Crowns",
-    "Boseiju, Who Endures",
     "Atraxa, Grand Unifier",
     "Forbidden Orchard",
     "Gaea's Blessing",
@@ -3571,12 +3544,8 @@
    "faltam": [
     "Paradoxical Outcome",
     "Forth Eorlingas!",
-    "Urza's Saga",
     "Flame of Anor",
-    "Thundertrap Trainer",
-    "Portable Hole",
-    "Mana Crypt",
-    "Hexing Squelcher"
+    "Mana Crypt"
    ]
   },
   {
@@ -3586,11 +3555,7 @@
     "Mana Crypt",
     "Paradoxical Outcome",
     "Flame of Anor",
-    "Portable Hole",
-    "Underworld Breach",
-    "Thundertrap Trainer",
-    "Urza's Saga",
-    "Merchant Scroll"
+    "Underworld Breach"
    ]
   },
   {
@@ -3601,15 +3566,12 @@
     "Karn, the Great Creator",
     "Lodestone Golem",
     "Mana Crypt",
-    "Manifold Key",
     "Paradoxical Outcome",
-    "Sink into Stupor",
     "Tezzeret, Cruel Captain",
     "The Fantasticar",
     "Phyrexian Metamorph",
     "Time Vault",
     "Trinisphere",
-    "Urza's Saga",
     "The One Ring",
     "Talon Gates of Madara"
    ]
@@ -3621,7 +3583,6 @@
     "Tezzeret, Cruel Captain",
     "Glaring Fleshraker",
     "Karn, the Great Creator",
-    "Manifold Key",
     "The One Ring",
     "Mystic Forge",
     "Inventors' Fair",
@@ -3629,7 +3590,6 @@
     "The Fantasticar",
     "Chalice of the Void",
     "Time Vault",
-    "Urza's Saga",
     "Trinisphere",
     "Talon Gates of Madara",
     "Scrawling Crawler"
@@ -3640,18 +3600,15 @@
    "nome": "Cinco cores The One Ring",
    "faltam": [
     "Trinisphere",
-    "Manifold Key",
     "Karn, the Great Creator",
     "The One Ring",
     "Talon Gates of Madara",
     "Relic of Sauron",
     "Phyrexian Metamorph",
-    "Sink into Stupor",
     "Time Vault",
     "Mana Crypt",
     "Coveted Jewel",
     "Transmute Artifact",
-    "Urza's Saga",
     "Paradox Engine",
     "Chaos Defiler"
    ]
@@ -3661,18 +3618,15 @@
    "nome": "Cinco cores The One Ring",
    "faltam": [
     "Trinisphere",
-    "Manifold Key",
     "Karn, the Great Creator",
     "The One Ring",
     "Talon Gates of Madara",
     "Relic of Sauron",
     "Phyrexian Metamorph",
-    "Sink into Stupor",
     "Time Vault",
     "Mana Crypt",
     "Coveted Jewel",
     "Transmute Artifact",
-    "Urza's Saga",
     "Paradox Engine",
     "Chaos Defiler"
    ]
@@ -3686,15 +3640,13 @@
     "Glaring Fleshraker",
     "Karn, the Great Creator",
     "Mana Crypt",
-    "Manifold Key",
     "Mystic Forge",
     "Scrawling Crawler",
     "Lodestone Golem",
     "Talon Gates of Madara",
     "The Fantasticar",
     "The One Ring",
-    "Chalice of the Void",
-    "Urza's Saga"
+    "Chalice of the Void"
    ]
   },
   {
@@ -3707,10 +3659,7 @@
     "Time Vault",
     "Karn, the Great Creator",
     "The One Ring",
-    "Urza's Saga",
-    "Sink into Stupor",
     "Coveted Jewel",
-    "Manifold Key",
     "Paradoxical Outcome",
     "Tezzeret, Cruel Captain"
    ]
@@ -3719,7 +3668,6 @@
    "id": "mtgo-vintage-league-2026-11-0111185-4",
    "nome": "Cinco cores The One Ring",
    "faltam": [
-    "Urza's Saga",
     "Mystic Forge",
     "Karn, the Great Creator",
     "Glaring Fleshraker",
@@ -3730,7 +3678,6 @@
     "The Fantasticar",
     "Chalice of the Void",
     "Tezzeret, Cruel Captain",
-    "Manifold Key",
     "Scrawling Crawler",
     "Talon Gates of Madara"
    ]
@@ -3749,7 +3696,6 @@
    "id": "mtgo-vintage-challenge-32-2026-11-0112857408-5",
    "nome": "Esper Orcish Bowmasters",
    "faltam": [
-    "Urza's Saga",
     "Timetwister",
     "Bilbo, Thief in the Night"
    ]
@@ -3758,9 +3704,7 @@
    "id": "mtgo-vintage-challenge-32-2026-11-0112857408-2",
    "nome": "Esper Psychic Frog",
    "faltam": [
-    "Bilbo, Thief in the Night",
-    "Null Rod",
-    "Urza's Saga"
+    "Bilbo, Thief in the Night"
    ]
   },
   {
@@ -3775,7 +3719,6 @@
     "White Plume Adventurer",
     "Clarion Conqueror",
     "Mana Crypt",
-    "Urza's Saga",
     "Karn, the Great Creator"
    ]
   },
@@ -3821,15 +3764,13 @@
     "Mana Crypt",
     "Mystic Forge",
     "Nettlecyst",
-    "Null Rod",
     "Patchwork Automaton",
     "Crucible of Worlds",
     "Sphere of Resistance",
     "Stonecoil Serpent",
     "Chalice of the Void",
     "Thorn of Amethyst",
-    "Trinisphere",
-    "Urza's Saga"
+    "Trinisphere"
    ]
   },
   {
@@ -3838,16 +3779,12 @@
    "faltam": [
     "Karn, the Great Creator",
     "The One Ring",
-    "Urza's Saga",
     "Mana Crypt",
     "Paradoxical Outcome",
     "Time Vault",
     "Tezzeret, Cruel Captain",
-    "Portable Hole",
     "The Endstone",
-    "Chalice of the Void",
-    "Sink into Stupor",
-    "Thundertrap Trainer"
+    "Chalice of the Void"
    ]
   },
   {
@@ -3855,14 +3792,12 @@
    "nome": "Cinco cores Stock Up",
    "faltam": [
     "Atraxa, Grand Unifier",
-    "Boseiju, Who Endures",
     "Show and Tell",
     "Flash",
     "Raph & Mikey, Troublemakers",
     "Oath of Druids",
     "Mana Crypt",
     "Gaea's Blessing",
-    "Null Rod",
     "Oko, Thief of Crowns",
     "Forbidden Orchard"
    ]
@@ -3871,30 +3806,20 @@
    "id": "mtgo-vintage-challenge-32-2026-10-3112857395-6",
    "nome": "Cinco cores Stock Up",
    "faltam": [
-    "Thundertrap Trainer",
     "Flame of Anor",
-    "Merchant Scroll",
     "Mana Crypt",
     "Paradoxical Outcome",
-    "Hexing Squelcher",
-    "Underworld Breach",
-    "Urza's Saga",
-    "Sink into Stupor",
-    "Portable Hole"
+    "Underworld Breach"
    ]
   },
   {
    "id": "mtgo-vintage-challenge-32-2026-10-3112857395-8",
    "nome": "Cinco cores Stock Up",
    "faltam": [
-    "Merchant Scroll",
     "Mana Crypt",
     "Bilbo, Thief in the Night",
-    "Manifold Key",
-    "Sink into Stupor",
     "Chain of Vapor",
     "Time Vault",
-    "Urza's Saga",
     "Yawgmoth's Will",
     "Gifts Ungiven"
    ]
@@ -3907,10 +3832,8 @@
     "Chalice of the Void",
     "Scrawling Crawler",
     "Glaring Fleshraker",
-    "Urza's Saga",
     "Trinisphere",
     "Time Vault",
-    "Manifold Key",
     "Mystic Forge",
     "Talon Gates of Madara",
     "Mana Crypt",
@@ -3924,9 +3847,7 @@
    "id": "mtgo-vintage-challenge-32-2026-10-3112857395-2",
    "nome": "Esper Psychic Frog",
    "faltam": [
-    "Null Rod",
-    "Bilbo, Thief in the Night",
-    "Urza's Saga"
+    "Bilbo, Thief in the Night"
    ]
   },
   {
@@ -3941,8 +3862,7 @@
     "Karn, the Great Creator",
     "Seasoned Dungeoneer",
     "Cavern of Souls",
-    "White Plume Adventurer",
-    "Urza's Saga"
+    "White Plume Adventurer"
    ]
   },
   {
@@ -3965,24 +3885,19 @@
    "nome": "Cinco cores Stock Up",
    "faltam": [
     "Paradoxical Outcome",
-    "Thundertrap Trainer",
-    "Portable Hole",
     "Flame of Anor",
     "Mana Crypt",
-    "Forth Eorlingas!",
-    "Urza's Saga"
+    "Forth Eorlingas!"
    ]
   },
   {
    "id": "mtgo-vintage-league-2026-10-3011185-2",
    "nome": "Cinco cores The One Ring",
    "faltam": [
-    "Urza's Saga",
     "Mystic Forge",
     "Karn, the Great Creator",
     "Glaring Fleshraker",
     "Mana Crypt",
-    "Manifold Key",
     "Time Vault",
     "The One Ring",
     "Talon Gates of Madara",
@@ -3997,9 +3912,7 @@
    "id": "mtgo-vintage-league-2026-10-3011185-1",
    "nome": "Esper Psychic Frog",
    "faltam": [
-    "Urza's Saga",
-    "Bilbo, Thief in the Night",
-    "Null Rod"
+    "Bilbo, Thief in the Night"
    ]
   },
   {
@@ -4027,7 +3940,6 @@
     "Mana Crypt",
     "Mystic Forge",
     "Nettlecyst",
-    "Null Rod",
     "Patchwork Automaton",
     "Scrawling Crawler",
     "Crucible of Worlds",
@@ -4035,8 +3947,7 @@
     "Stonecoil Serpent",
     "Chalice of the Void",
     "Thorn of Amethyst",
-    "Trinisphere",
-    "Urza's Saga"
+    "Trinisphere"
    ]
   },
   {
@@ -4044,17 +3955,14 @@
    "nome": "Cinco cores Stock Up",
    "faltam": [
     "Council of Reeds",
-    "Thundertrap Trainer",
     "The One Ring",
     "Karn, the Great Creator",
     "Tezzeret, Cruel Captain",
     "Paradoxical Outcome",
-    "Portable Hole",
     "Mana Crypt",
     "The Endstone",
     "Forth Eorlingas!",
-    "Time Vault",
-    "Urza's Saga"
+    "Time Vault"
    ]
   },
   {
@@ -4065,15 +3973,12 @@
     "Karn, the Great Creator",
     "Lodestone Golem",
     "Mana Crypt",
-    "Manifold Key",
     "Paradoxical Outcome",
-    "Sink into Stupor",
     "Tezzeret, Cruel Captain",
     "The Fantasticar",
     "Phyrexian Metamorph",
     "Time Vault",
     "Trinisphere",
-    "Urza's Saga",
     "The One Ring",
     "Talon Gates of Madara"
    ]
@@ -4088,23 +3993,19 @@
     "Inventors' Fair",
     "Karn, the Great Creator",
     "Mana Crypt",
-    "Manifold Key",
     "Mystic Forge",
     "Talon Gates of Madara",
     "Tezzeret, Cruel Captain",
     "The Fantasticar",
     "Time Vault",
-    "Scrawling Crawler",
-    "Urza's Saga"
+    "Scrawling Crawler"
    ]
   },
   {
    "id": "mtgo-vintage-challenge-16-2026-10-2912857459-5",
    "nome": "Cinco cores The One Ring",
    "faltam": [
-    "Urza's Saga",
     "The One Ring",
-    "Sink into Stupor",
     "Mana Crypt",
     "Coveted Jewel",
     "Phyrexian Metamorph",
@@ -4112,7 +4013,6 @@
     "Misdirection",
     "Trinisphere",
     "Karn, the Great Creator",
-    "Manifold Key",
     "Time Vault"
    ]
   },
@@ -4124,15 +4024,12 @@
     "The One Ring",
     "Karn, the Great Creator",
     "Mana Crypt",
-    "Manifold Key",
     "Misdirection",
     "Paradoxical Outcome",
-    "Sink into Stupor",
     "Phyrexian Metamorph",
     "Tezzeret, Cruel Captain",
     "Time Vault",
-    "Trinisphere",
-    "Urza's Saga"
+    "Trinisphere"
    ]
   },
   {
@@ -4145,14 +4042,11 @@
     "Time Vault",
     "The One Ring",
     "Tezzeret, Cruel Captain",
-    "Manifold Key",
     "Phyrexian Metamorph",
     "Relic of Sauron",
-    "Sink into Stupor",
     "Mana Crypt",
     "Karn, the Great Creator",
     "Coveted Jewel",
-    "Urza's Saga",
     "Mystic Forge"
    ]
   },
@@ -4165,9 +4059,7 @@
     "Mana Crypt",
     "Mystic Forge",
     "Time Vault",
-    "Manifold Key",
     "The Fantasticar",
-    "Urza's Saga",
     "Scrawling Crawler",
     "Talon Gates of Madara",
     "The One Ring",
@@ -4209,9 +4101,7 @@
     "Nadu, Winged Wisdom",
     "Sylvan Safekeeper",
     "Scryb Ranger",
-    "Collector Ouphe",
     "Springheart Nantuko",
-    "Urza's Saga",
     "Nomads en-Kor",
     "Mole Man, Moloid Master",
     "Endurance",
@@ -4247,11 +4137,9 @@
     "Phyrexian Metamorph",
     "Mana Crypt",
     "Paradox Engine",
-    "Sink into Stupor",
     "Chaos Defiler",
     "The One Ring",
     "Coveted Jewel",
-    "Urza's Saga",
     "Transmute Artifact",
     "Karn, the Great Creator",
     "Paradoxical Outcome"
@@ -4264,14 +4152,11 @@
     "Coveted Jewel",
     "Karn, the Great Creator",
     "Mana Crypt",
-    "Manifold Key",
     "Mystic Forge",
     "Paradoxical Outcome",
     "Phyrexian Metamorph",
-    "Sink into Stupor",
     "Time Vault",
     "Trinisphere",
-    "Urza's Saga",
     "Voltaic Key",
     "The One Ring",
     "Talon Gates of Madara"
@@ -4283,11 +4168,8 @@
    "faltam": [
     "Time Vault",
     "Balance",
-    "Portable Hole",
     "Mana Crypt",
-    "Urza's Saga",
     "Karn, the Great Creator",
-    "Manifold Key",
     "Bolas's Citadel",
     "Yawgmoth's Will",
     "Tezzeret, Cruel Captain",
@@ -4304,15 +4186,12 @@
     "The One Ring",
     "Karn, the Great Creator",
     "Phyrexian Metamorph",
-    "Manifold Key",
     "Paradox Engine",
     "Mana Crypt",
-    "Sink into Stupor",
     "Tezzeret, Cruel Captain",
     "Time Vault",
     "Coveted Jewel",
-    "Transmute Artifact",
-    "Urza's Saga"
+    "Transmute Artifact"
    ]
   },
   {
@@ -4325,14 +4204,11 @@
     "Karn, the Great Creator",
     "Time Vault",
     "The One Ring",
-    "Manifold Key",
-    "Sink into Stupor",
     "Phyrexian Metamorph",
     "Tezzeret, Cruel Captain",
     "Mana Crypt",
     "Relic of Sauron",
-    "Coveted Jewel",
-    "Urza's Saga"
+    "Coveted Jewel"
    ]
   },
   {
@@ -4341,7 +4217,6 @@
    "faltam": [
     "Timetwister",
     "Lavinia, Azorius Renegade",
-    "Urza's Saga",
     "Bilbo, Thief in the Night"
    ]
   },
@@ -4384,11 +4259,8 @@
    "id": "mtgo-vintage-challenge-16-2026-10-2512856987-2",
    "nome": "Cinco cores Paradoxical Outcome",
    "faltam": [
-    "Urza's Saga",
     "Time Vault",
     "The One Ring",
-    "Sink into Stupor",
-    "Manifold Key",
     "Mana Crypt",
     "Paradoxical Outcome",
     "Tezzeret, Cruel Captain",
@@ -4411,13 +4283,11 @@
     "Lodestone Golem",
     "Mana Crypt",
     "Mystic Forge",
-    "Null Rod",
     "Patchwork Automaton",
     "Sphere of Resistance",
     "Stonecoil Serpent",
     "Thorn of Amethyst",
     "Trinisphere",
-    "Urza's Saga",
     "Crucible of Worlds",
     "Talon Gates of Madara",
     "Nettlecyst"
@@ -4428,16 +4298,12 @@
    "nome": "Cinco cores Stock Up",
    "faltam": [
     "Vivi Ornitier",
-    "Portable Hole",
     "Mana Crypt",
     "Paradoxical Outcome",
-    "Urza's Saga",
     "Tezzeret, Cruel Captain",
     "Crystal Skull, Isu Spyglass",
-    "Thundertrap Trainer",
     "Flame of Anor",
-    "Geist of Saint Thalia",
-    "Sink into Stupor"
+    "Geist of Saint Thalia"
    ]
   },
   {
@@ -4447,11 +4313,8 @@
     "Bolas's Citadel",
     "Paradoxical Outcome",
     "Mana Crypt",
-    "Manifold Key",
-    "Portable Hole",
     "Tezzeret, Cruel Captain",
     "Time Vault",
-    "Urza's Saga",
     "Yawgmoth's Will",
     "Karn, the Great Creator",
     "The One Ring"
@@ -4462,14 +4325,11 @@
    "nome": "Cinco cores Stock Up",
    "faltam": [
     "Mana Crypt",
-    "Urza's Saga",
     "Tezzeret, Cruel Captain",
     "Karn, the Great Creator",
     "The One Ring",
-    "Portable Hole",
     "Time Vault",
     "Forth Eorlingas!",
-    "Thundertrap Trainer",
     "The Endstone",
     "Paradoxical Outcome",
     "Council of Reeds"
@@ -4479,7 +4339,6 @@
    "id": "mtgo-vintage-challenge-16-2026-10-2512856987-4",
    "nome": "Cinco cores Stock Up",
    "faltam": [
-    "Urza's Saga",
     "Karn, the Great Creator",
     "Bilbo, Thief in the Night"
    ]
@@ -4488,11 +4347,9 @@
    "id": "mtgo-vintage-challenge-16-2026-10-2512856987-7",
    "nome": "Cinco cores Stock Up",
    "faltam": [
-    "Thundertrap Trainer",
     "Paradoxical Outcome",
     "Mana Crypt",
     "Forth Eorlingas!",
-    "Urza's Saga",
     "Flame of Anor"
    ]
   },
@@ -4502,25 +4359,18 @@
    "faltam": [
     "Bilbo, Thief in the Night",
     "Dress Down",
-    "Hexing Squelcher",
-    "Merchant Scroll",
     "Mana Crypt",
-    "Sink into Stupor",
-    "Underworld Breach",
-    "Urza's Saga"
+    "Underworld Breach"
    ]
   },
   {
    "id": "mtgo-vintage-challenge-32-2026-10-2512856994-3",
    "nome": "Cinco cores Stock Up",
    "faltam": [
-    "Merchant Scroll",
     "Mana Crypt",
     "Forth Eorlingas!",
     "Flame of Anor",
     "Dress Down",
-    "Thundertrap Trainer",
-    "Urza's Saga",
     "Paradoxical Outcome",
     "Chain of Vapor"
    ]
@@ -4531,31 +4381,22 @@
    "faltam": [
     "Karn, the Great Creator",
     "The One Ring",
-    "Urza's Saga",
     "Mana Crypt",
     "Paradoxical Outcome",
     "Time Vault",
     "Tezzeret, Cruel Captain",
-    "Portable Hole",
     "The Endstone",
-    "Council of Reeds",
-    "Thundertrap Trainer"
+    "Council of Reeds"
    ]
   },
   {
    "id": "mtgo-vintage-challenge-32-2026-10-2512856994-7",
    "nome": "Cinco cores Stock Up",
    "faltam": [
-    "Thundertrap Trainer",
-    "Merchant Scroll",
     "Mana Crypt",
     "Paradoxical Outcome",
-    "Hexing Squelcher",
-    "Portable Hole",
-    "Sink into Stupor",
     "Flame of Anor",
-    "Underworld Breach",
-    "Urza's Saga"
+    "Underworld Breach"
    ]
   },
   {
@@ -4575,44 +4416,35 @@
    "nome": "Dimir Gush",
    "faltam": [
     "Bilbo, Thief in the Night",
-    "Gush",
-    "Urza's Saga"
+    "Gush"
    ]
   },
   {
    "id": "mtgo-vintage-challenge-16-2026-10-2512856987-5",
    "nome": "Esper Psychic Frog",
    "faltam": [
-    "Null Rod",
-    "Bilbo, Thief in the Night",
-    "Urza's Saga"
+    "Bilbo, Thief in the Night"
    ]
   },
   {
    "id": "mtgo-vintage-challenge-32-2026-10-2512856994-1",
    "nome": "Esper Psychic Frog",
    "faltam": [
-    "Bilbo, Thief in the Night",
-    "Null Rod",
-    "Urza's Saga"
+    "Bilbo, Thief in the Night"
    ]
   },
   {
    "id": "mtgo-vintage-challenge-32-2026-10-2512856994-5",
    "nome": "Esper Psychic Frog",
    "faltam": [
-    "Bilbo, Thief in the Night",
-    "Stony Silence",
-    "Urza's Saga"
+    "Bilbo, Thief in the Night"
    ]
   },
   {
    "id": "mtgo-vintage-challenge-32-2026-10-2512856994-6",
    "nome": "Esper Psychic Frog",
    "faltam": [
-    "Null Rod",
-    "Bilbo, Thief in the Night",
-    "Urza's Saga"
+    "Bilbo, Thief in the Night"
    ]
   },
   {
@@ -4636,21 +4468,16 @@
    "nome": "Sultai Deathrite Shaman",
    "faltam": [
     "Assassin's Trophy",
-    "Boseiju, Who Endures",
     "Deathrite Shaman",
-    "Kishla Skimmer",
-    "Collector Ouphe"
+    "Kishla Skimmer"
    ]
   },
   {
    "id": "mtgo-vintage-challenge-32-2026-10-2412856980-6",
    "nome": "Cinco cores Paradoxical Outcome",
    "faltam": [
-    "Urza's Saga",
     "Time Vault",
     "The One Ring",
-    "Sink into Stupor",
-    "Manifold Key",
     "Mana Crypt",
     "Paradoxical Outcome",
     "Tezzeret, Cruel Captain",
@@ -4668,14 +4495,12 @@
     "Scrawling Crawler",
     "Patchwork Automaton",
     "Nettlecyst",
-    "Urza's Saga",
     "Stonecoil Serpent",
     "Golos, Tireless Pilgrim",
     "Mystic Forge",
     "Karn, the Great Creator",
     "Inventors' Fair",
     "Mana Crypt",
-    "Null Rod",
     "Sphere of Resistance",
     "Lodestone Golem",
     "Thorn of Amethyst",
@@ -4688,11 +4513,9 @@
    "id": "mtgo-vintage-league-2026-10-2411185-1",
    "nome": "Cinco cores Stock Up",
    "faltam": [
-    "Thundertrap Trainer",
     "Paradoxical Outcome",
     "Mana Crypt",
     "Forth Eorlingas!",
-    "Urza's Saga",
     "Flame of Anor"
    ]
   },
@@ -4700,16 +4523,10 @@
    "id": "mtgo-vintage-challenge-32-2026-10-2412856980-1",
    "nome": "Cinco cores Stock Up",
    "faltam": [
-    "Thundertrap Trainer",
     "Flame of Anor",
-    "Merchant Scroll",
     "Mana Crypt",
     "Paradoxical Outcome",
-    "Hexing Squelcher",
-    "Underworld Breach",
-    "Urza's Saga",
-    "Sink into Stupor",
-    "Portable Hole"
+    "Underworld Breach"
    ]
   },
   {
@@ -4717,8 +4534,6 @@
    "nome": "Cinco cores Stock Up",
    "faltam": [
     "Chain of Vapor",
-    "Merchant Scroll",
-    "Urza's Saga",
     "Mindbreak Trap",
     "Mana Crypt",
     "Underworld Breach",
@@ -4735,10 +4550,7 @@
     "Time Vault",
     "Mana Crypt",
     "Bolas's Citadel",
-    "Manifold Key",
-    "Urza's Saga",
     "Flame of Anor",
-    "Thundertrap Trainer",
     "Council of Reeds"
    ]
   },
@@ -4750,7 +4562,6 @@
     "Forbidden Orchard",
     "Oko, Thief of Crowns",
     "Atraxa, Grand Unifier",
-    "Boseiju, Who Endures",
     "Show and Tell",
     "Flash",
     "Mana Crypt",
@@ -4762,14 +4573,12 @@
    "id": "mtgo-vintage-challenge-32-2026-10-2412856980-4",
    "nome": "Cinco cores Tezzeret",
    "faltam": [
-    "Urza's Saga",
     "Trinisphere",
     "Golos, Tireless Pilgrim",
     "Talon Gates of Madara",
     "Sphere of Resistance",
     "Tezzeret, Cruel Captain",
     "Time Vault",
-    "Manifold Key",
     "Mystic Forge",
     "Patchwork Automaton",
     "Mana Crypt",
@@ -4795,9 +4604,7 @@
     "The One Ring",
     "Relic of Sauron",
     "Chaos Defiler",
-    "Sink into Stupor",
     "The Fantasticar",
-    "Urza's Saga",
     "Bolas's Citadel",
     "Transmute Artifact"
    ]
@@ -4828,14 +4635,12 @@
     "Lodestone Golem",
     "Mana Crypt",
     "Mystic Forge",
-    "Null Rod",
     "Patchwork Automaton",
     "Scrawling Crawler",
     "Sphere of Resistance",
     "Stonecoil Serpent",
     "Thorn of Amethyst",
     "Trinisphere",
-    "Urza's Saga",
     "Nettlecyst"
    ]
   },
@@ -4844,12 +4649,8 @@
    "nome": "Cinco cores Stock Up",
    "faltam": [
     "Forth Eorlingas!",
-    "Hexing Squelcher",
     "Mana Crypt",
     "Paradoxical Outcome",
-    "Portable Hole",
-    "Thundertrap Trainer",
-    "Urza's Saga",
     "Flame of Anor",
     "Bilbo, Thief in the Night"
    ]
@@ -4858,13 +4659,11 @@
    "id": "mtgo-vintage-league-2026-10-0511185-1",
    "nome": "Cinco cores Stock Up",
    "faltam": [
-    "Boseiju, Who Endures",
     "Show and Tell",
     "Oath of Druids",
     "Mana Crypt",
     "Gaea's Blessing",
     "Forbidden Orchard",
-    "Null Rod",
     "Oko, Thief of Crowns",
     "Flash",
     "Commandeer",
@@ -4878,13 +4677,9 @@
     "The Fantasticar",
     "Mana Crypt",
     "Paradoxical Outcome",
-    "Manifold Key",
-    "Urza's Saga",
     "Tezzeret, Cruel Captain",
     "Glaring Fleshraker",
-    "Portable Hole",
-    "Time Vault",
-    "Sink into Stupor"
+    "Time Vault"
    ]
   },
   {
@@ -4897,7 +4692,6 @@
     "Mana Crypt",
     "Show and Tell",
     "Oko, Thief of Crowns",
-    "Boseiju, Who Endures",
     "Raph & Mikey, Troublemakers",
     "Atraxa, Grand Unifier",
     "Forbidden Orchard"
@@ -4913,14 +4707,12 @@
     "Talon Gates of Madara",
     "Inventors' Fair",
     "Karn, the Great Creator",
-    "Manifold Key",
     "Mystic Forge",
     "Mana Crypt",
     "Scrawling Crawler",
     "Tezzeret, Cruel Captain",
     "The Fantasticar",
-    "Time Vault",
-    "Urza's Saga"
+    "Time Vault"
    ]
   },
   {
@@ -4928,8 +4720,7 @@
    "nome": "Esper Psychic Frog",
    "faltam": [
     "Bilbo, Thief in the Night",
-    "Momentum Breaker",
-    "Urza's Saga"
+    "Momentum Breaker"
    ]
   },
   {
@@ -4938,11 +4729,7 @@
    "faltam": [
     "Gifts Ungiven",
     "Mana Crypt",
-    "Manifold Key",
-    "Merchant Scroll",
-    "Sink into Stupor",
     "Time Vault",
-    "Urza's Saga",
     "Yawgmoth's Will",
     "Bilbo, Thief in the Night"
    ]
@@ -4952,11 +4739,7 @@
    "nome": "Cinco cores Stock Up",
    "faltam": [
     "Time Vault",
-    "Merchant Scroll",
     "Yawgmoth's Will",
-    "Manifold Key",
-    "Sink into Stupor",
-    "Urza's Saga",
     "Bilbo, Thief in the Night",
     "Mana Crypt",
     "Chain of Vapor",
@@ -4971,8 +4754,6 @@
     "Dress Down",
     "Mana Crypt",
     "Forth Eorlingas!",
-    "Thundertrap Trainer",
-    "Urza's Saga",
     "Flame of Anor"
    ]
   },
@@ -4983,7 +4764,6 @@
     "Oath of Druids",
     "Forbidden Orchard",
     "Atraxa, Grand Unifier",
-    "Boseiju, Who Endures",
     "Show and Tell",
     "Mana Crypt",
     "Raph & Mikey, Troublemakers",
@@ -4997,12 +4777,10 @@
    "id": "mtgo-vintage-league-2026-10-2211185-5",
    "nome": "Cinco cores Stock Up",
    "faltam": [
-    "Urza's Saga",
     "Mana Drain",
     "Mana Crypt",
     "Gifts Ungiven",
     "Underworld Breach",
-    "Merchant Scroll",
     "Chain of Vapor",
     "Dress Down"
    ]
@@ -5017,7 +4795,6 @@
     "Mana Crypt",
     "Oko, Thief of Crowns",
     "Atraxa, Grand Unifier",
-    "Boseiju, Who Endures",
     "Show and Tell",
     "Raph & Mikey, Troublemakers"
    ]
@@ -5028,10 +4805,8 @@
    "faltam": [
     "Coveted Jewel",
     "Mana Crypt",
-    "Manifold Key",
     "The One Ring",
     "Paradoxical Outcome",
-    "Sink into Stupor",
     "Phyrexian Metamorph",
     "Talon Gates of Madara",
     "Tezzeret, Cruel Captain",
@@ -5039,7 +4814,6 @@
     "Time Vault",
     "Lodestone Golem",
     "Trinisphere",
-    "Urza's Saga",
     "Karn, the Great Creator"
    ]
   },
@@ -5049,10 +4823,8 @@
    "faltam": [
     "Coveted Jewel",
     "Mana Crypt",
-    "Manifold Key",
     "The One Ring",
     "Paradoxical Outcome",
-    "Sink into Stupor",
     "Phyrexian Metamorph",
     "Talon Gates of Madara",
     "Tezzeret, Cruel Captain",
@@ -5060,7 +4832,6 @@
     "Time Vault",
     "Lodestone Golem",
     "Trinisphere",
-    "Urza's Saga",
     "Karn, the Great Creator"
    ]
   },
@@ -5069,17 +4840,14 @@
    "nome": "Dimir Gush",
    "faltam": [
     "Bilbo, Thief in the Night",
-    "Gush",
-    "Urza's Saga"
+    "Gush"
    ]
   },
   {
    "id": "mtgo-vintage-challenge-32-2026-10-2212856960-2",
    "nome": "Esper Psychic Frog",
    "faltam": [
-    "Bilbo, Thief in the Night",
-    "Null Rod",
-    "Urza's Saga"
+    "Bilbo, Thief in the Night"
    ]
   },
   {
@@ -5087,7 +4855,6 @@
    "nome": "Esper Psychic Frog",
    "faltam": [
     "Bilbo, Thief in the Night",
-    "Urza's Saga",
     "Momentum Breaker",
     "Dauthi Voidwalker"
    ]
@@ -5096,8 +4863,6 @@
    "id": "mtgo-vintage-league-2026-10-2211185-6",
    "nome": "Esper Psychic Frog",
    "faltam": [
-    "Stony Silence",
-    "Urza's Saga",
     "Bilbo, Thief in the Night"
    ]
   },
@@ -5105,14 +4870,9 @@
    "id": "mtgo-vintage-league-2026-10-2211185-4",
    "nome": "Jund Hogaak",
    "faltam": [
-    "Boseiju, Who Endures",
     "Hollow One",
     "Hogaak, Arisen Necropolis",
-    "Dark Matter Manipulator",
-    "Once Upon a Time",
-    "Collector Ouphe",
-    "Vengevine",
-    "Stitcher's Supplier"
+    "Vengevine"
    ]
   },
   {
@@ -5121,9 +4881,7 @@
    "faltam": [
     "Flame of Anor",
     "Forth Eorlingas!",
-    "Mana Drain",
-    "Thundertrap Trainer",
-    "Urza's Saga"
+    "Mana Drain"
    ]
   },
   {
@@ -5145,19 +4903,14 @@
    "nome": "Simic Sowing Mycospawn",
    "faltam": [
     "Cavern of Souls",
-    "Urza's Saga",
-    "Collector Ouphe",
     "Trinisphere",
     "Chalice of the Void",
     "Thorn of Amethyst",
     "Sowing Mycospawn",
     "Bridgeworks Battle",
-    "Yavimaya, Cradle of Growth",
     "Thief of Existence",
     "Wastescape Battlemage",
-    "Once Upon a Time",
-    "Mana Crypt",
-    "Null Rod"
+    "Mana Crypt"
    ]
   },
   {
@@ -5172,13 +4925,11 @@
     "Lodestone Golem",
     "Mana Crypt",
     "Mystic Forge",
-    "Null Rod",
     "Patchwork Automaton",
     "Sphere of Resistance",
     "Stonecoil Serpent",
     "Thorn of Amethyst",
     "Trinisphere",
-    "Urza's Saga",
     "Crucible of Worlds",
     "Talon Gates of Madara",
     "Nettlecyst"
@@ -5188,11 +4939,9 @@
    "id": "mtgo-vintage-league-2026-10-2111185-8",
    "nome": "Cinco cores Scrawling Crawler",
    "faltam": [
-    "Urza's Saga",
     "Talon Gates of Madara",
     "Mystic Forge",
     "Nettlecyst",
-    "Null Rod",
     "Sphere of Resistance",
     "Thorn of Amethyst",
     "Trinisphere",
@@ -5212,13 +4961,10 @@
    "id": "mtgo-vintage-league-2026-10-2111185-1",
    "nome": "Cinco cores Stock Up",
    "faltam": [
-    "Urza's Saga",
     "Mana Crypt",
     "Dress Down",
     "Forth Eorlingas!",
-    "Thundertrap Trainer",
     "Flame of Anor",
-    "Portable Hole",
     "Paradoxical Outcome"
    ]
   },
@@ -5226,16 +4972,13 @@
    "id": "mtgo-vintage-league-2026-10-2111185-4",
    "nome": "Cinco cores Stock Up",
    "faltam": [
-    "Urza's Saga",
-    "Karn, the Great Creator",
-    "Merchant Scroll"
+    "Karn, the Great Creator"
    ]
   },
   {
    "id": "mtgo-vintage-league-2026-10-2111185-5",
    "nome": "Cinco cores Stock Up",
    "faltam": [
-    "Boseiju, Who Endures",
     "Flash",
     "Forbidden Orchard",
     "Atraxa, Grand Unifier",
@@ -5255,9 +4998,7 @@
     "Mana Crypt",
     "Forth Eorlingas!",
     "Flame of Anor",
-    "Thundertrap Trainer",
-    "Dress Down",
-    "Urza's Saga"
+    "Dress Down"
    ]
   },
   {
@@ -5271,7 +5012,6 @@
     "Mana Crypt",
     "The Fantasticar",
     "The One Ring",
-    "Urza's Saga",
     "Yawgmoth's Will"
    ]
   },
@@ -5282,29 +5022,22 @@
     "The One Ring",
     "Glaring Fleshraker",
     "Scrawling Crawler",
-    "Portable Hole",
     "Karn, the Great Creator",
     "Mana Crypt",
-    "Manifold Key",
     "Mystic Forge",
     "Talon Gates of Madara",
     "Chalice of the Void",
     "Tezzeret, Cruel Captain",
-    "Time Vault",
-    "Urza's Saga"
+    "Time Vault"
    ]
   },
   {
    "id": "mtgo-vintage-league-2026-10-2011185-1",
    "nome": "Cinco cores Stock Up",
    "faltam": [
-    "Thundertrap Trainer",
     "Forth Eorlingas!",
-    "Hexing Squelcher",
     "Paradoxical Outcome",
     "Mana Crypt",
-    "Portable Hole",
-    "Urza's Saga",
     "Bilbo, Thief in the Night",
     "Flame of Anor"
    ]
@@ -5316,11 +5049,8 @@
     "Bolas's Citadel",
     "Paradoxical Outcome",
     "Mana Crypt",
-    "Manifold Key",
-    "Portable Hole",
     "Tezzeret, Cruel Captain",
     "Time Vault",
-    "Urza's Saga",
     "Yawgmoth's Will",
     "Karn, the Great Creator"
    ]
@@ -5335,9 +5065,7 @@
     "Tezzeret, Cruel Captain",
     "Talon Gates of Madara",
     "Mana Crypt",
-    "Portable Hole",
     "Paradoxical Outcome",
-    "Urza's Saga",
     "Paradox Engine",
     "Timetwister"
    ]
@@ -5346,13 +5074,10 @@
    "id": "mtgo-vintage-league-2026-10-2011185-6",
    "nome": "Cinco cores Stock Up",
    "faltam": [
-    "Thundertrap Trainer",
-    "Urza's Saga",
     "Flame of Anor",
     "Forth Eorlingas!",
     "Mana Crypt",
-    "Paradoxical Outcome",
-    "Portable Hole"
+    "Paradoxical Outcome"
    ]
   },
   {
@@ -5363,16 +5088,13 @@
     "The One Ring",
     "Karn, the Great Creator",
     "Coveted Jewel",
-    "Manifold Key",
     "Paradox Engine",
     "Mana Crypt",
-    "Sink into Stupor",
     "Tezzeret, Cruel Captain",
     "Time Vault",
     "Transmute Artifact",
     "Phyrexian Metamorph",
-    "Trinisphere",
-    "Urza's Saga"
+    "Trinisphere"
    ]
   },
   {
@@ -5386,12 +5108,9 @@
     "Time Vault",
     "Paradox Engine",
     "Tezzeret, Cruel Captain",
-    "Sink into Stupor",
-    "Manifold Key",
     "The One Ring",
     "Mana Crypt",
     "Trinisphere",
-    "Urza's Saga",
     "Transmute Artifact"
    ]
   },
@@ -5399,7 +5118,6 @@
    "id": "mtgo-vintage-league-2026-10-2011185-8",
    "nome": "Dimir Reanimate",
    "faltam": [
-    "Vraska's Final Mercy",
     "Barrowgoyf",
     "Reanimate",
     "Dauthi Voidwalker",
@@ -5412,9 +5130,7 @@
    "faltam": [
     "Deathrite Shaman",
     "Wrenn and Six",
-    "Oko, Thief of Crowns",
-    "Collector Ouphe",
-    "Boseiju, Who Endures"
+    "Oko, Thief of Crowns"
    ]
   },
   {
@@ -5428,7 +5144,6 @@
     "Mana Crypt",
     "The Fantasticar",
     "The One Ring",
-    "Urza's Saga",
     "Yawgmoth's Will"
    ]
   },
@@ -5485,7 +5200,6 @@
     "Oko, Thief of Crowns",
     "Atraxa, Grand Unifier",
     "Raph & Mikey, Troublemakers",
-    "Boseiju, Who Endures",
     "Oath of Druids",
     "Forbidden Orchard",
     "Mana Crypt",
@@ -5500,8 +5214,6 @@
     "Forth Eorlingas!",
     "Mana Crypt",
     "Paradoxical Outcome",
-    "Thundertrap Trainer",
-    "Urza's Saga",
     "Dress Down"
    ]
   },
@@ -5512,10 +5224,7 @@
     "Flame of Anor",
     "Forth Eorlingas!",
     "Mana Crypt",
-    "Thundertrap Trainer",
-    "Urza's Saga",
-    "Paradoxical Outcome",
-    "Hexing Squelcher"
+    "Paradoxical Outcome"
    ]
   },
   {
@@ -5529,7 +5238,6 @@
     "Mana Crypt",
     "The Fantasticar",
     "Beseech the Mirror",
-    "Urza's Saga",
     "Yawgmoth's Will"
    ]
   },
@@ -5539,13 +5247,9 @@
    "faltam": [
     "Bilbo, Thief in the Night",
     "Flame of Anor",
-    "Hexing Squelcher",
     "Mana Crypt",
     "Paradoxical Outcome",
-    "Portable Hole",
-    "Forth Eorlingas!",
-    "Thundertrap Trainer",
-    "Urza's Saga"
+    "Forth Eorlingas!"
    ]
   },
   {
@@ -5555,15 +5259,12 @@
     "Karn, the Great Creator",
     "Lodestone Golem",
     "Mana Crypt",
-    "Manifold Key",
     "Paradoxical Outcome",
-    "Sink into Stupor",
     "Tezzeret, Cruel Captain",
     "The Fantasticar",
     "Phyrexian Metamorph",
     "Time Vault",
     "Trinisphere",
-    "Urza's Saga",
     "The One Ring",
     "Talon Gates of Madara",
     "Coveted Jewel"
@@ -5575,17 +5276,14 @@
    "faltam": [
     "The One Ring",
     "Karn, the Great Creator",
-    "Manifold Key",
     "Talon Gates of Madara",
     "Phyrexian Metamorph",
     "Paradoxical Outcome",
-    "Sink into Stupor",
     "Mana Crypt",
     "Tezzeret, Cruel Captain",
     "The Fantasticar",
     "Time Vault",
     "Trinisphere",
-    "Urza's Saga",
     "Coveted Jewel",
     "Lodestone Golem"
    ]
@@ -5594,11 +5292,8 @@
    "id": "mtgo-vintage-challenge-16-2026-10-1812856602-5",
    "nome": "Cinco cores The One Ring",
    "faltam": [
-    "Urza's Saga",
     "Time Vault",
     "The One Ring",
-    "Sink into Stupor",
-    "Manifold Key",
     "Mana Crypt",
     "Paradoxical Outcome",
     "Tezzeret, Cruel Captain",
@@ -5618,17 +5313,14 @@
     "Coveted Jewel",
     "Karn, the Great Creator",
     "Mana Crypt",
-    "Manifold Key",
     "Talon Gates of Madara",
     "Phyrexian Metamorph",
     "Paradoxical Outcome",
-    "Sink into Stupor",
     "Lodestone Golem",
     "Tezzeret, Cruel Captain",
     "The Fantasticar",
     "Time Vault",
-    "Trinisphere",
-    "Urza's Saga"
+    "Trinisphere"
    ]
   },
   {
@@ -5648,26 +5340,21 @@
    "nome": "Dimir Gush",
    "faltam": [
     "Bilbo, Thief in the Night",
-    "Gush",
-    "Urza's Saga"
+    "Gush"
    ]
   },
   {
    "id": "mtgo-vintage-league-2026-10-1811185-2",
    "nome": "Esper Psychic Frog",
    "faltam": [
-    "Urza's Saga",
-    "Bilbo, Thief in the Night",
-    "Null Rod"
+    "Bilbo, Thief in the Night"
    ]
   },
   {
    "id": "mtgo-vintage-league-2026-10-1811185-3",
    "nome": "Esper Psychic Frog",
    "faltam": [
-    "Bilbo, Thief in the Night",
-    "Null Rod",
-    "Urza's Saga"
+    "Bilbo, Thief in the Night"
    ]
   },
   {
@@ -5675,8 +5362,7 @@
    "nome": "Esper Psychic Frog",
    "faltam": [
     "Bilbo, Thief in the Night",
-    "Demonic Consultation",
-    "Null Rod"
+    "Demonic Consultation"
    ]
   },
   {
@@ -5756,7 +5442,6 @@
     "Narcomoeba",
     "Mana Crypt",
     "Pact of Negation",
-    "Sink into Stupor",
     "Thassa's Oracle",
     "Extrapolate the Impossible",
     "Beseech the Mirror"
@@ -5766,15 +5451,13 @@
    "id": "mtgo-vintage-challenge-32-2026-10-1712856595-3",
    "nome": "Cinco cores Stock Up",
    "faltam": [
-    "Merchant Scroll",
     "Mana Drain",
     "Mana Crypt",
     "Mindbreak Trap",
     "Gifts Ungiven",
     "Dress Down",
     "Chain of Vapor",
-    "Underworld Breach",
-    "Urza's Saga"
+    "Underworld Breach"
    ]
   },
   {
@@ -5783,39 +5466,27 @@
    "faltam": [
     "Bilbo, Thief in the Night",
     "Dress Down",
-    "Hexing Squelcher",
-    "Merchant Scroll",
     "Mana Crypt",
-    "Sink into Stupor",
-    "Underworld Breach",
-    "Urza's Saga"
+    "Underworld Breach"
    ]
   },
   {
    "id": "mtgo-vintage-challenge-32-2026-10-1712856595-6",
    "nome": "Cinco cores Stock Up",
    "faltam": [
-    "Thundertrap Trainer",
     "Flame of Anor",
-    "Merchant Scroll",
     "Mana Crypt",
     "Paradoxical Outcome",
-    "Hexing Squelcher",
-    "Underworld Breach",
-    "Urza's Saga",
-    "Sink into Stupor",
-    "Portable Hole"
+    "Underworld Breach"
    ]
   },
   {
    "id": "mtgo-vintage-league-2026-10-1711185-2",
    "nome": "Cinco cores Stock Up",
    "faltam": [
-    "Merchant Scroll",
     "Mana Drain",
     "Mindbreak Trap",
     "Gifts Ungiven",
-    "Urza's Saga",
     "Underworld Breach",
     "Mana Crypt",
     "Chain of Vapor",
@@ -5829,7 +5500,6 @@
     "Oath of Druids",
     "Forbidden Orchard",
     "Atraxa, Grand Unifier",
-    "Boseiju, Who Endures",
     "Show and Tell",
     "Mana Crypt",
     "Oko, Thief of Crowns",
@@ -5852,7 +5522,6 @@
     "Transmute Artifact",
     "Mana Crypt",
     "Relic of Sauron",
-    "Urza's Saga",
     "The One Ring",
     "Coveted Jewel"
    ]
@@ -5866,30 +5535,24 @@
     "Karn, the Great Creator",
     "Mana Crypt",
     "Tezzeret, Cruel Captain",
-    "Manifold Key",
     "Talon Gates of Madara",
     "Phyrexian Metamorph",
     "Paradoxical Outcome",
-    "Sink into Stupor",
     "Lodestone Golem",
     "The Fantasticar",
     "Time Vault",
-    "Trinisphere",
-    "Urza's Saga"
+    "Trinisphere"
    ]
   },
   {
    "id": "mtgo-vintage-challenge-32-2026-10-1712856595-7",
    "nome": "Cinco cores The One Ring",
    "faltam": [
-    "Manifold Key",
     "Chaos Defiler",
-    "Urza's Saga",
     "Coveted Jewel",
     "Mana Crypt",
     "Phyrexian Metamorph",
     "Relic of Sauron",
-    "Sink into Stupor",
     "Paradox Engine",
     "Time Vault",
     "Talon Gates of Madara",
@@ -5910,12 +5573,9 @@
     "Time Vault",
     "Paradox Engine",
     "Tezzeret, Cruel Captain",
-    "Sink into Stupor",
-    "Manifold Key",
     "The One Ring",
     "Mana Crypt",
     "Trinisphere",
-    "Urza's Saga",
     "Transmute Artifact"
    ]
   },
@@ -5925,9 +5585,6 @@
    "faltam": [
     "Time Vault",
     "Voltaic Key",
-    "Urza's Saga",
-    "Manifold Key",
-    "Sink into Stupor",
     "Mana Crypt",
     "Paradoxical Outcome",
     "Talon Gates of Madara",
@@ -5952,13 +5609,11 @@
     "Tezzeret, Cruel Captain",
     "Inventors' Fair",
     "Talon Gates of Madara",
-    "Manifold Key",
     "Mystic Forge",
     "Mana Crypt",
     "Karn, the Great Creator",
     "The Fantasticar",
     "Chalice of the Void",
-    "Urza's Saga",
     "Scrawling Crawler",
     "Memory Jar"
    ]
@@ -5967,10 +5622,7 @@
    "id": "mtgo-vintage-challenge-32-2026-10-1712856595-4",
    "nome": "Quatro cores Swords to Plowshares",
    "faltam": [
-    "Bilbo, Thief in the Night",
-    "Null Rod",
-    "Hexing Squelcher",
-    "Urza's Saga"
+    "Bilbo, Thief in the Night"
    ]
   },
   {
@@ -5985,13 +5637,11 @@
     "Lodestone Golem",
     "Mana Crypt",
     "Mystic Forge",
-    "Null Rod",
     "Patchwork Automaton",
     "Sphere of Resistance",
     "Stonecoil Serpent",
     "Thorn of Amethyst",
     "Trinisphere",
-    "Urza's Saga",
     "Crucible of Worlds",
     "Talon Gates of Madara",
     "Nettlecyst"
@@ -6004,8 +5654,6 @@
     "Dress Down",
     "Forth Eorlingas!",
     "Mana Crypt",
-    "Thundertrap Trainer",
-    "Urza's Saga",
     "Flame of Anor"
    ]
   },
@@ -6020,11 +5668,9 @@
     "Phyrexian Metamorph",
     "Paradox Engine",
     "Mana Crypt",
-    "Sink into Stupor",
     "Talon Gates of Madara",
     "Coveted Jewel",
     "Transmute Artifact",
-    "Urza's Saga",
     "Paradoxical Outcome"
    ]
   },
@@ -6033,26 +5679,20 @@
    "nome": "Cinco cores Stock Up",
    "faltam": [
     "Mana Crypt",
-    "Urza's Saga",
-    "Thundertrap Trainer",
     "Forth Eorlingas!",
     "Flame of Anor",
-    "Dress Down",
-    "Portable Hole",
-    "Hexing Squelcher"
+    "Dress Down"
    ]
   },
   {
    "id": "mtgo-vintage-league-2026-10-1511185-3",
    "nome": "Cinco cores Stock Up",
    "faltam": [
-    "Urza's Saga",
     "Transmute Artifact",
     "Glaring Fleshraker",
     "The One Ring",
     "Karn, the Great Creator",
     "Paradoxical Outcome",
-    "Portable Hole",
     "Mana Crypt",
     "Tezzeret, Cruel Captain",
     "The Endstone",
@@ -6065,12 +5705,8 @@
    "faltam": [
     "Bilbo, Thief in the Night",
     "Dress Down",
-    "Hexing Squelcher",
-    "Merchant Scroll",
     "Mana Crypt",
-    "Sink into Stupor",
-    "Underworld Breach",
-    "Urza's Saga"
+    "Underworld Breach"
    ]
   },
   {
@@ -6078,10 +5714,8 @@
    "nome": "Cinco cores Stock Up",
    "faltam": [
     "Mana Crypt",
-    "Thundertrap Trainer",
     "Dress Down",
     "Flame of Anor",
-    "Urza's Saga",
     "Forth Eorlingas!"
    ]
   },
@@ -6093,11 +5727,9 @@
     "Phyrexian Metamorph",
     "Mana Crypt",
     "Paradox Engine",
-    "Sink into Stupor",
     "Chaos Defiler",
     "The One Ring",
     "Coveted Jewel",
-    "Urza's Saga",
     "Transmute Artifact",
     "Karn, the Great Creator",
     "Paradoxical Outcome",
@@ -6114,14 +5746,12 @@
     "Inventors' Fair",
     "Karn, the Great Creator",
     "Mana Crypt",
-    "Manifold Key",
     "Mystic Forge",
     "Chalice of the Void",
     "Talon Gates of Madara",
     "Tezzeret, Cruel Captain",
     "The Fantasticar",
-    "Time Vault",
-    "Urza's Saga"
+    "Time Vault"
    ]
   },
   {
@@ -6133,14 +5763,11 @@
     "Tezzeret, Cruel Captain",
     "Karn, the Great Creator",
     "Mana Crypt",
-    "Manifold Key",
     "Paradox Engine",
     "The One Ring",
-    "Sink into Stupor",
     "Transmute Artifact",
     "Time Vault",
     "Trinisphere",
-    "Urza's Saga",
     "Coveted Jewel"
    ]
   },
@@ -6148,26 +5775,21 @@
    "id": "mtgo-vintage-challenge-32-2026-10-1512856576-3",
    "nome": "Esper Psychic Frog",
    "faltam": [
-    "Bilbo, Thief in the Night",
-    "Null Rod",
-    "Urza's Saga"
+    "Bilbo, Thief in the Night"
    ]
   },
   {
    "id": "mtgo-vintage-challenge-32-2026-10-1512856576-4",
    "nome": "Esper Psychic Frog",
    "faltam": [
-    "Bilbo, Thief in the Night",
-    "Urza's Saga"
+    "Bilbo, Thief in the Night"
    ]
   },
   {
    "id": "mtgo-vintage-challenge-32-2026-10-1512856576-6",
    "nome": "Esper Psychic Frog",
    "faltam": [
-    "Urza's Saga",
     "Bilbo, Thief in the Night",
-    "Null Rod",
     "Dress Down"
    ]
   },
@@ -6195,23 +5817,17 @@
     "Paradoxical Outcome",
     "Mana Crypt",
     "Time Vault",
-    "Sink into Stupor",
     "Bolas's Citadel",
-    "Manifold Key",
-    "Urza's Saga",
     "Displacer Kitten",
-    "Merchant Scroll",
     "Tezzeret, Cruel Captain",
     "Karn, the Great Creator",
-    "Flame of Anor",
-    "Thundertrap Trainer"
+    "Flame of Anor"
    ]
   },
   {
    "id": "mtgo-vintage-league-2026-10-1311185-3",
    "nome": "Cinco cores Force of Will",
    "faltam": [
-    "Thundertrap Trainer",
     "Mana Crypt",
     "Paradoxical Outcome",
     "Staff of the Storyteller"
@@ -6222,13 +5838,8 @@
    "nome": "Cinco cores Stock Up",
    "faltam": [
     "Forth Eorlingas!",
-    "Hexing Squelcher",
     "Paradoxical Outcome",
-    "Portable Hole",
-    "Sink into Stupor",
     "Flame of Anor",
-    "Urza's Saga",
-    "Thundertrap Trainer",
     "Mana Crypt",
     "Chain of Vapor"
    ]
@@ -6239,10 +5850,8 @@
    "faltam": [
     "Mana Crypt",
     "Paradoxical Outcome",
-    "Urza's Saga",
     "Tezzeret, Cruel Captain",
     "Glaring Fleshraker",
-    "Portable Hole",
     "The Antiquities War",
     "Fortune Teller's Talent"
    ]
@@ -6251,7 +5860,6 @@
    "id": "mtgo-vintage-league-2026-10-1311185-1",
    "nome": "Esper Psychic Frog",
    "faltam": [
-    "Urza's Saga",
     "Bilbo, Thief in the Night",
     "Dress Down"
    ]
@@ -6261,17 +5869,13 @@
    "nome": "Esper Psychic Frog",
    "faltam": [
     "Bilbo, Thief in the Night",
-    "Momentum Breaker",
-    "Urza's Saga"
+    "Momentum Breaker"
    ]
   },
   {
    "id": "mtgo-vintage-league-2026-10-1311185-4",
    "nome": "Quatro cores Carnivorous Cultivator",
    "faltam": [
-    "Urza's Saga",
-    "Collector Ouphe",
-    "Merchant Scroll",
     "Mana Crypt"
    ]
   },
@@ -6281,16 +5885,12 @@
    "faltam": [
     "Mana Crypt",
     "Tezzeret, Cruel Captain",
-    "Urza's Saga",
     "Karn, the Great Creator",
     "The One Ring",
-    "Portable Hole",
     "Time Vault",
     "Glaring Fleshraker",
     "The Endstone",
-    "Paradoxical Outcome",
-    "Manifold Key",
-    "Thundertrap Trainer"
+    "Paradoxical Outcome"
    ]
   },
   {
@@ -6325,14 +5925,10 @@
    "id": "mtgo-vintage-challenge-16-2026-10-1012856175-2",
    "nome": "Cinco cores Stock Up",
    "faltam": [
-    "Sink into Stupor",
     "Bilbo, Thief in the Night",
     "Underworld Breach",
     "Dress Down",
-    "Urza's Saga",
-    "Merchant Scroll",
-    "Mana Crypt",
-    "Hexing Squelcher"
+    "Mana Crypt"
    ]
   },
   {
@@ -6345,7 +5941,6 @@
     "Mana Crypt",
     "The Fantasticar",
     "The One Ring",
-    "Urza's Saga",
     "Yawgmoth's Will"
    ]
   },
@@ -6355,13 +5950,11 @@
    "faltam": [
     "Karn, the Great Creator",
     "The One Ring",
-    "Urza's Saga",
     "Mana Crypt",
     "Paradoxical Outcome",
     "Time Vault",
     "Tezzeret, Cruel Captain",
     "The Endstone",
-    "Portable Hole",
     "Glaring Fleshraker",
     "Transmute Artifact"
    ]
@@ -6372,9 +5965,7 @@
    "faltam": [
     "Paradoxical Outcome",
     "Forth Eorlingas!",
-    "Urza's Saga",
     "Flame of Anor",
-    "Thundertrap Trainer",
     "Bilbo, Thief in the Night"
    ]
   },
@@ -6386,9 +5977,6 @@
     "Forth Eorlingas!",
     "Mana Crypt",
     "Paradoxical Outcome",
-    "Thundertrap Trainer",
-    "Urza's Saga",
-    "Portable Hole",
     "Dress Down"
    ]
   },
@@ -6399,9 +5987,7 @@
     "Flame of Anor",
     "Mana Crypt",
     "Forth Eorlingas!",
-    "Thundertrap Trainer",
-    "Dress Down",
-    "Urza's Saga"
+    "Dress Down"
    ]
   },
   {
@@ -6410,26 +5996,18 @@
    "faltam": [
     "Bilbo, Thief in the Night",
     "Chain of Vapor",
-    "Hexing Squelcher",
     "Mana Crypt",
-    "Merchant Scroll",
-    "Sink into Stupor",
-    "Underworld Breach",
-    "Urza's Saga"
+    "Underworld Breach"
    ]
   },
   {
    "id": "mtgo-vintage-challenge-16-2026-10-1112856175-2",
    "nome": "Cinco cores Stock Up",
    "faltam": [
-    "Sink into Stupor",
     "Bilbo, Thief in the Night",
     "Underworld Breach",
     "Dress Down",
-    "Urza's Saga",
-    "Merchant Scroll",
-    "Mana Crypt",
-    "Hexing Squelcher"
+    "Mana Crypt"
    ]
   },
   {
@@ -6442,7 +6020,6 @@
     "Mana Crypt",
     "The Fantasticar",
     "The One Ring",
-    "Urza's Saga",
     "Yawgmoth's Will"
    ]
   },
@@ -6452,13 +6029,11 @@
    "faltam": [
     "Karn, the Great Creator",
     "The One Ring",
-    "Urza's Saga",
     "Mana Crypt",
     "Paradoxical Outcome",
     "Time Vault",
     "Tezzeret, Cruel Captain",
     "The Endstone",
-    "Portable Hole",
     "Glaring Fleshraker",
     "Transmute Artifact"
    ]
@@ -6469,9 +6044,7 @@
    "faltam": [
     "Paradoxical Outcome",
     "Forth Eorlingas!",
-    "Urza's Saga",
     "Flame of Anor",
-    "Thundertrap Trainer",
     "Bilbo, Thief in the Night"
    ]
   },
@@ -6480,14 +6053,12 @@
    "nome": "Cinco cores The One Ring",
    "faltam": [
     "Chaos Defiler",
-    "Urza's Saga",
     "Trinisphere",
     "Transmute Artifact",
     "The One Ring",
     "Talon Gates of Madara",
     "Relic of Sauron",
     "Phyrexian Metamorph",
-    "Sink into Stupor",
     "Paradox Engine",
     "Mana Crypt",
     "Karn, the Great Creator",
@@ -6502,16 +6073,13 @@
     "The One Ring",
     "Karn, the Great Creator",
     "Phyrexian Metamorph",
-    "Manifold Key",
     "Paradoxical Outcome",
-    "Sink into Stupor",
     "Mana Crypt",
     "Tezzeret, Cruel Captain",
     "The Fantasticar",
     "Time Vault",
     "Coveted Jewel",
-    "Chalice of the Void",
-    "Urza's Saga"
+    "Chalice of the Void"
    ]
   },
   {
@@ -6522,16 +6090,13 @@
     "Chalice of the Void",
     "Phyrexian Metamorph",
     "Karn, the Great Creator",
-    "Manifold Key",
     "Paradoxical Outcome",
     "The One Ring",
-    "Sink into Stupor",
     "Mana Crypt",
     "Tezzeret, Cruel Captain",
     "The Fantasticar",
     "Time Vault",
-    "Trinisphere",
-    "Urza's Saga"
+    "Trinisphere"
    ]
   },
   {
@@ -6547,9 +6112,7 @@
     "The One Ring",
     "Relic of Sauron",
     "Chaos Defiler",
-    "Sink into Stupor",
     "The Fantasticar",
-    "Urza's Saga",
     "Bolas's Citadel"
    ]
   },
@@ -6558,14 +6121,12 @@
    "nome": "Cinco cores The One Ring",
    "faltam": [
     "Chaos Defiler",
-    "Urza's Saga",
     "Trinisphere",
     "Transmute Artifact",
     "The One Ring",
     "Talon Gates of Madara",
     "Relic of Sauron",
     "Phyrexian Metamorph",
-    "Sink into Stupor",
     "Paradox Engine",
     "Mana Crypt",
     "Karn, the Great Creator",
@@ -6587,18 +6148,14 @@
    "id": "mtgo-vintage-challenge-16-2026-10-1012856175-1",
    "nome": "Esper Psychic Frog",
    "faltam": [
-    "Bilbo, Thief in the Night",
-    "Null Rod",
-    "Urza's Saga"
+    "Bilbo, Thief in the Night"
    ]
   },
   {
    "id": "mtgo-vintage-challenge-16-2026-10-1112856175-1",
    "nome": "Esper Psychic Frog",
    "faltam": [
-    "Bilbo, Thief in the Night",
-    "Null Rod",
-    "Urza's Saga"
+    "Bilbo, Thief in the Night"
    ]
   },
   {
@@ -6650,8 +6207,6 @@
    "nome": "Temur Wrenn and Six",
    "faltam": [
     "Avatar of Burgeoning Echoes",
-    "Boseiju, Who Endures",
-    "Null Rod",
     "Mindbreak Trap",
     "Minsc & Boo, Timeless Heroes",
     "Dack Fayden",
@@ -6663,221 +6218,10 @@
    "nome": "Temur Wrenn and Six",
    "faltam": [
     "Avatar of Burgeoning Echoes",
-    "Boseiju, Who Endures",
-    "Null Rod",
     "Mindbreak Trap",
     "Minsc & Boo, Timeless Heroes",
     "Dack Fayden",
     "Wrenn and Six"
-   ]
-  },
-  {
-   "id": "mtgo-vintage-challenge-32-2026-10-1012856168-5",
-   "nome": "Cinco cores Chrome Mox",
-   "faltam": [
-    "Anointed Peacekeeper",
-    "Archon of Emeria",
-    "Mana Crypt",
-    "Chancellor of the Annex",
-    "Clarion Conqueror",
-    "Cavern of Souls",
-    "Seasoned Dungeoneer",
-    "White Plume Adventurer"
-   ]
-  },
-  {
-   "id": "mtgo-vintage-challenge-32-2026-10-1012856168-7",
-   "nome": "Cinco cores Force of Will",
-   "faltam": [
-    "The Fantasticar",
-    "Bolas's Citadel",
-    "Bilbo, Thief in the Night",
-    "Underworld Breach",
-    "Sink into Stupor",
-    "Urza's Saga",
-    "Mana Crypt",
-    "Merchant Scroll",
-    "Hexing Squelcher"
-   ]
-  },
-  {
-   "id": "mtgo-vintage-challenge-32-2026-10-1012856168-1",
-   "nome": "Cinco cores The One Ring",
-   "faltam": [
-    "Transmute Artifact",
-    "Chaos Defiler",
-    "The One Ring",
-    "Paradox Engine",
-    "Relic of Sauron",
-    "Coveted Jewel",
-    "Phyrexian Metamorph",
-    "Sink into Stupor",
-    "Mana Crypt",
-    "Talon Gates of Madara",
-    "Karn, the Great Creator",
-    "Trinisphere",
-    "Urza's Saga"
-   ]
-  },
-  {
-   "id": "mtgo-vintage-challenge-32-2026-10-1012856168-2",
-   "nome": "Cinco cores The One Ring",
-   "faltam": [
-    "Coveted Jewel",
-    "The One Ring",
-    "Mana Crypt",
-    "Manifold Key",
-    "Paradoxical Outcome",
-    "Sink into Stupor",
-    "Phyrexian Metamorph",
-    "Tezzeret, Cruel Captain",
-    "The Fantasticar",
-    "Time Vault",
-    "Karn, the Great Creator",
-    "Trinisphere",
-    "Urza's Saga",
-    "Chalice of the Void"
-   ]
-  },
-  {
-   "id": "mtgo-vintage-challenge-32-2026-10-1012856168-4",
-   "nome": "Cinco cores The One Ring",
-   "faltam": [
-    "Talon Gates of Madara",
-    "Karn, the Great Creator",
-    "Lodestone Golem",
-    "Mana Crypt",
-    "Manifold Key",
-    "Paradoxical Outcome",
-    "Sink into Stupor",
-    "Tezzeret, Cruel Captain",
-    "The Fantasticar",
-    "Phyrexian Metamorph",
-    "Time Vault",
-    "Trinisphere",
-    "Urza's Saga",
-    "The One Ring",
-    "Coveted Jewel"
-   ]
-  },
-  {
-   "id": "mtgo-vintage-challenge-32-2026-10-1012856168-8",
-   "nome": "Cinco cores The One Ring",
-   "faltam": [
-    "Phyrexian Metamorph",
-    "Mana Crypt",
-    "Transmute Artifact",
-    "Paradox Engine",
-    "Coveted Jewel",
-    "Karn, the Great Creator",
-    "The One Ring",
-    "Relic of Sauron",
-    "Chaos Defiler",
-    "Sink into Stupor",
-    "The Fantasticar",
-    "Urza's Saga",
-    "Bolas's Citadel"
-   ]
-  },
-  {
-   "id": "mtgo-vintage-challenge-32-2026-10-1012856168-3",
-   "nome": "Esper Psychic Frog",
-   "faltam": [
-    "Bilbo, Thief in the Night",
-    "Null Rod",
-    "Urza's Saga"
-   ]
-  },
-  {
-   "id": "mtgo-vintage-league-2026-10-1011185-1",
-   "nome": "Esper Psychic Frog",
-   "faltam": [
-    "Bilbo, Thief in the Night",
-    "Mindbreak Trap"
-   ]
-  },
-  {
-   "id": "mtgo-vintage-challenge-32-2026-10-1012856168-6",
-   "nome": "Esper Psychic Frog",
-   "faltam": [
-    "Urza's Saga",
-    "Bilbo, Thief in the Night",
-    "Dress Down"
-   ]
-  },
-  {
-   "id": "mtgo-vintage-league-2026-10-0911185-4",
-   "nome": "Cinco cores Chrome Mox",
-   "faltam": [
-    "Archon of Emeria",
-    "Clarion Conqueror",
-    "White Plume Adventurer",
-    "Seasoned Dungeoneer",
-    "Chancellor of the Annex",
-    "Anointed Peacekeeper",
-    "Cavern of Souls",
-    "Mana Crypt"
-   ]
-  },
-  {
-   "id": "mtgo-vintage-league-2026-10-0911185-1",
-   "nome": "Cinco cores Stock Up",
-   "faltam": [
-    "Demonic Consultation",
-    "Mana Crypt",
-    "Momentum Breaker",
-    "Step Through",
-    "Thassa's Oracle",
-    "Urza's Saga",
-    "Flame of Anor",
-    "Thundertrap Trainer"
-   ]
-  },
-  {
-   "id": "mtgo-vintage-league-2026-10-0911185-3",
-   "nome": "Cinco cores Stock Up",
-   "faltam": [
-    "Urza's Saga",
-    "Thundertrap Trainer",
-    "The One Ring",
-    "Manifold Key",
-    "Paradoxical Outcome",
-    "Portable Hole",
-    "Mana Crypt",
-    "Tezzeret, Cruel Captain",
-    "Karn, the Great Creator",
-    "Time Vault",
-    "The Endstone"
-   ]
-  },
-  {
-   "id": "mtgo-vintage-league-2026-10-0911185-2",
-   "nome": "Quatro cores Subtlety",
-   "faltam": [
-    "Commandeer",
-    "Hollow One",
-    "Vengevine",
-    "Chalice of the Void",
-    "Mindbreak Trap",
-    "Serum Powder",
-    "Master of Death",
-    "Squee, Goblin Nabob"
-   ]
-  },
-  {
-   "id": "mtgo-vintage-league-2026-10-0911185-5",
-   "nome": "Sultai Grief",
-   "faltam": [
-    "Chalice of the Void",
-    "Serum Powder",
-    "Golgari Grave-Troll",
-    "Bloodghast",
-    "Narcomoeba",
-    "Ichorid",
-    "The Tabernacle at Pendrell Vale",
-    "Creeping Chill",
-    "Echoing Deeps",
-    "Darklight Phoenix"
    ]
   }
  ],

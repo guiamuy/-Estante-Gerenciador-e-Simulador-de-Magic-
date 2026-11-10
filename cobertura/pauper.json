@@ -1,47 +1,50 @@
 {
  "versao": 1,
  "formato": "pauper",
- "geradoEm": "2026-11-08T13:47:09.439Z",
+ "geradoEm": "2026-11-10T21:45:05.488Z",
  "motor": 112,
  "fonte": "api.scryfall.com/cards/collection",
- "listas": 685,
- "listas100": 678,
- "cartasPendentes": 6,
+ "listas": 677,
+ "listas100": 671,
+ "cartasPendentes": 11,
  "parcial": false,
  "lotesComFalha": 0,
  "porClasse": {
   "texto-mudou": 0,
-  "lida": 1,
-  "nova": 5,
+  "lida": 5,
+  "nova": 6,
   "parcial": 0,
   "sem-dados": 0
  },
  "novasDesdeAnterior": [
+  "Bellowing Crier",
+  "Blanchwood Prowler",
+  "Exhume",
+  "Glistener Seer",
+  "Persistent Petitioners",
+  "Pond Prophet",
+  "Prismari Campus",
+  "Sibsig Appraiser",
+  "Three Tree Mascot"
+ ],
+ "resolvidasDesdeAnterior": [
   "Crypt Incursion",
   "Homestead Courage",
   "Mardu Devotee",
   "Spinewoods Paladin"
  ],
- "resolvidasDesdeAnterior": [
-  "Bountiful Landscape",
-  "Deprive",
-  "Ghitu Lavarunner",
-  "Guac & Marshmallow Pizza",
-  "No Admittance",
-  "Perilous Research"
- ],
  "curva": [
   {
-   "listas": 679,
+   "listas": 672,
    "cartas": 1
   },
   {
-   "listas": 683,
-   "cartas": 4
+   "listas": 676,
+   "cartas": 5
   },
   {
-   "listas": 685,
-   "cartas": 6
+   "listas": 677,
+   "cartas": 11
   }
  ],
  "textos": null,
@@ -52,7 +55,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 2,
-   "gulosa": 3,
+   "gulosa": 2,
    "texto": {
     "mana_cost": "{R}",
     "type_line": "Instant",
@@ -62,54 +65,126 @@
    }
   },
   {
-   "name": "Crypt Incursion",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "mágica sem script",
+   "name": "Bellowing Crier",
+   "classe": "lida",
+   "nivel": "lida",
+   "motivo": "lida pelo motor, em revisão",
    "listas": 1,
-   "gulosa": 2,
+   "gulosa": 6,
    "texto": {
-    "mana_cost": "{2}{B}",
-    "type_line": "Instant",
-    "oracle_text": "Exile all creature cards from target player's graveyard. You gain 3 life for each card exiled this way.",
+    "mana_cost": "{1}{U}",
+    "type_line": "Creature — Frog Advisor",
+    "oracle_text": "When this creature enters, draw a card, then discard a card.",
     "keywords": [],
-    "layout": "normal"
+    "layout": "normal",
+    "power": "2",
+    "toughness": "1"
    }
   },
   {
-   "name": "Homestead Courage",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "mágica sem script",
-   "listas": 1,
-   "gulosa": 1,
-   "texto": {
-    "mana_cost": "{W}",
-    "type_line": "Sorcery",
-    "oracle_text": "Put a +1/+1 counter on target creature you control. It gains vigilance until end of turn.\nFlashback {W} (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
-    "keywords": [
-     "Flashback"
-    ],
-    "layout": "normal"
-   }
-  },
-  {
-   "name": "Mardu Devotee",
+   "name": "Blanchwood Prowler",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
    "gulosa": 5,
    "texto": {
-    "mana_cost": "{W}",
-    "type_line": "Creature — Human Scout",
-    "oracle_text": "When this creature enters, scry 2. (Look at the top two cards of your library, then put any number of them on the bottom and the rest on top in any order.)\n{1}: Add {R}, {W}, or {B}. Activate only once each turn.",
+    "mana_cost": "{1}{G}",
+    "type_line": "Creature — Elemental",
+    "oracle_text": "When this creature enters, mill three cards. You may put a land card from among the cards milled this way into your hand. If you don't, put a +1/+1 counter on this creature. (To mill a card, put the top card of your library into your graveyard.)",
+    "keywords": [
+     "Mill"
+    ],
+    "layout": "normal",
+    "power": "1",
+    "toughness": "1"
+   }
+  },
+  {
+   "name": "Exhume",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "mágica sem script",
+   "listas": 1,
+   "gulosa": 5,
+   "texto": {
+    "mana_cost": "{1}{B}",
+    "type_line": "Sorcery",
+    "oracle_text": "Each player puts a creature card from their graveyard onto the battlefield.",
+    "keywords": [],
+    "layout": "normal"
+   }
+  },
+  {
+   "name": "Glistener Seer",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
+   "listas": 1,
+   "gulosa": 6,
+   "texto": {
+    "mana_cost": "{U}",
+    "type_line": "Creature — Phyrexian Advisor",
+    "oracle_text": "This creature enters with three oil counters on it.\n{T}, Remove an oil counter from this creature: Scry 1. (Look at the top card of your library. You may put that card on the bottom.)",
     "keywords": [
      "Scry"
     ],
     "layout": "normal",
+    "power": "0",
+    "toughness": "3"
+   }
+  },
+  {
+   "name": "Persistent Petitioners",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "texto que o motor não resolve",
+   "listas": 1,
+   "gulosa": 6,
+   "texto": {
+    "mana_cost": "{1}{U}",
+    "type_line": "Creature — Human Advisor",
+    "oracle_text": "{1}, {T}: Target player mills a card. (They put the top card of their library into their graveyard.)\nTap four untapped Advisors you control: Target player mills twelve cards.\nA deck can have any number of cards named Persistent Petitioners.",
+    "keywords": [
+     "Mill"
+    ],
+    "layout": "normal",
     "power": "1",
-    "toughness": "2"
+    "toughness": "3"
+   }
+  },
+  {
+   "name": "Pond Prophet",
+   "classe": "lida",
+   "nivel": "lida",
+   "motivo": "lida pelo motor, em revisão",
+   "listas": 1,
+   "gulosa": 6,
+   "texto": {
+    "mana_cost": "{G/U}{G/U}",
+    "type_line": "Creature — Frog Advisor",
+    "oracle_text": "When this creature enters, draw a card.",
+    "keywords": [],
+    "layout": "normal",
+    "power": "1",
+    "toughness": "1"
+   }
+  },
+  {
+   "name": "Prismari Campus",
+   "classe": "lida",
+   "nivel": "lida",
+   "motivo": "lida pelo motor, em revisão",
+   "listas": 1,
+   "gulosa": 1,
+   "texto": {
+    "mana_cost": "",
+    "type_line": "Land",
+    "oracle_text": "This land enters tapped.\n{T}: Add {U} or {R}.\n{4}, {T}: Scry 1. (Look at the top card of your library. You may put that card on the bottom.)",
+    "keywords": [
+     "Scry"
+    ],
+    "layout": "normal"
    }
   },
   {
@@ -118,7 +193,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 1,
-   "gulosa": 7,
+   "gulosa": 4,
    "texto": {
     "mana_cost": "{U}",
     "type_line": "Instant",
@@ -128,39 +203,48 @@
    }
   },
   {
-   "name": "Spinewoods Paladin",
+   "name": "Sibsig Appraiser",
    "classe": "lida",
    "nivel": "lida",
    "motivo": "lida pelo motor, em revisão",
    "listas": 1,
    "gulosa": 6,
    "texto": {
-    "mana_cost": "{4}{G}",
-    "type_line": "Creature — Human Knight",
-    "oracle_text": "Trample\nWhen this creature enters, you gain 3 life.\nPlot {3}{G} (You may pay {3}{G} and exile this card from your hand. Cast it as a sorcery on a later turn without paying its mana cost. Plot only as a sorcery.)",
+    "mana_cost": "{2}{U}",
+    "type_line": "Creature — Zombie Advisor",
+    "oracle_text": "When this creature enters, look at the top two cards of your library. Put one of them into your hand and the other into your graveyard.",
+    "keywords": [],
+    "layout": "normal",
+    "power": "2",
+    "toughness": "1"
+   }
+  },
+  {
+   "name": "Three Tree Mascot",
+   "classe": "lida",
+   "nivel": "lida",
+   "motivo": "lida pelo motor, em revisão",
+   "listas": 1,
+   "gulosa": 6,
+   "texto": {
+    "mana_cost": "{2}",
+    "type_line": "Artifact Creature — Shapeshifter",
+    "oracle_text": "Changeling (This card is every creature type.)\n{1}: Add one mana of any color. Activate only once each turn.",
     "keywords": [
-     "Plot",
-     "Trample"
+     "Changeling"
     ],
     "layout": "normal",
-    "power": "5",
-    "toughness": "4"
+    "power": "2",
+    "toughness": "1"
    }
   }
  ],
  "listasIncompletas": [
   {
-   "id": "topdeck-ipt-kelpie-quaich-2026-5",
-   "nome": "Azorius Akroan Skyguard",
+   "id": "mtgo-pauper-league-2026-11-1011153-5",
+   "nome": "Grixis Nihil Spellbomb",
    "faltam": [
-    "Homestead Courage"
-   ]
-  },
-  {
-   "id": "topdeck-oktoberpauperfest-vol-2-8",
-   "nome": "Dimir Baleful Strix",
-   "faltam": [
-    "Crypt Incursion"
+    "Prismari Campus"
    ]
   },
   {
@@ -171,17 +255,23 @@
    ]
   },
   {
-   "id": "topdeck-oktoberpauperfest-vol-2-5",
-   "nome": "Mardu Mardu Devotee",
+   "id": "topdeck-povo-pauper-league-launching-in-johannesburg-2-1",
+   "nome": "Jund Satyr Wayfinder",
    "faltam": [
-    "Mardu Devotee"
+    "Blanchwood Prowler",
+    "Exhume"
    ]
   },
   {
-   "id": "topdeck-amsterdam-pauper-league-8-leg-2026-7",
-   "nome": "Mono Green Llanowar Elves",
+   "id": "topdeck-povo-pauper-league-launching-in-johannesburg-2-7",
+   "nome": "Simic Persistent Petitioners",
    "faltam": [
-    "Spinewoods Paladin"
+    "Bellowing Crier",
+    "Glistener Seer",
+    "Persistent Petitioners",
+    "Pond Prophet",
+    "Sibsig Appraiser",
+    "Three Tree Mascot"
    ]
   },
   {
