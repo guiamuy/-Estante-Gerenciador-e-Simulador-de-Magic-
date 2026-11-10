@@ -5244,6 +5244,8 @@ test('e2e · leva 110 Fiery Temper mira você e o oponente; Utopia Sprawl vira s
   // com moldura a faixa do nome é parte da face e gira junto — fica de pé (mais alta que larga), inteira e dentro da carta deitada
   await page.evaluate(p => { const M = window.__estanteMesa, s = M.estado(); const m = s.zones[p].battlefield.find(o => s.objects[o].name === 'Mountain'); M.act({ t: 'tap', p, oid: m }); }, p);
   await page.waitForSelector('.tb-side--me .tb-card[data-tapped="true"] .tb-card__label');
+  // MK3-3 (J-67) · virar agora gira com massa (--mola-macia --dur-4): a medida é da carta já deitada, no fim do giro (a expectativa não muda)
+  await page.waitForFunction(() => !document.querySelector('.tb-card[data-gira]'));
   const rot = await page.evaluate(() => { const c = document.querySelector('.tb-side--me .tb-card[data-tapped="true"]'), l = c.querySelector('.tb-card__label'); const b = l.getBoundingClientRect();
     const f = c.querySelector('.tb-card__face').getBoundingClientRect();
     return { giraJunto: b.height > b.width, inteiro: l.scrollHeight <= l.clientHeight + 1 && l.scrollWidth <= l.clientWidth + 1, naFace: !!l.closest('.tb-card__face'), dentro: b.left >= f.left - 0.5 && b.right <= f.right + 0.5 && b.top >= f.top - 0.5 && b.bottom <= f.bottom + 0.5 }; });
@@ -22361,5 +22363,93 @@ test('e2e · G-372 relato #107: o idioma ao lado do sino na Início — globo co
   await page.click('#home-idioma'); await page.waitForSelector('#idioma-folha-pt'); await page.click('#idioma-folha-pt');
   await page.waitForFunction(() => document.documentElement.lang === 'pt-BR' && document.querySelector('#home-idioma')?.dataset.idioma === 'pt');
   if (process.env.SHOTS) { await page.waitForTimeout(1500); await page.screenshot({ path: process.env.SHOTS + '/g372-idioma-inicio.png' }); }
+  assert.deepEqual(errors, []);
+});
+
+// MK3-3 (J-67, trilha jogabilidade) · carta-objeto: virar e desvirar com massa. A carta do campo que mudou de virada nesta
+// jogada gira no lugar: a face sai da posição de antes (de pé ou deitada) com --mola-macia --dur-4 (moderado: --ease-out
+// --dur-3, sem a sombra alta; reduzido: estado final, nada gira), a sombra gira junto e, deitada, fica embaixo (o fio de lado
+// nasce em x e vira y) e mais curta. O próximo toque conclui o giro (R4). Selos e P/T em laca; o enjoo apaga o P/T.
+// Medido pelo fim da animação (finished), nunca por tempo fixo. Falhava no main de antes (sem data-gira, sombra de lado).
+test('e2e · J-67 MK3-3 carta-objeto: virar e desvirar com massa nos três níveis de Movimento, a sombra deitada embaixo, o toque conclui o giro, selos e P/T em laca, enjoo apaga o P/T; quatro medidas, dois temas, auditaTela', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'Virar', PAUPER);
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start'); await page.fill('#mesa-seed', '4');
+  await page.click('[data-opponent="goldfish"]');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-pass');
+  const ids = await page.evaluate(() => { const M = window.__estanteMesa, s = M.estado(), p = s.turn.active, z = s.zones[p];
+    const todas = [...z.hand, ...z.library].map(String), tipo = (oid, t) => ((s.facts[s.objects[oid].name] || {}).types || []).includes(t);
+    const ilha = todas.find(o => tipo(o, 'land')), bicho = todas.find(o => tipo(o, 'creature'));
+    for (const oid of [ilha, bicho]) M.act({ t: 'move', p: M.estado().turn.priority, oid, to: 'battlefield' });
+    return { ilha, bicho, p }; });
+  await page.waitForFunction(o => !!document.querySelector(`.tb-side--me .tb-card[data-oid="${o}"]`), ids.ilha);
+  // selos e P/T em laca; o bicho acabou de entrar: P/T apagado
+  for (const tema of ['dark', 'light']) {
+    await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(200);
+    const l = await page.evaluate(o => { const c = document.querySelector(`.tb-side--me .tb-card[data-oid="${o}"]`), pt = c && c.querySelector('.tb-card__pt'), est = c && c.querySelector('.tb-estado');
+      const muted = getComputedStyle(document.body).getPropertyValue('--fg-muted').trim(), probe = document.createElement('span'); probe.style.color = muted; document.body.appendChild(probe); const cm = getComputedStyle(probe).color; probe.remove();
+      return { sick: c && c.dataset.sick, pt: pt && getComputedStyle(pt).backgroundImage, aresta: pt && getComputedStyle(pt).boxShadow, cor: pt && getComputedStyle(pt).color, muted: cm, est: est && getComputedStyle(est).backgroundImage }; }, ids.bicho);
+    if (l.pt) { assert.match(l.pt, /^linear-gradient/, `${tema}: P/T em laca`); assert.match(l.aresta, /inset/, `${tema}: P/T com aresta de luz`); }
+    if (l.est) assert.match(l.est, /^linear-gradient/, `${tema}: selo em laca`);
+    if (l.sick === 'true' && l.pt) assert.equal(l.cor, l.muted, `${tema}: o enjoo apaga o P/T`);
+  }
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  // virar e desvirar: o nó novo da carta é sondado no quadro em que nasce
+  const gira = async (nivel, conclui = false) => {
+    await page.evaluate(o => { window.__giro = null; window.__giroFim = null; const pega = () => { const c = document.querySelector(`.tb-side--me .tb-card[data-oid="${o}"]`); if (!c || window.__giro) return;
+      const f = c.querySelector('.tb-card__face'), as = c.getAnimations({ subtree: true }).filter(a => /^tb-carta-/.test(a.animationName || '')), a = as.find(x => x.effect.target === f);
+      if (!c.dataset.gira && !as.length) return;
+      const cs = getComputedStyle(f); window.__giro = { gira: c.dataset.gira, nomes: as.map(x => x.animationName).sort(), curva: cs.animationTimingFunction, dur: cs.animationDuration, t0: a ? a.currentTime : null };
+      window.__giroFim = a ? a.finished.then(() => true, () => true) : Promise.resolve(true); ob.disconnect(); };
+      const ob = new MutationObserver(pega); ob.observe(document.querySelector('#tb'), { childList: true, subtree: true, attributes: true, attributeFilter: ['data-gira'] }); window.__giroOb = ob; }, ids.ilha);
+    await page.evaluate(({ o, p }) => window.__estanteMesa.act({ t: 'tap', p, oid: o }), { o: ids.ilha, p: ids.p });
+    if (nivel === 'reduzido') { await page.waitForTimeout(150); await page.evaluate(() => window.__giroOb.disconnect()); }
+    else await page.waitForFunction(() => window.__giro, null, { timeout: 4000 });
+    const ini = await page.evaluate(() => window.__giro);
+    let concluiu = null;
+    if (conclui) { const t0 = Date.now(); await page.evaluate(() => document.querySelector('#tb').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))); await page.evaluate(() => window.__giroFim); concluiu = Date.now() - t0; }
+    else await page.evaluate(() => window.__giroFim);
+    const fim = await page.evaluate(o => { const c = document.querySelector(`.tb-side--me .tb-card[data-oid="${o}"]`), f = c.querySelector('.tb-card__face'), m = new DOMMatrix(getComputedStyle(f).transform);
+      return { tapped: c.dataset.tapped, gira: c.dataset.gira || null, a: Math.round(m.a * 100) / 100, b: Math.round(m.b * 100) / 100, sombra: getComputedStyle(f).boxShadow, anims: c.getAnimations({ subtree: true }).filter(a => /^tb-carta-/.test(a.animationName || '') && a.playState === 'running').length }; }, ids.ilha);
+    return { ini, fim, concluiu };
+  };
+  for (const nivel of ['completo', 'moderado', 'reduzido']) {
+    await page.evaluate(n => document.documentElement.setAttribute('data-movimento', n), nivel);
+    for (const para of ['vira', 'desvira']) {
+      const x = await gira(nivel), onde = `${nivel} ${para}: `;
+      const deitada = para === 'vira';
+      assert.equal(x.fim.tapped, String(deitada), onde + 'o estado da carta ' + JSON.stringify(x));
+      assert.deepEqual([x.fim.a, x.fim.b], deitada ? [0, 0.78] : [1, 0], onde + 'assenta deitada (90°, .78) ou de pé ' + JSON.stringify(x.fim));
+      assert.equal(x.fim.gira, null, onde + 'a marca sai no fim'); assert.equal(x.fim.anims, 0, onde + 'nada girando depois do fim');
+      if (deitada) assert.match(x.fim.sombra, /^rgb[^)]*\) 2px 0px 0px 0px,/, onde + 'o fio de lado nasce em x: girado, fica embaixo ' + x.fim.sombra);
+      if (nivel === 'reduzido') { assert.equal(x.ini, null, onde + 'nada gira, estado final num quadro'); continue; }
+      assert.equal(x.ini.gira, para, onde + 'a mesa marca o giro ' + JSON.stringify(x.ini));
+      assert.ok(x.ini.nomes.includes(`tb-carta-${para}`), onde + 'a face gira ' + JSON.stringify(x.ini));
+      if (nivel === 'completo') {
+        assert.match(x.ini.curva, /^linear\(/, onde + '--mola-macia'); assert.equal(x.ini.dur, '0.42s', onde + '--dur-4');
+        assert.ok(x.ini.nomes.includes(`tb-carta-ergue-${para}`), onde + 'a sombra alta acende no caminho (Z só no movimento)');
+      } else {
+        assert.match(x.ini.curva, /^cubic-bezier/, onde + 'sem repique'); assert.equal(x.ini.dur, '0.28s', onde + '--dur-4 vira --dur-3');
+        assert.ok(!x.ini.nomes.some(n => n.startsWith('tb-carta-ergue')), onde + 'sem a sombra alta (sem Z)');
+      }
+    }
+  }
+  // R4 · o próximo toque conclui o giro na hora
+  await page.evaluate(() => document.documentElement.setAttribute('data-movimento', 'completo'));
+  const r4 = await gira('completo', true);
+  assert.ok(r4.ini && r4.concluiu < 300, 'o toque conclui o giro ' + JSON.stringify(r4));
+  assert.deepEqual([r4.fim.a, r4.fim.b], [0, 0.78], 'concluído, a carta está deitada');
+  for (const [w, hgt] of [[360, 780], [384, 832], [390, 844], [412, 891]]) for (const tema of ['dark', 'light']) {
+    await page.setViewportSize({ width: w, height: hgt }); await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(250);
+    await auditaTela(page, `J-67 · MK3-3 ${w}×${hgt} ${tema}`);
+    if (process.env.SHOTS && w === 360) await page.screenshot({ path: process.env.SHOTS + `/j-66-mk3-3-${tema}.png` });
+  }
+  // palco do /ds: "Virar" gira a carta com a mesma receita
+  await page.goto(base + '#/ds'); await page.waitForSelector('#ds-giro-btn');
+  await page.click('#ds-giro-btn');
+  const ds = await page.evaluate(() => { const c = document.querySelector('#ds-giro .tb-card'); return { tapped: c.dataset.tapped, gira: c.dataset.gira, nomes: c.getAnimations({ subtree: true }).map(a => a.animationName) }; });
+  assert.equal(ds.tapped, 'true'); assert.equal(ds.gira, 'vira'); assert.ok(ds.nomes.includes('tb-carta-vira'), 'palco: ' + JSON.stringify(ds));
   assert.deepEqual(errors, []);
 });

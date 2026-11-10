@@ -177,6 +177,11 @@
   --mesa-fase-latao: linear-gradient(180deg, var(--accent-hi), var(--accent) 60%, var(--accent-lo));
   --sombra-carta: 0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-contact), var(--shadow-key);
   --sombra-carta-alta: 0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-float);
+  /* MK3-3 (J-67) · a carta virada: a face gira 90° e leva a sombra junto; estas sombras nascem de lado (deslocamento em x), para
+     que, giradas, apontem para baixo como a luz da sala (L1), e a escala .78 da face as encurta. Mesmos valores de --shadow-contact,
+     --shadow-key e --shadow-float, com x e y trocados */
+  --sombra-carta-deitada: var(--carta-espessura) 0 0 var(--carta-lado), 1px 0 2px rgba(0, 0, 0, .55), 12px 0 28px -14px rgba(0, 0, 0, .8);
+  --sombra-carta-alta-deitada: var(--carta-espessura) 0 0 var(--carta-lado), 18px 0 40px -16px rgba(0, 0, 0, .85), 2px 0 6px rgba(0, 0, 0, .4);
   --mesa-luz: rgba(255, 246, 220, .07);
   --mesa-penumbra: rgba(0, 0, 0, .34);
   --latao-luz: rgba(255, 250, 235, .3);
@@ -286,6 +291,8 @@
   --mesa-estojo: inset 0 1px 2px rgba(60, 40, 10, .24), inset 0 -1px 0 var(--edge); /* MK3-1 */
   --sombra-carta: 0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-contact), var(--shadow-key);
   --sombra-carta-alta: 0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-float);
+  --sombra-carta-deitada: var(--carta-espessura) 0 0 var(--carta-lado), 1px 0 2px rgba(60, 40, 10, .14), 12px 0 28px -14px rgba(60, 40, 10, .35); /* MK3-3 */
+  --sombra-carta-alta-deitada: var(--carta-espessura) 0 0 var(--carta-lado), 18px 0 40px -16px rgba(60, 40, 10, .4), 2px 0 6px rgba(60, 40, 10, .12);
   --mesa-luz: rgba(255, 253, 245, .42);
   --mesa-penumbra: rgba(74, 56, 26, .16);
   --latao-luz: rgba(255, 250, 235, .1); /* no claro o latão é escuro e o texto é claro: o fio de luz fica discreto para o texto seguir AA até no topo */
@@ -359,6 +366,8 @@
     --mesa-estojo: inset 0 1px 2px rgba(60, 40, 10, .24), inset 0 -1px 0 var(--edge); /* MK3-1 */
     --sombra-carta: 0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-contact), var(--shadow-key);
     --sombra-carta-alta: 0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-float);
+    --sombra-carta-deitada: var(--carta-espessura) 0 0 var(--carta-lado), 1px 0 2px rgba(60, 40, 10, .14), 12px 0 28px -14px rgba(60, 40, 10, .35); /* MK3-3 */
+    --sombra-carta-alta-deitada: var(--carta-espessura) 0 0 var(--carta-lado), 18px 0 40px -16px rgba(60, 40, 10, .4), 2px 0 6px rgba(60, 40, 10, .12);
     --mesa-luz: rgba(255, 253, 245, .42);
     --mesa-penumbra: rgba(74, 56, 26, .16);
     --latao-luz: rgba(255, 250, 235, .1);
@@ -3109,7 +3118,7 @@ body[data-mesa-cheia="true"] .tb > .tb-board { padding-top: var(--space-1); }
    --sombra-carta-alta, só opacidade: o compositor pinta sozinho) e a carta sobe um pouco. Com menos movimento, estado final na hora. */
 .tb-card::before { content: ''; position: absolute; inset: 0; z-index: -1; border-radius: var(--radius-card); box-shadow: var(--sombra-carta-alta); opacity: 0; pointer-events: none;
   transition: opacity var(--dur-2) var(--ease-out), transform var(--dur-3) var(--mola-firme); }
-.tb-card[data-tapped="true"]::before { transform: rotate(90deg) scale(.78); }
+.tb-card[data-tapped="true"]::before { transform: rotate(90deg) scale(.78); box-shadow: var(--sombra-carta-alta-deitada); } /* MK3-3 · girada, a sombra alta aponta para baixo */
 .tb-card[data-selected="true"]::before { opacity: 1; transform: translateY(calc(var(--space-2) * -1)); }
 .tb-card[data-segurando="true"]::before, .tb-card:active::before, .tb-stack__item[data-top="true"] .tb-stack__card > .tb-card::before { opacity: 1; }
 .tb-card[data-segurando="true"] { transform: translateY(calc(var(--space-1) * -1)) scale(1.04); z-index: 2; }
@@ -3128,7 +3137,7 @@ body[data-mesa-cheia="true"] .tb > .tb-board { padding-top: var(--space-1); }
 /* virada: o nome continua na horizontal, colado à borda de cima da carta deitada (a face gira 90° e encolhe a .78) */
 .tb-card[data-tapped="true"] > .tb-card__label { top: 22%; border-radius: 0; }
 .tb-card[data-selected="true"] > .tb-card__label { transform: translateY(calc(var(--space-2) * -1)); }
-.tb-card__pt { position: absolute; right: 2px; bottom: 2px; padding: 0 var(--space-1); border-radius: var(--radius-1); font-family: var(--font-display); font-size: var(--text-xs); line-height: 1.4; color: var(--fg); background: var(--scrim); border: 1px solid var(--border); }
+.tb-card__pt { position: absolute; right: 2px; bottom: 2px; padding: 0 var(--space-1); border-radius: var(--radius-1); font-family: var(--font-display); font-size: var(--text-xs); line-height: 1.4; color: var(--fg); background: var(--lacquer), var(--scrim); border: 1px solid var(--border); box-shadow: inset 0 1px 0 var(--edge); } /* MK3-3 · P/T em laca: luz de cima e aresta */
 /* R5 · Aura ou Equipamento colado em quem o carrega: sem o vão entre as cartas e com um filete do lado de onde vem */
 .tb-row > .tb-card[data-anexo="true"] { margin-left: calc(var(--space-2) * -1); }
 .tb-row > .tb-card[data-anexo="true"] .tb-card__face { box-shadow: inset 3px 0 0 var(--accent); }
@@ -3169,7 +3178,9 @@ body[data-mesa-cheia="true"] .tb > .tb-board { padding-top: var(--space-1); }
 /* J-54 (decisão do dono, 02/11/2026) · a faixa do nome mora dentro da face: na carta virada ela gira junto, continua a faixa de
    cima da carta (agora à direita, deitada), do mesmo tamanho relativo e simétrica à moldura, e nunca sai do retângulo da carta.
    Desfaz a Leva 110 (nome deitado fora da face), que valia para a carta sem moldura: a moldura tem a faixa própria */
-.tb-card[data-moldura="true"] .tb-card__pt { background: var(--bg-elev-1); }
+.tb-card[data-moldura="true"] .tb-card__pt { background: var(--lacquer), var(--bg-elev-1); }
+/* MK3-3 (J-67) · enjoo se lê pelo P/T apagado (o ícone do relógio fica, J-48): a criatura que acabou de entrar ainda não pesa na mesa */
+.tb-card[data-sick="true"] .tb-card__pt { color: var(--fg-muted); }
 /* J-48 (decisão do dono, 02/11/2026) · os estados da carta são ícones flat na barra de P/R, à esquerda, e nunca cobrem a arte:
    cada ícone com a cor da família (token nos dois temas); até três, o resto vira "+N"; o nome falado e a folha da carta dizem tudo.
    A barra fica dentro da face (gira com a carta virada, como o P/R). Com P/R, os ícones param antes dele. */
@@ -3179,7 +3190,7 @@ body[data-mesa-cheia="true"] .tb > .tb-board { padding-top: var(--space-1); }
    um selo no canto do próprio ícone, que não alarga: um ícone nunca cobre outro nem o P/R, na carta deitada também */
 .tb-card__pe { position: absolute; left: 2px; right: 2px; bottom: 2px; z-index: 1; display: flex; align-items: center; gap: 2px; height: calc(var(--text-xs) * 1.4 + 2px); pointer-events: none; }
 .tb-card__pe > .tb-card__pt { position: static; margin-left: auto; flex: none; }
-.tb-estado { position: relative; flex: none; display: inline-flex; align-items: center; justify-content: center; width: var(--estado-tam); height: min(var(--estado-tam), 100%); padding: 0; border-radius: var(--radius-1); background: var(--bg-elev-1); border: 1px solid var(--border); color: var(--fg-muted); font-family: var(--font-display); font-size: calc(var(--estado-tam) * .55); line-height: 1; white-space: nowrap; overflow: hidden; }
+.tb-estado { position: relative; flex: none; display: inline-flex; align-items: center; justify-content: center; width: var(--estado-tam); height: min(var(--estado-tam), 100%); padding: 0; border-radius: var(--radius-1); background: var(--lacquer), var(--bg-elev-1); border: 1px solid var(--border); box-shadow: inset 0 1px 0 var(--edge); color: var(--fg-muted); font-family: var(--font-display); font-size: calc(var(--estado-tam) * .55); line-height: 1; white-space: nowrap; overflow: hidden; } /* MK3-3 · selo em laca */
 .tb-estado b { font-weight: var(--weight-bold); font-size: calc(var(--estado-tam) * .55); }
 .tb-estado .ds-icon { display: inline-flex; }
 .tb-estado .ds-icon svg { width: calc(var(--estado-tam) * .68); height: calc(var(--estado-tam) * .68); }
@@ -3194,7 +3205,7 @@ body[data-mesa-cheia="true"] .tb > .tb-board { padding-top: var(--space-1); }
 .tb-estado[data-familia="perda"] { color: var(--negative); border-color: var(--negative); }
 .tb-estado[data-familia="acento"] { color: var(--accent); }
 .tb-estado[data-familia="neutro"] { color: var(--fg-muted); }
-.tb-card[data-moldura="true"] .tb-estado { background: var(--bg-elev-2); }
+.tb-card[data-moldura="true"] .tb-estado { background: var(--lacquer), var(--bg-elev-2); }
 .tb-card--sm .tb-card__pe { height: 13px; }
 /* a fileira do campo centraliza como a fila da proposta; com mais cartas que a largura, rola desde a primeira (safe) */
 .tb-side .tb-row { justify-content: safe center; }
@@ -3225,8 +3236,28 @@ body[data-mesa-cheia="true"] .tb > .tb-board { padding-top: var(--space-1); }
 .tb-leque__camada[data-moldura-pe="true"] .tb-card__arte { bottom: var(--moldura-ft); }
 .tb-leque[data-tapped="true"] { margin: 0 calc(var(--carta-campo) * .2); }
 .tb-leque[data-tapped="true"] > .tb-card { margin: 0; }
-.tb-leque[data-tapped="true"] .tb-leque__camada { transform: rotate(90deg) scale(.78); }
-.tb-card[data-tapped="true"] .tb-card__face { transform: rotate(90deg) scale(.78); }
+.tb-leque[data-tapped="true"] .tb-leque__camada { transform: rotate(90deg) scale(.78); box-shadow: var(--sombra-carta-deitada); }
+.tb-card[data-tapped="true"] .tb-card__face { transform: rotate(90deg) scale(.78); box-shadow: var(--sombra-carta-deitada); }
+/* MK3-3 (J-67) · carta-objeto: virar e desvirar com massa. A mesa marca data-gira ("vira" | "desvira") na carta do campo que
+   mudou de virada nesta jogada (girosDeVirar, puro) e a face sai da posição de antes até a de agora.
+   Receita "virar" · plano: objeto (a face, com a sombra presa a ela) sobre o tampo, que não se move · luz: a sombra gira com a
+   carta e assenta apontando para baixo (L1), encurtada pela escala .78; no completo, a sombra alta (::before) acende e apaga
+   no caminho: a carta sai um pouco do tampo e volta (L2, Z só no movimento) · curva: --mola-macia --dur-4 (passa dos 90° e
+   volta, como um objeto com peso); moderado = --ease-out --dur-3, sem a sombra alta; reduzido = estado final num quadro (a
+   mesa nem marca) · etapas: giro e escala juntos; a sombra alta no primeiro terço · o que a separa de uma troca linear 2D:
+   massa (a mola passa do ponto e assenta) e luz (a sombra gira com o objeto e acaba sob ele, mais curta, como no tampo real).
+   R5 (uma coisa por vez): a carta que também tem um efeito G5/MJ (.tb-fx, como a investida de quem ataca e vira) fica com a sombra
+   daquele efeito; o giro da face continua. */
+.tb-card[data-gira="vira"] .tb-card__face { animation: tb-carta-vira var(--dur-4) var(--mola-macia) backwards; }
+.tb-card[data-gira="desvira"] .tb-card__face { animation: tb-carta-desvira var(--dur-4) var(--mola-macia) backwards; }
+.tb-card[data-gira="vira"]:not(.tb-fx)::before { animation: tb-carta-ergue-vira var(--dur-4) var(--ease-out); }
+.tb-card[data-gira="desvira"]:not(.tb-fx)::before { animation: tb-carta-ergue-desvira var(--dur-4) var(--ease-out); }
+@keyframes tb-carta-vira { from { transform: none; } }
+@keyframes tb-carta-desvira { from { transform: rotate(90deg) scale(.78); } }
+@keyframes tb-carta-ergue-vira { from { opacity: 0; transform: none; } 35% { opacity: .8; } to { opacity: 0; transform: rotate(90deg) scale(.78); } }
+@keyframes tb-carta-ergue-desvira { from { opacity: 0; transform: rotate(90deg) scale(.78); } 35% { opacity: .8; } to { opacity: 0; transform: none; } }
+:root[data-movimento="moderado"] .tb-card[data-gira]:not(.tb-fx)::before { animation: none; }
+@media (prefers-reduced-motion: reduce) { .tb-card[data-gira] .tb-card__face, .tb-card[data-gira]:not(.tb-fx)::before { animation: none; } }
 .tb-card[data-selected="true"] .tb-card__face { outline: 3px solid var(--accent); transform: translateY(calc(var(--space-2) * -1)); }
 .tb-card__pills { position: absolute; left: 50%; bottom: 2px; transform: translateX(-50%); display: flex; flex-wrap: wrap-reverse; justify-content: center; gap: 2px; align-items: center; width: calc(100% - 4px); pointer-events: none; }
 /* T4 · com P/T no canto, as pílulas sobem acima dele (antes as duas dividiam a mesma linha e se cobriam) */
@@ -6506,6 +6537,15 @@ function renderDS() {
             h('div', { dataset: { zone: 'lands' } }, campo(
               M.TableCard(demo('Island', { oid: 'ds-campo-4', image: arte.azul }), { pilha: { total: 3, viradas: 0 } }),
               M.TableCard(demo('Forest', { oid: 'ds-campo-5', image: arte.verde })))));
+        })(),
+        // MK3-3 (J-67) · palco da receita "virar": "Virar" alterna a carta e a face gira com --mola-macia, a sombra junto
+        (() => {
+          const img = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="488" height="680"><rect width="488" height="680" fill="#3e6f8f"/><rect x="40" y="90" width="408" height="300" fill="#1c3346"/></svg>');
+          let virada = false;
+          const carta = () => M.TableCard(demo('Spellstutter Sprite', { oid: 'ds-virar-1', image: img, tapped: virada }), { estado: { pt: { p: 1, t: 1 }, mod: null, marcas: [], sick: false, anel: '' } });
+          const fileira = h('div', { class: 'tb-row' }, carta());
+          const gira = () => { virada = !virada; const c = carta(); fileira.replaceChildren(c); M.giraCarta(c, virada ? 'vira' : 'desvira'); };
+          return h('div', { class: 'ds-row ds-row--wrap' }, h('div', { class: 'tb-side ds-campo', id: 'ds-giro' }, fileira), Button('Virar', { icone: 'virar', id: 'ds-giro-btn', variant: 'ghost', onClick: gira }));
         })(),
         Text('Tokens: --carta-campo e --carta-terreno (largura) · --moldura-hd (faixa do nome) · --moldura-ft (pé com P/T) · --moldura-borda · --arte-topo e --arte-alto (onde fica a janela da arte na imagem da carta) · --estado-piso (piso do ícone de estado; o teto é a altura do pé) · --rolagem-folga (folga entre a carta e a barra de rolagem da fileira) · --campo-cresce (quanto a fileira com folga deixa a carta crescer; 1,15 em paisagem) · --decisao-origem (miniatura da carta de origem na decisão). Em paisagem (altura até 540 px): campo 80, terreno 58, mão 76.', { size: 'xs', tone: 'muted', attrs: { id: 'ds-campo-tokens' } }), // J-60 · tokens da MJ25 no catálogo
         // DS-K2 M2 (J-37) · a mão em leque com 3, 5 e 7 cartas, com o mesmo modelo (lequeDaMao) e o mesmo CSS da partida
@@ -39792,6 +39832,20 @@ function animaVirada(novo, foto, { duracao = 280, sentido = 1, easeIn = 'ease-in
   return out;
 }
 
+/** MK3-3 (J-67) · a carta do campo que mudou de virada gira com massa: marca data-gira ("vira" | "desvira") e a face sai da
+    posição de antes (a receita é CSS, só tokens: --mola-macia --dur-4; moderado sem a sombra alta). Devolve as animações da
+    face e da sombra (quem chama as conclui no próximo toque); o fim tira a marca. Sem animação (reduzido), devolve []. */
+function giraCarta(el, para) {
+  el.dataset.gira = para;
+  const face = el.querySelector('.tb-card__face');
+  const as = el.getAnimations({ subtree: true }).filter(a => /^tb-carta-(vira|desvira|ergue-vira|ergue-desvira)$/.test(a.animationName || ''));
+  const principal = face && as.find(a => a.effect && a.effect.target === face);
+  if (!principal) { delete el.dataset.gira; return []; }
+  const limpa = () => { if (el.dataset.gira === para) delete el.dataset.gira; };
+  principal.addEventListener('finish', limpa); principal.addEventListener('cancel', limpa);
+  return as;
+}
+
 /** U6b · decide o que um arrasto vertical na borda de cima da bandeja faz. Puro, para testar.
     dy > 0 é para baixo. Recolhe com arrasto para baixo, abre com arrasto para cima; um arrasto
     curto e lento volta ao estado de antes. `v` é a velocidade em px/ms no fim do gesto. */
@@ -40237,7 +40291,7 @@ function MapaDaMasmorra(m) {
     m.textoDaIniciativa ? h('p', { class: 'tb-masmorra__nota' }, h('b', {}, 'Iniciativa. '), m.textoDaIniciativa) : null);
 }
 
-return { QuadroDeBloqueios, retemImagem, retemImagemDaCarta, imagensRetidas, fonteParaLargura, animaVirada, faseDoPasso, TableCard, ESTADOS, FAMILIAS, estadoDesenhavel, estadosDaCarta, BarraDeEstados, ajustaEstados, ZoneRow, LifeCounter, ZoneChip, StepBar, StackStrip, StackPanel, CardPeek, PriorityBanner, Desfecho, AdjudicationPanel, Icone, IconButton, gestoDeBandeja, ligaGestoDeBandeja, modeloDaMasmorra, caminhoNaMasmorra, falaDaMasmorra, SeloDaMasmorra, MapaDaMasmorra, TEXTO_DAS_SALAS, origemDaPilha, FaceDaOrigem, miniDaMasmorra, MARCADOR_NOME, nomeCurtoDoMarcador };
+return { QuadroDeBloqueios, retemImagem, retemImagemDaCarta, imagensRetidas, fonteParaLargura, animaVirada, giraCarta, faseDoPasso, TableCard, ESTADOS, FAMILIAS, estadoDesenhavel, estadosDaCarta, BarraDeEstados, ajustaEstados, ZoneRow, LifeCounter, ZoneChip, StepBar, StackStrip, StackPanel, CardPeek, PriorityBanner, Desfecho, AdjudicationPanel, Icone, IconButton, gestoDeBandeja, ligaGestoDeBandeja, modeloDaMasmorra, caminhoNaMasmorra, falaDaMasmorra, SeloDaMasmorra, MapaDaMasmorra, TEXTO_DAS_SALAS, origemDaPilha, FaceDaOrigem, miniDaMasmorra, MARCADOR_NOME, nomeCurtoDoMarcador };
 })();
 
 
@@ -42317,6 +42371,21 @@ function virasDeFace(antes, s) {
   }
   return out;
 }
+/* ---------------- MK3-3 (J-67) · carta-objeto: virar e desvirar com massa ----------------
+   Compara dois estados e diz que permanentes continuaram no campo e mudaram de virada (virar por custo, por pagar mana,
+   por atacar, por efeito; desvirar no passo de desvirar ou por efeito): `para` 'vira' ou 'desvira'. Quem entrou ou saiu do
+   campo nesta jogada fica de fora (a chegada voa, MJ3a). Até `max` (o resto muda sem girar). Puro. */
+function girosDeVirar(antes, s, { max = 16 } = {}) {
+  if (!antes || !antes.objects || !s || !s.objects) return [];
+  const out = [];
+  for (const [k, o] of Object.entries(s.objects)) {
+    const a = antes.objects[k];
+    if (!a || o.zone !== 'battlefield' || a.zone !== 'battlefield' || !!a.tapped === !!o.tapped) continue;
+    out.push({ oid: String(k), para: o.tapped ? 'vira' : 'desvira' });
+    if (out.length >= max) break;
+  }
+  return out;
+}
 /* ---------------- MJ8 (J-18) · ritmo do turno: o trilho de fases acende em sequência ----------------
    Entre dois desenhos, que fases do trilho acendem e em que ordem: as que ficaram entre a fase de antes e a de agora
    (passam, acendem por um instante) e a de agora (fica acesa), no sentido do jogo; turno novo dá a volta pelo fim do
@@ -42528,7 +42597,7 @@ function createSom({ store = null, criaContexto = null } = {}) {
     get tocados() { return tocados.slice(); }
   };
 }
-return { eventosSensoriais, planoDeSom, planoDeEfeitos, RECEITAS_DA_MESA, receitaDoEfeito, rolosDaVida, planoDeVoo, ondePousa, planoDeSaida, monteDaPilha, saidasDaPilha, virasDeFace, fasesQueAcendem, alvosDoArrasto, origensDaMira, gestoDeMira, setasDoCombate, curvaDaSeta, marcasDaPrevia, roteiroDaJogada, createSom, limpaPrefs, duracaoDe, audibilidade, AUDIBILIDADE_MINIMA, PESO_DA_FAIXA, RECEITAS, NOMES, ORDEM, SOM_DO_TIPO, CHAVE, GLOBAL_A_PARTIR_DE };
+return { eventosSensoriais, planoDeSom, planoDeEfeitos, RECEITAS_DA_MESA, receitaDoEfeito, rolosDaVida, planoDeVoo, ondePousa, planoDeSaida, monteDaPilha, saidasDaPilha, virasDeFace, girosDeVirar, fasesQueAcendem, alvosDoArrasto, origensDaMira, gestoDeMira, setasDoCombate, curvaDaSeta, marcasDaPrevia, roteiroDaJogada, createSom, limpaPrefs, duracaoDe, audibilidade, AUDIBILIDADE_MINIMA, PESO_DA_FAIXA, RECEITAS, NOMES, ORDEM, SOM_DO_TIPO, CHAVE, GLOBAL_A_PARTIR_DE };
 })();
 
 /* ==== src/app/table.js ==== */
@@ -43262,7 +43331,8 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     // MJ7 · a carta do campo que virou a face: a foto da face velha gira até ficar de lado antes de a nova aparecer
     const viras = __m33.virasDeFace(estadoOuvido, table.state).map(x => { const el = root.querySelector(`.tb-side .tb-card[data-oid="${x.oid}"]`); const c = el && caixaDe(el);
       return c && c.w && c.h ? { ...x, caixa: c, foto: el.cloneNode(true) } : x; });
-    return { antes, pilha: faixa ? { caixa: caixaDe(faixa), caixas, fotos, oids: oidsDaPilha } : null, oponente, campo: new Set([...vistos].map(String)), viras };
+    const giros = __m33.girosDeVirar(estadoOuvido, table.state); // MK3-3 · quem mudou de virada gira no lugar
+    return { antes, pilha: faixa ? { caixa: caixaDe(faixa), caixas, fotos, oids: oidsDaPilha } : null, oponente, campo: new Set([...vistos].map(String)), viras, giros };
   }
   /* MJ7 (J-17) · a carta que virou a face gira em 3D curto no lugar (--dur-3, metade cada face). A face velha é a foto
      tirada antes do redesenho, na camada de efeitos; a nova é a carta de verdade, que começa de lado. Marca `vira:<para>:<oid>`. */
@@ -43280,6 +43350,20 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       const as = __m17.animaVirada(novo, foto, { duracao: dur, sentido: x.para === 'verso' || x.para === 'baixo' ? 1 : -1, easeIn, easeOut });
       for (const a of as) { voos.push(a); const fim = () => { const i = voos.indexOf(a); if (i >= 0) voos.splice(i, 1); if (foto && a.effect && a.effect.target === foto) { foto.remove(); const camada = document.getElementById('tb-fx'); if (camada && !camada.childElementCount) camada.remove(); } }; a.onfinish = fim; a.oncancel = fim; }
       marcas.push(`vira:${x.para}:${x.oid}`);
+    }
+  }
+  /* MK3-3 (J-67) · a carta do campo que virou ou desvirou gira com massa no lugar (a face sai da posição de antes; a sombra
+     gira junto). Só a carta sozinha: a que entrou num leque de cópias muda sem girar. Marca `gira:<para>:<oid>`. */
+  function giraCartas(m, marcas) {
+    if (!m || !m.giros || !m.giros.length) return;
+    const viram = new Set((m.viras || []).map(x => x.oid));
+    for (const x of m.giros) {
+      if (viram.has(x.oid)) continue; // a dupla face que virou de face já gira em 3D (MJ7)
+      const el = root.querySelector(`.tb-side .tb-card[data-oid="${x.oid}"]:not([data-oids])`);
+      if (!el || el.closest('.tb-leque') || el.dataset.tapped !== String(x.para === 'vira')) continue;
+      const as = __m17.giraCarta(el, x.para); if (!as.length) continue;
+      for (const a of as) { voos.push(a); const fim = () => { const i = voos.indexOf(a); if (i >= 0) voos.splice(i, 1); }; a.addEventListener('finish', fim); a.addEventListener('cancel', fim); }
+      marcas.push(`gira:${x.para}:${x.oid}`);
     }
   }
   /* MJ3b/MJ3c · onde pousa a carta que mudou de zona: o contador da zona do dono, a faixa da pilha ou a carta na sua mão */
@@ -43484,6 +43568,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     voaDeVerso(m, s, v, marcas);
     desceDaPilha(m, s, v, marcas); // MJ5
     viraFaces(m, marcas); // MJ7
+    giraCartas(m, marcas); // MK3-3
     root.dataset.voos = marcas.join(' ');
     if (!plano.length) return;
     // J-25 · receita de pousar do DS: a carta voa e assenta com a mola (--ease-spring) e a sombra própria encolhe e

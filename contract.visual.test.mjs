@@ -995,6 +995,48 @@ test('MK3-2 · simetria: faixa de identidade na borda de fora dos dois lados, no
   assert.match(componentCss, /\.tb-side--opp \.tb-chip \{ margin: calc\(var\(--chip-zona-h\) - var\(--tap-min\)\) 0 0;/);
 });
 
+// MK3-3 (J-67, trilha jogabilidade) · carta-objeto: virar e desvirar com massa. A face gira 90° com --mola-macia --dur-4 a
+// partir da posição de antes (a mesa marca data-gira); a sombra gira junto e, deitada, aponta para baixo (tokens que nascem de
+// lado) e encurta (.78); no completo a sombra alta acende e apaga no caminho (Z só no movimento), no moderado não; reduzido
+// parado. Selos e P/T em laca (luz de cima e aresta); enjoo pelo P/T apagado. Falhava no main de antes (sem os tokens
+// --sombra-carta-deitada/--sombra-carta-alta-deitada, sem data-gira, a carta virada levava a sombra para a esquerda).
+test('MK3-3 · carta-objeto: tokens deitados nos três blocos; a face e as cópias viradas usam a sombra deitada; virar e desvirar com --mola-macia --dur-4 só em transform; sombra alta só no completo; reduzido parado; selos e P/T em laca; enjoo apaga o P/T; palco no /ds', () => {
+  for (const [nome, t] of [['escuro', DARK], ['claro', LIGHT], ['claro automático', { ...DARK, ...AUTO_LIGHT }]]) {
+    assert.match(t['--sombra-carta-deitada'] || '', /^var\(--carta-espessura\) 0 0 var\(--carta-lado\), 1px 0 2px rgba\([^)]*\), 12px 0 28px -14px rgba\([^)]*\)$/, `deitada: lado, contato e chave de lado (${nome})`);
+    assert.match(t['--sombra-carta-alta-deitada'] || '', /^var\(--carta-espessura\) 0 0 var\(--carta-lado\), 18px 0 40px -16px rgba\([^)]*\), 2px 0 6px rgba\([^)]*\)$/, `alta deitada (${nome})`);
+  }
+  // os mesmos valores das sombras K3, com x e y trocados (L1: girada 90°, aponta para baixo)
+  const troca = v => v.replace(/(^|, )0 (\d+px) /g, '$1$2 0 ');
+  for (const t of [DARK, LIGHT]) {
+    assert.equal(t['--sombra-carta-deitada'].split(', ').slice(1).join(', '), troca(t['--shadow-contact'] + ', ' + t['--shadow-key']), 'contato e chave trocados');
+    assert.equal(t['--sombra-carta-alta-deitada'].split(', ').slice(1).join(', '), troca(t['--shadow-float']), 'flutuante trocada');
+  }
+  assert.notEqual(DARK['--sombra-carta-deitada'], LIGHT['--sombra-carta-deitada'], 'a sombra muda com o tema');
+  const regra = sel => { const i = componentCss.indexOf(sel + ' {'); assert.ok(i >= 0, 'regra ' + sel); return componentCss.slice(i, componentCss.indexOf('}', i) + 1); };
+  assert.match(regra('.tb-card[data-tapped="true"] .tb-card__face'), /transform: rotate\(90deg\) scale\(\.78\); box-shadow: var\(--sombra-carta-deitada\);/);
+  assert.match(regra('.tb-card[data-tapped="true"]::before'), /box-shadow: var\(--sombra-carta-alta-deitada\);/);
+  assert.match(regra('.tb-leque[data-tapped="true"] .tb-leque__camada'), /box-shadow: var\(--sombra-carta-deitada\);/);
+  for (const p of ['vira', 'desvira']) {
+    assert.match(regra(`.tb-card[data-gira="${p}"] .tb-card__face`), new RegExp(`animation: tb-carta-${p} var\\(--dur-4\\) var\\(--mola-macia\\) backwards;`), `${p}: --mola-macia --dur-4`);
+    assert.match(regra(`.tb-card[data-gira="${p}"]:not(.tb-fx)::before`), new RegExp(`animation: tb-carta-ergue-${p} var\\(--dur-4\\) var\\(--ease-out\\);`));
+  }
+  const kf = n => { const m = componentCss.match(new RegExp(`@keyframes ${n} \\{(.*?)\\}\\s*\\}`)); assert.ok(m, 'keyframes ' + n); return m[1]; };
+  assert.equal(kf('tb-carta-vira'), ' from { transform: none; ', 'vira: só transform, sai de pé');
+  assert.equal(kf('tb-carta-desvira'), ' from { transform: rotate(90deg) scale(.78); ', 'desvira: sai deitada');
+  for (const n of ['tb-carta-ergue-vira', 'tb-carta-ergue-desvira']) assert.ok(!/(width|height|top|left|margin|box-shadow|filter)\s*:/.test(kf(n)), `${n}: só opacidade e transform`);
+  assert.ok(componentCss.includes(':root[data-movimento="moderado"] .tb-card[data-gira]:not(.tb-fx)::before { animation: none; }'), 'moderado: sem a sombra alta (sem Z); a sombra de um efeito G5 (.tb-fx) fica');
+  assert.ok(componentCss.includes('@media (prefers-reduced-motion: reduce) { .tb-card[data-gira] .tb-card__face, .tb-card[data-gira]:not(.tb-fx)::before { animation: none; } }'), 'menos movimento: estado final');
+  // selos e P/T em laca; enjoo apaga o P/T
+  assert.match(regra('.tb-card__pt'), /background: var\(--lacquer\), var\(--scrim\);[^}]*box-shadow: inset 0 1px 0 var\(--edge\);/);
+  assert.match(regra('.tb-card[data-moldura="true"] .tb-card__pt'), /background: var\(--lacquer\), var\(--bg-elev-1\);/);
+  assert.match(regra('.tb-estado'), /background: var\(--lacquer\), var\(--bg-elev-1\);[^}]*box-shadow: inset 0 1px 0 var\(--edge\);/);
+  assert.match(regra('.tb-card[data-moldura="true"] .tb-estado'), /background: var\(--lacquer\), var\(--bg-elev-2\);/);
+  assert.match(regra('.tb-card[data-sick="true"] .tb-card__pt'), /color: var\(--fg-muted\);/);
+  assert.match(HTML, /const giros = __m33\.girosDeVirar\(estadoOuvido, table\.state\);/, 'a mesa mede quem mudou de virada');
+  assert.match(HTML, /giraCartas\(m, marcas\); \/\/ MK3-3/);
+  assert.ok(HTML.includes("id: 'ds-giro'") && HTML.includes("id: 'ds-giro-btn'"), 'palco do virar no /ds');
+});
+
 // MK3-1 (J-64, trilha jogabilidade) · estojo das fases: o trilho de pontos e traço num estojo rebaixado (pílula --elev-1 com
 // poço pequeno e aresta), no eixo da mesa, com folga igual acima e abaixo; a barra ganha a folga de baixo e o vão de cima do
 // campo encolhe o mesmo (zero pixel de campo); atual em latão com fio de luz, passadas cheias, futuras vazadas; o traço desliza

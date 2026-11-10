@@ -431,6 +431,22 @@ test('MJ7 · viradas de face: a dupla face que transformou (e a que voltou), a c
   assert.equal(S.virasDeFace(null, depois).length, 0); assert.equal(S.virasDeFace(antes, antes).length, 0);
 });
 
+// MK3-3 (J-67) · carta-objeto: quem continuou no campo e mudou de virada gira (vira ou desvira); quem entrou virada, saiu,
+// ou só mudou de face não gira; o teto corta o resto (muda sem girar). Falhava no main de antes (sem girosDeVirar).
+test('MK3-3 · giros de virar: virar e desvirar no campo; quem entrou virado, saiu ou ficou como estava não gira; teto', () => {
+  const antes = st([ob(1, 'battlefield', { name: 'Ilha' }), ob(2, 'battlefield', { name: 'Bicho', tapped: true }), ob(3, 'battlefield', { name: 'Urso', tapped: true }),
+    ob(4, 'hand', { name: 'Ilha' }), ob(5, 'battlefield', { name: 'Pedra' }), ob(6, 'battlefield', { name: 'Bicho' })]);
+  const depois = st([ob(1, 'battlefield', { name: 'Ilha', tapped: true }), ob(2, 'battlefield', { name: 'Bicho' }), ob(3, 'graveyard', { name: 'Urso' }),
+    ob(4, 'battlefield', { name: 'Ilha', tapped: true }), ob(5, 'battlefield', { name: 'Pedra' }), ob(6, 'battlefield', { name: 'Bicho', tapped: true, attacking: 1 })]);
+  assert.deepEqual(J(S.girosDeVirar(antes, depois)), [{ oid: '1', para: 'vira' }, { oid: '2', para: 'desvira' }, { oid: '6', para: 'vira' }],
+    'virar por mana e por atacar, desvirar; a que morreu (3), a que entrou virada (4, voa da mão) e a parada (5) não giram');
+  assert.equal(S.girosDeVirar(null, depois).length, 0); assert.equal(S.girosDeVirar(antes, antes).length, 0);
+  const muitas = n => st(Array.from({ length: n }, (_, i) => ob(i + 1, 'battlefield', { tapped: true })));
+  const soltas = n => st(Array.from({ length: n }, (_, i) => ob(i + 1, 'battlefield')));
+  assert.equal(S.girosDeVirar(muitas(20), soltas(20)).length, 16, 'o passo de desvirar com 20 permanentes gira 16; o resto desvira sem girar');
+  assert.equal(S.girosDeVirar(muitas(5), soltas(5), { max: 2 }).length, 2);
+});
+
 test('MJ8 · fases que acendem: as que ficaram entre a de antes e a de agora passam e a atual fica; turno novo dá a volta; mesma fase, desfazer e fase desconhecida não acendem', () => {
   const F = (a, b) => J(S.fasesQueAcendem(a, b));
   assert.deepEqual(F({ fase: 1, turno: 3 }, { fase: 3, turno: 3 }), [{ fase: 2, k: 0, fica: false }, { fase: 3, k: 1, fica: true }], 'de principal 1 a principal 2: o combate passa, a principal 2 fica');
