@@ -624,7 +624,8 @@ test('DS-K2 · M3 a barra da mesa: vidas na barra na cor de cada um (texto e bor
   assert.match(HTML, /maisMenu = h\('div', \{ class: 'tb-mais', id: 'tb-mais-menu', role: 'menu', 'aria-label': 'Mais ações', hidden: !maisAberto, dataset: \{ sobrepoe: 'true' \} \}/, 'o menu por cima da mesa é sobreposição declarada');
   assert.match(componentCss, /\.tb-mais \{ position: absolute; z-index: var\(--z-overlay\);/, 'camada por token');
   assert.match(componentCss, /@media \(prefers-reduced-motion: reduce\) \{ \.tb-mais:not\(\[hidden\]\) \{ animation: none; \} \}/);
-  assert.match(componentCss, /body\[data-mesa-cheia="true"\] \.tb-steps__list li\[data-current="true"\] \{ width: 18px; background: var\(--accent\); \}/, 'a fase atual é o ponto longo em latão');
+  // MK3-1 (J-64) · a expectativa muda de propósito: o traço continua o ponto longo em latão, agora por token (--mesa-fase-traco) e com o latão do estojo (fio de luz)
+  assert.match(componentCss, /:is\(body\[data-mesa-cheia="true"\], \.ds-estojo\) \.tb-steps__list li\[data-current="true"\] \{[^}]*width: var\(--mesa-fase-traco\); background: var\(--mesa-fase-latao\);/, 'a fase atual é o ponto longo em latão');
   assert.ok(!/class: 'tb-top__actions'/.test(HTML), 'a linha das três ferramentas saiu');
   for (const [nome, t] of [['escuro', DARK], ['claro', LIGHT]]) for (const k of ['--player-opp', '--accent']) {
     const r = ratio(t[k], t['--bg-elev-1']); assert.ok(r >= 3, `${k} (número grande) sobre a barra (${nome}): ${r.toFixed(2)}`);
@@ -973,6 +974,36 @@ test('DS-K3 K3-3 · a barra recolhe ao rolar: uma variável (--barra-recolhe) le
   // e o JS: ouvinte passivo, uma leitura por quadro, decisão pura no roteador
   assert.match(HTML, /window\.addEventListener\('scroll', \(\) => \{ if \(!quadro\) quadro = requestAnimationFrame\(le\); \}, \{ passive: true \}\);/);
   assert.match(HTML, /__m2\.barraAoRolar\(est, y,/);
+});
+
+// MK3-1 (J-64, trilha jogabilidade) · estojo das fases: o trilho de pontos e traço num estojo rebaixado (pílula --elev-1 com
+// poço pequeno e aresta), no eixo da mesa, com folga igual acima e abaixo; a barra ganha a folga de baixo e o vão de cima do
+// campo encolhe o mesmo (zero pixel de campo); atual em latão com fio de luz, passadas cheias, futuras vazadas; o traço desliza
+// de onde estava com --mola-firme (--dur-3). Falhava no main de antes (sem tokens --mesa-estojo/--mesa-fase-*, sem estojo).
+test('MK3-1 · estojo das fases: tokens nos três blocos; estojo rebaixado no eixo; folga simétrica; campo no mesmo y; atual em latão com fio de luz, passadas cheias, futuras vazadas; traço desliza com a mola e tem regra de menos movimento; palco no /ds', () => {
+  for (const [nome, t] of [['escuro', DARK], ['claro', LIGHT], ['claro automático', { ...DARK, ...AUTO_LIGHT }]]) {
+    assert.match(t['--mesa-estojo'] || '', /^inset 0 1px 2px rgba\([^)]*\), inset 0 -1px 0 var\(--edge\)$/, `estojo: poço pequeno com aresta (${nome})`);
+    for (const k of ['--mesa-fase-ponto', '--mesa-fase-traco', '--mesa-fase-latao']) assert.ok(t[k], `${k} (${nome})`);
+  }
+  assert.notEqual(DARK['--mesa-estojo'], LIGHT['--mesa-estojo'], 'a sombra do estojo muda com o tema');
+  assert.equal(DARK['--mesa-fase-latao'], 'linear-gradient(180deg, var(--accent-hi), var(--accent) 60%, var(--accent-lo))', 'o latão do traço sai do destaque escolhido');
+  const E = ':is(body[data-mesa-cheia="true"], .ds-estojo) .tb-steps__list';
+  const regra = sel => { const i = componentCss.indexOf(sel + ' {'); assert.ok(i >= 0, 'regra ' + sel); return componentCss.slice(i, componentCss.indexOf('}', i) + 1); };
+  const lista = regra(E);
+  assert.match(lista, /width: max-content; margin-inline: auto;/, 'o estojo abraça os pontos, no eixo');
+  assert.match(lista, /border-radius: var\(--radius-full\); background: var\(--elev-1\); box-shadow: var\(--mesa-estojo\);/, 'pílula --elev-1 rebaixada');
+  assert.match(regra(E + ' li'), /width: var\(--mesa-fase-ponto\); height: var\(--mesa-fase-ponto\);[^}]*background: transparent; box-shadow: inset 0 0 0 1px var\(--fg-subtle\);/, 'a fase que vem é vazada');
+  assert.match(regra(E + ' li[data-passou="true"]'), /background: var\(--fg-subtle\); box-shadow: none;/, 'a que passou é cheia');
+  assert.match(regra(E + ' li[data-current="true"]'), /box-shadow: inset 0 1px 0 var\(--edge-strong\);/, 'o traço tem fio de luz');
+  assert.match(regra(E + ' li[data-acende="fica"]'), /animation: tb-traco-desliza var\(--dur-3\) var\(--mola-firme\) both;/, 'o traço desliza com a mola');
+  const kf = componentCss.match(/@keyframes tb-traco-desliza \{([^}]*\})\s*\}/); assert.ok(kf, 'keyframes do traço');
+  assert.match(kf[1], /^ from \{ transform: translateX\(calc\(var\(--de, 0\) \* \(var\(--mesa-fase-ponto\) \+ var\(--space-2\)\)\)\); \}$/, 'só transform, sai da fase de antes');
+  assert.ok(componentCss.includes(`@media (prefers-reduced-motion: reduce) { ${E} li[data-acende="fica"] { animation: none; } }`), 'menos movimento: o traço já no lugar');
+  assert.ok(componentCss.includes('body[data-mesa-cheia="true"] .tb > .tb-top { column-gap: var(--space-1); row-gap: var(--space-1); padding: var(--space-2) var(--space-2) var(--space-1); }'), 'folga de baixo = row-gap de cima');
+  assert.ok(componentCss.includes('body[data-mesa-cheia="true"] .tb > .tb-board { padding-top: var(--space-1); }'), 'o vão de cima do campo paga a folga: o campo fica no mesmo y');
+  assert.match(HTML, /passou: String\(atual >= 0 && i < atual\)/, 'o trilho marca as fases que passaram');
+  assert.match(HTML, /'--de': String\(de - i\)/, 'o traço sabe de onde vem');
+  assert.ok(HTML.includes("class: 'ds-estojo', id: 'ds-estojo'") && HTML.includes("id: 'ds-estojo-troca'"), 'palco do estojo no /ds');
 });
 
 // MK3-0 (J-63, trilha jogabilidade) · Mesa Vitrine: a mesa entra no material do DS-K3. A carta é objeto (fio de lado =

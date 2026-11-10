@@ -704,7 +704,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ud ✅ | MJ25 mesa pelo print 2 (decisão do dono, 02/11/2026), sete fatias: .1 ícones de estado que cabem e rolagem afastada da carta (J-53 ✅) · .2 nome na faixa de cima, girando com a carta virada (J-54 ✅) · .3 a carta de origem na pilha e nas decisões (Roost Seek) (J-55 ✅) · .4 escolher carta vendo a carta ampliada (J-56 ✅) · .5 cartas ocupam o espaço da fileira (J-57 ✅) · .6 layout em paisagem (J-58 ✅) · .7 opção "Orientação: automática / só retrato" (J-59 ✅) | MJ24 | jogabilidade |
 | 16º-uf ✅ | MJ26 relato #55: as setas do combate (e a prévia do dano) acompanham a rolagem da página e de qualquer contêiner da mesa; "Cancelar" na declaração de atacantes e de bloqueadores desmarca a escolha sem mandar nada ao motor (J-61, 03/11/2026) | J | 1 | 16º-ud |
 | 16º-ug ✅ | MJ27 relato #55, o resto do "cancelar jogada em curso": um Cancelar com o mesmo nome e lugar em toda escolha encadeada antes de jogar (alvo → custo → X → cor), que volta um passo em vez de fechar tudo, e a mira por arrasto com Cancelar à vista (J-62, 03/11/2026) | J | 1 | 16º-uf |
-| 16º-va 🟡 | MK3 · Mesa Vitrine (pedido do dono de 09/11/2026: a mesa no patamar do DS-K3 — simetria, profundidade por luz e sombra, material, animação de alto padrão em todo elemento; rotina "Mesa MK3" a cada 4 h; modo agilidade): ✅ MK3-0 (J-63) material — carta como objeto (espessura, contato, chave, face laqueada) e playmat em poço igual nos dois lados, levantar com a mola do DS-K3; próxima MK3-1 estojo das fases. Revisão das 22h15: benchmarks, mão e gesto (arrastar para jogar, toque duplo), zonas, organizar o campo, combate sem setas. Playmats (23h36): da casa e criados pelo jogador (MK3-P1…P5). Especificação: `docs/MK3-especificacao.md`. A MV-9 do DS-K3 passa a ser a MK3-17 | MK3 | 1 de 27 | DS-K3 K3-0/MV-0, MJ, DS-K2 M1–M6 |
+| 16º-va 🟡 | MK3 · Mesa Vitrine (pedido do dono de 09/11/2026: a mesa no patamar do DS-K3 — simetria, profundidade por luz e sombra, material, animação de alto padrão em todo elemento; rotina "Mesa MK3" a cada 4 h; modo agilidade): ✅ MK3-0 (J-63) material — carta como objeto (espessura, contato, chave, face laqueada) e playmat em poço igual nos dois lados, levantar com a mola do DS-K3; ✅ MK3-1 (J-64) estojo das fases — trilho num estojo rebaixado no eixo da faixa de vez, o filete de latão não passa mais por baixo, o traço desliza com mola; próxima MK3-2 simetria. Revisão das 22h15: benchmarks, mão e gesto (arrastar para jogar, toque duplo), zonas, organizar o campo, combate sem setas. Playmats (23h36): da casa e criados pelo jogador (MK3-P1…P5). Especificação: `docs/MK3-especificacao.md`. A MV-9 do DS-K3 passa a ser a MK3-17 | MK3 | 2 de 27 | DS-K3 K3-0/MV-0, MJ, DS-K2 M1–M6 |
 | 16º-ui 🟡 | T-IDIOMA relatos #53/#66, fatia 1: o português cobre a interface (Rulings → Esclarecimentos, Near Mint → Quase nova, Etched → Foil gravado, Offline → Sem internet, cinco palavras-chave e os marcadores com nome em português na mesa e no registro); falta troca de idioma, pacotes es/en e texto das cartas (leva G-353, 07/11/2026) | T | 1 | — |
 | 16º-up ✅ | T-IDIOMA relatos #53/#66, fatia 2: a folha da carta mostra nome, tipo e texto oficiais impressos em português (Scryfall), com a troca para o original, guardados no aparelho; nunca impressa fica em inglês com aviso até a fatia 3 (leva G-356, 08/11/2026) | T | 1 | 16º-ui |
 | 16º-us ✅ | T-IDIOMA relatos #53/#66, fatia 4: Perfil › Idioma (português, inglês, espanhol, com bandeira e nome no próprio idioma), o app inteiro na hora pela camada de tradução da tela e pelos pacotes idiomas/en.json e es.json, a folha da carta no idioma (oficial impresso; Oracle em inglês) com o texto antes da imagem, e a camada obrigatória (texto novo sem tradução derruba o portão) (leva G-361, 08/11/2026) | T | 1 | 16º-up |
@@ -15024,7 +15024,7 @@ Especificação por fatia (valores e roteiros): `docs/MK3-especificacao.md`.
 | Fatia | O que entrega | Estado |
 |---|---|---|
 | **MK3-0** | material: carta como objeto (espessura, contato, chave, face laqueada), playmat em poço igual nos dois lados, levantar com mola | ✅ J-63 |
-| MK3-1 | estojo das fases: o trilho de pontos e traço sob "Seu turno" num estojo rebaixado, sem cruzar a linha do topo | ⬜ |
+| MK3-1 | estojo das fases: o trilho de pontos e traço sob "Seu turno" num estojo rebaixado, sem cruzar a linha do topo | ✅ J-64 |
 | MK3-2 | simetria: os dois lados espelhados (faixa de identidade igual, eixo central), `auditaSimetria` | ⬜ |
 | MK3-3 | carta-objeto: virar e desvirar com massa, sombra que gira, selos em laca | ⬜ |
 | MK3-P1 | playmats da casa: seis modelos no design system (Ébano, Feltro, Oceano, Vinho, Pergaminho, Latão gravado), nos dois temas | ⬜ |
@@ -15076,6 +15076,32 @@ Cloudflare) ficam do nosso lado, para gerar e validar. Cinco fatias MK3-P1…P5 
   `--carta-laca`, `--mesa-poco`; `--sombra-carta` e `--sombra-carta-alta` passam a ser compostas só de tokens K3 (valem
   também no palco do `/ds`, no leque e na pilha).
 - **Fora:** estojo das fases (MK3-1), simetria da faixa de identidade (MK3-2), gestos e receitas por evento (MK3-3 em diante).
+
+#### MK3-1 · estojo das fases (✅ J-64, 10/11/2026)
+- **Valor:** o trilho das fases sob "Seu turno" deixa de sentar em cima do filete de latão da barra (a linha passava por
+  baixo dos pontos) e vira uma peça: um estojo rebaixado no eixo da faixa de vez, onde se lê de relance o que já passou, o
+  que é agora e o que vem; trocar de fase tem peso — o traço sai de onde estava e assenta com mola.
+- **Aceite:** nas quatro medidas e nos dois temas: estojo em pílula `--elev-1` com `--mesa-estojo` (sombra interna curta e
+  aresta), centrado no eixo da faixa (±1 px), folga igual acima e abaixo (`--space-1`); o filete de latão fica inteiro
+  abaixo do estojo; o primeiro lado do campo continua no mesmo y (a barra ganha 8 px e o vão de cima do campo perde 8: 12 →
+  4 px; zero pixel de campo); fase atual = traço `--mesa-fase-traco` em `--mesa-fase-latao` com fio de luz
+  (`--edge-strong`), passadas neste turno cheias em `--fg-subtle`, futuras vazadas; trocar de fase: o traço desliza da fase
+  de antes (`--de` em pontos, só `transform`) com `--mola-firme` `--dur-3` (completo), `--ease-out` (moderado), já no lugar
+  (reduzido, que não acende nem voa, como o MJ8); o MJ8 continua (as fases do caminho piscam); `auditaTela` limpa;
+  MJ11b verde.
+- **Receita "fase que troca":** plano — o traço (objeto) dentro do estojo (fundo, parado) · luz — fio de luz fixo no traço
+  e as luzes do MJ8 · curva — `--mola-firme` · etapas — o traço desliza enquanto as fases do meio piscam em sequência; a
+  atual acende por último · reduzido — num quadro · o que a separa de uma troca linear 2D: massa (sai de onde estava, passa
+  por cima do caminho e assenta com repique) e material (poço com aresta, não uma linha desenhada).
+- **Testes:** contrato visual "MK3-1" (falhava no `main` de antes) e e2e "J-64 MK3-1" (quatro medidas, dois temas, três
+  níveis de Movimento, primeiro quadro medido e fim por `finished`). Expectativas antigas que mudam de propósito, com o
+  motivo no teste: DS-K2 M3 (o traço por token e latão do estojo) e MJ8 e2e (na mesa cheia a fase que fica desliza em vez
+  de trocar de cor).
+- **Tokens novos:** `--mesa-estojo` (três blocos), `--mesa-fase-ponto` 6 px, `--mesa-fase-traco` 18 px,
+  `--mesa-fase-latao` (do destaque escolhido); espelhados no `painel.html`. Palco no `/ds` (seção Mesa, "Trocar fase").
+- **Parcial declarado:** online com o selo da Conversa a faixa de vez sai do meio (o selo custa um alvo à direita) e o
+  estojo fica no eixo da mesa, não no da faixa — a MK3-2 (simetria) decide o eixo único. Paisagem não muda.
+- **Fora:** fio de luz que percorre o estojo e luz da cor da mana (MK3-16); simetria da faixa de identidade (MK3-2).
 
 ## Trilha homologacao · prova de partida do catálogo (H)
 
