@@ -15715,6 +15715,21 @@ const PREFERENCIAS = REGISTRO.filter(r => r[2]).map(r => r[0]);
 /** Chaves do documento de perfil: só as escolhas da pessoa. */
 const DO_DOCUMENTO = REGISTRO.filter(r => r[1] === 'preferencia').map(r => r[0]);
 const igual = (a, b) => JSON.stringify(a === undefined ? null : a) === JSON.stringify(b === undefined ? null : b);
+/* G-370 · relato do dono (09/11): restaurar um backup (ou trazer pela ponte do endereço antigo) trocava as listas de conteúdo
+   pelo que vinha no arquivo, e os relatos guardados neste aparelho sumiam. Lista de itens com `id` agora junta: o que só existe
+   de um lado fica; o mesmo id nos dois lados fica com o mais adiantado (relato: registrado > na fila > aberto no GitHub > guardado;
+   depois, o editado por último); empate, o deste aparelho. O que não é lista de itens com id segue como antes. Puro. */
+const ID_OK = x => !!x && typeof x === 'object' && typeof x.id === 'string' && !!x.id;
+const listaComId = v => Array.isArray(v) && v.length > 0 && v.every(ID_OK);
+const avancoDoRelato = r => (r.registro ? 3 : r.pelaFila && r.enviadoEm ? 2 : r.enviadoEm ? 1 : 0);
+const instanteDe = r => Math.max(Date.parse(r.editadoEm) || 0, Date.parse(r.criadoEm) || 0);
+const PREFERE = { 'relatos.itens': (a, b) => avancoDoRelato(b) - avancoDoRelato(a) || instanteDe(b) - instanteDe(a) };
+function juntaPorId(daqui, deFora, chave = '') {
+  const mais = PREFERE[chave] || (() => 0), out = new Map();
+  for (const x of daqui) out.set(x.id, x);
+  for (const x of deFora) { const cur = out.get(x.id); if (!cur || mais(cur, x) > 0) out.set(x.id, x); }
+  return [...out.values()];
+}
 /** Store vigiado: o mesmo contrato da plataforma. Escrever ou apagar uma preferência guarda o instante em
     `perfil.carimbos` (é o que decide, entre dois aparelhos, qual escolha é a mais nova); chave sem classe é avisada uma vez. */
 function vigiaStore(store, { agora = () => Date.now(), aoDesconhecer = null, aoMudarPreferencia = null } = {}) { // A-263 · aoMudarPreferencia(chave): a sincronização agenda o encontro
@@ -15762,7 +15777,17 @@ function createPerfil({ store, agora = () => Date.now() }) {
     /** Nome para a mesa: o do perfil ou o padrão da tela. */
     async nomeNaMesa(padrao = 'Você') { return (await this.get()).nome || padrao; },
     async exportaPreferencias() { const out = {}; for (const k of PREFERENCIAS) { let v; try { v = await store.get(k); } catch (e) { v = undefined; } if (v !== undefined && v !== null) out[k] = v; } return out; },
-    async importaPreferencias(prefs) { let n = 0; for (const k of PREFERENCIAS) if (prefs && prefs[k] !== undefined && prefs[k] !== null) { await store.set(k, prefs[k]); n++; } return n; },
+    async importaPreferencias(prefs) {
+      let n = 0;
+      for (const k of PREFERENCIAS) {
+        if (!prefs || prefs[k] === undefined || prefs[k] === null) continue;
+        let v = prefs[k];
+        // G-370 · lista de itens com id junta com a deste aparelho (relatos, partidas, notícias guardadas): nada daqui some
+        if (listaComId(v)) { let cur; try { cur = await store.get(k); } catch (e) { cur = null; } if (listaComId(cur)) v = juntaPorId(cur, v, k); }
+        await store.set(k, v); n++;
+      }
+      return n;
+    },
     /** A-261 · o documento de perfil: quem é a pessoa e cada escolha dela, com o instante em que mudou. É o que o backup
         carrega e o que a conta vai sincronizar. Só chaves da classe `preferencia`; nada de listas, coleção ou cache. */
     async documento() {
@@ -15828,7 +15853,7 @@ function enquadraMove(w, h, q, dx, dy, palco) {
   const k = q.lado / Math.max(1, palco);
   return enquadra(w, h, { zoom: q.zoom, cx: q.cx - dx * k, cy: q.cy - dy * k });
 }
-return { createPerfil, limpaNome, inicialDe, avatarValido, quadradoCentral, enquadra, enquadraZoom, enquadraMove, ZOOM_MAX, PREFERENCIAS, NOME_MAX, AVATAR_PX, KEY, REGISTRO, classeDe, vigiaStore, DO_DOCUMENTO, DOC_KIND, DOC_VERSION, CARIMBOS };
+return { juntaPorId, listaComId, createPerfil, limpaNome, inicialDe, avatarValido, quadradoCentral, enquadra, enquadraZoom, enquadraMove, ZOOM_MAX, PREFERENCIAS, NOME_MAX, AVATAR_PX, KEY, REGISTRO, classeDe, vigiaStore, DO_DOCUMENTO, DOC_KIND, DOC_VERSION, CARIMBOS };
 })();
 
 /* ==== src/data/conta.js ==== */
@@ -16082,6 +16107,9 @@ function createSessaoFirebase({ apiKey = '', fetch: fetchFn = null, agora = () =
     let corpo = null; try { corpo = await r.json(); } catch (e) { corpo = null; }
     if (!r.ok) {
       const motivo = String((corpo && corpo.error && corpo.error.message) || '').slice(0, 80); // só para diagnóstico; a tela usa MOTIVO
+      // G-370 · a chave web do app só aceita os endereços cadastrados no Google Cloud: endereço novo (a Vercel) fora da lista volta 403
+      // "Requests from referer … are blocked". A causa é do endereço, não da conta: a tela diz isso e a sessão guardada não é apagada.
+      if (r.status === 403 && /referr?er .*blocked|API_KEY_HTTP_REFERRER_BLOCKED/i.test(JSON.stringify((corpo && corpo.error) || ''))) throw erro('endereco-bloqueado', { status: 403 });
       throw erro(r.status >= 400 && r.status < 500 ? 'firebase-recusou' : 'firebase-fora', { status: r.status, detalhe: motivo });
     }
     return corpo || {};
@@ -16218,7 +16246,7 @@ function createSessaoFirebase({ apiKey = '', fetch: fetchFn = null, agora = () =
   };
 }
 /** Frase de interface para cada erro da conta. */
-const MOTIVO = { 'sem-client-id': 'Entrar com Google precisa de um Client ID configurado no app.', 'sem-firebase': 'Ainda não configurada neste app.', 'firebase-recusou': 'Entrada recusada. Saia e entre de novo.', 'firebase-fora': 'Sem resposta agora. Tente de novo em instantes.', 'sem-rede': 'Sem internet: a conta Google precisa de conexão.', 'sem-google': 'Não foi possível carregar o Google neste navegador.', recusado: 'Entrada cancelada ou recusada.', expirado: 'A sessão do Google expirou: entre de novo.', api: 'O Google não respondeu como esperado.',
+const MOTIVO = { 'sem-client-id': 'Entrar com Google precisa de um Client ID configurado no app.', 'sem-firebase': 'Ainda não configurada neste app.', 'firebase-recusou': 'Entrada recusada. Saia e entre de novo.', 'endereco-bloqueado': 'Este endereço do app ainda não foi liberado na chave do Google. O resto funciona; os relatos ficam guardados e seguem sozinhos quando liberar.', 'firebase-fora': 'Sem resposta agora. Tente de novo em instantes.', 'sem-rede': 'Sem internet: a conta Google precisa de conexão.', 'sem-google': 'Não foi possível carregar o Google neste navegador.', recusado: 'Entrada cancelada ou recusada.', expirado: 'A sessão do Google expirou: entre de novo.', api: 'O Google não respondeu como esperado.',
   // G-263 · T6f-1 · e-mail e senha
   'email-invalido': 'Confira o e-mail: falta algo como nome@exemplo.com.', 'senha-vazia': 'Digite a senha.', 'senha-curta': 'A senha precisa de pelo menos 8 caracteres.', 'senha-longa': 'A senha pode ter no máximo 128 caracteres.', 'senha-fraca': 'Senha fraca demais: use pelo menos 8 caracteres.', 'email-em-uso': 'Este e-mail já tem conta. Toque em Entrar (se a conta foi criada com o Google, use Continuar com Google).', 'senha-nao-confere': 'E-mail ou senha não conferem.', 'conta-desativada': 'Esta conta foi desativada.', 'muitas-tentativas': 'Muitas tentativas em pouco tempo. Espere alguns minutos e tente de novo.', 'sem-senha': 'Entrar com e-mail ainda não está ligado neste app.', 'entre-de-novo': 'A conta saiu deste aparelho: entre de novo com e-mail e senha.',
   // G-267 · T6f-4 · ligar o Google
