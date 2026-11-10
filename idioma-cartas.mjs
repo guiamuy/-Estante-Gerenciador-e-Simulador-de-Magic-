@@ -16,6 +16,7 @@
    sai até o robô refazer.
 
      node idioma-cartas.mjs --faltam pt     cartas das listas sem impressão e sem tradução em pt (JSON com o Oracle a traduzir)
+     node idioma-cartas.mjs --faltam pt --formato standard   idem, das listas de Standard do catálogo (G-373; padrão: pauper)
      node idioma-cartas.mjs --conferir      roda o conferidor nos pacotes (sai com erro se algum falhar)
 
    Fontes do --faltam (ramos de dados, lidos pelo git): nomes impressos por idioma (artes:nomes-<idioma>.json, Scryfall) e
@@ -166,12 +167,19 @@ export function registraTexto(textos, nome, x) {
   textos.set(nome, { nome, type_line: x.type_line, oracle_text: x.oracle_text, card_faces: x.card_faces });
 }
 
-function fontes(lang) {
+/** G-373 · lote 3: além do Pauper (padrão), as listas de outros formatos do catálogo (`--formato standard,pioneer`). */
+export const FORMATOS_PADRAO = ['pauper'];
+export function formatosDe(args = []) {
+  const i = args.indexOf('--formato');
+  const f = i >= 0 && args[i + 1] ? args[i + 1].split(',').map(x => x.trim().toLowerCase()).filter(Boolean) : [];
+  return f.length ? f : FORMATOS_PADRAO;
+}
+function fontes(lang, formatos = FORMATOS_PADRAO) {
   const impressos = JSON.parse(git('show', `origin/artes:nomes-${lang}.json`)).pares.map(p => p[1]);
   const listas = [];
   for (const f of git('ls-tree', '--name-only', 'origin/catalogo', 'listas/').split('\n').filter(Boolean)) {
     const j = JSON.parse(git('show', `origin/catalogo:${f}`));
-    if (j.formato === 'pauper') for (const e of j.entradas || []) listas.push(e.name);
+    if (formatos.includes(j.formato)) for (const e of j.entradas || []) listas.push(e.name);
   }
   for (const l of Object.values(JSON.parse(readFileSync(join(RAIZ, '.listas/decks.json'), 'utf8')))) listas.push(...Object.keys(l));
   const textos = juntaTextos([
@@ -200,15 +208,16 @@ export function juntaTextos(fontes) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const [op, lang] = process.argv.slice(2);
+  const [op, lang, ...resto] = process.argv.slice(2);
+  const formatos = formatosDe(resto);
   if (op === '--faltam' && IDIOMAS.includes(lang)) {
-    console.log(JSON.stringify(faltam(lang, fontes(lang)), null, 1));
+    console.log(JSON.stringify(faltam(lang, fontes(lang, formatos)), null, 1));
   } else if (op === '--conferir') {
     let ruins = 0;
     for (const l of IDIOMAS) { const r = conferePacote(lePacote(l), l); for (const [n, e] of Object.entries(r)) { ruins++; console.log(`✗ ${l} · ${n}: ${e.join('; ')}`); } console.log(`${l}: ${Object.keys(lePacote(l).cartas || {}).length} traduções`); }
     process.exit(ruins ? 1 : 0);
   } else {
-    console.log('uso: node idioma-cartas.mjs --faltam pt|es  ·  node idioma-cartas.mjs --conferir');
+    console.log('uso: node idioma-cartas.mjs --faltam pt|es [--formato standard,pauper]  ·  node idioma-cartas.mjs --conferir');
     process.exit(2);
   }
 }

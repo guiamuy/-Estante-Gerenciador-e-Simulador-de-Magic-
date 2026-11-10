@@ -710,6 +710,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-uu ✅ | T-IDIOMA relatos #53/#66, fatia 3: a carta que nunca saiu impressa em português ou espanhol mostra a tradução precisa do robô (idiomas/cartas-pt.json e cartas-es.json, 113 e 19 cartas das listas Pauper e do Shark), marcada "Tradução", com o original a um toque, conferida por idioma-cartas.mjs (símbolos, números, palavras-chave e nome) e só para o Oracle que ela traduziu (leva G-365, 09/11/2026) | T | 1 | 16º-us |
 | 16º-uv ✅ | T-IDIOMA relatos #53/#66, lote 2 da fatia 3: as 16 cartas Pauper que faltavam em português e as 2 em espanhol (Oracle da cobertura do catálogo e do Forge, idiomas/oficiais-forge.json), as cartas de duas faces com as duas faces traduzidas e pelo nome inteiro da Scryfall (o lote 1 tinha oito pela frente, que o app nunca achava); --faltam junta frente + verso (leva G-368, 10/11/2026) | T | 1 | 16º-uu |
 | 16º-uw ✅ | Y6d relato #106: ditado sem palavra dobrada — final ou parcial que começa pelo último final inteiro (mesmo de uma palavra) entra só o resto, e a cauda dele repetida não entra; com internet o ditado usa o serviço de fala (mais preciso), o reconhecimento no aparelho fica para quando não há internet (G-369, 10/11/2026) | G | 1 | 16º-ue |
+| 16º-uz ✅ | T-IDIOMA relatos #53/#66/#108, lote 3 da fatia 3: as cartas das listas de Standard do catálogo que nunca saíram impressas no idioma (248 em português, 19 em espanhol), todas pelo conferidor; --faltam ganha --formato (padrão pauper) (leva G-373, 10/11/2026) | T | 1 | 16º-uv |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -13588,6 +13589,12 @@ trilha `geral`, 09/11/2026; relato do dono de 09/11: o Enviar abria o GitHub e o
   "de" ("terça-feira, 10 of novembro"; o e2e "G-361" caía nas terças). A G-367 (K3-3) consertou ao mesmo tempo; esta leva
   fica com o conserto dela, tira a data da camada (`translate="no"`) e acrescenta o e2e "G-368" (relógio fixo numa terça,
   inglês, espanhol e de volta ao português; falhava antes do conserto).
+- **Lote 3 da fatia 3 (G-373, `16º-uz`, rotina Relatos contínuo, 10/11/2026) ✅:** `node idioma-cartas.mjs --faltam pt
+  --formato standard` (o `--formato` escolhe os formatos do catálogo; sem ele, só o Pauper, como antes). As cartas das listas
+  de Standard sem impressão no idioma e com o Oracle no repositório entraram: 248 em português, 19 em espanhol (pacotes: 374 e
+  37), todas pelo conferidor. Teste U `idioma-traducao.unit` G-373 (2; o de pacotes falhava antes). **Parcial, declarado:**
+  262 cartas de Standard em português e 41 em espanhol seguem em inglês por falta do Oracle no repositório (a sessão não alcança
+  a Scryfall); Pioneer, Modern, Legacy, Vintage e Commander ficam para os próximos lotes (`--formato pioneer` etc.).
 - **Fora, declarado (fatias seguintes):** a troca de idioma no Perfil (item 2); os pacotes **es** e **en** (item 3: extrair os
   textos para um dicionário por idioma, história de várias rodadas); texto e nome das cartas (item 4, aguarda decisão
   "oficial"/"automática"); a **camada obrigatória de idioma em toda entrega** (texto novo nasce no dicionário e o teste barra
