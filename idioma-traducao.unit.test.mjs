@@ -230,3 +230,19 @@ test('G-377 · pacotes: o lote de Legacy e Vintage está lá, passa no conferido
     assert.ok(C.traducaoDaCarta(P, card, lang), `${lang} · ${nome} aparece no app`);
   }
 });
+
+// G-380 · lote 6 (relatos #53/#66): Commander (Korvold, Niv-Mizzet, Imperial Seal, Knuckles, a Sala Defiled Crypt // Cadaver
+// Lab, Aang de duas faces…), todo pelo conferidor. Falhava antes: nenhuma estava no pacote.
+const AMOSTRA_G380_PT = ['Korvold, Fae-Cursed King', 'Niv-Mizzet, Visionary', 'Imperial Seal', 'Knuckles the Echidna', 'Defiled Crypt // Cadaver Lab', 'Aang, at the Crossroads // Aang, Destined Savior', 'Dead // Gone'];
+const AMOSTRA_G380_ES = ['Imperial Seal', 'Attrition', 'Knuckles the Echidna', 'Dead // Gone', 'M.O.D.O.K.'];
+test('G-380 · pacotes: o lote de Commander está lá, passa no conferidor e vale no app', () => {
+  const pt = lePacote('pt'), es = lePacote('es');
+  assert.ok(Object.keys(pt.cartas).length >= 498 + 160, `pt: ${Object.keys(pt.cartas).length}`);
+  assert.ok(Object.keys(es.cartas).length >= 89 + 43, `es: ${Object.keys(es.cartas).length}`);
+  for (const lang of IDIOMAS) assert.deepEqual(conferePacote(lePacote(lang), lang), {}, lang);
+  for (const [P, amostra, lang] of [[pt, AMOSTRA_G380_PT, 'pt'], [es, AMOSTRA_G380_ES, 'es']]) for (const nome of amostra) {
+    const e = P.cartas[nome]; assert.ok(e, `${lang} · ${nome}`);
+    const card = Array.isArray(e.original) ? { name: nome, faces: e.original.map(o => ({ oracle_text: o })) } : { name: nome, oracle_text: e.original };
+    assert.ok(C.traducaoDaCarta(P, card, lang), `${lang} · ${nome} aparece no app`);
+  }
+});
