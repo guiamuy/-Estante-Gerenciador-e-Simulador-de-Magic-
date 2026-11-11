@@ -214,3 +214,19 @@ test('G-374 · pacotes: o lote de Pioneer e Modern está lá, passa no conferido
     assert.ok(C.traducaoDaCarta(P, card, lang), `${lang} · ${nome} aparece no app`);
   }
 });
+
+// G-377 · lote 5 (relatos #53/#66): Legacy e Vintage (Black Lotus, Time Walk, Ancestral Recall, Bazaar of Baghdad,
+// Barrowgoyf, a aventura do Most Decrepit Old Bird…), todo pelo conferidor. Falhava antes: nenhuma estava no pacote.
+const AMOSTRA_G377_PT = ['Black Lotus', 'Time Walk', 'Ancestral Recall', 'Barrowgoyf', 'Comet, Stellar Pup', 'Most Decrepit Old Bird // Speak Secrets', 'Zack Fair'];
+const AMOSTRA_G377_ES = ['Black Lotus', 'Balance', 'Ad Nauseam', 'Time Vault', 'Shuko'];
+test('G-377 · pacotes: o lote de Legacy e Vintage está lá, passa no conferidor e vale no app', () => {
+  const pt = lePacote('pt'), es = lePacote('es');
+  assert.ok(Object.keys(pt.cartas).length >= 439 + 59, `pt: ${Object.keys(pt.cartas).length}`);
+  assert.ok(Object.keys(es.cartas).length >= 60 + 29, `es: ${Object.keys(es.cartas).length}`);
+  for (const lang of IDIOMAS) assert.deepEqual(conferePacote(lePacote(lang), lang), {}, lang);
+  for (const [P, amostra, lang] of [[pt, AMOSTRA_G377_PT, 'pt'], [es, AMOSTRA_G377_ES, 'es']]) for (const nome of amostra) {
+    const e = P.cartas[nome]; assert.ok(e, `${lang} · ${nome}`);
+    const card = Array.isArray(e.original) ? { name: nome, faces: e.original.map(o => ({ oracle_text: o })) } : { name: nome, oracle_text: e.original };
+    assert.ok(C.traducaoDaCarta(P, card, lang), `${lang} · ${nome} aparece no app`);
+  }
+});

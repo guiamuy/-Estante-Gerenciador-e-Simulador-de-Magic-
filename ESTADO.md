@@ -20,7 +20,7 @@ Marcos: Pauper 100% (as sete listas revisadas carta a carta; 682 de 685 listas P
 | Trilha | Prefixo | Foco atual | Última leva | Próximo |
 |---|---|---|---|---|
 | `scanner` | S | X16: #90 foil (F1 só foil; F2 selo "Foil?") | S-625 · 11/11 | calibrar o foil e #79 no aparelho |
-| `geral` | G | DS-K3 K3-4 + MV-7 (G-375); idioma no sino (G-372); T-IDIOMA (G-373, G-374) | G-375 · 11/11 | DS-K3 K3-5; lotes Legacy/Vintage/Commander; Darval |
+| `geral` | G | DS-K3 K3-4 + MV-7 (G-375); idioma no sino (G-372); T-IDIOMA (G-374, G-377) | G-377 · 11/11 | DS-K3 K3-5; lote Commander; Darval |
 | `motor` | M | CR-PLANO Modern (34/716) | M-618 · 11/11 | {E}; Kaito |
 | `radar` | R | BI4 · Painel Estante: comparar períodos, metas, tendência | R-44 · 07/11 | BI4-6 em diante; validação do dono após os primeiros pilares |
 | `jogabilidade` | J | MK3 · Mesa Vitrine (rotina Mesa MK3) | J-67 · 11/11 | MK3-P1 playmats da casa; relato #54 |
@@ -45,7 +45,7 @@ Datas no formato dia/mês, horário de Brasília. Trilha que muda de foco atuali
 
 ## Relatos do dono abertos (etiqueta `relato`)
 
-Fila da Relatos contínuo: #90 foil (opção A, fatias em curso: S-623). #66/#53 idiomas: fatias 1 a 4 feitas (3 na G-365, lote 2 na G-368: Pauper e Shark completos, menos Darval, Standard na G-373, Pioneer/Modern na G-374). #95 resolvido (G-363, 09/11; #97 duplicata). #106: G-369. Novos: #108, #107. #90 F2: S-624. #107: G-372.
+Fila da Relatos contínuo: #90 foil (opção A, fatias em curso: S-623). #66/#53 idiomas: fatias 1 a 5 (3 na G-365, lote 2 na G-368: Pauper e Shark completos, menos Darval, Standard na G-373, Pioneer/Modern G-374, Legacy/Vintage G-377). #95 resolvido (G-363, 09/11; #97 duplicata). #106: G-369. Novos: #108, #107. #90 F2: S-624. #107: G-372.
 Leitura e fila dos relatos: seção "Relatos do dono" do `CLAUDE.md`.
 
 ## Decisões e pendências do dono
@@ -79,4 +79,4 @@ Os documentos `claude/…` moram no Projeto do claude.ai, fora do repositório: 
 
 No commit de docs de cada leva (o mesmo que atualiza o ROADMAP): reescreva a **sua** linha na tabela de trilhas, atualize relatos e pendências se mudaram e troque a data abaixo. Edite por patch, nunca o arquivo inteiro. Conflito no rebase: fique com as linhas das outras trilhas e a sua. Passou de 8 KB: resuma, não acrescente.
 
-Atualizado: 11/11/2026 · I-328 (rotinas publicam) · M-612 (motor) · I-329 (ponte) · S-622 (scanner) · B-206 · B-207 · B-208 (bot) · G-362 a G-369 (geral) · S-623 (scanner) · M-613 · G-373 · M-615 · B-209 (bot) · G-371 · J-64 · J-65 · S-624 (scanner) · M-616 · G-372 · G-374 · S-625 · J-67 · G-375 · B-210 (bot) · M-618
+Atualizado: 11/11/2026 · I-328 (rotinas publicam) · M-612 (motor) · I-329 (ponte) · S-622 (scanner) · B-206 · B-207 · B-208 (bot) · G-362 a G-369 (geral) · S-623 (scanner) · M-613 · G-373 · M-615 · B-209 (bot) · G-371 · J-64 · J-65 · S-624 (scanner) · M-616 · G-372 · G-374 · S-625 · J-67 · G-375 · B-210 (bot) · M-618 · G-377

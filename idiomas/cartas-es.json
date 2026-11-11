@@ -2,12 +2,22 @@
  "v": 1,
  "idioma": "es",
  "fonte": "Tradução do robô da Estante (rotina na nuvem do Claude), conferida por idioma-cartas.mjs; o original é o Oracle em inglês da Scryfall",
- "geradoEm": "2026-11-10",
+ "geradoEm": "2026-11-11",
  "cartas": {
+  "Ad Nauseam": {
+   "original": "Reveal the top card of your library and put that card into your hand. You lose life equal to its mana value. You may repeat this process any number of times.",
+   "tipo": "Instantáneo",
+   "texto": "Muestra la primera carta de tu biblioteca y ponla en tu mano. Pierdes una cantidad de vidas igual a su valor de maná. Puedes repetir este proceso cualquier cantidad de veces."
+  },
   "Agna Qel'a": {
    "original": "This land enters tapped unless you control a basic land.\n{T}: Add {U}.\n{2}{U}, {T}: Draw a card, then discard a card.",
    "tipo": "Tierra",
    "texto": "Esta tierra entra girada a menos que controles una tierra básica.\n{T}: Agrega {U}.\n{2}{U}, {T}: Roba una carta, luego descarta una carta."
+  },
+  "Ancestral Recall": {
+   "original": "Target player draws three cards.",
+   "tipo": "Instantáneo",
+   "texto": "El jugador objetivo roba tres cartas."
   },
   "Ashling, Rekindled // Ashling, Rimebound": {
    "original": [
@@ -30,15 +40,35 @@
    "tipo": "Tierra",
    "texto": "Esta tierra entra girada a menos que controles una tierra básica.\n{T}: Agrega {G}.\n{2}{G}, {T}: Tierracontrol 2. Activa solo como un conjuro. (La tierra objetivo que controlas se convierte en una criatura 0/0 con prisa que sigue siendo una tierra. Pon dos contadores +1/+1 sobre ella. Cuando muera o sea exiliada, regrésala al campo de batalla girada.)"
   },
+  "Balance": {
+   "original": "Each player chooses a number of lands they control equal to the number of lands controlled by the player who controls the fewest, then sacrifices the rest. Players discard cards and sacrifice creatures the same way.",
+   "tipo": "Conjuro",
+   "texto": "Cada jugador elige una cantidad de tierras que controla igual a la cantidad de tierras controladas por el jugador que controla menos, luego sacrifica el resto. Los jugadores descartan cartas y sacrifican criaturas de la misma manera."
+  },
+  "Barrowgoyf": {
+   "original": "Deathtouch, lifelink\nBarrowgoyf's power is equal to the number of card types among cards in all graveyards and its toughness is equal to that number plus 1.\nWhenever this creature deals combat damage to a player, you may mill that many cards. If you do, you may put a creature card from among them into your hand.",
+   "tipo": "Criatura — Lhurgoyf",
+   "texto": "Toque mortal, vínculo vital\nLa fuerza de Barrowgoyf es igual a la cantidad de tipos de carta entre las cartas en todos los cementerios y su resistencia es igual a esa cantidad más 1.\nSiempre que esta criatura haga daño de combate a un jugador, puedes moler esa cantidad de cartas. Si lo haces, puedes poner en tu mano una carta de criatura de entre ellas."
+  },
   "Basim Ibn Ishaq": {
    "original": "Whenever you cast a historic spell, draw a card. Basim Ibn Ishaq can't be blocked this turn. This ability triggers only once each turn. (Artifacts, legendaries, and Sagas are historic.)\nWhenever Basim Ibn Ishaq deals combat damage to a player, put a +1/+1 counter on it.",
    "tipo": "Criatura legendaria — Humano Asesino",
    "texto": "Siempre que lances un hechizo histórico, roba una carta. Basim Ibn Ishaq no puede ser bloqueado este turno. Esta habilidad se dispara solo una vez cada turno. (Los artefactos, los legendarios y las Sagas son históricos.)\nSiempre que Basim Ibn Ishaq haga daño de combate a un jugador, pon un contador +1/+1 sobre él."
   },
+  "Bazaar of Baghdad": {
+   "original": "{T}: Draw two cards, then discard three cards.",
+   "tipo": "Tierra",
+   "texto": "{T}: Roba dos cartas, luego descarta tres cartas."
+  },
   "Beyeen Veil": {
    "original": "Creatures your opponents control get -2/-0 until end of turn.",
    "tipo": "Instantáneo",
    "texto": "Las criaturas que controlan tus oponentes obtienen -2/-0 hasta el final del turno."
+  },
+  "Black Lotus": {
+   "original": "{T}, Sacrifice Black Lotus: Add three mana of any one color.",
+   "tipo": "Artefacto",
+   "texto": "{T}, sacrificar Black Lotus: Agrega tres manás de un mismo color."
   },
   "Blightstep Pathway": {
    "original": "{T}: Add {B}.",
@@ -102,6 +132,16 @@
    "tipo": "Conjuro",
    "texto": "Crea dos fichas de criatura artefacto Robot Payaso blancas 1/1, luego tira un dado de seis caras. Si el resultado es igual o menor que la cantidad de Robots que controlas, crea una ficha de criatura artefacto Robot Payaso blanca 1/1."
   },
+  "Comet, Stellar Pup": {
+   "original": "0: Roll a six-sided die.\n1 or 2 — [+2], then create two 1/1 green Squirrel creature tokens. They gain haste until end of turn.\n3 — [−1], then return a card with mana value 2 or less from your graveyard to your hand.\n4 or 5 — Comet deals damage equal to the number of loyalty counters on him to a creature or player, then [−2].\n6 — [+1], and you may activate Comet's loyalty ability two more times this turn.",
+   "tipo": "Planeswalker legendario — Comet",
+   "texto": "0: Tira un dado de seis caras.\n1 o 2 — [+2], luego crea dos fichas de criatura Ardilla verde 1/1. Ganan la habilidad de prisa hasta el final del turno.\n3 — [−1], luego regresa a tu mano una carta con valor de maná de 2 o menos de tu cementerio.\n4 o 5 — Comet hace una cantidad de daño igual a la cantidad de contadores de lealtad sobre él a una criatura o jugador, luego [−2].\n6 — [+1], y puedes activar la habilidad de lealtad de Comet dos veces más este turno."
+  },
+  "Copy Artifact": {
+   "original": "You may have this enchantment enter as a copy of any artifact on the battlefield, except it's an enchantment in addition to its other types.",
+   "tipo": "Encantamiento",
+   "texto": "Puedes hacer que este encantamiento entre como una copia de cualquier artefacto en el campo de batalla, excepto que es un encantamiento además de sus otros tipos."
+  },
   "Cragcrown Pathway": {
    "original": "{T}: Add {R}.",
    "tipo": "Tierra",
@@ -111,6 +151,11 @@
    "original": "Teamwork 2 (As an additional cost to cast this spell, you may tap any number of creatures you control with total power 2 or more.)\nExile the top two cards of your library. Until the end of your next turn, you may play those cards. If this spell was cast using teamwork, create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")",
    "tipo": "Instantáneo",
    "texto": "Trabajo en equipo 2 (Como coste adicional para lanzar este hechizo, puedes girar cualquier número de criaturas que controlas con una fuerza total de 2 o más.)\nExilia las dos primeras cartas de tu biblioteca. Hasta el final de tu próximo turno, puedes jugar esas cartas. Si este hechizo se lanzó usando trabajo en equipo, crea una ficha de Tesoro. (Es un artefacto con \"{T}, sacrificar esta ficha: Agrega un maná de cualquier color\".)"
+  },
+  "Dack Fayden": {
+   "original": "+1: Target player draws two cards, then discards two cards.\n−2: Gain control of target artifact.\n−6: You get an emblem with \"Whenever you cast a spell that targets one or more permanents, gain control of those permanents.\"",
+   "tipo": "Planeswalker legendario — Dack",
+   "texto": "+1: El jugador objetivo roba dos cartas, luego descarta dos cartas.\n−2: Gana el control del artefacto objetivo.\n−6: Obtienes un emblema con \"Siempre que lances un hechizo que haga objetivo a uno o más permanentes, gana el control de esos permanentes\"."
   },
   "Darkbore Pathway": {
    "original": "{T}: Add {B}.",
@@ -126,6 +171,11 @@
    "original": "Put any number of target artifact cards from target player's graveyard on top of their library in any order.",
    "tipo": "Conjuro",
    "texto": "Pon cualquier número de cartas de artefacto objetivo del cementerio del jugador objetivo en la parte superior de su biblioteca en cualquier orden."
+  },
+  "Eldrazi Confluence": {
+   "original": "Choose three. You may choose the same mode more than once.\n• Target creature gets +3/-3 until end of turn.\n• Exile target nonland permanent, then return it to the battlefield tapped under its owner's control.\n• Create a 1/1 colorless Eldrazi Scion creature token with \"Sacrifice this token: Add {C}.\"",
+   "tipo": "Instantáneo",
+   "texto": "Elige tres. Puedes elegir el mismo modo más de una vez.\n• La criatura objetivo obtiene +3/-3 hasta el final del turno.\n• Exilia el permanente objetivo que no sea tierra, luego regrésalo al campo de batalla girado bajo el control de su propietario.\n• Crea una ficha de criatura Vástago Eldrazi incolora 1/1 con \"Sacrificar esta ficha: Agrega {C}\"."
   },
   "Elite Interceptor // Rejoinder": {
    "original": "This creature enters prepared. (While it's prepared, you may cast a copy of its spell. Doing so unprepares it.)",
@@ -201,6 +251,11 @@
     }
    ]
   },
+  "Fastbond": {
+   "original": "You may play any number of lands on each of your turns.\nWhenever you play a land, if it wasn't the first land you played this turn, this enchantment deals 1 damage to you.",
+   "tipo": "Encantamiento",
+   "texto": "Puedes jugar cualquier cantidad de tierras en cada uno de tus turnos.\nSiempre que juegues una tierra, si no fue la primera tierra que jugaste este turno, este encantamiento te hace 1 punto de daño."
+  },
   "Fell the Profane": {
    "original": "Destroy target creature or planeswalker.",
    "tipo": "Instantáneo",
@@ -257,15 +312,35 @@
    "tipo": "Instantáneo",
    "texto": "Contrarresta el hechizo objetivo a menos que su controlador pague {1}."
   },
+  "Karakas": {
+   "original": "{T}: Add {W}.\n{T}: Return target legendary creature to its owner's hand.",
+   "tipo": "Tierra legendaria",
+   "texto": "{T}: Agrega {W}.\n{T}: Regresa la criatura legendaria objetivo a la mano de su propietario."
+  },
   "Kytheon, Hero of Akros": {
    "original": "At end of combat, if Kytheon, Hero of Akros and at least two other creatures attacked this combat, exile Kytheon, then return him to the battlefield transformed under his owner's control.\n{2}{W}: Kytheon gains indestructible until end of turn.",
    "tipo": "Criatura legendaria — Humano Soldado",
    "texto": "Al final del combate, si Kytheon, Hero of Akros y al menos otras dos criaturas atacaron en este combate, exilia a Kytheon, luego regrésalo al campo de batalla transformado bajo el control de su propietario.\n{2}{W}: Kytheon gana la habilidad de indestructible hasta el final del turno."
   },
+  "Lazotep Quarry": {
+   "original": "{T}: Add {C}.\n{T}, Sacrifice a creature: Add one mana of any color.\n{X}{2}, {T}, Sacrifice a Desert: Exile target creature card with mana value X from your graveyard. Create a token that's a copy of it, except it's a 4/4 black Zombie. Activate only as a sorcery.",
+   "tipo": "Tierra — Desierto",
+   "texto": "{T}: Agrega {C}.\n{T}, sacrificar una criatura: Agrega un maná de cualquier color.\n{X}{2}, {T}, sacrificar un Desierto: Exilia la carta de criatura objetivo con valor de maná X de tu cementerio. Crea una ficha que es una copia de ella, excepto que es un Zombie negro 4/4. Activa esta habilidad solo como un conjuro."
+  },
+  "Legolas's Quick Reflexes": {
+   "original": "Split second (As long as this spell is on the stack, players can't cast spells or activate abilities that aren't mana abilities.)\nUntap target creature. Until end of turn, it gains reach, hexproof, and \"Whenever this creature becomes tapped, it deals damage equal to its power to up to one target creature.\"",
+   "tipo": "Instantáneo",
+   "texto": "Segundo dividido (Mientras este hechizo esté en la pila, los jugadores no pueden lanzar hechizos ni activar habilidades que no sean habilidades de maná.)\nEndereza la criatura objetivo. Hasta el final del turno, gana alcance, antimaleficio y \"Siempre que esta criatura se gire, hace una cantidad de daño igual a su fuerza a hasta una criatura objetivo\"."
+  },
   "Lunarch Veteran": {
    "original": "Whenever another creature enters the battlefield under your control, you gain 1 life.\nDisturb {1}{W} (You may cast this card from your graveyard transformed for its disturb cost.)",
    "tipo": "Criatura — Humano Clérigo",
    "texto": "Siempre que otra criatura entre al campo de batalla bajo tu control, ganas 1 vida.\nPerturbar {1}{W} (Puedes lanzar esta carta desde tu cementerio transformada por su coste de perturbar.)"
+  },
+  "Mana Crypt": {
+   "original": "At the beginning of your upkeep, flip a coin. If you lose the flip, this artifact deals 3 damage to you.\n{T}: Add {C}{C}.",
+   "tipo": "Artefacto",
+   "texto": "Al comienzo de tu mantenimiento, lanza una moneda al aire. Si pierdes el lanzamiento, este artefacto te hace 3 puntos de daño.\n{T}: Agrega {C}{C}."
   },
   "Mirrex": {
    "original": "{T}: Add {C}.\n{T}: Add one mana of any color. Activate only if this land entered this turn.\n{3}, {T}: Create a 1/1 colorless Phyrexian Mite artifact creature token with toxic 1 and \"This token can't block.\" (Players dealt combat damage by it also get a poison counter.)",
@@ -313,10 +388,20 @@
    "tipo": "Criatura — Djinn Monje",
    "texto": "Destreza. (Siempre que lances un hechizo que no sea de criatura, esta criatura obtiene +1/+1 hasta el final del turno.)\nCuando esta criatura entre, regresa la carta de instantáneo o de conjuro objetivo de tu cementerio a tu mano."
   },
+  "Planar Nexus": {
+   "original": "This land is every nonbasic land type. (Nonbasic land types include Cave, Desert, Gate, Lair, Locus, Mine, Power-Plant, Sphere, Tower, and Urza's.)\n{T}: Add {C}.\n{1}, {T}: Add one mana of any color.",
+   "tipo": "Tierra",
+   "texto": "Esta tierra es de todos los tipos de tierra no básica. (Los tipos de tierra no básica incluyen Cueva, Desierto, Puerta, Guarida, Locus, Mina, Central, Esfera, Torre y Urza.)\n{T}: Agrega {C}.\n{1}, {T}: Agrega un maná de cualquier color."
+  },
   "Pompous Battlemage": {
    "original": "Prowess\nThis creature enters prepared. (While it's prepared, you may cast a copy of its spell. Doing so unprepares it.)",
    "tipo": "Criatura — Trasgo Mago",
    "texto": "Destreza\nEsta criatura entra preparada. (Mientras esté preparada, puedes lanzar una copia de su hechizo. Hacerlo hace que deje de estar preparada.)"
+  },
+  "Power Artifact": {
+   "original": "Enchant artifact\nEnchanted artifact's activated abilities cost {2} less to activate. This effect can't reduce the mana in that cost to less than one mana.",
+   "tipo": "Encantamiento — Aura",
+   "texto": "Encantar artefacto\nLas habilidades activadas del artefacto encantado cuestan {2} menos de activar. Este efecto no puede reducir el maná de ese coste a menos de un maná."
   },
   "Pyre Rhymer // Molten Tide": {
    "original": [
@@ -334,15 +419,30 @@
     }
    ]
   },
+  "Pyrogoyf": {
+   "original": "Pyrogoyf's power is equal to the number of card types among cards in all graveyards and its toughness is equal to that number plus 1.\nWhenever this creature or another Lhurgoyf creature you control enters, that creature deals damage equal to its power to any target.",
+   "tipo": "Criatura — Lhurgoyf",
+   "texto": "La fuerza de Pyrogoyf es igual a la cantidad de tipos de carta entre las cartas en todos los cementerios y su resistencia es igual a esa cantidad más 1.\nSiempre que esta criatura u otra criatura Lhurgoyf que controlas entre, esa criatura hace una cantidad de daño igual a su fuerza a cualquier objetivo."
+  },
   "Questing Druid": {
    "original": "Whenever you cast a spell that's white, blue, black, or red, put a +1/+1 counter on this creature.",
    "tipo": "Criatura — Humano Druida",
    "texto": "Siempre que lances un hechizo que sea blanco, azul, negro o rojo, pon un contador +1/+1 sobre esta criatura."
   },
+  "Razorgrass Ambush": {
+   "original": "Razorgrass Ambush deals 3 damage to target attacking or blocking creature.",
+   "tipo": "Instantáneo",
+   "texto": "Razorgrass Ambush hace 3 puntos de daño a la criatura atacante o bloqueadora objetivo."
+  },
   "Riverglide Pathway": {
    "original": "{T}: Add {U}.",
    "tipo": "Tierra",
    "texto": "{T}: Agrega {U}."
+  },
+  "Shuko": {
+   "original": "Equipped creature gets +1/+0.\nEquip {0} ({0}: Attach to target creature you control. Equip only as a sorcery.)",
+   "tipo": "Artefacto — Equipo",
+   "texto": "La criatura equipada obtiene +1/+0.\nEquipar {0} ({0}: Anexa a la criatura objetivo que controlas. Equipa solo como un conjuro.)"
   },
   "Sink into Stupor": {
    "original": "Return target spell or nonland permanent an opponent controls to its owner's hand.",
@@ -358,6 +458,11 @@
    "original": "Lifelink\nExtort (Whenever you cast a spell, you may pay {W/B}. If you do, each opponent loses 1 life and you gain that much life.)\nAt the beginning of each of your postcombat main phases, if you gained 3 or more life this turn, exile Sorin, then return him to the battlefield transformed under his owner's control.",
    "tipo": "Criatura legendaria — Humano Noble",
    "texto": "Vínculo vital\nExtorsionar (Siempre que lances un hechizo, puedes pagar {W/B}. Si lo haces, cada oponente pierde 1 vida y tú ganas esa misma cantidad de vidas.)\nAl comienzo de cada una de tus fases principales poscombate, si ganaste 3 o más vidas este turno, exilia a Sorin, luego regrésalo al campo de batalla transformado bajo el control de su propietario."
+  },
+  "Talon Gates of Madara": {
+   "original": "When this land enters, up to one target creature phases out.\n{T}: Add {C}.\n{1}, {T}: Add one mana of any color.\n{4}: Put this card from your hand onto the battlefield.",
+   "tipo": "Tierra — Puerta",
+   "texto": "Cuando esta tierra entre, hasta una criatura objetivo queda fuera de fase.\n{T}: Agrega {C}.\n{1}, {T}: Agrega un maná de cualquier color.\n{4}: Pon esta carta de tu mano en el campo de batalla."
   },
   "Tamiyo, Inquisitive Student": {
    "original": "Flying\nWhenever Tamiyo attacks, investigate. (Create a Clue token. It's an artifact with \"{2}, Sacrifice this token: Draw a card.\")\nWhen you draw your third card in a turn, exile Tamiyo, then return her to the battlefield transformed under her owner's control.",
@@ -390,15 +495,45 @@
    "tipo": "Encantamiento — Saga",
    "texto": "(Al entrar esta Saga y después de tu paso de robar, agrega un contador de historia.)\nI, II — Roba una carta, luego descarta una carta.\nIII — Exilia esta Saga, luego regrésala al campo de batalla transformada bajo tu control."
   },
+  "The Tabernacle at Pendrell Vale": {
+   "original": "All creatures have \"At the beginning of your upkeep, destroy this creature unless you pay {1}.\"",
+   "tipo": "Tierra legendaria",
+   "texto": "Todas las criaturas tienen \"Al comienzo de tu mantenimiento, destruye esta criatura a menos que pagues {1}\"."
+  },
   "Tifa Lockhart": {
    "original": "Trample\nLandfall — Whenever a land you control enters, double Tifa Lockhart's power until end of turn.",
    "tipo": "Criatura legendaria — Humano Monje",
    "texto": "Arrolla\nAterrizaje — Siempre que una tierra que controlas entre, duplica la fuerza de Tifa Lockhart hasta el final del turno."
   },
+  "Time Vault": {
+   "original": "This artifact enters tapped.\nThis artifact doesn't untap during your untap step.\nIf you would begin your turn while this artifact is tapped, you may skip that turn instead. If you do, untap this artifact.\n{T}: Take an extra turn after this one.",
+   "tipo": "Artefacto",
+   "texto": "Este artefacto entra girado.\nEste artefacto no se endereza durante tu paso de enderezar.\nSi fueras a comenzar tu turno mientras este artefacto está girado, en vez de eso, puedes saltarte ese turno. Si lo haces, endereza este artefacto.\n{T}: Juega un turno adicional después de este."
+  },
+  "Time Walk": {
+   "original": "Take an extra turn after this one.",
+   "tipo": "Conjuro",
+   "texto": "Juega un turno adicional después de este."
+  },
+  "Timetwister": {
+   "original": "Each player shuffles their hand and graveyard into their library, then draws seven cards. (Then put Timetwister into its owner's graveyard.)",
+   "tipo": "Conjuro",
+   "texto": "Cada jugador baraja su mano y su cementerio en su biblioteca, luego roba siete cartas. (Luego pon Timetwister en el cementerio de su propietario.)"
+  },
   "Tithing Blade // Consuming Sepulcher": {
    "original": "When Tithing Blade enters, each opponent sacrifices a creature.\nCraft with creature {4}{B} ({4}{B}, Exile this artifact, Exile a creature you control or a creature card from your graveyard: Return this card transformed under its owner's control. Craft only as a sorcery.)",
    "tipo": "Artefacto",
    "texto": "Cuando Tithing Blade entre, cada oponente sacrifica una criatura.\nFabricar con criatura {4}{B} ({4}{B}, exiliar este artefacto, exiliar una criatura que controlas o una carta de criatura de tu cementerio: Regresa esta carta transformada bajo el control de su propietario. Fabrica solo como un conjuro.)"
+  },
+  "Tolaria": {
+   "original": "{T}: Add {U}.\n{T}: Target creature loses banding and all \"bands with other\" abilities until end of turn. Activate only during any upkeep step.",
+   "tipo": "Tierra legendaria",
+   "texto": "{T}: Agrega {U}.\n{T}: La criatura objetivo pierde la habilidad de agruparse y todas las habilidades de \"agruparse con otras\" hasta el final del turno. Activa esta habilidad solo durante cualquier paso de mantenimiento."
+  },
+  "Transmute Artifact": {
+   "original": "Sacrifice an artifact. If you do, search your library for an artifact card. If that card's mana value is less than or equal to the sacrificed artifact's mana value, put it onto the battlefield. If it's greater, you may pay {X}, where X is the difference. If you do, put it onto the battlefield. If you don't, put it into its owner's graveyard. Then shuffle.",
+   "tipo": "Conjuro",
+   "texto": "Sacrifica un artefacto. Si lo haces, busca en tu biblioteca una carta de artefacto. Si el valor de maná de esa carta es menor o igual que el valor de maná del artefacto sacrificado, ponla en el campo de batalla. Si es mayor, puedes pagar {X}, donde X es la diferencia. Si lo haces, ponla en el campo de batalla. Si no lo haces, ponla en el cementerio de su propietario. Luego baraja."
   },
   "Ultimate Alliance": {
    "original": "Ultimate Alliance deals damage equal to the number of creatures you control to target creature.",
@@ -420,10 +555,20 @@
    "tipo": "Instantáneo",
    "texto": "Busca en tu biblioteca una carta de instantáneo o una carta con destello, muéstrala, ponla en tu mano y luego baraja."
   },
+  "Wheel of Fortune": {
+   "original": "Each player discards their hand, then draws seven cards.",
+   "tipo": "Conjuro",
+   "texto": "Cada jugador descarta su mano, luego roba siete cartas."
+  },
   "Witch Enchanter": {
    "original": "When this creature enters, destroy target artifact or enchantment an opponent controls.",
    "tipo": "Criatura — Humano Brujo",
    "texto": "Cuando esta criatura entre, destruye el artefacto o encantamiento objetivo que controla un oponente."
+  },
+  "Zack Fair": {
+   "original": "Zack Fair enters with a +1/+1 counter on it.\n{1}, Sacrifice Zack Fair: Target creature you control gains indestructible until end of turn. Put Zack Fair's counters on that creature and attach an Equipment that was attached to Zack Fair to that creature.",
+   "tipo": "Criatura legendaria — Humano Soldado",
+   "texto": "Zack Fair entra con un contador +1/+1.\n{1}, sacrificar a Zack Fair: La criatura objetivo que controlas gana la habilidad de indestructible hasta el final del turno. Pon los contadores de Zack Fair sobre esa criatura y anexa a esa criatura un Equipo que estaba anexado a Zack Fair."
   }
  }
 }
