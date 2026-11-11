@@ -3720,7 +3720,7 @@ test('e2e · U2 ícones, profundidade e CTAs enxutos: barra, início e topo da m
   const ferramentas = await audita('.tb-top > #tb-mais'); confere(ferramentas, 'topo da mesa', { maxPalavras: 0 });
   assert.deepEqual(ferramentas.map(f => f.id), ['tb-mais']);
   assert.deepEqual(ferramentas.map(f => f.nome), ['Mais ações']);
-  assert.deepEqual(await page.$$eval('#tb-mais-menu > button', bs => bs.map(b => [b.id, b.textContent.trim()])), [['tb-undo', 'Desfazer'], ['tb-log', 'Registro'], ['tb-concede', 'Desistir']]);
+  assert.deepEqual(await page.$$eval('#tb-mais-menu > button', bs => bs.map(b => [b.id, b.textContent.trim()])), [['tb-undo', 'Desfazer'], ['tb-log', 'Registro'], ['tb-playmat', 'Playmat'], ['tb-concede', 'Desistir']]); // MK3-P2 (J-71) · ⋯ › Playmat entra antes de Desistir (expectativa estendida de propósito)
   await page.waitForTimeout(400); // a faixa entra com animação de 300ms
   const [vez, desistir] = [await caixa('#tb-vez'), await caixa('#tb-mais')];
   assert.ok(Math.abs((vez.y + vez.height / 2) - (desistir.y + desistir.height / 2)) < 4, 'ferramentas na mesma linha da faixa de vez');
@@ -8370,7 +8370,7 @@ test('e2e · D2 aparência: tema, cor de destaque, texto, densidade, movimento e
   const [download] = await Promise.all([page.waitForEvent('download'), page.click('#perfil-backup-export')]);
   const dados = JSON.parse(await (await download.createReadStream()).toArray().then(p => Buffer.concat(p).toString('utf8')));
   // D7 (leva 151) · a aparência ganhou superfície, cor do oponente e verso: o backup leva os três no padrão
-  assert.deepEqual(dados.prefs['ui.aparencia'], { escala: 'grande', densidade: 'compacta', acento: 'jade', movimento: 'reduzido', vibracao: false, superficie: 'nogueira', oponente: 'azul', verso: 'estante', orientacao: 'automatica' }); // J-59 · a orientação entrou na aparência
+  assert.deepEqual(dados.prefs['ui.aparencia'], { escala: 'grande', densidade: 'compacta', acento: 'jade', movimento: 'reduzido', vibracao: false, superficie: 'nogueira', oponente: 'azul', verso: 'estante', orientacao: 'automatica', playmat: 'padrao' }); // J-59 · a orientação entrou na aparência; MK3-P2 (J-71) · o playmat também (expectativa estendida de propósito)
   // de volta ao padrão
   const toque = async (sel, pronto) => { await page.click(sel); await page.waitForFunction(pronto, null, { timeout: 5000 }); };
   await toque('#aparencia-acento [data-acento="latao"]', () => !document.documentElement.getAttribute('data-acento'));
@@ -11172,7 +11172,7 @@ test('e2e · DS-K2 M3 barra da mesa: Sair · vida dele · faixa de vez · sua vi
   await page.click('#tb-mais'); await page.waitForSelector('#tb-mais-menu:not([hidden])');
   const menu = await page.evaluate(() => { const m = document.querySelector('#tb-mais-menu'), r = m.getBoundingClientRect();
     return { itens: [...m.children].map(b => [b.id, b.getAttribute('role'), Math.round(b.getBoundingClientRect().height)]), dentro: r.right <= innerWidth && r.left >= 0, expandido: document.querySelector('#tb-mais').getAttribute('aria-expanded') }; });
-  assert.deepEqual(menu.itens.map(i => i[0]), ['tb-undo', 'tb-log', 'tb-concede']); assert.ok(menu.itens.every(i => i[1] === 'menuitem' && i[2] >= 44), 'itens de menu de 44 px ' + JSON.stringify(menu.itens));
+  assert.deepEqual(menu.itens.map(i => i[0]), ['tb-undo', 'tb-log', 'tb-playmat', 'tb-concede']); /* MK3-P2 (J-71) · ⋯ › Playmat (expectativa estendida de propósito) */ assert.ok(menu.itens.every(i => i[1] === 'menuitem' && i[2] >= 44), 'itens de menu de 44 px ' + JSON.stringify(menu.itens));
   assert.ok(menu.dentro && menu.expandido === 'true', 'o menu cabe na tela e o ⋯ diz que abriu');
   await auditaTela(page, 'DS-K2 M3 · ⋯ aberto');
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/ds-k2-m3-mais.png', clip: { x: 0, y: 0, width: 360, height: 300 } });
@@ -22900,5 +22900,130 @@ test('e2e · G-378 DS-K3 K3-5: Últimas listas (Início) em ladrilhos com a arte
   // /ds: a amostra (larga e duas em grade, todas em placa)
   await page.goto(base + '#/ds'); await page.waitForSelector('#ds-ladrilhos');
   assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll('#ds-ladrilhos .deck-item--ladrilho')].map(l => [l.classList.contains('deck-item--largo'), l.querySelector('.deck-item__arte').dataset.arte])), [[true, 'placa'], [false, 'placa'], [false, 'placa']]);
+  assert.deepEqual(errors, []);
+});
+
+/** J-71 · MK3-P2: mede a receita "pousar" do playmat num lado (pausa no começo, lê largura e topo, solta e espera o fim pelas
+    animações, nunca por tempo). Devolve o começo, o fim e se havia a sombra alta. */
+async function medePousa(page, sel) {
+  return page.evaluate(async sel => {
+    const l = document.querySelector(sel); const R = () => { const b = l.getBoundingClientRect(); return { w: +b.width.toFixed(1), top: +b.top.toFixed(1) }; };
+    const anims = l.getAnimations({ subtree: true }).filter(a => /^playmat-pousa/.test(a.animationName || ''));
+    const corpo = anims.find(a => a.animationName === 'playmat-pousa'), sombra = anims.find(a => a.animationName === 'playmat-pousa-sombra');
+    const fim0 = R();
+    if (!corpo) return { anims: anims.length, inicio: fim0, fim: fim0, sombra: false, classe: l.classList.contains('playmat-pousa') };
+    const dur = corpo.effect.getTiming().duration;
+    anims.forEach(a => { a.pause(); a.currentTime = 0; }); const inicio = R();
+    anims.forEach(a => a.play()); await Promise.all(anims.map(a => a.finished));
+    // o outro lado pousa escalonado (--escalona-1): a receita sai dos dois quando o último termina
+    await Promise.all(document.getAnimations().filter(a => /^playmat-pousa/.test(a.animationName || '')).map(a => a.finished.catch(() => {})));
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    return { anims: anims.length, dur, inicio, fim: R(), sombra: !!sombra, classe: l.classList.contains('playmat-pousa') };
+  }, sel);
+}
+
+test('e2e · J-71 MK3-P2 galeria e escolha: Perfil › Playmats com a mini-mesa e os sete ladrilhos (padrão e os seis da casa), tocar aplica na hora com a receita "pousar" nos três níveis de Movimento, guarda no aparelho (volta depois de recarregar), erro com "Tentar de novo", vazio dos criados, volta ao Perfil; na mesa, os dois lados com o escolhido (espelho), ⋯ › Playmat troca na partida em curso; auditaTela nos dois temas, auditaSimetria nas quatro medidas; palco no /ds', { skip, timeout: 240000 }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  // Perfil: a entrada com o playmat de agora no resumo
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-playmats');
+  assert.match(await page.textContent('#perfil-playmats'), /Playmats\s*Padrão/);
+  await page.click('#perfil-playmats'); await page.waitForSelector('#playmats-galeria');
+  const galeria = () => page.evaluate(() => [...document.querySelectorAll('#playmats-galeria [role="radio"]')].map(b => ({ k: b.dataset.playmat, nome: b.querySelector('.playmat-ladrilho__nome').textContent,
+    marcado: b.getAttribute('aria-checked'), fundo: getComputedStyle(b.querySelector('.playmat-ladrilho__amostra')).backgroundImage, alto: b.getBoundingClientRect().height })));
+  let g = await galeria();
+  assert.deepEqual(g.map(x => x.k), ['padrao', 'ebano', 'feltro', 'oceano', 'vinho', 'pergaminho', 'latao'], 'o padrão e os seis da casa, na ordem da MK3-P1');
+  assert.deepEqual(g.map(x => x.nome), ['Padrão', 'Ébano', 'Feltro', 'Oceano', 'Vinho', 'Pergaminho', 'Latão gravado']);
+  assert.deepEqual(g.map(x => x.marcado), ['true', 'false', 'false', 'false', 'false', 'false', 'false'], 'sem escolha, o padrão marcado');
+  assert.equal(new Set(g.map(x => x.fundo)).size, 7, 'sete amostras diferentes (a do padrão é o papel do lado)');
+  assert.ok(g.every(x => x.alto >= 44), 'ladrilhos com alvo de 44 px: ' + g.map(x => x.alto));
+  // mini-mesa: dois lados, três cartas, o mesmo playmat nos dois
+  const previa = () => page.evaluate(() => { const ls = [...document.querySelectorAll('#playmat-previa > .tb-side')];
+    return { lados: ls.length, cartas: ls.map(l => l.querySelectorAll('.tb-card').length), k: ls.map(l => l.dataset.playmat), fundos: ls.map(l => getComputedStyle(l).backgroundImage) }; });
+  let pv = await previa();
+  assert.deepEqual([pv.lados, pv.cartas, pv.k], [2, [1, 2], ['padrao', 'padrao']]);
+  assert.equal(await page.isVisible('#playmats-vazio'), true, 'estado vazio dos criados por você');
+  for (const tema of ['dark', 'light']) { await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await auditaTela(page, `J-71 · MK3-P2 Playmats ${tema}`);
+    if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + `/j-71-mk3-p2-${tema}.png` }); }
+  // tocar aplica na hora, nos três níveis de Movimento, com a receita "pousar" na mini-mesa
+  const niveis = [['completo', null, 'ebano'], ['moderado', 'moderado', 'oceano'], ['reduzido', 'reduzido', 'vinho']];
+  for (const [nivel, attr, k] of niveis) {
+    // pela Aparência (como o jogador escolhe): guardar o playmat reaplica a aparência inteira, e o nível vem dela
+    await page.evaluate(a => window.__estanteTema.setAparencia({ movimento: a || 'sistema' }), attr);
+    assert.equal(await page.evaluate(() => document.documentElement.getAttribute('data-movimento')), attr);
+    await page.click(`#playmats-galeria-${k}`);
+    const m = await medePousa(page, '#playmat-previa > .tb-side--opp');
+    t.diagnostic(`J-71 · pousar ${nivel}: ${JSON.stringify(m)}`);
+    assert.equal(await page.evaluate(() => document.documentElement.dataset.playmat), k, `${nivel}: vale na hora (o <html> leva o playmat)`);
+    pv = await previa(); assert.deepEqual(pv.k, [k, k], `${nivel}: a mini-mesa com o escolhido nos dois lados`); assert.equal(pv.fundos[0], pv.fundos[1]);
+    assert.equal(m.classe, false, `${nivel}: a receita sai do lado ao terminar`);
+    assert.ok(Math.abs(m.fim.w - m.inicio.w) < 0.6 || nivel === 'completo', `${nivel}: sem Z, a largura não muda`);
+    if (nivel === 'completo') {
+      assert.ok(m.anims >= 2 && m.sombra, 'completo: o lado e a sombra alta animam');
+      assert.ok(m.inicio.w > m.fim.w + 4, `completo: começa mais perto da câmera (Z) e desce: ${m.inicio.w} → ${m.fim.w}`);
+      assert.ok(m.inicio.top < m.fim.top, 'completo: começa levantado e assenta');
+    } else if (nivel === 'moderado') {
+      assert.ok(m.anims >= 1 && m.inicio.top < m.fim.top && m.fim.top - m.inicio.top <= 8.5, `moderado: viagem curta, sem Z: ${m.inicio.top} → ${m.fim.top}`);
+    } else assert.ok(!m.dur || m.dur <= 1, `reduzido: o playmat novo num quadro (${m.dur})`);
+    g = await galeria(); assert.deepEqual(g.filter(x => x.marcado === 'true').map(x => x.k), [k], `${nivel}: só o escolhido marcado`);
+    assert.equal(await page.textContent('#playmats-atual'), { ebano: 'Ébano', oceano: 'Oceano', vinho: 'Vinho' }[k]);
+  }
+  await page.evaluate(() => window.__estanteTema.setAparencia({ movimento: 'sistema' }));
+  // guardado: volta depois de recarregar, e o Perfil mostra no resumo
+  await page.reload(); await page.waitForSelector('#playmats-galeria');
+  assert.equal(await page.evaluate(() => document.documentElement.dataset.playmat), 'vinho', 'a escolha volta ao abrir o app');
+  assert.equal(await page.getAttribute('#playmats-galeria-vinho', 'aria-checked'), 'true');
+  // erro: o aparelho não guardou → aviso e "Tentar de novo"; a escolha vale assim mesmo
+  await page.evaluate(() => { const T = window.__estanteTema; T.__set = T.setAparencia; T.setAparencia = async (p, o) => { if (o && o.estrito) { T.aplicaAparencia({ ...T.aparencia, ...p }); throw new Error('cheio'); } return T.__set(p, o); }; });
+  await page.click('#playmats-galeria-feltro'); await page.waitForSelector('#playmats-erro');
+  assert.match(await page.textContent('#playmats-erro'), /Não consegui guardar o playmat Feltro neste aparelho/);
+  assert.equal(await page.evaluate(() => document.documentElement.dataset.playmat), 'feltro');
+  await auditaTela(page, 'J-71 · MK3-P2 Playmats erro');
+  await page.evaluate(() => { const T = window.__estanteTema; T.setAparencia = T.__set; });
+  await page.click('#playmats-de-novo'); await page.waitForFunction(() => !document.querySelector('#playmats-erro'));
+  // volta ao Perfil, com o novo no resumo
+  await page.click('#playmats-voltar'); await page.waitForSelector('#perfil-playmats');
+  assert.match(await page.textContent('#perfil-playmats'), /Feltro/);
+  // na mesa: os dois lados com o escolhido (espelho); ⋯ › Playmat troca na partida em curso
+  const ELFOS = '4 Elvish Mystic\n11 Forest\n1 Fyndhorn Elves\n4 Generous Ent\n4 Llanowar Elves\n4 Masked Vandal\n4 Nyxborn Hydra\n4 Priest of Titania\n4 Quirion Ranger\n2 Sagu Wildling\n3 Timberwatch Elf\n4 Lead the Stampede\n4 Winding Way\n2 Land Grant\n1 Gingerbread Cabin';
+  await createDeck(page, base, 'Elfos', ELFOS);
+  await page.goto(base + '#/mesa'); await page.fill('#mesa-seed', '1');
+  await page.waitForFunction(() => { const c = document.querySelector('[data-opponent="shark"]'); return c && !c.disabled; }, null, { timeout: 8000 });
+  await page.click('[data-opponent="shark"]'); await page.waitForSelector('#mesa-bot-deck');
+  await escolheLista(page, 'mesa-bot-deck', 'shark-elfos');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await semPensar(page); await page.waitForSelector('#tb-pass, #tb-pass-turn');
+  const lados = () => page.evaluate(() => [...document.querySelectorAll('.tb-board > .tb-side')].map(l => ({ k: l.dataset.playmat, fundo: getComputedStyle(l).backgroundImage })));
+  let ld = await lados();
+  assert.deepEqual(ld.map(x => x.k), ['feltro', 'feltro'], 'a partida nova abre com o playmat escolhido nos dois lados');
+  assert.equal(ld[0].fundo, ld[1].fundo); assert.match(ld[0].fundo, /gradient/);
+  await auditaSimetria(page, 'J-71 · MK3-P2 mesa feltro');
+  await page.click('#tb-mais'); await page.click('#tb-playmat'); await page.waitForSelector('#tb-playmats');
+  assert.equal(await page.getAttribute('#tb-playmats-feltro', 'aria-checked'), 'true');
+  await page.click('#tb-playmats-latao');
+  const mm = await medePousa(page, '.tb-board > .tb-side--me');
+  t.diagnostic(`J-71 · pousar na mesa: ${JSON.stringify(mm)}`);
+  assert.ok(mm.anims >= 2 && mm.inicio.w > mm.fim.w, 'na mesa, os lados pousam o playmat novo (completo)');
+  await page.waitForFunction(() => document.querySelector('#tb-playmats-latao').getAttribute('aria-checked') === 'true');
+  await auditaTela(page, 'J-71 · MK3-P2 ⋯ › Playmat');
+  await page.click('#tb-playmats-pronto'); await page.waitForSelector('#tb-playmats', { state: 'detached' });
+  ld = await lados();
+  assert.deepEqual(ld.map(x => x.k), ['latao', 'latao'], 'troca na partida em curso, nos dois lados');
+  assert.equal(await page.evaluate(() => document.documentElement.dataset.playmat), 'latao');
+  // o redesenho da mesa mantém o escolhido
+  await page.evaluate(() => window.__estanteMesa.repinta());
+  assert.deepEqual((await lados()).map(x => x.k), ['latao', 'latao']);
+  for (const [w, hgt] of [[360, 780], [384, 832], [390, 844], [412, 891]]) for (const tema of ['dark', 'light']) {
+    await page.setViewportSize({ width: w, height: hgt }); await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(100);
+    await auditaSimetria(page, `J-71 · MK3-P2 mesa latao ${w}×${hgt} ${tema}`);
+    if (w === 360) await auditaTela(page, `J-71 · MK3-P2 mesa latao ${tema}`);
+  }
+  // palco do /ds: a mini-mesa e os ladrilhos; a escolha ali não fica guardada
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base + '#/ds'); await page.waitForSelector('#ds-playmat-escolha');
+  await page.locator('#ds-playmat-galeria-oceano').scrollIntoViewIfNeeded(); await page.click('#ds-playmat-galeria-oceano');
+  await page.waitForFunction(() => [...document.querySelectorAll('#ds-playmat-previa > .tb-side')].every(l => l.dataset.playmat === 'oceano'));
+  assert.equal(await page.evaluate(() => document.documentElement.dataset.playmat), 'latao', 'o /ds não muda a escolha guardada');
+  await auditaTela(page, 'J-71 · MK3-P2 /ds');
   assert.deepEqual(errors, []);
 });
