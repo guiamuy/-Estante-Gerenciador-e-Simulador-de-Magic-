@@ -9799,7 +9799,8 @@ function effectErrors(effects, label, opcional) {
       if (e.transformada != null && (e.transformada !== true || e.para !== 'battlefield')) errs.push(`${L}: "transformada" (true) só vale para o campo`); // T-53 · CR 712.14a
     }
     if (e.do === 'continuo') { // CR2-G R3b
-      if (e.poder == null && e.resistencia == null && !(e.palavras || []).length && !e.torna && !e.toxico && !(e.perde || []).length && e.cores == null && !e.troca) errs.push(`${label} ${i + 1}: efeito contínuo não muda nada`);
+      if (e.poder == null && e.resistencia == null && !(e.palavras || []).length && !e.torna && !e.toxico && !(e.perde || []).length && e.cores == null && !e.troca && e.ward == null) errs.push(`${label} ${i + 1}: efeito contínuo não muda nada`);
+      if (e.ward != null) errs.push(...wardCustoErrosK(e.ward, false).map(x => `${label} ${i + 1}: "ward" ${x}`)); // M-617 · 702.21a · salvaguarda ganha com duração
       if (e.cores != null && !(Array.isArray(e.cores) && e.cores.every(x => ['W', 'U', 'B', 'R', 'G'].includes(x)) && (e.cores.length || !e.somaCores))) errs.push(`${label} ${i + 1}: "cores" precisa de W, U, B, R ou G (vazio = incolor)`); // CR2d.8
       if (e.perde != null && !(Array.isArray(e.perde) && e.perde.length && e.perde.every(k => KEYWORDS.includes(String(k).toLowerCase())))) errs.push(`${label} ${i + 1}: palavra-chave desconhecida em "perde"`); // CR2d.7
       if (e.toxico != null && !(Number.isInteger(e.toxico) && e.toxico > 0 && (e.ate == null || e.ate === 'fim-do-turno'))) errs.push(`${label} ${i + 1}: tóxico concedido é inteiro positivo e dura até o fim do turno`); // M-255
@@ -12249,6 +12250,23 @@ const RAW_SCRIPTS = [
   { name: 'Nest Invader', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'token', amount: 1, token: { name: 'Eldrazi Spawn', types: ['creature'], subtypes: ['Eldrazi', 'Spawn'], colors: [], power: 0, toughness: 1, // "When this creature enters, create a 0/1 colorless Eldrazi Spawn creature token. It has "Sacrifice this token: Add {C}.""
     abilities: [{ kind: 'activated', cost: { sacrifice: true }, effects: [{ do: 'add_mana', symbols: ['C'] }] }] } }] }],
     example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o S8 monta a carta sem a linha de tipo (fixtures.mjs fica com a trilha motor): o cenário de verdade está em listas.lote12.unit
+  // M-617 · rotina Motor contínuo, campanha Modern (ordem gulosa c): cada carta abaixo é a única que faltava numa lista Modern do
+  // catálogo (cobertura/modern.json do ramo catalogo, 10/11/2026). Texto da API da Scryfall (cards/collection) de 10/11/2026,
+  // guardado em .listas/oficiais-revisadas.json; cenário de cada uma em lt296.unit.
+  { name: 'Barbarian Ring', produces: [['R']], manaRule: { colors: 'R', damage: 1 }, // "{T}: Add {R}. This land deals 1 damage to you."
+    abilities: [{ kind: 'activated', cost: { mana: '{R}', tap: true, sacrifice: true }, onlyIfGraveyardAtLeast: 7, // "Threshold — {R}, {T}, Sacrifice this land: … Activate only if there are seven or more cards in your graveyard."
+      effects: [{ do: 'damage', amount: 2, target: 'any' }] }], // "It deals 2 damage to any target."
+    note: 'o dano da mana desta terra não passa pela prevenção (mesma simplificação dos outros terrenos de dor)',
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o limiar (sete cartas no cemitério) não cabe no cenário curto: a partida de verdade está em lt296.unit
+  { name: 'Pest Control', effects: [{ do: 'destroy', cada: { semTipos: ['land'], mvMax: 1 } }], cycling: { mana: '{2}' }, // "Destroy all nonland permanents with mana value 1 or less. / Cycling {2}"
+    example: { target: 'none', expect: { selfLife: 0 } } },
+  { name: 'Strix Serenade', effects: [{ do: 'counter', target: { zona: 'stack', tipos: ['artifact', 'creature', 'planeswalker'] } }, // "Counter target artifact, creature, or planeswalker spell."
+    { do: 'token', amount: 1, target: 'target-controller', token: { name: 'Bird', types: ['creature'], subtypes: ['Bird'], colors: ['U'], power: 2, toughness: 2, keywords: ['flying'] } }], // "Its controller creates a 2/2 blue Bird creature token with flying."
+    example: { target: 'enemy-spell', expect: { countered: true } } },
+  { name: 'Secret Identity', modes: [ // "Choose one —"; "Conceal" e "Reveal" são nomes de modo, sem regra (207.2c)
+    { label: 'Disfarce: 1/1 Cidadão com resistência a magia', effects: [{ do: 'continuo', target: 'creature-you-control', torna: { subtipos: ['Citizen'], base: [1, 1] }, palavras: ['hexproof'] }] }, // "• Conceal — Until end of turn, target creature you control becomes a Citizen with base power and toughness 1/1 and gains hexproof." (205.1a: o subtipo novo troca os tipos de criatura)
+    { label: 'Revelação: 3/4 Herói com voar e vigilância', effects: [{ do: 'continuo', target: 'creature-you-control', torna: { subtipos: ['Hero'], base: [3, 4] }, palavras: ['flying', 'vigilance'] }] }], // "• Reveal — Until end of turn, target creature you control becomes a Hero with base power and toughness 3/4 and gains flying and vigilance."
+    example: { action: 'mode:1', target: 'own-creature', expect: { stats: [3, 4] } } },
   //
   //
   //
@@ -13841,6 +13859,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   // M-616 · rotina Motor contínuo · 107.14 / 608.2d: pagar energia em quantia escolhida na resolução e varrer pela energia paga (energia_varre); texto da Scryfall de 08/11/2026 (cobertura do ramo catalogo)
   'Wrath of the Skies': { texto: '1qyq2jg', leva: 'M-616' },
   'Overlord of the Balemurk': { texto: '1mle74k', leva: 'M-618' }, // M-618 · rotina Motor contínuo: impending (K-58) + "whenever this permanent enters or attacks" e a volta opcional de "a non-Avatar creature card or a planeswalker card"; texto da Scryfall de 10/11/2026
+  // M-617 · rotina Motor contínuo · 702.21a com duração e "If you control two or more other lands, this land enters tapped": Hall of Storm Giants lida por inteiro (Scryfall, 10/11/2026)
+  'Hall of Storm Giants': { texto: '177dox0', leva: 'M-617' },
   'Geothermal Bog': { texto: '1amo2my', leva: 'M-607' }, 'Dawnbringer Cleric': { texto: '3kngfl', leva: 'M-607' }, 'Thought Vessel': { texto: 'xi1v9x', leva: 'M-607' }, // M-607 · Sentinela do Pauper (Scryfall de 03/11/2026)
   'Flawless Maneuver': { texto: '1dbabfl', leva: 'M-577' },
   'Deadly Rollick': { texto: 'mi4hfd', leva: 'M-577' },
@@ -24364,6 +24384,7 @@ const __m42 = (function () {
       Sem "until end of turn" (Soulstone Sanctuary) o efeito não acaba (611.2a). Frase a mais, X ou palavra fora do motor: null. */
   function terrenoViraCriaturaK(corpo) {
     if (!/\bLand\b/.test(tipoAtual)) return null;
+    let ward = null; corpo = String(corpo).replace(/ with ward \{(\d+)\}(?=( until end of turn)?\. It[’']s still a land$)/, (_, n) => { ward = `{${n}}`; return ''; }); // M-617 · 702.21a · "… creature with ward {3}. It's still a land." (Hall of Storm Giants): a salvaguarda vem com o mesmo efeito e a mesma duração
     const m = String(corpo).match(/^(Until end of turn, )?~ becomes an? (\d+)\/(\d+) ((?:(?:white|blue|black|red|green)(?:, and |, | and ))*(?:white|blue|black|red|green) )?((?:[A-Z][A-Za-z'’-]* )*)(artifact )?creature(?: with ([a-z ,]+?))?( until end of turn)?\. It[’']s still a land$/);
     if (!m || (m[1] && m[8])) return null;
     let palavras = m[7] ? m[7].split(/, and |, | and /).map(x => x.trim()) : [];
@@ -24371,7 +24392,7 @@ const __m42 = (function () {
     if (palavras.some(k => !KW.has(k)) || (todos && String(m[5] || '').trim())) return null;
     const cores = m[4] ? m[4].trim().split(/, and |, | and /).map(x => CORES[x]) : [], subtipos = String(m[5] || '').trim().split(/\s+/).filter(Boolean);
     return { do: 'continuo', target: 'self-source', torna: { tipos: m[6] ? ['artifact', 'creature'] : ['creature'], somaTipos: true, ...(subtipos.length ? { subtipos } : {}), base: [+m[2], +m[3]], ...(todos ? { todosOsTiposDeCriatura: true } : {}) },
-      ...(palavras.length ? { palavras } : {}), ...(cores.length ? { cores } : {}), ...(m[1] || m[8] ? {} : { ate: 'sempre' }) };
+      ...(palavras.length ? { palavras } : {}), ...(cores.length ? { cores } : {}), ...(ward ? { ward } : {}), ...(m[1] || m[8] ? {} : { ate: 'sempre' }) };
   }
   function leAtivada(linha, nome, frases) {
     const m = linha.match(/^((?:(?:\{[^}]+\})+|Sacrifice [^:,]+|Discard a card|Discard (?:~|this card)|Discard your hand|Exile (?:~|this card) from your hand|Exile (?:two|three|four|five) cards from your graveyard|Pay \d+ life|Remove an? [a-z]+ counter from ~|Put an? [+-]\d\/[+-]\d counter on ~)(?:,\s*(?:(?:\{[^}]+\})+|Sacrifice [^:,]+|Discard a card|Discard (?:~|this card)|Discard your hand|Pay \d+ life|Remove an? [a-z]+ counter from ~|Exile (?:~|this card) from your graveyard|Exile ~))*): (.+)$/i); // M-352 · "Exile ~ from your graveyard" (Bramble Wurm) // M-348 · remover marcador, exilar ~ // M-342 · também "Exile ~ from your hand" e "Discard your hand" // M-329 · também "Pay N life" // LT9 · {2}{U} seguidos
@@ -24785,6 +24806,7 @@ const __m42 = (function () {
         if (fl) { (topo.abilities = topo.abilities || []).push(...[fl[2], fl[3], fl[4]].map(x => ({ kind: 'activated', cost: { mana: fl[1], tap: true }, effects: [{ do: 'add_mana', symbols: x.match(/[WUBRG]/g) }] }))); frases.push({ texto: linha, lida: true }); continue; }
         const tri = lp.match(/^\{T\}: Add (\{[WUBRGC]\}), (\{[WUBRGC]\}), or (\{[WUBRGC]\})$/); if (tri) { topo.produces = [...(topo.produces || []), ...tri.slice(1, 4).map(x => x.match(/[WUBRGC]/g))]; frases.push({ texto: linha, lida: true }); continue; } // M-340 · tri-terras
         if (/^(?:this land|~) enters(?: the battlefield)? tapped unless you control two or fewer other lands$/i.test(lp)) { topo.entersTappedUnless = { maxOutrasTerras: 2 }; frases.push({ texto: linha, lida: true }); continue; } // M-336 · terras rápidas
+        if (/^if you control two or more other lands, (?:this land|~) enters(?: the battlefield)? tapped$/i.test(lp)) { topo.entersTappedUnless = { maxOutrasTerras: 1 }; frases.push({ texto: linha, lida: true }); continue; } // M-617 · 305.7/614.1c · "If you control two or more other lands, this land enters tapped" (Hall of Storm Giants e o ciclo): desvirada só com no máximo uma outra terra
         { const tb = lp.match(/^as (?:~|this land) enters(?: the battlefield)?, choose a basic land type\. then you may pay (\d+) life\. if you don't, it enters(?: the battlefield)? tapped$/i); // M-554 · Multiversal Passage
           if (tb) { topo.self = { ...(topo.self || {}), tipoBasicoAoEntrarM: true }; topo.entersTappedUnless = { pagaVida: +tb[1] }; frases.push({ texto: linha, lida: true }); continue; }
           if (/^(?:~|this land) is the chosen type$/i.test(lp) && (topo.self || {}).tipoBasicoAoEntrarM) { frases.push({ texto: linha, lida: true }); continue; } } // M-554 · 305.7
@@ -25977,7 +25999,7 @@ const faceDown = o => !!(o && o.faceDown);
 /** CR2-G R3b · grava um efeito contínuo temporário no objeto. A guarda continua nos campos de sempre (o bot, a tela e as
  * partidas salvas os leem): até o fim do turno → pump e tempKeywords (com carimbo); até o seu próximo turno → pumpNext e
  * keywordsNext, marcados com quem fez (`by`), que acabam quando o turno dele começa. */
-function aplicaTemporario(s, o, { poder, resistencia, palavras, ate = 'fim-do-turno', vira, perde, cores, somaCores, troca }, by, fonte) {
+function aplicaTemporario(s, o, { poder, resistencia, palavras, ate = 'fim-do-turno', vira, perde, cores, somaCores, troca, ward }, by, fonte) {
   const proximo = ate === 'seu-proximo-turno';
   // CR2-G R6 · 611.2 · duração nova (até o fim do seu próximo turno; enquanto você controlar a fonte): marca de quando, de quem
   // e de qual fonte (encarnação), para a poda e a leitura
@@ -25986,6 +26008,7 @@ function aplicaTemporario(s, o, { poder, resistencia, palavras, ate = 'fim-do-tu
   // das palavras-chave ganhas no mesmo efeito, que assim sobrevivem ao "perde as outras habilidades"
   if (vira) { o.vira = [...(o.vira || []), { ...vira, ts: relogio(s), ...(marca || {}) }]; o.mutavel = true; }
   if (troca) o.temporarios = [...(o.temporarios || []), { troca: true, ts: relogio(s), ...(marca || {}) }]; // CR2d.9 · 7d
+  if (ward != null) o.temporarios = [...(o.temporarios || []), { ward: [].concat(ward), ts: relogio(s), ...(marca || {}) }]; // M-617 · 702.21a · salvaguarda ganha com duração ("becomes a 7/7 … creature with ward {3}" até o fim do turno; Hall of Storm Giants)
   if (cores != null) o.temporarios = [...(o.temporarios || []), { cores: cores.slice(), ...(somaCores ? { somaCores: true } : {}), ts: relogio(s), ...(marca || {}) }]; // CR2d.8 · camada 5 com carimbo
   if ((perde || []).length) o.temporarios = [...(o.temporarios || []), { perde: perde.map(k => String(k).toLowerCase()), ts: relogio(s), ...(marca || {}) }]; // CR2d.7 · "perde voar" com carimbo; sem marca = até o fim do turno (sai na limpeza)
   if (ate !== 'fim-do-turno') { // durações novas (e "até o seu próximo turno", CR2d.13: cada um com o seu dono): lista própria, lida pelo caminho dos contínuos
@@ -26104,7 +26127,7 @@ function vigente(s, t) {
 }
 function temporariosDe(o, s) {
   const out = [];
-  for (const t of o.temporarios || []) if (!s || vigente(s, t)) out.push({ afetados: 'self', temporario: t.ate, poder: t.poder || 0, resistencia: t.resistencia || 0, ...(t.palavras ? { palavras: t.palavras } : {}), ...(t.perde ? { perde: t.perde } : {}), ...(t.cores ? { cores: t.cores, ...(t.somaCores ? { somaCores: true } : {}) } : {}), ...(t.troca ? { troca: true } : {}), ts: t.ts || 0 }); // CR2-G R6 · CR2d.7 · CR2d.8
+  for (const t of o.temporarios || []) if (!s || vigente(s, t)) out.push({ afetados: 'self', temporario: t.ate, poder: t.poder || 0, resistencia: t.resistencia || 0, ...(t.palavras ? { palavras: t.palavras } : {}), ...(t.perde ? { perde: t.perde } : {}), ...(t.cores ? { cores: t.cores, ...(t.somaCores ? { somaCores: true } : {}) } : {}), ...(t.troca ? { troca: true } : {}), ...(t.ward ? { ward: t.ward } : {}), ts: t.ts || 0 }); // CR2-G R6 · CR2d.7 · CR2d.8 · M-617 ward
   if (o.pump) out.push({ afetados: 'self', temporario: 'fim-do-turno', poder: o.pump.p || 0, resistencia: o.pump.t || 0, ts: 0 });
   if (o.pumpNext) out.push({ afetados: 'self', temporario: 'seu-proximo-turno', poder: o.pumpNext.p || 0, resistencia: o.pumpNext.t || 0, ts: 0 });
   const tts = o.tempTs || [];
@@ -28109,7 +28132,7 @@ function applyEffectM449(s, src, eff, tgt, events) {
       if (!alvo || alvo.zone !== 'battlefield') break;
       const pw = eff.poder != null ? amountOf(s, src, eff.poder) : undefined, tg = eff.resistencia != null ? amountOf(s, src, eff.resistencia) : undefined;
       if (eff.toxico) alvo.tempToxico = (alvo.tempToxico || 0) + eff.toxico; // M-255 · "gains toxic 1 until end of turn"
-      if (pw != null || tg != null || (eff.palavras || []).length || eff.torna || (eff.perde || []).length || eff.cores != null || eff.troca) aplicaTemporario(s, alvo, { ...(eff.cores != null ? { cores: eff.cores, somaCores: !!eff.somaCores } : {}), ...(eff.troca ? { troca: true } : {}), poder: pw, resistencia: tg, palavras: eff.palavras, ate: eff.ate || 'fim-do-turno', ...(eff.torna ? { vira: SC.tornaParaBecomes(eff.torna) } : {}), ...((eff.perde || []).length ? { perde: eff.perde } : {}) }, ctrl, src.ability ? s.objects[src.source] : src);
+      if (pw != null || tg != null || (eff.palavras || []).length || eff.torna || (eff.perde || []).length || eff.cores != null || eff.troca || eff.ward != null) aplicaTemporario(s, alvo, { ...(eff.cores != null ? { cores: eff.cores, somaCores: !!eff.somaCores } : {}), ...(eff.troca ? { troca: true } : {}), ...(eff.ward != null ? { ward: eff.ward } : {}) /* M-617 */, poder: pw, resistencia: tg, palavras: eff.palavras, ate: eff.ate || 'fim-do-turno', ...(eff.torna ? { vira: SC.tornaParaBecomes(eff.torna) } : {}), ...((eff.perde || []).length ? { perde: eff.perde } : {}) }, ctrl, src.ability ? s.objects[src.source] : src);
       note({ name: alvo.name, power: pw || 0, toughness: tg || 0, palavras: (eff.palavras || []).map(k => String(k).toLowerCase()), ate: eff.ate || 'fim-do-turno' });
       break;
     }
