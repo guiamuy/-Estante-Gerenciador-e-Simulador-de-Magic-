@@ -2595,7 +2595,7 @@ body:has(#outlet .ds-fab[data-acoes="1"]) #outlet { padding-bottom: max(var(--na
 .relatos-filtros__area { grid-column: 1 / -1; }
 .relatos-exportar { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
 /* Y2 · aba de relatar na borda direita da mesa: alvo de 44 × 56 px, só 28 px à vista, translúcida até o toque */
-.tb-relatar { position: fixed; right: 0; top: var(--tb-relatar-y, 42%); transform: translateY(-50%); z-index: var(--z-sticky); width: var(--tap-min); height: 56px; padding: 0; margin: 0;
+.tb-relatar { position: fixed; right: 0; top: max(var(--tb-relatar-y, 42%), var(--tb-relatar-piso, 0px)); /* J-69 · nunca por cima do ⋯ */ transform: translateY(-50%); z-index: var(--z-sticky); width: var(--tap-min); height: 56px; padding: 0; margin: 0;
   display: flex; align-items: center; justify-content: flex-end; background: transparent; border: 0; touch-action: none; -webkit-tap-highlight-color: transparent; }
 .tb-relatar[hidden] { display: none; }
 .tb-relatar__aba { width: 28px; height: 52px; display: flex; align-items: center; justify-content: center; border-radius: var(--radius-2) 0 0 var(--radius-2);
@@ -46670,12 +46670,27 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
         h('span', { class: 'tb-relatar__aba', 'aria-hidden': 'true' }, Icone('relato', { tamanho: 18 })));
       arrastaAba(abaRelatar);
       document.body.appendChild(abaRelatar);
-      const sai = () => { if (root.isConnected && /^#\/partida/.test(location.hash)) return; if (abaRelatar) abaRelatar.remove(); abaRelatar = null; window.removeEventListener('hashchange', sai); };
+      const sai = () => { if (root.isConnected && /^#\/partida/.test(location.hash)) return; if (abaRelatar) abaRelatar.remove(); abaRelatar = null; window.removeEventListener('hashchange', sai);
+        window.removeEventListener('scroll', pisoNaRolagem, true); window.removeEventListener('resize', pisoNaRolagem); };
       window.addEventListener('hashchange', sai);
+      window.addEventListener('scroll', pisoNaRolagem, { capture: true, passive: true }); window.addEventListener('resize', pisoNaRolagem, { passive: true });
     }
     abaRelatar.style.setProperty('--tb-relatar-y', `${relatarY * 100}%`);
     abaRelatar.hidden = root.dataset.cena === 'true' || handoff;
+    pisoDaAba();
   }
+  /* J-69 · relato #136: a aba nunca cobre o ⋯ da barra de cima. O mínimo de 12% da janela não sabe a altura real da
+     barra (recorte da câmera no app instalado, barra que quebra em duas linhas, página rolada): com a aba no alto, ela
+     ficava por cima do ⋯ e o toque abria o relato em vez do menu. O piso do centro da aba é medido no ⋯ (base dele +
+     --space-2 + meia aba) a cada pintura, rolagem e mudança de tamanho; a posição guardada não muda. */
+  let pisoPedido = 0;
+  function pisoDaAba() {
+    if (!abaRelatar) return;
+    const b = maisBtn && maisBtn.isConnected ? maisBtn.getBoundingClientRect() : null;
+    const piso = b && b.bottom > 0 ? Math.ceil(b.bottom + 8 + abaRelatar.offsetHeight / 2) : 0;
+    abaRelatar.style.setProperty('--tb-relatar-piso', `${piso}px`);
+  }
+  const pisoNaRolagem = () => { if (pisoPedido) return; pisoPedido = requestAnimationFrame(() => { pisoPedido = 0; pisoDaAba(); }); };
   /* MJ11b (J-24) · o orçamento do desenho: em teste (__MTG_TEST) cada pintura da mesa mede quanto leva, para o portão cobrar
      o teto na jogada mais pesada. Fora de teste, nada muda. */
   const pinturas = typeof window !== 'undefined' && window.__MTG_TEST ? [] : null;

@@ -19539,6 +19539,8 @@ test('e2e · G-334 relato #52: Sair da conta é uma porta entreaberta que abre n
   await page.waitForSelector('#home-sair-confirmar');
   assert.equal(await page.getAttribute('#home-sair', 'data-porta'), 'aberta');
   await page.waitForFunction(() => new DOMMatrix(getComputedStyle(document.querySelector('#home-sair .porta__folha')).transform).a < .3);
+  // J-69 · instável no portão (0,9997 ≠ 1 com a máquina cheia): a luz termina a transição um quadro depois da folha; espera explícita, a mesma asserção
+  await page.waitForFunction(() => Number(getComputedStyle(document.querySelector('#home-sair .porta__luz')).opacity) === 1, null, { timeout: 3000 }).catch(() => {});
   assert.equal(await luz(), 1, 'a luz inteira com a porta aberta');
   assert.equal(await page.locator('.ds-dialog').count(), 1, 'um diálogo só');
   assert.equal(await page.innerText('#ds-dialog-title'), 'Sair da conta?');
@@ -23025,5 +23027,37 @@ test('e2e · J-71 MK3-P2 galeria e escolha: Perfil › Playmats com a mini-mesa 
   await page.waitForFunction(() => [...document.querySelectorAll('#ds-playmat-previa > .tb-side')].every(l => l.dataset.playmat === 'oceano'));
   assert.equal(await page.evaluate(() => document.documentElement.dataset.playmat), 'latao', 'o /ds não muda a escolha guardada');
   await auditaTela(page, 'J-71 · MK3-P2 /ds');
+  assert.deepEqual(errors, []);
+});
+
+/* ---------------- J-69 · relato #136: o ⋯ da mesa abre o menu, nunca o relato ---------------- */
+test('e2e · J-69 relato #136: com a barra de cima mais alta (recorte da câmera) e a aba de relatar no alto, o toque no ⋯ abre o menu, não o relato; a aba fica abaixo do ⋯', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 697 });
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/mesa'); await page.fill('#mesa-seed', '9');
+  // a barra de cima 48 px mais baixa, como no app instalado com o recorte da câmera (env(safe-area-inset-top) não se simula no Chromium)
+  await page.addStyleTag({ content: '.tb-top { padding-top: 48px !important; }' });
+  await page.waitForFunction(() => { const c = document.querySelector('[data-opponent="shark"]'); return c && !c.disabled; }, null, { timeout: 8000 });
+  await page.click('[data-opponent="shark"]'); await page.waitForSelector('#mesa-bot-deck');
+  await page.waitForFunction(() => { const c = document.querySelector('[data-mode="full"]'); return c && !c.disabled; }, null, { timeout: 8000 });
+  await page.click('[data-mode="full"]'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  await page.waitForFunction(() => !document.querySelector('#tb').dataset.cena && !document.querySelector('#tb').dataset.pensando, null, { timeout: 20000 }); await page.waitForSelector('#tb-pass');
+  const caixa = s => page.evaluate(s => { const b = document.querySelector(s).getBoundingClientRect(); return { top: b.top, bottom: b.bottom, cx: b.left + b.width / 2, cy: b.top + b.height / 2 }; }, s);
+  // arrasta a aba até o alto: ela para abaixo do ⋯, nunca por cima
+  const a0 = await caixa('#tb-relatar');
+  await page.mouse.move(350, a0.cy); await page.mouse.down(); await page.mouse.move(350, a0.cy - 80, { steps: 5 }); await page.mouse.move(350, 5, { steps: 8 }); await page.mouse.up(); await page.waitForTimeout(250);
+  const [mais, aba] = [await caixa('#tb-mais'), await caixa('#tb-relatar')];
+  assert.ok(aba.top >= mais.bottom + 7, `a aba (${Math.round(aba.top)}) fica abaixo do ⋯ (${Math.round(mais.bottom)})`);
+  assert.equal(await page.evaluate(({ cx, cy }) => { const e = document.elementFromPoint(cx, cy); return !!(e && e.closest('#tb-mais')); }, mais), true, 'no centro do ⋯ quem recebe o toque é o ⋯');
+  // o toque no ⋯ abre o menu (Desfazer, Registro, Desistir) e não o formulário do relato
+  await page.mouse.click(mais.cx, mais.cy); await page.waitForTimeout(250);
+  assert.equal(await page.locator('#relato-form').count(), 0, 'o ⋯ não abre o relato');
+  assert.equal(await page.isVisible('#tb-mais-menu'), true, 'o ⋯ abre o menu');
+  assert.deepEqual(await page.$$eval('#tb-mais-menu > button', bs => bs.map(b => b.id)), ['tb-undo', 'tb-log', 'tb-playmat', 'tb-concede']); // MK3-P2 (J-71) · ⋯ › Playmat entrou no menu antes de Desistir (expectativa estendida de propósito, no rebase)
+  await page.keyboard.press('Escape'); await page.waitForTimeout(150);
+  // a aba continua tocável: abre o relato
+  await page.click('#tb-relatar'); await page.waitForSelector('#relato-form');
   assert.deepEqual(errors, []);
 });
