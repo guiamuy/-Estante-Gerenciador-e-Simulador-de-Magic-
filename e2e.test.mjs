@@ -4704,6 +4704,8 @@ test('e2e · X11 scanner com foto de carta inclinada: contorno em cima dela, o l
   await auditaTela(page, 'scanner com contorno');
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/scanner-contorno.png' });
   await page.waitForSelector('#scan-edition', { timeout: 10000 });
+  // S-625 · com o portão inteiro (máquina cheia) a linha de coleção chega depois do selo: "Edição incerta:" é o estado de passagem até o segundo leitor responder; espera o texto final (a asserção abaixo segue a mesma)
+  await page.waitForFunction(() => /MH2 #267/.test((document.querySelector('#scan-edition') || {}).innerText || ''), null, { timeout: 10000 }).catch(() => {});
   assert.match(await page.innerText('#scan-edition'), /MH2 #267/);
   // o diário diz por onde leu e quanto custou (sem o OCR de verdade, é só detector + preparo)
   const diario = await page.evaluate(() => window.__scanDiario.lista());
