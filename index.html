@@ -8785,6 +8785,7 @@ const EFFECTS = {
   vence: { fields: [], targets: ['self'] },
   perde: { fields: [], targets: ['self', 'player', 'opponent'] },
   combate_extra: { fields: [], targets: ['self'] }, // CR2g.4 · 500.8: "after this main phase, there is an additional combat phase followed by an additional main phase"
+  combate_extra_fase: { fields: [], targets: ['self'] }, // M-620 · 500.8: "After this phase, there is an additional combat phase" (Fear of Missing Out): resolvendo numa fase de combate, outro combate logo depois dela, sem fase principal no meio
   desvira_atacantes: { fields: [], targets: ['self'] }, // CR2g.4 · "untap all creatures that attacked this turn"  // CR2g.2 · 500.7: "(target player) takes an extra turn after this one"
   escolhe_copiadora: { fields: [], targets: ['artifact', 'creature', 'permanent'] },
   ficha_copia: { fields: ['amount'], targets: ['creature', 'artifact', 'permanent', 'creature-you-control'] }, // CR2f.2 · 707.8: "create a token that's a copy of target …" // CR2f.1 · o primeiro alvo de "alvo A torna-se uma cópia de outro alvo B"
@@ -9529,7 +9530,7 @@ function validateScript(sc) {
     for (const ab of (sc && sc.abilities) || []) if (ab && temMvX(ab.effects) && !(ab.kind === 'activated' && /\{X\}/.test((ab.cost || {}).mana || ''))) errs.push('"targetMvIgualX" só em habilidade ativada com {X} no custo'); }
   for (const ab of (sc && sc.abilities) || []) if (ab && (ab.cost || {}).devolveSelf && !(ab.effects || []).some(e => e && e.do === 'reanimate' && e.target === 'self-source')) errs.push('"devolveSelf": a habilidade do cemitério precisa devolver a própria carta ao campo'); // M-398 · achado da revisão
   for (const ab of (sc && sc.abilities) || []) if (ab && ab.kind !== 'triggered' && (ab.effects || []).some(e => e && e.dividido)) errs.push('dano dividido: só em mágica e em habilidade disparada (a ativada ainda não divide — M-378)'); // M-378
-  for (const ab of (sc && sc.abilities) || []) if (ab.condition && !['lifeGained', 'attackersAtLeast', 'controlsOtherNamed', 'bargained', 'evidenced', 'kicked', 'opponentMoreLands', 'atacaSozinha', 'vidaPeloMenos', 'marcadoresNaFonte', 'entrouDesvirada', 'semTerrenoVirado', 'semCriaturas', 'segundaMagiaDoTurno' /* M-442 */, 'ferociousAoDisparar' /* M-455 */, 'conjuradaM' /* M-545 */, 'saiuPermanenteNoTurno' /* M-514 */, ...condicoesK(), ...condicoesT()].includes(Object.keys(ab.condition)[0] || '')) errs.push('condição de gatilho desconhecida'); // K-59 · condições da trilha keywords (Toca ponto comum: validador de condições)
+  for (const ab of (sc && sc.abilities) || []) if (ab.condition && !['lifeGained', 'attackersAtLeast', 'controlsOtherNamed', 'bargained', 'evidenced', 'kicked', 'opponentMoreLands', 'atacaSozinha', 'vidaPeloMenos', 'marcadoresNaFonte', 'entrouDesvirada', 'semTerrenoVirado', 'semCriaturas', 'segundaMagiaDoTurno' /* M-442 */, 'ferociousAoDisparar' /* M-455 */, 'conjuradaM' /* M-545 */, 'saiuPermanenteNoTurno' /* M-514 */, 'primeiroAtaqueM', 'delirioM' /* M-620 */, ...condicoesK(), ...condicoesT()].includes(Object.keys(ab.condition)[0] || '')) errs.push('condição de gatilho desconhecida'); // K-59 · condições da trilha keywords (Toca ponto comum: validador de condições)
   if (sc && sc.bargain != null && sc.bargain !== true) errs.push('barganha é uma marca, sem valor');
   if (sc && !sc.bargain && [...(sc.effects || []), ...((sc.modes || []).flatMap(m => (m && m.effects) || []))].some(e => e && (e.onlyIf === 'bargained' || (e.amount && e.amount.se === 'bargained')))) errs.push('"se barganhada" sem a barganha na carta'); // M-384 · achado da revisão
   if (sc && sc.evidence != null && !(Number.isInteger(sc.evidence) && sc.evidence > 0)) errs.push('colher provas precisa de um número inteiro positivo');
@@ -9580,6 +9581,8 @@ function validateScript(sc) {
   if (sc && sc.bestow) {
     if (!sc.bestow.mana) errs.push('conceder sem custo');
     if (!sc.grants) errs.push('conceder sem o que a aura dá');
+    if (sc.bestow.evidence != null && !(Number.isInteger(sc.bestow.evidence) && sc.bestow.evidence > 0)) errs.push('conceder: "evidence" é o colher provas do custo (inteiro positivo)'); // M-620 · "Bestow—{R}, Collect evidence 6"
+    if (sc.bestow.doCemiterio != null && sc.bestow.doCemiterio !== true) errs.push('conceder: "doCemiterio" é uma marca (true)'); // M-620 · "You may cast this card from your graveyard using its bestow ability"
   }
   // S33 · afinidade e adaptar
   if (sc && sc.affinity && !FILTER_TYPES.includes(sc.affinity)) errs.push(`afinidade por "${sc.affinity}" desconhecida`);
@@ -11116,6 +11119,13 @@ const RAW_SCRIPTS = [
   { name: 'Nyxborn Hydra', bestow: { mana: '{X}{G}{G}' }, grants: { perPower: 1, perToughness: 1, per: 'counters-on-source', keywords: ['reach', 'trample'] },
     self: { entersWithCountersX: true },
     example: { action: 'bestow', target: 'own-creature', expect: { attached: true } } },
+  // M-620 · textos da API da Scryfall (cobertura/modern.json do ramo catalogo, coleta de 11/11/2026 13h51 UTC; guardados em .listas/oficiais-revisadas.json)
+  { name: "Detective's Phoenix", bestow: { mana: '{R}', evidence: 6, doCemiterio: true }, grants: { power: 2, toughness: 2, keywords: ['flying', 'haste'] }, // "Bestow—{R}, Collect evidence 6. · Flying, haste · Enchanted creature gets +2/+2 and has flying and haste. · You may cast this card from your graveyard using its bestow ability." (702.103 + 701.59; voar e ímpeto da própria carta vêm das palavras-chave)
+    example: { action: 'cast', target: 'none', expect: { selfLife: 0 } } }, // o conceder com provas e do cemitério tem a partida própria (lt299.unit); o cenário S8 só conjura a criatura
+  { name: 'Fear of Missing Out', abilities: [
+    { kind: 'triggered', when: 'etb', effects: [{ do: 'discard', amount: 1 }, { do: 'draw', amount: 1 }] }, // "When this creature enters, discard a card, then draw a card." (sem "if you do": compra mesmo sem carta para descartar)
+    { kind: 'triggered', when: 'attacks', condition: { primeiroAtaqueM: true, delirioM: true }, effects: [{ do: 'untap', target: 'creature' }, { do: 'combate_extra_fase' }] }], // "Delirium — Whenever this creature attacks for the first time each turn, if there are four or more card types among cards in your graveyard, untap target creature. After this phase, there is an additional combat phase." (603.4; 500.8)
+    example: { action: 'etb', target: 'none', expect: { handDelta: 0 } } },
   // S33 · fecha Elves e Jund (textos conferidos em 26/09)
   { name: 'Evolution Witness', abilities: [
     { kind: 'activated', cost: { mana: '{1}{G}' }, adapt: 2, effects: [] },
@@ -24928,6 +24938,7 @@ const addTarget = (combos, opts) => tetoDeCombos(combos
 
 const STEPS = ['untap', 'upkeep', 'draw', 'main1', 'combat_begin', 'combat_attackers', 'combat_blockers',
   'combat_damage', 'combat_end', 'main2', 'end', 'cleanup'];
+const COMBATE_M620 = STEPS.slice(STEPS.indexOf('combat_begin'), STEPS.indexOf('combat_end') + 1); // M-620 · os passos da fase de combate (506.1)
 const STEP_PT = {
   untap: 'Desvirar', upkeep: 'Manutenção', draw: 'Compra', main1: 'Principal 1', combat_begin: 'Início do combate',
   combat_attackers: 'Declarar atacantes', combat_blockers: 'Declarar bloqueadores', combat_damage: 'Dano de combate',
@@ -27035,7 +27046,7 @@ function finishCleanup(s) {
   // recebem prioridade e depois vem outra limpeza (advanceStep). Antes o turno passava com o gatilho ainda por pôr na pilha.
   { const ev = []; stateBased(s, ev); if (ev.length || (s.queued || []).length || s.pending) { s.turn.passes = 0; s.turn.priority = s.turn.active; return; } }
   s.players.forEach(pl => { pl.lifeGained = 0; pl.drawnThisTurn = 0; delete pl.lifeLost; delete pl.atacouCom; }); // M-248 · rastros do turno
-  delete s.atacaramNoTurno; delete s.combatesExtras; delete s.retornoFase; delete s.emPassoExtraT; delete s.passosExtrasT; delete s.voltaDoExtraT; delete s.filaExtraT; // CR2g.4 · T-102: os passos a mais pedidos e não jogados (turno encerrado) não passam ao próximo turno (Toca ponto comum: finishCleanup)
+  delete s.atacaramNoTurno; delete s.combatesAposFaseM; delete s.combatesExtras; delete s.retornoFase; delete s.emPassoExtraT; delete s.passosExtrasT; delete s.voltaDoExtraT; delete s.filaExtraT; // CR2g.4 · T-102: os passos a mais pedidos e não jogados (turno encerrado) não passam ao próximo turno (Toca ponto comum: finishCleanup)
   s.spellsThisTurn = 0;
   s.pending = null;
   s.turn.firstTurn = false;
@@ -27070,6 +27081,7 @@ function advanceStep(s) {
   if (s.passosExtrasT || s.emPassoExtraT) { const ex = passoExtraT(s); if (ex) return enterStep(s, ex); } // T-101 · CR 500.9 · passo a mais depois deste (Toca ponto comum: advanceStep)
   if (s.turn.step === 'cleanup') return enterStep(s, 'cleanup'); // R9 · houve prioridade na limpeza: outra etapa de limpeza
   if (s.turn.step === 'combat_end') saiDoCombate(s); // CR2g.1 · 511.3
+  if (s.turn.step === 'combat_end' && s.combatesAposFaseM > 0) { s.combatesAposFaseM--; if (!s.combatesAposFaseM) delete s.combatesAposFaseM; return enterStep(s, 'combat_begin'); } // M-620 · 500.8: "after this phase, there is an additional combat phase" — o combate adicional vem logo depois deste, sem fase principal no meio
   // CR2g.3 · 510.4: todos passaram depois do dano de iniciativa (com os gatilhos dele resolvidos): vem o segundo passo de dano
   if (s.turn.step === 'combat_damage' && faltaSegundoDano(s)) { const mcT = manaDeCombateAntesT(s, 'combat_damage'); emptyPools(s); if (mcT) manaDeCombateDepoisT(s, mcT); /* T-100 · 702.189a (Toca ponto comum: advanceStep) */ s.turn.passes = 0; s.turn.priority = s.turn.active; dealCombatDamage(s); return; }
   if (s.turn.step === 'main1' || s.turn.step === 'main2') { // CR2g.4 · 500.8: combate e principal adicionais logo depois desta fase principal
@@ -27348,8 +27360,8 @@ function efeitosBaseDaMagia(s, o, mode) {
 }
 /** S41 · colher provas: exila cartas do seu cemitério cujo valor de mana somado alcança o número.
     O motor escolhe as de maior valor primeiro, para gastar o menor número de cartas. */
-function evidenceCards(s, p, n) {
-  const ordenadas = s.zones[p].graveyard.map(oid => ({ oid, mv: (s.facts[s.objects[oid].name] || {}).cmc || 0 }))
+function evidenceCards(s, p, n, sem) {
+  const ordenadas = s.zones[p].graveyard.filter(oid => oid !== sem).map(oid => ({ oid, mv: (s.facts[s.objects[oid].name] || {}).cmc || 0 }))
     .sort((a, b) => b.mv - a.mv);
   const escolhidas = []; let soma = 0;
   for (const c of ordenadas) { if (soma >= n) break; escolhidas.push(c.oid); soma += c.mv; }
@@ -28591,6 +28603,10 @@ function applyEffectM449(s, src, eff, tgt, events) {
     case 'combate_extra': { // CR2g.4 · 500.8: só resolvendo numa fase principal (ruling); as fases são do jogador ativo
       if (s.turn.step !== 'main1' && s.turn.step !== 'main2') { note({ failed: true }); break; }
       s.combatesExtras = (s.combatesExtras || 0) + 1; note({}); break;
+    }
+    case 'combate_extra_fase': { // M-620 · 500.8: "after this phase" — só numa fase de combate (o gatilho de ataque); a fase adicional é do jogador ativo
+      if (!COMBATE_M620.includes(s.turn.step)) { note({ failed: true }); break; }
+      s.combatesAposFaseM = (s.combatesAposFaseM || 0) + 1; note({}); break;
     }
     case 'desvira_atacantes': { let n = 0; for (const a of s.atacaramNoTurno || []) { const o = s.objects[a.oid]; if (o && o.zone === 'battlefield' && (o.zc || 0) === a.z && o.tapped && desvira(s, o)) n++; } note({ amount: n }); break; } // CR2g.4 · o mesmo objeto (400.7)
     case 'vence': { for (const [i, pl] of s.players.entries()) if (i !== ctrl && !pl.lost) pl.derrotadoPor = ctrl; note({}); break; } // CR2h.6 · 104.2a: os outros jogadores perdem (ação de estado logo em seguida)
@@ -29996,6 +30012,8 @@ function triggerConditionMet(s, o, cond) {
   if (cond.preparada != null && preparadaT(s, o) !== !!cond.preparada) return false; // T-51 · CR 722.3a · "if this creature is (isn't) prepared" (Toca ponto comum: triggerConditionMet)
   if (cond.ferociousAoDisparar && !battlefield(s).some(x => x.controller === o.controller && isCreature(s, x) && power(s, x) >= 4)) return false; // M-455 · "Ferocious — Whenever ~ attacks while you control a creature with power 4 or greater" (Ravening Warg): "while" faz parte do evento — só no disparo, não de novo na resolução
   if (cond.saiuPermanenteNoTurno && !(s.saidaNoTurnoM && s.saidaNoTurnoM[o.controller] === s.turn.number)) return false; // M-514 · revolta: "if a permanent you controlled left the battlefield this turn" (603.4: ao disparar e ao resolver)
+  if (cond.primeiroAtaqueM && !o.primeiroAtaqueM) return false; // M-620 · "Whenever this creature attacks for the first time each turn" (Fear of Missing Out): faz parte do evento — só no disparo (no combate adicional ela não dispara de novo; 400.7: objeto novo conta como primeira vez)
+  if (cond.delirioM && tiposNoCemiterioM(s, o.controller) < 4) return false; // M-620 · Delirium — "if there are four or more card types among cards in your graveyard" (205.2a; 603.4: ao disparar e ao resolver)
   if (cond.selada && !seladaAgoraT(s, o)) return false; // T-31 · CR 702.171b: "while saddled" (Toca ponto comum: triggerConditionMet)
   if (cond.fonteDesvirada && o.tapped) return false; // T-101 · 603.4 · "if ~ is untapped" (Howling Mine) (Toca ponto comum: triggerConditionMet)
   if (cond.fonteVirada && !o.tapped) return false; // M-558 · 603.4 · "if this artifact is tapped" (Mana Vault)
@@ -31219,7 +31237,7 @@ const HANDLERS = {
   cast(s, a, events = []) { // M-265 · recebe o registro (o replicar anota as cópias)
     if (!a.granted) { noPending(s); holder(s, a.p); } semFracao(s); // CR2c.6 · 608.2g: por efeito, quem decide conjura sem a prioridade
     const o = s.objects[a.oid];
-    const fromGraveyard = (a.flashback || a.disturb || a.escape || a.retrace || a.recomecarK || a.harmonizarK || a.permissao != null) && o && o.zone === 'graveyard'; // K-10 · recomeçar · K-55 · harmonizar
+    const fromGraveyard = (a.flashback || a.disturb || a.escape || a.retrace || a.recomecarK || a.harmonizarK || a.permissao != null || (a.bestow && o && !!(bestowOf(s, o) || {}).doCemiterio)) && o && o.zone === 'graveyard'; // M-620 · conceder do cemitério (Detective's Phoenix) // K-10 · recomeçar · K-55 · harmonizar
     // S53 · carta plotada: conjura do exílio, sem pagar mana, num turno depois
     const fromPlot = a.plotted && o && o.zone === 'exile' && o.plotted != null && o.plotted < s.turn.number;
     if (a.plotted && !fromPlot) throw new RuleError('plot', 'esta carta não está plotada para um turno anterior');
@@ -31412,6 +31430,12 @@ const HANDLERS = {
       startPick(s, { p: a.p, from: cemiterio, min: 1, max: cemiterio.length, needMv: n, to: 'exile', rest: 'stay',
         label: 'colher provas', source: o.name }, []);
     }
+    { const bsM = a.bestow && bestowOf(s, o); if (bsM && bsM.evidence) { // M-620 · 702.103a + 701.59a: "Bestow—{R}, Collect evidence 6" — exilar do cemitério cartas que somem 6 faz parte do custo de conceder; quem conjura escolhe (a própria carta já está na pilha)
+      if (!evidenceCards(s, a.p, bsM.evidence, a.oid)) throw new RuleError('provas', `seu cemitério não soma ${bsM.evidence} de valor de mana`);
+      s.objects[a.oid].evidenced = true;
+      const cemiterio = s.zones[a.p].graveyard.filter(x => x !== a.oid);
+      startPick(s, { p: a.p, from: cemiterio, min: 1, max: cemiterio.length, needMv: bsM.evidence, to: 'exile', rest: 'stay', label: 'colher provas', source: o.name }, []);
+    } }
     if (exilaMaoN) startPick(s, { p: a.p, from: exilaveisParaDesconto(s, a.p, o), min: exilaMaoN, max: exilaMaoN, to: 'exile', rest: 'stay', label: 'exilar da mão', source: o.name }, []); // M-267 · as cartas, quem conjura escolhe
     if (delveN) { const cemiterio = s.zones[a.p].graveyard.filter(x => x !== a.oid); // M-263 · as cartas do delve: quem conjura escolhe
       startPick(s, { p: a.p, from: cemiterio, min: delveN, max: delveN, to: 'exile', rest: 'stay', label: 'delve', source: o.name, delveDeM: a.oid }, []); } // M-530 · a mágica anota as instantâneas e feitiços que ela exilou (Murktide Regent)
@@ -31468,7 +31492,9 @@ const HANDLERS = {
     const novosAtacantes = list.filter(oid => !(s.atacaramNoTurno || []).some(x => x.oid === oid && x.z === (s.objects[oid].zc || 0)));
     for (const oid of novosAtacantes) (s.atacaramNoTurno = s.atacaramNoTurno || []).push({ oid, z: s.objects[oid].zc || 0 }); // CR2g.4 · "creatures that attacked this turn"
     if (list.length) s.players[a.p].atacouCom = (s.players[a.p].atacouCom || 0) + novosAtacantes.length; // M-248 · "se você atacou neste turno" (508.1; pôr no campo atacando não é atacar)
+    for (const oid of novosAtacantes) s.objects[oid].primeiroAtaqueM = true; // M-620 · "attacks for the first time each turn": marca só durante o disparo (o estado guardado não muda)
     disparaEvento(s, 'ataca', list.map(oid => s.objects[oid]));
+    for (const oid of novosAtacantes) delete s.objects[oid].primeiroAtaqueM;
     for (const e of s.ataquesEnfraquecemM || []) for (const oid of list) { const o = s.objects[oid], pw = o.atacandoPw && s.objects[o.atacandoPw]; const alvo = pw ? pw.controller : o.attacking; // M-553 · Tamiyo +2: um gatilho atrasado por criatura que ataca quem o criou (ou uma planeswalker dele)
       if (alvo === e.controller && !s.players[e.controller].lost) s.queued.push({ source: e.source, name: e.name, controller: e.controller, effects: [{ do: 'pump', power: -1, toughness: 0, target: 'delayed-object' }], when: 'delayed', objeto: { oid, z: o.zc || 0 } }); }
     if (list.length) gatilhosDeJogador(s, 'atacou', a.p, list.length); // CR2g.5 · 508.3d: "whenever you attack" — uma vez, com quantas atacaram
@@ -32581,11 +32607,12 @@ function legalActions(s, p, { adjudication = false } = {}) {
     if (evidenceCards(s, p, n)) out.push({ t: 'cast', p, oid, evidence: true });
   }
   // S34 · conceder: conjura como aura, pelo custo de conceder
-  for (const oid of s.zones[p].hand) {
+  for (const oid of [...s.zones[p].hand, ...s.zones[p].graveyard.filter(x => (bestowOf(s, s.objects[x]) || {}).doCemiterio)]) { // M-620 · "You may cast this card from your graveyard using its bestow ability" (Detective's Phoenix)
     const o = s.objects[oid]; const bs = bestowOf(s, o);
     if (!bs || !(canSorcery || !isSorcerySpeed(s.facts[o.name], s, p))) continue;
     const bc = parseCost(bs.mana);
     if (s.manaCheck && !canPay(s, p, bc)) continue;
+    if (bs.evidence && !evidenceCards(s, p, bs.evidence, oid)) continue; // M-620 · 701.59a: "Collect evidence N" no custo de conceder — sem cartas que somem N (fora ela mesma), não conjura assim
     // Leva 104 · conceder com {X} (Nyxborn Hydra): X também é escolha de quem conjura
     const xs = valoresDeX(s, bc.x || 0, x => !s.manaCheck || canPay(s, p, bc, x * bc.x));
     legalTargets(s, p, 'creature', oid).forEach(t => xs.forEach(x => out.push({ t: 'cast', p, oid, bestow: true, targets: [t], ...(x == null ? {} : { x }) })));
@@ -32841,7 +32868,7 @@ function resolveAbility(s, o, events) {
     // CR2b.6 · 603.4 / 608.2h: se a fonte mudou de zona, a condição usa a última informação conhecida dela (o retrato do disparo)
     const fonte = viva && r && (viva.zc || 0) !== r.zc ? (({ zc, ...m }) => ({ ...viva, kicked: undefined, bargained: undefined, evidenced: undefined, faceDown: undefined, tapped: !!(viva.ultima || {}).tapped /* M-558 · virada ou não, como saiu do campo (achado da revisão: Mana Vault destruído com o gatilho na pilha) */, ...m }))(r) : viva;
     // "atacou com três ou mais" é informação do combate que já passou: vale o que foi visto no disparo
-    const { attackersAtLeast, atacaSozinha, entrouDesvirada, monarca, ferociousAoDisparar, conjuradaM, ...resto } = o.condicao; // M-545 · "if you cast it" não deixa de ser verdade: conferido no disparo // M-455 · o "while" da ferocidade também é do disparo // M-252 · "ataca sozinha" também é do disparo · M-349 · "entra desvirada" idem · T-64 · o monarca é do controlador da habilidade (abaixo)
+    const { attackersAtLeast, atacaSozinha, entrouDesvirada, monarca, ferociousAoDisparar, conjuradaM, primeiroAtaqueM, ...resto } = o.condicao; // M-620 · "for the first time each turn" é do evento: conferido no disparo // M-545 · "if you cast it" não deixa de ser verdade: conferido no disparo // M-455 · o "while" da ferocidade também é do disparo // M-252 · "ataca sozinha" também é do disparo · M-349 · "entra desvirada" idem · T-64 · o monarca é do controlador da habilidade (abaixo)
     if ((fonte && !triggerConditionMet(s, o.hostOid || o.fotoT ? { ...fonte, ...(o.hostOid ? { hostT: { oid: o.hostOid, z: o.hostZc } } : {}), ...(o.fotoT ? { fotoT: o.fotoT } : {}) } : fonte, resto)) /* T-118 · 603.4 com a encantada do disparo (Toca ponto comum: resolveAbility) */ || (monarca && !monarcaCondT(s, o.controller, monarca))) { events.push({ kind: 'trigger-fizzled', name: o.name, when: 'condição' }); return; } // T-64 · CR 603.4 / 109.5: o "você" é quem controla a habilidade (Toca ponto comum: resolveAbility)
     o.condicaoConferida = true;
   }
@@ -40779,6 +40806,7 @@ function effectLine(ev) {
     case 'lembradas_ao_cemiterio': return `${ev.name}: ${ev.amount === 1 ? '1 carta exilada foi' : `${ev.amount || 0} cartas exiladas foram`} para o cemitério`; // M-386
     case 'nao_desvira': return ev.failed ? `${ev.name}: o alvo já não estava no campo` : `${t || ev.name}: não desvira no próximo passo de desvirar`;
     case 'combate_extra': return ev.failed ? `${ev.name}: fora da fase principal, sem combate adicional` : `${ev.name}: depois desta fase principal vem um combate adicional e outra fase principal`; // CR2g.4
+    case 'combate_extra_fase': return ev.failed ? `${ev.name}: fora de uma fase de combate, sem combate adicional` : `${ev.name}: depois desta fase vem um combate adicional`; // M-620 · 500.8
     case 'desvira_atacantes': return `${ev.name} desvirou ${n} criatura(s) que atacaram neste turno`;
     case 'tira_marcador': return ev.failed ? `${ev.name}: já não estava no campo` : n ? `${ev.target || ev.name} perdeu ${plural(n, 'marcador ' + (MARCADOR_PT[ev.tipo] || ev.tipo), 'marcadores ' + (MARCADOR_PT[ev.tipo] || ev.tipo))}` : `${ev.target || ev.name}: nenhum marcador ${MARCADOR_PT[ev.tipo] || ev.tipo} para tirar`; // M-619
     case 'animate': return `${t} virou criatura até o fim do turno`; // CR2d.2
@@ -42116,6 +42144,7 @@ function descreveEfeito(e) {
     case 'lembradas_ao_cemiterio': return 'as cartas exiladas por ela que ainda estiverem no exílio vão para o cemitério'; // M-386
     case 'nao_desvira': return `${alvo || 'a criatura'} não desvira no próximo passo de desvirar de quem a controla`; // CR2g.6
     case 'combate_extra': return 'depois desta fase principal, um combate adicional e outra fase principal'; // CR2g.4
+    case 'combate_extra_fase': return 'depois desta fase, um combate adicional'; // M-620 · 500.8
     case 'desvira_atacantes': return 'desvira as criaturas que atacaram neste turno';
     case 'efeito_jogador': { const q = { voce: 'você', oponentes: 'cada oponente', todos: 'cada jogador' }[e.quem || 'voce']; const partes = []; if (e.naoGanhaVida) partes.push('não pode ganhar vida'); if (e.terrenosExtras) partes.push(`pode jogar ${e.terrenosExtras} terreno${e.terrenosExtras > 1 ? 's' : ''} a mais`); if (e.semLimiteDeMao) partes.push('não tem tamanho máximo de mão'); if (e.terrenosDoCemiterio) partes.push('pode jogar terrenos do cemitério') /* M-594 */; if (e.soComoFeitico) partes.push('só pode conjurar mágicas quando poderia conjurar um feitiço'); if (e.feiticosComLampejo) partes.push('pode conjurar feitiços como se tivessem lampejo') /* M-618 */; return e.emblema ? `${q === 'você' ? 'você ganha' : q + ' ganha'} um emblema: ${partes.join(' e ')}` : `${q} ${partes.join(' e ')} ${duracaoPT(e.ate)}`; } // M-553 · emblema (114.4) // CR2d.10
     case 'ganhar_controle': return `ganha o controle de ${alvo || 'uma criatura'}${e.ate && e.ate !== 'sempre' ? ' ' + duracaoPT(e.ate) : ''}`; // M-272 · CR2d.6

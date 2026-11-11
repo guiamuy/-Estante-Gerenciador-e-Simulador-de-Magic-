@@ -3728,19 +3728,21 @@
    "regra": "General",
    "titulo": "Fases extras (combate/principal adicional)",
    "status": "parcial",
-   "falta": "fase principal adicional sem combate, combate adicional 'após este combate' (Combat Celebrant, Moraug), fases extras de outro jogador · T-106 (14/10/2026): com uma fase inicial a mais e um combate a mais pedidos na mesma principal, a ordem não segue \"o criado por último primeiro\" (combatesExtras e a fila dos passos a mais são guardados à parte).",
+   "falta": "fase principal adicional sem combate, fases extras de outro jogador · T-106 (14/10/2026): com uma fase inicial a mais e um combate a mais pedidos na mesma principal, a ordem não segue \"o criado por último primeiro\" (combatesExtras e a fila dos passos a mais são guardados à parte).",
    "esforco": "M",
    "depende": [
     "505.1a"
    ],
    "cartas": "comum no Commander",
-   "evidencia": "M-307 (CR2g.4): verbo combate_extra — depois desta fase principal, combate adicional e principal adicional (pós-combate), só resolvendo numa principal (ruling); várias se enfileiram; depois volta o que viria após a principal original; desvira_atacantes lembra as criaturas que atacaram no turno (mesmo objeto) · T-103 (14/10/2026): fase inicial a mais depois desta fase (`passo_extra` com `fase: 'inicial'`: desvirar, manutenção e compra; Sphinx of the Second Sun, Shadow of the Second Sun); o passo a mais pulado (Fatigue) segue a fila dos passos a mais",
+   "evidencia": "M-307 (CR2g.4): verbo combate_extra — depois desta fase principal, combate adicional e principal adicional (pós-combate), só resolvendo numa principal (ruling); várias se enfileiram; depois volta o que viria após a principal original; desvira_atacantes lembra as criaturas que atacaram no turno (mesmo objeto) · T-103 (14/10/2026): fase inicial a mais depois desta fase (`passo_extra` com `fase: 'inicial'`: desvirar, manutenção e compra; Sphinx of the Second Sun, Shadow of the Second Sun); o passo a mais pulado (Fatigue) segue a fila dos passos a mais · M-620 (11/11/2026): verbo combate_extra_fase — \"After this phase, there is an additional combat phase\" (Fear of Missing Out): resolvendo numa fase de combate, o combate adicional vem logo depois do fim deste combate, sem fase principal no meio; fora de um combate, não faz nada; vários se somam",
    "testes": [
     "CR 500.8 · na segunda fase principal: desvira quem atacou, e vem combate adicional + principal adicional; a Ursa ataca duas vezes",
     "CR 500.8 · na primeira fase principal: combate adicional + principal adicional vêm antes do combate normal",
     "CR 500.8 · ruling: fora da fase principal (com lampejo), não cria fases",
     "CR 500.8 / 501.1 · Sphinx of the Second Sun (texto oficial): na principal 2, uma fase inicial a mais — desvira, manutenção (gatilhos) e compra — e depois o passo final",
-    "CR 500.8 · Shadow of the Second Sun (texto oficial): só na principal 2 do jogador encantado"
+    "CR 500.8 · Shadow of the Second Sun (texto oficial): só na principal 2 do jogador encantado",
+    "M-620 · Fear of Missing Out com delírio: o primeiro ataque desvira a criatura alvo e traz outro combate logo depois deste (500.8), sem principal no meio; no combate adicional ela não dispara de novo",
+    "M-620 · \"after this phase\" (500.8): numa fase principal não cria combate; no início do combate, outro combate logo depois deste; o combate extra de antes (Relentless Assault) segue igual"
    ]
   },
   {
@@ -4557,7 +4559,8 @@
    "esforco": "P",
    "testes": [
     "CR 603.4 · \"se\" intermediário em gatilho de outra permanente: sem a condição não dispara; com ela, dispara",
-    "CR 603.4 · Benalish Sleeper conjurada com reforço e devolvida em resposta ao gatilho: cada jogador sacrifica mesmo assim (antes o gatilho falhava)"
+    "CR 603.4 · Benalish Sleeper conjurada com reforço e devolvida em resposta ao gatilho: cada jogador sacrifica mesmo assim (antes o gatilho falhava)",
+    "M-620 · Fear of Missing Out sem delírio não dispara; delírio perdido antes de resolver: o gatilho não faz nada (603.4)"
    ]
   },
   {
@@ -6847,13 +6850,16 @@
    "regra": "Keyword Actions",
    "titulo": "Collect Evidence",
    "status": "parcial",
-   "evidencia": "evidenceCards (index.html:10832) e cast com `evidence` (12310-12313, 13041): jogador escolhe as cartas, soma ≥ N, sem cemitério suficiente a opção não aparece (701.59b), marca `evidenced` para a habilidade ligada (c); rules.unit \"S41 · colher provas\"; elves.regras \"Leva 136 · Vitu-Ghazi Inspector\"",
-   "falta": "só existe como custo adicional opcional de conjuração; não há colher provas como custo de habilidade ativada nem como efeito na resolução",
+   "evidencia": "evidenceCards (index.html:10832) e cast com `evidence` (12310-12313, 13041): jogador escolhe as cartas, soma ≥ N, sem cemitério suficiente a opção não aparece (701.59b), marca `evidenced` para a habilidade ligada (c); rules.unit \"S41 · colher provas\"; elves.regras \"Leva 136 · Vitu-Ghazi Inspector\" · M-620 (11/11/2026): colher provas como parte do custo de conceder (\"Bestow—{R}, Collect evidence 6\", Detective's Phoenix): sem cartas que somem N fora a própria carta, a opção não aparece; quem conjura escolhe as cartas",
+   "falta": "não há colher provas como custo de habilidade ativada nem como efeito na resolução",
    "esforco": "P",
    "depende": [
     "607"
    ],
-   "cartas": "uma coleção só"
+   "cartas": "uma coleção só",
+   "testes": [
+    "CR 701.59 · Detective’s Phoenix do cemitério: só pelo conceder, e ela mesma não serve de prova (601.2a); sem provas, nada"
+   ]
   },
   {
    "n": "701.60",
@@ -8643,9 +8649,12 @@
    "regra": "Keyword Abilities",
    "titulo": "Bestow",
    "status": "coberta",
-   "evidencia": "Chave de script `bestow` (validador index.html:4655; Nyxborn Hydra :5112). cast() com a.bestow cobra o custo de conceder e marca `bestowed` (:12241-12297); legalActions gera a opção com alvo criatura e X (:13045-13051); isCreature exclui a bestowed (:10919) e a mágica na pilha não conta como mágica de criatura (:11016); 702.103e alvo ilegal entra como criatura (:12057-12063); 702.103f desanexada volta a ser criatura (:12118). Sonda sonda-702c.mjs: Hydra concedida com X=2 anexou, e ao morrer a hospedeira ficou no campo como criatura sem `bestowed`.",
+   "evidencia": "Chave de script `bestow` (validador index.html:4655; Nyxborn Hydra :5112). cast() com a.bestow cobra o custo de conceder e marca `bestowed` (:12241-12297); legalActions gera a opção com alvo criatura e X (:13045-13051); isCreature exclui a bestowed (:10919) e a mágica na pilha não conta como mágica de criatura (:11016); 702.103e alvo ilegal entra como criatura (:12057-12063); 702.103f desanexada volta a ser criatura (:12118). Sonda sonda-702c.mjs: Hydra concedida com X=2 anexou, e ao morrer a hospedeira ficou no campo como criatura sem `bestowed`. · M-620 (11/11/2026): custo de conceder com colher provas (`bestow.evidence`) e conjurar do cemitério pelo conceder (`bestow.doCemiterio`, \"You may cast this card from your graveyard using its bestow ability\"; Detective's Phoenix)",
    "falta": "Não alcançáveis hoje: cópia de mágica concedida (702.103c) e fases (702.103g).",
-   "cartas": "comum (Theros; uma carta nas listas: Nyxborn Hydra)"
+   "cartas": "comum (Theros; uma carta nas listas: Nyxborn Hydra)",
+   "testes": [
+    "CR 702.103 · Detective’s Phoenix: conceder da mão por {R} + colher provas 6 (701.59); a encantada ganha +2/+2, voar e ímpeto"
+   ]
   },
   {
    "n": "702.104",
