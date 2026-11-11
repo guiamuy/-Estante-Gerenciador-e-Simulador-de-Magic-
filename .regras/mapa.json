@@ -1400,11 +1400,15 @@
    "regra": "Costs",
    "titulo": "Custos alternativos",
    "status": "parcial",
-   "evidencia": "alt[] do script, lampejo, fuga, disturb, conceder, face para baixo, plot: ramos exclusivos em cast (index.html:12253-12270); rules.unit \"S16 · custo alternativo: devolve a Ilha em vez de pagar mana\", \"S26 · delve…\"",
+   "evidencia": "alt[] do script, lampejo, fuga, disturb, conceder, face para baixo, plot: ramos exclusivos em cast (index.html:12253-12270); rules.unit \"S16 · custo alternativo: devolve a Ilha em vez de pagar mana\", \"S26 · delve…\" · M-621 (11/11/2026): \"sacrifice a nontoken <cor> creature rather than pay this spell's mana cost\" (ciclo Flare): sacrificeOther com cor e naoFicha (extraCostCandidates), lt300.unit",
    "falta": "118.9d: imposto de comandante, afinidade e X não são aplicados sobre custo alternativo (payAlt index.html:10620 paga só o custo declarado; castExtra só no ramo normal index.html:12270).",
    "esforco": "P",
    "depende": [
     "601.2f"
+   ],
+   "testes": [
+    "M-621 · 118.9: o custo alternativo só aceita criatura preta sua que não seja ficha",
+    "M-621 · 601.2h: o Zumbi sai ao conjurar, antes da resolução; a mágica na pilha segue valendo 4 (118.9c)"
    ]
   },
   {
@@ -2045,7 +2049,7 @@
    "regra": "Mana Cost and Color",
    "titulo": "Valor de mana",
    "status": "parcial",
-   "evidencia": "f.cmc vem do dado (index.html:10054) e é usado em alvos e buscas (index.html:11053, 11206); teste \"S17 · ... Spell Snare só pega valor 2\" · teste de conformidade em cr.conformidade (leva CR1a) · T-98 (conferência do mapa, 14/10/2026): 202.3b — a face de trás de uma dupla face não modal vale o custo da frente (712.8e, T-69); 202.3d — a carta dividida fora da pilha vale o custo somado (709.4, trilha tipos)",
+   "evidencia": "f.cmc vem do dado (index.html:10054) e é usado em alvos e buscas (index.html:11053, 11206); teste \"S17 · ... Spell Snare só pega valor 2\" · teste de conformidade em cr.conformidade (leva CR1a) · T-98 (conferência do mapa, 14/10/2026): 202.3b — a face de trás de uma dupla face não modal vale o custo da frente (712.8e, T-69); 202.3d — a carta dividida fora da pilha vale o custo somado (709.4, trilha tipos) · M-621: édito \"with the greatest mana value among …\" (maiorMV em continuaEdito, manaValueT; ficha e virada para baixo valem 0), lt300.unit",
    "falta": "202.3c (meld, 712.4) não existe: está com o dono (decisão pendente, ver adendo da trilha tipos). 202.3e cumprida para filtros de alvo; contagens que leem valor de mana fora de alvo ainda usam o valor impresso.",
    "esforco": "P",
    "depende": [
@@ -2055,7 +2059,9 @@
    "testes": [
     "CR 202.3 · o X pago conta no valor de mana da mágica na pilha: Spell Snare (valor 2) mira {X}{G} com X=1 e não com X=2",
     "CR 712.8e / 202.3b · a permanente que copia o verso de uma dupla face tem valor de mana 0: o Clone de Insectile Aberration é alvo de \"valor de mana 0\"",
-    "CR 709.4 · 709.4b–c · 709.2 · fora da pilha a carta tem as duas metades: os dois tipos, o custo somado, a cor e o valor de mana desse custo; é uma carta só"
+    "CR 709.4 · 709.4b–c · 709.2 · fora da pilha a carta tem as duas metades: os dois tipos, o custo somado, a cor e o valor de mana desse custo; é uma carta só",
+    "M-621 · 202.3: o édito leva a de maior valor de mana sem perguntar; as menores e as suas ficam",
+    "M-621 · 202.3: empate no maior valor — B escolhe só entre as duas de valor 5"
    ]
   },
   {
@@ -6323,7 +6329,8 @@
    "testes": [
     "CR 101.4 · Fade Away (texto oficial): cada jogador, por criatura que controla, paga {1} ou sacrifica uma permanente — A (ativo) escolhe primeiro; sem mana para pagar, só sacrifica",
     "CR 701.21 · ruling de 04/10/2004: os sacrifícios são simultâneos e de permanentes diferentes — sem pagar, B com dois Ursos e uma Pedra sacrifica duas, e não pode usar um Urso sacrificado para \"não pagar\" pelo outro",
-    "CR 101.4 · Fade Away sem criaturas no campo não pede nada"
+    "CR 101.4 · Fade Away sem criaturas no campo não pede nada",
+    "M-621 · \"creature or planeswalker\": o planeswalker de valor 6 vai antes do Gigante de valor 5; terreno nunca"
    ]
   },
   {

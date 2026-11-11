@@ -9784,6 +9784,7 @@ function effectErrors(effects, label, opcional) {
       if (e.jogadores != null && !JOGADORES_QUANT.includes(e.jogadores)) errs.push(`${L}: "jogadores" precisa ser cada, cada-oponente ou voce`);
       if (e.naoFicha && (e.jogadores || 'voce') === 'voce' && e.target == null && !e.alvosJogadores) errs.push(`${L}: "naoFicha" só vale quando cada jogador ou o alvo escolhe`);
       if (e.soFicha != null && (e.soFicha !== true || e.naoFicha || (e.jogadores || 'voce') === 'voce')) errs.push(`${L}: "soFicha" só vale como true, sem naoFicha, quando cada jogador escolhe`); // M-592
+      if (e.maiorMV != null && (e.maiorMV !== true || e.maiorPoder || (e.jogadores || 'voce') === 'voce')) errs.push(`${L}: "maiorMV" só vale como true, sem maiorPoder, quando cada jogador escolhe`); // M-621
       if (e.alvosJogadores != null && (e.alvosJogadores !== 'anteriores' || e.jogadores != null || e.target != null)) errs.push(`${L}: "alvosJogadores" só vale como anteriores, sem jogadores nem alvo`); // M-264
     }
     if (e.do === 'jogar_escondida' && e.seAtacouCom != null && !(Number.isInteger(e.seAtacouCom) && e.seAtacouCom > 0)) errs.push(`${label} ${i + 1}: "se atacou com" precisa de um inteiro positivo`); // M-268
@@ -13871,6 +13872,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Overlord of the Balemurk': { texto: '1mle74k', leva: 'M-618' }, // M-618 · rotina Motor contínuo: impending (K-58) + "whenever this permanent enters or attacks" e a volta opcional de "a non-Avatar creature card or a planeswalker card"; texto da Scryfall de 10/11/2026
   // M-617 · rotina Motor contínuo · 702.21a com duração e "If you control two or more other lands, this land enters tapped": Hall of Storm Giants lida por inteiro (Scryfall, 10/11/2026)
   'Hall of Storm Giants': { texto: '177dox0', leva: 'M-617' },
+  // M-621 · rotina Motor contínuo · 118.9 + 111.1: o custo alternativo "sacrifice a nontoken <cor> creature" do ciclo Flare e o édito do maior valor de mana (202.3); texto da Scryfall pela coleta de 11/11/2026
+  'Flare of Malice': { texto: '5ga896', leva: 'M-621' }, 'Flare of Denial': { texto: '194fads', leva: 'M-621' },
   'Geothermal Bog': { texto: '1amo2my', leva: 'M-607' }, 'Dawnbringer Cleric': { texto: '3kngfl', leva: 'M-607' }, 'Thought Vessel': { texto: 'xi1v9x', leva: 'M-607' }, // M-607 · Sentinela do Pauper (Scryfall de 03/11/2026)
   'Flawless Maneuver': { texto: '1dbabfl', leva: 'M-577' },
   'Deadly Rollick': { texto: 'mi4hfd', leva: 'M-577' },
@@ -24166,6 +24169,7 @@ const __m42 = (function () {
     [/^sacrifice (?:~|this (?:land|creature|artifact|enchantment|permanent))$/i, () => [{ do: 'sacrifice_it', target: 'self-source' }]], // M-342 · City of Traitors (sem alvo)
     [/^each opponent sacrifices a (nontoken creature|creature token)(?: of their choice)?$/i, m => [{ do: 'sacrificar', tipos: ['creature'], jogadores: 'cada-oponente', ...(/^non/i.test(m[1]) ? { naoFicha: true } : { soFicha: true }) }]], // M-592 · Sheoldred's Edict (111.1: ficha)
     [/^each opponent sacrifices an? (creature|artifact|enchantment|planeswalker)(?: of their choice)?$/i, m => [{ do: 'sacrificar', tipos: [m[1].toLowerCase()], jogadores: 'cada-oponente' }]], // M-337 · 701.21a
+    [/^each opponent sacrifices an? (creature|artifact|planeswalker|creature or planeswalker) with the greatest mana value among (creatures|artifacts|planeswalkers|creatures and planeswalkers) they control$/i, m => { const tipos = m[1].toLowerCase().split(' or '), entre = m[2].toLowerCase().split(' and ').map(x => x.replace(/s$/, '')); return tipos.join() === entre.join() ? [{ do: 'sacrificar', tipos, jogadores: 'cada-oponente', maiorMV: true }] : null; }], // M-621 · 701.21a + 202.3 (Flare of Malice)
     [/^target creature with power (\d+) or less can't be blocked this turn$/i, m => [{ do: 'imbloqueavel', target: 'creature', targetPowerMax: +m[1] }]], // M-341 · Goblin Tunneler, Access Tunnel
     [/^target creature can't be blocked this turn$/i, () => [{ do: 'imbloqueavel', target: 'creature' }]], // M-336 · Rogue's Passage
     [new RegExp(`^you lose ${N} life$`, 'i'), m => [{ do: 'lose', amount: num(m[1]) }]], // M-335 · Thoughtseize (sem alvo: quem controla perde, como nos scripts à mão)
@@ -24233,6 +24237,7 @@ const __m42 = (function () {
     [/^unearth (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ unearth: { mana: m[1] } })], // M-413 · 702.84a (o motor desenterra desde a M-257)
     [/^cycling (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ cycling: { mana: m[1] } })],
     [/^if you control an? (Plains|Island|Swamp|Mountain|Forest), you may pay (\d+) life rather than pay this spell's mana cost$/i, m => ({ alt: [{ label: `Pagar ${m[2]} de vida em vez do custo (você controla ${{ Plains: 'uma Planície', Island: 'uma Ilha', Swamp: 'um Pântano', Mountain: 'uma Montanha', Forest: 'uma Floresta' }[m[1]]})`, cost: { life: +m[2] }, when: { youControlSubtype: m[1] } }] })], // M-328 · 118.9 (Snuff Out)
+    [/^you may sacrifice a nontoken (white|blue|black|red|green) creature rather than pay this spell's mana cost$/i, m => ({ alt: [{ label: `Sacrificar uma criatura ${COR_NOME_PT[m[1].toLowerCase()]} que não seja ficha em vez do custo`, cost: { sacrificeOther: { types: ['creature'], color: CORES[m[1].toLowerCase()], naoFicha: true } } }] })], // M-621 · 118.9 + 111.1 (o ciclo Flare: Flare of Malice, Denial, Duplication, Fortitude, Cultivation)
     [/^you may sacrifice two (Plains|Islands|Swamps|Mountains|Forests) rather than pay this spell's mana cost$/i, m => { const sub = m[1].replace(/s$/, ''); return { alt: [{ label: `Sacrificar duas ${{ Plain: 'Planícies', Island: 'Ilhas', Swamp: 'Pântanos', Mountain: 'Montanhas', Forest: 'Florestas' }[sub]} em vez do custo`, cost: { sacrificeOther: { types: ['land'], subtype: sub, amount: 2 } } }] }; }], // M-328 · 118.9 (Fireblast)
     [/^basic landcycling (\{[^}]+\}(?:\{[^}]+\})*)$/i, m => ({ cycling: { mana: m[1], busca: { basic: true, types: ['land'] } } })], // M-328 · 702.29e
     [/^(Plains|Island|Swamp|Mountain|Forest|Desert)cycling (\{[^}]+\}(?:\{[^}]+\})*)$/, m => ({ cycling: { mana: m[2], busca: { subtypes: [m[1]] } } })], // M-328 · 702.29e (tipociclar de terreno)
@@ -27923,7 +27928,7 @@ function sacrificarJogadores(s, src, spec, quem, events, note) {
   if (q == null && (s.players[quem].lost || !sacrificeOptions(s, quem, spec.tipos).length)) { note({ amount: 0 }); return; } // a linha do registro só aparece quando não há o que sacrificar
   const vez = s.turn.active, ordem = [vez, ...s.players.map((_, i) => i).filter(i => i !== vez)];
   const fila = q == null ? [quem] : ordem.filter(i => !s.players[i].lost && (q === 'cada' || i !== ctrl));
-  s.edito = { fila, escolhidas: [], types: spec.tipos, nontoken: !!spec.naoFicha, name: src.name, ...(spec.soFicha ? { soFicha: true } : {}), ...(spec.exilar ? { exilar: true } : {}), ...(spec.maiorPoder ? { maiorPoder: true } : {}) }; // M-351 · "a creature with the greatest power among creatures they control"
+  s.edito = { fila, escolhidas: [], types: spec.tipos, nontoken: !!spec.naoFicha, name: src.name, ...(spec.soFicha ? { soFicha: true } : {}), ...(spec.exilar ? { exilar: true } : {}), ...(spec.maiorPoder ? { maiorPoder: true } : {}), ...(spec.maiorMV ? { maiorMV: true } : {}) }; // M-621 · "with the greatest mana value among …" (Flare of Malice) // M-351 · "a creature with the greatest power among creatures they control"
   continuaEdito(s, events);
 }
 /** CR2-G R4a · 400.7/701 · move um objeto para outra zona. `de`: a zona (ou zonas) onde ele precisa estar — se já saiu, é
@@ -29810,6 +29815,7 @@ function continuaEdito(s, events) {
     const opts = sacrificeOptions(s, p, ed.types).filter(oid => !(ed.nontoken && s.objects[oid].token) && !(ed.soFicha && !s.objects[oid].token)); // M-592 · "a creature token"
     if (ed.diferentesK) { const resto = opts.filter(oid => !ed.escolhidas.includes(oid)); opts.length = 0; opts.push(...resto); } // K-40
     if (ed.maiorPoder && opts.length > 1) { const pw = oid => power(s, s.objects[oid]); const max = Math.max(...opts.map(pw)); const top = opts.filter(oid => pw(oid) === max); opts.length = 0; opts.push(...top); } // M-351 · só as de maior poder; empate: o jogador escolhe entre elas · 702.86a: "sacrifices N permanents" são N diferentes (Toca ponto comum: continuaEdito)
+    if (ed.maiorMV && opts.length > 1) { const mv = oid => manaValueT(s, s.objects[oid]); const max = Math.max(...opts.map(mv)); const top = opts.filter(oid => mv(oid) === max); opts.length = 0; opts.push(...top); } // M-621 · 202.3: só as de maior valor de mana entre as do tipo pedido (fichas valem 0, a virada para baixo 0); empate: o jogador escolhe entre elas
     if (opts.length > 1) { s.pending = { kind: 'sacrifice', p, options: opts, types: ed.types, name: ed.name, edito: true }; return true; }
     if (opts.length === 1) ed.escolhidas.push(opts[0]);
     ed.fila.shift();
@@ -30585,6 +30591,7 @@ function extraCostCandidates(s, p, spec, selfOid, needUntapped) {
     (!spec.color || coresDe(s, o).includes(spec.color)) && // CR2d.8
     (!spec.corOuTipo || coresDe(s, o).includes(spec.corOuTipo.cor) || tiposDe(s, o).includes(spec.corOuTipo.tipo)) && // M-464 · "a black or artifact creature"
     (!spec.ficha || !!o.token) && // M-599 · "Sacrifice a token" (Fountainport)
+    (!spec.naoFicha || !o.token) && // M-621 · "sacrifice a nontoken black creature" (Flare of Malice, 118.9; 111.1: ficha não serve)
     // S62 · enjoo de invocação vale só para o {T} da própria permanente (302.6).
     // Virar OUTRA criatura como custo aceita criatura que entrou agora — regra
     // confirmada na carta Jaspera Sentinel (consulta em 27/09/2026).
@@ -42157,7 +42164,7 @@ function descreveEfeito(e) {
     case 'sacrificar': { // CR2-G R4c
       const nomes = { creature: 'uma criatura', artifact: 'um artefato', enchantment: 'um encantamento', land: 'um terreno', planeswalker: 'um planeswalker' };
       const coisa = (e.tipos || []).length === 1 ? (nomes[e.tipos[0]] || 'uma permanente') : (e.tipos || []).map(x => (nomes[x] || x).replace(/^uma? /, '')).join(' ou ').replace(/^/, 'um(a) ');
-      const ficha = (e.naoFicha ? ' que não seja ficha' : '') + (e.soFicha ? ' que seja ficha' : '') /* M-592 */ + (e.maiorPoder ? ' com o maior poder entre as que controla' : ''); // M-351 · Extract a Confession
+      const ficha = (e.naoFicha ? ' que não seja ficha' : '') + (e.soFicha ? ' que seja ficha' : '') /* M-592 */ + (e.maiorPoder ? ' com o maior poder entre as que controla' : '') + (e.maiorMV ? ' com o maior valor de mana entre as que controla' : ''); // M-621 // M-351 · Extract a Confession
       if (e.target) return `${alvo || 'o jogador alvo'} sacrifica ${coisa}${ficha} à escolha dele`;
       const quem = { cada: 'cada jogador', 'cada-oponente': 'cada oponente' }[e.jogadores];
       return quem ? `${quem} sacrifica ${coisa}${ficha} à sua escolha` : `sacrifica ${coisa}`;
