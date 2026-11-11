@@ -1,61 +1,68 @@
 {
  "versao": 1,
  "formato": "pauper",
- "geradoEm": "2026-11-10T21:45:05.488Z",
+ "geradoEm": "2026-11-11T13:48:36.225Z",
  "motor": 112,
  "fonte": "api.scryfall.com/cards/collection",
- "listas": 677,
- "listas100": 671,
- "cartasPendentes": 11,
+ "listas": 694,
+ "listas100": 685,
+ "cartasPendentes": 15,
  "parcial": false,
  "lotesComFalha": 0,
  "porClasse": {
   "texto-mudou": 0,
-  "lida": 5,
-  "nova": 6,
+  "lida": 7,
+  "nova": 8,
   "parcial": 0,
   "sem-dados": 0
  },
  "novasDesdeAnterior": [
-  "Bellowing Crier",
-  "Blanchwood Prowler",
-  "Exhume",
-  "Glistener Seer",
-  "Persistent Petitioners",
-  "Pond Prophet",
-  "Prismari Campus",
-  "Sibsig Appraiser",
-  "Three Tree Mascot"
+  "Oona's Grace",
+  "Disrupt",
+  "Gigadrowse",
+  "Keep Watch"
  ],
- "resolvidasDesdeAnterior": [
-  "Crypt Incursion",
-  "Homestead Courage",
-  "Mardu Devotee",
-  "Spinewoods Paladin"
- ],
+ "resolvidasDesdeAnterior": [],
  "curva": [
   {
-   "listas": 672,
+   "listas": 686,
    "cartas": 1
   },
   {
-   "listas": 676,
-   "cartas": 5
+   "listas": 690,
+   "cartas": 3
   },
   {
-   "listas": 677,
-   "cartas": 11
+   "listas": 694,
+   "cartas": 15
   }
  ],
  "textos": null,
  "pendentes": [
+  {
+   "name": "Oona's Grace",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "mágica sem script",
+   "listas": 2,
+   "gulosa": 1,
+   "texto": {
+    "mana_cost": "{2}{U}",
+    "type_line": "Instant",
+    "oracle_text": "Target player draws a card.\nRetrace (You may cast this card from your graveyard by discarding a land card in addition to paying its other costs.)",
+    "keywords": [
+     "Retrace"
+    ],
+    "layout": "normal"
+   }
+  },
   {
    "name": "Rites of Initiation",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 2,
-   "gulosa": 2,
+   "gulosa": 4,
    "texto": {
     "mana_cost": "{R}",
     "type_line": "Instant",
@@ -70,7 +77,7 @@
    "nivel": "lida",
    "motivo": "lida pelo motor, em revisão",
    "listas": 1,
-   "gulosa": 6,
+   "gulosa": 9,
    "texto": {
     "mana_cost": "{1}{U}",
     "type_line": "Creature — Frog Advisor",
@@ -87,7 +94,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 5,
+   "gulosa": 7,
    "texto": {
     "mana_cost": "{1}{G}",
     "type_line": "Creature — Elemental",
@@ -101,12 +108,27 @@
    }
   },
   {
+   "name": "Disrupt",
+   "classe": "lida",
+   "nivel": "lida",
+   "motivo": "lida pelo motor, em revisão",
+   "listas": 1,
+   "gulosa": 8,
+   "texto": {
+    "mana_cost": "{U}",
+    "type_line": "Instant",
+    "oracle_text": "Counter target instant or sorcery spell unless its controller pays {1}.\nDraw a card.",
+    "keywords": [],
+    "layout": "normal"
+   }
+  },
+  {
    "name": "Exhume",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 1,
-   "gulosa": 5,
+   "gulosa": 7,
    "texto": {
     "mana_cost": "{1}{B}",
     "type_line": "Sorcery",
@@ -116,12 +138,29 @@
    }
   },
   {
+   "name": "Gigadrowse",
+   "classe": "lida",
+   "nivel": "lida",
+   "motivo": "lida pelo motor, em revisão",
+   "listas": 1,
+   "gulosa": 8,
+   "texto": {
+    "mana_cost": "{U}",
+    "type_line": "Instant",
+    "oracle_text": "Replicate {U} (When you cast this spell, copy it for each time you paid its replicate cost. You may choose new targets for the copies.)\nTap target permanent.",
+    "keywords": [
+     "Replicate"
+    ],
+    "layout": "normal"
+   }
+  },
+  {
    "name": "Glistener Seer",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 6,
+   "gulosa": 9,
    "texto": {
     "mana_cost": "{U}",
     "type_line": "Creature — Phyrexian Advisor",
@@ -135,12 +174,27 @@
    }
   },
   {
+   "name": "Keep Watch",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "mágica sem script",
+   "listas": 1,
+   "gulosa": 8,
+   "texto": {
+    "mana_cost": "{2}{U}",
+    "type_line": "Instant",
+    "oracle_text": "Draw a card for each attacking creature.",
+    "keywords": [],
+    "layout": "normal"
+   }
+  },
+  {
    "name": "Persistent Petitioners",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 6,
+   "gulosa": 9,
    "texto": {
     "mana_cost": "{1}{U}",
     "type_line": "Creature — Human Advisor",
@@ -159,7 +213,7 @@
    "nivel": "lida",
    "motivo": "lida pelo motor, em revisão",
    "listas": 1,
-   "gulosa": 6,
+   "gulosa": 9,
    "texto": {
     "mana_cost": "{G/U}{G/U}",
     "type_line": "Creature — Frog Advisor",
@@ -176,7 +230,7 @@
    "nivel": "lida",
    "motivo": "lida pelo motor, em revisão",
    "listas": 1,
-   "gulosa": 1,
+   "gulosa": 3,
    "texto": {
     "mana_cost": "",
     "type_line": "Land",
@@ -193,7 +247,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 1,
-   "gulosa": 4,
+   "gulosa": 6,
    "texto": {
     "mana_cost": "{U}",
     "type_line": "Instant",
@@ -208,7 +262,7 @@
    "nivel": "lida",
    "motivo": "lida pelo motor, em revisão",
    "listas": 1,
-   "gulosa": 6,
+   "gulosa": 9,
    "texto": {
     "mana_cost": "{2}{U}",
     "type_line": "Creature — Zombie Advisor",
@@ -225,7 +279,7 @@
    "nivel": "lida",
    "motivo": "lida pelo motor, em revisão",
    "listas": 1,
-   "gulosa": 6,
+   "gulosa": 9,
    "texto": {
     "mana_cost": "{2}",
     "type_line": "Artifact Creature — Shapeshifter",
@@ -241,10 +295,33 @@
  ],
  "listasIncompletas": [
   {
+   "id": "mtgo-pauper-league-2026-11-1111345-5",
+   "nome": "Simic Arcane Denial",
+   "faltam": [
+    "Oona's Grace"
+   ]
+  },
+  {
+   "id": "mtgo-pauper-league-2026-11-1111345-6",
+   "nome": "Simic Growth Spiral",
+   "faltam": [
+    "Keep Watch",
+    "Gigadrowse",
+    "Disrupt"
+   ]
+  },
+  {
    "id": "mtgo-pauper-league-2026-11-1011153-5",
    "nome": "Grixis Nihil Spellbomb",
    "faltam": [
     "Prismari Campus"
+   ]
+  },
+  {
+   "id": "mtgo-pauper-league-2026-11-0911153-7",
+   "nome": "Simic Arcane Denial",
+   "faltam": [
+    "Oona's Grace"
    ]
   },
   {
