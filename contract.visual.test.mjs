@@ -1068,6 +1068,41 @@ test('MK3-1 · estojo das fases: tokens nos três blocos; estojo rebaixado no ei
   assert.ok(HTML.includes("class: 'ds-estojo', id: 'ds-estojo'") && HTML.includes("id: 'ds-estojo-troca'"), 'palco do estojo no /ds');
 });
 
+// MK3-P1 (J-68, trilha jogabilidade) · playmats da casa: seis modelos procedurais (Ébano, Feltro, Oceano, Vinho, Pergaminho,
+// Latão gravado) como tokens nos três blocos de tema. Cada um: um tom de base (a cor do fundo, última camada) e camadas por cima
+// (luz de cima à esquerda, centro calmo nos que têm padrão, vinheta, grão ou padrão SVG no próprio token, nenhuma imagem de
+// fora). O texto da mesa lê sobre o tom; a faixa do nome da carta se separa dele (o padrão de hoje é o próprio --bg-elev-1:
+// 1,00:1). data-playmat troca só o --playmat; laca e poço continuam por cima. Falhava no main de antes (sem os tokens).
+test('MK3-P1 · playmats da casa: seis modelos procedurais nos três blocos; tom de base com o texto da mesa legível e a carta separada; centro calmo; data-playmat troca só o token; laca e poço por cima; lista PLAYMATS e palco no /ds', () => {
+  const NOMES = ['ebano', 'feltro', 'oceano', 'vinho', 'pergaminho', 'latao'];
+  const rgbaDe = (hex, a) => { const n = hex.slice(1); return `rgba(${parseInt(n.slice(0, 2), 16)}, ${parseInt(n.slice(2, 4), 16)}, ${parseInt(n.slice(4, 6), 16)}, ${a})`; };
+  for (const [nome, t] of [['escuro', DARK], ['claro', LIGHT], ['claro automático', { ...DARK, ...AUTO_LIGHT }]]) for (const k of NOMES) {
+    const tom = t[`--playmat-${k}-tom`], pm = t[`--playmat-${k}`] || '', onde = `${k} (${nome})`;
+    assert.match(tom || '', /^#[0-9a-f]{6}$/, `${onde}: tom de base`);
+    assert.ok(pm.endsWith(`, var(--playmat-${k}-tom)`), `${onde}: o tom é a última camada`);
+    assert.ok(pm.includes('radial-gradient(120% 80% at 25% 0%, '), `${onde}: luz de cima à esquerda (L1)`);
+    assert.ok(!/url\((?!"data:image\/svg\+xml,|%23)/.test(pm) && !/https?:/.test(pm.replace(/http:\/\/www\.w3\.org\/2000\/svg/g, '')), `${onde}: procedural, sem imagem de fora`);
+    assert.ok(/var\(--grain\)|data:image\/svg\+xml,/.test(pm), `${onde}: grão ou padrão gravado`);
+    if (/data:image|repeating-/.test(pm)) assert.ok(pm.includes(`radial-gradient(closest-side, ${rgbaDe(tom, '.65')}, ${rgbaDe(tom, 0)})`), `${onde}: o padrão some no centro calmo`);
+    for (const [cor, min] of [['--fg', 4.5], ['--fg-muted', 4.5], ['--accent', 3], ['--player-opp', 3]])
+      assert.ok(ratio(t[cor], tom) >= min, `${onde}: ${cor} sobre o tom ${ratio(t[cor], tom).toFixed(2)}:1 (mínimo ${min})`);
+    assert.ok(ratio(t['--bg-elev-1'], tom) >= 1.12, `${onde}: a faixa do nome da carta se separa do playmat (${ratio(t['--bg-elev-1'], tom).toFixed(2)}:1)`);
+  }
+  for (const k of NOMES) {
+    assert.equal(AUTO_LIGHT[`--playmat-${k}`], LIGHT[`--playmat-${k}`], `${k}: claro automático = claro`);
+    assert.equal(AUTO_LIGHT[`--playmat-${k}-tom`], LIGHT[`--playmat-${k}-tom`]);
+    assert.notEqual(DARK[`--playmat-${k}-tom`], LIGHT[`--playmat-${k}-tom`], `${k}: o tom muda com o tema`);
+    assert.ok(componentCss.includes(`[data-playmat="${k}"] { --playmat: var(--playmat-${k}); }`), `${k}: data-playmat troca só o token`);
+  }
+  assert.equal(new Set(NOMES.map(k => DARK[`--playmat-${k}-tom`])).size, 6, 'seis tons diferentes');
+  assert.match(css, /:root \{ --playmat: var\(--bg-elev-1\); \}/, 'sem escolha, o padrão (o papel do lado)');
+  const lado = componentCss.slice(componentCss.indexOf('.tb-side {'), componentCss.indexOf('}', componentCss.indexOf('.tb-side {')));
+  assert.match(lado, /background: var\(--lacquer\), var\(--playmat\);/, 'a laca por cima do playmat');
+  assert.match(lado, /box-shadow: var\(--mesa-poco\), var\(--shadow-contact\);/, 'o poço por cima do playmat (sombra interna)');
+  assert.ok(HTML.includes("const PLAYMATS = Object.freeze([['ebano', 'Ébano'], ['feltro', 'Feltro'], ['oceano', 'Oceano'], ['vinho', 'Vinho'], ['pergaminho', 'Pergaminho'], ['latao', 'Latão gravado']]);"), 'a lista da galeria');
+  assert.ok(HTML.includes("id: 'ds-playmats'") && HTML.includes("id: 'ds-playmat-tokens'"), 'palco dos playmats no /ds');
+});
+
 // MK3-0 (J-63, trilha jogabilidade) · Mesa Vitrine: a mesa entra no material do DS-K3. A carta é objeto (fio de lado =
 // espessura, contato no tampo, chave; levantada, flutuante), a face é laqueada com aresta de luz, o playmat é um poço no
 // tampo (sombra interna de cima, laca, aresta) igual nos dois lados, e levantar/assentar usa a mola do DS-K3 (R3).
