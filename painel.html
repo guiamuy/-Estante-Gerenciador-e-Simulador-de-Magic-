@@ -220,6 +220,25 @@
   --fg-sobre-arte-muted: #d6c8ad;
   --radius-4: 22px;
   --tilt-max: 6deg;
+  /* DS-K3 K3-5 (G-378) · ladrilho de lista sobre a arte da carta-chave; iguais nos dois temas (a arte é escura em qualquer
+     tema). Sobre o --scrim-art do ladrilho, o bloco de texto leva o próprio véu (--veu-texto-arte: chega a .72 antes da
+     primeira linha), então o nome passa AA em qualquer arte e em qualquer altura; o selo do topo, onde não há véu, leva ébano
+     quase cheio (AA mesmo sobre arte branca, sem desfoque); latão claro no texto e no fio de posse, trilho claro do fio; os
+     estados do selo do motor em tons que passam sobre o ébano. */
+  --veu-texto-alt: 24px;
+  --veu-texto-arte: linear-gradient(180deg, rgba(10, 7, 4, 0) 0, rgba(10, 7, 4, .72) var(--veu-texto-alt), rgba(10, 7, 4, .9) 100%);
+  --selo-sobre-arte: rgba(10, 7, 4, .78);
+  --latao-sobre-arte: #e6c477;
+  --latao-sobre-arte-lo: #b08a3c;
+  --trilho-sobre-arte: rgba(255, 240, 210, .18);
+  --positivo-sobre-arte: #8fcaa9;
+  --alerta-sobre-arte: #e3b45a;
+  --ladrilho-alt: 150px;
+  --ladrilho-alt-largo: 120px;
+  --selo-alt-ladrilho: 22px;
+  --text-ladrilho: calc(17px * var(--escala-texto));
+  --simbolo-ladrilho: 14px;
+  --simbolo-placa: 56px;
   /* DS-K3 K3-2 (G-362) · barra inferior flutuante: pílula de --navbar-alt a --navbar-folga das bordas (e da área segura), o
      Jogar sobe --navbar-ressalto acima dela. Vidro (E4 a 92 % + desfoque) só na barra; reserva opaca (E4 cheio) quando não há
      backdrop-filter, com Movimento reduzido, transparência reduzida ou contraste alto. O texto da barra passa AA mesmo com

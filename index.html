@@ -225,6 +225,25 @@
   --fg-sobre-arte-muted: #d6c8ad;
   --radius-4: 22px;
   --tilt-max: 6deg;
+  /* DS-K3 K3-5 (G-378) · ladrilho de lista sobre a arte da carta-chave; iguais nos dois temas (a arte é escura em qualquer
+     tema). Sobre o --scrim-art do ladrilho, o bloco de texto leva o próprio véu (--veu-texto-arte: chega a .72 antes da
+     primeira linha), então o nome passa AA em qualquer arte e em qualquer altura; o selo do topo, onde não há véu, leva ébano
+     quase cheio (AA mesmo sobre arte branca, sem desfoque); latão claro no texto e no fio de posse, trilho claro do fio; os
+     estados do selo do motor em tons que passam sobre o ébano. */
+  --veu-texto-alt: 24px;
+  --veu-texto-arte: linear-gradient(180deg, rgba(10, 7, 4, 0) 0, rgba(10, 7, 4, .72) var(--veu-texto-alt), rgba(10, 7, 4, .9) 100%);
+  --selo-sobre-arte: rgba(10, 7, 4, .78);
+  --latao-sobre-arte: #e6c477;
+  --latao-sobre-arte-lo: #b08a3c;
+  --trilho-sobre-arte: rgba(255, 240, 210, .18);
+  --positivo-sobre-arte: #8fcaa9;
+  --alerta-sobre-arte: #e3b45a;
+  --ladrilho-alt: 150px;
+  --ladrilho-alt-largo: 120px;
+  --selo-alt-ladrilho: 22px;
+  --text-ladrilho: calc(17px * var(--escala-texto));
+  --simbolo-ladrilho: 14px;
+  --simbolo-placa: 56px;
   /* DS-K3 K3-2 (G-362) · barra inferior flutuante: pílula de --navbar-alt a --navbar-folga das bordas (e da área segura), o
      Jogar sobe --navbar-ressalto acima dela. Vidro (E4 a 92 % + desfoque) só na barra; reserva opaca (E4 cheio) quando não há
      backdrop-filter, com Movimento reduzido, transparência reduzida ou contraste alto. O texto da barra passa AA mesmo com
@@ -1114,15 +1133,12 @@ body[data-cab="compacto"] .ds-cabecalho--editorial .ds-cabecalho__rotulo { visib
 .inicio__rapidos .ds-atalho.ds-btn:active .ds-atalho__icone { transform: scale(.94); }
 .inicio__rapidos .ds-atalho__icone { transition: transform var(--dur-1) var(--ease-out); }
 /* DS-K2 I1 (G-323) · Início como na proposta K: o grupo "Últimas listas" — as três mais recentes, cada uma com o ladrilho
-   nas cores da lista, nome, formato, contagem, posse e o selo do motor; "ver todas" leva à estante. Sem lista, o grupo não
+   (desde a K3-5, G-378, a arte da carta-chave; sem arte, a placa nas cores da lista), nome, formato, contagem, posse e o selo do motor; "ver todas" leva à estante. Sem lista, o grupo não
    aparece. G-328 · relato #47: a linha "N listas prontas para jogar" sob o título saiu — contava só as suas listas de Pauper
    que o motor joga, lia-se como o catálogo e não batia com o total da estante; o selo do motor em cada lista já diz isso. */
 .home-ultimas { display: grid; gap: var(--space-2); }
 .home-ultimas__cab { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); padding: 0 var(--space-1); }
 .home-ultimas__cab h2 { margin: 0; font-family: var(--font-display); font-weight: 600; font-size: var(--text-lg); line-height: var(--lh-lg); }
-.home-ultimas .ds-list { background: var(--bg-elev-1); }
-.home-ultimas .deck-item { grid-template-columns: auto minmax(0, 1fr) auto; }
-.home-lista__ladrilho { flex: none; width: 40px; height: 40px; border-radius: var(--radius-1); background: var(--ladrilho, var(--bg-elev-2)); box-shadow: inset 0 1px 0 var(--latao-luz), var(--shadow-1); margin-right: var(--space-3); align-self: center; }
 @media (prefers-reduced-motion: reduce) { .inicio__rapidos .ds-atalho__icone { transition: none; } }
 :root[data-movimento="reduzido"] .inicio__rapidos .ds-atalho__icone { transition: none !important; }
 .nt-cartao--colecao { align-items: center; }
@@ -2727,6 +2743,53 @@ body:has(#outlet .ds-fab[data-acoes="1"]) #outlet { padding-bottom: max(var(--na
 .deck-item__posse[data-completa="true"] .deck-item__posse-barra { background: var(--positive); }
 .deck-item__ja { flex: none; display: inline-grid; place-items: center; width: var(--tap-min); height: var(--tap-min); color: var(--positive); }
 .deck-item__add { flex: none; }
+/* DS-K3 K3-5 (G-378) · ladrilho de lista: a arte da carta-chave (art_crop, guardada pelo sw.js) sob o --scrim-art; sem arte ou
+   sem rede, a placa nas cores da lista com o símbolo de mana. Selo do formato no canto de cima à esquerda (ébano quase cheio,
+   sem desfoque); embaixo, à esquerda, o nome em Cormorant 17 e a linha de mana e "60 · 52 na coleção" sobre o véu do texto;
+   posse num fio de latão de 2 px a 4 px do pé, que cresce ao entrar (--ease-out · --dur-4, --escalona-2 entre ladrilhos;
+   reduzido: o fio já no lugar). Grade de duas colunas na Início (a mais recente larga); na estante, largos (a linha carrega
+   motor, valor, etiquetas e a lixeira ao lado). A caixa cresce com o texto: nada fica por cima do selo. */
+.ladrilhos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+.ladrilhos--largos { grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 640px) { .ladrilhos--largos { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.ladrilhos > .deck-item--largo { grid-column: 1 / -1; }
+.ladrilhos > .deck-linha { gap: var(--space-1); border-bottom: none; }
+.ladrilhos > .deck-linha > .deck-linha__excluir { margin-right: 0; }
+.ds-list__item.deck-item--ladrilho { position: relative; isolation: isolate; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch; gap: 0;
+  min-height: var(--ladrilho-alt); padding: calc(var(--space-6) + var(--space-2)) var(--space-3) calc(var(--space-3) + var(--space-1)); border: none; border-radius: var(--radius-3);
+  background: var(--elev-2); color: var(--fg-sobre-arte); box-shadow: var(--shadow-key), var(--shadow-contact); text-align: left; }
+.ds-list__item.deck-item--largo { min-height: var(--ladrilho-alt-largo); }
+.deck-item--ladrilho::before { content: ""; position: absolute; inset: 0; z-index: 1; border-radius: inherit; box-shadow: inset 0 1px 0 var(--edge-strong); pointer-events: none; }
+@media (hover: hover) { .ds-list__item.deck-item--ladrilho:hover { background: var(--elev-2); } .deck-item--ladrilho:hover .deck-item__arte { filter: brightness(1.08); } }
+.deck-item--ladrilho:focus-visible { outline: 2px solid var(--accent-hi); outline-offset: 2px; }
+.deck-item__arte { position: absolute; inset: 0; z-index: -1; overflow: hidden; transition: filter var(--dur-1) var(--ease-out); }
+.deck-item__arte::after { content: ""; position: absolute; inset: 0; background: var(--scrim-art); }
+.deck-item__img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; }
+.deck-item__placa { position: absolute; inset: 0; display: grid; place-items: start end; padding: var(--space-3); background: var(--grain), var(--placa, var(--mana-c)); }
+.deck-item__placa .ds-sym { font-size: var(--simbolo-placa); opacity: .55; top: 0; margin: 0; }
+.deck-item--largo .deck-item__placa { place-items: center end; } /* o canto de cima à direita é da seta */
+.deck-item--ladrilho .deck-item__corpo { flex: none; gap: var(--space-1); margin: 0 calc(-1 * var(--space-3)); padding: var(--veu-texto-alt) var(--space-3) 0; background: var(--veu-texto-arte); }
+.deck-item--ladrilho .deck-item__formato { position: absolute; top: calc(var(--space-2) + 2px); left: calc(var(--space-2) + 2px); z-index: 1; display: inline-flex; align-items: center; height: var(--selo-alt-ladrilho); padding: 0 9px;
+  font-size: var(--text-2xs); letter-spacing: .06em; font-weight: var(--weight-medium); color: var(--latao-sobre-arte); border-color: var(--latao-sobre-arte-lo); background: var(--selo-sobre-arte); }
+.deck-item--ladrilho .deck-item__nome { font-size: var(--text-ladrilho); line-height: 1.05; color: var(--fg-sobre-arte); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.deck-item__linha { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--fg-sobre-arte-muted); }
+.deck-item--ladrilho .deck-item__meta { display: contents; }
+.deck-item--ladrilho .deck-item__meta > * { order: 4; }
+.deck-item--ladrilho .deck-item__meta > .ds-pips { order: 1; } .deck-item--ladrilho .deck-item__meta > .deck-item__main { order: 2; } .deck-item__linha > .deck-item__tem { order: 3; }
+.deck-item__seta { position: absolute; top: calc(var(--space-2) + 2px); right: calc(var(--space-2) + 2px); z-index: 1; box-sizing: content-box; padding: 3px; border-radius: var(--radius-full); color: var(--fg-sobre-arte-muted); background: var(--selo-sobre-arte); }
+.deck-item--ladrilho .deck-item__meta .ds-pips { font-size: var(--simbolo-ladrilho); }
+.deck-item--ladrilho .deck-item__conta { font-size: inherit; }
+.deck-item--ladrilho .deck-item__conta b { color: var(--fg-sobre-arte); }
+.deck-item__tem { white-space: nowrap; }
+.deck-item--ladrilho .deck-item__valor { font-size: inherit; color: var(--fg-sobre-arte-muted); }
+.deck-item--ladrilho .deck-item__motor { color: var(--fg-sobre-arte-muted); border-color: var(--trilho-sobre-arte); background: var(--selo-sobre-arte); }
+.deck-item--ladrilho .deck-item__motor[data-motor="completo"] { color: var(--positivo-sobre-arte); border-color: var(--positivo-sobre-arte); }
+.deck-item--ladrilho .deck-item__motor[data-motor="incompleto"] { color: var(--alerta-sobre-arte); border-color: var(--alerta-sobre-arte); }
+.deck-item--ladrilho .deck-item__motor[data-motor="calculando"] b { color: var(--fg-sobre-arte-muted); }
+.deck-item--ladrilho .deck-item__posse { position: absolute; left: var(--space-3); right: var(--space-3); bottom: var(--space-1); z-index: 1; height: 2px; background: var(--trilho-sobre-arte); }
+.deck-item--ladrilho .deck-item__posse-barra, .deck-item--ladrilho .deck-item__posse[data-completa="true"] .deck-item__posse-barra { background: linear-gradient(90deg, var(--latao-sobre-arte-lo), var(--latao-sobre-arte));
+  transform-origin: left center; animation: ladrilho-posse var(--dur-4) var(--ease-out) calc(var(--i, 0) * var(--escalona-2)) both; }
+@keyframes ladrilho-posse { from { transform: scaleX(0); } }
 /* Leva 114 · série: placar na mesa e a tela de trocas com a reserva */
 .tb-serie { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: var(--radius-full); border: 1px solid var(--accent); color: var(--accent); font-size: var(--text-sm); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .tb-serie b { font-weight: var(--weight-bold); }
@@ -6443,6 +6506,15 @@ function renderDS() {
         ListGroup('Grupo'),
         ListItem({ onClick: () => toast('Item 1') }, ManaPips('U'), Text('Counterspell', { size: 'md' }), h('div', { class: 'ds-grow' }), Badge('4x')),
         ListItem({ onClick: () => toast('Item 2') }, ManaPips('R'), Text('Lightning Bolt', { size: 'md' }), h('div', { class: 'ds-grow' }), Badge('4x')))),
+
+    // DS-K3 K3-5 (G-378) · ladrilho de lista: arte da carta-chave sob véu; aqui a placa (sem carta no /ds): cores da lista e símbolo
+    Section('Ladrilho de lista',
+      Text('A arte da carta-chave sob o véu; sem arte ou sem rede, a placa nas cores da lista. Selo do formato em cima, nome e posse embaixo; o fio de posse cresce ao entrar.', { size: 'sm', tone: 'muted' }),
+      h('div', { class: 'ladrilhos', id: 'ds-ladrilhos' },
+        __m15.DeckLinha({ nome: 'Dimir Faeries', formato: 'pauper', cores: 'UB', main: 60, side: 15, posse: { have: 52, need: 75 }, arte: { carta: null }, largo: true, indice: 0, onClick: () => toast('Lista') }),
+        __m15.DeckLinha({ nome: 'Mono Red Madness', formato: 'pauper', cores: 'R', main: 60, side: 0, posse: { have: 60, need: 60 }, arte: { carta: null }, indice: 1, onClick: () => toast('Lista') }),
+        __m15.DeckLinha({ nome: 'Golgari Gardens', formato: 'modern', cores: 'BG', main: 60, side: 0, posse: { have: 31, need: 60 }, arte: { carta: null }, indice: 2, onClick: () => toast('Lista') })),
+      Text('--scrim-art · --veu-texto-arte · --selo-sobre-arte · --latao-sobre-arte(-lo) · --trilho-sobre-arte · --positivo/--alerta-sobre-arte · --ladrilho-alt 150 · --ladrilho-alt-largo 120', { size: 'xs', tone: 'subtle' })),
 
     Section('Cartas',
       CardGrid(
@@ -20715,8 +20787,51 @@ function LadrilhoDaCarta(c, { classe = 'deck-hero__arte', tamanho = '64px' } = {
   arte.appendChild(img || Icone('baralho', { tamanho: 24 }));
   return arte;
 }
-function DeckLinha({ nome, formato, cores, main, side, posse, fim, onClick, dataset, tag = 'div', attrs = {}, etiquetas = null, valor = null, motor = null }) {
+/** DS-K3 K3-5 (G-378) · a arte do ladrilho: o art_crop da carta-chave (guardado pelo sw.js como as outras imagens de carta);
+    sem a carta, sem a arte ou sem rede, a placa nas cores da lista com o símbolo de mana da primeira cor (incolor sem cor). */
+function ArteDoLadrilho(carta, cores) {
+  const cs = [...String(cores || '')].filter(c => 'WUBRG'.includes(c));
+  const pares = cs.length ? cs.map(c => `var(--mana-${c.toLowerCase()})`) : ['var(--mana-c)'];
+  const fundo = pares.length === 1 ? pares[0] : `linear-gradient(135deg, ${pares.map((c, i) => `${c} ${Math.round(i * 100 / pares.length)}% ${Math.round((i + 1) * 100 / pares.length)}%`).join(', ')})`;
+  const el = h('span', { class: 'deck-item__arte', 'aria-hidden': 'true', dataset: { arte: 'placa' } });
+  const placa = () => { const s = Simbolo(cs[0] || 'C'); s.removeAttribute('role'); s.setAttribute('aria-hidden', 'true'); return h('span', { class: 'deck-item__placa', style: { '--placa': fundo } }, s); };
+  const im = carta && (carta.images || (carta.faces && carta.faces[0] && carta.faces[0].images));
+  if (im && im.art) {
+    const img = h('img', { class: 'deck-item__img', src: im.art, alt: '', loading: 'lazy', decoding: 'async', draggable: 'false' });
+    img.addEventListener('error', () => { img.replaceWith(placa()); el.dataset.arte = 'placa'; });
+    el.dataset.arte = 'carta'; el.appendChild(img);
+  } else el.appendChild(placa());
+  return el;
+}
+/** Uma lista da estante. Com `arte` ({ carta, cores }), o ladrilho da K3-5 (arte da carta-chave sob véu, selo do formato,
+    nome, mana e "60 · 52 na coleção", posse em fio); `largo` ocupa a linha inteira; `indice` escalona o fio de posse. */
+function DeckLinha({ nome, formato, cores, main, side, posse, fim, onClick, dataset, tag = 'div', attrs = {}, etiquetas = null, valor = null, motor = null, arte = null, largo = false, indice = 0 }) {
   const conta = (icone, n, fala, classe) => h('span', { class: 'deck-item__conta ' + classe, role: 'img', 'aria-label': fala, title: fala }, Icone(icone, { tamanho: 16 }), h('b', {}, String(n)));
+  if (arte) {
+    // a meta segue só de símbolos e números (leva 110: só o nome em palavras; o selo do formato, posto no canto, é dela);
+    // "· 52 na coleção" mora fora dela, na mesma linha (a meta é `display: contents` no ladrilho e `order` põe cada peça)
+    const corpoL = [
+      h('span', { class: 'deck-item__nome' }, nome),
+      h('span', { class: 'deck-item__linha' },
+        h('span', { class: 'deck-item__meta' },
+          h('span', { class: 'deck-item__formato' }, FORMATS[formato] || formato),
+          cores != null ? ManaPips(cores) : null,
+          h('span', { class: 'deck-item__conta deck-item__main', role: 'img', 'aria-label': `${main} cartas no deck`, title: `${main} cartas no deck` }, h('b', {}, String(main))),
+          side ? conta('reserva', side, `${side} na reserva`, 'deck-item__reserva') : null,
+          __m32.Pontos(etiquetas),
+          valor ? h('span', { class: 'deck-item__valor', role: 'img', 'aria-label': valor.fala, title: valor.fala }, valor.texto) : null,
+          motor ? SeloMotorDa(motor.lista, motor.cards) : null),
+        posse ? h('span', { class: 'deck-item__tem' }, `· ${posse.have} na coleção`) : null),
+      posse ? h('span', { class: 'deck-item__posse', role: 'meter', 'aria-valuemin': '0', 'aria-valuemax': String(posse.need), 'aria-valuenow': String(posse.have),
+        'aria-label': `tenho ${posse.have} de ${posse.need}`, title: `tenho ${posse.have} de ${posse.need}`, dataset: { completa: String(posse.have === posse.need) } },
+        h('span', { class: 'deck-item__posse-barra', style: { width: `${posse.need ? Math.round(posse.have / posse.need * 100) : 0}%` } })) : null];
+    const classe = 'ds-list__item deck-item deck-item--ladrilho' + (largo ? ' deck-item--largo' : '');
+    const props = { class: classe, dataset, style: { '--i': String(indice) } };
+    // o largo leva a seta no canto de cima à direita, espelho do selo (o ladrilho abre a lista); o de 150 px não tem lugar para ela
+    return onClick ? h('button', { ...props, type: 'button', onClick }, ArteDoLadrilho(arte.carta, arte.cores != null ? arte.cores : cores), h('span', { class: 'deck-item__corpo' }, ...corpoL),
+      largo ? Icone('seguir', { tamanho: 16, classe: 'ds-list__seta deck-item__seta' }) : null)
+      : h(tag, { ...props, ...attrs }, ArteDoLadrilho(arte.carta, arte.cores != null ? arte.cores : cores), h('span', { class: 'deck-item__corpo' }, ...corpoL), fim || null);
+  }
   const corpo = [
     h('span', { class: 'deck-item__nome' }, nome),
     h('span', { class: 'deck-item__meta' },
@@ -20870,7 +20985,7 @@ function createDecksHome({ decks, collection, files, cardRepo, backup = null, et
       detalhe: total.semPreco ? `${total.semPreco} carta(s) sem preço guardado` : '' })) : null);
     if (!visiveis.length && filtrando && comEtiqueta.length) return mount(list, Empty('Nenhuma lista passa por esses filtros.', Button('Limpar', { icone: 'fechar', id: 'decks-filtros-limpar-vazio', onClick: () => { guardaFiltro(FLL.novoFiltroDeListas()); filtroIn.value = ''; paint(); } }), { icone: 'filtro' }));
     if (!visiveis.length) return mount(list, Empty('Nenhuma lista com essas etiquetas.', Button('Ver todas', { icone: 'fechar', id: 'decks-etiquetas-limpar', onClick: () => { etqLigadas.clear(); paint(); } })));
-    mount(list, h('div', { class: 'ds-list' }, ...visiveis.map(d => {
+    mount(list, h('div', { class: 'ladrilhos ladrilhos--largos' }, ...visiveis.map((d, i) => {
       const need = d.entries.reduce((s, e) => s + e.qty, 0);
       const have = d.entries.reduce((s, e) => s + Math.min(e.qty, owned[norm(e.name)] || 0), 0);
       const reserva = d.entries.filter(e => e.zone === 'side').reduce((s, e) => s + e.qty, 0);
@@ -20878,6 +20993,7 @@ function createDecksHome({ decks, collection, files, cardRepo, backup = null, et
       return h('div', { class: 'deck-linha', dataset: { deckLinha: d.id } },
         DeckLinha({ nome: d.name, formato: d.format, cores: coresDaLista(d.entries, guardadas), main: need - reserva, side: reserva,
           posse: { have, need }, onClick: () => go('/lista?id=' + d.id), dataset: { deck: d.id }, etiquetas: __m32.de(etq, 'listas', d.id), motor: { lista: d, cards: guardadas },
+          arte: { carta: cartaChaveDaLista(d, guardadas) }, largo: true, indice: Math.min(i, 8), // DS-K3 K3-5 (G-378) · ladrilho largo com a arte da carta-chave
           valor: (v => v.comPreco ? { texto: __m31.principal(v), fala: `valor estimado ${__m31.principal(v)}` + (v.semPreco ? `, ${v.semPreco} carta(s) sem preço` : '') } : null)(valores.get(d.id)) }),
         IconButton('lixeira', 'Excluir ' + d.name, { variant: 'ghost', classe: 'ds-btn--perigo deck-linha__excluir', dataset: { excluir: d.id }, onClick: () => confirmaExcluir(d) }));
     })));
@@ -51026,17 +51142,16 @@ async function painelUltimasListas() {
   let guardadas = new Map(), owned = {};
   try { guardadas = await cardRepo.cached([...new Set(todas.flatMap(d => d.entries.map(e => e.name)))]); } catch (e) { /* sem cache: sem cores nem selo */ }
   try { owned = await collection.all(); } catch (e) { owned = {}; }
-  const MANA = { W: 'var(--mana-w)', U: 'var(--mana-u)', B: 'var(--mana-b)', R: 'var(--mana-r)', G: 'var(--mana-g)' };
-  const ladrilho = cores => { const cs = [...(cores || '')].filter(c => MANA[c]); const stops = cs.length ? cs.map(c => MANA[c]) : ['var(--mana-c)'];
-    return h('span', { class: 'home-lista__ladrilho', 'aria-hidden': 'true', style: { '--ladrilho': stops.length === 1 ? stops[0] : `linear-gradient(135deg, ${stops.map((c, i) => `${c} ${Math.round(i * 100 / stops.length)}% ${Math.round((i + 1) * 100 / stops.length)}%`).join(', ')})` } }); };
-  const linhas = recentes.map(d => {
+  // DS-K3 K3-5 (G-378) · o quadrado nas cores (I1) virou o ladrilho com a arte da carta-chave: a mais recente larga, as outras
+  // duas lado a lado; sem arte, a placa nas cores da lista com o símbolo de mana
+  const linhas = recentes.map((d, i) => {
     const need = d.entries.reduce((s, e) => s + e.qty, 0), have = d.entries.reduce((s, e) => s + Math.min(e.qty, owned[__m7.norm(e.name)] || 0), 0), side = d.entries.filter(e => e.zone === 'side').reduce((s, e) => s + e.qty, 0);
     const cores = __m14.coresDaLista(d.entries, guardadas);
-    const el = __m15.DeckLinha({ nome: d.name, formato: d.format, cores, main: need - side, side, posse: { have, need }, motor: { lista: d, cards: guardadas }, dataset: { homeLista: d.id }, onClick: () => { location.hash = '#/lista?id=' + encodeURIComponent(d.id); } });
-    el.prepend(ladrilho(cores)); return el; });
+    return __m15.DeckLinha({ nome: d.name, formato: d.format, cores, main: need - side, side, posse: { have, need }, motor: { lista: d, cards: guardadas }, dataset: { homeLista: d.id },
+      arte: { carta: __m15.cartaChaveDaLista(d, guardadas) }, largo: i === 0 && recentes.length !== 2, indice: i, onClick: () => { location.hash = '#/lista?id=' + encodeURIComponent(d.id); } }); });
   const bloco = h('section', { class: 'home-ultimas', id: 'home-ultimas', 'aria-labelledby': 'home-ultimas-titulo' },
     h('div', { class: 'home-ultimas__cab' }, h('h2', { id: 'home-ultimas-titulo' }, 'Últimas listas'), Button('Ver todas', { variant: 'ghost', id: 'home-ultimas-todas', icone: 'seguir', onClick: () => { location.hash = '#/listas'; } })),
-    h('div', { class: 'ds-list' }, ...linhas));
+    h('div', { class: 'ladrilhos' }, ...linhas));
   return { bloco };
 }
 
