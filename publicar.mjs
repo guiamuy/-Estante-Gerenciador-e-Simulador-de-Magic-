@@ -31,6 +31,7 @@ const esperar = process.argv.includes('--esperar');
 const semRapida = process.argv.includes('--sem-rapida');
 const semTela = process.argv.includes('--sem-tela');
 const soSituacao = process.argv.includes('--situacao');
+const avulso = process.argv.includes('--avulso'); // I-331 · PR de leva fora do trem: só com o pedido do dono (urgência)
 const alvoMerge = (() => { const i = process.argv.indexOf('--merge'); return i > 0 ? (process.argv[i + 1] || '') : null; })();
 const PREFIXO_PR = 'claude/';
 const ENDERECO_PRODUCAO = 'https://estante-magic.vercel.app';
@@ -43,6 +44,8 @@ const git = (...a) => execFileSync('git', a, { encoding: 'utf8', maxBuffer: 1 <<
 const roda = (cmd, args) => spawnSync(cmd, args, { stdio: 'inherit' }).status === 0;
 const para = (msg) => { console.error(`\n✗ ${msg}\nNada foi publicado.`); process.exit(1); };
 const passo = (n, t) => console.log(`\n── ${n} · ${t}`);
+// I-331 · o ESTADO.md junta sozinho no rebase (estado-merge.mjs); liga o driver mesmo em clone antigo, sem depender do npm install
+try { execFileSync('git', ['config', 'merge.estado.driver', 'node estado-merge.mjs %O %A %B'], { stdio: 'ignore' }); } catch (e) { /* fora de um clone: os testes do publicar */ }
 /** Q14 · roda uma fase do portão olhando o main a cada dois minutos. Se outra trilha publicar no meio, a fase é interrompida
     na hora: o resultado não serviria (o portão precisa rodar sobre o código somado) e esperar o fim custava até 25 minutos. */
 const VIGIA_MS = 120000;
@@ -92,8 +95,25 @@ function mostrarSituacao() {
   return s;
 }
 /* ---------- I-323 · pull request ---------- */
-const temGh = () => !!repoDoOrigin() && spawnSync('gh', ['auth', 'status'], { stdio: 'ignore' }).status === 0; // origin fora do GitHub (testes): sem PR
-const gh = (...a) => execFileSync('gh', a, { encoding: 'utf8', maxBuffer: 1 << 26 }).trim();
+/* I-331 · só a API REST do GitHub (`gh api`): o GraphQL (gh pr list/create/view/merge) é barrado nas sessões de nuvem,
+   e nelas o GH_TOKEN pode vir vencido com o GITHUB_TOKEN bom (visto em 11/11). O ambiente que funciona é achado uma vez. */
+let ENV_GH;
+function ambienteGh() {
+  if (ENV_GH !== undefined) return ENV_GH;
+  ENV_GH = null;
+  if (!repoDoOrigin()) return ENV_GH; // origin fora do GitHub (testes): sem PR
+  const sem = { ...process.env }; delete sem.GH_TOKEN;
+  for (const env of [process.env, sem]) if (spawnSync('gh', ['api', 'rate_limit'], { stdio: 'ignore', env }).status === 0) { ENV_GH = env; break; }
+  return ENV_GH;
+}
+const temGh = () => !!ambienteGh();
+const gh = (...a) => execFileSync('gh', a, { encoding: 'utf8', maxBuffer: 1 << 26, env: ambienteGh() || process.env }).trim();
+const api = (metodo, caminho, campos = {}) => {
+  const args = ['api', '-X', metodo, `repos/${repoDoOrigin()}/${caminho}`];
+  for (const [k, v] of Object.entries(campos)) args.push('-f', `${k}=${v}`);
+  const saida = gh(...args);
+  return saida ? JSON.parse(saida) : {};
+};
 function repoDoOrigin() {
   const m = git('remote', 'get-url', 'origin').match(/github\.com[/:]([^/]+\/[^/]+?)(?:\.git)?\/?$/);
   return m ? m[1] : '';
@@ -113,9 +133,9 @@ function previaDe(repo, sha) {
 }
 function mostrarPRs() {
   if (!temGh()) { console.log('Sem o gh autenticado não consigo listar os pull requests. Veja em https://github.com/' + repoDoOrigin() + '/pulls'); return; }
-  const prs = JSON.parse(gh('pr', 'list', '--state', 'open', '--json', 'number,title,headRefName,url'));
+  const prs = api('GET', 'pulls?state=open&per_page=100');
   console.log(`\nPull requests abertos (${prs.length}):`);
-  for (const p of prs) console.log(`  #${p.number}  ${p.headRefName}  ${p.title.slice(0, 80)}\n        ${p.url}`);
+  for (const p of prs) console.log(`  #${p.number}  ${p.head.ref}  ${p.title.slice(0, 80)}\n        ${p.html_url}`);
 }
 if (soSituacao && pelaFila) { buscar(); buscarFila(); mostrarSituacao(); process.exit(0); }
 if (soSituacao) {
@@ -132,8 +152,10 @@ if (alvoMerge !== null) {
   if (!alvoMerge) para('Diga qual pull request: npm run publicar -- --merge <número>');
   if (!temGh()) para('O merge precisa do gh autenticado (gh auth login). Sem ele, o dono junta pelo botão "Rebase and merge" do PR.');
   buscar();
-  const pr = JSON.parse(gh('pr', 'view', alvoMerge, '--json', 'number,state,headRefName,headRefOid,url,title'));
-  if (pr.state !== 'OPEN') para(`O PR #${pr.number} não está aberto (${pr.state}).`);
+  const bruto = api('GET', `pulls/${alvoMerge}`);
+  const pr = { number: bruto.number, state: bruto.state, headRefName: bruto.head.ref, headRefOid: bruto.head.sha, title: bruto.title };
+  if (pr.state !== 'open') para(`O PR #${pr.number} não está aberto (${pr.state}).`);
+  if (pr.headRefName.startsWith(PREFIXO_PR) && !avulso) para(`I-331 · o PR #${pr.number} é de uma leva: ela vai para a produção no trem (node trem.mjs situacao). Merge avulso só com o pedido do dono: --merge ${pr.number} --avulso`);
   roda('git', ['fetch', '--quiet', 'origin', `+refs/heads/${pr.headRefName}:refs/remotes/origin/${pr.headRefName}`]);
   const ramo = `origin/${pr.headRefName}`;
   if (git('rev-parse', ramo) !== pr.headRefOid) para('O ramo do PR mudou durante a conferência. Rode de novo.');
@@ -143,7 +165,8 @@ if (alvoMerge !== null) {
   const { achados } = conferirFaixa('origin/main', ramo);
   if (achados.length) { console.error('\n' + relatar(achados)); para(`Guarda de agregação: ${achados.length} achado(s).`); }
   passo(1, `merge do PR #${pr.number} · ${pr.title.slice(0, 80)}`);
-  if (!roda('gh', ['pr', 'merge', String(pr.number), '--rebase', '--delete-branch'])) para('O GitHub recusou o merge.');
+  try { api('PUT', `pulls/${pr.number}/merge`, { merge_method: 'rebase', sha: pr.headRefOid }); } catch (e) { para(`O GitHub recusou o merge: ${String(e.stderr || e.message).slice(0, 300)}`); }
+  try { api('DELETE', `git/refs/heads/${pr.headRefName}`); } catch (e) { /* o ramo fica; não atrapalha */ }
   console.log(`\n✓ No main. A Vercel publica em ${ENDERECO_PRODUCAO} em um ou dois minutos.`);
   process.exit(0);
 }
@@ -233,13 +256,15 @@ async function enviarParaPR() {
     return;
   }
   passo(6, 'pull request');
-  const aberto = JSON.parse(gh('pr', 'list', '--head', ramo, '--state', 'open', '--json', 'number,url'))[0];
-  let url = aberto && aberto.url;
+  const aberto = api('GET', `pulls?state=open&head=${repo.split('/')[0]}:${encodeURIComponent(ramo)}`)[0];
+  let url = aberto && aberto.html_url;
   if (!url) {
-    const corpo = [...meus.map((c) => `- ${c.assunto}`), '', `Prévia: a Vercel comenta o link aqui quando terminar. Produção: ${ENDERECO_PRODUCAO} (só depois do merge).`, '', '🤖 Generated with [Claude Code](https://claude.com/claude-code)'].join('\n');
-    url = gh('pr', 'create', '--base', 'main', '--head', ramo, '--title', meus[meus.length - 1].assunto.slice(0, 240), '--body', corpo);
+    const corpo = [...meus.map((c) => `- ${c.assunto}`), '', `Na fila do trem de produção (I-331): este ramo não monta prévia; o próximo trem soma esta leva às outras, monta uma prévia só e publica em ${ENDERECO_PRODUCAO}. Para o trem deixar de fora: etiqueta \`segura\`.`, '', '🤖 Generated with [Claude Code](https://claude.com/claude-code)'].join('\n');
+    url = api('POST', 'pulls', { base: 'main', head: ramo, title: meus[meus.length - 1].assunto.slice(0, 240), body: corpo }).html_url;
   }
   console.log(`✓ Pull request: ${url}`);
+  console.log('  I-331 · a leva está na fila do trem de produção (node trem.mjs situacao). Não faça merge dela: o trem junta e publica.');
+  if (esperar) { console.log('  --esperar não se aplica mais a ramo de leva (sem prévia por leva). A prévia é a do trem.'); return; }
   if (!esperar) { console.log('  A prévia sai em um ou dois minutos (comentário da Vercel no PR). Para esperar por ela: npm run publicar -- --esperar'); return; }
   const inicio = Date.now();
   for (;;) {
