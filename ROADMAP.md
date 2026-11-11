@@ -717,6 +717,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-uy ✅ | Relato #107: o idioma do app ao lado do sino na Início — globo (gira no toque) com a bandeira do idioma atual num selo de latão; o toque abre a folha "Idioma" com os três idiomas; escolher vale na hora, a folha fecha e a bandeira vira para a nova (menos movimento: troca sem virar). O Perfil › Idioma continua (leva G-372, 10/11/2026) | G | 1 | 16º-uu |
 | 16º-vb ✅ | T-IDIOMA relatos #53/#66, lote 4 da fatia 3: Pioneer e Modern (65 cartas em português, 23 em espanhol), pelo conferidor; as 11 cartas de duas faces gravadas pela frente (nunca apareciam) passam ao nome inteiro, o conferidor barra a chave pela frente e o app acha a tradução só da frente pela frente (leva G-374, 10/11/2026) | T | 1 | 16º-uz |
 | 16º-vd ✅ | Relato #124 (J-66): a permanente que ganhou proteção (Aura como Benevolent Blessing, Equipamento, mágica do turno) mostra o escudo na barra de estados com uma faixa por cor protegida na cor do mana; o nome falado e a folha da carta dizem contra o quê ("Proteção contra verde"). Parcial: a proteção impressa na própria carta não vira marca (está no texto, como as palavras-chave impressas); proteção dada por efeito estático de outra permanente que o motor não põe em `protections` também não aparece. |
+| 16º-ve ✅ | T-IDIOMA relatos #53/#66, lote 5 da fatia 3: Legacy e Vintage (59 cartas em português, 29 em espanhol: Black Lotus, Time Walk, Ancestral Recall, Bazaar of Baghdad, Barrowgoyf…), pelo conferidor; Carnivorous Cultivator // Enroot fica em inglês (o Oracle guardado não separa as faces) (G-377, 11/11/2026) | T | 1 | 16º-vb |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -13719,6 +13720,13 @@ trilha `geral`, 09/11/2026; relato do dono de 09/11: o Enviar abria o GitHub e o
   cuja fonte só traz a frente). Testes U `idioma-traducao.unit` G-374 (3, falhavam antes; a amostra da G-373 passa a usar o
   nome inteiro de Ashling). **Parcial, declarado:** 171 de Pioneer/Modern em português e 58 em espanhol seguem sem Oracle no
   repositório; Legacy, Vintage e Commander nos próximos lotes.
+- **Lote 5 da fatia 3 (G-377, `16º-ve`, rotina Relatos do dono, 11/11/2026) ✅:** `--faltam pt|es --formato legacy,vintage`:
+  59 cartas em português e 29 em espanhol (pacotes: 498 e 89), pelo conferidor (Black Lotus, Time Walk, Ancestral Recall,
+  Timetwister, Bazaar of Baghdad, Barrowgoyf, Comet, a aventura Most Decrepit Old Bird // Speak Secrets…). Termos sem
+  glossário oficial conferido: ward → "resguardo" / "custodia", split second → "fração de segundo" / "segundo dividido",
+  storied → "Lendas contadas". Teste U `idioma-traducao.unit` G-377 (falhava antes). **Parcial, declarado:** 88 de
+  Legacy/Vintage em português e 43 em espanhol seguem sem Oracle no repositório; Carnivorous Cultivator // Enroot fica em
+  inglês (o Oracle guardado vem numa face só, com "//"); Commander no próximo lote.
 - **Fora, declarado (fatias seguintes):** a troca de idioma no Perfil (item 2); os pacotes **es** e **en** (item 3: extrair os
   textos para um dicionário por idioma, história de várias rodadas); texto e nome das cartas (item 4, aguarda decisão
   "oficial"/"automática"); a **camada obrigatória de idioma em toda entrega** (texto novo nasce no dicionário e o teste barra
