@@ -12768,6 +12768,40 @@ test('e2e · G-303 Listas prontas com o selo do motor: medida 100% e 87% com a d
   assert.deepEqual(errors, []);
 });
 
+// G-379 · relato #135: a lista pronta do Pauper que o motor não joga inteira sai das Listas prontas e das prontas do Jogar,
+// com a linha que diz quantas saíram; a medida nova (100%) a traz de volta sozinha.
+test('e2e · G-379 Pauper só com listas a 100%: a medida abaixo de 100% tira a lista das Listas prontas (Todas e Pauper) e do Jogar, com o aviso; a medida a 100% a traz de volta', { skip }, async t => {
+  const { page, errors, base } = await open(t, { dev: false });
+  await page.setViewportSize({ width: 360, height: 780 });
+  const PAUPER = 'topdeck-copa-teste-1-1';
+  const medida = pct => ({ versao: 1, geradoEm: '2026-11-11T05:00:00Z', formatos: { pauper: { geradoEm: '2026-11-11T05:00:00Z', motor: 112, listas: 1, medidas: 1, listas100: pct === 100 ? 1 : 0 } },
+    pct: { [PAUPER]: [pct, pct === 100 ? 0 : 3], 'mtgjson-cmd-2': [87, 3] } });
+  let motor = medida(87);
+  await rotaCatalogo(page, { motor });
+  // a medida muda no meio do teste: esta rota, registrada depois, vale antes da do catálogo
+  await page.route(/^https:\/\/raw\.githubusercontent\.com\/.*\/catalogo\/cobertura\/motor\.json/, r => r.fulfill({ json: motor, headers: { 'access-control-allow-origin': '*' } }));
+  // 1 · Todas: a do Pauper sai, a de Commander a 87% fica (formato fechado no Jogar: o selo diz a medida)
+  await page.goto(base + '#/listas/prontas'); await page.waitForSelector('#catalogo-fora-do-motor');
+  assert.equal(await page.locator(`.cat-item[data-id="${PAUPER}"]`).count(), 0, 'a do Pauper abaixo de 100% não aparece');
+  assert.match(await page.innerText('#catalogo-conta'), /^39 listas/);
+  assert.equal(await page.innerText('#catalogo-fora-do-motor'), '1 lista de Pauper está fora até o motor jogá-la inteira; volta sozinha.');
+  assert.equal(await page.locator('.cat-item[data-id="mtgjson-cmd-2"] .deck-item__motor[data-motor="incompleto"]').count(), 1);
+  await auditaTela(page, 'Listas prontas com lista do Pauper fora do motor');
+  // 2 · o chip Pauper: nada a mostrar, com o aviso junto
+  await page.click('[data-starter-format="pauper"]'); await page.waitForSelector('#catalogo-recorte-vazio');
+  assert.equal(await page.locator('#catalogo-fora-do-motor').count(), 1);
+  // 3 · o Jogar sem lista de Pauper na estante: a pronta fora do motor não é oferecida
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-prontas #mesa-starter');
+  assert.equal(await page.locator('#mesa-prontas-lista').count(), 0, 'o Jogar não oferece a lista que o motor não joga inteira');
+  // 4 · a sentinela levou a lista a 100%: ela volta, sem aviso
+  motor = medida(100);
+  await page.evaluate(async () => { const r = indexedDB.open('mtg'); await new Promise(ok => { r.onsuccess = ok; }); const tx = r.result.transaction('kv', 'readwrite'); tx.objectStore('kv').delete('catalogo.motor'); await new Promise(ok => { tx.oncomplete = ok; }); });
+  await page.reload(); await page.waitForSelector(`#mesa-prontas-lista .cat-item[data-id="${PAUPER}"]`);
+  await page.goto(base + '#/listas/prontas?formato=pauper'); await page.waitForSelector(`.cat-item[data-id="${PAUPER}"] .deck-item__motor[data-motor="completo"]`);
+  assert.equal(await page.locator('#catalogo-fora-do-motor').count(), 0);
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · G-273 · relato #24 · Listas prontas: Filtros (cor nos três modos, onde apareceu, ordem) com selo, frase e Limpar; recorte vazio com saída; o filtro fica ao voltar; Topo depois de uma tela e meia', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.setViewportSize({ width: 360, height: 780 });

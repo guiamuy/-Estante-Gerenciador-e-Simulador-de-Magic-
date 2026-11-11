@@ -722,6 +722,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ve ✅ | T-IDIOMA relatos #53/#66, lote 5 da fatia 3: Legacy e Vintage (59 cartas em português, 29 em espanhol: Black Lotus, Time Walk, Ancestral Recall, Bazaar of Baghdad, Barrowgoyf…), pelo conferidor; Carnivorous Cultivator // Enroot fica em inglês (o Oracle guardado não separa as faces) (G-377, 11/11/2026) | T | 1 | 16º-vb |
 | 16º-vg ✅ | T-IDIOMA relatos #53/#66, lote 6 da fatia 3: Commander (160 cartas em português, 43 em espanhol: Korvold, Niv-Mizzet, Imperial Seal, Knuckles, as Salas, Aang de duas faces…), pelo conferidor; 1.877 em português e 753 em espanhol seguem sem Oracle no repositório (G-380, 11/11/2026) | T | 1 | 16º-ve |
 | 16º-vf ✅ | Relato #137 (J-70): com o detalhe da pilha aberto, tocar de novo na faixa (na seta) recolhe; antes nada acontecia e só Esc ou toque fora fechavam (J-70, 11/11/2026) | J | 1 | — |
+| 16º-vh 🟡 | Relato #135, fatia 1 (G-379, 11/11/2026): lista pronta do Pauper que o motor não joga inteira (medida da sentinela abaixo de 100%) sai das Listas prontas e das prontas do Jogar, com a linha "N listas de Pauper estão fora…"; a medida a 100% a traz de volta sozinha. Fatia 2: a rotina Sentinela do Pauper trata primeiro as listas que saíram | G | 1 de 2 | 16º-vd |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -15396,6 +15397,17 @@ Cloudflare) ficam do nosso lado, para gerar e validar. Cinco fatias MK3-P1…P5 
   a grade de 150 px da tela-modelo, porque a linha da estante carrega motor, valor, etiquetas e a lixeira, que não cabem em
   158 px sem sobrepor; o acento escolhido em Aparência não tinge o latão sobre arte (fica no latão claro, para passar AA);
   "ladrilho tocado" (o ladrilho que vira hero) entra na MV-2/K3-12.
+#### Relato #135 · Pauper só com listas a 100% (🟡 G-379, 11/11/2026; `16º-vh`)
+- **Valor:** o dono viu listas de Pauper nas Listas prontas que o motor não roda inteiras; o Pauper é o formato aberto no Jogar
+  e só pode oferecer o que joga 100%.
+- **Aceite (fatia 1):** `__m39.separaPeloMotor(listas, medida)`: lista de formato aberto (`FORMATOS_ABERTOS`, hoje o Pauper)
+  com a medida de `cobertura/motor.json` abaixo de 100% sai da seção do catálogo das Listas prontas (Todas e Pauper; a contagem
+  já desconta) e das prontas do Jogar; a linha `#catalogo-fora-do-motor` diz quantas saíram e que voltam sozinhas. Sem o
+  arquivo (sem internet, primeira visita) ou lista ainda não medida: fica, com o selo. Outros formatos (fechados no Jogar)
+  seguem com o selo da medida. Na medida de 10/11 (21h45 UTC): 6 de 677 listas Pauper saem.
+- **Testes:** `catalogo.tela.unit` "G-379" e e2e "G-379 Pauper só com listas a 100%" (falhava antes).
+- **Fatia 2 (pendente):** a rotina Sentinela do Pauper passa a tratar primeiro as listas que saíram da vitrine (prompt da
+  rotina, fora do repositório). O detalhe da lista por endereço direto continua abrindo, com o selo da medida.
 
 ## Trilha homologacao · prova de partida do catálogo (H)
 

@@ -302,3 +302,20 @@ test('Q10-7b · serviço: o arquivo do motor é guardado por uma hora; sem rede,
   const vazio = K.createCatalogo({ store: P.memoryStore(), busca, agora: () => agora }); corpo = 404;
   assert.equal(await vazio.motor(), null); falha = true; assert.equal(await vazio.motor(), null);
 });
+
+// G-379 · relato #135: lista pronta do Pauper (formato aberto no Jogar) que o motor não joga inteira sai da vitrine até a
+// medida chegar a 100%; sem a medida, ou lista não medida, fica; formato fechado não muda.
+test('G-379 · separaPeloMotor: a do Pauper medida abaixo de 100% sai e volta com a medida nova; sem medida fica; outro formato fica', () => {
+  const ls = [{ id: 'topdeck-a-1', formato: 'pauper' }, { id: 'topdeck-b-2', formato: 'pauper' }, { id: 'topdeck-c-3', formato: 'pauper' }, { id: 'topdeck-d-4', formato: 'modern' }];
+  const m = K.leMotorDoCatalogo({ versao: 1, formatos: {}, pct: { 'topdeck-a-1': [100, 0], 'topdeck-b-2': [98, 1], 'topdeck-d-4': [40, 9] } });
+  const r = K.separaPeloMotor(ls, m);
+  assert.deepEqual(J(r.listas.map(l => l.id)), ['topdeck-a-1', 'topdeck-c-3', 'topdeck-d-4']); assert.equal(r.fora, 1);
+  assert.equal(K.foraDoMotor(m, ls[1]), true); assert.equal(K.foraDoMotor(m, ls[3]), false, 'formato fechado no Jogar não sai (o selo diz a medida)');
+  // a sentinela leva a 100%: volta
+  const m2 = K.leMotorDoCatalogo({ versao: 1, formatos: {}, pct: { 'topdeck-a-1': [100, 0], 'topdeck-b-2': [100, 0] } });
+  assert.deepEqual(J(K.separaPeloMotor(ls, m2)), { listas: ls, fora: 0 });
+  // sem o arquivo (sem internet, primeira visita): nada sai
+  assert.deepEqual(J(K.separaPeloMotor(ls, null)), { listas: ls, fora: 0 });
+  assert.deepEqual(J(K.separaPeloMotor(null, m)), { listas: [], fora: 0 });
+  assert.equal(K.avisoForaDoMotor(0), ''); assert.match(K.avisoForaDoMotor(1), /^1 lista de Pauper está fora/); assert.match(K.avisoForaDoMotor(6), /^6 listas de Pauper estão fora .* voltam sozinhas\.$/);
+});

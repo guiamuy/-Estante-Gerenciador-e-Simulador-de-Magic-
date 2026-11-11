@@ -20446,6 +20446,18 @@ function medidaDoMotor(mot, l) {
   if (!v) return { estado: 'sem-medida', pct: 0, faltam: [], medidoEm };
   return { estado: v[0] === 100 ? 'completo' : 'incompleto', pct: v[0], faltam: { length: v[1] }, medidoEm };
 }
+/** G-379 · relato #135 · lista pronta de formato aberto no Jogar (hoje o Pauper) que a medida diz que o motor não joga
+    inteira sai da vitrine (Listas prontas e as prontas do Jogar) até a sentinela levá-la a 100%: a medida nova a traz de
+    volta sozinha. Só sai o que foi medido abaixo de 100%; sem o arquivo, ou lista ainda não medida, fica (com o selo).
+    → { listas, fora } (fora = quantas saíram). Puro. */
+const foraDoMotor = (mot, l) => !!(mot && mot.pct && l && FORMATOS_ABERTOS.includes(l.formato) && (v => !!v && v[0] < 100)(mot.pct.get(l.id)));
+function separaPeloMotor(listas, mot) {
+  const todas = listas || [], fora = todas.filter(l => foraDoMotor(mot, l)).length;
+  return { listas: fora ? todas.filter(l => !foraDoMotor(mot, l)) : todas, fora };
+}
+/** G-379 · a linha que diz quantas saíram (só com alguma fora). Puro. */
+const avisoForaDoMotor = n => n === 1 ? '1 lista de Pauper está fora até o motor jogá-la inteira; volta sozinha.'
+  : n > 1 ? `${n} listas de Pauper estão fora até o motor jogá-las inteiras; voltam sozinhas.` : '';
 /** Cartão de uma lista oficial: arte da carta de destaque, nome, cores, formato, contagem e quem comanda (ou tipo e data). */
 function CartaoCatalogo(l, { tenho = false, ocupado = false, onAdicionar = null, taxas = null, motor = null } = {}) {
   const img = imagemDaCarta(l.destaqueId);
@@ -20512,7 +20524,9 @@ function SecaoCatalogo({ catalogo, decks, formato = 'all', aoImportar = null }) 
   // G-273 · Filtros ao lado da busca, com o número de critérios num selo (como na estante e na coleção)
   const guardaFiltro = f => { st.filtro = f; st.mostra = LOTE; filtroDoCatalogo = filtrosDoCatalogoAtivos(f) ? f : null; };
   const limpaFiltro = () => { guardaFiltro(novoFiltroDoCatalogo()); pintaLista(); };
-  const recorteDe = () => filtraCatalogo(listasDoIndice(st.r && st.r.dados), { formato: st.formato, texto: st.texto, ...st.filtro });
+  // G-379 · relato #135 · a lista do Pauper que o motor não joga inteira fica fora (separaPeloMotor)
+  const separado = () => separaPeloMotor(filtraCatalogo(listasDoIndice(st.r && st.r.dados), { formato: st.formato, texto: st.texto, ...st.filtro }), st.motor);
+  const recorteDe = () => separado().listas;
   const filtrosBtn = Button('Filtros', { id: 'catalogo-filtros-abrir', icone: 'filtro', onClick: () => abrirFiltrosDoCatalogo({ filtro: st.filtro,
     conta: () => recorteDe().length, onChange: f => { guardaFiltro(f); pintaLista(); }, onLimpar: limpaFiltro }) });
   const pintaSelo = () => { const n = filtrosDoCatalogoAtivos(st.filtro); let c = filtrosBtn.querySelector('.ds-btn__conta');
@@ -20538,17 +20552,19 @@ function SecaoCatalogo({ catalogo, decks, formato = 'all', aoImportar = null }) 
     if (st.estado === 'erro') { const n = Note(__m3.seguro`<b>Não foi possível abrir o catálogo.</b> Confira a conexão e tente de novo.`, 'negative'); n.id = 'catalogo-erro';
       return mount(listaBox, n, Row({}, Button('Repetir', { icone: 'atualizar', id: 'catalogo-de-novo', onClick: () => carrega(true) }))); }
     if (st.estado === 'ausente' || !todas.length) return mount(listaBox, Empty('O catálogo ainda está sendo montado. Volte daqui a pouco.', null, { icone: 'caixa', titulo: 'Catálogo vazio', id: 'catalogo-vazio' }));
-    const recorte = recorteDe();
+    const { listas: recorte, fora } = separado();
     const nomeFmt = ROTULO_DO_FORMATO[st.formato], filtrando = filtrosDoCatalogoAtivos(st.filtro) > 0;
+    const avisoFora = fora ? Text(avisoForaDoMotor(fora), { size: 'xs', tone: 'muted', attrs: { id: 'catalogo-fora-do-motor', 'data-fora': String(fora) } }) : null;
     pintaSelo();
     const limparBtn = id => Button('Limpar', { variant: 'ghost', icone: 'fechar', id, onClick: limpaFiltro });
     if (!recorte.length && filtrando) return mount(listaBox, Empty(`Nenhuma lista passa por esses filtros: ${descreveFiltroDoCatalogo(st.filtro)}.`, limparBtn('catalogo-filtros-limpar-vazio'), { icone: 'filtro', titulo: 'Nada aqui', id: 'catalogo-recorte-vazio' }));
-    if (!recorte.length) return mount(listaBox, Empty(st.texto ? `Nenhuma lista do catálogo com "${st.texto}".` : st.formato === 'pauper' ? 'Nenhum torneio de Pauper no catálogo agora, e as listas oficiais não têm Pauper. As de Pauper estão na Estante, acima.' : `Nenhuma lista de ${nomeFmt || 'este formato'} no catálogo agora: as ligas, os desafios e os torneios dos últimos 30 dias não trouxeram.`, null, { icone: 'filtro', titulo: 'Nada aqui', id: 'catalogo-recorte-vazio' }));
+    if (!recorte.length) return mount(listaBox, Empty(st.texto ? `Nenhuma lista do catálogo com "${st.texto}".` : st.formato === 'pauper' ? 'Nenhum torneio de Pauper no catálogo agora, e as listas oficiais não têm Pauper. As de Pauper estão na Estante, acima.' : `Nenhuma lista de ${nomeFmt || 'este formato'} no catálogo agora: as ligas, os desafios e os torneios dos últimos 30 dias não trouxeram.`, null, { icone: 'filtro', titulo: 'Nada aqui', id: 'catalogo-recorte-vazio' }), avisoFora);
     const visiveis = recorte.slice(0, st.mostra);
     mount(listaBox,
       Text(`${recorte.length} ${recorte.length === 1 ? 'lista' : 'listas'}${nomeFmt ? ' de ' + nomeFmt : ''}, ${SUFIXO_DA_ORDEM[st.filtro.ordem] || SUFIXO_DA_ORDEM.recente}`, { size: 'xs', tone: 'muted', attrs: { id: 'catalogo-conta', 'aria-live': 'polite' } }),
       // G-273 · com filtro: o recorte em palavras e o Limpar, logo abaixo da contagem
       filtrando ? Row({ class: 'ds-row--wrap cat-filtro' }, Text(descreveFiltroDoCatalogo(st.filtro), { size: 'xs', tone: 'muted', attrs: { id: 'catalogo-filtro-desc' } }), limparBtn('catalogo-filtros-limpar-faixa')) : null,
+      avisoFora,
       h('div', { class: 'cat-lista', id: 'catalogo-lista' }, ...visiveis.map(l => CartaoCatalogo(l, { tenho: jaNaEstante(l, st.minhas), ocupado: st.ocupado === l.id, onAdicionar: () => adiciona(l), taxas: st.taxas, motor: medidaDoMotor(st.motor, l) }))),
       // T5 · respiro entre a última lista e o botão (relato #1: estava colado)
       recorte.length > visiveis.length ? h('div', { class: 'cat-mais' }, Button(`Mostrar mais ${Math.min(LOTE, recorte.length - visiveis.length)}`, { icone: 'descer', id: 'catalogo-mais', onClick: () => { st.mostra += LOTE; pintaLista(); } })) : null,
@@ -20737,7 +20753,7 @@ function createCatalogoListaScreen({ catalogo, decks, cardRepo, store }) {
   return root;
 }
 
-return { CORES_DO_CATALOGO, MODOS_DE_COR, ORIGENS, ORDENS, NOME_DO_CONJUNTO, novoFiltroDoCatalogo, coresDaLista, origemDe, casaCores, filtrosDoCatalogoAtivos, ordenaCatalogo, descreveCores, descreveFiltroDoCatalogo, abrirFiltrosDoCatalogo, indiceAntigo, linhasDoCartao, valorDoResumo, comResumo, precoDaCarta, fichasDoCatalogo, CHAVE_FICHAS, deTorneio, FONTES_DO_CATALOGO, CreditoDasFontes, VISOES, gruposPorTipo, CHAVE_MOTOR, leMotorDoCatalogo, medidaDoMotor, estadoDoFormato, formatosProntos, FORMATOS_ABERTOS, ROTULO_DO_FORMATO, gruposPorCusto, createCatalogoListaScreen, BASE, CHAVE_INDICE, PRAZO_MS, LOTE, FORMATOS, listasDoIndice, filtraCatalogo, imagemDaCarta, listaParaSalvar, jaNaEstante, createCatalogo, CartaoCatalogo, SecaoCatalogo };
+return { CORES_DO_CATALOGO, MODOS_DE_COR, ORIGENS, ORDENS, NOME_DO_CONJUNTO, novoFiltroDoCatalogo, coresDaLista, origemDe, casaCores, filtrosDoCatalogoAtivos, ordenaCatalogo, descreveCores, descreveFiltroDoCatalogo, abrirFiltrosDoCatalogo, indiceAntigo, linhasDoCartao, valorDoResumo, comResumo, precoDaCarta, fichasDoCatalogo, CHAVE_FICHAS, deTorneio, FONTES_DO_CATALOGO, CreditoDasFontes, VISOES, gruposPorTipo, CHAVE_MOTOR, leMotorDoCatalogo, medidaDoMotor, foraDoMotor, separaPeloMotor, avisoForaDoMotor, estadoDoFormato, formatosProntos, FORMATOS_ABERTOS, ROTULO_DO_FORMATO, gruposPorCusto, createCatalogoListaScreen, BASE, CHAVE_INDICE, PRAZO_MS, LOTE, FORMATOS, listasDoIndice, filtraCatalogo, imagemDaCarta, listaParaSalvar, jaNaEstante, createCatalogo, CartaoCatalogo, SecaoCatalogo };
 })();
 
 /* ==== src/app/decks.js ==== */
@@ -43365,6 +43381,8 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
       const pinta = async () => {
         let listas = [];
         try { if (catalogo && catalogo.indice) { const r = await catalogo.indice(); listas = __m39.filtraCatalogo(__m39.listasDoIndice(r && r.dados), { formato: state.format }); } } catch (e) { listas = []; }
+        // G-379 · relato #135 · a pronta que o motor não joga inteira não aparece no Jogar (volta quando a medida chegar a 100%)
+        if (listas.length && catalogo && catalogo.motor) { let mot = null; try { mot = await catalogo.motor(); } catch (e) { /* sem a medida: fica como está */ } listas = __m39.separaPeloMotor(listas, mot).listas; }
         if (!root.isConnected) return;
         if (!listas.length) {
           const semRede = typeof navigator !== 'undefined' && navigator.onLine === false;
