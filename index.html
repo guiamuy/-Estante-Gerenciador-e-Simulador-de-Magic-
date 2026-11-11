@@ -40458,7 +40458,10 @@ function StackPanel({ itens, prioridade, imgOf, onOpen, onPeek, aberto = true, o
   if (!onToggle) return h('section', { class: 'tb-stack', id: 'tb-stack', 'aria-label': 'pilha' }, cabeca, lista);
   const topo = itens.find(it => it.topo) || itens[0], oTopo = org(topo), nomeTopo = oTopo ? `${oTopo.titulo} · ${oTopo.de}` : topo.nome;
   const faixa = h('button', { class: 'tb-stack__faixa', type: 'button', id: 'tb-stack-btn', 'aria-expanded': String(aberto), 'aria-controls': 'tb-stack-painel',
-    'aria-label': `Pilha, ${itens.length}: ${nomeTopo}, de ${topo.quem}${topo.alvos.length ? ', alvo ' + topo.alvos.join(', ') : ''}${prioridade ? '. Prioridade: ' + prioridade : ''}`, onClick: () => onToggle(!aberto) },
+    'aria-label': `Pilha, ${itens.length}: ${nomeTopo}, de ${topo.quem}${topo.alvos.length ? ', alvo ' + topo.alvos.join(', ') : ''}${prioridade ? '. Prioridade: ' + prioridade : ''}`,
+    // J-70 · relato #137: abrir a pilha não repinta a mesa (abrePilha mexe no DOM no lugar), então o toque lê o estado de agora
+    // no próprio botão; com o "aberto" da pintura, o segundo toque pedia "abrir" de novo e a seta não recolhia
+    onClick: e => onToggle(e.currentTarget.getAttribute('aria-expanded') !== 'true') },
     h('span', { class: 'tb-stack__monte' + (sobe ? ' tb-stack__monte--sobe' : ''), 'aria-hidden': 'true', dataset: { sobrepoe: 'true' } },
       ...__m33.monteDaPilha(itens).map(m => { const om = origemDe && origemDe(m.oid); return h('span', { class: 'tb-stack__mini', dataset: { oid: m.oid, ...(m.topo ? { topo: 'true' } : {}), ...(om ? { origem: om.tipo } : {}) } },
         om ? FaceDaOrigem(om, { mini: true }) : m.imagemDe && imgOf && imgOf(m.imagemDe) ? imgDaMesa({ image: imgOf(m.imagemDe), images: null }, 'sm') : m.imagemDe ? null : h('span', { class: 'ds-verso' })); })),
