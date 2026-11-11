@@ -718,6 +718,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-vb ✅ | T-IDIOMA relatos #53/#66, lote 4 da fatia 3: Pioneer e Modern (65 cartas em português, 23 em espanhol), pelo conferidor; as 11 cartas de duas faces gravadas pela frente (nunca apareciam) passam ao nome inteiro, o conferidor barra a chave pela frente e o app acha a tradução só da frente pela frente (leva G-374, 10/11/2026) | T | 1 | 16º-uz |
 | 16º-vd ✅ | Relato #124 (J-66): a permanente que ganhou proteção (Aura como Benevolent Blessing, Equipamento, mágica do turno) mostra o escudo na barra de estados com uma faixa por cor protegida na cor do mana; o nome falado e a folha da carta dizem contra o quê ("Proteção contra verde"). Parcial: a proteção impressa na própria carta não vira marca (está no texto, como as palavras-chave impressas); proteção dada por efeito estático de outra permanente que o motor não põe em `protections` também não aparece. |
 | 16º-ve ✅ | T-IDIOMA relatos #53/#66, lote 5 da fatia 3: Legacy e Vintage (59 cartas em português, 29 em espanhol: Black Lotus, Time Walk, Ancestral Recall, Bazaar of Baghdad, Barrowgoyf…), pelo conferidor; Carnivorous Cultivator // Enroot fica em inglês (o Oracle guardado não separa as faces) (G-377, 11/11/2026) | T | 1 | 16º-vb |
+| 16º-vf ✅ | Relato #137 (J-70): com o detalhe da pilha aberto, tocar de novo na faixa (na seta) recolhe; antes nada acontecia e só Esc ou toque fora fechavam (J-70, 11/11/2026) | J | 1 | — |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -15301,6 +15302,12 @@ Cloudflare) ficam do nosso lado, para gerar e validar. Cinco fatias MK3-P1…P5 
 - **Parcial / fora:** Início e Notícias têm cabeçalho próprio (data, saudação, sino; faixa de notícias) e entram no editorial
   com a K3-7 (Início na direção Vitrine) e a K3-10 (Notícias); as subtelas seguem no 44 · 1fr · 44 (a faixa compacta de 18 px
   nelas fica para a FA-2, que fecha contra as telas-modelo); a paralaxe do hero por `scroll()` entra com o hero da K3-9.
+#### Relato #137 · a seta da pilha recolhe o detalhe (✅ J-70, 11/11/2026; `16º-vf`)
+- **Valor:** na mesa, com a pilha expandida, a seta da faixa não recolhia o detalhe; agora o mesmo toque que abre também fecha.
+- **Causa:** o botão da faixa guardava o "aberto" da última pintura; abrir a pilha não repinta a mesa (`abrePilha` mexe no DOM no
+  lugar), então o segundo toque pedia "abrir" outra vez. Correção: o toque lê `aria-expanded` do próprio botão (`StackPanel`).
+- **Testes:** e2e "J-70 a seta da faixa da pilha recolhe o detalhe aberto" (360×697, duas voltas abre/fecha; falhava antes).
+
 #### Relato #124 · proteção ganha à vista (✅ J-66, 10/11/2026; `16º-vd`)
 - **Valor:** a criatura que recebeu proteção contra uma cor (Benevolent Blessing, no print do dono) não dizia nada na mesa: agora
   mostra o escudo na barra de estados, e se vê de relance contra que cor.
