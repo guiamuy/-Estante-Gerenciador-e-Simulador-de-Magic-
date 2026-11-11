@@ -24,7 +24,7 @@ Marcos: Pauper 100% (as sete listas revisadas carta a carta; 689 de 694 listas P
 | `motor` | M | Modern 44/743 | M-621 · 12/11 | Ob Nixilis |
 | `radar` | R | BI4 · Painel Estante: comparar períodos, metas, tendência | R-44 · 07/11 | BI4-6 em diante; validação do dono após os primeiros pilares |
 | `jogabilidade` | J | MK3 · Mesa Vitrine (rotina) | J-70 · 11/11 | MK3-P2 galeria e escolha; relato #54 |
-| `bot` | B | B25 · força 55%, Faeries 32,5%, fora ≈ 47%; B-210 impulso e ritual | B-210 · 10/11 | terreno sacrificado; Azorius |
+| `bot` | B | B25 · força 55%, Faeries 32,5%, fora 52% ✓ | B-212 · 11/11 | força e Faeries |
 | `infra` | I | trem de produção (I-331): leva abre PR sem prévia; o trem soma os PRs a cada 2 h, portão sobre a soma, uma prévia e um merge (2 deploys da Vercel); orçamento de 24 h com reserva de 30 | I-331 · 11/11 | primeiro trem com o backlog (#141, #143, #145, #129, #140, #142, #144); ponte das coleções; repo privado |
 | `homologacao` | H | prova de partida do catálogo, revisão em lote (Commander) | H-24 · 01/11 | lote 8 |
 | `protecao` | P | segurança e privacidade; Apoiar a Estante (MON1) | P-21 · 26/10 | — |
@@ -80,4 +80,4 @@ Os documentos `claude/…` moram no Projeto do claude.ai, fora do repositório: 
 
 No commit de docs de cada leva (o mesmo que atualiza o ROADMAP): reescreva a **sua** linha na tabela de trilhas, atualize relatos e pendências se mudaram e troque a data abaixo. Edite por patch, nunca o arquivo inteiro. Conflito no rebase: fique com as linhas das outras trilhas e a sua. Passou de 8 KB: resuma, não acrescente.
 
-Atualizado: 11/11/2026 · G-380 · M-622 · M-621 · I-331 (trem de produção) · I-328 (rotinas publicam) · M-612 (motor) · I-329 (ponte) · S-622 (scanner) · B-206 · B-207 · B-208 (bot) · G-362 a G-369 (geral) · S-623 (scanner) · M-613 · G-373 · M-615 · J-70
+Atualizado: 11/11/2026 · B-207 · B-208 (bot) · G-362 a G-369 (geral) · S-623 (scanner) · M-613 · G-373 · M-615 · J-70 · B-209 (bot) · G-371 · J-64 · J-65 · S-624 (scanner) · M-616 · G-372 · G-374 · S-625 · J-67 · G-375 · B-210 (bot) · M-618 · G-377 · J-68 · M-619 · G-378 · B-212 (bot)
