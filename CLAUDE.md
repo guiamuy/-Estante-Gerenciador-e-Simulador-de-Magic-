@@ -16,17 +16,18 @@ npm run publicar                   # rebase, guarda, conferência, PORTÃO INTEI
 npm run publicar -- --esperar      # idem, e espera a prévia da Vercel para mostrar o link
 npm run publicar -- --situacao     # pull requests abertos e o que este clone tem à frente do main
 npm run publicar -- --conferir     # só rebase, guarda e conferência
-npm run publicar -- --merge <n>    # junta o PR n no main: quando o dono pedir (ou rotina agendada, na exceção abaixo)
+npm run publicar -- --merge <n>    # junta o PR do TREM n no main (I-331: PR de leva só com --avulso, pedido do dono)
+node trem.mjs situacao             # orçamento da Vercel nas 24 h e a fila do próximo trem (seção "Trem de produção")
 ```
 
 O passo a passo, sempre igual:
 
 1. **Leva em commit** no clone, com o rodapé `Trilha:`.
 2. **`npm run publicar`.** Roda o portão inteiro (as duas fases) neste clone, porque não há mais CI no GitHub. Portão vermelho: nada sai.
-3. **Branch e pull request.** A leva vai para `claude/<leva>` e abre um PR contra o `main`. Sem o `gh` (sessões de nuvem), o publicar mostra o link para abrir o PR. A Vercel monta a **prévia** sozinha e comenta o link no PR.
-4. **Mostre a prévia ao dono**: o link e, em uma ou duas linhas, o que mudou e o que conferir. Espere ele dizer "pode fazer merge". Nunca faça merge por conta própria (a única exceção é a das rotinas agendadas, abaixo).
-5. **`npm run publicar -- --merge <n>`.** Se o `main` andou desde o teste, ele pede para atualizar o ramo (`git switch claude/<leva> && npm run publicar`): o portão roda de novo sobre a soma e a prévia é refeita. Se a mudança dos outros mexe no mesmo assunto, mostre a prévia nova ao dono antes do merge.
-6. **Produção.** A Vercel publica o `main` sozinha em https://estante-magic.vercel.app, em um ou dois minutos. Só diga "publicado" depois do merge.
+3. **Branch e pull request.** A leva vai para `claude/<leva>` e abre um PR contra o `main`. Sem o `gh` (sessões de nuvem), o publicar mostra o link para abrir o PR. **Desde a I-331 o ramo `claude/*` não monta prévia**: o PR entra na fila do trem (seção "Trem de produção"), que monta uma prévia só para várias levas.
+4. **A prévia é a do trem**: quando o trem que leva a sua leva estiver montado, o link e, em uma ou duas linhas, o que mudou e o que conferir. Nunca faça merge do PR da própria leva (o trem junta).
+5. **`node trem.mjs partir <n>`** junta o PR do trem. Se o `main` andou desde o portão do trem, ele fecha o trem sem merge e as levas voltam no próximo (`node trem.mjs montar`).
+6. **Produção.** A Vercel publica o `main` sozinha em https://estante-magic.vercel.app, em um ou dois minutos. Só diga "publicado" depois do merge do trem; antes, a leva está "na fila do trem".
 
 Regras:
 
@@ -40,13 +41,33 @@ Regras:
 
 ## Modo agilidade (decisão do dono, 09/11/2026; vale até ele revogar)
 
-- Toda leva, de conversa ou de rotina, vai para a prévia e para a produção na mesma leva: portão verde e prévia Ready, então merge (rebase) e conferência em produção, sem esperar o "pode fazer merge".
+- Toda leva, de conversa ou de rotina, vai para a produção no próximo trem (I-331): portão verde no clone, PR aberto, e o trem leva sem esperar o "pode fazer merge".
 - As exclusões da I-328 (`ENGINE_VERSION`, golden, `Sobrescreve:`, infra, formato de dado salvo) ficam suspensas; continuam valendo o portão inteiro, nunca push direto no `main`, nunca `--force` e o aviso ao dono.
 - Quando o dono revogar, volta o fluxo prévia → OK do dono → produção.
 
+## Trem de produção (decisão do dono, 11/11/2026, leva I-331)
+
+O plano gratuito da Vercel aceita **100 deployments por 24 h, prévias incluídas** (vercel.com/docs/limits, consulta de 11/11/2026), e o dono não vai trocar de plano. Até a I-329 cada push num ramo `claude/*` montava uma prévia (média de quatro por leva, com os rebases) e cada merge, uma produção: em 11/11 a esteira passou do limite e três PRs voltaram com "Deployment rate limited". Daí em diante:
+
+- **Ramo `claude/*` não monta prévia** (`vercel.json`, `git.deploymentEnabled`; também `fila/**`, `recusada/**`, `wip/**`, `acumulado/**`). A leva segue o passo a passo acima até o PR, com o portão inteiro verde no clone, e para aí: **nenhuma conversa ou rotina nunca faz merge do PR da própria leva** nem espera prévia dele. O PR é a fila.
+- **O trem** junta os PRs abertos sobre o `main` de agora, na ordem (etiqueta `primeiro`, depois os que a Vercel recusou, depois do mais antigo; até 8), roda o portão inteiro **uma vez sobre a soma**, envia `trem/<hora>` (a única prévia: a homologação) e entra no `main` com **um** merge. Dois deployments por trem, com várias levas dentro.
+  ```
+  node trem.mjs situacao     # orçamento das 24 h, fila do próximo trem e trem aberto
+  node trem.mjs orcamento    # exit 0 cabe um trem · 3 não cabe (não gasta nada)
+  node trem.mjs montar       # soma, guarda, portão, trem/<hora>, PR do trem e espera a prévia
+  node trem.mjs partir <n>   # merge do PR do trem (rebase) e fecha os PRs das levas que entraram
+  ```
+- **Quem dirige:** a rotina "Estante · Trem de produção", a cada 2 h, pelas seis condições da exceção abaixo aplicadas ao PR do trem (a prévia do trem vai para o endereço fixo da prévia). Conversa com o dono presente monta um trem quando ele pedir ("sobe agora"): é o mesmo comando, e o orçamento manda.
+- **Orçamento:** 30 deployments ficam fora do alcance do trem: em 11/11 a Vercel barrou com 80 a 88 visíveis (a tentativa barrada também parece contar), e a folga cobre prévia avulsa que o dono pedir e revert de emergência. Sem vaga, `montar` não gasta nada e diz a hora em que a vaga abre. Nunca empurre ramo só para "ver a prévia": todo push em ramo que monta conta.
+- **Leva que ficou de fora** (conflito com o `main`, guarda, portão vermelho na soma): o trem comenta o motivo no PR; a dona da leva atualiza o ramo (`npm run publicar`) e ela vai no próximo trem. A recusada pela Vercel vai na frente.
+- **O dono quer ver antes:** etiqueta `segura` no PR; o trem deixa a leva de fora até ele tirar a etiqueta.
+- **Urgência** (produção quebrada, revert): `npm run publicar -- --merge <n> --avulso` junta um PR de leva sozinho, só com o pedido do dono ou para o revert da exceção abaixo. Gasta um deployment da reserva.
+- **GitHub só pela API REST** (`gh api`): o GraphQL (`gh pr create/view/merge/list`) é barrado nas sessões de nuvem. O `publicar` e o `trem.mjs` já fazem assim, e com GH_TOKEN vencido tentam de novo só com o GITHUB_TOKEN.
+- **ESTADO.md** junta sozinho no rebase e no trem (driver `estado-merge.mjs`, ligado pelo `npm install`): a linha de cada trilha fica a da leva mais nova, o rodapé soma as levas e corta as mais antigas para caber em 8 KB.
+
 ## Exceção: rotinas agendadas publicam sozinhas
 
-Decisão do dono, 08/11/2026, leva I-328: uma sessão aberta por **rotina agendada** (a conversa começa como tarefa agendada, sem o dono presente) junta o próprio pull request no `main` sem esperar a homologação, desde que cumpra **todas** as condições abaixo. Conversa com o dono presente segue a regra geral (prévia e "pode fazer merge").
+Desde a I-331 a exceção vale para o **PR do trem** (`trem/*`); o PR de cada leva nunca é juntado sozinho. Decisão do dono, 08/11/2026, leva I-328: uma sessão aberta por **rotina agendada** (a conversa começa como tarefa agendada, sem o dono presente) junta o próprio pull request no `main` sem esperar a homologação, desde que cumpra **todas** as condições abaixo. Conversa com o dono presente segue a regra geral (prévia e "pode fazer merge").
 
 Condições, nesta ordem:
 
@@ -66,7 +87,7 @@ Ficam fora da exceção (o PR espera o dono, como antes):
 
 Produção quebrada depois de um merge de rotina: a mesma rotina abre um PR que reverte o commit (`git revert`), passa pelas mesmas condições e avisa o dono. Nunca `push` no `main`, nunca `--force`: as travas valem igual.
 
-**A trilha `bot` também publica sozinha** (decisão do dono, 08/11/2026, leva B-204: "no caso das evoluções do Shark, você não precisa nunca do meu OK para subir na main"). Leva com rodapé `Trilha: bot`, em qualquer conversa, com ou sem o dono presente, junta o próprio PR no `main` pelas mesmas seis condições acima e com as mesmas exclusões. A partir daí, a mesma conferência em produção e o mesmo aviso ao dono.
+**A trilha `bot` também publica sozinha** (decisão do dono, 08/11/2026, leva B-204: "no caso das evoluções do Shark, você não precisa nunca do meu OK para subir na main"). Desde a I-331 a leva com rodapé `Trilha: bot`, em qualquer conversa, vai no próximo trem sem esperar o OK do dono, como as outras. A partir daí, a mesma conferência em produção e o mesmo aviso ao dono.
 
 ## Rodapés do commit
 

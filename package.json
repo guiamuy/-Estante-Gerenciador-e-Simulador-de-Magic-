@@ -11,7 +11,8 @@
     "golden:update": "node generate.mjs",
     "publicar": "node publicar.mjs",
     "agregacao": "node agregacao.mjs",
-    "prepare": "git config core.hooksPath .githooks || true"
+    "prepare": "git config core.hooksPath .githooks && git config merge.estado.name \"ESTADO.md (I-331)\" && git config merge.estado.driver \"node estado-merge.mjs %O %A %B\" || true",
+    "trem": "node trem.mjs"
   },
   "devDependencies": {
     "@tesseract.js-data/eng": "^1.0.0",
