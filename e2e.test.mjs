@@ -10363,9 +10363,12 @@ test('e2e · G-301 selo do motor em toda listagem: Minhas listas e as escolhas d
   const porNome = Object.fromEntries(linhas.map(([n, ...r]) => [n, r]));
   assert.deepEqual(porNome.Coberta, ['completo', 'Motor100%', 'Motor: roda a lista inteira (100%)']);
   assert.equal(porNome.Furada[0], 'incompleto'); assert.match(porNome.Furada[1], /^Motor\d{1,2}%$/); assert.match(porNome.Furada[2], /^Motor: roda \d{1,2}% da lista; 1 carta\(s\) ainda não jogam/);
-  const cor = await page.$$eval('.deck-item__motor', ms => ms.map(m => [m.dataset.motor, getComputedStyle(m).color, getComputedStyle(m).borderTopColor]));
-  const tokens = await page.evaluate(() => { const d = document.createElement('span'); document.body.append(d); const ler = v => { d.style.color = `var(${v})`; return getComputedStyle(d).color; }; const r = { positive: ler('--positive'), warning: ler('--warning') }; d.remove(); return r; });
-  for (const [tom, c, b] of cor) assert.deepEqual([c, b], tom === 'completo' ? [tokens.positive, tokens.positive] : [tokens.warning, tokens.warning], 'tom do selo pelo token: ' + tom);
+  // DS-K3 K3-5 (G-378) · expectativa ampliada de propósito: na estante o selo mora sobre a arte do ladrilho, e o tom vem dos
+  // tokens sobre arte (iguais nos dois temas: --positivo-sobre-arte, --alerta-sobre-arte), que passam AA sobre o ébano
+  const cor = await page.$$eval('.deck-item__motor', ms => ms.map(m => [m.dataset.motor, !!m.closest('.deck-item--ladrilho'), getComputedStyle(m).color, getComputedStyle(m).borderTopColor]));
+  const tokens = await page.evaluate(() => { const d = document.createElement('span'); document.body.append(d); const ler = v => { d.style.color = `var(${v})`; return getComputedStyle(d).color; }; const r = { positive: ler('--positive'), warning: ler('--warning'), positivoArte: ler('--positivo-sobre-arte'), alertaArte: ler('--alerta-sobre-arte') }; d.remove(); return r; });
+  for (const [tom, arte, c, b] of cor) { const k = tom === 'completo' ? (arte ? tokens.positivoArte : tokens.positive) : (arte ? tokens.alertaArte : tokens.warning); assert.deepEqual([c, b], [k, k], 'tom do selo pelo token: ' + tom + (arte ? ' (sobre arte)' : '')); }
+  assert.ok(cor.every(([, arte]) => arte), 'na estante, todo selo está no ladrilho');
   await auditaTela(page, 'Minhas listas com o selo do motor');
   // 2 · a mesma conta do ladrilho do Jogar
   await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-estado');
@@ -10553,11 +10556,13 @@ test('e2e · DS-K2 I1 · Início: sem contagem sob o título (G-328); "Últimas 
       const m = await page.evaluate(() => {
         const itens = [...document.querySelectorAll('#home-ultimas .deck-item')];
         return { prontas: document.querySelector('#home-prontas'), nomes: itens.map(i => i.querySelector('.deck-item__nome').textContent),
-          ladrilhos: itens.map(i => { const l = i.querySelector('.home-lista__ladrilho'); return l ? Math.round(l.getBoundingClientRect().width) : 0; }),
+          // DS-K3 K3-5 (G-378) · expectativa mudada de propósito: o quadrado de 40 px nas cores virou o ladrilho com a arte da
+          // carta-chave (ou a placa nas cores, sem arte); a medida dele mora no e2e "G-378"
+          ladrilhos: itens.map(i => !!i.querySelector('.deck-item__arte')),
           posse: itens.map(i => !!i.querySelector('.deck-item__posse')), selo: itens.map(i => !!i.querySelector('.deck-item__meta .ds-badge, .deck-item__meta [class*="selo"]')),
           ordem: [...document.querySelectorAll('#home > *')].map(e => e.id || e.className.split(' ')[0]), todas: !!document.querySelector('#home-ultimas-todas') }; });
       assert.equal(m.prontas, null, `${w} ${tema}: nenhuma contagem sob o título (G-328, relato #47)`);
-      assert.deepEqual([m.nomes, m.ladrilhos, m.posse, m.todas], [['Do Comandante', 'Ursos', 'Mono Azul Delver'], [40, 40, 40], [true, true, true], true], `${w} ${tema}: ${JSON.stringify(m)}`);
+      assert.deepEqual([m.nomes, m.ladrilhos, m.posse, m.todas], [['Do Comandante', 'Ursos', 'Mono Azul Delver'], [true, true, true], [true, true, true], true], `${w} ${tema}: ${JSON.stringify(m)}`);
       const i = m.ordem.indexOf('home-atalhos'); assert.ok(m.ordem[i + 1] === 'home-ultimas-slot', 'o grupo vem logo depois dos atalhos: ' + m.ordem.join(' > '));
       await auditaTela(page, `DS-K2 I1 · Início ${w} ${tema}`);
       if (process.env.SHOTS && w === 360) await page.screenshot({ path: process.env.SHOTS + `/ds-k2-i1-${tema}.png` });
@@ -22692,5 +22697,79 @@ test('e2e · J-68 MK3-P1 playmats da casa: os seis modelos na mesa de verdade, n
     await auditaTela(page, `J-68 · MK3-P1 /ds ${tema}`);
     if (process.env.SHOTS) await page.locator('#ds-playmats').screenshot({ path: process.env.SHOTS + `/j-68-mk3-p1-ds-${tema}.png` });
   }
+  assert.deepEqual(errors, []);
+});
+
+/* ---------------- DS-K3 K3-5 (G-378) · ladrilho de lista com a arte da carta-chave ---------------- */
+test('e2e · G-378 DS-K3 K3-5: Últimas listas (Início) em ladrilhos com a arte da carta-chave sob o véu (a mais recente larga, 120 px; as outras lado a lado, 150 px, vão de 12); sem arte, a placa nas cores; selo do formato no topo sem tocar o nome; nome em Cormorant 17 sobre o véu do texto (≥ .72 sob a primeira linha, AA mesmo sobre arte branca); posse em fio de 2 px a 4 px do pé que cresce ao entrar (Completo --dur-4 + --escalona-2, Moderado --dur-3, Reduzido no lugar); a estante em ladrilhos largos com a lixeira ao lado; /ds com a amostra; 360 nos dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  // a arte chega branca: o pior caso para o texto (rota da página tem precedência sobre a do contexto)
+  const BRANCO = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAD0lEQVR4nGP4jwMwDC0JALoev0Ewkwr8AAAAAElFTkSuQmCC', 'base64');
+  await page.route('https://**.scryfall.io/**', r => r.fulfill({ status: 200, contentType: 'image/png', body: BRANCO, headers: { 'access-control-allow-origin': '*' } }));
+  await createDeck(page, base, 'Ursos', '20 Forest\n20 Grizzly Bear', 'pauper');
+  await createDeck(page, base, 'Do Comandante', '1 Sol Ring\n99 Island', 'commander');
+  await createDeck(page, base, 'Mono Azul Delver de Nome Comprido Que Quebra', '20 Island\n4 Delver of Secrets', 'pauper');
+  const mede = sel => page.evaluate(sel => [...document.querySelectorAll(sel)].map(el => {
+    const b = el.getBoundingClientRect(), R = q => { const x = el.querySelector(q); return x ? x.getBoundingClientRect() : null; };
+    const nome = el.querySelector('.deck-item__nome'), corpo = el.querySelector('.deck-item__corpo'), selo = el.querySelector('.deck-item__formato'), posse = el.querySelector('.deck-item__posse');
+    const cs = getComputedStyle(nome), img = el.querySelector('.deck-item__img');
+    return { nome: nome.textContent, w: Math.round(b.width), h: Math.round(b.height), left: Math.round(b.left), top: Math.round(b.top), arte: el.querySelector('.deck-item__arte').dataset.arte,
+      carregou: !!(img && img.complete && img.naturalWidth > 0), placa: !!el.querySelector('.deck-item__placa .ds-sym'),
+      seloXY: [Math.round(R('.deck-item__formato').left - b.left), Math.round(R('.deck-item__formato').top - b.top), Math.round(R('.deck-item__formato').height)],
+      seloFundo: getComputedStyle(selo).backgroundColor, seloAntesDoNome: R('.deck-item__formato').bottom <= R('.deck-item__nome').top,
+      fonte: cs.fontSize, familia: /Cormorant/.test(cs.fontFamily), corNome: cs.color, veuSobOTexto: Math.round(R('.deck-item__nome').top - R('.deck-item__corpo').top),
+      veu: /gradient/.test(getComputedStyle(corpo).backgroundImage), esquerdaNome: Math.round(R('.deck-item__nome').left - b.left),
+      posse: posse ? [Math.round(b.bottom - R('.deck-item__posse').bottom), Math.round(R('.deck-item__posse').height)] : null,
+      anima: (() => { const p = getComputedStyle(el.querySelector('.deck-item__posse-barra')); return [p.animationName, p.animationDuration, p.animationDelay]; })() }; }), sel);
+  await page.goto(base + '#/'); await page.waitForSelector('#home-ultimas .deck-item--ladrilho');
+  await page.waitForFunction(() => { const i = document.querySelector('#home-ultimas .deck-item__img'); return i && i.complete && i.naturalWidth > 0; });
+  for (const tema of ['dark', 'light']) {
+    await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema);
+    const m = await mede('#home-ultimas .deck-item--ladrilho');
+    const d = JSON.stringify(m);
+    assert.deepEqual(m.map(x => x.nome), ['Mono Azul Delver de Nome Comprido Que Quebra', 'Do Comandante', 'Ursos'], d);
+    // a mais recente larga (coluna inteira, 120 px); as outras duas lado a lado (150 px, vão de 12)
+    assert.deepEqual([m[0].w, m[1].w, m[2].w], [328, 158, 158], d); assert.ok(m[0].h >= 120 && m[1].h >= 150 && m[2].h >= 150, d);
+    assert.deepEqual([m[1].top === m[2].top, m[2].left - (m[1].left + m[1].w)], [true, 12], d);
+    // a arte da carta-chave (Delver, Sol Ring) carregada; o urso não tem imagem nos dados: a placa nas cores, com o símbolo
+    assert.deepEqual(m.map(x => [x.arte, x.carregou, x.placa]), [['carta', true, false], ['carta', true, false], ['placa', false, true]], d);
+    for (const x of m) {
+      assert.deepEqual(x.seloXY, [10, 10, 22], 'selo do formato no canto: ' + d);
+      assert.equal(x.seloFundo, 'rgba(10, 7, 4, 0.78)', 'selo em ébano quase cheio, igual nos dois temas');
+      assert.ok(x.seloAntesDoNome, 'o nome nunca encosta no selo: ' + d);
+      assert.deepEqual([x.fonte, x.familia, x.corNome, x.esquerdaNome], ['17px', true, 'rgb(246, 238, 221)', 12], 'nome em Cormorant 17, --fg-sobre-arte, a 12 px: ' + d);
+      assert.ok(x.veu && x.veuSobOTexto >= 24, 'o véu do texto chega a .72 antes da primeira linha: ' + d);
+      assert.deepEqual(x.posse, [4, 2], 'posse em fio de 2 px a 4 px do pé: ' + d);
+    }
+    assert.deepEqual(m.map(x => x.anima), [['ladrilho-posse', '0.42s', '0s'], ['ladrilho-posse', '0.42s', '0.09s'], ['ladrilho-posse', '0.42s', '0.18s']], 'Completo: --dur-4 e --escalona-2 entre ladrilhos');
+    await auditaTela(page, `G-378 Início ladrilhos (${tema})`);
+    if (process.env.SHOTS) { await page.evaluate(() => scrollTo(0, document.querySelector('#home-ultimas').getBoundingClientRect().top + scrollY - 120)); await page.screenshot({ path: process.env.SHOTS + `/g-378-inicio-${tema}.png` }); await page.evaluate(() => scrollTo(0, 0)); }
+  }
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  // Moderado: o fio cresce mais curto (--dur-3) e o escalonamento cai pela metade; Reduzido: o fio já no lugar
+  await page.evaluate(() => document.documentElement.setAttribute('data-movimento', 'moderado'));
+  assert.deepEqual((await mede('#home-ultimas .deck-item--ladrilho')).map(x => x.anima.slice(1)), [['0.28s', '0s'], ['0.28s', '0.045s'], ['0.28s', '0.09s']], 'Moderado');
+  await page.evaluate(() => document.documentElement.setAttribute('data-movimento', 'reduzido'));
+  await page.goto(base + '#/listas'); await page.goto(base + '#/'); await page.waitForSelector('#home-ultimas .deck-item--ladrilho');
+  assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll('#home-ultimas .deck-item__posse-barra')].map(b => { const a = b.getAnimations()[0]; return !a || a.playState === 'finished' || a.effect.getComputedTiming().duration < 1; })), [true, true, true], 'Reduzido: o fio já no lugar');
+  await page.evaluate(() => document.documentElement.removeAttribute('data-movimento'));
+  // a estante: ladrilhos largos, a lixeira ao lado com 44 px, a linha inteira abre a lista
+  await page.goto(base + '#/listas'); await page.waitForSelector('#decks-list .deck-item--largo');
+  for (const tema of ['dark', 'light']) {
+    await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema);
+    const e = await page.evaluate(() => [...document.querySelectorAll('#decks-list .deck-linha')].map(l => { const t = l.querySelector('.deck-item--ladrilho').getBoundingClientRect(), x = l.querySelector('.deck-linha__excluir').getBoundingClientRect();
+      return { h: Math.round(t.height) >= 120, lado: x.left >= t.right, alvo: Math.round(x.height) >= 44 && Math.round(x.width) >= 44, motor: !!l.querySelector('.deck-item__meta .deck-item__motor') }; }));
+    assert.deepEqual(e, Array(3).fill({ h: true, lado: true, alvo: true, motor: true }), `estante (${tema}): ` + JSON.stringify(e));
+    for (const x of await mede('#decks-list .deck-item--ladrilho')) { assert.ok(x.seloAntesDoNome && x.veuSobOTexto >= 24, JSON.stringify(x)); assert.deepEqual(x.posse, [4, 2]); }
+    await auditaTela(page, `G-378 estante ladrilhos (${tema})`);
+    if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + `/g-378-listas-${tema}.png` });
+  }
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  await page.click('#decks-list .deck-item--ladrilho >> nth=0'); await page.waitForSelector('.deck-summary');
+  assert.match(await page.innerText('#deck-topo'), /Mono Azul Delver/);
+  // /ds: a amostra (larga e duas em grade, todas em placa)
+  await page.goto(base + '#/ds'); await page.waitForSelector('#ds-ladrilhos');
+  assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll('#ds-ladrilhos .deck-item--ladrilho')].map(l => [l.classList.contains('deck-item--largo'), l.querySelector('.deck-item__arte').dataset.arte])), [[true, 'placa'], [false, 'placa'], [false, 'placa']]);
   assert.deepEqual(errors, []);
 });

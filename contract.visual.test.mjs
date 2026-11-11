@@ -1156,3 +1156,41 @@ test('DS-K3 K3-4 + MV-7 · cabeçalho editorial: Listas, Coleção e Perfil com 
   assert.match(HTML, /__m3\.Cabecalho\('Partidas', \{ esquerda:/);
 });
 
+
+/* ---------------- DS-K3 K3-5 (G-378) · ladrilho de lista com a arte da carta-chave ---------------- */
+test('DS-K3 K3-5 · ladrilho de lista: tokens sobre arte iguais nos dois temas; AA do selo, do motor e do texto mesmo sobre arte branca (o selo sem véu, o texto sobre .72); arte sob --scrim-art, texto sobre --veu-texto-arte a partir de --veu-texto-alt; selo e motor sem desfoque; o fio de posse cresce só em transform (--dur-4 · --ease-out · --escalona-2)', () => {
+  const novos = ['--veu-texto-alt', '--veu-texto-arte', '--selo-sobre-arte', '--latao-sobre-arte', '--latao-sobre-arte-lo', '--trilho-sobre-arte', '--positivo-sobre-arte', '--alerta-sobre-arte', '--ladrilho-alt', '--ladrilho-alt-largo', '--selo-alt-ladrilho', '--text-ladrilho', '--simbolo-ladrilho', '--simbolo-placa'];
+  for (const k of novos) assert.ok(DARK[k], k);
+  // a arte é escura em qualquer tema: o claro (escolhido e automático) não troca nenhum deles
+  for (const k of novos) { assert.equal(LIGHT[k], DARK[k], `${k} igual no claro`); assert.equal(AUTO_LIGHT[k], undefined, `${k} não muda no claro automático`); }
+  assert.deepEqual([DARK['--ladrilho-alt'], DARK['--ladrilho-alt-largo'], DARK['--selo-alt-ladrilho'], DARK['--veu-texto-alt']], ['150px', '120px', '22px', '24px']);
+  // mistura do ébano (#0a0704) com a pior arte (branca) num alfa
+  const sobreBranco = a => '#' + [10, 7, 4].map(c => Math.round(c * a + 255 * (1 - a)).toString(16).padStart(2, '0')).join('');
+  const alfa = v => +String(v).match(/rgba\([^)]*,\s*([\d.]+)\)$/)[1];
+  const selo = sobreBranco(alfa(DARK['--selo-sobre-arte']));
+  for (const k of ['--latao-sobre-arte', '--fg-sobre-arte', '--fg-sobre-arte-muted', '--positivo-sobre-arte', '--alerta-sobre-arte'])
+    assert.ok(ratio(DARK[k], selo) >= 4.5, `${k} sobre o selo em arte branca: ${ratio(DARK[k], selo).toFixed(2)}`);
+  // o véu do texto chega a .72 em --veu-texto-alt (antes da primeira linha) e a .9 no pé
+  assert.match(DARK['--veu-texto-arte'], /^linear-gradient\(180deg, rgba\(10, 7, 4, 0\) 0, rgba\(10, 7, 4, \.72\) var\(--veu-texto-alt\), rgba\(10, 7, 4, \.9\) 100%\)$/);
+  for (const k of ['--fg-sobre-arte', '--fg-sobre-arte-muted', '--latao-sobre-arte'])
+    assert.ok(ratio(DARK[k], sobreBranco(.72)) >= 4.5, `${k} sobre o véu do texto em arte branca: ${ratio(DARK[k], sobreBranco(.72)).toFixed(2)}`);
+  // o componente: só tokens; a arte sob --scrim-art; o corpo sobre o véu do texto, a partir de --veu-texto-alt
+  const regra = sel => { const i = componentCss.indexOf(sel + ' {'); assert.ok(i >= 0, sel); return componentCss.slice(i, componentCss.indexOf('}', i)); };
+  assert.match(regra('.deck-item__arte::after'), /background: var\(--scrim-art\)/);
+  assert.match(regra('.deck-item--ladrilho .deck-item__corpo'), /padding: var\(--veu-texto-alt\) var\(--space-3\) 0; background: var\(--veu-texto-arte\)/);
+  assert.match(regra('.ds-list__item.deck-item--ladrilho'), /min-height: var\(--ladrilho-alt\);[^}]*border-radius: var\(--radius-3\);[^}]*box-shadow: var\(--shadow-key\), var\(--shadow-contact\)/);
+  assert.match(regra('.deck-item--ladrilho::before'), /box-shadow: inset 0 1px 0 var\(--edge-strong\)/);
+  assert.match(regra('.deck-item--ladrilho .deck-item__formato'), /height: var\(--selo-alt-ladrilho\);[^}]*color: var\(--latao-sobre-arte\);[^}]*background: var\(--selo-sobre-arte\)/);
+  assert.match(regra('.deck-item--ladrilho .deck-item__nome'), /font-size: var\(--text-ladrilho\); line-height: 1\.05; color: var\(--fg-sobre-arte\)/);
+  // sem desfoque fora da barra (K3-2): nada do ladrilho pede backdrop-filter
+  const ladrilho = componentCss.split('\n').filter(l => /deck-item--ladrilho|deck-item__(arte|placa|img)|\.ladrilhos/.test(l)).join('\n');
+  assert.ok(!/backdrop-filter|blur\(/.test(ladrilho), 'o ladrilho não desfoca');
+  // o fio de posse: latão sobre arte, cresce em transform, com os tokens de movimento (Moderado e Reduzido vêm dos tokens)
+  assert.match(componentCss, /animation: ladrilho-posse var\(--dur-4\) var\(--ease-out\) calc\(var\(--i, 0\) \* var\(--escalona-2\)\) both;/);
+  assert.match(componentCss, /@keyframes ladrilho-posse \{ from \{ transform: scaleX\(0\); \} \}/);
+  assert.match(regra('.deck-item--ladrilho .deck-item__posse'), /bottom: var\(--space-1\);[^}]*height: 2px; background: var\(--trilho-sobre-arte\)/);
+  // usado na Início (grade) e na estante (largos), e mostrado no /ds antes
+  assert.match(HTML, /h\('div', \{ class: 'ladrilhos' \}, \.\.\.linhas\)/);
+  assert.match(HTML, /h\('div', \{ class: 'ladrilhos ladrilhos--largos' \}/);
+  assert.match(HTML, /Section\('Ladrilho de lista',/);
+});
