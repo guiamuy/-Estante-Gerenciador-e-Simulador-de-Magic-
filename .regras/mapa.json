@@ -1764,7 +1764,7 @@
    "regra": "Counters",
    "titulo": "Marcadores e seus tipos",
    "status": "parcial",
-   "evidencia": "+1/+1 soma em poder/resistência (index.html:10340-10341; addCounters index.html:11579); lealdade (index.html:10301, 12125; rules.unit S21) · CR2c.5 (v88): b) marcador de palavra-chave (122.1b) — has() lê marcadores de voar, iniciativa, golpe duplo, toque mortífero, decaído, exaltado, ímpeto, resistência a magia, indestrutível, vínculo com a vida, ameaça, alcance, sombra, atropelar e vigilância; efeito counter_choice (commander.regras \"CR2c.5 · Call of the Death-Dweller\") · M-249/M-253 (v96): marcadores nomeados em permanente (counters com tipo; custo removeCounters; semMarcadorSacrifica) e marcadores de veneno em jogador (darVeneno; 10 = derrota); −1/−1 colocado por infectar (M-254). · auditoria independente CR2a/CR2h (11/10/2026): marcadores nomeados (M-249), de palavra-chave (CR2c.5), veneno (M-253) · T-91: marcador de radiação em jogador (728.1), também no proliferar · T-115 (17/10/2026): \"put its counters on target creature you control\" (`marcadores_da_fonte`): o mesmo número de cada tipo de marcador da foto de quando a fonte saiu do campo, pelo caminho comum dos marcadores — Enduring Bondwarden · T-120 (17/10/2026): Iron Apprentice — \"if it had counters on it\" (`condition.tinhaMarcadores`, pela foto de quando saiu, ao disparar e ao resolver) · T-125 (17/10/2026): a foto dos marcadores viaja com o gatilho (fotoT); quem morre por resistência 0 leva os +1/+1 e −1/−1 antes da anulação (704.3)",
+   "evidencia": "+1/+1 soma em poder/resistência (index.html:10340-10341; addCounters index.html:11579); lealdade (index.html:10301, 12125; rules.unit S21) · CR2c.5 (v88): b) marcador de palavra-chave (122.1b) — has() lê marcadores de voar, iniciativa, golpe duplo, toque mortífero, decaído, exaltado, ímpeto, resistência a magia, indestrutível, vínculo com a vida, ameaça, alcance, sombra, atropelar e vigilância; efeito counter_choice (commander.regras \"CR2c.5 · Call of the Death-Dweller\") · M-249/M-253 (v96): marcadores nomeados em permanente (counters com tipo; custo removeCounters; semMarcadorSacrifica) e marcadores de veneno em jogador (darVeneno; 10 = derrota); −1/−1 colocado por infectar (M-254). · auditoria independente CR2a/CR2h (11/10/2026): marcadores nomeados (M-249), de palavra-chave (CR2c.5), veneno (M-253) · T-91: marcador de radiação em jogador (728.1), também no proliferar · T-115 (17/10/2026): \"put its counters on target creature you control\" (`marcadores_da_fonte`): o mesmo número de cada tipo de marcador da foto de quando a fonte saiu do campo, pelo caminho comum dos marcadores — Enduring Bondwarden · T-120 (17/10/2026): Iron Apprentice — \"if it had counters on it\" (`condition.tinhaMarcadores`, pela foto de quando saiu, ao disparar e ao resolver) · T-125 (17/10/2026): a foto dos marcadores viaja com o gatilho (fotoT); quem morre por resistência 0 leva os +1/+1 e −1/−1 antes da anulação (704.3) · M-618 (v112): 122.1h marcador de finalidade — destinoSubstituido manda para o exílio o que iria do campo ao cemitério (Emperor of Bones)",
    "falta": "escudo, atordoamento, defesa, energia, experiência",
    "esforco": "M",
    "depende": [
@@ -1777,7 +1777,9 @@
     "CR 122.1 · ruling de 14/04/2023: todos os tipos de marcador que ela tinha, inclusive −1/−1 (o que pode matar quem recebe); não é mover",
     "CR 603.4 · Iron Apprentice (texto oficial): entra com um +1/+1; ao morrer, \"if it had counters on it\", põe esses marcadores na criatura alvo sua",
     "CR 704.3 / 704.5q · auditoria D1 (T-125): Iron Apprentice morto por um −1/−1 morre com os dois marcadores (anular e morrer são simultâneos) — o gatilho dispara e o alvo recebe +1/+1 e −1/−1",
-    "CR 603.10a · auditoria D2 (T-125): a foto vai com o gatilho — Iron Apprentice com três marcadores que volta ao campo antes de o gatilho resolver ainda dá três"
+    "CR 603.10a · auditoria D2 (T-125): a foto vai com o gatilho — Iron Apprentice com três marcadores que volta ao campo antes de o gatilho resolver ainda dá três",
+    "M-618 · Emperor of Bones (607.2a + 122.1h): exila a criatura do cemitério de B; adaptar a traz para A com finalidade e ímpeto; no passo final é sacrificada e vai para o exílio",
+    "M-618 · 122.1h: criatura com marcador de finalidade destruída vai para o exílio, não para o cemitério"
    ]
   },
   {
@@ -2755,9 +2757,12 @@
    "regra": "Sorceries",
    "titulo": "\"Como um feitiço\"",
    "status": "parcial",
-   "evidencia": "sorceryOnly em habilidades (equipar, lealdade, script) conferido com canSorceryNow (index.html:10343, 10906-10908); testes \"S11 · equipar só na sua fase principal\", \"M14 · ação especial: só no tempo de feitiço\"",
+   "evidencia": "sorceryOnly em habilidades (equipar, lealdade, script) conferido com canSorceryNow (index.html:10343, 10906-10908); testes \"S11 · equipar só na sua fase principal\", \"M14 · ação especial: só no tempo de feitiço\" · M-618 (v112): regra de jogador `soComoFeitico` (\"Each opponent can cast spells only any time they could cast a sorcery\", Teferi, Time Raveler): proibidoConjurarM barra todo modo de conjurar fora de canSorceryNow (prioridade, a própria fase principal, pilha vazia), inclusive cascata e insanidade",
    "falta": "307.5a: não há como saber se uma mágica foi conjurada \"quando um feitiço não poderia\".",
-   "esforco": "P"
+   "esforco": "P",
+   "testes": [
+    "M-618 · Teferi (307.5): com ele no campo de A, B só conjura instantâneas na própria fase principal, com a pilha vazia"
+   ]
   },
   {
    "n": "308.1",
@@ -4385,12 +4390,15 @@
    "regra": "Casting Spells",
    "titulo": "Quando se pode começar a conjurar",
    "status": "parcial",
-   "evidencia": "cast confere zona, dono, tempo de feitiço/flash e pilha vazia (index.html:12222, 12235); legalActions só oferece o permitido (:12955-12962); engine.unit \"M4 · feitiço só na sua principal; instantânea a qualquer momento com prioridade\" · M-256 (v96): permissão de conjurar de outra zona (permiteConjurar; Lurrus: uma por turno, só no seu turno, objeto novo renova; lurrus.unit).",
+   "evidencia": "cast confere zona, dono, tempo de feitiço/flash e pilha vazia (index.html:12222, 12235); legalActions só oferece o permitido (:12955-12962); engine.unit \"M4 · feitiço só na sua principal; instantânea a qualquer momento com prioridade\" · M-256 (v96): permissão de conjurar de outra zona (permiteConjurar; Lurrus: uma por turno, só no seu turno, objeto novo renova; lurrus.unit). · M-618 (v112): 601.3b feitiços como se tivessem lampejo (`feiticosComLampejo`, efeito_jogador até o seu próximo turno; isSorcerySpeed(f, s, p) em todos os pontos de oferta e no cast)",
    "falta": "Não existe efeito que proíba conjurar (\"não pode conjurar…\") nem \"como se tivesse flash\": 601.3a-d sem implementação; 601.3e (conjurar do topo do grimório por características alternativas) e 601.3f (do exílio virada para baixo) ausentes.",
    "esforco": "M",
    "depende": [
     "609.4",
     "613"
+   ],
+   "testes": [
+    "M-618 · Teferi +1 (601.3b): A conjura feitiço no turno de B até o próprio turno seguinte; e só feitiço (não muda criatura)"
    ]
   },
   {
@@ -4805,14 +4813,15 @@
    "regra": "Linked Abilities",
    "titulo": "Tipos de habilidades ligadas",
    "status": "parcial",
-   "evidencia": "607.2a exílio \"até sair do campo\" (return_held index.html:11139-11146; rules.unit \"S48 · o encantamento exila a criatura e devolve quando sai do campo\"); 607.2d cor/tipo escolhido (rules.unit \"S43 · proteção pela cor escolhida\", \"S50 · escolher o tipo de criatura\"); 607.2i custo adicional pago (rules.unit \"S37 · barganha: o gatilho só acontece se algo foi sacrificado ao conjurar\", onlyIf paid-additional :11084); 607.2j X pago (rules.unit \"S50 · custo X… entra com X marcadores\") · T-90 · 607.2d também na mana: \"{T}: Add {W} or one mana of the chosen color\" (produces { escolhida: true }; tipos.portoes.unit)",
+   "evidencia": "607.2a exílio \"até sair do campo\" (return_held index.html:11139-11146; rules.unit \"S48 · o encantamento exila a criatura e devolve quando sai do campo\"); 607.2d cor/tipo escolhido (rules.unit \"S43 · proteção pela cor escolhida\", \"S50 · escolher o tipo de criatura\"); 607.2i custo adicional pago (rules.unit \"S37 · barganha: o gatilho só acontece se algo foi sacrificado ao conjurar\", onlyIf paid-additional :11084); 607.2j X pago (rules.unit \"S50 · custo X… entra com X marcadores\") · T-90 · 607.2d também na mana: \"{T}: Add {W} or one mana of the chosen color\" (produces { escolhida: true }; tipos.portoes.unit) · M-618 (v112): 607.2a \"a creature card exiled with this creature\" no plural — exiladasComM lê as cartas com exiladaPorT desta encarnação da fonte (fonteZc), em qualquer exílio; com várias, quem controla escolhe (Emperor of Bones)",
    "falta": "607.2a guarda uma só carta por permanente (holding é um oid) e não há \"cartas exiladas com esta permanente\" consultáveis por outra habilidade (ativada que devolve/usa a carta exilada); 607.2b, c, e, f, g, h, k (campeão), m (palavra-âncora), n, p, q ausentes.",
    "esforco": "M",
    "depende": [
     "614"
    ],
    "testes": [
-    "CR 106.1 / 605.1a · \"{T}: Add {W} or one mana of the chosen color\": as duas opções, e só elas"
+    "CR 106.1 / 605.1a · \"{T}: Add {W} or one mana of the chosen color\": as duas opções, e só elas",
+    "M-618 · Emperor of Bones (607.2a + 122.1h): exila a criatura do cemitério de B; adaptar a traz para A com finalidade e ímpeto; no passo final é sacrificada e vai para o exílio"
    ]
   },
   {
@@ -4910,12 +4919,16 @@
    "n": "609.4",
    "regra": "Effects",
    "titulo": "Efeitos \"como se\" (as though)",
-   "status": "ausente",
-   "falta": "Não há \"como se tivesse flash\", \"pode bloquear como se…\", nem \"gaste mana como se fosse de qualquer cor/tipo\" (609.4b); o único desvio é a conjuração concedida por efeito, que ignora tempo e custo (a.granted index.html:12235).",
+   "status": "parcial",
+   "falta": "Só feitiços como se tivessem lampejo: \"pode bloquear como se…\" e \"gaste mana como se fosse de qualquer cor/tipo\" (609.4b) seguem ausentes.",
    "esforco": "M",
    "depende": [
     "601.3",
     "613"
+   ],
+   "evidencia": "M-618 (v112): \"you may cast sorcery spells as though they had flash\" (Teferi, Time Raveler +1): regra de jogador `feiticosComLampejo` lida por isSorcerySpeed(f, s, p) na oferta e no cast",
+   "testes": [
+    "M-618 · Teferi +1 (601.3b): A conjura feitiço no turno de B até o próprio turno seguinte; e só feitiço (não muda criatura)"
    ]
   },
   {
