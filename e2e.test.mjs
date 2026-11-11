@@ -22583,3 +22583,114 @@ test('e2e · J-66 proteção ganha: escudo com as cores do mana na carta do camp
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/j66-protecao-folha.png' });
   assert.deepEqual(errors, []);
 });
+
+// MK3-P1 (J-68, trilha jogabilidade) · playmats da casa. Os seis modelos (Ébano, Feltro, Oceano, Vinho, Pergaminho, Latão
+// gravado) na mesa de verdade, nos dois temas: o texto da mesa (--fg e --fg-muted) lê sobre os pixels pintados do playmat
+// (o pior entre o 1º e o 99º percentil de luminância, com o poço e a laca por cima), o centro é mais calmo que a borda, os seis
+// se distinguem entre si e do padrão, os dois lados seguem espelho (auditaSimetria) e a tela limpa (auditaTela); o pintar
+// com o playmat mais pesado (latão: padrão gravado) não encarece o quadro (o orçamento absoluto segue no MJ11b). Sem receita de movimento nova (os três
+// níveis não mudam nada aqui). Falhava no main de antes: sem os tokens, data-playmat não mudava o fundo.
+const lumDoPixel = (r, g, b) => { const c = [r, g, b].map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
+const contraste = (a, b) => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+async function medePlaymat(page, sel) {
+  // esconde o que está por cima do lado (cartas, faixa, bandeja) só para fotografar o fundo; o poço e a laca são do próprio lado
+  await page.evaluate(s => { document.documentElement.classList.add('mk3-p1-pagina'); document.querySelector(s).classList.add('mk3-p1-mede'); }, sel);
+  const foto = await page.locator(sel).screenshot({ animations: 'disabled' }), png = PNGjs.sync.read(foto);
+  if (process.env.SHOTS_MEDE) (await import('node:fs')).writeFileSync(process.env.SHOTS_MEDE + '/mede-' + sel.replace(/\W+/g, '') + '.png', foto);
+  const cores = await page.evaluate(s => { const l = document.querySelector(s); l.classList.remove('mk3-p1-mede'); document.documentElement.classList.remove('mk3-p1-pagina');
+    const p = document.createElement('span'), cor = v => { p.style.color = `var(${v})`; return getComputedStyle(p).color.match(/\d+/g).slice(0, 3).map(Number); };
+    l.appendChild(p); const r = { fg: cor('--fg'), mu: cor('--fg-muted') }; p.remove(); return r; }, sel);
+  const { width: W, height: H, data } = png, borda = 3, canto = 12, lums = [], centro = [], fora = [], soma = [0, 0, 0];
+  for (let y = borda; y < H - borda; y++) for (let x = borda; x < W - borda; x++) {
+    if ((x < canto || x >= W - canto) && (y < canto || y >= H - canto)) continue; // o canto arredondado mostra o fundo da página
+    const i = (y * W + x) * 4, L = lumDoPixel(data[i], data[i + 1], data[i + 2]); lums.push(L); soma[0] += data[i]; soma[1] += data[i + 1]; soma[2] += data[i + 2];
+    const fx = x / W, fy = y / H;
+    if (fx > 0.25 && fx < 0.75 && fy > 0.25 && fy < 0.75) centro.push(L); else if (fx < 0.12 || fx > 0.88 || fy < 0.12 || fy > 0.88) fora.push(L);
+  }
+  lums.sort((a, b) => a - b);
+  const pct = q => lums[Math.min(lums.length - 1, Math.floor(q * lums.length))], [lo, hi] = [pct(0.01), pct(0.99)];
+  const desvio = v => { const m = v.reduce((a, b) => a + b, 0) / v.length; return Math.sqrt(v.reduce((a, b) => a + (b - m) ** 2, 0) / v.length); };
+  const pior = rgb => { const L = lumDoPixel(...rgb); return Math.min(contraste(L, lo), contraste(L, hi)); };
+  return { fg: +pior(cores.fg).toFixed(2), mu: +pior(cores.mu).toFixed(2), centro: +desvio(centro).toFixed(4), borda: +desvio(fora).toFixed(4),
+    media: soma.map(v => Math.round(v / lums.length)) };
+}
+test('e2e · J-68 MK3-P1 playmats da casa: os seis modelos na mesa de verdade, nos dois temas, com o texto da mesa legível sobre os pixels do playmat, centro calmo, seis distintos e do padrão, espelho nos dois lados, auditaSimetria e auditaTela nas quatro medidas, pintura no orçamento; palco no /ds', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  const ELFOS = '4 Elvish Mystic\n11 Forest\n1 Fyndhorn Elves\n4 Generous Ent\n4 Llanowar Elves\n4 Masked Vandal\n4 Nyxborn Hydra\n4 Priest of Titania\n4 Quirion Ranger\n2 Sagu Wildling\n3 Timberwatch Elf\n4 Lead the Stampede\n4 Winding Way\n2 Land Grant\n1 Gingerbread Cabin';
+  await createDeck(page, base, 'Elfos', ELFOS);
+  await page.goto(base + '#/mesa'); await page.fill('#mesa-seed', '1');
+  await page.waitForFunction(() => { const c = document.querySelector('[data-opponent="shark"]'); return c && !c.disabled; }, null, { timeout: 8000 });
+  await page.click('[data-opponent="shark"]'); await page.waitForSelector('#mesa-bot-deck');
+  await escolheLista(page, 'mesa-bot-deck', 'shark-elfos');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await semPensar(page); await page.waitForSelector('#tb-pass, #tb-pass-turn');
+  await page.evaluate(() => { const M = window.__estanteMesa; M.verJogadas(false); const s = M.estado();
+    const pega = (p, nome, n) => s.zones[p].library.map(x => s.objects[x]).filter(o => o.name === nome).slice(0, n);
+    for (const p of [0, 1]) for (const o of [...pega(p, 'Llanowar Elves', 2), ...pega(p, 'Forest', 2)]) M.act({ t: 'move', p: M.estado().turn.priority, oid: o.oid, to: 'battlefield' }); });
+  await page.waitForFunction(() => document.querySelectorAll('.tb-side--opp .tb-card').length >= 2 && document.querySelectorAll('.tb-side--me .tb-card').length >= 2);
+  // para fotografar só o fundo do lado: o resto da página (bandeja, mão, barra) e o conteúdo do lado somem; o lado (poço, laca, playmat) fica
+  await page.addStyleTag({ content: '.mk3-p1-pagina body * { visibility: hidden !important; } .mk3-p1-pagina .mk3-p1-mede { visibility: visible !important; transition: none !important; }' });
+  // o playmat vale para os dois lados: data-playmat num ancestral (o lado sem escolha herda o --playmat), que sobrevive ao redesenho
+  const usa = k => page.evaluate(k => { if (k) document.body.dataset.playmat = k; else delete document.body.dataset.playmat; }, k);
+  const nomes = ['ebano', 'feltro', 'oceano', 'vinho', 'pergaminho', 'latao'];
+  for (const tema of ['dark', 'light']) {
+    await page.setViewportSize({ width: 360, height: 780 }); await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema);
+    await usa(null); await page.waitForTimeout(150);
+    const padrao = await medePlaymat(page, '.tb-board > .tb-side--me'), medias = [padrao.media];
+    for (const k of nomes) {
+      await usa(k); await page.waitForTimeout(150);
+      const onde = `${k} ${tema}`;
+      const fundos = await page.evaluate(() => [...document.querySelectorAll('.tb-board > .tb-side')].map(l => getComputedStyle(l).backgroundImage));
+      assert.ok(fundos.length === 2 && fundos[0] === fundos[1] && fundos[0].includes('gradient'), `${onde}: o mesmo playmat procedural nos dois lados`);
+      for (const lado of ['.tb-board > .tb-side--me', '.tb-board > .tb-side--opp']) {
+        const m = await medePlaymat(page, lado);
+        t.diagnostic(`J-68 · ${onde} ${lado.slice(-4)} ${JSON.stringify(m)}`);
+        assert.ok(m.fg >= 4.5, `${onde}: o texto da mesa (--fg) lê sobre o playmat (pior pixel ${m.fg}:1)`);
+        assert.ok(m.mu >= 4.5, `${onde}: o texto secundário (--fg-muted) lê sobre o playmat (pior pixel ${m.mu}:1)`);
+        assert.ok(m.centro <= m.borda, `${onde}: o centro é mais calmo que a borda (${m.centro} × ${m.borda})`);
+        if (lado.endsWith('me')) medias.push(m.media);
+      }
+      await auditaSimetria(page, `J-68 · MK3-P1 ${onde}`);
+      await auditaTela(page, `J-68 · MK3-P1 ${onde}`);
+      if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + `/j-68-mk3-p1-${k}-${tema}.png` });
+    }
+    // os seis se distinguem entre si e do padrão (cor média do lado, distância RGB)
+    for (let i = 0; i < medias.length; i++) for (let j = i + 1; j < medias.length; j++) {
+      const d = Math.hypot(...medias[i].map((v, c) => v - medias[j][c]));
+      assert.ok(d >= 8, `${tema}: ${['padrao', ...nomes][i]} e ${['padrao', ...nomes][j]} se distinguem (${d.toFixed(1)})`);
+    }
+  }
+  // o mais pesado (latão: padrão gravado em SVG) nas quatro medidas e nos dois temas
+  await usa('latao');
+  for (const [w, hgt] of [[384, 832], [390, 844], [412, 891]]) for (const tema of ['dark', 'light']) {
+    await page.setViewportSize({ width: w, height: hgt }); await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(150);
+    await auditaSimetria(page, `J-68 · MK3-P1 latao ${w}×${hgt} ${tema}`);
+    await auditaTela(page, `J-68 · MK3-P1 latao ${w}×${hgt} ${tema}`);
+  }
+  // pintura: redesenhar a mesa e esperar o quadro pintado, com o padrão e com o latão (CPU 1×)
+  await page.setViewportSize({ width: 360, height: 780 }); await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  const pinta = k => page.evaluate(async k => { if (k) document.body.dataset.playmat = k; else delete document.body.dataset.playmat;
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))); const v = [];
+    for (let i = 0; i < 5; i++) { const t0 = performance.now(); window.__estanteMesa.repinta(); await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))); v.push(+(performance.now() - t0).toFixed(1)); }
+    return v.sort((a, b) => a - b)[2]; }, k);
+  const tempos = { padrao: await pinta(null), latao: await pinta('latao') };
+  t.diagnostic(`J-68 · do redesenho ao quadro pintado (mediana de 5, ms): ${JSON.stringify(tempos)}`);
+  // a medida inclui a espera de dois quadros (≈ 33 ms) e o redesenho inteiro; o que o playmat pode custar é a diferença. O orçamento
+  // absoluto da pintura (45 ms) continua no MJ11b, com o padrão; aqui o latão não pode encarecer o quadro além de 20% + 8 ms
+  assert.ok(tempos.latao <= tempos.padrao * 1.2 + 8, 'o playmat mais pesado não encarece o quadro: ' + JSON.stringify(tempos));
+  // palco do /ds: os seis playmats, cada um num lado da mesa com uma carta e o texto da mesa
+  await page.goto(base + '#/ds'); await page.waitForSelector('#ds-playmats');
+  for (const tema of ['dark', 'light']) {
+    await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema);
+    const ds = await page.evaluate(() => [...document.querySelectorAll('#ds-playmats > .tb-side')].map(l => ({ k: l.dataset.playmat, cartas: l.querySelectorAll('.tb-card').length, nome: l.querySelector('.ds-playmat__nome').textContent, fundo: getComputedStyle(l).backgroundImage })));
+    assert.deepEqual(ds.map(x => x.k), nomes, 'os seis, na ordem da galeria');
+    assert.deepEqual(ds.map(x => x.nome), ['Ébano', 'Feltro', 'Oceano', 'Vinho', 'Pergaminho', 'Latão gravado']);
+    assert.ok(ds.every(x => x.cartas === 1 && x.fundo.includes('gradient')), JSON.stringify(ds.map(x => [x.k, x.cartas])));
+    assert.equal(new Set(ds.map(x => x.fundo)).size, 6, 'seis fundos diferentes');
+    await page.locator('#ds-playmats').scrollIntoViewIfNeeded();
+    await auditaTela(page, `J-68 · MK3-P1 /ds ${tema}`);
+    if (process.env.SHOTS) await page.locator('#ds-playmats').screenshot({ path: process.env.SHOTS + `/j-68-mk3-p1-ds-${tema}.png` });
+  }
+  assert.deepEqual(errors, []);
+});
