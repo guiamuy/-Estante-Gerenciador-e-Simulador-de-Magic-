@@ -1707,3 +1707,18 @@ test('B-210 · ritual: o Desperate Ritual entra no plano de mana quando abre a j
   }
   assert.deepEqual(feitos, ['Desperate Ritual', 'Seize the Storm']);
 });
+
+// B-212 · B25 · régua de fora: o terreno que fica (`chao`). Antes só a fonte DESVIRADA valia na nota, e o terreno era escolhido
+// sem resolver o gatilho de entrada: o Shark com o Azorius God-Pharaoh's Faithful baixava o Azorius Chancery sozinho no campo
+// ("return a land you control to its owner's hand": ele mesmo) e jogou 3 de 4 partidas narradas de 11/11 sem terreno nenhum;
+// o chão na avaliação inteira (`chaoNaNota`, que segurava o Crevice do Temur) mediu negativo e ficou fora. Posições com as listas de torneio.
+const AZORIUS = "Azorius God-Pharaoh's Faithful";
+test('B-212 · chão: sem terreno no campo, o Shark baixa a Island e não o Azorius Chancery que volta sozinho para a mão; sem a opção, o Chancery', async () => {
+  const s = await montaFora(AZORIUS, BANT, { p0: { mao: ['Azorius Chancery', 'Snow-Covered Island', 'Preordain'] } });
+  s.players[0].landsPlayed = 0;
+  const nomeTerreno = j => j.acao.t === 'play_land' ? s.objects[j.acao.oid].name : null;
+  const com = B.criaBot({ nivel: 'shark', agora: relogioParado }).jogada(s, 0), sem = B.criaBot({ nivel: 'shark', agora: relogioParado, extra: { chao: false } }).jogada(s, 0);
+  assert.equal(nomeTerreno(com), 'Snow-Covered Island', 'com a opção: ' + com.motivo);
+  assert.equal(nomeTerreno(sem), 'Azorius Chancery', 'sem a opção, o erro das partidas narradas');
+  assert.equal(nomeTerreno(B.criaBot({ nivel: 'shark-v28', agora: relogioParado }).jogada(s, 0)), 'Azorius Chancery', 'shark-v28 congelado sem o chão');
+});
