@@ -23,7 +23,7 @@ Marcos: Pauper 100% (as sete listas revisadas carta a carta; 689 de 694 listas P
 | `geral` | G | DS-K3 K3-5 ladrilhos (G-378); T-IDIOMA (G-377, G-380) | G-380 · 11/11 | K3-6; Commander sem Oracle; Darval |
 | `motor` | M | Modern 44/743 | M-621 · 12/11 | Ob Nixilis |
 | `radar` | R | BI4 · Painel Estante: comparar períodos, metas, tendência | R-44 · 07/11 | BI4-6 em diante; validação do dono após os primeiros pilares |
-| `jogabilidade` | J | MK3 · Mesa Vitrine (rotina) | J-70 · 11/11 | MK3-P2 galeria e escolha; relato #54 |
+| `jogabilidade` | J | MK3 · Mesa Vitrine (rotina) | J-71 · 11/11 | MK3-4 mão viva; relato #54 |
 | `bot` | B | B25 · força 55%, Faeries 32,5%, fora 52% ✓ | B-212 · 11/11 | força e Faeries |
 | `infra` | I | trem de produção (I-331/I-332): leva abre PR sem prévia; o trem soma os PRs a cada 2 h (rotina própria desde 12/11), portão sobre a soma, uma prévia e um merge; orçamento de 24 h com reserva de 30 | I-332 · 12/11 | primeiro trem com I-331, I-332 e o backlog; ponte das coleções; repo privado |
 | `homologacao` | H | prova de partida do catálogo, revisão em lote (Commander) | H-24 · 01/11 | lote 8 |
@@ -80,4 +80,4 @@ Os documentos `claude/…` moram no Projeto do claude.ai, fora do repositório: 
 
 No commit de docs de cada leva (o mesmo que atualiza o ROADMAP): reescreva a **sua** linha na tabela de trilhas, atualize relatos e pendências se mudaram e troque a data abaixo. Edite por patch, nunca o arquivo inteiro. Conflito no rebase: fique com as linhas das outras trilhas e a sua. Passou de 8 KB: resuma, não acrescente.
 
-Atualizado: 12/11/2026 · G-372 · G-374 · S-625 · J-67 · G-375 · B-210 (bot) · M-618 · G-377 · J-68 · M-619 · G-378 · B-212 (bot) · M-620 · M-617 · G-380 · M-622 · M-621 · I-331 (trem de produção) · I-332 · I-328 (rotinas publicam) · M-612 (motor) · I-329 (ponte) · S-622 (scanner) · B-206 · G-379
+Atualizado: 12/11/2026 · G-377 · J-68 · M-619 · G-378 · B-212 (bot) · M-620 · M-617 · G-380 · M-622 · M-621 · I-331 (trem de produção) · I-332 · I-328 (rotinas publicam) · M-612 (motor) · I-329 (ponte) · S-622 (scanner) · B-206 · G-379 · B-209 (bot) · G-371 · J-64 · J-65 · S-624 (scanner) · M-616 · J-71

@@ -3054,6 +3054,41 @@ body[data-mesa-cheia="true"] .tb > .tb-board { padding-top: var(--space-1); }
 [data-playmat="vinho"] { --playmat: var(--playmat-vinho); }
 [data-playmat="pergaminho"] { --playmat: var(--playmat-pergaminho); }
 [data-playmat="latao"] { --playmat: var(--playmat-latao); }
+/* MK3-P2 (J-71) · a escolha mora no <html> (data-playmat, Perfil › Playmats ou ⋯ › Playmat na mesa) e os lados herdam; o
+   "padrao" da galeria (o ladrilho e a mini-mesa) volta ao papel do lado mesmo com outro playmat escolhido no <html>. O lado da
+   mesa sem escolha (data-playmat="padrao") continua herdando do ancestral, como na MK3-P1 */
+.playmat-ladrilho[data-playmat="padrao"], .playmat-previa > [data-playmat="padrao"] { --playmat: var(--bg-elev-1); }
+/* MK3-P2 (J-71) · galeria: a mini-mesa (dois lados no feltro da mesa, três cartas) e os ladrilhos, um por playmat.
+   Receita "pousar" do playmat · plano: objeto (o lado inteiro, playmat e cartas, como um tapete pousado no tampo) · luz: sai
+   levantado com a sombra flutuante (L2, --shadow-float no ::after) e assenta com a sombra de contato, a do tampo · curva:
+   --mola-macia --dur-4 (passa do ponto e assenta) · etapas: o lado de cima e o de baixo escalonados por --escalona-1 ·
+   moderado: sem Z, deslocamento curto, --ease-out (tokens do nível) · reduzido: o playmat novo num quadro · o que a separa de
+   uma troca linear 2D: altura (vem de mais perto da câmera, em Z, e desce) e luz (a sombra alta apaga ao tocar o tampo). */
+.playmat-previa { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-3); border-radius: var(--radius-3); border: 1px solid var(--border);
+  background: var(--mesa-bg); background-image: radial-gradient(ellipse at 50% 45%, var(--mesa-luz), transparent 70%); perspective: 900px; }
+.playmat-previa > .tb-side { min-height: calc(var(--space-6) * 3); justify-content: center; }
+.playmat-previa .tb-row { justify-content: center; }
+.playmat-pousa { position: relative; animation: playmat-pousa var(--dur-4) var(--mola-macia) backwards; }
+.playmat-pousa::after { content: ''; position: absolute; inset: 0; border-radius: inherit; box-shadow: var(--shadow-float); pointer-events: none; opacity: 0;
+  animation: playmat-pousa-sombra var(--dur-4) var(--ease-out); }
+.playmat-pousa + .playmat-pousa, .tb-side--me.playmat-pousa { animation-delay: var(--escalona-1); }
+.playmat-pousa + .playmat-pousa::after, .tb-side--me.playmat-pousa::after { animation-delay: var(--escalona-1); }
+@keyframes playmat-pousa { from { transform: perspective(900px) translate3d(0, calc(var(--desloc-2) * -1), calc(var(--z-recuo) * -1)); } }
+@keyframes playmat-pousa-sombra { from { opacity: 1; } to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .playmat-pousa, .playmat-pousa::after { animation: none; } }
+.playmat-galeria { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
+.playmat-ladrilho { display: flex; flex-direction: column; gap: var(--space-1); min-height: 44px; padding: var(--space-1); border-radius: var(--radius-2); border: 1px solid var(--border);
+  background: var(--bg-elev-1); color: var(--fg); font: inherit; text-align: left; cursor: pointer; transition: border-color var(--dur-2) var(--ease-out), transform var(--dur-1) var(--ease-out); }
+.playmat-ladrilho:active { transform: scale(.98); }
+.playmat-ladrilho:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.playmat-ladrilho[aria-checked="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.playmat-ladrilho__amostra { display: block; height: calc(var(--space-6) * 2); border-radius: var(--radius-1); border: 1px solid var(--edge);
+  background: var(--lacquer), var(--playmat); box-shadow: var(--mesa-poco); }
+.playmat-ladrilho__pe { display: flex; align-items: center; gap: var(--space-1); min-height: 28px; padding: 0 var(--space-1); }
+.playmat-ladrilho__nome { flex: 1; min-width: 0; font-size: var(--text-sm); font-weight: var(--weight-bold); }
+.playmat-ladrilho__marca { display: grid; place-items: center; color: var(--accent); opacity: 0; transition: opacity var(--dur-2) var(--ease-out); }
+.playmat-ladrilho[aria-checked="true"] .playmat-ladrilho__marca { opacity: 1; }
+.playmat-ladrilho[aria-busy="true"] { opacity: .7; }
 .ds-playmats { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-3); }
 .ds-playmat { min-height: 132px; align-items: flex-start; }
 .ds-playmat__nome { font-size: var(--text-sm); font-weight: var(--weight-bold); color: var(--fg); }
@@ -4830,16 +4865,19 @@ function createTheme(store, win, doc = (typeof document !== 'undefined' ? docume
   };
   // D1 · aparência além do tema: escala de texto e densidade, por atributo no <html>, guardadas no aparelho
   const APAR = 'ui.aparencia';
-  let aparencia = { escala: 'media', densidade: 'confortavel', acento: 'latao', movimento: 'sistema', vibracao: true, superficie: 'nogueira', oponente: 'azul', verso: 'estante', orientacao: 'automatica' };
+  let aparencia = { escala: 'media', densidade: 'confortavel', acento: 'latao', movimento: 'sistema', vibracao: true, superficie: 'nogueira', oponente: 'azul', verso: 'estante', orientacao: 'automatica', playmat: 'padrao' };
   const ESCALAS = ['pequena', 'media', 'grande'], DENSIDADES = ['confortavel', 'compacta'], ACENTOS = ['latao', 'cobre', 'prata', 'jade'], MOVIMENTOS = ['sistema', 'moderado', 'reduzido']; // DS-K3 MV-0 · três níveis
   // D7 · a mesa do seu jeito: superfície, cor do oponente e verso de carta
   const SUPERFICIES = ['nogueira', 'feltro', 'oceano', 'vinho', 'pedra', 'linho'], OPONENTES = ['azul', 'rubi', 'ametista'], VERSOS = ['estante', 'selo', 'trama'];
+  // MK3-P2 (J-71) · o playmat da mesa: o padrão (o papel do lado) ou um dos seis da casa (MK3-P1; a mesma ordem de __m17.PLAYMATS,
+  // conferida no contrato "MK3-P2"). No <html> como data-playmat: os dois lados da mesa herdam o --playmat (vale na partida em curso)
+  const PLAYMATS = ['padrao', 'ebano', 'feltro', 'oceano', 'vinho', 'pergaminho', 'latao'];
   const ORIENTACOES = ['automatica', 'retrato']; // J-59 · a mesa segue o giro do aparelho (paisagem, J-58) ou fica sempre em retrato
   const aplicaAparencia = a => {
     aparencia = { escala: ESCALAS.includes(a && a.escala) ? a.escala : 'media', densidade: DENSIDADES.includes(a && a.densidade) ? a.densidade : 'confortavel',
       acento: ACENTOS.includes(a && a.acento) ? a.acento : 'latao', movimento: MOVIMENTOS.includes(a && a.movimento) ? a.movimento : 'sistema', vibracao: !(a && a.vibracao === false),
       superficie: SUPERFICIES.includes(a && a.superficie) ? a.superficie : 'nogueira', oponente: OPONENTES.includes(a && a.oponente) ? a.oponente : 'azul', verso: VERSOS.includes(a && a.verso) ? a.verso : 'estante',
-      orientacao: ORIENTACOES.includes(a && a.orientacao) ? a.orientacao : 'automatica' };
+      orientacao: ORIENTACOES.includes(a && a.orientacao) ? a.orientacao : 'automatica', playmat: PLAYMATS.includes(a && a.playmat) ? a.playmat : 'padrao' };
     const root = doc.documentElement;
     if (root && root.setAttribute) {
       if (aparencia.escala === 'media') root.removeAttribute('data-escala'); else root.setAttribute('data-escala', aparencia.escala);
@@ -4850,6 +4888,7 @@ function createTheme(store, win, doc = (typeof document !== 'undefined' ? docume
       if (aparencia.oponente === 'azul') root.removeAttribute('data-oponente'); else root.setAttribute('data-oponente', aparencia.oponente);
       if (aparencia.verso === 'estante') root.removeAttribute('data-verso'); else root.setAttribute('data-verso', aparencia.verso);
       if (aparencia.orientacao === 'automatica') root.removeAttribute('data-orientacao'); else root.setAttribute('data-orientacao', aparencia.orientacao);
+      if (aparencia.playmat === 'padrao') root.removeAttribute('data-playmat'); else root.setAttribute('data-playmat', aparencia.playmat);
     }
     // J-59 · "Só retrato": o layout de paisagem não liga (atributo acima) e, no app instalado, a tela tenta travar em retrato (o
     // navegador só aceita travar no app instalado ou em tela cheia; fora disso a recusa é silenciosa e o layout continua retrato)
@@ -4861,14 +4900,15 @@ function createTheme(store, win, doc = (typeof document !== 'undefined' ? docume
   return {
     get current() { return current; },
     get aparencia() { return { ...aparencia }; },
-    ESCALAS, DENSIDADES, ACENTOS, MOVIMENTOS, SUPERFICIES, OPONENTES, VERSOS, ORIENTACOES,
+    ESCALAS, DENSIDADES, ACENTOS, MOVIMENTOS, SUPERFICIES, OPONENTES, VERSOS, ORIENTACOES, PLAYMATS,
     async init() {
       let saved = null; try { saved = await store.get(KEY); } catch (e) {}
       try { aplicaAparencia(await store.get(APAR)); } catch (e) { aplicaAparencia(null); }
       return apply(saved);
     },
     /** D1 · muda escala e/ou densidade, aplica e guarda. */
-    async setAparencia(patch) { const a = aplicaAparencia({ ...aparencia, ...(patch || {}) }); try { await store.set(APAR, a); } catch (e) {} return a; },
+    // MK3-P2 (J-71) · { estrito: true }: aplica e, se o aparelho não guardar, avisa (a tela Playmats mostra o erro e "Tentar de novo")
+    async setAparencia(patch, { estrito = false } = {}) { const a = aplicaAparencia({ ...aparencia, ...(patch || {}) }); try { await store.set(APAR, a); } catch (e) { if (estrito) throw e; } return a; },
     aplicaAparencia,
     /** Alterna entre os dois temas e guarda. */
     async cycle() {
@@ -6721,6 +6761,13 @@ function renderDS() {
           return h('div', { class: 'ds-playmats', id: 'ds-playmats' }, ...M.PLAYMATS.map(([k, nome]) => h('div', { class: 'tb-side ds-campo ds-playmat', dataset: { playmat: k } },
             h('span', { class: 'ds-playmat__nome' }, nome), h('span', { class: 'ds-playmat__nota' }, 'texto da mesa'),
             h('div', { class: 'tb-row' }, M.TableCard(demo('Llanowar Elves', { oid: 'ds-playmat-' + k, image: img }), { estado: { pt: { p: 1, t: 1 }, mod: null, marcas: [], sick: false, anel: '' } })))));
+        })(),
+        // MK3-P2 (J-71) · a galeria (Perfil › Playmats e ⋯ › Playmat na mesa): mini-mesa e ladrilhos; aqui a escolha não fica guardada
+        Text('Galeria de playmats', { size: 'sm', caps: true, as: 'h3' }),
+        (() => {
+          const previa = M.MiniMesa('padrao', { id: 'ds-playmat-previa' });
+          const gal = M.GaleriaDePlaymats('padrao', { id: 'ds-playmat-galeria', escolhe: async k => { gal.marca(k); previa.muda(k); } });
+          return h('div', { class: 'ds-stack', id: 'ds-playmat-escolha' }, previa, gal);
         })(),
         Text('Tokens: --playmat-ebano, --playmat-feltro, --playmat-oceano, --playmat-vinho, --playmat-pergaminho e --playmat-latao (camadas procedurais: luz de cima, centro calmo, vinheta, grão ou padrão gravado), cada um com o seu tom de base (--playmat-ebano-tom etc., medido contra o texto da mesa); data-playmat no lado troca o --playmat.', { size: 'xs', tone: 'muted', attrs: { id: 'ds-playmat-tokens' } }),
         Text('Tokens: --carta-campo e --carta-terreno (largura) · --moldura-hd (faixa do nome) · --moldura-ft (pé com P/T) · --moldura-borda · --arte-topo e --arte-alto (onde fica a janela da arte na imagem da carta) · --estado-piso (piso do ícone de estado; o teto é a altura do pé) · --rolagem-folga (folga entre a carta e a barra de rolagem da fileira) · --campo-cresce (quanto a fileira com folga deixa a carta crescer; 1,15 em paisagem) · --decisao-origem (miniatura da carta de origem na decisão). Em paisagem (altura até 540 px): campo 80, terreno 58, mão 76.', { size: 'xs', tone: 'muted', attrs: { id: 'ds-campo-tokens' } }), // J-60 · tokens da MJ25 no catálogo
@@ -21794,6 +21841,10 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
       terrenos ? h('button', { class: 'ds-surface ds-expansivel__cabeca perfil-atalho', type: 'button', id: 'perfil-terrenos', onClick: () => go('/perfil/terrenos') },
         h('span', { class: 'ds-expansivel__selo' }, Icone('terreno', { tamanho: 20 })), h('span', { class: 'ds-expansivel__titulo' }, 'Terrenos'),
         h('span', { class: 'ds-expansivel__resumo' }, st.terrenosEscolhidos ? `${st.terrenosEscolhidos} com a sua arte` : 'Escolher a arte'), Icone('seguir', { tamanho: 20 })) : null,
+      // MK3-P2 (J-71) · playmats: a galeria (da casa; os criados chegam com o ateliê), com o playmat de agora no resumo
+      theme ? h('button', { class: 'ds-surface ds-expansivel__cabeca perfil-atalho', type: 'button', id: 'perfil-playmats', onClick: () => go('/perfil/playmats') },
+        h('span', { class: 'ds-expansivel__selo' }, Icone('camadas', { tamanho: 20 })), h('span', { class: 'ds-expansivel__titulo' }, 'Playmats'),
+        h('span', { class: 'ds-expansivel__resumo' }, __m17.nomeDoPlaymat(theme.aparencia.playmat)), Icone('seguir', { tamanho: 20 })) : null,
       // G-314 · notificações: a entrada do Perfil, com quantas não lidas
       notificacoes ? (() => { const resumo = h('span', { class: 'ds-expansivel__resumo' }, 'Avisos da Estante');
         const b = h('button', { class: 'ds-surface ds-expansivel__cabeca perfil-atalho', type: 'button', id: 'perfil-notificacoes', onClick: () => go('/notificacoes') },
@@ -22176,6 +22227,47 @@ function createTerrenosScreen({ terrenos, decks }) {
   return telaDeArtes({ galeria: terrenos, C: { id: 'terreno', rota: '/perfil/terrenos', titulo: 'Terrenos', outras: 'Outros terrenos', icone: 'terreno', abrindo: 'Abrindo os terrenos…', voltar: 'Voltar aos terrenos',
       vazio: 'Nenhum terreno básico por enquanto.', vazioTitulo: 'Sem terrenos', semRedeSemArtes: 'Sem internet: as artes deste terreno aparecem quando houver conexão.', semArte: 'A Scryfall não tem imagem deste terreno. A mesa usa a carta em texto.' },
     async itens() { let nomes = []; try { nomes = (await decks.list()).flatMap(d => d.entries.map(e => e.name)); } catch (e) { /* sem listas: todos juntos */ } return __m36.listaDeTerrenos(nomes); } });
+}
+
+/* ---------------- MK3-P2 (J-71) · /perfil/playmats ---------------- */
+/** A galeria dos playmats: a mini-mesa com o escolhido no topo e um ladrilho por playmat. Tocar aplica na hora (o <html> leva
+    data-playmat: vale na próxima partida e na partida em curso), a mini-mesa pousa o playmat novo e a escolha fica guardada no
+    aparelho (e no backup completo, com as outras preferências). Estados: carregando (o ladrilho ocupado enquanto guarda), erro
+    (o aparelho não guardou: vale até fechar o app, "Tentar de novo"), vazio (criados por você, que chegam com o ateliê,
+    MK3-P4) e volta (ao Perfil). */
+function createPlaymatsScreen({ theme = null }) {
+  const T = __m17;
+  const root = Stack(pad());
+  const voltar = __m3.IconButton('voltar', 'Voltar ao perfil', { id: 'playmats-voltar', onClick: () => go('/perfil') });
+  if (!theme) { mount(root, __m3.Cabecalho('Playmats', { esquerda: voltar }), Empty('Os playmats não abriram neste aparelho. Volte ao Perfil e tente de novo.', null, { icone: 'alerta', titulo: 'Playmats indisponíveis', id: 'playmats-erro-tela' })); return root; }
+  const st = { atual: theme.aparencia.playmat || 'padrao', erro: null };
+  const previa = T.MiniMesa(st.atual);
+  const nome = h('span', { id: 'playmats-atual' }, T.nomeDoPlaymat(st.atual));
+  const erro = h('div', { id: 'playmats-erro-lugar' });
+  const pintaErro = () => mount(erro, st.erro ? Stack({ id: 'playmats-erro' },
+    Note(__m3.seguro`Não consegui guardar o playmat ${T.nomeDoPlaymat(st.erro)} neste aparelho. Ele vale até você fechar o app.`, 'negative'),
+    Button('Tentar de novo', { variant: 'ghost', icone: 'atualizar', id: 'playmats-de-novo', onClick: () => escolhe(st.erro) })) : null);
+  async function escolhe(k) {
+    const mudou = k !== st.atual;
+    st.atual = k; galeria.marca(k); nome.textContent = T.nomeDoPlaymat(k);
+    if (mudou) previa.muda(k);
+    try { await theme.setAparencia({ playmat: k }, { estrito: true }); st.erro = null; }
+    catch (e) { st.erro = k; }
+    pintaErro();
+  }
+  const galeria = T.GaleriaDePlaymats(st.atual, { escolhe, id: 'playmats-galeria' });
+  mount(root,
+    __m3.Cabecalho('Playmats', { esquerda: voltar }),
+    Text('O tapete dos dois lados da mesa. Toque num playmat: ele vale na hora, inclusive na partida em curso.', { tone: 'muted' }),
+    previa,
+    Row({ class: 'ds-row--wrap' }, Text('Na mesa:', { size: 'sm', tone: 'muted' }), Text(nome, { size: 'sm' })),
+    erro,
+    Text('Da casa', { size: 'sm', as: 'h2', display: true, attrs: { id: 'playmats-casa' } }),
+    galeria,
+    Text('Criados por você', { size: 'sm', as: 'h2', display: true, attrs: { id: 'playmats-seus' } }),
+    Empty('Nenhum playmat criado ainda. Criar o seu, descrevendo o que quiser, chega numa próxima versão.', null, { icone: 'camadas', titulo: 'Seus playmats', id: 'playmats-vazio' }),
+    Text('Vale neste aparelho e vai junto no backup completo.', { size: 'xs', tone: 'subtle' }));
+  return root;
 }
 
 /* ---------------- A12 · /listas/prontas ---------------- */
@@ -23840,7 +23932,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
 }
 
 
-return { cartaChaveDaLista, LadrilhoDaCarta, createPortaDeEntrada, dialogoEntrarComEmail, PainelEstatisticas, createDecksHome, createStarterDecks, createDeckEditor, createDeckScreen, createCollectionScreen, createPerfilScreen, createFichasScreen, createTerrenosScreen, createPartidasScreen, DeckLinha, motorDaLista, SeloMotor, contaMotor };
+return { cartaChaveDaLista, LadrilhoDaCarta, createPortaDeEntrada, dialogoEntrarComEmail, PainelEstatisticas, createDecksHome, createStarterDecks, createDeckEditor, createDeckScreen, createCollectionScreen, createPerfilScreen, createFichasScreen, createTerrenosScreen, createPlaymatsScreen, createPartidasScreen, DeckLinha, motorDaLista, SeloMotor, contaMotor };
 })();
 
 
@@ -40811,7 +40903,45 @@ function MapaDaMasmorra(m) {
 // MK3-P1 (J-68) · os playmats da casa, na ordem da galeria (MK3-P2): chave de data-playmat e nome. "padrao" (o papel do lado) fica fora:
 // é o lado sem escolha. Os tokens --playmat-<chave> e --playmat-<chave>-tom vivem nos três blocos de tema
 const PLAYMATS = Object.freeze([['ebano', 'Ébano'], ['feltro', 'Feltro'], ['oceano', 'Oceano'], ['vinho', 'Vinho'], ['pergaminho', 'Pergaminho'], ['latao', 'Latão gravado']]);
-return { PLAYMATS, QuadroDeBloqueios, retemImagem, retemImagemDaCarta, imagensRetidas, fonteParaLargura, animaVirada, giraCarta, faseDoPasso, TableCard, ESTADOS, FAMILIAS, estadoDesenhavel, estadosDaCarta, BarraDeEstados, ajustaEstados, ZoneRow, LifeCounter, ZoneChip, StepBar, StackStrip, StackPanel, CardPeek, PriorityBanner, Desfecho, AdjudicationPanel, Icone, IconButton, gestoDeBandeja, ligaGestoDeBandeja, modeloDaMasmorra, caminhoNaMasmorra, falaDaMasmorra, SeloDaMasmorra, MapaDaMasmorra, TEXTO_DAS_SALAS, origemDaPilha, FaceDaOrigem, miniDaMasmorra, MARCADOR_NOME, nomeCurtoDoMarcador };
+// MK3-P2 (J-71) · a galeria: o padrão (o papel do lado, sem escolha) e os seis da casa
+const PLAYMATS_DA_GALERIA = Object.freeze([['padrao', 'Padrão'], ...PLAYMATS]);
+const nomeDoPlaymat = k => (PLAYMATS_DA_GALERIA.find(([c]) => c === k) || PLAYMATS_DA_GALERIA[0])[1];
+/** MK3-P2 (J-71) · receita "pousar" do playmat (CSS .playmat-pousa, só tokens): os lados dados descem e assentam no tampo.
+    Devolve as animações (o teste espera o fim por elas, nunca por tempo). No reduzido o CSS deixa num quadro. */
+function pousaPlaymat(lados) {
+  const els = [...lados].filter(Boolean);
+  for (const l of els) { l.classList.remove('playmat-pousa'); void l.offsetWidth; l.classList.add('playmat-pousa'); }
+  const anims = els.flatMap(l => (l.getAnimations ? l.getAnimations({ subtree: true }) : []).filter(a => /^playmat-pousa/.test(a.animationName || '')));
+  Promise.all(anims.map(a => a.finished.catch(() => {}))).then(() => { for (const l of els) l.classList.remove('playmat-pousa'); });
+  return anims;
+}
+/** MK3-P2 (J-71) · a mini-mesa da prévia: dois lados com o playmat (o mesmo dos dois, como na mesa: espelho, MK3-2) e três
+    cartas desenhadas no próprio aparelho (nenhuma imagem de fora). Devolve o nó; muda(k) troca o playmat com a receita. */
+function MiniMesa(playmat, { id = 'playmat-previa' } = {}) {
+  const arte = cor => 'data:image/svg+xml,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="488" height="680"><rect width="488" height="680" fill="${cor}"/><rect x="40" y="90" width="408" height="300" fill="#1b2b22"/></svg>`);
+  const est = (p, t) => ({ estado: { pt: { p, t }, mod: null, marcas: [], sick: false, anel: '' } });
+  const carta = (name, oid, cor, p, t, extra = {}) => TableCard({ name, oid, image: arte(cor), ...extra }, est(p, t));
+  const lado = (eu, ...cartas) => h('div', { class: 'tb-side ' + (eu ? 'tb-side--me' : 'tb-side--opp'), dataset: { playmat } }, h('div', { class: 'tb-row' }, ...cartas));
+  const opp = lado(false, carta('Spellstutter Sprite', 'previa-1', '#3e6f8f', 1, 1));
+  const eu = lado(true, carta('Llanowar Elves', 'previa-2', '#5a7250', 1, 1), carta('Grizzly Bears', 'previa-3', '#7a5a3a', 2, 2, { tapped: true }));
+  // as cartas da prévia são desenho, não controle: os lados ficam inertes (sem foco nem toque), o grupo diz o que mostra
+  for (const l of [opp, eu]) l.inert = true;
+  const raiz = h('div', { class: 'playmat-previa', id, role: 'group', 'aria-label': `Prévia da mesa com o playmat ${nomeDoPlaymat(playmat)}` }, opp, eu);
+  raiz.muda = k => { opp.dataset.playmat = k; eu.dataset.playmat = k; raiz.setAttribute('aria-label', `Prévia da mesa com o playmat ${nomeDoPlaymat(k)}`); return pousaPlaymat([opp, eu]); };
+  return raiz;
+}
+/** MK3-P2 (J-71) · os ladrilhos, um por playmat (radiogroup). escolhe(k) devolve uma promessa: o ladrilho fica ocupado até ela
+    terminar; marca(k) acende o escolhido sem redesenhar. Serve ao Perfil › Playmats e ao ⋯ › Playmat da mesa. */
+function GaleriaDePlaymats(atual, { escolhe, id = 'playmat-galeria' } = {}) {
+  const botoes = PLAYMATS_DA_GALERIA.map(([k, nome]) => h('button', { class: 'playmat-ladrilho', type: 'button', role: 'radio', id: `${id}-${k}`, 'aria-checked': String(k === atual), dataset: { playmat: k },
+      onClick: async e => { const b = e.currentTarget; if (b.getAttribute('aria-busy') === 'true') return; b.setAttribute('aria-busy', 'true'); try { await escolhe(k); } finally { b.removeAttribute('aria-busy'); } } },
+    h('span', { class: 'playmat-ladrilho__amostra', 'aria-hidden': 'true' }),
+    h('span', { class: 'playmat-ladrilho__pe' }, h('span', { class: 'playmat-ladrilho__nome' }, nome), h('span', { class: 'playmat-ladrilho__marca', 'aria-hidden': 'true' }, Icone('marcar', { tamanho: 16 })))));
+  const raiz = h('div', { class: 'playmat-galeria', role: 'radiogroup', 'aria-label': 'Playmat', id }, ...botoes);
+  raiz.marca = k => { for (const b of botoes) b.setAttribute('aria-checked', String(b.dataset.playmat === k)); };
+  return raiz;
+}
+return { PLAYMATS, PLAYMATS_DA_GALERIA, nomeDoPlaymat, pousaPlaymat, MiniMesa, GaleriaDePlaymats, QuadroDeBloqueios, retemImagem, retemImagemDaCarta, imagensRetidas, fonteParaLargura, animaVirada, giraCarta, faseDoPasso, TableCard, ESTADOS, FAMILIAS, estadoDesenhavel, estadosDaCarta, BarraDeEstados, ajustaEstados, ZoneRow, LifeCounter, ZoneChip, StepBar, StackStrip, StackPanel, CardPeek, PriorityBanner, Desfecho, AdjudicationPanel, Icone, IconButton, gestoDeBandeja, ligaGestoDeBandeja, modeloDaMasmorra, caminhoNaMasmorra, falaDaMasmorra, SeloDaMasmorra, MapaDaMasmorra, TEXTO_DAS_SALAS, origemDaPilha, FaceDaOrigem, miniDaMasmorra, MARCADOR_NOME, nomeCurtoDoMarcador };
 })();
 
 
@@ -43810,7 +43940,7 @@ function createTableSetup({ decks, cardRepo, store, keeper = null, perfil = null
 }
 
 /* ---------------- A1–A9 · a mesa ---------------- */
-function createTableScreen({ store, perfil = null, online = null, som = null, partidas = null }) {
+function createTableScreen({ store, perfil = null, online = null, som = null, partidas = null, theme = null }) {
   const root = h('div', { class: 'tb', id: 'tb' }, __m3.Carregando('Abrindo a mesa…', { tamanho: 'tela' }));
   // G4 · som da partida: o que mudou entre a última mesa desenhada e esta vira som. Desfazer e abrir a partida não tocam.
   let estadoOuvido = null, eventosDaJogada = [], semSentidos = false, sentidosAgora = [];
@@ -44425,6 +44555,23 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     maisBtn.setAttribute('aria-haspopup', 'menu'); maisBtn.setAttribute('aria-controls', 'tb-mais-menu'); maisBtn.setAttribute('aria-expanded', String(maisAberto));
     maisMenu = h('div', { class: 'tb-mais', id: 'tb-mais-menu', role: 'menu', 'aria-label': 'Mais ações', hidden: !maisAberto, dataset: { sobrepoe: 'true' } }, ...botoes);
     return [maisBtn, maisMenu];
+  }
+  /* MK3-P2 (J-71) · ⋯ › Playmat: a galeria numa folha por cima da mesa; tocar troca o playmat dos dois lados na hora (a escolha
+     mora no <html>, data-playmat, e fica guardada como no Perfil › Playmats) e os lados pousam com a receita. Sem tocar em regra. */
+  const playmatDaMesa = () => (typeof document !== 'undefined' && document.documentElement.getAttribute('data-playmat')) || 'padrao';
+  function abrePlaymats() {
+    const escolhe = async k => {
+      const mudou = k !== playmatDaMesa();
+      galeria.marca(k);
+      // o retorno primeiro (os lados pousam no toque), a gravação depois
+      if (mudou) { const lados = [...document.querySelectorAll('.tb-board > .tb-side')]; for (const l of lados) l.dataset.playmat = k; __m17.pousaPlaymat(lados); }
+      let guardou = true;
+      try { await theme.setAparencia({ playmat: k }, { estrito: true }); } catch (e) { guardou = false; }
+      if (!guardou) toast(`Playmat ${__m17.nomeDoPlaymat(k)} só nesta partida: o aparelho não guardou.`, 3600);
+    };
+    const galeria = __m17.GaleriaDePlaymats(playmatDaMesa(), { escolhe, id: 'tb-playmats' });
+    Dialog({ title: 'Playmat', body: Stack({}, Text('Vale na hora, nos dois lados da mesa, e nas próximas partidas.', { size: 'sm', tone: 'muted' }), galeria),
+      actions: [Button('Pronto', { variant: 'primary', id: 'tb-playmats-pronto', onClick: closeDialog })] });
   }
   let ultimoPasso = null; // MJ8 · a fase e o turno do desenho anterior: o trilho acende em sequência até a fase de agora
   /** Leva 125 · com a pergunta escrita no cabeçalho de decisão, o botão de texto do aviso (palavra do momento + balão) vira
@@ -45769,7 +45916,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const field = campoVazio ? []
       : [ZoneRow('Permanentes', landPiles(s, others, openObject), { zone: 'permanents', empty: 'nenhuma', count: others.length }), ZoneRow('Terrenos', landPiles(s, lands, openObject), { zone: 'lands', empty: 'nenhum', count: lands.filter(o => isLand(s, o)).length })];
     const ativo = s.status === 'playing' && s.turn.active === p;   // U7 · o lado de quem joga acende
-    return h('section', { class: ['tb-side', mine ? 'tb-side--me' : 'tb-side--opp'].join(' '), dataset: { ativo: String(ativo), campo: campoVazio ? 'vazio' : 'ocupado', p: String(p), playmat: 'padrao' },
+    return h('section', { class: ['tb-side', mine ? 'tb-side--me' : 'tb-side--opp'].join(' '), dataset: { ativo: String(ativo), campo: campoVazio ? 'vazio' : 'ocupado', p: String(p), playmat: playmatDaMesa() }, // MK3-P2 (J-71) · o escolhido, nos dois lados (espelho)
       'aria-label': (mine ? 'seu lado' : 'lado do oponente') + (ativo ? ', turno ativo' : '') + (campoVazio ? ', campo vazio' : '') },
       ...(mine ? [...field, h('div', { class: 'tb-side__head' }, life, selo, chips)] : [h('div', { class: 'tb-side__head' }, life, selo, chips), ...field.reverse()]));
   }
@@ -46496,6 +46643,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
           // MJ1e (J-7) · online não dá para desfazer: o botão, que só aparecia apagado, sai (a Conversa foi para a faixa de vez)
           sinc ? null : Button('Desfazer', { icone: 'desfazer', id: 'tb-undo', variant: 'ghost', disabled: !podeVoltar(), onClick: () => { if (table.undo()) { if (table.colhePassos) table.colhePassos(); adjudicating = null; semSentidos = true; save(); paint(); toast('Desfeito'); } } }),
           Button('Registro', { icone: 'registro', id: 'tb-log', variant: 'ghost', onClick: openLog }),
+          theme ? Button('Playmat', { icone: 'camadas', id: 'tb-playmat', variant: 'ghost', onClick: abrePlaymats }) : null, // MK3-P2 (J-71)
           Button('Desistir', { icone: 'desistir', id: 'tb-concede', variant: 'ghost', onClick: () => Dialog({ title: 'Desistir da partida?', body: Text(serie && serie.melhorDe > 1 ? 'Esta partida termina com vitória do oponente. A série continua se ainda não estiver decidida.' : 'A partida termina com vitória do oponente.', { tone: 'muted' }),
             actions: [Button('Cancelar', { onClick: closeDialog }), Button('Desistir', { variant: 'danger', onClick: () => { closeDialog(); const segue = serie && serie.melhorDe > 1 && T.resultadoDaSerie(T.registraJogo(serie, 1 - v)) == null; act({ t: 'concede', p: v }); if (sinc && !segue) online.sala.encerrar(table.online.codigo, 'desistiu').catch(() => {}); } })] }) }))),
       h('div', { class: 'tb-board ds-wrap' },
@@ -50846,7 +50994,7 @@ const { detectEnvironment, ENVIRONMENTS } = __m10;
 const { createInstaller, registerServiceWorker } = __m11;
 const { createCardsScreen } = __m12;
 const { createDeckStore, createCollection } = __m14;
-const { createDecksHome, createStarterDecks, createDeckEditor, createDeckScreen, createCollectionScreen, createPerfilScreen, createFichasScreen, createTerrenosScreen, createPartidasScreen, createPortaDeEntrada } = __m15;
+const { createDecksHome, createStarterDecks, createDeckEditor, createDeckScreen, createCollectionScreen, createPerfilScreen, createFichasScreen, createTerrenosScreen, createPlaymatsScreen, createPartidasScreen, createPortaDeEntrada } = __m15;
 const { createTableSetup, createTableScreen, createSeriesScreen } = __m19;
 const { createNameIndex } = __m21;
 const { createOcr, createScannerScreen } = __m22;
@@ -51113,10 +51261,11 @@ const ROUTES = [
   { path: '/colecao', title: 'Coleção', render: () => createCollectionScreen({ collection, decks, cardRepo, scryfall, files: platform.files, persistence: platform.persistence, share: platform.share, names, etiquetas }) },
   { path: '/scanner', title: 'Scanner', render: () => createScannerScreen({ camera: platform.camera, store: platform.store, names, collection, decks, scryfall, env: envVivo, ocr, etiquetas }) },
   { path: '/mesa', title: 'Jogar', render: () => createTableSetup({ decks, cardRepo, store: platform.store, keeper, perfil, online, catalogo, cobertura }) },
-  { path: '/partida', title: 'Mesa', render: () => createTableScreen({ store: platform.store, perfil, online, som, partidas }) },
+  { path: '/partida', title: 'Mesa', render: () => createTableScreen({ store: platform.store, perfil, online, som, partidas, theme /* MK3-P2 · ⋯ › Playmat */ }) },
   { path: '/serie', title: 'Série', render: () => createSeriesScreen({ store: platform.store, online }) },
   { path: '/perfil/fichas', title: 'Fichas', render: () => createFichasScreen({ fichas, decks, catalogo, cardRepo }) }, // I4 · G-242: todas as fichas do catálogo
   { path: '/perfil/terrenos', title: 'Terrenos', render: () => createTerrenosScreen({ terrenos, decks }) }, // I6
+  { path: '/perfil/playmats', title: 'Playmats', render: () => createPlaymatsScreen({ theme }) }, // MK3-P2 (J-71)
   { path: '/noticias', title: 'Notícias', render: () => renderHome({ ancora: true }) }, // N2 · T2: a Início, aberta nas notícias
   { path: '/noticias/guardadas', title: 'Guardadas', render: () => __m37.createGuardadasScreen({ noticias, share: platform.share }) }, // N4
   { path: '/perfil/partidas', title: 'Partidas', render: () => createPartidasScreen({ partidas }) }, // I5

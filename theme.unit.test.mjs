@@ -60,7 +60,8 @@ test('D1 · escala e densidade: atributos no <html>, valores inválidos caem no 
   await th.init();
   // D2 · a aparência ganhou acento, movimento e vibração; D7 · superfície, cor do oponente e verso (expectativa estendida de propósito)
   // J-59 · a orientação da mesa (automática ou só retrato) entra na aparência (expectativa estendida de propósito)
-  const MESA = { superficie: 'nogueira', oponente: 'azul', verso: 'estante', orientacao: 'automatica' };
+  // MK3-P2 (J-71) · o playmat da mesa entra na aparência (expectativa estendida de propósito)
+  const MESA = { superficie: 'nogueira', oponente: 'azul', verso: 'estante', orientacao: 'automatica', playmat: 'padrao' };
   assert.deepEqual(JSON.parse(JSON.stringify(th.aparencia)), { escala: 'media', densidade: 'confortavel', acento: 'latao', movimento: 'sistema', vibracao: true, ...MESA });
   assert.equal('data-escala' in d.root.attrs, false, 'padrão não marca o <html>');
   await th.setAparencia({ escala: 'grande' });
@@ -116,4 +117,24 @@ test('D7 · superfície, cor do oponente e verso: atributos no <html> só fora d
   assert.equal('data-superficie' in d.root.attrs, false, 'superfície desconhecida volta ao padrão'); assert.equal('data-oponente' in d.root.attrs, false); assert.equal(d.root.attrs['data-verso'], 'selo', 'o que não veio no patch não muda');
   const th2 = T.createTheme(store, janela('dark'), { documentElement: d.root, querySelectorAll: () => [] }); await th2.init();
   assert.equal(th2.aparencia.verso, 'selo', 'guardado volta no init');
+});
+
+test('MK3-P2 (J-71) · playmat: o escolhido marca o <html> (data-playmat), o padrão desmarca, valor desconhecido volta ao padrão, guardado volta no init; estrito avisa quando o aparelho não guarda', async () => {
+  const store = P.memoryStore(); const d = documento();
+  const th = T.createTheme(store, janela('dark'), { documentElement: d.root, querySelectorAll: () => [] });
+  await th.init();
+  assert.equal('data-playmat' in d.root.attrs, false, 'sem escolha, o padrão não marca');
+  assert.deepEqual(JSON.parse(JSON.stringify(th.PLAYMATS)), ['padrao', 'ebano', 'feltro', 'oceano', 'vinho', 'pergaminho', 'latao']);
+  await th.setAparencia({ playmat: 'vinho' }); assert.equal(d.root.attrs['data-playmat'], 'vinho');
+  assert.equal((await store.get('ui.aparencia')).playmat, 'vinho', 'guardado com as outras preferências (vai no backup)');
+  await th.setAparencia({ playmat: 'arco-iris' }); assert.equal('data-playmat' in d.root.attrs, false, 'desconhecido: o padrão');
+  await th.setAparencia({ playmat: 'latao' });
+  const d2 = documento(); const th2 = T.createTheme(store, janela('dark'), { documentElement: d2.root, querySelectorAll: () => [] });
+  await th2.init(); assert.equal(d2.root.attrs['data-playmat'], 'latao', 'o init reaplica');
+  // aparelho que não guarda: sem estrito segue como antes (silêncio); com estrito, aplica e avisa
+  const cheio = { get: async () => null, set: async () => { throw new Error('cheio'); } }; const d3 = documento();
+  const th3 = T.createTheme(cheio, janela('dark'), { documentElement: d3.root, querySelectorAll: () => [] }); await th3.init();
+  await th3.setAparencia({ playmat: 'feltro' }); assert.equal(d3.root.attrs['data-playmat'], 'feltro');
+  await assert.rejects(th3.setAparencia({ playmat: 'oceano' }, { estrito: true }), /cheio/);
+  assert.equal(d3.root.attrs['data-playmat'], 'oceano', 'aplicado mesmo sem guardar: vale até fechar o app');
 });

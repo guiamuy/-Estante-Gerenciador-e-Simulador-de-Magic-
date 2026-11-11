@@ -706,7 +706,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ud ✅ | MJ25 mesa pelo print 2 (decisão do dono, 02/11/2026), sete fatias: .1 ícones de estado que cabem e rolagem afastada da carta (J-53 ✅) · .2 nome na faixa de cima, girando com a carta virada (J-54 ✅) · .3 a carta de origem na pilha e nas decisões (Roost Seek) (J-55 ✅) · .4 escolher carta vendo a carta ampliada (J-56 ✅) · .5 cartas ocupam o espaço da fileira (J-57 ✅) · .6 layout em paisagem (J-58 ✅) · .7 opção "Orientação: automática / só retrato" (J-59 ✅) | MJ24 | jogabilidade |
 | 16º-uf ✅ | MJ26 relato #55: as setas do combate (e a prévia do dano) acompanham a rolagem da página e de qualquer contêiner da mesa; "Cancelar" na declaração de atacantes e de bloqueadores desmarca a escolha sem mandar nada ao motor (J-61, 03/11/2026) | J | 1 | 16º-ud |
 | 16º-ug ✅ | MJ27 relato #55, o resto do "cancelar jogada em curso": um Cancelar com o mesmo nome e lugar em toda escolha encadeada antes de jogar (alvo → custo → X → cor), que volta um passo em vez de fechar tudo, e a mira por arrasto com Cancelar à vista (J-62, 03/11/2026) | J | 1 | 16º-uf |
-| 16º-va 🟡 | MK3 · Mesa Vitrine (pedido do dono de 09/11/2026: a mesa no patamar do DS-K3 — simetria, profundidade por luz e sombra, material, animação de alto padrão em todo elemento; rotina "Mesa MK3" a cada 4 h; modo agilidade): ✅ MK3-0 (J-63) material — carta como objeto (espessura, contato, chave, face laqueada) e playmat em poço igual nos dois lados, levantar com a mola do DS-K3; ✅ MK3-1 (J-64) estojo das fases — trilho num estojo rebaixado no eixo da faixa de vez, o filete de latão não passa mais por baixo, o traço desliza com mola; ✅ MK3-2 (J-65) simetria — a mesma faixa de identidade (nome · zonas) na borda de fora de cada lado, a sua embaixo do seu campo, permanentes que se olham pelo eixo, `auditaSimetria`; ✅ MK3-3 (J-67) carta-objeto — virar e desvirar com massa (mola, a sombra gira junto e acaba embaixo, mais curta), selos e P/T em laca, enjoo apaga o P/T; ✅ MK3-P1 (J-68) playmats da casa — seis modelos procedurais (Ébano, Feltro, Oceano, Vinho, Pergaminho, Latão gravado) como tokens nos dois temas, com o texto da mesa medido sobre os pixels, centro calmo e palco no `/ds`; próxima MK3-P2 galeria e escolha. Revisão das 22h15: benchmarks, mão e gesto (arrastar para jogar, toque duplo), zonas, organizar o campo, combate sem setas. Playmats (23h36): da casa e criados pelo jogador (MK3-P1…P5). Especificação: `docs/MK3-especificacao.md`. A MV-9 do DS-K3 passa a ser a MK3-17 | MK3 | 5 de 27 | DS-K3 K3-0/MV-0, MJ, DS-K2 M1–M6 |
+| 16º-va 🟡 | MK3 · Mesa Vitrine (pedido do dono de 09/11/2026: a mesa no patamar do DS-K3 — simetria, profundidade por luz e sombra, material, animação de alto padrão em todo elemento; rotina "Mesa MK3" a cada 4 h; modo agilidade): ✅ MK3-0 (J-63) material — carta como objeto (espessura, contato, chave, face laqueada) e playmat em poço igual nos dois lados, levantar com a mola do DS-K3; ✅ MK3-1 (J-64) estojo das fases — trilho num estojo rebaixado no eixo da faixa de vez, o filete de latão não passa mais por baixo, o traço desliza com mola; ✅ MK3-2 (J-65) simetria — a mesma faixa de identidade (nome · zonas) na borda de fora de cada lado, a sua embaixo do seu campo, permanentes que se olham pelo eixo, `auditaSimetria`; ✅ MK3-3 (J-67) carta-objeto — virar e desvirar com massa (mola, a sombra gira junto e acaba embaixo, mais curta), selos e P/T em laca, enjoo apaga o P/T; ✅ MK3-P1 (J-68) playmats da casa — seis modelos procedurais (Ébano, Feltro, Oceano, Vinho, Pergaminho, Latão gravado) como tokens nos dois temas, com o texto da mesa medido sobre os pixels, centro calmo e palco no `/ds`; ✅ MK3-P2 (J-71) galeria e escolha — Perfil › Playmats com a mini-mesa e sete ladrilhos (padrão e os seis), tocar aplica na hora com a receita "pousar" (três níveis), guardado no aparelho e no backup, ⋯ › Playmat na partida em curso, os dois lados com o escolhido; próxima MK3-4 mão viva. Revisão das 22h15: benchmarks, mão e gesto (arrastar para jogar, toque duplo), zonas, organizar o campo, combate sem setas. Playmats (23h36): da casa e criados pelo jogador (MK3-P1…P5). Especificação: `docs/MK3-especificacao.md`. A MV-9 do DS-K3 passa a ser a MK3-17 | MK3 | 6 de 27 | DS-K3 K3-0/MV-0, MJ, DS-K2 M1–M6 |
 | 16º-ui 🟡 | T-IDIOMA relatos #53/#66, fatia 1: o português cobre a interface (Rulings → Esclarecimentos, Near Mint → Quase nova, Etched → Foil gravado, Offline → Sem internet, cinco palavras-chave e os marcadores com nome em português na mesa e no registro); falta troca de idioma, pacotes es/en e texto das cartas (leva G-353, 07/11/2026) | T | 1 | — |
 | 16º-up ✅ | T-IDIOMA relatos #53/#66, fatia 2: a folha da carta mostra nome, tipo e texto oficiais impressos em português (Scryfall), com a troca para o original, guardados no aparelho; nunca impressa fica em inglês com aviso até a fatia 3 (leva G-356, 08/11/2026) | T | 1 | 16º-ui |
 | 16º-us ✅ | T-IDIOMA relatos #53/#66, fatia 4: Perfil › Idioma (português, inglês, espanhol, com bandeira e nome no próprio idioma), o app inteiro na hora pela camada de tradução da tela e pelos pacotes idiomas/en.json e es.json, a folha da carta no idioma (oficial impresso; Oracle em inglês) com o texto antes da imagem, e a camada obrigatória (texto novo sem tradução derruba o portão) (leva G-361, 08/11/2026) | T | 1 | 16º-up |
@@ -15163,7 +15163,7 @@ Especificação por fatia (valores e roteiros): `docs/MK3-especificacao.md`.
 | MK3-2 | simetria: os dois lados espelhados (faixa de identidade igual, eixo central), `auditaSimetria` | ✅ J-65 |
 | MK3-3 | carta-objeto: virar e desvirar com massa, sombra que gira, selos em laca | ✅ J-67 |
 | MK3-P1 | playmats da casa: seis modelos no design system (Ébano, Feltro, Oceano, Vinho, Pergaminho, Latão gravado), nos dois temas | ✅ J-68 |
-| MK3-P2 | galeria e escolha: Perfil › Playmats com prévia ao vivo numa mini-mesa; vale na mesa na hora | ⬜ |
+| MK3-P2 | galeria e escolha: Perfil › Playmats com prévia ao vivo numa mini-mesa; vale na mesa na hora | ✅ J-71 |
 | MK3-4 | mão viva: pegar a carta, ela segue o dedo e inclina pela velocidade, as vizinhas fecham o vão; comprar sai do grimório | ⬜ |
 | MK3-5 | arrastar para jogar: soltar no campo joga pela ação legal, o poço mostra onde ela vai pousar; tocar continua valendo | ⬜ |
 | MK3-6 | expandir: toque duplo e segurar abrem a carta grande vinda do lugar, que inclina com o celular (P7) | ⬜ |
@@ -15211,6 +15211,34 @@ Cloudflare) ficam do nosso lado, para gerar e validar. Cinco fatias MK3-P1…P5 
   `--carta-laca`, `--mesa-poco`; `--sombra-carta` e `--sombra-carta-alta` passam a ser compostas só de tokens K3 (valem
   também no palco do `/ds`, no leque e na pilha).
 - **Fora:** estojo das fases (MK3-1), simetria da faixa de identidade (MK3-2), gestos e receitas por evento (MK3-3 em diante).
+
+#### MK3-P2 · galeria e escolha (✅ J-71, 11/11/2026)
+- **Valor:** o jogador escolhe o playmat da mesa. Perfil › Playmats mostra uma mini-mesa (dois lados, três cartas) com o
+  escolhido e um ladrilho por playmat (Padrão e os seis da casa); um toque aplica na hora — a mini-mesa pousa o playmat novo,
+  a mesa usa nas próximas partidas e na partida em curso — e fica guardado. Na mesa, ⋯ › Playmat abre a mesma galeria numa
+  folha, e os dois lados trocam ali mesmo.
+- **Aceite:** a escolha mora na aparência (`ui.aparencia.playmat`: `padrao` ou um dos seis; valor desconhecido volta ao
+  padrão), no aparelho e no backup completo (a aparência já ia), e no `<html>` como `data-playmat` (os lados herdam o
+  `--playmat`; o lado da mesa diz o escolhido). Os **dois lados** mostram o escolhido (espelho, MK3-2: `auditaSimetria` nas
+  quatro medidas com o Latão); o lado do oponente com o playmat dele é do online (MK3-P5). Tela com estado carregando (o
+  ladrilho ocupado enquanto guarda), erro (o aparelho não guardou: aviso, a escolha vale até fechar o app, "Tentar de novo"),
+  vazio ("Criados por você", até o ateliê da MK3-P4) e volta ao Perfil; ladrilhos com 44 px, radiogroup com o escolhido
+  marcado; entrada "Playmats" no Perfil com o nome do atual; textos nos pacotes `en` e `es`. Palco "Galeria de playmats" no
+  `/ds` (a escolha ali não fica guardada).
+- **Receita "pousar" do playmat:** plano: objeto (o lado inteiro, playmat e cartas, como um tapete) · luz: sai levantado com
+  a sombra flutuante (`--shadow-float` no `::after`, L2) e assenta com a de contato · curva: `--mola-macia` `--dur-4` ·
+  etapas: o lado de baixo escalonado por `--escalona-1` · moderado: sem Z, 6 px, `--ease-out` `--dur-3` · reduzido: num
+  quadro · o que a separa de uma troca linear 2D: altura (vem de mais perto da câmera, em Z, e desce) e luz (a sombra alta
+  apaga ao tocar o tampo). Só `transform` no lado e `opacity` na sombra; a mesa troca os lados no toque e grava depois.
+- **Pixels de campo (360 × 780):** zero (o ⋯ ganhou uma linha no menu, por cima da mesa; a mesa não muda de tamanho).
+- **Testes:** contrato visual "MK3-P2", unidade "MK3-P2 (J-71) · playmat" (tema) e e2e "J-71 MK3-P2" (galeria, os três
+  níveis medidos pelo fim das animações, guardado depois de recarregar, erro, volta, mesa com Elfos × Shark, ⋯ › Playmat,
+  simetria nas quatro medidas, `auditaTela` nos dois temas, palco no `/ds`), que falhavam no `main` de antes. Expectativas da
+  aparência (D1 e D2) estendidas de propósito com o campo `playmat`.
+- **Parcial declarado:** o ladrilho do playmat mostra a amostra do próprio playmat em poço, não o ladrilho de lista com arte
+  da K3-5 (G-378, que chegou ao `main` durante esta leva); a mesa contra o Shark e o goldfish usa o seu playmat nos dois lados
+  (espelho).
+- **Fora:** criar o playmat (MK3-P3, MK3-P4); o criado na mesa e o playmat de cada jogador no online (MK3-P5).
 
 #### MK3-P1 · playmats da casa (✅ J-68, 11/11/2026)
 - **Valor:** a mesa ganha seis playmats da Estante, desenhados com a paleta e o material do app — Ébano (madeira laqueada com
