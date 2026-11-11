@@ -38063,6 +38063,11 @@ const __m25 = (function () {
    `planoDeMana`). Antes o impulso trocava uma carta por nada e o ritual sozinho só gastava uma carta: com a lista de combo de
    mágicas da régua de fora o Shark não conjurava nenhum dos dois. Medida pareada pilotando essa lista (250 ms, 150 pares):
    36 × 21. Pelo dado do motor, sem nome: nas cinco listas do Shark nenhuma carta liga as duas. 'shark-v27' é o Shark da B-205.
+   CHÃO (B25, leva B-212, régua de fora): o terreno a baixar é escolhido depois de resolver o gatilho de entrada e vale pelo
+   chão que fica no campo (`chao`, `chaoDe`: o karoo conta duas manas, o que se gasta por marcador conta a fração que resta).
+   Antes o Azorius Chancery sozinho no campo voltava para a mão e o Shark, que o escolhia pelo meio ponto de quem entra
+   virado, jogava a partida inteira sem terreno. Piloto Azorius (250 ms, 80 pares): 30 × 15. O chão na avaliação inteira
+   (`chaoNaNota`) mediu negativo no piloto Temur (9 × 16) e fica desligado. 'shark-v28' é o Shark da B-210.
    LIMITES DE HOJE: um lance à frente + resposta do oponente (na pilha e depois dela) + combate; sem plano
    de vários turnos, sem blefe; não joga em volta do truque de combate nem da varredura; na pilha não responde à resposta
    dele (guerra de anulação); não troca reserva na melhor de três; esquece o que a vidência
@@ -38733,7 +38738,11 @@ function jogadaProfissional(s, p, opts = {}) {
     // Leva 118 · qual terreno: o que permite a melhor jogada seguinte neste turno; se nenhuma jogada depende dele,
     // baixa o que entra virado e guarda o desvirado para o turno em que a mana fizer falta.
     const notaTerreno = a => {
-      const sim = simula(W[0], a); if (!sim) return -Infinity;
+      const sim0 = simula(W[0], a); if (!sim0) return -Infinity;
+      // B-212 · `chao`: o terreno vale pelo que fica depois do gatilho de entrada. Sem resolver, o Azorius Chancery ("when this
+      // land enters, return a land you control to its owner's hand") parecia ficar no campo e ganhava da Island pelo meio ponto
+      // de quem entra virado; sozinho no campo ele volta para a mão, e o Shark com o Azorius jogou 3 de 4 partidas sem terreno.
+      const sim = opts.chao && sim0.estado.stack.length ? { ...sim0, estado: resolveSimulado(sim0.estado, 8, opts.desdobra ? p : null, opts.av) } : sim0;
       const av = opts.av || avalia;
       let n = av(sim.estado, p).nota;
       if (!opts.terreno) return n;
@@ -38743,7 +38752,7 @@ function jogadaProfissional(s, p, opts = {}) {
         if (m > n) n = m;
       }
       const o = sim.estado.objects[a.oid];
-      return n + (o && o.tapped ? 0.5 : 0) + (opts.cores ? coresPagas(sim.estado, p) : 0);
+      return n + (o && o.tapped ? 0.5 : 0) + (opts.cores ? coresPagas(sim.estado, p) : 0) + (opts.chao ? chaoDe(sim.estado, p) * PESOS.mana : 0); // B-212 · o terreno que fica no campo
     };
     const melhor = escolhe(terrenos, notaTerreno, opts).acao;
     return { acao: melhor, motivo: motivoDe(s, p, melhor, 0) };
@@ -39603,6 +39612,37 @@ const comImpulso = de => (s, p) => {
   if (!g) return base;
   return { nota: base.nota + g, parcelas: { ...base.parcelas, impulso: g } };
 };
+/** B-212 · chão (B25, régua de fora): o terreno que fica no campo vale pela mana dos turnos que vêm, virado ou não. Antes só a
+    fonte DESVIRADA contava (`fontesDeMana`): virar o Geothermal Crevice para {R} e sacrificá-lo para {B}{G} custavam o mesmo na
+    nota, e sacrificar dava uma mana a mais — o Shark com o Temur Desperate Ritual queimava terreno no T5 por um Seize the
+    Storm 2/2 (partidas narradas de 10/11). Cada terreno conta até `TETO_CHAO` (o que passa disso não paga mágica do baralho);
+    o terreno que se gasta por marcador ("remove a depletion counter … if there are none, sacrifice it", `semMarcadorSacrifica`
+    no script) conta a fração dos marcadores que restam sobre os com que entra; o que dá duas manas num toque (o karoo), duas.
+    Vale para os dois lados (o campo é público). Duas opções: `chao` (ligada) soma o chão só na escolha do terreno a baixar, depois de resolver o gatilho de entrada — é o que
+    tira o Azorius Chancery sozinho, que volta para a mão; `chaoNaNota` (desligada) soma o chão na avaliação inteira (`comChao`)
+    e foi medida negativa no piloto Temur: 9 × 16 em 80 pares (1 só do novo, 8 só do antigo) — a lista de rituais existe para
+    queimar o Crevice e a Needle no turno da explosão, e o chão na nota segurava a explosão. */
+const TETO_CHAO = 6;
+function chaoDe(s, q) {
+  let n = 0;
+  for (const oid of s.zones[q].battlefield) {
+    const o = s.objects[oid], f = o && s.facts[o.name];
+    if (!f || !(f.types || []).includes('land')) continue;
+    const sc = f.script || {}, gasta = (sc.abilities || []).find(ab => ab.semMarcadorSacrifica);
+    if (gasta) {
+      const tipo = gasta.semMarcadorSacrifica, entra = (sc.entra || []).reduce((m, e) => Math.max(m, ((e.marcadores || {})[tipo]) || 0), 0) || 1;
+      n += Math.min(1, ((o.counters || {})[tipo] || 0) / entra);
+    } else n += Math.max(1, ...(f.produces || []).map(x => (x || []).length)); // o karoo (Azorius Chancery: {W}{U} num toque) conta as duas
+  }
+  return Math.min(n, TETO_CHAO);
+}
+const comChao = de => (s, p) => {
+  const base = de(s, p);
+  if (base.parcelas.vitoria) return base;
+  const g = (chaoDe(s, p) - chaoDe(s, oponenteDe(s, p))) * PESOS.mana;
+  if (!g) return base;
+  return { nota: base.nota + g, parcelas: { ...base.parcelas, chao: g } };
+};
 /** `av7` liga em cima do avaliador que as outras opções escolheram (V6 no Shark publicado). */
 const comMotores = de => (s, p) => avaliaV7(s, p, de);
 function avaliaV7(s, p, de = avaliaV6) {
@@ -39881,18 +39921,19 @@ const NOVO24 = { ...NOVO23, desligaNoPerfil: true }; // congelado como 'shark-v2
 const NOVO25 = { ...NOVO24, ninjaDepois: true }; // congelado como 'shark-v25' (B-203) · B-200 · B25 · o ninja entra pelo ninjútsu depois do ataque, não pela mão antes do combate (guardaONinja): piloto Faeries 13 × 10 em 32 pares (5 só do novo, 2 só do antigo)
 const NOVO26 = { ...NOVO25, perfilDerivado: true }; // congelado como 'shark-v26' (B-205) · B-203 · B25 · o perfil sai do que as cartas fazem (perfilDerivado), não dos nomes exigidos: nas cinco listas dá as mesmas chaves que os PERFIS à mão; numa lista nova, as mesmas regras valem sem código novo
 const NOVO27 = { ...NOVO26, perfilPeloPadrao: true }; // congelado como 'shark-v27' (B-210) · B-205 · B25 · o combo pelo padrão (comboDaLista) e as ameaças do campo pelo efeito (ameacaPeloEfeito): nenhum nome de carta escrito no código chega à decisão do Shark publicado; nas cinco listas, as mesmas jogadas do shark-v26
-const NOVO = { ...NOVO27, impulso: true, ritual: true }; // B-210 · B25 · régua de fora, combo de mágicas: a carta exilada que posso jogar vale como carta na mão (comImpulso) e o ritual entra no plano de mana (planoDeMana): piloto Temur Desperate Ritual 36 × 21 em 150 pares contra o Shark da B-205 (18 só do novo, 3 só do antigo); nenhuma das cinco listas tem carta de impulso ou ritual (as jogadas delas não mudam)
+const NOVO28 = { ...NOVO27, impulso: true, ritual: true }; // congelado como 'shark-v28' (B-212) · B-210 · B25 · régua de fora, combo de mágicas: a carta exilada que posso jogar vale como carta na mão (comImpulso) e o ritual entra no plano de mana (planoDeMana): piloto Temur Desperate Ritual 36 × 21 em 150 pares contra o Shark da B-205 (18 só do novo, 3 só do antigo); nenhuma das cinco listas tem carta de impulso ou ritual (as jogadas delas não mudam)
+const NOVO = { ...NOVO28, chao: true }; // B-212 · B25 · régua de fora: o terreno a baixar é escolhido depois do gatilho de entrada e vale pelo chão que fica (chaoDe): piloto Azorius God-Pharaoh's Faithful 30 × 15 em 80 pares contra o Shark da B-210 (18 só do novo, 3 só do antigo); régua de fora × shark-v12 106–97 em 203 (52%; era 95–108). `chaoNaNota` (o chão na avaliação inteira) mediu 9 × 16 no piloto Temur e fica desligado
 // B-208 · `esperaOLampejo` (no meu turno, com a anulação na mão, a instantânea ou o lampejo que não responde a nada e deixa a anulação sem mana custa 6; B25 classe A das Faeries) foi medida e fica desligada: piloto Faeries 31 × 33 em 96 pares (7 só do novo, 9 só do antigo); acerta a posição `seq-faeries-sprite-espera` da bateria, mas não se paga em partida
 // B-207 · `reservaRemocao` (remoção guardada para a criatura que importa, B25 classe B) foi medida e fica desligada: piloto Faeries 21 × 23 em 48 pares (3 só do novo, 5 só do antigo), Control 16 × 15 em 32 (1 só do novo); acerta a posição `rem-elfo-de-mana` da bateria, mas não se paga em partida
 // B-176 · `ameacas` (ameaças do campo no perfil do Dimir Control) foi medida e fica desligada: 26 de 64 contra 27 de 64 pilotando o Control
 function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date.now(), mundos: mundosN = 0, extra: extraOpts = null, pesos = null } = {}) {
   // Leva 117 · 'profissional' e 'shark' são o Shark atual (v4: o v3 com informação justa). 'shark-v3', 'shark-v2'
   // e 'shark-v1' são as versões anteriores, congeladas, só para o torneio — elas simulam sobre o estado real.
-  const v1 = nivel === 'shark-v1', v2 = nivel === 'shark-v2', v3 = nivel === 'shark-v3', v4 = nivel === 'shark-v4', v5 = nivel === 'shark-v5', v6 = nivel === 'shark-v6', v7 = nivel === 'shark-v7', v8 = nivel === 'shark-v8', v9 = nivel === 'shark-v9', v10 = nivel === 'shark-v10', v11 = nivel === 'shark-v11', v12 = nivel === 'shark-v12', v13 = nivel === 'shark-v13', v14 = nivel === 'shark-v14', v15 = nivel === 'shark-v15', v16 = nivel === 'shark-v16', v17 = nivel === 'shark-v17', v18 = nivel === 'shark-v18', v19 = nivel === 'shark-v19', v20 = nivel === 'shark-v20', v21 = nivel === 'shark-v21', v22 = nivel === 'shark-v22', v23 = nivel === 'shark-v23', v24 = nivel === 'shark-v24', v25 = nivel === 'shark-v25', v26 = nivel === 'shark-v26', v27 = nivel === 'shark-v27';
-  const atual = nivel === 'profissional' || nivel === 'shark' || v4 || v5 || v6 || v7 || v8 || v9 || v10 || v11 || v12 || v13 || v14 || v15 || v16 || v17 || v18 || v19 || v20 || v21 || v22 || v23 || v24 || v25 || v26 || v27 || !!extraOpts || !!pesos;
-  const ligadas = { ...(v4 ? {} : v5 ? NOVO5 : v6 ? NOVO6 : v7 ? NOVO7 : v8 ? NOVO8 : v9 ? NOVO9 : v10 ? NOVO10 : v11 ? NOVO11 : v12 ? NOVO12 : v13 ? NOVO13 : v14 ? NOVO14 : v15 ? NOVO15 : v16 ? NOVO16 : v17 ? NOVO17 : v18 ? NOVO18 : v19 ? NOVO19 : v20 ? NOVO20 : v21 ? NOVO21 : v22 ? NOVO22 : v23 ? NOVO23 : v24 ? NOVO24 : v25 ? NOVO25 : v26 ? NOVO26 : v27 ? NOVO27 : NOVO), ...(extraOpts || {}) };
+  const v1 = nivel === 'shark-v1', v2 = nivel === 'shark-v2', v3 = nivel === 'shark-v3', v4 = nivel === 'shark-v4', v5 = nivel === 'shark-v5', v6 = nivel === 'shark-v6', v7 = nivel === 'shark-v7', v8 = nivel === 'shark-v8', v9 = nivel === 'shark-v9', v10 = nivel === 'shark-v10', v11 = nivel === 'shark-v11', v12 = nivel === 'shark-v12', v13 = nivel === 'shark-v13', v14 = nivel === 'shark-v14', v15 = nivel === 'shark-v15', v16 = nivel === 'shark-v16', v17 = nivel === 'shark-v17', v18 = nivel === 'shark-v18', v19 = nivel === 'shark-v19', v20 = nivel === 'shark-v20', v21 = nivel === 'shark-v21', v22 = nivel === 'shark-v22', v23 = nivel === 'shark-v23', v24 = nivel === 'shark-v24', v25 = nivel === 'shark-v25', v26 = nivel === 'shark-v26', v27 = nivel === 'shark-v27', v28 = nivel === 'shark-v28';
+  const atual = nivel === 'profissional' || nivel === 'shark' || v4 || v5 || v6 || v7 || v8 || v9 || v10 || v11 || v12 || v13 || v14 || v15 || v16 || v17 || v18 || v19 || v20 || v21 || v22 || v23 || v24 || v25 || v26 || v27 || v28 || !!extraOpts || !!pesos;
+  const ligadas = { ...(v4 ? {} : v5 ? NOVO5 : v6 ? NOVO6 : v7 ? NOVO7 : v8 ? NOVO8 : v9 ? NOVO9 : v10 ? NOVO10 : v11 ? NOVO11 : v12 ? NOVO12 : v13 ? NOVO13 : v14 ? NOVO14 : v15 ? NOVO15 : v16 ? NOVO16 : v17 ? NOVO17 : v18 ? NOVO18 : v19 ? NOVO19 : v20 ? NOVO20 : v21 ? NOVO21 : v22 ? NOVO22 : v23 ? NOVO23 : v24 ? NOVO24 : v25 ? NOVO25 : v26 ? NOVO26 : v27 ? NOVO27 : v28 ? NOVO28 : NOVO), ...(extraOpts || {}) };
   let perfil, avPlano = null, passosCombo = 0, turnoCombo = -1; // B9 · perfil do meu baralho, lido na primeira jogada
-  const avAtual = ligadas.av4 || ligadas.av5 || ligadas.av6 || ligadas.av7 || pesos ? avaliadorCom({ ...PESOS_ATUAIS, ...(pesos || {}) }, (de => (ligadas.impulso ? comImpulso : x => x)((ligadas.grimorio ? comGrimorio : x => x)(ligadas.av7 ? comMotores(de) : de)))(ligadas.av6 ? avaliaV6 : ligadas.av5 ? avaliaV5 : ligadas.av4 ? avaliaV4 : avaliaV3)) : null;
+  const avAtual = ligadas.av4 || ligadas.av5 || ligadas.av6 || ligadas.av7 || pesos ? avaliadorCom({ ...PESOS_ATUAIS, ...(pesos || {}) }, (de => (ligadas.chaoNaNota ? comChao : x => x)((ligadas.impulso ? comImpulso : x => x)((ligadas.grimorio ? comGrimorio : x => x)(ligadas.av7 ? comMotores(de) : de))))(ligadas.av6 ? avaliaV6 : ligadas.av5 ? avaliaV5 : ligadas.av4 ? avaliaV4 : avaliaV3)) : null;
   let plano = []; // leva 143 · ações que faltam do plano de mana em curso
   const profissional = v1 || v2 || v3 || atual;
   const extra = v1 ? {} : v2 ? { av: avaliaV2, bloqueioForte: true, duplo: true }
