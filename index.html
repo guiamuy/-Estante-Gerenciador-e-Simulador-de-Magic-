@@ -8720,6 +8720,7 @@ const EFFECTS = {
   copiar_esta: { fields: [], targets: ['self'] }, // M-271 · "if this spell was cast from a graveyard, you may copy this spell and may choose a new target for the copy" (707.10)
   exilar_topo_conjuravel: { fields: ['amount'], targets: ['self'] }, // M-270 · Lukka +1: exila do topo; as criaturas exiladas podem ser conjuradas do exílio enquanto você controlar um planeswalker do subtipo
   criaturas_causam_dano: { fields: [], targets: ['each-opponent'] }, // M-270 · Lukka −7: cada criatura sua causa dano igual ao poder a cada oponente (a fonte é a criatura)
+  tira_marcador: { fields: [], targets: ['self'] }, // M-619 · "remove a -1/-1 counter from this creature" (Moonshadow): N marcadores do tipo saem da permanente fonte, se ainda é a mesma (400.7)
   tirar_tempo: { fields: [], targets: ['self'] }, // M-269 · 702.62 suspender: na manutenção do dono, tira um marcador de tempo
   jogar_suspensa: { fields: [], targets: ['self'] }, // M-269 · "when the last is removed, they may play it without paying its mana cost"
   esconderijo: { fields: ['count'], targets: ['self'] }, // M-268 · 702.75 hideaway: olha N, exila uma virada para baixo ligada à permanente, o resto no fundo em ordem aleatória
@@ -9210,7 +9211,7 @@ const PASSOS_DO_GATILHO = ['upkeep', 'draw', 'main1', 'combat_begin', 'combat_en
 const EVENTOS_DE_OBJETO = ['conjurar', 'ataca', 'bloqueia', 'dano-combate', 'dano-combate-jpw' /* M-538 */, 'marcadores', 'recebe-dano', 'causa-dano', 'vira', 'sacrifica', 'bloqueada', 'nao-bloqueada']; // CR2g.5
 const EVENTOS_DE_JOGADOR = ['descarta', 'compra', 'ganha-vida', 'atacou', 'joga-terreno']; // CR2b.7 · 119.9 · CR2g.5 · 508.3d
 /** M-258 · 603.2c · evento em lote: "whenever one or more <criaturas suas> deal damage to your opponents" dispara uma vez por golpe simultâneo. */
-const EVENTOS_DE_LOTE = ['causam-dano', 'saem-do-cemiterio', 'sai-do-cemiterio' /* M-530 · "whenever an instant or sorcery card leaves your graveyard" (Murktide Regent): um disparo por carta, pelo mesmo observador da M-449 */, 'descartam' /* M-462 · "whenever you discard one or more cards" (Magmakin Artillerist) */]; // M-449 · "whenever one or more cards leave your graveyard": uma vez por evento (Spirit Mascot)
+const EVENTOS_DE_LOTE = ['descem' /* M-619 · "whenever one or more permanent cards are put into your graveyard from anywhere" (Moonshadow): uma vez por evento */, 'causam-dano', 'saem-do-cemiterio', 'sai-do-cemiterio' /* M-530 · "whenever an instant or sorcery card leaves your graveyard" (Murktide Regent): um disparo por carta, pelo mesmo observador da M-449 */, 'descartam' /* M-462 · "whenever you discard one or more cards" (Magmakin Artillerist) */]; // M-449 · "whenever one or more cards leave your graveyard": uma vez por evento (Spirit Mascot)
 /** De quem o gatilho observa o evento, por evento (o primeiro é o padrão). */
 const OBJETOS_DO_EVENTO = { zona: ['self', 'outra', 'anexada'], conjurar: ['self', 'outra'], ataca: ['self', 'outra', 'anexada'] /* M-401 · Greatsword of Tyr */, bloqueia: ['self', 'outra'],
   'dano-combate': ['self', 'outra'], 'dano-combate-jpw': ['self'] /* M-538 */, marcadores: ['self', 'outra'], 'recebe-dano': ['self', 'anexada'], 'causa-dano': ['self', 'anexada'],
@@ -9251,7 +9252,7 @@ const falaDe = (d, evento) => !!d && (Array.isArray(d.evento) ? d.evento.include
 /** O descritor de zona de um gatilho; null se não for de zona. */
 const gatilhoDeZona = w => { const d = gatilhoDoEvento(w); return d && d.evento === 'zona' ? d : null; };
 const CHAVES_DO_EVENTO = { zona: ['evento', 'de', 'para', 'objeto', 'quem', 'donoVoce'], passo: ['evento', 'passo', 'turno'],
-  descarta: ['evento', 'quem'], compra: ['evento', 'n', 'quem'], 'ganha-vida': ['evento', 'quem'], atacou: ['evento', 'quem'], 'joga-terreno': ['evento', 'quem'], 'causam-dano': ['evento', 'a'], 'saem-do-cemiterio': ['evento', 'quem'] /* M-449 */, 'sai-do-cemiterio': ['evento', 'quem'] /* M-530 */, descartam: ['evento', 'quem'] /* M-462 */, 'recebe-dano': ['evento', 'objeto'], vira: ['evento', 'objeto'], 'causa-dano': ['evento', 'objeto', 'a'] };
+  descarta: ['evento', 'quem'], compra: ['evento', 'n', 'quem'], 'ganha-vida': ['evento', 'quem'], atacou: ['evento', 'quem'], 'joga-terreno': ['evento', 'quem'], 'causam-dano': ['evento', 'a'], 'saem-do-cemiterio': ['evento', 'quem'] /* M-449 */, descem: ['evento', 'quem'] /* M-619 */, 'sai-do-cemiterio': ['evento', 'quem'] /* M-530 */, descartam: ['evento', 'quem'] /* M-462 */, 'recebe-dano': ['evento', 'objeto'], vira: ['evento', 'objeto'], 'causa-dano': ['evento', 'objeto', 'a'] };
 for (const e of EVENTOS_DE_OBJETO) CHAVES_DO_EVENTO[e] = CHAVES_DO_EVENTO[e] || ['evento', 'objeto', 'quem', 'donoVoce'];
 function gatilhoErros(w, tag) {
   if (typeof w === 'string') return TRIGGERS.includes(w) ? [] : [`${tag}: gatilho "${w}" desconhecido`];
@@ -9297,6 +9298,7 @@ function descreveGatilho(w, como = {}) { // M-401 · como.equipada: "a criatura 
   const ev = gatilhoDoEvento(w); if (!ev) return 'gatilho';
   if (ev.evento === 'descartam') return `quando ${ev.quem === 'oponente' ? 'um oponente descarta' : ev.quem === 'qualquer' ? 'um jogador descarta' : 'você descarta'} uma ou mais cartas`; // M-462
   if (ev.evento === 'sai-do-cemiterio') return `quando uma carta sai ${ev.quem === 'oponente' ? 'do cemitério de um oponente' : ev.quem === 'qualquer' ? 'de um cemitério' : 'do seu cemitério'}`; // M-530
+  if (ev.evento === 'descem') return `quando uma ou mais cartas de permanente vão para ${ev.quem === 'oponente' ? 'o cemitério de um oponente' : ev.quem === 'qualquer' ? 'um cemitério' : 'o seu cemitério'}, de qualquer lugar`; // M-619
   if (ev.evento === 'saem-do-cemiterio') return `quando uma ou mais cartas saem ${ev.quem === 'oponente' ? 'do cemitério de um oponente' : ev.quem === 'qualquer' ? 'de um cemitério' : 'do seu cemitério'}`; // M-449
   if (ev.evento === 'causam-dano') return `quando uma ou mais criaturas suas causam dano a ${ev.a === 'jogador' ? 'um jogador' : 'seus oponentes'}`; // M-258
   if (ev.evento === 'passo') {
@@ -9334,7 +9336,7 @@ const ATTACH_KINDS = ['creature', 'permanent', 'land', 'creature-you-control', '
 const PER_COUNTS = ['artifacts-you-control' /* K-86 · "for each artifact you control" (a ficha Construct da Urza's Saga) */, 'setes-no-seu-cemiterio' /* M-595 · "for every seven cards in your graveyard" (Dark Matter Manipulator): grupos completos de sete */, 'metade-grimorio' /* M-553 · "half the number of cards in your library, rounded up" */, 'cores-gastas' /* M-540 · convergir (Prismatic Ending): cores de mana gastas para conjurar esta mágica */, 'tipos-do-alvo' /* M-450 · Embiggen */, 'mesmo-nome-nos-cemiterios', 'attacking-creatures' /* M-423 · Rite of Flame ("each card named ~ in each graveyard") e Respite ("each attacking creature") */, 'enchantments-you-control', 'other-enchantments', 'auras-on-battlefield',
   'plains-you-control', 'islands-you-control', 'swamps-you-control', 'mountains-you-control', 'forests-you-control' /* M-516 · "the number of Mountains you control" (Spitting Earth): terrenos com o subtipo, básicos ou não (305.6) */,
   'creatures-you-control', 'other-creatures-you-control', 'elves-you-control', 'elves-on-battlefield', 'defenders-you-control', 'permanents-you-control', 'nonland-permanents-you-control', 'life-gained-this-turn', 'life-lost-this-turn',
-  'devotion-W', 'devotion-U', 'devotion-B', 'devotion-R', 'devotion-G', 'counters-on-source', 'opponents-empty-hand', 'trigger-value', 'chosen-type-permanents', 'sacrificed-toughness', 'sacrificed-mv', 'sacrificed-power', 'dano-causado' /* M-427 · "the damage dealt this way" */, 'descartadas-assim' /* M-434 · "draw that many cards" depois de descartar a mão */, 'creature-cards-in-your-graveyard', 'cards-in-hand', 'x', 'power-of-source', 'se', 'power-of-target',
+  'devotion-W', 'devotion-U', 'devotion-B', 'devotion-R', 'devotion-G', 'counters-on-source', 'opponents-empty-hand', 'trigger-value', 'chosen-type-permanents', 'sacrificed-toughness', 'sacrificed-mv', 'sacrificed-power', 'dano-causado' /* M-427 · "the damage dealt this way" */, 'descartadas-assim' /* M-434 · "draw that many cards" depois de descartar a mão */, 'creature-cards-in-your-graveyard', 'card-types-in-your-graveyard' /* M-619 · Nethergoyf */, 'cards-in-hand', 'x', 'power-of-source', 'se', 'power-of-target',
   'instants-sorceries-in-your-graveyard', 'flashback-cards-you-own-in-exile', 'soma', 'party', 'movidas', ...perCountsT()]; // M-386 · `movidas`: "for each card put into your graveyard this way" (o que o efeito anterior desta habilidade moveu) // T-59 · CR 700.8 · quantas criaturas há no seu grupo (0 a 4) // M-358 · Seize the Storm (604.3); `soma`: { per: 'soma', partes: [contagem, contagem, …] }
 /** M-333 · 601.2f · "This spell costs {N} less to cast for each …": o que a redução conta (chave `reduzPor: { generic, per }` no topo do script). */
 const REDUZ_POR = ['maior-mv-elemental-seu' /* M-545 · Sunderflock */, 'inst-feit-aventura-no-cemiterio' /* M-534 · Hearth Elemental */, 'instants-sorceries-in-your-graveyard', 'creature-cards-in-your-graveyard', 'land-cards-in-your-graveyard', 'creatures-on-battlefield',
@@ -9342,7 +9344,7 @@ const REDUZ_POR = ['maior-mv-elemental-seu' /* M-545 · Sunderflock */, 'inst-fe
   'creatures-attacked-this-turn', 'creatures-you-attacked-with-this-turn', 'morbid' /* M-440 · "if a creature died this turn": 1 ou 0 (Bone Picker) */, 'legendary-creatures-you-control' /* K-83 · canalizar das terras de Kamigawa */];
 /** S19 · um valor pode ser um número ou uma contagem do campo. */
 const isCount = v => v && typeof v === 'object' && (typeof v.per === 'string' || typeof v.subtype === 'string');
-const valueErrors = (v, label) => isCount(v) && v.per === 'soma' ? (Array.isArray(v.partes) && v.partes.length >= 2 && v.partes.every(x => isCount(x) && x.per !== 'soma') ? v.partes.flatMap((x, i) => valueErrors(x, `${label} (parte ${i + 1})`)) : [`${label}: "soma" precisa de duas ou mais contagens em "partes"`]) // M-358
+const valueErrors = (v, label) => isCount(v) && v.per === 'soma' ? (Array.isArray(v.partes) && v.partes.length >= 2 && v.partes.every(x => (isCount(x) && x.per !== 'soma') || Number.isInteger(x) /* M-619 · "that number plus 1" (Nethergoyf): uma parte pode ser constante */) && v.partes.some(isCount) ? v.partes.flatMap((x, i) => valueErrors(x, `${label} (parte ${i + 1})`)) : [`${label}: "soma" precisa de duas ou mais partes em "partes", ao menos uma delas contagem`]) // M-358
   : isCount(v) ? (v.per === 'se' && !(['metalcraft', 'cast-from-graveyard', 'kicked', 'not-cast-from-hand', 'bargained', 'threshold' /* M-412 */, 'morbid' /* M-416 */, 'landfall-turno' /* M-437 */, 'na-principal-propria' /* M-443 */, 'delirio' /* M-528 */, 'inst-e-feit' /* M-530 */, 'revolta' /* M-537 */, 'spell-mastery' /* M-557 */, ...onlyIfT()].includes(v.se) && Number.isInteger(v.sim) && Number.isInteger(v.nao)) ? [`${label}: "se" precisa da condição (metalcraft, cast-from-graveyard, kicked, bargained, not-cast-from-hand, monarca, oponente-monarca) e dos valores sim/não`] : v.subtype || PER_COUNTS.includes(v.per) ? [] : [`${label}: contagem "${v.per}" desconhecida`]) // M-331
   : (Number.isInteger(v) ? [] : [`${label}: precisa ser inteiro ou contagem`]);
 /** S11b · evasão estática e escolhas feitas quando a permanente entra. */
@@ -9422,6 +9424,7 @@ function validateScript(sc) {
   }
   if (sc && sc.flashback && !(sc.flashback.mana || sc.flashback.tapOther || sc.flashback.sacrificeOther)) errs.push('lampejo do passado sem custo'); // M-331 · "Flashback—Sacrifice a Mountain\"
   if (sc && sc.escape && !sc.escape.mana) errs.push('fuga sem custo de mana');
+  if (sc && sc.escape && sc.escape.exileGraveyardTipos != null && !(Number.isInteger(sc.escape.exileGraveyardTipos) && sc.escape.exileGraveyardTipos >= 1 && sc.escape.exileGraveyardTipos <= 9 && sc.escape.exileGraveyard == null)) errs.push('fuga: exileGraveyardTipos precisa ser inteiro de 1 a 9, sem exileGraveyard junto'); // M-619
   if (sc && Array.isArray(sc.additional) && !sc.additional.length) errs.push('custo adicional com lista vazia');
   if (sc && sc.additionalOptional && !sc.additional) errs.push('custo adicional opcional sem custo');
   if (sc && sc.plot && !sc.plot.mana) errs.push('plot sem custo de mana');
@@ -9887,6 +9890,9 @@ function effectErrors(effects, label, opcional) {
     if ((e.o === 'vida' || e.o === 'mana') && !jog) errs.push(`${tag}: ${e.o} é de jogador`);
     if (pt && jog) errs.push(`${tag}: poder e resistência são de criatura`);
   });
+  effects.forEach((e, i) => { // M-619 · tira_marcador: o tipo e a quantia
+    if (e.do === 'tira_marcador' && (typeof e.tipo !== 'string' || !e.tipo || (e.amount != null && !(Number.isInteger(e.amount) && e.amount > 0)))) errs.push(`${label} ${i + 1} (tira_marcador): precisa do tipo (m1m1, p1p1, …) e, se tiver, de uma quantia inteira positiva`);
+  });
   effects.forEach((e, i) => { // V-4 · 701.36: povoar pode abrir escolha; o que vem depois não pode ter alvo próprio
     if (e.do === 'populate' && effects.slice(i + 1).some(isTargeted)) errs.push(`${label} ${i + 1} (populate): efeito com alvo depois de uma escolha`);
   });
@@ -10136,6 +10142,13 @@ const RAW_SCRIPTS = [
   { name: 'Underworld Rage-Hound', self: { atacaSePuder: true } /* a primitiva da M-430 (508.1d); a T-123 tinha feito a mesma em paralelo e cedeu no rebase */, escape: { mana: '{3}{R}', exileGraveyard: 3, comMarcadoresT: { p1p1: 1 } }, // "Underworld Rage-Hound attacks each combat if able. · Escape—{3}{R}, Exile three other cards from your graveyard. · Underworld Rage-Hound escapes with a +1/+1 counter on it."
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // T-122 · CR 614.10 (Scryfall, consulta de 17/10/2026, rulings de 19/03/2021)
+  // M-619 · textos da API da Scryfall (cobertura/modern.json do ramo catalogo, coleta de 10/11/2026; guardados em .listas/oficiais-revisadas.json)
+  { name: 'Nethergoyf', self: { ptDefinido: { poder: { per: 'card-types-in-your-graveyard' }, resistencia: { per: 'soma', partes: [{ per: 'card-types-in-your-graveyard' }, 1] } } }, // "Nethergoyf's power is equal to the number of card types among cards in your graveyard and its toughness is equal to that number plus 1." (604.3; 205.2a)
+    escape: { mana: '{2}{B}', exileGraveyardTipos: 4 }, // "Escape—{2}{B}, Exile any number of other cards from your graveyard with four or more card types among them." (702.138a)
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  { name: 'Moonshadow', entra: [{ afetados: 'self', marcadores: { m1m1: 6 } }], // "Menace" (a palavra vem da carta) · "This creature enters with six -1/-1 counters on it." (614.1c)
+    abilities: [{ kind: 'triggered', when: { evento: 'descem', quem: 'voce' }, condition: { marcadoresNaFonte: { tipo: 'm1m1', n: 1 } }, effects: [{ do: 'tira_marcador', tipo: 'm1m1' }] }], // "Whenever one or more permanent cards are put into your graveyard from anywhere while this creature has a -1/-1 counter on it, remove a -1/-1 counter from this creature." (603.2c)
+    example: { action: 'etb', target: 'none', expect: { attached: false } } },
   { name: 'Stonehorn Dignitary', abilities: [{ kind: 'triggered', when: 'etb', effects: [{ do: 'pula', o: 'combate', target: 'opponent' }] }], // "When Stonehorn Dignitary enters, target opponent skips their next combat phase."
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
   // T-121 · CR 101.4 / 701.21 (Scryfall, consulta de 17/10/2026, rulings de 04/10/2004)
@@ -24958,6 +24971,14 @@ function palavrasDaFrente(card, kw) {
     ? linhas.some(l => l.split(/[,;]\s*/).some(p => p === k || p.startsWith(k + ' ')))
     : linhas.some(l => new RegExp(`\\b${esc(k)}\\b`).test(l)));
 }
+/** M-619 · 205.2a · os tipos de carta que contam em "card types among cards in your graveyard" (Delírio, Nethergoyf): os nove tipos, com o antigo
+    "tribal" lido como kindred (205.3m); a carta dividida tem as duas metades fora da pilha (709.4); dupla face, aventura e virar contam só a frente.
+    Só entra nos fatos quando difere de `types` (o estado das outras cartas não muda). */
+function tiposDeCartaM(card, types) {
+  const div = card && ['split', 'aftermath'].includes(card.layout), tl = String(card && card.type_line || '').toLowerCase(), alvo = div ? tl : tl.split('//')[0];
+  const t = ['artifact', 'battle', 'creature', 'enchantment', 'instant', 'kindred', 'land', 'planeswalker', 'sorcery'].filter(x => new RegExp('\\b' + x + '\\b').test(alvo) || (x === 'kindred' && /\btribal\b/.test(alvo)));
+  return t.length === types.length && t.every(x => types.includes(x)) ? {} : { tiposDeCarta: t };
+}
 function cardFacts(card) {
   const tl = String(card && card.type_line || '').toLowerCase().split('//')[0];
   const types = PERMANENT.concat(['instant', 'sorcery']).filter(t => new RegExp('\\b' + t + '\\b').test(tl)); // M-543 · palavra inteira: "Lander" não é terreno (achado da revisão)
@@ -24965,7 +24986,7 @@ function cardFacts(card) {
   semPalavraDoJogadorK(card, kw); // K-29 · "You have hexproof/shroud." é do jogador: a palavra não vale para a permanente sem a linha própria (Toca ponto comum: cardFacts)
   const num = v => (v == null || isNaN(parseInt(v, 10))) ? null : parseInt(v, 10);
   return {
-    types, legendary: tl.includes('legendary'), flash: kw.includes('flash'), kw,
+    types, legendary: tl.includes('legendary'), flash: kw.includes('flash'), kw, ...tiposDeCartaM(card, types), // M-619 · 205.2a: kindred e as duas metades da carta dividida (só quando diferem de `types`)
     power: num(card && card.power), toughness: num(card && card.toughness), loyalty: num(card && card.loyalty),
     cmc: (card && card.cmc) || 0, prot: protecaoImpressa(card),
     manaRuleTexto: regraDeManaDoTexto(card), // M-321 · dano ou condição impressos na linha de mana (undefined quando não tem)
@@ -25151,8 +25172,30 @@ function bonusLegado(s, host) {
 const SEM_CONTINUOS = Object.freeze([]);
 /** M-351 · 611.2 · condição de um efeito contínuo ("as long as …"), conferida a cada leitura: oponente com N venenos (M-253) ou "you control a <tipo>". */
 /** M-525 · Delirium · quantos tipos de carta (205.2a) há entre as cartas do cemitério de p; "tribal" antigo conta como kindred. */
-const tiposNoCemiterioM = (s, p) => new Set(((s.zones[p] || {}).graveyard || []).flatMap(oid => (((s.facts[(s.objects[oid] || {}).name] || {}).types) || []).map(x => x === 'tribal' ? 'kindred' : x).filter(x => TIPOS_DO_DELIRIO_M.includes(x)))).size;
+const tiposNoCemiterioM = (s, p) => new Set(((s.zones[p] || {}).graveyard || []).flatMap(oid => (((f => f.tiposDeCarta || f.types)(s.facts[(s.objects[oid] || {}).name] || {})) || []) /* M-619 · kindred e carta dividida */.map(x => x === 'tribal' ? 'kindred' : x).filter(x => TIPOS_DO_DELIRIO_M.includes(x)))).size;
 const TIPOS_DO_DELIRIO_M = ['artifact', 'battle', 'creature', 'enchantment', 'instant', 'kindred', 'land', 'planeswalker', 'sorcery']; // 205.2a (a mesma lista de TIPOS_DE_CARTA, que mora no módulo dos scripts)
+/* M-619 · 702.138a · fuga "Exile any number of other cards from your graveyard with four or more card types among them" (Nethergoyf): quem paga
+   escolhe as cartas; o que conta são os tipos de carta (205.2a) somados entre as exiladas. A oferta lista as escolhas mínimas (nenhuma carta
+   sobra: tirar qualquer uma deixa menos tipos); exilar mais do que isso também é aceito por quem manda a escolha (`pay.exileGrave`). */
+const mascaraDeTiposM = (s, oid) => { const f = s.facts[(s.objects[oid] || {}).name] || {}; return (f.tiposDeCarta || f.types || []).reduce((m, x) => { const i = TIPOS_DO_DELIRIO_M.indexOf(x === 'tribal' ? 'kindred' : x); return i < 0 ? m : m | (1 << i); }, 0); };
+const contaBitsM = m => { let n = 0; for (; m; m &= m - 1) n++; return n; };
+const tiposDasCartasM = (s, oids) => contaBitsM((oids || []).reduce((m, x) => m | mascaraDeTiposM(s, x), 0));
+function exiladasPorTiposM(s, p, n, selfOid) {
+  const cem = s.zones[p].graveyard.filter(x => x !== selfOid).map(x => [x, mascaraDeTiposM(s, x)]).filter(([, m]) => m), todas = [], TETO = 400;
+  if (contaBitsM(cem.reduce((m, [, k]) => m | k, 0)) < n) return [];
+  const passo = (ini, atual, m) => {
+    if (todas.length >= TETO) return;
+    if (contaBitsM(m) >= n) { if (atual.every((_, i) => contaBitsM(atual.reduce((a, [, k], j) => j === i ? a : a | k, 0)) < n)) todas.push(atual.map(([x]) => x)); return; }
+    if (atual.length >= n) return;
+    for (let i = ini; i < cem.length && todas.length < TETO; i++) { if ((m | cem[i][1]) === m) continue; atual.push(cem[i]); passo(i + 1, atual, m | cem[i][1]); atual.pop(); }
+  };
+  passo(0, [], 0);
+  // a folha mostra no máximo LIMITE_PAGAMENTOS: primeiro, para cada carta, uma escolha que a deixa no cemitério (quem paga pode guardar qualquer uma que dê para guardar)
+  const out = [];
+  for (const [x] of cem) { if (out.length >= LIMITE_PAGAMENTOS) break; if (out.some(l => !l.includes(x))) continue; const l = todas.find(l => !l.includes(x)); if (l && !out.includes(l)) out.push(l); }
+  for (const l of todas) { if (out.length >= LIMITE_PAGAMENTOS) break; if (!out.includes(l)) out.push(l); }
+  return out;
+}
 function condicaoContinua(s, x, se) {
   if (!se) return true;
   if (se.oponenteComVeneno != null) return alive(s).some(q => q !== x.controller && (s.players[q].poison || 0) >= se.oponenteComVeneno);
@@ -25230,6 +25273,7 @@ function countFor(s, src, per) {
   if (per === 'mesmo-nome-nos-cemiterios') return s.players.reduce((n, _, q) => n + s.zones[q].graveyard.filter(x => s.objects[x] && s.objects[x].name === src.name).length, 0); // M-423 · Rite of Flame: em cada cemitério (a própria, na pilha, não conta)
   if (per === 'attacking-creatures') return ((s.combat && s.combat.attackers) || []).filter(oid => s.objects[oid] && s.objects[oid].zone === 'battlefield' && !s.objects[oid].phasedOut).length; // M-423 · Respite (506.4: as criaturas atacando agora)
   if (per === 'setes-no-seu-cemiterio') return Math.floor(s.zones[src.controller].graveyard.length / 7); // M-595 · Dark Matter Manipulator: cada grupo completo de sete cartas
+  if (per === 'card-types-in-your-graveyard') return tiposNoCemiterioM(s, src.controller); // M-619 · 604.3 · Nethergoyf: tipos de carta (205.2a) entre as cartas do seu cemitério, em qualquer zona (a própria conta quando está lá)
   if (per === 'creature-cards-in-your-graveyard') return s.zones[src.controller].graveyard.filter(x => ((s.facts[s.objects[x].name] || {}).types || []).includes('creature')).length; // M-354 · Lotleth Giant
   if (per === 'instants-sorceries-in-your-graveyard') return s.zones[src.controller].graveyard.filter(x => ((s.facts[s.objects[x].name] || {}).types || []).some(t => t === 'instant' || t === 'sorcery')).length; // M-358 · Seize the Storm
   if (per === 'flashback-cards-you-own-in-exile') return s.zones[src.controller].exile.filter(x => { const o = s.objects[x], f = o && !o.token && !o.ability && !o.faceDown && o.owner === src.controller && s.facts[o.name]; return !!f && !!((f.script || {}).flashback || (f.kw || []).includes('flashback')); }).length; // M-358 · "cards with flashback you own in exile" (702.34: a palavra-chave impressa; virada para baixo não tem habilidade, 708.2 — achado da revisão)
@@ -25668,6 +25712,7 @@ function moveObject(s, oid, to, { top = true, controller } = {}) {
   if (o.commander && VOLTA_COMANDO.includes(to) && fromZone !== to && (fromZone !== 'command' || to === 'hand' || to === 'library')) (s.voltaComando = s.voltaComando || []).push(oid); // M-348 · 903.9b: "from anywhere" (Campfire); do próprio comando só para mão ou grimório
   if (to === 'library' && !top) dest.push(oid); else if (to === 'library') dest.unshift(oid); else dest.push(oid);
   if (to === 'graveyard' && !o.token) desceuT(s, o); // T-84 · CR 700.11 · carta de permanente posta no cemitério do dono, de qualquer lugar (Toca ponto comum: moveObject)
+  if (to === 'graveyard' && !o.token && fromZone !== 'graveyard') desceramM(s, o); // M-619 · 603.2c: o lote "one or more permanent cards are put into your graveyard from anywhere" (Toca ponto comum: moveObject)
   // CR2-G R5a · 614.1c/614.12 · "entra virada", "entra virada a menos que…", "entra com N marcadores": um caminho só
   if (to === 'battlefield') { entraTransformadaNaEntradaT(s, o); cicloNaEntradaT(s, o); } // T-55 · CR 614.12 / 712.14a / 702.145b: a face que entra é a que as substituições de entrada olham (Toca ponto comum: moveObject)
   if (to === 'battlefield' && !o.faceDown && ((((s.facts[o.name] || {}).script || {}).self || {}).tipoBasicoAoEntrarM)) s.queuedChoices = (s.queuedChoices || []).concat([{ kind: 'tipo_basico_entrada', oid: o.oid, z: o.zc || 0, p: o.controller, name: o.name }]); // M-554 · a escolha vem antes do pagamento de vida
@@ -26654,6 +26699,7 @@ function canPayAlt(s, p, cost, selfOid) {
   if (cost.exileGraveyardTopo && topoDoCemiterio(s, p, cost.exileGraveyardTopo, selfOid).length < cost.exileGraveyardTopo.n) return false; // M-362
   if (cost.mana && s.manaCheck && !canPay(s, p, parseCost(cost.mana), -reducaoDoAlt(s, p, selfOid, cost))) return false; // M-352 · 601.2f
   if (cost.exileGraveyard && s.zones[p].graveyard.filter(x => x !== selfOid).length < cost.exileGraveyard) return false;
+  if (cost.exileGraveyardTipos && tiposDasCartasM(s, s.zones[p].graveyard.filter(x => x !== selfOid)) < cost.exileGraveyardTipos) return false; // M-619 · Nethergoyf
   if (!canPayExtra(s, p, cost, selfOid)) return false;
   if (cost.life != null && s.players[p].life < cost.life) return false; // CR 119.4: basta ter aquela vida
   if (cost.discard && s.zones[p].hand.filter(x => x !== selfOid).length < cost.discard) return false;
@@ -26671,6 +26717,11 @@ function payAlt(s, p, cost, pay, selfOid, alvos) {
   if (cost.exileGraveyard) { // S26 · delve · Leva 107: as cartas escolhidas por quem paga
     const list = (pay && pay.exileGrave) || s.zones[p].graveyard.filter(x => x !== selfOid).slice(0, cost.exileGraveyard);
     if (list.length !== cost.exileGraveyard || list.some(x => x === selfOid || !s.zones[p].graveyard.includes(x))) throw new RuleError('custo', `exile ${cost.exileGraveyard} cartas do cemitério`);
+    list.forEach(x => moveObject(s, x, 'exile'));
+  }
+  if (cost.exileGraveyardTipos) { // M-619 · 702.138a: "any number of other cards … with N or more card types among them"
+    const list = (pay && pay.exileGrave) || exiladasPorTiposM(s, p, cost.exileGraveyardTipos, selfOid)[0] || [];
+    if (!Array.isArray(list) || new Set(list).size !== list.length || list.some(x => x === selfOid || !s.zones[p].graveyard.includes(x)) || tiposDasCartasM(s, list) < cost.exileGraveyardTipos) throw new RuleError('custo', `exile do cemitério outras cartas com ${cost.exileGraveyardTipos} ou mais tipos de carta entre elas`);
     list.forEach(x => moveObject(s, x, 'exile'));
   }
   payExtraCosts(s, p, { sacrificeOther: cost.sacrificeOther, tapOther: cost.tapOther }, pay, selfOid); // o descarte já foi pago acima
@@ -27897,6 +27948,14 @@ function applyEffectM449(s, src, eff, tgt, events) {
       { const n = amountOf(s, src, eff.amount);
         if (eff.target === 'each-opponent') { s.players.forEach((pl, i) => { if (i !== ctrl && !pl.lost) perdeVida(s, i, n); }); note({ amount: n }); break; }
         perdeVida(s, playerOf(), n); note({ amount: n }); } break;
+    case 'tira_marcador': { // M-619 · "remove a <tipo> counter from this creature" (Moonshadow); 400.7: a fonte que saiu e voltou é outro objeto
+      const perm = src.ability ? s.objects[src.source] : src;
+      if (!perm || perm.zone !== 'battlefield' || (src.ability && src.fonteZc != null && (perm.zc || 0) !== src.fonteZc)) { note({ failed: true }); break; }
+      const n = Math.min(amountOf(s, src, eff.amount == null ? 1 : eff.amount), (perm.counters || {})[eff.tipo] || 0);
+      if (n > 0) { perm.counters[eff.tipo] -= n; if (!perm.counters[eff.tipo]) delete perm.counters[eff.tipo]; }
+      note({ amount: n, tipo: eff.tipo, target: perm.name });
+      break;
+    }
     case 'counters': {
       const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : eff.target === 'enchanted' ? criaturaEncantada(s, src) : obj; // M-401
       const fonteM = src.ability ? s.objects[src.source] : src; // M-272 · "se você controlar uma permanente [cor] que não seja ela nem a fonte"
@@ -30198,9 +30257,30 @@ function saiuDoCemiterioM(s, o) {
       const lote = s.loteCemiterioM || (s.loteCemiterioM = []); if (d.evento === 'saem-do-cemiterio' && lote.some(x => x.source === w.oid && x.i === i)) continue; // M-530 · "an instant or sorcery card" dispara uma vez por carta
       lote.push({ source: w.oid, i, name: w.name, controller: w.controller, effects: ab.effects, when: ab.when, ...marcasDaHabilidade(ab) }); } }
 }
+/* M-619 · 603.2c · "Whenever one or more permanent cards are put into your graveyard from anywhere while this creature has a -1/-1 counter on it"
+   (Moonshadow): carta de permanente (a face da frente; ficha não é carta) que chega ao cemitério do dono vinda de qualquer zona. O movimento só
+   anota o dono; quem observa e a condição do disparo são conferidos quando o lote da M-449 fecha (fim de cada instrução e da ação): 603.6c, o
+   gatilho "de qualquer lugar" não olha para trás — vale quem está no campo depois do evento (o Moonshadow que morre junto não dispara), e o
+   evento simultâneo dispara uma vez. Só nas partidas com o gatilho. */
+const TEM_DESCEM_M = new WeakMap();
+const partidaTemDescemM = s => Object.values(s.facts).some(f => { if (!f || typeof f !== 'object') return false; if (!TEM_DESCEM_M.has(f)) TEM_DESCEM_M.set(f, JSON.stringify(f.script || {}).includes('"descem"')); return TEM_DESCEM_M.get(f); });
+function desceramM(s, o) {
+  if (!partidaTemDescemM(s)) return;
+  const f = s.facts[o.frontName || o.name] || s.facts[o.name] || {}; if (!(f.types || []).some(t => PERMANENT.includes(t))) return;
+  (s.descidasM = s.descidasM || {})[o.owner] = true; s.loteCemiterioM = s.loteCemiterioM || []; // o lote vazio garante que ele feche nos pontos de sempre
+}
+function fechaDescidasM(s) {
+  const d = s.descidasM; if (!d) return; delete s.descidasM;
+  const donos = Object.keys(d).map(Number);
+  for (const w of battlefield(s)) { if (!s.facts[w.name]) continue; const abs = abilitiesOf(s, w);
+    for (let i = 0; i < abs.length; i++) { const ab = abs[i], g = ab.kind === 'triggered' && SC.gatilhoDoEvento(ab.when); if (!g || g.evento !== 'descem') continue;
+      const quem = g.quem || 'voce'; if (!donos.some(p => quem === 'voce' ? p === w.controller : quem === 'oponente' ? p !== w.controller : true)) continue;
+      if (!triggerConditionMet(s, w, ab.condition)) continue;
+      s.queued.push({ source: w.oid, name: w.name, controller: w.controller, effects: ab.effects, when: ab.when, fonteZcM: w.zc || 0, ...marcasDaHabilidade(ab) }); } }
+}
 /** M-475 · 603.2c: "discard N cards" escolhido carta a carta (Faithless Looting, limpeza, Mind Rot) é um evento só: o lote de descarte espera o pendente acabar. */
 const descarteEmCursoM = s => !!(s.loteDescarteM && s.pending && s.pending.kind === 'discard');
-function fechaLoteCemiterioM(s) { fechaLoteDescarteM(s); delete s.saidasCemM; const l = s.loteCemiterioM; if (!l) return; delete s.loteCemiterioM; for (const { i, ...q } of l) s.queued.push(q); }
+function fechaLoteCemiterioM(s) { fechaLoteDescarteM(s); fechaDescidasM(s); /* M-619 */ delete s.saidasCemM; const l = s.loteCemiterioM; if (!l) return; delete s.loteCemiterioM; for (const { i, ...q } of l) s.queued.push(q); }
 /* M-462 · 603.2c · "Whenever you discard one or more cards, … that much" (Magmakin Artillerist): uma vez por evento de descarte, com o valor = quantas
    cartas o jogador descartou nele (insanidade também é descarte, 702.35). O lote fecha nos mesmos pontos do da M-449; só nas partidas com o gatilho. */
 const TEM_EXCETO_PRIMEIRA_M = new WeakMap(); // M-565 · varre o script uma vez por fato
@@ -30489,6 +30569,7 @@ function pagamentosDe(s, p, cost, selfOid) {
   }
   // Leva 107 · fuga e delve: quem paga escolhe QUAIS cartas do cemitério exila (Sentinel's Eyes)
   if (cost.exileGraveyard) multiplica(combinacoes(s.zones[p].graveyard.filter(x => x !== selfOid), cost.exileGraveyard), 'exileGrave');
+  if (cost.exileGraveyardTipos) multiplica(exiladasPorTiposM(s, p, cost.exileGraveyardTipos, selfOid), 'exileGrave'); // M-619 · Nethergoyf (o mesmo campo da fuga por número: a folha pergunta "Quais cartas do cemitério você exila?")
   return out;
 }
 const comPagamento = pay => (pay && Object.keys(pay).length ? { pay } : {});
@@ -40583,6 +40664,7 @@ function effectLine(ev) {
     case 'nao_desvira': return ev.failed ? `${ev.name}: o alvo já não estava no campo` : `${t || ev.name}: não desvira no próximo passo de desvirar`;
     case 'combate_extra': return ev.failed ? `${ev.name}: fora da fase principal, sem combate adicional` : `${ev.name}: depois desta fase principal vem um combate adicional e outra fase principal`; // CR2g.4
     case 'desvira_atacantes': return `${ev.name} desvirou ${n} criatura(s) que atacaram neste turno`;
+    case 'tira_marcador': return ev.failed ? `${ev.name}: já não estava no campo` : n ? `${ev.target || ev.name} perdeu ${plural(n, 'marcador ' + (MARCADOR_PT[ev.tipo] || ev.tipo), 'marcadores ' + (MARCADOR_PT[ev.tipo] || ev.tipo))}` : `${ev.target || ev.name}: nenhum marcador ${MARCADOR_PT[ev.tipo] || ev.tipo} para tirar`; // M-619
     case 'animate': return `${t} virou criatura até o fim do turno`; // CR2d.2
     case 'anexa_a_ficha': return ev.failed ? `${ev.name}: nada a anexar` : ev.pending ? `${ev.name}: anexar à ficha?` : `${ev.name} foi anexada a ${ev.target}`; // M-526
     case 'atrai_no_turno': return ev.failed ? `${ev.name}: a criatura não estava mais no campo` : `todas as criaturas que puderem bloquear ${ev.target} neste turno o fazem`; // M-572
@@ -41537,7 +41619,7 @@ function descreveSeletor(sel) {
   return `${coisa}${predicadosPT_T(sel)}${sem}${vmM}${dono}${sel.comToxico ? ' com tóxico' : ''}${sel.comMarcador === 'p1p1' ? ' com marcador +1/+1' : sel.comMarcador === 'stun' ? ' com marcador de atordoamento' : ''}${jog ? ' ou ' + jog : ''}`; // M-253 // T-59 · histórica, fora da lei, modificada
 }
 /** CR2-G R3a · efeito contínuo estático em português: quem é afetado, o +N/+N (fixo ou por contagem) e as palavras-chave. */
-const PER_PT = { 'setes-no-seu-cemiterio': 'grupo de sete cartas no seu cemitério' /* M-595 */, 'creatures-you-control': 'criatura que você controla', 'other-creatures-you-control': 'outra criatura que você controla', 'enchantments-you-control': 'encantamento que você controla',
+const PER_PT = { 'setes-no-seu-cemiterio': 'grupo de sete cartas no seu cemitério' /* M-595 */, 'card-types-in-your-graveyard': 'tipo de carta entre as cartas do seu cemitério' /* M-619 */, 'creatures-you-control': 'criatura que você controla', 'other-creatures-you-control': 'outra criatura que você controla', 'enchantments-you-control': 'encantamento que você controla',
   'other-enchantments': 'outro encantamento', 'auras-on-battlefield': 'Aura no campo', 'permanents-you-control': 'permanente que você controla', 'elves-you-control': 'Elfo que você controla', 'plains-you-control': 'Planície que você controla', 'islands-you-control': 'Ilha que você controla', 'swamps-you-control': 'Pântano que você controla', 'mountains-you-control': 'Montanha que você controla', 'forests-you-control': 'Floresta que você controla', // M-516
  
   'counters-on-source': 'marcador +1/+1 nela', 'power-of-source': 'ponto de poder dela' };
@@ -41836,9 +41918,10 @@ function descreveEfeito(e) {
     case 'exile': return `exila ${alvo || 'uma permanente'}${e.mvAteM != null ? ` se o valor de mana dela for ${e.mvAteM.per === 'cores-gastas' ? 'no máximo o número de cores de mana gastas para conjurar esta mágica' : qtd(e.mvAteM) + ' ou menos'}` : ''}`; // M-540
     case 'bounce': return `devolve ${alvo || 'uma permanente'}${e.mesmoNome ? ' e todas as outras permanentes com o mesmo nome' : ''} para a mão do dono`; // M-425
     case 'to_hand': return e.target && typeof e.target === 'object' && e.target.zona === 'graveyard' ? `põe ${descreveSeletor(e.target)} na sua mão` : 'volta para a mão'; // M-553 · diz o que volta
-    case 'token': { const t = e.token || {}; const pd = (t.self || {}).ptDefinido, contaPT = v => v && v.per === 'soma' ? (v.partes || []).map(x => X_PT[x.per] || x.per).join(' mais ') : (v && (X_PT[v.per] || v.per)) || v; /* M-358 · achado da revisão: a ficha de P/T por contagem e as palavras-chave dela */
+    case 'token': { const t = e.token || {}; const pd = (t.self || {}).ptDefinido, contaPT = v => v && v.per === 'soma' ? (v.partes || []).map(x => typeof x === 'number' ? String(x) : X_PT[x.per] || x.per).join(' mais ') : (v && (X_PT[v.per] || v.per)) || v; /* M-358 · achado da revisão: a ficha de P/T por contagem e as palavras-chave dela */
       const pt = pd ? `, com poder e resistência iguais a ${contaPT(pd.poder != null ? pd.poder : pd.resistencia)}${(t.keywords || []).length ? ` e ${t.keywords.map(k => PALAVRA_PT[k] || k).join(', ')}` : ''},` : t.power != null ? ` ${t.power}/${t.toughness}` : ''; return `cria ${plural(n, 'ficha', 'fichas')}${t.name ? ` de ${t.name}` : ''}${pt}${e.virada ? (n === 1 ? ' virada' : ' viradas') : ''}${e.amount && e.amount.per === 'power-of-source' ? ' (X = o poder dela)' : ''}`; } // M-426 · achado da revisão da M-421
     case 'pump': { const p = e.power || 0, t = e.toughness || 0; const sinal = v => (v && (v.per || v.subtype) ? ((v.times || 1) < 0 ? '−X' : '+X') : v >= 0 ? `+${v}` : `−${Math.abs(v)}`); const quem = e.cada && e.cada.de === 'alvo' ? `cada criatura que ${e.target === 'opponent' ? 'o oponente alvo' : 'o jogador alvo'} controla` : (alvo || 'a criatura'); /* achado da revisão do lote XXIII: "cada criatura que cada criatura controla" */ if (p && p.per === 'se' && t && t.per === 'se') return `${quem} recebe ${sinal(p.nao)}/${sinal(t.nao)} (${sinal(p.sim)}/${sinal(t.sim)} ${CONDICAO_PT[p.se] || 'com a condição'}) até o fim do turno`; /* M-416 · mórbido (Tragic Slip) */ return `${quem} recebe ${sinal(p)}/${sinal(t)}${e.until === 'your-next-turn' ? ' até o seu próximo turno' : ' até o fim do turno'}${p && p.per === 'tipos-do-alvo' ? ' (X = supertipos, tipos e subtipos dela)' : ''}${p && p.subtype ? ` (X = ${p.subtype === 'Gate' ? 'Portões' : p.subtype === 'Swamp' ? 'Pântanos' : p.subtype + 's'} que você controla)` : ''}`; } // R9b (achado da C-1): contagem por subtipo mostrava "−NaN" (Defile, Basilisk Gate) · M-351 · "cada criatura do jogador alvo" (Arms of Hadar)
+    case 'tira_marcador': return `tira ${plural(Number.isInteger(e.amount) ? e.amount : 1, 'marcador ' + (MARCADOR_PT[e.tipo] || e.tipo), 'marcadores ' + (MARCADOR_PT[e.tipo] || e.tipo))} desta permanente`; // M-619
     case 'volta_ao_acaso': return `uma carta${e.tipos ? ' de ' + ({ creature: 'criatura', artifact: 'artefato', land: 'terreno', instant: 'mágica instantânea', sorcery: 'feitiço', enchantment: 'encantamento' }[e.tipos[0]] || e.tipos[0]) : ''} do seu cemitério, escolhida ao acaso, volta para a sua mão`; // M-369
     case 'dado': return `role ${e.quantos === 2 ? 'dois' : 'um'} d${e.lados}${e.ignora ? ' e ignore o menor' : ''}${Number.isInteger(e.mais) && e.mais ? ` e some ${e.mais}` : e.mais ? ' e some o modificador' : ''}`; // T-66 · CR 706
     case 'moeda': return `jogue uma moeda${e.ateperder ? ' até perder um lance' : ''}`; // T-65 · CR 705
@@ -42027,7 +42110,7 @@ function descreveEfeito(e) {
 }
 // Leva 131 · a condição do efeito entra na frase (Moon-Circuit Hacker: o aviso dizia "descarta 1 carta" no turno em que ela entrou, quando não descarta)
 const CONDICAO_PT = { 'alvo-mv-3-ou-menos': 'se o valor de mana do alvo era 3 ou menos' /* M-557 */, 'alvo-era-verde': 'se a carta for verde' /* M-553 */, revolta: 'com revolta (uma permanente sua saiu do campo neste turno)' /* M-537 */, 'inst-e-feit': 'com uma instantânea e um feitiço no seu cemitério' /* M-530 */, delirio: 'com delírio (4+ tipos de carta no seu cemitério)' /* M-528 */, 'nao-seu-turno': 'se não for o seu turno' /* M-452 */, kicked: 'se tiver sido reforçada', bargained: 'se tiver sido barganhada', 'paid-additional': 'se o custo adicional foi pago', metalcraft: 'com metalurgia', 'cast-from-graveyard': 'se foi conjurada do cemitério', 'source-entered-earlier': 'só se ela não entrou neste turno', 'not-attacked': 'só se você não atacou neste turno', evidenced: 'se colheu provas', 'not-evidenced': 'se não colheu provas', ferocious: 'se você controlar uma criatura com poder 4 ou mais', threshold: 'com limiar (sete cartas ou mais no seu cemitério)' /* M-412 */, morbid: 'se uma criatura morreu neste turno', 'landfall-turno': 'se um terreno entrou sob seu controle neste turno' /* M-437 */, 'na-principal-propria': 'se conjurada na sua fase principal' /* M-443 */ /* M-416 */, 'sem-limiar': 'sem limiar' /* M-417 */, 'alvo-era-neve': 'se o terreno era nevado', 'alvo-era-lendario': 'se a mágica era lendária' /* M-414 */, 'alvo-era-seu': 'se a permanente era sua' }; // M-385 // M-351 · Extract a Confession (achado da revisão do lote XXIII: as duas frases pareciam dois sacrifícios)
-const X_PT = { 'sacrificed-mv': 'ponto de valor de mana da criatura sacrificada', /* M-464 */ 'descartadas-assim': 'carta descartada assim', /* M-434 */ 'dano-causado': 'o dano causado assim', /* M-427 */ 'mesmo-nome-nos-cemiterios': 'carta com o mesmo nome em cada cemitério', 'attacking-creatures': 'criatura atacando', /* M-423 */ movidas: 'o número de cartas postas no cemitério assim', 'instants-sorceries-in-your-graveyard': 'mágicas instantâneas e feitiços no seu cemitério', 'flashback-cards-you-own-in-exile': 'cartas com lampejo do passado suas no exílio', /* M-358 */ 'cards-in-hand': 'cartas na sua mão', 'creature-cards-in-your-graveyard': 'cartas de criatura no seu cemitério', 'sacrificed-power': 'o poder da criatura sacrificada', 'sacrificed-toughness': 'a resistência da criatura sacrificada', 'sacrificed-mv': 'o valor de mana do que foi sacrificado' }; // M-354 · o que o X conta (achado da revisão do lote XXVI)
+const X_PT = { 'sacrificed-mv': 'ponto de valor de mana da criatura sacrificada', /* M-464 */ 'descartadas-assim': 'carta descartada assim', /* M-434 */ 'dano-causado': 'o dano causado assim', /* M-427 */ 'mesmo-nome-nos-cemiterios': 'carta com o mesmo nome em cada cemitério', 'attacking-creatures': 'criatura atacando', /* M-423 */ movidas: 'o número de cartas postas no cemitério assim', 'instants-sorceries-in-your-graveyard': 'mágicas instantâneas e feitiços no seu cemitério', 'flashback-cards-you-own-in-exile': 'cartas com lampejo do passado suas no exílio', /* M-358 */ 'cards-in-hand': 'cartas na sua mão', 'creature-cards-in-your-graveyard': 'cartas de criatura no seu cemitério', 'card-types-in-your-graveyard': 'tipos de carta entre as cartas do seu cemitério' /* M-619 */, 'sacrificed-power': 'o poder da criatura sacrificada', 'sacrificed-toughness': 'a resistência da criatura sacrificada', 'sacrificed-mv': 'o valor de mana do que foi sacrificado' }; // M-354 · o que o X conta (achado da revisão do lote XXVI)
 Object.assign(X_PT, { 'moedas-ganhas': 'os lances ganhos', 'resultado-do-dado': 'o resultado do dado' }); // T-65 · T-66
 const faixaPT_T = (e, f) => jogadorEncantadoPT_T(e, faixaDoDadoPT_T(e, f)); // T-94 · "that player" das Maldições
 const jogadorEncantadoPT_T = (e, f) => !f || !e || e.target !== 'enchanted-player' || /encantad/.test(f) ? f : `${f} (o jogador encantado)`;
