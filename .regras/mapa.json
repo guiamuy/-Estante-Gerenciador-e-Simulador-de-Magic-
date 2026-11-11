@@ -4674,13 +4674,14 @@
    "regra": "Handling Static Abilities",
    "titulo": "Habilidades que definem características (CDA)",
    "status": "coberta",
-   "evidencia": "changeling vale em qualquer zona (isChangeling index.html:11735 usado em filtros de busca e custo), devoid no script (self.devoid), poder/resistência por contagem (self.perPower → bonus :10074); rules.unit \"S34 · metamorfo conta como qualquer subtipo de criatura\", \"S40 · força por outras criaturas suas\" · auditoria CR2g/CR2b: poder e resistência definidos pela própria carta valem em todas as zonas (M-278, self.ptDefinido) · auditoria independente CR2b (11/10/2026): ptDefinido em todas as zonas (basePT); metamorfo e devoid valem em todas as zonas",
+   "evidencia": "changeling vale em qualquer zona (isChangeling index.html:11735 usado em filtros de busca e custo), devoid no script (self.devoid), poder/resistência por contagem (self.perPower → bonus :10074); rules.unit \"S34 · metamorfo conta como qualquer subtipo de criatura\", \"S40 · força por outras criaturas suas\" · auditoria CR2g/CR2b: poder e resistência definidos pela própria carta valem em todas as zonas (M-278, self.ptDefinido) · auditoria independente CR2b (11/10/2026): ptDefinido em todas as zonas (basePT); metamorfo e devoid valem em todas as zonas · M-619 (v112): contagem \"card types among cards in your graveyard\" (205.2a; countFor 'card-types-in-your-graveyard') e \"that number plus 1\" (`soma` com uma parte constante) — Nethergoyf",
    "depende": [
     "613"
    ],
    "testes": [
     "CR 613.4 · 7a: P/T definido por habilidade (criaturas que você controla); 7c soma por cima; 7b fixa e vence o 7a",
-    "CR 613.4 · 7d: trocar poder e resistência vem depois de tudo; duas trocas se anulam; acaba na limpeza"
+    "CR 613.4 · 7d: trocar poder e resistência vem depois de tudo; duas trocas se anulam; acaba na limpeza",
+    "M-619 · Nethergoyf (604.3): poder = tipos de carta no seu cemitério, resistência = isso mais 1; o cemitério do oponente não conta"
    ]
   },
   {
@@ -5947,14 +5948,15 @@
     "400.7",
     "603.4"
    ],
-   "evidencia": "T-84 (14/10/2026): cada carta de permanente (características da carta) que vai para o cemitério do dono, de qualquer lugar, conta uma descida do dono no turno (desceuT, no ponto de chegada ao cemitério de moveObject; ficha não é carta; não importa se continua lá). Gatilho condition: { desceu: true } (603.4: conferida ao disparar e ao resolver), efeito onlyIf: \"desceu\" e contagem { per: \"vezes-que-desceu\" }. Cartas: Child of the Volcano, Deep Goblin Skulltaker, Ruin-Lurker Bat, Enterprising Scallywag (Oracle do Forge, clone de 13/10/2026).",
+   "evidencia": "T-84 (14/10/2026): cada carta de permanente (características da carta) que vai para o cemitério do dono, de qualquer lugar, conta uma descida do dono no turno (desceuT, no ponto de chegada ao cemitério de moveObject; ficha não é carta; não importa se continua lá). Gatilho condition: { desceu: true } (603.4: conferida ao disparar e ao resolver), efeito onlyIf: \"desceu\" e contagem { per: \"vezes-que-desceu\" }. Cartas: Child of the Volcano, Deep Goblin Skulltaker, Ruin-Lurker Bat, Enterprising Scallywag (Oracle do Forge, clone de 13/10/2026). · M-619 (v112): gatilho em lote \"whenever one or more permanent cards are put into your graveyard from anywhere\" (evento `descem`, 603.2c: uma vez por evento, pelo lote da M-449) com a condição de disparo \"while this creature has a -1/-1 counter on it\" e o efeito `tira_marcador` — Moonshadow",
    "testes": [
     "CR 700.11 · Child of the Volcano (texto oficial): na etapa final, ganha um marcador se uma carta de permanente foi para o seu cemitério neste turno",
     "CR 700.11 · instantânea e feitiço não contam; ficha não é carta; descer \"de qualquer lugar\" conta (descarte de terreno)",
     "CR 700.11 · conta para o dono do cemitério: a criatura do oponente que morre não faz você descer",
     "CR 700.11 · é \"neste turno\": a descida do turno anterior não conta na etapa final do turno seguinte",
     "CR 700.11 · \"the number of times you descended this turn\": duas cartas de permanente, dois de vida; Enterprising Scallywag cria um Tesouro na etapa final",
-    "CR 700.11 · validador: a condição \"desceu\" do gatilho só vale como true"
+    "CR 700.11 · validador: a condição \"desceu\" do gatilho só vale como true",
+    "M-619 · Moonshadow: um evento, um gatilho; dois eventos na mesma mágica, dois; sem marcador não dispara; cartas do oponente e mágicas não contam"
    ]
   },
   {
@@ -9233,7 +9235,7 @@
    "regra": "Keyword Abilities",
    "titulo": "Escape",
    "status": "parcial",
-   "evidencia": "Chave de script `escape` (validador index.html:4605; Sentinel's Eyes :4914). cast() com a.escape exige a habilidade e a carta no cemitério (:12218-12226) e paga mana mais o exílio de outras cartas (:12261-12262); legalActions gera a ação com a escolha das cartas a exilar (:13083-13091); teste bogles.regras R5 (fuga por {W} exilando duas outras cartas, recusa sem duas). · T-123 (17/10/2026): (c) \"escapes with a +1/+1 counter\" (`escape.comMarcadoresT`, marca `escapouT` da conjuração) — Underworld Rage-Hound",
+   "evidencia": "Chave de script `escape` (validador index.html:4605; Sentinel's Eyes :4914). cast() com a.escape exige a habilidade e a carta no cemitério (:12218-12226) e paga mana mais o exílio de outras cartas (:12261-12262); legalActions gera a ação com a escolha das cartas a exilar (:13083-13091); teste bogles.regras R5 (fuga por {W} exilando duas outras cartas, recusa sem duas). · T-123 (17/10/2026): (c) \"escapes with a +1/+1 counter\" (`escape.comMarcadoresT`, marca `escapouT` da conjuração) — Underworld Rage-Hound · M-619 (v112): custo \"Exile any number of other cards from your graveyard with four or more card types among them\" (`escape.exileGraveyardTipos`; a oferta lista as escolhas mínimas, exilar mais também é aceito) — Nethergoyf",
    "falta": "T-123 (17/10/2026): \"escapa com marcadores\" (702.138c) feito pela marca `escapouT` (só para o script que declara `comMarcadoresT`). Falta: \"escapa com habilidade\" (702.138d) e a marca geral de \"escapou\" (702.138b) para outras cartas. (Antes: Não fica marcado que a mágica/permanente \"escapou\" (702.138b): \"escapa com marcadores\" (702.138c) e \"escapa com habilidade\" (702.138d) não existem, nem cartas que checam se escaparam (Uro, Kroxa, Phlage).)",
    "esforco": "P",
    "depende": [
@@ -9242,7 +9244,8 @@
    ],
    "cartas": "comum (Theros Beyond Death, Modern Horizons 3)",
    "testes": [
-    "CR 702.138c · fuga: do cemitério por {3}{R} e exilar três outras cartas; ela entra com um marcador +1/+1 (4/2); conjurada da mão, não"
+    "CR 702.138c · fuga: do cemitério por {3}{R} e exilar três outras cartas; ela entra com um marcador +1/+1 (4/2); conjurada da mão, não",
+    "M-619 · Nethergoyf com fuga (702.138a): só com quatro tipos entre as OUTRAS cartas; a escolha é de quem paga; menos de quatro é recusado"
    ]
   },
   {
