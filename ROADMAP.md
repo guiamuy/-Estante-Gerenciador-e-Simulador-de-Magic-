@@ -725,6 +725,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-vx ✅ | T-IDIOMA relatos #53/#66, lote 7 da fatia 3: as cartas que entraram nas listas depois dos lotes e já têm o Oracle no repositório (32 em português, 9 em espanhol: Garruk, Veiled Butcher, Overlord of the Hauntwoods, Niv-Mizzet, Parun, as terras de Star Trek, Aang e Emet-Selch de duas faces, Pompous Battlemage // Improvised Act pelas faces), pelo conferidor; 1.880 em português e 753 em espanhol seguem sem Oracle no repositório (G-383, 12/11/2026) | T | 1 | 16º-vg |
 | 16º-vf ✅ | Relato #137 (J-70): com o detalhe da pilha aberto, tocar de novo na faixa (na seta) recolhe; antes nada acontecia e só Esc ou toque fora fechavam (J-70, 11/11/2026) | J | 1 | — |
 | 16º-vh 🟡 | Relato #135, fatia 1 (G-379, 11/11/2026): lista pronta do Pauper que o motor não joga inteira (medida da sentinela abaixo de 100%) sai das Listas prontas e das prontas do Jogar, com a linha "N listas de Pauper estão fora…"; a medida a 100% a traz de volta sozinha. Fatia 2: a rotina Sentinela do Pauper trata primeiro as listas que saíram | G | 1 de 2 | 16º-vd |
+| 16º-vi ✅ | Relato #136 (J-69): o ⋯ da mesa abre o menu (Desfazer, Registro, Desistir), nunca o relato: a aba de relatar da borda direita ganha um piso medido no ⋯ (base dele + 8 px), refeito a cada pintura, rolagem e mudança de tamanho; com a barra de cima mais baixa (recorte da câmera no app instalado) ou a aba arrastada ao alto, ela não cobre mais o ⋯. A posição guardada não muda (leva J-69, 11/11/2026) | J | ½ | 16º-vd |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -15477,6 +15478,14 @@ Cloudflare) ficam do nosso lado, para gerar e validar. Cinco fatias MK3-P1…P5 
 - **Testes:** `catalogo.tela.unit` "G-379" e e2e "G-379 Pauper só com listas a 100%" (falhava antes).
 - **Fatia 2 (pendente):** a rotina Sentinela do Pauper passa a tratar primeiro as listas que saíram da vitrine (prompt da
   rotina, fora do repositório). O detalhe da lista por endereço direto continua abrindo, com o selo da medida.
+#### Relato #136 · o ⋯ da mesa abre o menu, não o relato (✅ J-69, 11/11/2026; `16º-vi`)
+- **Valor:** na partida, o toque no ⋯ do canto de cima abria o formulário de relato em vez do menu (relato do dono, "impede o uso").
+- **Causa:** a aba de relatar (fixa, acima da mesa) tinha o mínimo de 12% da janela, sem saber a altura real da barra de cima; com o
+  recorte da câmera no app instalado (a barra desce) ou a aba arrastada ao alto, ela ficava por cima do ⋯.
+- **Aceite:** o centro da aba nunca fica acima de base do ⋯ + 8 px + meia aba (`--tb-relatar-piso`, medido a cada pintura, rolagem e
+  mudança de tamanho; `top: max(posição guardada, piso)`); o toque no centro do ⋯ abre o menu; a aba segue tocável e arrastável.
+- **Testes:** e2e "J-69 relato #136" (barra 48 px mais baixa, aba arrastada ao alto; falhava antes) e o Y2 de sempre.
+- **Fora:** o relato #137 (a seta que recolhe o detalhe da pilha) é outro assunto (J-70).
 
 ## Trilha homologacao · prova de partida do catálogo (H)
 
