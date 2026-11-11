@@ -21,8 +21,9 @@ test('K-76 · 205.1b · o leitor lê as oito: o contínuo na própria fonte, com
   assert.deepEqual(viraDe('Soulstone Sanctuary'), [{ do: 'continuo', target: 'self-source', torna: { tipos: ['creature'], somaTipos: true, base: [3, 3], todosOsTiposDeCriatura: true }, palavras: ['vigilance'], ate: 'sempre' }], '611.2a: sem "until end of turn" o efeito não acaba');
 });
 
-test('K-76 · o que não cabe continua sem leitura (nada aproximado): frase a mais, X, salvaguarda', () => {
-  for (const n of ['Creeping Tar Pit', 'Lair of the Hydra', 'Hall of Storm Giants']) assert.equal(S.leitura(of(n)), null, n);
+// M-617 · Hall of Storm Giants saiu desta lista de propósito: o motor passou a ter salvaguarda com duração (702.21a) e o leitor a lê (lt296.unit).
+test('K-76 · o que não cabe continua sem leitura (nada aproximado): frase a mais, X', () => {
+  for (const n of ['Creeping Tar Pit', 'Lair of the Hydra']) assert.equal(S.leitura(of(n)), null, n);
 });
 
 test('K-76 · "todosOsTiposDeCriatura" só como true, numa criatura, sem subtipos listados', () => {
