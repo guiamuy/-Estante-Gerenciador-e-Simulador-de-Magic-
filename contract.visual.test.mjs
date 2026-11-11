@@ -1068,6 +1068,36 @@ test('MK3-1 · estojo das fases: tokens nos três blocos; estojo rebaixado no ei
   assert.ok(HTML.includes("class: 'ds-estojo', id: 'ds-estojo'") && HTML.includes("id: 'ds-estojo-troca'"), 'palco do estojo no /ds');
 });
 
+// MK3-P2 (J-71, trilha jogabilidade) · galeria e escolha: a escolha mora na aparência (ui.aparencia.playmat, no aparelho e no
+// backup) e no <html> (data-playmat), os lados da mesa herdam (os dois, espelho); a receita "pousar" do playmat só com tokens
+// (transform no lado, opacidade na sombra alta), três níveis; ladrilhos só com tokens; a tela, a entrada do Perfil, o ⋯ › Playmat e o palco no /ds.
+test('MK3-P2 · galeria e escolha: playmat na aparência e no <html>; o "padrao" da galeria não vale para o lado da mesa; receita pousar só com tokens e transform/opacity; ladrilhos só com tokens; tela, Perfil, ⋯ › Playmat e /ds', () => {
+  const casa = HTML.match(/const PLAYMATS = Object\.freeze\((\[.*?\])\);/)[1];
+  const chaves = [...casa.matchAll(/\['(\w+)', '/g)].map(m => m[1]);
+  assert.ok(HTML.includes(`const PLAYMATS = [${['padrao', ...chaves].map(k => `'${k}'`).join(', ')}];`), 'a aparência aceita o padrão e os seis da casa, na ordem da galeria');
+  assert.ok(HTML.includes("orientacao: 'automatica', playmat: 'padrao' };"), 'sem escolha, o padrão');
+  assert.ok(HTML.includes("if (aparencia.playmat === 'padrao') root.removeAttribute('data-playmat'); else root.setAttribute('data-playmat', aparencia.playmat);"), 'a escolha no <html>');
+  assert.ok(!/(^|\n)\[data-playmat="padrao"\] \{/.test(componentCss), 'o padrão explícito não é global: o lado da mesa sem escolha herda (MK3-P1)');
+  assert.ok(componentCss.includes('.playmat-ladrilho[data-playmat="padrao"], .playmat-previa > [data-playmat="padrao"] { --playmat: var(--bg-elev-1); }'), 'o padrão da galeria volta ao papel do lado');
+  const regra = sel => { const i = componentCss.indexOf(sel + ' {'); assert.ok(i >= 0, sel); return componentCss.slice(i, componentCss.indexOf('}', i)); };
+  assert.match(regra('.playmat-pousa'), /animation: playmat-pousa var\(--dur-4\) var\(--mola-macia\) backwards;/, 'mola macia, --dur-4');
+  assert.match(regra('.playmat-pousa::after'), /box-shadow: var\(--shadow-float\);[\s\S]*animation: playmat-pousa-sombra var\(--dur-4\) var\(--ease-out\);/, 'a sombra alta (L2) apaga ao pousar');
+  const kf = nome => { const i = componentCss.indexOf(`@keyframes ${nome} {`); assert.ok(i >= 0, nome); return componentCss.slice(i, componentCss.indexOf('\n', i)); };
+  assert.equal(kf('playmat-pousa'), '@keyframes playmat-pousa { from { transform: perspective(900px) translate3d(0, calc(var(--desloc-2) * -1), calc(var(--z-recuo) * -1)); } }', 'só transform, distância e Z por token (o moderado e o reduzido zeram pelo nível)');
+  assert.equal(kf('playmat-pousa-sombra'), '@keyframes playmat-pousa-sombra { from { opacity: 1; } to { opacity: 0; } }', 'a sombra só por opacidade');
+  assert.ok(componentCss.includes('@media (prefers-reduced-motion: reduce) { .playmat-pousa, .playmat-pousa::after { animation: none; } }'), 'menos movimento do aparelho: num quadro');
+  for (const sel of ['.playmat-previa', '.playmat-galeria', '.playmat-ladrilho', '.playmat-ladrilho__amostra', '.playmat-ladrilho__pe', '.playmat-ladrilho__nome', '.playmat-ladrilho__marca']) {
+    const r = regra(sel); assert.ok(!/#[0-9a-f]{3,8}\b|rgba?\(/i.test(r), `${sel}: cor só por token`); }
+  assert.match(regra('.playmat-ladrilho__amostra'), /background: var\(--lacquer\), var\(--playmat\);[\s\S]*box-shadow: var\(--mesa-poco\);/, 'a amostra é o playmat em poço, como na mesa');
+  assert.match(regra('.playmat-ladrilho'), /min-height: 44px;/, 'alvo de 44 px');
+  assert.ok(HTML.includes("{ path: '/perfil/playmats', title: 'Playmats', render: () => createPlaymatsScreen({ theme }) }"), 'a tela Playmats');
+  assert.ok(HTML.includes("id: 'perfil-playmats', onClick: () => go('/perfil/playmats')"), 'a entrada no Perfil');
+  assert.ok(HTML.includes("theme ? Button('Playmat', { icone: 'camadas', id: 'tb-playmat', variant: 'ghost', onClick: abrePlaymats }) : null"), '⋯ › Playmat na mesa');
+  assert.ok(HTML.includes("playmat: playmatDaMesa() }"), 'os dois lados da mesa dizem o playmat escolhido');
+  assert.ok(HTML.includes("id: 'ds-playmat-escolha'"), 'palco da galeria no /ds');
+  for (const id of ['playmats-vazio', 'playmats-erro', 'playmats-de-novo', 'playmats-voltar', 'playmats-erro-tela']) assert.ok(HTML.includes(`'${id}'`), `estado ${id}`);
+});
+
 // MK3-P1 (J-68, trilha jogabilidade) · playmats da casa: seis modelos procedurais (Ébano, Feltro, Oceano, Vinho, Pergaminho,
 // Latão gravado) como tokens nos três blocos de tema. Cada um: um tom de base (a cor do fundo, última camada) e camadas por cima
 // (luz de cima à esquerda, centro calmo nos que têm padrão, vinheta, grão ou padrão SVG no próprio token, nenhuma imagem de
