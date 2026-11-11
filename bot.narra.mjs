@@ -2,13 +2,14 @@
 // partidas que o piloto perdeu (ou de todas, com TODAS=1), a narração compacta: cabeçalho de cada turno (vida, mão, grimório,
 // campo dos dois) e cada jogada que não é passar, com o motivo que o Shark deu. É a matéria-prima do diagnóstico: cada erro
 // de jogo achado vira posição na bateria (bot.bateria.mjs) antes da correção. Fora do portão.
-// Uso: PILOTO=<índice> node bot.narra.mjs [partidas=8] [semente=500] [saida.txt]   (ORC=400 por padrão; NIVEL=shark)
+// Uso: [LISTAS=fora] PILOTO=<índice> node bot.narra.mjs [partidas=8] [semente=500] [saida.txt]   (ORC=400 por padrão; NIVEL=shark)
 import { writeFileSync } from 'node:fs';
 import { loadModules } from './_load.mjs';
-import { listasDoShark } from './torneio.listas.mjs';
+import { listasDoShark, listasDeFora } from './torneio.listas.mjs';
 const { engine: E, bot: B } = loadModules();
 
-const L = listasDoShark(), PIL = +(process.env.PILOTO || 1), ORC = +(process.env.ORC || 400), NIVEL = process.env.NIVEL || 'shark';
+// B-211 · LISTAS=fora narra as seis da régua de generalização (B-206)
+const L = process.env.LISTAS === 'fora' ? listasDeFora() : listasDoShark(), PIL = +(process.env.PILOTO || 1), ORC = +(process.env.ORC || 400), NIVEL = process.env.NIVEL || 'shark';
 const [N, BASE, SAIDA] = [+(process.argv[2] || 8), +(process.argv[3] || 500), process.argv[4]];
 const nome = (s, oid) => (s.objects[oid] || {}).name || oid;
 const campo = (s, p) => s.zones[p].battlefield.map(o => { const x = s.objects[o]; const st = E.stats ? E.stats(s, x) : null;
@@ -23,7 +24,8 @@ const acaoTexto = (s, a) => {
 export function narra(seed, d0, d1, piloto) {
   const cards = {}; for (const d of [d0, d1]) for (const e of d.entries) cards[e.name] = d.cartas[e.name];
   let s = E.createGame({ format: 'pauper', seed, mode: 'full', manaCheck: true, cards, players: [{ name: 'P0', deck: d0.entries }, { name: 'P1', deck: d1.entries }] });
-  const bots = [B.criaBot({ nivel: NIVEL, orcamentoMs: ORC }), B.criaBot({ nivel: NIVEL, orcamentoMs: ORC })];
+  const cria = () => NIVEL.startsWith('z:') ? B.criaBot({ nivel: 'shark', orcamentoMs: ORC, extra: Object.fromEntries(NIVEL.slice(2).split(',').filter(Boolean).map(k => k.startsWith('!') ? [k.slice(1), false] : [k, true])) }) : B.criaBot({ nivel: NIVEL, orcamentoMs: ORC }); // B-211 · NIVEL=z:peça, como no torneio
+  const bots = [cria(), cria()];
   const linhas = []; let turno = 0;
   for (let i = 0; i < 1500 && s.status !== 'over'; i++) {
     const quem = s.status === 'mulligan' ? s.players.findIndex(pl => !pl.kept) : s.pending ? s.pending.p : s.turn.priority;

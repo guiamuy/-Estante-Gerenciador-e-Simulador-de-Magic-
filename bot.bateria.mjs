@@ -12,16 +12,16 @@ const J = x => JSON.parse(JSON.stringify(x));
 const act = (s, a) => E.apply(s, a).state;
 const MADNESS = 0, CONTROLE = 1, FAERIES = 2, TERROR = 3, ELFOS = 4; // índices em LISTAS_DO_SHARK
 
-function jogo(a, b, seed = 9) {
-  const L = listasDoShark(), d0 = L[a], d1 = L[b];
+function jogo(a, b, seed = 9, L = listasDoShark()) { // B-211 · `L`: outras listas (a régua de fora) no lugar das cinco
+  const d0 = L[a], d1 = L[b];
   const cards = {}; for (const e of [...d0.entries, ...d1.entries]) cards[e.name] = d0.cartas[e.name] || d1.cartas[e.name];
   return E.createGame({ format: 'pauper', seed, mode: 'full', manaCheck: true, cards, players: [{ name: 'P0', deck: d0.entries }, { name: 'P1', deck: d1.entries }] });
 }
 /** Posição com duas listas do Shark (o Shark é sempre o jogador 0). `cfg`: { ativo, vez, passo, terreno (o ativo ainda pode baixar
     terreno), p0/p1: { campo, mao, cemiterio, vida, viradas (nomes do campo virados), soNoGrimorio (o resto do grimório vai ao
     exílio, que é aberto: todo mundo possível dá ao jogador só essas cartas) } }. */
-export function monta(a, b, { ativo = 0, vez = 0, passo = 'main1', terreno = false, p0 = {}, p1 = {}, seed = 9 } = {}) {
-  let s = jogo(a, b, seed);
+export function monta(a, b, { ativo = 0, vez = 0, passo = 'main1', terreno = false, p0 = {}, p1 = {}, seed = 9, listas = null } = {}) {
+  let s = jogo(a, b, seed, listas || listasDoShark());
   for (let p = 0; p < 2; p++) s = act(s, { t: 'keep', p, bottom: [] });
   for (let i = 0; i < 40 && s.turn.step !== 'main1'; i++) s = act(s, { t: 'pass', p: s.turn.priority });
   s = J(s); const ids = [{}, {}];
@@ -30,7 +30,7 @@ export function monta(a, b, { ativo = 0, vez = 0, passo = 'main1', terreno = fal
     for (const oid of [...z.hand]) { z.hand.splice(z.hand.indexOf(oid), 1); z.library.push(oid); s.objects[oid].zone = 'library'; }
     const tira = (nome, para) => {
       const oid = z.library.find(o => s.objects[o].name === nome);
-      if (!oid) throw new Error(`a lista ${listasDoShark()[p ? b : a].id} não tem mais ${nome}`);
+      if (!oid) throw new Error(`a lista ${(listas || listasDoShark())[p ? b : a].id} não tem mais ${nome}`);
       z.library.splice(z.library.indexOf(oid), 1); z[para].push(oid); Object.assign(s.objects[oid], { zone: para, sick: false, tapped: false });
       (ids[p][nome] = ids[p][nome] || []).push(oid); return oid;
     };

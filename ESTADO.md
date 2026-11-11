@@ -24,7 +24,7 @@ Marcos: Pauper 100% (as sete listas revisadas carta a carta; 682 de 685 listas P
 | `motor` | M | CR-PLANO Modern (34/716) | M-616 · 10/11 | {E}; delve {X}; learn; #58 |
 | `radar` | R | BI4 · Painel Estante: comparar períodos, metas, tendência | R-44 · 07/11 | BI4-6 em diante; validação do dono após os primeiros pilares |
 | `jogabilidade` | J | MK3 · Mesa Vitrine (rotina Mesa MK3) | J-65 · 10/11 | MK3-3 carta-objeto; relato #54 (Cidade Baixa) |
-| `bot` | B | B25 · força 55% (alvo 60%), Faeries 32,5%; fora 47% (B-206); B-207…B-209 desligadas | B-209 · 10/11 | Faeries: mulligan e curva × Madness; Temur e Azorius |
+| `bot` | B | B25 · força 55% (alvo 60%), Faeries 32,5%; fora 51% | B-211 · 11/11 | ritual no plano; laço do Azorius; Faeries × Madness |
 | `infra` | I | migração para a Vercel (https://estante-magic.vercel.app): PR com prévia, portão no clone (sem CI), dados por /dados/ com token de leitura, robôs na nuvem do Claude, rotinas publicam sozinhas, ponte das coleções (faixa no github.io leva tudo para a Vercel) | I-329 · 08/11 | dono levar a coleção pela ponte; depois, repo privado |
 | `homologacao` | H | prova de partida do catálogo, revisão em lote (Commander) | H-24 · 01/11 | lote 8 |
 | `protecao` | P | segurança e privacidade; Apoiar a Estante (MON1) | P-21 · 26/10 | — |
@@ -38,7 +38,7 @@ Datas no formato dia/mês, horário de Brasília. Trilha que muda de foco atuali
 - **Relatos do dono**, a cada 3 h: lê os relatos do dono e os pedidos de cobertura e resolve de ponta a ponta (prompt em `claude/ROTINA-relatos-do-dono.md`). A Relatos contínuo faz esse trabalho a cada hora.
 - **Relatos contínuo**, a cada 1 h (nuvem): roda a fila e atua no relato pendente mais urgente até produção (modo agilidade, 09/11).
 - **Sentinela do Pauper**, diária 12h40: cobre as cartas que tiram listas Pauper de 100% (`cobertura/pauper.json` do ramo `catalogo`).
-- **Shark contínuo**, a cada 4 h: B25 até as quatro réguas verdes, depois o portfólio de listas (B26); trilha `bot`, publica sozinha (B-204).
+- **Shark contínuo**, a cada 4 h: excelência nas listas que joga, depois todo o Pauper, depois o formato da campanha do motor; trilha `bot`, publica sozinha (B-204).
 - **Design DS-K3**, a cada 4 h: uma fatia do DS-K3 por rodada (trilha `geral`).
 - **Pendências do dono**, diária 7h43: mantém o artefato "Pendências da Estante" (estado em `claude/ROTINA-pendencias-estado.md`).
 - **Motor contínuo**, a cada 3 h: campanha de formato (hoje Modern), primitiva antes de carta.
@@ -79,4 +79,4 @@ Os documentos `claude/…` moram no Projeto do claude.ai, fora do repositório: 
 
 No commit de docs de cada leva (o mesmo que atualiza o ROADMAP): reescreva a **sua** linha na tabela de trilhas, atualize relatos e pendências se mudaram e troque a data abaixo. Edite por patch, nunca o arquivo inteiro. Conflito no rebase: fique com as linhas das outras trilhas e a sua. Passou de 8 KB: resuma, não acrescente.
 
-Atualizado: 10/11/2026 · I-328 (rotinas publicam) · M-612 (motor) · I-329 (ponte) · S-622 (scanner) · B-206 · B-207 · B-208 (bot) · G-362 a G-367 (geral) · S-623 (scanner) · G-368 (geral) · G-369 (geral) · M-613 (motor) · G-373 (geral) · M-615 (motor) · B-209 (bot) · G-371 · J-64 · J-65 · S-624 (scanner) · M-616 · G-372
+Atualizado: 10/11/2026 · I-328 (rotinas publicam) · M-612 (motor) · I-329 (ponte) · S-622 (scanner) · B-206 · B-207 · B-208 (bot) · G-362 a G-367 (geral) · S-623 (scanner) · G-368 (geral) · G-369 (geral) · M-613 (motor) · G-373 (geral) · M-615 (motor) · B-209 (bot) · G-371 · J-64 · J-65 · S-624 (scanner) · M-616 · G-372 · B-211 (bot)

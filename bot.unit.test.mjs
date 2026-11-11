@@ -1649,3 +1649,23 @@ test('B-206 · cada lista de fora joga uma partida Shark × Shark sem jogada ile
     assert.equal(B.perfilDe(s, 0), null, L[i].id + ' não casa com PERFIS escrito à mão');
   }
 });
+
+// B-211 · B25 · régua de fora: a carta exilada que eu posso jogar (impulso) vale como carta na mão (opção `impulso`, desligada até medir).
+test('B-211 · impulso: com duas Mountain e Wrenn\'s Resolve na fase principal, o Shark publicado (com `impulso`) conjura (troca uma carta por duas que pode jogar); o shark-v27 congelado passava', async () => {
+  const { monta } = await import('./bot.bateria.mjs');
+  const { listasDeFora } = await import('./torneio.listas.mjs');
+  const L = listasDeFora(), TEMUR = L.findIndex(l => l.id === 'fora-temur-desperate-ritual'), BRANCO = L.findIndex(l => l.id === 'fora-mono-white-raffines-informant');
+  const joga = nivel => { const { s } = monta(TEMUR, BRANCO, { listas: L, p0: { campo: ['Mountain', 'Mountain'], mao: ["Wrenn's Resolve"] }, p1: { campo: ['Plains', 'Plains'] } }); const j = B.criaBot({ nivel, agora: () => 0 }).jogada(s, 0); return { s, j }; };
+  const novo = joga('shark'), v27 = joga('shark-v27');
+  assert.equal(novo.j.acao.t, 'cast', novo.j.motivo); assert.equal(novo.s.objects[novo.j.acao.oid].name, "Wrenn's Resolve");
+  assert.equal(v27.j.acao.t, 'pass', 'v27: ' + v27.j.motivo);
+  // depois de resolver, as duas cartas exiladas ficam jogáveis por mim: é o que a parcela conta
+  let s = E.apply(novo.s, novo.j.acao).state; for (let i = 0; i < 6 && s.stack.length; i++) s = E.apply(s, { t: 'pass', p: s.turn.priority }).state;
+  const jogaveis = s.zones[0].exile.filter(o => s.objects[o].playableFromExile === 0);
+  assert.equal(jogaveis.length, 2);
+});
+test('B-211 · impulso não muda nada nas cinco listas do Shark (nenhuma carta delas deixa carta jogável no exílio): a bateria dá ao publicado e ao shark-v27 as mesmas certas e erradas', async () => {
+  const { pontua } = await import('./bot.bateria.mjs');
+  const a = pontua('shark-v27'), b = pontua('shark');
+  assert.equal(b.certas, a.certas); assert.deepEqual(b.erradas.map(e => e.id), a.erradas.map(e => e.id));
+});
