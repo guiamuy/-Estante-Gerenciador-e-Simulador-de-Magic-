@@ -121,6 +121,9 @@ export function lerRodapes(mensagem) {
  *   linhasDe(sha, arquivo) → Set das linhas (aparadas) do arquivo naquele commit; vazio se não existe
  *   levasPublicadas: [{ leva, sha, trilha }] de todo o histórico já publicado
  */
+/** I-331 · o rodapé "Atualizado: …" do ESTADO.md é um registro rolante (teto de 8 KB, "resuma, não acrescente"): o juntador
+    (estado-merge.mjs) corta as levas mais antigas dele, e isso não é apagar a entrega de outra trilha (o histórico mora no git log). */
+export const rodapeDoEstado = (arquivo, linha) => arquivo === 'ESTADO.md' && /^Atualizado: /.test(linha);
 export function conferir({ novos, janela, linhasDe, levasPublicadas = [] }) {
   const achados = [];
   for (const d of novos) {
@@ -146,6 +149,7 @@ export function conferir({ novos, janela, linhasDe, levasPublicadas = [] }) {
           depois = depois || linhasDe(d.sha, arquivo);
           if (depois.has(linha)) continue;                                 // movida de lugar não conta
           if (estendida(linha, dd.mais)) continue;                         // ganhou conteúdo, não perdeu nenhum
+          if (rodapeDoEstado(arquivo, linha)) continue;                     // I-331 · rodapé rolante do ESTADO.md: "passou de 8 KB, resuma"
           apagadas.push({ arquivo, linha });
         }
         for (const linha of dc.menos) {

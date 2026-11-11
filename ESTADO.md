@@ -11,7 +11,7 @@ Arquivo de entrada de toda conversa. Diz onde o projeto está, o que cada trilha
 
 ## O produto
 
-PWA de Magic: The Gathering publicado: listas, coleção, scanner de cartas, mesa (assistida e com motor de regras completo), bot Shark, notícias, relatos do dono e painel de BI (`painel.html`). `index.html` é o código-fonte (sem build). Offline primeiro. Portão: `npm test` (fase rápida + fase de tela). Publicação só pela fila (`npm run publicar`; regras no `CLAUDE.md`).
+PWA de Magic: The Gathering publicado: listas, coleção, scanner de cartas, mesa (assistida e com motor de regras completo), bot Shark, notícias, relatos do dono e painel de BI (`painel.html`). `index.html` é o código-fonte (sem build). Offline primeiro. Portão: `npm test` (fase rápida + fase de tela). Publicação: PR por leva e trem de produção (`npm run publicar`, `node trem.mjs`; regras no `CLAUDE.md`).
 
 Marcos: Pauper 100% (as sete listas revisadas carta a carta; 689 de 694 listas Pauper a 100% depois da M-622, 11/11; 5 cartas esperam primitiva). Motor v112. Commander parcial. Conformidade com as Comprehensive Rules em andamento (épico CR).
 
@@ -25,7 +25,7 @@ Marcos: Pauper 100% (as sete listas revisadas carta a carta; 689 de 694 listas P
 | `radar` | R | BI4 · Painel Estante: comparar períodos, metas, tendência | R-44 · 07/11 | BI4-6 em diante; validação do dono após os primeiros pilares |
 | `jogabilidade` | J | MK3 · Mesa Vitrine (rotina) | J-68 · 11/11 | MK3-P2 galeria e escolha; relato #54 |
 | `bot` | B | B25 · força 55%, Faeries 32,5%, fora ≈ 47%; B-210 impulso e ritual | B-210 · 10/11 | terreno sacrificado; Azorius |
-| `infra` | I | migração para a Vercel (https://estante-magic.vercel.app): PR com prévia, portão no clone (sem CI), dados por /dados/ com token de leitura, robôs na nuvem do Claude, rotinas publicam sozinhas, ponte das coleções (faixa no github.io leva tudo para a Vercel) | I-329 · 08/11 | dono levar a coleção pela ponte; depois, repo privado |
+| `infra` | I | trem de produção (I-331): leva abre PR sem prévia; o trem soma os PRs a cada 2 h, portão sobre a soma, uma prévia e um merge (2 deploys da Vercel); orçamento de 24 h com reserva de 30 | I-331 · 11/11 | primeiro trem com o backlog (#141, #143, #145, #129, #140, #142, #144); ponte das coleções; repo privado |
 | `homologacao` | H | prova de partida do catálogo, revisão em lote (Commander) | H-24 · 01/11 | lote 8 |
 | `protecao` | P | segurança e privacidade; Apoiar a Estante (MON1) | P-21 · 26/10 | — |
 
@@ -41,6 +41,7 @@ Datas no formato dia/mês, horário de Brasília. Trilha que muda de foco atuali
 - **Shark contínuo**, a cada 4 h: excelência nas listas que joga, depois todo o Pauper, depois o formato da campanha do motor; trilha `bot`, publica sozinha (B-204).
 - **Design DS-K3**, a cada 4 h: uma fatia do DS-K3 por rodada (trilha `geral`).
 - **Pendências do dono**, diária 7h43: mantém o artefato "Pendências da Estante" (estado em `claude/ROTINA-pendencias-estado.md`).
+- **Trem de produção**, a cada 2 h: junta os PRs abertos sobre o `main`, portão uma vez, uma prévia e um merge (`node trem.mjs`; seção no `CLAUDE.md`). Nenhuma outra rotina faz merge.
 - **Motor contínuo**, a cada 3 h: campanha de formato (Modern), primitiva antes de carta.
 
 ## Relatos do dono abertos (etiqueta `relato`)
@@ -79,4 +80,4 @@ Os documentos `claude/…` moram no Projeto do claude.ai, fora do repositório: 
 
 No commit de docs de cada leva (o mesmo que atualiza o ROADMAP): reescreva a **sua** linha na tabela de trilhas, atualize relatos e pendências se mudaram e troque a data abaixo. Edite por patch, nunca o arquivo inteiro. Conflito no rebase: fique com as linhas das outras trilhas e a sua. Passou de 8 KB: resuma, não acrescente.
 
-Atualizado: 11/11/2026 · I-328 (rotinas publicam) · M-612 (motor) · I-329 (ponte) · S-622 (scanner) · B-206 · B-207 · B-208 (bot) · G-362 a G-369 (geral) · S-623 (scanner) · M-613 · G-373 · M-615 · B-209 (bot) · G-371 · J-64 · J-65 · S-624 (scanner) · M-616 · G-372 · G-374 · S-625 · J-67 · G-375 · B-210 (bot) · M-618 · G-377 · J-68 · M-619 · G-378 · M-620 · M-617 · G-380 · M-622 · M-621
+Atualizado: 11/11/2026 · B-209 (bot) · G-371 · J-64 · J-65 · S-624 (scanner) · M-616 · G-372 · G-374 · S-625 · J-67 · G-375 · B-210 (bot) · M-618 · G-377 · J-68 · M-619 · G-378 · M-620 · M-617 · G-380 · M-622 · M-621 · I-331 (trem de produção)

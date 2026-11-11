@@ -3,6 +3,15 @@
   "installCommand": "echo sem-dependencias",
   "buildCommand": "node vercel-publico.mjs",
   "outputDirectory": "publico",
+  "git": {
+    "deploymentEnabled": {
+      "claude/**": false,
+      "fila/**": false,
+      "recusada/**": false,
+      "wip/**": false,
+      "acumulado/**": false
+    }
+  },
   "cleanUrls": false,
   "trailingSlash": false,
   "rewrites": [
