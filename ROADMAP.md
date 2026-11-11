@@ -5826,6 +5826,13 @@ Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora)
 - **Conferido:** o leitor antes e depois sobre as cartas revisadas e os pendentes dos competitivos: nenhuma leitura já completa mudou.
 - **Teste:** `lt278.unit` (4 testes; falham no motor anterior).
 
+**M-622 · Sentinela do Pauper: dez cartas passam a jogar (689 de 694 listas Pauper a 100% no app na próxima coleta)** ✅ (leva M-622, motor v112 sem mudança de forma; goldens intactos)
+- **Valor:** sentinela de 11/11/2026 (`cobertura/pauper.json` de 13:48 UTC: 685 de 694, 15 cartas pendentes). Texto da API da Scryfall de 11/11/2026 em `.listas/oficiais-revisadas.json`. Fecham Simic Arcane Denial (2), Simic Growth Spiral e Grixis Nihil Spellbomb.
+- **Regra:** sete já eram lidas e só faltava a revisão (Bellowing Crier, Disrupt, Gigadrowse, Pond Prophet, Prismari Campus, Sibsig Appraiser, Three Tree Mascot). Três com script à mão sobre primitivas existentes: Oona's Grace (alvo jogador + retrace, 702.81a), Keep Watch (uma carta por criatura atacante de qualquer jogador, 506.4) e Glistener Seer (entra com três marcadores de óleo, 614.1c; {T} e tirar um: vidência 1).
+- **Revisão independente:** as dez aprovadas, sem divergência.
+- **Fora (declarado), para a próxima rodada (triagem B, primitiva nova):** Rites of Initiation (descartar quantas quiser ao acaso e +1/+0 por carta; 2 listas Jeskai Squadron Hawk), Blanchwood Prowler (terreno dentre as moídas ou marcador) e Exhume (cada jogador devolve uma criatura do cemitério; Jund Satyr Wayfinder), Persistent Petitioners (custo "Tap four untapped Advisors you control"), Retraction Helix (criatura ganha habilidade ativada até o fim do turno; Quatro cores Guac & Marshmallow Pizza).
+- **Teste:** `sentinela.m620.unit` (3 testes; falham no motor anterior).
+
 **M-607 · LT265 · Sentinela do Pauper: Geothermal Bog, Dawnbringer Cleric e Thought Vessel (644 de 644 listas Pauper a 100% no app na próxima coleta)** ✅ (leva M-607, motor v112 sem mudança de forma; goldens intactos)
 - **Valor:** fecha a sentinela de 03/11/2026 (`cobertura/pauper.json` de 14:36 UTC: 640 de 644, 3 cartas pendentes). Texto da API da Scryfall de 03/11/2026 em `.listas/oficiais-revisadas.json`.
 - **Regra:** Geothermal Bog já era lida (entra virado; {B} ou {R} pelos subtipos, 305.6) e só faltava a revisão. Dawnbringer Cleric (triagem A): o leitor `__m42` passa a ler "Exile target card from a graveyard" com alvo obrigatório (sem carta em cemitério o modo não pode ser escolhido, 700.2a); o gatilho modal com nome de modo já existia (M-527). Thought Vessel (triagem A): o leitor lê "You have no maximum hand size" como regra de jogador da permanente (402.2; só enquanto está no campo, 611.3a); a regra já existia no motor (Steaming Sauna).

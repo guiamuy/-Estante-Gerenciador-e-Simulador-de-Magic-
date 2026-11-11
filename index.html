@@ -12111,6 +12111,12 @@ const RAW_SCRIPTS = [
   // L-3 · Pauper de M a Z, lote 3 (texto oficial em .listas/oficiais-listas.json, Oracle do Forge, 12/10/2026)
   { name: "Raven's Crime", retrace: true, effects: [{ do: 'discard', amount: 1, target: 'player' }], // "Target player discards a card. / Retrace"
     example: { target: 'opponent', expect: { handDelta: 0 } } },
+  // M-622 · Sentinela do Pauper (texto da Scryfall de 11/11/2026, cobertura/pauper.json de 13:48 UTC; revisão independente sem divergência)
+  { name: "Oona's Grace", retrace: true, effects: [{ do: 'draw', amount: 1, target: 'player' }], example: { target: 'self-player', expect: { handDelta: 1 } } }, // "Target player draws a card. / Retrace" (702.81a)
+  { name: 'Keep Watch', effects: [{ do: 'draw', amount: { per: 'attacking-creatures' } }], example: { target: 'none', expect: { handDelta: 0 } } }, // sem atacantes, nenhuma carta · "Draw a card for each attacking creature." (506.4: toda criatura atacante, de qualquer jogador)
+  { name: 'Glistener Seer', entra: [{ afetados: 'self', marcadores: { oil: 3 } }], // "This creature enters with three oil counters on it." (614.1c)
+    abilities: [{ kind: 'activated', cost: { tap: true, removeCounters: { tipo: 'oil', n: 1 } }, effects: [{ do: 'scry', amount: 1 }] }],
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // "{T}, Remove an oil counter from this creature: Scry 1."
   { name: 'Might of the Masses', effects: [{ do: 'pump', power: { per: 'creatures-you-control' }, toughness: { per: 'creatures-you-control' }, target: 'creature' }], // "Target creature gets +1/+1 until end of turn for each creature you control."
     example: { target: 'own-creature', expect: { pump: [2, 2] } } }, // no cenário você controla dois Ursos
   { name: 'Oroku Saki, Shredder Rising', sneak: { mana: '{1}{B}' }, // "Sneak {1}{B}"
@@ -13858,6 +13864,10 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Sheoldred\'s Edict': { texto: 'ynb7t9', leva: 'M-615' },
   // M-616 · rotina Motor contínuo · 107.14 / 608.2d: pagar energia em quantia escolhida na resolução e varrer pela energia paga (energia_varre); texto da Scryfall de 08/11/2026 (cobertura do ramo catalogo)
   'Wrath of the Skies': { texto: '1qyq2jg', leva: 'M-616' },
+  // M-622 · Sentinela do Pauper: 7 lidas, revisão independente sem divergência (texto da Scryfall de 11/11/2026 em .listas/oficiais-revisadas.json)
+  'Bellowing Crier': { texto: '15ju6fb', leva: 'M-622' }, 'Disrupt': { texto: '118amsw', leva: 'M-622' }, 'Gigadrowse': { texto: '1h9un0t', leva: 'M-622' },
+  'Pond Prophet': { texto: '1kohao3', leva: 'M-622' }, 'Prismari Campus': { texto: '1henxx', leva: 'M-622' }, 'Sibsig Appraiser': { texto: 'ux5hb4', leva: 'M-622' },
+  'Three Tree Mascot': { texto: '2rfq8k', leva: 'M-622' },
   'Overlord of the Balemurk': { texto: '1mle74k', leva: 'M-618' }, // M-618 · rotina Motor contínuo: impending (K-58) + "whenever this permanent enters or attacks" e a volta opcional de "a non-Avatar creature card or a planeswalker card"; texto da Scryfall de 10/11/2026
   // M-617 · rotina Motor contínuo · 702.21a com duração e "If you control two or more other lands, this land enters tapped": Hall of Storm Giants lida por inteiro (Scryfall, 10/11/2026)
   'Hall of Storm Giants': { texto: '177dox0', leva: 'M-617' },
