@@ -17945,6 +17945,41 @@ test('e2e · MJ1c pilha e resumo por cima da mesa: o campo não desce, a faixa n
   assert.deepEqual(errors, []);
 });
 
+
+// J-70 (trilha jogabilidade) · relato #137: com a pilha aberta, tocar de novo na faixa (na seta) recolhe o detalhe. Antes, o
+// botão guardava o "aberto" da última pintura (fechado) e, como abrir a pilha não repinta a mesa, o segundo toque pedia
+// "abrir" outra vez e nada acontecia; só Esc ou toque fora fechavam.
+test('e2e · J-70 a seta da faixa da pilha recolhe o detalhe aberto (relato #137)', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await createDeck(page, base, 'Magos', '10 Island\n10 Prodigal Sorcerer\n20 Counterspell', 'livre');
+  await page.goto(base + '#/mesa');
+  await page.click('[data-opponent="hotseat"]');
+  await page.fill('#mesa-me', 'Ana'); await page.fill('#mesa-them', 'Bia');
+  await page.click('[data-mana]');
+  await page.fill('#mesa-seed', '4');
+  await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  await reveal(page); await page.click('#tb-keep');
+  await reveal(page); await toMyMain(page);
+  await drawUntil(page, 'Island'); await handCard(page, 'Island').click(); await page.click('text=Jogar terreno');
+  await drawUntil(page, 'Prodigal Sorcerer');
+  await handCard(page, 'Prodigal Sorcerer').click();
+  await page.click('.ds-dialog >> text=Conjurar');
+  await reveal(page);
+  await page.setViewportSize({ width: 360, height: 697 });
+  await page.waitForSelector('#tb-stack-btn');
+  const estado = () => page.evaluate(() => ({ aberto: document.querySelector('#tb-stack-btn').getAttribute('aria-expanded'), painel: !document.querySelector('#tb-stack-painel').hidden }));
+  for (let volta = 1; volta <= 2; volta++) {
+    await page.click('#tb-stack-btn .tb-stack__seta');
+    await page.waitForSelector('#tb-stack-painel', { state: 'visible' });
+    assert.deepEqual(await estado(), { aberto: 'true', painel: true }, `volta ${volta}: o toque na faixa abre`);
+    await page.click('#tb-stack-btn .tb-stack__seta'); // a seta continua tocável com o detalhe aberto
+    await page.waitForSelector('#tb-stack-painel', { state: 'hidden', timeout: 2000 });
+    assert.deepEqual(await estado(), { aberto: 'false', painel: false }, `volta ${volta}: o segundo toque na seta recolhe`);
+  }
+  assert.deepEqual(errors, []);
+});
 // MJ1d (leva J-5, trilha jogabilidade) · terrenos compactos: na fileira dos terrenos a carta usa --carta-terreno (≈ 72% da
 // carta do campo), e o lado encolhe ~28 px; as criaturas ficam no tamanho da faixa. Crítica da J-1: um terreno sozinho
 // ocupava uma fileira do tamanho da das criaturas.
