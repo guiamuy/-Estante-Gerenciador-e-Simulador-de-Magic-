@@ -246,3 +246,20 @@ test('G-380 · pacotes: o lote de Commander está lá, passa no conferidor e val
     assert.ok(C.traducaoDaCarta(P, card, lang), `${lang} · ${nome} aparece no app`);
   }
 });
+
+// G-383 · lote 7 (relatos #53/#66): as cartas que entraram nas listas depois dos lotes e já têm o Oracle no repositório
+// (Standard, Pioneer, Modern, Legacy, Pauper e Commander: 32 em português, 9 em espanhol), todo pelo conferidor; a carta de
+// duas faces que a fonte guardou num texto só ("Frente\n//\nVerso") vai pelas faces. Falhava antes: nenhuma estava no pacote.
+const AMOSTRA_G383_PT = ['Garruk, Veiled Butcher', 'Overlord of the Hauntwoods', 'Niv-Mizzet, Parun', 'Federation Outpost', 'Aang, Swift Savior // Aang and La, Ocean\'s Fury', 'Emet-Selch, Unsundered // Hades, Sorcerer of Eld', 'Pompous Battlemage // Improvised Act'];
+const AMOSTRA_G383_ES = ['Federation Outpost', 'The Naked Time', 'Hulkling, Young Avenger', 'Thor, Guardian of Midgard', 'Invert // Invent'];
+test('G-383 · pacotes: o lote 7 (cartas novas nas listas, com Oracle guardado) está lá, passa no conferidor e vale no app', () => {
+  const pt = lePacote('pt'), es = lePacote('es');
+  assert.ok(Object.keys(pt.cartas).length >= 658 + 32, `pt: ${Object.keys(pt.cartas).length}`);
+  assert.ok(Object.keys(es.cartas).length >= 132 + 9, `es: ${Object.keys(es.cartas).length}`);
+  for (const lang of IDIOMAS) assert.deepEqual(conferePacote(lePacote(lang), lang), {}, lang);
+  for (const [P, amostra, lang] of [[pt, AMOSTRA_G383_PT, 'pt'], [es, AMOSTRA_G383_ES, 'es']]) for (const nome of amostra) {
+    const e = P.cartas[nome]; assert.ok(e, `${lang} · ${nome}`);
+    const card = Array.isArray(e.original) ? { name: nome, faces: e.original.map(o => ({ oracle_text: o })) } : { name: nome, oracle_text: e.original };
+    assert.ok(C.traducaoDaCarta(P, card, lang), `${lang} · ${nome} aparece no app`);
+  }
+});
