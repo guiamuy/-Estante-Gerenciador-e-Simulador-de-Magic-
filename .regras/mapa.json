@@ -4877,8 +4877,8 @@
    "regra": "Resolving Spells and Abilities",
    "titulo": "Resolução de instantânea, feitiço ou habilidade",
    "status": "parcial",
-   "evidencia": "resolveScript (index.html:11666-11707) e resolveAbility (:13185-13235): \"se\" do gatilho reconferido (:13187), alvos reconferidos e mágica anulada só se todos ficaram ilegais, efeito parcial com alvo ilegal pulado (:11686-11688), instruções na ordem, escolhas na resolução com retomada (resume/resumeEffects :11531), conjurar durante a resolução (cast_free :12461), controlador do alvo por última informação (:11689), mágica ao cemitério no fim (resolveTop :12080). Testes: rules.unit \"M9 · habilidade com alvo que some é anulada\", \"S38 · até dois alvos\", \"S47 · mágica de até dois alvos … resolve sem anular\", \"S38 · destruir o artefato e o dano vai para quem o controlava\", \"S60 · correção: descarte pedido por um efeito retoma o resto do efeito\", \"S61 · Covil do Mago Louco: compra três e conjura uma sem pagar\"; scripts.unit:213 (608.2b) · CR2a.1/CR2a.4 (v75, v78): 608.2c — nenhuma ação de estado entre os efeitos de uma resolução, nem quando ela para numa escolha; 608.2h — \"X = resistência da criatura sacrificada\" lê a foto da permanente (Ayli) · auditoria independente CR2a/CR2h (11/10/2026): 608.2e \"cada jogador sacrifica\" em APNAP (CR2a.4); 608.2n por objeto (M-291)",
-   "falta": "lose_unless começa pelo controlador; 608.2g e p como estão; 608.2h: \"dano igual ao poder\" usa o retrato do campo (M-323), mas não confere se a fonte voltou ao campo como objeto novo",
+   "evidencia": "resolveScript (index.html:11666-11707) e resolveAbility (:13185-13235): \"se\" do gatilho reconferido (:13187), alvos reconferidos e mágica anulada só se todos ficaram ilegais, efeito parcial com alvo ilegal pulado (:11686-11688), instruções na ordem, escolhas na resolução com retomada (resume/resumeEffects :11531), conjurar durante a resolução (cast_free :12461), controlador do alvo por última informação (:11689), mágica ao cemitério no fim (resolveTop :12080). Testes: rules.unit \"M9 · habilidade com alvo que some é anulada\", \"S38 · até dois alvos\", \"S47 · mágica de até dois alvos … resolve sem anular\", \"S38 · destruir o artefato e o dano vai para quem o controlava\", \"S60 · correção: descarte pedido por um efeito retoma o resto do efeito\", \"S61 · Covil do Mago Louco: compra três e conjura uma sem pagar\"; scripts.unit:213 (608.2b) · CR2a.1/CR2a.4 (v75, v78): 608.2c — nenhuma ação de estado entre os efeitos de uma resolução, nem quando ela para numa escolha; 608.2h — \"X = resistência da criatura sacrificada\" lê a foto da permanente (Ayli) · auditoria independente CR2a/CR2h (11/10/2026): 608.2e \"cada jogador sacrifica\" em APNAP (CR2a.4); 608.2n por objeto (M-291) · M-624 (12/11/2026): \"each opponent loses N life unless they discard a card\" (lose_unless com each-opponent: só os oponentes); 608.2c \"If you control a Demon or Devil\" conferido na resolução; 608.2d \"gains your choice of double strike or lifelink\": quem controla escolhe na resolução (keyword com escolha).",
+   "falta": "lose_unless com each-player começa pelo controlador (each-opponent, M-624, só os oponentes); 608.2g e p como estão; 608.2h: \"dano igual ao poder\" usa o retrato do campo (M-323), mas não confere se a fonte voltou ao campo como objeto novo",
    "esforco": "M",
    "depende": [
     "704.3",
@@ -4888,7 +4888,9 @@
     "CR 704.5 · Mishra\\",
     "CR 702.2 · toque mortífero concedido à fonte de uma habilidade de dano destrói (pinger com colar); com infectar também destrói",
     "CR 704.5 · o toque mortífero vale só desde a última checagem: o indestrutível que perde a indestrutibilidade depois não morre",
-    "CR 400.7 · o que a resolução anotou na carta não acompanha o objeto novo: o lampejo do Prismatic Strands pede a cor de novo; a segunda Call of the Death-Dweller sem alvo não mexe na criatura da primeira"
+    "CR 400.7 · o que a resolução anotou na carta não acompanha o objeto novo: o lampejo do Prismatic Strands pede a cor de novo; a segunda Call of the Death-Dweller sem alvo não mexe na criatura da primeira",
+    "M-624 · Ob Nixilis +1: B escolhe descartar ou perder 2; sem carta na mão perde direto; com Demônio ou Diabo (até changeling) A ganha 2",
+    "M-624 · Practiced Offense: um marcador em cada criatura do jogador alvo; a criatura alvo ganha, à escolha de quem conjura, golpe duplo ou vínculo"
    ]
   },
   {
@@ -9488,17 +9490,19 @@
    "regra": "Keyword Abilities",
    "titulo": "Casualty",
    "status": "parcial",
-   "falta": "Só mágica instantânea ou feitiço: a cópia de mágica de permanente (Ob Nixilis, \"Casualty X\") fica de fora. Várias instâncias de baixa (702.153b) contam como uma.",
+   "falta": "Várias instâncias de baixa (702.153b) contam como uma. Casualty X com X = 0 não é oferecido (a cópia morreria na hora: o mesmo que sacrificar sem copiar).",
    "esforco": "M",
    "depende": [
     "707.10 cópia de mágica",
     "601.2b custo adicional"
    ],
    "cartas": "uma coleção só (Streets of New Capenna)",
-   "evidencia": "K-68: \"Casualty N\" (numerosK) é custo adicional opcional: a ação traz a criatura a sacrificar (casualtyK; ofertasBaixaK: uma variante por criatura sua com poder N ou mais, também na conjuração sem pagar). Em HANDLERS.cast, baixaNaPilhaK confere o poder, sacrifica e põe na pilha o gatilho que copia a mágica (tempestade_k com uma cópia, alvo próprio).",
+   "evidencia": "K-68: \"Casualty N\" (numerosK) é custo adicional opcional: a ação traz a criatura a sacrificar (casualtyK; ofertasBaixaK: uma variante por criatura sua com poder N ou mais, também na conjuração sem pagar). Em HANDLERS.cast, baixaNaPilhaK confere o poder, sacrifica e põe na pilha o gatilho que copia a mágica (tempestade_k com uma cópia, alvo próprio). · M-624 (12/11/2026): \"Casualty X\" de planeswalker (Ob Nixilis, the Adversary, self.baixaXM): X escolhido ao conjurar, de 1 ao poder da criatura sacrificada; a cópia da mágica de permanente vira ficha, não é lendária e entra com lealdade X (baixaXNaPilhaM, variantesBaixaXM).",
    "testes": [
     "CR 702.153a · baixa (Light ’Em Up, texto oficial: \"Casualty 2\"): sacrificando uma criatura com poder 2 ou mais, a mágica é copiada (a cópia com alvo próprio); poder menor não serve",
-    "K-68 · baixa (702.153): sacrificando o Urso, o \"+2/+0\" é copiado; o outro Urso ataca com +4/+0"
+    "K-68 · baixa (702.153): sacrificando o Urso, o \"+2/+0\" é copiado; o outro Urso ataca com +4/+0",
+    "M-624 · Ob Nixilis (702.153a com X): uma variante por criatura e por X de 1 ao poder dela; sem criatura de poder 1+, só a normal",
+    "M-624 · Ob Nixilis com baixa 3: o Gigante é sacrificado, a cópia resolve antes, vira ficha não lendária com lealdade 3, e as duas ficam"
    ]
   },
   {
@@ -10595,7 +10599,7 @@
    "regra": "Copying Objects",
    "titulo": "Copiar mágica ou habilidade",
    "status": "parcial",
-   "evidencia": "tempestade: uma cópia por mágica anterior, na pilha por cima da original, com alvo próprio, resolve mesmo se a original for anulada (index.html:12288-12293; ordem em 11821-11827; resolução 12046-12050) · M-265/M-271 (v97): cópias do replicar (uma por pagamento, alvo próprio) e \"pode copiar esta mágica\" na resolução quando conjurada de um cemitério (copiar_esta; Sevinne's Reclamation), as duas como item na pilha com alvo novo. · CR2f.3/M-282 (v98): a cópia de mágica (tempestade, replicar, \"pode copiar esta mágica\") é uma mágica na pilha — alvo de \"anule a mágica alvo\", leva modo, X, reforço, encaixe e custo alternativo da original, não é conjurada, e fora da pilha deixa de existir (707.10a, 704.5e); cópia de mágica de permanente entra como ficha (707.10c). \"Pode copiar\" decide antes de a cópia ir à pilha. copia3.unit. · T-108 (14/10/2026): \"Copy target instant or sorcery spell [you control]. You may choose new targets for the copy.\" (efeito `copia_magia`, `vezes`): a cópia vai direto à pilha por cima, é de quem copiou, leva as escolhas da original e escolhe alvo de novo; não é conjurada; a alvo que saiu da pilha não é copiada. Twincast, Reverberate, Reiterate, Increasing Vengeance, Geistblast, Nivix Guildmage, Dualcaster Mage (tipos.copiamagia.unit) · T-109 (14/10/2026): 707.10b — \"Copy target [activated or] triggered ability you control\" (efeito `copia_habilidade`; seletor `habilidades: 'so' | 'disparadas'` com `de`): a cópia leva o valor do gatilho, as marcas de \"aquele jogador/aquela carta\", X, cor e modo; 707.10c — a cópia de mágica de permanente vira ficha (Lithoform Engine). Strionic Resonator, Lithoform Engine · T-110 (17/10/2026): só habilidade disparada é alvo de \"triggered ability\" (ciclar e desenterrar não); a cópia leva os custos adicionais pagos e a face para baixo; cópia de Aura encanta o mesmo alvo",
+   "evidencia": "tempestade: uma cópia por mágica anterior, na pilha por cima da original, com alvo próprio, resolve mesmo se a original for anulada (index.html:12288-12293; ordem em 11821-11827; resolução 12046-12050) · M-265/M-271 (v97): cópias do replicar (uma por pagamento, alvo próprio) e \"pode copiar esta mágica\" na resolução quando conjurada de um cemitério (copiar_esta; Sevinne's Reclamation), as duas como item na pilha com alvo novo. · CR2f.3/M-282 (v98): a cópia de mágica (tempestade, replicar, \"pode copiar esta mágica\") é uma mágica na pilha — alvo de \"anule a mágica alvo\", leva modo, X, reforço, encaixe e custo alternativo da original, não é conjurada, e fora da pilha deixa de existir (707.10a, 704.5e); cópia de mágica de permanente entra como ficha (707.10c). \"Pode copiar\" decide antes de a cópia ir à pilha. copia3.unit. · T-108 (14/10/2026): \"Copy target instant or sorcery spell [you control]. You may choose new targets for the copy.\" (efeito `copia_magia`, `vezes`): a cópia vai direto à pilha por cima, é de quem copiou, leva as escolhas da original e escolhe alvo de novo; não é conjurada; a alvo que saiu da pilha não é copiada. Twincast, Reverberate, Reiterate, Increasing Vengeance, Geistblast, Nivix Guildmage, Dualcaster Mage (tipos.copiamagia.unit) · T-109 (14/10/2026): 707.10b — \"Copy target [activated or] triggered ability you control\" (efeito `copia_habilidade`; seletor `habilidades: 'so' | 'disparadas'` com `de`): a cópia leva o valor do gatilho, as marcas de \"aquele jogador/aquela carta\", X, cor e modo; 707.10c — a cópia de mágica de permanente vira ficha (Lithoform Engine). Strionic Resonator, Lithoform Engine · T-110 (17/10/2026): só habilidade disparada é alvo de \"triggered ability\" (ciclar e desenterrar não); a cópia leva os custos adicionais pagos e a face para baixo; cópia de Aura encanta o mesmo alvo · M-624 (12/11/2026): cópia de mágica de permanente com exceção (\"the copy isn't legendary and has starting loyalty X\", Ob Nixilis): naoLendariaM e lealdadeXM viajam com a cópia e valem no campo; a ficha de planeswalker que vem da pilha recebe a lealdade uma vez só (antes, o dobro).",
    "falta": "Cópia com exceção (Fork: \"except that the copy is red\"), cópia que muda de alvo por regra (707.10d) e gatilhos \"sempre que você ativar uma habilidade… copie-a\" (Rings of Brighthearth, Illusionist's Bracers).",
    "esforco": "M",
    "depende": [
@@ -10620,7 +10624,8 @@
     "CR 707.10b · T-110: o Strionic Resonator não mira a habilidade de ciclar (ativada, vai à pilha por outro caminho)",
     "CR 707.10 · T-110: a cópia leva o custo adicional pago — a cópia do \"sacrifique uma criatura\" causa o mesmo dano",
     "CR 707.10 · T-110: Lithoform Engine copia uma Aura — a ficha encanta o mesmo alvo",
-    "CR 708.10 / 707.10b · T-110: textos — a cópia não revela a mágica virada para baixo; seletor de habilidade descrito; validador"
+    "CR 708.10 / 707.10b · T-110: textos — a cópia não revela a mágica virada para baixo; seletor de habilidade descrito; validador",
+    "M-624 · baixa com X menor que o poder: a cópia entra com lealdade X; duas originais ainda caem na regra das lendas"
    ]
   },
   {
