@@ -721,6 +721,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-vd ✅ | Relato #124 (J-66): a permanente que ganhou proteção (Aura como Benevolent Blessing, Equipamento, mágica do turno) mostra o escudo na barra de estados com uma faixa por cor protegida na cor do mana; o nome falado e a folha da carta dizem contra o quê ("Proteção contra verde"). Parcial: a proteção impressa na própria carta não vira marca (está no texto, como as palavras-chave impressas); proteção dada por efeito estático de outra permanente que o motor não põe em `protections` também não aparece. |
 | 16º-ve ✅ | T-IDIOMA relatos #53/#66, lote 5 da fatia 3: Legacy e Vintage (59 cartas em português, 29 em espanhol: Black Lotus, Time Walk, Ancestral Recall, Bazaar of Baghdad, Barrowgoyf…), pelo conferidor; Carnivorous Cultivator // Enroot fica em inglês (o Oracle guardado não separa as faces) (G-377, 11/11/2026) | T | 1 | 16º-vb |
 | 16º-vg ✅ | T-IDIOMA relatos #53/#66, lote 6 da fatia 3: Commander (160 cartas em português, 43 em espanhol: Korvold, Niv-Mizzet, Imperial Seal, Knuckles, as Salas, Aang de duas faces…), pelo conferidor; 1.877 em português e 753 em espanhol seguem sem Oracle no repositório (G-380, 11/11/2026) | T | 1 | 16º-ve |
+| 16º-vx ✅ | T-IDIOMA relatos #53/#66, lote 7 da fatia 3: as cartas que entraram nas listas depois dos lotes e já têm o Oracle no repositório (32 em português, 9 em espanhol: Garruk, Veiled Butcher, Overlord of the Hauntwoods, Niv-Mizzet, Parun, as terras de Star Trek, Aang e Emet-Selch de duas faces, Pompous Battlemage // Improvised Act pelas faces), pelo conferidor; 1.880 em português e 753 em espanhol seguem sem Oracle no repositório (G-383, 12/11/2026) | T | 1 | 16º-vg |
 | 16º-vf ✅ | Relato #137 (J-70): com o detalhe da pilha aberto, tocar de novo na faixa (na seta) recolhe; antes nada acontecia e só Esc ou toque fora fechavam (J-70, 11/11/2026) | J | 1 | — |
 | 16º-vh 🟡 | Relato #135, fatia 1 (G-379, 11/11/2026): lista pronta do Pauper que o motor não joga inteira (medida da sentinela abaixo de 100%) sai das Listas prontas e das prontas do Jogar, com a linha "N listas de Pauper estão fora…"; a medida a 100% a traz de volta sozinha. Fatia 2: a rotina Sentinela do Pauper trata primeiro as listas que saíram | G | 1 de 2 | 16º-vd |
 
@@ -13775,6 +13776,14 @@ trilha `geral`, 09/11/2026; relato do dono de 09/11: o Enviar abria o GitHub e o
   repositório (a sessão não alcança a Scryfall; o Commander tem 7.844 cartas diferentes); Carnivorous Cultivator // Enroot e
   Pompous Battlemage // Improvised Act ficam em inglês (o Oracle guardado vem numa face só, com "//"). Os relatos seguem
   abertos até o resto do Commander ter Oracle.
+- **Lote 7 da fatia 3 (G-383, `16º-vx`, rotina Relatos do dono, 12/11/2026) ✅:** `--faltam pt|es --formato` em todos os
+  formatos do catálogo: as cartas que entraram nas listas depois dos lotes e têm Oracle guardado (32 em português, 9 em
+  espanhol; pacotes: 690 e 141), pelo conferidor. Pompous Battlemage // Improvised Act vai pelas faces, separando o Oracle
+  guardado no "//"; Carnivorous Cultivator segue pela frente (já estava). Ward → "Resguardo" (o pacote ainda tem quatro
+  "Proteção" de lotes anteriores: acertar numa leva própria). Teste U `idioma-traducao.unit` G-383 (falhava antes).
+  **Parcial, declarado:** 1.880 cartas de Commander em português e 753 em espanhol seguem em inglês sem Oracle no repositório:
+  a sessão de nuvem não alcança a Scryfall (proxy 403 em 12/11); o próximo lote depende de o Oracle chegar ao ramo `catalogo`
+  (cobertura) pelos robôs que alcançam a Scryfall.
 - **Fora, declarado (fatias seguintes):** a troca de idioma no Perfil (item 2); os pacotes **es** e **en** (item 3: extrair os
   textos para um dicionário por idioma, história de várias rodadas); texto e nome das cartas (item 4, aguarda decisão
   "oficial"/"automática"); a **camada obrigatória de idioma em toda entrega** (texto novo nasce no dicionário e o teste barra
