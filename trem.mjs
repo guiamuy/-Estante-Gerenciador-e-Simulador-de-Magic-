@@ -64,6 +64,11 @@ export function vercelMonta(cfg, ramo) {
   return !valores.length || valores.includes(true);
 }
 
+/** I-332 · prévia pronta de verdade: status da Vercel "success" que não seja o cancelamento do Ignored Build Step
+    (em 12/11 o trem #153 recebeu "Canceled by Ignored Build Step" com estado success, sem prévia nenhuma). */
+export const previaPronta = (statuses) => (statuses || []).some((s) => s.state === 'success' && !/cancel|ignor|skip/i.test(s.description || ''));
+export const previaCancelada = (statuses) => (statuses || []).some((s) => /cancel|ignor|skip/i.test(s.description || ''));
+
 /** Corpo do PR do trem: legível para o dono e com uma linha por leva que o `partir` lê. */
 export function corpoDoTrem(aceitos, recusados, previaFixa) {
   return [
@@ -145,11 +150,13 @@ async function esperarPrevia(sha) {
     try {
       for (const d of JSON.parse(gh('api', `repos/${repo()}/deployments?sha=${sha}&per_page=10`))) {
         for (const s of JSON.parse(gh('api', `repos/${repo()}/deployments/${d.id}/statuses?per_page=5`))) {
+          if (/cancel|ignor|skip/i.test(s.description || '')) return { falhou: s.description };
           if (s.state === 'success' && (s.environment_url || s.target_url)) return s.environment_url || s.target_url;
           if (s.state === 'failure' || s.state === 'error') return { falhou: s.description || s.target_url || '' };
         }
       }
-      const limite = statusVercel(sha).find((s) => /rate.?limit/i.test(s.description || ''));
+      const st = statusVercel(sha);
+      const limite = st.find((s) => /rate.?limit|cancel|ignor|skip/i.test(s.description || ''));
       if (limite) return { falhou: limite.description };
     } catch (e) { /* rede instável: tenta de novo */ }
     await new Promise((r) => setTimeout(r, 20000));
@@ -218,7 +225,11 @@ function partir(numero) {
     para('O main andou desde o portão do trem: trem fechado sem merge. Monte de novo (node trem.mjs montar).');
   }
   const previa = statusVercel(pr.headRefOid);
-  if (!previa.some((s) => s.state === 'success')) para('A prévia do trem ainda não está pronta (ou a Vercel recusou). Nada mudou; confira mais tarde.');
+  if (previaCancelada(previa)) {
+    try { fecharPR(pr.number, 'A Vercel cancelou a prévia deste trem (Ignored Build Step ou limite): fechado sem merge. As levas voltam no próximo trem.'); } catch (e) { /* segue */ }
+    para('A Vercel cancelou a prévia do trem: trem fechado sem merge. Confira o Ignored Build Step do projeto (main e trem/* precisam montar).');
+  }
+  if (!previaPronta(previa)) para('A prévia do trem ainda não está pronta (ou a Vercel recusou). Nada mudou; confira mais tarde.');
   const { achados } = conferirFaixa('origin/main', ramo);
   if (achados.filter((a) => !a.leve).length) { console.error(relatar(achados)); para('Guarda de agregação no trem.'); }
   try { api('PUT', `pulls/${pr.number}/merge`, { merge_method: 'rebase', sha: pr.headRefOid }); } catch (e) { para(`O GitHub recusou o merge do trem: ${String(e.stderr || e.message).slice(0, 300)}`); }
