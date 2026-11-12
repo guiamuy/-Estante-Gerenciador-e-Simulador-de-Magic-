@@ -1224,3 +1224,29 @@ test('DS-K3 K3-5 · ladrilho de lista: tokens sobre arte iguais nos dois temas; 
   assert.match(HTML, /h\('div', \{ class: 'ladrilhos ladrilhos--largos' \}/);
   assert.match(HTML, /Section\('Ladrilho de lista',/);
 });
+
+/* ---------------- DS-K3 K3-6 (G-384) · vitrine vazia ---------------- */
+test('DS-K3 K3-6 · vitrine vazia: madeira da prateleira nos três blocos (escuro, claro e claro automático); placa de 150 px raio 14 sobre E1 → E0 com o radial de latão a .22; quatro silhuetas de 46 × 64 tracejadas a .45, a do meio acesa (.7, 24 px a .35); prateleira de 6 px a 26 do pé; título Cormorant 24/1.05; texto à esquerda; primário e secundário lado a lado; gaveta escondida; sem desfoque fora do foco; parada (o traço que se desenha é da MV-11)', () => {
+  assert.deepEqual([DARK['--madeira-hi'], DARK['--madeira-lo']], ['#4a3a27', '#2a2118']);
+  assert.deepEqual([LIGHT['--madeira-hi'], LIGHT['--madeira-lo']], ['#b79c6a', '#8a7046']);
+  assert.deepEqual([AUTO_LIGHT['--madeira-hi'], AUTO_LIGHT['--madeira-lo']], ['#b79c6a', '#8a7046']);
+  assert.deepEqual([DARK['--radius-3'], DARK['--radius-silhueta'], DARK['--radius-prateleira'], DARK['--sombra-prateleira']], ['14px', '5px', '3px', '0 6px 10px -4px rgba(0, 0, 0, .8)']);
+  assert.deepEqual([DARK['--text-vitrine'], DARK['--text-vitrine-texto']], ['calc(24px * var(--escala-texto))', 'calc(13px * var(--escala-texto))']);
+  const regra = sel => { const i = componentCss.indexOf(sel + ' {'); assert.ok(i >= 0, sel); return componentCss.slice(i, componentCss.indexOf('}', i)); };
+  assert.match(regra('.ds-empty.ds-vitrine'), /text-align: left; padding: 24px 18px 20px; border-radius: var\(--radius-4\)/);
+  assert.match(regra('.ds-vitrine__palco'), /height: 150px; border-radius: var\(--radius-3\);[\s\S]*color-mix\(in srgb, var\(--accent\) 22%, transparent\)[\s\S]*linear-gradient\(180deg, var\(--elev-1\), var\(--elev-0\)\)/);
+  assert.match(regra('.ds-vitrine__carta'), /bottom: 32px;[^}]*width: 46px; height: 64px; border-radius: var\(--radius-silhueta\);[\s\S]*1px dashed color-mix\(in srgb, var\(--accent\) 45%, transparent\)[\s\S]*var\(--accent\) 5%/);
+  assert.match(regra('.ds-vitrine__carta[data-acesa]'), /1px solid color-mix\(in srgb, var\(--accent-hi\) 70%, transparent\)[\s\S]*box-shadow: 0 0 24px color-mix\(in srgb, var\(--accent\) 35%, transparent\)/);
+  assert.match(regra('.ds-vitrine__prateleira'), /left: 14px; right: 14px; bottom: 26px; height: 6px; border-radius: var\(--radius-prateleira\);[\s\S]*linear-gradient\(180deg, var\(--madeira-hi\), var\(--madeira-lo\)\)/);
+  assert.match(regra('.ds-vitrine__foco'), /top: -40px; width: 160px; height: 200px;[^}]*filter: blur\(4px\)/);
+  assert.match(regra('.ds-vitrine .ds-empty__titulo'), /font-family: var\(--font-display\); font-size: var\(--text-vitrine\); line-height: 1\.05; margin: 14px 0 6px/);
+  assert.match(regra('.ds-vitrine__botoes > .ds-btn'), /flex: 1 1 0/);
+  assert.match(regra('.ds-vitrine__gaveta[hidden]'), /display: none/);
+  const vitrine = componentCss.split('\n').filter(l => /ds-vitrine/.test(l)).join('\n');
+  assert.ok(!/animation|transition|backdrop-filter/.test(vitrine), 'a vitrine é parada e não desfoca o que está atrás');
+  // o componente: ilustração decorativa, a carta do meio acesa, e o vazio de destaque (Empty com hero) vira vitrine
+  assert.match(HTML, /const VITRINE_CARTAS = \[\[0, -4\], \[58, 2\], \[116, -2\], \[174, 5\]\];/);
+  assert.match(HTML, /h\('div', \{ class: 'ds-vitrine__palco', 'aria-hidden': 'true' \}/);
+  assert.match(HTML, /const Empty = \(message, action, \{ icone, titulo, hero, id \} = \{\}\) => hero \? Vitrine\(/);
+  for (const id of ['col-vazio', 'decks-vazio', 'ds-vitrine']) assert.match(HTML, new RegExp(`Vitrine\\(\\{ id: '${id}'`), id);
+});
