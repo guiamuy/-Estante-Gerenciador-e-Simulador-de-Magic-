@@ -21637,6 +21637,66 @@ test('e2e · G-365 T-IDIOMA fatia 3: carta nunca impressa em português mostra a
   assert.deepEqual(errors.filter(e => !/status of 404/.test(e) && !/ERR_INTERNET_DISCONNECTED/.test(e)), []);
 });
 
+// G-381 · relato #151 · T-IDIOMA na mesa: a folha da carta (toque) e o espiar (segurar) mostravam o Oracle em inglês com
+// o app em português. Dados de teste (não o texto oficial): Counterspell impressa em português, Delver pela tradução do robô.
+// Falha antes da G-381: #tb-sheet-oracle não existia e o espiar dizia o texto em inglês.
+test('e2e · G-381 relato #151: na mesa, a folha e o espiar mostram o texto da carta em português (oficial ou tradução), com o original a um toque', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.route('https://api.scryfall.com/cards/collection', r => {
+    const ids = JSON.parse(r.request().postData()).identifiers;
+    const data = ids.map(i => achaNoDB(i)).filter(Boolean).map(c => ({ ...c, oracle_id: 'o-' + c.name, ...(c.name === 'Counterspell' ? { oracle_text: 'Counter target spell.' } : {}) }));
+    return r.fulfill({ json: { data, not_found: ids.filter(i => !achaNoDB(i)) } });
+  });
+  await page.route('https://api.scryfall.com/cards/search**', r => {
+    const q = new URL(r.request().url()).searchParams.get('q') || '';
+    if (!/^oracleid:o-Counterspell lang:pt$/.test(q)) return r.fulfill({ status: 404, json: { object: 'error', code: 'not_found' } });
+    return r.fulfill({ json: { object: 'list', has_more: false, data: [{ object: 'card', lang: 'pt', name: 'Counterspell', set: 'tst', collector_number: '7',
+      oracle_text: 'Counter target spell.', printed_name: 'Anular de Teste', printed_type_line: 'Mágica Instantânea', printed_text: 'Anule a mágica alvo, texto de teste com {U}.' }] } });
+  });
+  const delver = achaNoDB({ name: 'Delver of Secrets' });
+  const oracleDelver = (delver.card_faces ? delver.card_faces[0] : delver).oracle_text;
+  await page.route('**/idiomas/cartas-pt.json', r => r.fulfill({ json: { v: 1, idioma: 'pt', cartas: {
+    'Delver of Secrets': { original: oracleDelver, tipo: 'Criatura — Teste Tradução', texto: 'Texto de teste traduzido pelo robô.' } } } }));
+  await createDeck(page, base, 'Azul', '30 Counterspell\n30 Delver of Secrets', 'livre');
+  await page.goto(base + '#/mesa'); await page.fill('#mesa-seed', '3'); await page.click('#mesa-start');
+  await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('.tb-banner');
+  // 1 · tocar a carta na mão: a folha busca o texto e troca para o português impresso, com o selo e o símbolo desenhado
+  await page.locator('#tb-hand .tb-card[aria-label^="Counterspell"]').first().click();
+  await page.waitForSelector('.ds-dialog #tb-sheet-idioma');
+  assert.match(await page.innerText('#tb-sheet-oracle'), /Anule a mágica alvo, texto de teste com/);
+  assert.equal(await page.getAttribute('#tb-sheet-oracle', 'lang'), 'pt-BR');
+  assert.equal(await page.locator('#tb-sheet-oracle .ds-sym').count(), 1);
+  assert.match(await page.innerText('#tb-sheet-idioma'), /Texto oficial em português/);
+  assert.ok((await page.$eval('#tb-sheet-idioma-alterna', b => b.offsetHeight)) >= 44);
+  await auditaTela(page, 'mesa · folha com texto em português');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/g381-folha-pt.png' });
+  // 2 · ver o original e voltar (o foco fica na troca)
+  await page.click('#tb-sheet-idioma-alterna');
+  assert.equal(await page.innerText('#tb-sheet-oracle'), 'Counter target spell.');
+  assert.equal(await page.getAttribute('#tb-sheet-oracle', 'lang'), 'en');
+  assert.match(await page.innerText('#tb-sheet-idioma'), /Original em inglês/);
+  assert.ok(await page.evaluate(() => document.activeElement && document.activeElement.id === 'tb-sheet-idioma-alterna'));
+  await page.click('#tb-sheet-idioma-alterna'); assert.match(await page.innerText('#tb-sheet-oracle'), /Anule a mágica alvo/);
+  await page.click('#ds-dialog-close'); await page.waitForFunction(() => !document.querySelector('.ds-dialog #tb-sheet-oracle'));
+  // 3 · tocar de novo: já na memória da mesa, o português vem na hora (sem esperar a rede)
+  await page.locator('#tb-hand .tb-card[aria-label^="Counterspell"]').first().click();
+  assert.match(await page.innerText('.ds-dialog #tb-sheet-oracle'), /Anule a mágica alvo/);
+  await page.click('#ds-dialog-close'); await page.waitForFunction(() => !document.querySelector('.ds-dialog #tb-sheet-oracle'));
+  // 4 · segurar a carta (espiar): a tradução do robô, marcada, no lugar do Oracle em inglês
+  const delverMao = page.locator('#tb-hand .tb-card[aria-label^="Delver of Secrets"]').first();
+  await delverMao.evaluate(el => el.scrollIntoView({ block: 'center' }));
+  const b = await delverMao.boundingBox();
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2); await page.mouse.down();
+  await page.waitForSelector('#tb-peek', { state: 'attached', timeout: 3000 });
+  await page.waitForFunction(() => /Texto de teste traduzido pelo robô/.test((document.querySelector('#tb-peek-oracle') || {}).textContent || ''), null, { timeout: 4000 });
+  assert.equal(await page.getAttribute('#tb-peek-oracle', 'lang'), 'pt-BR');
+  assert.match(await page.innerText('#tb-peek-idioma'), /Tradução para o português/);
+  await page.mouse.up(); await page.waitForFunction(() => !document.querySelector('#tb-peek'));
+  assert.deepEqual(errors.filter(e => !/status of 404/.test(e)), []);
+});
+
 // I-329 · ponte das coleções: duas origens do mesmo servidor fazem o papel dos dois endereços (127.0.0.1 é o github.io,
 // localhost é a Vercel). A faixa só aparece no antigo; o toque abre o novo, que mostra o que chegou e só grava com o Trazer.
 test('e2e · I-329 ponte das coleções: no endereço antigo a faixa leva listas e coleção para o novo, que mostra o que chegou e só grava com o Trazer', { skip }, async t => {

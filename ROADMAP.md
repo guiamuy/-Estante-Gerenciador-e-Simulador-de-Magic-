@@ -721,6 +721,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-vd ✅ | Relato #124 (J-66): a permanente que ganhou proteção (Aura como Benevolent Blessing, Equipamento, mágica do turno) mostra o escudo na barra de estados com uma faixa por cor protegida na cor do mana; o nome falado e a folha da carta dizem contra o quê ("Proteção contra verde"). Parcial: a proteção impressa na própria carta não vira marca (está no texto, como as palavras-chave impressas); proteção dada por efeito estático de outra permanente que o motor não põe em `protections` também não aparece. |
 | 16º-ve ✅ | T-IDIOMA relatos #53/#66, lote 5 da fatia 3: Legacy e Vintage (59 cartas em português, 29 em espanhol: Black Lotus, Time Walk, Ancestral Recall, Bazaar of Baghdad, Barrowgoyf…), pelo conferidor; Carnivorous Cultivator // Enroot fica em inglês (o Oracle guardado não separa as faces) (G-377, 11/11/2026) | T | 1 | 16º-vb |
 | 16º-vg ✅ | T-IDIOMA relatos #53/#66, lote 6 da fatia 3: Commander (160 cartas em português, 43 em espanhol: Korvold, Niv-Mizzet, Imperial Seal, Knuckles, as Salas, Aang de duas faces…), pelo conferidor; 1.877 em português e 753 em espanhol seguem sem Oracle no repositório (G-380, 11/11/2026) | T | 1 | 16º-ve |
+| 16º-vv ✅ | T-IDIOMA relato #151, fatia 5a: na mesa, a folha da carta (toque), o espiar (segurar) e o "aplicar efeito" mostram o texto da carta no idioma do app (impresso oficial ou "Tradução" do robô, com "Ver o original"), das suas cartas e das do oponente; ao abrir a mesa o guardado no aparelho entra na memória, a carta aberta busca o que falta (G-381, 12/11/2026) | T | 1 | 16º-vg |
 | 16º-vf ✅ | Relato #137 (J-70): com o detalhe da pilha aberto, tocar de novo na faixa (na seta) recolhe; antes nada acontecia e só Esc ou toque fora fechavam (J-70, 11/11/2026) | J | 1 | — |
 | 16º-vh 🟡 | Relato #135, fatia 1 (G-379, 11/11/2026): lista pronta do Pauper que o motor não joga inteira (medida da sentinela abaixo de 100%) sai das Listas prontas e das prontas do Jogar, com a linha "N listas de Pauper estão fora…"; a medida a 100% a traz de volta sozinha. Fatia 2: a rotina Sentinela do Pauper trata primeiro as listas que saíram | G | 1 de 2 | 16º-vd |
 
@@ -13775,6 +13776,19 @@ trilha `geral`, 09/11/2026; relato do dono de 09/11: o Enviar abria o GitHub e o
   repositório (a sessão não alcança a Scryfall; o Commander tem 7.844 cartas diferentes); Carnivorous Cultivator // Enroot e
   Pompous Battlemage // Improvised Act ficam em inglês (o Oracle guardado vem numa face só, com "//"). Os relatos seguem
   abertos até o resto do Commander ter Oracle.
+- **Fatia 5a · o texto das cartas dentro da mesa (G-381, `16º-vv`, relato #151, rotina Relatos do dono, 12/11/2026) ✅:**
+  pedido do dono (relato #151, "impede o uso"): na mesa a descrição das cartas, as suas e as do oponente, no idioma escolhido.
+  A folha da carta da mesa (toque), o espiar (segurar) e o painel "aplicar efeito" usavam o Oracle em inglês. Agora seguem o
+  idioma do app pela mesma fonte da folha fora da mesa (`__m12.textoNoIdioma`: impresso oficial guardado ou buscado, senão a
+  tradução do robô): selo "Texto oficial em português" / "Tradução para o português" e "Ver o original" na folha; o espiar
+  diz a origem numa linha. Ao abrir a mesa, o que já está guardado no aparelho entra na memória da partida (sem rede, uma
+  carta por vez); a carta aberta sem texto guardado busca o dela e a folha (ou o espiar ainda aberto) troca quando chega.
+  O motor segue decidindo pelo Oracle em inglês (só exibição; ENGINE_VERSION e goldens intactos). Teste: e2e "G-381"
+  (folha em português, troca e volta com foco, segunda abertura imediata, espiar com a tradução; falhava antes).
+  **Parcial, declarado:** nomes de carta na mesa (mão, pilha, registro, escolhas) seguem em inglês, como a imagem; o
+  "aplicar efeito" só usa o texto já na memória; texto de habilidade na pilha e nas escolhas segue o rótulo do motor.
+  **Próximas fatias do relato #151:** 5b varredura das outras telas que mostram texto de carta fora da folha; 5c cobertura
+  (o Commander sem Oracle no repositório) com o número por formato. O relato segue aberto até lá.
 - **Fora, declarado (fatias seguintes):** a troca de idioma no Perfil (item 2); os pacotes **es** e **en** (item 3: extrair os
   textos para um dicionário por idioma, história de várias rodadas); texto e nome das cartas (item 4, aguarda decisão
   "oficial"/"automática"); a **camada obrigatória de idioma em toda entrega** (texto novo nasce no dicionário e o teste barra
