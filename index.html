@@ -8804,6 +8804,7 @@ const EFFECTS = {
   revela_topo_compra: { fields: [], targets: ['self'] }, // M-570 · Elven Farsight: "you may reveal the top card of your library. If a creature card is revealed this way, draw a card"
   revela_topo_transforma: { fields: [], targets: ['self'] }, // M-353 · Delver of Secrets: olha o topo; se for do tipo pedido, pode revelá-lo e transformar a fonte (701.28)
   exila_da_mao: { fields: ['amount'], targets: ['opponent', 'player'] },
+  exila_mao_ou_cemiterio: { fields: [], targets: ['opponent', 'player'] }, // M-623 · Memory Leak: "reveals their hand. You choose a nonland card from that player's graveyard or hand and exile it"
   imprime_da_mao: { fields: [], targets: ['self'] }, // M-563 · Chrome Mox: "exile a nonartifact, nonland card from your hand", ligada à fonte
   terreno_da_mao: { fields: [], targets: ['self'] }, // M-354 · "You may put a land card from your hand onto the battlefield [tapped]" (Growth Spiral, Embrace the Paradox; 305.2: não é jogar terreno) // M-353 · Mesmeric Fiend: o jogador alvo revela a mão, você escolhe e exila; a fonte guarda a carta para devolver ao sair
   pisca_exila: { fields: [], targets: ['creature', 'creature-you-control', 'permanent', 'permanent-you-control'] }, // M-351 · Ghostly Flicker: "exile two target …, then return those cards" — a primeira metade (a mágica lembra o que exilou)
@@ -9072,7 +9073,7 @@ const REGRAS_DO_JOGADOR = ['naoGanhaVida', 'terrenosExtras', 'semLimiteDeMao', '
 const PICK_DESTS = ['hand', 'graveyard', 'battlefield', 'battlefield-tapped', 'library-top', 'library-bottom', 'library-bottom-random', 'stay']; // M-262 · "on the bottom in a random order"
 const FILTER_TYPES = ['creature', 'land', 'artifact', 'enchantment', 'instant', 'sorcery', 'planeswalker', 'battle']; // M-246 · "nonland permanent" inclui batalha
 const LOYALTY_PT = c => (c > 0 ? '+' : '') + c;
-const CHOICE_EFFECTS = ['terreno_da_mao', 'exila_da_mao', 'revela_topo_transforma', 'revela_topo_compra' /* M-570 */, 'topo_ou_fundo_do_dono', 'untap_chosen', 'discard_or_sacrifice_land_draw', 'return_chosen', 'discard', 'discard_chosen', 'exile_chosen', 'connive', 'search', 'look', 'scry', 'surveil', 'put_back', 'choose_type'];
+const CHOICE_EFFECTS = ['terreno_da_mao', 'exila_da_mao', 'exila_mao_ou_cemiterio' /* M-623 */, 'revela_topo_transforma', 'revela_topo_compra' /* M-570 */, 'topo_ou_fundo_do_dono', 'untap_chosen', 'discard_or_sacrifice_land_draw', 'return_chosen', 'discard', 'discard_chosen', 'exile_chosen', 'connive', 'search', 'look', 'scry', 'surveil', 'put_back', 'choose_type'];
 /** S47 · condição do próprio efeito, olhando o que foi pago como custo. */
 /** M-249 · 122.1 · marcadores nomeados em português (o tipo é a chave em `counters`). */
 const MARCADOR_PT = { p1p1: '+1/+1', m0m1: '−0/−1', /* M-360 */ oil: 'de óleo', depletion: 'de esgotamento', charge: 'de carga', age: 'de idade', loyalty: 'de lealdade', time: 'de tempo', lore: 'de saga', poison: 'de veneno', energia: 'de energia' /* H-6 */ };
@@ -9082,7 +9083,7 @@ const ALT_COST_PARTS = ['returnTapped', 'mana', 'life', 'discard', 'returnLand',
 /** S48 · fuga: conjura do cemitério pagando o custo, e a carta fica em jogo. */
 /** S20 · custos adicionais de ativação e de conjuração. */
 const CRAFT_TIPOS = ['creature', 'artifact', 'land', 'enchantment']; // M-356 · 702.167a: materiais de craft
-const EXTRA_COST_PARTS = ['blight' /* M-611 · 701.68: afligir N como custo (Requiting Hex) */, 'sacrificeOther', 'tapOther', 'discard', 'returnLand', 'revealColor', 'exileFromGraveyard', 'discardSelf', 'pagarVida', 'generico' /* M-441 · "or pay {5}" (Lightning Axe): mana genérica somada ao custo total, 601.2f */]; // M-346 · pagarVida: "or pay 3 life" (Bitter Triumph)
+const EXTRA_COST_PARTS = ['returnCreature' /* M-623 · Beam me up: "return a creature you control to its owner's hand" */, 'blight' /* M-611 · 701.68: afligir N como custo (Requiting Hex) */, 'sacrificeOther', 'tapOther', 'discard', 'returnLand', 'revealColor', 'exileFromGraveyard', 'discardSelf', 'pagarVida', 'generico' /* M-441 · "or pay {5}" (Lightning Axe): mana genérica somada ao custo total, 601.2f */]; // M-346 · pagarVida: "or pay 3 life" (Bitter Triumph)
 /* ---------------- M-229 · R1 · seletor único de objetos (gramática escalável) ----------------
    Um alvo é descrito por um seletor, não por um nome: zona, de quem é, tipos, subtipos, "outra", valor de mana, cor,
    se inclui jogadores. Os nomes antigos continuam valendo e são atalhos para um seletor (ALVO_SELETOR); o teste de
@@ -9877,7 +9878,7 @@ function effectErrors(effects, label, opcional) {
     if (e.do === 'copiar_esta' && e.seConjuradaDe != null && !['graveyard', 'hand', 'exile'].includes(e.seConjuradaDe)) errs.push(`${label} ${i + 1}: "seConjuradaDe" precisa ser graveyard, hand ou exile`); // M-271
     if (e.do === 'exilar_topo_conjuravel' && !(typeof e.enquantoControlar === 'string' && e.enquantoControlar.trim())) errs.push(`${label} ${i + 1}: diga o subtipo de planeswalker que mantém a permissão (enquantoControlar)`); // M-270
     if (e.suspende != null && !(e.do === 'counter' && Number.isInteger(e.suspende) && e.suspende > 0)) errs.push(`${label} ${i + 1}: "suspende" (marcadores de tempo) só vale para anular, com um inteiro positivo`); // M-269
-    if (e.unless && !e.unless.mana) errs.push(`${label} ${i + 1}: "a menos que pague" precisa de um custo de mana`);
+    if (e.unless && !e.unless.mana && !e.unless.exilaCemiterio) errs.push(`${label} ${i + 1}: "a menos que pague" precisa de um custo de mana`);
     if (e.semUnlessSe != null && !(e.do === 'counter' && e.unless && e.semUnlessSe === 'ferocious')) errs.push(`${label} ${i + 1}: "semUnlessSe" só na anulação com "a menos que pague", e só com ferocious`); // M-557
     // S57 · duração do bônus: sem isso vale até o fim do turno
     if (e.until != null && e.until !== 'your-next-turn') errs.push(`${label} ${i + 1}: duração "${e.until}" desconhecida`);
@@ -12174,6 +12175,14 @@ const RAW_SCRIPTS = [
   // M-622 · Sentinela do Pauper (texto da Scryfall de 11/11/2026, cobertura/pauper.json de 13:48 UTC; revisão independente sem divergência)
   { name: "Oona's Grace", retrace: true, effects: [{ do: 'draw', amount: 1, target: 'player' }], example: { target: 'self-player', expect: { handDelta: 1 } } }, // "Target player draws a card. / Retrace" (702.81a)
   { name: 'Keep Watch', effects: [{ do: 'draw', amount: { per: 'attacking-creatures' } }], example: { target: 'none', expect: { handDelta: 0 } } }, // sem atacantes, nenhuma carta · "Draw a card for each attacking creature." (506.4: toda criatura atacante, de qualquer jogador)
+  // M-623 · Sentinela do Pauper (texto da Scryfall de 12/11/2026, cobertura/pauper.json de 13:47 UTC)
+  { name: 'Grip of Amnesia', effects: [{ do: 'counter', target: 'spell', unless: { exilaCemiterio: true } }, { do: 'draw', amount: 1 }], // "Counter target spell unless its controller exiles all cards from their graveyard. / Draw a card."
+    example: { target: 'enemy-spell', expect: { handDelta: 1 } } },
+  { name: 'Memory Leak', effects: [{ do: 'exila_mao_ou_cemiterio', target: 'opponent' }], cycling: { mana: '{1}' }, // "Target opponent reveals their hand. You choose a nonland card from that player's graveyard or hand and exile it. / Cycling {1}"
+    example: { target: 'opponent', expect: { opponentLife: 0 } } },
+  { name: 'Final Frontier', effects: [{ do: 'search', amount: 1, filter: { ou: [{ types: ['land'], basic: true }, { subtypes: ['Planet'] }] }, to: 'battlefield-tapped' }], // "Search your library for a basic land card or Planet card, put it onto the battlefield tapped, then shuffle."
+    flashback: { mana: '{1}{G}', returnCreature: true }, // "Beam me up {1}{G} (You may cast this card from your graveyard for {1}{G} if you also return a creature you control to its owner's hand. Then exile this spell.)" — mesma forma do lampejo do passado com custo adicional (702.34a)
+    example: { target: 'none', expect: { handDelta: 0 } } },
   { name: 'Glistener Seer', entra: [{ afetados: 'self', marcadores: { oil: 3 } }], // "This creature enters with three oil counters on it." (614.1c)
     abilities: [{ kind: 'activated', cost: { tap: true, removeCounters: { tipo: 'oil', n: 1 } }, effects: [{ do: 'scry', amount: 1 }] }],
     example: { action: 'etb', target: 'none', expect: { attached: false } } }, // "{T}, Remove an oil counter from this creature: Scry 1."
@@ -13928,6 +13937,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Bellowing Crier': { texto: '15ju6fb', leva: 'M-622' }, 'Disrupt': { texto: '118amsw', leva: 'M-622' }, 'Gigadrowse': { texto: '1h9un0t', leva: 'M-622' },
   'Pond Prophet': { texto: '1kohao3', leva: 'M-622' }, 'Prismari Campus': { texto: '1henxx', leva: 'M-622' }, 'Sibsig Appraiser': { texto: 'ux5hb4', leva: 'M-622' },
   'Three Tree Mascot': { texto: '2rfq8k', leva: 'M-622' },
+  // M-623 · Sentinela do Pauper: 2 lidas, revisão independente (texto da Scryfall de 12/11/2026 em .listas/oficiais-revisadas.json)
+  'Exclude': { texto: 'o2iptm', leva: 'M-623' }, 'Ferenginar': { texto: '1bkdsz', leva: 'M-623' },
   'Overlord of the Balemurk': { texto: '1mle74k', leva: 'M-618' }, // M-618 · rotina Motor contínuo: impending (K-58) + "whenever this permanent enters or attacks" e a volta opcional de "a non-Avatar creature card or a planeswalker card"; texto da Scryfall de 10/11/2026
   // M-617 · rotina Motor contínuo · 702.21a com duração e "If you control two or more other lands, this land enters tapped": Hall of Storm Giants lida por inteiro (Scryfall, 10/11/2026)
   'Hall of Storm Giants': { texto: '177dox0', leva: 'M-617' },
@@ -26977,6 +26988,7 @@ function defaultPayment(s, p, cost, selfOid) {
   return pay;
 }
 /** M-392 · 702.188a · web-slinging: as criaturas viradas que você controla e podem voltar para a mão do dono. */
+const criaturasParaDevolverM = (s, p, selfOid) => battlefield(s).filter(x => x.controller === p && x.oid !== selfOid && isCreature(s, x)).map(x => x.oid); // M-623 · Beam me up (Final Frontier): qualquer criatura sua, virada ou não
 const viradasParaDevolverM = (s, p, selfOid) => battlefield(s).filter(x => x.controller === p && x.oid !== selfOid && x.tapped && isCreature(s, x)).map(x => x.oid);
 /** M-362 · 404.2: o cemitério tem ordem (a carta posta por último fica em cima). "The top N <cor> cards" são as N dessa cor mais perto do topo, sem escolha. */
 const topoDoCemiterio = (s, p, t, selfOid) => s.zones[p].graveyard.filter(x => x !== selfOid && (t.cor == null || ((s.facts[s.objects[x].name] || {}).colors || []).includes(t.cor))).slice(-t.n).reverse();
@@ -28216,6 +28228,10 @@ function applyEffectM449(s, src, eff, tgt, events) {
       if (eff.mvAte != null && obj && obj.zone === 'stack' && manaValueT(s, obj) > amountOf(s, src, eff.mvAte)) { note({ failed: true, mvAlto: manaValueT(s, obj) }); break; } // M-419 · Prohibit: "counter target spell if its mana value is N or less" — conferido na resolução; acima disso, a mágica alvo fica
       const custoUnless = eff.unless ? String(eff.unless.mana).replace(/\{X\}/g, `{${src.xPaid || 0}}`) : null; // M-338 · 107.3a: o X anunciado (Syncopate)
       const semPagarM = !!(eff.unless && eff.semUnlessSe && condicaoDoEfeito(s, src, eff.semUnlessSe)); // M-557 · Stubborn Denial: "counter that spell instead" (ferocidade na resolução)
+      if (eff.unless && eff.unless.exilaCemiterio && obj && obj.zone === 'stack') { // M-623 · Grip of Amnesia: "unless its controller exiles all cards from their graveyard" (o cemitério vazio também pode ser "exilado": a mágica fica)
+        s.pending = { kind: 'may_pay', p: obj.controller, cost: null, target: obj.oid, name: `${src.name} — exilar todo o seu cemitério para salvar ${obj.name}?`, exilaCemiterio: true };
+        note({ pending: true }); break;
+      }
       if (eff.unless && !semPagarM && s.manaCheck && canPay(s, obj.controller, parseCost(custoUnless))) {
         // S16 · o controlador da mágica decide se paga para salvá-la
         s.pending = { kind: 'may_pay', p: obj.controller, cost: custoUnless, target: obj.oid, name: src.name, ...(eff.exila ? { exila: true } : {}), ...(eff.topo ? { topo: true } : {}) }; // M-338 · No More Lies · M-395: e o topo do grimório
@@ -28528,6 +28544,13 @@ function applyEffectM449(s, src, eff, tgt, events) {
       const fonte = src.ability ? s.objects[src.source] : src;
       if (!mao.length) { if (s.zones[who].hand.length) startPick(s, { p: ctrl, from: [], mostrar: s.zones[who].hand.slice(), min: 0, max: 0, to: 'exile', rest: 'stay', filter: filtro, label: 'escolher a carta', source: src.name }, events); note({ amount: 0 }); break; }
       startPick(s, { p: ctrl, from: mao, mostrar: s.zones[who].hand.slice(), min: 1, max: 1, to: 'exile', rest: 'stay', filter: filtro, label: 'escolher a carta a exilar', source: src.name, ...(fonte && fonte.zone === 'battlefield' && !(src.ability && src.fonteZc != null && (fonte.zc || 0) !== src.fonteZc) ? { segura: { oid: fonte.oid, z: fonte.zc || 0 } } : {}) }, events); // 400.7: o gatilho do Fiend que saiu e voltou não liga a carta ao Fiend novo
+      note({ amount: 1, pending: true }); break;
+    }
+    case 'exila_mao_ou_cemiterio': { // M-623 · Memory Leak: revela a mão; VOCÊ escolhe uma carta que não seja terreno da mão OU do cemitério dele e a exila
+      const who = playerOf(), filtro = { notTypes: ['land'] };
+      const daqui = [...s.zones[who].hand, ...s.zones[who].graveyard].filter(x => matchesFilter(s, s.objects[x], filtro));
+      if (!daqui.length) { if (s.zones[who].hand.length) startPick(s, { p: ctrl, from: [], mostrar: s.zones[who].hand.slice(), min: 0, max: 0, to: 'exile', rest: 'stay', filter: filtro, label: 'escolher a carta', source: src.name }, events); note({ amount: 0 }); break; }
+      startPick(s, { p: ctrl, from: daqui, mostrar: s.zones[who].hand.slice(), min: 1, max: 1, to: 'exile', rest: 'stay', filter: filtro, label: 'escolher a carta a exilar (mão ou cemitério)', source: src.name }, events);
       note({ amount: 1, pending: true }); break;
     }
     case 'topo_em_ordem': { // M-515 · só os alvos que ainda servem (no cemitério do jogador alvo, mesma encarnação, do tipo pedido: 608.2b); com mais de um, quem conjurou ordena
@@ -30852,6 +30875,7 @@ function pagamentosDe(s, p, cost, selfOid) {
     const rx = new RegExp('\\b' + cost.returnLand + '\\b', 'i');
     multiplica(battlefield(s).filter(x => x.controller === p && tiposDe(s, x).includes('land') && rx.test(linhaDeTipo(s, x) || x.name)).map(x => x.oid), 'land'); // M-554
   }
+  if (cost.returnCreature) multiplica(criaturasParaDevolverM(s, p, selfOid), 'devolve'); // M-623 · quem paga escolhe a criatura
   if (cost.returnTapped) multiplica(viradasParaDevolverM(s, p, selfOid), 'devolve'); // M-392 · 702.188a: uma ação por criatura virada (quem paga escolhe)
   if (cost.exileFromGraveyard) { const cgy = s.zones[p].graveyard.filter(x => x !== selfOid && matchesFilter(s, s.objects[x], cost.exileFromGraveyard)), ngy = cost.exileFromGraveyard.amount || 1; multiplica(ngy > 1 ? combinacoes(cgy, ngy) : cgy, 'exile'); } // M-538 · "Exile three cards from your graveyard" (Psychic Frog): uma forma por combinação
   if (cost.craft) multiplica(combinacoes(materiaisDeCraft(s, p, cost.craft, selfOid), cost.craft.amount || 1), 'craft'); // M-356 · 702.167a: quem paga escolhe os materiais
@@ -30881,6 +30905,11 @@ function materiaisDeCraft(s, p, spec, selfOid) {
   return campo.concat(cemiterio);
 }
 function payExtraCosts(s, p, cost, pay, selfOid) {
+  if (cost.returnCreature) { // M-623 · Beam me up: devolve uma criatura sua para a mão do dono (custo, 601.2h)
+    const oid = (pay && pay.devolve) || criaturasParaDevolverM(s, p, selfOid)[0];
+    if (!oid || !criaturasParaDevolverM(s, p, selfOid).includes(oid)) throw new RuleError('custo', 'devolva uma criatura que você controla');
+    moveObject(s, oid, 'hand');
+  }
   if (cost.blight) { // M-611 · 701.68a como custo (601.2h): N marcadores −1/−1 numa criatura que quem paga controla, escolhida ao pagar
     const suas = criaturasParaAfligirM(s, p, selfOid), oid = (pay && pay.blight) || suas[0];
     if (!oid || !suas.includes(oid)) throw new RuleError('custo', 'escolha uma criatura sua para afligir');
@@ -30977,6 +31006,7 @@ function formasDeTripular(s, p, n, selfOid) {
 const genericoDoAdicional = (s, o, add) => { const sp = (((s.facts[o.name] || {}).script) || {}).additional; const l = Array.isArray(sp) ? sp : sp ? [sp] : []; const e = add === null ? null : l[add || 0]; return (e && Number.isInteger(e.generico) && e.generico > 0) ? e.generico : 0; };
 const criaturasParaAfligirM = (s, p, selfOid) => battlefield(s).filter(o => o.controller === p && o.oid !== selfOid && isCreature(s, o)).map(o => o.oid); // M-611 · 701.68b: sem criatura sua, não dá para afligir
 const canPayExtra = (s, p, cost, selfOid) =>
+  (!cost.returnCreature || criaturasParaDevolverM(s, p, selfOid).length > 0) && // M-623
   (!cost.blight || criaturasParaAfligirM(s, p, selfOid).length > 0) && // M-611
   (cost.pagarVida == null || s.players[p].life >= cost.pagarVida) && // K-2 · 119.4: só paga a vida que tem
   (cost.crew == null || formasDeTripular(s, p, cost.crew, selfOid).length > 0) &&
@@ -31762,6 +31792,7 @@ const HANDLERS = {
     const pk = s.pending;
     if (pk.senao) { payCost(s, a.p, parseCost(pk.cost)); s.pending = null; ev.push({ kind: 'effect', do: 'pay', name: pk.name, target: s.players[a.p].name }); return resumeEffects(s, ev); } // CR2b.5 · pagou: o "senão" não acontece
     if (pk.cost) payCost(s, a.p, parseCost(pk.cost)); // S49 · decisão sem custo é só um "sim"
+    if (pk.exilaCemiterio) { const gy = [...s.zones[a.p].graveyard]; for (const x of gy) moveObject(s, x, 'exile'); ev.push({ kind: 'effect', do: 'exile_graveyard', name: pk.name, amount: gy.length, target: s.players[a.p].name }); } // M-623 · Grip of Amnesia: o custo do "a menos que"
     if (pk.extra && pk.extra.sacrificeSelf) { const f = pk.then && s.objects[pk.then.source]; if (!f || f.zone !== 'battlefield') throw new RuleError('custo', 'a permanente não está mais no campo para ser sacrificada'); sacrifice(s, f.oid, ev); }
     if (pk.extra) { const fonteM = pk.then && pk.then.source != null ? pk.then.source : null; if (!canPayExtra(s, a.p, pk.extra, fonteM)) throw new RuleError('custo', 'não dá para pagar esse custo'); payExtraCosts(s, a.p, pk.extra, a.pay, fonteM); } // M-544 · "another": a fonte fica de fora
     s.pending = null;
@@ -32803,7 +32834,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
     if (!canPayExtra(s, p, fb, oid)) continue;
     const add = (f.script && f.script.additional) || null;
     if (add && !canPayExtra(s, p, add, oid)) continue;
-    const pays = pagamentosDe(s, p, { tapOther: fb.tapOther, ...(fb.sacrificeOther ? { sacrificeOther: fb.sacrificeOther } : add && add.sacrificeOther ? { sacrificeOther: add.sacrificeOther } : {}), ...(fb.discard ? { discard: fb.discard } : add && add.discard && !Array.isArray(add) ? { discard: add.discard } : {}) }, oid); // M-352 · "Flashback—{…}, Discard a card" (Twinned Vision): a carta descartada é escolhida // M-348 · o descarte adicional é escolhido também no lampejo (Laughing Mad) // M-331 · o lampejo que sacrifica (Lava Dart)
+    const pays = pagamentosDe(s, p, { tapOther: fb.tapOther, ...(fb.returnCreature ? { returnCreature: true } : {}) /* M-623 */, ...(fb.sacrificeOther ? { sacrificeOther: fb.sacrificeOther } : add && add.sacrificeOther ? { sacrificeOther: add.sacrificeOther } : {}), ...(fb.discard ? { discard: fb.discard } : add && add.discard && !Array.isArray(add) ? { discard: add.discard } : {}) }, oid); // M-352 · "Flashback—{…}, Discard a card" (Twinned Vision): a carta descartada é escolhida // M-348 · o descarte adicional é escolhido também no lampejo (Laughing Mad) // M-331 · o lampejo que sacrifica (Lava Dart)
     pays.forEach(pay => castWith(o, (f.script && f.script.effects || []).filter(SC.isTargeted)).forEach(x => out.push({ ...x, flashback: true, ...comPagamento(pay) })));
   }
   // M-222 · retraçar (702.81): do cemitério pagando o custo normal e descartando um terreno; volta ao cemitério depois
@@ -42295,7 +42326,7 @@ function descreveEfeito(e) {
     case 'gain': return e.amount && IGUAL_A[e.amount.per] ? `ganha vida igual ${IGUAL_A[e.amount.per]}` : `ganha ${n} de vida`;
     case 'lose': return `${alvo === 'cada oponente' ? 'cada oponente perde' : 'perde'} ${n} de vida`;
     case 'veneno': return `${alvo === 'cada oponente' ? 'cada oponente recebe' : `${alvo || 'o jogador'} recebe`} ${n === 1 ? '1 marcador de veneno' : `${n} marcadores de veneno`}`; // M-432
-    case 'counter': return `anula ${alvo || 'uma mágica'}${e.mvAte != null ? ` se o valor de mana dela for ${qtd(e.mvAte)} ou menos` : ''}${e.suspende ? ` e a exila com ${e.suspende} marcadores de tempo, com suspender` : ''}${e.unless ? `, a menos que o controlador dela pague ${e.unless.mana}${e.semUnlessSe ? ' (se você controlar uma criatura com poder 4 ou mais, sem a opção de pagar)' : ''}` : ''}${e.exila ? ' e a exila' : ''}${e.topo ? ' e a põe no topo do grimório do dono' : ''}`; // M-269 · M-338 · M-395 · M-557: diz o "a menos que"
+    case 'counter': return `anula ${alvo || 'uma mágica'}${e.mvAte != null ? ` se o valor de mana dela for ${qtd(e.mvAte)} ou menos` : ''}${e.suspende ? ` e a exila com ${e.suspende} marcadores de tempo, com suspender` : ''}${e.unless ? e.unless.exilaCemiterio ? `, a menos que o controlador dela exile todas as cartas do próprio cemitério` : `, a menos que o controlador dela pague ${e.unless.mana}${e.semUnlessSe ? ' (se você controlar uma criatura com poder 4 ou mais, sem a opção de pagar)' : ''}` : ''}${e.exila ? ' e a exila' : ''}${e.topo ? ' e a põe no topo do grimório do dono' : ''}`; // M-269 · M-338 · M-395 · M-557: diz o "a menos que"
     case 'destroy': return `destrói ${alvo || 'uma permanente'}${e.mvAteM != null ? ` se o valor de mana dela for ${qtd(e.mvAteM)} ou menos` : ''}`; // M-537
     case 'destroy_all': { const nomes = { artifact: 'artefatos', enchantment: 'encantamentos', creature: 'criaturas', land: 'terrenos', planeswalker: 'planeswalkers' }; // CR2c.2
       const vm = e.mvMax != null ? ` de valor de mana ${e.mvMax} ou menos` : e.mvMin != null ? ` de valor de mana ${e.mvMin} ou mais` : '';
@@ -42436,6 +42467,7 @@ function descreveEfeito(e) {
     case 'revela_topo': return 'revela a carta do topo'; // M-353
     case 'terreno_da_mao': return `você pode pôr um terreno da sua mão no campo${e.virado ? ', virado' : ''}`; // M-354
     case 'imprime_da_mao': return 'exila uma carta da sua mão que não seja artefato nem terreno, ligada a esta permanente'; // M-563 · Chrome Mox
+    case 'exila_mao_ou_cemiterio': return `${alvo || 'o oponente alvo'} revela a mão e você escolhe uma carta que não seja terreno da mão ou do cemitério dele para exilar`; // M-623
     case 'exila_da_mao': return `${alvo || 'o oponente alvo'} revela a mão e você escolhe uma carta que não seja terreno para exilar (volta à mão do dono quando esta permanente sair do campo)`; // M-353
     case 'must_attack_source': return 'até uma criatura alvo de um oponente ataca esta planeswalker no próximo turno de quem a controla, se puder'; // M-228
     case 'prevent_self': return 'previne todo dano que seria causado a ela neste turno';
@@ -45570,7 +45602,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     // J-34 · relato #41 · o custo inteiro do lampejo, por extenso: "{1}{U} e pagar 3 de vida" (Deep Analysis), "{1}{U} e descartar uma carta"
     // (Twinned Vision), "sacrificar três criaturas" (Dread Return; antes saía "sacrificar uma permanente"), "sacrificar uma criatura" (Cabal Therapy)
     const NUM = { 2: 'duas', 3: 'três', 4: 'quatro', 5: 'cinco' };
-    const extras = [fb.pagarVida ? `pagar ${fb.pagarVida} de vida` : null, fb.discard ? (fb.discard > 1 ? `descartar ${fb.discard} cartas` : 'descartar uma carta') : null].filter(Boolean);
+    const extras = [fb.returnCreature ? 'devolver uma criatura sua para a mão' : null /* M-623 · Beam me up */, fb.pagarVida ? `pagar ${fb.pagarVida} de vida` : null, fb.discard ? (fb.discard > 1 ? `descartar ${fb.discard} cartas` : 'descartar uma carta') : null].filter(Boolean);
     if (fb.mana) return [fb.mana, ...extras].join(' e ');
     if (fb.sacrificeOther) { const so = fb.sacrificeOther, n = so.amount || 1;
       if (so.subtype) return `sacrificar ${({ Plains: 'uma Planície', Island: 'uma Ilha', Swamp: 'um Pântano', Mountain: 'uma Montanha', Forest: 'uma Floresta' }[so.subtype] || so.subtype)}`; // M-331
