@@ -725,6 +725,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-vx ✅ | T-IDIOMA relatos #53/#66, lote 7 da fatia 3: as cartas que entraram nas listas depois dos lotes e já têm o Oracle no repositório (32 em português, 9 em espanhol: Garruk, Veiled Butcher, Overlord of the Hauntwoods, Niv-Mizzet, Parun, as terras de Star Trek, Aang e Emet-Selch de duas faces, Pompous Battlemage // Improvised Act pelas faces), pelo conferidor; 1.880 em português e 753 em espanhol seguem sem Oracle no repositório (G-383, 12/11/2026) | T | 1 | 16º-vg |
 | 16º-vf ✅ | Relato #137 (J-70): com o detalhe da pilha aberto, tocar de novo na faixa (na seta) recolhe; antes nada acontecia e só Esc ou toque fora fechavam (J-70, 11/11/2026) | J | 1 | — |
 | 16º-vh 🟡 | Relato #135, fatia 1 (G-379, 11/11/2026): lista pronta do Pauper que o motor não joga inteira (medida da sentinela abaixo de 100%) sai das Listas prontas e das prontas do Jogar, com a linha "N listas de Pauper estão fora…"; a medida a 100% a traz de volta sozinha. Fatia 2: a rotina Sentinela do Pauper trata primeiro as listas que saíram | G | 1 de 2 | 16º-vd |
+| 16º-vw 🟡 | Relato #152, fatia 1 (J-72, 12/11/2026): na cena do turno do oponente, cada jogada dele fica o tempo de ler a legenda (1,6 s no mínimo, até 3,2 s nas frases longas) e o turno comprido encolhe primeiro os passos sem jogada; a jogada dele nunca passa de 1,1 s (antes: 12 s divididos por todos os quadros, ~0,4 s cada). Fatias 2 (Pausar e Seguir) e 3 (no meu toque, só o que vale acompanhar) seguem | J | 1 | H5 |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -15400,6 +15401,18 @@ Cloudflare) ficam do nosso lado, para gerar e validar. Cinco fatias MK3-P1…P5 
 - **Parcial / fora:** Início e Notícias têm cabeçalho próprio (data, saudação, sino; faixa de notícias) e entram no editorial
   com a K3-7 (Início na direção Vitrine) e a K3-10 (Notícias); as subtelas seguem no 44 · 1fr · 44 (a faixa compacta de 18 px
   nelas fica para a FA-2, que fecha contra as telas-modelo); a paralaxe do hero por `scroll()` entra com o hero da K3-9.
+#### Relato #152 · o turno do oponente no ritmo de ler (🟡 fatia 1 ✅ J-72, 12/11/2026; `16º-vw`)
+- **Valor:** o dono não conseguia acompanhar o turno do Shark ("na velocidade da luz"). A cena da H5 cabia sempre em 12 s: num turno
+  com Ponder, Thought Scour e escolhas, cada jogada ficava ~0,4 s na tela.
+- **Aceite (fatia 1):** jogada do oponente fica `max(1,6 s, 0,4 s + 40 ms por letra da legenda)`, até 3,2 s; passo visto sem
+  jogada 1 s (era 0,8 s). Passou do teto de 12 s: encolhem primeiro os passos sem jogada (até 300 ms) e só depois as jogadas dele,
+  nunca abaixo de 1,1 s (`cabeNoTeto`, `PISO_DA_JOGADA` em `sentidos`). O turno comprido passa do teto em vez de virar borrão; o
+  Pular continua indo ao fim. Nenhuma regra muda.
+- **Testes:** `sentidos.unit` "J-72" (falhava antes: ~420 ms por jogada); "H5 · roteiro" com a expectativa mudada de propósito
+  (800/1000 → 1000/1600 ms; o turno comprido não cabe mais nos 12 s). e2e H5, Y2 e MJ8: a espera do fim da cena vai de 20 s para 45 s.
+- **Fora (próximas fatias):** 2 · Pausar e Seguir na legenda da cena; 3 · modo "no meu toque" (a próxima jogada só vem quando o
+  jogador sinaliza), escolhas repetidas juntas e o destaque visual na carta da jogada.
+
 #### Relato #137 · a seta da pilha recolhe o detalhe (✅ J-70, 11/11/2026; `16º-vf`)
 - **Valor:** na mesa, com a pilha expandida, a seta da faixa não recolhia o detalhe; agora o mesmo toque que abre também fecha.
 - **Causa:** o botão da faixa guardava o "aberto" da última pintura; abrir a pilha não repinta a mesa (`abrePilha` mexe no DOM no

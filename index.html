@@ -43212,16 +43212,32 @@ function roteiroDaJogada(passos, { eu = 0, stats = null, tipos = null, teto = 12
     const nomeDe = j => ((p.depois.players || [])[j] || {}).name || 'oponente';
     quadros.push({ estado: p.depois, eventos: p.eventos || [], sentidos, quem: doOponente || i === 0 ? p.acao.p : (virou ? virou.jogador : (sentidos.find(e => e.jogador != null) || { jogador: p.depois.turn.active }).jogador), meu: i === 0, // passo automático: a legenda é de quem a coisa aconteceu, não de quem passou a prioridade
       legenda: linhas.slice(0, 2).join(' · ') || (virou ? `Turno ${p.depois.turn.number} · ${nomeDe(virou.jogador)}` : legendaDosSentidos(sentidos, nomeDe)), oid: p.acao.oid != null ? p.acao.oid : (p.acao.attackers || [])[0] ?? null,
-      ms: i === 0 ? 450 : doOponente ? 1000 : visto ? 800 : 350 });
+      jogada: doOponente, ms: 0 });
+    const q = quadros[quadros.length - 1];
+    q.ms = i === 0 ? 450 : doOponente ? tempoDeLer(q.legenda) : visto ? 1000 : 350;
   });
   if (!oponenteAgiu || quadros.length < 2) return [];
   // quadro sem nada a dizer nem a mostrar (uma virada de etapa) junta-se ao anterior
   const uteis = quadros.filter((q, i) => i === 0 || q.legenda || q.sentidos.length);
   uteis[uteis.length - 1].estado = quadros[quadros.length - 1].estado; // o último quadro é sempre o estado final
   const corte = uteis.slice(0, max); corte[corte.length - 1].estado = quadros[quadros.length - 1].estado;
-  const total = corte.reduce((n, q) => n + q.ms, 0);
-  if (total > teto) { const f = teto / total; for (const q of corte) q.ms = Math.max(300, Math.round(q.ms * f)); }
-  return corte;
+  return cabeNoTeto(corte, teto);
+}
+/* J-72 · relato #152 (o turno do Shark "na velocidade da luz"): a jogada do oponente fica na tela o tempo de ler a legenda
+   (1,6 s no mínimo, 40 ms por letra até 3,2 s). Turno comprido encolhe primeiro os passos sem jogada (até 300 ms) e só
+   depois as jogadas dele, nunca abaixo de PISO_DA_JOGADA: a cena passa do teto em vez de virar um borrão; o Pular segue ali. */
+const PISO_DA_JOGADA = 1100;
+const tempoDeLer = legenda => Math.max(1600, Math.min(3200, 400 + 40 * String(legenda || '').length));
+function cabeNoTeto(quadros, teto) {
+  const soma = qs => qs.reduce((n, q) => n + q.ms, 0);
+  const jogadas = quadros.filter(q => q.jogada && !q.meu), outros = quadros.filter(q => !(q.jogada && !q.meu));
+  if (soma(quadros) <= teto) return quadros;
+  const f1 = Math.max(0, teto - soma(jogadas)) / (soma(outros) || 1);
+  for (const q of outros) q.ms = Math.max(300, Math.round(q.ms * Math.min(1, f1)));
+  if (soma(quadros) <= teto) return quadros;
+  const f2 = Math.max(0, teto - soma(outros)) / (soma(jogadas) || 1);
+  for (const q of jogadas) q.ms = Math.max(PISO_DA_JOGADA, Math.round(q.ms * Math.min(1, f2)));
+  return quadros;
 }
 const limpaPrefs = p => ({ ligado: !(p && p.ligado === false), volume: p && typeof p.volume === 'number' && Number.isFinite(p.volume) ? Math.min(1, Math.max(0, p.volume)) : 0.75 }); // J-50 · padrão 0,6 → 0,75 (quem já ajustou o volume fica como está)
 
