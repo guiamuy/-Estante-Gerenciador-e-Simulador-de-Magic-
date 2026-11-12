@@ -8459,6 +8459,23 @@ async function textoNoIdioma(card, lang = idiomaDasCartas(), { rede = true } = {
   if (!d && traducaoCartas) { try { d = await traducaoCartas.busca(card, lang); } catch (e) { d = null; } }
   return d || null;
 }
+/* G-385 · relato #151, fatia 5b: o tipo da carta no idioma do app nas linhas fora da folha (Coleção). A linha nasce em
+   inglês e troca quando o texto no idioma já guardado no aparelho chega (sem rede: impresso oficial ou tradução do robô).
+   `monta(tipo)` devolve o texto da linha com o tipo dado. Um pedido por carta e idioma na sessão; o que não veio pode
+   chegar depois (a folha guarda), por isso só o achado fica na memória. Devolve `el`. */
+const tiposPedidos = new Map();
+function tipoNoIdioma(el, card, monta) {
+  const lang = idiomaDasCartas();
+  if (!el || !card || !lang || typeof monta !== 'function') return el;
+  const k = lang + '|' + (card.oracle_id || card.name);
+  if (!tiposPedidos.has(k)) tiposPedidos.set(k, textoNoIdioma(card, lang, { rede: false }).then(d => {
+    const t = d && (d.tipo || (Array.isArray(d.faces) && d.faces[0] && d.faces[0].tipo)) || null;
+    if (!t) tiposPedidos.delete(k);
+    return t;
+  }, () => { tiposPedidos.delete(k); return null; }));
+  tiposPedidos.get(k).then(t => { if (!t) return; el.textContent = monta(t); el.lang = lang === 'es' ? 'es' : 'pt-BR'; el.dataset.tipoIdioma = lang; });
+  return el;
+}
 const dataDoRuling = d => (d ? d.split('-').reverse().join('/') : 'sem data');
 function secaoRulings(card) {
   if (!rulings || !__m7.temRulings(card)) return null;
@@ -8486,6 +8503,8 @@ function secaoRulings(card) {
     if (!st.dado) return [];
     const itens = st.dado.itens;
     return [
+      // G-385 · relato #151, fatia 5b: com o app em português ou espanhol, diz por que os esclarecimentos ficam em inglês
+      itens.length && idiomaDasCartas() ? Text('Os esclarecimentos só existem em inglês: a Scryfall publica só nesse idioma.', { size: 'xs', tone: 'subtle', attrs: { id: 'card-rulings-idioma' } }) : null,
       itens.length ? h('ol', { class: 'ds-rulings', id: 'card-rulings-lista' }, ...itens.map(r => h('li', { class: 'ds-ruling', dataset: { fonte: r.fonte } },
         h('span', { class: 'ds-ruling__quando' }, `${dataDoRuling(r.data)} · ${r.fonte === 'wotc' ? 'Wizards' : 'Scryfall'}`),
         h('p', { class: 'ds-ruling__texto', lang: 'en' }, ComSimbolos(r.texto)))))
@@ -8661,7 +8680,7 @@ function openCardViewer(card, extra = [], { quantidade = null, arteDesconhecida 
   if (tr.estado !== 'sem') carregaTexto();
   return dlg;
 }
-return { createCardsScreen, openCardViewer, painelBaseLocal, usaRulings, usaTextoImpresso, usaTraducaoCartas, textoNoIdioma, idiomaDasCartas, NOME_DO_IDIOMA };
+return { createCardsScreen, openCardViewer, painelBaseLocal, usaRulings, usaTextoImpresso, usaTraducaoCartas, textoNoIdioma, tipoNoIdioma, idiomaDasCartas, NOME_DO_IDIOMA };
 })();
 
 /* ==== src/engine/scripts.js ==== */
@@ -23697,7 +23716,10 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     const c = cardOf(g);
     return h('button', { class: 'col-dense__row', type: 'button', dataset: { name: g.name, ...(state.selecting ? { sel: String(state.selected.has(g.key)) } : {}) }, onClick: () => openPrintings(g) },
       h('span', { class: 'col-dense__name' }, g.name, c && c.mana_cost ? h('span', { class: 'col-dense__custo' }, ComSimbolos(String(c.mana_cost).split('//')[0].trim())) : null, __m32.Pontos(__m32.de(state.etq, 'cartas', g.key))), // U3 · G2
-      h('span', { class: 'col-dense__meta' }, [c && c.type_line ? c.type_line.split(' — ')[0] : null, g.items.filter(i => i.set).map(i => i.set.toUpperCase()).filter((v, i, a) => a.indexOf(v) === i).join(' ') || null].filter(Boolean).join(' · ')),
+      // G-385 · relato #151, fatia 5b: o tipo no idioma do app quando o texto no idioma está guardado
+      (() => { const sets = g.items.filter(i => i.set).map(i => i.set.toUpperCase()).filter((v, i, a) => a.indexOf(v) === i).join(' ') || null;
+        const monta = tipo => [tipo ? String(tipo).split(' — ')[0] : null, sets].filter(Boolean).join(' · ');
+        return __m12.tipoNoIdioma(h('span', { class: 'col-dense__meta' }, monta(c && c.type_line)), c, monta); })(),
       h('span', { class: 'col-dense__qty' }, String(g.qtyRecorte ?? g.qty)));
   }
   /** Pilha: as primeiras cartas do grupo empilhadas; um toque abre o grupo. */
@@ -23864,7 +23886,9 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
         arteDaCapa(g, { sizes: '64px' }) /* 64 e não 48: numa tela 3× pede a "normal", a que o guardião guarda para a coleção · G-350: a da edição da cópia */),
       h('button', { class: 'col-row__info', type: 'button', 'aria-label': `Impressões de ${g.name}`, onClick: () => openPrintings(g) },
         h('span', { class: 'col-row__titulo' }, Text(g.name, { size: 'md' }), c && c.mana_cost ? h('span', { class: 'col-row__custo' }, ComSimbolos(String(c.mana_cost).split('//')[0].trim())) : null, __m32.Pontos(__m32.de(state.etq, 'cartas', g.key))), // U3 · G2: pontos das etiquetas
-        Text(printed ? printsSummary(g) : ([c && c.type_line, used.length ? `em ${used.join(', ')}` : null].filter(Boolean).join(' · ') || 'toque para definir a edição'), { size: 'xs', tone: 'muted' })),
+        (() => { const monta = tipo => [tipo, used.length ? `em ${used.join(', ')}` : null].filter(Boolean).join(' · ') || 'toque para definir a edição'; // G-385 · tipo no idioma
+          const t = Text(printed ? printsSummary(g) : monta(c && c.type_line), { size: 'xs', tone: 'muted' });
+          return printed ? t : __m12.tipoNoIdioma(t, c, monta); })()),
       h('div', { class: 'col-row__qty' },
         IconButton('menos', `Uma cópia a menos de ${g.name}`, { onClick: () => g.qty > 1 ? setQty(g, g.qty - 1) : confirmRemove(g) }),
         h('button', { class: 'col-row__n', type: 'button', 'aria-label': `${g.qty} cópias de ${g.name}. Editar`, onClick: () => editQty(g) }, String(g.qty)),
