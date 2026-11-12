@@ -8769,7 +8769,7 @@ const EFFECTS = {
   // S59 · provocar: até o seu próximo turno, ela ataca se puder
   goad: { fields: [], targets: ['creature'] },
   // S60 · "cada jogador perde N a menos que ..." e "sacrifique uma permanente do tipo"
-  lose_unless: { fields: ['amount'], targets: ['each-player'] },
+  lose_unless: { fields: ['amount'], targets: ['each-player', 'each-opponent'] }, // M-624 · "Each opponent loses 2 life unless they discard a card" (Ob Nixilis, the Adversary +1)
   sacrifice_own: { fields: [], targets: ['self'] },
   sacrifice_each: { fields: [], targets: ['self'] },
   // CR2c.2 · "destroy all <tipos> [with mana value N or less/greater]": tudo sai junto (603.10a); "target opponent sacrifices a <tipo> of their choice"
@@ -9076,7 +9076,7 @@ const CHOICE_EFFECTS = ['terreno_da_mao', 'exila_da_mao', 'revela_topo_transform
 /** S47 · condição do próprio efeito, olhando o que foi pago como custo. */
 /** M-249 · 122.1 · marcadores nomeados em português (o tipo é a chave em `counters`). */
 const MARCADOR_PT = { p1p1: '+1/+1', m0m1: '−0/−1', /* M-360 */ oil: 'de óleo', depletion: 'de esgotamento', charge: 'de carga', age: 'de idade', loyalty: 'de lealdade', time: 'de tempo', lore: 'de saga', poison: 'de veneno', energia: 'de energia' /* H-6 */ };
-const ONLY_IF = ['alvo-mv-3-ou-menos' /* M-557 · "If its mana value was 3 or less" (Fading Hope): o valor de mana do primeiro alvo antes do efeito */, 'alvo-era-verde' /* M-553 · "If it's a green card" (Tamiyo, Seasoned Scholar −3): a cor do primeiro alvo */, 'quatro-ou-menos-terrenos' /* M-539 · "If you control four or fewer lands, …" (Edge of Autumn), na resolução */, 'delirio' /* M-528 · "Delirium — If there are four or more card types among cards in your graveyard, …" (Violent Urge), na resolução */, 'discarded-nonland', 'source-entered-earlier', 'paid-additional', 'kicked', 'not-attacked', 'metalcraft', 'cast-from-graveyard', 'alvo-era-seu', 'evidenced', 'not-evidenced', 'bargained', 'alvo-era-neve', 'alvo-era-lendario' /* M-414 · "If it was a legendary spell" (Glorious Gale, 608.2h) */, 'ferocious', /* M-399 · Temur Battle Rage */ 'threshold', /* M-412 · limiar (207.2c): sete cartas ou mais no seu cemitério, na resolução */ 'morbid', /* M-416 · mórbido (207.2c): uma criatura morreu neste turno */ 'sem-limiar', /* M-417 · o outro lado do "instead" do limiar (Cabal Ritual) */ 'nao-seu-turno', /* M-452 · "If it's not your turn" (Zealous Display) */ ...onlyIfT()]; // T-62 · "if you're the monarch" / "if an opponent is the monarch" (onlyIfT, função içada da trilha tipos) // M-385 · "If that land was a snow land" (Thermokarst, 608.2h) · M-384 · 702.166b "If this spell was bargained" (Torch the Tower) // M-351 · "If evidence was collected, instead …" (Extract a Confession, 701.59 + 601.2b)
+const ONLY_IF = ['demonio-ou-diabo' /* M-624 · "If you control a Demon or Devil" (Ob Nixilis, the Adversary +1), na resolução */, 'alvo-mv-3-ou-menos' /* M-557 · "If its mana value was 3 or less" (Fading Hope): o valor de mana do primeiro alvo antes do efeito */, 'alvo-era-verde' /* M-553 · "If it's a green card" (Tamiyo, Seasoned Scholar −3): a cor do primeiro alvo */, 'quatro-ou-menos-terrenos' /* M-539 · "If you control four or fewer lands, …" (Edge of Autumn), na resolução */, 'delirio' /* M-528 · "Delirium — If there are four or more card types among cards in your graveyard, …" (Violent Urge), na resolução */, 'discarded-nonland', 'source-entered-earlier', 'paid-additional', 'kicked', 'not-attacked', 'metalcraft', 'cast-from-graveyard', 'alvo-era-seu', 'evidenced', 'not-evidenced', 'bargained', 'alvo-era-neve', 'alvo-era-lendario' /* M-414 · "If it was a legendary spell" (Glorious Gale, 608.2h) */, 'ferocious', /* M-399 · Temur Battle Rage */ 'threshold', /* M-412 · limiar (207.2c): sete cartas ou mais no seu cemitério, na resolução */ 'morbid', /* M-416 · mórbido (207.2c): uma criatura morreu neste turno */ 'sem-limiar', /* M-417 · o outro lado do "instead" do limiar (Cabal Ritual) */ 'nao-seu-turno', /* M-452 · "If it's not your turn" (Zealous Display) */ ...onlyIfT()]; // T-62 · "if you're the monarch" / "if an opponent is the monarch" (onlyIfT, função içada da trilha tipos) // M-385 · "If that land was a snow land" (Thermokarst, 608.2h) · M-384 · 702.166b "If this spell was bargained" (Torch the Tower) // M-351 · "If evidence was collected, instead …" (Extract a Confession, 701.59 + 601.2b)
 /** S16 · custos que substituem o custo de mana, e o custo do lampejo do passado. */
 const ALT_COST_PARTS = ['returnTapped', 'mana', 'life', 'discard', 'returnLand', 'exileGraveyard', 'tapOther', 'sacrificeOther', 'discardSubtype', 'exileHandColor', 'free', 'revealHand', 'exileGraveyardTopo']; // M-362 · "exile the top three black cards of your graveyard" (Spinning Darkness) // M-351 · revealHand: "you may reveal your hand rather than pay" (Land Grant, 118.9) // CR2c.4 · Ilha entre as descartadas (Foil), exilar carta da cor da mão (Snapback), de graça (Mogg Salvage)
 /** S48 · fuga: conjura do cemitério pagando o custo, e a carta fica em jogo. */
@@ -9695,6 +9695,7 @@ function validateScript(sc) {
     if (self.atacaSePuderSe != null && !(self.atacaSePuder === true && JSON.stringify(self.atacaSePuderSe) === '{"delirio":true}')) errs.push('bônus próprio: atacaSePuderSe é { delirio: true } e pede atacaSePuder'); // M-525
     if (self.entraComInstFeitDelveM != null && !(self.entraComInstFeitDelveM === true && sc.delve)) errs.push('bônus próprio: entraComInstFeitDelveM é verdadeiro e pede delve (as cartas exiladas pelo delve desta mágica)'); // M-530 · Murktide Regent
     if (self.soBloqueiaVoadorasM != null && self.soBloqueiaVoadorasM !== true) errs.push('bônus próprio: soBloqueiaVoadorasM só vale como true'); // M-531 · Brazen Borrower
+    if (self.baixaXM != null && !(self.baixaXM === true && (sc.loyalty || []).length)) errs.push('bônus próprio: baixaXM só vale como true, num planeswalker com habilidades de lealdade'); // M-624 · "Casualty X. The copy isn't legendary and has starting loyalty X." (Ob Nixilis, the Adversary)
     if (self.compraMaisUmM != null && self.compraMaisUmM !== true) errs.push('bônus próprio: compraMaisUmM só vale como true'); // M-542 · Quantum Riddler
     if (self.tipoBasicoAoEntrarM != null && self.tipoBasicoAoEntrarM !== true) errs.push('bônus próprio: tipoBasicoAoEntrarM só vale como true'); // M-554 · Multiversal Passage
     if (self.danoViraMarcadorM != null && self.danoViraMarcadorM !== true) errs.push('bônus próprio: danoViraMarcadorM só vale como true'); // M-547 · Soul-Scar Mage
@@ -9869,7 +9870,8 @@ function effectErrors(effects, label, opcional) {
       if (e.palavras != null && !(Array.isArray(e.palavras) && e.palavras.every(k => KEYWORDS.includes(String(k).toLowerCase())))) errs.push(`${label} ${i + 1}: palavra-chave desconhecida em "palavras"`);
       if (e.ate != null && !duracaoValida(e.ate)) errs.push(`${label} ${i + 1}: duração "${typeof e.ate === 'object' ? JSON.stringify(e.ate) : e.ate}" desconhecida`);
     }
-    if (e.do === 'keyword' && !KEYWORDS.includes(String(e.keyword || '').toLowerCase())) errs.push(`${label} ${i + 1}: palavra-chave "${e.keyword}" não é resolvida pelo motor`);
+    if (e.do === 'keyword' && e.escolha != null && !(e.keyword == null && Array.isArray(e.escolha) && e.escolha.length >= 2 && e.escolha.every(k => KEYWORDS.includes(String(k).toLowerCase())))) errs.push(`${label} ${i + 1}: "escolha" são duas ou mais palavras-chave do motor, sem "keyword"`); // M-624 · "gains your choice of double strike or lifelink"
+    if (e.do === 'keyword' && e.escolha == null && !KEYWORDS.includes(String(e.keyword || '').toLowerCase())) errs.push(`${label} ${i + 1}: palavra-chave "${e.keyword}" não é resolvida pelo motor`);
     if (e.seControlaOutra != null && !(e.do === 'counters' && e.seControlaOutra && ['W', 'U', 'B', 'R', 'G'].includes(e.seControlaOutra.cor))) errs.push(`${label} ${i + 1}: "seControlaOutra" vale para marcadores, com uma cor`); // M-272
     if (e.do === 'torna_copia' && ((e.ate != null && !duracaoValida(e.ate)) || (e.somaTipos != null && !(Array.isArray(e.somaTipos) && e.somaTipos.every(x => TIPOS_DE_CARTA.includes(x)))))) errs.push(`${label} ${i + 1}: cópia com duração ou exceção de tipo desconhecida`); // CR2f.1
     if (e.do === 'efeito_jogador') { if (!['voce', 'oponentes', 'todos', undefined].includes(e.quem)) errs.push(`${label} ${i + 1}: quem precisa ser voce, oponentes ou todos`); if (!REGRAS_DO_JOGADOR.some(k => e[k] != null)) errs.push(`${label} ${i + 1}: efeito sobre jogador não muda nada`); if (e.terrenosExtras != null && !(Number.isInteger(e.terrenosExtras) && e.terrenosExtras > 0)) errs.push(`${label} ${i + 1}: terrenos extras precisa ser inteiro positivo`); if (e.ate != null && !['fim-do-turno', 'seu-proximo-turno', 'sempre'].includes(e.ate)) errs.push(`${label} ${i + 1}: duração desconhecida para efeito sobre jogador`); } // CR2d.10
@@ -11413,6 +11415,17 @@ const RAW_SCRIPTS = [
     { cost: 1, label: '+1: Até o seu próximo turno, você pode conjurar feitiços como se tivessem lampejo', effects: [{ do: 'efeito_jogador', quem: 'voce', feiticosComLampejo: true, ate: 'seu-proximo-turno' }] }, // "+1: Until your next turn, you may cast sorcery spells as though they had flash." (601.3b)
     { cost: -3, label: '−3: Devolve até um artefato, criatura ou encantamento à mão do dono e compra uma carta', effects: [{ do: 'bounce', target: { tipos: ['artifact', 'creature', 'enchantment'] }, upTo: true }, { do: 'draw', amount: 1 }] }], // "−3: Return up to one target artifact, creature, or enchantment to its owner's hand. Draw a card."
     example: { action: 'loyalty:1', target: 'enemy-creature', expect: { bounced: true } } },
+  // M-624 · textos da API da Scryfall (coleta de 12/11/2026, cobertura/modern.json do ramo catalogo); rulings do Ob Nixilis de 29/04/2022 (scryfall.com, consulta de 12/11/2026)
+  { name: 'Ob Nixilis, the Adversary', self: { baixaXM: true }, loyalty: [ // "Casualty X. The copy isn't legendary and has starting loyalty X." (702.153a + 707.10c; a cópia vira ficha)
+    { cost: 1, label: '+1: Cada oponente perde 2 de vida, a menos que descarte uma carta; com Demônio ou Diabo, você ganha 2', effects: [{ do: 'lose_unless', amount: 2, target: 'each-opponent', cost: { discard: 1 } }, { do: 'gain', amount: 2, target: 'self', onlyIf: 'demonio-ou-diabo' }] }, // "+1: Each opponent loses 2 life unless they discard a card. If you control a Demon or Devil, you gain 2 life."
+    { cost: -2, label: '−2: Cria um Diabo 1/1 vermelho ("quando morre, causa 1 de dano a qualquer alvo")', effects: [{ do: 'token', amount: 1, token: { name: 'Devil', types: ['creature'], subtypes: ['Devil'], colors: ['R'], power: 1, toughness: 1, abilities: [{ kind: 'triggered', when: 'dies', effects: [{ do: 'damage', amount: 1, target: 'any' }] }] } }] }, // "−2: Create a 1/1 red Devil creature token with "When this token dies, it deals 1 damage to any target.""
+    { cost: -7, label: '−7: O jogador alvo compra sete cartas e perde 7 de vida', effects: [{ do: 'draw', amount: 7, target: 'player' }, { do: 'lose', amount: 7, target: 'first-target' }] }], // "−7: Target player draws seven cards and loses 7 life."
+    example: { action: 'loyalty:1', target: 'none', expect: { tokens: 1 } } },
+  { name: 'Practiced Offense', effects: [ // "Put a +1/+1 counter on each creature target player controls. Target creature gains your choice of double strike or lifelink until end of turn."
+    { do: 'counters', amount: 1, target: 'player', cada: { tipos: ['creature'], de: 'alvo' } },
+    { do: 'keyword', target: 'creature', escolha: ['double strike', 'lifelink'] }], // a escolha é de quem controla, na resolução (608.2d)
+    flashback: { mana: '{1}{W}' }, // "Flashback {1}{W}"
+    example: { target: 'none', expect: { selfLife: 0 } } }, // o cenário S8 só monta um alvo; as duas frases (jogador alvo + criatura alvo, escolha na resolução) estão em lt301.unit
   // M-618 · texto da API da Scryfall (coleta de 10/11/2026)
   { name: 'Emperor of Bones', abilities: [
     { kind: 'triggered', when: 'begin-combat', effects: [{ do: 'exile', target: 'card-in-any-graveyard', upTo: true }, { do: 'marca_exiladas', target: 'first-target' }] }, // "At the beginning of combat on your turn, exile up to one target card from a graveyard." (607.2a: fica ligada a esta encarnação)
@@ -26003,7 +26016,7 @@ function moveObject(s, oid, to, { top = true, controller } = {}) {
   if (to === 'battlefield') { const r = entradaModificada(s, o, xPago); if (r.virada != null) o.tapped = r.virada; if (r.pagaVida) s.queuedChoices = (s.queuedChoices || []).concat([{ kind: 'paga_vida_entrada', oid: o.oid, z: o.zc || 0, p: o.controller, n: r.pagaVida, name: o.name }]); for (const [k, n] of Object.entries(r.marcadores)) o.counters[k] = (o.counters[k] || 0) + marcadoresAoPor(s, o, k, n, true); } // CR2e.2 · 614.16: entrar com marcadores também é pôr marcadores
   if (to === 'battlefield') sagaEntrou(s, o); // T-2 · CR 714.3a / 122.6 / 714.3b · Saga que ENTRA no campo: o marcador de entrada dispara o capítulo aqui; com read ahead, fica anotada para a escolha (função abaixo da âncora T das exportações)
   // S21 · planeswalker entra com sua lealdade inicial
-  if (to === 'battlefield' && s.facts[o.name].types.includes('planeswalker') && s.facts[o.name].loyalty != null) o.counters.loyalty = (o.counters.loyalty || 0) + marcadoresAoPor(s, o, 'loyalty', Math.max(0, s.facts[o.name].loyalty - completadoT(s, o)), true); /* T-45 · CR 702.150a: completado entra com dois a menos por símbolo phyrexiano pago com vida (Toca ponto comum: moveObject) */ /* T-18 · CR 306.5b / 614.1c: soma ao marcador extra posto na entrada (Oath of Gideon) · Toca ponto comum: moveObject (S21) */ // CR2e.2 · ruling: entra com o dobro da lealdade
+  if (to === 'battlefield' && !o.token && s.facts[o.name].types.includes('planeswalker') && s.facts[o.name].loyalty != null) o.counters.loyalty = (o.counters.loyalty || 0) + marcadoresAoPor(s, o, 'loyalty', Math.max(0, s.facts[o.name].loyalty - completadoT(s, o)), true); /* M-624 · a ficha (cópia de mágica de permanente, 707.10c) recebe a lealdade só pelo lealdadeDaFichaT: antes entrava com o dobro (achado com o Ob Nixilis; Lithoform Engine pelo mesmo caminho) (Toca ponto comum: moveObject) */ /* T-45 · CR 702.150a: completado entra com dois a menos por símbolo phyrexiano pago com vida (Toca ponto comum: moveObject) */ /* T-18 · CR 306.5b / 614.1c: soma ao marcador extra posto na entrada (Oath of Gideon) · Toca ponto comum: moveObject (S21) */ // CR2e.2 · ruling: entra com o dobro da lealdade
   // S39 · vínculo de alma: ao entrar, emparelha com uma criatura sua ainda sozinha
   if (to === 'battlefield') pairSoulbond(s, o);
   // M9 · gatilhos de mudança de zona
@@ -26604,7 +26617,7 @@ function serveGasto(s, g, ctx) {
   const casa = (q, o) => { const f = o && s.facts[o.name]; if (!f || !q) return false;
     if (q.tipos && !q.tipos.some(t => (f.types || []).includes(t))) return false;
     if (q.semTipos && q.semTipos.some(t => (f.types || []).includes(t))) return false;
-    if (q.lendaria && !f.legendary) return false;
+    if (q.lendaria && !lendariaM(s, o)) return false; // M-624
     if (q.incolor && coresDe(s, o).length) return false;
     if (q.subtipos && !q.subtipos.some(k => new RegExp('\\b' + k + '\\b').test(linhaDeTipo(s, o)))) return false;
     return true; };
@@ -27502,7 +27515,7 @@ function efeitosDaMagia(s, o, mode) { const base = efeitosBaseDaMagia(s, o, mode
 /** CR2f.3 · 707.10: as escolhas feitas ao conjurar que a cópia leva (modo, modos, X pago, reforço, encaixe, custo alternativo, cor escolhida). */
 /** M-351 · as marcas de "como foi conjurada" que as condições de efeito leem (601.2b, 702.33d, 701.59): a carta as perde ao sair da pilha (400.7), a retomada as guarda. */
 const condicoesDaMagia = (o, effs) => { if (!(effs || []).some(e => e && (e.onlyIf || (e.amount && e.amount.per === 'se')))) return undefined; const c = {}; for (const k of ['evidenced', 'kicked', 'paidAdditional', 'discardedNonland', 'bargained', 'castFrom']) if (o && o[k] != null) c[k] = o[k]; return Object.keys(c).length ? c : undefined; }; // só quando o resto da resolução tem condição (o estado das partidas sem isso não muda)
-const marcasDaMagia = o => { if (!o) return {}; const m = {}; for (const k of ['mode', 'modes', 'xPaid', 'kicked', 'emendas', 'altIndex', 'chosenColor', 'divisao', 'prototipoT', 'sacrificados', 'bargained', 'evidenced', 'paidAdditional', 'discardedNonland', 'faceDown', 'alvosLivresM' /* M-515 · 707.10: as cartas alvo de Drafna's Restoration */, 'escolheuModoT' /* T-110 · 707.10: a cópia copia os custos adicionais pagos e a face para baixo (707.2) */]) if (o[k] != null) m[k] = Array.isArray(o[k]) ? o[k].slice() : o[k]; return m; };
+const marcasDaMagia = o => { if (!o) return {}; const m = {}; for (const k of ['naoLendariaM', 'lealdadeXM' /* M-624 · 707.9b: a exceção da cópia da baixa X é valor copiável (achado da revisão: a cópia da cópia saía lendária) */, 'mode', 'modes', 'xPaid', 'kicked', 'emendas', 'altIndex', 'chosenColor', 'divisao', 'prototipoT', 'sacrificados', 'bargained', 'evidenced', 'paidAdditional', 'discardedNonland', 'faceDown', 'alvosLivresM' /* M-515 · 707.10: as cartas alvo de Drafna's Restoration */, 'escolheuModoT' /* T-110 · 707.10: a cópia copia os custos adicionais pagos e a face para baixo (707.2) */]) if (o[k] != null) m[k] = Array.isArray(o[k]) ? o[k].slice() : o[k]; return m; };
 const emendasDe = (s, oids) => oids.map(x => ({ name: s.objects[x].name, effects: ((s.facts[s.objects[x].name].script || {}).effects || []) }));
 const encaixavelEm = (s, carta, magia) => { const sp = ((s.facts[s.objects[carta].name] || {}).script || {}).splice; return !!sp && carta !== magia && temSubtipo(s, magia, sp.subtipo); };
 function efeitosBaseDaMagia(s, o, mode) {
@@ -27712,7 +27725,7 @@ function selCasa(s, p, o, sel, selfOid, opts = {}) {
   }
   if (sel.cor && !coresDe(s, o).includes(sel.cor)) return false; // CR2d.8
   if (sel.lendaria != null && portadorLendarioV(s, o)) { if (!sel.lendaria) return false; sel = { ...sel, lendaria: null }; } // V-25 · 701.54c (1): o Portador do Anel é lendário (Toca ponto comum: seletor)
-  if (sel.lendaria != null && (!!f.legendary && !o.faceDown) !== sel.lendaria) return false;
+  if (sel.lendaria != null && (lendariaM(s, o) && !o.faceDown) !== sel.lendaria) return false; // M-624 · a cópia não lendária
   if ((sel.historico != null || sel.foraDaLei != null || sel.modificada != null || sel.virada != null || sel.metamorfose != null || sel.terrenoBasico != null || sel.ativadaNoTurno != null || sel.tapped != null) && !predicadosDeTipoT(s, o, sel)) return false; // T-59 · CR 700.6 / 700.12 / 700.9 (Toca ponto comum: selCasa)
   if (sel.atacando != null && (o.zone !== 'battlefield' || (o.attacking != null) !== !!sel.atacando)) return false;
   if (sel.emCombate && (o.zone !== 'battlefield' || (o.attacking == null && o.blocking == null))) return false; // M-599 · "attacking or blocking creature" (Eiganjo) // M-361 · 506.4: "attacking creature" (Tangle)
@@ -27901,7 +27914,7 @@ function targetAllowed(s, eff, tgt, src) {
   if (eff.doJogadorDoPrimeiro && src && (src.targets || [])[0] && src.targets[0] !== tgt && !controladaPeloPrimeiroM(s, src.targets[0], o)) return false; // M-437 · 608.2b: na resolução, a criatura precisa ser controlada pelo jogador do primeiro alvo
   const f = s.facts[o.name] || {};
   if (eff.targetNotLegendary && portadorLendarioV(s, o)) return false; // V-25 · 701.54c (1) (Toca ponto comum: targetAllowed)
-  if (eff.targetNotLegendary && f.legendary) return false;
+  if (eff.targetNotLegendary && lendariaM(s, o)) return false; // M-624
   if (eff.targetPowerMax != null && !(o.zone === 'battlefield' && isCreature(s, o) && power(s, o) <= eff.targetPowerMax)) return false; // M-341
   if (eff.targetDefensor && src && o.controller !== (src.defensor != null ? src.defensor : o.controller === src.controller ? -1 : o.controller)) return false; // M-401 · 508.5: "creature defending player controls" (sem combate conhecido, um oponente)
   if (eff.targetTapped && !o.tapped) return false; // M-349 · "target tapped creature" (Cryogen Relic) · "target creature with power N or less"
@@ -28011,6 +28024,7 @@ function effectAllowed(s, fonte, eff) {
   if (eff.onlyIf === 'paid-additional') return !!fonte && !!fonte.paidAdditional; // S53 · "se você fizer"
   if (eff.onlyIf === 'ferocious') return !!fonte && battlefield(s).some(x => x.controller === fonte.controller && isCreature(s, x) && power(s, x) >= 4); // M-399 · ferocidade (palavra de habilidade, 207.2c), conferida na resolução
   if (eff.onlyIf === 'bargained') return !!fonte && !!fonte.bargained; // M-384 · 702.166b · "If this spell was bargained" (Torch the Tower)
+  if (eff.onlyIf === 'demonio-ou-diabo') return !!fonte && battlefield(s).some(x => x.controller === fonte.controller && !x.faceDown && ['Demon', 'Devil'].some(t => matchesFilter(s, x, { subtypes: [t] }))); // M-624 · 608.2c: conferido na resolução (o changeling conta, 702.73a)
   if (eff.onlyIf === 'kicked') return !!fonte && !!fonte.kicked; // CR 702.33d · "if this spell was kicked"
   if (eff.onlyIf === 'metalcraft' || eff.onlyIf === 'cast-from-graveyard' || eff.onlyIf === 'threshold' || eff.onlyIf === 'sem-limiar' || eff.onlyIf === 'morbid' || eff.onlyIf === 'nao-seu-turno' /* M-452 */ || eff.onlyIf === 'delirio' /* M-528 */ || eff.onlyIf === 'quatro-ou-menos-terrenos' /* M-539 */) return condicaoDoEfeito(s, fonte, eff.onlyIf); // M-331 · M-412 · M-416 · M-417
   if (doQueResolveT(eff.onlyIf)) return condicaoDoEfeito(s, fonte, eff.onlyIf); // T-65 · e as do lance da moeda // T-62 · CR 725.5 (Toca ponto comum: effectAllowed)
@@ -28728,7 +28742,7 @@ function applyEffectM449(s, src, eff, tgt, events) {
       break;
     }
     case 'lose_unless': { // S60 · cada jogador perde, a menos que pague
-      const ordem = [ctrl, ...s.players.map((_, i) => i).filter(i => i !== ctrl)].filter(i => !s.players[i].lost);
+      const ordem = (eff.target === 'each-opponent' ? [] : [ctrl]).concat(s.players.map((_, i) => i).filter(i => i !== ctrl)).filter(i => !s.players[i].lost); // M-624 · each-opponent: só os oponentes, na ordem de turno (101.4)
       s.unlessChain = { rest: ordem, amount: amountOf(s, src, eff.amount), cost: eff.cost || {}, name: src.name };
       continueUnless(s, events);
       break;
@@ -29092,6 +29106,7 @@ function applyEffectM449(s, src, eff, tgt, events) {
     }
     case 'keyword': { // concede até o fim do turno
       const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
+      if (eff.escolha && alvo) { if (alvo.zone !== 'battlefield') { note({ failed: true }); break; } s.pending = { kind: 'choose_mode', p: ctrl, name: src.name, pergunta: `${alvo.name} ganha qual habilidade até o fim do turno?`, options: eff.escolha.map(k => PALAVRA_ESCOLHA_M[k] || k), palavraEscolhaM: { oid: alvo.oid, z: alvo.zc || 0, palavras: eff.escolha.slice(), ate: eff.until === 'your-next-turn' ? 'seu-proximo-turno' : 'fim-do-turno' } }; events.push({ kind: 'choice', what: 'qual habilidade a criatura ganha', name: src.name, amount: 1 }); break; } // M-624 · "gains your choice of X or Y": quem controla escolhe na resolução (608.2d); alvo que saiu, nada (608.2b)
       if (eff.optional && alvo && eff.target !== 'self-source') { s.pending = { kind: 'may_pay', p: ctrl, cost: null, name: src.name, then: { effects: [{ do: 'keyword', keyword: eff.keyword, target: 'creature', ...(eff.until ? { until: eff.until } : {}) }], source: src.oid, name: src.name, controller: ctrl, targets: [{ oid: alvo.oid }] } }; note({ pending: true }); break; } // M-567 · "you may have it gain …" (a escolha é na resolução)
       // CR2-G R3b · atalho de continuo com uma palavra-chave (S59 · até o seu próximo turno)
       if (alvo) { aplicaTemporario(s, alvo, { palavras: [eff.keyword], ate: eff.until === 'your-next-turn' ? 'seu-proximo-turno' : 'fim-do-turno' }, ctrl); note({ name: alvo.name, palavra: eff.keyword, ate: eff.until === 'your-next-turn' ? 'seu-proximo-turno' : 'fim-do-turno' }); }
@@ -31315,7 +31330,7 @@ function lendasRepetidas(s) {
   for (let p = 0; p < s.players.length; p++) {
     if (s.players[p].lost) continue;
     const porNome = {};
-    for (const o of battlefield(s)) if (o.controller === p && !o.faceDown && s.facts[o.name] && s.facts[o.name].legendary) (porNome[o.name] = porNome[o.name] || []).push(o.oid);
+    for (const o of battlefield(s)) if (o.controller === p && !o.faceDown && lendariaM(s, o)) (porNome[o.name] = porNome[o.name] || []).push(o.oid);
     const nome = Object.keys(porNome).find(n => porNome[n].length > 1);
     if (nome) return { p, name: nome, oids: porNome[nome] };
   }
@@ -31555,7 +31570,7 @@ const HANDLERS = {
     // Leva 106 · tempestade (702.40): as cópias vão para a pilha por cima da original, cada uma com alvo próprio
     // ("you may choose new targets"), e resolvem mesmo se a original for anulada. Antes resolviam junto com ela.
     if ((f.script || {}).storm) tempestadeNaPilhaK(s, a, o); // K-25 · 702.40a: um gatilho só, que copia na resolução (Toca ponto comum: HANDLERS.cast)
-    if (a.casualtyK != null) baixaNaPilhaK(s, a, o); // K-68 · 702.153a: sacrifica a criatura e põe na pilha o gatilho que copia (Toca ponto comum: HANDLERS.cast)
+    if (a.casualtyK != null) { if (a.baixaXM != null) baixaXNaPilhaM(s, a, o); else baixaNaPilhaK(s, a, o); } // M-624 · baixa X (Ob Nixilis) // K-68 · 702.153a: sacrifica a criatura e põe na pilha o gatilho que copia (Toca ponto comum: HANDLERS.cast)
     if (modoDeEquipeK(s, a, o)) pagaEquipeK(s, a, o); // K-70 · 702.194a: vira as criaturas escolhidas (Toca ponto comum: HANDLERS.cast)
     // M-265 · replicar (702.56b): "when you cast this spell, copy it for each time you paid its replicate cost" — como a tempestade, cópias
     // com alvo próprio por cima da original, que existem mesmo se a original for anulada; não são conjuradas
@@ -31820,6 +31835,14 @@ const HANDLERS = {
       else applyEffect(s, { oid, name: pk.name, controller: pk.p }, espiritoDoEndure(n), null, ev);
       stateBased(s, ev);
       if (!s.pending) resumeEffects(s, ev);
+      return;
+    }
+    if (pk.palavraEscolhaM) { // M-624 · a palavra-chave escolhida na resolução (608.2d); a criatura que saiu e voltou é outro objeto (400.7)
+      const q = pk.palavraEscolhaM, k = q.palavras[a.index], alvo = s.objects[q.oid];
+      if (a.decline || k == null) throw new RuleError('escolha', 'escolha uma das habilidades');
+      s.pending = null;
+      if (alvo && alvo.zone === 'battlefield' && (alvo.zc || 0) === q.z) { aplicaTemporario(s, alvo, { palavras: [k], ate: q.ate }, pk.p); ev.push({ kind: 'effect', do: 'keyword', name: pk.name, target: alvo.name, palavra: k, ate: q.ate }); }
+      stateBased(s, ev); if (!s.pending) resumeEffects(s, ev);
       return;
     }
     if (pk.naResolucao) { // Leva 131 · virar ou desvirar o alvo, decidido na resolução; recusar só quando o texto diz "may"
@@ -34723,7 +34746,8 @@ function ofertasSemPagarK(s, p, out) {
     if (f.proleK && !x.proleK && (!s.manaCheck || canPay(s, p, parseCost(f.proleK.mana)))) tmp.push({ ...x, proleK: true });
     if (f.esquadraoK && !x.esquadraoK) for (let n = 1; n <= LIMITE_ESQUADRAO_K && (!s.manaCheck || canPay(s, p, somaCusto(parseCost('{0}'), parseCost(f.esquadraoK.mana), n))); n++) tmp.push({ ...x, esquadraoK: n }); // K-67 · 118.9d
     if (modoDeEquipeK(s, x, o) && !(x.pay || {}).equipeK) { tmp.splice(tmp.indexOf(x), 1); for (const g of gruposDeEquipeK(s, p, modoDeEquipeK(s, x, o))) tmp.push({ ...x, pay: { ...(x.pay || {}), equipeK: g } }); continue; } // K-70 · 118.9d
-    if (f.numerosK && (f.numerosK.casualty || [])[0] && x.casualtyK == null && (f.types.includes('instant') || f.types.includes('sorcery'))) for (const c of criaturasDaBaixaK(s, p, f.numerosK.casualty[0])) tmp.push({ ...x, casualtyK: c }); // K-68 · 118.9d
+    if (f.numerosK && (f.numerosK.casualty || [])[0] && x.casualtyK == null && (f.types.includes('instant') || f.types.includes('sorcery'))) for (const c of criaturasDaBaixaK(s, p, f.numerosK.casualty[0])) tmp.push({ ...x, casualtyK: c });
+    if (x.casualtyK == null && baixaXDeM(s, o)) tmp.push(...variantesBaixaXM(s, p, x)); // M-624 · 118.9d: a baixa X também sem pagar o custo de mana // K-68 · 118.9d
     if (f.recompraK && !x.recompraK && (!f.recompraK.mana || !s.manaCheck || canPay(s, p, parseCost(f.recompraK.mana)))) {
       if (!f.recompraK.extra) tmp.push({ ...x, recompraK: true });
       else if (canPayExtra(s, p, f.recompraK.extra, x.oid)) for (const pg of formasDoExtraK(s, p, f.recompraK.extra, x.oid, pagamentosDe(s, p, f.recompraK.extra, x.oid)).slice(0, LIMITE_PAGAMENTOS)) tmp.push(pg ? { ...x, recompraK: true, pay: { ...(x.pay || {}), recompraK: pg } } : { ...x, recompraK: true });
@@ -34784,7 +34808,31 @@ function baixaNaPilhaK(s, a, o) {
 function ofertasBaixaK(s, p, out) {
   const base = out.filter(x => x.t === 'cast' && x.casualtyK == null && s.objects[x.oid] && numeroBaixaK(s, s.objects[x.oid]) && ['instant', 'sorcery'].some(t => s.facts[s.objects[x.oid].name].types.includes(t)));
   for (const x of base) for (const c of criaturasDaBaixaK(s, p, numeroBaixaK(s, s.objects[x.oid]))) out.push({ ...x, casualtyK: c });
+  for (const x of out.filter(y => y.t === 'cast' && y.casualtyK == null && baixaXDeM(s, s.objects[y.oid]))) out.push(...variantesBaixaXM(s, p, x)); // M-624
 }
+/* M-624 · 702.153a com X (Ob Nixilis, the Adversary: "Casualty X. The copy isn't legendary and has starting loyalty X."): X é escolhido ao
+   conjurar (601.2b) e a criatura sacrificada precisa ter poder X ou mais (rulings de 29/04/2022, scryfall.com, consulta de 12/11/2026). O
+   gatilho copia a mágica de permanente; a cópia vira ficha ao resolver (707.10c / 111.12), não é lendária e entra com lealdade X
+   (`naoLendariaM`, `lealdadeXM`, valores da cópia). X vai de 1 ao poder da criatura (X = 0 daria uma cópia que morre na hora, 704.5i:
+   o mesmo que sacrificar sem copiar, e fica de fora). Toca ponto comum: ofertasBaixaK, o laço das conjurações grátis e HANDLERS.cast. */
+const PALAVRA_ESCOLHA_M = { 'double strike': 'Golpe duplo', lifelink: 'Vínculo com a vida' }; // M-624 · rótulos da escolha de palavra na resolução (o motor não enxerga o PALAVRA_PT da mesa)
+const baixaXDeM = (s, o) => { const f = o && s.facts[o.name]; return !!(f && f.script && f.script.self && f.script.self.baixaXM); };
+const LIMITE_BAIXA_X_M = 20;
+function variantesBaixaXM(s, p, x) {
+  const out = [];
+  for (const c of criaturasDaBaixaK(s, p, 1)) for (let n = 1; n <= Math.min(LIMITE_BAIXA_X_M, power(s, s.objects[c])); n++) out.push({ ...x, casualtyK: c, baixaXM: n });
+  return out;
+}
+function baixaXNaPilhaM(s, a, o) {
+  const n = a.baixaXM, c = s.objects[a.casualtyK];
+  if (!baixaXDeM(s, o)) throw new RuleError('custo', 'esta mágica não tem baixa X');
+  if (!Number.isInteger(n) || n < 1) throw new RuleError('custo', 'escolha o X da baixa (1 ou mais)');
+  if (!c || c.zone !== 'battlefield' || c.controller !== a.p || !isCreature(s, c) || power(s, c) < n) throw new RuleError('custo', `sacrifique uma criatura sua com poder ${n} ou mais`);
+  sacrifice(s, c.oid, []);
+  s.queued.push({ source: a.oid, name: o.name, controller: a.p, effects: [{ do: 'tempestade_k', n: 1, efeitos: spellEffects(s, s.objects[a.oid]), marcas: { ...marcasDaMagia(s.objects[a.oid]), naoLendariaM: true, lealdadeXM: n } }], when: 'casualty' });
+}
+/** M-624 · 704.5j / 205.4d: a permanente é lendária pelos fatos da carta, a menos que seja a cópia "que não é lendária" (Ob Nixilis). */
+const lendariaM = (s, o) => !!(o && s.facts[o.name] && s.facts[o.name].legendary) && !o.naoLendariaM;
 Object.assign(EXPORTS_K, { ofertasBaixaK });
 /* K-69 · 702.183 escalonado (tiered): "Choose one. As an additional cost to cast this spell, pay the cost associated with that mode." Os
    custos vêm das linhas "• Nome — {custo} — efeito"; cada modo do script ganha a marca `spreeK` com o custo dele e segue o caminho do spree
@@ -35716,8 +35764,8 @@ MARCAS_DA_CONJURACAO.push('vidaPhyrexianaT'); // T-45 · quantos símbolos phyre
  * moveObject; a ficha nasce em createToken, que chama sagaEntrou). Sem a marca da conjuração, o completado não reduz. */
 function lealdadeDaFichaT(s, o) {
   const f = o && o.token && o.zone === 'battlefield' && s.facts[o.name];
-  if (!f || !(f.types || []).includes('planeswalker') || f.loyalty == null || (o.counters || {}).loyalty != null) return;
-  o.counters = o.counters || {}; o.counters.loyalty = marcadoresAoPor(s, o, 'loyalty', f.loyalty, true);
+  if (!f || !(f.types || []).includes('planeswalker') || (f.loyalty == null && o.lealdadeXM == null) || (o.counters || {}).loyalty != null) return;
+  o.counters = o.counters || {}; o.counters.loyalty = marcadoresAoPor(s, o, 'loyalty', o.lealdadeXM != null ? o.lealdadeXM : f.loyalty, true); // M-624 · a cópia da baixa X entra com lealdade X (306.5b)
 }
 /** T-45 · CR 702.150a · completado: quantos marcadores de lealdade a menos na entrada (dois por símbolo phyrexiano pago com vida por
  * quem a conjurou). A palavra vem dos fatos da carta ("Compleated") ou de `self.completado`. */
@@ -35823,7 +35871,7 @@ const temSubtipoT = (s, o, x) => isChangeling(s, o, x) || new RegExp('\\b' + x +
 function predicadosDeTipoT(s, o, sel, lki = null) {
   const f = s.facts[o.name] || {}, virada = lki ? !!lki.faceDown : !!o.faceDown; // T-60 · 603.10a: com `lki` (a foto de quando saiu do campo), vale como ela era lá
   const tem = x => lki ? (isChangeling(s, o, x) || new RegExp('\\b' + x + '\\b').test(lki.linha || '')) : temSubtipoT(s, o, x);
-  if (sel.historico != null) { const h = !virada && (lki ? /\bLegendary\b/i.test(lki.linha || '') || !!f.legendary || (lki.tipos || []).includes('artifact') : (!!f.legendary || portadorLendarioV(s, o) || (o.zone === 'battlefield' ? tiposDe(s, o) : (f.types || [])).includes('artifact'))) || tem('Saga'); if (h !== sel.historico) return false; }
+  if (sel.historico != null) { const h = !virada && (lki ? /\bLegendary\b/i.test(lki.linha || '') || !!f.legendary || (lki.tipos || []).includes('artifact') : (lendariaM(s, o) /* M-624 */ || portadorLendarioV(s, o) || (o.zone === 'battlefield' ? tiposDe(s, o) : (f.types || [])).includes('artifact'))) || tem('Saga'); if (h !== sel.historico) return false; }
   if (sel.foraDaLei != null) { const fl = !virada && SUBTIPOS_FORA_DA_LEI_T.some(tem); if (fl !== sel.foraDaLei) return false; }
   if (sel.ativadaNoTurno != null && (!lki && !!o.ativadaT && o.ativadaT.turno === s.turn.number && o.ativadaT.z === (o.zc || 0)) !== sel.ativadaNoTurno) return false; // T-87 · CR 700.10 · "that was activated this turn"
   if (sel.tapped != null && (o.zone === 'battlefield' && !!o.tapped) !== sel.tapped) return false; // T-87 · "tapped creature"
@@ -42355,6 +42403,7 @@ function descreveEfeito(e) {
       return `${quem} ${partes.join(' e ')} ${duracaoPT(e.ate)}`;
     }
     case 'keyword': if (e.targetCount) return `até X criaturas ganham ${PALAVRA_PT[e.keyword] || e.keyword} até o fim do turno`; // CR2c.3
+      if (e.escolha) return `${alvo || 'a criatura'} ganha, à sua escolha, ${e.escolha.map(k => PALAVRA_PT[k] || k).join(' ou ')} até o fim do turno`; // M-624
       return `${alvo || 'a criatura'} ${e.optional ? 'pode ganhar' : 'ganha'} ${PALAVRA_PT[e.keyword] || e.keyword || 'uma habilidade'} até o fim do turno`; // M-567 · opcional
     case 'sacrifice_own': return 'sacrifica uma permanente sua';
     case 'regenerar': return `regenera ${e.target === 'self-source' ? 'esta criatura' : alvo || 'a criatura'} (na próxima vez que seria destruída neste turno, vira, perde o dano e sai do combate)`;
@@ -42474,7 +42523,7 @@ function descreveEfeito(e) {
     case 'explore': return 'explora: revela o topo; terreno vai para a mão, senão +1/+1 e a carta pode ir para o cemitério';
     case 'goad': return `provoca ${alvo || 'uma criatura'}`;
     case 'cant_attack': return `${alvo || 'a criatura'} não pode atacar`;
-    case 'lose_unless': return 'perde vida a menos que pague';
+    case 'lose_unless': return e.target === 'each-opponent' && e.cost && e.cost.discard ? `cada oponente perde ${n} de vida, a menos que descarte ${plural(e.cost.discard, 'carta', 'cartas')}` : 'perde vida a menos que pague'; // M-624
     case 'draw_free_cast': return 'compra e pode conjurar de graça';
     case 'exile_top_playable': { const k = typeof e.amount === 'number' ? e.amount : 1; return `exila ${k > 1 ? `as ${k} cartas` : 'a carta'} de cima${e.de === 'that-player' ? ' do grimório desse jogador' : ''} e pode ${e.soConjurar ? (k > 1 ? 'conjurá-las' : 'conjurá-la') : k > 1 ? 'jogá-las' : 'jogá-la'}${e.ate === 'fim-do-turno' ? ' até o fim do turno' : e.ate === 'proximo-turno' ? ' até o fim do seu próximo turno' : e.ate === 'proximo-final' ? ' até o seu próximo passo final' : ''}`; } // M-352 · M-541
     case 'prevent_spell': case 'prevent_color': return 'previne dano';
@@ -42497,7 +42546,7 @@ function descreveEfeito(e) {
   }
 }
 // Leva 131 · a condição do efeito entra na frase (Moon-Circuit Hacker: o aviso dizia "descarta 1 carta" no turno em que ela entrou, quando não descarta)
-const CONDICAO_PT = { 'alvo-mv-3-ou-menos': 'se o valor de mana do alvo era 3 ou menos' /* M-557 */, 'alvo-era-verde': 'se a carta for verde' /* M-553 */, revolta: 'com revolta (uma permanente sua saiu do campo neste turno)' /* M-537 */, 'inst-e-feit': 'com uma instantânea e um feitiço no seu cemitério' /* M-530 */, delirio: 'com delírio (4+ tipos de carta no seu cemitério)' /* M-528 */, 'nao-seu-turno': 'se não for o seu turno' /* M-452 */, kicked: 'se tiver sido reforçada', bargained: 'se tiver sido barganhada', 'paid-additional': 'se o custo adicional foi pago', metalcraft: 'com metalurgia', 'cast-from-graveyard': 'se foi conjurada do cemitério', 'source-entered-earlier': 'só se ela não entrou neste turno', 'not-attacked': 'só se você não atacou neste turno', evidenced: 'se colheu provas', 'not-evidenced': 'se não colheu provas', ferocious: 'se você controlar uma criatura com poder 4 ou mais', threshold: 'com limiar (sete cartas ou mais no seu cemitério)' /* M-412 */, morbid: 'se uma criatura morreu neste turno', 'landfall-turno': 'se um terreno entrou sob seu controle neste turno' /* M-437 */, 'na-principal-propria': 'se conjurada na sua fase principal' /* M-443 */ /* M-416 */, 'sem-limiar': 'sem limiar' /* M-417 */, 'alvo-era-neve': 'se o terreno era nevado', 'alvo-era-lendario': 'se a mágica era lendária' /* M-414 */, 'alvo-era-seu': 'se a permanente era sua' }; // M-385 // M-351 · Extract a Confession (achado da revisão do lote XXIII: as duas frases pareciam dois sacrifícios)
+const CONDICAO_PT = { 'demonio-ou-diabo': 'se você controla um Demônio ou Diabo' /* M-624 */, 'alvo-mv-3-ou-menos': 'se o valor de mana do alvo era 3 ou menos' /* M-557 */, 'alvo-era-verde': 'se a carta for verde' /* M-553 */, revolta: 'com revolta (uma permanente sua saiu do campo neste turno)' /* M-537 */, 'inst-e-feit': 'com uma instantânea e um feitiço no seu cemitério' /* M-530 */, delirio: 'com delírio (4+ tipos de carta no seu cemitério)' /* M-528 */, 'nao-seu-turno': 'se não for o seu turno' /* M-452 */, kicked: 'se tiver sido reforçada', bargained: 'se tiver sido barganhada', 'paid-additional': 'se o custo adicional foi pago', metalcraft: 'com metalurgia', 'cast-from-graveyard': 'se foi conjurada do cemitério', 'source-entered-earlier': 'só se ela não entrou neste turno', 'not-attacked': 'só se você não atacou neste turno', evidenced: 'se colheu provas', 'not-evidenced': 'se não colheu provas', ferocious: 'se você controlar uma criatura com poder 4 ou mais', threshold: 'com limiar (sete cartas ou mais no seu cemitério)' /* M-412 */, morbid: 'se uma criatura morreu neste turno', 'landfall-turno': 'se um terreno entrou sob seu controle neste turno' /* M-437 */, 'na-principal-propria': 'se conjurada na sua fase principal' /* M-443 */ /* M-416 */, 'sem-limiar': 'sem limiar' /* M-417 */, 'alvo-era-neve': 'se o terreno era nevado', 'alvo-era-lendario': 'se a mágica era lendária' /* M-414 */, 'alvo-era-seu': 'se a permanente era sua' }; // M-385 // M-351 · Extract a Confession (achado da revisão do lote XXIII: as duas frases pareciam dois sacrifícios)
 const X_PT = { 'sacrificed-mv': 'ponto de valor de mana da criatura sacrificada', /* M-464 */ 'descartadas-assim': 'carta descartada assim', /* M-434 */ 'dano-causado': 'o dano causado assim', /* M-427 */ 'mesmo-nome-nos-cemiterios': 'carta com o mesmo nome em cada cemitério', 'attacking-creatures': 'criatura atacando', /* M-423 */ movidas: 'o número de cartas postas no cemitério assim', 'instants-sorceries-in-your-graveyard': 'mágicas instantâneas e feitiços no seu cemitério', 'flashback-cards-you-own-in-exile': 'cartas com lampejo do passado suas no exílio', /* M-358 */ 'cards-in-hand': 'cartas na sua mão', 'creature-cards-in-your-graveyard': 'cartas de criatura no seu cemitério', 'card-types-in-your-graveyard': 'tipos de carta entre as cartas do seu cemitério' /* M-619 */, 'sacrificed-power': 'o poder da criatura sacrificada', 'sacrificed-toughness': 'a resistência da criatura sacrificada', 'sacrificed-mv': 'o valor de mana do que foi sacrificado' }; // M-354 · o que o X conta (achado da revisão do lote XXVI)
 Object.assign(X_PT, { 'moedas-ganhas': 'os lances ganhos', 'resultado-do-dado': 'o resultado do dado' }); // T-65 · T-66
 const faixaPT_T = (e, f) => jogadorEncantadoPT_T(e, faixaDoDadoPT_T(e, f)); // T-94 · "that player" das Maldições
