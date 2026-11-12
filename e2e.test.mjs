@@ -231,6 +231,8 @@ test('e2e · todo botão visível tem ao menos 44px de altura no celular', { ski
 
 /** D4 (leva 142) · na coleção vazia a seção "Adicionar carta" fica recolhida: "Pelo nome" abre no lugar antes de digitar. */
 async function digitaCarta(page, nome) {
+  // G-384 · na vitrine vazia (K3-6) "Pelo nome" mora na gaveta "Mais formas de importar"
+  if (await page.locator('#col-mais-formas[aria-expanded="false"]').isVisible().catch(() => false)) await page.click('#col-mais-formas');
   if (await page.locator('#col-pelo-nome').isVisible().catch(() => false)) { await page.click('#col-pelo-nome'); await page.waitForSelector('#col-add'); }
   await page.fill('#col-add', nome);
 }
@@ -526,7 +528,7 @@ const MANABOX = 'Name,Set code,Set name,Collector number,Foil,Rarity,Quantity,Ma
 test('e2e · C3 importar CSV do ManaBox, ver impressões e exportar CSV', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.goto(base + '#/colecao');
-  await page.waitForSelector('#col-csv-import');
+  await page.waitForSelector('#col-csv-import', { state: 'attached' }); // G-384 · na coleção vazia o Abrir CSV mora na gaveta
   await page.setInputFiles('#col-csv-file', { name: 'manabox.csv', mimeType: 'text/csv', buffer: Buffer.from(MANABOX) });
   await page.waitForSelector('#col-csv-add');
   const preview = await page.innerText('.ds-dialog');
@@ -992,7 +994,7 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
 test('e2e · C12 filtros de verdade: cor, tipo, acabamento, edição, texto, contagem viva, limpar e exportar o recorte', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.goto(base + '#/colecao');
-  await page.waitForSelector('#col-csv-import');
+  await page.waitForSelector('#col-csv-import', { state: 'attached' }); // G-384 · na coleção vazia o Abrir CSV mora na gaveta
   await page.setInputFiles('#col-csv-file', { name: 'manabox.csv', mimeType: 'text/csv', buffer: Buffer.from(MANABOX) });
   await page.waitForSelector('#col-csv-add'); await page.click('#col-csv-add');
   await page.waitForSelector('.col-row[data-name="Sol Ring"]');
@@ -1081,7 +1083,7 @@ test('e2e · C12 filtros de verdade: cor, tipo, acabamento, edição, texto, con
 test('e2e · C13 a coleção como coleção: galeria, densa, pilhas, agrupar, ordenar, lembrar e rolar em lotes', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.goto(base + '#/colecao');
-  await page.waitForSelector('#col-csv-import');
+  await page.waitForSelector('#col-csv-import', { state: 'attached' }); // G-384 · na coleção vazia o Abrir CSV mora na gaveta
   // 300 cartas inventadas (o CSV não confere nome) + 3 conhecidas, para agrupar e rolar em lotes
   const linhas = ['Count,Name,Edition,Condition,Language,Foil,Collector Number', '2,Sol Ring,cmm,Near Mint,English,foil,400', '4,Grizzly Bear,,,,,', '1,Counterspell,mh2,Near Mint,Portuguese,,267'];
   for (let i = 0; i < 300; i++) linhas.push(`1,Carta Inventada ${String(i).padStart(3, '0')},${i % 2 ? 'abc' : ''},Near Mint,English,,${i}`);
@@ -1239,7 +1241,7 @@ test('e2e · C11 importar por lista: conferir, importar, pendências com sugest�
   assert.equal(await page.locator('.col-row[data-name="Counterspell"]').count(), 1, 'o que você resolveu depois continua');
   assert.equal(await page.locator('#col-undo button').count(), 0, 'a barra de desfazer some');
   await page.click('.col-row[data-name="Counterspell"] button[aria-label^="Remover"]'); await page.click('#col-remove-confirm');
-  await page.waitForFunction(() => /Sua coleção está vazia/.test(document.querySelector('#col-list').innerText));
+  await page.waitForFunction(() => /Nenhuma carta ainda/i.test(document.querySelector('#col-list').innerText) /* G-384 · o rótulo é caixa alta */);
   // a mesma lista importada de novo soma ao que já existe
   await page.click('.ds-empty button:has-text("Importar lista"), #col-import');
   await page.waitForSelector('#col-import-text');
@@ -1260,7 +1262,7 @@ test('e2e · G-347 relato #63 fatia 2: manter o dedo numa carta da Coleção com
   const { page, errors, base } = await open(t);
   await page.setViewportSize({ width: 360, height: 697 });
   await page.goto(base + '#/colecao');
-  await page.waitForSelector('#col-csv-import');
+  await page.waitForSelector('#col-csv-import', { state: 'attached' }); // G-384 · na coleção vazia o Abrir CSV mora na gaveta
   await page.setInputFiles('#col-csv-file', { name: 'manabox.csv', mimeType: 'text/csv', buffer: Buffer.from(MANABOX) });
   await page.waitForSelector('#col-csv-add'); await page.click('#col-csv-add');
   await page.waitForSelector('.col-row[data-name="Counterspell"]'); await page.waitForSelector('.col-row[data-name="Sol Ring"] .col-row__info');
@@ -1309,7 +1311,7 @@ test('e2e · G-348 relato #63 fatia 3: na seleção da Coleção, Excluir confir
   const { page, errors, base } = await open(t);
   await page.setViewportSize({ width: 360, height: 697 });
   await page.goto(base + '#/colecao');
-  await page.waitForSelector('#col-csv-import');
+  await page.waitForSelector('#col-csv-import', { state: 'attached' }); // G-384 · na coleção vazia o Abrir CSV mora na gaveta
   await page.setInputFiles('#col-csv-file', { name: 'manabox.csv', mimeType: 'text/csv', buffer: Buffer.from(MANABOX) });
   await page.waitForSelector('#col-csv-add'); await page.click('#col-csv-add');
   await page.waitForSelector('.col-row[data-name="Counterspell"]');
@@ -1397,7 +1399,7 @@ test('e2e · G-349 relato #64 parte 2: a cópia guardada na Coleção troca edi�
       { ...c, id: 'island-lea', set: 'lea', set_name: 'Limited Edition Alpha', collector_number: '288', released_at: '1993-08-05', finishes: ['nonfoil'] }] } });
   });
   await page.goto(base + '#/colecao');
-  await page.waitForSelector('#col-csv-import');
+  await page.waitForSelector('#col-csv-import', { state: 'attached' }); // G-384 · na coleção vazia o Abrir CSV mora na gaveta
   await page.click('#col-import'); await page.waitForSelector('#col-import-text'); await page.fill('#col-import-text', '3 Island');
   await page.click('#col-import-check'); await page.waitForSelector('#col-import-run'); await page.click('#col-import-run');
   await page.waitForSelector('.col-row[data-name="Island"]');
@@ -1460,7 +1462,7 @@ test('e2e · C10 exportar a coleção por lista: formatos, seleção manual, cop
   const { page, errors, base } = await open(t);
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
   await page.goto(base + '#/colecao');
-  await page.waitForSelector('#col-csv-import');
+  await page.waitForSelector('#col-csv-import', { state: 'attached' }); // G-384 · na coleção vazia o Abrir CSV mora na gaveta
   await page.setInputFiles('#col-csv-file', { name: 'manabox.csv', mimeType: 'text/csv', buffer: Buffer.from(MANABOX) });
   await page.waitForSelector('#col-csv-add'); await page.click('#col-csv-add');
   await page.waitForSelector('.col-row[data-name="Sol Ring"]');
@@ -3427,7 +3429,7 @@ test('e2e · HOMOLOGAÇÃO 1 · todas as telas, nos dois temas: sem rolagem late
   // dados para cada tela ter conteúdo de verdade
   await createDeck(page, base, 'Delver', PAUPER);
   const deckUrl = await page.evaluate(() => location.hash);
-  await page.goto(base + '#/colecao'); await page.waitForSelector('#col-csv-import');
+  await page.goto(base + '#/colecao'); await page.waitForSelector('#col-csv-import', { state: 'attached' }); // G-384 · na coleção vazia o Abrir CSV mora na gaveta
   await page.setInputFiles('#col-csv-file', { name: 'manabox.csv', mimeType: 'text/csv', buffer: Buffer.from(MANABOX) });
   await page.waitForSelector('#col-csv-add'); await page.click('#col-csv-add');
   await page.waitForSelector('.col-row[data-name="Sol Ring"]');
@@ -3519,7 +3521,7 @@ test('e2e · M13 comandante que sai do campo: a mesa pergunta e leva para a zona
 
 test('e2e · HOMOLOGAÇÃO 3 · H2 link com vários critérios e "&" sobrevive a recarregar; H6 sair da coleção não sequestra o endereço', { skip }, async t => {
   const { page, errors, base } = await open(t);
-  await page.goto(base + '#/colecao'); await page.waitForSelector('#col-csv-import');
+  await page.goto(base + '#/colecao'); await page.waitForSelector('#col-csv-import', { state: 'attached' }); // G-384 · na coleção vazia o Abrir CSV mora na gaveta
   await page.setInputFiles('#col-csv-file', { name: 'manabox.csv', mimeType: 'text/csv', buffer: Buffer.from(MANABOX) });
   await page.waitForSelector('#col-csv-add'); await page.click('#col-csv-add');
   await page.waitForSelector('.col-row[data-name="Sol Ring"]');
@@ -8453,13 +8455,17 @@ test('e2e · D4a estados vazios de Listas e Coleção: ícone grande, título, u
   const primarios = () => page.locator('#outlet .ds-btn--primary:visible').count();
   // Listas vazia: cartão de primeiro uso; botões do título e cartão de backup fora; "Mais" abre Restaurar backup
   await page.goto(base + '#/listas'); await page.waitForSelector('#decks-vazio');
-  assert.equal(await page.locator('#decks-vazio .ds-empty__icone svg').count(), 1);
+  // G-384 · K3-6: o ícone no círculo (D4) deu lugar à vitrine (prateleira, quatro silhuetas, a do meio acesa)
+  assert.equal(await page.locator('#decks-vazio .ds-vitrine__palco .ds-vitrine__carta').count(), 4);
+  assert.equal(await page.locator('#decks-vazio .ds-vitrine__carta[data-acesa]').count(), 1);
   assert.match(await page.innerText('#decks-vazio'), /Nenhuma lista ainda/);
   assert.equal(await solidos(), 2, 'dois botões sólidos'); assert.equal(await primarios(), 1, 'um primário');
   assert.equal(await page.locator('#decks-fab-abrir').count(), 0); // J6 · estante vazia: sem botão de ação (os convites são o primário)
   assert.ok(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight), 'listas vazia cabe sem rolagem');
-  await page.click('#decks-mais'); await page.waitForSelector('.ds-dialog #decks-backup-restore-folha');
-  await page.keyboard.press('Escape'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
+  // G-384 · K3-6: "Mais" virou a gaveta "Mais formas" no próprio cartão (antes, um diálogo)
+  await page.click('#decks-mais'); await page.waitForSelector('#decks-vazio #decks-backup-restore-folha', { state: 'visible' });
+  assert.equal(await page.getAttribute('#decks-mais', 'aria-expanded'), 'true');
+  await page.click('#decks-mais'); await page.waitForSelector('#decks-backup-restore-folha', { state: 'hidden' });
   await auditaTela(page, 'listas vazia');
   // com uma lista, o título recupera Prontas e Nova e o backup volta
   await createDeck(page, base, 'Delver', PAUPER);
@@ -8470,9 +8476,12 @@ test('e2e · D4a estados vazios de Listas e Coleção: ícone grande, título, u
   assert.equal(await solidos(), 2, 'dois botões sólidos'); assert.equal(await primarios(), 1, 'um primário');
   assert.equal(await page.locator('#col-filter').isVisible(), false); assert.equal(await page.locator('#col-adicionar').isVisible(), false);
   assert.equal(await page.locator('#col-fab-abrir').count(), 0, 'coleção vazia: sem botão de ação; o Escanear do cartão é o primário'); // J6
-  assert.equal(await page.locator('#col-csv-import').isVisible(), true, 'Abrir CSV continua alcançável (discreto)');
+  // G-384 · K3-6: CSV, Pelo nome e Buscar na gaveta "Mais formas de importar" (−1 linha de botões); um toque abre
+  assert.equal(await page.locator('#col-csv-import').isVisible(), false, 'Abrir CSV fica na gaveta');
   assert.ok(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight), 'coleção vazia cabe sem rolagem');
   await auditaTela(page, 'coleção vazia');
+  await page.click('#col-mais-formas'); assert.equal(await page.locator('#col-csv-import').isVisible(), true, 'Abrir CSV continua alcançável (na gaveta)');
+  await auditaTela(page, 'coleção vazia, gaveta aberta');
   // "Pelo nome" abre a seção no lugar e foca o campo; a primeira carta devolve a tela completa
   await page.click('#col-pelo-nome'); await page.waitForSelector('#col-add');
   await page.waitForFunction(() => document.activeElement && document.activeElement.id === 'col-add', null, { timeout: 3000 });
@@ -8703,7 +8712,7 @@ test('e2e · G-338 destaque guiado em Coleção, Notícias e Perfil e encerramen
   await auditaTela(page, 'G-338 · guia perfil');
   await page.click('#guia-avancar'); await page.waitForSelector('#guia', { state: 'detached' });
   // 3b · Coleção com cartas: Escanear mora no botão de ação (o balão vai para cima), depois Colar lista, o painel e os filtros
-  await page.goto(base + '#/colecao'); await page.waitForSelector('#col-vazio'); await page.click('#col-pelo-nome'); await page.waitForSelector('#col-add');
+  await page.goto(base + '#/colecao'); await page.waitForSelector('#col-vazio'); await page.click('#col-mais-formas'); await page.click('#col-pelo-nome'); await page.waitForSelector('#col-add'); // G-384 · gaveta da vitrine
   await page.fill('#col-add', 'Sol Ring'); await page.click('#col-add-btn'); await page.waitForSelector('.col-row[data-name="Sol Ring"]');
   await rever(3); await page.click('#tutorial-experimentar'); await page.waitForSelector('#tutorial', { state: 'detached' });
   const k1 = await confere(1, 'col-fab-abrir', 'Avançar'); assert.equal(k1.lado, 'acima', JSON.stringify(k1));
@@ -8815,7 +8824,7 @@ test('e2e · leva 149 coleção: painel e adicionar carta são blocos expansíve
   // D4 + leva 149 · coleção vazia: "Pelo nome" mostra o bloco já aberto, sem as ações de importar (elas moram no cartão)
   assert.equal(await page.locator('#col-add-bloco').isVisible(), false, 'vazia, o bloco de adicionar não aparece');
   assert.equal(await page.locator('#col-export-bloco').isVisible(), false, 'vazia, exportar e selecionar não aparecem');
-  await page.click('#col-pelo-nome'); await page.waitForSelector('#col-add');
+  await page.click('#col-mais-formas'); await page.click('#col-pelo-nome'); await page.waitForSelector('#col-add'); // G-384 · "Pelo nome" mora na gaveta da vitrine
   assert.equal(await page.getAttribute('#col-add-toggle', 'aria-expanded'), 'true');
   await auditaTela(page, 'coleção vazia com adicionar aberto');
   await page.fill('#col-add', 'Sol Ring'); await page.click('#col-add-btn'); await page.waitForSelector('.col-row[data-name="Sol Ring"]');
@@ -9138,7 +9147,7 @@ test('e2e · D9 coleção: agrupar e ordem lado a lado, desfazer importação nu
   const { page, errors, base } = await open(t);
   await page.addInitScript(() => { window.__MTG_TEST = true; });
   await page.setViewportSize({ width: 360, height: 780 });
-  await page.goto(base + '#/colecao'); await page.waitForSelector('#col-vazio'); await page.click('#col-pelo-nome'); await page.waitForSelector('#col-import');
+  await page.goto(base + '#/colecao'); await page.waitForSelector('#col-vazio'); await page.click('#col-mais-formas'); await page.click('#col-pelo-nome'); await page.waitForSelector('#col-import'); // G-384 · gaveta da vitrine
   await page.click('#col-import'); await page.waitForSelector('#col-import-text'); await page.fill('#col-import-text', '3 Island\n2 Counterspell\n1 Sol Ring\n1 Grizzly Bear');
   await page.click('#col-import-check'); await page.waitForSelector('#col-import-run'); await page.click('#col-import-run');
   await page.waitForSelector('.col-row[data-name="Sol Ring"]'); await page.waitForTimeout(400);
@@ -22902,6 +22911,72 @@ test('e2e · G-378 DS-K3 K3-5: Últimas listas (Início) em ladrilhos com a arte
   // /ds: a amostra (larga e duas em grade, todas em placa)
   await page.goto(base + '#/ds'); await page.waitForSelector('#ds-ladrilhos');
   assert.deepEqual(await page.evaluate(() => [...document.querySelectorAll('#ds-ladrilhos .deck-item--ladrilho')].map(l => [l.classList.contains('deck-item--largo'), l.querySelector('.deck-item__arte').dataset.arte])), [[true, 'placa'], [false, 'placa'], [false, 'placa']]);
+  assert.deepEqual(errors, []);
+});
+
+/* ---------------- DS-K3 K3-6 (G-384) · vitrine vazia ---------------- */
+test('e2e · G-384 DS-K3 K3-6: vitrine vazia na Coleção, nas Listas, nas Partidas e no /ds — prateleira com quatro silhuetas e a do meio acesa, texto à esquerda (título Cormorant 24, AA sobre o cartão), primário e secundário lado a lado com 44 px, o resto na gaveta "Mais formas" (aria-expanded), nada sobreposto; parada nos três níveis de movimento; 360 nos dois temas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  const mede = async sel => { await page.waitForFunction(() => document.getAnimations().every(a => a.playState !== 'running' || a.effect.getTiming().iterations === Infinity), null, { timeout: 2000 }).catch(() => {}); return page.evaluate(s => {
+    const v = document.querySelector(s), r = el => el.getBoundingClientRect();
+    const rgb = c => c.match(/[\d.]+/g).slice(0, 3).map(Number), lum = ([a, b, c]) => { const f = x => { x /= 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(a) + 0.7152 * f(b) + 0.0722 * f(c); };
+    const ct = (x, y) => { const [m, n] = [lum(x), lum(y)].sort((p, q) => q - p); return (m + 0.05) / (n + 0.05); };
+    const sonda = document.createElement('span'); sonda.style.color = 'var(--elev-3)'; document.body.append(sonda); const fundo = rgb(getComputedStyle(sonda).color); sonda.remove();
+    const tit = v.querySelector('.ds-empty__titulo'), txt = v.querySelector('.ds-vitrine__texto'), bts = [...v.querySelectorAll('.ds-vitrine__botoes > .ds-btn')], palco = v.querySelector('.ds-vitrine__palco');
+    const cartas = [...v.querySelectorAll('.ds-vitrine__carta')], prat = v.querySelector('.ds-vitrine__prateleira');
+    return { alinha: getComputedStyle(v).textAlign, palco: Math.round(r(palco).height), cartas: cartas.length, acesas: v.querySelectorAll('.ds-vitrine__carta[data-acesa]').length,
+      dentro: cartas.every(c => r(c).left >= r(palco).left && r(c).right <= r(palco).right), pousadas: cartas.every(c => Math.abs(r(prat).top - r(c).bottom) <= 3),
+      titulo: getComputedStyle(tit).fontSize, fonte: getComputedStyle(tit).fontFamily, esq: Math.round(r(tit).left - r(v).left),
+      ctTitulo: ct(rgb(getComputedStyle(tit).color), fundo), ctTexto: txt ? ct(rgb(getComputedStyle(txt).color), fundo) : 99,
+      botoes: bts.map(b => ({ top: Math.round(r(b).top), w: Math.round(r(b).width), h: Math.round(r(b).height) })), anima: v.getAnimations({ subtree: true }).filter(a => a.playState === 'running').length,
+      oculto: palco.getAttribute('aria-hidden') };
+  }, sel); };
+  const confere = (m, nome, nBotoes) => {
+    assert.equal(m.alinha, 'left', `${nome}: texto à esquerda`); assert.equal(m.palco, 150, `${nome}: placa de 150`); assert.equal(m.oculto, 'true');
+    assert.deepEqual([m.cartas, m.acesas, m.dentro, m.pousadas], [4, 1, true, true], `${nome}: ${JSON.stringify(m)}`);
+    assert.equal(m.titulo, '24px', nome); assert.match(m.fonte, /Cormorant/, nome); assert.ok(m.esq <= 20, `${nome}: título à esquerda (${m.esq})`);
+    assert.ok(m.ctTitulo >= 4.5 && m.ctTexto >= 4.5, `${nome}: AA ${m.ctTitulo.toFixed(2)} / ${m.ctTexto.toFixed(2)}`);
+    assert.equal(m.botoes.length, nBotoes, nome);
+    for (const b of m.botoes) assert.ok(b.h >= 44, `${nome}: botão com ${b.h} px`);
+    if (nBotoes === 2) { assert.equal(m.botoes[0].top, m.botoes[1].top, `${nome}: lado a lado`); assert.ok(Math.abs(m.botoes[0].w - m.botoes[1].w) <= 1, `${nome}: mesma largura`); }
+    assert.equal(m.anima, 0, `${nome}: parada`);
+  };
+  for (const tema of ['dark', 'light']) {
+    await page.goto(base + '#/colecao'); await page.waitForSelector('#col-vazio .ds-vitrine__palco');
+    await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(120);
+    confere(await mede('#col-vazio'), `coleção ${tema}`, 2);
+    assert.match(await page.innerText('#col-vazio'), /NENHUMA CARTA AINDA[\s\S]*Aponte a câmera para a primeira/i);
+    assert.deepEqual(await page.$$eval('#col-vazio .ds-vitrine__botoes .ds-btn', bs => bs.map(b => b.id)), ['col-scan-vazio', 'col-import']);
+    assert.equal(await page.getAttribute('#col-mais-formas', 'aria-expanded'), 'false'); assert.equal(await page.isVisible('#col-pelo-nome'), false);
+    assert.ok(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight), `coleção vazia cabe sem rolagem (${tema})`);
+    await auditaTela(page, `G-384 coleção vazia (${tema})`);
+    await page.click('#col-mais-formas'); assert.equal(await page.getAttribute('#col-mais-formas', 'aria-expanded'), 'true');
+    for (const id of ['#col-csv-import', '#col-pelo-nome', '#col-buscar-vazio']) assert.equal(await page.isVisible(id), true, id);
+    await auditaTela(page, `G-384 coleção vazia, gaveta aberta (${tema})`);
+    await page.goto(base + '#/listas'); await page.waitForSelector('#decks-vazio .ds-vitrine__palco');
+    await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(120);
+    confere(await mede('#decks-vazio'), `listas ${tema}`, 2);
+    assert.deepEqual(await page.$$eval('#decks-vazio .ds-vitrine__botoes .ds-btn', bs => bs.map(b => b.id)), ['decks-starter-empty', 'decks-new-empty']);
+    await auditaTela(page, `G-384 listas vazia (${tema})`);
+    await page.goto(base + '#/perfil/partidas'); await page.waitForSelector('#partidas-vazio .ds-vitrine__palco');
+    await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(120);
+    confere(await mede('#partidas-vazio'), `partidas ${tema}`, 1);
+    await auditaTela(page, `G-384 partidas vazia (${tema})`);
+  }
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  // Moderado e Reduzido: a vitrine continua parada e no mesmo lugar (a ilustração que se desenha é da MV-11)
+  for (const nivel of ['moderado', 'reduzido']) {
+    await page.goto(base + '#/listas'); await page.evaluate(n => document.documentElement.setAttribute('data-movimento', n), nivel);
+    await page.goto(base + '#/colecao'); await page.waitForSelector('#col-vazio .ds-vitrine__palco');
+    confere(await mede('#col-vazio'), `coleção ${nivel}`, 2);
+  }
+  await page.evaluate(() => document.documentElement.removeAttribute('data-movimento'));
+  // /ds: o componente com a gaveta
+  await page.goto(base + '#/ds'); await page.waitForSelector('#ds-vitrine .ds-vitrine__palco');
+  await page.locator('#ds-vitrine').scrollIntoViewIfNeeded();
+  confere(await mede('#ds-vitrine'), '/ds', 2);
+  await page.click('#ds-vitrine-mais'); assert.equal(await page.isVisible('#ds-vitrine-mais-gaveta'), true);
   assert.deepEqual(errors, []);
 });
 
