@@ -9848,7 +9848,7 @@ test('e2e · H5 ver o oponente jogar: o turno do Shark passa quadro a quadro com
   await page.click('[data-opponent="shark"]'); await page.waitForSelector('#mesa-bot-deck');
   await page.waitForFunction(() => { const c = document.querySelector('[data-mode="full"]'); return c && !c.disabled; }, null, { timeout: 8000 });
   await page.click('[data-mode="full"]'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
-  const fimDaCena = () => page.waitForFunction(() => !document.querySelector('#tb').dataset.cena && !document.querySelector('#tb').dataset.pensando, null, { timeout: 20000 });
+  const fimDaCena = () => page.waitForFunction(() => !document.querySelector('#tb').dataset.cena && !document.querySelector('#tb').dataset.pensando, null, { timeout: 45000 });
   await fimDaCena(); await page.waitForSelector('#tb-pass');
   const M = () => page.evaluate(() => { const m = window.__estanteMesa; return { cena: m.cena(), narrado: m.narrado(), turno: m.estado().turn.number, final: m.estadoFinal().turn.number }; });
   // chega à minha vez e passa o turno: o Shark joga o turno dele
@@ -12220,7 +12220,7 @@ test('e2e · Y2 relatar na partida: aba discreta na borda (44 px de toque, 28 à
   await page.click('[data-opponent="shark"]'); await page.waitForSelector('#mesa-bot-deck');
   await page.waitForFunction(() => { const c = document.querySelector('[data-mode="full"]'); return c && !c.disabled; }, null, { timeout: 8000 });
   await page.click('[data-mode="full"]'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
-  await page.waitForFunction(() => !document.querySelector('#tb').dataset.cena && !document.querySelector('#tb').dataset.pensando, null, { timeout: 20000 }); await page.waitForSelector('#tb-pass');
+  await page.waitForFunction(() => !document.querySelector('#tb').dataset.cena && !document.querySelector('#tb').dataset.pensando, null, { timeout: 45000 }); await page.waitForSelector('#tb-pass');
   // 1 · a aba: colada na borda direita, 44 × 56 de toque, 28 px à vista; o botão discreto das outras telas não aparece
   const geo = () => page.evaluate(() => { const b = document.querySelector('#tb-relatar').getBoundingClientRect(), a = document.querySelector('#tb-relatar .tb-relatar__aba').getBoundingClientRect();
     return { w: Math.round(b.width), h: Math.round(b.height), direita: Math.round(innerWidth - b.right), centro: Math.round(b.top + b.height / 2), visivel: Math.round(a.width) }; });
@@ -12241,7 +12241,7 @@ test('e2e · Y2 relatar na partida: aba discreta na borda (44 px de toque, 28 à
   await page.mouse.move(350, c1); await page.mouse.down(); await page.mouse.move(350, 5, { steps: 8 }); await page.mouse.up(); await page.waitForTimeout(200);
   assert.equal((await geo()).centro, Math.round(780 * 0.12), 'não sobe além do limite (a faixa do topo fica livre)');
   await page.mouse.move(350, Math.round(780 * 0.12)); await page.mouse.down(); await page.mouse.move(350, c1, { steps: 8 }); await page.mouse.up(); await page.waitForTimeout(200);
-  await page.reload(); await page.waitForSelector('#tb-relatar'); await page.waitForFunction(() => !document.querySelector('#tb').dataset.cena && !document.querySelector('#tb').dataset.pensando, null, { timeout: 20000 }); await page.waitForTimeout(300);
+  await page.reload(); await page.waitForSelector('#tb-relatar'); await page.waitForFunction(() => !document.querySelector('#tb').dataset.cena && !document.querySelector('#tb').dataset.pensando, null, { timeout: 45000 }); await page.waitForTimeout(300);
   assert.ok(Math.abs((await geo()).centro - c1) <= 2, 'posição lembrada depois de recarregar');
   // 3 · tocar abre o formulário da mesa: carimbo "Mesa", o que vai junto e a chave de anexar a partida (ligada)
   await page.click('#tb-relatar'); await page.waitForSelector('#relato-form');
@@ -19718,7 +19718,7 @@ test('e2e · MJ8 ritmo do turno: trilho acende em sequência, faixa de vez desli
   await page.click('[data-opponent="shark"]'); await page.waitForSelector('#mesa-bot-deck');
   await page.waitForFunction(() => { const c = document.querySelector('[data-mode="full"]'); return c && !c.disabled; }, null, { timeout: 8000 });
   await page.click('[data-mode="full"]'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
-  const fimDaCena = () => page.waitForFunction(() => !document.querySelector('#tb').dataset.cena && !document.querySelector('#tb').dataset.pensando, null, { timeout: 20000 });
+  const fimDaCena = () => page.waitForFunction(() => !document.querySelector('#tb').dataset.cena && !document.querySelector('#tb').dataset.pensando, null, { timeout: 45000 });
   await fimDaCena(); await page.waitForSelector('#tb-pass');
   const trilho = () => page.evaluate(() => [...document.querySelectorAll('.tb-steps__list li')].map((li, i) => ({ i, atual: li.dataset.current === 'true', acende: li.dataset.acende || null, k: li.style.getPropertyValue('--i') || null,
     fio: getComputedStyle(li, '::after').animationName, op: getComputedStyle(li, '::after').opacity, li: getComputedStyle(li).animationName })));

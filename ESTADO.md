@@ -23,7 +23,7 @@ Marcos: Pauper 100% (as sete listas revisadas carta a carta; 689 de 694 listas P
 | `geral` | G | DS-K3 K3-5 ladrilhos (G-378); T-IDIOMA (G-380, G-383) | G-383 · 12/11 | K3-6; Commander sem Oracle (falta a Scryfall); Darval |
 | `motor` | M | Modern 133/743 | M-624 · 12/11 | Kaito |
 | `radar` | R | BI4 · Painel Estante: comparar períodos, metas, tendência | R-44 · 07/11 | BI4-6 em diante; validação do dono após os primeiros pilares |
-| `jogabilidade` | J | MK3 · Mesa Vitrine (rotina) | J-71 · 11/11 | MK3-4 mão viva; relato #54 |
+| `jogabilidade` | J | MK3 · Mesa Vitrine (rotina); #152 (J-72, 1/3) | J-72 · 12/11 | #152 fatias 2 e 3; MK3-P2; #54 |
 | `bot` | B | B25 · força 55%, Faeries 32,5%, fora 52% ✓ | B-212 · 11/11 | força e Faeries |
 | `infra` | I | trem de produção (I-331/I-332): leva abre PR sem prévia; o trem soma os PRs a cada 2 h (rotina própria desde 12/11), portão sobre a soma, uma prévia e um merge; orçamento de 24 h com reserva de 30 | I-332 · 12/11 | primeiro trem com I-331, I-332 e o backlog; ponte das coleções; repo privado |
 | `homologacao` | H | prova de partida do catálogo, revisão em lote (Commander) | H-24 · 01/11 | lote 8 |
@@ -81,4 +81,4 @@ Os documentos `claude/…` moram no Projeto do claude.ai, fora do repositório: 
 
 No commit de docs de cada leva (o mesmo que atualiza o ROADMAP): reescreva a **sua** linha na tabela de trilhas, atualize relatos e pendências se mudaram e troque a data abaixo. Edite por patch, nunca o arquivo inteiro. Conflito no rebase: fique com as linhas das outras trilhas e a sua. Passou de 8 KB: resuma, não acrescente.
 
-Atualizado: 12/11/2026 · M-616 · G-381 · J-64 · J-65 · J-71 · G-383 · M-624
+Atualizado: 13/11/2026 · J-64 · J-65 · J-71 · G-383 · M-624 · J-72

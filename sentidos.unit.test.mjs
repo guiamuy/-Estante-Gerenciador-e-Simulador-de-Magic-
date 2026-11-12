@@ -204,17 +204,40 @@ test('H5 · roteiro da jogada: a sua ação, cada jogada do oponente e cada pass
     { antes: s5, depois: s6, acao: { t: 'pass', p: 0 }, eventos: [], linhas: ['Você perdeu 3 de vida (20 → 17)'] }];
   const q = S.roteiroDaJogada(passos, { eu: 0, tipos });
   assert.deepEqual(J(q.map(x => [x.quem, x.legenda, x.sentidos.map(e => e.tipo).join('+'), x.ms])), [
-    [0, 'Você jogou Ilha', 'terreno', 450], [1, 'Turno 4 · Shark', 'turno', 800], [1, 'Shark conjurou Bicho', 'conjura', 1000], [1, 'Bicho entrou no campo', 'entra', 800], [0, 'Você perdeu 3 de vida (20 → 17)', 'dano', 800]]);
+    // J-72 · relato #152: a expectativa muda de propósito (era 800/1000/800/800): a jogada do oponente fica 1,6 s, o passo visto 1 s
+    [0, 'Você jogou Ilha', 'terreno', 450], [1, 'Turno 4 · Shark', 'turno', 1000], [1, 'Shark conjurou Bicho', 'conjura', 1600], [1, 'Bicho entrou no campo', 'entra', 1000], [0, 'Você perdeu 3 de vida (20 → 17)', 'dano', 1000]]);
   assert.equal(q[0].meu, true); assert.equal(q[2].oid, 5, 'a carta da jogada vai na legenda');
   assert.equal(q[3].estado, s5, 'o passe sem nada foi absorvido pelo quadro anterior (a mesa não pisca à toa)');
   assert.equal(q[q.length - 1].estado, s6, 'o último quadro é o estado final');
   // sem jogada do oponente (só eu e passes): nada de cena
   assert.equal(S.roteiroDaJogada(passos.slice(0, 2), { eu: 0, tipos }).length, 0); assert.equal(S.roteiroDaJogada([], { eu: 0 }).length, 0); assert.equal(S.roteiroDaJogada(null, { eu: 0 }).length, 0);
-  // turno comprido: a cena inteira cabe no teto, nenhum quadro some depressa demais
+  // turno comprido: J-72 · relato #152, a expectativa muda de propósito (era "a cena inteira cabe nos 12 s", com jogadas de 390 ms):
+  // a jogada do oponente nunca fica menos de 1,1 s; a cena passa do teto em vez de virar um borrão
   const comprido = [passos[0], ...Array.from({ length: 30 }, () => passos[2])];
   const qs = S.roteiroDaJogada(comprido, { eu: 0, tipos, teto: 12000 });
-  assert.ok(qs.reduce((n, x) => n + x.ms, 0) <= 12000 * 1.05 && qs.every(x => x.ms >= 300), 'perto do teto de 12 s (o mínimo de 300 ms por quadro pode passar um pouco)');
+  assert.ok(qs.every(x => x.ms >= (x.quem === 1 ? 1100 : 300)), 'jogada dele ≥ 1,1 s, o resto ≥ 300 ms: ' + JSON.stringify(qs.map(x => x.ms)));
+  assert.ok(qs.reduce((n, x) => n + x.ms, 0) <= 30 * 1100 + 300, 'só o piso passa do teto');
   assert.equal(S.roteiroDaJogada(comprido, { eu: 0, tipos, max: 10 }).length, 10);
+});
+
+test('J-72 · relato #152: no turno comprido do oponente, os passos sem jogada encolhem primeiro e cada jogada dele fica tempo de ler (legenda longa, mais tempo)', () => {
+  const base = (objs, extra) => st(objs, { players: [{ life: 20, name: 'Você' }, { life: 20, name: 'Shark' }], ...extra });
+  const t = { number: 4, active: 1, step: 'main1' };
+  const s0 = base([ob(1, 'hand', { name: 'Ilha' })]), s1 = base([ob(1, 'battlefield', { name: 'Ilha' })], { turn: t });
+  const mim = { antes: s0, depois: s1, acao: { t: 'play_land', p: 0, oid: 1 }, eventos: [], linhas: ['Você jogou Ilha'] };
+  const dele = (n, frase) => ({ antes: s1, depois: { ...s1, n }, acao: { t: 'choose', p: 1 }, eventos: [], linhas: [frase] });
+  const dano = n => ({ antes: s1, depois: { ...s1, players: [{ life: 20 - n, name: 'Você' }, { life: 20, name: 'Shark' }] }, acao: { t: 'pass', p: 1 }, eventos: [], linhas: [] });
+  // 8 escolhas do Shark (como Ponder e Thought Scour no relato) e 8 passos de dano entre elas
+  const passos = [mim]; for (let i = 0; i < 8; i++) passos.push(dele(i, 'Shark escolheu Sleep of the Dead'), { ...dano(i + 1), antes: passos[passos.length - 1].depois });
+  const qs = S.roteiroDaJogada(passos, { eu: 0, tipos, teto: 12000 });
+  const deles = qs.filter(x => x.jogada), outros = qs.filter(x => !x.jogada);
+  assert.equal(deles.length, 8);
+  assert.ok(deles.every(x => x.ms >= 1100), 'antes: 12 s divididos por 17 quadros davam ~420 ms por jogada: ' + JSON.stringify(deles.map(x => x.ms)));
+  assert.ok(outros.slice(1).every(x => x.ms === 300), 'os passos sem jogada encolhem primeiro: ' + JSON.stringify(outros.map(x => x.ms)));
+  // turno curto: nada encolhe, e a frase longa fica mais tempo que a curta (até 3,2 s)
+  const curto = S.roteiroDaJogada([mim, dele(0, 'Shark conjurou Lightning Bolt em Delver of Secrets'), dele(1, 'Shark passou')], { eu: 0, tipos });
+  assert.deepEqual(J(curto.map(x => x.ms)), [450, 2400, 1600]);
+  assert.equal(S.roteiroDaJogada([mim, dele(0, 'x'.repeat(300))], { eu: 0, tipos })[1].ms, 3200, 'teto da leitura');
 });
 
 test('H5 · o modelo da mesa guarda os passos só quando a tela pede, e a colheita esvazia', () => {
