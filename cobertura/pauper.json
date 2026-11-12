@@ -1,68 +1,63 @@
 {
  "versao": 1,
  "formato": "pauper",
- "geradoEm": "2026-11-11T13:48:36.225Z",
+ "geradoEm": "2026-11-12T13:47:04.683Z",
  "motor": 112,
  "fonte": "api.scryfall.com/cards/collection",
- "listas": 694,
- "listas100": 685,
- "cartasPendentes": 15,
+ "listas": 686,
+ "listas100": 678,
+ "cartasPendentes": 10,
  "parcial": false,
  "lotesComFalha": 0,
  "porClasse": {
   "texto-mudou": 0,
-  "lida": 7,
+  "lida": 2,
   "nova": 8,
   "parcial": 0,
   "sem-dados": 0
  },
  "novasDesdeAnterior": [
+  "Exclude",
+  "Ferenginar",
+  "Final Frontier",
+  "Grip of Amnesia",
+  "Memory Leak"
+ ],
+ "resolvidasDesdeAnterior": [
   "Oona's Grace",
+  "Bellowing Crier",
   "Disrupt",
   "Gigadrowse",
-  "Keep Watch"
+  "Glistener Seer",
+  "Keep Watch",
+  "Pond Prophet",
+  "Prismari Campus",
+  "Sibsig Appraiser",
+  "Three Tree Mascot"
  ],
- "resolvidasDesdeAnterior": [],
  "curva": [
   {
-   "listas": 686,
+   "listas": 679,
    "cartas": 1
   },
   {
-   "listas": 690,
-   "cartas": 3
+   "listas": 683,
+   "cartas": 4
   },
   {
-   "listas": 694,
-   "cartas": 15
+   "listas": 686,
+   "cartas": 10
   }
  ],
  "textos": null,
  "pendentes": [
-  {
-   "name": "Oona's Grace",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "mágica sem script",
-   "listas": 2,
-   "gulosa": 1,
-   "texto": {
-    "mana_cost": "{2}{U}",
-    "type_line": "Instant",
-    "oracle_text": "Target player draws a card.\nRetrace (You may cast this card from your graveyard by discarding a land card in addition to paying its other costs.)",
-    "keywords": [
-     "Retrace"
-    ],
-    "layout": "normal"
-   }
-  },
   {
    "name": "Rites of Initiation",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 2,
-   "gulosa": 4,
+   "gulosa": 2,
    "texto": {
     "mana_cost": "{R}",
     "type_line": "Instant",
@@ -72,29 +67,12 @@
    }
   },
   {
-   "name": "Bellowing Crier",
-   "classe": "lida",
-   "nivel": "lida",
-   "motivo": "lida pelo motor, em revisão",
-   "listas": 1,
-   "gulosa": 9,
-   "texto": {
-    "mana_cost": "{1}{U}",
-    "type_line": "Creature — Frog Advisor",
-    "oracle_text": "When this creature enters, draw a card, then discard a card.",
-    "keywords": [],
-    "layout": "normal",
-    "power": "2",
-    "toughness": "1"
-   }
-  },
-  {
    "name": "Blanchwood Prowler",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 7,
+   "gulosa": 8,
    "texto": {
     "mana_cost": "{1}{G}",
     "type_line": "Creature — Elemental",
@@ -108,16 +86,16 @@
    }
   },
   {
-   "name": "Disrupt",
+   "name": "Exclude",
    "classe": "lida",
    "nivel": "lida",
    "motivo": "lida pelo motor, em revisão",
    "listas": 1,
-   "gulosa": 8,
+   "gulosa": 1,
    "texto": {
-    "mana_cost": "{U}",
+    "mana_cost": "{2}{U}",
     "type_line": "Instant",
-    "oracle_text": "Counter target instant or sorcery spell unless its controller pays {1}.\nDraw a card.",
+    "oracle_text": "Counter target creature spell.\nDraw a card.",
     "keywords": [],
     "layout": "normal"
    }
@@ -128,7 +106,7 @@
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 1,
-   "gulosa": 7,
+   "gulosa": 8,
    "texto": {
     "mana_cost": "{1}{B}",
     "type_line": "Sorcery",
@@ -138,53 +116,66 @@
    }
   },
   {
-   "name": "Gigadrowse",
+   "name": "Ferenginar",
    "classe": "lida",
    "nivel": "lida",
    "motivo": "lida pelo motor, em revisão",
    "listas": 1,
-   "gulosa": 8,
+   "gulosa": 6,
    "texto": {
-    "mana_cost": "{U}",
-    "type_line": "Instant",
-    "oracle_text": "Replicate {U} (When you cast this spell, copy it for each time you paid its replicate cost. You may choose new targets for the copies.)\nTap target permanent.",
+    "mana_cost": "",
+    "type_line": "Land — Planet",
+    "oracle_text": "This land enters tapped.\nWhen this land enters, you gain 1 life.\n{T}: Add {B} or {G}.",
+    "keywords": [],
+    "layout": "normal"
+   }
+  },
+  {
+   "name": "Final Frontier",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "mágica sem script",
+   "listas": 1,
+   "gulosa": 6,
+   "texto": {
+    "mana_cost": "{2}{G}",
+    "type_line": "Sorcery",
+    "oracle_text": "Search your library for a basic land card or Planet card, put it onto the battlefield tapped, then shuffle.\nBeam me up {1}{G} (You may cast this card from your graveyard for {1}{G} if you also return a creature you control to its owner's hand. Then exile this spell.)",
     "keywords": [
-     "Replicate"
+     "Beam me up"
     ],
     "layout": "normal"
    }
   },
   {
-   "name": "Glistener Seer",
-   "classe": "nova",
-   "nivel": "manual",
-   "motivo": "texto que o motor não resolve",
-   "listas": 1,
-   "gulosa": 9,
-   "texto": {
-    "mana_cost": "{U}",
-    "type_line": "Creature — Phyrexian Advisor",
-    "oracle_text": "This creature enters with three oil counters on it.\n{T}, Remove an oil counter from this creature: Scry 1. (Look at the top card of your library. You may put that card on the bottom.)",
-    "keywords": [
-     "Scry"
-    ],
-    "layout": "normal",
-    "power": "0",
-    "toughness": "3"
-   }
-  },
-  {
-   "name": "Keep Watch",
+   "name": "Grip of Amnesia",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 1,
-   "gulosa": 8,
+   "gulosa": 7,
    "texto": {
-    "mana_cost": "{2}{U}",
+    "mana_cost": "{1}{U}",
     "type_line": "Instant",
-    "oracle_text": "Draw a card for each attacking creature.",
+    "oracle_text": "Counter target spell unless its controller exiles all cards from their graveyard.\nDraw a card.",
     "keywords": [],
+    "layout": "normal"
+   }
+  },
+  {
+   "name": "Memory Leak",
+   "classe": "nova",
+   "nivel": "manual",
+   "motivo": "mágica sem script",
+   "listas": 1,
+   "gulosa": 7,
+   "texto": {
+    "mana_cost": "{2}{B}",
+    "type_line": "Sorcery",
+    "oracle_text": "Target opponent reveals their hand. You choose a nonland card from that player's graveyard or hand and exile it.\nCycling {1} ({1}, Discard this card: Draw a card.)",
+    "keywords": [
+     "Cycling"
+    ],
     "layout": "normal"
    }
   },
@@ -194,7 +185,7 @@
    "nivel": "manual",
    "motivo": "texto que o motor não resolve",
    "listas": 1,
-   "gulosa": 9,
+   "gulosa": 4,
    "texto": {
     "mana_cost": "{1}{U}",
     "type_line": "Creature — Human Advisor",
@@ -208,46 +199,12 @@
    }
   },
   {
-   "name": "Pond Prophet",
-   "classe": "lida",
-   "nivel": "lida",
-   "motivo": "lida pelo motor, em revisão",
-   "listas": 1,
-   "gulosa": 9,
-   "texto": {
-    "mana_cost": "{G/U}{G/U}",
-    "type_line": "Creature — Frog Advisor",
-    "oracle_text": "When this creature enters, draw a card.",
-    "keywords": [],
-    "layout": "normal",
-    "power": "1",
-    "toughness": "1"
-   }
-  },
-  {
-   "name": "Prismari Campus",
-   "classe": "lida",
-   "nivel": "lida",
-   "motivo": "lida pelo motor, em revisão",
-   "listas": 1,
-   "gulosa": 3,
-   "texto": {
-    "mana_cost": "",
-    "type_line": "Land",
-    "oracle_text": "This land enters tapped.\n{T}: Add {U} or {R}.\n{4}, {T}: Scry 1. (Look at the top card of your library. You may put that card on the bottom.)",
-    "keywords": [
-     "Scry"
-    ],
-    "layout": "normal"
-   }
-  },
-  {
    "name": "Retraction Helix",
    "classe": "nova",
    "nivel": "manual",
    "motivo": "mágica sem script",
    "listas": 1,
-   "gulosa": 6,
+   "gulosa": 5,
    "texto": {
     "mana_cost": "{U}",
     "type_line": "Instant",
@@ -255,73 +212,30 @@
     "keywords": [],
     "layout": "normal"
    }
-  },
-  {
-   "name": "Sibsig Appraiser",
-   "classe": "lida",
-   "nivel": "lida",
-   "motivo": "lida pelo motor, em revisão",
-   "listas": 1,
-   "gulosa": 9,
-   "texto": {
-    "mana_cost": "{2}{U}",
-    "type_line": "Creature — Zombie Advisor",
-    "oracle_text": "When this creature enters, look at the top two cards of your library. Put one of them into your hand and the other into your graveyard.",
-    "keywords": [],
-    "layout": "normal",
-    "power": "2",
-    "toughness": "1"
-   }
-  },
-  {
-   "name": "Three Tree Mascot",
-   "classe": "lida",
-   "nivel": "lida",
-   "motivo": "lida pelo motor, em revisão",
-   "listas": 1,
-   "gulosa": 9,
-   "texto": {
-    "mana_cost": "{2}",
-    "type_line": "Artifact Creature — Shapeshifter",
-    "oracle_text": "Changeling (This card is every creature type.)\n{1}: Add one mana of any color. Activate only once each turn.",
-    "keywords": [
-     "Changeling"
-    ],
-    "layout": "normal",
-    "power": "2",
-    "toughness": "1"
-   }
   }
  ],
  "listasIncompletas": [
   {
-   "id": "mtgo-pauper-league-2026-11-1111345-5",
-   "nome": "Simic Arcane Denial",
+   "id": "mtgo-pauper-league-2026-11-1211345-4",
+   "nome": "Cinco cores Visionary's Dance",
    "faltam": [
-    "Oona's Grace"
+    "Exclude"
    ]
   },
   {
-   "id": "mtgo-pauper-league-2026-11-1111345-6",
-   "nome": "Simic Growth Spiral",
+   "id": "mtgo-pauper-league-2026-11-1211345-2",
+   "nome": "Golgari Fanatical Offering",
    "faltam": [
-    "Keep Watch",
-    "Gigadrowse",
-    "Disrupt"
+    "Final Frontier",
+    "Ferenginar"
    ]
   },
   {
-   "id": "mtgo-pauper-league-2026-11-1011153-5",
-   "nome": "Grixis Nihil Spellbomb",
+   "id": "mtgo-pauper-league-2026-11-1211345-3",
+   "nome": "Sultai Memory Leak",
    "faltam": [
-    "Prismari Campus"
-   ]
-  },
-  {
-   "id": "mtgo-pauper-league-2026-11-0911153-7",
-   "nome": "Simic Arcane Denial",
-   "faltam": [
-    "Oona's Grace"
+    "Memory Leak",
+    "Grip of Amnesia"
    ]
   },
   {
@@ -343,12 +257,7 @@
    "id": "topdeck-povo-pauper-league-launching-in-johannesburg-2-7",
    "nome": "Simic Persistent Petitioners",
    "faltam": [
-    "Bellowing Crier",
-    "Glistener Seer",
-    "Persistent Petitioners",
-    "Pond Prophet",
-    "Sibsig Appraiser",
-    "Three Tree Mascot"
+    "Persistent Petitioners"
    ]
   },
   {
