@@ -1722,3 +1722,24 @@ test('B-212 · chão: sem terreno no campo, o Shark baixa a Island e não o Azor
   assert.equal(nomeTerreno(sem), 'Azorius Chancery', 'sem a opção, o erro das partidas narradas');
   assert.equal(nomeTerreno(B.criaBot({ nivel: 'shark-v28', agora: relogioParado }).jogada(s, 0)), 'Azorius Chancery', 'shark-v28 congelado sem o chão');
 });
+
+// B-213 · B25 · a instantânea que só seleciona cartas entra no passo final do outro (`fimDoOutro`). Antes ela ficava na mão
+// "para o turno do oponente" e passava todos os passos finais: nas partidas narradas de 12/11 (Faeries × Madness, semente 13168)
+// as Faeries seguraram três Brainstorm do T13 ao T17 com cinco terras desviradas. Pelo dado do motor (`ehSelecao`), sem nome.
+test('B-213 · fim do turno do outro: com três Ilhas desviradas, o Shark conjura o Brainstorm no passo final do oponente; sem a opção, passava', async () => {
+  const { s } = await montaShark(2, MADNESS, { ativo: 1, vez: 0, passo: 'end', p0: { campo: ['Island', 'Island', 'Island'], mao: ['Brainstorm', 'Lórien Revealed', 'Counterspell'] }, p1: { campo: ['Mountain', 'Mountain'], mao: ['Lightning Bolt'] } });
+  const nome = j => j.acao.t === 'cast' ? s.objects[j.acao.oid].name : j.acao.t;
+  const com = B.criaBot({ nivel: 'shark', agora: relogioParado, extra: { fimDoOutro: true } }).jogada(s, 0);
+  const sem = B.criaBot({ nivel: 'shark', agora: relogioParado, extra: { fimDoOutro: false } }).jogada(s, 0);
+  assert.equal(nome(com), 'Brainstorm', 'com a opção: ' + com.motivo);
+  assert.equal(nome(sem), 'pass', 'sem a opção, o erro das partidas narradas: ' + sem.motivo);
+  assert.equal(nome(B.criaBot({ nivel: 'shark', agora: relogioParado }).jogada(s, 0)), 'Brainstorm', 'ligada no Shark publicado');
+  assert.equal(nome(B.criaBot({ nivel: 'shark-v29', agora: relogioParado }).jogada(s, 0)), 'pass', 'shark-v29 congelado sem a opção');
+});
+
+test('B-213 · ehSelecao lê o efeito: compra e devolver ao topo sim; queima, anulação, custo adicional e ficha não', async () => {
+  const { s } = await montaShark(2, MADNESS, {});
+  const sim = n => B.ehSelecao(s, { name: n });
+  assert.equal(sim('Brainstorm'), true);
+  for (const n of ['Counterspell', 'Snuff Out', 'Lightning Bolt', 'Faithless Looting', 'Grab the Prize', 'Island']) assert.equal(sim(n), false, n);
+});
