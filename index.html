@@ -8328,6 +8328,18 @@ function usaTraducaoCartas(servico) { traducaoCartas = servico || null; }
 /* G-361 · fatia 4: o idioma das cartas é o do app (Perfil › Idioma). Inglês não busca nada: o Oracle já é o texto. */
 const NOME_DO_IDIOMA = { pt: 'português', es: 'espanhol' };
 const idiomaDasCartas = () => { const id = __m47.atual(); return NOME_DO_IDIOMA[id] ? id : null; };
+/* G-381 · relato #151 · T-IDIOMA na mesa: o texto da carta no idioma do app para quem não é a folha (a mesa): o impresso
+   no idioma (guardado; com `rede`, busca o que falta), senão a tradução do robô. null = fica o Oracle em inglês. Sem erro:
+   falhou a busca, a mesa segue no inglês. A partida continua decidida pelo Oracle em inglês. */
+async function textoNoIdioma(card, lang = idiomaDasCartas(), { rede = true } = {}) {
+  if (!card || !lang) return null;
+  let d = null;
+  if (textoImpresso && textoImpresso.temChave(card)) {
+    try { const g = rede ? await textoImpresso.busca(card, lang) : await textoImpresso.guardado(card, lang); d = g && g.dado ? g.dado : null; } catch (e) { d = null; }
+  }
+  if (!d && traducaoCartas) { try { d = await traducaoCartas.busca(card, lang); } catch (e) { d = null; } }
+  return d || null;
+}
 const dataDoRuling = d => (d ? d.split('-').reverse().join('/') : 'sem data');
 function secaoRulings(card) {
   if (!rulings || !__m7.temRulings(card)) return null;
@@ -8530,7 +8542,7 @@ function openCardViewer(card, extra = [], { quantidade = null, arteDesconhecida 
   if (tr.estado !== 'sem') carregaTexto();
   return dlg;
 }
-return { createCardsScreen, openCardViewer, painelBaseLocal, usaRulings, usaTextoImpresso, usaTraducaoCartas };
+return { createCardsScreen, openCardViewer, painelBaseLocal, usaRulings, usaTextoImpresso, usaTraducaoCartas, textoNoIdioma, idiomaDasCartas, NOME_DO_IDIOMA };
 })();
 
 /* ==== src/engine/scripts.js ==== */
@@ -40530,7 +40542,7 @@ function StackPanel({ itens, prioridade, imgOf, onOpen, onPeek, aberto = true, o
 
 /* A15 · espiar a carta: arte grande, nome, tipo, P/T, estado e texto de regras, mais as ações
    que ela tem agora (só leitura: soltar fecha; um toque curto abre a folha para agir). */
-function CardPeek({ name, image, tipo, pt, custo, marcas = [], oracle, acoes = [], zona, mod = null }) {
+function CardPeek({ name, image, tipo, pt, custo, marcas = [], oracle, oracleLang = 'en', idiomaRotulo = null, acoes = [], zona, mod = null }) { // G-381 · relato #151: texto no idioma do app
   // T4 · o P/T diz se subiu ou desceu e a base; a linha "Mudou" lista o que ganhou (verde) e perdeu (tachado)
   const tomPT = mod && (mod.p || mod.t) ? ((mod.p || mod.t) === 'mais' && mod.p !== 'menos' && mod.t !== 'menos' ? 'positive' : (mod.p || mod.t) === 'menos' && mod.p !== 'mais' && mod.t !== 'mais' ? 'negative' : 'accent') : 'accent';
   const mudou = mod && (mod.ganhas.length || mod.perdidas.length) ? h('div', { class: 'tb-peek__mudou', id: 'tb-peek-mudou' }, Text('Mudou:', { size: 'xs', tone: 'muted' }),
@@ -40547,7 +40559,8 @@ function CardPeek({ name, image, tipo, pt, custo, marcas = [], oracle, acoes = [
         Text([tipo, custo, zona].filter(Boolean).join(' · '), { size: 'xs', tone: 'muted' }),
         marcas.length ? Row({ class: 'ds-row--wrap' }, ...marcas.map(m => h('span', { class: 'tb-pill tb-pill--estado' }, m))) : null,
         mudou,
-        oracle ? h('p', { class: 'tb-adj__oracle' }, oracle) : Text('Sem texto de regras guardado.', { size: 'sm', tone: 'subtle' }),
+        idiomaRotulo ? Text(idiomaRotulo, { size: 'xs', tone: 'muted', attrs: { id: 'tb-peek-idioma' } }) : null,
+        oracle ? h('p', { class: 'tb-adj__oracle', id: 'tb-peek-oracle', lang: oracleLang }, oracle) : Text('Sem texto de regras guardado.', { size: 'sm', tone: 'subtle' }),
         acoes.length ? h('div', { class: 'tb-peek__acoes' }, Text('Pode agora:', { size: 'xs', tone: 'muted' }), Row({ class: 'ds-row--wrap' }, ...acoes.map(a => h('span', { class: 'ds-chip tb-peek__acao', dataset: { acao: a.label }, 'aria-pressed': 'false' }, a.label)))) : Text('Nada a fazer com ela agora.', { size: 'xs', tone: 'subtle' }),
         Text('Solte para voltar. Um toque curto abre as ações.', { size: 'xs', tone: 'subtle' }))));
 }
@@ -40620,12 +40633,12 @@ function PriorityBanner({ title, hint, actions, tone, momento, corpo = null }) {
 }
 
 /** Cartão de adjudicação: o motor não sabe o efeito, o jogador aplica. */
-function AdjudicationPanel({ name, image, oracle, controls, onDone }) {
+function AdjudicationPanel({ name, image, oracle, oracleLang = 'en', controls, onDone }) { // G-381 · texto no idioma do app
   return h('section', { class: 'tb-adj', id: 'tb-adj', 'aria-label': `Aplicar efeito de ${name}` },
     h('div', { class: 'tb-adj__head' },
       image ? h('img', { src: image, alt: '', class: 'tb-adj__img' }) : null,
       h('div', {}, Text(name, { size: 'lg', display: true }), Text('Aplique o efeito na mesa: toque nas cartas e nos contadores de vida.', { size: 'sm', tone: 'muted' }))),
-    oracle ? h('p', { class: 'tb-adj__oracle' }, oracle) : Text('Sem texto de regras disponível.', { size: 'sm', tone: 'subtle' }),
+    oracle ? h('p', { class: 'tb-adj__oracle', lang: oracleLang }, oracle) : Text('Sem texto de regras disponível.', { size: 'sm', tone: 'subtle' }),
     h('div', { class: 'tb-adj__actions' }, ...(controls || []), Button('Efeito aplicado', { variant: 'primary', id: 'tb-adj-done', onClick: onDone })));
 }
 
@@ -44593,6 +44606,43 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   /** Leva 123 · o objeto de imagens inteiro (small/normal/large/png), para a carta da mesa levar srcset e sair nítida em tela 3×. */
   const imagensOf = name => { const c = card(name); if (!c) return null; return c.images || (c.faces && c.faces[0] && c.faces[0].images) || null; };
   const oracleOf = name => { const c = card(name); return c ? (c.oracle_text || '') : ''; };
+  /* G-381 · relato #151 · T-IDIOMA na mesa: a folha da carta, o espiar e o "aplicar efeito" mostram o texto no idioma do app
+     (impresso oficial ou "Tradução" do robô), das suas cartas e das do oponente. Ao abrir a mesa o que já está guardado no
+     aparelho entra na memória (sem rede); a carta aberta sem texto guardado busca o dela e a folha troca quando chega.
+     O motor segue no Oracle em inglês: isto é só exibição. Chave: idioma + nome da carta inteira (as faces vêm do dado). */
+  const textosNoIdioma = new Map(), textosPedidos = new Map();
+  const inteiraDe = name => { const c = card(name); return c && c.faceDe ? card(c.faceDe) || c : c; };
+  function pedeTextoNoIdioma(name, { rede = true } = {}) {
+    const lang = __m12.idiomaDasCartas(), c = inteiraDe(name);
+    if (!lang || !c || !c.name) return Promise.resolve(null);
+    const k = lang + '|' + c.name;
+    if (textosNoIdioma.has(k) && (textosNoIdioma.get(k) || !rede)) return Promise.resolve(textosNoIdioma.get(k));
+    const kp = k + (rede ? '|rede' : '');
+    if (!textosPedidos.has(kp)) textosPedidos.set(kp, __m12.textoNoIdioma(c, lang, { rede })
+      .then(d => { if (d || !textosNoIdioma.get(k)) textosNoIdioma.set(k, d || null); return d || null; }, () => null)
+      .finally(() => textosPedidos.delete(kp)));
+    return textosPedidos.get(kp);
+  }
+  /** O texto de regras no idioma do app já na memória da mesa: `{ texto, lang, traducao, nomeLang }`, ou null (fica o
+      Oracle em inglês). `face`: a face pedida da carta de duas faces (senão a da própria carta, ou a frente). */
+  function textoNoIdiomaJa(name, face = null) {
+    const lang = __m12.idiomaDasCartas(), c0 = card(name), c = inteiraDe(name);
+    if (!lang || !c) return null;
+    const d = textosNoIdioma.get(lang + '|' + c.name); if (!d) return null;
+    const faces = Array.isArray(d.faces) && d.faces.length ? d.faces : null;
+    const i = face != null ? face : c0 && c0.face != null ? c0.face : 0;
+    const texto = faces ? (faces[i] && faces[i].texto) : d.texto;
+    return texto ? { texto, lang: lang === 'es' ? 'es' : 'pt-BR', traducao: !!d.traducao, nomeLang: __m12.NOME_DO_IDIOMA[lang] } : null;
+  }
+  const rotuloDoIdioma = r => r.traducao ? `Tradução para o ${r.nomeLang}` : `Texto oficial em ${r.nomeLang}`;
+  /** Ao abrir a mesa: o que já está guardado no aparelho (texto impresso e o pacote do robô), uma carta por vez. */
+  function aqueceTextosDaMesa() {
+    if (!__m12.idiomaDasCartas()) return;
+    const nomes = Object.keys((table.setup && table.setup.cards) || {});
+    let i = 0;
+    const passo = () => { if (i >= nomes.length || (!root.isConnected && i > 0)) return; pedeTextoNoIdioma(nomes[i++], { rede: false }).then(passo, passo); };
+    passo();
+  }
   /** H7 · ao abrir a mesa, as imagens de todas as cartas da partida (frente e verso) começam a chegar, quatro por vez,
       e ficam seguras na memória: a carta comprada no turno 8 já está pronta, e nenhum redesenho recomeça download. */
   function aqueceImagensDaMesa() {
@@ -44935,6 +44985,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
       } else table = T.restoreTable(data);
       if (!sinc && table.guardaPassos && table.options && table.options.bot) table.guardaPassos(true); // H5
       aqueceImagensDaMesa(); // H7
+      aqueceTextosDaMesa(); // G-381 · relato #151
     }
     catch (e) {
       return mount(root, Stack(pad(), Note(e.message === 'versao-do-motor'
@@ -45049,18 +45100,31 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const faces = inteira && (inteira.faces || []).length > 1 && inteira.faces.every(f => f.images) ? inteira.faces : [];
     let face = c && c.face != null ? c.face : 0;
     const foto = h('div', { class: 'tb-sheet__foto' }), texto = h('div', { class: 'tb-sheet__texto' });
+    let original = false; // G-381 · relato #151: "Ver o original" mostra o Oracle em inglês nesta folha
+    const pintaTexto = () => {
+      const f = faces.length ? faces[face] : null;
+      const regrasEn = f ? (f.oracle_text || '') : oracleOf(name), noIdioma = textoNoIdiomaJa(name, f ? face : null);
+      const usa = noIdioma && !original ? noIdioma : null, regras = usa ? usa.texto : regrasEn;
+      const linha = noIdioma ? Row({ class: 'ds-row--wrap tb-sheet__idioma', id: 'tb-sheet-idioma', dataset: { traducao: String(noIdioma.traducao) } },
+        Badge(original ? 'Original em inglês' : noIdioma.traducao ? `Tradução para o ${noIdioma.nomeLang}` : `Texto oficial em ${noIdioma.nomeLang}`, { tone: original ? undefined : 'accent' }), h('div', { class: 'ds-grow' }),
+        Button(original ? `Ver em ${noIdioma.nomeLang}` : 'Ver o original', { variant: 'ghost', id: 'tb-sheet-idioma-alterna', onClick: () => { original = !original; pintaTexto(); const b = texto.querySelector('#tb-sheet-idioma-alterna'); if (b) b.focus({ preventScroll: true }); } })) : null;
+      mount(texto, f && f.name !== name ? Text(f.name, { size: 'sm', tone: 'muted', attrs: { lang: 'en', id: 'tb-sheet-face' } }) : null,
+        regras ? simbolizar(h('p', { class: 'tb-adj__oracle', id: 'tb-sheet-oracle', lang: usa ? usa.lang : 'en' }, regras)) : null, linha);
+    };
     const pinta = () => {
       const f = faces.length ? faces[face] : null;
-      const ims = f ? f.images : imagensOf(deQuem(name)), nome = f ? f.name : name, regras = f ? (f.oracle_text || '') : oracleOf(name);
+      const ims = f ? f.images : imagensOf(deQuem(name)), nome = f ? f.name : name;
       // Q10 · sem imagem: a folha fica só com o texto
       // MJ10 (J-22) · pedido da `geral` (G-282): enquanto a imagem não chega, a espera do DS no formato da carta (o giro saiu)
       const espera = __m3.EsperaDaCarta();
       const img = __m3.ImagemCarta(ims, { alt: nome, sizes: '240px', lazy: false, classe: 'tb-sheet__img', onFalha: el => { el.remove(); espera.remove(); } });
       mount(foto, img, img ? espera : null);
       foto.dataset.face = String(face);
-      mount(texto, f && f.name !== name ? Text(f.name, { size: 'sm', tone: 'muted', attrs: { lang: 'en', id: 'tb-sheet-face' } }) : null, regras ? simbolizar(h('p', { class: 'tb-adj__oracle' }, regras)) : null);
+      pintaTexto();
     };
     pinta();
+    // G-381 · sem o texto no idioma na memória, busca o desta carta e a folha troca quando chegar (aberta ainda)
+    if (__m12.idiomaDasCartas() && !textoNoIdiomaJa(name)) pedeTextoNoIdioma(name).then(d => { if (d && texto.isConnected) pintaTexto(); });
     Dialog({ title: name, body: Stack({},
       foto,
       faces.length ? Button('Virar carta', { icone: 'virar', id: 'tb-sheet-virar', onClick: () => { face = (face + 1) % faces.length; pinta(); } }) : null,
@@ -45590,11 +45654,17 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const est = T.estadoDaCarta(s, o, plan);
     fechaEspiar();
     const oculta = ocultaDe(s, o); // D7 · espiar a carta virada do outro mostra só o que é público (2/2, virada para baixo)
+    const noIdioma = oculta ? null : textoNoIdiomaJa(o.name); // G-381 · relato #151
     peekEl = CardPeek({ name: oculta ? VERSO_NOME : o.name, image: oculta ? null : imgOf(o, 'normal'), tipo: oculta ? 'Criatura' : est.tipo, pt: est.pt, custo: oculta ? null : (d.costTxt || null), zona: T.ZONE_PT[o.zone] || null,
-      marcas: [...(est.tapped ? ['virada'] : []), ...(est.sick ? ['enjoo'] : []), ...est.marcas.filter(m => m.k !== 'ganhou' && m.k !== 'perdeu').map(m => m.rotulo || m.texto)], oracle: oculta ? null : oracleOf(o.name),
+      marcas: [...(est.tapped ? ['virada'] : []), ...(est.sick ? ['enjoo'] : []), ...est.marcas.filter(m => m.k !== 'ganhou' && m.k !== 'perdeu').map(m => m.rotulo || m.texto)], oracle: oculta ? null : (noIdioma ? noIdioma.texto : oracleOf(o.name)),
+      oracleLang: noIdioma ? noIdioma.lang : 'en', idiomaRotulo: noIdioma ? rotuloDoIdioma(noIdioma) : null,
       acoes: d.acoes.filter(a => !a.disabled), mod: est.mod });
     simbolizar(peekEl); // U3
     document.body.appendChild(peekEl);
+    // G-381 · sem o texto no idioma na memória: busca o desta carta e troca no espiar ainda aberto
+    if (!oculta && !noIdioma && __m12.idiomaDasCartas()) { const el = peekEl; pedeTextoNoIdioma(o.name).then(() => {
+      const r = textoNoIdiomaJa(o.name), p = el && el.isConnected ? el.querySelector('#tb-peek-oracle') : null; if (!r || !p) return;
+      p.textContent = r.texto; p.lang = r.lang; simbolizar(p); p.before(Text(rotuloDoIdioma(r), { size: 'xs', tone: 'muted', attrs: { id: 'tb-peek-idioma' } })); }); }
     if (info && !menosMovimento()) soltaEspiar = animaEspiar(peekEl, info); // MJ10
     __m0.haptics.evento('toque');
   }
@@ -46467,7 +46537,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     };
     const painelPilha = StackPanel({ itens: pilha.itens, prioridade: pilha.prioridade, imgOf, origemDe, aberto: pilhaAberta, onToggle: abrePilha, sobe, onOpen: it => { const o = origemDe(it.oid); if (o && o.tipo === 'masmorra') return abreMasmorra(o.p); const alvo = it.origem && s.objects[it.origem] ? it.origem : it.oid; openObject(alvo); }, onPeek: (it, aberto) => peek(it.origem && s.objects[it.origem] ? it.origem : it.oid, aberto) });
     const adj = adjudicating && s.status !== 'over' ? AdjudicationPanel({
-      name: adjudicating.name, image: imgOf(adjudicating.name), oracle: oracleOf(adjudicating.name),
+      name: adjudicating.name, image: imgOf(adjudicating.name), ...((r => r ? { oracle: r.texto, oracleLang: r.lang } : { oracle: oracleOf(adjudicating.name) })(textoNoIdiomaJa(adjudicating.name))), // G-381
       controls: hasPriority(v) ? [Button('Comprar 1', { onClick: () => act({ t: 'draw', p: v, target: v, n: 1 }) })] : [],
       onDone: () => { adjudicating = null; paint(); }
     }) : null;
