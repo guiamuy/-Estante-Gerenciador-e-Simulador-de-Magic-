@@ -20,7 +20,7 @@ Marcos: Pauper 100% (as sete listas revisadas carta a carta; 681 de 686 listas P
 | Trilha | Prefixo | Foco atual | Última leva | Próximo |
 |---|---|---|---|---|
 | `scanner` | S | X16: #90 foil (F1 só foil; F2 selo "Foil?") | S-625 · 11/11 | calibrar o foil e #79 no aparelho |
-| `geral` | G | DS-K3 K3-5 ladrilhos (G-378); T-IDIOMA (G-380, G-383) | G-383 · 12/11 | K3-6; Commander sem Oracle (falta a Scryfall); Darval |
+| `geral` | G | DS-K3 K3-5 (G-378); T-IDIOMA (G-383; #151 G-385) | G-385 · 12/11 | K3-6; Commander sem Oracle (falta a Scryfall; #151 5c); Darval |
 | `motor` | M | Modern 133/743 | M-624 · 12/11 | Kaito |
 | `radar` | R | BI4 · Painel Estante: comparar períodos, metas, tendência | R-44 · 07/11 | BI4-6 em diante; validação do dono após os primeiros pilares |
 | `jogabilidade` | J | MK3 · Mesa Vitrine (rotina); #152 (J-72, 1/3) | J-72 · 12/11 | #152 fatias 2 e 3; MK3-P2; #54 |
@@ -46,7 +46,7 @@ Datas no formato dia/mês, horário de Brasília. Trilha que muda de foco atuali
 
 ## Relatos do dono abertos (etiqueta `relato`)
 
-#90 foil (S-623, S-624). #66/#53 idiomas: lotes G-365 a G-380 (Pauper a Commander). #151 idioma na mesa: G-381 (fatia 5a; 5b e 5c seguem). #152 ritmo do turno do oponente: livre. #135: G-379. #136: J-69.
+#90 foil (S-623, S-624). #66/#53 idiomas: lotes G-365 a G-380 (Pauper a Commander). #151 idioma: G-381 (mesa), G-385 (Coleção, esclarecimentos); 5c segue. #152 ritmo do turno do oponente: livre. #135: G-379. #136: J-69.
 Fila da Relatos contínuo: #90 foil (opção A, fatias em curso: S-623). #66/#53 idiomas: lotes G-365, G-368 (Pauper e Shark), G-373 Standard, G-374 Pioneer/Modern, G-377 Legacy/Vintage, G-380 Commander, G-383 cartas novas. #95 resolvido (G-363, 09/11; #97 duplicata). #106: G-369. Novos: #108, #107. #90 F2: S-624. #107: G-372.
 Leitura e fila dos relatos: seção "Relatos do dono" do `CLAUDE.md`.
 
@@ -81,4 +81,4 @@ Os documentos `claude/…` moram no Projeto do claude.ai, fora do repositório: 
 
 No commit de docs de cada leva (o mesmo que atualiza o ROADMAP): reescreva a **sua** linha na tabela de trilhas, atualize relatos e pendências se mudaram e troque a data abaixo. Edite por patch, nunca o arquivo inteiro. Conflito no rebase: fique com as linhas das outras trilhas e a sua. Passou de 8 KB: resuma, não acrescente.
 
-Atualizado: 13/11/2026 · J-69 · J-72 · M-616 · G-381 · J-64 · M-623
+Atualizado: 13/11/2026 · J-64 · M-623 · G-385

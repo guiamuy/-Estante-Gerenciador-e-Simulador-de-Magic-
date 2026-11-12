@@ -723,6 +723,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-vg ✅ | T-IDIOMA relatos #53/#66, lote 6 da fatia 3: Commander (160 cartas em português, 43 em espanhol: Korvold, Niv-Mizzet, Imperial Seal, Knuckles, as Salas, Aang de duas faces…), pelo conferidor; 1.877 em português e 753 em espanhol seguem sem Oracle no repositório (G-380, 11/11/2026) | T | 1 | 16º-ve |
 | 16º-vv ✅ | T-IDIOMA relato #151, fatia 5a: na mesa, a folha da carta (toque), o espiar (segurar) e o "aplicar efeito" mostram o texto da carta no idioma do app (impresso oficial ou "Tradução" do robô, com "Ver o original"), das suas cartas e das do oponente; ao abrir a mesa o guardado no aparelho entra na memória, a carta aberta busca o que falta (G-381, 12/11/2026) | T | 1 | 16º-vg |
 | 16º-vx ✅ | T-IDIOMA relatos #53/#66, lote 7 da fatia 3: as cartas que entraram nas listas depois dos lotes e já têm o Oracle no repositório (32 em português, 9 em espanhol: Garruk, Veiled Butcher, Overlord of the Hauntwoods, Niv-Mizzet, Parun, as terras de Star Trek, Aang e Emet-Selch de duas faces, Pompous Battlemage // Improvised Act pelas faces), pelo conferidor; 1.880 em português e 753 em espanhol seguem sem Oracle no repositório (G-383, 12/11/2026) | T | 1 | 16º-vg |
+| 16º-vy ✅ | T-IDIOMA relato #151, fatia 5b: fora da folha e da mesa, a Coleção (linha e vista densa) mostra o tipo da carta no idioma do app quando o texto no idioma está guardado no aparelho; os esclarecimentos dizem que só existem em inglês (G-385, 12/11/2026) | T | 1 | 16º-vv |
 | 16º-vf ✅ | Relato #137 (J-70): com o detalhe da pilha aberto, tocar de novo na faixa (na seta) recolhe; antes nada acontecia e só Esc ou toque fora fechavam (J-70, 11/11/2026) | J | 1 | — |
 | 16º-vh 🟡 | Relato #135, fatia 1 (G-379, 11/11/2026): lista pronta do Pauper que o motor não joga inteira (medida da sentinela abaixo de 100%) sai das Listas prontas e das prontas do Jogar, com a linha "N listas de Pauper estão fora…"; a medida a 100% a traz de volta sozinha. Fatia 2: a rotina Sentinela do Pauper trata primeiro as listas que saíram | G | 1 de 2 | 16º-vd |
 | 16º-vi ✅ | Relato #136 (J-69): o ⋯ da mesa abre o menu (Desfazer, Registro, Desistir), nunca o relato: a aba de relatar da borda direita ganha um piso medido no ⋯ (base dele + 8 px), refeito a cada pintura, rolagem e mudança de tamanho; com a barra de cima mais baixa (recorte da câmera no app instalado) ou a aba arrastada ao alto, ela não cobre mais o ⋯. A posição guardada não muda (leva J-69, 11/11/2026) | J | ½ | 16º-vd |
@@ -13825,6 +13826,18 @@ trilha `geral`, 09/11/2026; relato do dono de 09/11: o Enviar abria o GitHub e o
   **Parcial, declarado:** 1.880 cartas de Commander em português e 753 em espanhol seguem em inglês sem Oracle no repositório:
   a sessão de nuvem não alcança a Scryfall (proxy 403 em 12/11); o próximo lote depende de o Oracle chegar ao ramo `catalogo`
   (cobertura) pelos robôs que alcançam a Scryfall.
+- **Fatia 5b · o texto de carta fora da folha e da mesa (G-385, `16º-vy`, relato #151, rotina Relatos do dono, 12/11/2026) ✅:**
+  varredura das telas que mostram texto de carta: a folha (Cartas, Listas, Coleção, Notícias e scanner abrem a mesma folha,
+  já no idioma desde a G-356/G-365) e a mesa (G-381) estavam cobertas. Sobravam em inglês: (1) o **tipo da carta nas linhas
+  da Coleção** (lista e densa) — agora segue o idioma do app pelo mesmo texto da folha (`__m12.tipoNoIdioma`: impresso
+  guardado ou tradução do robô, sem rede; a linha nasce em inglês e troca quando o guardado chega, marcada com `lang`);
+  (2) os **esclarecimentos** (rulings) — a Scryfall só os publica em inglês: com o app em português ou espanhol, uma linha diz
+  isso (`#card-rulings-idioma`, nos dicionários en/es). Teste: e2e "G-385" (falhava antes: a linha seguia "Instant" e o
+  aviso não existia). **Parcial, declarado:** o texto das fichas (tela Fichas, vem do catálogo da Scryfall) e os subtipos
+  delas seguem em inglês, sem fonte no idioma no repositório; o tipo na lista "Cartas que faltam" da cobertura segue em
+  inglês (a carta não jogável não tem o texto no idioma guardado); nomes de carta seguem em inglês (item 4, decisão
+  "oficial"/"automática"). Próxima do relato: 5c (cobertura do Commander sem Oracle no repositório; a sessão não alcança a
+  Scryfall).
 - **Fora, declarado (fatias seguintes):** a troca de idioma no Perfil (item 2); os pacotes **es** e **en** (item 3: extrair os
   textos para um dicionário por idioma, história de várias rodadas); texto e nome das cartas (item 4, aguarda decisão
   "oficial"/"automática"); a **camada obrigatória de idioma em toda entrega** (texto novo nasce no dicionário e o teste barra

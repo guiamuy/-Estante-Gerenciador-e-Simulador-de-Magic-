@@ -21699,6 +21699,48 @@ test('e2e · G-381 relato #151: na mesa, a folha e o espiar mostram o texto da c
   assert.deepEqual(errors.filter(e => !/status of 404/.test(e)), []);
 });
 
+// G-385 · relato #151, fatia 5b: fora da folha e da mesa, a Coleção mostrava o tipo da carta sempre em inglês, mesmo com o
+// texto em português guardado no aparelho; e os esclarecimentos apareciam em inglês sem dizer por quê. Dados de teste (não
+// o texto oficial). Falha antes da G-385: a linha seguia "Instant" e #card-rulings-idioma não existia.
+test('e2e · G-385 relato 151 fatia 5b: na Coleção o tipo da carta segue o idioma quando o texto no idioma está guardado; os esclarecimentos dizem por que ficam em inglês', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.route('https://api.scryfall.com/cards/collection', r => {
+    const ids = JSON.parse(r.request().postData()).identifiers;
+    const data = ids.map(i => achaNoDB(i)).filter(Boolean).map(c => ({ ...c, oracle_id: 'o-' + c.name, ...(c.name === 'Counterspell' ? { oracle_text: 'Counter target spell.' } : {}) }));
+    return r.fulfill({ json: { data, not_found: ids.filter(i => !achaNoDB(i)) } });
+  });
+  await page.route('https://api.scryfall.com/cards/search**', r => {
+    const q = new URL(r.request().url()).searchParams.get('q') || '';
+    if (!/lang:pt$/.test(q)) return r.fallback();
+    if (!/Counterspell/.test(q)) return r.fulfill({ status: 404, json: { object: 'error', code: 'not_found' } });
+    return r.fulfill({ json: { object: 'list', has_more: false, data: [{ object: 'card', lang: 'pt', name: 'Counterspell', set: 'tst', collector_number: '7',
+      oracle_text: 'Counter target spell.', printed_name: 'Anular de Teste', printed_type_line: 'Mágica Instantânea', printed_text: 'Anule a mágica alvo, texto de teste.' }] } });
+  });
+  await page.route('https://api.scryfall.com/cards/*/rulings', r => r.fulfill({ json: { object: 'list', data: [{ object: 'ruling', source: 'wotc', published_at: '2021-03-19', comment: 'Ruling de teste, em inglês.' }] } }));
+  // a Coleção vazia só fica estável com o cartão do vazio na tela (antes disso o campo pode aparecer e sumir; sob carga o clique caía no botão escondido)
+  await page.goto(base + '#/colecao'); await page.waitForSelector('#col-vazio');
+  await digitaCarta(page, 'Counterspell'); await page.click('#col-add-btn');
+  const linha = '.col-row[data-name="Counterspell"]';
+  await page.waitForSelector(linha);
+  // 1 · nada guardado no idioma ainda: o tipo fica em inglês (sem rede nenhuma pedida por causa da linha)
+  assert.match(await page.innerText(linha), /Instant/);
+  // 2 · a folha busca e guarda o texto em português; os esclarecimentos dizem por que ficam em inglês
+  await page.click(linha + ' .col-row__thumb'); await page.waitForSelector('#card-idioma');
+  await page.click('#card-rulings-toggle'); await page.waitForSelector('#card-rulings-lista');
+  assert.match(await page.innerText('#card-rulings-idioma'), /só existem em inglês/);
+  await auditaTela(page, 'carta · esclarecimentos com o aviso do idioma');
+  await page.keyboard.press('Escape'); await page.waitForSelector('#card-viewer', { state: 'detached' });
+  // 3 · de volta à Coleção: a linha e a vista densa trazem o tipo em português, marcado com o idioma
+  await page.goto(base + '#/'); await page.waitForSelector('#home-atalhos'); await page.goto(base + '#/colecao');
+  await page.waitForFunction(s => /Mágica Instantânea/.test((document.querySelector(s) || {}).textContent || ''), linha);
+  assert.equal(await page.$eval(linha + ' [data-tipo-idioma]', e => e.lang), 'pt-BR');
+  await page.click('[data-visao="densa"]');
+  await page.waitForFunction(() => /Mágica Instantânea/.test((document.querySelector('.col-dense__row[data-name="Counterspell"]') || {}).textContent || ''));
+  await auditaTela(page, 'coleção densa · tipo em português');
+  assert.deepEqual(errors.filter(e => !/status of 404/.test(e)), []);
+});
+
 // I-329 · ponte das coleções: duas origens do mesmo servidor fazem o papel dos dois endereços (127.0.0.1 é o github.io,
 // localhost é a Vercel). A faixa só aparece no antigo; o toque abre o novo, que mostra o que chegou e só grava com o Trazer.
 test('e2e · I-329 ponte das coleções: no endereço antigo a faixa leva listas e coleção para o novo, que mostra o que chegou e só grava com o Trazer', { skip }, async t => {
