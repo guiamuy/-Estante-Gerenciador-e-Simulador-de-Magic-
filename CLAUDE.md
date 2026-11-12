@@ -63,6 +63,7 @@ O plano gratuito da Vercel aceita **100 deployments por 24 h, prévias incluída
 - **O dono quer ver antes:** etiqueta `segura` no PR; o trem deixa a leva de fora até ele tirar a etiqueta.
 - **Urgência** (produção quebrada, revert): `npm run publicar -- --merge <n> --avulso` junta um PR de leva sozinho, só com o pedido do dono ou para o revert da exceção abaixo. Gasta um deployment da reserva.
 - **GitHub só pela API REST** (`gh api`): o GraphQL (`gh pr create/view/merge/list`) é barrado nas sessões de nuvem. O `publicar` e o `trem.mjs` já fazem assim, e com GH_TOKEN vencido tentam de novo só com o GITHUB_TOKEN.
+- **Ignored Build Step do projeto na Vercel** (I-332): monta só `main` e `trem/*`; não troque sem rodar o trem depois. Prévia com "Canceled by Ignored Build Step" não é prévia: o `partir` fecha o trem sem merge.
 - **ESTADO.md** junta sozinho no rebase e no trem (driver `estado-merge.mjs`, ligado pelo `npm install`): a linha de cada trilha fica a da leva mais nova, o rodapé soma as levas e corta as mais antigas para caber em 8 KB.
 
 ## Exceção: rotinas agendadas publicam sozinhas

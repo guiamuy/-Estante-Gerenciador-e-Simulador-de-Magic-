@@ -145,3 +145,14 @@ test('I-331 · a guarda deixa o rodapé rolante do ESTADO.md ser resumido, e só
   assert.equal(sob.length, 1, 'a linha da trilha de outra conversa apagada continua barrada');
   assert.deepEqual(sob[0].apagadas.map((x) => x.linha), ['| `geral` | G | x | G-378 · 11/11 | y |'], 'o rodapé resumido não conta');
 });
+
+test('I-332 · "Canceled by Ignored Build Step" não é prévia pronta (o trem #153 recebeu success sem prévia nenhuma)', async () => {
+  const { previaPronta, previaCancelada } = await import('./trem.mjs');
+  const cancelada = [{ context: 'Vercel', state: 'success', description: 'Canceled by Ignored Build Step' }];
+  assert.equal(previaPronta(cancelada), false);
+  assert.equal(previaCancelada(cancelada), true);
+  assert.equal(previaPronta([{ context: 'Vercel', state: 'success', description: 'Deployment has completed' }]), true);
+  assert.equal(previaPronta([{ context: 'Vercel', state: 'pending', description: 'Vercel is deploying your app' }]), false);
+  assert.equal(previaPronta([]), false);
+  assert.match(ler('trem.mjs'), /if \(!previaPronta\(previa\)\)/, 'o partir usa a conferência nova');
+});

@@ -25,7 +25,7 @@ Marcos: Pauper 100% (as sete listas revisadas carta a carta; 689 de 694 listas P
 | `radar` | R | BI4 · Painel Estante: comparar períodos, metas, tendência | R-44 · 07/11 | BI4-6 em diante; validação do dono após os primeiros pilares |
 | `jogabilidade` | J | MK3 · Mesa Vitrine (rotina) | J-68 · 11/11 | MK3-P2 galeria e escolha; relato #54 |
 | `bot` | B | B25 · força 55%, Faeries 32,5%, fora ≈ 47%; B-210 impulso e ritual | B-210 · 10/11 | terreno sacrificado; Azorius |
-| `infra` | I | trem de produção (I-331): leva abre PR sem prévia; o trem soma os PRs a cada 2 h, portão sobre a soma, uma prévia e um merge (2 deploys da Vercel); orçamento de 24 h com reserva de 30 | I-331 · 11/11 | primeiro trem com o backlog (#141, #143, #145, #129, #140, #142, #144); ponte das coleções; repo privado |
+| `infra` | I | trem de produção (I-331/I-332): leva abre PR sem prévia; o trem soma os PRs a cada 2 h (rotina própria desde 12/11), portão sobre a soma, uma prévia e um merge; orçamento de 24 h com reserva de 30 | I-332 · 12/11 | primeiro trem com I-331, I-332 e o backlog; ponte das coleções; repo privado |
 | `homologacao` | H | prova de partida do catálogo, revisão em lote (Commander) | H-24 · 01/11 | lote 8 |
 | `protecao` | P | segurança e privacidade; Apoiar a Estante (MON1) | P-21 · 26/10 | — |
 
@@ -80,4 +80,4 @@ Os documentos `claude/…` moram no Projeto do claude.ai, fora do repositório: 
 
 No commit de docs de cada leva (o mesmo que atualiza o ROADMAP): reescreva a **sua** linha na tabela de trilhas, atualize relatos e pendências se mudaram e troque a data abaixo. Edite por patch, nunca o arquivo inteiro. Conflito no rebase: fique com as linhas das outras trilhas e a sua. Passou de 8 KB: resuma, não acrescente.
 
-Atualizado: 11/11/2026 · B-209 (bot) · G-371 · J-64 · J-65 · S-624 (scanner) · M-616 · G-372 · G-374 · S-625 · J-67 · G-375 · B-210 (bot) · M-618 · G-377 · J-68 · M-619 · G-378 · M-620 · M-617 · G-380 · M-622 · M-621 · I-331 (trem de produção)
+Atualizado: 12/11/2026 · B-209 (bot) · G-371 · J-64 · J-65 · S-624 (scanner) · M-616 · G-372 · G-374 · S-625 · J-67 · G-375 · B-210 (bot) · M-618 · G-377 · J-68 · M-619 · G-378 · M-620 · M-617 · G-380 · M-622 · M-621 · I-331 (trem de produção) · I-332
