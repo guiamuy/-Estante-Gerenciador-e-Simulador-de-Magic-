@@ -9112,6 +9112,7 @@ const EFFECTS = {
   rad: { fields: ['amount'], targets: ['self', 'player', 'opponent', 'each-player', 'each-opponent'] }, // T-91 · CR 728.1 · "[target player | each player | each opponent | you] get(s) N rad counters"
   descarta_para_comprar: { fields: [], targets: ['self'] }, // T-88 · "you may discard a card. If you do, draw a card." (a pergunta só aparece com carta na mão; a compra só se descartou)
   conjuravel_cemiterio_m: { fields: [], targets: ['card-in-your-graveyard'] }, // M-602 · Emry: "Choose target artifact card in your graveyard. You may cast that card this turn." (601.2: custo e tempo normais; 400.7: some ao sair do cemitério)
+  exuma_m: { fields: [], targets: ['self'] }, // M-629 · Exhume: "Each player puts a creature card from their graveyard onto the battlefield" (sem alvo: cada jogador escolhe, na ordem de turno a partir de quem está na vez, e todas entram juntas)
   voto_m: { fields: [], targets: ['self'] }, // M-586 · CR 701.38 · Will of the council: "starting with you, each player votes for a [tipo] card in your graveyard. Return each card with the most votes or tied for most votes to your hand" (`filter` opcional: tipos)
   pilhas: { fields: ['amount'], targets: ['self'] }, // T-83 · CR 700.3 · "reveal the top N cards of your library; [an opponent | you] separates those cards into two piles; put one pile into your hand and the other into your graveyard" — `separa` e `escolhe`: 'voce' | 'oponente'
   exila_mesmo_nome: { fields: [], targets: ['permanent'] }, // T-80 (o alvo de verdade é o seletor com zona 'graveyard', conferido na validação da trilha) · CR 701.23 · "search its owner's graveyard, hand, and library for any number of cards with the same name as that card and exile them. Then that player shuffles." (alvo: seletor de carta em cemitério)
@@ -9208,7 +9209,7 @@ const REGRAS_DO_JOGADOR = ['naoGanhaVida', 'terrenosExtras', 'semLimiteDeMao', '
 const PICK_DESTS = ['hand', 'graveyard', 'battlefield', 'battlefield-tapped', 'library-top', 'library-bottom', 'library-bottom-random', 'stay']; // M-262 · "on the bottom in a random order"
 const FILTER_TYPES = ['creature', 'land', 'artifact', 'enchantment', 'instant', 'sorcery', 'planeswalker', 'battle']; // M-246 · "nonland permanent" inclui batalha
 const LOYALTY_PT = c => (c > 0 ? '+' : '') + c;
-const CHOICE_EFFECTS = ['terreno_da_mao', 'exila_da_mao', 'exila_mao_ou_cemiterio' /* M-623 */, 'revela_topo_transforma', 'revela_topo_compra' /* M-570 */, 'topo_ou_fundo_do_dono', 'untap_chosen', 'discard_or_sacrifice_land_draw', 'return_chosen', 'discard', 'discard_chosen', 'exile_chosen', 'connive', 'search', 'look', 'scry', 'surveil', 'put_back', 'choose_type'];
+const CHOICE_EFFECTS = ['terreno_da_mao', 'exila_da_mao', 'exila_mao_ou_cemiterio' /* M-623 */, 'exuma_m' /* M-629 */, 'revela_topo_transforma', 'revela_topo_compra' /* M-570 */, 'topo_ou_fundo_do_dono', 'untap_chosen', 'discard_or_sacrifice_land_draw', 'return_chosen', 'discard', 'discard_chosen', 'exile_chosen', 'connive', 'search', 'look', 'scry', 'surveil', 'put_back', 'choose_type'];
 /** S47 · condição do próprio efeito, olhando o que foi pago como custo. */
 /** M-249 · 122.1 · marcadores nomeados em português (o tipo é a chave em `counters`). */
 const MARCADOR_PT = { p1p1: '+1/+1', m0m1: '−0/−1', /* M-360 */ oil: 'de óleo', depletion: 'de esgotamento', charge: 'de carga', age: 'de idade', loyalty: 'de lealdade', time: 'de tempo', lore: 'de saga', poison: 'de veneno', energia: 'de energia' /* H-6 */ };
@@ -12346,6 +12347,9 @@ const RAW_SCRIPTS = [
   // M-622 · Sentinela do Pauper (texto da Scryfall de 11/11/2026, cobertura/pauper.json de 13:48 UTC; revisão independente sem divergência)
   { name: "Oona's Grace", retrace: true, effects: [{ do: 'draw', amount: 1, target: 'player' }], example: { target: 'self-player', expect: { handDelta: 1 } } }, // "Target player draws a card. / Retrace" (702.81a)
   { name: 'Keep Watch', effects: [{ do: 'draw', amount: { per: 'attacking-creatures' } }], example: { target: 'none', expect: { handDelta: 0 } } }, // sem atacantes, nenhuma carta · "Draw a card for each attacking creature." (506.4: toda criatura atacante, de qualquer jogador)
+  // M-629 · Sentinela do Pauper (texto da Scryfall de 12/11/2026, cobertura/pauper.json de 13:47 UTC)
+  { name: 'Exhume', effects: [{ do: 'exuma_m', target: 'self' }], // "Each player puts a creature card from their graveyard onto the battlefield."
+    example: { target: 'none', expect: { opponentLife: 0 } } },
   // M-623 · Sentinela do Pauper (texto da Scryfall de 12/11/2026, cobertura/pauper.json de 13:47 UTC)
   { name: 'Grip of Amnesia', effects: [{ do: 'counter', target: 'spell', unless: { exilaCemiterio: true } }, { do: 'draw', amount: 1 }], // "Counter target spell unless its controller exiles all cards from their graveyard. / Draw a card."
     example: { target: 'enemy-spell', expect: { handDelta: 1 } } },
@@ -29782,6 +29786,7 @@ function applyEffectM449(s, src, eff, tgt, events) {
     case 'descarta_para_comprar': descartaParaComprarT(s, src, events); break; // T-88
     case 'pilhas': pilhasT(s, src, eff, events); break; // T-83 · CR 700.3
     case 'voto_m': votoM(s, src, eff, events); break; // M-586 · CR 701.38
+    case 'exuma_m': exumaM(s, src, events); break; // M-629 · Exhume
     case 'conjuravel_cemiterio_m': if (obj && obj.zone === 'graveyard' && obj.owner === ctrl) { obj.conjuravelCemM = { p: ctrl, turno: s.turn.number }; note({ target: obj.name }); } else note({ failed: true }); break; // M-602 · Emry: a permissão vale só neste turno, para quem ativou
     case 'exila_mesmo_nome': exilaMesmoNomeT(s, src, obj, events); break; // T-80 · CR 701.23 / 201.2
     case 'escolhe_nome': escolheNomeT(s, src, eff, events); break; // T-77 · CR 201.4
@@ -29890,7 +29895,7 @@ function startPick(s, spec, events) {
     ...(spec.repartir ? { repartir: spec.repartir } : {}), // M-267 · os próximos destinos do repartir
     ...(spec.descarteOuTipoM ? { descarteOuTipoM: spec.descarteOuTipoM } : {}), // M-551 · Winternight Stories
     ...(spec.tituloM ? { tituloM: spec.tituloM } : {}), ...(spec.dicaM ? { dicaM: spec.dicaM } : {}), // M-552 · o que a folha de escolha diz
-    ...(spec.votoM ? { votoM: spec.votoM } : {}), // M-586 · 701.38: a votação em curso (quem ainda vota, os votos)
+    ...(spec.votoM ? { votoM: spec.votoM } : {}), ...(spec.exumaM ? { exumaM: spec.exumaM } : {}) /* M-629 · Exhume */, // M-586 · 701.38: a votação em curso (quem ainda vota, os votos)
     ...(spec.esconde ? { esconde: spec.esconde } : {}), // M-268 · a permanente do esconderijo
     ...(spec.copiaAoEntrar ? { copiaAoEntrar: spec.copiaAoEntrar } : {}), ...(spec.descarteAntesDeEntrarM ? { descarteAntesDeEntrarM: spec.descarteAntesDeEntrarM } : {}) /* M-564 */ }; // CR2f.2 // M-268 · a permanente do esconderijo // M-267 · os próximos destinos do repartir
   events.push({ kind: 'choice', what: spec.label, name: spec.source, amount: spec.from.length });
@@ -29946,6 +29951,31 @@ function apuraVotoM(s, v, events) {
   for (const o of voltam) moveObject(s, o, 'hand');
   events.push({ kind: 'effect', do: 'to_hand', name: v.fonte, target: voltam.map(o => s.objects[o].name).join(', ') });
 }
+/* M-629 · Exhume: "Each player puts a creature card from their graveyard onto the battlefield." Sem alvo: na resolução, cada jogador, na
+   ordem de turno a partir de quem está na vez (101.4: o ativo escolhe primeiro, os outros já sabendo as escolhas anteriores), escolhe uma
+   carta de criatura do PRÓPRIO cemitério (obrigatória se houver); depois todas entram ao mesmo tempo, sob o controle do dono (608.2c,
+   110.2). Cada escolha é um `pick` de quem escolhe (`to: 'stay'`), encadeado pelo `exumaM` do pending, como a votação (M-586). */
+function exumaM(s, src, events) {
+  const n = s.players.length, vez = s.turn.active, fila = [];
+  for (let k = 0; k < n; k++) { const i = (vez + k) % n; if (!s.players[i].lost) fila.push(i); }
+  proximoExumaM(s, { fonte: src.name, fila, escolhidas: [] }, events);
+}
+const criaturasNoCemiterioM = (s, p) => s.zones[p].graveyard.filter(oid => matchesFilter(s, s.objects[oid], { types: ['creature'] }));
+function proximoExumaM(s, x, events) {
+  while (x.fila.length) {
+    const [quem, ...resto] = x.fila, cands = criaturasNoCemiterioM(s, quem);
+    if (cands.length > 1) {
+      startPick(s, { p: quem, from: cands, min: 1, max: 1, to: 'stay', rest: 'stay', label: 'escolher a criatura', source: x.fonte, exumaM: { ...x, fila: resto },
+        tituloM: 'Exumar', dicaM: `Toque na criatura do seu cemitério que volta ao campo. As escolhidas de todos os jogadores entram juntas.` }, events);
+      return;
+    }
+    x = { ...x, fila: resto, escolhidas: cands.length ? [...x.escolhidas, cands[0]] : x.escolhidas };
+  }
+  const voltam = x.escolhidas.filter(oid => s.objects[oid] && s.objects[oid].zone === 'graveyard');
+  for (const oid of voltam) moveObject(s, oid, 'battlefield', { controller: s.objects[oid].owner });
+  const nomes = voltam.filter(oid => s.objects[oid].zone === 'battlefield').map(oid => s.objects[oid].name);
+  events.push({ kind: 'effect', do: 'reanimate_all', name: x.fonte, amount: nomes.length, nomes });
+}
 /** O que a escolha faz com as cartas, sem retomar os efeitos (quem chama de dentro de uma resolução continua sozinho). */
 function concluiPick(s, events) {
   const pk = s.pending; s.pending = null;
@@ -29999,6 +30029,7 @@ function concluiPick(s, events) {
   if (pk.copiaAoEntrar && s.objects[pk.copiaAoEntrar] && s.objects[pk.copiaAoEntrar].zone === 'stack' && s.stack[s.stack.length - 1] === pk.copiaAoEntrar) { // CR2f.2 · retoma a resolução
     s.objects[pk.copiaAoEntrar].copiaEscolhida = pk.picked[0] || null; events.push(resolveTop(s, events)); s.turn.priority = s.turn.active; }
   if (pk.descarteOuTipoM) descarteOuTipoM(s, pk, events); // M-551
+  if (pk.exumaM) proximoExumaM(s, { ...pk.exumaM, escolhidas: [...pk.exumaM.escolhidas, ...pk.picked] }, events); // M-629 · Exhume: a escolha fica guardada; todas entram juntas no fim
   if (pk.votoM) { const v = { ...pk.votoM, votos: { ...pk.votoM.votos } }; for (const o of pk.picked) v.votos[o] = (v.votos[o] || 0) + 1; events.push({ kind: 'effect', do: 'votou_m', name: pk.source, target: s.players[pk.p].name, carta: pk.picked.map(o => s.objects[o].name).join(', ') }); proximoVotoM(s, v, events); } // M-586 · 701.38
   if (pk.repartir) iniciaRepartir(s, pk.p, pk.repartir.de.filter(oid => !pk.picked.includes(oid) && s.objects[oid].zone === 'library'), pk.repartir.destinos, pk.source, events); // M-267
 }
@@ -42761,6 +42792,7 @@ function descreveEfeito(e) {
     case 'scry': return `vidência ${n}: olha ${plural(n, 'carta', 'cartas')} de cima e decide o que fica no topo`;
     case 'surveil': return `vigia ${n}`;
     case 'conjuravel_cemiterio_m': return `escolhe ${e.targetTypes && e.targetTypes.length === 1 && e.targetTypes[0] === 'artifact' ? 'um artefato' : 'uma carta'} do seu cemitério; você pode conjurá-lo neste turno`; // M-602
+    case 'exuma_m': return 'cada jogador põe no campo uma carta de criatura do próprio cemitério'; // M-629 · Exhume
     case 'voto_m': { const TIPO = { artifact: 'artefato', creature: 'criatura', enchantment: 'encantamento', instant: 'instantânea', sorcery: 'feitiço', land: 'terreno', planeswalker: 'planeswalker' }, ts = ((e.filter || {}).types || []).map(t => TIPO[t] || t); // M-586 · 701.38
       return `começando por você, cada jogador vota numa carta${ts.length ? ` de ${ts.length > 1 ? ts.slice(0, -1).join(', ') + ' ou ' + ts[ts.length - 1] : ts[0]}` : ''} do seu cemitério; a mais votada, e as empatadas com ela, voltam para a sua mão`; }
     case 'look': { // M-354 · achado da revisão do lote XXVI: dizia "olha as 1 cartas" (contava o que vai para a mão, não o que se olha)
