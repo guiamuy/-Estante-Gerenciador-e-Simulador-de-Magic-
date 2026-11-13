@@ -78,7 +78,7 @@ test('I-298 · rodada com rede de mentira: iguais não envia nada; diferentes en
 
 test('I-298 · o fluxo Regras do banco: só leitura do repositório, ações fixadas por SHA, segredo num passo só, sem npm e sem push; a fila dispara o fluxo a cada avanço, sem derrubar a rodada', () => {
   const yml = readFileSync(join(RAIZ, '.github/workflows/regras-banco.yml'), 'utf8');
-  assert.match(yml, /^on:\n  schedule:\n    - cron: '[^']+'\n  workflow_dispatch:/m, 'agendado e à mão, sem push nem pull_request');
+  assert.match(yml, /^on:\n  workflow_dispatch:/m, 'I-334 · só à mão, de reserva: o agendamento é da rotina na nuvem (node robos.mjs dia)'); assert.doesNotMatch(yml, /^  schedule:|^  push:|pull_request/m);
   assert.match(yml, /^permissions:\n  contents: read\s*$/m); assert.doesNotMatch(yml, /: write/);
   for (const u of yml.matchAll(/uses: ([^\s]+)/g)) assert.match(u[1], /@[0-9a-f]{40}$/, 'ação fixada por SHA: ' + u[1]);
   assert.match(yml, /persist-credentials: false/);

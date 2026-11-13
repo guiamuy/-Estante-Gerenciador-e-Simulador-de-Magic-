@@ -138,7 +138,7 @@ Relatório do que aconteceu no `main`: `node agregacao.mjs --auditar 40`.
 
 ## Relatos do dono: como ler
 
-Os relatos feitos no app chegam como registros (issues) com a etiqueta `relato`; o fluxo Relatos grava a tabela no ramo `relatos`. O relato enviado de dentro do app espera na fila do Firebase até a rotina "Estante · robôs da hora" (nuvem do Claude, `node robos.mjs hora`, I-325) rodar, de hora em hora. Antes de ler, rode a fila pelo fluxo de reserva, que ficou só à mão, e espere terminar (a sessão não alcança o Firebase; o fluxo alcança):
+Os relatos feitos no app chegam como registros (issues) com a etiqueta `relato`; a rotina "Estante · robôs da hora" (`node robos.mjs hora`, I-334) regrava a tabela no ramo `relatos` de hora em hora; o fluxo Relatos ficou só à mão. O relato enviado de dentro do app espera na fila do Firebase até a rotina "Estante · robôs da hora" (nuvem do Claude, `node robos.mjs hora`, I-325) rodar, de hora em hora. Antes de ler, rode a fila pelo fluxo de reserva, que ficou só à mão, e espere terminar (a sessão não alcança o Firebase; o fluxo alcança):
 
 ```
 F=repos/guiamuy/-Estante-Gerenciador-e-Simulador-de-Magic-/actions/workflows/relatos-fila.yml   # pela API REST: a sessão não alcança o GraphQL
