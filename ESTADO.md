@@ -21,7 +21,7 @@ Marcos: Pauper 100% (as sete listas revisadas carta a carta; 681 de 686 listas P
 |---|---|---|---|---|
 | `scanner` | S | X16: #90 foil (F1 só foil; F2 selo "Foil?") | S-625 · 11/11 | calibrar o foil e #79 no aparelho |
 | `geral` | G | DS-K3 K3-5 ladrilhos (G-378); T-IDIOMA (G-380, G-383) | G-383 · 12/11 | K3-6; Commander sem Oracle (falta a Scryfall); Darval |
-| `motor` | M | Modern 133/743 | M-624 · 12/11 | Kaito |
+| `motor` | M | Modern 133/743 (146 com M-625) | M-625 · 13/11 | Kaito; Fable |
 | `radar` | R | BI4 · Painel Estante: comparar períodos, metas, tendência | R-44 · 07/11 | BI4-6 em diante; validação do dono após os primeiros pilares |
 | `jogabilidade` | J | MK3 · Mesa Vitrine (rotina) | J-74 · 13/11 | MK3-4 no trem; MK3-5; #54 |
 | `bot` | B | B25 · força 55%, Faeries 32,5%, fora 52% ✓ | B-213 · 12/11 | Faeries: mulligan e curva × Madness |
@@ -81,4 +81,4 @@ Os documentos `claude/…` moram no Projeto do claude.ai, fora do repositório: 
 
 No commit de docs de cada leva (o mesmo que atualiza o ROADMAP): reescreva a **sua** linha na tabela de trilhas, atualize relatos e pendências se mudaram e troque a data abaixo. Edite por patch, nunca o arquivo inteiro. Conflito no rebase: fique com as linhas das outras trilhas e a sua. Passou de 8 KB: resuma, não acrescente.
 
-Atualizado: 13/11/2026 · M-624 · J-69 · J-72 · M-616 · G-381 · J-74
+Atualizado: 13/11/2026 · J-74 · G-383 · M-625
