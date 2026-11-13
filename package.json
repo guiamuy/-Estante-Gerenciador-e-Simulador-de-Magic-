@@ -11,7 +11,7 @@
     "golden:update": "node generate.mjs",
     "publicar": "node publicar.mjs",
     "agregacao": "node agregacao.mjs",
-    "prepare": "git config core.hooksPath .githooks && git config merge.estado.name \"ESTADO.md (I-331)\" && git config merge.estado.driver \"node estado-merge.mjs %O %A %B\" || true",
+    "prepare": "git config core.hooksPath .githooks && git config merge.estado.name \"ESTADO.md (I-331)\" && git config merge.estado.driver \"node estado-merge.mjs %O %A %B\" && git config merge.idiomas.name \"idiomas/*.json (I-333)\" && git config merge.idiomas.driver \"node idioma-merge.mjs %O %A %B\" || true",
     "trem": "node trem.mjs"
   },
   "devDependencies": {
