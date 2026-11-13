@@ -750,6 +750,8 @@ body[data-cab="compacto"] .ds-cabecalho--editorial .ds-cabecalho__rotulo { visib
 .tb-cena__texto { flex: 1; min-width: 0; display: flex; flex-direction: column; font-size: var(--text-sm); line-height: var(--lh-sm); }
 .tb-cena__texto strong { font-size: var(--text-xs); letter-spacing: .06em; text-transform: uppercase; color: var(--fg-muted); font-weight: var(--weight-medium); }
 .tb-cena__texto span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+.tb-cena[data-pausada="true"] { border-color: var(--accent); }
+.tb-cena[data-pausada="true"] .tb-cena__conta { color: var(--accent); }
 .tb-cena__conta { flex: none; font-size: var(--text-xs); color: var(--fg-muted); font-variant-numeric: tabular-nums; }
 .tb-cena > .ds-btn { flex: none; }
 #tb[data-cena="true"] .tb-board, #tb[data-cena="true"] .tb-top__actions, #tb[data-cena="true"] .tb-dock { pointer-events: none; }
@@ -45020,7 +45022,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   // gancho de teste: o portão precisa provocar uma recusa que a folha de ações nunca oferece
   if (typeof window !== 'undefined' && window.__MTG_TEST) window.__estanteMesa = { act: a => act(a, { sincrono: true }), pensando: () => !!pensando, pinturas: () => (pinturas || []).splice(0), perguntas: () => T.legaisDe.perguntas, repinta: () => paint(), estado: () => table && T.esqueceEstado(table.state), som, sentidos: () => sentidosAgora.slice(), efeitos: () => fxLog.slice(),
     // H5 · a cena em curso (ou null), o que já foi narrado, ligar/desligar e pular
-    manaManual: sim => { manaManual = !!sim; }, imagens: () => __m17.imagensRetidas(), gravado: () => gravando, cena: () => (cena ? { quadro: cena.i, total: cena.quadros.length } : null), narrado: () => cenaLog.slice(), verJogadas: sim => { verJogadas = !!sim; }, pulaCena: () => fimDaCena(), estadoFinal: () => T.esqueceEstado((mesaReal || table).state),
+    manaManual: sim => { manaManual = !!sim; }, imagens: () => __m17.imagensRetidas(), gravado: () => gravando, cena: () => (cena ? { quadro: cena.i, total: cena.quadros.length, pausada: !!cena.pausada } : null), pausaCena: () => alternaPausa(), narrado: () => cenaLog.slice(), verJogadas: sim => { verJogadas = !!sim; }, pulaCena: () => fimDaCena(), estadoFinal: () => T.esqueceEstado((mesaReal || table).state),
     // Leva 121 · sonda de alcance: o que a folha de cada carta oferece, para conferir contra legalActions
     acoesDe: oid => { const d = acoesDe(oid); return d ? d.acoes.filter(x => !x.disabled).flatMap(x => x.opcoes || (x.action ? [x.action] : [])) : []; }, legais: () => table ? E.legalActions(table.state, table.viewer()) : [], quemVe: () => table.viewer(), setup: () => table && table.setup };
   /** Leva 135 · estado do outro aparelho: ausente há mais de 45 s, ou sala encerrada por ele. */
@@ -45064,11 +45066,13 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const carta = q.oid != null && s.objects[q.oid] && !ocultaDe(s, s.objects[q.oid]) ? s.objects[q.oid].name : null;
     const img = carta ? imgOf({ name: carta, owner: s.objects[q.oid].owner, controller: s.objects[q.oid].controller }, 'small') : null; // J6 · a carta do bot na legenda fica na arte padrão
     if (!cena.el) cena.el = h('div', { class: 'tb-cena', id: 'tb-cena', role: 'status', 'aria-live': 'polite', dataset: { sobrepoe: 'true' } });
-    cena.el.dataset.quem = q.quem === cena.eu ? 'eu' : 'oponente'; cena.el.dataset.quadro = String(cena.i + 1);
+    cena.el.dataset.quem = q.quem === cena.eu ? 'eu' : 'oponente'; cena.el.dataset.quadro = String(cena.i + 1); cena.el.dataset.pausada = String(!!cena.pausada);
     mount(cena.el,
       img ? h('img', { class: 'tb-cena__carta', src: img, alt: '', onError: e => e.target.remove() }) : h('span', { class: 'tb-cena__icone', 'aria-hidden': 'true' }, Icone(q.quem === cena.eu ? 'pessoa' : (table.options && table.options.bot ? 'tubarao' : 'pessoas'), { tamanho: 20 })),
       h('div', { class: 'tb-cena__texto' }, h('strong', {}, nome), h('span', { id: 'tb-cena-legenda' }, q.legenda || 'passou')),
       h('span', { class: 'tb-cena__conta', 'aria-hidden': 'true' }, `${cena.i + 1}/${n}`),
+      // J-75 · relato #152, fatia 2: Pausar segura a jogada na legenda pelo tempo que for; Seguir mostra a próxima e retoma o ritmo
+      IconButton(cena.pausada ? 'seguir' : 'pausa', cena.pausada ? 'Seguir' : 'Pausar', { id: 'tb-cena-pausa', variant: 'ghost', onClick: alternaPausa }),
       Button('Pular', { variant: 'ghost', icone: 'pular', id: 'tb-cena-pular', onClick: fimDaCena }));
     root.appendChild(cena.el);
   }
@@ -45076,11 +45080,19 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     if (!cena) return;
     if (!root.isConnected) return fimDaCena(); // saiu da tela no meio: a partida fica no estado final
     const q = cena.quadros[cena.i];
-    cena.estado = q.estado; eventosDaJogada = q.eventos;
+    cena.estado = q.estado; eventosDaJogada = q.eventos; cena.q = q;
     paint(); pintaLegenda(q); focaNaCena(q);
     cenaLog.push(q.legenda);
     cena.i++;
-    cena.timer = setTimeout(cena.i >= cena.quadros.length ? fimDaCena : quadroDaCena, q.ms);
+    if (!cena.pausada) cena.timer = setTimeout(cena.i >= cena.quadros.length ? fimDaCena : quadroDaCena, q.ms);
+  }
+  /** J-75 · relato #152, fatia 2: parar na jogada que está na legenda e seguir quando quiser. Seguir não espera o resto do
+      tempo do quadro parado: já mostra a próxima jogada (ou o fim) e o ritmo volta ao normal dali em diante. */
+  function alternaPausa() {
+    if (!cena) return;
+    if (!cena.pausada) { clearTimeout(cena.timer); cena.timer = null; cena.pausada = true; const q = cena.q; cena.i--; pintaLegenda(q); cena.i++; return; }
+    cena.pausada = false;
+    if (cena.i >= cena.quadros.length) fimDaCena(); else quadroDaCena();
   }
   function encena(quadros, eu) {
     mesaReal = table; cena = { quadros, i: 0, estado: quadros[0].estado, eu, timer: null, el: null };
@@ -46913,6 +46925,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     if (vezTrocou) { vezTrocou = false; const campo = root.querySelector('.tb-board');
       if (campo && !menosMovimento()) { const veu = h('div', { class: 'tb-vez-veu', 'aria-hidden': 'true', dataset: { receita: 'vez' } }); campo.appendChild(veu); setTimeout(() => veu.remove(), durFx('--dur-4') + 80); } }
     if (cena) aplicaEfeitos(cena, s, v); else delete root.dataset.saidas; // G5 · por cima do desenho novo
+    if (cena && cena.el && !cena.el.isConnected) root.appendChild(cena.el); // J-75 · cena pausada: a legenda sobrevive a uma pintura no meio
   }
 
   return root;
