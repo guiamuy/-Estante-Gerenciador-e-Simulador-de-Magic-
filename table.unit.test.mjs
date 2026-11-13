@@ -875,3 +875,14 @@ test('DS-K2 M2 · lequeDaMao: giro simétrico, nunca acima de 10°, no máximo 6
   }
   assert.ok(T.lequeDaMao(2)[0].y < T.lequeDaMao(5)[0].y, 'leque mais fechado, arco mais raso');
 });
+
+// MK3-4 (J-73) · o leque com profundidade: quanto cada carta recua em Z (0 no centro, 1 nas pontas, parábola como a descida)
+test('MK3-4 · profundidadeDoLeque: centro 0, pontas 1, simétrica, entre 0 e 1, uma carta não recua', () => {
+  assert.deepEqual(J(T.profundidadeDoLeque(0)), []);
+  assert.deepEqual(J(T.profundidadeDoLeque(1)), [0]);
+  assert.deepEqual(J(T.profundidadeDoLeque(3)), [1, 0, 1]);
+  assert.deepEqual(J(T.profundidadeDoLeque(5)), [1, 0.25, 0, 0.25, 1]);
+  for (let n = 2; n <= 12; n++) { const p = J(T.profundidadeDoLeque(n));
+    assert.equal(p.length, n); assert.deepEqual(p, p.slice().reverse(), `${n}: simétrica`); assert.ok(p.every(x => x >= 0 && x <= 1));
+    assert.deepEqual([p[0], p[n - 1]], [1, 1], `${n}: as pontas recuam inteiras`); }
+});
