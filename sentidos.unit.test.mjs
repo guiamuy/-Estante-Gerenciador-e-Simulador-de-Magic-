@@ -579,3 +579,31 @@ test('J-27 · comprar, mirar e troca de vez no DS-K: etapas das keyframes contra
   assert.match(HTML, /sombra\.setAttribute\('d', c\.d\); traco\.setAttribute\('d', c\.d\)/, 'a seta da mira reaproveita os nós: o tracejado não recomeça a cada quadro');
   assert.ok(!/tb-fx-chega/.test(HTML), 'o pouso antigo da compra saiu');
 });
+
+// MK3-4 (J-73, trilha jogabilidade) · mão viva: na mão o gesto para cima decide a partir de 8 px (D6); a carta pega inclina
+// pela velocidade horizontal do dedo, suavizada, até ±max (o token --carta-pega-giro), e volta a zero com o dedo parado; as
+// compradas juntas pousam pelo passo que a mesa passa (--escalona-2), sem mudar a fila de ninguém. Falhava antes (sem PEGA,
+// sem suavizaVelocidade/inclinacaoDaPega, sem passoDaCompra).
+test('MK3-4 · mão viva: limiar de 8 px na mão, inclinação pela velocidade com teto e sem −0, velocidade que decai com o dedo parado, compra escalonada pelo passo da mesa', () => {
+  assert.equal(S.PEGA.limiar, 8); assert.ok(Object.isFrozen(S.PEGA));
+  assert.equal(S.gestoDeMira(0, -7, { limiar: S.PEGA.limiar }), null, 'abaixo de 8 px: nada ainda');
+  assert.equal(S.gestoDeMira(2, -8, { limiar: S.PEGA.limiar }), 'mira', 'para cima, 8 px: a mão decide (mira ou pega)');
+  assert.equal(S.gestoDeMira(9, -8, { limiar: S.PEGA.limiar }), 'outro', 'de lado domina: rola o leque');
+  assert.equal(S.gestoDeMira(2, -10), null, 'no campo continua 14 px');
+  assert.equal(S.inclinacaoDaPega(0), 0);
+  assert.equal(S.inclinacaoDaPega(0.4), 4, '0,4 px/ms → 4°');
+  assert.equal(S.inclinacaoDaPega(-0.25), -2.5);
+  assert.equal(S.inclinacaoDaPega(5), 8, 'teto de 8°'); assert.equal(S.inclinacaoDaPega(-5), -8);
+  assert.equal(S.inclinacaoDaPega(5, { max: 0 }), 0, 'moderado e reduzido: token a 0, nada inclina');
+  assert.ok(Object.is(S.inclinacaoDaPega(-0.001), 0), 'sem −0');
+  let v = S.suavizaVelocidade(0, 30, 16);
+  assert.ok(v > 0.6 && v < 0.7, 'um quadro rápido para a direita ' + v);
+  for (let i = 0; i < 40; i++) v = S.suavizaVelocidade(v, 0, 16);
+  assert.equal(v, 0, 'o dedo parado: a velocidade volta a zero (e a inclinação junto)');
+  assert.ok(S.suavizaVelocidade(1, 0, 0) < 1, 'sem tempo: só decai');
+  const compra = [{ tipo: 'compra', jogador: 0, n: 3, oids: [5, 6, 7] }, { tipo: 'ataque', oids: [1, 2], jogador: 0 }];
+  assert.deepEqual(J(S.planoDeEfeitos(compra, { espectador: 0 })).filter(x => x.fx === 'compra').map(x => x.atraso), [0, 60, 120], 'sem passo da mesa: o de antes');
+  const com = J(S.planoDeEfeitos(compra, { espectador: 0, passoDaCompra: 90 }));
+  assert.deepEqual(com.filter(x => x.fx === 'compra').map(x => x.atraso), [0, 90, 180], '--escalona-2');
+  assert.deepEqual(com.filter(x => x.fx === 'ataque').map(x => x.atraso), [0, 60], 'a fila dos atacantes não muda');
+});
