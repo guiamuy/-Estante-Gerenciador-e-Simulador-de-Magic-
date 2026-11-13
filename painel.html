@@ -163,6 +163,11 @@
   /* MK3-0 (J-63) · Mesa Vitrine: a carta passa a ser objeto no material do DS-K3 — fio de lado (espessura) + sombra de contato no
      tampo + sombra chave; levantada (na mão, no ar, escolhida), a flutuante. O playmat é um poço no tampo (sombra interna de cima). */
   --carta-espessura: 2px;
+  /* MK3-4 (J-73) · mão viva: a carta pega sobe em Z e inclina pela velocidade do dedo, no máximo isto (0 no moderado e no reduzido) */
+  --carta-pega-z: 40px; --carta-pega-giro: 8deg;
+  /* MK3-4 (J-73) · o leque com profundidade: as pontas recuam --z-recuo; visto de frente pela --perspectiva (40 em 940 px) é
+     uma escala de .96. Escala, não Z de verdade: a fileira rola de lado e o Z com perspectiva nela criava rolagem fantasma */
+  --carta-leque-recuo: .04;
   --carta-lado: #050302;
   --carta-laca: linear-gradient(180deg, rgba(255, 246, 226, .09) 0%, rgba(255, 246, 226, 0) 32%); /* luz de cima na face, leve: a arte manda */
   --mesa-poco: inset 0 2px 8px rgba(0, 0, 0, .55), inset 0 -1px 0 var(--edge);
@@ -502,6 +507,9 @@ body[data-tela="partida"] { --bg: var(--mesa-bg); --grain-1: var(--mesa-veio-1);
 }
 :root[data-movimento="reduzido"] { --desloc-1: 0px; --desloc-2: 0px; --desloc-3: 0px; --z-recuo: 0px; --z-chega: 0px; --tilt-max: 0deg; }
 @media (prefers-reduced-motion: reduce) { :root { --desloc-1: 0px; --desloc-2: 0px; --desloc-3: 0px; --z-recuo: 0px; --z-chega: 0px; --tilt-max: 0deg; } }
+/* MK3-4 (J-73) · a carta pega da mão: no moderado e no reduzido, sem Z nem giro (segue o dedo e só); o leque sem recuo */
+:root[data-movimento="moderado"], :root[data-movimento="reduzido"] { --carta-pega-z: 0px; --carta-pega-giro: 0deg; --carta-leque-recuo: 0; }
+@media (prefers-reduced-motion: reduce) { :root { --carta-pega-z: 0px; --carta-pega-giro: 0deg; --carta-leque-recuo: 0; } }
 /* D2 · menos movimento por escolha (além do que o sistema pede): tudo instantâneo */
 :root[data-movimento="reduzido"] *, :root[data-movimento="reduzido"] *::before, :root[data-movimento="reduzido"] *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 

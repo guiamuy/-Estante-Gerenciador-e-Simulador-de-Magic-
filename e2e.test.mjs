@@ -22775,6 +22775,166 @@ test('e2e · J-67 MK3-3 carta-objeto: virar e desvirar com massa nos três níve
   assert.equal(ds.tapped, 'true'); assert.equal(ds.gira, 'vira'); assert.ok(ds.nomes.includes('tb-carta-vira'), 'palco: ' + JSON.stringify(ds));
   assert.deepEqual(errors, []);
 });
+// MK3-4 (J-73, trilha jogabilidade) · mão viva, parte 1: pegar a carta. Na mão, puxar uma carta sem alvo para cima (além de 8 px,
+// D6) a pega: a carta sai do leque (as vizinhas fecham o vão com --mola-firme, FLIP em transform), uma cópia segue o dedo 1:1,
+// sobe em Z (--carta-pega-z) com a sombra flutuante e inclina pela velocidade até ±8° (--carta-pega-giro); soltar devolve ao
+// lugar com --mola-macia (jogar arrastando é a MK3-5). Moderado: sem Z nem giro, curva sem repique; reduzido: segue o dedo e
+// nada anima. O próximo toque conclui a volta (R4); tocar continua abrindo a folha; a carta com alvo continua mirando. O leque
+// ganha profundidade (pontas recuam --z-recuo) e a compra sai do grimório (R1) e pousa escalonada por --escalona-2. Medido pelo
+// fim das animações (finished), nunca por tempo fixo. Falhava no main de antes (sem .tb-pega, sem --leque-prof, sem --compra-dx).
+test('e2e · J-73 MK3-4 mão viva: pegar a carta da mão (sai do leque, segue o dedo 1:1, sobe em Z e inclina pela velocidade, as vizinhas fecham o vão, soltar volta com a mola) nos três níveis de Movimento; o toque conclui a volta; tocar e mirar continuam; leque com profundidade; comprar sai do grimório escalonado; quatro medidas, dois temas, auditaTela e auditaSimetria', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'MaoViva', '20 Mountain\n20 Grizzly Bear\n4 Lightning Bolt', 'livre');
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start'); await page.fill('#mesa-seed', '4');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-pass');
+  const toca = () => page.evaluate(() => document.querySelector('#tb').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
+  // a mão: cinco Grizzly Bear (sem alvo) e um Lightning Bolt (com alvo), nada mais
+  const c = await page.evaluate(() => { const M = window.__estanteMesa, s = M.estado(), p = s.turn.active;
+    for (const oid of s.zones[p].hand.slice()) M.act({ t: 'move', p, oid, to: 'library' });
+    const lib = nm => Object.values(M.estado().objects).filter(o => o.owner === p && o.name === nm && o.zone === 'library').map(o => String(o.oid));
+    const ursos = lib('Grizzly Bear').slice(0, 5), raio = lib('Lightning Bolt')[0];
+    for (const oid of [...ursos, raio]) M.act({ t: 'move', p, oid, to: 'hand' });
+    M.act({ t: 'move', p, oid: lib('Mountain')[0], to: 'battlefield' }); // a mana do Bolt: com ela ele tem alvo e mira
+    return { p, ursos, raio }; });
+  await toca(); await page.waitForTimeout(450);
+  if ((await page.getAttribute('#tb-hand-toggle', 'aria-expanded')) !== 'true') { await page.click('#tb-hand-toggle'); await page.waitForTimeout(450); }
+  const carta = oid => `#tb-hand .tb-card[data-oid="${oid}"]`;
+  // leque com profundidade: as pontas recuam (o --z-recuo visto de frente, escala .96), o centro não; moderado e reduzido sem recuo
+  const prof = () => page.evaluate(() => { const row = document.querySelector('#tb-hand .tb-row--leque'); return { rola: row.scrollWidth - row.clientWidth,
+    cartas: [...row.querySelectorAll(':scope > .tb-card')].map(e => ({ p: e.style.getPropertyValue('--leque-prof'), k: parseFloat(getComputedStyle(e).scale) || 1 })) }; });
+  const p0 = await prof(), k0 = p0.cartas.map(x => x.k);
+  assert.equal(k0.length, 6, 'seis cartas na mão ' + JSON.stringify(p0));
+  assert.deepEqual([p0.cartas[0].p, p0.cartas[5].p], ['1', '1'], 'as pontas recuam inteiras ' + JSON.stringify(p0));
+  assert.deepEqual([k0[0], k0[5]], [0.96, 0.96], 'pontas a .96 ' + JSON.stringify(p0));
+  assert.ok(k0[2] > 0.96 && k0[2] <= 1 && k0[3] > 0.96, 'o meio recua menos que as pontas ' + JSON.stringify(p0));
+  assert.ok(p0.rola <= 1, 'o recuo não cria rolagem de lado ' + JSON.stringify(p0));
+  for (const n of ['moderado', 'reduzido']) { await page.evaluate(x => document.documentElement.setAttribute('data-movimento', x), n);
+    await page.evaluate(() => Promise.all([...document.querySelectorAll('#tb-hand .tb-row--leque > .tb-card')].flatMap(e => e.getAnimations()).map(a => a.finished.catch(() => null)))); // o fim da transição, não tempo fixo
+    assert.ok((await prof()).cartas.every(x => x.k === 1), `${n}: sem recuo no leque`); }
+  await page.evaluate(() => document.documentElement.setAttribute('data-movimento', 'completo'));
+  const centro = sel => page.evaluate(sel => { const r = document.querySelector(sel).getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; }, sel);
+  const vizinhas = oid => page.evaluate(o => [...document.querySelectorAll('#tb-hand .tb-row--leque > .tb-card')].filter(e => e.dataset.oid !== o).flatMap(e => e.getAnimations()).filter(a => !(a instanceof CSSAnimation) && !(a instanceof CSSTransition)) // as do script (FLIP), não as do CSS
+    .map(a => ({ curva: a.effect.getTiming().easing, dur: a.effect.getTiming().duration, comp: a.effect.composite })), oid);
+  const lePega = () => page.evaluate(() => { const m = document.querySelector('#tb-fx .tb-pega'), k = m && m.querySelector('.tb-pega__carta');
+    if (!m) return null; const mt = new DOMMatrix(getComputedStyle(k).transform);
+    return { receita: m.dataset.receita, oid: m.dataset.oid, translate: m.style.translate, giro: +m.dataset.giro, z: Math.round(mt.m43), sombra: getComputedStyle(k, '::before').opacity, aria: m.getAttribute('aria-hidden'),
+      pegou: document.querySelector('#tb').dataset.pegou, mira: document.querySelector('#tb').dataset.mira || null }; });
+  // pega: desce o dedo, sobe 40 px (passa do limiar de 8), corre 120 px de lado depressa e para
+  const pega = async (oid, { solta = true } = {}) => {
+    const a = await centro(carta(oid));
+    await page.mouse.move(a.x, a.y); await page.mouse.down();
+    await page.mouse.move(a.x, a.y - 40, { steps: 4 });
+    const fora = await page.evaluate(o => ({ pega: (document.querySelector(`#tb-hand .tb-card[data-oid="${o}"]`) || { dataset: {} }).dataset.pega || null }), oid);
+    const vao = await vizinhas(oid);
+    await page.mouse.move(a.x + 120, a.y - 60, { steps: 3 });
+    const correndo = await lePega();
+    await page.waitForTimeout(60);
+    await page.mouse.move(a.x + 120, a.y - 60);
+    const parado = await page.waitForFunction(() => { const m = document.querySelector('#tb-fx .tb-pega'); return m && m.dataset.giro === '0' ? m.style.translate : null; }, null, { timeout: 3000 }).then(h => h.jsonValue());
+    const meio = await lePega();
+    let volta = null;
+    if (solta) {
+      await page.mouse.up();
+      volta = await page.evaluate(() => { const m = document.querySelector('#tb-fx .tb-pega'); if (!m) return { anims: 0 };
+        const as = m.getAnimations({ subtree: true }).filter(a => !(a instanceof CSSAnimation) && !(a instanceof CSSTransition)); return { anims: as.length, curva: as[0] && as[0].effect.getTiming().easing, dur: as[0] && as[0].effect.getTiming().duration, volta: m.dataset.volta }; });
+      await page.waitForFunction(() => !document.querySelector('#tb-fx .tb-pega'), null, { timeout: 3000 });
+    }
+    return { a, fora, vao, correndo, parado, meio, volta };
+  };
+  const fica = async (oid, rotulo) => {
+    const r = await page.evaluate(o => { const s = window.__estanteMesa.estado(), el = document.querySelector(`#tb-hand .tb-card[data-oid="${o}"]`);
+      return { zona: s.objects[o].zone, pilha: s.stack.length, dialogo: !!document.querySelector('.ds-dialog'), pega: el ? el.dataset.pega || null : 'sumiu', vis: el ? getComputedStyle(el).visibility : null, camada: !!document.querySelector('.tb-pega') }; }, oid);
+    assert.deepEqual(r, { zona: 'hand', pilha: 0, dialogo: false, pega: null, vis: 'visible', camada: false }, rotulo + ' ' + JSON.stringify(r));
+  };
+  const u = c.ursos[2];
+  for (const nivel of ['completo', 'moderado', 'reduzido']) {
+    await page.evaluate(n => document.documentElement.setAttribute('data-movimento', n), nivel);
+    await page.waitForTimeout(450); // longe do toque anterior
+    const x = await pega(u), onde = nivel + ': ';
+    assert.equal(x.fora.pega, 'fora', onde + 'a carta sai do leque ' + JSON.stringify(x.fora));
+    assert.deepEqual([x.meio.receita, x.meio.oid, x.meio.aria, x.meio.pegou, x.meio.mira], ['pegar', u, 'true', 'pegando', null], onde + 'a cópia na camada de efeitos, fora do leitor de tela; não é mira ' + JSON.stringify(x.meio));
+    assert.equal(x.parado, '120px -60px', onde + 'segue o dedo 1:1 ' + JSON.stringify(x));
+    assert.equal(x.meio.sombra, '1', onde + 'levantada: sombra flutuante');
+    if (nivel === 'completo') {
+      assert.equal(x.meio.z, 40, onde + 'sobe em Z --carta-pega-z');
+      assert.ok(x.correndo.giro > 0 && x.correndo.giro <= 8, onde + 'inclina pela velocidade, até 8° ' + JSON.stringify(x.correndo));
+      assert.ok(x.vao.length >= 4 && x.vao.every(v => /^linear\(/.test(v.curva) && v.dur === 280 && v.comp === 'add'), onde + 'as vizinhas fecham o vão com --mola-firme --dur-3 ' + JSON.stringify(x.vao));
+      assert.ok(x.volta.anims >= 2 && /^linear\(/.test(x.volta.curva) && x.volta.dur === 280 && x.volta.volta === 'true', onde + 'volta com --mola-macia --dur-3 ' + JSON.stringify(x.volta));
+    } else if (nivel === 'moderado') {
+      assert.deepEqual([x.meio.z, x.correndo.giro], [0, 0], onde + 'sem Z nem giro ' + JSON.stringify(x.correndo));
+      assert.ok(x.vao.length >= 4 && x.vao.every(v => /^cubic-bezier/.test(v.curva)), onde + 'vão sem repique ' + JSON.stringify(x.vao));
+      assert.ok(x.volta.anims >= 2 && /^cubic-bezier/.test(x.volta.curva), onde + 'volta sem repique ' + JSON.stringify(x.volta));
+    } else {
+      assert.deepEqual([x.meio.z, x.correndo.giro, x.vao.length, x.volta.anims], [0, 0, 0, 0], onde + 'nada anima: segue o dedo e volta num quadro ' + JSON.stringify(x));
+    }
+    await fica(u, onde + 'soltar devolve a carta ao leque: nada jogado, nenhuma folha');
+  }
+  await page.evaluate(() => document.documentElement.setAttribute('data-movimento', 'completo'));
+  // capturas com a carta pega (o dedo no ar), nos dois temas
+  for (const tema of ['dark', 'light']) {
+    await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(200);
+    await page.waitForTimeout(450); const x = await pega(c.ursos[1], { solta: false });
+    assert.equal(x.meio.receita, 'pegar');
+    if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + `/j-73-mk3-4-pega-${tema}.png` });
+    await page.mouse.up(); await page.waitForFunction(() => !document.querySelector('#tb-fx .tb-pega'), null, { timeout: 3000 });
+  }
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  // R4 · o próximo toque conclui a volta na hora
+  await page.waitForTimeout(450);
+  const a = await centro(carta(u));
+  await page.mouse.move(a.x, a.y); await page.mouse.down(); await page.mouse.move(a.x, a.y - 60, { steps: 5 }); await page.mouse.move(a.x + 80, a.y - 120, { steps: 3 }); await page.mouse.up();
+  assert.ok(await page.evaluate(() => !!document.querySelector('#tb-fx .tb-pega[data-volta="true"]')), 'voltando');
+  const t0 = Date.now(); await toca(); await page.waitForFunction(() => !document.querySelector('#tb-fx .tb-pega'), null, { timeout: 2000 });
+  assert.ok(Date.now() - t0 < 300, 'o toque conclui a volta ' + (Date.now() - t0));
+  await fica(u, 'concluída, a carta está no leque');
+  // tocar continua abrindo a folha da carta
+  await page.waitForTimeout(450);
+  await page.click(carta(u)); await page.waitForSelector('.ds-dialog');
+  await page.keyboard.press('Escape'); await page.waitForFunction(() => !document.querySelector('.ds-dialog'));
+  // a carta com alvo continua mirando (MJ6a), não é pega
+  await page.waitForTimeout(450);
+  const b = await centro(carta(c.raio));
+  await page.mouse.move(b.x, b.y); await page.mouse.down(); await page.mouse.move(b.x, b.y - 40, { steps: 4 });
+  const mira = await page.evaluate(() => ({ mira: document.querySelector('#tb').dataset.mira || null, pega: !!document.querySelector('.tb-pega') }));
+  assert.deepEqual(mira, { mira: c.raio, pega: false }, 'o Bolt mira ' + JSON.stringify(mira));
+  await page.mouse.up(); await page.waitForTimeout(200);
+  // comprar: as cartas saem do seu grimório (R1) e pousam escalonadas por --escalona-2 (90 ms)
+  if ((await page.getAttribute('#tb-hand-toggle', 'aria-expanded')) !== 'true') { await page.click('#tb-hand-toggle'); await page.waitForTimeout(450); }
+  await page.evaluate(() => { window.__compra = []; const ob = new MutationObserver(() => { for (const el of document.querySelectorAll('#tb-hand .tb-card.tb-fx--compra')) {
+    if (window.__compra.some(x => x.oid === el.dataset.oid)) continue; const r = el.getBoundingClientRect(), g = document.querySelector('#tb-lib-me').getBoundingClientRect(), rot = parseFloat(getComputedStyle(el).rotate) || 0, an = el.getAnimations().find(x => x.animationName === 'tb-compra');
+    window.__compra.push({ oid: el.dataset.oid, dx: el.style.getPropertyValue('--compra-dx'), dy: el.style.getPropertyValue('--compra-dy'), atraso: el.style.getPropertyValue('--fx-atraso'), rot, alvo: { x: g.left + g.width / 2 - (r.left + r.width / 2), y: g.top + g.height / 2 - (r.top + r.height / 2) }, anim: !!an }); } });
+    ob.observe(document.querySelector('#tb'), { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] }); window.__compraOb = ob; });
+  await page.evaluate(p => window.__estanteMesa.act({ t: 'draw', p, target: p, n: 2 }), c.p);
+  await page.waitForFunction(() => window.__compra.length >= 2, null, { timeout: 3000 });
+  const compras = await page.evaluate(async () => { window.__compraOb.disconnect();
+    for (const x of window.__compra) { const el = document.querySelector(`#tb-hand .tb-card[data-oid="${x.oid}"]`); await Promise.all(el.getAnimations().map(a => a.finished.catch(() => null))); // pousada: mede no fim
+      const r = el.getBoundingClientRect(), g = document.querySelector('#tb-lib-me').getBoundingClientRect(); x.alvo = { x: g.left + g.width / 2 - (r.left + r.width / 2), y: g.top + g.height / 2 - (r.top + r.height / 2) }; x.rot = parseFloat(getComputedStyle(el).rotate) || 0; }
+    return window.__compra; });
+  assert.deepEqual(compras.map(x => x.atraso).sort(), ['0ms', '90ms'], 'as duas pousam escalonadas por --escalona-2 ' + JSON.stringify(compras));
+  for (const x of compras) {
+    assert.ok(x.anim && x.dx && x.dy, 'a compra voa ' + JSON.stringify(x));
+    const a = x.rot * Math.PI / 180, gx = parseFloat(x.dx) * Math.cos(a) - parseFloat(x.dy) * Math.sin(a), gy = parseFloat(x.dx) * Math.sin(a) + parseFloat(x.dy) * Math.cos(a);
+    assert.ok(Math.abs(gx - x.alvo.x) < 3 && Math.abs(gy - x.alvo.y) < 3, 'sai do centro do grimório (no plano da carta girada) ' + JSON.stringify(x));
+  }
+  await page.waitForTimeout(800);
+  for (const [w, hgt] of [[360, 780], [384, 832], [390, 844], [412, 891]]) for (const tema of ['dark', 'light']) {
+    await page.setViewportSize({ width: w, height: hgt }); await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(250);
+    await auditaTela(page, `J-73 · MK3-4 ${w}×${hgt} ${tema}`);
+    await auditaSimetria(page, `J-73 · MK3-4 ${w}×${hgt} ${tema}`);
+    if (process.env.SHOTS && w === 360) await page.screenshot({ path: process.env.SHOTS + `/j-73-mk3-4-${tema}.png` });
+  }
+  // palco do /ds: a mão em leque do catálogo também se pega e volta
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base + '#/ds'); await page.waitForSelector('#ds-leque .tb-card');
+  await page.evaluate(() => document.querySelector('#ds-leque .tb-row--leque').scrollIntoView({ block: 'center' })); await page.waitForTimeout(150);
+  const d = await page.evaluate(() => { const r = document.querySelectorAll('#ds-leque .tb-row--leque')[1].children[2].getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+  await page.mouse.move(d.x, d.y); await page.mouse.down(); await page.mouse.move(d.x, d.y - 40, { steps: 4 });
+  assert.ok(await page.evaluate(() => !!document.querySelector('#ds-pega-fx .tb-pega[data-receita="pegar"]')), 'palco: a carta é pega');
+  await page.mouse.up(); await page.waitForFunction(() => !document.querySelector('.tb-pega'), null, { timeout: 3000 });
+  assert.deepEqual(errors, []);
+});
 // J-66 · relato #124 (Benevolent Blessing dava proteção contra verde e a carta não dizia nada): a permanente que ganhou proteção mostra o
 // escudo na barra de estados, com uma faixa por cor protegida na cor do mana; o nome falado e a folha da carta dizem contra o quê.
 test('e2e · J-66 proteção ganha: escudo com as cores do mana na carta do campo, nome falado e folha dizem contra o quê; dois temas', { skip }, async t => {
