@@ -1832,9 +1832,13 @@
    "regra": "Counters",
    "titulo": "Marcadores postos ao entrar",
    "status": "parcial",
-   "evidencia": "entersWithCounters / entersWithCountersX (index.html:10293-10298; rules.unit \"S50 · … a criatura entra com X marcadores\")",
+   "evidencia": "entersWithCounters / entersWithCountersX (index.html:10293-10298; rules.unit \"S50 · … a criatura entra com X marcadores\") · M-626 (13/11/2026): \"return target nonlegendary creature card from your graveyard to the battlefield with a -1/-1 counter on it\" (Persist): `comMarcador` na reanimação com alvo, pelo mesmo entraComK do \"volta com um marcador\"; a marca não sobra se a carta não entrou (lt303.unit)",
    "falta": "Entrar com marcadores não passa por addCounters, então não dispara \"counters-added\" nem contaria para quem observa marcadores postos.",
-   "esforco": "P"
+   "esforco": "P",
+   "testes": [
+    "CR 122.6 + 115.1 · Persist devolve a criatura não lendária com um marcador −1/−1; a lendária não é alvo",
+    "CR 608.2b · Persist: o alvo exilado em resposta — nada volta, e nenhuma marca sobra na carta"
+   ]
   },
   {
    "n": "122.7",
@@ -6334,13 +6338,14 @@
    "regra": "Keyword Actions",
    "titulo": "Sacrifice",
    "status": "coberta",
-   "evidencia": "sacrifice() (index.html:11628) move direto ao cemitério sem passar por destruir/indestrutível; sacrificeOptions só lista permanentes do próprio jogador; rules.unit \"S20 · custo adicional de sacrifício\", \"S60 · Oubliette\", \"S43 · sacrificar o espírito\" · T-121 (17/10/2026): \"For each creature, its controller sacrifices a permanent unless they pay {1}\" (`cada_criatura_paga_ou_sacrifica`): APNAP, cada jogador escolhe por quantas criaturas paga, e os sacrifícios de todos saem juntos, de permanentes diferentes — Fade Away",
+   "evidencia": "sacrifice() (index.html:11628) move direto ao cemitério sem passar por destruir/indestrutível; sacrificeOptions só lista permanentes do próprio jogador; rules.unit \"S20 · custo adicional de sacrifício\", \"S60 · Oubliette\", \"S43 · sacrificar o espírito\" · T-121 (17/10/2026): \"For each creature, its controller sacrifices a permanent unless they pay {1}\" (`cada_criatura_paga_ou_sacrifica`): APNAP, cada jogador escolhe por quantas criaturas paga, e os sacrifícios de todos saem juntos, de permanentes diferentes — Fade Away · M-626 (13/11/2026): \"target opponent sacrifices a creature or planeswalker of their choice\" (Archon of Cruelty): edict com types [creature, planeswalker], uma permanente só, de um dos tipos, à escolha dele; seguido de \"discards a card, and loses 3 life\" do mesmo jogador alvo (608.2c, first-target em discard e lose; lt303.unit)",
    "cartas": "evergreen",
    "testes": [
     "CR 101.4 · Fade Away (texto oficial): cada jogador, por criatura que controla, paga {1} ou sacrifica uma permanente — A (ativo) escolhe primeiro; sem mana para pagar, só sacrifica",
     "CR 701.21 · ruling de 04/10/2004: os sacrifícios são simultâneos e de permanentes diferentes — sem pagar, B com dois Ursos e uma Pedra sacrifica duas, e não pode usar um Urso sacrificado para \"não pagar\" pelo outro",
     "CR 101.4 · Fade Away sem criaturas no campo não pede nada",
-    "M-621 · \"creature or planeswalker\": o planeswalker de valor 6 vai antes do Gigante de valor 5; terreno nunca"
+    "M-621 · \"creature or planeswalker\": o planeswalker de valor 6 vai antes do Gigante de valor 5; terreno nunca",
+    "CR 701.21a + 608.2c · Archon of Cruelty entra: o oponente escolhe entre criatura e planeswalker, descarta uma, perde 3; você compra uma e ganha 3"
    ]
   },
   {
