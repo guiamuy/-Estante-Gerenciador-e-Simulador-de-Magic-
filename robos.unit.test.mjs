@@ -6,7 +6,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync, readFileSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { ambiente, trazer, gravar, ROBOS, GRUPOS, RAMOS } from './robos.mjs';
+import { ambiente, trazer, gravar, doMain, ROBOS, GRUPOS, RAMOS } from './robos.mjs';
 
 const g = (cwd, ...a) => { const r = spawnSync('git', a, { cwd, encoding: 'utf8' }); if (r.status !== 0) throw new Error(`git ${a.join(' ')}: ${r.stderr}`); return r.stdout.trim(); };
 
@@ -22,7 +22,7 @@ test('I-325 · os segredos do ambiente viram o que cada script espera; o token d
 });
 
 test('I-325 · grupos: de hora em hora notícias e fila de relatos; por dia o catálogo; cada robô grava num ramo de dados conhecido', () => {
-  assert.deepEqual(GRUPOS, { hora: ['noticias', 'relatos-fila'], dia: ['catalogo'] });
+  assert.deepEqual(GRUPOS, { hora: ['noticias', 'relatos-fila', 'relatos'], dia: ['catalogo', 'pessoas', 'regras-banco'] }); // I-334
   for (const nomes of Object.values(GRUPOS)) for (const n of nomes) assert.equal(typeof ROBOS[n], 'function', n);
   assert.deepEqual(Object.keys(RAMOS).sort(), ['catalogo', 'noticias', 'relatos']);
   const fonte = readFileSync(new URL('./robos.mjs', import.meta.url), 'utf8');
@@ -69,4 +69,40 @@ test('I-325 · o executor roda os mesmos comandos dos fluxos de reserva (sentine
 
 test('I-325 · a fila de relatos não roda sem os segredos (avisa em vez de gravar pela metade)', () => {
   assert.throws(() => ROBOS['relatos-fila'](ambiente({})), /FIREBASE_SERVICE_ACCOUNT_B64 ou ESTANTE_GITHUB_TOKEN/);
+});
+
+test('I-334 · tabela de relatos, pessoas e regras do banco não rodam sem os segredos (avisam em vez de rodar pela metade)', () => {
+  assert.throws(() => ROBOS.relatos(ambiente({})), /relatos: falta ESTANTE_GITHUB_TOKEN/);
+  assert.throws(() => ROBOS.pessoas(ambiente({})), /pessoas: falta FIREBASE_SERVICE_ACCOUNT_B64/);
+  assert.throws(() => ROBOS['regras-banco'](ambiente({})), /regras-banco: falta FIREBASE_SERVICE_ACCOUNT_B64/);
+});
+
+test('I-334 · doMain traz o main de agora, mesmo com o clone da rotina parado noutro ramo (as regras publicadas são sempre as do main)', () => {
+  const raiz = mkdtempSync(join(tmpdir(), 'robos-main-'));
+  try {
+    const origem = join(raiz, 'origem.git'), clone = join(raiz, 'clone');
+    g(raiz, 'init', '--quiet', '--bare', '-b', 'main', origem);
+    g(raiz, 'clone', '--quiet', origem, clone);
+    g(clone, 'config', 'user.name', 't'); g(clone, 'config', 'user.email', 't@t'); g(clone, 'config', 'core.autocrlf', 'false');
+    writeFileSync(join(clone, 'database.rules.json'), '{"main":1}\n'); g(clone, 'add', '-A'); g(clone, 'commit', '--quiet', '-m', 'main'); g(clone, 'push', '--quiet', 'origin', 'main');
+    g(clone, 'switch', '--quiet', '-c', 'claude/X-1');
+    writeFileSync(join(clone, 'database.rules.json'), '{"ramo":1}\n'); g(clone, 'commit', '--quiet', '-am', 'ramo');
+    const m = doMain(clone);
+    assert.equal(readFileSync(join(m, 'database.rules.json'), 'utf8'), '{"main":1}\n', 'lê o main, nunca o ramo do clone');
+    assert.equal(g(clone, 'rev-parse', '--abbrev-ref', 'HEAD'), 'claude/X-1', 'o clone continua onde estava');
+    g(clone, 'worktree', 'remove', '--force', m);
+  } finally { rmSync(raiz, { recursive: true, force: true }); }
+});
+
+test('I-334 · pessoas, regras do banco e relatos saíram do agendamento do Actions (ficam só à mão); artes continua semanal', () => {
+  const fluxo = (f) => readFileSync(new URL(`./.github/workflows/${f}`, import.meta.url), 'utf8');
+  for (const f of ['pessoas.yml', 'regras-banco.yml', 'relatos.yml']) {
+    const y = fluxo(f), gatilhos = (y.match(/^on:\n([\s\S]*?)\n(?=\S)/m) || [])[1] || '';
+    assert.doesNotMatch(gatilhos, /schedule:|issues:|push:|pull_request/, f);
+    assert.match(y, /^on:\n  workflow_dispatch:/m, f);
+  }
+  assert.match(fluxo('artes.yml'), /^  schedule:/m, 'artes fica no Actions: a nuvem não alcança os dados em massa da Scryfall');
+  const fonte = readFileSync(new URL('./robos.mjs', import.meta.url), 'utf8');
+  assert.match(fonte, /node\(\[join\(m, 'regras-banco\.mjs'\)\], env, \{ cwd: m/, 'regras do banco rodam sobre a cópia do main');
+  assert.match(fonte, /node\(\[join\(m, 'pessoas\.mjs'\), '--pasta', pasta\], env, \{ cwd: m/, 'pessoas roda sobre a cópia do main');
 });

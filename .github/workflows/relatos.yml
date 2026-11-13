@@ -1,11 +1,11 @@
 # Y5 · Relatos. A cada registro (issue) aberto, editado, fechado, reaberto ou com etiqueta posta ou tirada (G-364), etiqueta os que o app preencheu (tipo,
 # urgência, área) e regrava a tabela relatos.json/relatos.csv no ramo `relatos`, que a conversa de correção consulta.
 # O `main` não recebe commit daqui. Trilha: geral (arquivo de fluxo novo, no molde dos de Notícias e Catálogo).
+# I-334 (13/11/2026): saiu do agendamento do Actions (decisão do dono, "sem consumir GitHub Actions"); quem roda é a
+# rotina "Estante · robôs da hora" na nuvem do Claude (`node robos.mjs hora`). Este fluxo fica só à mão, de reserva.
 name: Relatos
 
 on:
-  issues:
-    types: [opened, edited, closed, reopened, deleted, labeled, unlabeled] # G-364 · etiqueta muda a etapa (em-atuacao, aguarda-dono)
   workflow_dispatch:
 
 permissions:

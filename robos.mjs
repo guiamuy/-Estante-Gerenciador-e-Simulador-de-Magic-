@@ -6,15 +6,19 @@
      node robos.mjs hora            notícias e fila de relatos (rotina de hora em hora; menos de um minuto)
      node robos.mjs dia --fundo     catálogo e sentinelas de cobertura (rotina diária; 15 a 25 min, roda em segundo plano)
      node robos.mjs esperar         acompanha o --fundo por até 9 min; repita até aparecer "FIM"
-     node robos.mjs <robo>          um robô só: noticias, relatos-fila, catalogo
+     node robos.mjs <robo>          um robô só: noticias, relatos-fila, relatos, catalogo, pessoas, regras-banco
 
-   Ficam no GitHub Actions (poucos minutos por mês): artes (semanal), relatos (quando um registro muda), pessoas e
-   regras do banco (diários, segundos cada).
+   I-334 (decisão do dono, 13/11/2026: "sem consumir GitHub Actions"): a tabela de relatos (de hora em hora), a contagem
+   de pessoas e as regras do banco (uma vez por dia) também saíram do Actions; os fluxos ficam só à mão, de reserva.
+   Fica no Actions só a base de artes do scanner (semanal): ela baixa os dados em massa da Scryfall, que a nuvem do
+   Claude não alcança. Pessoas e regras do banco rodam sobre uma cópia do `main` (nunca sobre o ramo do clone), para
+   que as regras publicadas no banco sejam sempre as do `main`.
 
    Segredos (variáveis do ambiente "estante-robos" na nuvem do Claude, nunca no repositório):
      TOPDECK_KEY                    catálogo
      FIREBASE_SERVICE_ACCOUNT_B64   fila de relatos (a conta de serviço do Firebase em base64; o JSON vira uma linha só)
-     ESTANTE_GITHUB_TOKEN           fila de relatos (token só com Issues: leitura e escrita) */
+     ESTANTE_GITHUB_TOKEN           fila e tabela de relatos (token só com Issues: leitura e escrita)
+   Pessoas e regras do banco usam a mesma conta de serviço da fila de relatos. */
 import { spawnSync, spawn } from 'node:child_process';
 import { mkdtempSync, existsSync, writeFileSync, readFileSync, appendFileSync, rmSync, openSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -75,6 +79,17 @@ export function gravar(saida, ramo, autor, mensagem) {
 const agora = () => new Date().toISOString().slice(0, 16) + 'Z';
 function fechar(saida) { git(['worktree', 'remove', '--force', saida]); }
 
+/** I-334 · cópia do `main` de agora numa pasta à parte: os robôs que leem arquivos do app (regras, endereço do banco)
+    nunca leem o ramo em que o clone da rotina estiver. */
+export function doMain(cwd = RAIZ) {
+  const pasta = mkdtempSync(join(tmpdir(), 'robo-main-'));
+  rmSync(pasta, { recursive: true, force: true });
+  if (git(['fetch', '--quiet', '--depth', '1', 'origin', 'main'], { cwd }).status !== 0) throw new Error('não consegui buscar o main');
+  if (git(['worktree', 'add', '--quiet', '--detach', pasta, 'FETCH_HEAD'], { cwd }).status !== 0) throw new Error('não consegui abrir o main');
+  return pasta;
+}
+const semConta = (n, env) => { if (!env.FIREBASE_SERVICE_ACCOUNT) throw new Error(`${n}: falta FIREBASE_SERVICE_ACCOUNT_B64 no ambiente`); };
+
 export const ROBOS = {
   noticias(env) {
     const s = trazer('noticias');
@@ -101,6 +116,35 @@ export const ROBOS = {
       return gravar(s, 'relatos', 'estante-relatos', `Relatos · tabela de ${agora()} (fila)`);
     } finally { fechar(s); rmSync(saidas, { force: true }); }
   },
+  relatos(env) {
+    if (!env.ESTANTE_GITHUB_TOKEN) throw new Error('relatos: falta ESTANTE_GITHUB_TOKEN no ambiente');
+    const s = trazer('relatos');
+    try {
+      if (node(['relatos-tabela.mjs', '--saida', s], env).status !== 0) throw new Error('relatos-tabela: falhou');
+      return gravar(s, 'relatos', 'estante-relatos', `Relatos · tabela de ${agora()}`);
+    } finally { fechar(s); }
+  },
+  pessoas(env) {
+    semConta('pessoas', env);
+    const m = doMain();
+    const pasta = mkdtempSync(join(tmpdir(), 'robo-telemetria-'));
+    rmSync(pasta, { recursive: true, force: true });
+    try {
+      // grava no ramo telemetria pelo próprio script (o mesmo do fluxo Pessoas), com o remoto do clone
+      const r = node([join(m, 'pessoas.mjs'), '--pasta', pasta], env, { cwd: m, timeout: 5 * 60000 });
+      if (r.status !== 0) throw new Error('pessoas: falhou');
+      return 'gravado';
+    } finally { fechar(m); rmSync(pasta, { recursive: true, force: true }); }
+  },
+  'regras-banco'(env) {
+    semConta('regras-banco', env);
+    const m = doMain();
+    try {
+      const r = node([join(m, 'regras-banco.mjs')], env, { cwd: m, timeout: 5 * 60000 });
+      if (r.status !== 0) throw new Error('regras-banco: falhou (o banco continua com as regras anteriores)');
+      return 'conferido';
+    } finally { fechar(m); }
+  },
   catalogo(env) {
     if (!env.TOPDECK_KEY) diz('⚠ sem TOPDECK_KEY: o catálogo sai sem as listas do TopDeck');
     const s = trazer('catalogo');
@@ -122,7 +166,7 @@ export const ROBOS = {
     } finally { fechar(s); }
   },
 };
-export const GRUPOS = { hora: ['noticias', 'relatos-fila'], dia: ['catalogo'] };
+export const GRUPOS = { hora: ['noticias', 'relatos-fila', 'relatos'], dia: ['catalogo', 'pessoas', 'regras-banco'] };
 
 /** Roda os robôs pedidos; um que cai não impede os outros. Devolve true se todos passaram. */
 export function rodar(nomes, env = ambiente()) {

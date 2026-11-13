@@ -4,11 +4,11 @@
 # e confere. Guarda antes de enviar: JSON válido, raiz fechada, tamanho. Disparado pela fila a cada avanço do main (o push
 # da fila não dispara fluxos), uma vez por dia e à mão (com "conferir" só compara). Nada é gravado no repositório.
 # Trilha: infra.
+# I-334 (13/11/2026): saiu do agendamento do Actions (decisão do dono, "sem consumir GitHub Actions"); quem roda é a
+# rotina "Estante · robôs da hora" na nuvem do Claude (`node robos.mjs dia`). Este fluxo fica só à mão, de reserva.
 name: Regras do banco
 
 on:
-  schedule:
-    - cron: '41 4 * * *'
   workflow_dispatch:
     inputs:
       conferir:

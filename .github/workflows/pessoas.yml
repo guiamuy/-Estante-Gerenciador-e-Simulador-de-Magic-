@@ -2,11 +2,11 @@
 # conta contas, perfis sincronizados e salas com a conta de serviço do Firebase (segredo FIREBASE_SERVICE_ACCOUNT, só no
 # passo que precisa) e grava SÓ TOTAIS por dia em `telemetria/pessoas.jsonl` (pessoas.mjs do main). Nenhum uid, e-mail,
 # nome ou código de sala sai daqui. Sem o segredo, termina sem fazer nada. O `main` não recebe commit daqui. Trilha: infra.
+# I-334 (13/11/2026): saiu do agendamento do Actions (decisão do dono, "sem consumir GitHub Actions"); quem roda é a
+# rotina "Estante · robôs da hora" na nuvem do Claude (`node robos.mjs dia`). Este fluxo fica só à mão, de reserva.
 name: Pessoas
 
 on:
-  schedule:
-    - cron: '17 3 * * *'
   workflow_dispatch:
 
 permissions:
