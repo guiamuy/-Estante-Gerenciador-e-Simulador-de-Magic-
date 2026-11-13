@@ -13,7 +13,7 @@ Arquivo de entrada de toda conversa. Diz onde o projeto está, o que cada trilha
 
 PWA de Magic: The Gathering publicado: listas, coleção, scanner de cartas, mesa (assistida e com motor de regras completo), bot Shark, notícias, relatos do dono e painel de BI (`painel.html`). `index.html` é o código-fonte (sem build). Offline primeiro. Portão: `npm test` (fase rápida + fase de tela). Publicação: PR por leva e trem de produção (`npm run publicar`, `node trem.mjs`; regras no `CLAUDE.md`).
 
-Marcos: Pauper 100% (as sete listas revisadas carta a carta; 681 de 686 listas Pauper a 100% depois da M-623, 12/11; 5 cartas esperam primitiva). Motor v112. Commander parcial. Conformidade com as Comprehensive Rules em andamento (épico CR).
+Marcos: Pauper 100% (as sete listas revisadas carta a carta; 682 de 686 listas Pauper a 100% depois da M-629, 13/11; 4 cartas esperam primitiva). Motor v112. Commander parcial. Conformidade com as Comprehensive Rules em andamento (épico CR).
 
 ## Trilhas (uma linha por trilha; cada trilha reescreve só a sua)
 
@@ -81,4 +81,4 @@ Os documentos `claude/…` moram no Projeto do claude.ai, fora do repositório: 
 
 No commit de docs de cada leva (o mesmo que atualiza o ROADMAP): reescreva a **sua** linha na tabela de trilhas, atualize relatos e pendências se mudaram e troque a data abaixo. Edite por patch, nunca o arquivo inteiro. Conflito no rebase: fique com as linhas das outras trilhas e a sua. Passou de 8 KB: resuma, não acrescente.
 
-Atualizado: 14/11/2026 · M-628 · G-371 · J-73 · S-624 (scanner) · G-384 · M-630 · G-385 · M-625 · M-624 · J-71 · G-383 · B-215 · B-213 (bot) · B-214 · M-626 · J-69 · J-72 · G-389 · J-75 · I-334
+Atualizado: 14/11/2026 · M-625 · M-624 · J-71 · G-383 · B-215 · B-213 (bot) · B-214 · M-626 · J-69 · J-72 · G-389 · J-75 · I-334 · G-386 · M-616 · G-381 · J-74 · I-333 · J-64 · M-623 · G-387 · M-629
