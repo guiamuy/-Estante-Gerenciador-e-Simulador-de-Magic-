@@ -4423,8 +4423,14 @@ test('e2e · G-282 carta com a espera desenhada: enquanto a imagem não chega, a
   // o certo para quem usa); para medir a espera, o teste desliga o cache do navegador e a imagem passa pela rede lenta de novo
   const semCache = await page.context().newCDPSession(page); await semCache.send('Network.enable'); await semCache.send('Network.setCacheDisabled', { cacheDisabled: true });
   await page.click('.col-card[data-name="Sol Ring"] .ds-card'); await page.waitForSelector('#card-viewer .ds-visor__moldura img.ds-carta-img');
-  const visor = await estado('#card-viewer .ds-visor__moldura img.ds-carta-img'); assert.equal(visor.animacao, 'none'); assert.equal(await page.$eval('#card-viewer .ds-visor__moldura .ds-carta-espera', e => getComputedStyle(e, '::before').display), 'none', 'no visor o brilho é o da moldura (D10), não dobra');
-  assert.equal(await page.$eval('#card-viewer .ds-visor__moldura .ds-carta-espera', e => getComputedStyle(e).display), 'flex', 'a prateleira no visor');
+  // G-389 · instável (caiu com o portão inteiro em 13/11, três vezes em quatro rodadas; uma delas também sozinho): o visor se
+  // redesenha quando o texto no idioma chega (G-371), e a imagem e a espera lidas entre a busca e a medida podiam já estar
+  // fora do documento (valor vazio). A medida passa a ser num quadro só, sobre a imagem e a espera que estão no documento
+  const espera = await page.waitForFunction(() => { const m = document.querySelector('#card-viewer .ds-visor__moldura'), i = m && m.querySelector('img.ds-carta-img'), e = m && m.querySelector('.ds-carta-espera');
+    return i && e && i.isConnected && e.isConnected ? [getComputedStyle(i).animationName, getComputedStyle(e, '::before').display, getComputedStyle(e).display] : null; }, null, { timeout: 3000 }).then(r => r.jsonValue());
+  assert.equal(espera[0], 'none', 'a imagem do visor não anima');
+  assert.equal(espera[1], 'none', 'no visor o brilho é o da moldura (D10), não dobra');
+  assert.equal(espera[2], 'flex', 'a prateleira no visor');
   await page.waitForSelector('#card-viewer img.ds-carta-img[data-carregada="true"]', { timeout: 8000 });
   await page.waitForSelector('#card-viewer .ds-visor__moldura[data-carregando="false"]');
   await semCache.send('Network.setCacheDisabled', { cacheDisabled: false });
