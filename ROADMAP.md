@@ -2999,6 +2999,24 @@ Depois da M-628 (coleta de 12/11 13h50 UTC; ordem gulosa (c): com a M-624 no `ma
 
 Próximas, pela ordem gulosa de 12/11 depois da M-628: Cling to Dust (16 listas; com Kaito fecha uma) e Drown in the Loch (13; idem), Fable of the Mirror-Breaker (18), Seasoned Cryomancer (8; gatilho reflexo com marcador de atordoamento), Ketramose; Arena of Glory (66 listas; mana gasta em criatura) segue como primitiva própria.
 
+Depois da M-630 (coleta de 13/11 16h40 UTC: Modern 140 / 719 listas a 100%, 310 pendentes, 0 `texto-mudou`, 6 `lida` — abaixo de 10; ordem gulosa (c): com a M-625, a M-626, a M-628 e a M-629 na fila do trem, Abhorrent Oculus é a única pendência de 6 listas Modern, a maior soma de uma carta só; a reserva da M-627, que tinha a mesma carta, venceu sem ramo nem PR e foi assumida): Abhorrent Oculus (10 listas Modern, também Legacy e Standard) passa a jogar por script à mão, texto da API da Scryfall pela coleta de 13/11 (`.listas/oficiais-revisadas.json`; os rulings não foram consultados: a Scryfall recusou a conexão nesta rodada). Regras: 601.2b/601.2h — custo adicional de conjurar "exile N cards from your graveyard" (`additional.exileFromGraveyard` em mágica): a mesa oferece uma conjuração só e quem conjura escolhe as N cartas logo depois, como no delve (antes, uma oferta por combinação, cortada no teto de 24 — com 9 cartas no cemitério, 84 combinações, o motor escolhia por quem tem cemitério grande); com cinco ou menos, não conjura; com `pay.exile` na ação, paga na hora. 503.1 + 603.2 "At the beginning of each opponent's upkeep" (gatilho de passo com `turno: 'oponente'`) e 701.62a manifestar pavor (efeito da V-18, primeira carta que o usa). Simplificação declarada: se outra escolha da conjuração já estiver aberta (delve, colher provas, exilar da mão), as N cartas são as primeiras do cemitério — nenhuma carta coberta junta as duas. Estimado: Modern 140 → 140 listas a 100% sobre o `main` (o Oculus faz par com cartas da fila) e 156 com a fila do trem; pendentes 310 → 309. Mapa CR sem mudança de status (601.2 parcial; 503.1 e 701.62 já cobertas). Teste: `lt304.unit` (6; todos falham no motor anterior) e o cenário S8 (o cemitério do cenário recebe as N cartas).
+
+| Formato (coleta de 13/11) | Listas a 100% | Pendentes | texto-mudou · lida · nova · parcial · sem-dados |
+|---|---|---|---|
+| Pauper (sentinela) | 684 / 689 | 5 | 0 · 0 · 5 · 0 · 0 |
+| Modern (campanha) | 140 / 719 (156 estimado com a fila do trem e a M-630) | 310 (309) | 0 · 6 · 303 · 0 · 1 |
+| Legacy | 38 / 514 | 308 | 0 · 0 · 307 · 0 · 1 |
+| Pioneer | 16 / 297 | 258 | 0 · 6 · 249 · 0 · 3 |
+| Standard | 1 / 498 | 387 | 0 · 11 · 367 · 0 · 9 |
+| Vintage | 0 / 250 | 155 | 0 · 0 · 154 · 0 · 1 |
+| Construído | 0 / 30 | 247 | 0 · 37 · 210 · 0 · 0 |
+| Iniciante | 25 / 648 | 6452 | 8 · 1584 · 4860 · 0 · 0 |
+| Commander | 0 / 744 | 7521 | 6 · 639 · 6805 · 1 · 70 |
+| Brawl | 0 / 9 | 335 | 1 · 57 · 277 · 0 · 0 |
+| **Regras** (`.regras/mapa.json`, 1.174 itens) | 444 cobertas · 246 parciais · 197 ausentes · 180 fora · 107 definição | | |
+
+Próximas, pela ordem gulosa de 13/11 depois da M-630 (com a fila do trem): Fable of the Mirror-Breaker (17 listas; única pendência de 2), Cling to Dust (15), Ketramose, Arena of Glory (66 listas; mana gasta em criatura), Seasoned Cryomancer (8; com o Oculus fecha 2), Flame of Anor + Splinter Twin (fecham 2 juntas).
+
 #### Velocidade de publicação (trilha `infra`, pedido do dono em 10/10/2026; plano aprovado em 11/10/2026)
 
 Medição de 09/10 14h a 10/10 22h UTC (31,5 h): 47 publicações (1,5 por hora) num caminho que comporta 1,5 a 2 por hora — um portão local de 30 a 40 min por vez, sobre o `main` parado. Do commit ao `main`: mediana de 29 min no motor, 38 min na geral (pior caso 243 min). Cada leva roda o portão duas vezes (na conversa e no CI): cerca de 790 min de CI por dia. Detalhe em `claude/ROADMAP-infra-velocidade-de-publicacao.md` (Projeto).
