@@ -9847,6 +9847,56 @@ test('e2e · J-36 resumo do turno nos detalhes da faixa de vez: nada no meio da 
   assert.deepEqual(errors, []);
 });
 
+test('e2e · J-75 relato #152 fatia 2: Pausar segura a jogada do oponente na legenda e Seguir mostra a próxima', { skip }, async t => {
+  const { page, errors, base } = await open(t, { cena: true });
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/mesa'); await page.fill('#mesa-seed', '9');
+  await page.waitForFunction(() => { const c = document.querySelector('[data-opponent="shark"]'); return c && !c.disabled; }, null, { timeout: 8000 });
+  await page.click('[data-opponent="shark"]'); await page.waitForSelector('#mesa-bot-deck');
+  await page.waitForFunction(() => { const c = document.querySelector('[data-mode="full"]'); return c && !c.disabled; }, null, { timeout: 8000 });
+  await page.click('[data-mode="full"]'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  const fimDaCena = () => page.waitForFunction(() => !document.querySelector('#tb').dataset.cena && !document.querySelector('#tb').dataset.pensando, null, { timeout: 45000 });
+  const C = () => page.evaluate(() => window.__estanteMesa.cena());
+  const minhaVez = async () => { for (let i = 0; i < 60; i++) { await fimDaCena(); const e = await page.evaluate(() => { const s = window.__estanteMesa.estado(); return { meu: s.turn.active === 0 && s.turn.priority === 0 && !s.pending && !s.stack.length, pend: s.pending && s.pending.kind }; });
+    if (e.meu && await page.locator('#tb-pass-turn').count()) return; if (e.pend === 'discard') { await page.locator('#tb-hand .tb-card').first().click(); await escolhe(page); continue; }
+    for (const id of ['#tb-no-block', '#tb-no-attack', '#tb-pass']) if (await page.locator(id).count()) { await page.click(id).catch(() => {}); break; } await page.waitForTimeout(80); } };
+  // uma cena com pelo menos três quadros, para sobrar jogada depois do Seguir
+  let achou = false;
+  for (let i = 0; i < 10 && !achou; i++) { await minhaVez(); await page.click('#tb-pass-turn'); await semPensar(page); await page.waitForTimeout(150);
+    if (await page.evaluate(() => { const s = window.__estanteMesa.estado(); return !!(s.pending && s.pending.kind === 'discard'); }) && !(await C())) { await page.locator('#tb-hand .tb-card').first().click(); await escolhe(page); }
+    try { await page.waitForSelector('#tb[data-cena="true"] #tb-cena-pausa', { timeout: 2000 }); } catch (e) { continue; }
+    const c = await C(); if (c && c.total - c.quadro >= 2) achou = true; else await page.evaluate(() => window.__estanteMesa.pulaCena()); }
+  assert.ok(achou, 'o Shark não fez uma cena de três quadros em dez turnos');
+  // antes do toque: rótulo Pausar com o ícone de pausa; o toque para na jogada que está na legenda
+  assert.equal(await page.getAttribute('#tb-cena-pausa', 'aria-label'), 'Pausar');
+  assert.equal(await page.$eval('#tb-cena-pausa .ds-icon', i => i.dataset.icone), 'pausa');
+  await page.click('#tb-cena-pausa');
+  // o botão: 44 px, dentro da legenda e da tela, e a legenda segue legível ao lado (medido depois do movimento de entrada)
+  await page.waitForTimeout(300);
+  const b0 = await page.evaluate(() => { const b = document.querySelector('#tb-cena-pausa'), r = b.getBoundingClientRect(), el = document.querySelector('#tb-cena').getBoundingClientRect();
+    return { h: r.height, w: r.width, icone: b.querySelector('.ds-icon').dataset.icone, dentro: r.left >= el.left && r.right <= el.right && el.right <= innerWidth, legendaW: document.querySelector('.tb-cena__texto').getBoundingClientRect().width }; });
+  assert.ok(b0.h >= 44 && b0.w >= 44, JSON.stringify(b0)); assert.equal(b0.icone, 'seguir'); assert.ok(b0.dentro, JSON.stringify(b0));
+  assert.ok(b0.legendaW >= 90, 'a legenda segue legível ao lado dos botões: ' + JSON.stringify(b0));
+  const p1 = await C(); const leg1 = await page.innerText('#tb-cena-legenda');
+  assert.equal(p1.pausada, true);
+  assert.equal(await page.getAttribute('#tb-cena-pausa', 'aria-label'), 'Seguir'); assert.equal(await page.getAttribute('#tb-cena', 'data-pausada'), 'true');
+  // parada de verdade: mais que o quadro mais longo (3,2 s) sem mudar de jogada, e a mesa segue sem toque
+  await page.waitForTimeout(3600);
+  const p2 = await C(); assert.equal(p2 && p2.quadro, p1.quadro, 'pausada, a cena não anda'); assert.equal(await page.innerText('#tb-cena-legenda'), leg1);
+  assert.equal(await page.$eval('.tb-board', el => getComputedStyle(el).pointerEvents), 'none');
+  await auditaTela(page, 'cena do oponente pausada');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/j75-cena-pausada.png' });
+  // Seguir: já mostra a próxima jogada e retoma o ritmo
+  await page.click('#tb-cena-pausa');
+  const p3 = await C(); assert.ok(p3 && p3.quadro === p1.quadro + 1 && !p3.pausada, JSON.stringify({ p1, p3 }));
+  assert.equal(await page.getAttribute('#tb-cena-pausa', 'aria-label'), 'Pausar');
+  await fimDaCena(); assert.equal(await C(), null);
+  assert.equal(await page.$eval('.tb-board', el => getComputedStyle(el).pointerEvents), 'auto');
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · H5 ver o oponente jogar: o turno do Shark passa quadro a quadro com legenda, a mesa não aceita toque durante a cena, Pular vai ao fim, e dá para desligar', { skip }, async t => {
   const { page, errors, base } = await open(t, { cena: true });
   await page.addInitScript(() => { window.__MTG_TEST = true; });

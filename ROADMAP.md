@@ -728,7 +728,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-vf ✅ | Relato #137 (J-70): com o detalhe da pilha aberto, tocar de novo na faixa (na seta) recolhe; antes nada acontecia e só Esc ou toque fora fechavam (J-70, 11/11/2026) | J | 1 | — |
 | 16º-vh 🟡 | Relato #135, fatia 1 (G-379, 11/11/2026): lista pronta do Pauper que o motor não joga inteira (medida da sentinela abaixo de 100%) sai das Listas prontas e das prontas do Jogar, com a linha "N listas de Pauper estão fora…"; a medida a 100% a traz de volta sozinha. Fatia 2: a rotina Sentinela do Pauper trata primeiro as listas que saíram | G | 1 de 2 | 16º-vd |
 | 16º-vi ✅ | Relato #136 (J-69): o ⋯ da mesa abre o menu (Desfazer, Registro, Desistir), nunca o relato: a aba de relatar da borda direita ganha um piso medido no ⋯ (base dele + 8 px), refeito a cada pintura, rolagem e mudança de tamanho; com a barra de cima mais baixa (recorte da câmera no app instalado) ou a aba arrastada ao alto, ela não cobre mais o ⋯. A posição guardada não muda (leva J-69, 11/11/2026) | J | ½ | 16º-vd |
-| 16º-vw 🟡 | Relato #152, fatia 1 (J-72, 12/11/2026): na cena do turno do oponente, cada jogada dele fica o tempo de ler a legenda (1,6 s no mínimo, até 3,2 s nas frases longas) e o turno comprido encolhe primeiro os passos sem jogada; a jogada dele nunca passa de 1,1 s (antes: 12 s divididos por todos os quadros, ~0,4 s cada). Fatias 2 (Pausar e Seguir) e 3 (no meu toque, só o que vale acompanhar) seguem | J | 1 | H5 |
+| 16º-vw 🟡 | Relato #152, fatia 1 (J-72, 12/11/2026): na cena do turno do oponente, cada jogada dele fica o tempo de ler a legenda (1,6 s no mínimo, até 3,2 s nas frases longas) e o turno comprido encolhe primeiro os passos sem jogada; a jogada dele nunca passa de 1,1 s (antes: 12 s divididos por todos os quadros, ~0,4 s cada). Fatia 2 (J-75, 13/11): Pausar e Seguir na legenda da cena. Fatia 3 (no meu toque, só o que vale acompanhar) segue | J | 1 | H5 |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -15517,7 +15517,7 @@ Cloudflare) ficam do nosso lado, para gerar e validar. Cinco fatias MK3-P1…P5 
 - **Parcial / fora:** Início e Notícias têm cabeçalho próprio (data, saudação, sino; faixa de notícias) e entram no editorial
   com a K3-7 (Início na direção Vitrine) e a K3-10 (Notícias); as subtelas seguem no 44 · 1fr · 44 (a faixa compacta de 18 px
   nelas fica para a FA-2, que fecha contra as telas-modelo); a paralaxe do hero por `scroll()` entra com o hero da K3-9.
-#### Relato #152 · o turno do oponente no ritmo de ler (🟡 fatia 1 ✅ J-72, 12/11/2026; `16º-vw`)
+#### Relato #152 · o turno do oponente no ritmo de ler (🟡 fatia 1 ✅ J-72, 12/11/2026; fatia 2 ✅ J-75, 13/11/2026; `16º-vw`)
 - **Valor:** o dono não conseguia acompanhar o turno do Shark ("na velocidade da luz"). A cena da H5 cabia sempre em 12 s: num turno
   com Ponder, Thought Scour e escolhas, cada jogada ficava ~0,4 s na tela.
 - **Aceite (fatia 1):** jogada do oponente fica `max(1,6 s, 0,4 s + 40 ms por letra da legenda)`, até 3,2 s; passo visto sem
@@ -15526,8 +15526,14 @@ Cloudflare) ficam do nosso lado, para gerar e validar. Cinco fatias MK3-P1…P5 
   Pular continua indo ao fim. Nenhuma regra muda.
 - **Testes:** `sentidos.unit` "J-72" (falhava antes: ~420 ms por jogada); "H5 · roteiro" com a expectativa mudada de propósito
   (800/1000 → 1000/1600 ms; o turno comprido não cabe mais nos 12 s). e2e H5, Y2 e MJ8: a espera do fim da cena vai de 20 s para 45 s.
-- **Fora (próximas fatias):** 2 · Pausar e Seguir na legenda da cena; 3 · modo "no meu toque" (a próxima jogada só vem quando o
-  jogador sinaliza), escolhas repetidas juntas e o destaque visual na carta da jogada.
+- **Aceite (fatia 2, J-75):** a legenda da cena ganha o botão Pausar (ícone `pausa`, 44 px, entre a contagem e o Pular): para
+  na jogada que está na legenda pelo tempo que for, a borda e a contagem ficam no ouro (`--accent`), a mesa segue sem toque. O
+  mesmo botão vira Seguir (ícone `seguir`): mostra já a próxima jogada (ou o fim) e o ritmo da fatia 1 volta dali em diante.
+  Uma pintura no meio da pausa não some com a legenda. Nenhuma regra muda.
+- **Testes (fatia 2):** e2e "J-75 relato #152 fatia 2" (360×780; parada mais longa que o quadro mais longo, 3,6 s, sem mudar
+  de jogada; Seguir anda um quadro; falhava antes). Gancho `__estanteMesa.pausaCena()` e `cena().pausada`.
+- **Fora (próxima fatia):** 3 · modo "no meu toque" (a próxima jogada só vem quando o jogador sinaliza), escolhas repetidas
+  juntas e o destaque visual na carta da jogada.
 
 #### Relato #137 · a seta da pilha recolhe o detalhe (✅ J-70, 11/11/2026; `16º-vf`)
 - **Valor:** na mesa, com a pilha expandida, a seta da faixa não recolhia o detalhe; agora o mesmo toque que abre também fecha.
