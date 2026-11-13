@@ -8840,6 +8840,7 @@ const EFFECTS = {
   revelar_topo_para_mao: { fields: [], targets: ['self'] }, // M-263 · Dark Confidant
   ganhar_controle: { fields: [], targets: ['creature', 'permanent', 'artifact'] },
   efeito_jogador: { fields: [], targets: ['self'] },
+  emblema: { fields: [], targets: ['self'] }, // M-628 · 114.1/114.4 · "You get an emblem with "<habilidade estática>"" (nome, texto e os contínuos do emblema)
   turno_extra: { fields: [], targets: ['self', 'player'] },
   // CR2h.6 · 104.2a / 104.3e · "you win the game" e "<jogador> loses the game" por efeito
   vence: { fields: [], targets: ['self'] },
@@ -9468,7 +9469,7 @@ function descreveGatilho(w, como = {}) { // M-401 · como.equipada: "a criatura 
 const ATTACH_KINDS = ['creature', 'permanent', 'land', 'creature-you-control', 'creature-or-planeswalker-you-control', 'creature-card-in-graveyard', 'player' /* T-94 · CR 303.4b · "Enchant player" (Maldições) (Toca ponto comum: ATTACH_KINDS) */, 'artifact-creature' /* T-113 · "Enchant artifact or creature" (Careful Cultivation): o mesmo nome de alvo de Resculpt (T-124) (Toca ponto comum: ATTACH_KINDS) */]; // CR2d.4 · "Enchant creature card in a graveyard" // Q11 · Setessan Training
 const PER_COUNTS = ['artifacts-you-control' /* K-86 · "for each artifact you control" (a ficha Construct da Urza's Saga) */, 'setes-no-seu-cemiterio' /* M-595 · "for every seven cards in your graveyard" (Dark Matter Manipulator): grupos completos de sete */, 'metade-grimorio' /* M-553 · "half the number of cards in your library, rounded up" */, 'cores-gastas' /* M-540 · convergir (Prismatic Ending): cores de mana gastas para conjurar esta mágica */, 'tipos-do-alvo' /* M-450 · Embiggen */, 'mesmo-nome-nos-cemiterios', 'attacking-creatures' /* M-423 · Rite of Flame ("each card named ~ in each graveyard") e Respite ("each attacking creature") */, 'enchantments-you-control', 'other-enchantments', 'auras-on-battlefield',
   'plains-you-control', 'islands-you-control', 'swamps-you-control', 'mountains-you-control', 'forests-you-control' /* M-516 · "the number of Mountains you control" (Spitting Earth): terrenos com o subtipo, básicos ou não (305.6) */,
-  'creatures-you-control', 'other-creatures-you-control', 'elves-you-control', 'elves-on-battlefield', 'defenders-you-control', 'permanents-you-control', 'nonland-permanents-you-control', 'life-gained-this-turn', 'life-lost-this-turn',
+  'creatures-you-control', 'other-creatures-you-control', 'elves-you-control', 'elves-on-battlefield', 'defenders-you-control', 'permanents-you-control', 'nonland-permanents-you-control', 'life-gained-this-turn', 'life-lost-this-turn', 'opponents-lost-life-this-turn' /* M-628 · "for each opponent who lost life this turn" (Kaito) */,
   'devotion-W', 'devotion-U', 'devotion-B', 'devotion-R', 'devotion-G', 'counters-on-source', 'opponents-empty-hand', 'trigger-value', 'chosen-type-permanents', 'sacrificed-toughness', 'sacrificed-mv', 'sacrificed-power', 'dano-causado' /* M-427 · "the damage dealt this way" */, 'descartadas-assim' /* M-434 · "draw that many cards" depois de descartar a mão */, 'creature-cards-in-your-graveyard', 'card-types-in-your-graveyard' /* M-619 · Nethergoyf */, 'cards-in-hand', 'x', 'power-of-source', 'se', 'power-of-target',
   'instants-sorceries-in-your-graveyard', 'flashback-cards-you-own-in-exile', 'soma', 'party', 'movidas', ...perCountsT()]; // M-386 · `movidas`: "for each card put into your graveyard this way" (o que o efeito anterior desta habilidade moveu) // T-59 · CR 700.8 · quantas criaturas há no seu grupo (0 a 4) // M-358 · Seize the Storm (604.3); `soma`: { per: 'soma', partes: [contagem, contagem, …] }
 /** M-333 · 601.2f · "This spell costs {N} less to cast for each …": o que a redução conta (chave `reduzPor: { generic, per }` no topo do script). */
@@ -9697,6 +9698,11 @@ function validateScript(sc) {
     if (self.entraComInstFeitDelveM != null && !(self.entraComInstFeitDelveM === true && sc.delve)) errs.push('bônus próprio: entraComInstFeitDelveM é verdadeiro e pede delve (as cartas exiladas pelo delve desta mágica)'); // M-530 · Murktide Regent
     if (self.soBloqueiaVoadorasM != null && self.soBloqueiaVoadorasM !== true) errs.push('bônus próprio: soBloqueiaVoadorasM só vale como true'); // M-531 · Brazen Borrower
     if (self.baixaXM != null && !(self.baixaXM === true && (sc.loyalty || []).length)) errs.push('bônus próprio: baixaXM só vale como true, num planeswalker com habilidades de lealdade'); // M-624 · "Casualty X. The copy isn't legendary and has starting loyalty X." (Ob Nixilis, the Adversary)
+    if (self.criaturaNoSeuTurnoM != null) { const c = self.criaturaNoSeuTurnoM; // M-628 · Kaito, Bane of Nightmares: "During your turn, as long as ~ has one or more loyalty counters on him, he's a 3/4 Ninja creature and has hexproof."
+      if (!(c && typeof c === 'object' && Array.isArray(c.base) && c.base.length === 2 && c.base.every(n => Number.isInteger(n) && n >= 0) && (c.subtipos == null || (Array.isArray(c.subtipos) && c.subtipos.every(x => typeof x === 'string' && x.trim())))
+        && (c.palavras == null || (Array.isArray(c.palavras) && c.palavras.every(k => KEYWORDS.includes(String(k).toLowerCase())))) && (c.comLealdade == null || c.comLealdade === true) && Object.keys(c).every(k => ['base', 'subtipos', 'palavras', 'comLealdade'].includes(k))))
+        errs.push('bônus próprio: criaturaNoSeuTurnoM é { base: [P, R], subtipos?, palavras?, comLealdade? }');
+      else if (c.comLealdade && !(sc.loyalty || []).length) errs.push('bônus próprio: criaturaNoSeuTurnoM com comLealdade pede um planeswalker com habilidades de lealdade'); }
     if (self.compraMaisUmM != null && self.compraMaisUmM !== true) errs.push('bônus próprio: compraMaisUmM só vale como true'); // M-542 · Quantum Riddler
     if (self.tipoBasicoAoEntrarM != null && self.tipoBasicoAoEntrarM !== true) errs.push('bônus próprio: tipoBasicoAoEntrarM só vale como true'); // M-554 · Multiversal Passage
     if (self.danoViraMarcadorM != null && self.danoViraMarcadorM !== true) errs.push('bônus próprio: danoViraMarcadorM só vale como true'); // M-547 · Soul-Scar Mage
@@ -9876,6 +9882,11 @@ function effectErrors(effects, label, opcional) {
     if (e.seControlaOutra != null && !(e.do === 'counters' && e.seControlaOutra && ['W', 'U', 'B', 'R', 'G'].includes(e.seControlaOutra.cor))) errs.push(`${label} ${i + 1}: "seControlaOutra" vale para marcadores, com uma cor`); // M-272
     if (e.do === 'torna_copia' && ((e.ate != null && !duracaoValida(e.ate)) || (e.somaTipos != null && !(Array.isArray(e.somaTipos) && e.somaTipos.every(x => TIPOS_DE_CARTA.includes(x)))))) errs.push(`${label} ${i + 1}: cópia com duração ou exceção de tipo desconhecida`); // CR2f.1
     if (e.do === 'efeito_jogador') { if (!['voce', 'oponentes', 'todos', undefined].includes(e.quem)) errs.push(`${label} ${i + 1}: quem precisa ser voce, oponentes ou todos`); if (!REGRAS_DO_JOGADOR.some(k => e[k] != null)) errs.push(`${label} ${i + 1}: efeito sobre jogador não muda nada`); if (e.terrenosExtras != null && !(Number.isInteger(e.terrenosExtras) && e.terrenosExtras > 0)) errs.push(`${label} ${i + 1}: terrenos extras precisa ser inteiro positivo`); if (e.ate != null && !['fim-do-turno', 'seu-proximo-turno', 'sempre'].includes(e.ate)) errs.push(`${label} ${i + 1}: duração desconhecida para efeito sobre jogador`); } // CR2d.10
+    if (e.do === 'emblema') { // M-628 · 114.1/114.4 · o emblema tem nome, o texto em inglês e só habilidades estáticas que afetam um conjunto (seletor)
+      if (!(typeof e.nome === 'string' && e.nome.trim())) errs.push(`${label} ${i + 1}: o emblema precisa de "nome"`);
+      if (!Array.isArray(e.continuo) || !e.continuo.length) errs.push(`${label} ${i + 1}: o emblema precisa de "continuo"`);
+      else e.continuo.forEach((c, k) => { errs.push(...continuoErros(c, `${label} ${i + 1}: emblema ${k + 1}`)); if (!c || typeof c.afetados !== 'object' || Array.isArray(c.afetados)) errs.push(`${label} ${i + 1}: emblema ${k + 1}: "afetados" é um seletor (o emblema não está no campo nem anexado)`); });
+    }
     if (e.do === 'ganhar_controle' && e.ate != null && !duracaoValida(e.ate)) errs.push(`${label} ${i + 1}: duração "${typeof e.ate === 'object' ? JSON.stringify(e.ate) : e.ate}" desconhecida para o controle`); // CR2d.6
     if (e.do === 'copiar_esta' && e.seConjuradaDe != null && !['graveyard', 'hand', 'exile'].includes(e.seConjuradaDe)) errs.push(`${label} ${i + 1}: "seConjuradaDe" precisa ser graveyard, hand ou exile`); // M-271
     if (e.do === 'exilar_topo_conjuravel' && !(typeof e.enquantoControlar === 'string' && e.enquantoControlar.trim())) errs.push(`${label} ${i + 1}: diga o subtipo de planeswalker que mantém a permissão (enquantoControlar)`); // M-270
@@ -11427,6 +11438,14 @@ const RAW_SCRIPTS = [
     { do: 'keyword', target: 'creature', escolha: ['double strike', 'lifelink'] }], // a escolha é de quem controla, na resolução (608.2d)
     flashback: { mana: '{1}{W}' }, // "Flashback {1}{W}"
     example: { target: 'none', expect: { selfLife: 0 } } }, // o cenário S8 só monta um alvo; as duas frases (jogador alvo + criatura alvo, escolha na resolução) estão em lt301.unit
+  // M-628 · texto da API da Scryfall (consulta de 13/11/2026, guardado em .listas/oficiais-revisadas.json); rulings de 20/09/2024 (scryfall.com, consulta de 13/11/2026)
+  { name: 'Kaito, Bane of Nightmares', ninjutsu: { mana: '{1}{U}{B}' }, // "Ninjutsu {1}{U}{B}" (702.49a: a carta de planeswalker entra virada e atacando; ruling: entra com a lealdade e, no seu turno, já é criatura)
+    self: { criaturaNoSeuTurnoM: { base: [3, 4], subtipos: ['Ninja'], palavras: ['hexproof'], comLealdade: true } }, // "During your turn, as long as Kaito has one or more loyalty counters on him, he's a 3/4 Ninja creature and has hexproof." (ruling: deixa de ser planeswalker nesse tempo; o dano não tira lealdade; as habilidades de lealdade continuam)
+    loyalty: [
+      { cost: 1, label: '+1: Você ganha um emblema: "Ninjas que você controla recebem +1/+1"', effects: [{ do: 'emblema', nome: 'Kaito, Bane of Nightmares Emblem', texto: 'Ninjas you control get +1/+1.', continuo: [{ afetados: { tipos: ['creature'], subtipos: ['Ninja'], de: 'you' }, poder: 1, resistencia: 1 }] }] }, // "+1: You get an emblem with "Ninjas you control get +1/+1."" (114.1, 114.4)
+      { cost: 0, label: '0: Vigia 2; depois compra uma carta para cada oponente que perdeu vida neste turno', effects: [{ do: 'surveil', amount: 2 }, { do: 'draw', amount: { per: 'opponents-lost-life-this-turn' } }] }, // "0: Surveil 2. Then draw a card for each opponent who lost life this turn." (ruling: perda de vida, não a vida de agora; quem perdeu e saiu da partida conta)
+      { cost: -2, label: '−2: Vira a criatura alvo e põe dois marcadores de atordoamento nela', effects: [{ do: 'tap', target: 'creature' }, { do: 'counters', amount: 2, tipo: 'stun', target: 'first-target' }] }], // "−2: Tap target creature. Put two stun counters on it." (122.1d)
+    example: { action: 'ninjutsu', target: 'none', expect: { attacked: true } } },
   // M-618 · texto da API da Scryfall (coleta de 10/11/2026)
   { name: 'Emperor of Bones', abilities: [
     { kind: 'triggered', when: 'begin-combat', effects: [{ do: 'exile', target: 'card-in-any-graveyard', upTo: true }, { do: 'marca_exiladas', target: 'first-target' }] }, // "At the beginning of combat on your turn, exile up to one target card from a graveyard." (607.2a: fica ligada a esta encarnação)
@@ -25405,16 +25424,26 @@ function redefinicoesDe(s, o) {
   for (const x of attachedTo(s, o)) for (const e of continuosDaFonte(s, x)) if (e.afetados === 'anexada' && e.redefine) out.push({ ts: x.anexadaEm || 0, b: e.redefine });
   for (const v of o.vira || []) if (vigente(s, v)) out.push({ ts: v.ts || 0, b: v }); // CR2-G R6 · "torna" com duração
   for (const k of redefinicoesDosTerrenosK(s, o)) out.push(k); // K-87 · 305.7 · "Nonbasic lands are Mountains", com o carimbo da fonte (Toca ponto comum: redefinicoesDe)
+  { const c = criaturaNoSeuTurnoM(s, o); if (c) out.push({ ts: o.ts || 0, b: { types: ['creature'], subtypes: (c.subtipos || []).slice(), base: c.base.slice(), keywords: (c.palavras || []).map(k => String(k).toLowerCase()) } }); } // M-628 · Kaito: a habilidade estática própria, com o carimbo da permanente (613.7a)
   for (const b of redefinicoesDaTrilhaT(s, o)) out.push({ ts: -1, b }); // T-43 · CR 702.151b · e a reconfigurada anexada deixa de ser criatura // T-37 · CR 721.2b · a faixa de estação alcançada torna a permanente criatura com o P/R dela (habilidade estática própria: carimbo de quando entrou) (Toca ponto comum: redefinicoesDe)
   return out.sort((x, y) => x.ts - y.ts);
 }
 /** CR2d.13 · 205.2: os tipos somados ficam na ordem da linha de tipo ("Artifact Creature", não "Creature Artifact"). */
 const ORDEM_DOS_TIPOS = ['kindred', 'tribal', 'artifact', 'enchantment', 'land', 'creature', 'planeswalker', 'battle', 'instant', 'sorcery'];
 const ordenaTipos = ts => ts.slice().sort((a, b) => (ORDEM_DOS_TIPOS.indexOf(a) + 1 || 99) - (ORDEM_DOS_TIPOS.indexOf(b) + 1 || 99));
+/* M-628 · 611.3a / 613.1d / 613.4b · "During your turn, as long as ~ has one or more loyalty counters on him, he's a 3/4 Ninja creature and has
+   hexproof." (Kaito, Bane of Nightmares, `self.criaturaNoSeuTurnoM`): habilidade estática da própria permanente, conferida a cada leitura. No turno de
+   quem a controla e com lealdade (se `comLealdade`), a camada 4 a torna só criatura com os subtipos dados (ruling de 20/09/2024: deixa de ser
+   planeswalker; o supertipo lendário fica, 205.4a), a 7b fixa o P/R base e a 6 dá as palavras-chave. Fora disso, é o planeswalker de sempre. */
+function criaturaNoSeuTurnoM(s, o) {
+  const c = o && !o.faceDown && o.zone === 'battlefield' && (((s.facts[o.name] || {}).script || {}).self || {}).criaturaNoSeuTurnoM;
+  if (!c || (s.turn || {}).active !== o.controller) return null;
+  return !c.comLealdade || ((o.counters || {}).loyalty || 0) > 0 ? c : null;
+}
 function mutacao(s, o) {
-  if (!o || o.zone !== 'battlefield' || (!o.mutavel && !o.faceDown && !mutaPelaTrilhaT(s, o) && !terrenoAfetadoK(s, o))) return null; // T-43 · e a reconfigurada anexada // T-37 · a nave com marcador de carga também (Toca ponto comum: mutacao) · atalho: só quem já recebeu uma Aura dessas, ou está virada para baixo (o cálculo é chamado a cada consulta de habilidade)
+  if (!o || o.zone !== 'battlefield' || (!o.mutavel && !o.faceDown && !mutaPelaTrilhaT(s, o) && !terrenoAfetadoK(s, o) && !criaturaNoSeuTurnoM(s, o))) return null; // T-43 · e a reconfigurada anexada // T-37 · a nave com marcador de carga também (Toca ponto comum: mutacao) · atalho: só quem já recebeu uma Aura dessas, ou está virada para baixo (o cálculo é chamado a cada consulta de habilidade)
   // CR2d.2 · também "this land becomes a N/N <tipo> creature until end of turn. It's still a land" (o.vira, com carimbo próprio)
-  const efeitos = o.mutavel || mutaPelaTrilhaT(s, o) || terrenoAfetadoK(s, o) ? redefinicoesDe(s, o) : []; // T-37 · T-43 · K-87 · e o terreno sob "Nonbasic lands are Mountains" (Toca ponto comum: mutacao)
+  const efeitos = o.mutavel || mutaPelaTrilhaT(s, o) || terrenoAfetadoK(s, o) || criaturaNoSeuTurnoM(s, o) ? redefinicoesDe(s, o) : []; // M-628 · e a que é criatura no turno de quem a controla (Kaito) // T-37 · T-43 · K-87 · e o terreno sob "Nonbasic lands are Mountains" (Toca ponto comum: mutacao)
   if (!efeitos.length && !o.faceDown) return null;
   const f = s.facts[o.name], subImpressos = String(f.typeText || '').split('—')[1] ? String(f.typeText).split('—')[1].trim().split(/\s+/) : [];
   // CR2d.12 · 613.2b / 708.2: virada para baixo, a camada 1b dá uma criatura 2/2 sem subtipo; o que vem depois vale por cima
@@ -25559,6 +25588,11 @@ function continuosQueAfetam(s, o) {
       out.push({ ...e, fonte: x, ts: x.ts || 0 });
     }
   }
+  // M-628 · 114.4 · as habilidades estáticas dos emblemas valem da zona de comando: "Ninjas you control get +1/+1" (Kaito), sobre as permanentes do campo
+  if (o.zone === 'battlefield') for (const z of s.zones) for (const oid of z.command || []) {
+    const x = s.objects[oid]; if (!x || !x.emblemaV || !s.facts[x.name]) continue;
+    for (const e of continuosDaFonte(s, x)) if (e.afetados && typeof e.afetados === 'object' && condicaoContinua(s, x, e.se) && selCasa(s, x.controller, o, e.afetados, x.oid, { mira: false, src: x })) out.push({ ...e, fonte: x, ts: x.ts || 0 });
+  }
   return out;
 }
 /** 7c · soma dos bônus de P/T dos efeitos contínuos estáticos (a ordem não importa dentro da subcamada). */
@@ -25625,6 +25659,7 @@ function countFor(s, src, per) {
   if (per === 'defenders-you-control') return perms.filter(o => o.controller === src.controller && has(s, o, 'defender')).length;
   if (per === 'life-gained-this-turn') return s.players[src.controller].lifeGained || 0;
   if (per === 'life-lost-this-turn') return s.players[src.controller].lifeLost || 0; // M-248 · Children of Korlis
+  if (per === 'opponents-lost-life-this-turn') return s.players.filter((pl, i) => i !== src.controller && (pl.lifeLost || 0) > 0).length; // M-628 · Kaito: perda de vida no turno (lifeLost), e quem perdeu e saiu da partida conta (ruling de 20/09/2024)
   // S46 · "para cada oponente que não puder descartar, compre uma carta"
   if (per === 'opponents-empty-hand') return s.players.filter((pl, i) => i !== src.controller && !pl.lost && !s.zones[i].hand.length).length;
   if (String(per).startsWith('devotion-')) { // S32 · devoção: símbolos daquela cor no custo das suas permanentes
@@ -28192,7 +28227,7 @@ function applyEffectM449(s, src, eff, tgt, events) {
         let semVidaM = null; // M-550 · quem ficou sem ganhar vida (a linha do registro sai depois da do dano)
         const causou = (q, j = null) => { if (q > 0) src.danoCausado = (src.danoCausado || 0) + q; /* M-427 */ if (eff.acumula) { eff.acumula.n += q > 0 ? q : 0; if (j != null && q > 0) eff.acumula.jogador = j; } else causouDano(s, src, q, j); }; // M-407 · o "morde" junta as partes num evento de dano só
         if (obj && (danoEmBatalhaT(s, src, obj, n) || danoEmPwCriaturaT(s, src, obj, n))) { causou(n); note({ amount: n }); break; } // T-18 · CR 120.3e: planeswalker-criatura // T-14 · CR 310.6 / 120.3h · dano à batalha tira defesa · Toca ponto comum: applyEffect damage (uma linha)
-        if (obj && !obj.faceDown && s.facts[obj.name].types.includes('planeswalker')) { obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - n); if (n > 0) marcaDanoNoTurnoM(s, obj); /* M-447 */ causou(n); note({ amount: n }); break; } // V-19 · virado para baixo recebe dano como criatura · Toca ponto comum: applyEffect damage
+        if (obj && !obj.faceDown && tiposDe(s, obj).includes('planeswalker')) /* M-628 · 120.3c pelo tipo de agora: o Kaito criatura no seu turno não é planeswalker e fica com o dano marcado (ruling de 20/09/2024) */ { obj.counters.loyalty = Math.max(0, (obj.counters.loyalty || 0) - n); if (n > 0) marcaDanoNoTurnoM(s, obj); /* M-447 */ causou(n); note({ amount: n }); break; } // V-19 · virado para baixo recebe dano como criatura · Toca ponto comum: applyEffect damage
         if (obj && n > 0) { marcaDanoEmCriatura(s, src, obj, n); noteEnchantedEvent(s, obj, 'recebe-dano'); noteDamaged(s, obj, n); if (has(s, fonteDoDano(s, src), 'deathtouch')) obj.deathtouched = true; } // CR2a.9 // CR 120.8: dano 0 não é dano
         else { danoEmJogador(s, src, playerOf(), n); if (eff.semGanharVidaM && n > 0) { const pj = playerOf(), pl = s.players[pj]; if (pl && !pl.lost) { pl.efeitos = [...(pl.efeitos || []), { naoGanhaVida: true, ate: 'sempre', by: ctrl, ts: relogio(s), turno: s.turn.number }]; semVidaM = pl.name; } } } // M-550 · Screaming Nemesis (119.7)
         causou(n, obj ? null : playerOf()); // Leva 106 · vínculo com a vida e Armadillo Cloak/Spirit Link também fora do combate
@@ -28807,6 +28842,13 @@ function applyEffectM449(s, src, eff, tgt, events) {
     case 'vence': { for (const [i, pl] of s.players.entries()) if (i !== ctrl && !pl.lost) pl.derrotadoPor = ctrl; note({}); break; } // CR2h.6 · 104.2a: os outros jogadores perdem (ação de estado logo em seguida)
     case 'perde': { const quem = playerOf(); if (s.players[quem] && !s.players[quem].lost) s.players[quem].perdeuPorEfeito = true; note({}); break; } // CR2h.6 · 104.3e
     case 'turno_extra': { const quem = playerOf(); (s.turnosExtras = s.turnosExtras || []).push(quem); note({}); break; } // CR2g.2 · 500.7: o turno extra criado por último é jogado primeiro
+    case 'emblema': { // M-628 · 114.1 · "You get an emblem with …": um emblema novo na zona de comando de quem controla a fonte (114.2: dono e controlador são quem ganha; cada ativação cria outro, e os bônus somam; 114.5: não é carta nem permanente)
+      if (!s.facts[eff.nome]) s.facts[eff.nome] = { ...cardFacts({ name: eff.nome, type_line: 'Emblem', keywords: [], colors: [], oracle_text: eff.texto || '' }), script: { name: eff.nome, continuo: eff.continuo } };
+      const oid = 'o' + (s.nextOid++);
+      s.objects[oid] = { oid, name: eff.nome, owner: ctrl, controller: ctrl, zone: 'command', emblemaV: true, tapped: false, sick: false, damage: 0, counters: {}, ts: relogio(s) }; // emblemaV: não é carta (as contas do fuzz o deixam de fora, como o do Anel)
+      s.zones[ctrl].command.push(oid);
+      note({ name: eff.nome }); break;
+    }
     case 'efeito_jogador': { // CR2d.10 · efeito contínuo de resolução sobre jogadores, com duração
       const e = {}; for (const k of REGRAS_JOGADOR) if (eff[k] != null) e[k] = eff[k];
       const ate = eff.ate || 'fim-do-turno';
@@ -42074,7 +42116,7 @@ function descreveSeletor(sel) {
   if (sel.ref === 'bloqueada-pela-fonte') return 'a criatura que ela bloqueia';
   const nomes = { creature: 'criatura', planeswalker: 'planeswalker', artifact: 'artefato', enchantment: 'encantamento', land: 'terreno', instant: 'instantânea', sorcery: 'feitiço', battle: 'batalha', kindred: 'tribal' };
   const zona = sel.zona || 'battlefield';
-  const tipos = (sel.tipos || []).map(x => nomes[x] || x).join(' ou ');
+  const tipos = (sel.tipos || []).map(x => nomes[x] || x).join(' ou ') + ((sel.tipos || []).length && (sel.subtipos || []).length ? ' ' + sel.subtipos.join(' ou ') : ''); // M-628 · o subtipo também ("Ninjas you control", "Sliver creatures you control"): antes sumia
   const jog = sel.jogadores ? (sel.jogadores === 'opponent' ? 'um oponente' : sel.jogadores === 'you' ? 'você' : 'um jogador') : '';
   if (zona === 'nenhuma') return jog || 'um jogador';
   const coisa = (zona === 'stack' ? `uma mágica${tipos ? ' de ' + tipos : ''}` : zona === 'graveyard' ? `uma carta${tipos ? ' de ' + tipos : ''}` : (sel.outra ? 'outra ' : 'uma ') + (sel.lendaria && tipos ? 'permanente lendária que é ' + tipos : tipos || 'permanente')) + (sel.lendaria && (zona !== 'battlefield' || !tipos) ? ' lendária' : '');
@@ -42085,7 +42127,7 @@ function descreveSeletor(sel) {
   return `${coisa}${predicadosPT_T(sel)}${sem}${vmM}${dono}${sel.comToxico ? ' com tóxico' : ''}${sel.comMarcador === 'p1p1' ? ' com marcador +1/+1' : sel.comMarcador === 'stun' ? ' com marcador de atordoamento' : ''}${jog ? ' ou ' + jog : ''}`; // M-253 // T-59 · histórica, fora da lei, modificada
 }
 /** CR2-G R3a · efeito contínuo estático em português: quem é afetado, o +N/+N (fixo ou por contagem) e as palavras-chave. */
-const PER_PT = { 'setes-no-seu-cemiterio': 'grupo de sete cartas no seu cemitério' /* M-595 */, 'card-types-in-your-graveyard': 'tipo de carta entre as cartas do seu cemitério' /* M-619 */, 'creatures-you-control': 'criatura que você controla', 'other-creatures-you-control': 'outra criatura que você controla', 'enchantments-you-control': 'encantamento que você controla',
+const PER_PT = { 'opponents-lost-life-this-turn': 'oponente que perdeu vida neste turno' /* M-628 */, 'setes-no-seu-cemiterio': 'grupo de sete cartas no seu cemitério' /* M-595 */, 'card-types-in-your-graveyard': 'tipo de carta entre as cartas do seu cemitério' /* M-619 */, 'creatures-you-control': 'criatura que você controla', 'other-creatures-you-control': 'outra criatura que você controla', 'enchantments-you-control': 'encantamento que você controla',
   'other-enchantments': 'outro encantamento', 'auras-on-battlefield': 'Aura no campo', 'permanents-you-control': 'permanente que você controla', 'elves-you-control': 'Elfo que você controla', 'plains-you-control': 'Planície que você controla', 'islands-you-control': 'Ilha que você controla', 'swamps-you-control': 'Pântano que você controla', 'mountains-you-control': 'Montanha que você controla', 'forests-you-control': 'Floresta que você controla', // M-516
  
   'counters-on-source': 'marcador +1/+1 nela', 'power-of-source': 'ponto de poder dela' };
@@ -42366,6 +42408,7 @@ function descreveEfeito(e) {
   const n = qtd(e.amount);
   switch (e.do) {
     case 'draw': if (e.amount && e.amount.per === 'metade-grimorio') return 'compra cartas iguais à metade das cartas do seu grimório, arredondada para cima'; // M-553
+      if (e.amount && e.amount.per === 'opponents-lost-life-this-turn') return 'compra uma carta para cada oponente que perdeu vida neste turno'; // M-628 · Kaito
       return `${e.target === 'that-player' ? 'esse jogador ' : ''}compra ${plural(n, 'carta', 'cartas')}`; // T-102 · quem compra é o jogador do gatilho, não quem controla (Toca ponto comum: descreveEfeito)
     case 'adapt': return `adapta ${e.amount}`;
     case 'return_chosen': return 'devolve uma permanente sua para a mão';
@@ -42469,6 +42512,7 @@ function descreveEfeito(e) {
     case 'combate_extra': return 'depois desta fase principal, um combate adicional e outra fase principal'; // CR2g.4
     case 'combate_extra_fase': return 'depois desta fase, um combate adicional'; // M-620 · 500.8
     case 'desvira_atacantes': return 'desvira as criaturas que atacaram neste turno';
+    case 'emblema': return `você ganha um emblema: ${(e.continuo || []).map(descreveContinuo).join('; ')}`; // M-628 · 114.1 (Kaito)
     case 'efeito_jogador': { const q = { voce: 'você', oponentes: 'cada oponente', todos: 'cada jogador' }[e.quem || 'voce']; const partes = []; if (e.naoGanhaVida) partes.push('não pode ganhar vida'); if (e.terrenosExtras) partes.push(`pode jogar ${e.terrenosExtras} terreno${e.terrenosExtras > 1 ? 's' : ''} a mais`); if (e.semLimiteDeMao) partes.push('não tem tamanho máximo de mão'); if (e.terrenosDoCemiterio) partes.push('pode jogar terrenos do cemitério') /* M-594 */; if (e.soComoFeitico) partes.push('só pode conjurar mágicas quando poderia conjurar um feitiço'); if (e.feiticosComLampejo) partes.push('pode conjurar feitiços como se tivessem lampejo') /* M-618 */; return e.emblema ? `${q === 'você' ? 'você ganha' : q + ' ganha'} um emblema: ${partes.join(' e ')}` : `${q} ${partes.join(' e ')} ${duracaoPT(e.ate)}`; } // M-553 · emblema (114.4) // CR2d.10
     case 'ganhar_controle': return `ganha o controle de ${alvo || 'uma criatura'}${e.ate && e.ate !== 'sempre' ? ' ' + duracaoPT(e.ate) : ''}`; // M-272 · CR2d.6
     case 'copiar_esta': return `${e.seConjuradaDe === 'graveyard' ? 'se foi conjurada de um cemitério, ' : ''}pode copiar esta mágica (a cópia escolhe um alvo novo)`; // M-271
