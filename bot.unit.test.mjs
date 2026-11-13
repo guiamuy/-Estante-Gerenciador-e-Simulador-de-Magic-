@@ -1203,14 +1203,17 @@ test('B-176 · ameaças do campo: AMEACAS_DO_CAMPO são cartas das cinco listas 
   assert.notEqual((B.perfilDe(s3, 0) || {}).id, 'controle', 'o Faeries tem Thorn mas não Murmuring Mystic: não é o Control');
 });
 
-test('B-176 · com a opção ameacas, na manutenção dos Elfos, com um Cast Down e Masked Vandal e Timberwatch Elf do outro lado, o Dimir Control mata o Timberwatch Elf; o Shark publicado (opção desligada: medida sem ganho) mata o Masked Vandal', async () => {
+test('B-176 · com a opção ameacas, na manutenção dos Elfos, com um Cast Down e Masked Vandal e Timberwatch Elf do outro lado, o Dimir Control mata o Timberwatch Elf; o shark-v30 congelado (opção desligada: medida sem ganho) mata o Masked Vandal; o publicado, pelo alvoNaAmeaca (B-214), o Timberwatch', async () => {
   const { s, ids } = await montaShark(CONTROLE, ELFOS, { ativo: 1, vez: 0, passo: 'upkeep',
     p0: { campo: ['Island', 'Swamp'], mao: ['Cast Down'] }, p1: { campo: ['Forest', 'Forest', 'Masked Vandal', 'Timberwatch Elf'] } });
   // B-203 · a opção `ameacas` (desligada, sem ganho) lê AMEACAS_DO_CAMPO pelo perfil escrito à mão: vale nos níveis congelados
   // (`shark-v25`); o Shark publicado deriva o perfil da composição e não carrega a lista de nomes
-  const novo = B.criaBot({ nivel: 'shark-v25', agora: relogioParado, extra: { ameacas: true } }).jogada(s, 0), velho = shark('shark').jogada(s, 0);
+  const novo = B.criaBot({ nivel: 'shark-v25', agora: relogioParado, extra: { ameacas: true } }).jogada(s, 0), velho = shark('shark-v30').jogada(s, 0), publicado = shark('shark').jogada(s, 0);
   assert.deepEqual([novo.acao.t, novo.acao.oid, (novo.acao.targets || [])[0] && novo.acao.targets[0].oid], ['cast', ids[0]['Cast Down'], ids[1]['Timberwatch Elf']], 'novo: ' + novo.motivo);
   assert.deepEqual([velho.acao.t, velho.acao.targets && velho.acao.targets[0].oid], ['cast', ids[1]['Masked Vandal']], 'sem a opção, o corpo maior: ' + velho.motivo);
+  // B-214 · expectativa mudada com motivo: o Shark publicado continua sem a `ameacas` na nota, mas o `alvoNaAmeaca` troca o alvo do
+  // mesmo Cast Down para a ameaça pelo efeito (o Timberwatch Elf cresce com os Elfos em campo), que a carta também mata
+  assert.deepEqual([publicado.acao.t, publicado.acao.targets && publicado.acao.targets[0].oid], ['cast', ids[1]['Timberwatch Elf']], 'publicado: ' + publicado.motivo);
   // a parcela só existe do lado do Control, e só com a ameaça em campo
   const av = B.avaliadorDoPlano(B.avaliaV5, B.perfilDe(s, 0), 0, { ameacas: true }), sem = B.avaliadorDoPlano(B.avaliaV5, B.perfilDe(s, 0), 0);
   assert.equal(av(s, 0).nota - sem(s, 0).nota, -6, 'uma ameaça em campo (Timberwatch Elf): −6');
@@ -1742,4 +1745,32 @@ test('B-213 · ehSelecao lê o efeito: compra e devolver ao topo sim; queima, an
   const sim = n => B.ehSelecao(s, { name: n });
   assert.equal(sim('Brainstorm'), true);
   for (const n of ['Counterspell', 'Snuff Out', 'Lightning Bolt', 'Faithless Looting', 'Grab the Prize', 'Island']) assert.equal(sim(n), false, n);
+});
+
+// B-214 · B25 · a remoção vai na ameaça pelo efeito (`alvoNaAmeaca`). Partida narrada 13368 de 12/11 (Faeries × Madness, T9): com o
+// Kessig Flamebreather (gatilho a cada mágica que não é criatura) e o Sneaky Snacker no campo, o Cast Down ia no Snacker. A troca só
+// mexe no alvo da carta que a busca já escolheu, e só quando ela mata as duas.
+test('B-214 · a ameaça primeiro: no início do combate, o Cast Down vai no Kessig Flamebreather e não no Sneaky Snacker; sem a opção, no Snacker', async () => {
+  const { s } = await montaShark(2, MADNESS, { passo: 'combat_begin', p0: { campo: ['Island', 'Contaminated Aquifer', 'Island', 'Contaminated Aquifer', 'Augur of Bolas'], mao: ['Cast Down', 'Snuff Out', 'Ninja of the Deep Hours'], vida: 11 }, p1: { campo: ['Mountain', 'Mountain', 'Mountain', 'Kessig Flamebreather', 'Sneaky Snacker'], mao: ['Lightning Bolt', 'Fireblast', 'Mountain', 'Grab the Prize'] } });
+  const alvo = j => j.acao.t === 'cast' ? (j.acao.targets || []).map(t => s.objects[t.oid] && s.objects[t.oid].name).join(',') : j.acao.t;
+  const com = B.criaBot({ nivel: 'shark', agora: relogioParado, extra: { alvoNaAmeaca: true } }).jogada(s, 0);
+  const sem = B.criaBot({ nivel: 'shark', agora: relogioParado, extra: { alvoNaAmeaca: false } }).jogada(s, 0);
+  assert.equal(alvo(com), 'Kessig Flamebreather', 'com a opção: ' + com.motivo);
+  assert.equal(alvo(sem), 'Sneaky Snacker', 'sem a opção, o erro da partida narrada: ' + sem.motivo);
+  assert.equal(alvo(B.criaBot({ nivel: 'shark', agora: relogioParado }).jogada(s, 0)), 'Kessig Flamebreather', 'ligada no Shark publicado');
+  assert.equal(alvo(B.criaBot({ nivel: 'shark-v30', agora: relogioParado }).jogada(s, 0)), 'Sneaky Snacker', 'shark-v30 congelado sem a opção');
+});
+
+test('B-214 · alvoNaAmeaca: passar fica intacto, a remoção que já mira a ameaça não troca, a que mira o corpo vai na ameaça', async () => {
+  const { s } = await montaShark(2, MADNESS, { passo: 'combat_begin', p0: { campo: ['Island', 'Contaminated Aquifer', 'Island', 'Contaminated Aquifer', 'Augur of Bolas'], mao: ['Cast Down', 'Snuff Out', 'Ninja of the Deep Hours'], vida: 11 }, p1: { campo: ['Mountain', 'Mountain', 'Mountain', 'Kessig Flamebreather', 'Sneaky Snacker'], mao: ['Lightning Bolt'] } });
+  const snack = s.zones[1].battlefield.find(o => s.objects[o].name === 'Sneaky Snacker'), kessig = s.zones[1].battlefield.find(o => s.objects[o].name === 'Kessig Flamebreather');
+  // jogada escolhida de propósito: uma ação que não é remoção nem mira criatura dele passa intacta
+  const passa = { acao: { t: 'pass', p: 0 }, motivo: 'x' };
+  assert.equal(B.alvoNaAmeaca(s, s, 0, passa), passa);
+  // a carta que já mira a ameaça não troca
+  const cd = s.zones[0].hand.find(o => s.objects[o].name === 'Cast Down');
+  const naAmeaca = E.legalActions(s, 0).find(a => a.t === 'cast' && a.oid === cd && (a.targets || []).some(t => t.oid === kessig));
+  assert.ok(naAmeaca); assert.equal(B.alvoNaAmeaca(s, s, 0, { acao: naAmeaca }).acao, naAmeaca);
+  const noSnack = E.legalActions(s, 0).find(a => a.t === 'cast' && a.oid === cd && (a.targets || []).some(t => t.oid === snack));
+  assert.equal(B.alvoNaAmeaca(s, s, 0, { acao: noSnack }).acao.targets[0].oid, kessig);
 });
