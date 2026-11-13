@@ -8776,7 +8776,7 @@ const EFFECTS = {
   counter: { fields: [], targets: ['spell', 'spell-or-ability', 'creature-spell', 'noncreature-spell', 'instant-spell', 'sorcery-spell' /* M-419 · Envelop */, 'artifact-enchantment-spell', 'artifact-spell'] },
   draw: { fields: ['amount'], targets: ['player', 'self'] },
   gain: { fields: ['amount'], targets: ['player', 'self', 'target-controller', 'target-owner' /* M-518 · "Its owner gains N life" (Path of Peace) */] }, // M-335 · "Its controller gains life equal to its power" (Swords to Plowshares)
-  lose: { fields: ['amount'], targets: ['player', 'opponent', 'self', 'target-controller', 'each-opponent'] },
+  lose: { fields: ['amount'], targets: ['player', 'opponent', 'self', 'target-controller', 'each-opponent', 'first-target'] }, // M-626 · first-target: "target opponent …, discards a card, and loses 3 life" (Archon of Cruelty): o mesmo jogador alvo
   veneno: { fields: ['amount'], targets: ['player', 'opponent', 'each-opponent'] }, // M-432 · "Each opponent gets a poison counter" (122.1f; 704.5c com dez)
   counters: { fields: ['amount'], targets: ['self-source', 'creature', 'first-target', 'creature-you-control', 'enchanted'] }, // M-401 · 'enchanted': a criatura equipada/encantada (Greatsword of Tyr) // M-395 · "target creature you control" (Idyllic Grange) // M-272 · first-target: o alvo de um efeito anterior
   pump: { fields: ['power', 'toughness'], targets: ['creature', 'creature-you-control', 'creature-opponent-controls', 'each-creature', 'each-opponent-creature', 'each-own-creature'] },
@@ -8840,7 +8840,7 @@ const EFFECTS = {
   mana_combinada: { fields: ['amount'], targets: ['self'] }, // M-357 · "Add two mana in any combination of colors" (Manamorphose): cada mana pede a cor na resolução
   token: { fields: ['amount'], targets: ['self', 'opponent', 'target-controller'] },
   endure: { fields: ['amount'], targets: ['self'] }, // M-380 · "it endures N": põe N marcadores +1/+1 nela OU cria um Espírito branco N/N (quem controla escolhe; Tarkir: Dragonstorm, texto de lembrete)
-  discard: { fields: ['amount'], targets: ['self', 'player', 'opponent', 'target-controller', 'each-opponent'] },
+  discard: { fields: ['amount'], targets: ['self', 'player', 'opponent', 'target-controller', 'each-opponent', 'first-target'] }, // M-626 · first-target: o mesmo jogador alvo da oração anterior (Archon of Cruelty)
   // S40 · conluio: compra, descarta e ganha marcador se o descarte não foi terreno
   connive: { fields: ['amount'], targets: ['self', 'creature-you-control'] }, // M-587 · "up to one target creature you control connives" (Unstable Experiment)
   // S13/S14 · zonas ocultas: vasculhar, olhar o topo, scry, surveil, moer e devolver ao topo
@@ -9877,6 +9877,7 @@ function effectErrors(effects, label, opcional) {
     if (e.do === 'exile_top_playable' && ((e.de != null && e.de !== 'that-player') || (e.soConjurar != null && e.soConjurar !== true))) errs.push(`${label} ${i + 1}: exílio do topo: "de" só that-player e "soConjurar" só true`); // M-566
     if (e.lembraExiladas != null && !(e.lembraExiladas === true && (e.do === 'exile_top_playable' || e.do === 'delayed'))) errs.push(`${label} ${i + 1}: "lembraExiladas" é uma marca (true) do exílio do topo e do gatilho atrasado`); // M-386 (o \`lembra\` do \`mover\` é outra coisa — achado da revisão: Leonin Relic-Warder)
     if (e.seRestar != null && !(e.seRestar === true && e.do === 'delayed' && e.lembraExiladas)) errs.push(`${label} ${i + 1}: "seRestar" é do gatilho atrasado que lembra as exiladas`); // M-386 · 603.4
+    if (e.comMarcador != null && !(e.do === 'reanimate' && e.target !== 'self-source' && ['p1p1', 'm1m1'].includes(e.comMarcador) && e.marcadorSeCriatura == null)) errs.push(`${label} ${i + 1}: "comMarcador" é o marcador (p1p1 ou m1m1) com que a carta devolvida entra, só na reanimação com alvo`); // M-626 · Persist
     if (e.marcadorSeCriatura != null && !(e.do === 'reanimate' && e.target !== 'self-source' && Number.isInteger(e.marcadorSeCriatura) && e.marcadorSeCriatura > 0)) errs.push(`${label} ${i + 1}: "marcadorSeCriatura" é a quantidade de marcadores +1/+1 extras do reanimar`); // M-400
     if (e.dividido != null && e.dividido.igual != null && !(e.dividido.igual === true && e.dividido.max == null && Object.keys(e.dividido).every(k => ['igual', 'max', 'custoAlvoExtra'].includes(k)))) errs.push(`${label} ${i + 1}: "dividido.igual" é true, sem máximo de alvos`); // M-408 · "divided evenly, rounded down, among any number of targets" (Fireball)
     if (e.dividido != null && e.dividido.custoAlvoExtra != null && !(e.dividido.igual === true && Number.isInteger(e.dividido.custoAlvoExtra) && e.dividido.custoAlvoExtra >= 1)) errs.push(`${label} ${i + 1}: "custoAlvoExtra" (601.2f: {N} a mais por alvo além do primeiro) só com "igual"`); // M-408
@@ -14070,6 +14071,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   // M-625 · rotina Motor contínuo · 113.6m + 603.6: "Landfall — … you may return this card from your graveyard to the battlefield" (o gatilho do cemitério que devolve a própria carta, 400.7) e 611.3a: "has haste as long as an opponent has 10 or less life"; texto da Scryfall pela coleta de 12/11/2026
   'Bloodghast': { texto: 'c5wr0m', leva: 'M-625' },
   'Geothermal Bog': { texto: '1amo2my', leva: 'M-607' }, 'Dawnbringer Cleric': { texto: '3kngfl', leva: 'M-607' }, 'Thought Vessel': { texto: 'xi1v9x', leva: 'M-607' }, // M-607 · Sentinela do Pauper (Scryfall de 03/11/2026)
+  // M-626 · rotina Motor contínuo · 701.21a "a creature or planeswalker", 608.2c série do mesmo jogador alvo, 122.6 "with a -1/-1 counter on it" e a série "you gain …, draw …": texto da Scryfall pela coleta de 12/11/2026
+  'Archon of Cruelty': { texto: 'f5xf4i', leva: 'M-626' }, 'Persist': { texto: '1kufa0z', leva: 'M-626' }, 'Faithful Mending': { texto: 'zpkf0k', leva: 'M-626' },
   'Flawless Maneuver': { texto: '1dbabfl', leva: 'M-577' },
   'Deadly Rollick': { texto: 'mi4hfd', leva: 'M-577' },
   // H-18 · revisão em lote 1 dos competitivos (homologacao): 18 cartas `lida`, texto da Scryfall de 25/10/2026 (cobertura/*.json do ramo catalogo), revisor independente
@@ -24404,6 +24407,7 @@ const __m42 = (function () {
     [/^conjuravel_cemiterio (artifact)$/i, m => [{ do: 'conjuravel_cemiterio_m', target: 'card-in-your-graveyard', targetTypes: [m[1].toLowerCase()] }]], // M-602 · Emry, Lurker of the Loch (601.2: custo e tempo normais)
     [/^return target artifact or creature card with mana value (\d+) or less from your graveyard to the battlefield$/i, m => [{ do: 'reanimate', target: 'card-in-your-graveyard', targetTypes: ['artifact', 'creature'], targetMvMax: +m[1] }]], // M-400 · Recommission
     [/^return target creature card from your graveyard to the battlefield$/i, () => [{ do: 'reanimate', target: 'creature-in-your-graveyard' }]], // M-516 · Breath of Life
+    [/^return target nonlegendary creature card from your graveyard to the battlefield with a ([+-]1)\/\1 counter on it$/i, m => [{ do: 'reanimate', target: 'creature-in-your-graveyard', targetNotLegendary: true, comMarcador: m[1] === '+1' ? 'p1p1' : 'm1m1' }]], // M-626 · Persist: 122.6 · ela entra com o marcador (o mesmo caminho do "volta com um marcador"); lendária não é alvo (115.1)
     [/^return target creature card from your graveyard to the battlefield tapped$/i, () => [{ do: 'reanimate_tapped', target: 'creature-in-your-graveyard' }]], // M-516 · Gravewaker
     [/^return target creature card with mana value (\d+) or less from your graveyard to the battlefield$/i, m => [{ do: 'reanimate', target: 'creature-in-your-graveyard', targetMvMax: +m[1] }]], // LT13
     [/^return target creature or land card from a graveyard to its owner's hand$/i, () => [{ do: 'to_hand', target: 'creature-land-in-any-graveyard' }]], // LT9
@@ -24426,7 +24430,7 @@ const __m42 = (function () {
     [new RegExp(`^~ deals ${N} damage to each creature with flying$`, 'i'), m => [{ do: 'damage', amount: num(m[1]), target: 'each-flying-creature' }]], // LT9
     [/^venture into the dungeon$/i, () => [{ do: 'venture' }]], // LT9 · 701.49
     [/^target opponent exiles a creature they control and their graveyard$/i, () => [{ do: 'edict', types: ['creature'], target: 'opponent', exilar: true }, { do: 'exile_graveyard', target: 'first-target' }]], // M-593 · Strategic Betrayal (o oponente escolhe a criatura; exilar não é sacrificar)
-    [/^(target player|target opponent) sacrifices an? (creature|artifact|enchantment|planeswalker)(?: of their choice)?$/i, m => [{ do: 'edict', types: [m[2].toLowerCase()], target: m[1].toLowerCase() === 'target player' ? 'player' : 'opponent' }]], // M-337 · 701.21a (Diabolic Edict, Gatekeeper of Malakir)
+    [/^(target player|target opponent) sacrifices an? (creature|artifact|enchantment|planeswalker|creature or planeswalker)(?: of their choice)?$/i, m => [{ do: 'edict', types: m[2].toLowerCase().split(' or '), target: m[1].toLowerCase() === 'target player' ? 'player' : 'opponent' }]], // M-626 · "a creature or planeswalker of their choice" (Archon of Cruelty): uma permanente só, de um dos dois tipos (701.21a) // M-337 · 701.21a (Diabolic Edict, Gatekeeper of Malakir)
     [/^each player sacrifices an? (creature|artifact|enchantment|planeswalker)(?: of their choice)?$/i, m => [{ do: 'sacrifice_each', types: [m[1].toLowerCase()] }]], // M-337 · 701.21a (a mesma forma dos scripts à mão: Benalish Sleeper)
     [/^sacrifice (?:~|this (?:land|creature|artifact|enchantment|permanent))$/i, () => [{ do: 'sacrifice_it', target: 'self-source' }]], // M-342 · City of Traitors (sem alvo)
     [/^each opponent sacrifices a (nontoken creature|creature token)(?: of their choice)?$/i, m => [{ do: 'sacrificar', tipos: ['creature'], jogadores: 'cada-oponente', ...(/^non/i.test(m[1]) ? { naoFicha: true } : { soFicha: true }) }]], // M-592 · Sheoldred's Edict (111.1: ficha)
@@ -24765,6 +24769,7 @@ const __m42 = (function () {
   const linhaDePalavras = l => { const ps = l.split(/,\s*/).map(x => x.trim().toLowerCase()); return (ps.length > 0 && ps.every(p => KW.has(p))) || SC.KW_LINE.test(l); }; // M-430 · também a palavra-chave com número ("Annihilator 2"): a mesma linha que a cobertura sem leitor já aceitava (K-6)
   /** Frase de efeito → efeitos, ou null (inclusive quando o alvo ficou fora do vocabulário). */
   function leFrase(f) {
+    { const yd = String(f).match(/^you (draw (?:a card|(?:two|three|four|\d+) cards))$/i); if (yd) return leFrase(yd[1]); const gv = String(f).match(/^gain (\d+) life$/i); if (gv) return leFrase(`you gain ${gv[1]} life`); } // M-626 · 121.1: "You draw a card" é o mesmo "Draw a card" (Archon of Cruelty: "You draw a card and gain 3 life")
     for (const [re, faz] of PADROES) { const m = f.match(re); if (m) { const e = faz(m); if (e && e.every(Boolean)) return e; } } // LT6 · padrão que casa mas não cabe no vocabulário deixa os seguintes tentarem
     return null;
   }
@@ -24830,7 +24835,26 @@ const __m42 = (function () {
       if (!/^(scry|surveil|draw|create|you gain|gain|mill|investigate|proliferate)\b/i.test(b) || /\b(it|its|they|them|their|that|those|this|~)\b/i.test(b)) continue;
       const ea = leFrase(a), eb = leFrase(b); if (ea && eb) return [a, b, ea, eb];
     }
+    // M-626 · série com vírgula das suas próprias ações ("You gain 2 life, draw two cards" — Faithful Mending): só quando a primeira
+    // oração é sua (ganhar, comprar, vidência, vigiar, moer) e a segunda começa por um verbo seu, sem pronome que aponte para outro objeto
+    const v = p.match(/^((?:you )?(?:gain|draw|scry|surveil|mill)\b[^,]*), (?:and )?((?:scry|surveil|draw|gain|mill)\b[^,]*)$/i);
+    if (v && !/\b(it|its|they|them|their|that|those|this|~)\b/i.test(v[2])) { const ea = leFrase(v[1]), eb = leFrase(v[2]); if (ea && eb) return [v[1], v[2], ea, eb]; }
     return null;
+  }
+  /** M-626 · 608.2c · "target opponent sacrifices …, discards a card, and loses 3 life" (Archon of Cruelty): o mesmo jogador alvo faz
+   * cada ação, na ordem impressa. A primeira oração mira; as seguintes (descartar, perder vida) são do mesmo alvo (first-target). */
+  function serieDoJogador(p) {
+    const m = p.match(/^(target opponent|target player) (.+)$/i); if (!m) return null;
+    const ps = m[2].split(/,\s+(?:and\s+)?|\s+and\s+(?=(?:discards|loses)\b)/i).map(x => x.trim()).filter(Boolean);
+    if (ps.length < 2 || ps.slice(1).some(x => !/^(?:discards|loses)\b/i.test(x))) return null;
+    const alvo = m[1].toLowerCase() === 'target player' ? 'player' : 'opponent', out = [];
+    for (let i = 0; i < ps.length; i++) {
+      const e = leFrase(`${m[1]} ${ps[i]}`);
+      if (!e || e.length !== 1 || e[0].target !== alvo || e[0].onlyIf) return null;
+      if (i && !['discard', 'lose'].includes(e[0].do)) return null;
+      out.push(i ? { ...e[0], target: 'first-target' } : e[0]);
+    }
+    return out;
   }
   function leParagrafo(texto0, nome, frases) {
     const efeitos = [];
@@ -24902,7 +24926,7 @@ const __m42 = (function () {
         if (fs && ult && ult.do === 'look' && ult.amount === 1 && ult.min === 1 && ult.to === 'hand' && ult.rest === 'library-bottom') { const q = { per: 'se', se: 'inst-e-feit', sim: fs[1].toLowerCase() === 'two' ? 2 : 3, nao: 1 }; ult.amount = q; ult.min = { ...q }; frases.push({ texto: p, lida: true }); continue; } }
       if (/^if it's a creature, it can't be regenerated this turn, and if it would die this turn, exile it instead$/i.test(p) && efeitos.length && efeitos[efeitos.length - 1].do === 'damage') { efeitos.push({ do: 'exila_se_morrer', target: 'first-target', semRegenerar: true }); frases.push({ texto: p, lida: true }); continue; } // M-529 · Disintegrate (701.15c, 614.1a; jogador como alvo: não há o que marcar)
       if (/^it can't be regenerated$/i.test(p) && efeitos.length && efeitos[efeitos.length - 1].do === 'destroy') { efeitos[efeitos.length - 1].semRegenerar = true; frases.push({ texto: p, lida: true }); continue; } // M-317 · 701.19c
-      const e = leFrase(p);
+      const e = leFrase(p) || serieDoJogador(p); // M-626
       const du = !e && divideE(p); // M-343
       if (du) { frases.push({ texto: du[0], lida: true }, { texto: du[1], lida: true }); efeitos.push(...du[2], ...du[3]); continue; }
       if (e) { frases.push({ texto: p, lida: true }); efeitos.push(...e); } else { frases.push({ texto: p, lida: false, motivo: 'frase sem padrão conhecido' }); ok = false; }
@@ -28625,7 +28649,7 @@ function applyEffectM449(s, src, eff, tgt, events) {
       moverObjeto(s, src, alvo, { para: 'hand' }, ctrl); // CR2-G R4a · atalho de mover
       note({}); break;
     }
-    case 'reanimate': { const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : null) : obj; if (alvo && eff.marcadorSeCriatura && ((s.facts[alvo.name] || {}).types || []).includes('creature')) alvo.entraComK = { ...(alvo.entraComK || {}), p1p1: ((alvo.entraComK || {}).p1p1 || 0) + eff.marcadorSeCriatura }; /* M-400 · 614.1c: "If a creature enters this way, it enters with an additional +1/+1 counter" (o mesmo caminho do "volta com um marcador") */ if (eff.target === 'self-source' && (!alvo || alvo.zone !== 'graveyard' || (src.fonteZc != null && (alvo.zc || 0) !== src.fonteZc))) { note({ failed: true }); break; } moverObjeto(s, src, alvo, { para: 'battlefield' }, ctrl); if (alvo && alvo.zone !== 'battlefield') delete alvo.entraComK; note({}); break; } /* M-400: a marca não sobra se ela não entrou · M-398 · self-source: a própria carta, se ainda está no cemitério e é o mesmo objeto (113.6, 400.7 — achado da revisão) */ // CR2-G R4a · atalho de mover; // CR2c.5 · a mágica lembra quem ela devolveu ("either of them")
+    case 'reanimate': { const alvo = eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : null) : obj; if (alvo && eff.comMarcador && alvo.zone === 'graveyard') alvo.entraComK = { ...(alvo.entraComK || {}), [eff.comMarcador]: ((alvo.entraComK || {})[eff.comMarcador] || 0) + 1 }; /* M-626 · 122.6 · Persist: "with a -1/-1 counter on it" (entra com ele; a marca sai abaixo se ela não entrou) */ if (alvo && eff.marcadorSeCriatura && ((s.facts[alvo.name] || {}).types || []).includes('creature')) alvo.entraComK = { ...(alvo.entraComK || {}), p1p1: ((alvo.entraComK || {}).p1p1 || 0) + eff.marcadorSeCriatura }; /* M-400 · 614.1c: "If a creature enters this way, it enters with an additional +1/+1 counter" (o mesmo caminho do "volta com um marcador") */ if (eff.target === 'self-source' && (!alvo || alvo.zone !== 'graveyard' || (src.fonteZc != null && (alvo.zc || 0) !== src.fonteZc))) { note({ failed: true }); break; } moverObjeto(s, src, alvo, { para: 'battlefield' }, ctrl); if (alvo && alvo.zone !== 'battlefield') delete alvo.entraComK; note({}); break; } /* M-400: a marca não sobra se ela não entrou · M-398 · self-source: a própria carta, se ainda está no cemitério e é o mesmo objeto (113.6, 400.7 — achado da revisão) */ // CR2-G R4a · atalho de mover; // CR2c.5 · a mágica lembra quem ela devolveu ("either of them")
     case 'animate_dead': { // CR2d.4 · "if it's on the battlefield … return enchanted creature card to the battlefield under your control and attach this Aura to it"
       const aura = src.ability ? s.objects[src.source] : src;
       if (!aura || aura.zone !== 'battlefield') break; // ruling: fora do campo, nada acontece
@@ -42567,7 +42591,7 @@ function descreveEfeito(e) {
     case 'damage': if (e.dividido) { const q = e.target === 'creature' ? ['criaturas', 'quantas criaturas quiser'] : ['alvos', 'quantos alvos quiser']; return `causa ${n} de dano dividido como você quiser entre ${e.dividido.max ? `até ${e.dividido.max} ${q[0]}` : q[1]}`; } // M-376 · 601.2d
       return (e.amount && IGUAL_A[e.amount.per] ? `causa dano igual ${IGUAL_A[e.amount.per]} a ${alvo || 'um alvo'}` : `causa ${n} de dano a ${alvo || 'um alvo'}${e.exilaSeMorrer ? ' (se o que recebeu esse dano fosse morrer neste turno, é exilado)' : ''}`) + (e.semGanharVidaM ? '; o jogador que receber esse dano não pode ganhar vida pelo resto do jogo' : ''); // CR2b.10 · M-384 · M-550
     case 'gain': return e.amount && IGUAL_A[e.amount.per] ? `ganha vida igual ${IGUAL_A[e.amount.per]}` : `ganha ${n} de vida`;
-    case 'lose': return `${alvo === 'cada oponente' ? 'cada oponente perde' : 'perde'} ${n} de vida`;
+    case 'lose': return `${alvo === 'cada oponente' ? 'cada oponente perde' : e.target === 'first-target' ? 'o mesmo jogador perde' : 'perde'} ${n} de vida`; // M-626 · first-target
     case 'veneno': return `${alvo === 'cada oponente' ? 'cada oponente recebe' : `${alvo || 'o jogador'} recebe`} ${n === 1 ? '1 marcador de veneno' : `${n} marcadores de veneno`}`; // M-432
     case 'counter': return `anula ${alvo || 'uma mágica'}${e.mvAte != null ? ` se o valor de mana dela for ${qtd(e.mvAte)} ou menos` : ''}${e.suspende ? ` e a exila com ${e.suspende} marcadores de tempo, com suspender` : ''}${e.unless ? e.unless.exilaCemiterio ? `, a menos que o controlador dela exile todas as cartas do próprio cemitério` : `, a menos que o controlador dela pague ${e.unless.mana}${e.semUnlessSe ? ' (se você controlar uma criatura com poder 4 ou mais, sem a opção de pagar)' : ''}` : ''}${e.exila ? ' e a exila' : ''}${e.topo ? ' e a põe no topo do grimório do dono' : ''}`; // M-269 · M-338 · M-395 · M-557: diz o "a menos que"
     case 'destroy': return `destrói ${alvo || 'uma permanente'}${e.mvAteM != null ? ` se o valor de mana dela for ${qtd(e.mvAteM)} ou menos` : ''}`; // M-537
@@ -42575,7 +42599,7 @@ function descreveEfeito(e) {
       const vm = e.mvMax != null ? ` de valor de mana ${e.mvMax} ou menos` : e.mvMin != null ? ` de valor de mana ${e.mvMin} ou mais` : '';
       const fem = (e.types || [])[0] === 'creature'; // M-219 · "todas as criaturas" (a M-218 escrevia "todos os criaturas")
       return `destrói ${fem ? 'todas as' : 'todos os'} ${(e.types || []).map(x => nomes[x] || x).join(' e ')}${vm}`; }
-    case 'edict': return `${alvo || 'o oponente'} sacrifica ${e.types && e.types[0] === 'creature' ? 'uma criatura' : 'uma permanente'} à escolha dele`;
+    case 'edict': return `${alvo || 'o oponente'} sacrifica ${e.types && e.types.length === 2 && e.types.includes('creature') && e.types.includes('planeswalker') ? 'uma criatura ou um planeswalker' : e.types && e.types[0] === 'creature' ? 'uma criatura' : 'uma permanente'} à escolha dele`; // M-626 · Archon of Cruelty
     case 'exile': return `exila ${alvo || 'uma permanente'}${e.mvAteM != null ? ` se o valor de mana dela for ${e.mvAteM.per === 'cores-gastas' ? 'no máximo o número de cores de mana gastas para conjurar esta mágica' : qtd(e.mvAteM) + ' ou menos'}` : ''}`; // M-540
     case 'bounce': return `devolve ${alvo || 'uma permanente'}${e.mesmoNome ? ' e todas as outras permanentes com o mesmo nome' : ''} para a mão do dono`; // M-425
     case 'to_hand': return e.target && typeof e.target === 'object' && e.target.zona === 'graveyard' ? `põe ${descreveSeletor(e.target)} na sua mão` : 'volta para a mão'; // M-553 · diz o que volta
@@ -42607,7 +42631,7 @@ function descreveEfeito(e) {
     case 'tap_or_untap': return `${e.optional ? 'pode virar ou desvirar' : 'vira ou desvira'} ${alvo || 'uma criatura'}`; // Leva 131
     case 'untap_chosen': { const tipo = ((e.filter || {}).types || [])[0], nome = { land: ['terreno', 'terrenos'], creature: ['criatura', 'criaturas'], artifact: ['artefato', 'artefatos'] }[tipo] || ['permanente', 'permanentes']; return `desvira até ${n} ${n === 1 ? nome[0] : nome[1]}`; } // M-250
     case 'exile_graveyard': return 'exila cartas do cemitério';
-    case 'discard': return `descarta ${plural(n, 'carta', 'cartas')}`;
+    case 'discard': return `${e.target === 'first-target' ? 'o mesmo jogador ' : ''}descarta ${plural(n, 'carta', 'cartas')}`; // M-626 · first-target: o jogador alvo da oração anterior
     case 'counters': if (e.excetoPrimeiro && e.cada) return descreveEfeito({ ...e, excetoPrimeiro: undefined }).replace(/cada criatura/, 'cada outra criatura'); /* M-422 */ return e.tipo && e.tipo !== 'p1p1' ? `põe ${plural(n, 'marcador ' + (MARCADOR_PT[e.tipo] || e.tipo), 'marcadores ' + (MARCADOR_PT[e.tipo] || e.tipo))} ${emPT(alvo || 'uma permanente')}` : `põe ${plural(n, 'marcador +1/+1', 'marcadores +1/+1')} ${emPT(alvo || 'uma criatura')}`; // M-401
     case 'mover': { // CR2-G R4a
       const quem = e.target === 'self-source' ? 'esta carta' : alvo || 'o alvo';
@@ -42740,6 +42764,7 @@ function descreveEfeito(e) {
     case 'counter_choice': return `põe um marcador de ${PALAVRA_PT[e.kind] || e.kind} em uma delas`;
     case 'reanimate': case 'reanimate_tapped': if (e.target === 'self-source' && e.do === 'reanimate_tapped') return `ela volta do cemitério ao campo virada${e.controle === 'dono' ? ', sob o controle do dono' : ''}`; /* M-438 · achado da revisão da M-429 */ if (e.marcadorSeCriatura) return `devolve ${(e.targetTypes || []).includes('artifact') ? 'uma carta de artefato ou criatura' : 'uma carta'}${e.targetMvMax != null ? ` de valor de mana ${e.targetMvMax} ou menos` : ''} do seu cemitério ao campo; se for criatura, ela entra com ${plural(e.marcadorSeCriatura, 'marcador +1/+1 a mais', 'marcadores +1/+1 a mais')}`; // M-400 · achado da revisão (Recommission)
       if (e.totalMvMax != null) return `devolve até ${qtd(e.targetCount)} criaturas com valor de mana total ${e.totalMvMax} ou menos do cemitério ao campo`;
+      if (e.comMarcador) return `devolve uma criatura não lendária do seu cemitério ao campo com um marcador ${e.comMarcador === 'm1m1' ? '−1/−1' : '+1/+1'}`; // M-626 · Persist
       return `devolve uma criatura${e.targetMvMax != null ? ` de valor de mana ${qtd(e.targetMvMax)} ou menos` : ''} do cemitério ao campo`;
     case 'fog': return 'previne todo o dano de combate deste turno';
     case 'attach': return 'anexa';
