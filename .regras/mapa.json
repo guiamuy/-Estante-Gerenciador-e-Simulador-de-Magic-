@@ -1032,46 +1032,62 @@
    "n": "114.1",
    "regra": "Emblems",
    "titulo": "Emblemas na zona de comando",
-   "status": "ausente",
-   "falta": "Não existe objeto emblema nem efeito que crie um (EFFECTS em index.html:4375 não tem); a zona de comando só guarda comandante e masmorra.",
+   "status": "coberta",
    "esforco": "M",
    "depende": [
     "113.6p"
    ],
-   "cartas": "comum em planeswalkers (habilidade final)"
+   "cartas": "comum em planeswalkers (habilidade final)",
+   "evidencia": "M-628 (13/11/2026): efeito `emblema` (EFFECTS; applyEffect case 'emblema') põe um objeto emblema (emblemaV) na zona de comando de quem controla a fonte; o do Anel (V-25, 701.54c) já morava lá. Kaito, Bane of Nightmares +1 (lt305.unit)",
+   "testes": [
+    "M-628 · +1: emblema na zona de comando; Ninjas de quem o tem recebem +1/+1 (Kaito incluso), não os do oponente; dois emblemas somam",
+    "M-628 · validador: criaturaNoSeuTurnoM e emblema só no formato certo"
+   ]
   },
   {
    "n": "114.2",
    "regra": "Emblems",
    "titulo": "Criar emblema: dono e controlador",
-   "status": "ausente",
-   "falta": "Sem efeito \"you get an emblem with …\".",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "114.1"
+   ],
+   "evidencia": "M-628: \"You get an emblem with …\" — dono e controlador são o controlador da fonte; cada efeito cria um emblema novo (dois +1 do Kaito, dois emblemas)",
+   "testes": [
+    "M-628 · +1: emblema na zona de comando; Ninjas de quem o tem recebem +1/+1 (Kaito incluso), não os do oponente; dois emblemas somam",
+    "M-628 · validador: criaturaNoSeuTurnoM e emblema só no formato certo"
    ]
   },
   {
    "n": "114.3",
    "regra": "Emblems",
    "titulo": "Emblema só tem as habilidades do efeito",
-   "status": "ausente",
-   "falta": "Sem emblemas; quando existirem, precisam ficar fora de fatos de carta (sem tipo, custo, cor, nome).",
+   "status": "coberta",
    "esforco": "P",
    "depende": [
     "114.1"
+   ],
+   "evidencia": "M-628: o emblema só tem o que o efeito define — fatos com a linha \"Emblem\", sem custo, cor nem P/R, e o script só com os contínuos do efeito (validador: nome e continuo com seletor)",
+   "testes": [
+    "M-628 · +1: emblema na zona de comando; Ninjas de quem o tem recebem +1/+1 (Kaito incluso), não os do oponente; dois emblemas somam",
+    "M-628 · validador: criaturaNoSeuTurnoM e emblema só no formato certo"
    ]
   },
   {
    "n": "114.4",
    "regra": "Emblems",
    "titulo": "Habilidades de emblema valem na zona de comando",
-   "status": "ausente",
-   "falta": "Gatilhos e estáticas só são lidos do campo (queueTriggers percorre battlefield) e do cemitério (third-draw).",
+   "status": "parcial",
+   "falta": "Gatilho de emblema genérico (queueTriggers não percorre a zona de comando) e habilidade estática que não seja de P/R ou palavra-chave (regra de jogador do emblema usa efeito_jogador com \"emblema\", M-553)",
    "esforco": "P",
    "depende": [
     "114.1",
     "113.6"
+   ],
+   "evidencia": "M-628: as habilidades estáticas do emblema valem da zona de comando (continuosQueAfetam percorre os emblemas: \"Ninjas you control get +1/+1\"); os gatilhos do emblema do Anel (V-25) têm caminho próprio",
+   "testes": [
+    "M-628 · +1: emblema na zona de comando; Ninjas de quem o tem recebem +1/+1 (Kaito incluso), não os do oponente; dois emblemas somam"
    ]
   },
   {
