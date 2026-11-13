@@ -706,7 +706,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-ud ✅ | MJ25 mesa pelo print 2 (decisão do dono, 02/11/2026), sete fatias: .1 ícones de estado que cabem e rolagem afastada da carta (J-53 ✅) · .2 nome na faixa de cima, girando com a carta virada (J-54 ✅) · .3 a carta de origem na pilha e nas decisões (Roost Seek) (J-55 ✅) · .4 escolher carta vendo a carta ampliada (J-56 ✅) · .5 cartas ocupam o espaço da fileira (J-57 ✅) · .6 layout em paisagem (J-58 ✅) · .7 opção "Orientação: automática / só retrato" (J-59 ✅) | MJ24 | jogabilidade |
 | 16º-uf ✅ | MJ26 relato #55: as setas do combate (e a prévia do dano) acompanham a rolagem da página e de qualquer contêiner da mesa; "Cancelar" na declaração de atacantes e de bloqueadores desmarca a escolha sem mandar nada ao motor (J-61, 03/11/2026) | J | 1 | 16º-ud |
 | 16º-ug ✅ | MJ27 relato #55, o resto do "cancelar jogada em curso": um Cancelar com o mesmo nome e lugar em toda escolha encadeada antes de jogar (alvo → custo → X → cor), que volta um passo em vez de fechar tudo, e a mira por arrasto com Cancelar à vista (J-62, 03/11/2026) | J | 1 | 16º-uf |
-| 16º-va 🟡 | MK3 · Mesa Vitrine (pedido do dono de 09/11/2026: a mesa no patamar do DS-K3 — simetria, profundidade por luz e sombra, material, animação de alto padrão em todo elemento; rotina "Mesa MK3" a cada 4 h; modo agilidade): ✅ MK3-0 (J-63) material — carta como objeto (espessura, contato, chave, face laqueada) e playmat em poço igual nos dois lados, levantar com a mola do DS-K3; ✅ MK3-1 (J-64) estojo das fases — trilho num estojo rebaixado no eixo da faixa de vez, o filete de latão não passa mais por baixo, o traço desliza com mola; ✅ MK3-2 (J-65) simetria — a mesma faixa de identidade (nome · zonas) na borda de fora de cada lado, a sua embaixo do seu campo, permanentes que se olham pelo eixo, `auditaSimetria`; ✅ MK3-3 (J-67) carta-objeto — virar e desvirar com massa (mola, a sombra gira junto e acaba embaixo, mais curta), selos e P/T em laca, enjoo apaga o P/T; ✅ MK3-P1 (J-68) playmats da casa — seis modelos procedurais (Ébano, Feltro, Oceano, Vinho, Pergaminho, Latão gravado) como tokens nos dois temas, com o texto da mesa medido sobre os pixels, centro calmo e palco no `/ds`; ✅ MK3-P2 (J-71) galeria e escolha — Perfil › Playmats com a mini-mesa e sete ladrilhos (padrão e os seis), tocar aplica na hora com a receita "pousar" (três níveis), guardado no aparelho e no backup, ⋯ › Playmat na partida em curso, os dois lados com o escolhido; próxima MK3-4 mão viva. Revisão das 22h15: benchmarks, mão e gesto (arrastar para jogar, toque duplo), zonas, organizar o campo, combate sem setas. Playmats (23h36): da casa e criados pelo jogador (MK3-P1…P5). Especificação: `docs/MK3-especificacao.md`. A MV-9 do DS-K3 passa a ser a MK3-17 | MK3 | 6 de 27 | DS-K3 K3-0/MV-0, MJ, DS-K2 M1–M6 |
+| 16º-va 🟡 | MK3 · Mesa Vitrine (pedido do dono de 09/11/2026: a mesa no patamar do DS-K3 — simetria, profundidade por luz e sombra, material, animação de alto padrão em todo elemento; rotina "Mesa MK3" a cada 4 h; modo agilidade): ✅ MK3-0 (J-63) material — carta como objeto (espessura, contato, chave, face laqueada) e playmat em poço igual nos dois lados, levantar com a mola do DS-K3; ✅ MK3-1 (J-64) estojo das fases — trilho num estojo rebaixado no eixo da faixa de vez, o filete de latão não passa mais por baixo, o traço desliza com mola; ✅ MK3-2 (J-65) simetria — a mesma faixa de identidade (nome · zonas) na borda de fora de cada lado, a sua embaixo do seu campo, permanentes que se olham pelo eixo, `auditaSimetria`; ✅ MK3-3 (J-67) carta-objeto — virar e desvirar com massa (mola, a sombra gira junto e acaba embaixo, mais curta), selos e P/T em laca, enjoo apaga o P/T; ✅ MK3-P1 (J-68) playmats da casa — seis modelos procedurais (Ébano, Feltro, Oceano, Vinho, Pergaminho, Latão gravado) como tokens nos dois temas, com o texto da mesa medido sobre os pixels, centro calmo e palco no `/ds`; ✅ MK3-P2 (J-71) galeria e escolha — Perfil › Playmats com a mini-mesa e sete ladrilhos (padrão e os seis), tocar aplica na hora com a receita "pousar" (três níveis), guardado no aparelho e no backup, ⋯ › Playmat na partida em curso, os dois lados com o escolhido; ✅ MK3-P3 (J-74) serviço de criação — `api/playmat` com conta conferida, filtro, cota por conta e do dia e prompt base, fechado com "Criação ainda não liberada" até a chave do dono; próxima MK3-4 mão viva (PR #169) e, depois dela, MK3-5. Revisão das 22h15: benchmarks, mão e gesto (arrastar para jogar, toque duplo), zonas, organizar o campo, combate sem setas. Playmats (23h36): da casa e criados pelo jogador (MK3-P1…P5). Especificação: `docs/MK3-especificacao.md`. A MV-9 do DS-K3 passa a ser a MK3-17 | MK3 | 7 de 27 | DS-K3 K3-0/MV-0, MJ, DS-K2 M1–M6 |
 | 16º-ui 🟡 | T-IDIOMA relatos #53/#66, fatia 1: o português cobre a interface (Rulings → Esclarecimentos, Near Mint → Quase nova, Etched → Foil gravado, Offline → Sem internet, cinco palavras-chave e os marcadores com nome em português na mesa e no registro); falta troca de idioma, pacotes es/en e texto das cartas (leva G-353, 07/11/2026) | T | 1 | — |
 | 16º-up ✅ | T-IDIOMA relatos #53/#66, fatia 2: a folha da carta mostra nome, tipo e texto oficiais impressos em português (Scryfall), com a troca para o original, guardados no aparelho; nunca impressa fica em inglês com aviso até a fatia 3 (leva G-356, 08/11/2026) | T | 1 | 16º-ui |
 | 16º-us ✅ | T-IDIOMA relatos #53/#66, fatia 4: Perfil › Idioma (português, inglês, espanhol, com bandeira e nome no próprio idioma), o app inteiro na hora pela camada de tradução da tela e pelos pacotes idiomas/en.json e es.json, a folha da carta no idioma (oficial impresso; Oracle em inglês) com o texto antes da imagem, e a camada obrigatória (texto novo sem tradução derruba o portão) (leva G-361, 08/11/2026) | T | 1 | 16º-up |
@@ -15211,7 +15211,7 @@ Especificação por fatia (valores e roteiros): `docs/MK3-especificacao.md`.
 | MK3-5 | arrastar para jogar: soltar no campo joga pela ação legal, o poço mostra onde ela vai pousar; tocar continua valendo | ⬜ |
 | MK3-6 | expandir: toque duplo e segurar abrem a carta grande vinda do lugar, que inclina com o celular (P7) | ⬜ |
 | MK3-7 | organizar o campo: segurar e arrastar troca a ordem na fileira (terrenos atrás, permanentes na frente), sem tocar em regra | ⬜ |
-| MK3-P3 | serviço de criação: `api/playmat` na Vercel, Workers AI (FLUX), prompt base, tradução e filtro, cota por conta | ⬜ |
+| MK3-P3 | serviço de criação: `api/playmat` na Vercel, Workers AI (FLUX), prompt base, tradução e filtro, cota por conta | ✅ J-74 (servidor; liberar espera a chave do dono) |
 | MK3-P4 | ateliê: "Descreva o seu playmat", gerar, guardar, renomear e apagar com desfazer, cota visível | ⬜ |
 | MK3-P5 | o playmat criado na mesa: véu medido para as cartas lerem, sem internet, online com o playmat de cada lado | ⬜ |
 | MK3-8 | zonas-objeto: grimório em maço, cemitério e exílio com a carta do topo | ⬜ |
@@ -15254,6 +15254,39 @@ Cloudflare) ficam do nosso lado, para gerar e validar. Cinco fatias MK3-P1…P5 
   `--carta-laca`, `--mesa-poco`; `--sombra-carta` e `--sombra-carta-alta` passam a ser compostas só de tokens K3 (valem
   também no palco do `/ds`, no leque e na pilha).
 - **Fora:** estojo das fases (MK3-1), simetria da faixa de identidade (MK3-2), gestos e receitas por evento (MK3-3 em diante).
+
+#### MK3-P3 · serviço de criação (✅ J-74, 13/11/2026; parcial: em produção responde "Criação ainda não liberada" até o dono pôr a chave)
+- **Valor:** existe o serviço que transforma "couro verde com fio de latão" num playmat no padrão da Estante, sem a chave
+  sair do servidor e dentro do plano gratuito: o ateliê (MK3-P4) só chama `POST /api/playmat`.
+- **Aceite:** `api/playmat.js` (Vercel, sem dependência): sem `CF_ACCOUNT_ID`, `CF_AI_TOKEN` e `CF_KV_COTA` responde 503
+  `nao-liberada` "Criação ainda não liberada" antes de qualquer chamada para fora (fecha, nunca abre). Com elas: só POST;
+  conta conferida pelo token do Firebase (`accounts:lookup`, 401 `sem-conta`); texto até 200 caracteres sem controle nem
+  `< >` (400 `texto`; corpo até 2 KB, 413); filtro local em pt, en e es antes de gastar o modelo (personagem, marca, nudez,
+  violência, ódio; "vermelho sangue", "sexta-feira" e "logo depois" passam); cota no KV da Cloudflare — 2 criações e 6
+  tentativas por conta por dia, pote de 160 por dia para todo mundo, renovação 00h UTC, 429 `cota-conta`/`cota-dia` com a
+  hora (`renova`), sem chamar o modelo; tradução e filtro pelo `@cf/meta/llama-3.1-8b-instruct` em JSON (resposta estranha
+  vira recusa, 422 `recusado` com o motivo); prompt base v1 (vista de cima, centro calmo, luz de cima à esquerda, ébano e
+  latão, sem texto, logotipo, personagem nem rosto) + a descrição; FLUX.1 schnell em 4 passos (1024 × 1024, o padrão do
+  modelo); devolve o JPEG (`no-store`, `x-playmat-restam`, `x-playmat-renova`, `x-playmat-prompt: 1`); erro do provedor
+  vira "Não deu para criar agora" sem o detalhe dele. Os números moram só em `LIMITES`.
+- **Segurança (`mtg-security-architect`):** chave só no ambiente da Vercel; a Cloudflare nunca recebe a conta nem o token do
+  jogador; o KV guarda só contadores sob o SHA-256 da conta, com validade de dois dias; nada do pedido fica no servidor; sem
+  CORS (só a mesma origem lê a resposta); o texto entra no filtro entre `<pedido>` e é dado, nunca instrução. Resíduo: o filtro
+  por modelo pode errar dos dois lados e o FLUX schnell não tem verificação de saída (o prompt base proíbe, não garante);
+  duas criações ao mesmo tempo da mesma conta podem passar de 2 (o KV não é atômico, perde no máximo uma); o app ainda não
+  envia nada (a tela "o que sai do aparelho" ganha a linha na MK3-P4, quando o ateliê chamar a função).
+- **Custo (`mtg-scale-architect`, consultas de 13/11/2026):** Workers AI gratuito, 10.000 neurônios/dia (≈ 170 imagens de
+  1024 px; para no limite, não cobra); KV gratuito, 1.000 gravações e 100.000 leituras por dia: cada criação grava 3 chaves e
+  cada recusa 1 (≈ 520 gravações no dia cheio), o resto falha fechado (503); função de alguns segundos por criação, resposta
+  de centenas de KB (abaixo dos 4,5 MB da Vercel). Zero real por mês em qualquer escala: acima do pote, "Volte amanhã".
+- **Testes:** `api.playmat.unit` "J-74 MK3-P3" (nove testes com o provedor simulado — Firebase, KV e Workers AI —; nenhum vai à
+  internet), que falhavam no `main` de antes (a função não existia).
+- **Desvio declarado:** a função devolve JPEG (o FLUX schnell só gera JPEG e a função não tem dependências); a redução para
+  WebP de até 200 KB fica no aparelho, ao guardar (MK3-P4).
+- **Fica com o dono (classe C, ≈ 4 min):** criar o token da Cloudflare (Workers AI Read e Edit, Workers KV Storage Edit), o
+  namespace do KV e as três variáveis na Vercel — guia `claude/GUIA-dono-playmat-workers-ai.md` no Projeto. Validação do
+  prompt base pelos MCPs antes da MK3-P4.
+- **Fora:** o ateliê e a cota visível (MK3-P4); o criado na mesa e no online (MK3-P5).
 
 #### MK3-P2 · galeria e escolha (✅ J-71, 11/11/2026)
 - **Valor:** o jogador escolhe o playmat da mesa. Perfil › Playmats mostra uma mini-mesa (dois lados, três cartas) com o
