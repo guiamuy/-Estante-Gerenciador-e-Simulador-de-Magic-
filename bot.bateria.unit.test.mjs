@@ -6,7 +6,7 @@ import { loadModules } from './_load.mjs';
 import { POSICOES, pontua } from './bot.bateria.mjs';
 const { engine: E, bot: B } = loadModules();
 
-const PISO = 33; // B-214 · 33 de 37 (posição nova `rem-faeries-flamebreather`, que o Shark publicado acerta com o `alvoNaAmeaca`) · B-209 · 32 de 36 (posição nova `seq-faeries-duas-anulacoes`, que o Shark publicado erra: a opção `seguraComDuas` acerta e mediu 30 × 38 nas Faeries) · B-208 · 32 de 35 (posições novas `seq-faeries-brainstorm-espera`, que o Shark publicado já acerta, e `seq-faeries-sprite-espera`, que ele erra: a opção `esperaOLampejo` acerta e mediu 31 × 33 nas Faeries) · B-207 · 31 de 33 (posições novas `rem-elfo-de-mana`, que o Shark publicado erra, e `rem-priest-sim`) · B-200 · 30 de 31 com o ninja pelo ataque (erra só a isca `volta-isca`). Era 29 (B-196), 27 (B-195), 26 (B-192), 25 (B-191), 24 (B-190), 22 (B-188)
+const PISO = 34; // B-215 · 34 de 38 (posição nova `seq-elfos-lead-antes`, que o Shark publicado acerta com o `antesDoCombate` e o shark-v31 erra) · B-214 · 33 de 37 (posição nova `rem-faeries-flamebreather`, que o Shark publicado acerta com o `alvoNaAmeaca`) · B-209 · 32 de 36 (posição nova `seq-faeries-duas-anulacoes`, que o Shark publicado erra: a opção `seguraComDuas` acerta e mediu 30 × 38 nas Faeries) · B-208 · 32 de 35 (posições novas `seq-faeries-brainstorm-espera`, que o Shark publicado já acerta, e `seq-faeries-sprite-espera`, que ele erra: a opção `esperaOLampejo` acerta e mediu 31 × 33 nas Faeries) · B-207 · 31 de 33 (posições novas `rem-elfo-de-mana`, que o Shark publicado erra, e `rem-priest-sim`) · B-200 · 30 de 31 com o ninja pelo ataque (erra só a isca `volta-isca`). Era 29 (B-196), 27 (B-195), 26 (B-192), 25 (B-191), 24 (B-190), 22 (B-188)
 
 test('B-188 · toda posição da bateria monta, tem classe, porquê, e a jogada certa está entre as legais', () => {
   const ids = new Set();
@@ -88,4 +88,18 @@ test('B-208 · lampejo espera o turno do outro: com a Counterspell na mão, `esp
   assert.ok(com.ok, 'com a opção: ' + com.j.motivo); assert.ok(!sem.ok, 'publicado mudou (a opção é só de torneio): ' + sem.j.motivo);
   const Q = POSICOES.find(x => x.id === 'seq-faeries-brainstorm-espera'), m = Q.monta(), j = B.criaBot({ nivel: 'shark', agora: () => 0, extra: { esperaOLampejo: true } }).jogada(m.s, 0);
   assert.ok(Q.certo(m.s, j), 'Brainstorm com a opção: ' + j.motivo);
+});
+
+test('B-215 · antes do combate: na primeira fase principal, o Lead the Stampede vai antes do ataque que vira os elfos de mana; o shark-v31 congelado esperava a segunda fase', () => {
+  const P = POSICOES.find(x => x.id === 'seq-elfos-lead-antes'), joga = (nivel, extra) => { const { s } = P.monta(); const j = B.criaBot({ nivel, agora: () => 0, ...(extra ? { extra } : {}) }).jogada(s, 0); return { ok: P.certo(s, j), j }; };
+  const novo = joga('shark'), v31 = joga('shark-v31'), sem = joga('shark', { antesDoCombate: false });
+  assert.ok(novo.ok, 'publicado: ' + novo.j.motivo); assert.ok(/antes do combate/.test(novo.j.motivo), 'motivo: ' + novo.j.motivo);
+  assert.ok(!v31.ok, 'v31: ' + v31.j.motivo); assert.ok(!sem.ok, 'sem a opção: ' + sem.j.motivo);
+});
+
+test('B-215 · soTrazCartas pelo dado do motor: o feitiço que só traz cartas sim (Lead the Stampede, Winding Way, Ponder, Deep Analysis); a instantânea (Brainstorm), o tutor de terreno (Land Grant) e o feitiço com outro efeito (Sleep of the Dead) não', () => {
+  const { s } = POSICOES.find(x => x.id === 'seq-elfos-lead-antes').monta();
+  const de = nome => { const oid = Object.keys(s.objects).find(o => s.objects[o].name === nome); assert.ok(oid, 'falta ' + nome); return B.soTrazCartas(s, s.objects[oid]); };
+  for (const n of ['Lead the Stampede', 'Winding Way', 'Ponder', 'Deep Analysis']) assert.equal(de(n), true, n);
+  for (const n of ['Brainstorm', 'Land Grant', 'Sleep of the Dead', 'Forest']) assert.equal(de(n), false, n);
 });

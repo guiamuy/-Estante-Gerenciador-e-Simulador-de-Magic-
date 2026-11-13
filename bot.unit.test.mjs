@@ -521,9 +521,14 @@ test('Leva 115 · mana que ia sobrar: na segunda fase principal o v3 conjura a c
   assert.equal(v2.acao.t, 'pass', 'v2: comprar uma carta gastando uma carta não melhora a nota, então passava');
   assert.deepEqual([v3.acao.t, v3.acao.oid], ['cast', x]);
   assert.match(v3.motivo, /a mana ia sobrar/);
-  // na primeira fase principal ele ainda espera (pode precisar da mana no combate)
+  // na primeira fase principal o shark-v31 ainda espera (pode precisar da mana no combate). B-215 · expectativa mudada: o feitiço que
+  // só traz cartas vai antes do combate (`antesDoCombate`) — esperar a segunda fase deixava o ataque virar os elfos de mana que o
+  // pagavam (Lead the Stampede preso do T1 ao fim na partida narrada 14151); medido nos Elfos, 44 × 36 em 80 pares
   const cedo = J(s); cedo.turn.step = 'main1';
-  assert.equal(B.criaBot({ nivel: 'shark' }).jogada(cedo, a).acao.t, 'pass');
+  assert.equal(B.criaBot({ nivel: 'shark-v31' }).jogada(cedo, a).acao.t, 'pass');
+  const jCedo = B.criaBot({ nivel: 'shark' }).jogada(cedo, a);
+  assert.deepEqual([jCedo.acao.t, jCedo.acao.oid], ['cast', x], 'B-215 · antes do combate');
+  assert.match(jCedo.motivo, /antes do combate/);
   // B-175 · preso em dois terrenos, a compra vale pelo terreno que pode achar: conjura já na primeira fase principal
   const curto = J(cedo); for (const oid of curto.zones[a].battlefield.slice(2)) { curto.zones[a].battlefield.splice(curto.zones[a].battlefield.indexOf(oid), 1); curto.zones[a].library.push(oid); curto.objects[oid].zone = 'library'; }
   const jc = B.criaBot({ nivel: 'shark' }).jogada(curto, a);
