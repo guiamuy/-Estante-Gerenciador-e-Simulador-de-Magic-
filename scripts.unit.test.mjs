@@ -287,6 +287,10 @@ function runExample(sc) {
   }
   // um cemitério com carta, para os efeitos que mexem nele
   s = J(s); const buried = s.zones[d].library.pop(); s.zones[d].graveyard.push(buried); s.objects[buried].zone = 'graveyard';
+  // M-630 · "As an additional cost to cast this spell, exile N cards from your graveyard" (Abhorrent Oculus): o cemitério de quem conjura recebe
+  // N cartas do fundo do grimório, só neste cenário (o topo, que os outros efeitos olham, não muda)
+  const exilioAdd = [].concat(sc.additional || []).map(x => x && x.exileFromGraveyard).find(Boolean);
+  if (exilioAdd) { s = J(s); for (let i = 0; i < (exilioAdd.amount || 1); i++) { const c = s.zones[a].library.pop(); s.zones[a].graveyard.push(c); s.objects[c].zone = 'graveyard'; } }
   const how = ex.action || 'cast';
   if (ex.target === 'enemy-creature' && /"tapped":true/.test(JSON.stringify(sc.effects || []))) { s = J(s); s.objects[theirs].tapped = true; } // T-87 · "tapped creature": a criatura do oponente do cenário está virada
   const soDaMao = (sc.abilities || []).some(x => ((x.cost || {}).fromHand));

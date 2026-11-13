@@ -11581,6 +11581,10 @@ const RAW_SCRIPTS = [
       { cost: 0, label: '0: Vigia 2; depois compra uma carta para cada oponente que perdeu vida neste turno', effects: [{ do: 'surveil', amount: 2 }, { do: 'draw', amount: { per: 'opponents-lost-life-this-turn' } }] }, // "0: Surveil 2. Then draw a card for each opponent who lost life this turn." (ruling: perda de vida, não a vida de agora; quem perdeu e saiu da partida conta)
       { cost: -2, label: '−2: Vira a criatura alvo e põe dois marcadores de atordoamento nela', effects: [{ do: 'tap', target: 'creature' }, { do: 'counters', amount: 2, tipo: 'stun', target: 'first-target' }] }], // "−2: Tap target creature. Put two stun counters on it." (122.1d)
     example: { action: 'ninjutsu', target: 'none', expect: { attacked: true } } },
+  // M-630 · texto da API da Scryfall (coleta de 13/11/2026 16h40 UTC)
+  { name: 'Abhorrent Oculus', additional: { exileFromGraveyard: { amount: 6 } }, // "As an additional cost to cast this spell, exile six cards from your graveyard." (601.2b/601.2h: quem conjura escolhe as seis, logo depois de conjurar)
+    abilities: [{ kind: 'triggered', when: { evento: 'passo', passo: 'upkeep', turno: 'oponente' }, effects: [{ do: 'manifest_dread' }] }], // "At the beginning of each opponent's upkeep, manifest dread." (701.62a; "Flying" vem da carta)
+    example: { target: 'none', expect: { picked: 1 } } }, // o cenário S8 põe seis cartas no cemitério de quem conjura e escolhe as seis; o resto está em lt304.unit
   // M-618 · texto da API da Scryfall (coleta de 10/11/2026)
   { name: 'Emperor of Bones', abilities: [
     { kind: 'triggered', when: 'begin-combat', effects: [{ do: 'exile', target: 'card-in-any-graveyard', upTo: true }, { do: 'marca_exiladas', target: 'first-target' }] }, // "At the beginning of combat on your turn, exile up to one target card from a graveyard." (607.2a: fica ligada a esta encarnação)
@@ -31119,6 +31123,11 @@ function pagamentosDe(s, p, cost, selfOid) {
   return out;
 }
 const comPagamento = pay => (pay && Object.keys(pay).length ? { pay } : {});
+/* M-630 · 601.2b/601.2h · custo adicional de conjurar "As an additional cost to cast this spell, exile N cards from your graveyard" (Abhorrent
+   Oculus: seis). A mesa oferece uma conjuração só e quem conjura escolhe as N cartas logo depois, como no delve e no colher provas (antes:
+   uma oferta por combinação, cortada no teto de 24, e o motor escolhia por quem tem cemitério grande). Com `pay.exile` explícito, paga na hora. */
+const exilioAdicionalDepoisM = (op, pay) => !!(op && op.exileFromGraveyard && !(pay && pay.exile));
+const semExilioAdicionalM = op => { if (!op || !op.exileFromGraveyard) return op; const r = { ...op }; delete r.exileFromGraveyard; return r; };
 /** M-356 · CR 702.167a · craft: "[Cost], Exile this permanent, Exile [materials] from among permanents you control and/or cards in your graveyard:
  * Return this card to the battlefield transformed under its owner's control. Activate only as a sorcery." Os materiais são OUTROS objetos
  * (a própria permanente é exilada por `exileSelf`); permanente conta pelo tipo que tem no campo, carta do cemitério pelo tipo impresso. */
@@ -31780,6 +31789,7 @@ const HANDLERS = {
       descartaCarta(s, l);
     }
     // S20/S53 · custo adicional: uma opção, várias opções, ou nenhuma quando é opcional
+    let exilioAdicionalM = null; // M-630 · "exile N cards from your graveyard": as cartas, quem conjura escolhe logo depois (601.2h)
     const addSpec2 = f.script && f.script.additional;
     const listaAdd = Array.isArray(addSpec2) ? addSpec2 : addSpec2 ? [addSpec2] : [];
     if (listaAdd.length) {
@@ -31788,7 +31798,8 @@ const HANDLERS = {
       if (escolhido) {
         if (!canPayExtra(s, a.p, escolhido, a.oid)) throw new RuleError('custo', 'não dá para pagar o custo adicional');
         delete s.sacrificadosNoCusto;
-        payExtraCosts(s, a.p, escolhido, a.pay, a.oid);
+        if (exilioAdicionalDepoisM(escolhido, a.pay)) exilioAdicionalM = escolhido.exileFromGraveyard; // M-630
+        payExtraCosts(s, a.p, exilioAdicionalM ? semExilioAdicionalM(escolhido) : escolhido, a.pay, a.oid);
         s.objects[a.oid].paidAdditional = true;
         if (s.sacrificadosNoCusto) { s.objects[a.oid].sacrificados = s.sacrificadosNoCusto; delete s.sacrificadosNoCusto; } // M-348 · Reckoner's Bargain
       } else if (!opcionalAdd) throw new RuleError('custo', 'escolha o custo adicional');
@@ -31855,6 +31866,10 @@ const HANDLERS = {
       startPick(s, { p: a.p, from: cemiterio, min: 1, max: cemiterio.length, needMv: bsM.evidence, to: 'exile', rest: 'stay', label: 'colher provas', source: o.name }, []);
     } }
     if (exilaMaoN) startPick(s, { p: a.p, from: exilaveisParaDesconto(s, a.p, o), min: exilaMaoN, max: exilaMaoN, to: 'exile', rest: 'stay', label: 'exilar da mão', source: o.name }, []); // M-267 · as cartas, quem conjura escolhe
+    if (exilioAdicionalM) { const n = exilioAdicionalM.amount || 1, cem = s.zones[a.p].graveyard.filter(x => x !== a.oid && matchesFilter(s, s.objects[x], exilioAdicionalM)); // M-630 · 601.2h: as N cartas do custo adicional, quem conjura escolhe (Abhorrent Oculus)
+      if (cem.length < n) throw new RuleError('custo', `exile ${n} cartas do seu cemitério como custo`);
+      if (s.pending) payExtraCosts(s, a.p, { exileFromGraveyard: exilioAdicionalM }, null, a.oid); // outra escolha da conjuração já aberta (nenhuma carta coberta junta as duas): as primeiras N, declarado na M-630
+      else startPick(s, { p: a.p, from: cem, min: n, max: n, to: 'exile', rest: 'stay', label: 'custo adicional', source: o.name, tituloM: 'Custo adicional: exile do cemitério', dicaM: `Toque em ${n} cartas do seu cemitério para exilar` }, []); }
     if (delveN) { const cemiterio = s.zones[a.p].graveyard.filter(x => x !== a.oid); // M-263 · as cartas do delve: quem conjura escolhe
       startPick(s, { p: a.p, from: cemiterio, min: delveN, max: delveN, to: 'exile', rest: 'stay', label: 'delve', source: o.name, delveDeM: a.oid }, []); } // M-530 · a mágica anota as instantâneas e feitiços que ela exilou (Murktide Regent)
     if (s.descarteDoCustoK) descarteDoCustoK(s, o); // K-49 · o descarte do custo de recompra, entrelaçar ou escalar: quem conjura escolhe (Toca ponto comum: HANDLERS.cast)
@@ -32772,7 +32787,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
           : [{ need: ((fc.script && fc.script.effects) || []).filter(SC.isTargeted), mode: null }];
         const rfK = fc.script && fc.script.kicker, kickOk = !!rfK && (!s.manaCheck || canPay(s, p, parseCost(rfK.mana))); // M-337 · 118.9d: o reforço também na conjuração sem pagar
         const addsF = (() => { const sp = fc.script && fc.script.additional, l = Array.isArray(sp) ? sp : sp ? [sp] : []; if (!l.length) return [{}]; const r = []; // M-446 · 118.9d: as formas do custo adicional também na conjuração sem pagar (antes só a primeira, e a mesa podia oferecer o que o apply recusava)
-          l.forEach((op, i) => { if (canPayExtra(s, p, op, oid) && (!op.generico || !s.manaCheck || canPay(s, p, parseCost('{0}'), genericoSemPagarM(s, p, s.objects[oid], [], op.generico)))) { const pg = pagamentosDe(s, p, op, oid); (pg.length ? pg : [null]).forEach(pay => r.push({ add: i, ...(pay ? { pay } : {}) })); } });
+          l.forEach((op, i) => { if (canPayExtra(s, p, op, oid) && (!op.generico || !s.manaCheck || canPay(s, p, parseCost('{0}'), genericoSemPagarM(s, p, s.objects[oid], [], op.generico)))) { const pg = pagamentosDe(s, p, semExilioAdicionalM(op), oid); (pg.length ? pg : [null]).forEach(pay => r.push({ add: i, ...(pay ? { pay } : {}) })); } }); // M-630
           if (fc.script.additionalOptional) r.push({ add: null }); return r; })();
         const pushK = x => addsF.forEach(v => { const y = { ...x, ...v }; out.push(y); if (kickOk) out.push({ ...y, kick: 1 }); });
         for (const { need, mode } of listas) {
@@ -32858,7 +32873,7 @@ function legalActions(s, p, { adjudication = false } = {}) {
     const opcoes = Array.isArray(addSpec) ? addSpec : addSpec ? [addSpec] : [];
     if (!opcoes.length) return [{}];
     const out2 = [];
-    opcoes.forEach((op, i) => { if (canPayExtra(s, p, op, o.oid) && (!op.generico || !s.manaCheck || canPay(s, p, somaCusto(f.cost, parseCost(`{${op.generico}}`), 1), castExtraK(s, p, o, 0, [], op.generico)))) pagamentosDe(s, p, op, o.oid).forEach(pay => out2.push({ add: i, pay })); }); // M-441 · "or pay {5}": só com a mana do custo total
+    opcoes.forEach((op, i) => { if (canPayExtra(s, p, op, o.oid) && (!op.generico || !s.manaCheck || canPay(s, p, somaCusto(f.cost, parseCost(`{${op.generico}}`), 1), castExtraK(s, p, o, 0, [], op.generico)))) pagamentosDe(s, p, semExilioAdicionalM(op), o.oid).forEach(pay => out2.push({ add: i, pay })); }); // M-630 · as cartas do exílio do cemitério se escolhem depois da conjuração: uma oferta só // M-441 · "or pay {5}": só com a mana do custo total
     if (f.script && f.script.additionalOptional) out2.push({ add: null });
     return out2;
   };
