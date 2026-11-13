@@ -641,12 +641,10 @@ a { color: var(--accent); }
 @media (prefers-reduced-motion: reduce) { #nav-offline::before { animation: none; } .ds-anel__barra { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .ds-icon .porta__folha, .ds-icon .porta__luz { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .ds-icon[data-anima] > svg { animation: none; } }
-@media (prefers-reduced-motion: reduce) { .inicio__rapidos .ds-atalho__icone { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .nt-topo.ds-btn { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .cat-topo.ds-btn { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .porta__item { animation: none; } .porta[data-saida="true"] { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .ds-transicao { animation: none; transition: none; } }
-@media (prefers-reduced-motion: reduce) { .inicio-jogar.ds-btn:active:not([disabled]), .inicio-jogar.ds-btn:active .ds-atalho__icone, .inicio-jogar.ds-btn:active .inicio-jogar__seta { transform: none; } .inicio-jogar--brilho::after { animation: none; } }
 /* DS-K (G-288) · menos movimento é estado final em um quadro: a regra global corta a animação, então cada palco declara o
    seu fim parado (marca desenhada, nome à vista, cartas pousadas, folha aberta, faixa e véu no lugar). */
 @media (prefers-reduced-motion: reduce) { .ds-palco[data-on] * { animation: none !important; } }

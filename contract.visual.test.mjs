@@ -303,8 +303,8 @@ test('T3 · Jogar com volume: relevo em tokens nos três blocos, texto AA até n
     const pe = toHex(base.map((c, i) => c * (1 - k) + [r, g, b][i] * k));
     assert.ok(ratio(t['--accent-fg'], pe) >= 4.5, `texto do Jogar no pé da placa (${nome}): ${ratio(t['--accent-fg'], pe).toFixed(2)}`);
   }
-  assert.match(componentCss, /\.inicio-jogar--brilho::after \{ animation: jogar-brilho var\(--dur-4\)/);
-  assert.match(componentCss, /@media \(prefers-reduced-motion: reduce\) \{ \.inicio-jogar\.ds-btn:active:not\(\[disabled\]\)[^}]*transform: none; \} \.inicio-jogar--brilho::after \{ animation: none; \} \}/);
+  // DS-K3 K3-7 (G-388) · o Jogar com volume da Início (T3) saiu com os atalhos: o brilho dele não volta
+  assert.doesNotMatch(componentCss, /(^|[{,]\s*)\.inicio-jogar/m, 'K3-7: o Jogar da Início saiu (nenhuma regra dele)');
 });
 
 /* ---------------- MJ7 (J-17) · material da mesa ---------------- */
@@ -472,8 +472,8 @@ test('DS-K · F1.1 o primário é de latão (gradiente dos tokens do acento, fio
   assert.ok(anda, 'a varredura só anda com data-varre');
   assert.match(anda[1], /animation: ds-varre-latao var\(--dur-4\) var\(--ease-out\) both/, 'uma vez (sem infinite), curva e duração por token');
   assert.match(componentCss, /@keyframes ds-varre-latao \{ 0% \{ opacity: 1; background-position: 160% 0; \} 100% \{ opacity: 1; background-position: -60% 0; \} \}/);
-  assert.match(componentCss, /\.inicio-jogar\.ds-btn--primary \{[^}]*linear-gradient\(160deg, var\(--accent-hi\), var\(--accent\) 55%, var\(--accent-lo\)\)/, 'o Jogar é placa de latão');
-  assert.match(componentCss, /\.inicio-jogar::after \{[^}]*var\(--sheen\)/, 'o brilho do Jogar é a mesma luz');
+  // DS-K3 K3-7 (G-388) · o Jogar da Início saiu: a placa de latão do Jogar é a da barra de baixo (K3-2)
+  assert.match(componentCss, /\.ds-navbar \.ds-nav--jogar \.ds-navbar__latao \{[^}]*linear-gradient\(160deg, var\(--accent-hi\), var\(--accent\) 55%, var\(--accent-lo\)\)/, 'o Jogar é placa de latão');
   assert.match(HTML, /document\.addEventListener\('click', e => \{\s*const b = e\.target && e\.target\.closest \? e\.target\.closest\('\.ds-btn--primary'\)/, 'um ouvinte só para todo primário');
 });
 
@@ -1325,4 +1325,22 @@ test('MK3-4 · mão viva: tokens de pega zerados no moderado e no reduzido; mold
   assert.match(css, /@keyframes tb-compra \{ 0% \{ opacity: 0; transform: perspective\(700px\) translate\(var\(--compra-dx, 36px\), var\(--compra-dy, -14px\)\) rotateY\(180deg\) scale\(\.7\); \}/, 'a compra sai do grimório');
   assert.match(HTML, /cartas\.forEach\(armaPegaNoPalco\); \/\/ MK3-4/, 'palco da mão viva no /ds');
   assert.match(HTML, /passoDaCompra: Math\.min\(durFx\('--escalona-2'\), 200\)/, 'compradas juntas por --escalona-2');
+});
+
+test('DS-K3 K3-7 · Início na direção Vitrine (fatia 1, Balcão): cabeçalho editorial — rótulo da data em latão 11 px caixa alta .18em 600; saudação em --font-display 34 px (--cab-titulo), entrelinha 1, −.015em, palavra viva em itálico 500 no --accent-hi; os atalhos e o Jogar da Início saíram; Componentes no Perfil; vazio com a vitrine', () => {
+  const regra = sel => { const i = componentCss.indexOf(sel + ' {'); assert.ok(i >= 0, sel); return componentCss.slice(i, componentCss.indexOf('}', i)); };
+  assert.match(regra('.inicio__data'), /font-size: var\(--text-xs\);[^}]*color: var\(--accent\); font-weight: 600; text-transform: uppercase; letter-spacing: \.18em/);
+  assert.match(regra('.inicio__titulo'), /font-family: var\(--font-display\); font-size: var\(--cab-titulo\); line-height: 1; letter-spacing: -\.015em; font-weight: 600; color: var\(--fg\)/);
+  assert.match(regra('.inicio__viva'), /font-style: italic; font-weight: 500; color: var\(--accent-hi\)/);
+  // só tokens nas regras novas
+  for (const sel of ['.inicio__data', '.inicio__titulo', '.inicio__viva']) assert.ok(!/#[0-9a-f]{3,8}\b|rgba?\(|hsl/i.test(regra(sel)), sel + ': cor por token');
+  // a saudação é um título só, com a palavra viva num nó próprio, e não passa pela camada de tradução (cada idioma tem a sua)
+  assert.match(HTML, /h\('h1', \{ class: 'ds-text ds-text--display inicio__titulo', id: 'home-titulo', translate: 'no'/);
+  assert.match(HTML, /h\('em', \{ class: 'inicio__viva' \}, sd\.viva\)/);
+  // os atalhos saíram (a barra de baixo é o atalho; o Jogar dela, o único latão cheio) e o catálogo foi para o Perfil
+  assert.ok(!/id: 'home-atalhos'|id: 'go-play'|id: 'go-ds'/.test(HTML), 'atalhos, Jogar e Componentes fora da Início');
+  assert.doesNotMatch(componentCss, /(^|[{,]\s*)\.inicio__rapidos/m);
+  assert.match(HTML, /id: 'perfil-ds', onClick: \(\) => go\('\/ds'\)/);
+  // vazio: a vitrine da K3-6 com Ver prontas e Colar lista
+  assert.match(HTML, /__m3\.Vitrine\(\{ id: 'home-vazio', titulo: 'Comece pela prateleira de cima'/);
 });
