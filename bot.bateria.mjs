@@ -188,6 +188,12 @@ export const POSICOES = [
   { id: 'rem-priest-sim', classe: 'recurso', lista: FAERIES, porque: 'fim do turno dos Elfos, Llanowar Elves e Priest of Titania no campo: a remoção vai no Priest, o motor que cresce com a mesa',
     monta: () => monta(FAERIES, ELFOS, { ativo: 1, vez: 0, passo: 'end', p0: { campo: ['Island', 'Swamp', 'Island'], mao: ['Snuff Out', 'Cast Down', 'Counterspell'] }, p1: { campo: ['Forest', 'Forest', 'Llanowar Elves', 'Priest of Titania'], viradas: ['Forest', 'Forest'] } }),
     certo: (s, j) => j.acao.t === 'cast' && (j.acao.targets || []).some(t => nomeDe(s, t.oid) === 'Priest of Titania') },
+  // B-214 · Faeries contra o Madness (partida narrada 13368 de 12/11, T9): com o Kessig Flamebreather (gatilho a cada mágica que
+  // não é criatura: a queima que mata as Faeries) e o Sneaky Snacker no campo, o Cast Down ia no Snacker e a Snuff Out ficava na
+  // mão até o fim. A remoção vai na ameaça pelo efeito (ameacaPeloEfeito), não no corpo maior.
+  { id: 'rem-faeries-flamebreather', classe: 'recurso', lista: FAERIES, porque: 'início do combate no meu turno, quatro terras, Cast Down, Snuff Out e o Ninja na mão contra o Madness com o Kessig Flamebreather e o Sneaky Snacker: a remoção vai no Flamebreather, que bate a cada mágica dele',
+    monta: () => monta(FAERIES, MADNESS, { passo: 'combat_begin', p0: { campo: ['Island', 'Contaminated Aquifer', 'Island', 'Contaminated Aquifer', 'Augur of Bolas'], mao: ['Cast Down', 'Snuff Out', 'Ninja of the Deep Hours'], vida: 11 }, p1: { campo: ['Mountain', 'Mountain', 'Mountain', 'Kessig Flamebreather', 'Sneaky Snacker'], mao: ['Lightning Bolt', 'Fireblast', 'Mountain', 'Grab the Prize'] } }),
+    certo: (s, j) => j.acao.t === 'cast' && (j.acao.targets || []).some(t => nomeDe(s, t.oid) === 'Kessig Flamebreather') },
   // B-208 · Faeries (classe A do diagnóstico da B-200; partidas narradas de 09/11, sementes 7134 T6 e 7168 T11): no próprio turno o
   // Shark gastava em instantânea e lampejo (Brainstorm no início do combate, Spellstutter Sprite sem alvo) a mana da Counterspell
   // que estava na mão, e chegava ao turno do outro sem ela. O que tem lampejo espera o turno do outro; a ameaça de feitiço não paga.

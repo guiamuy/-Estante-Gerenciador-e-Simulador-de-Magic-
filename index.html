@@ -38339,6 +38339,10 @@ const __m25 = (function () {
    lampejo (`fimDoOutro`). Antes ela ficava na mão "para o turno do oponente" e passava todos os passos finais (três Brainstorm na
    mão das Faeries do T13 ao T17). Neutra em força (74 × 71 em 160 pares, Faeries, Terror e Control); ligada pelo erro que tira.
    'shark-v29' é o Shark da B-212, congelado.
+   A AMEAÇA PRIMEIRO (B25, leva B-214): quando a remoção escolhida mata uma criatura do oponente que não é ameaça pelo efeito
+   e a mesma carta mata uma que é (`ameacaPeloEfeito`: gatilho a cada mágica, compra a cada dano, cresce com a mesa), o alvo
+   troca (`alvoNaAmeaca`). Só o alvo: usar a carta ou não continua com a busca. Antes o Cast Down ia no Sneaky Snacker com o
+   Kessig Flamebreather ao lado. 'shark-v30' é o Shark da B-213, congelado.
    LIMITES DE HOJE: um lance à frente + resposta do oponente (na pilha e depois dela) + combate; sem plano
    de vários turnos, sem blefe; não joga em volta do truque de combate nem da varredura; na pilha não responde à resposta
    dele (guerra de anulação); não troca reserva na melhor de três; esquece o que a vidência
@@ -40071,6 +40075,28 @@ function ameacaPeloEfeito(s, o) {
   if (pers.some(x => PER_QUE_CRESCE.test(x.slice(7, -1)))) return true;
   return (sc.abilities || []).some(h => h && h.kind === 'triggered' && (h.when === 'other-cast' || (h.when === 'combat-damage' && (h.effects || []).some(e => e.do === 'draw'))));
 }
+/** B-214 · B25 · `alvoNaAmeaca`: a remoção vai na ameaça pelo efeito. Quando a jogada escolhida tira do campo uma criatura do
+    oponente que não é ameaça pelo efeito, e a mesma carta (mesma habilidade, modo, custo e os outros alvos) tira do campo uma que
+    é (ameacaPeloEfeito: gatilho a cada mágica, compra a cada dano, cresce com a mesa), o alvo troca. Só o alvo: usar a carta ou
+    não continua com a busca, e a troca só vale quando a remoção mata as duas (o Lava Dart que mata o Sneaky Snacker não vai no
+    Kessig Flamebreather 1/3). Simula no mundo possível `w` (informação justa), nunca no estado real. */
+function alvoNaAmeaca(s, w, p, j) {
+  const a = j && j.acao;
+  if (!a || (a.t !== 'cast' && a.t !== 'activate') || !(a.targets || []).length || !w) return j;
+  const d = oponenteDe(s, p);
+  const criaturaDele = t => !!t && !!t.oid && !!s.objects[t.oid] && s.objects[t.oid].zone === 'battlefield' && s.objects[t.oid].controller === d && ((s.facts[s.objects[t.oid].name] || {}).types || []).includes('creature');
+  const i = a.targets.findIndex(criaturaDele);
+  if (i < 0 || ameacaPeloEfeito(s, s.objects[a.targets[i].oid])) return j;
+  const alvoTxt = t => t.oid || 'p' + t.player;
+  const resto = x => JSON.stringify(Object.keys(x).filter(k => k !== 'targets').sort().map(k => [k, x[k]]));
+  const mesma = b => resto(b) === resto(a) && (b.targets || []).length === a.targets.length && b.targets.every((t, k) => k === i || alvoTxt(t) === alvoTxt(a.targets[k]));
+  const tira = (b, oid) => { const x = simula(w, b); if (!x) return false; const e = resolveSimulado(x.estado); const o = e.objects[oid]; return !o || o.zone !== 'battlefield' || o.controller !== d; };
+  if (!tira(a, a.targets[i].oid)) return j;
+  const trocas = E.legalActions(s, p).filter(b => mesma(b) && criaturaDele(b.targets[i]) && ameacaPeloEfeito(s, s.objects[b.targets[i].oid]))
+    .sort((x, y) => chaveAcao(x) < chaveAcao(y) ? -1 : chaveAcao(x) > chaveAcao(y) ? 1 : 0);
+  for (const b of trocas) if (tira(b, b.targets[i].oid)) return { ...j, acao: b, motivo: `${motivoDe(s, p, b, j.ganho || 0)}: a ameaça primeiro` };
+  return j;
+}
 /** B-205 · B25 · combo de mana infinita pelo padrão, não pelos nomes: uma criatura que gera X manas de cor livre (o motor), uma
     aura de criatura com "{C}: desvire a criatura encantada" (desvira, índice e cor saem da habilidade) e uma permanente com
     habilidade só de mana genérica que causa dano ou faz perder vida (finalizadores; o custo é o maior deles). Sem as três: null.
@@ -40207,16 +40233,18 @@ const NOVO26 = { ...NOVO25, perfilDerivado: true }; // congelado como 'shark-v26
 const NOVO27 = { ...NOVO26, perfilPeloPadrao: true }; // congelado como 'shark-v27' (B-210) · B-205 · B25 · o combo pelo padrão (comboDaLista) e as ameaças do campo pelo efeito (ameacaPeloEfeito): nenhum nome de carta escrito no código chega à decisão do Shark publicado; nas cinco listas, as mesmas jogadas do shark-v26
 const NOVO28 = { ...NOVO27, impulso: true, ritual: true }; // congelado como 'shark-v28' (B-212) · B-210 · B25 · régua de fora, combo de mágicas: a carta exilada que posso jogar vale como carta na mão (comImpulso) e o ritual entra no plano de mana (planoDeMana): piloto Temur Desperate Ritual 36 × 21 em 150 pares contra o Shark da B-205 (18 só do novo, 3 só do antigo); nenhuma das cinco listas tem carta de impulso ou ritual (as jogadas delas não mudam)
 const NOVO29 = { ...NOVO28, chao: true }; // congelado como 'shark-v29' (B-213) · B-212 · B25 · régua de fora: o terreno a baixar é escolhido depois do gatilho de entrada e vale pelo chão que fica (chaoDe): piloto Azorius God-Pharaoh's Faithful 30 × 15 em 80 pares contra o Shark da B-210 (18 só do novo, 3 só do antigo); régua de fora × shark-v12 106–97 em 203 (52%; era 95–108). `chaoNaNota` (o chão na avaliação inteira) mediu 9 × 16 no piloto Temur e fica desligado
-const NOVO = { ...NOVO29, fimDoOutro: true }; // B-213 · B25 · no passo final do outro, a instantânea que só seleciona cartas (ehSelecao: Brainstorm, Thought Scour, Plunder the Trollshaws) entra com a mana que ia sobrar: neutra em força (Faeries 34 × 35, Terror 23 × 22, Control 17 × 14; 74 × 71 em 160 pares, 11 só do novo, 8 só do antigo), ligada porque tira o erro das partidas narradas (três Brainstorm na mão do T13 ao T17)
+const NOVO30 = { ...NOVO29, fimDoOutro: true }; // congelado como 'shark-v30' (B-214) · B-213 · B25 · no passo final do outro, a instantânea que só seleciona cartas (ehSelecao: Brainstorm, Thought Scour, Plunder the Trollshaws) entra com a mana que ia sobrar: neutra em força (Faeries 34 × 35, Terror 23 × 22, Control 17 × 14; 74 × 71 em 160 pares, 11 só do novo, 8 só do antigo), ligada porque tira o erro das partidas narradas (três Brainstorm na mão do T13 ao T17)
+const NOVO = { ...NOVO30, alvoNaAmeaca: true }; // B-214 · B25 · a remoção vai na ameaça pelo efeito (alvoNaAmeaca: a mesma carta, que mata as duas, troca o corpo maior pelo Kessig Flamebreather, o Guttersnipe, o Priest of Titania): neutra em força (Faeries 37 × 30 em 80 pares, Control 10 × 12, Madness 28 × 29 em 40; 75 × 71 em 160, 11 só do novo, 7 só do antigo), ligada porque tira o erro da partida narrada 13368 (Cast Down no Sneaky Snacker com o Kessig Flamebreather ao lado)
 // B-208 · `esperaOLampejo` (no meu turno, com a anulação na mão, a instantânea ou o lampejo que não responde a nada e deixa a anulação sem mana custa 6; B25 classe A das Faeries) foi medida e fica desligada: piloto Faeries 31 × 33 em 96 pares (7 só do novo, 9 só do antigo); acerta a posição `seq-faeries-sprite-espera` da bateria, mas não se paga em partida
 // B-207 · `reservaRemocao` (remoção guardada para a criatura que importa, B25 classe B) foi medida e fica desligada: piloto Faeries 21 × 23 em 48 pares (3 só do novo, 5 só do antigo), Control 16 × 15 em 32 (1 só do novo); acerta a posição `rem-elfo-de-mana` da bateria, mas não se paga em partida
 // B-176 · `ameacas` (ameaças do campo no perfil do Dimir Control) foi medida e fica desligada: 26 de 64 contra 27 de 64 pilotando o Control
+// B-214 · `ameacas` medida de novo com o perfil pelo padrão (ameacaPeloEfeito, −6 por ameaça do campo na nota) e fica desligada: piloto Faeries 27 × 29 em 80 pares (5 só do novo, 7 só do antigo); o `alvoNaAmeaca` (só o alvo) ficou no lugar
 function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date.now(), mundos: mundosN = 0, extra: extraOpts = null, pesos = null } = {}) {
   // Leva 117 · 'profissional' e 'shark' são o Shark atual (v4: o v3 com informação justa). 'shark-v3', 'shark-v2'
   // e 'shark-v1' são as versões anteriores, congeladas, só para o torneio — elas simulam sobre o estado real.
-  const v1 = nivel === 'shark-v1', v2 = nivel === 'shark-v2', v3 = nivel === 'shark-v3', v4 = nivel === 'shark-v4', v5 = nivel === 'shark-v5', v6 = nivel === 'shark-v6', v7 = nivel === 'shark-v7', v8 = nivel === 'shark-v8', v9 = nivel === 'shark-v9', v10 = nivel === 'shark-v10', v11 = nivel === 'shark-v11', v12 = nivel === 'shark-v12', v13 = nivel === 'shark-v13', v14 = nivel === 'shark-v14', v15 = nivel === 'shark-v15', v16 = nivel === 'shark-v16', v17 = nivel === 'shark-v17', v18 = nivel === 'shark-v18', v19 = nivel === 'shark-v19', v20 = nivel === 'shark-v20', v21 = nivel === 'shark-v21', v22 = nivel === 'shark-v22', v23 = nivel === 'shark-v23', v24 = nivel === 'shark-v24', v25 = nivel === 'shark-v25', v26 = nivel === 'shark-v26', v27 = nivel === 'shark-v27', v28 = nivel === 'shark-v28', v29 = nivel === 'shark-v29';
-  const atual = nivel === 'profissional' || nivel === 'shark' || v4 || v5 || v6 || v7 || v8 || v9 || v10 || v11 || v12 || v13 || v14 || v15 || v16 || v17 || v18 || v19 || v20 || v21 || v22 || v23 || v24 || v25 || v26 || v27 || v28 || v29 || !!extraOpts || !!pesos;
-  const ligadas = { ...(v4 ? {} : v5 ? NOVO5 : v6 ? NOVO6 : v7 ? NOVO7 : v8 ? NOVO8 : v9 ? NOVO9 : v10 ? NOVO10 : v11 ? NOVO11 : v12 ? NOVO12 : v13 ? NOVO13 : v14 ? NOVO14 : v15 ? NOVO15 : v16 ? NOVO16 : v17 ? NOVO17 : v18 ? NOVO18 : v19 ? NOVO19 : v20 ? NOVO20 : v21 ? NOVO21 : v22 ? NOVO22 : v23 ? NOVO23 : v24 ? NOVO24 : v25 ? NOVO25 : v26 ? NOVO26 : v27 ? NOVO27 : v28 ? NOVO28 : v29 ? NOVO29 : NOVO), ...(extraOpts || {}) };
+  const v1 = nivel === 'shark-v1', v2 = nivel === 'shark-v2', v3 = nivel === 'shark-v3', v4 = nivel === 'shark-v4', v5 = nivel === 'shark-v5', v6 = nivel === 'shark-v6', v7 = nivel === 'shark-v7', v8 = nivel === 'shark-v8', v9 = nivel === 'shark-v9', v10 = nivel === 'shark-v10', v11 = nivel === 'shark-v11', v12 = nivel === 'shark-v12', v13 = nivel === 'shark-v13', v14 = nivel === 'shark-v14', v15 = nivel === 'shark-v15', v16 = nivel === 'shark-v16', v17 = nivel === 'shark-v17', v18 = nivel === 'shark-v18', v19 = nivel === 'shark-v19', v20 = nivel === 'shark-v20', v21 = nivel === 'shark-v21', v22 = nivel === 'shark-v22', v23 = nivel === 'shark-v23', v24 = nivel === 'shark-v24', v25 = nivel === 'shark-v25', v26 = nivel === 'shark-v26', v27 = nivel === 'shark-v27', v28 = nivel === 'shark-v28', v29 = nivel === 'shark-v29', v30 = nivel === 'shark-v30';
+  const atual = nivel === 'profissional' || nivel === 'shark' || v4 || v5 || v6 || v7 || v8 || v9 || v10 || v11 || v12 || v13 || v14 || v15 || v16 || v17 || v18 || v19 || v20 || v21 || v22 || v23 || v24 || v25 || v26 || v27 || v28 || v29 || v30 || !!extraOpts || !!pesos;
+  const ligadas = { ...(v4 ? {} : v5 ? NOVO5 : v6 ? NOVO6 : v7 ? NOVO7 : v8 ? NOVO8 : v9 ? NOVO9 : v10 ? NOVO10 : v11 ? NOVO11 : v12 ? NOVO12 : v13 ? NOVO13 : v14 ? NOVO14 : v15 ? NOVO15 : v16 ? NOVO16 : v17 ? NOVO17 : v18 ? NOVO18 : v19 ? NOVO19 : v20 ? NOVO20 : v21 ? NOVO21 : v22 ? NOVO22 : v23 ? NOVO23 : v24 ? NOVO24 : v25 ? NOVO25 : v26 ? NOVO26 : v27 ? NOVO27 : v28 ? NOVO28 : v29 ? NOVO29 : v30 ? NOVO30 : NOVO), ...(extraOpts || {}) };
   let perfil, avPlano = null, passosCombo = 0, turnoCombo = -1; // B9 · perfil do meu baralho, lido na primeira jogada
   const avAtual = ligadas.av4 || ligadas.av5 || ligadas.av6 || ligadas.av7 || pesos ? avaliadorCom({ ...PESOS_ATUAIS, ...(pesos || {}) }, (de => (ligadas.chaoNaNota ? comChao : x => x)((ligadas.impulso ? comImpulso : x => x)((ligadas.grimorio ? comGrimorio : x => x)(ligadas.av7 ? comMotores(de) : de))))(ligadas.av6 ? avaliaV6 : ligadas.av5 ? avaliaV5 : ligadas.av4 ? avaliaV4 : avaliaV3)) : null;
   let plano = []; // leva 143 · ações que faltam do plano de mana em curso
@@ -40254,13 +40282,14 @@ function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date
       const mundos = []; for (let k = 0; k < (mundosN || MUNDOS); k++) mundos.push(visaoDe(s, p, k, sei));
       const antesOOutro = decideOOutro; decideOOutro = !!ligadas.decideOOutro; // B-183
       let j; try { j = jogadaProfissional(s, p, { orcamentoMs, agora, ...extra, ...ligadas, ...(ligadas.seguraNoPerfil && perfil && perfil.segura ? { segura: true, guardaNaSobra: true } : {}) /* B-196 */, ...(ligadas.desligaNoPerfil && perfil && perfil.desliga ? Object.fromEntries(perfil.desliga.map(k => [k, false])) : {}) /* B-198 */, ...(avPlano ? { av: avPlano } : avAtual ? { av: avAtual } : {}), mundos }); } finally { decideOOutro = antesOOutro; }
+      if (ligadas.alvoNaAmeaca && j && !s.pending) j = alvoNaAmeaca(s, mundos[0], p, j); // B-214 · a remoção vai na ameaça pelo efeito (só o alvo muda)
       if (j && j.plano) plano = j.plano.slice();
       return j;
     }
   };
 }
 
-return { PESOS, LIMIAR_RESPOSTA, avalia, avaliaV2, avaliaV3, projetaCombate, riscoDeVolta, danoDeVolta, ehSelecao, decideMulligan, decideMulligan2, viraTerreno, simula, escolhe, chaveAcao, fontesDeMana,
+return { PESOS, LIMIAR_RESPOSTA, avalia, avaliaV2, avaliaV3, projetaCombate, riscoDeVolta, danoDeVolta, ehSelecao, alvoNaAmeaca, decideMulligan, decideMulligan2, viraTerreno, simula, escolhe, chaveAcao, fontesDeMana,
   jogadaAmador, jogadaProfissional, decideAtaque, decideAtaqueProfissional, decideBloqueio, decideBloqueioProfissional,
   notaComResposta, notaDoAtaque, resumoDoTurno, dicas, visaoDe, sementePublica, atualizaMemoria, MUNDOS, avaliadorCom, PESOS_ATUAIS, politicaRapida, rola, avaliaV4, planoDeMana, PERFIS, AMEACAS_DO_CAMPO, perfilDe, perfilDerivado, tracosDaLista, ameacaPeloEfeito, comboDaLista, perfilPeloPadrao, passoDoCombo, avaliadorDoPlano, avaliaV5, avaliaV6, notaDoAtaqueComTruque, custoDaResposta, criaBot, NOME_DO_BOT, nivelDaMesa, LISTAS_DO_SHARK };
 })();
