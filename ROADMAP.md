@@ -725,6 +725,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-vv ✅ | T-IDIOMA relato #151, fatia 5a: na mesa, a folha da carta (toque), o espiar (segurar) e o "aplicar efeito" mostram o texto da carta no idioma do app (impresso oficial ou "Tradução" do robô, com "Ver o original"), das suas cartas e das do oponente; ao abrir a mesa o guardado no aparelho entra na memória, a carta aberta busca o que falta (G-381, 12/11/2026) | T | 1 | 16º-vg |
 | 16º-vx ✅ | T-IDIOMA relatos #53/#66, lote 7 da fatia 3: as cartas que entraram nas listas depois dos lotes e já têm o Oracle no repositório (32 em português, 9 em espanhol: Garruk, Veiled Butcher, Overlord of the Hauntwoods, Niv-Mizzet, Parun, as terras de Star Trek, Aang e Emet-Selch de duas faces, Pompous Battlemage // Improvised Act pelas faces), pelo conferidor; 1.880 em português e 753 em espanhol seguem sem Oracle no repositório (G-383, 12/11/2026) | T | 1 | 16º-vg |
 | 16º-vy ✅ | T-IDIOMA relato #151, fatia 5b: fora da folha e da mesa, a Coleção (linha e vista densa) mostra o tipo da carta no idioma do app quando o texto no idioma está guardado no aparelho; os esclarecimentos dizem que só existem em inglês (G-385, 12/11/2026) | T | 1 | 16º-vv |
+| 16º-wb ✅ | T-IDIOMA relato #151, fatia 5c, lote 1: o Oracle das cartas de Commander que faltavam vem do Forge (`idiomas/oficiais-forge-commander.json`, 1.858 cartas; a Scryfall não responde na nuvem) e as mais usadas nas listas de Commander ganham tradução (36 em português, 28 em espanhol: as dez terras duplas originais, Mishra's Workshop, Propaganda, Deadpool…) (G-387, 13/11/2026) | T | 1 | 16º-vx |
 | 16º-vf ✅ | Relato #137 (J-70): com o detalhe da pilha aberto, tocar de novo na faixa (na seta) recolhe; antes nada acontecia e só Esc ou toque fora fechavam (J-70, 11/11/2026) | J | 1 | — |
 | 16º-vh 🟡 | Relato #135, fatia 1 (G-379, 11/11/2026): lista pronta do Pauper que o motor não joga inteira (medida da sentinela abaixo de 100%) sai das Listas prontas e das prontas do Jogar, com a linha "N listas de Pauper estão fora…"; a medida a 100% a traz de volta sozinha. Fatia 2: a rotina Sentinela do Pauper trata primeiro as listas que saíram | G | 1 de 2 | 16º-vd |
 | 16º-vi ✅ | Relato #136 (J-69): o ⋯ da mesa abre o menu (Desfazer, Registro, Desistir), nunca o relato: a aba de relatar da borda direita ganha um piso medido no ⋯ (base dele + 8 px), refeito a cada pintura, rolagem e mudança de tamanho; com a barra de cima mais baixa (recorte da câmera no app instalado) ou a aba arrastada ao alto, ela não cobre mais o ⋯. A posição guardada não muda (leva J-69, 11/11/2026) | J | ½ | 16º-vd |
@@ -13882,6 +13883,18 @@ trilha `geral`, 09/11/2026; relato do dono de 09/11: o Enviar abria o GitHub e o
   inglês (a carta não jogável não tem o texto no idioma guardado); nomes de carta seguem em inglês (item 4, decisão
   "oficial"/"automática"). Próxima do relato: 5c (cobertura do Commander sem Oracle no repositório; a sessão não alcança a
   Scryfall).
+- **Fatia 5c, lote 1 (G-387, `16º-wb`, rotina Relatos contínuo, 13/11/2026) ✅ (relato #151):** o Oracle das cartas de
+  Commander que nem `.listas/oficiais*.json`, nem a cobertura do catálogo, nem `oficiais-forge.json` tinham vem do Forge
+  (`idiomas/oficiais-forge-commander.json`: 1.858 de 1.872 cartas; cardsfolder no commit cc375dd3, 13/11/2026; o clone
+  esparso do Forge alcança o GitHub, a Scryfall não). Só alimenta o `--faltam`; não vai para o app (`vercel-publico.mjs`).
+  Com ela, o `--faltam --formato commander` passa de 1.865 cartas sem Oracle a 12 em português (4 em espanhol). Primeiro
+  lote de traduções, as mais usadas nas listas de Commander do catálogo: 36 em português e 28 em espanhol (Volcanic Island
+  e as outras nove terras duplas originais, Shang-Chi, Mishra's Workshop, Propaganda, Deadpool, Vesuva, Xorn…), pelo
+  conferidor; ward entra como "Salvaguarda" (G-386). Teste U `idioma-commander.unit` (falhava antes).
+  **Parcial, declarado:** seguem em inglês 1.835 cartas de Commander em português e 714 em espanhol (próximos lotes da
+  fatia 5c, por uso nas listas); 14 sem arquivo no Forge (as de preparação, como Emeritus of Woe // Demonic Tutor, e
+  Arvinox, Baldin, Greymond, Mathise, Okaun e Zndrsplt), cartas de adesivo (Unfinity) e Horizon of Progress (o Forge
+  difere do Oracle) ficam para o fim. Se o Oracle do Forge divergir do da Scryfall numa carta, o app mostra o inglês.
 - **Fora, declarado (fatias seguintes):** a troca de idioma no Perfil (item 2); os pacotes **es** e **en** (item 3: extrair os
   textos para um dicionário por idioma, história de várias rodadas); texto e nome das cartas (item 4, aguarda decisão
   "oficial"/"automática"); a **camada obrigatória de idioma em toda entrega** (texto novo nasce no dicionário e o teste barra
