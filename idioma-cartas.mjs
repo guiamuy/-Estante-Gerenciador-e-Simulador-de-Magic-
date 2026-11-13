@@ -53,6 +53,7 @@ export const GLOSSARIO = {
   'equip': { pt: /\bequipar\b/i, es: /\bequipar\b/i },
   'enchant': { pt: /\bencantar\b/i, es: /\bencantar\b/i },
   'changeling': { pt: /\bmutável\b/i, es: /\bcambiaformas\b/i },
+  'ward': { pt: /\bsalvaguarda\b/i, es: /\bcustodia\b/i }, // G-386 · termo impresso oficial (Scryfall, printed_text pt, 13/11/2026); "Proteção" é protection
 };
 
 // o \b do JavaScript não conhece letra acentuada ("ímpeto"): a fronteira de palavra vira a de letra Unicode
