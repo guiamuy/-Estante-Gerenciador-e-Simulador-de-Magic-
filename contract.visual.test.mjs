@@ -1069,6 +1069,35 @@ test('MK3-1 · estojo das fases: tokens nos três blocos; estojo rebaixado no ei
   assert.ok(HTML.includes("class: 'ds-estojo', id: 'ds-estojo'") && HTML.includes("id: 'ds-estojo-troca'"), 'palco do estojo no /ds');
 });
 
+// MK3-P4 (J-76, trilha jogabilidade) · ateliê: o playmat criado entra pelo mesmo --playmat dos da casa — a imagem guardada sob um
+// véu de token (centro mais calmo que as bordas, nos três blocos de tema e no painel), com a laca e o poço por cima; a lista dos
+// criados e o ateliê só com tokens e alvos de 44 px; as rotas, a chave no aparelho e a linha em "O que sai do aparelho".
+// Falhava no main de antes (sem o véu, sem o ateliê).
+test('MK3-P4 · ateliê: véu do playmat criado nos três blocos (centro mais calmo) e no painel; data-playmat="criado" usa a imagem sob o véu; lista e ateliê só com tokens; rotas, chave e o que sai do aparelho', () => {
+  const veus = [['escuro', DARK], ['claro', LIGHT], ['claro automático', { ...DARK, ...AUTO_LIGHT }]].map(([nome, t]) => {
+    const v = t['--playmat-criado-veu']; assert.ok(v, `véu no tema ${nome}`);
+    const a = [...v.matchAll(/rgba\([^)]*,\s*([.\d]+)\)/g)].map(m => Number(m[1]));
+    assert.equal(a.length, 2, `${nome}: centro e borda`); assert.ok(a[0] > a[1], `${nome}: o centro mais coberto que a borda (centro calmo)`);
+    assert.match(v, /^radial-gradient\(closest-side, /, `${nome}: do centro para fora`);
+    return v; });
+  assert.notEqual(veus[0], veus[1], 'escuro e claro têm véus próprios');
+  const PAINEL = readFileSync(new URL('./painel.html', import.meta.url), 'utf8');
+  assert.equal((PAINEL.match(/--playmat-criado-veu: /g) || []).length, 3, 'o painel espelha o véu nos três blocos');
+  assert.ok(componentCss.includes('[data-playmat="criado"] { --playmat: var(--playmat-criado-veu), var(--playmat-criado, none) center / cover no-repeat, var(--bg-elev-1); }'), 'a imagem sob o véu, com o papel do lado por baixo');
+  const regra = sel => { const i = componentCss.indexOf(sel + ' {'); assert.ok(i >= 0, sel); return componentCss.slice(i, componentCss.indexOf('}', i)); };
+  for (const sel of ['.playmat-criados', '.playmat-criado', '.playmat-criado__amostra', '.playmat-criado__nome', '.atelie__texto', '.atelie__cota']) {
+    const r = regra(sel); assert.ok(!/#[0-9a-f]{3,8}\b|rgba?\(|\d+ms\b/i.test(r), `${sel}: só tokens`); }
+  assert.match(regra('.playmat-criado__amostra'), /background: var\(--lacquer\), var\(--playmat\);[\s\S]*box-shadow: var\(--mesa-poco\);/, 'a amostra é o playmat em poço, como os da casa');
+  assert.match(regra('.playmat-criado'), /min-height: 44px;/, 'linha com 44 px');
+  assert.ok(HTML.includes("{ path: '/perfil/playmats/criar', title: 'Criar playmat', render: () => createAteliePlaymatScreen({ criados: playmatsCriados, token: acessoDoAtelie }) }"), 'a rota do ateliê');
+  assert.ok(HTML.includes("['playmats.', 'aparelho', false]"), 'os criados e a cota moram no aparelho (o backup é da MK3-P5)');
+  assert.ok(HTML.includes("' Ao tocar em Criar no ateliê de playmats, a descrição que você escreveu e o acesso da conta vão ao servidor da Estante"), 'o que sai do aparelho diz o ateliê');
+  for (const id of ['atelie-texto', 'atelie-criar', 'atelie-cota', 'atelie-criando', 'atelie-guardar', 'atelie-outra', 'atelie-voltar', 'atelie-erro-tela', 'atelie-sem-rede', 'atelie-sem-conta', 'atelie-de-novo', 'playmats-criar', 'playmats-seus-erro', 'playmats-seus-carregando']) assert.ok(HTML.includes(`'${id}'`), `estado ${id}`);
+  // os números do app são os da função (um lugar só para mudar: api/playmat.js, LIMITES)
+  const API = readFileSync(new URL('./api/playmat.js', import.meta.url), 'utf8');
+  for (const [app, api] of [['texto: 200', 'textoMax: 200'], ['guardados: 8', 'guardadosPorConta: 8'], ['criacoesDia: 2', 'criacoesPorContaDia: 2']]) { assert.ok(HTML.includes(app), app); assert.ok(API.includes(api), api); }
+});
+
 // MK3-P2 (J-71, trilha jogabilidade) · galeria e escolha: a escolha mora na aparência (ui.aparencia.playmat, no aparelho e no
 // backup) e no <html> (data-playmat), os lados da mesa herdam (os dois, espelho); a receita "pousar" do playmat só com tokens
 // (transform no lado, opacidade na sombra alta), três níveis; ladrilhos só com tokens; a tela, a entrada do Perfil, o ⋯ › Playmat e o palco no /ds.
@@ -1091,7 +1120,8 @@ test('MK3-P2 · galeria e escolha: playmat na aparência e no <html>; o "padrao"
     const r = regra(sel); assert.ok(!/#[0-9a-f]{3,8}\b|rgba?\(/i.test(r), `${sel}: cor só por token`); }
   assert.match(regra('.playmat-ladrilho__amostra'), /background: var\(--lacquer\), var\(--playmat\);[\s\S]*box-shadow: var\(--mesa-poco\);/, 'a amostra é o playmat em poço, como na mesa');
   assert.match(regra('.playmat-ladrilho'), /min-height: 44px;/, 'alvo de 44 px');
-  assert.ok(HTML.includes("{ path: '/perfil/playmats', title: 'Playmats', render: () => createPlaymatsScreen({ theme }) }"), 'a tela Playmats');
+  // MK3-P4 (J-76) · a tela recebe também os criados (a lista "Criados por você"): a expectativa muda de propósito
+  assert.ok(HTML.includes("{ path: '/perfil/playmats', title: 'Playmats', render: () => createPlaymatsScreen({ theme, criados: playmatsCriados }) }"), 'a tela Playmats');
   assert.ok(HTML.includes("id: 'perfil-playmats', onClick: () => go('/perfil/playmats')"), 'a entrada no Perfil');
   assert.ok(HTML.includes("theme ? Button('Playmat', { icone: 'camadas', id: 'tb-playmat', variant: 'ghost', onClick: abrePlaymats }) : null"), '⋯ › Playmat na mesa');
   assert.ok(HTML.includes("playmat: playmatDaMesa() }"), 'os dois lados da mesa dizem o playmat escolhido');
