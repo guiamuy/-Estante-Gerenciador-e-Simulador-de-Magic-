@@ -9260,7 +9260,7 @@ function continuoErros(c, tag) {
   for (const k of Object.keys(c)) if (!CHAVES_CONTINUO.includes(k)) errs.push(`${tag}: chave "${k}" desconhecida`);
   const a = c.afetados;
   if (c.seAfetado != null) { if (typeof c.seAfetado !== 'object' || Array.isArray(c.seAfetado)) errs.push(`${tag}: "seAfetado" precisa ser um seletor`); else { errs.push(...seletorErros(c.seAfetado, `${tag}: seAfetado`)); for (const k of ['zona', 'ref', 'ou', 'jogadores', 'habilidades']) if (c.seAfetado[k] != null) errs.push(`${tag}: seAfetado não aceita "${k}"`); } }
-  if (c.se != null && !(c.se && Object.keys(c.se).length === 1 && (Number.isInteger(c.se.oponenteComVeneno) || TIPOS_DE_CARTA.includes(c.se.controlaTipo) || TIPOS_DE_CARTA.includes(c.se.controlaOutroTipo) /* M-571 */ || c.se.metalcraft === true || c.se.modificada === true || c.se.atacando === true /* M-518 */ || c.se.delirio === true /* M-525 */ || c.se.maestria === true /* M-609 */ || seMonarcaT(c.se)))) errs.push(`${tag}: "se" conhece só oponenteComVeneno (inteiro), controlaTipo (tipo de carta), metalcraft (true), modificada (true) ou monarca ('voce' ou 'oponente')`); // M-403 · 700.9 // M-363 // M-253 · Corrompido · M-351 · "as long as you control an artifact" (Goblin Tomb Raider)
+  if (c.se != null && !(c.se && Object.keys(c.se).length === 1 && (Number.isInteger(c.se.oponenteComVeneno) || (Number.isInteger(c.se.oponenteVidaAte) && c.se.oponenteVidaAte > 0) /* M-625 */ || TIPOS_DE_CARTA.includes(c.se.controlaTipo) || TIPOS_DE_CARTA.includes(c.se.controlaOutroTipo) /* M-571 */ || c.se.metalcraft === true || c.se.modificada === true || c.se.atacando === true /* M-518 */ || c.se.delirio === true /* M-525 */ || c.se.maestria === true /* M-609 */ || seMonarcaT(c.se)))) errs.push(`${tag}: "se" conhece só oponenteComVeneno (inteiro), controlaTipo (tipo de carta), metalcraft (true), modificada (true) ou monarca ('voce' ou 'oponente')`); // M-403 · 700.9 // M-363 // M-253 · Corrompido · M-351 · "as long as you control an artifact" (Goblin Tomb Raider)
   if (c.ward != null) errs.push(...wardCustoErrosK(c.ward, false).map(e => `${tag}: "ward" ${e}`)); // K-2 · 702.21
   if (a !== 'self' && a !== 'anexada' && a !== 'equipada-pela-anexada') {
     if (!a || typeof a !== 'object') errs.push(`${tag}: "afetados" precisa ser self, anexada ou um seletor (ou equipada-pela-anexada)`);
@@ -13957,6 +13957,8 @@ const APROVADAS = { // 'Nome da carta': { texto: assinaturaRevisao(carta revisad
   'Hall of Storm Giants': { texto: '177dox0', leva: 'M-617' },
   // M-621 · rotina Motor contínuo · 118.9 + 111.1: o custo alternativo "sacrifice a nontoken <cor> creature" do ciclo Flare e o édito do maior valor de mana (202.3); texto da Scryfall pela coleta de 11/11/2026
   'Flare of Malice': { texto: '5ga896', leva: 'M-621' }, 'Flare of Denial': { texto: '194fads', leva: 'M-621' },
+  // M-625 · rotina Motor contínuo · 113.6m + 603.6: "Landfall — … you may return this card from your graveyard to the battlefield" (o gatilho do cemitério que devolve a própria carta, 400.7) e 611.3a: "has haste as long as an opponent has 10 or less life"; texto da Scryfall pela coleta de 12/11/2026
+  'Bloodghast': { texto: 'c5wr0m', leva: 'M-625' },
   'Geothermal Bog': { texto: '1amo2my', leva: 'M-607' }, 'Dawnbringer Cleric': { texto: '3kngfl', leva: 'M-607' }, 'Thought Vessel': { texto: 'xi1v9x', leva: 'M-607' }, // M-607 · Sentinela do Pauper (Scryfall de 03/11/2026)
   'Flawless Maneuver': { texto: '1dbabfl', leva: 'M-577' },
   'Deadly Rollick': { texto: 'mi4hfd', leva: 'M-577' },
@@ -24628,7 +24630,9 @@ const __m42 = (function () {
     let corpo = resto2.replace(/^you may /i, ''); const anexada = !!(g[1] && g[1].objeto === 'anexada'); if (!anexada) corpo = corpo.replace(/^it /i, '~ '); // M-401 · sob "Whenever enchanted/equipped creature …", "it" é a hospedeira, não a carta (Extra Arms)
     if (/(this creature|~)/i.test(cab) && !/\btarget\b/i.test(corpo)) corpo = corpo.replace(/ on it$/i, ' on ~'); // M-322 · "put a +1/+1 counter on it": "it" é a própria permanente da abertura
     const sub = [];
-    const e = anexada && /^it /i.test(corpo) ? (sub.push({ texto: resto2, lida: false }), null) : leParagrafo(corpo, nome, sub); // M-401 · "it deals…" da hospedeira: a fonte seria a criatura, que o motor ainda não modela aqui
+    const voltaCemM = g[1] === 'other-etb' && !anexada && /\byou control enters?\b/i.test(cab) && /^return (?:~|this card) from your graveyard to the battlefield\.?$/i.test(corpo); // M-625 · 113.6m + 603.6: "Landfall — Whenever a land you control enters, you may return this card from your graveyard to the battlefield" (Bloodghast): o gatilho funciona do cemitério e devolve a própria carta
+    if (voltaCemM) sub.push({ texto: corpo, lida: true });
+    const e = voltaCemM ? [{ do: 'reanimate', target: 'self-source' }] : anexada && /^it /i.test(corpo) ? (sub.push({ texto: resto2, lida: false }), null) : leParagrafo(corpo, nome, sub); // M-401 · "it deals…" da hospedeira: a fonte seria a criatura, que o motor ainda não modela aqui
     if (e && /^whenever equipped creature/i.test(cab)) for (const x of e) if (x.target === 'enchanted') x.equipada = true; // M-401 · texto: "a criatura equipada"
     if (e && opcional) for (const x of e) if ((x.do === 'descarta_e_compra' || x.do === 'discard_or_sacrifice_land_draw') && x.obrigatorio) delete x.obrigatorio; // M-411 · K'un-Lun Warrior: o "you may" do gatilho é o do efeito // M-406 · "you may discard…" no gatilho: o "you may" já virou a pergunta do gatilho (o script fica como era)
     if (e && g[1] === 'dies') for (const x of e) if (x.do === 'to_hand' && x.target === 'self-source' && x.from === 'battlefield') delete x.from; // M-339 · "when ~ is put into a graveyard…, return ~ to its owner's hand": do cemitério
@@ -24637,7 +24641,7 @@ const __m42 = (function () {
     const doCemiterio = !!e && g[1] === 'other-cast' && e.length === 1 && e[0].do === 'to_hand' && e[0].target === 'self-source' && /from your graveyard to your hand$/i.test(corpo); // M-460 · 113.6k: "return this card from your graveyard" — o gatilho funciona do cemitério
     if (e && !doCemiterio && e.some(x => x.do === 'to_hand' && x.target === 'self-source' && !x.from) && /from your graveyard/i.test(corpo)) { frases.push({ texto: corpo, lida: false, motivo: 'volta do cemitério fora de um gatilho do cemitério' }); return null; } // M-460
     if (e && uvtM) frases.push({ texto: 'This ability triggers only once each turn', lida: true }); // M-546
-    return e ? { kind: 'triggered', when: g[1], ...extra, ...(uvtM ? { umaVezPorTurno: true } : {}), ...(condicao ? { condition: condicao } : {}), ...(mayPayM ? { mayPay: mayPayM } : {}), ...(opcional ? { optional: true } : {}), ...(doCemiterio ? { fromGraveyard: true } : {}), effects: e } : null;
+    return e ? { kind: 'triggered', when: g[1], ...extra, ...(uvtM ? { umaVezPorTurno: true } : {}), ...(condicao ? { condition: condicao } : {}), ...(mayPayM ? { mayPay: mayPayM } : {}), ...(opcional ? { optional: true } : {}), ...(doCemiterio || voltaCemM ? { fromGraveyard: true } : {}), effects: e } : null;
   }
   const semLembrete = t => String(t || '').replace(/\s*\([^)]*\)/g, '').trim();
   const KW = new Set(SC.KEYWORDS.map(k => k.toLowerCase()));
@@ -24902,6 +24906,8 @@ const __m42 = (function () {
         const kwsDe = t => { const ks = t.split(/,\s*|\s+and\s+/).map(x => x.trim().toLowerCase()).filter(Boolean); return ks.length && ks.every(k => KW.has(k)) ? ks : null; }; // M-403
         const mdf = lp.match(/^~ has ([a-z ,]+) as long as it's modified$/i), kmd = mdf && kwsDe(mdf[1]); // M-403 · 700.9 · Skyward Spider, Obstinate Gargoyle
         if (kmd) { topo.continuo = [...(topo.continuo || []), { afetados: 'self', palavras: kmd, se: { modificada: true } }]; frases.push({ texto: linha, lida: true }); continue; }
+        { const vo = lp.match(/^~ has ([a-z ,]+) as long as an opponent has (\d+) or less life$/i), kvo = vo && kwsDe(vo[1]); // M-625 · 611.3a/611.2b · Bloodghast: vale enquanto algum oponente tiver N ou menos de vida
+          if (kvo) { topo.continuo = [...(topo.continuo || []), { afetados: 'self', palavras: kvo, se: { oponenteVidaAte: +vo[2] } }]; frases.push({ texto: linha, lida: true }); continue; } }
         const mdg = lp.match(/^modified creatures you control have ([a-z ,]+)$/i), kmg = mdg && kwsDe(mdg[1]); // M-403 · 700.9 · Temperamental Oozewagg, Kodama of the West Tree, Invigorating Hot Spring
         if (kmg) { topo.continuo = [...(topo.continuo || []), { afetados: { tipos: ['creature'], de: 'you', modificada: true }, palavras: kmg }]; frases.push({ texto: linha, lida: true }); continue; }
         if (/^untap (?:this artifact|this permanent|~) during each other player's untap step$/i.test(lp)) { topo.self = { ...(topo.self || {}), desviraNosOutros: true }; frases.push({ texto: linha, lida: true }); continue; } // M-363 · Bender's Waterskin (502.3)
@@ -25513,6 +25519,7 @@ function condicaoContinua(s, x, se) {
   if (se.modificada) return predicadosDeTipoT(s, x, { modificada: true }); // M-403 · 700.9 · "~ has flying as long as it's modified" (Skyward Spider, Obstinate Gargoyle)
   if (se.maestria) return ((s.zones[x.controller] || {}).graveyard || []).filter(oid => { const tp = (s.facts[(s.objects[oid] || {}).name] || {}).types || []; return tp.includes('instant') || tp.includes('sorcery'); }).length >= 2; // M-609 · Ghitu Lavarunner: "two or more instant and/or sorcery cards in your graveyard" (611.2b: vale enquanto for verdade)
   if (se.delirio) return tiposNoCemiterioM(s, x.controller) >= 4; // M-525 · Delirium: "four or more card types among cards in your graveyard" (205.2a; 611.2b: vale enquanto for verdade)
+  if (se.oponenteVidaAte != null) return alive(s).some(q => q !== x.controller && s.players[q].life <= se.oponenteVidaAte); // M-625 · "as long as an opponent has 10 or less life" (Bloodghast; 611.3a: conferida a cada momento)
   if (se.atacando) return x.zone === 'battlefield' && x.attacking != null; // M-518 · "as long as it's attacking" (Grasping Scoundrel, 611.2; 506.4: atacando até o fim do combate)
   if (se.metalcraft) return condicaoDoEfeito(s, x, 'metalcraft'); // M-363 · "Metalcraft — … as long as you control three or more artifacts" (Ardent Recruit)
   return true;
@@ -35639,7 +35646,7 @@ function gatilhosDoCemiterioT(s, o, de, para) {
     for (const ab of abilitiesOf(s, g)) {
       if (ab.kind !== 'triggered' || !ab.fromGraveyard || ab.when !== 'other-etb' || !matchesTriggerFilter(s, o, ab.filter)) continue;
       if (!triggerConditionMet(s, g, ab.condition)) continue;
-      s.queued.push({ source: g.oid, name: g.name, controller: g.owner, effects: (ab.effects || []).map(e => e.do === 'volta_anexada_t' ? { ...e, zcT: g.zc || 0, alvoT: { oid: o.oid, z: o.zc || 0 } } : e) /* a fonte e "that creature" no próprio efeito: o "you may" (may_pay) leva só os efeitos */, when: 'other-etb', jogador: p, lembrada: { oid: o.oid, z: o.zc || 0 }, ...marcasDaHabilidade(ab) });
+      s.queued.push({ source: g.oid, name: g.name, controller: g.owner, effects: (ab.effects || []).map(e => e.do === 'volta_anexada_t' ? { ...e, zcT: g.zc || 0, alvoT: { oid: o.oid, z: o.zc || 0 } } : e) /* a fonte e "that creature" no próprio efeito: o "you may" (may_pay) leva só os efeitos */, when: 'other-etb', jogador: p, lembrada: { oid: o.oid, z: o.zc || 0 }, fonteZcM: g.zc || 0 /* M-625 · 400.7: a volta (reanimate da própria carta) confere a encarnação no cemitério */, ...marcasDaHabilidade(ab) });
     }
   }
 }
@@ -42144,7 +42151,7 @@ function descreveContinuo(c) {
   if (c.troca) partes.push('troca o poder e a resistência'); // CR2d.9
   if (c.torna) partes.unshift(descreveTorna(c.torna));
   const se = c.seAfetado ? `enquanto for ${c.seAfetado.lendaria ? 'lendária' : ''}${c.seAfetado.lendaria && (c.seAfetado.tipos || []).length ? ' e ' : ''}${(c.seAfetado.tipos || []).map(x => TIPO_PT[x] || x).join(' ou ')}, ` : ''; // M-251
-  const seJogo = c.se ? (c.se.atacando ? 'enquanto estiver atacando, ' /* M-518 */ : c.se.delirio ? 'com delírio (4+ tipos de carta no seu cemitério), ' /* M-525 */ : c.se.maestria ? 'com duas ou mais instantâneas e/ou feitiços no seu cemitério, ' /* M-609 */ : c.se.modificada ? 'enquanto estiver modificada, ' : c.se.metalcraft ? 'enquanto você controlar três artefatos ou mais, ' /* M-403 · faltava a vírgula */ : c.se.controlaOutroTipo ? `enquanto você controlar outro ${({ artifact: 'artefato', creature: 'criatura', enchantment: 'encantamento', land: 'terreno', planeswalker: 'planeswalker' })[c.se.controlaOutroTipo] || c.se.controlaOutroTipo}, ` /* M-571 */ : c.se.controlaTipo ? `enquanto você controlar ${({ artifact: 'um artefato', creature: 'uma criatura', enchantment: 'um encantamento', land: 'um terreno', planeswalker: 'um planeswalker' })[c.se.controlaTipo] || 'um ' + c.se.controlaTipo}, ` : `enquanto um oponente tiver ${c.se.oponenteComVeneno} ou mais marcadores de veneno, `) : ''; // M-253 · Corrompido · M-351 · controlaTipo
+  const seJogo = c.se ? (c.se.oponenteVidaAte != null ? `enquanto um oponente tiver ${c.se.oponenteVidaAte} ou menos de vida, ` /* M-625 */ : c.se.atacando ? 'enquanto estiver atacando, ' /* M-518 */ : c.se.delirio ? 'com delírio (4+ tipos de carta no seu cemitério), ' /* M-525 */ : c.se.maestria ? 'com duas ou mais instantâneas e/ou feitiços no seu cemitério, ' /* M-609 */ : c.se.modificada ? 'enquanto estiver modificada, ' : c.se.metalcraft ? 'enquanto você controlar três artefatos ou mais, ' /* M-403 · faltava a vírgula */ : c.se.controlaOutroTipo ? `enquanto você controlar outro ${({ artifact: 'artefato', creature: 'criatura', enchantment: 'encantamento', land: 'terreno', planeswalker: 'planeswalker' })[c.se.controlaOutroTipo] || c.se.controlaOutroTipo}, ` /* M-571 */ : c.se.controlaTipo ? `enquanto você controlar ${({ artifact: 'um artefato', creature: 'uma criatura', enchantment: 'um encantamento', land: 'um terreno', planeswalker: 'um planeswalker' })[c.se.controlaTipo] || 'um ' + c.se.controlaTipo}, ` : `enquanto um oponente tiver ${c.se.oponenteComVeneno} ou mais marcadores de veneno, `) : ''; // M-253 · Corrompido · M-351 · controlaTipo
   return `${seJogo}${se}${quem} ${partes.join(' e ')}`;
 }
 /** CR2-G R6 · a duração em português. */
