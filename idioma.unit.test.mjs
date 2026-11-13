@@ -100,3 +100,13 @@ test('G-353 · idioma · as exceções e as barreiras não estão mortas (cada u
   assert.match(HTML, /COND_EXPORT = \{ NM: 'Near Mint'/, 'a exportação CSV continua em inglês, de propósito');
   for (const [, motivo] of EXCECOES) assert.ok(motivo.length > 20);
 });
+
+test('G-388 · DS-K3 K3-7 · a saudação da Início pela hora, já no idioma (manhã 5–11, tarde 12–17, noite no resto)', () => {
+  const { idioma: I } = loadModules();
+  const s = (h, id) => { const r = I.saudacao(h, id); return `${r.inicio} ${r.viva}`; };
+  assert.deepEqual([4, 5, 11, 12, 17, 18, 23, 0].map(h => s(h, 'pt')), ['Boa noite', 'Bom dia', 'Bom dia', 'Boa tarde', 'Boa tarde', 'Boa noite', 'Boa noite', 'Boa noite']);
+  assert.deepEqual([8, 14, 21].map(h => s(h, 'en')), ['Good morning', 'Good afternoon', 'Good evening']);
+  assert.deepEqual([8, 14, 21].map(h => s(h, 'es')), ['Buenos días', 'Buenas tardes', 'Buenas noches']);
+  assert.equal(s(9, 'xx'), 'Bom dia', 'idioma desconhecido cai no português');
+  assert.deepEqual([9, 15, 22].map(h => I.saudacao(h, 'pt').periodo), ['manha', 'tarde', 'noite']);
+});
