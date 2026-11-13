@@ -1072,10 +1072,16 @@ body[data-cab="compacto"] .ds-cabecalho--editorial .ds-cabecalho__rotulo { visib
 /* K4 · Início: cabeçalho com a data, Jogar em destaque, quatro destinos numa linha e as notícias integradas */
 .inicio { display: flex; flex-direction: column; gap: var(--space-5); padding-top: var(--space-5); padding-bottom: var(--space-6); }
 .inicio > .nt-puxar { margin-bottom: calc(var(--space-5) * -1); } /* T2 · o aviso de puxar não soma o espaço entre blocos */
-.inicio__cab { display: flex; flex-direction: column; gap: var(--space-1); margin-bottom: calc(var(--space-2) * -1); } /* o cabeçalho fica mais perto do Jogar */
-.inicio__data { font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--fg-subtle); font-weight: var(--weight-medium); text-transform: uppercase; letter-spacing: .08em; }
+.inicio__cab { display: flex; flex-direction: column; gap: var(--space-2); }
+/* DS-K3 K3-7 (G-388) · cabeçalho editorial da Início (tipografia editorial da especificação): rótulo com a data em latão, 11 px,
+   caixa alta, .18em, peso 600; a saudação em --font-display 34 px, entrelinha 1, −.015em, à esquerda, com a palavra viva
+   ("Boa *noite*") em itálico 500 no --accent-hi; a linha da estante em --fg-muted. Quebra em duas linhas com nome longo. */
+.inicio__titulo { margin: 0; min-width: 0; font-family: var(--font-display); font-size: var(--cab-titulo); line-height: 1; letter-spacing: -.015em; font-weight: 600; color: var(--fg); overflow-wrap: anywhere; }
+.inicio__viva { font-style: italic; font-weight: 500; color: var(--accent-hi); }
+.inicio__frase { margin: 0; }
+.inicio__data { margin: 0; font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--accent); font-weight: 600; text-transform: uppercase; letter-spacing: .18em; }
 .inicio__cab .ds-text--muted { margin: 0; }
-.inicio__titulo-linha { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); min-width: 0; } /* G-276 · título e Sair da conta */
+.inicio__titulo-linha { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); min-width: 0; } /* G-276 · título e Sair da conta; K3-7 · as ações no alto da saudação (que pode ter duas linhas) */
 .inicio__titulo-linha > .ds-text { min-width: 0; overflow-wrap: anywhere; }
 .inicio__titulo-linha > #home-sair { flex: none; margin-block: calc(-1 * var(--space-1)); } /* 44 px de toque sem empurrar o Jogar */
 /* G-334 · relato #52 · a porta do Sair da conta: flat, no traço dos ícones; a folha é opaca (cor do fundo) e gira na
@@ -1181,13 +1187,6 @@ body[data-cab="compacto"] .ds-cabecalho--editorial .ds-cabecalho__rotulo { visib
 .nt-item__ponto { width: 10px; height: 10px; margin-top: 6px; border-radius: var(--radius-full); background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .nt-rodape { justify-content: center; }
 #home-continuar-slot:empty { display: none; }
-.inicio__rapidos { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-2); }
-.inicio__rapidos .ds-atalho.ds-btn { flex-direction: column; align-items: center; justify-content: flex-start; gap: var(--space-2); min-height: 0; padding: var(--space-2) 0; border-color: transparent; background: none; box-shadow: none; text-align: center; }
-.inicio__rapidos .ds-atalho__icone { display: grid; place-items: center; width: 52px; height: 52px; border-radius: var(--radius-full); background: var(--accent-soft); color: var(--accent); border: 1px solid var(--border); }
-.inicio__rapidos .ds-atalho__texto { align-items: center; }
-.inicio__rapidos .ds-atalho__rotulo { font-family: var(--font-ui); font-size: var(--text-sm); line-height: var(--lh-sm); font-weight: var(--weight-medium); color: var(--fg); }
-.inicio__rapidos .ds-atalho.ds-btn:active .ds-atalho__icone { transform: scale(.94); }
-.inicio__rapidos .ds-atalho__icone { transition: transform var(--dur-1) var(--ease-out); }
 /* DS-K2 I1 (G-323) · Início como na proposta K: o grupo "Últimas listas" — as três mais recentes, cada uma com o ladrilho
    (desde a K3-5, G-378, a arte da carta-chave; sem arte, a placa nas cores da lista), nome, formato, contagem, posse e o selo do motor; "ver todas" leva à estante. Sem lista, o grupo não
    aparece. G-328 · relato #47: a linha "N listas prontas para jogar" sob o título saiu — contava só as suas listas de Pauper
@@ -1195,8 +1194,6 @@ body[data-cab="compacto"] .ds-cabecalho--editorial .ds-cabecalho__rotulo { visib
 .home-ultimas { display: grid; gap: var(--space-2); }
 .home-ultimas__cab { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); padding: 0 var(--space-1); }
 .home-ultimas__cab h2 { margin: 0; font-family: var(--font-display); font-weight: 600; font-size: var(--text-lg); line-height: var(--lh-lg); }
-@media (prefers-reduced-motion: reduce) { .inicio__rapidos .ds-atalho__icone { transition: none; } }
-:root[data-movimento="reduzido"] .inicio__rapidos .ds-atalho__icone { transition: none !important; }
 .nt-cartao--colecao { align-items: center; }
 .nt-colecao__simbolo { position: relative; flex: none; display: grid; place-items: center; width: 56px; height: 56px; border-radius: var(--radius-3); border: 1px solid var(--border); background: var(--accent-soft); color: var(--accent); }
 .nt-colecao__simbolo img { position: absolute; inset: var(--space-2); width: calc(100% - var(--space-4)); height: calc(100% - var(--space-4)); object-fit: contain; filter: var(--simbolo-filtro); }
@@ -1266,30 +1263,7 @@ body[data-tela="entrar"] .ds-appbar { display: none; }
 .ds-atalho__detalhe { font-size: var(--text-xs); line-height: 1.35; opacity: .82; font-weight: var(--weight-regular); }
 .ds-atalho--largo { grid-column: 1 / -1; flex-direction: row; align-items: center; justify-content: flex-start; min-height: 76px; gap: var(--space-4); }
 .ds-atalho--largo .ds-atalho__icone svg { width: 30px; height: 30px; }
-/* T3 · Jogar com volume (relato #3: "grosseiro"): placa com lábio de 4 px, fio de luz no topo, fundo que escurece para
-   baixo, medalhão gravado com o ícone e seta à direita. Ao tocar, afunda o lábio inteiro (3 px) e um brilho atravessa;
-   ao soltar, volta com repique. Menos movimento: só a sombra muda. */
-.inicio-jogar.ds-btn { position: relative; overflow: hidden; isolation: isolate; border-radius: var(--radius-3); padding: var(--space-3) var(--space-4) var(--space-3) var(--space-3); margin-bottom: 4px;
-  --jogar-lab: color-mix(in srgb, var(--bg-elev-2) 55%, var(--relevo-escuro));
-  background-image: linear-gradient(180deg, var(--relevo-claro) 0, transparent 2px), linear-gradient(180deg, var(--btn-shine), transparent 48%), linear-gradient(0deg, color-mix(in srgb, var(--relevo-escuro) 40%, transparent), transparent 60%);
-  box-shadow: 0 4px 0 var(--jogar-lab), var(--relevo-sombra);
-  transition: transform var(--dur-2) var(--ease-mola), box-shadow var(--dur-2) var(--ease-mola), background-color var(--dur-1) var(--ease-out); }
-.inicio-jogar.ds-btn--primary { --jogar-lab: color-mix(in srgb, var(--accent) 58%, var(--relevo-escuro)); border-color: color-mix(in srgb, var(--accent) 80%, var(--relevo-claro));
-  background-image: linear-gradient(180deg, var(--relevo-claro) 0, transparent 2px), linear-gradient(180deg, var(--btn-shine-accent), transparent 52%), linear-gradient(0deg, color-mix(in srgb, var(--relevo-escuro) 34%, transparent), transparent 62%), linear-gradient(160deg, var(--accent-hi), var(--accent) 55%, var(--accent-lo)); } /* DS-K F1.1 · a placa é de latão */
-.inicio-jogar.ds-btn:active:not([disabled]) { transform: translateY(3px) scale(.99); box-shadow: 0 1px 0 var(--jogar-lab), 0 4px 10px -8px var(--relevo-escuro), inset 0 2px 4px var(--relevo-escuro); transition-duration: var(--dur-1); transition-timing-function: var(--ease-out); }
-.inicio-jogar .ds-atalho__icone { flex: none; display: grid; place-items: center; width: 52px; height: 52px; border-radius: var(--radius-full);
-  background: color-mix(in srgb, var(--relevo-escuro) 22%, transparent); box-shadow: inset 0 2px 4px var(--relevo-escuro), inset 0 -1px 0 var(--relevo-claro), 0 1px 0 var(--relevo-claro);
-  transition: transform var(--dur-2) var(--ease-mola); }
-.inicio-jogar.ds-btn:active .ds-atalho__icone { transform: scale(.92); transition-duration: var(--dur-1); }
-.inicio-jogar .ds-atalho__icone svg { width: 28px; height: 28px; margin-left: 3px; }
-.inicio-jogar .ds-atalho__rotulo { font-size: var(--text-xl); letter-spacing: .01em; }
-.inicio-jogar__seta { flex: none; margin-left: auto; display: grid; place-items: center; opacity: .72; transition: transform var(--dur-2) var(--ease-mola); }
-.inicio-jogar.ds-btn:active .inicio-jogar__seta { transform: translateX(3px); }
-.inicio-jogar::after { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: 0;
-  background: linear-gradient(105deg, transparent 30%, var(--sheen) 50%, transparent 70%) no-repeat; /* DS-K F1.1 · a mesma luz da varredura do latão */ background-size: 220% 100%; background-position: 160% 0; }
-.inicio-jogar--brilho::after { animation: jogar-brilho var(--dur-4) var(--ease-out); }
-@keyframes jogar-brilho { 0% { opacity: 1; background-position: 160% 0; } 100% { opacity: 1; background-position: -60% 0; } }
-@media (prefers-reduced-motion: reduce) { .inicio-jogar.ds-btn:active:not([disabled]), .inicio-jogar.ds-btn:active .ds-atalho__icone, .inicio-jogar.ds-btn:active .inicio-jogar__seta { transform: none; } .inicio-jogar--brilho::after { animation: none; } }
+/* T3 (Jogar com volume na Início) saiu com a K3-7 (G-388): o Jogar mora só na barra de baixo (K3-2). */
 /* D3 · painel offline recolhido: uma linha com anel. DS-K2 I2 (G-332) · sempre recolhido no Início; "Ver" abre o corpo numa folha */
 #home-offline[data-compacto="true"] { padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4); }
 #home-offline[data-compacto="true"] .ds-offline__corpo { display: none; }
@@ -6342,7 +6316,16 @@ function BotaoIdioma({ id = 'home-idioma' } = {}) {
   }
   return b;
 }
-return { IDIOMAS, PADRAO, doId, criaTradutor, compilaModelo, criaCamada, createIdioma, usa, atual, BotaoIdioma, get servico() { return servico; } };
+/** DS-K3 K3-7 (G-388) · a saudação da Início pela hora, já no idioma (o título leva translate="no": a palavra viva é um nó
+    próprio, em itálico, e "dia" sozinho viraria "day"). Manhã das 5 às 11, tarde das 12 às 17, noite no resto. Puro. */
+const SAUDACOES = { pt: [['Bom', 'dia'], ['Boa', 'tarde'], ['Boa', 'noite']], en: [['Good', 'morning'], ['Good', 'afternoon'], ['Good', 'evening']],
+  es: [['Buenos', 'días'], ['Buenas', 'tardes'], ['Buenas', 'noches']] };
+function saudacao(hora, id) {
+  const t = SAUDACOES[valido(id) ? id : PADRAO], hh = Number(hora);
+  const i = hh >= 5 && hh < 12 ? 0 : hh >= 12 && hh < 18 ? 1 : 2;
+  return { inicio: t[i][0], viva: t[i][1], periodo: ['manha', 'tarde', 'noite'][i] };
+}
+return { IDIOMAS, PADRAO, doId, criaTradutor, compilaModelo, criaCamada, createIdioma, usa, atual, BotaoIdioma, saudacao, get servico() { return servico; } };
 })();
 
 /* ==== src/ui/brand.js ==== */
@@ -22052,6 +22035,10 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
       relatos ? h('button', { class: 'ds-surface ds-expansivel__cabeca perfil-atalho', type: 'button', id: 'perfil-relatos', onClick: () => go('/perfil/relatos') },
         h('span', { class: 'ds-expansivel__selo' }, Icone('relato', { tamanho: 20 })), h('span', { class: 'ds-expansivel__titulo' }, 'Relatos'),
         h('span', { class: 'ds-expansivel__resumo' }, st.relatos && st.relatos.total ? `${st.relatos.abertos} ${st.relatos.abertos === 1 ? 'aberto' : 'abertos'} de ${st.relatos.total}` : 'Erros, regras e ideias'), Icone('seguir', { tamanho: 20 })) : null,
+      // DS-K3 K3-7 (G-388) · o catálogo de componentes saiu da Início (Balcão) e mora aqui, com o que é do aparelho
+      h('button', { class: 'ds-surface ds-expansivel__cabeca perfil-atalho', type: 'button', id: 'perfil-ds', onClick: () => go('/ds') },
+        h('span', { class: 'ds-expansivel__selo' }, Icone('camadas', { tamanho: 20 })), h('span', { class: 'ds-expansivel__titulo' }, 'Componentes'),
+        h('span', { class: 'ds-expansivel__resumo' }, 'Catálogo do design'), Icone('seguir', { tamanho: 20 })),
       // D5 · Dados: tudo que é administração num lugar só — backup por arquivo, conta (nuvem), base local de cartas, espaço
       Text('Dados', { size: 'lg', display: true, as: 'h2', attrs: { id: 'perfil-dados' } }),
       Surface({ class: 'ds-surface--pad', id: 'perfil-backup' }, Stack({},
@@ -51976,52 +51963,51 @@ function BotaoSairDaConta() {
 /** D3 · nome do perfil em memória: a tela inicial cumprimenta sem esperar o armazenamento (o botão da barra mantém). */
 let nomeDoPerfil = null;
 function renderHome({ ancora = false } = {}) {
-  /* K4 · Início redesenhada (pedido de 08/10/2026): data e saudação; o que retomar; Jogar em destaque; os outros quatro
-     destinos numa linha só, leves (ícone num círculo e uma palavra); e as notícias como parte da tela — o destaque e as
-     duas mais recentes, nos idiomas e filtros escolhidos, com "Ver todas". Antes: seis caixas empilhadas e as notícias
-     só como mais um atalho. */
-  const titulo = Text(nomeDoPerfil ? `Olá, ${nomeDoPerfil}` : 'Estante', { size: '2xl', display: true, as: 'h1', attrs: { id: 'home-titulo' } });
-  const frase = Text('Listas, coleção, scanner e mesa com regras.', { tone: 'muted', attrs: { id: 'home-frase' } });
-  frase.classList.toggle('ds-hidden', !!nomeDoPerfil);
+  /* K4 · Início redesenhada (pedido de 08/10/2026): data e saudação; o que retomar; as notícias como parte da tela.
+     DS-K3 K3-7 (G-388) · Início na direção Vitrine (fatia 1, Balcão): cabeçalho editorial — rótulo com a data em latão, a
+     saudação pela hora com a palavra viva em itálico ("Boa *noite*, Gui") e a linha da estante; os atalhos saíram (a barra de
+     baixo já leva aos cinco destinos, e o Jogar dela é o único latão cheio da tela); Componentes foi para o Perfil; sem nada
+     na estante nem para continuar, a vitrine "Comece pela prateleira de cima". */
+  const sd = __m47.saudacao(new Date().getHours(), __m47.atual());
+  const nome = h('span', { class: 'inicio__nome' }, nomeDoPerfil ? `, ${nomeDoPerfil}` : '');
+  const titulo = h('h1', { class: 'ds-text ds-text--display inicio__titulo', id: 'home-titulo', translate: 'no', dataset: { periodo: sd.periodo } },
+    sd.inicio + ' ', h('em', { class: 'inicio__viva' }, sd.viva), nome);
+  const frase = Text('Listas, coleção, scanner e mesa com regras.', { tone: 'muted', attrs: { id: 'home-frase', class: 'ds-text ds-text--muted inicio__frase' } });
   const ultimas = h('div', { id: 'home-ultimas-slot' });
   const hoje = new Date().toLocaleDateString(__m47.doId(__m47.atual()).lang, { weekday: 'long', day: 'numeric', month: 'long' }); // G-367 · a data no idioma do app ("terça-feira" e "março" ficavam em português)
   const continuar = h('div', { id: 'home-continuar-slot' });
-  const rapido = (rotulo, icone, id, rota) => Atalho(rotulo, { icone, id, onClick: () => { location.hash = '#' + rota; } });
   // G-314 · o sino das notificações à direita do título (com o selo de não lidas); Sair da conta (G-276) entra ao lado dele
   const acoesDoTitulo = h('span', { class: 'inicio__acoes' }, __m47.BotaoIdioma(), __m44.BotaoNotificacoes({ notificacoes, onClick: () => { location.hash = '#/notificacoes'; } }));
   const tituloLinha = h('div', { class: 'inicio__titulo-linha' }, titulo, acoesDoTitulo); // G-276 · com a conta conectada, Sair da conta à direita do título
   confereNotificacoes(); // G-314 · pedido de cobertura atendido vira notificação
   const el = h('div', { class: 'ds-wrap inicio', id: 'home' },
-    h('header', { class: 'inicio__cab' }, h('span', { class: 'inicio__data', id: 'home-data', translate: 'no' }, hoje), tituloLinha, frase),
+    h('header', { class: 'inicio__cab', id: 'home-cab' }, h('p', { class: 'inicio__data', id: 'home-data', translate: 'no' }, hoje), tituloLinha, frase),
     faixaDaPonte(), // I-329 · só no endereço antigo
     continuar,
-    // U2 · atalhos com ícone e uma palavra; K4 · Jogar continua o primário, os outros quatro numa linha
-    h('nav', { class: 'ds-atalhos inicio__atalhos', id: 'home-atalhos', 'aria-label': 'Atalhos' },
-      Atalho('Jogar', { icone: 'jogar', variant: 'primary', id: 'go-play', detalhe: 'Contra o Shark, sozinho ou a dois', onClick: () => { location.hash = '#/mesa'; } }),
-      h('div', { class: 'inicio__rapidos', role: 'group', 'aria-label': 'Ir para' },
-        rapido('Listas', 'listas', 'go-decks', '/listas'), rapido('Coleção', 'colecao', 'go-collection', '/colecao'),
-        rapido('Escanear', 'scanner', 'go-scanner', '/scanner'), rapido('Buscar', 'buscar', 'go-cards', '/cartas'))),
     ultimas,
-    offlinePanel(),
-    h('div', { class: 'ds-row', style: { justifyContent: 'center' } },
-      Button('Componentes', { variant: 'ghost', icone: 'camadas', id: 'go-ds', title: 'Catálogo de componentes', onClick: () => { location.hash = '#/ds'; } })));
-  // T2 · as notícias são o miolo da Início: a linha do tempo inteira depois dos destinos e do que funciona sem internet
-  el.insertBefore(__m37.createNoticiasScreen({ noticias, share: platform.share, gesto: el, ancora }), el.lastElementChild);
-  { // T3 · Jogar com volume: seta à direita e o brilho que atravessa no toque (some sozinho)
-    const jogar = el.querySelector('#go-play');
-    jogar.classList.add('ds-atalho--largo', 'inicio-jogar');
-    jogar.appendChild(h('span', { class: 'inicio-jogar__seta', 'aria-hidden': 'true' }, Icone('seguir', { tamanho: 20 })));
-    jogar.addEventListener('pointerdown', () => { jogar.classList.remove('inicio-jogar--brilho'); void jogar.offsetWidth; jogar.classList.add('inicio-jogar--brilho'); });
-    jogar.addEventListener('animationend', () => jogar.classList.remove('inicio-jogar--brilho'));
-  }
+    offlinePanel());
+  // T2 · as notícias são o miolo da Início: a linha do tempo inteira depois do que retomar e do que funciona sem internet
+  el.appendChild(__m37.createNoticiasScreen({ noticias, share: platform.share, gesto: el, ancora }));
   perfil.get().then(p => {
     nomeDoPerfil = p && p.nome ? p.nome : null;
-    titulo.textContent = nomeDoPerfil ? `Olá, ${nomeDoPerfil}` : 'Estante';
-    frase.classList.toggle('ds-hidden', !!nomeDoPerfil);
+    nome.textContent = nomeDoPerfil ? `, ${nomeDoPerfil}` : '';
   }).catch(() => {});
   if (conta && conta.get) conta.get().then(c => { if (c && el.isConnected && !tituloLinha.querySelector('#home-sair')) acoesDoTitulo.appendChild(BotaoSairDaConta()); }).catch(() => {});
-  painelContinuar().then(card => { if (card) { continuar.replaceChildren(card); el.querySelector('#go-play').classList.remove('ds-btn--primary'); } }).catch(() => {});
-  painelUltimasListas().then(r => { if (r && r.bloco && el.isConnected) ultimas.replaceChildren(r.bloco); }).catch(() => {});
+  const nada = () => null;
+  Promise.all([painelContinuar().catch(nada), painelUltimasListas().catch(nada)]).then(([card, r]) => {
+    if (card) continuar.replaceChildren(card);
+    if (r && r.bloco) ultimas.replaceChildren(r.bloco);
+    if (r && r.total) frase.textContent = r.total === 1 ? '1 lista na estante' : `${r.total} listas na estante`;
+    // DS-K3 K3-7 · nada na estante nem para continuar: a vitrine da K3-6 com o primeiro passo (Ver prontas · Colar lista)
+    if (!card && r && !r.total) {
+      frase.classList.add('ds-hidden');
+      ultimas.replaceChildren(__m3.Vitrine({ id: 'home-vazio', titulo: 'Comece pela prateleira de cima',
+        texto: 'Escolha uma lista pronta de Pauper e jogue contra o Shark em um minuto. Ou cole a sua do Moxfield, Archidekt ou Arena.',
+        primario: Button('Ver prontas', { variant: 'primary', icone: 'caixa', id: 'home-vazio-prontas', onClick: () => { location.hash = '#/listas/prontas'; } }),
+        secundario: Button('Colar lista', { icone: 'importar', id: 'home-vazio-colar', onClick: () => { location.hash = '#/listas/editar'; } }) }));
+    }
+    el.dataset.pronta = 'true';
+  });
   return el;
 }
 
@@ -52029,7 +52015,7 @@ function renderHome({ ancora = false } = {}) {
     motor) e quantas listas do formato aberto jogam inteiras no motor. Sem lista: nada. Puro de rede: só o que está no aparelho. */
 async function painelUltimasListas() {
   let todas = []; try { todas = await decks.list(); } catch (e) { return null; }
-  if (!todas.length) return null;
+  if (!todas.length) return { bloco: null, total: 0 }; // K3-7 · estante vazia (o erro de leitura continua null)
   const recentes = [...todas].sort((a, b) => (b.updated || b.created || 0) - (a.updated || a.created || 0)).slice(0, 3);
   let guardadas = new Map(), owned = {};
   try { guardadas = await cardRepo.cached([...new Set(todas.flatMap(d => d.entries.map(e => e.name)))]); } catch (e) { /* sem cache: sem cores nem selo */ }
@@ -52044,7 +52030,7 @@ async function painelUltimasListas() {
   const bloco = h('section', { class: 'home-ultimas', id: 'home-ultimas', 'aria-labelledby': 'home-ultimas-titulo' },
     h('div', { class: 'home-ultimas__cab' }, h('h2', { id: 'home-ultimas-titulo' }, 'Últimas listas'), Button('Ver todas', { variant: 'ghost', id: 'home-ultimas-todas', icone: 'seguir', onClick: () => { location.hash = '#/listas'; } })),
     h('div', { class: 'ladrilhos' }, ...linhas));
-  return { bloco };
+  return { bloco, total: todas.length };
 }
 
 /** D3 · cartão Continuar: partida em andamento (com placar da série ou sala online), última lista aberta e pilha do scanner.

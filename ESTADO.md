@@ -81,4 +81,4 @@ Os documentos `claude/…` moram no Projeto do claude.ai, fora do repositório: 
 
 No commit de docs de cada leva (o mesmo que atualiza o ROADMAP): reescreva a **sua** linha na tabela de trilhas, atualize relatos e pendências se mudaram e troque a data abaixo. Edite por patch, nunca o arquivo inteiro. Conflito no rebase: fique com as linhas das outras trilhas e a sua. Passou de 8 KB: resuma, não acrescente.
 
-Atualizado: 14/11/2026 · M-628 · G-371 · J-73 · S-624 (scanner) · G-384 · M-630 · G-385 · M-625 · M-624 · J-71 · G-383 · B-215 · B-213 (bot) · B-214 · M-626 · J-69 · J-72 · G-389 · J-75 · I-334
+Atualizado: 14/11/2026 · G-385 · M-625 · M-624 · J-71 · G-383 · B-215 · B-213 (bot) · B-214 · M-626 · J-69 · J-72 · G-389 · J-75 · I-334 · G-386 · M-616 · G-381 · J-74 · I-333 · J-64 · M-623 · G-388

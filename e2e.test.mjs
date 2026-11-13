@@ -874,7 +874,7 @@ test('e2e · O1 tudo sem internet: preparar uma vez e usar listas, mesa, bot, co
   // O2 · a barra avisa, e cada tela que batia na rede tem o seu caminho sem ela
   // S-609 · relato #60: a barra de cima sai do scanner (a câmera é a tela; lá o aviso sem rede é o do próprio scanner,
   // conferido acima na edição): a barra é conferida no Início, onde ela mora
-  await page.goto(base + '#/'); await page.waitForSelector('#home-atalhos');
+  await page.goto(base + '#/'); await page.waitForSelector('#home-titulo');
   assert.equal(await page.locator('#nav-offline').isVisible(), true, 'chip "Sem internet" na barra');
   // U2 · sem internet os ícones continuam desenhados (SVG no próprio arquivo, nada de fonte externa)
   assert.equal(await page.locator('#nav-offline svg').count(), 1, 'chip com o ícone de nuvem cortada');
@@ -3665,44 +3665,38 @@ test('e2e · U2 ícones, profundidade e CTAs enxutos: barra, início e topo da m
       assert.ok(b.alto >= 44 && b.largo >= 44, `${onde}: alvo pequeno (${b.id} ${b.largo}×${b.alto})`);
     }
   };
-  // início: barra e atalhos, todos com ícone
-  await page.goto(base + '#/'); await page.waitForSelector('#home-atalhos');
+  // início: barra e os botões da tela, todos com ícone. DS-K3 K3-7 (G-388) · expectativa mudada de propósito: os atalhos da
+  // Início saíram (a barra de baixo já leva aos cinco destinos); sem lista, a vitrine com Ver prontas e Colar lista
+  await page.goto(base + '#/'); await page.waitForSelector('#home-vazio-colar');
   const barra = await audita('.ds-appbar button'); confere(barra, 'barra');
   assert.ok(barra.filter(b => ['nav-play', 'nav-decks', 'nav-collection', 'theme-toggle'].includes(b.id)).every(b => b.svgs >= 1), 'destinos da barra têm ícone');
-  const atalhos = await audita('#home-atalhos button'); confere(atalhos, 'atalhos', { maxPalavras: 1 });
-  assert.deepEqual(atalhos.map(a => a.id), ['go-play', 'go-decks', 'go-collection', 'go-scanner', 'go-cards']); // K4 (leva G-216) · Notícias virou seção da Início, com "Ver todas"
-  assert.ok(atalhos.every(a => a.svgs === (a.id === 'go-play' ? 2 : 1)), 'cada atalho tem um ícone (o Jogar, também a seta: T3)');
+  assert.equal(await page.locator('#home-atalhos, #go-play').count(), 0, 'K3-7: a Início sem os atalhos');
   confere(await audita('#home button'), 'início inteiro');
-  // atalho principal ocupa a largura toda; K4 (leva G-216) · expectativa mudou de propósito: os outros quatro numa linha só
   const caixa = id => page.locator(id).boundingBox();
-  const [jogar, listas, colecao, buscar] = [await caixa('#go-play'), await caixa('#go-decks'), await caixa('#go-collection'), await caixa('#go-cards')];
-  assert.ok(jogar.width > listas.width * 1.8, 'Jogar em destaque, largura toda');
-  assert.ok(Math.abs(listas.y - colecao.y) < 2 && Math.abs(listas.y - buscar.y) < 2 && colecao.x > listas.x + listas.width - 1, 'Listas, Coleção, Escanear e Buscar na mesma linha');
   // na Início só o Início está marcado na barra de baixo (G-322); a de cima não marca nada
   assert.equal(await page.locator('.ds-appbar [aria-current="page"]').count(), 0); assert.equal(await page.locator('.ds-navbar [aria-current="page"]').count(), 1);
-  // profundidade: em repouso tem sombra; pressionado afunda (encolhe e sombra interna); solto, volta
-  const estilo = sel => page.$eval(sel, el => ({ sombra: getComputedStyle(el).boxShadow, transf: getComputedStyle(el).transform })); // K4 (leva G-216) · mede no Jogar: os quatro destinos da Início ficaram leves (sem caixa)
-  const repouso = await estilo('#go-play');
+  // profundidade: em repouso tem sombra; pressionado afunda (encolhe); solto, volta. K3-7 · mede no Colar lista da vitrine (o Jogar
+  // da Início, onde se media, saiu)
+  const estilo = sel => page.$eval(sel, el => ({ sombra: getComputedStyle(el).boxShadow, transf: getComputedStyle(el).transform }));
+  const repouso = await estilo('#home-vazio-colar');
   assert.notEqual(repouso.sombra, 'none', 'botão em repouso tem sombra'); assert.equal(repouso.transf, 'none');
-  const bx = await caixa('#go-play');
+  const bx = await caixa('#home-vazio-colar');
+  await page.evaluate(() => document.querySelector('#home-vazio-colar').addEventListener('click', e => e.stopImmediatePropagation(), { capture: true, once: true }));
   await page.mouse.move(bx.x + 20, bx.y + 20); await page.mouse.down(); await page.waitForTimeout(200);
-  const apertado = await estilo('#go-play');
-  assert.match(apertado.sombra, /inset/, 'pressionado: sombra interna');
+  const apertado = await estilo('#home-vazio-colar');
   const escala = Number((apertado.transf.match(/matrix\(([^,]+)/) || [])[1]);
   assert.ok(escala > 0.9 && escala < 1, 'pressionado: encolhe um pouco (' + apertado.transf + ')');
-  // T3 · o Jogar volta com repique (transição com mola): espera a volta terminar em vez de um tempo fixo (caiu com o portão cheio)
   await page.mouse.move(bx.x - 40, bx.y - 40); await page.mouse.up();
-  await page.waitForFunction(() => getComputedStyle(document.querySelector('#go-play')).transform === 'none', null, { timeout: 3000 });
-  assert.equal((await estilo('#go-play')).transf, 'none', 'solto: volta');
-  // movimento reduzido: afunda só na sombra, sem se mexer
+  await page.waitForFunction(() => getComputedStyle(document.querySelector('#home-vazio-colar')).transform === 'none', null, { timeout: 3000 });
+  assert.equal((await estilo('#home-vazio-colar')).transf, 'none', 'solto: volta');
+  // movimento reduzido: sem se mexer
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.mouse.move(bx.x + 20, bx.y + 20); await page.mouse.down();
-  const reduzido = await estilo('#go-play');
-  assert.equal(reduzido.transf, 'none', 'movimento reduzido: sem deslocamento'); assert.match(reduzido.sombra, /inset/);
+  assert.equal((await estilo('#home-vazio-colar')).transf, 'none', 'movimento reduzido: sem deslocamento');
   await page.mouse.move(bx.x - 40, bx.y - 40); await page.mouse.up();
   await page.emulateMedia({ reducedMotion: 'no-preference' });
   // fantasma não tem sombra (não compete com a ação principal)
-  assert.equal((await estilo('#go-ds')).sombra, 'none');
+  assert.equal((await estilo('#home-offline-detalhes')).sombra, 'none');
   // barra marca o destino atual
   await page.click('#nav-collection'); await page.waitForSelector('#nav-collection[aria-current="page"]');
   assert.equal(await page.locator('.ds-navbar [aria-current="page"]').count(), 1); // G-322 · os destinos moram na barra de baixo
@@ -3902,7 +3896,7 @@ test('e2e · E50 X no topo de todo diálogo (fixo ao rolar, fecha, foco não vai
   const { page, errors, base } = await open(t);
   await page.addInitScript(() => { window.__MTG_TEST = true; });
   await page.setViewportSize({ width: 360, height: 780 });
-  await page.goto(base + '#/'); await page.waitForSelector('#home-atalhos');
+  await page.goto(base + '#/'); await page.waitForSelector('#home-titulo');
   // ícone da barra: ladrilho com sombra em repouso, afunda no toque
   const tile = await page.$eval('.ds-appbar .brand-tile', el => ({ sombra: getComputedStyle(el).boxShadow, svg: !!el.querySelector('svg'), h: el.getBoundingClientRect().height }));
   assert.ok(tile.svg && tile.sombra !== 'none' && tile.h >= 30, JSON.stringify(tile));
@@ -4236,7 +4230,7 @@ test('e2e · U8 disposições por aparelho: Galaxy S, S+, Ultra e iPhone sem rol
   const MEDIDAS = [['Galaxy S', 360, 780, '76px'], ['Galaxy S+ (zoom)', 384, 832, '84px'], ['iPhone', 390, 844, '84px'], ['Galaxy S+/Ultra', 412, 891, '92px']];
   for (const [nome, w, h, campo] of MEDIDAS) {
     await page.setViewportSize({ width: w, height: h });
-    for (const [tela, rota, espera] of [['início', '#/', '#home-atalhos'], ['listas', '#/listas', '#decks-list'], ['lista', deckUrl, '.deck-summary'], ['coleção', '#/colecao', '#col-import'], ['preparar', '#/mesa', '#mesa-start']]) {
+    for (const [tela, rota, espera] of [['início', '#/', '#home-titulo'], ['listas', '#/listas', '#decks-list'], ['lista', deckUrl, '.deck-summary'], ['coleção', '#/colecao', '#col-import'], ['preparar', '#/mesa', '#mesa-start']]) {
       await page.goto(base + rota); await page.waitForSelector(espera);
       await auditaTela(page, `${nome} · ${tela}`);
     }
@@ -6144,7 +6138,7 @@ test('e2e · Leva 123 diálogo prende o foco e devolve a quem abriu; aviso com a
   await page.waitForTimeout(250);
   const sc = await page.evaluate(() => { const t = document.querySelector('#ds-toast').getBoundingClientRect(); const d = document.querySelector('.scan-dock-wrap').getBoundingClientRect(); return { t: [t.top, t.bottom], d: [d.top, d.bottom], doca: getComputedStyle(document.documentElement).getPropertyValue('--doca-h') }; });
   assert.ok(sc.t[1] <= sc.d[0] + 1, 'aviso acima da doca do scanner: ' + JSON.stringify(sc));
-  await page.goto(base + '#/'); await page.waitForSelector('#home-atalhos'); await page.waitForTimeout(100);
+  await page.goto(base + '#/'); await page.waitForSelector('#home-titulo'); await page.waitForTimeout(100);
   assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--doca-h').trim()), '', 'fora da tela com doca, a reserva some');
   assert.deepEqual(errors, []);
 });
@@ -6393,7 +6387,7 @@ test('e2e · Leva 128 perfil: nome e foto na barra e na mesa, hot-seat preenchid
   const { page, errors, base } = await open(t);
   await page.addInitScript(() => { window.__MTG_TEST = true; });
   await page.setViewportSize({ width: 360, height: 780 });
-  await page.goto(base + '#/'); await page.waitForSelector('#home-atalhos');
+  await page.goto(base + '#/'); await page.waitForSelector('#home-titulo');
   // barra: sem perfil, o círculo apagado com o ícone de pessoa; alvo de 44 px; fica nos 66 px livres entre o logo e "Jogar"
   const nav = page.locator('#nav-perfil');
   assert.equal(await nav.getAttribute('aria-label'), 'Perfil');
@@ -6799,7 +6793,8 @@ test('e2e · G-275/G-281 porta de entrada: criar a conta pede o @ (vazio avisa, 
   await page.press('#porta-nome', 'Enter'); await page.waitForFunction(() => /já é de outra conta/.test((document.querySelector('#porta-nome-erro') || {}).textContent || ''));
   assert.equal(banco.usuarios.ocupado.uid, 'outraConta');
   await page.fill('#porta-nome', '@Gui'); await page.press('#porta-nome', 'Enter');
-  await page.waitForSelector('#home'); await page.waitForFunction(() => (document.querySelector('#home-titulo') || {}).textContent === 'Olá, gui');
+  // DS-K3 K3-7 (G-388) · expectativa mudada de propósito: a saudação vem pela hora ("Boa noite, gui"), não mais "Olá, gui"
+  await page.waitForSelector('#home'); await page.waitForFunction(() => /^Bo(m dia|a tarde|a noite), gui$/.test((document.querySelector('#home-titulo') || {}).textContent));
   assert.equal(banco.usuarios.gui.uid, 'uidPorta_2'); assert.equal(banco.perfis.uidPorta_2.usuario.nome, 'gui');
   // o Perfil mostra o @ no topo, com Trocar
   await page.goto(base + '#/perfil'); await page.waitForFunction(() => (document.querySelector('#perfil-arroba') || {}).textContent === '@gui');
@@ -6809,7 +6804,7 @@ test('e2e · G-275/G-281 porta de entrada: criar a conta pede o @ (vazio avisa, 
   await page.waitForSelector('#porta'); assert.equal(await page.evaluate(() => location.hash), '#/entrar');
   await page.waitForFunction(() => /Conta desconectada/.test((document.querySelector('#ds-toast') || {}).textContent || ''));
   // 3 · sem conta, a porta leva ao início (sem nome) e não volta ao reabrir
-  await page.click('#porta-pular'); await page.waitForSelector('#home'); await page.waitForFunction(() => (document.querySelector('#home-titulo') || {}).textContent === 'Estante');
+  await page.click('#porta-pular'); await page.waitForSelector('#home'); await page.waitForFunction(() => /^Bo(m dia|a tarde|a noite)$/.test((document.querySelector('#home-titulo') || {}).textContent)); // K3-7 · sem nome, só a saudação (era "Estante")
   await page.reload(); await page.waitForSelector('#home'); assert.equal(await page.locator('#porta').count(), 0);
   assert.deepEqual(errors, []);
 });
@@ -8331,7 +8326,7 @@ test('e2e · D1 escala grande e densidade compacta mudam a mesa inteira pelos to
   await page.goto(base + '#/listas'); await page.waitForSelector('#decks-list'); await page.waitForTimeout(100);
   assert.equal(await page.getAttribute('#ds-toast', 'data-open'), 'false', 'o aviso da mesa não atravessa para Listas');
   await page.evaluate(() => __m3.toast('Nova versão pronta', 0, { acao: { rotulo: 'Atualizar', icone: 'atualizar', onClick: () => {} } })); await page.waitForTimeout(50);
-  await page.goto(base + '#/'); await page.waitForSelector('#home-atalhos'); await page.waitForTimeout(100);
+  await page.goto(base + '#/'); await page.waitForSelector('#home-titulo'); await page.waitForTimeout(100);
   assert.equal(await page.getAttribute('#ds-toast', 'data-open'), 'true', 'o aviso com ação continua');
   assert.deepEqual(errors, []);
 });
@@ -8397,25 +8392,21 @@ test('e2e · D3 início que lembra de você: "Olá, Nome", cartão Continuar (pa
   await page.addInitScript(() => { window.__MTG_TEST = true; });
   await page.setViewportSize({ width: 360, height: 780 });
   const topo = sel => page.locator(sel).boundingBox().then(b => Math.round(b.y));
-  // sem perfil e sem nada para retomar: marca, uma frase e os atalhos; nenhum cartão Continuar
-  await page.goto(base + '#/'); await page.waitForSelector('#home-atalhos'); await page.waitForTimeout(300);
-  assert.equal(await page.innerText('#home-titulo'), 'Estante');
-  assert.equal(await page.locator('#home-frase').isVisible(), true);
+  // sem perfil e sem nada para retomar: a saudação e a vitrine; nenhum cartão Continuar. DS-K3 K3-7 (G-388) · expectativa
+  // mudada de propósito: o título é a saudação pela hora (era "Estante" / "Olá, Nome"), os atalhos saíram e o primeiro bloco
+  // é a vitrine; com o nome, a saudação ganha ", Nome" na mesma linha e nada desce
+  await page.goto(base + '#/'); await page.waitForSelector('#home-vazio'); await page.waitForTimeout(300);
+  assert.match(await page.innerText('#home-titulo'), /^Bo(m dia|a tarde|a noite)$/);
   assert.equal(await page.locator('#home-continuar').count(), 0, 'sem cartão quando não há o que continuar');
   const antes = 209; // leva 139: topo do atalho Jogar em 360×780 (medido antes da D3)
-  const semPerfil = await topo('#go-play');
-  // K4 (leva G-216) · expectativa mudou de propósito: a data entrou acima do título (cerca de 20 px); o ganho sobre a
-  // leva 139 passa a ser de 30 px sem perfil e 55 px com perfil (antes 50 e 75)
-  assert.ok(semPerfil <= antes - 30, `Jogar subiu ≥ 30 px sem perfil (${antes} → ${semPerfil})`);
-  // com perfil: "Olá, Nome", a frase sai e o atalho sobe mais
+  const semPerfil = await topo('#home-vazio');
+  assert.ok(semPerfil <= antes - 30, `o primeiro bloco subiu ≥ 30 px sem perfil (${antes} → ${semPerfil})`);
   await poeNomeNoAparelho(page, 'Gui'); // G-281 · o nome é o @ da conta; aqui o aparelho recebe um nome direto
-  await page.goto(base + '#/'); await page.waitForSelector('#home-atalhos');
-  await page.waitForFunction(() => (document.querySelector('#home-titulo') || {}).textContent === 'Olá, Gui');
-  assert.equal(await page.locator('#home-frase').isVisible(), false);
-  const comPerfil = await topo('#go-play');
-  assert.ok(comPerfil <= antes - 55, `Jogar subiu ≥ 55 px com perfil (${antes} → ${comPerfil})`); // K4 · ver acima
-  console.log(`D3 · topo de Jogar: ${antes} → ${semPerfil} (sem perfil) → ${comPerfil} (com perfil)`);
-  assert.ok(await page.locator('#go-play').evaluate(el => el.classList.contains('ds-btn--primary')), 'sem partida salva, Jogar é o primário');
+  await page.goto(base + '#/'); await page.waitForSelector('#home-vazio');
+  await page.waitForFunction(() => /^Bo(m dia|a tarde|a noite), Gui$/.test((document.querySelector('#home-titulo') || {}).textContent));
+  const comPerfil = await topo('#home-vazio');
+  assert.equal(comPerfil, semPerfil, `com o nome, nada desce (${semPerfil} → ${comPerfil})`);
+  console.log(`D3 · topo do primeiro bloco: ${antes} → ${semPerfil} (sem perfil) → ${comPerfil} (com perfil)`);
   // última lista aberta vira uma linha do cartão; o toque abre a lista
   await createDeck(page, base, 'Delver', PAUPER);
   await page.goto(base + '#/'); await page.waitForSelector('#home-continuar [data-tipo="lista"]');
@@ -8429,7 +8420,7 @@ test('e2e · D3 início que lembra de você: "Olá, Nome", cartão Continuar (pa
   await page.goto(base + '#/'); await page.waitForSelector('#home-continuar [data-tipo="partida"]');
   assert.match(await page.innerText('#home-continuar [data-tipo="partida"]'), /Continuar a partida[\s\S]*Gui × /);
   assert.equal(await page.getAttribute('#home-continuar', 'data-itens'), '2');
-  assert.equal(await page.locator('#home-atalhos .ds-btn--primary').count(), 0, 'com partida salva, a linha da partida é o caminho principal (nenhum atalho primário)');
+  assert.equal(await page.locator('#home .ds-btn--primary').count(), 0, 'com partida salva, a linha da partida é o caminho principal (nenhum primário na Início; K3-7: o latão cheio é o Jogar da barra)');
   await page.click('#home-continuar [data-tipo="partida"]'); await page.waitForSelector('#tb-pass, #tb-new', { timeout: 15000 });
   assert.match(page.url(), /#\/partida$/);
   // pilha do scanner: terceira linha, com a contagem
@@ -8530,8 +8521,8 @@ test('e2e · G-331 tour de boas-vindas: seis capítulos ilustrados em tela cheia
   // no encerramento, depois do capítulo 6, que agora tem Concluir)
   await page.click('#tutorial-concluir'); await page.waitForSelector('#tutorial[data-capitulo="fim"]');
   await page.click('#tutorial-comecar'); await page.waitForSelector('#tutorial', { state: 'detached' });
-  assert.equal(await page.locator('#home-atalhos').isVisible(), true); assert.equal(await page.evaluate(() => document.body.dataset.tutorial), undefined);
-  await page.reload(); await page.waitForSelector('#home-atalhos'); await page.waitForTimeout(600);
+  assert.equal(await page.locator('#home-titulo').isVisible(), true); assert.equal(await page.evaluate(() => document.body.dataset.tutorial), undefined);
+  await page.reload(); await page.waitForSelector('#home-titulo'); await page.waitForTimeout(600);
   assert.equal(await page.locator('#tutorial').count(), 0, 'não volta na segunda abertura');
   // 4 · Esc também marca como visto (em outro contexto limpo)
   const B = await page.context().browser().newContext({ viewport: { width: 360, height: 697 }, serviceWorkers: 'block' });
@@ -9219,7 +9210,7 @@ test('e2e · D11 acessibilidade medida: axe-core sem achados (WCAG 2.1 A/AA + bo
   await page.fill('#col-import-text', '2 Sol Ring\n1 Counterspell'); await page.click('#col-import-check'); await page.waitForSelector('#col-import-run'); await page.click('#col-import-run'); await page.waitForSelector('.col-row');
   const fecha = async () => { if (await page.locator('#ds-overlay[data-open="true"]').count()) { await page.keyboard.press('Escape'); await page.waitForTimeout(150); } };
   const telas = [
-    ['início', async () => { await page.goto(base + '#/'); await page.waitForSelector('#home-atalhos'); }],
+    ['início', async () => { await page.goto(base + '#/'); await page.waitForSelector('#home-titulo'); }],
     ['listas', async () => { await page.goto(base + '#/listas'); await page.waitForSelector('#decks-list .ds-list__item'); }],
     ['lista', async () => { await page.goto(urlLista); await page.waitForSelector('.deck-summary'); }],
     ['coleção', async () => { await page.goto(base + '#/colecao'); await page.waitForSelector('.col-row'); }],
@@ -10606,7 +10597,7 @@ test('e2e · DS-K2 I1 · Início: sem contagem sob o título (G-328); "Últimas 
   const { page, errors, base } = await open(t, { dev: false });
   await page.setViewportSize({ width: 360, height: 780 });
   // sem lista: nem o grupo nem a contagem
-  await page.goto(base + '#/'); await page.waitForSelector('#home-atalhos'); await page.waitForTimeout(600);
+  await page.goto(base + '#/'); await page.waitForSelector('#home-titulo'); await page.waitForTimeout(600);
   assert.deepEqual(await page.evaluate(() => [document.querySelector('#home-ultimas') === null, document.querySelector('#home-prontas') === null, document.querySelector('.inicio__prontas') === null]), [true, true, true]);
   // quatro listas: três de Pauper que jogam, uma de Commander com carta sem regra; as três mais recentes aparecem
   await createDeck(page, base, 'Antiga', '30 Island\n30 Counterspell', 'pauper');
@@ -10628,7 +10619,8 @@ test('e2e · DS-K2 I1 · Início: sem contagem sob o título (G-328); "Últimas 
           ordem: [...document.querySelectorAll('#home > *')].map(e => e.id || e.className.split(' ')[0]), todas: !!document.querySelector('#home-ultimas-todas') }; });
       assert.equal(m.prontas, null, `${w} ${tema}: nenhuma contagem sob o título (G-328, relato #47)`);
       assert.deepEqual([m.nomes, m.ladrilhos, m.posse, m.todas], [['Do Comandante', 'Ursos', 'Mono Azul Delver'], [true, true, true], [true, true, true], true], `${w} ${tema}: ${JSON.stringify(m)}`);
-      const i = m.ordem.indexOf('home-atalhos'); assert.ok(m.ordem[i + 1] === 'home-ultimas-slot', 'o grupo vem logo depois dos atalhos: ' + m.ordem.join(' > '));
+      // DS-K3 K3-7 (G-388) · expectativa mudada de propósito: os atalhos saíram; o grupo vem logo depois do Continuar (Balcão)
+      const i = m.ordem.indexOf('home-continuar-slot'); assert.ok(i > 0 && m.ordem[i + 1] === 'home-ultimas-slot', 'o grupo vem logo depois do Continuar: ' + m.ordem.join(' > '));
       await auditaTela(page, `DS-K2 I1 · Início ${w} ${tema}`);
       if (process.env.SHOTS && w === 360) await page.screenshot({ path: process.env.SHOTS + `/ds-k2-i1-${tema}.png` });
     }
@@ -12006,7 +11998,7 @@ test('e2e · V2 rulings na carta: seção fechada que só busca ao abrir, lista 
 test('e2e · Y1 relatar de qualquer tela: botão discreto onde não há botão de ação, Relatar no menu de quem tem, formulário com tipo e urgência em listas, carimbo de data e hora, rascunho que não se perde e a tela Relatos com resolvido, copiar e desfazer', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.setViewportSize({ width: 360, height: 780 });
-  await page.goto(base + '#/'); await page.waitForSelector('#go-play');
+  await page.goto(base + '#/'); await page.waitForSelector('#home-titulo');
   // 1 · Início não tem botão de ação: o Relatar discreto fica no canto, 48 px, sem ser primário
   const geo = sel => page.$eval(sel, b => { const r = b.getBoundingClientRect(); /* G-322 · medido a partir da barra de baixo */ return { w: Math.round(r.width), h: Math.round(r.height), direita: Math.round(innerWidth - r.right), baixo: Math.round(innerHeight - (document.querySelector('#ds-navbar') && getComputedStyle(document.querySelector('#ds-navbar')).display !== 'none' ? (innerHeight - document.querySelector('#ds-navbar').getBoundingClientRect().top) /* G-362 · a barra flutua: mede do topo dela */ : 0) - r.bottom), top: Math.round(r.top), left: Math.round(r.left) }; });
   assert.deepEqual(await geo('#relatar-abrir'), { w: 48, h: 48, direita: 16, baixo: 16, top: 780 - 78 - 16 - 48, left: 360 - 16 - 48 }); // G-322 · acima da barra de baixo; G-362 · a barra flutua (64 px a 14 px do pé)
@@ -12099,7 +12091,7 @@ test('e2e · G-319 relato #43: ditar o relato em PT, EN ou ES pelo reconheciment
     window.__acaba = erro => { const r = window.__falas.at(-1); if (erro) r.onerror({ error: erro }); r.onend(); };
   });
   await page.setViewportSize({ width: 360, height: 780 });
-  await page.goto(base + '#/'); await page.waitForSelector('#go-play');
+  await page.goto(base + '#/'); await page.waitForSelector('#home-titulo');
   await page.click('#relatar-abrir'); await page.waitForSelector('#relato-form');
   // 1 · a linha do ditado: Ditar (44 px) e o idioma em três, o do aparelho já escolhido (o Chromium de teste fala inglês)
   assert.equal(await page.innerText('#relato-ditar'), 'Ditar');
@@ -12149,7 +12141,7 @@ test('e2e · G-319 relato #43: ditar o relato em PT, EN ou ES pelo reconheciment
   await page.keyboard.press('Escape');
   // 6 · sem reconhecimento de fala no aparelho (G-333): Ditar diz em uma linha como ditar pelo teclado e põe o foco no campo; sem idiomas nem dica
   await page.addInitScript(() => { delete window.SpeechRecognition; delete window.webkitSpeechRecognition; });
-  await page.reload(); await page.waitForSelector('#go-play');
+  await page.reload(); await page.waitForSelector('#home-titulo');
   await page.click('#relatar-abrir'); await page.waitForSelector('#relato-form');
   assert.equal(await page.locator('#relato-idiomas, #relato-dica').count(), 0);
   await page.click('#relato-ditar');
@@ -12173,7 +12165,7 @@ test('e2e · G-333 relato #49: ditado contínuo que reabre sozinho quando o nave
     window.__acaba = erro => { const r = window.__falas.at(-1); if (erro) r.onerror({ error: erro }); r.onend(); };
   });
   await page.setViewportSize({ width: 360, height: 780 });
-  await page.goto(base + '#/'); await page.waitForSelector('#go-play');
+  await page.goto(base + '#/'); await page.waitForSelector('#home-titulo');
   await page.click('#relatar-abrir'); await page.waitForSelector('#relato-form');
   await page.click('#relato-idiomas [data-idioma="pt-BR"]');
   // G-337 · o painel "Pontuação falada" saiu (relato #56): os comandos valem em silêncio
@@ -12229,7 +12221,7 @@ test('e2e · G-337 relato #56: o ditado escreve no campo em tempo real, no lugar
     window.__acaba = erro => { const r = window.__falas.at(-1); if (erro) r.onerror({ error: erro }); r.onend(); };
   });
   await page.setViewportSize({ width: 360, height: 697 });
-  await page.goto(base + '#/'); await page.waitForSelector('#go-play');
+  await page.goto(base + '#/'); await page.waitForSelector('#home-titulo');
   await page.click('#relatar-abrir'); await page.waitForSelector('#relato-form');
   await page.click('#relato-idiomas [data-idioma="pt-BR"]');
   // 1 · a linha do ditado sem a dica: Ditar, os três idiomas e nada mais
@@ -12367,7 +12359,7 @@ test('e2e · Y3 relatos para fora: situação e filtros (tipo, urgência, área)
   // a partida continua depois do relato: o que fica salvo agora é outro ponto
   for (let i = 0; i < 20; i++) { const tn = await page.evaluate(() => window.__estanteMesa.estado().turn.number); if (tn > naHora.turno) break;
     await page.evaluate(() => { const M = window.__estanteMesa, s = M.estado(), ls = M.legais(); M.act(s.pending ? ls[0] : { t: 'pass', p: 0 }); }); await page.waitForTimeout(30); }
-  await page.goto(base + '#/'); await page.waitForSelector('#go-play');
+  await page.goto(base + '#/'); await page.waitForSelector('#home-titulo');
   await relata(() => page.click('#relatar-abrir'), 'ideia', 'baixa', 'Ideia da tela inicial.');
   await page.goto(base + '#/listas'); await page.waitForSelector('#decks-fab-abrir');
   await relata(() => acaoJ6(page, 'decks-fab', '#decks-fab-relatar'), 'erro', 'media', 'Erro nas listas, já resolvido.');
@@ -13574,7 +13566,7 @@ test('e2e · J4 carregamento com identidade: cartas que se arrumam na prateleira
   // 3 · numa tela de verdade: abrir uma lista com a rede lenta mostra a espera de tela, com o que está fazendo, e ela some quando a lista chega
   await createDeck(page, base, 'Lenta', PAUPER); const daLista = '#' + page.url().split('#')[1];
   await page.route('https://api.scryfall.com/cards/collection', async r => { await new Promise(x => setTimeout(x, 600)); r.fallback(); });
-  await page.goto(base + '#/'); await page.waitForSelector('#home-atalhos');
+  await page.goto(base + '#/'); await page.waitForSelector('#home-titulo');
   // a espera pode durar pouco (as cartas já estão guardadas): um observador anota tudo o que passou pela tela
   await page.evaluate(() => { window.__esperas = []; const o = document.querySelector('#outlet');
     const olha = () => { const e = o.querySelector('.ds-carregando[data-tamanho="tela"]'); if (e) window.__esperas.push({ texto: e.textContent.trim(), alta: e.getBoundingClientRect().height >= innerHeight * 0.4, anel: !!o.querySelector('.ds-spinner') }); };
@@ -13609,10 +13601,10 @@ test('e2e · J5 abertura (G-306, relato #35): ao abrir o app a estante se monta 
         window.__ab.livros = [...a.querySelectorAll('.ab-livro__corpo')].map(e => { const cs = getComputedStyle(e); return { atraso: ms(cs.animationDelay), dur: ms(cs.animationDuration), nome: cs.animationName }; });
         window.__ab.sombras = [...a.querySelectorAll('.ab-livro__sombra')].map(e => getComputedStyle(e).animationName);
         window.__ab.ladrilho = { atraso: ms(lad.animationDelay), dur: ms(lad.animationDuration), transform: lad.transform }; }
-      if (a && window.__ab.comApp == null && document.querySelector('#home-atalhos')) window.__ab.comApp = true;
+      if (a && window.__ab.comApp == null && document.querySelector('#home-titulo')) window.__ab.comApp = true;
       if (!a && window.__ab.nasceu && !window.__ab.sumiu) window.__ab.sumiu = performance.now(); });
     document.addEventListener('DOMContentLoaded', () => o.observe(document.body, { childList: true, subtree: true })); });
-  await page.goto(base + '#/'); await page.waitForSelector('#home-atalhos');
+  await page.goto(base + '#/'); await page.waitForSelector('#home-titulo');
   // 1 · o app já está montado por baixo enquanto a abertura ainda está na tela (ela não segura nada)
   assert.equal(await page.locator('#abertura').count(), 1, 'a abertura está na tela');
   if (process.env.SHOTS) { await page.waitForTimeout(500); await page.screenshot({ path: process.env.SHOTS + '/j5-meio.png' }); await page.waitForTimeout(500); await page.screenshot({ path: process.env.SHOTS + '/j5-fim.png' }); }
@@ -13641,7 +13633,7 @@ test('e2e · J5 abertura (G-306, relato #35): ao abrir o app a estante se monta 
   const iguais = await page.evaluate(html => { const limpa = h => h.replace(/<g class="ab-[^"]*">(<rect[^>]*>)(<\/rect>)?<\/g>/g, '$1$2').replace(/<filter[^>]*>/, '<filter>').replaceAll('estante-abertura', 'estante-icone').replace(/\s(width|height)="\d+"/g, ''); const t = document.createElement('div'); t.innerHTML = html;
     const meu = limpa(t.querySelector('svg').outerHTML), barra = limpa(document.querySelector('.ds-appbar .brand-tile svg').outerHTML); return meu === barra; }, ab.html);
   assert.equal(iguais, true, 'o último quadro é o ícone do app (o mesmo desenho da barra)');
-  assert.equal(await page.locator('#abertura').count(), 0); assert.equal(await page.locator('#home-atalhos').isVisible(), true);
+  assert.equal(await page.locator('#abertura').count(), 0); assert.equal(await page.locator('#home-titulo').isVisible(), true);
   // 3 · não repete: recarregar na mesma sessão e trocar de tela não mostram de novo
   await page.evaluate(() => { window.__viu = 0; new MutationObserver(() => { if (document.querySelector('#abertura')) window.__viu++; }).observe(document.body, { childList: true }); });
   await page.click('#nav-decks'); await page.waitForSelector('#decks-list'); await page.click('#nav-collection'); await page.waitForTimeout(200);
@@ -13876,7 +13868,7 @@ test('e2e · J7 botão de ação da Lista: Jogar, Editar e Exportar no canto inf
   assert.equal(await page.locator('.ds-fab').count(), 0); assert.equal(await page.locator('.ds-btn--primary:visible').count(), 1, 'um primário no Ajustar: adicionar');
   await page.click('#deck-ajustar'); await page.waitForSelector('#deck-fab-abrir');
   // 7 · telas sem ação principal própria não ganham botão (não se inventa ação)
-  await page.goto(base + '#/'); await page.waitForSelector('#go-play'); assert.equal(await page.locator('.ds-fab').count(), 0);
+  await page.goto(base + '#/'); await page.waitForSelector('#home-titulo'); assert.equal(await page.locator('.ds-fab').count(), 0);
   await page.goto(base + '#/cartas'); await page.waitForSelector('#cards-search'); assert.equal(await page.locator('.ds-fab').count(), 0);
   assert.deepEqual(errors, []);
 });
@@ -14256,7 +14248,7 @@ test('e2e · N2 Notícias: entra pela Início; linha do tempo com destaque, capa
   // (antes: K4 com o destaque e duas e "Ver todas" para uma tela própria)
   await page.goto(base + '#/'); await page.waitForSelector('#noticias-lista .nt-cartao');
   assert.equal(await page.textContent('#noticias-titulo'), 'Notícias'); assert.equal(await page.locator('#go-news').count(), 0, 'não há tela à parte para ir');
-  assert.ok((await page.locator('#noticias').boundingBox()).y > (await page.locator('#home-atalhos').boundingBox()).y, 'as notícias vêm depois dos destinos');
+  assert.ok((await page.locator('#noticias').boundingBox()).y > (await page.locator('#home-cab').boundingBox()).y, 'as notícias vêm depois do cabeçalho (K3-7: os destinos saíram da Início)');
   // 2 · a primeira página: 20 notícias (a de endereço perigoso não entra), a primeira em destaque
   assert.equal(await cartoes(), 20); assert.deepEqual(pedidos, ['indice.json', 'pagina-1.json']);
   assert.equal(await page.locator('[data-noticia="perigosa"]').count(), 0);
@@ -14277,7 +14269,9 @@ test('e2e · N2 Notícias: entra pela Início; linha do tempo com destaque, capa
   assert.deepEqual(chips, [{ id: 'noticias-idioma-pt', texto: 'Português', ligado: 'true', fala: 'Notícias em português', h: 44, bandeira: 'br', svg: true }, { id: 'noticias-idioma-en', texto: 'English', ligado: 'true', fala: 'Notícias em inglês', h: 44, bandeira: 'us', svg: true }]);
   assert.doesNotMatch(await page.innerText('#noticias'), /\p{Extended_Pictographic}|\p{Regional_Indicator}/u, 'sem emoji (nem bandeira de emoji)');
   assert.equal(await page.$eval('[data-noticia="n1"] .nt-meta .ds-bandeira', e => e.dataset.bandeira), 'br'); assert.equal(await page.$eval('[data-noticia="n0"] .nt-meta .ds-bandeira', e => e.dataset.bandeira), 'us');
-  assert.equal(await page.locator('.ds-btn--primary:visible').count(), 1, 'o primário da Início é o Jogar; as notícias não disputam'); assert.equal(await page.locator('#go-play.ds-btn--primary').count(), 1);
+  // DS-K3 K3-7 (G-388) · expectativa mudada de propósito: o Jogar saiu da Início; sem lista, o primário é o da vitrine
+  await page.waitForSelector('#home-vazio-prontas');
+  assert.equal(await page.locator('#home .ds-btn--primary:visible').count(), 1, 'um primário na Início; as notícias não disputam'); assert.equal(await page.locator('#home-vazio-prontas.ds-btn--primary').count(), 1);
   await auditaTela(page, 'notícias · primeira página');
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/n2-noticias.png' });
   // 3 · rolagem infinita: as páginas seguintes chegam sozinhas, uma vez cada, sem repetir notícia, até o fim
@@ -14289,7 +14283,9 @@ test('e2e · N2 Notícias: entra pela Início; linha do tempo com destaque, capa
   // 4 · só português: o botão tocado fica onde está, a série pt é lida (uma página, 15 notícias) e a bandeira some das notícias
   await page.evaluate(() => window.scrollTo(0, 0)); pedidos.length = 0;
   const topo = () => page.$eval('#noticias-idioma-en', e => Math.round(e.getBoundingClientRect().top));
-  await page.locator('#noticias-idioma-en').scrollIntoViewIfNeeded(); // T2 · na Início, o seletor fica abaixo dos destinos
+  // T2 · na Início, o seletor fica abaixo do Balcão. K3-7 (G-388) · com a vitrine no lugar dos atalhos ele ficava fora da tela, e o
+  // "se precisar" o deixava no pé, sob a barra flutuante: o clique rolava a página para alcançá-lo. Centraliza antes de medir
+  await page.$eval('#noticias-idioma-en', e => e.scrollIntoView({ block: 'center' }));
   // a âncora J1 compensa no quadro seguinte (antes da pintura): mede depois de dois quadros, logo após o toque e depois
   // que a série pt chegou e redesenhou a lista (antes media no meio do quadro e caía sob carga: 396 × 368 em 10/10/2026)
   const doisQuadros = () => page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
@@ -14699,34 +14695,11 @@ test('e2e · K3 parar sempre por etapa: Paradas no balão da faixa abre as chave
 });
 
 /* ---------------- K4 · Início com notícias integradas ---------------- */
-/* ---------------- T3 · Jogar com volume (relato #3) ---------------- */
-test('e2e · T3 Jogar com volume: placa com lábio e medalhão, um primário só, toque afunda e passa o brilho (que some sozinho), menos movimento sem brilho; sem sobreposição nas quatro medidas e nos dois temas', { skip }, async t => {
-  const { page, errors, base } = await open(t);
-  await page.setViewportSize({ width: 360, height: 780 });
-  await page.goto(base + '#/'); await page.waitForSelector('#go-play.inicio-jogar');
-  const m = await page.$eval('#go-play', b => { const cs = getComputedStyle(b), i = b.querySelector('.ds-atalho__icone').getBoundingClientRect(), r = b.getBoundingClientRect();
-    return { h: Math.round(r.height), sombra: cs.boxShadow, medalhao: [Math.round(i.width), Math.round(i.height)], seta: !!b.querySelector('.inicio-jogar__seta svg'), raio: cs.borderTopLeftRadius }; });
-  assert.ok(m.h >= 76, 'altura ' + m.h); assert.deepEqual(m.medalhao, [52, 52]); assert.ok(m.seta, 'seta à direita');
-  assert.match(m.sombra, /0px 4px 0px/, 'lábio de 4 px: ' + m.sombra);
-  assert.equal(await page.locator('.ds-btn--primary:visible').count(), 1, 'um primário só');
-  // o toque: o brilho entra no pointerdown e sai sozinho no fim da animação
-  const box = await page.locator('#go-play').boundingBox();
-  await page.evaluate(() => { document.querySelector('#go-play').addEventListener('click', e => e.stopImmediatePropagation(), { capture: true, once: true }); });
-  await page.mouse.move(box.x + 40, box.y + 30); await page.mouse.down();
-  assert.equal(await page.$eval('#go-play', b => b.classList.contains('inicio-jogar--brilho')), true);
-  const afundou = await page.$eval('#go-play', b => getComputedStyle(b).transform);
-  await page.mouse.up();
-  assert.notEqual(afundou, 'none', 'afunda enquanto o dedo está');
-  await page.waitForFunction(() => !document.querySelector('#go-play').classList.contains('inicio-jogar--brilho'), null, { timeout: 3000 });
-  // menos movimento: nada de brilho nem de transformação
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  assert.equal(await page.$eval('#go-play', b => { b.classList.add('inicio-jogar--brilho'); return getComputedStyle(b, '::after').animationName; }), 'none');
-  await page.emulateMedia({ reducedMotion: 'no-preference' });
-  for (const tema of ['dark', 'light']) { await page.evaluate(t => document.documentElement.setAttribute('data-theme', t), tema); for (const [w, hh] of MEDIDAS_149) { await page.setViewportSize({ width: w, height: hh }); await auditaTela(page, `Início Jogar ${w} ${tema}`); } }
-  assert.deepEqual(errors, []);
-});
+/* T3 · Jogar com volume (relato #3): o teste saiu com a DS-K3 K3-7 (G-388) — o Jogar da Início saiu (a barra de baixo é o
+   atalho, e o Jogar dela é o único latão cheio da tela); o e2e "G-388" confere que ele não volta e audita a Início nas
+   quatro medidas e nos dois temas. */
 
-test('e2e · K4 · T2 Início: data e saudação, Jogar como único primário, quatro destinos numa linha, e a linha do tempo de notícias inteira (título com Guardadas e Atualizar, idioma e Filtros, Topo) com sem internet, falha e vazio no lugar', { skip }, async t => {
+test('e2e · K4 · T2 Início: data e saudação, um único primário (K3-7: sem os atalhos), e a linha do tempo de notícias inteira (título com Guardadas e Atualizar, idioma e Filtros, Topo) com sem internet, falha e vazio no lugar', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.setViewportSize({ width: 360, height: 780 });
   let arquivos = ramoN2(); let fora = false; const pedidos = [];
@@ -14735,11 +14708,10 @@ test('e2e · K4 · T2 Início: data e saudação, Jogar como único primário, q
   await page.goto(base + '#/'); await page.waitForSelector('#noticias-lista .nt-cartao');
   // cabeçalho: a data (em português, dia da semana e mês) e o título
   assert.match(await page.textContent('#home-data'), /^(domingo|segunda-feira|terça-feira|quarta-feira|quinta-feira|sexta-feira|sábado), \d{1,2} de [a-zç]+$/);
-  assert.equal(await page.locator('.ds-btn--primary:visible').count(), 1, 'um primário: Jogar'); assert.equal(await page.locator('#go-play.ds-btn--primary').count(), 1);
-  // os quatro destinos numa linha, cada um com ícone num círculo e uma palavra, alvo de 44 px ou mais
-  const rapidos = await page.$$eval('.inicio__rapidos .ds-atalho', bs => bs.map(b => { const r = b.getBoundingClientRect(), i = b.querySelector('.ds-atalho__icone').getBoundingClientRect(); return { id: b.id, texto: b.textContent.trim(), topo: Math.round(r.top), h: Math.round(r.height), w: Math.round(r.width), circulo: Math.round(i.width) === Math.round(i.height) && i.width >= 44 }; }));
-  assert.deepEqual(rapidos.map(r => [r.id, r.texto]), [['go-decks', 'Listas'], ['go-collection', 'Coleção'], ['go-scanner', 'Escanear'], ['go-cards', 'Buscar']]);
-  assert.ok(rapidos.every(r => r.topo === rapidos[0].topo && r.h >= 44 && r.w >= 44 && r.circulo), JSON.stringify(rapidos));
+  // DS-K3 K3-7 (G-388) · expectativa mudada de propósito: o Jogar e os quatro destinos saíram da Início (a barra de baixo leva
+  // aos cinco); sem lista, o único primário da Início é o da vitrine
+  await page.waitForSelector('#home-vazio-prontas');
+  assert.equal(await page.locator('#home .ds-btn--primary:visible').count(), 1, 'um primário'); assert.equal(await page.locator('#go-play, .inicio__rapidos').count(), 0);
   // T2 (leva G-236) · a linha do tempo inteira na Início (antes, K4: o destaque e duas e "Ver todas" para uma tela própria)
   assert.equal(await page.textContent('#noticias-titulo'), 'Notícias'); assert.equal(await page.locator('#go-news').count(), 0);
   assert.equal(await page.locator('#noticias-lista .nt-cartao').count(), 20); assert.equal(await page.$eval('#noticias-lista .nt-cartao', c => c.dataset.forma), 'destaque');
@@ -20517,10 +20489,12 @@ test('e2e · DS-K F1.1 · o primário é de latão nos dois temas e uma varredur
   const red = await prim.evaluate(b => b.getAnimations({ subtree: true }).filter(a => a.animationName === 'ds-varre-latao' && a.effect.getTiming().duration > 1).length);
   assert.equal(red, 0, 'com menos movimento a varredura não anda');
   await page.evaluate(() => document.documentElement.removeAttribute('data-movimento'));
-  // o Jogar do Início: placa de latão (o gradiente do metal é a última camada)
-  await page.goto(base + '#/'); await page.waitForSelector('.inicio-jogar');
-  const jogar = await page.evaluate(() => getComputedStyle(document.querySelector('.inicio-jogar')).backgroundImage);
-  assert.ok(jogar.lastIndexOf('linear-gradient(160deg') > jogar.lastIndexOf('linear-gradient(0deg'), 'Jogar termina na camada de latão: ' + jogar);
+  // o Jogar: placa de latão. DS-K3 K3-7 (G-388) · expectativa mudada de propósito: o Jogar da Início saiu; o latão do Jogar
+  // mora na barra de baixo (K3-2), a mesma placa de metal
+  await page.goto(base + '#/'); await page.waitForSelector('#home-titulo');
+  assert.equal(await page.locator('.inicio-jogar').count(), 0);
+  const jogar = await page.evaluate(() => getComputedStyle(document.querySelector('#nav-play .ds-navbar__latao')).backgroundImage);
+  assert.match(jogar, /^linear-gradient\(160deg/, 'o Jogar da barra é placa de latão: ' + jogar);
   await auditaTela(page, 'DS-K F1.1 · Início');
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/ds-k-f11-inicio.png', fullPage: false });
   assert.deepEqual(errors, []);
@@ -21797,7 +21771,7 @@ test('e2e · G-385 relato 151 fatia 5b: na Coleção o tipo da carta segue o idi
   await auditaTela(page, 'carta · esclarecimentos com o aviso do idioma');
   await page.keyboard.press('Escape'); await page.waitForSelector('#card-viewer', { state: 'detached' });
   // 3 · de volta à Coleção: a linha e a vista densa trazem o tipo em português, marcado com o idioma
-  await page.goto(base + '#/'); await page.waitForSelector('#home-atalhos'); await page.goto(base + '#/colecao');
+  await page.goto(base + '#/'); await page.waitForSelector('#home-titulo'); await page.goto(base + '#/colecao');
   await page.waitForFunction(s => /Mágica Instantânea/.test((document.querySelector(s) || {}).textContent || ''), linha);
   assert.equal(await page.$eval(linha + ' [data-tipo-idioma]', e => e.lang), 'pt-BR');
   await page.click('[data-visao="densa"]');
@@ -23235,6 +23209,76 @@ test('e2e · G-384 DS-K3 K3-6: vitrine vazia na Coleção, nas Listas, nas Parti
   await page.locator('#ds-vitrine').scrollIntoViewIfNeeded();
   confere(await mede('#ds-vitrine'), '/ds', 2);
   await page.click('#ds-vitrine-mais'); assert.equal(await page.isVisible('#ds-vitrine-mais-gaveta'), true);
+  assert.deepEqual(errors, []);
+});
+
+/* ---------------- DS-K3 K3-7 (G-388) · Início na direção Vitrine, fatia 1 (Balcão) ---------------- */
+test('e2e · G-388 DS-K3 K3-7: Início na direção Vitrine — cabeçalho editorial (data em latão 11 px caixa alta .18em, saudação pela hora em Cormorant 34 com a palavra viva em itálico no latão alto, linha da estante), sem atalhos nem o Jogar da Início (o latão cheio é o Jogar da barra), vazio com a vitrine (Ver prontas · Colar lista), com lista o Continuar e as Últimas listas logo abaixo e nenhum primário na tela, Componentes no Perfil; AA nos dois temas, auditaTela nas quatro medidas', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  const mede = () => page.evaluate(() => {
+    const r = el => el.getBoundingClientRect(), rgb = c => c.match(/[\d.]+/g).slice(0, 3).map(Number);
+    const lum = ([a, b, c]) => { const f = x => { x /= 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(a) + 0.7152 * f(b) + 0.0722 * f(c); };
+    const ct = (x, y) => { const [m, n] = [lum(x), lum(y)].sort((p, q) => q - p); return (m + 0.05) / (n + 0.05); };
+    const sonda = document.createElement('span'); sonda.style.color = 'var(--bg)'; document.body.append(sonda); const fundo = rgb(getComputedStyle(sonda).color);
+    sonda.style.color = 'var(--accent)'; const latao = getComputedStyle(sonda).color; sonda.style.color = 'var(--accent-hi)'; const alto = getComputedStyle(sonda).color; sonda.remove();
+    const tit = document.querySelector('#home-titulo'), viva = tit.querySelector('.inicio__viva'), data = document.querySelector('#home-data'), acoes = document.querySelector('.inicio__acoes');
+    const ct_ = getComputedStyle(tit), cv = getComputedStyle(viva), cd = getComputedStyle(data);
+    return { titulo: tit.textContent, fonte: ct_.fontSize, cormorant: /Cormorant/.test(ct_.fontFamily), entrelinha: ct_.lineHeight, viva: [cv.fontStyle, cv.fontWeight, cv.color === alto],
+      data: [cd.fontSize, cd.textTransform, cd.letterSpacing, cd.fontWeight, cd.color === latao], esquerda: Math.round(r(tit).left), acoesNoTopo: Math.abs(r(acoes).top - r(tit).top) <= 6,
+      ctTitulo: ct(rgb(ct_.color), fundo), ctViva: ct(rgb(cv.color), fundo), ctData: ct(rgb(cd.color), fundo),
+      atalhos: document.querySelectorAll('#home-atalhos, #go-play, .inicio__rapidos, .inicio-jogar, #go-ds').length,
+      primarios: [...document.querySelectorAll('#home .ds-btn--primary')].filter(b => r(b).height > 0).map(b => b.id),
+      jogarBarra: !!document.querySelector('#nav-play .ds-navbar__latao') };
+  });
+  const confere = (m, nome) => {
+    const d = `${nome}: ${JSON.stringify(m)}`;
+    assert.equal(m.fonte, '34px', d); assert.ok(m.cormorant, d); assert.equal(m.entrelinha, '34px', 'entrelinha 1: ' + d);
+    assert.deepEqual(m.viva, ['italic', '500', true], 'palavra viva em itálico 500 no --accent-hi: ' + d);
+    assert.deepEqual(m.data, ['11px', 'uppercase', '1.98px', '600', true], 'rótulo da data em latão, 11 px, caixa alta, .18em, 600: ' + d);
+    assert.ok(m.esquerda >= 12 && m.esquerda <= 20, 'título no eixo da esquerda (gutter): ' + d); assert.ok(m.acoesNoTopo, 'idioma e sino no alto da saudação: ' + d);
+    assert.ok(m.ctTitulo >= 4.5 && m.ctData >= 4.5 && m.ctViva >= 3, `AA (${m.ctTitulo.toFixed(2)} · data ${m.ctData.toFixed(2)} · viva ${m.ctViva.toFixed(2)}, texto grande): ` + d);
+    assert.equal(m.atalhos, 0, 'nem atalhos nem o Jogar da Início: ' + d); assert.ok(m.jogarBarra, 'o Jogar mora na barra');
+  };
+  // 1 · vazio: a saudação, sem a linha da estante, e a vitrine com Ver prontas e Colar lista (o único primário é o da vitrine)
+  await page.goto(base + '#/'); await page.waitForSelector('#home-vazio .ds-vitrine__palco');
+  for (const tema of ['dark', 'light']) {
+    await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(120);
+    const m = await mede(); confere(m, `vazio ${tema}`);
+    assert.match(m.titulo, /^Bo(m dia|a tarde|a noite)$/); assert.deepEqual(m.primarios, ['home-vazio-prontas']);
+    assert.equal(await page.isVisible('#home-frase'), false, 'sem lista, a vitrine fala por si');
+    assert.deepEqual(await page.$$eval('#home-vazio .ds-vitrine__botoes .ds-btn', bs => bs.map(b => [b.id, b.textContent.trim(), Math.round(b.getBoundingClientRect().height) >= 44])),
+      [['home-vazio-prontas', 'Ver prontas', true], ['home-vazio-colar', 'Colar lista', true]]);
+    assert.match(await page.innerText('#home-vazio'), /Comece pela prateleira de cima/);
+    await auditaTela(page, `G-388 Início vazia (${tema})`);
+    if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + `/g-388-vazio-${tema}.png` });
+  }
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  await page.click('#home-vazio-prontas'); await page.waitForFunction(() => location.hash === '#/listas/prontas');
+  await page.goto(base + '#/'); await page.waitForSelector('#home-vazio-colar'); await page.click('#home-vazio-colar'); await page.waitForSelector('#deck-text');
+  // 2 · com lista: a linha da estante, o Continuar e as Últimas listas logo abaixo do cabeçalho; nenhum primário na Início
+  await createDeck(page, base, 'Mono Azul', PAUPER);
+  await page.goto(base + '#/'); await page.waitForSelector('#home-ultimas .deck-item--ladrilho'); await page.waitForSelector('#home-continuar');
+  for (const tema of ['dark', 'light']) {
+    await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(120);
+    const m = await mede(); confere(m, `com lista ${tema}`);
+    assert.deepEqual(m.primarios, [], 'com lista, nenhum latão cheio na Início');
+    assert.equal(await page.textContent('#home-frase'), '1 lista na estante'); assert.equal(await page.locator('#home-vazio').count(), 0);
+    assert.deepEqual(await page.$$eval('#home > *', es => es.map(e => e.id).filter(id => /^home-(cab|continuar-slot|ultimas-slot|offline)$|^noticias$/.test(id))), ['home-cab', 'home-continuar-slot', 'home-ultimas-slot', 'home-offline', 'noticias']);
+    for (const [w, hh] of MEDIDAS_149) { await page.setViewportSize({ width: w, height: hh }); await auditaTela(page, `G-388 Início com lista ${w} (${tema})`); }
+    await page.setViewportSize({ width: 360, height: 780 });
+    if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + `/g-388-lista-${tema}.png` });
+  }
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  // 3 · com o nome, a saudação ganha ", Nome" sem mudar de tamanho
+  await poeNomeNoAparelho(page, 'Guilherme');
+  await page.goto(base + '#/'); await page.waitForFunction(() => /^Bo(m dia|a tarde|a noite), Guilherme$/.test((document.querySelector('#home-titulo') || {}).textContent));
+  confere(await mede(), 'com nome');
+  await auditaTela(page, 'G-388 Início com nome');
+  // 4 · Componentes mora no Perfil e abre o /ds
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-ds');
+  assert.match(await page.innerText('#perfil-ds'), /Componentes/); assert.ok((await page.locator('#perfil-ds').boundingBox()).height >= 44);
+  await page.click('#perfil-ds'); await page.waitForSelector('#ds-vitrine');
   assert.deepEqual(errors, []);
 });
 
