@@ -23,7 +23,7 @@ Marcos: Pauper 100% (as sete listas revisadas carta a carta; 681 de 686 listas P
 | `geral` | G | DS-K3 K3-6 (G-384), K3-7 (ramo G-388); T-IDIOMA (G-386); instável G-282 (G-389) | G-389 · 14/11 | K3-7b; Commander sem Oracle; Darval |
 | `motor` | M | Modern 140/719 | M-630 · 13/11 | Fable |
 | `radar` | R | BI4 · Painel Estante: comparar períodos, metas, tendência | R-44 · 07/11 | BI4-6 em diante; validação do dono após os primeiros pilares |
-| `jogabilidade` | J | MK3 · Mesa Vitrine (rotina) | J-75 · 13/11 | MK3-4 no trem; MK3-5; #54 |
+| `jogabilidade` | J | MK3 · Mesa Vitrine (rotina) | J-76 · 13/11 | prompt v2 do ateliê; MK3-5; #54 |
 | `bot` | B | B25 · força 55%, Faeries 32,5%, fora 50% | B-215 · 13/11 | usar a remoção |
 | `infra` | I | trem (a cada 2 h); robôs fora do Actions (I-334: só artes fica) | I-334 · 13/11 | conflito do contract.visual na soma; ponte das coleções |
 | `homologacao` | H | prova de partida do catálogo, revisão em lote (Commander) | H-24 · 01/11 | lote 8 |
@@ -81,4 +81,4 @@ Os documentos `claude/…` moram no Projeto do claude.ai, fora do repositório: 
 
 No commit de docs de cada leva (o mesmo que atualiza o ROADMAP): reescreva a **sua** linha na tabela de trilhas, atualize relatos e pendências se mudaram e troque a data abaixo. Edite por patch, nunca o arquivo inteiro. Conflito no rebase: fique com as linhas das outras trilhas e a sua. Passou de 8 KB: resuma, não acrescente.
 
-Atualizado: 14/11/2026 · M-628 · G-371 · J-73 · S-624 (scanner) · G-384 · M-630 · G-385 · M-625 · M-624 · J-71 · G-383 · B-215 · B-213 (bot) · B-214 · M-626 · J-69 · J-72 · G-389 · J-75 · I-334
+Atualizado: 14/11/2026 · J-73 · S-624 (scanner) · G-384 · M-630 · G-385 · M-625 · M-624 · J-71 · G-383 · B-215 · B-213 (bot) · B-214 · M-626 · J-69 · J-72 · G-389 · J-75 · I-334 · J-76

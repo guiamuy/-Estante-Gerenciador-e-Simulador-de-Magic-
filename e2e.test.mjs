@@ -23278,7 +23278,8 @@ test('e2e · J-71 MK3-P2 galeria e escolha: Perfil › Playmats com a mini-mesa 
     return { lados: ls.length, cartas: ls.map(l => l.querySelectorAll('.tb-card').length), k: ls.map(l => l.dataset.playmat), fundos: ls.map(l => getComputedStyle(l).backgroundImage) }; });
   let pv = await previa();
   assert.deepEqual([pv.lados, pv.cartas, pv.k], [2, [1, 2], ['padrao', 'padrao']]);
-  assert.equal(await page.isVisible('#playmats-vazio'), true, 'estado vazio dos criados por você');
+  // MK3-P4 (J-76) · os criados são lidos do aparelho depois de a tela abrir (carregando → vazio): espera o vazio em vez de olhar na hora
+  await page.waitForSelector('#playmats-vazio'); assert.equal(await page.isVisible('#playmats-vazio'), true, 'estado vazio dos criados por você');
   for (const tema of ['dark', 'light']) { await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await auditaTela(page, `J-71 · MK3-P2 Playmats ${tema}`);
     if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + `/j-71-mk3-p2-${tema}.png` }); }
   // tocar aplica na hora, nos três níveis de Movimento, com a receita "pousar" na mini-mesa
@@ -23361,6 +23362,164 @@ test('e2e · J-71 MK3-P2 galeria e escolha: Perfil › Playmats com a mini-mesa 
   assert.equal(await page.evaluate(() => document.documentElement.dataset.playmat), 'latao', 'o /ds não muda a escolha guardada');
   await auditaTela(page, 'J-71 · MK3-P2 /ds');
   assert.deepEqual(errors, []);
+});
+
+/* J-76 · MK3-P4 · ateliê dos playmats. A função api/playmat é simulada pela rota (nenhum teste chama a internet); a conta da
+   Estante, pela sessão guardada e pelo Firebase de mentira. */
+const poeNoAparelho = (page, k, v) => page.evaluate(([k, v]) => new Promise((r, x) => { const q = indexedDB.open('mtg'); q.onerror = x;
+  q.onsuccess = () => { const db = q.result; const tx = db.transaction('kv', 'readwrite'); tx.objectStore('kv').put(v, k); tx.oncomplete = () => { db.close(); r(); }; tx.onerror = x; }; }), [k, v]);
+const leDoAparelho = (page, k) => page.evaluate(k => new Promise((r, x) => { const q = indexedDB.open('mtg'); q.onerror = x;
+  q.onsuccess = () => { const db = q.result; const g = db.transaction('kv').objectStore('kv').get(k); g.onsuccess = () => { db.close(); r(g.result); }; g.onerror = x; }; }), k);
+
+test('e2e · J-76 MK3-P4 ateliê: Perfil › Playmats › Criar playmat abre o ateliê; sem conta pede Entrar; sem internet desliga Criar com o motivo; exemplos, contador e cota do dia; a espera longa enquanto cria; o resultado pousa na mini-mesa (três níveis de Movimento); Guardar reduz para WebP de até 200 KB e lista em Criados por você; renomear; apagar com Desfazer; recusa, não liberada e cota com a frase certa; cheio com 8; volta; inglês sem sobras; auditaTela nos dois temas', { skip, timeout: 240000 }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.addInitScript(() => {
+    window.__MTG_TEST = true; window.__FIREBASE_API_KEY = 'chave-e2e'; window.__GOOGLE_CLIENT_ID = 'e2e.apps.googleusercontent.com'; window.__FIREBASE_DB_URL = 'https://teste.firebaseio.com';
+    window.__FIREBASE_FETCH = async url => new Response(JSON.stringify(url.includes('securetoken') ? { id_token: 'id-e2e', refresh_token: 'ref-e2e', expires_in: '3600', user_id: 'uidE2E' } : { localId: 'uidE2E', idToken: 'id-e2e', refreshToken: 'ref-e2e', expiresIn: '3600' }), { headers: { 'content-type': 'application/json' } });
+    window.__GOOGLE_FALSO = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }), revoke: (tk, cb) => cb && cb() } } };
+    window.EventSource = class { constructor() {} addEventListener() {} close() {} };
+  });
+  await page.route('https://www.googleapis.com/**', r => r.request().url().includes('/oauth2/v3/userinfo') ? r.fulfill({ json: { name: 'Gui', email: 'gui@example.com' } }) : r.fulfill({ status: 404, json: {} }));
+  await page.route('https://teste.firebaseio.com/**', r => r.fulfill({ status: 200, contentType: 'application/json', body: 'null' }));
+  const svc ={ modo: 'ok', restam: 1, pedidos: [], solta: null };
+  let jpeg = null;
+  await page.route('**/api/playmat', async r => {
+    svc.pedidos.push({ auth: r.request().headers().authorization, metodo: r.request().method(), corpo: JSON.parse(r.request().postData() || 'null') });
+    if (svc.modo === 'lento') await new Promise(res => { svc.solta = res; });
+    if (svc.modo === 'nao-liberada') return r.fulfill({ status: 503, json: { erro: 'nao-liberada', mensagem: 'Criação ainda não liberada' } });
+    if (svc.modo === 'recusado') return r.fulfill({ status: 422, json: { erro: 'recusado', motivo: 'marca', detalhe: 'marca ou logotipo' } });
+    if (svc.modo === 'cota') return r.fulfill({ status: 429, json: { erro: 'cota-conta', renova: '2099-01-02T00:00:00Z', restam: 0 } });
+    return r.fulfill({ status: 200, headers: { 'content-type': 'image/jpeg', 'x-playmat-restam': String(svc.restam), 'x-playmat-renova': '2099-01-02T00:00:00Z' }, body: jpeg });
+  });
+  // 1 · Perfil › Playmats: o vazio convida a criar; sem conta, o ateliê pede Entrar e Criar fica desligado
+  await page.goto(base + '#/perfil/playmats'); await page.waitForSelector('#playmats-vazio #playmats-criar');
+  // a imagem que a "função" devolve: um JPEG de 1024 px desenhado aqui (gradiente e pontos, como uma foto)
+  jpeg = Buffer.from((await page.evaluate(() => { const c = document.createElement('canvas'); c.width = c.height = 1024; const x = c.getContext('2d');
+    const g = x.createRadialGradient(512, 512, 40, 512, 512, 720); g.addColorStop(0, '#2f4a2c'); g.addColorStop(1, '#0d140a'); x.fillStyle = g; x.fillRect(0, 0, 1024, 1024);
+    for (let i = 0; i < 6000; i++) { x.fillStyle = `rgba(${200 + (i % 50)}, ${160 + (i % 40)}, 80, .08)`; x.fillRect((i * 97) % 1024, (i * 61) % 1024, 3, 3); }
+    return c.toDataURL('image/jpeg', .95); })).split(',')[1], 'base64');
+  assert.ok(jpeg.length > 20000, 'JPEG de verdade: ' + jpeg.length);
+  await page.click('#playmats-criar'); await page.waitForSelector('#atelie-sem-conta');
+  assert.match(await page.innerText('#atelie-sem-conta'), /Entre com a sua conta para criar um playmat/);
+  await page.fill('#atelie-texto', 'couro'); assert.equal(await page.isDisabled('#atelie-criar'), true, 'sem conta, Criar desligado');
+  await auditaTela(page, 'J-76 · MK3-P4 ateliê sem conta');
+  // 2 · com a conta da Estante: o aviso sai, a cota diz o limite, os exemplos preenchem e o contador acompanha
+  await page.goto(base + '#/perfil'); await page.click('#conta-entrar'); await page.waitForSelector('#conta-estante[data-estado="conectada"]');
+  await page.goto(base + '#/perfil/playmats/criar'); await page.waitForSelector('#atelie-criar');
+  await page.waitForFunction(() => !document.querySelector('#atelie-sem-conta'));
+  assert.equal(await page.textContent('#atelie-cota'), '2 criações por dia');
+  assert.equal(await page.isDisabled('#atelie-criar'), true, 'sem texto, Criar desligado');
+  assert.deepEqual(await page.$$eval('#atelie-exemplos .ds-chip', cs => cs.map(c => c.textContent)), ['couro verde com fio de latão', 'mapa antigo em sépia', 'mármore negro']);
+  for (const el of await page.$$('#atelie-exemplos .ds-chip, #atelie-criar, #atelie-voltar')) assert.ok((await el.boundingBox()).height >= 44, 'alvo de 44 px');
+  await page.click('#atelie-exemplo-1');
+  assert.equal(await page.inputValue('#atelie-texto'), 'mapa antigo em sépia'); assert.equal(await page.textContent('#atelie-contador'), '20 de 200');
+  assert.equal(await page.getAttribute('#atelie-texto', 'maxlength'), '200');
+  assert.equal(await page.isEnabled('#atelie-criar'), true);
+  for (const tema of ['dark', 'light']) { await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await auditaTela(page, `J-76 · MK3-P4 ateliê ${tema}`);
+    if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + `/j-76-mk3-p4-atelie-${tema}.png` }); }
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  // 3 · sem internet: Criar desligado com o motivo; a rede volta, Criar volta
+  await page.context().setOffline(true);
+  await page.waitForSelector('#atelie-sem-rede'); assert.match(await page.innerText('#atelie-sem-rede'), /Sem internet: a criação volta quando houver conexão/);
+  assert.equal(await page.isDisabled('#atelie-criar'), true);
+  await page.context().setOffline(false);
+  await page.waitForFunction(() => !document.querySelector('#atelie-sem-rede') && !document.querySelector('#atelie-criar').disabled);
+  assert.equal(svc.pedidos.length, 0, 'nada saiu do aparelho até aqui');
+  // 4 · ainda não liberada: a frase da função, sem "Tentar de novo"
+  svc.modo = 'nao-liberada'; await page.click('#atelie-criar'); await page.waitForSelector('#atelie-erro[data-codigo="nao-liberada"]');
+  assert.match(await page.innerText('#atelie-erro'), /Criação ainda não liberada/); assert.equal(await page.locator('#atelie-de-novo').count(), 0);
+  assert.deepEqual(svc.pedidos[0], { auth: 'Bearer id-e2e', metodo: 'POST', corpo: { texto: 'mapa antigo em sépia' } }, 'só o texto e o acesso da conta');
+  // 5 · criar: a espera longa (MV-4) enquanto a função trabalha; o resultado pousa na mini-mesa, nos três níveis de Movimento
+  const lados = () => page.evaluate(() => [...document.querySelectorAll('#atelie-previa > .tb-side')].map(l => ({ k: l.dataset.playmat, fundo: getComputedStyle(l).backgroundImage })));
+  const niveis = [['completo', null], ['moderado', 'moderado'], ['reduzido', 'reduzido']];
+  for (const [i, [nivel, attr]] of niveis.entries()) {
+    await page.evaluate(a => window.__estanteTema.setAparencia({ movimento: a || 'sistema' }), attr);
+    svc.modo = i === 0 ? 'lento' : 'ok'; svc.restam = i === 2 ? 1 : 2;
+    if (i > 0) { await page.click('#atelie-outra'); await page.waitForSelector('#atelie-criar:not([hidden])'); }
+    await page.click('#atelie-criar');
+    if (i === 0) {
+      await page.waitForSelector('#atelie-criando');
+      assert.equal(await page.getAttribute('#atelie-criando', 'role'), 'status'); assert.match(await page.innerText('#atelie-criando'), /Criando o seu playmat\. Leva até 20 segundos/);
+      assert.equal(await page.isDisabled('#atelie-criar'), true, 'enquanto cria, Criar ocupado'); assert.equal(await page.getAttribute('#atelie-criar', 'aria-busy'), 'true');
+      await auditaTela(page, 'J-76 · MK3-P4 criando');
+      while (!svc.solta) await new Promise(r => setTimeout(r, 20));
+      svc.solta(); svc.solta = null;
+    }
+    await page.waitForSelector('#atelie-previa');
+    const m = await medePousa(page, '#atelie-previa > .tb-side--opp');
+    t.diagnostic(`J-76 · pousar o criado ${nivel}: ${JSON.stringify(m)}`);
+    const ls = await lados();
+    assert.deepEqual(ls.map(x => x.k), ['criado', 'criado'], `${nivel}: os dois lados com o criado (espelho)`);
+    assert.match(ls[0].fundo, /url\("data:image\/(webp|jpeg)/, `${nivel}: a imagem guardável sob o véu`); assert.match(ls[0].fundo, /radial-gradient/, `${nivel}: o véu por cima`);
+    assert.equal(m.classe, false, `${nivel}: a receita sai ao terminar`);
+    if (nivel === 'completo') assert.ok(m.anims >= 2 && m.sombra && m.inicio.w > m.fim.w + 4, `completo: vem em Z e assenta: ${JSON.stringify(m)}`);
+    else if (nivel === 'moderado') assert.ok(m.anims >= 1 && Math.abs(m.fim.w - m.inicio.w) < 0.6, 'moderado: sem Z');
+    else assert.ok(!m.dur || m.dur <= 1, `reduzido: num quadro (${m.dur})`);
+    assert.equal(await page.isHidden('#atelie-criar'), true, 'com o resultado, Guardar é o primário');
+  }
+  await page.evaluate(() => window.__estanteTema.setAparencia({ movimento: 'sistema' }));
+  assert.equal(await page.textContent('#atelie-cota'), 'Restam 1 de 2 hoje', 'a cota que a função disse');
+  for (const tema of ['dark', 'light']) { await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await auditaTela(page, `J-76 · MK3-P4 resultado ${tema}`);
+    if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + `/j-76-mk3-p4-resultado-${tema}.png` }); }
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  // 6 · Guardar: WebP de até 200 KB no aparelho; volta à galeria com o criado na lista
+  await page.click('#atelie-guardar'); await page.waitForSelector('#playmats-criados');
+  let guardados = await leDoAparelho(page, 'playmats.criados');
+  assert.equal(guardados.length, 1); assert.equal(guardados[0].nome, 'Mapa antigo em sépia'); assert.equal(guardados[0].texto, 'mapa antigo em sépia');
+  assert.match(guardados[0].imagem, /^data:image\/webp;base64,/, 'WebP'); assert.ok(guardados[0].imagem.length * 3 / 4 <= 200 * 1024, 'até 200 KB: ' + guardados[0].imagem.length);
+  assert.deepEqual(await page.$$eval('#playmats-criados .playmat-criado__nome', ns => ns.map(n => n.textContent)), ['Mapa antigo em sépia']);
+  assert.match(await page.$eval('#playmats-criados .playmat-criado__amostra', a => getComputedStyle(a).backgroundImage), /url\("data:image\/webp/);
+  for (const b of await page.$$('#playmats-criados button')) assert.ok((await b.boundingBox()).height >= 44, 'Renomear e Apagar com 44 px');
+  assert.match(await page.textContent('#playmats-seus-conta'), /1 de 8 guardados, só neste aparelho\. Usar na mesa chega na próxima versão/);
+  for (const tema of ['dark', 'light']) { await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.locator('#playmats-criados').scrollIntoViewIfNeeded(); await auditaTela(page, `J-76 · MK3-P4 criados ${tema}`);
+    if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + `/j-76-mk3-p4-criados-${tema}.png` }); }
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  // 7 · renomear
+  await page.click('#playmats-criados [data-acao="renomear"]'); await page.waitForSelector('#playmat-nome');
+  await page.fill('#playmat-nome', 'Sépia da casa'); await page.click('#playmat-nome-salvar');
+  await page.waitForFunction(() => document.querySelector('#playmats-criados .playmat-criado__nome').textContent === 'Sépia da casa');
+  assert.equal(await page.getAttribute('#playmats-criados [data-acao="apagar"]', 'aria-label'), 'Apagar Sépia da casa');
+  // 8 · apagar com Desfazer: sai na hora, volta no mesmo lugar
+  await page.click('#playmats-criados [data-acao="apagar"]'); await page.waitForSelector('#playmats-vazio');
+  assert.match(await page.textContent('#ds-toast'), /Playmat apagado/);
+  await page.click('#ds-toast .ds-toast__acao'); await page.waitForSelector('#playmats-criados');
+  assert.equal((await leDoAparelho(page, 'playmats.criados')).length, 1, 'de volta no aparelho');
+  // 9 · recusa (a frase com o motivo, sem "Tentar de novo") e cota acabada (quando volta; Criar desligado, também depois de reabrir)
+  await page.click('#playmats-criar'); await page.waitForSelector('#atelie-criar');
+  await page.fill('#atelie-texto', 'logotipo de uma marca famosa'); svc.modo = 'recusado'; await page.click('#atelie-criar');
+  await page.waitForSelector('#atelie-erro[data-codigo="recusado"]');
+  assert.match(await page.innerText('#atelie-erro'), /Esse pedido não pode virar playmat: marca ou logotipo/); assert.equal(await page.locator('#atelie-de-novo').count(), 0);
+  svc.modo = 'cota'; await page.fill('#atelie-texto', 'mármore negro'); await page.click('#atelie-criar');
+  await page.waitForSelector('#atelie-erro[data-codigo="cota-conta"]');
+  assert.match(await page.innerText('#atelie-erro'), /Você já criou os playmats de hoje\. Volte amanhã, a partir das \d{1,2}h/);
+  assert.match(await page.textContent('#atelie-cota'), /^Nenhuma criação restante hoje\. Volte amanhã/); assert.equal(await page.isDisabled('#atelie-criar'), true);
+  await auditaTela(page, 'J-76 · MK3-P4 cota acabada');
+  await page.reload(); await page.waitForSelector('#atelie-criar'); await page.fill('#atelie-texto', 'feltro azul');
+  await page.waitForFunction(() => /^Nenhuma criação restante hoje/.test(document.querySelector('#atelie-cota').textContent));
+  assert.equal(await page.isDisabled('#atelie-criar'), true, 'a cota do dia fica até a renovação');
+  // 10 · cheio: com 8 guardados, o ateliê e a galeria dizem para apagar um
+  guardados = await leDoAparelho(page, 'playmats.criados');
+  await poeNoAparelho(page, 'playmats.criados', Array.from({ length: 8 }, (_, i) => ({ ...guardados[0], id: `pm-e2e-${i}`, nome: `Playmat ${i + 1}` })));
+  await poeNoAparelho(page, 'playmats.cota', null);
+  await page.reload(); await page.waitForSelector('#atelie-cheio');
+  assert.match(await page.innerText('#atelie-cheio'), /Você já guarda 8 playmats\. Apague um para criar outro/);
+  await page.fill('#atelie-texto', 'feltro azul'); assert.equal(await page.isDisabled('#atelie-criar'), true);
+  // 11 · volta: aos Playmats, com os 8 e sem Criar
+  await page.click('#atelie-voltar'); await page.waitForSelector('#playmats-criados');
+  assert.equal(await page.locator('#playmats-criados > li').count(), 8); assert.equal(await page.locator('#playmats-criar').count(), 0);
+  await auditaTela(page, 'J-76 · MK3-P4 cheio');
+  // 12 · inglês: o ateliê e a lista sem sobras em português
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#idioma-en'); await page.click('#idioma-en');
+  await page.waitForFunction(() => document.documentElement.lang === 'en');
+  await page.goto(base + '#/perfil/playmats'); await page.waitForSelector('#playmats-criados');
+  assert.deepEqual(await sobrasEmPortugues(page, 'en'), [], 'Playmats em inglês');
+  await page.goto(base + '#/perfil/playmats/criar'); await page.waitForSelector('#atelie-cheio');
+  assert.deepEqual(await sobrasEmPortugues(page, 'en'), [], 'ateliê em inglês');
+  assert.equal(svc.pedidos.every(p => p.auth === 'Bearer id-e2e' && p.metodo === 'POST'), true);
+  // o navegador anota no console as três respostas de erro que a função simulada deu de propósito (503, 422, 429); nada mais
+  assert.deepEqual(errors.filter(e => !/^Failed to load resource: the server responded with a status of (503|422|429)\b/.test(e)), []);
+  assert.equal(errors.length, 3, 'exatamente as três respostas de erro simuladas');
 });
 
 /* ---------------- J-69 · relato #136: o ⋯ da mesa abre o menu, nunca o relato ---------------- */
