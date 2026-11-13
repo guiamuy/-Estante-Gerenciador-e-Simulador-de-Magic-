@@ -25,7 +25,7 @@ Marcos: Pauper 100% (as sete listas revisadas carta a carta; 681 de 686 listas P
 | `radar` | R | BI4 · Painel Estante: comparar períodos, metas, tendência | R-44 · 07/11 | BI4-6 em diante; validação do dono após os primeiros pilares |
 | `jogabilidade` | J | MK3 · Mesa Vitrine (rotina) | J-75 · 13/11 | MK3-4 no trem; MK3-5; #54 |
 | `bot` | B | B25 · força 55%, Faeries 32,5%, fora 52% ✓ | B-214 · 13/11 | sair das Faeries |
-| `infra` | I | trem de produção (I-331/I-332, a cada 2 h); junção dos idiomas/*.json (I-333) | I-333 · 13/11 | ESTADO.md no teto de 8 KB; ponte das coleções; repo privado |
+| `infra` | I | trem (a cada 2 h); robôs fora do Actions (I-334: só artes fica) | I-334 · 13/11 | conflito do contract.visual na soma; ponte das coleções |
 | `homologacao` | H | prova de partida do catálogo, revisão em lote (Commander) | H-24 · 01/11 | lote 8 |
 | `protecao` | P | segurança e privacidade; Apoiar a Estante (MON1) | P-21 · 26/10 | — |
 
@@ -81,4 +81,4 @@ Os documentos `claude/…` moram no Projeto do claude.ai, fora do repositório: 
 
 No commit de docs de cada leva (o mesmo que atualiza o ROADMAP): reescreva a **sua** linha na tabela de trilhas, atualize relatos e pendências se mudaram e troque a data abaixo. Edite por patch, nunca o arquivo inteiro. Conflito no rebase: fique com as linhas das outras trilhas e a sua. Passou de 8 KB: resuma, não acrescente.
 
-Atualizado: 13/11/2026 · M-628 · G-371 · S-624 (scanner) · G-384 · G-385 · M-625 · M-624 · B-213 (bot) · B-214 · M-626 · J-69 · J-72 · J-75 · G-386 · M-616 · G-381 · J-74
+Atualizado: 13/11/2026 · J-75 · M-628 · B-214 · G-385 · I-334

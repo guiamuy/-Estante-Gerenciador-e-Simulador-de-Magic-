@@ -89,7 +89,7 @@ test('I-293 · rodada com rede de mentira: token com os três escopos (banco + c
 
 test('I-293 · o fluxo Pessoas: agendado + à mão, só escrita em conteúdo, ações fixadas por SHA, segredo só no passo que grava, token do git pelo cabeçalho (nunca na URL do remoto), sem npm, sem push no main; a fila dispara o fluxo a cada avanço, sem derrubar a rodada', () => {
   const yml = readFileSync(join(RAIZ, '.github/workflows/pessoas.yml'), 'utf8');
-  assert.match(yml, /^on:\n  schedule:\n    - cron: '[^']+'\n  workflow_dispatch:/m, 'agendado e à mão, sem push');
+  assert.match(yml, /^on:\n  workflow_dispatch:/m, 'I-334 · só à mão, de reserva: o agendamento é da rotina na nuvem (node robos.mjs dia)'); assert.doesNotMatch(yml, /^  schedule:|^  push:/m);
   assert.match(yml, /^permissions:\n  contents: write/m); assert.doesNotMatch(yml, /issues: write|actions: write|statuses: write/);
   for (const u of yml.matchAll(/uses: ([^\s]+)/g)) assert.match(u[1], /@[0-9a-f]{40}/, 'ação fixada por SHA: ' + u[1]);
   assert.match(yml, /persist-credentials: false/);
