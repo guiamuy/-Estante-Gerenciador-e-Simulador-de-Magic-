@@ -724,6 +724,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-vg ✅ | T-IDIOMA relatos #53/#66, lote 6 da fatia 3: Commander (160 cartas em português, 43 em espanhol: Korvold, Niv-Mizzet, Imperial Seal, Knuckles, as Salas, Aang de duas faces…), pelo conferidor; 1.877 em português e 753 em espanhol seguem sem Oracle no repositório (G-380, 11/11/2026) | T | 1 | 16º-ve |
 | 16º-vv ✅ | T-IDIOMA relato #151, fatia 5a: na mesa, a folha da carta (toque), o espiar (segurar) e o "aplicar efeito" mostram o texto da carta no idioma do app (impresso oficial ou "Tradução" do robô, com "Ver o original"), das suas cartas e das do oponente; ao abrir a mesa o guardado no aparelho entra na memória, a carta aberta busca o que falta (G-381, 12/11/2026) | T | 1 | 16º-vg |
 | 16º-vx ✅ | T-IDIOMA relatos #53/#66, lote 7 da fatia 3: as cartas que entraram nas listas depois dos lotes e já têm o Oracle no repositório (32 em português, 9 em espanhol: Garruk, Veiled Butcher, Overlord of the Hauntwoods, Niv-Mizzet, Parun, as terras de Star Trek, Aang e Emet-Selch de duas faces, Pompous Battlemage // Improvised Act pelas faces), pelo conferidor; 1.880 em português e 753 em espanhol seguem sem Oracle no repositório (G-383, 12/11/2026) | T | 1 | 16º-vg |
+| 16º-wa ✅ | T-IDIOMA relatos #53/#66, acerto de termo (G-386, 13/11/2026): ward no texto traduzido em português sai como "Salvaguarda", o termo impresso oficial (Scryfall, printed_text pt, consulta de 13/11/2026); 14 cartas do pacote estavam com "Proteção" (que é protection) ou "Resguardo". O conferidor ganha ward no glossário (pt "salvaguarda", es "custodia"). | T | 1 | 16º-vx |
 | 16º-vf ✅ | Relato #137 (J-70): com o detalhe da pilha aberto, tocar de novo na faixa (na seta) recolhe; antes nada acontecia e só Esc ou toque fora fechavam (J-70, 11/11/2026) | J | 1 | — |
 | 16º-vh 🟡 | Relato #135, fatia 1 (G-379, 11/11/2026): lista pronta do Pauper que o motor não joga inteira (medida da sentinela abaixo de 100%) sai das Listas prontas e das prontas do Jogar, com a linha "N listas de Pauper estão fora…"; a medida a 100% a traz de volta sozinha. Fatia 2: a rotina Sentinela do Pauper trata primeiro as listas que saíram | G | 1 de 2 | 16º-vd |
 | 16º-vi ✅ | Relato #136 (J-69): o ⋯ da mesa abre o menu (Desfazer, Registro, Desistir), nunca o relato: a aba de relatar da borda direita ganha um piso medido no ⋯ (base dele + 8 px), refeito a cada pintura, rolagem e mudança de tamanho; com a barra de cima mais baixa (recorte da câmera no app instalado) ou a aba arrastada ao alto, ela não cobre mais o ⋯. A posição guardada não muda (leva J-69, 11/11/2026) | J | ½ | 16º-vd |
@@ -13849,6 +13850,15 @@ trilha `geral`, 09/11/2026; relato do dono de 09/11: o Enviar abria o GitHub e o
   **Parcial, declarado:** 1.880 cartas de Commander em português e 753 em espanhol seguem em inglês sem Oracle no repositório:
   a sessão de nuvem não alcança a Scryfall (proxy 403 em 12/11); o próximo lote depende de o Oracle chegar ao ramo `catalogo`
   (cobertura) pelos robôs que alcançam a Scryfall.
+- **Acerto de termo (G-386, `16º-wa`, rotina Relatos do dono, 13/11/2026) ✅:** ward em português é "Salvaguarda" (texto
+  impresso das cartas em português na Scryfall, `printed_text`, consulta de 13/11/2026: "Salvaguarda {1} (Toda vez que esta
+  criatura se tornar alvo…", "Salvaguarda — Pague 2 pontos de vida."), o mesmo nome que a mesa já usa; os lotes G-380/G-383
+  usaram "Resguardo" e os anteriores "Proteção" (termo de protection). 14 cartas do pacote pt acertadas (Colorstorm Stallion,
+  Emeritus of Ideation, Hexing Squelcher, Innkeeper's Talent, Nowhere to Run, Sheltered by Ghosts, Skyward Spider, Valgavoth,
+  Ygra, Koma, Malfunctioning Holodeck, Prismari, Strong, Sunset Saboteur); o pacote es já usava "Custodia". `GLOSSARIO` do
+  `idioma-cartas.mjs` ganha `ward` (pt `salvaguarda`, es `custodia`): tradução nova com outro termo é barrada. Teste U
+  `idioma-traducao.unit` G-386 (falhava antes). Achado para o bloqueio do Commander: o conector Firecrawl da sessão alcança
+  `api.scryfall.com` (o `curl` segue com proxy 403); vale avaliar o lote do Commander por ele, em levas pequenas.
 - **Fora, declarado (fatias seguintes):** a troca de idioma no Perfil (item 2); os pacotes **es** e **en** (item 3: extrair os
   textos para um dicionário por idioma, história de várias rodadas); texto e nome das cartas (item 4, aguarda decisão
   "oficial"/"automática"); a **camada obrigatória de idioma em toda entrega** (texto novo nasce no dicionário e o teste barra

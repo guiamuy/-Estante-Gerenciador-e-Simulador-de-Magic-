@@ -263,3 +263,23 @@ test('G-383 · pacotes: o lote 7 (cartas novas nas listas, com Oracle guardado) 
     assert.ok(C.traducaoDaCarta(P, card, lang), `${lang} · ${nome} aparece no app`);
   }
 });
+
+test('G-386 · ward tem o termo impresso oficial: Salvaguarda (pt) e Custodia (es); "Proteção" é protection e "Resguardo" não existe na carta', () => {
+  const en = 'Ward {2} (Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {2}.)';
+  assert.deepEqual(palavrasDe(en), ['ward']);
+  assert.deepEqual(palavrasDe('Ward—Pay 2 life.'), ['ward']);
+  assert.deepEqual(palavrasDe('Flying', 'Skyward Teste'), ['flying'], 'ward dentro de outra palavra não conta');
+  assert.deepEqual(confereTexto('Ward {2}', 'Salvaguarda {2}', 'pt'), []);
+  assert.deepEqual(confereTexto('Ward—Pay 2 life.', 'Salvaguarda — Pague 2 pontos de vida.', 'pt'), []);
+  assert.match(confereTexto('Ward {2}', 'Proteção {2}', 'pt').join(), /"ward" sem o termo oficial/);
+  assert.match(confereTexto('Ward {2}', 'Resguardo {2}', 'pt').join(), /"ward" sem o termo oficial/);
+  assert.deepEqual(confereTexto('Ward {2}', 'Custodia {2}.', 'es'), []);
+  assert.match(confereTexto('Ward {2}', 'Protección {2}.', 'es').join(), /"ward" sem o termo oficial/);
+  // o pacote português inteiro: nenhuma carta com ward sai com "Proteção" ou "Resguardo" no lugar
+  const p = lePacote('pt');
+  const ruins = Object.entries(p.cartas).filter(([n, e]) => {
+    const orig = [].concat(e.original).join('\n'), txt = e.faces ? e.faces.map(f => f.texto).join('\n') : e.texto;
+    return /(^|[^a-z])ward([^a-z]|$)/i.test(orig.replace(/\([^()]*\)/g, ' ')) && /\b(Resguardo)\b|Proteção\s*(\{|—|-)/.test(txt);
+  }).map(([n]) => n);
+  assert.deepEqual(ruins, []);
+});
