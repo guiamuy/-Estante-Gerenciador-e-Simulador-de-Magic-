@@ -594,7 +594,8 @@ test('DS-K2 · M2 a mão em leque: largura e passo por conta de CSS sobre a larg
   const regra = componentCss.slice(componentCss.indexOf('.tb-row--leque > .tb-card--leque {'), componentCss.indexOf('}', componentCss.indexOf('.tb-row--leque > .tb-card--leque {')));
   assert.match(regra, /rotate: var\(--leque-rot, 0deg\); translate: 0 var\(--leque-y, 0px\);/, 'giro e arco são propriedades próprias (não brigam com o transform dos efeitos)');
   const props = [...regra.matchAll(/transition: ([^;]+);/g)].flatMap(m => m[1].split(',').map(x => x.trim().split(' ')[0]));
-  assert.deepEqual(props, ['transform', 'rotate', 'translate'], 'só propriedades que o compositor anima sozinho');
+  // MK3-4 (J-73) · a expectativa muda de propósito: o recuo das pontas é a propriedade scale (também do compositor) e anima junto
+  assert.deepEqual(props, ['transform', 'rotate', 'translate', 'scale'], 'só propriedades que o compositor anima sozinho');
   assert.ok(/var\(--dur-2\) var\(--ease-out\)/.test(regra) && !/\d+ms/.test(regra), 'duração e curva por token');
   assert.match(componentCss, /@media \(prefers-reduced-motion: reduce\) \{ \.tb-row--leque > \.tb-card--leque \{ transition: none; \} \}/);
   assert.match(componentCss, /\.tb-row--leque > \.tb-card--leque:is\(\[data-segurando="true"\], \[data-selected="true"\], :active\) \{ rotate: 0deg;[^}]*z-index: 2; \}/, 'a carta em foco endireita e fica por cima');
@@ -1249,4 +1250,30 @@ test('DS-K3 K3-6 · vitrine vazia: madeira da prateleira nos três blocos (escur
   assert.match(HTML, /h\('div', \{ class: 'ds-vitrine__palco', 'aria-hidden': 'true' \}/);
   assert.match(HTML, /const Empty = \(message, action, \{ icone, titulo, hero, id \} = \{\}\) => hero \? Vitrine\(/);
   for (const id of ['col-vazio', 'decks-vazio', 'ds-vitrine']) assert.match(HTML, new RegExp(`Vitrine\\(\\{ id: '${id}'`), id);
+});
+
+// MK3-4 (J-73, trilha jogabilidade) · mão viva: a carta pega sobe em Z (--carta-pega-z) e inclina até --carta-pega-giro, os dois
+// a 0 no moderado e no reduzido (e no prefers-reduced-motion); a moldura anda (translate) e dá a perspectiva, a carta sobe com
+// --mola-firme --dur-2 e a sombra flutuante; a carta de verdade sai do leque e espera invisível na volta; o leque recua as pontas
+// por --z-recuo; a compra sai do grimório (--compra-dx/--compra-dy). Só tokens. Falhava no main de antes (sem os tokens nem .tb-pega).
+test('MK3-4 · mão viva: tokens de pega zerados no moderado e no reduzido; moldura com perspectiva; carta sobe em Z com a mola e a sombra flutuante; leque com profundidade; compra do grimório; palco no /ds', () => {
+  assert.equal(DARK['--carta-pega-z'], '40px'); assert.equal(DARK['--carta-pega-giro'], '8deg');
+  assert.equal(DARK['--carta-leque-recuo'], '.04', 'o --z-recuo (40 px) visto de frente pela --perspectiva (900 px)');
+  assert.ok(tokenCss.includes(':root[data-movimento="moderado"], :root[data-movimento="reduzido"] { --carta-pega-z: 0px; --carta-pega-giro: 0deg; --carta-leque-recuo: 0; }'), 'moderado e reduzido: sem Z, giro nem recuo');
+  assert.ok(tokenCss.includes('@media (prefers-reduced-motion: reduce) { :root { --carta-pega-z: 0px; --carta-pega-giro: 0deg; --carta-leque-recuo: 0; } }'), 'o aparelho pede menos movimento: idem');
+  const regra = sel => { const i = componentCss.indexOf(sel + ' {'); assert.ok(i >= 0, 'regra ' + sel); return componentCss.slice(i, componentCss.indexOf('}', i) + 1); };
+  assert.match(regra('.tb-fx-camada > .tb-pega'), /position: fixed;[^}]*pointer-events: none; perspective: var\(--perspectiva\);/);
+  const carta = regra('.tb-pega > .tb-pega__carta');
+  assert.match(carta, /transform: translateZ\(var\(--carta-pega-z\)\); transition: rotate var\(--dur-1\) var\(--ease-out\);/);
+  assert.match(carta, /animation: tb-pega-sobe var\(--dur-2\) var\(--mola-firme\) backwards;/);
+  assert.ok(!/#[0-9a-f]{3,6}\b|rgba?\(|\d+ms/.test(carta), 'só tokens');
+  assert.match(regra('.tb-pega > .tb-pega__carta::before'), /opacity: 1;/, 'L2 · levantada, sombra flutuante');
+  assert.match(componentCss, /@keyframes tb-pega-sobe \{ from \{ transform: translateZ\(0px\); \} \}/);
+  assert.match(regra('.tb-card[data-pega="fora"]'), /display: none;/); assert.match(regra('.tb-card[data-pega="volta"]'), /visibility: hidden;/);
+  assert.match(componentCss, /@media \(prefers-reduced-motion: reduce\) \{ \.tb-pega > \.tb-pega__carta \{ animation: none; transition: none; \} \}/);
+  assert.match(componentCss, /scale: calc\(1 - var\(--carta-leque-recuo\) \* var\(--leque-prof, 0\)\);/, 'o leque recua as pontas');
+  assert.match(componentCss, /:active\) \{ rotate: 0deg; translate: 0 calc\(var\(--space-1\) \* -1\.5\); scale: 1; transform: scale\(1\.04\);/, 'a carta em foco volta à frente');
+  assert.match(css, /@keyframes tb-compra \{ 0% \{ opacity: 0; transform: perspective\(700px\) translate\(var\(--compra-dx, 36px\), var\(--compra-dy, -14px\)\) rotateY\(180deg\) scale\(\.7\); \}/, 'a compra sai do grimório');
+  assert.match(HTML, /cartas\.forEach\(armaPegaNoPalco\); \/\/ MK3-4/, 'palco da mão viva no /ds');
+  assert.match(HTML, /passoDaCompra: Math\.min\(durFx\('--escalona-2'\), 200\)/, 'compradas juntas por --escalona-2');
 });
