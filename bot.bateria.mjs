@@ -206,6 +206,12 @@ export const POSICOES = [
   { id: 'seq-faeries-duas-anulacoes', classe: 'sequencia', lista: FAERIES, porque: 'meu turno, quatro terras, duas Counterspell e a Baleful Strix na mão contra o Madness com quatro cartas: a Strix tira um dos dois azuis (só Island e Aquifer dão U); com duas anulações, a mana aberta é o plano (partida narrada 9500 de 10/11, B-209)',
     monta: () => monta(FAERIES, MADNESS, { p0: { campo: ['Island', 'Contaminated Aquifer', 'Swamp', 'Bojuka Bog'], mao: ['Counterspell', 'Counterspell', 'Baleful Strix'], vida: 15 }, p1: { campo: ['Mountain', 'Mountain', 'Mountain', 'Mountain', 'Sneaky Snacker'], mao: ['Kessig Flamebreather', 'Lightning Bolt', 'Grab the Prize', 'Lava Dart'] } }),
     certo: (s, j) => !(j.acao.t === 'cast' && nomeDe(s, j.acao.oid) === 'Baleful Strix') },
+  // B-215 · Elfos contra o Terror (partida narrada 14151 de 13/11, T9–T12): o Lead the Stampede ficou na mão do T1 ao fim com dez fontes
+  // no campo — na primeira fase principal ele esperava a segunda, e o ataque virava os elfos de mana. O feitiço que só traz cartas
+  // vai antes do combate (`antesDoCombate`).
+  { id: 'seq-elfos-lead-antes', classe: 'sequencia', lista: ELFOS, porque: 'primeira fase principal, terreno já baixado, Lead the Stampede na mão e três Florestas mais quatro elfos de mana contra o Terror: o feitiço que traz criaturas vai antes do combate, que vira os elfos',
+    monta: () => monta(ELFOS, TERROR, { p0: { campo: ['Forest', 'Forest', 'Forest', 'Llanowar Elves', 'Llanowar Elves', 'Elvish Mystic', 'Fyndhorn Elves', 'Masked Vandal'], mao: ['Lead the Stampede'] }, p1: { campo: ['Island', 'Island', 'Island', 'Delver of Secrets'], viradas: ['Island', 'Island', 'Island'], mao: ['Counterspell', 'Brainstorm'] } }),
+    certo: conjura('Lead the Stampede') },
   // ---- mulligan
   { id: 'mull-sete-terrenos', classe: 'mulligan', lista: TERROR, porque: 'sete terrenos não jogam: mulligan',
     mulligan: true, monta: () => maoInicial(TERROR, MADNESS, ['Island', 'Island', 'Island', 'Island', 'Island', 'Island', 'Island']),
