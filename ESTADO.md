@@ -21,7 +21,7 @@ Marcos: Pauper 100% (as sete listas revisadas carta a carta; 682 de 686 listas P
 |---|---|---|---|---|
 | `scanner` | S | X16: #90 foil (F1 só foil; F2 selo "Foil?") | S-625 · 11/11 | calibrar o foil e #79 no aparelho |
 | `geral` | G | DS-K3; T-IDIOMA #151 5c: Commander em pt/es por lotes (G-387, G-391) | G-391 · 14/11 | 5c lote 3+ (1.802 pt, 687 es); Darval |
-| `motor` | M | Modern 140/719 (≈160 com a fila) | M-632 · 13/11 | 712.8d (subtipo da face de cima); Arena of Glory |
+| `motor` | M | Modern 168/719 com o trem | M-633 · 14/11 | Cryomancer; Arena of Glory |
 | `radar` | R | BI4 · Painel Estante: comparar períodos, metas, tendência | R-44 · 07/11 | BI4-6 em diante; validação do dono após os primeiros pilares |
 | `jogabilidade` | J | MK3 · Mesa Vitrine (rotina) | J-76 · 13/11 | prompt v2 do ateliê; MK3-5; #54 |
 | `bot` | B | B25 · força 55%, Faeries 32,5%, fora 50% | B-215 · 13/11 | usar a remoção |
@@ -81,4 +81,4 @@ Os documentos `claude/…` moram no Projeto do claude.ai, fora do repositório: 
 
 No commit de docs de cada leva (o mesmo que atualiza o ROADMAP): reescreva a **sua** linha na tabela de trilhas, atualize relatos e pendências se mudaram e troque a data abaixo. Edite por patch, nunca o arquivo inteiro. Conflito no rebase: fique com as linhas das outras trilhas e a sua. Passou de 8 KB: resuma, não acrescente.
 
-Atualizado: 14/11/2026 · G-381 · J-74 · I-333 · J-64 · M-623 · G-387 · G-391 · J-72 · M-629 · G-390 · S-624 (scanner) · G-385 · M-630 · M-625 · M-631
+Atualizado: 14/11/2026 · J-72 · M-629 · G-390 · S-624 (scanner) · G-385 · M-630 · M-625 · M-631 · G-389 · J-75 · I-334 · G-386 · M-616 · M-628 · G-371 · J-73 · G-384 · M-633
