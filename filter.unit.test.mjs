@@ -230,3 +230,17 @@ test('I2 · filtro das listas: quantos critérios estão ligados, quando está v
   assert.equal(F.descreveFiltroDeListas(g, { formatos: { pauper: 'Pauper', commander: 'Commander' } }), 'Pauper/Commander · azul/vermelho (só essas) · falta carta · "tempo"');
   assert.equal(F.descreveFiltroDeListas(f), '');
 });
+
+test('DS-K3 K3-8 (G-390) · as seis barras do Balcão contam pela regra do filtro: multicolor em cada cor, incolor em C, sem dados fora', () => {
+  const b = F.porCorDaColecao(GRUPOS, CARDS);
+  assert.equal(b.map(x => x.chave).join(''), 'WUBRGC');
+  const por = Object.fromEntries(b.map(x => [x.chave, x.copias]));
+  // Boros Charm (R/W, 3) entra no branco e no vermelho; Island e Sol Ring (sem cor) no incolor; Carta Misteriosa (sem dados) em nenhuma
+  assert.equal(JSON.stringify(por), JSON.stringify({ W: 3, U: 3, B: 4, R: 3, G: 4, C: 22 }));
+  // o número de cada barra é o mesmo que o filtro devolve ao tocar nela
+  for (const x of b) {
+    const r = F.filtraColecao(GRUPOS, F.novoFiltro({ cores: [x.chave] }), { cards: CARDS });
+    assert.equal(r.itens.reduce((s, g) => s + (g.qtyRecorte ?? g.qty), 0), x.copias, `barra ${x.chave}`);
+  }
+  assert.equal(F.porCorDaColecao([], CARDS).map(x => x.copias).join(), '0,0,0,0,0,0');
+});
