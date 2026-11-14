@@ -173,6 +173,10 @@
   --mesa-poco: inset 0 2px 8px rgba(0, 0, 0, .55), inset 0 -1px 0 var(--edge);
   /* MK3-1 (J-64) · estojo das fases: um poço pequeno (sombra interna curta de cima e aresta embaixo); o ponto, o traço e o latão do traço */
   --mesa-estojo: inset 0 1px 2px rgba(0, 0, 0, .7), inset 0 -1px 0 var(--edge);
+  /* MK3-8 (J-78) · zonas-objeto: a miniatura da zona (16 × 22 px, proporção da carta, no lugar do ícone de 16 px, dentro da caixa de
+     34 px do contador) e o véu do exílio (a carta do topo apaga na direção do tampo: mais escura no escuro, mais clara no claro) */
+  --zona-mini-w: 16px; --zona-mini-h: 22px;
+  --zona-veu: rgba(10, 8, 6, .58);
   --mesa-fase-ponto: 6px; --mesa-fase-traco: 18px;
   --mesa-fase-latao: linear-gradient(180deg, var(--accent-hi), var(--accent) 60%, var(--accent-lo));
   --sombra-carta: 0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-contact), var(--shadow-key);
@@ -327,6 +331,7 @@
   --carta-laca: linear-gradient(180deg, rgba(255, 255, 255, .16) 0%, rgba(255, 255, 255, 0) 30%);
   --mesa-poco: inset 0 2px 8px rgba(60, 40, 10, .16), inset 0 -1px 0 var(--edge);
   --mesa-estojo: inset 0 1px 2px rgba(60, 40, 10, .24), inset 0 -1px 0 var(--edge); /* MK3-1 */
+  --zona-veu: rgba(250, 246, 238, .62); /* MK3-8 */
   --sombra-carta: 0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-contact), var(--shadow-key);
   --sombra-carta-alta: 0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-float);
   --sombra-carta-deitada: var(--carta-espessura) 0 0 var(--carta-lado), 1px 0 2px rgba(60, 40, 10, .14), 12px 0 28px -14px rgba(60, 40, 10, .35); /* MK3-3 */
@@ -412,6 +417,7 @@
     --carta-laca: linear-gradient(180deg, rgba(255, 255, 255, .16) 0%, rgba(255, 255, 255, 0) 30%);
     --mesa-poco: inset 0 2px 8px rgba(60, 40, 10, .16), inset 0 -1px 0 var(--edge);
     --mesa-estojo: inset 0 1px 2px rgba(60, 40, 10, .24), inset 0 -1px 0 var(--edge); /* MK3-1 */
+    --zona-veu: rgba(250, 246, 238, .62); /* MK3-8 */
     --sombra-carta: 0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-contact), var(--shadow-key);
     --sombra-carta-alta: 0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-float);
     --sombra-carta-deitada: var(--carta-espessura) 0 0 var(--carta-lado), 1px 0 2px rgba(60, 40, 10, .14), 12px 0 28px -14px rgba(60, 40, 10, .35); /* MK3-3 */
