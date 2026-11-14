@@ -22824,6 +22824,59 @@ test('e2e · S-624 relato #90: o selo "Foil?" na pilha confirma ou desfaz com um
   assert.deepEqual(errors.filter(e => !/internetdisconnected|ERR_INTERNET|Failed to load resource/.test(e)), []);
 });
 
+test('e2e · S-627 relato #231: o scanner volta pronto do segundo plano — a câmera fecha ao esconder, reabre ao voltar com o automático como estava, e a trilha que o sistema encerra reabre sozinha', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 697 });
+  await page.addInitScript(FAKE_DEVICE(false));
+  // conta as aberturas e guarda as trilhas entregues; a visibilidade da página fica nas mãos do teste
+  await page.addInitScript(() => {
+    const gum = navigator.mediaDevices.getUserMedia; window.__aberturas = 0; window.__trilhas = [];
+    navigator.mediaDevices.getUserMedia = async c => { const s = await gum(c); window.__aberturas++; window.__trilhas.push(...s.getVideoTracks()); return s; };
+    let vis = 'visible'; Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => vis });
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => vis === 'hidden' });
+    window.__visivel = v => { vis = v ? 'visible' : 'hidden'; document.dispatchEvent(new Event('visibilitychange')); };
+  });
+  await page.goto(base + '#/scanner');
+  await page.waitForSelector('#scan-read:not([disabled])');
+  await opcaoScanner(page, 'edition');
+  const autoLigado = v => page.waitForFunction(k => document.querySelector('[data-auto]').getAttribute('aria-pressed') === String(k), v, { timeout: 12000 });
+  await autoLigado(true);
+  const aberturas = () => page.evaluate(() => window.__aberturas);
+  const n0 = await aberturas();
+  // 1. o app vai para o fundo: a câmera fecha de verdade (a trilha termina) e o automático para de ler
+  await page.evaluate(() => window.__visivel(false));
+  await page.waitForFunction(() => window.__trilhas.every(t => t.readyState === 'ended'), null, { timeout: 5000 });
+  assert.equal(await page.getAttribute('#scan', 'data-camera'), 'idle', 'câmera parada no fundo');
+  // 2. volta: abre uma câmera nova, na tela, e o automático volta ligado
+  await page.evaluate(() => window.__visivel(true));
+  await page.waitForFunction(() => document.querySelector('#scan').dataset.camera === 'on', null, { timeout: 8000 });
+  assert.equal(await aberturas(), n0 + 1, 'uma abertura nova na volta');
+  await autoLigado(true);
+  assert.equal(await page.evaluate(() => { const v = document.querySelector('#scan-video'); const t = v.srcObject && v.srcObject.getVideoTracks()[0]; return !!t && t.readyState === 'live' && !v.paused; }), true, 'vídeo vivo na tela');
+  await page.waitForSelector('#scan-read:not([disabled])');
+  // 3. pausado continua pausado depois de ir e voltar
+  await page.click('[data-auto]'); await autoLigado(false);
+  await page.evaluate(() => window.__visivel(false));
+  await page.waitForFunction(() => document.querySelector('#scan').dataset.camera === 'idle');
+  await page.evaluate(() => window.__visivel(true));
+  await page.waitForFunction(() => document.querySelector('#scan').dataset.camera === 'on', null, { timeout: 8000 });
+  await page.waitForTimeout(300);
+  assert.equal(await page.getAttribute('[data-auto]', 'aria-pressed'), 'false', 'o pausado ficou pausado');
+  // 4. o sistema encerra a trilha com a tela à vista (outro app tomou a câmera): reabre sozinha
+  const n1 = await aberturas();
+  await page.evaluate(() => { const t = document.querySelector('#scan-video').srcObject.getVideoTracks()[0]; t.stop(); t.dispatchEvent(new Event('ended')); });
+  await page.waitForFunction(k => window.__aberturas === k + 1 && document.querySelector('#scan').dataset.camera === 'on', n1, { timeout: 8000 });
+  // 5. saiu do scanner: esconder e voltar não reabre a câmera
+  await page.click('#scan-voltar');
+  await page.waitForFunction(() => !document.querySelector('#scan'));
+  const n2 = await aberturas();
+  await page.evaluate(() => { window.__visivel(false); window.__visivel(true); });
+  await page.waitForTimeout(400);
+  assert.equal(await aberturas(), n2, 'fora do scanner, nada abre a câmera');
+  assert.ok(await page.evaluate(() => window.__trilhas.every(t => t.readyState === 'ended')), 'nenhuma câmera ficou ligada');
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · G-372 relato #107: o idioma ao lado do sino na Início — globo com a bandeira do idioma atual, folha com os três idiomas, troca na hora e a bandeira vira para a nova; 360', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.setViewportSize({ width: 360, height: 780 });

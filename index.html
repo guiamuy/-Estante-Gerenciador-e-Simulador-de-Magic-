@@ -50114,9 +50114,61 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
   const root = Stack({ class: 'ds-wrap scan', id: 'scan', dataset: { base: 'idle', camera: 'idle', leitor: 'idle' } });
 
   /* ---- ciclo de vida ---- */
-  function stopAll() { state.alive = false; state.auto = false; try { camera.stop(); } catch (e) { /* ignora */ } try { if (ocr.stop) ocr.stop('edicao'); } catch (e) { /* ignora */ } }
+  function stopAll() { state.alive = false; state.auto = false; soltaFundo(); try { camera.stop(); } catch (e) { /* ignora */ } try { if (ocr.stop) ocr.stop('edicao'); } catch (e) { /* ignora */ } }
   const onHash = () => { if (!location.hash.startsWith('#/scanner')) { stopAll(); window.removeEventListener('hashchange', onHash); } };
   window.addEventListener('hashchange', onHash);
+  /* S-627 · relato #231 · o app sai para o segundo plano com o scanner aberto: o sistema congela ou encerra a câmera e,
+     na volta, o vídeo ficava parado com o automático "ligado" lendo um quadro morto. Agora a câmera fecha ao esconder
+     (a luz da câmera apaga) e reabre ao voltar, na lente de antes, com o zoom guardado; o automático volta como a
+     pessoa deixou. A trilha que o sistema encerra com a tela à vista (outro app tomou a câmera) reabre do mesmo jeito. */
+  let fundo = null, reabrindo = null;
+  const escondida = () => typeof document !== 'undefined' && document.visibilityState === 'hidden';
+  function pausaFundo() {
+    if (!state.alive || fundo || state.camera !== 'on') return;
+    fundo = { auto: state.auto };
+    if (state.auto) setAuto(false);
+    try { camera.stop(); } catch (e) { /* ignora */ }
+    state.camera = 'idle'; marca();   // os estados de #scan[data-camera] seguem os cinco do G-342
+  }
+  function retomaFundo() {
+    if (!state.alive || !fundo || reabrindo || escondida()) return reabrindo;
+    reabrindo = (async () => {
+      const era = fundo;
+      state.camera = 'starting'; paintStatus(); paintEstado(); marca();
+      try {
+        const lente = await store.get('scanner.lente');
+        await camera.start(video, { facing: 'environment', ...(lente ? { lente } : {}) });
+        if (!state.alive) return camera.stop();
+        state.camera = 'on'; fundo = null; vigiaTrilha();
+        aplicaZoomGuardado().then(() => camera.melhorar && camera.melhorar()).catch(() => {});
+      } catch (e) { fundo = null; state.camera = /denied|notallowed|permission/i.test(String(e && (e.name || e.message))) ? 'denied' : 'unavailable'; }
+      paintStatus(); paintDock(); paintEstado(); marca();
+      if (state.camera === 'on' && escondida()) { pausaFundo(); if (fundo) fundo.auto = era.auto; return; }   // escondeu de novo enquanto abria
+      if (state.camera === 'on' && era.auto) ligaSePronto();
+    })().finally(() => { reabrindo = null; });
+    return reabrindo;
+  }
+  function vigiaTrilha() {
+    const s = video.srcObject, t = s && s.getVideoTracks && s.getVideoTracks()[0];
+    if (!t || !t.addEventListener) return;
+    t.addEventListener('ended', () => {
+      const s2 = video.srcObject, atual = s2 && s2.getVideoTracks && s2.getVideoTracks()[0];
+      if (!state.alive || state.camera !== 'on' || atual !== t) return;
+      pausaFundo(); retomaFundo();
+    }, { once: true });
+  }
+  const aoMudarVisibilidade = () => { if (!state.alive) return soltaFundo(); if (escondida()) pausaFundo(); else retomaFundo(); };
+  const aoEsconderPagina = () => { if (state.alive) pausaFundo(); };
+  const aoMostrarPagina = () => { if (state.alive) retomaFundo(); };
+  function soltaFundo() {
+    if (typeof document === 'undefined' || typeof document.removeEventListener !== 'function') return;
+    document.removeEventListener('visibilitychange', aoMudarVisibilidade);
+    window.removeEventListener('pagehide', aoEsconderPagina); window.removeEventListener('pageshow', aoMostrarPagina);
+  }
+  if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
+    document.addEventListener('visibilitychange', aoMudarVisibilidade);
+    window.addEventListener('pagehide', aoEsconderPagina); window.addEventListener('pageshow', aoMostrarPagina);
+  }
   const marca = () => { root.dataset.base = state.base; root.dataset.camera = state.camera; root.dataset.leitor = state.engine; };
 
   /** X14 · o leitor da edição sobe em segundo plano assim que o do nome está pronto: a primeira carta não paga a carga dele. */
@@ -50141,7 +50193,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
       const lente = await store.get('scanner.lente');
       await camera.start(video, { facing: 'environment', ...(lente ? { lente } : {}) });
       if (!state.alive) return camera.stop();
-      state.camera = 'on';
+      state.camera = 'on'; vigiaTrilha();   // S-627
       // S-594 · a câmera trocou sozinha para a lente que foca: ela é a lente desta tela daqui em diante
       try { const inf = camera.info && camera.info(); if (inf && inf.lenteAuto) store.set('scanner.lente', inf.lenteAuto); } catch (e) { /* segue */ }
       aplicaZoomGuardado().then(() => camera.melhorar && camera.melhorar()).catch(() => {});
@@ -50152,6 +50204,8 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
       state.engine = 'loading'; paintStatus(); paintEstado(); marca();
       ocr.warm().then(() => { state.engine = 'ready'; state.ocrReady = true; aqueceEdicao(); store.set('ocr.ready', Date.now()); paintStatus(); paintDock(); marca(); ligaSePronto(); })
         .catch(() => { state.engine = 'failed'; paintStatus(); paintDock(); paintEstado(); marca(); });
+      // S-627 · o app foi para o segundo plano enquanto a câmera abria: fecha agora e, na volta, o automático liga
+      if (escondida()) { pausaFundo(); if (fundo) fundo.auto = true; }
     }
   }
 
