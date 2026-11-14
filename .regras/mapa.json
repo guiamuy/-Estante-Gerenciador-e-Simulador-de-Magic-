@@ -4627,11 +4627,12 @@
    "depende": [
     "603.2b (gatilho de passo final)"
    ],
-   "evidencia": "CR2b.1 (motor v79): efeito `delayed` registra o gatilho em s.atrasados na resolução (603.7a); enterStep o põe na fila uma vez, no início da manutenção do próximo turno, e o apaga (603.7b); quem controla é quem controlava a mágica ou habilidade (603.7e), mesmo que a fonte tenha saído (Mishra's Bauble); cr.conformidade \"CR 603.7 · gatilho atrasado…\", commander.regras Arcane Denial e Mishra's Bauble · CR2b.2 (motor v80): momentos \"próximo passo final\" e \"fim do combate\" (enterStep), e gatilho preso a um objeto com a encarnação guardada — se a carta mudou de zona ele não age (603.7c); testes de conformidade em cr.conformidade",
+   "evidencia": "CR2b.1 (motor v79): efeito `delayed` registra o gatilho em s.atrasados na resolução (603.7a); enterStep o põe na fila uma vez, no início da manutenção do próximo turno, e o apaga (603.7b); quem controla é quem controlava a mágica ou habilidade (603.7e), mesmo que a fonte tenha saído (Mishra's Bauble); cr.conformidade \"CR 603.7 · gatilho atrasado…\", commander.regras Arcane Denial e Mishra's Bauble · CR2b.2 (motor v80): momentos \"próximo passo final\" e \"fim do combate\" (enterStep), e gatilho preso a um objeto com a encarnação guardada — se a carta mudou de zona ele não age (603.7c); testes de conformidade em cr.conformidade · M-632: \"Sacrifice it at the beginning of the next end step\" da ficha criada por cópia (ficha_copia.sacrificaNoFimM) — um gatilho atrasado por ficha, preso ao objeto (400.7: a cópia da ficha não é sacrificada); criado no turno do oponente, dispara no passo final desse turno (Reflection of Kiki-Jiki)",
    "testes": [
     "CR 603.7 · gatilho atrasado: criado na resolução, dispara uma vez só no início da manutenção do PRÓXIMO turno, controlado por quem conjurou a mágica",
     "CR 603.7 · gatilho atrasado preso a um objeto: no início do próximo passo final ele age naquela criatura; se ela saiu e voltou, é outro objeto e nada acontece (603.7c)",
-    "CR 603.7 · \"no fim do combate\": o gatilho atrasado dispara no próximo passo de fim de combate, uma vez"
+    "CR 603.7 · \"no fim do combate\": o gatilho atrasado dispara no próximo passo de fim de combate, uma vez",
+    "M-632 · Reflection: copia outra criatura não lendária sua, com ímpeto; a ficha é sacrificada no início do próximo passo final"
    ]
   },
   {
@@ -6178,14 +6179,15 @@
    "regra": "Keyword Actions",
    "titulo": "Discard",
    "status": "parcial",
-   "evidencia": "pending discard com escolha do próprio jogador (index.html:11178-11186, handler 12720); discard_chosen: o oponente escolhe (11304); rules.unit \"S12 · descartar é escolha do jogador\", \"S45 · você escolhe o descarte do oponente\" · V-14 · descartar ao acaso (b): efeito `discard_random` (descartaAoAcaso em core.js, abaixo da âncora ↓ V) — as cartas saem pela semente do jogo, sem decisão de ninguém, pelo caminho comum de descarte (insanidade e \"sempre que você descarta\" valem). Cartas: Goblin Lore, Hymn to Tourach, Mind Knives (.listas/oficiais-verbos.json)",
+   "evidencia": "pending discard com escolha do próprio jogador (index.html:11178-11186, handler 12720); discard_chosen: o oponente escolhe (11304); rules.unit \"S12 · descartar é escolha do jogador\", \"S45 · você escolhe o descarte do oponente\" · V-14 · descartar ao acaso (b): efeito `discard_random` (descartaAoAcaso em core.js, abaixo da âncora ↓ V) — as cartas saem pela semente do jogo, sem decisão de ninguém, pelo caminho comum de descarte (insanidade e \"sempre que você descarta\" valem). Cartas: Goblin Lore, Hymn to Tourach, Mind Knives (.listas/oficiais-verbos.json) · M-632: \"You may discard up to N cards. If you do, draw that many cards.\" (efeito descarta_ate_compra_m: escolha de 0 a N cartas da mão pelo próprio jogador, descarte pelo caminho comum, compra quantas descartou; zero não compra) — Fable of the Mirror-Breaker, capítulo II",
    "falta": "descarte para zona oculta sem revelar (701.9c: as características da carta ficam indefinidas) não é tratado",
    "esforco": "P",
    "cartas": "evergreen",
    "testes": [
     "CR 701.9 · descartar ao acaso (b): ninguém escolhe; saem N cartas pela semente do jogo, e não sempre as mesmas posições",
     "CR 701.9 · descartar ao acaso: com menos cartas do que o pedido vão todas; de mão vazia nada acontece; \"jogador alvo\" pode ser você, \"oponente alvo\" não",
-    "CR 701.9 · descartar ao acaso é descarte: insanidade é oferecida e \"sempre que você descarta\" dispara"
+    "CR 701.9 · descartar ao acaso é descarte: insanidade é oferecida e \"sempre que você descarta\" dispara",
+    "M-632 · capítulo II: descarta até duas (escolha de 0 a 2) e compra o mesmo tanto; zero não compra"
    ]
   },
   {

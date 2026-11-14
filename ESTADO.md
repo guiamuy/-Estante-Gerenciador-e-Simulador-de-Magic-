@@ -21,7 +21,7 @@ Marcos: Pauper 100% (as sete listas revisadas carta a carta; 682 de 686 listas P
 |---|---|---|---|---|
 | `scanner` | S | X16: #90 foil (F1 só foil; F2 selo "Foil?") | S-625 · 11/11 | calibrar o foil e #79 no aparelho |
 | `geral` | G | DS-K3 K3-8 f1 Balcão da Coleção (G-390); #151 5c (G-387) | G-390 · 14/11 | K3-8 f2 + MV-3; 5c lotes 2+ |
-| `motor` | M | Modern 140/719 | M-630 · 13/11 | Fable |
+| `motor` | M | Modern 140/719 (≈160 com a fila) | M-632 · 13/11 | 712.8d (subtipo da face de cima); Arena of Glory |
 | `radar` | R | BI4 · Painel Estante: comparar períodos, metas, tendência | R-44 · 07/11 | BI4-6 em diante; validação do dono após os primeiros pilares |
 | `jogabilidade` | J | MK3 · Mesa Vitrine (rotina) | J-76 · 13/11 | prompt v2 do ateliê; MK3-5; #54 |
 | `bot` | B | B25 · força 55%, Faeries 32,5%, fora 50% | B-215 · 13/11 | usar a remoção |
@@ -81,4 +81,4 @@ Os documentos `claude/…` moram no Projeto do claude.ai, fora do repositório: 
 
 No commit de docs de cada leva (o mesmo que atualiza o ROADMAP): reescreva a **sua** linha na tabela de trilhas, atualize relatos e pendências se mudaram e troque a data abaixo. Edite por patch, nunca o arquivo inteiro. Conflito no rebase: fique com as linhas das outras trilhas e a sua. Passou de 8 KB: resuma, não acrescente.
 
-Atualizado: 14/11/2026 · G-386 · M-616 · G-381 · J-74 · I-333 · J-64 · M-623 · G-387 · M-629 · G-390 · S-624 (scanner) · G-385 · J-73 · G-384 · M-630 · M-625 · J-76 · M-624 · J-71 · G-383 · B-215 · B-213 (bot) · G-388
+Atualizado: 14/11/2026 · G-385 · J-73 · G-384 · M-630 · M-625 · J-76 · M-624 · J-71 · G-383 · B-215 · B-213 (bot) · G-388 · J-72 · G-389 · J-75 · I-334 · M-632
