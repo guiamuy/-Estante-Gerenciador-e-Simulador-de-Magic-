@@ -9004,7 +9004,7 @@ const EFFECTS = {
   combate_extra_fase: { fields: [], targets: ['self'] }, // M-620 · 500.8: "After this phase, there is an additional combat phase" (Fear of Missing Out): resolvendo numa fase de combate, outro combate logo depois dela, sem fase principal no meio
   desvira_atacantes: { fields: [], targets: ['self'] }, // CR2g.4 · "untap all creatures that attacked this turn"  // CR2g.2 · 500.7: "(target player) takes an extra turn after this one"
   escolhe_copiadora: { fields: [], targets: ['artifact', 'creature', 'permanent'] },
-  ficha_copia: { fields: ['amount'], targets: ['creature', 'artifact', 'permanent', 'creature-you-control'] }, // CR2f.2 · 707.8: "create a token that's a copy of target …" // CR2f.1 · o primeiro alvo de "alvo A torna-se uma cópia de outro alvo B"
+  ficha_copia: { fields: ['amount'], targets: ['creature', 'artifact', 'permanent', 'creature-you-control', 'other-creature-you-control' /* M-632 · Reflection of Kiki-Jiki: "another target nonlegendary creature you control" */] }, // CR2f.2 · 707.8: "create a token that's a copy of target …" // CR2f.1 · o primeiro alvo de "alvo A torna-se uma cópia de outro alvo B"
   torna_copia: { fields: [], targets: ['artifact', 'creature', 'permanent'] }, // CR2f.1 · o modelo; quem copia é o alvo do escolhe_copiadora // CR2d.10 · 613.10/613.11: "you can't gain life this turn", "you may play an additional land this turn" // M-272 · "gain control of target creature" (sem prazo)
   copiar_esta: { fields: [], targets: ['self'] }, // M-271 · "if this spell was cast from a graveyard, you may copy this spell and may choose a new target for the copy" (707.10)
   exilar_topo_conjuravel: { fields: ['amount'], targets: ['self'] }, // M-270 · Lukka +1: exila do topo; as criaturas exiladas podem ser conjuradas do exílio enquanto você controlar um planeswalker do subtipo
@@ -9131,6 +9131,7 @@ const EFFECTS = {
   encerra_combate: { fields: [], targets: ['self'] }, // T-92 · CR 724.2 · "End the combat phase." (fora do combate, nada)
   oponentes_nao_conjuram: { fields: [], targets: ['self'] }, // T-92 · "Your opponents can't cast spells this turn."
   rad: { fields: ['amount'], targets: ['self', 'player', 'opponent', 'each-player', 'each-opponent'] }, // T-91 · CR 728.1 · "[target player | each player | each opponent | you] get(s) N rad counters"
+  descarta_ate_compra_m: { fields: ['amount'], targets: [] }, // M-632 · 701.9 · "You may discard up to N cards. If you do, draw that many cards." (Fable of the Mirror-Breaker: escolha de 0 a N cartas da mão; compra quantas descartou)
   descarta_para_comprar: { fields: [], targets: ['self'] }, // T-88 · "you may discard a card. If you do, draw a card." (a pergunta só aparece com carta na mão; a compra só se descartou)
   conjuravel_cemiterio_m: { fields: [], targets: ['card-in-your-graveyard'] }, // M-602 · Emry: "Choose target artifact card in your graveyard. You may cast that card this turn." (601.2: custo e tempo normais; 400.7: some ao sair do cemitério)
   exuma_m: { fields: [], targets: ['self'] }, // M-629 · Exhume: "Each player puts a creature card from their graveyard onto the battlefield" (sem alvo: cada jogador escolhe, na ordem de turno a partir de quem está na vez, e todas entram juntas)
@@ -12404,6 +12405,19 @@ const RAW_SCRIPTS = [
     { kind: 'triggered', when: 'chapter', chapters: [3], effects: [{ do: 'exile_return_transformed', target: 'self-source', sob: 'voce' }] }], // "return it to the battlefield transformed under your control" (sob: 'voce', M-353)
     back: { name: 'Vector Glider', types: ['enchantment', 'creature'], subtypes: ['Spirit'], colors: ['U'], power: 2, toughness: 3, keywords: ['flying'] },
     example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o S8 monta a carta sem a linha de tipo (fixtures.mjs fica com a trilha motor): o cenário de verdade está em listas.lote*.unit
+  // M-632 · texto da API da Scryfall (coleta de 13/11/2026, guardado em .listas/oficiais-revisadas.json; conferido em scryfall.com no mesmo dia) e rulings de 18/02/2022
+  // "(As this Saga enters and after your draw step, add a lore counter.) / I — Create a 2/2 red Goblin Shaman creature token with "Whenever this token attacks, create a Treasure token." /
+  // II — You may discard up to two cards. If you do, draw that many cards. / III — Exile this Saga, then return it to the battlefield transformed under your control."
+  // · verso Reflection of Kiki-Jiki: Enchantment Creature — Goblin Shaman 2/2, vermelho (indicador de cor), "{1}, {T}: Create a token that's a copy of another target nonlegendary
+  // creature you control, except it has haste. Sacrifice it at the beginning of the next end step."
+  { name: 'Fable of the Mirror-Breaker', self: { duplaFace: true }, entra: [{ afetados: 'self', marcadores: { lore: 1 } }], abilities: [
+    { kind: 'triggered', when: 'chapter', chapters: [1], effects: [{ do: 'token', amount: 1, token: { name: 'Goblin Shaman', types: ['creature'], subtypes: ['Goblin', 'Shaman'], colors: ['R'], power: 2, toughness: 2,
+      abilities: [{ kind: 'triggered', when: 'attacks', effects: [{ do: 'token', amount: 1, token: TESOURO }] }] } }] }, // "I — Create a 2/2 red Goblin Shaman creature token with "Whenever this token attacks, create a Treasure token.""
+    { kind: 'triggered', when: 'chapter', chapters: [2], effects: [{ do: 'descarta_ate_compra_m', amount: 2 }] }, // "II — You may discard up to two cards. If you do, draw that many cards."
+    { kind: 'triggered', when: 'chapter', chapters: [3], effects: [{ do: 'exile_return_transformed', target: 'self-source', sob: 'voce' }] }], // "III — Exile this Saga, then return it to the battlefield transformed under your control."
+    back: { name: 'Reflection of Kiki-Jiki', types: ['enchantment', 'creature'], subtypes: ['Goblin', 'Shaman'], colors: ['R'], power: 2, toughness: 2,
+      abilities: [{ kind: 'activated', cost: { mana: '{1}', tap: true }, effects: [{ do: 'ficha_copia', amount: 1, target: 'other-creature-you-control', targetNotLegendary: true, palavras: ['haste'], sacrificaNoFimM: true }] }] }, // "{1}, {T}: Create a token that's a copy of another target nonlegendary creature you control, except it has haste. Sacrifice it at the beginning of the next end step."
+    example: { action: 'etb', target: 'none', expect: { attached: false } } }, // o S8 monta a carta sem a linha de tipo: o cenário de verdade está em lt307.unit
   { name: 'Snakeskin Veil', effects: [{ do: 'counters', amount: 1, target: { tipos: ['creature'], de: 'you' } }, { do: 'keyword', keyword: 'hexproof', target: 'first-target' }], // "Put a +1/+1 counter on target creature you control. It gains hexproof until end of turn."
     example: { target: 'own-creature', expect: { keyword: 'hexproof' } } },
   { name: "Tamiyo's Safekeeping", effects: [{ do: 'continuo', target: { de: 'you' }, palavras: ['hexproof', 'indestructible'] }, { do: 'gain', amount: 2 }], // "Target permanent you control gains hexproof and indestructible until end of turn. You gain 2 life."
@@ -29076,6 +29090,8 @@ function applyEffectM449(s, src, eff, tgt, events) {
         if (prototipoAtivoT(s, obj)) ft.prototipoT = true; // T-56 · CR 718.3d · a ficha que copia um protótipo também é protótipo (Toca ponto comum: ficha_copia)
         fichaDeDuplaFaceT(s, ft, obj); // T-7 · CR 707.8a · a ficha que copia uma permanente de dupla face é ficha de dupla face, com a mesma face para cima (função abaixo da âncora T das exportações)
         if (exc) { ft.nomeImpresso = ft.name; ft.copias = [{ nome: ft.name, ate: 'sempre', by: ctrl, ts: relogio(s), turno: s.turn.number, excecao: exc, ...copiavelDaTrilhaT(s, obj) /* T-112 · auditoria D1: o registro da cópia leva a exceção do embalsamar e o protótipo (707.9b) (Toca ponto comum: ficha_copia) */ }]; aplicaExcecao(s, ft, exc, 'sempre'); } } // 707.9 · "except it has haste"
+      if (eff.sacrificaNoFimM) for (const t of novas) if (s.objects[t] && s.objects[t].zone === 'battlefield') (s.atrasados = s.atrasados || []).push({ when: 'next-end-step', turno: s.turn.number, controller: ctrl, jogador: ctrl, objeto: { oid: t, z: s.objects[t].zc || 0 },
+        name: src.name, source: t, effects: [{ do: 'sacrifice_it', target: 'delayed-object' }] }); // M-632 · 603.7c · "Sacrifice it at the beginning of the next end step": um gatilho atrasado por ficha criada (ruling de 18/02/2022: com dobra de fichas, sacrifica todas), preso a cada ficha (400.7; a cópia da ficha não é sacrificada)
       note({ name: obj.name, amount: novas.length }); break;
     }
     case 'escolhe_copiadora': { src.copiadora = obj && obj.oid; note({ name: obj && obj.name }); break; } // CR2f.1
@@ -29858,6 +29874,12 @@ function applyEffectM449(s, src, eff, tgt, events) {
     case 'oponentes_nao_conjuram': s.semConjurarT = { turno: s.turn.number, jogadores: s.players.map((_, i) => i).filter(i => i !== ctrl) }; note({}); break; // T-92 · "this turn"
     case 'rad': radT(s, src, eff, playerOf(), events); break; // T-91 · CR 728.1
     case 'radiacao': radiacaoT(s, src, events); break; // T-91 · CR 728.1 · a habilidade sem fonte
+    case 'descarta_ate_compra_m': { // M-632 · "You may discard up to N cards. If you do, draw that many cards." (701.9: o jogador escolhe; zero vale e não compra)
+      const mao = s.zones[ctrl].hand.slice(), n = Math.min(amountOf(s, src, eff.amount || 1), mao.length);
+      if (!n) { note({ amount: 0 }); break; }
+      startPick(s, { p: ctrl, from: mao, min: 0, max: n, to: 'graveyard', rest: 'stay', discard: true, label: `descartar até ${n} e comprar o mesmo tanto`, source: src.name, depois: { compraEscolhidasM: true } }, events);
+      break;
+    }
     case 'descarta_para_comprar': descartaParaComprarT(s, src, events); break; // T-88
     case 'pilhas': pilhasT(s, src, eff, events); break; // T-83 · CR 700.3
     case 'voto_m': votoM(s, src, eff, events); break; // M-586 · CR 701.38
@@ -30079,6 +30101,7 @@ function concluiPick(s, events) {
   if (pk.shuffle) { shuffle(s, s.zones[pk.p].library);
     // CR 701.24b: "embaralhe e ponha a carta no topo" — a carta achada não entra no embaralhamento (Mystical Tutor)
     if (pk.to === 'library-top') { const lib = s.zones[pk.p].library; for (const oid of [...pk.picked].reverse()) { const i = lib.indexOf(oid); if (i >= 0) { lib.splice(i, 1); lib.unshift(oid); } } } }
+  if (pk.depois && pk.depois.compraEscolhidasM && pk.picked.length) { const n = pk.picked.length; draw(s, pk.p, n); events.push({ kind: 'effect', do: 'draw', name: pk.source, target: s.players[pk.p].name, amount: n }); } // M-632 · "draw that many cards": quantas foram descartadas
   if (pk.depois && pk.depois.draw && pk.picked.length) { draw(s, pk.p, pk.depois.draw); if (pk.to === 'sacrificaM') events.push({ kind: 'effect', do: 'draw', name: pk.source, target: s.players[pk.p].name, amount: pk.depois.draw }); } // Leva 107 · M-549: o registro conta a compra
   if (pk.imprime && pk.picked.length) { const f = s.objects[pk.imprime.oid], c = s.objects[pk.picked[0]]; if (f && f.zone === 'battlefield' && (f.zc || 0) === pk.imprime.z && c && c.zone === 'exile') f.marcadaM = { oid: c.oid, z: c.zc || 0 }; } // M-563 · Chrome Mox: a ligação (607.2a)
   if (pk.segura && pk.picked.length) { const f = s.objects[pk.segura.oid]; if (f && f.zone === 'battlefield' && (f.zc || 0) === pk.segura.z) f.holding = pk.picked[0]; } // M-353 · a fonte que saiu antes não guarda nada (a carta fica exilada: 400.7)
@@ -42924,7 +42947,8 @@ function descreveEfeito(e) {
     }
     case 'sacrifice_each': return 'cada jogador sacrifica uma permanente à sua escolha';
     case 'exilar_fichas_mesmo_nome': return 'exila as fichas de mesmo nome que esse jogador controla'; // M-258
-    case 'ficha_copia': return `cria ${qtd(e.amount || 1) > 1 ? qtd(e.amount) + ' fichas que são cópias' : 'uma ficha que é cópia'} de ${alvo || 'uma permanente'}${(e.palavras || []).length ? ', com ' + e.palavras.map(k => PALAVRA_PT[k] || k).join(' e ') : ''}`; // CR2f.2
+    case 'ficha_copia': return `cria ${qtd(e.amount || 1) > 1 ? qtd(e.amount) + ' fichas que são cópias' : 'uma ficha que é cópia'} de ${alvo || 'uma permanente'}${(e.palavras || []).length ? ', com ' + e.palavras.map(k => PALAVRA_PT[k] || k).join(' e ') : ''}${e.sacrificaNoFimM ? '; sacrifica a ficha no início do próximo passo final' : ''}`; // CR2f.2 · M-632
+    case 'descarta_ate_compra_m': return `pode descartar até ${qtd(e.amount)} ${qtd(e.amount) === 1 ? 'carta' : 'cartas'} e comprar o mesmo tanto`; // M-632
     case 'escolhe_copiadora': return `escolhe ${alvo || 'uma permanente'} para virar cópia`; // CR2f.1
     case 'torna_copia': return `ela vira uma cópia de ${alvo || 'outra permanente'}${(e.somaTipos || []).length ? ', além de ' + e.somaTipos.map(x => TIPO_PT[x] || x).join(' e ') : ''}${e.ate && e.ate !== 'sempre' ? ' ' + duracaoPT(e.ate) : ''}`; // CR2f.1
     case 'vence': return 'você vence o jogo'; // CR2h.6
