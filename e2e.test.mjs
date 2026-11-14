@@ -14380,7 +14380,7 @@ test('e2e · N2 Notícias: entra pela Início; linha do tempo com destaque, capa
   // G-300 · relato #33 · expectativa mudou com motivo: toda notícia tem capa (a linha sem foto ganhou a capa da fonte, em vez
   // de virar só texto) e a capa que falha ou chega pequena demais (o PNG 1×1 deste teste) vira a capa da fonte, não o traço
   await page.waitForFunction(() => ['n1', 'n5', 'n6'].every(id => document.querySelector(`[data-noticia="${id}"] .nt-capa[data-capa="fonte"]`)), null, { timeout: 5000 });
-  assert.deepEqual(await page.$$eval('[data-noticia="n1"], [data-noticia="n5"], [data-noticia="n6"]', cs => cs.map(c => [c.dataset.noticia, c.querySelector('.nt-capa').dataset.motivo, c.querySelectorAll('.nt-capa img').length, !!c.querySelector('.nt-capa__mono')])),
+  assert.deepEqual(await page.$$eval('[data-noticia="n1"], [data-noticia="n5"], [data-noticia="n6"]', cs => cs.map(c => [c.dataset.noticia, c.querySelector('.nt-capa').dataset.motivo, c.querySelectorAll('.nt-capa img').length, !!c.querySelector('.nt-capa__rotulo')])), // K3-10 (G-395) · o rótulo da fonte no lugar do monograma
     [['n1', 'baixa', 0, true], ['n5', 'sem', 0, true], ['n6', 'erro', 0, true]]);
   // seletor de idioma: dois botões de 44 px com a bandeira desenhada (sem emoji) e o nome do idioma; os dois ligados; cada notícia leva a bandeira
   const chips = await page.$$eval('#noticias-idiomas button', bs => bs.map(b => ({ id: b.id, texto: b.textContent.trim(), ligado: b.getAttribute('aria-pressed'), fala: b.getAttribute('aria-label'), h: Math.round(b.getBoundingClientRect().height), bandeira: (b.querySelector('.ds-bandeira') || { dataset: {} }).dataset.bandeira, svg: !!b.querySelector('.ds-bandeira svg') })));
@@ -14466,7 +14466,7 @@ function pngG294(w, h) {
   const cru = Buffer.alloc((w * 3 + 1) * h); for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const o = y * (w * 3 + 1) + 1 + x * 3; cru[o] = 60; cru[o + 1] = (x * 200 / w) | 0; cru[o + 2] = 120; }
   return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), parte('IHDR', ih), parte('IDAT', zlib.deflateSync(cru)), parte('IEND', Buffer.alloc(0))]);
 }
-test('e2e · G-300 capa das notícias sempre digna: em tela 3× a miniatura (150×150, 100×56) e a foto que falha viram a capa da fonte (monograma em latão, moldura); a foto grande entra; a notícia sem foto também tem capa, no destaque e na linha; nos dois temas sem sobreposição', { skip }, async t => {
+test('e2e · G-300 capa das notícias sempre digna: em tela 3× a miniatura (150×150, 100×56) e a foto que falha viram a capa da fonte (desde a K3-10, o papel com o nome da fonte, sem sigla); a foto grande entra; a notícia sem foto também tem capa, no destaque e na linha; nos dois temas sem sobreposição', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.setViewportSize({ width: 360, height: 780 });
   const cdp = await page.context().newCDPSession(page); await cdp.send('Emulation.setDeviceMetricsOverride', { width: 360, height: 780, deviceScaleFactor: 3, mobile: true });
@@ -14491,20 +14491,22 @@ test('e2e · G-300 capa das notícias sempre digna: em tela 3× a miniatura (150
   await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
   await page.waitForFunction(n => [...document.querySelectorAll('#noticias-lista .nt-capa')].filter(c => c.dataset.capa !== 'esperando').length === n, itens.length, { timeout: 10000 });
   await page.waitForFunction(() => [...document.querySelectorAll('#noticias-lista .nt-capa[data-capa="foto"] img')].every(i => getComputedStyle(i).opacity === '1'), null, { timeout: 5000 }); // a foto termina de entrar
-  const estado = await page.$$eval('#noticias-lista .nt-cartao', cs => cs.map(c => { const k = c.querySelector('.nt-capa'), i = k.querySelector('img'), m = k.querySelector('.nt-capa__mono');
+  // DS-K3 K3-10 (G-395) · expectativa mudada de propósito: a capa da fonte deixou de ter o monograma ("MTGG", "SCG"): é o
+  // papel com o nome da fonte em rótulo (a proposta Vitrine tirou a sigla em caixa)
+  const estado = await page.$$eval('#noticias-lista .nt-cartao', cs => cs.map(c => { const k = c.querySelector('.nt-capa'), i = k.querySelector('img'), m = k.querySelector('.nt-capa__rotulo');
     return [c.dataset.noticia, c.dataset.forma, k.dataset.capa, k.dataset.motivo || '', i ? getComputedStyle(i).opacity : null, m ? m.textContent : ''] }));
   assert.deepEqual(estado, [
-    ['g0', 'destaque', 'fonte', 'sem', null, 'EDHREC'], ['g1', 'linha', 'foto', '', '1', 'MTGG'], ['g2', 'linha', 'fonte', 'baixa', null, 'CK'], ['g3', 'linha', 'fonte', 'baixa', null, 'SCG'],
-    ['g4', 'linha', 'fonte', 'erro', null, 'CR'], ['g5', 'linha', 'fonte', 'sem', null, 'HC'], ['g6', 'cheio', 'foto', '', '1', 'EDHREC'], ['g7', 'linha', 'fonte', 'baixa', null, 'MTGG']]);
+    ['g0', 'destaque', 'fonte', 'sem', null, 'EDHREC'], ['g1', 'linha', 'foto', '', '1', 'MTGGoldfish'], ['g2', 'linha', 'fonte', 'baixa', null, 'Card Kingdom'], ['g3', 'linha', 'fonte', 'baixa', null, 'Star City Games'],
+    ['g4', 'linha', 'fonte', 'erro', null, 'Cards Realm'], ['g5', 'linha', 'fonte', 'sem', null, 'Hipsters of the Coast'], ['g6', 'cheio', 'foto', '', '1', 'EDHREC'], ['g7', 'linha', 'fonte', 'baixa', null, 'MTGGoldfish']]);
+  assert.equal(await page.locator('#noticias-lista .nt-capa__mono').count(), 0, 'nenhuma sigla em caixa');
   // 3 · guarda que mede: nenhuma foto visível pede mais que 1/0,75 de escala nesta tela 3×
   const esticadas = await page.$$eval('#noticias-lista .nt-capa[data-capa="foto"] img', is => is.filter(i => { const r = i.getBoundingClientRect(); return Math.max(r.width / i.naturalWidth, r.height / i.naturalHeight) * devicePixelRatio > 1 / 0.75; }).length);
   assert.equal(esticadas, 0);
-  // 4 · a capa da fonte: monograma inteiro dentro da moldura (sem vazar), em serifada e latão; o nome só nas grandes, e não repete a sigla
-  const caixa = await page.$$eval('#noticias-lista .nt-capa[data-capa="fonte"]', ks => ks.map(k => { const m = k.querySelector('.nt-capa__mono').getBoundingClientRect(), r = k.getBoundingClientRect();
-    return { dentro: m.left >= r.left + 4 && m.right <= r.right - 4 && m.top >= r.top && m.bottom <= r.bottom, nome: !!k.querySelector('.nt-capa__nome') }; }));
-  assert.ok(caixa.every(c => c.dentro), 'monograma dentro da capa: ' + JSON.stringify(caixa));
-  assert.equal(await page.locator('[data-noticia="g0"] .nt-capa__nome').count(), 0, 'EDHREC já é o nome: não repete');
-  assert.equal(await page.$eval('[data-noticia="g0"] .nt-capa__mono', e => getComputedStyle(e).fontFamily === getComputedStyle(document.querySelector('.nt-titulo')).fontFamily), true, 'serifada dos títulos');
+  // 4 · a capa da fonte (K3-10): o nome inteiro dentro da moldura (quebra em linhas, sem vazar), em latão e caixa alta
+  const caixa = await page.$$eval('#noticias-lista .nt-capa[data-capa="fonte"]', ks => ks.map(k => { const m = k.querySelector('.nt-capa__rotulo').getBoundingClientRect(), r = k.getBoundingClientRect();
+    return { dentro: m.left >= r.left + 4 && m.right <= r.right - 4 && m.top >= r.top && m.bottom <= r.bottom, w: Math.round(m.width) }; }));
+  assert.ok(caixa.every(c => c.dentro), 'nome da fonte dentro da capa: ' + JSON.stringify(caixa));
+  assert.equal(await page.$eval('[data-noticia="g0"] .nt-capa__rotulo', e => getComputedStyle(e).textTransform), 'uppercase');
   // 5 · a luz passa uma vez na capa da fonte; com movimento reduzido, nada anda
   assert.equal(await page.$eval('[data-noticia="g2"] .nt-capa__fonte', e => getComputedStyle(e, '::after').animationName), 'ds-varre');
   await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -14515,6 +14517,116 @@ test('e2e · G-300 capa das notícias sempre digna: em tela 3× a miniatura (150
   await page.waitForFunction(t => document.documentElement.dataset.theme !== t, temaAntes);
   await auditaTela(page, 'notícias com capas da fonte · outro tema');
   await cdp.send('Emulation.clearDeviceMetricsOverride'); await cdp.detach();
+  assert.deepEqual(errors, []);
+});
+
+/* DS-K3 K3-10 (G-395) · Notícias, fatia 1: a linha editorial e a capa da carta citada. Falhava no main de antes: não havia
+   carta citada (data-cita, "cita …", a arte na capa), a linha era um cartão com borda e a capa sem foto era a sigla. */
+test('e2e · G-395 DS-K3 K3-10 Notícias: a notícia que cita uma carta (nome de duas palavras ou mais, da base de nomes do aparelho) mostra a arte dela na capa quando não há foto nítida e diz "cita …" embaixo do título; a foto nítida continua vencendo; sem carta, o papel com o nome da fonte; a linha é editorial (texto | capa 92 × 72 raio 10, divisor de luz, fonte 10,5 px, título 17 px), nada sobreposto em 360 e 412 nos dois temas; Moderado e Reduzido', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  const agora = Date.now();
+  // a base de nomes que o scanner baixaria, já no aparelho (a Início não baixa nada a mais)
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#outlet');
+  await page.evaluate(nomes => new Promise((ok, falha) => { const r = indexedDB.open('mtg', 1);
+    r.onupgradeneeded = () => { if (!r.result.objectStoreNames.contains('kv')) r.result.createObjectStore('kv'); };
+    r.onsuccess = () => { const tx = r.result.transaction('kv', 'readwrite'); tx.objectStore('kv').put({ ts: Date.now(), names: nomes, bytes: 0 }, 'names.catalog'); tx.oncomplete = () => { r.result.close(); ok(); }; tx.onerror = () => falha(tx.error); };
+    r.onerror = () => falha(r.error); }), ['Lightning Bolt', 'Hogaak, Arisen Necropolis', 'Dark Ritual', 'Grizzly Bears', 'Brainstorm', 'Opt', 'Island']);
+  const fontes = [['gf', 'MTGGoldfish'], ['wo', 'Wizards of the Coast'], ['cr', 'Cards Realm']];
+  const n = (i, titulo, fonte, extra = {}) => ({ id: 'c' + i, titulo, resumo: 'Resumo curto.', url: 'https://fonte.test/c/' + i, fonte, autor: '', data: new Date(agora - i * 3600e3).toISOString(), imagem: '', idioma: 'pt', temas: [], ...extra });
+  const itens = [
+    n(0, 'Pauper: Lightning Bolt volta ao topo', 'gf', { temas: ['pauper'] }),
+    n(1, 'Deck tech: Hogaak, Arisen Necropolis no Legacy', 'cr'),
+    n(2, 'Banned and Restricted Announcement', 'wo'),
+    n(3, 'Dark Ritual em alta no Vintage', 'gf', { imagem: 'https://img.test/grande-3.png' }),
+    n(4, 'Brainstorm e Opt: a dupla de sempre', 'cr', { temas: ['pauper'] }),
+    n(5, 'Grizzly Bears, a carta que a Scryfall não achou', 'wo')];
+  const pg = { versao: 1, pagina: 1, paginas: 1, itens };
+  const arquivos = { 'indice.json': { versao: 1, coletadoEm: new Date(agora).toISOString(), total: itens.length, paginas: 1, porPagina: 20, dias: 30, temas: [], idiomas: { pt: { total: itens.length, paginas: 1 } },
+    fontes: fontes.map(([id, nome]) => ({ id, nome, idioma: 'pt', ok: true })) }, 'pagina-1.json': pg, 'pt-pagina-1.json': pg, 'en-pagina-1.json': { ...pg, itens: [] } };
+  await page.route('https://raw.githubusercontent.com/**', r => { const nome = r.request().url().split('/').pop(); return nome in arquivos ? r.fulfill({ json: arquivos[nome], headers: { 'access-control-allow-origin': '*' } }) : r.abort('failed'); });
+  await page.route('https://img.test/**', r => r.fulfill({ body: pngG294(1200, 675), contentType: 'image/png' }));
+  const artes = []; await page.route('https://cards.scryfall.io/**', r => { artes.push(r.request().url()); return r.fulfill({ body: pngG294(626, 457), contentType: 'image/png', headers: { 'access-control-allow-origin': '*' } }); });
+  const carta = (name, id) => ({ object: 'card', id, oracle_id: 'o-' + id, name, type_line: 'Instant', layout: 'normal', mana_cost: '{R}', oracle_text: '', colors: ['R'], color_identity: ['R'], cmc: 1, keywords: [], set: 'tst', set_name: 'Teste', collector_number: '1', rarity: 'common', legalities: {},
+    image_uris: Object.fromEntries(['small', 'normal', 'large', 'art_crop'].map(k => [k, `https://cards.scryfall.io/${k}/front/x/${id}.png`])) });
+  const db = { 'lightning bolt': carta('Lightning Bolt', 'bolt'), 'hogaak, arisen necropolis': carta('Hogaak, Arisen Necropolis', 'hogaak'), 'dark ritual': carta('Dark Ritual', 'ritual') };
+  const pedidas = [];
+  await page.route('https://api.scryfall.com/cards/collection', r => { const ids = JSON.parse(r.request().postData()).identifiers; pedidas.push(...ids.map(i => i.name));
+    return r.fulfill({ json: { data: ids.map(i => db[String(i.name).toLowerCase()]).filter(Boolean), not_found: ids.filter(i => !db[String(i.name).toLowerCase()]) } }); });
+  await page.goto(base + '#/'); await page.reload(); await page.waitForSelector('#noticias-lista .nt-cartao');
+  // 1 · cada capa termina no estado certo: arte da carta (sem foto), foto (nítida vence), papel (sem carta, ou carta sem arte)
+  await page.waitForFunction(() => { const k = id => (document.querySelector(`[data-noticia="${id}"] .nt-capa`) || {}).dataset || {};
+    return k('c0').capa === 'carta' && k('c1').capa === 'carta' && k('c3').capa === 'foto' && ['c2', 'c4', 'c5'].every(i => k(i).capa === 'fonte'); }, null, { timeout: 10000 })
+    .catch(async e => { throw new Error(e.message + ' · ' + JSON.stringify(await page.$$eval('#noticias-lista .nt-cartao', cs => cs.map(c => [c.dataset.noticia, c.dataset.cita || '', c.querySelector('.nt-capa').dataset.capa, c.querySelector('.nt-capa').dataset.motivo || '']))) + ' · artes ' + artes.length + ' · pedidas ' + pedidas.filter(x => /Bolt|Hogaak|Ritual|Grizzly/.test(x)).join('|')); });
+  await page.waitForFunction(() => [...document.querySelectorAll('.nt-capa[data-capa="carta"] .nt-capa__arte, .nt-capa[data-capa="foto"] .nt-capa__foto')].every(i => getComputedStyle(i).opacity === '1'), null, { timeout: 5000 });
+  const estado = await page.$$eval('#noticias-lista .nt-cartao', cs => cs.map(c => { const k = c.querySelector('.nt-capa'), a = k.querySelector('.nt-capa__arte'), l = c.querySelector('.nt-linha'), nm = c.querySelector('.nt-linha__carta');
+    return [c.dataset.noticia, c.dataset.forma, k.dataset.capa, c.dataset.cita || '', a ? a.getAttribute('src').split('/').pop() : '', l ? l.textContent : '', nm ? nm.lang : '']; }));
+  assert.deepEqual(estado, [
+    ['c0', 'destaque', 'carta', 'Lightning Bolt', 'bolt.png', 'Pauper · cita Lightning Bolt', 'en'],
+    ['c1', 'linha', 'carta', 'Hogaak, Arisen Necropolis', 'hogaak.png', 'cita Hogaak, Arisen Necropolis', 'en'],
+    ['c2', 'linha', 'fonte', '', '', '', ''],
+    ['c3', 'linha', 'foto', 'Dark Ritual', '', 'cita Dark Ritual', 'en'],
+    ['c4', 'linha', 'fonte', '', '', 'Pauper', ''],
+    ['c5', 'linha', 'fonte', 'Grizzly Bears', '', 'cita Grizzly Bears', 'en']]);
+  assert.ok(artes.every(u => u.includes('/art_crop/')), 'a capa usa o art_crop: ' + artes.join(' '));
+  assert.deepEqual([...new Set(pedidas)].sort(), ['Dark Ritual', 'Grizzly Bears', 'Hogaak, Arisen Necropolis', 'Lightning Bolt'], 'uma busca só pelas cartas citadas');
+  assert.equal(await page.$eval('[data-noticia="c2"] .nt-capa__rotulo', e => e.textContent), 'Wizards of the Coast', 'sem carta: o papel com o nome da fonte');
+  assert.equal(await page.locator('#noticias-lista .nt-capa__mono').count(), 0, 'nunca a sigla em caixa');
+  // 2 · a linha editorial, em 360 e 412, nos dois temas: grade texto | capa, divisor de luz, sem cartão; AA da fonte e da linha
+  const mede = () => page.evaluate(() => {
+    const r = el => el.getBoundingClientRect(), cs = getComputedStyle;
+    const rgb = c => c.match(/[\d.]+/g).slice(0, 3).map(Number), lum = ([a, b2, c]) => { const f = x => { x /= 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(a) + 0.7152 * f(b2) + 0.0722 * f(c); };
+    const ct = (x, y) => { const [m, n2] = [lum(x), lum(y)].sort((p, q) => q - p); return (m + 0.05) / (n2 + 0.05); };
+    const cor = v => { const s = document.createElement('span'); s.style.color = `var(${v})`; document.body.append(s); const c = rgb(cs(s).color); s.remove(); return c; };
+    const fundos = ['--bg', '--elev-0', '--elev-1'].map(cor);
+    const pior = el => Math.min(...fundos.map(f => ct(rgb(cs(el).color), f)));
+    const linhas = [...document.querySelectorAll('#noticias-lista .nt-cartao--linha')];
+    return linhas.map(c => { const k = c.querySelector('.nt-capa'), corpo = c.querySelector('.nt-corpo'), f = c.querySelector('.nt-fonte'), t = c.querySelector('.nt-titulo'), l = c.querySelector('.nt-linha');
+      return { id: c.dataset.noticia, capa: [Math.round(r(k).width), Math.round(r(k).height), cs(k).borderTopLeftRadius], aDireita: Math.abs(r(k).right - r(c).right) <= 1, vao: Math.round(r(k).left - r(corpo).right),
+        topo: Math.round(r(k).top - r(c).top), divisor: cs(c).borderBottomWidth + ' ' + cs(c).borderBottomStyle, fundo: cs(c).backgroundColor, sombra: cs(c).boxShadow, borda: cs(c).borderTopWidth,
+        fonte: [cs(f).fontSize, cs(f).letterSpacing, cs(f).fontWeight, cs(f).textTransform], titulo: [cs(t).fontSize, cs(t).lineHeight], serifada: cs(t).fontFamily === cs(document.querySelector('h1')).fontFamily,
+        ctFonte: +pior(f).toFixed(2), ctTitulo: +pior(t).toFixed(2), ctLinha: l ? +pior(l).toFixed(2) : null, alto: Math.round(r(c).height), largura: document.documentElement.scrollWidth <= innerWidth }; });
+  });
+  for (const [w, hgt] of [[360, 780], [412, 891]]) {
+    await page.setViewportSize({ width: w, height: hgt });
+    for (const tema of ['dark', 'light']) {
+      await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(120);
+      const ms = await mede(), nome = `${w} ${tema}`;
+      assert.equal(ms.length, 5, nome);
+      for (const m of ms) {
+        assert.deepEqual([m.capa, m.aDireita, m.vao, m.topo], [[92, 72, '10px'], true, 12, 12], `${nome} ${m.id}: capa ${JSON.stringify(m)}`);
+        assert.deepEqual([m.divisor, m.fundo, m.sombra, m.borda], ['1px solid', 'rgba(0, 0, 0, 0)', 'none', '0px'], `${nome} ${m.id}: linha sem cartão`);
+        assert.deepEqual([m.fonte, m.titulo, m.serifada], [['10.5px', '1.05px', '600', 'uppercase'], ['17px', '18.7px'], true], `${nome} ${m.id}: tipografia`);
+        assert.ok(m.ctFonte >= 4.5 && m.ctTitulo >= 4.5 && (m.ctLinha == null || m.ctLinha >= 4.5), `${nome} ${m.id}: AA ${m.ctFonte} / ${m.ctTitulo} / ${m.ctLinha}`);
+        assert.ok(m.alto >= 96 && m.largura, `${nome} ${m.id}: ${m.alto} px, sem rolar de lado`);
+      }
+      // os idiomas ligados são chips em fio (o único latão cheio da Início é o Jogar da barra), com o texto em AA
+      const chip = await page.$eval('#noticias-idioma-pt', b => {
+        const rgba = c => { const v = c.match(/[\d.]+/g).map(Number); return [v[0], v[1], v[2], v.length > 3 ? v[3] : 1]; };
+        const lum = ([a, b2, c]) => { const f = x => { x /= 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(a) + 0.7152 * f(b2) + 0.0722 * f(c); };
+        const sob = rgba(getComputedStyle(b.parentElement).backgroundColor), f = rgba(getComputedStyle(b).backgroundColor), fundo = [0, 1, 2].map(i => f[i] * f[3] + sob[i] * (1 - f[3]));
+        const [m, n2] = [lum(rgba(getComputedStyle(b).color)), lum(fundo)].sort((p, q) => q - p);
+        return { ligado: b.getAttribute('aria-pressed'), metal: getComputedStyle(b).backgroundImage, ct: +((m + 0.05) / (n2 + 0.05)).toFixed(2) }; });
+      assert.deepEqual([chip.ligado, chip.metal], ['true', 'none'], `${nome}: idioma ligado em fio, sem latão cheio`);
+      assert.ok(chip.ct >= 4.5, `${nome}: AA do idioma ligado ${chip.ct}`);
+      await auditaTela(page, `G-395 Notícias ${nome}`);
+      if (process.env.SHOTS && w === 360) { await page.evaluate(() => document.querySelector('#noticias').scrollIntoView({ block: 'start' })); await page.screenshot({ path: process.env.SHOTS + `/g-395-noticias-${tema}.png` });
+        await page.evaluate(() => document.querySelector('[data-noticia="c1"]').scrollIntoView({ block: 'start' })); await page.screenshot({ path: process.env.SHOTS + `/g-395-linhas-${tema}.png` }); }
+    }
+  }
+  await page.setViewportSize({ width: 360, height: 780 }); await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  // 3 · a arte entra como a foto (opacidade e escala, --dur-3/--dur-4); Moderado encurta pelos tokens; Reduzido não anima
+  const transicao = () => page.$eval('[data-noticia="c1"] .nt-capa__arte', e => getComputedStyle(e).transitionDuration);
+  assert.equal(await transicao(), '0.28s, 0.42s');
+  await page.evaluate(() => document.documentElement.setAttribute('data-movimento', 'moderado'));
+  assert.equal(await transicao(), '0.28s, 0.28s', 'Moderado: nada acima de --dur-3');
+  await page.evaluate(() => document.documentElement.setAttribute('data-movimento', 'reduzido'));
+  assert.equal(await transicao(), '0s', 'Reduzido: no lugar');
+  await auditaTela(page, 'G-395 Notícias reduzido');
+  // 4 · o /ds mostra a linha (com a carta citada e com o papel da fonte)
+  await page.goto(base + '#/ds'); await page.waitForSelector('#ds-noticias .nt-cartao--linha');
+  assert.deepEqual(await page.$$eval('#ds-noticias .nt-cartao', cs => cs.map(c => [c.dataset.cita || '', (c.querySelector('.nt-linha') || { textContent: '' }).textContent, (c.querySelector('.nt-capa__rotulo') || { textContent: '' }).textContent])),
+    [['Lightning Bolt', 'Pauper · cita Lightning Bolt', 'MTGGoldfish'], ['', '', 'Wizards of the Coast']]);
   assert.deepEqual(errors, []);
 });
 

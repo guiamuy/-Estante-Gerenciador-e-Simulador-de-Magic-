@@ -1257,6 +1257,33 @@ test('DS-K3 K3-5 · ladrilho de lista: tokens sobre arte iguais nos dois temas; 
 });
 
 /* ---------------- DS-K3 K3-6 (G-384) · vitrine vazia ---------------- */
+test('DS-K3 K3-10 (G-395) · Notícias, fatia 1: linha editorial sem cartão (grade 1fr 92 px, vão 12, 12 px em cima e embaixo, divisor de luz nos três blocos); capa 92 × 72 raio 10; fonte 10,5 px .1em 600 e título 17/1.1 por token; capa sem foto = papel E4 → E3 com grão e o nome da fonte em rótulo (a sigla em caixa saiu); a arte da carta citada entra como a foto, com Reduzido parado; nenhuma cor literal', () => {
+  assert.deepEqual([DARK['--capa-noticia-w'], DARK['--capa-noticia-h'], DARK['--radius-capa'], DARK['--text-noticia'], DARK['--lh-noticia'], DARK['--text-fonte-noticia']],
+    ['92px', '72px', '10px', 'calc(17px * var(--escala-texto))', '1.1', 'calc(10.5px * var(--escala-texto))']);
+  assert.equal(DARK['--divisor-luz'], 'rgba(255, 240, 210, .06)');
+  assert.equal(LIGHT['--divisor-luz'], 'rgba(60, 40, 10, .10)'); assert.equal(AUTO_LIGHT['--divisor-luz'], LIGHT['--divisor-luz'], 'claro automático igual ao claro');
+  const regra = sel => { const i = componentCss.indexOf(sel + ' {'); assert.ok(i >= 0, sel); return componentCss.slice(i, componentCss.indexOf('}', i)); };
+  assert.match(regra('.nt-cartao.nt-cartao--linha[data-forma]'), /grid-template-columns: minmax\(0, 1fr\) var\(--capa-noticia-w\); gap: var\(--space-3\);[\s\S]*padding: var\(--space-3\) 0; border: 0; border-bottom: 1px solid var\(--divisor-luz\); border-radius: 0; background: none; box-shadow: none/);
+  assert.match(regra('.nt-cartao--linha .nt-capa'), /width: var\(--capa-noticia-w\); height: var\(--capa-noticia-h\); border-radius: var\(--radius-capa\)/);
+  assert.match(regra('.nt-cartao--linha .nt-meta'), /font-size: var\(--text-fonte-noticia\)/);
+  assert.match(regra('.nt-cartao--linha .nt-fonte'), /letter-spacing: \.1em; font-weight: 600/);
+  assert.match(regra('.nt-cartao--linha .nt-titulo'), /font-size: var\(--text-noticia\); line-height: var\(--lh-noticia\)/);
+  assert.match(regra('.nt-capa__fonte'), /background: var\(--grain\), linear-gradient\(180deg, var\(--elev-4\), var\(--elev-3\)\)/);
+  assert.match(regra('.nt-capa__rotulo'), /letter-spacing: \.18em; text-transform: uppercase; font-weight: 600; color: var\(--accent\)/);
+  assert.ok(!/nt-capa__mono/.test(componentCss), 'a sigla em caixa saiu do CSS');
+  assert.match(componentCss, /\.nt-capa\[data-capa="foto"\] \.nt-capa__foto, \.nt-capa\[data-capa="carta"\] \.nt-capa__arte \{ opacity: 1; transform: none; transition: opacity var\(--dur-3\) var\(--ease-out\), transform var\(--dur-4\) var\(--ease-out\); \}/);
+  assert.match(componentCss, /:root\[data-movimento="reduzido"\] \.nt-capa img \{ transition: none !important; \}/);
+  assert.match(componentCss, /@media \(prefers-reduced-motion: reduce\) \{ \.nt-capa img \{ transition: none !important; \}/);
+  const k310 = componentCss.split('\n').filter(l => /nt-cartao--linha|nt-capa|nt-linha/.test(l)).join('\n');
+  assert.ok(!/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i.test(k310), 'nenhuma cor literal na linha e na capa');
+  // a carta citada vem da base de nomes do aparelho e a arte do cache da Scryfall; a Início não baixa a base
+  assert.match(HTML, /nomes: async \(\) => \{ await names\.load\(\); return names\.nomes\(\); \}/);
+  assert.match(HTML, /createNoticiasScreen\(\{ noticias, share: platform\.share, gesto: el, ancora, cartas: cartasDasNoticias \}\)/);
+  assert.match(HTML, /citada: cartaCitada\(it, indiceCita\)/);
+  // os idiomas ligados em fio, sem latão cheio
+  assert.match(componentCss, /\.nt-idiomas \.ds-chip\[aria-pressed="true"\] \{ background: color-mix\(in srgb, var\(--accent\) 8%, transparent\); background-image: none; color: var\(--accent\);/);
+});
+
 test('DS-K3 K3-8 (G-390) · Balcão da Coleção: o total é o título (sufixo em caixa alta de 12,5 px, .08em); seis colunas W U B R G C em grade de 6 com 6 px de vão, cada uma um botão de 44 px; barra de 54 px em --mana-*, raio 4 4 2 2, brilho no topo e sombra de contato, tudo por token; a ligada acende em latão e as outras apagam a .4; parado (o FLIP e as molas são da MV-3)', () => {
   const regra = sel => { const i = componentCss.indexOf(sel + ' {'); assert.ok(i >= 0, sel); return componentCss.slice(i, componentCss.indexOf('}', i)); };
   assert.match(regra('.col-total__sufixo'), /font-family: var\(--font-ui\); font-size: var\(--text-sm\);[^}]*letter-spacing: \.08em; text-transform: uppercase; color: var\(--fg-muted\)/);

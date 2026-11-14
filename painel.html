@@ -257,6 +257,12 @@
   --text-ladrilho: calc(17px * var(--escala-texto));
   --simbolo-ladrilho: 14px;
   --simbolo-placa: 56px;
+  /* DS-K3 K3-10 (G-395) · Notícias: a linha editorial (capa ao lado, 92 × 72, raio 10; fonte em 10,5 px; título em 17 px)
+     separada da vizinha por um divisor de luz, não por cartão; o divisor muda com o tema (abaixo) */
+  --capa-noticia-w: 92px; --capa-noticia-h: 72px; --radius-capa: 10px;
+  --text-noticia: calc(17px * var(--escala-texto)); --lh-noticia: 1.1;
+  --text-fonte-noticia: calc(10.5px * var(--escala-texto));
+  --divisor-luz: rgba(255, 240, 210, .06);
   /* DS-K3 K3-2 (G-362) · barra inferior flutuante: pílula de --navbar-alt a --navbar-folga das bordas (e da área segura), o
      Jogar sobe --navbar-ressalto acima dela. Vidro (E4 a 92 % + desfoque) só na barra; reserva opaca (E4 cheio) quando não há
      backdrop-filter, com Movimento reduzido, transparência reduzida ou contraste alto. O texto da barra passa AA mesmo com
@@ -363,6 +369,7 @@
   --grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .35 0 0 0 0 .25 0 0 0 0 .1 0 0 0 .06 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
   --madeira-hi: #b79c6a;
   --madeira-lo: #8a7046;
+  --divisor-luz: rgba(60, 40, 10, .10); /* DS-K3 K3-10 (G-395) · no papel, o divisor é tinta */
   /* DS-K3 K3-2 (G-362) · vidro de papel: E4 a 92 %; reserva opaca em E4 */
   --navbar-alt: 64px; --navbar-folga: 14px; --navbar-ressalto: 16px;
   --vidro: rgba(255, 250, 240, .92);
@@ -449,6 +456,7 @@
     --grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .35 0 0 0 0 .25 0 0 0 0 .1 0 0 0 .06 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
     --madeira-hi: #b79c6a;
     --madeira-lo: #8a7046;
+    --divisor-luz: rgba(60, 40, 10, .10); /* DS-K3 K3-10 (G-395) · no papel, o divisor é tinta */
     /* DS-K3 K3-2 (G-362) · vidro de papel: E4 a 92 %; reserva opaca em E4 */
     --navbar-alt: 64px; --navbar-folga: 14px; --navbar-ressalto: 16px;
     --vidro: rgba(255, 250, 240, .92);
@@ -742,7 +750,7 @@ a { color: var(--accent); }
 @media (prefers-reduced-motion: reduce) { .abertura__cena { display: none; } :is(.abertura__luz, .abertura__sombra, .abertura__ladrilho, .abertura__nome), .abertura__ladrilho::after { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .ds-fab__item.ds-btn { animation: none; } .ds-fab__principal .ds-icon { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .ds-chave__trilho, .ds-chave__botao { transition: none; } }
-@media (prefers-reduced-motion: reduce) { .nt-capa[data-capa="foto"] img { transition: none; } .nt-capa[data-capa="fonte"] .nt-capa__fonte::after { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .nt-capa img { transition: none !important; } .nt-capa[data-capa="fonte"] .nt-capa__fonte::after { animation: none; } }
 @media (prefers-reduced-motion: reduce) { .nt-puxar, .nt-puxar .ds-icon { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .nt-cartao { transition: none; } .nt-cartao:has(.nt-link:active) { transform: none; } }
 /* movimento reduzido: o quadro parado, com as três cartas no lugar */
