@@ -10911,7 +10911,8 @@
     "CR 709.4 · 709.4b–c · 709.2 · fora da pilha a carta tem as duas metades: os dois tipos, o custo somado, a cor e o valor de mana desse custo; é uma carta só",
     "CR 709.4a · a carta dividida tem os dois nomes: E.nomesDe devolve as duas metades",
     "CR 709 · a lista pode trazer a carta pelo nome de uma metade (\"Wax\") ou pelo nome completo (\"Wax // Wane\"), com o dado no formato da Scryfall: a partida usa sempre a carta inteira",
-    "CR 201.4b / 709.4a · dividida: escolhe-se o nome de uma metade, nunca o da carta inteira; na mão, Wax // Wane tem os dois nomes e sai nomeando Wane"
+    "CR 201.4b / 709.4a · dividida: escolhe-se o nome de uma metade, nunca o da carta inteira; na mão, Wax // Wane tem os dois nomes e sai nomeando Wane",
+    "M-634 · 709.4: a dividida continua com as duas metades na linha de tipo"
    ]
   },
   {
@@ -11188,7 +11189,7 @@
    "regra": "Double-Faced Cards",
    "titulo": "Cada face com suas características; fora do campo vale a frente",
    "status": "parcial",
-   "evidencia": "T-7 (11/10/2026) · src/engine/core.js, bloco \"T-7 · CR 701.27 / 712 / 707.8a\" (cartas marcadas `self: { duplaFace: true }`, efeito `transformar`): 712.8a — fora do campo e da pilha vale a frente (flipToFront em toda mudança de zona). 712.8d–e — com a frente para cima só a frente; com o verso para cima só o verso (nome, tipos, subtipos, cor, P/T, palavras-chave e habilidades), com o valor de mana da frente. T-8 (11/10/2026) · src/engine/core.js, bloco \"T-8 · CR 712.3 … dupla face modal\" (cartas `self: { modal: true }`): 712.8f — na pilha e no campo a modal tem só as características da face de cima, com o custo e o valor de mana da própria face (fatosDeDuasPartesT). T-69: valorDaFaceT no gancho do valor de mana (valorDaSalaT); tipos.valordeface.unit.",
+   "evidencia": "T-7 (11/10/2026) · src/engine/core.js, bloco \"T-7 · CR 701.27 / 712 / 707.8a\" (cartas marcadas `self: { duplaFace: true }`, efeito `transformar`): 712.8a — fora do campo e da pilha vale a frente (flipToFront em toda mudança de zona). 712.8d–e — com a frente para cima só a frente; com o verso para cima só o verso (nome, tipos, subtipos, cor, P/T, palavras-chave e habilidades), com o valor de mana da frente. T-8 (11/10/2026) · src/engine/core.js, bloco \"T-8 · CR 712.3 … dupla face modal\" (cartas `self: { modal: true }`): 712.8f — na pilha e no campo a modal tem só as características da face de cima, com o custo e o valor de mana da própria face (fatosDeDuasPartesT). T-69: valorDaFaceT no gancho do valor de mana (valorDaSalaT); tipos.valordeface.unit. M-634 (14/11/2026, achado do revisor da M-632): a linha de tipo impressa (`typeText`, lida pelos filtros de subtipo, supertipo e \"creature card\") também é só a da face de cima: `linhaDaFaceDeCimaM` em cardFacts corta o \"A // B\" da Scryfall nos layouts transform e modal_dfc (e adventure, 715.4), e fatosDeDuasPartesT corta pela marca do script quando o dado chega sem `layout`; antes Fable of the Mirror-Breaker com a Saga para cima era alvo de \"target Goblin\" (lt309.unit).",
    "falta": "T-69 (13/10/2026): 712.8c e 712.8e cobertas (verso para cima vale o custo da frente, também conjurada transformada pelo disturb; a cópia de um verso vale 0). Falta 712.8g (meld: espera a primitiva \"permanente de várias cartas\", decisão do dono). A ficha cópia de uma dupla face transformada é ela mesma uma dupla face (707.8a) e vale o custo da frente (conferido na auditoria da T-69).",
    "esforco": "P",
    "depende": [
@@ -11200,7 +11201,10 @@
     "CR 712.13 · 712.8f · a face conjurada é a que entra no campo, e a permanente tem só as características dela (valor de mana próprio); 712.8a · fora do campo e da pilha volta a ser a frente",
     "CR 712.8e · a dupla face transformada (verso para cima) vale o custo da frente: Insectile Aberration tem valor de mana 1",
     "CR 712.8e / 202.3b · a permanente que copia o verso de uma dupla face tem valor de mana 0: o Clone de Insectile Aberration é alvo de \"valor de mana 0\"",
-    "CR 712.8c · conjurada transformada pelo \"disturb\": na pilha e no campo, Luminous Phantom vale o custo da frente (1), não 0"
+    "CR 712.8c · conjurada transformada pelo \"disturb\": na pilha e no campo, Luminous Phantom vale o custo da frente (1), não 0",
+    "M-634 · 712.8a/715.4: fora do campo, a linha de tipo é só a da face de cima (transformar, modal e aventura)",
+    "M-634 · 712.8d: com a Saga para cima, Fable não é Goblin nem criatura; com o verso para cima, é Goblin Shaman",
+    "M-634 · sem `layout` no dado (lista antiga, sem rede): a marca do script à mão (dupla face) também corta a linha"
    ]
   },
   {
@@ -11556,7 +11560,7 @@
     "CR 715.3d · ao resolver, a Aventura é exilada pelo controlador (não vai ao cemitério) e ele pode conjurar a carta do exílio — como criatura, pelo custo e no tempo dela",
     "CR 715.4 · 715.2c · em toda zona fora da pilha a carta tem só as características normais e é uma carta só: mão, cemitério, exílio e campo"
    ],
-   "evidencia": "T-5 (11/10/2026) · fora da pilha, e na pilha conjurada normalmente, o objeto tem o nome e os fatos da carta normal: moveObject volta a face (flipToFront) em toda saída da pilha; conferido na mão, no cemitério, no exílio e no campo, e por um passeio aleatório que barra face de Aventura fora da pilha."
+   "evidencia": "T-5 (11/10/2026) · fora da pilha, e na pilha conjurada normalmente, o objeto tem o nome e os fatos da carta normal: moveObject volta a face (flipToFront) em toda saída da pilha; conferido na mão, no cemitério, no exílio e no campo, e por um passeio aleatório que barra face de Aventura fora da pilha. M-634 (14/11/2026): a linha de tipo dos fatos também é só a da carta normal (layout adventure: \"Creature — Zombie Knight\", sem \"// Instant — Adventure\"); a dividida (709.4) fica com as duas metades (lt309.unit)."
   },
   {
    "n": "715.5",
