@@ -15247,7 +15247,7 @@ implementar sem abrir os artefatos).
 | K3-8 + MV-3 | Coleção; FLIP, odômetro e chips | 🟡 G-390 (fatia 1, Balcão: o total é o título e as seis cores filtram; chips, gaveta, linhas densas e MV-3 seguem) |
 | K3-9 | Lista (hero com arte, posse) | ⬜ |
 | MV-2 | ladrilho → destaque e espiar | ⬜ |
-| K3-10 | Notícias e scanner | ⬜ |
+| K3-10 | Notícias e scanner | 🟡 G-395 (fatia 1, Notícias: a carta citada dá a arte da capa sem foto, papel com o nome da fonte no lugar da sigla, linha editorial, idiomas em fio; o destaque com a arte sob o véu, Guardadas e a faixa sem internet, e o scanner seguem) |
 | K3-11 | Perfil | ⬜ |
 | MV-5 | retorno de ação (feedback) | ⬜ |
 | MV-6 | os cinco gestos | ⬜ |
@@ -15939,6 +15939,45 @@ Cloudflare) ficam do nosso lado, para gerar e validar. Cinco fatias MK3-P1…P5 
   em destaque com a arte da carta-chave) pede a partida refeita fora da mesa para ler turno e vida; o cabeçalho que recolhe
   (K3-4) na Início; "cabe em uma tela e meia"; Relatar discreto; a porta de vitrine (K3-12) para hero e ladrilhos; ordenar
   os ladrilhos por cor. Os botões de idioma das Notícias (latão quando ligados) são da K3-10. Continuar → mesa é a MV-9.
+
+#### K3-10 · Notícias na direção Vitrine, fatia 1 (🟡 G-395, 14/11/2026 · parcial declarada)
+- **Valor:** a notícia que fala de uma carta mostra a arte dela, e diz qual é embaixo do título ("Pauper · cita Lightning
+  Bolt"); a que não tem foto nem carta ganha um papel com o nome da fonte, nunca mais a sigla em caixa ("MTGG", "SCG"). A
+  lista lê como revista: linhas sem cartão, separadas por um fio de luz, e os idiomas deixam de disputar o latão com o Jogar.
+- **Aceite:** carta citada (`__m37.cartaCitada`, puro): só nome de duas palavras ou mais (cada face de "A // B" conta sozinha;
+  nome de uma palavra — Opt, Shock, Brainstorm — é palavra comum demais), inteiro, com as mesmas maiúsculas e como palavra
+  (apóstrofo curvo vale como o reto), primeiro no título e depois no resumo; o que aparece primeiro e, no mesmo lugar, o mais
+  longo. Os nomes vêm da base guardada no aparelho (`names.load()`: o scanner e o preparo sem internet a baixam; a Início não
+  baixa nada a mais), lida junto com o índice e esperada no máximo 1,5 s; a arte é o `art_crop` pelo `cardRepo.byNames` (o mesmo
+  cache das listas), um pedido por página, só das citadas. Capa: a foto nítida (G-300) continua vencendo; sem ela, a arte da
+  carta entra do mesmo jeito que a foto (opacidade e 3 % de escala, `--dur-3`/`--dur-4`; Moderado encurta pelos tokens;
+  Reduzido no lugar); sem carta ou sem arte, o papel (`--grain` sobre E4 → E3, filete de latão) com o nome da fonte em rótulo
+  de caixa alta (`--accent`, 600, .18em; na linha 10 px .14em, quebrando dentro da moldura). Linha (`.nt-cartao--linha`): sem
+  cartão, grade `1fr 92px` com vão 12, 12 px em cima e embaixo e o `--divisor-luz` (luz a .06 no escuro, tinta a .10 no papel,
+  nos três blocos); capa 92 × 72 raio 10 com sombra de contato; fonte 10,5 px .1em 600 em latão; título Cormorant 17/1.1; a
+  linha do assunto (tema que o coletor marcou · "cita <carta>", o nome em `lang="en"` e sem tradução) em 11 px `--fg-subtle`.
+  Os idiomas (Português · English) ligados são chips em fio: latão a 8 % no fundo, fio de latão a .55, brilho curto, texto
+  `--accent`, sem o metal cheio (o único latão cheio da Início é o Jogar da barra); desligados, `--fg-muted`. `/ds` › "Notícia
+  em linha" (com carta citada e com o papel). Tokens novos: `--capa-noticia-w/-h`, `--radius-capa`, `--text-noticia`,
+  `--lh-noticia`, `--text-fonte-noticia`, `--divisor-luz`. Textos novos em en/es.
+- **Testes:** `noticias.tela.unit` "DS-K3 K3-10 (G-395)" (duas palavras, maiúsculas, colado em outra letra, faces, apóstrofo,
+  título antes do resumo, o primeiro e o mais longo, sem base nada; o monograma saiu); contrato visual "DS-K3 K3-10 (G-395)"
+  (tokens nos três blocos, grade, capa, tipografia, papel, rótulo, entrada da arte com Reduzido, nenhuma cor literal, a base
+  só do aparelho, idiomas em fio); e2e "G-395" (falhava no main de antes: arte na capa sem foto, foto que vence, papel sem
+  carta e com carta sem arte, "Pauper · cita …", um pedido só pelas citadas, `art_crop`; em 360 e 412 nos dois temas: capa
+  92 × 72 raio 10 à direita com vão 12, linha sem cartão com divisor, 10,5/17 px, AA da fonte, do título e da linha, idioma
+  ligado sem metal e em AA, `auditaTela`; transição 280/420 ms, Moderado 280/280, Reduzido 0; `/ds`). Expectativas mudadas
+  de propósito, com o motivo no teste: G-300 (o rótulo com o nome da fonte no lugar do monograma) e N2 (idem).
+- **Parcial / fora:** o destaque como hero sobre a arte (100 % × 160, texto sobre o véu, selo "Destaque · hoje") segue na
+  fatia 2 (nesta, o destaque mantém a capa 16:9 com o texto embaixo, e a arte entra nela quando não há foto); a carta citada
+  nas Guardadas, a faixa "Sem internet · Mostrando as N guardadas · Ver" e o chip "Guardadas · N" ao lado dos idiomas, também;
+  o scanner (doca com alça, selo "Lightning Bolt · 2XM", "Guardar N" e a "carta lida" que cai na doca) é a fatia 3, com a
+  trilha `scanner` (relatos #219, #224 a #226 abertos sobre ele). Sem a base de nomes no aparelho (quem nunca abriu o scanner
+  nem preparou o uso sem internet), nenhuma notícia cita carta e a capa sem foto é o papel. Nome de carta que também é frase
+  comum de duas palavras pode ser lido como citação ("Time Spiral" no nome da coleção, por exemplo): a capa mostra a arte
+  dessa carta. O `art_crop` no destaque de 328 px pode ficar abaixo da nitidez da guarda da G-300 em tela 3× (é a mesma arte
+  do hero da Lista). A linha do 16º-uq na ordem por dependência não foi tocada (a G-394 da K3-9 está na fila mudando a mesma
+  linha; a próxima rodada junta).
 
 ## Trilha homologacao · prova de partida do catálogo (H)
 

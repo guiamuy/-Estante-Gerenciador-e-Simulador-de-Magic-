@@ -179,7 +179,7 @@ test('N5 · serviço: busca as coleções na Scryfall uma vez, guarda por um dia
   assert.deepEqual(lista(await N.createNoticias({ store: null, scryfall: { sets: async () => { throw new Error('fora do ar'); } } }).lancamentos()), []);
 });
 
-// G-300 · relato #33 · a foto só entra nítida; sem ela, a capa da fonte (monograma) toma o lugar
+// G-300 · relato #33 · a foto só entra nítida; sem ela, a capa da fonte toma o lugar (K3-10: o papel com o nome, sem sigla)
 test('G-300 · guarda de qualidade da capa: com cover, escala × densidade acima de 1/0,75 é "baixa"; imagem vazia é "baixa"; caixa sem medida deixa passar', () => {
   assert.equal(N.qualidadeDaCapa({ largura: 96, altura: 72, naturalWidth: 150, naturalHeight: 150, dpr: 3 }), 'baixa', 'miniatura WordPress 150×150 numa capa de linha em tela 3×');
   assert.equal(N.qualidadeDaCapa({ largura: 96, altura: 72, naturalWidth: 100, naturalHeight: 56, dpr: 3 }), 'baixa');
@@ -191,9 +191,26 @@ test('G-300 · guarda de qualidade da capa: com cover, escala × densidade acima
   assert.equal(N.qualidadeDaCapa({ largura: 0, altura: 0, naturalWidth: 400, naturalHeight: 300, dpr: 3 }), 'boa');
   assert.equal(N.FOLGA_DA_CAPA, 0.75);
 });
-test('G-300 · monograma da fonte: siglas inteiras (até 6), iniciais das palavras que contam (até 4), sigla do começo + inicial; nunca vazio para nome válido', () => {
-  const casos = { EDHREC: 'EDHREC', MTGGoldfish: 'MTGG', 'Star City Games': 'SCG', 'Card Kingdom': 'CK', 'Hipsters of the Coast': 'HC', 'MTG Arena Zone': 'MAZ', 'Cards Realm': 'CR', 'O Vício': 'OV', Exemplo: 'EX', MTGO: 'MTGO', '': '' };
-  for (const [nome, mono] of Object.entries(casos)) assert.equal(N.monogramaDaFonte(nome), mono, nome);
-  assert.equal(N.monogramaDaFonte('<b>Fonte</b> Nova'), 'BFBN', 'marcação vira separador: nada de HTML no monograma');
-  assert.match(N.monogramaDaFonte('<script>x</script>'), /^[\p{L}\p{N}]*$/u);
+// DS-K3 K3-10 (G-395) · a sigla em caixa saiu da capa (o monograma da G-300 foi aposentado de propósito: a proposta Vitrine
+// troca a sigla pelo papel com o nome da fonte); no lugar, a carta citada, que dá a arte da capa sem foto
+test('DS-K3 K3-10 (G-395) · carta citada: nome de duas palavras ou mais, inteiro, com as mesmas maiúsculas e como palavra; título antes do resumo; o primeiro e, no mesmo lugar, o mais longo', () => {
+  const ind = N.indiceDeCitacao(['Lightning Bolt', 'Lightning Helix', 'Opt', 'Brainstorm', 'Fire // Ice', 'Hogaak, Arisen Necropolis', "Urza's Saga", 'Snow-Covered Island', 'Dark Ritual', 'Dark', 'Time Walk', 'Time Walker Extra', 42, null]);
+  const cita = (titulo, resumo = '') => { const c = N.cartaCitada({ titulo, resumo }, ind); return c ? c.nome : null; };
+  assert.equal(cita('Single Scoop: Lightning Bolt is back'), 'Lightning Bolt');
+  assert.equal(cita('Why Lightning Helix and Lightning Bolt matter'), 'Lightning Helix', 'o que aparece primeiro');
+  assert.equal(cita('Opt, Brainstorm and friends'), null, 'nome de uma palavra não conta: é palavra comum demais');
+  assert.equal(cita('Fire and Ice'), null, 'as faces de "Fire // Ice" têm uma palavra cada');
+  assert.equal(cita('lightning bolt em minúsculas'), null, 'as mesmas maiúsculas do nome');
+  assert.equal(cita('Lightning Bolts everywhere'), null, 'colado em outra letra não é o nome');
+  assert.equal(cita('Deck tech: Hogaak, Arisen Necropolis no Legacy'), 'Hogaak, Arisen Necropolis');
+  assert.equal(cita('O retorno de Urza’s Saga no Modern'), "Urza's Saga", 'apóstrofo curvo vale como o reto');
+  assert.equal(cita('Snow-Covered Island no Pauper'), 'Snow-Covered Island');
+  assert.equal(cita('Time Walker Extra e Time Walk'), 'Time Walker Extra', 'no mesmo lugar, o mais longo');
+  assert.equal(cita('Uma notícia sem carta', 'O resumo cita Dark Ritual.'), 'Dark Ritual', 'sem carta no título, o resumo');
+  assert.equal(cita('Dark Ritual no título', 'Lightning Bolt no resumo'), 'Dark Ritual', 'o título vem antes');
+  assert.equal(N.cartaCitada({ titulo: 'Lightning Bolt' }, null), null, 'sem base de nomes, nada é citado');
+  assert.equal(N.cartaCitada({ titulo: 'Lightning Bolt' }, N.indiceDeCitacao([])), null);
+  assert.deepEqual(lista(N.cartaCitada({ titulo: 'Mais Lightning Bolt' }, ind)), { nome: 'Lightning Bolt', carta: 'Lightning Bolt' });
+  assert.deepEqual(lista(N.cartaCitada({ titulo: 'Snow-Covered Island' }, N.indiceDeCitacao(['Snow-Covered Island // Outra Face']))), { nome: 'Snow-Covered Island', carta: 'Snow-Covered Island // Outra Face' }, 'face de duas palavras guarda a carta inteira para buscar a arte');
+  assert.equal(N.monogramaDaFonte, undefined, 'o monograma saiu');
 });

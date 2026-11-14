@@ -262,6 +262,12 @@
   --text-ladrilho: calc(17px * var(--escala-texto));
   --simbolo-ladrilho: 14px;
   --simbolo-placa: 56px;
+  /* DS-K3 K3-10 (G-395) · Notícias: a linha editorial (capa ao lado, 92 × 72, raio 10; fonte em 10,5 px; título em 17 px)
+     separada da vizinha por um divisor de luz, não por cartão; o divisor muda com o tema (abaixo) */
+  --capa-noticia-w: 92px; --capa-noticia-h: 72px; --radius-capa: 10px;
+  --text-noticia: calc(17px * var(--escala-texto)); --lh-noticia: 1.1;
+  --text-fonte-noticia: calc(10.5px * var(--escala-texto));
+  --divisor-luz: rgba(255, 240, 210, .06);
   /* DS-K3 K3-2 (G-362) · barra inferior flutuante: pílula de --navbar-alt a --navbar-folga das bordas (e da área segura), o
      Jogar sobe --navbar-ressalto acima dela. Vidro (E4 a 92 % + desfoque) só na barra; reserva opaca (E4 cheio) quando não há
      backdrop-filter, com Movimento reduzido, transparência reduzida ou contraste alto. O texto da barra passa AA mesmo com
@@ -368,6 +374,7 @@
   --grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .35 0 0 0 0 .25 0 0 0 0 .1 0 0 0 .06 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
   --madeira-hi: #b79c6a;
   --madeira-lo: #8a7046;
+  --divisor-luz: rgba(60, 40, 10, .10); /* DS-K3 K3-10 (G-395) · no papel, o divisor é tinta */
   /* DS-K3 K3-2 (G-362) · vidro de papel: E4 a 92 %; reserva opaca em E4 */
   --navbar-alt: 64px; --navbar-folga: 14px; --navbar-ressalto: 16px;
   --vidro: rgba(255, 250, 240, .92);
@@ -454,6 +461,7 @@
     --grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .35 0 0 0 0 .25 0 0 0 0 .1 0 0 0 .06 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
     --madeira-hi: #b79c6a;
     --madeira-lo: #8a7046;
+    --divisor-luz: rgba(60, 40, 10, .10); /* DS-K3 K3-10 (G-395) · no papel, o divisor é tinta */
     /* DS-K3 K3-2 (G-362) · vidro de papel: E4 a 92 %; reserva opaca em E4 */
     --navbar-alt: 64px; --navbar-folga: 14px; --navbar-ressalto: 16px;
     --vidro: rgba(255, 250, 240, .92);
@@ -2200,6 +2208,11 @@ body[data-mesa-cheia="true"] .ds-toast[data-inteiro="true"] { padding-top: var(-
 .ds-bandeira { display: inline-flex; flex: none; line-height: 0; border-radius: var(--radius-1); overflow: hidden; box-shadow: 0 0 0 1px var(--border-strong); }
 .nt-idiomas { flex: 0 0 auto; align-self: stretch; }
 .nt-idiomas .ds-chip { gap: var(--space-2); }
+/* DS-K3 K3-10 (G-395) · os idiomas das Notícias são chips em fio, não latão cheio: o único latão cheio da Início é o Jogar da
+   barra (Balcão). Ligado: fio de latão, brilho curto e o latão a 8 % no fundo; texto em --accent (AA nos dois temas); desligado, apagado. */
+.nt-idiomas .ds-chip[aria-pressed="true"] { background: color-mix(in srgb, var(--accent) 8%, transparent); background-image: none; color: var(--accent); border-color: transparent;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent), inset 0 1px 0 var(--edge), 0 0 14px -4px color-mix(in srgb, var(--accent) 50%, transparent); }
+.nt-idiomas .ds-chip[aria-pressed="false"] { color: var(--fg-muted); }
 .nt-lista { display: flex; flex-direction: column; gap: var(--space-3); }
 .nt-cartao { display: flex; gap: var(--space-3); min-height: var(--tap-min); padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-3); background: var(--bg-elev-1); color: var(--fg); text-decoration: none; transition: transform var(--dur-1) var(--ease-out), border-color var(--dur-1) var(--ease-out); }
 .nt-cartao { position: relative; }
@@ -2216,26 +2229,26 @@ body[data-mesa-cheia="true"] .ds-toast[data-inteiro="true"] { padding-top: var(-
 .nt-cartao--destaque .nt-corpo, .nt-cartao--cheio .nt-corpo { padding: var(--space-3) var(--space-4) var(--space-4); }
 .nt-capa { position: relative; flex: none; display: grid; place-items: center; overflow: hidden; background: var(--bg-elev-0); color: var(--accent-hi); isolation: isolate; }
 .nt-cartao--destaque .nt-capa, .nt-cartao--cheio .nt-capa { width: 100%; aspect-ratio: 16 / 9; }
-.nt-cartao--linha .nt-capa { order: 2; width: 96px; height: 72px; border-radius: var(--radius-2); }
+.nt-cartao--linha .nt-capa { order: 2; width: var(--capa-noticia-w); height: var(--capa-noticia-h); border-radius: var(--radius-capa); box-shadow: var(--shadow-contact); }
 /* G-300 · relato #33 · a foto entra por cima da capa da fonte só quando a guarda a aprova (nítida para esta tela): até lá
-   ela fica invisível e a capa desenhada ocupa o lugar. Entrada: a foto sobe do fundo (opacidade e 3 % de escala). */
+   ela fica invisível e a capa desenhada ocupa o lugar. Entrada: a foto sobe do fundo (opacidade e 3 % de escala).
+   DS-K3 K3-10 (G-395) · sem foto nítida, a arte da carta que a notícia cita (art_crop) entra do mesmo jeito. */
 .nt-capa img { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; object-fit: cover; opacity: 0; transform: scale(1.03); }
-.nt-capa[data-capa="foto"] img { opacity: 1; transform: none; transition: opacity var(--dur-3) var(--ease-out), transform var(--dur-4) var(--ease-out); }
-/* G-300 · capa da fonte (ébano e latão): veio e vinheta no fundo, filete de latão por dentro, monograma em serifada */
+.nt-capa[data-capa="foto"] .nt-capa__foto, .nt-capa[data-capa="carta"] .nt-capa__arte { opacity: 1; transform: none; transition: opacity var(--dur-3) var(--ease-out), transform var(--dur-4) var(--ease-out); }
+/* DS-K3 K3-10 (G-395) · capa da fonte = papel (E4 → E3 com grão), filete de latão por dentro e o nome da fonte em rótulo
+   de caixa alta; nunca a sigla em caixa (a G-300 desenhava o monograma) */
 .nt-capa__fonte { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1); overflow: hidden;
-  background: radial-gradient(120% 95% at 50% 38%, transparent 42%, var(--grain-2) 100%), repeating-linear-gradient(112deg, var(--grain-1) 0 1px, transparent 1px 5px), var(--bg-elev-0); }
-.nt-capa__fonte::before { content: ''; position: absolute; inset: var(--space-2); border: 1px solid var(--accent-lo); border-radius: var(--radius-1); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--accent-hi) 35%, transparent); pointer-events: none; }
-.nt-capa__fonte[data-forma="linha"]::before { inset: var(--space-1); }
+  background: var(--grain), linear-gradient(180deg, var(--elev-4), var(--elev-3)); }
+.nt-capa__fonte::before { content: ''; position: absolute; inset: var(--space-2); border: 1px solid var(--accent-lo); border-radius: var(--radius-1); box-shadow: inset 0 1px 0 var(--edge); pointer-events: none; }
+.nt-capa__fonte[data-forma="linha"]::before { inset: var(--space-1); border-radius: calc(var(--radius-capa) - var(--space-1)); }
 .nt-capa__fonte::after { content: ''; position: absolute; top: -30%; bottom: -30%; left: 0; width: 34%; background: linear-gradient(100deg, transparent, var(--sheen), transparent); mix-blend-mode: screen; transform: translateX(-200%) skewX(-18deg); pointer-events: none; }
 .nt-capa[data-capa="fonte"] .nt-capa__fonte::after { animation: ds-varre var(--dur-4) var(--ease-out) var(--dur-1) 1 both; }
-.nt-capa__mono { position: relative; font-family: var(--font-display); font-size: var(--text-3xl); line-height: 1; font-weight: var(--weight-bold); letter-spacing: .04em; color: var(--accent-hi); white-space: nowrap; }
-.nt-capa__fonte[data-forma="linha"] .nt-capa__mono { font-size: var(--text-lg); }
-.nt-capa__fonte[data-forma="linha"] .nt-capa__mono[data-letras="5"], .nt-capa__fonte[data-forma="linha"] .nt-capa__mono[data-letras="6"] { font-size: var(--text-md); letter-spacing: .02em; }
-.nt-capa__mono[data-letras="5"], .nt-capa__mono[data-letras="6"] { font-size: var(--text-2xl); }
-.nt-capa__nome::before { content: ''; display: block; width: var(--space-6); height: 1px; margin: 0 auto var(--space-2); background: var(--accent-lo); }
-.nt-capa__nome { position: relative; max-width: calc(100% - 2 * var(--space-5)); font-size: var(--text-xs); line-height: var(--lh-xs); letter-spacing: .14em; text-transform: uppercase; color: var(--fg-muted); text-align: center; text-wrap: balance; }
-@media (prefers-reduced-motion: reduce) { .nt-capa[data-capa="foto"] img { transition: none; } .nt-capa[data-capa="fonte"] .nt-capa__fonte::after { animation: none; } }
-:root[data-movimento="reduzido"] .nt-capa[data-capa="foto"] img { transition: none; }
+.nt-capa__rotulo { position: relative; max-width: calc(100% - 2 * var(--space-5)); font-size: var(--text-xs); line-height: var(--lh-xs); letter-spacing: .18em; text-transform: uppercase; font-weight: 600; color: var(--accent); text-align: center; text-wrap: balance; overflow-wrap: anywhere; }
+.nt-capa__rotulo::before { content: ''; display: block; width: var(--space-6); height: 1px; margin: 0 auto var(--space-2); background: var(--accent-lo); }
+.nt-capa__fonte[data-forma="linha"] .nt-capa__rotulo { max-width: calc(100% - 2 * var(--space-3)); font-size: var(--text-2xs); line-height: 1.25; letter-spacing: .14em; }
+.nt-capa__fonte[data-forma="linha"] .nt-capa__rotulo::before { display: none; }
+@media (prefers-reduced-motion: reduce) { .nt-capa img { transition: none !important; } .nt-capa[data-capa="fonte"] .nt-capa__fonte::after { animation: none; } }
+:root[data-movimento="reduzido"] .nt-capa img { transition: none !important; }
 :root[data-movimento="reduzido"] .nt-capa[data-capa="fonte"] .nt-capa__fonte::after { animation: none; }
 .nt-corpo { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: var(--space-2); }
 .nt-meta { display: flex; align-items: center; gap: var(--space-2); min-width: 0; font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--fg-muted); }
@@ -2243,6 +2256,19 @@ body[data-mesa-cheia="true"] .ds-toast[data-inteiro="true"] { padding-top: var(-
 .nt-quando { flex: none; white-space: nowrap; }
 .nt-titulo { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; overflow-wrap: anywhere; font-family: var(--font-display); font-size: var(--text-lg); line-height: var(--lh-lg); }
 .nt-cartao--destaque .nt-titulo { font-size: var(--text-xl); line-height: var(--lh-xl); }
+/* DS-K3 K3-10 (G-395) · a notícia em linha é editorial: sem cartão, grade texto | capa (1fr 92 px, vão 12), 12 px em cima e
+   embaixo e o divisor de luz entre uma e outra; a fonte em rótulo de latão (10,5 px, .1em, 600), o título em serifada 17 px
+   e, embaixo, a linha do assunto ("Pauper · cita Lightning Bolt"). Vence o material dos cartões (K3-1) por especificidade. */
+.nt-cartao.nt-cartao--linha[data-forma] { display: grid; grid-template-columns: minmax(0, 1fr) var(--capa-noticia-w); gap: var(--space-3); align-items: start;
+  padding: var(--space-3) 0; border: 0; border-bottom: 1px solid var(--divisor-luz); border-radius: 0; background: none; box-shadow: none; }
+.nt-cartao--linha[data-forma] + .nt-cartao--linha[data-forma] { margin-top: calc(-1 * var(--space-3)); }
+.nt-cartao.nt-cartao--linha[data-forma]:has(.nt-link:active) { transform: none; border-color: var(--divisor-luz); }
+.nt-cartao--linha:has(.nt-link:active) .nt-titulo { color: var(--accent-hi); }
+.nt-cartao--linha .nt-meta { font-size: var(--text-fonte-noticia); }
+.nt-cartao--linha .nt-fonte { letter-spacing: .1em; font-weight: 600; }
+.nt-cartao--linha .nt-titulo { font-size: var(--text-noticia); line-height: var(--lh-noticia); }
+.nt-linha { margin: 0; font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--fg-subtle); overflow-wrap: anywhere; }
+.nt-linha__carta { color: var(--fg-muted); }
 .nt-resumo { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; font-size: var(--text-md); line-height: var(--lh-md); color: var(--fg-muted); }
 .nt-pe { display: flex; flex-direction: column; align-items: stretch; gap: var(--space-3); min-height: var(--tap-min); padding-top: var(--space-3); }
 .nt-pe > .ds-btn { align-self: center; }
@@ -6693,6 +6719,16 @@ function renderDS() {
         __m15.DeckLinha({ nome: 'Mono Red Madness', formato: 'pauper', cores: 'R', main: 60, side: 0, posse: { have: 60, need: 60 }, arte: { carta: null }, indice: 1, onClick: () => toast('Lista') }),
         __m15.DeckLinha({ nome: 'Golgari Gardens', formato: 'modern', cores: 'BG', main: 60, side: 0, posse: { have: 31, need: 60 }, arte: { carta: null }, indice: 2, onClick: () => toast('Lista') })),
       Text('--scrim-art · --veu-texto-arte · --selo-sobre-arte · --latao-sobre-arte(-lo) · --trilho-sobre-arte · --positivo/--alerta-sobre-arte · --ladrilho-alt 150 · --ladrilho-alt-largo 120', { size: 'xs', tone: 'subtle' })),
+
+    // DS-K3 K3-10 (G-395) · a notícia em linha: texto | capa 92 × 72; sem foto nítida, a arte da carta citada; sem carta, o papel
+    Section('Notícia em linha',
+      Text('Fonte em rótulo de latão, título em serifada e a linha do assunto. Sem foto nítida, a capa é a arte da carta que a notícia cita; sem carta, o papel com o nome da fonte, nunca a sigla.', { size: 'sm', tone: 'muted' }),
+      h('div', { class: 'nt-lista', id: 'ds-noticias' },
+        __m37.CartaoNoticia({ id: 'ds-n1', titulo: 'Mono Red volta ao topo do Pauper', resumo: '', url: 'https://scryfall.com/', fonte: 'gf', data: '', idioma: 'pt', temas: ['pauper'], imagem: '' },
+          { fonte: 'MTGGoldfish', citada: { nome: 'Lightning Bolt', carta: 'Lightning Bolt' } }),
+        __m37.CartaoNoticia({ id: 'ds-n2', titulo: 'Banned and Restricted Announcement', resumo: '', url: 'https://scryfall.com/', fonte: 'wo', data: '', idioma: 'en', temas: [], imagem: '' },
+          { fonte: 'Wizards of the Coast' })),
+      Text('--capa-noticia-w 92 · --capa-noticia-h 72 · --radius-capa 10 · --text-noticia 17 · --text-fonte-noticia 10,5 · --divisor-luz', { size: 'xs', tone: 'subtle' })),
 
     Section('Cartas',
       CardGrid(
@@ -18815,41 +18851,77 @@ function qualidadeDaCapa({ largura, altura, naturalWidth, naturalHeight, dpr = 1
   const escala = Math.max(largura / naturalWidth, altura / naturalHeight) * Math.max(1, Math.min(Number(dpr) || 1, 4));
   return escala <= 1 / FOLGA_DA_CAPA ? 'boa' : 'baixa';
 }
-const PALAVRAS_LEVES = new Set(['of', 'the', 'and', 'a', 'o', 'os', 'as', 'de', 'da', 'do', 'das', 'dos', 'e']);
-/** G-300 · o monograma da fonte na capa desenhada. Nome de várias palavras: as iniciais das que contam ("Star City Games"
-    → "SCG", "Hipsters of the Coast" → "HC", "MTG Arena Zone" → "MAZ"). Uma palavra só: a sigla inteira ("EDHREC", até 6),
-    a sigla do começo mais a inicial do resto ("MTGGoldfish" → "MTGG") ou as duas primeiras letras. Puro. */
-function monogramaDaFonte(nome) {
-  const palavras = String(nome || '').normalize('NFC').split(/[^\p{L}\p{N}]+/u).filter(Boolean);
-  if (!palavras.length) return '';
-  if (palavras.length > 1) {
-    const contam = palavras.filter((p, i) => i === 0 || !PALAVRAS_LEVES.has(p.toLowerCase()));
-    return contam.map(p => p[0].toUpperCase()).join('').slice(0, 4);
+/* DS-K3 K3-10 (G-395) · a carta que a notícia cita. Só entra nome de duas palavras ou mais (cada face de "A // B" conta
+   sozinha): nome de uma palavra ("Opt", "Shock", "Brainstorm", "Revelation") é palavra comum demais para ser lido no texto sem
+   engano. O nome tem de aparecer inteiro e com as mesmas maiúsculas, como palavra (nada antes nem depois colado nele):
+   primeiro no título, depois no resumo; entre os que casam, o que aparece primeiro e, no mesmo lugar, o mais longo. */
+const PALAVRA_DO_NOME = /[\p{L}\p{N}][\p{L}\p{N}'\-]*/gu;
+const apostrofo = t => String(t || '').replace(/[\u2018\u2019\u02bc]/g, "'");
+/** O índice dos nomes que podem ser citados: primeira palavra → [{ nome, carta }], do mais longo ao mais curto. Puro. */
+function indiceDeCitacao(nomes) {
+  const ind = new Map();
+  for (const carta of Array.isArray(nomes) ? nomes : []) {
+    if (typeof carta !== 'string') continue;
+    for (const face of carta.split(' // ')) {
+      const nome = apostrofo(face).trim();
+      if (!/\s/.test(nome) || nome.length > 141) continue;
+      const m = nome.match(new RegExp(PALAVRA_DO_NOME.source, 'u')); if (!m || m.index !== 0) continue;
+      const l = ind.get(m[0]) || []; if (!l.some(x => x.nome === nome)) l.push({ nome, carta }); ind.set(m[0], l);
+    }
   }
-  const p = palavras[0];
-  if (/^[\p{Lu}\p{N}]{2,6}$/u.test(p)) return p;
-  const m = p.match(/^(\p{Lu}{2,4})(\p{Lu})\p{Ll}/u);
-  if (m) return m[1] + m[2];
-  return p.slice(0, 2).toUpperCase();
+  for (const l of ind.values()) l.sort((a, b) => b.nome.length - a.nome.length);
+  return ind;
 }
-/** G-300 · capa da fonte (ébano e latão, DS-K): o que a notícia mostra quando não há foto nítida — sem foto, foto que
-    falhou ou foto pequena demais para a tela. Moldura com filete de latão, monograma da fonte e, nas capas grandes, o nome. */
+const letraOuNumero = c => !!c && /[\p{L}\p{N}]/u.test(c);
+/** O primeiro nome citado num texto, ou null. Puro. */
+function citadaEm(texto, indice) {
+  const t = apostrofo(texto); if (!t || !indice || !indice.size) return null;
+  for (const m of t.matchAll(PALAVRA_DO_NOME)) {
+    const l = indice.get(m[0]); if (!l) continue;
+    for (const x of l) if (t.startsWith(x.nome, m.index) && !letraOuNumero(t[m.index + x.nome.length])) return x;
+  }
+  return null;
+}
+/** A carta citada por uma notícia ({ nome, carta }: o nome como aparece, a carta inteira para buscar a arte), ou null. Puro. */
+const cartaCitada = (it, indice) => (it ? citadaEm(it.titulo, indice) || citadaEm(it.resumo, indice) : null);
+/** A linha do assunto, embaixo do título: o tema que o coletor marcou e a carta citada ("Pauper · cita Lightning Bolt"). */
+function LinhaDaNoticia(it, citada) {
+  const tema = (TEMAS.find(([k]) => (it.temas || []).includes(k)) || [])[1];
+  if (!tema && !citada) return null;
+  return h('p', { class: 'nt-linha' }, tema || null, tema && citada ? ' · ' : null,
+    citada ? h('span', { class: 'nt-linha__cita' }, 'cita ', h('span', { class: 'nt-linha__carta', lang: 'en', translate: 'no' }, citada.nome)) : null);
+}
+/** DS-K3 K3-10 (G-395) · capa da fonte: o papel com o nome da fonte em rótulo de caixa alta. A G-300 desenhava ali o
+    monograma ("MTGG", "SCG"); a proposta Vitrine tirou a sigla em caixa. Sem nome, o ícone do jornal. */
 function CapaDaFonte(fonte, forma) {
-  const mono = monogramaDaFonte(fonte);
+  const nome = String(fonte || '').trim();
   return h('span', { class: 'nt-capa__fonte', dataset: { forma } },
-    mono ? h('span', { class: 'nt-capa__mono', dataset: { letras: String(mono.length) } }, mono) : Icone('jornal', { tamanho: forma === 'linha' ? 24 : 40 }),
-    forma !== 'linha' && fonte && fonte.toUpperCase() !== mono ? h('span', { class: 'nt-capa__nome' }, fonte) : null); // a sigla que já é o nome não se repete
+    nome ? h('span', { class: 'nt-capa__rotulo' }, nome) : Icone('jornal', { tamanho: forma === 'linha' ? 24 : 40 }));
 }
-function CartaoNoticia(it, { forma = 'linha', fonte = '', agora = Date.now(), bandeira = false, nova = false, guardada = false, aoMais = null } = {}) {
+/** DS-K3 K3-10 (G-395) · a capa sabe receber a arte da carta citada depois de desenhada (a arte chega da Scryfall ou do
+    aparelho depois da notícia): `usaArteNaCapa(cartao, url)`. A arte só entra onde não há foto nítida. */
+const artesDaCapa = new WeakMap();
+function usaArteNaCapa(cartao, url) { const f = cartao && artesDaCapa.get(cartao); if (f && url) f(url); }
+function CartaoNoticia(it, { forma = 'linha', fonte = '', agora = Date.now(), bandeira = false, nova = false, guardada = false, aoMais = null, citada = null } = {}) {
   const quando = tempoRelativo(it.data, agora);
   // G-300 · relato #33 · toda notícia tem capa: a capa da fonte já está desenhada por baixo desde o começo (nada de quadro
   // vazio enquanto a foto desce); a foto só aparece por cima quando chega nítida para esta tela. Sem foto, foto que falha
   // ou foto pequena demais: fica a capa da fonte, com a luz passando uma vez (fim da espera).
   const capa = (() => {
     const el = h('span', { class: 'nt-capa', 'aria-hidden': 'true', dataset: { capa: 'esperando' } }, CapaDaFonte(fonte, forma));
-    const fica = motivo => { el.dataset.capa = 'fonte'; el.dataset.motivo = motivo; const img = el.querySelector('img'); if (img) img.remove(); };
+    // K3-10 · sem foto nítida, a arte da carta citada (quando chega); a arte que falha deixa a capa da fonte
+    let arte = '';
+    const poeArte = () => {
+      if (!arte || el.dataset.capa !== 'fonte' || el.querySelector('.nt-capa__arte')) return;
+      const a = h('img', { class: 'nt-capa__arte', src: arte, alt: '', loading: 'lazy', decoding: 'async', draggable: 'false' });
+      a.addEventListener('error', () => { a.remove(); if (el.dataset.capa === 'carta') el.dataset.capa = 'fonte'; }, { once: true });
+      a.addEventListener('load', () => { if (el.dataset.capa === 'fonte') el.dataset.capa = 'carta'; }, { once: true });
+      el.appendChild(a);
+    };
+    const fica = motivo => { el.dataset.capa = 'fonte'; el.dataset.motivo = motivo; const img = el.querySelector('.nt-capa__foto'); if (img) img.remove(); poeArte(); };
+    el.__poeArte = url => { arte = url; poeArte(); };
     if (!it.imagem) { fica('sem'); return el; }
-    const img = h('img', { src: it.imagem, alt: '', loading: 'lazy', decoding: 'async', referrerpolicy: 'no-referrer' });
+    const img = h('img', { class: 'nt-capa__foto', src: it.imagem, alt: '', loading: 'lazy', decoding: 'async', referrerpolicy: 'no-referrer' });
     img.addEventListener('error', () => fica('erro'), { once: true });
     img.addEventListener('load', () => {
       const r = el.getBoundingClientRect();
@@ -18859,7 +18931,7 @@ function CartaoNoticia(it, { forma = 'linha', fonte = '', agora = Date.now(), ba
     }, { once: true });
     el.appendChild(img); return el;
   })();
-  const cartao = h('article', { class: 'nt-cartao nt-cartao--' + forma, dataset: { noticia: it.id, idioma: it.idioma, forma, ...(nova ? { nova: 'true' } : {}) } },
+  const cartao = h('article', { class: 'nt-cartao nt-cartao--' + forma, dataset: { noticia: it.id, idioma: it.idioma, forma, ...(nova ? { nova: 'true' } : {}), ...(citada ? { cita: citada.carta } : {}) } },
     capa,
     h('div', { class: 'nt-corpo' },
       h('div', { class: 'nt-meta' }, bandeira ? Bandeira((IDIOMAS.find(i => i[0] === it.idioma) || IDIOMAS[1])[2], { tamanho: 10 }) : null,
@@ -18867,7 +18939,9 @@ function CartaoNoticia(it, { forma = 'linha', fonte = '', agora = Date.now(), ba
         aoMais ? h('button', { class: 'ds-btn ds-btn--icone ds-btn--ghost nt-mais', type: 'button', 'aria-label': 'Mais ações: ' + it.titulo, title: 'Mais ações', dataset: { mais: it.id }, onClick: e => { e.preventDefault(); e.stopPropagation(); aoMais(it, cartao); } }, Icone('pontos')) : null),
       h('h2', { class: 'nt-titulo', lang: langDe(it.idioma) }, h('a', { class: 'nt-link', href: it.url, target: '_blank', rel: 'noopener noreferrer',
         'aria-label': `${nova ? 'Nova. ' : ''}${it.titulo}. ${fonte}${quando ? ', ' + quando : ''}. Abre no navegador` }, it.titulo)),
-      it.resumo && forma !== 'linha' ? h('p', { class: 'nt-resumo', lang: langDe(it.idioma) }, it.resumo) : null));
+      it.resumo && forma !== 'linha' ? h('p', { class: 'nt-resumo', lang: langDe(it.idioma) }, it.resumo) : null,
+      LinhaDaNoticia(it, citada)));
+  artesDaCapa.set(cartao, capa.__poeArte); delete capa.__poeArte;
   marcaGuardada(cartao, guardada);
   return cartao;
 }
@@ -18915,7 +18989,23 @@ function folhaDaNoticia(it, { fonte = '', guardada = false, aoGuardar = () => {}
 /** T2 · a linha do tempo de notícias mora na Início (relatos #3 e #4): título de seção com o idioma ao lado, filtros,
     guardadas e atualizar, a lista contínua e o botão Topo. `gesto` é a tela que recebe o puxar para atualizar (a Início
     inteira); `ancora` (rota /notícias) leva direto à seção e devolve o ponto da leitura. */
-function createNoticiasScreen({ noticias, share = null, gesto = null, ancora = false }) {
+/** DS-K3 K3-10 (G-395) · o índice dos nomes citáveis é feito uma vez por base de nomes (a mesma lista, o mesmo índice). */
+let citacao = { lista: null, indice: null };
+const indiceDa = lista => (citacao.lista === lista ? citacao.indice : (citacao = { lista, indice: indiceDeCitacao(lista) }).indice);
+/** `cartas` (K3-10): { nomes() → os nomes de carta guardados no aparelho, artes(cartas) → Map(nome → art_crop) }; sem ele, nenhuma
+    notícia cita carta e a capa sem foto é o papel da fonte. */
+function createNoticiasScreen({ noticias, share = null, gesto = null, ancora = false, cartas = null }) {
+  let indiceCita = citacao.indice, nomesCita = null; // K3-10 · a base de nomes chega uma vez por tela (do aparelho, sem rede)
+  const garanteNomes = () => nomesCita || (nomesCita = (cartas && cartas.nomes ? Promise.resolve().then(() => cartas.nomes()).catch(() => []) : Promise.resolve([]))
+    .then(l => { indiceCita = Array.isArray(l) && l.length ? indiceDa(l) : null; }));
+  /** Pede as artes das cartas citadas pelos cartões que acabaram de entrar e põe cada uma na capa que espera por ela. */
+  function pedeArtes(novos) {
+    const ns = novos.filter(c => c.dataset.cita); if (!ns.length || !cartas || !cartas.artes) return;
+    Promise.resolve().then(() => cartas.artes([...new Set(ns.map(c => c.dataset.cita))])).then(m => {
+      if (!(m instanceof Map)) return;
+      for (const c of ns) usaArteNaCapa(c, m.get(c.dataset.cita));
+    }).catch(() => { /* sem arte: fica o papel */ });
+  }
   const st = { nNot: 0, pendentes: [], lancamentos: null, guardadas: new Set(), idiomas: [...CODIGOS], filtro: filtroValido(null), indice: null, plano: null, itens: [], proxima: 1, buscando: false, erro: false, vez: 0, vista: '', nVis: 0 };
   const lista = h('div', { class: 'nt-lista', id: 'noticias-lista', role: 'feed', 'aria-label': 'Notícias' });
   const pe = h('div', { class: 'nt-pe', id: 'noticias-pe' });
@@ -19009,11 +19099,12 @@ function createNoticiasScreen({ noticias, share = null, gesto = null, ancora = f
   }
   /** Só acrescenta o que chegou: o que já está na tela não é redesenhado (a rolagem e as imagens ficam onde estão). */
   function acrescenta(de) {
-    const agora = Date.now(), dois = st.idiomas.length > 1, limite = Date.parse(st.vista);
+    const agora = Date.now(), dois = st.idiomas.length > 1, limite = Date.parse(st.vista), novos = [];
     for (let i = de; i < st.itens.length; i++) { const it = st.itens[i]; if (!passa(it, st.filtro)) continue;
-      lista.appendChild(it.tipo === 'colecao' ? CartaoColecao(it, { agora }) // N5
-        : CartaoNoticia(it, { forma: formaDe(st.nNot++, it), fonte: nomeDaFonte(it.fonte), agora, bandeira: dois, nova: Number.isFinite(limite) && Date.parse(it.data) > limite, guardada: st.guardadas.has(it.id), aoMais })); st.nVis++; } // a forma conta só as notícias: a primeira notícia é o destaque
-    lista.setAttribute('aria-busy', 'false'); pintaFerramentas();
+      const c = it.tipo === 'colecao' ? CartaoColecao(it, { agora }) // N5
+        : CartaoNoticia(it, { forma: formaDe(st.nNot++, it), fonte: nomeDaFonte(it.fonte), agora, bandeira: dois, nova: Number.isFinite(limite) && Date.parse(it.data) > limite, guardada: st.guardadas.has(it.id), aoMais, citada: cartaCitada(it, indiceCita) }); // a forma conta só as notícias: a primeira notícia é o destaque
+      lista.appendChild(c); novos.push(c); st.nVis++; }
+    lista.setAttribute('aria-busy', 'false'); pintaFerramentas(); pedeArtes(novos);
   }
   const redesenha = () => { lista.replaceChildren(); st.nVis = 0; st.nNot = 0; acrescenta(0); };
   async function mais({ fresco = false } = {}) {
@@ -19026,6 +19117,8 @@ function createNoticiasScreen({ noticias, share = null, gesto = null, ancora = f
         if (vez !== st.vez || !root.isConnected) return;
         const antes = st.itens.length, vistas = st.nVis; st.itens = junta(st.itens, crus, { idiomas: st.plano.filtra ? st.idiomas : null }); st.proxima++;
         // N5 · as coleções entram entre as notícias pela data (a primeira página espera por elas no máximo 1,5 s)
+        // K3-10 · a base de nomes (do aparelho) também espera no máximo 1,5 s: sem ela, nenhuma notícia cita carta
+        if (primeira && !indiceCita) { await Promise.race([garanteNomes(), new Promise(r => setTimeout(r, 1500))]); if (vez !== st.vez || !root.isConnected) return; }
         if (primeira && !st.lancamentos) { st.lancamentos = await Promise.race([noticias.lancamentos ? noticias.lancamentos() : [], new Promise(r => setTimeout(() => r(null), 1500))]) || []; st.pendentes = st.lancamentos.slice(); if (vez !== st.vez || !root.isConnected) return; }
         if (st.pendentes.length) { const m = mesclaLancamentos(st.itens.slice(antes), st.pendentes, { fim: acabou() }); st.itens = st.itens.slice(0, antes).concat(m.itens); st.pendentes = m.pendentes; }
         acrescenta(antes);
@@ -19051,6 +19144,7 @@ function createNoticiasScreen({ noticias, share = null, gesto = null, ancora = f
     { const aviso = root.querySelector('#noticias-ver-novas'); if (aviso) aviso.remove(); }
     if (!temRede()) return falha();
     lista.replaceChildren(); mount(corpo, Esqueleto({ linhas: 5, id: 'noticias-abrindo', fala: 'Buscando as notícias…' }));
+    garanteNomes(); // K3-10 · lida junto com o índice
     try {
       const indice = await noticias.indice({ fresco });
       if (vez !== st.vez || !root.isConnected) return;
@@ -19195,7 +19289,7 @@ function createGuardadasScreen({ noticias, share = null }) {
   return root;
 }
 
-return { FOLGA_DA_CAPA, qualidadeDaCapa, monogramaDaFonte, CapaDaFonte, PALAVRAS_MAX, PALAVRA_MAX, normPalavra, temPalavra, comPalavra, alternaPalavra, semPalavra, TIPOS_DE_COLECAO, lancamentosDe, mesclaLancamentos, quandoDaColecao, CartaoColecao, CHAVE_GUARDADAS, GUARDADAS_MAX, guardadasValidas, comGuardada, semGuardada, createGuardadasScreen, marcaGuardada, TEMAS, CHAVE_FILTRO, CHAVE_VISTA, filtroValido, filtroVazio, contaFiltro, passa, contaNovas, maisNova, rotuloNovas, BASE, IDIOMAS, CHAVE_IDIOMAS, idiomasValidos, alternaIdioma, planoDeLeitura, tempoRelativo, limpaItem, junta, formaDe, createNoticias, CartaoNoticia, createNoticiasScreen };
+return { FOLGA_DA_CAPA, qualidadeDaCapa, indiceDeCitacao, citadaEm, cartaCitada, CapaDaFonte, CartaoNoticia, usaArteNaCapa, PALAVRAS_MAX, PALAVRA_MAX, normPalavra, temPalavra, comPalavra, alternaPalavra, semPalavra, TIPOS_DE_COLECAO, lancamentosDe, mesclaLancamentos, quandoDaColecao, CartaoColecao, CHAVE_GUARDADAS, GUARDADAS_MAX, guardadasValidas, comGuardada, semGuardada, createGuardadasScreen, marcaGuardada, TEMAS, CHAVE_FILTRO, CHAVE_VISTA, filtroValido, filtroVazio, contaFiltro, passa, contaNovas, maisNova, rotuloNovas, BASE, IDIOMAS, CHAVE_IDIOMAS, idiomasValidos, alternaIdioma, planoDeLeitura, tempoRelativo, limpaItem, junta, formaDe, createNoticias, CartaoNoticia, createNoticiasScreen };
 })();
 
 /* ==== src/app/saida.js ==== */
@@ -52370,6 +52464,17 @@ const etiquetas = __m32.createEtiquetas({ store: platform.store }); // G2
 const fichas = __m34.createFichas({ store: platform.store, scryfall, images }); // I4
 const terrenos = __m36.createTerrenos({ store: platform.store, scryfall, images }); // I6
 const noticias = __m37.createNoticias({ store: platform.store, scryfall }); // N2 · N5 (coleções)
+/* DS-K3 K3-10 (G-395) · a carta que a notícia cita: os nomes vêm da base guardada no aparelho (o scanner e o preparo sem
+   internet a baixam; a Início não baixa nada a mais), a arte (art_crop) pelo repositório de cartas (o mesmo cache das listas e da coleção). */
+const cartasDasNoticias = {
+  nomes: async () => { await names.load(); return names.nomes(); },
+  artes: async lista => {
+    const out = new Map(), m = await cardRepo.byNames(lista);
+    const arteDe = c => (c && c.images && c.images.art) || (c && c.faces && c.faces[0] && c.faces[0].images && c.faces[0].images.art) || '';
+    for (const c of m.values()) if (c && arteDe(c)) out.set(c.name, arteDe(c));
+    return out;
+  }
+};
 const partidas = __m35.createPartidas({ store: platform.store }); // I5
 const relatos = __m38.createRelatos({ store: platform.store }); // Y1 · relatos do usuário
 const catalogo = __m39.createCatalogo({ store: platform.store }); // Z2 · listas oficiais do ramo `catalogo`
@@ -52627,7 +52732,7 @@ function renderHome({ ancora = false } = {}) {
     ultimas,
     offlinePanel());
   // T2 · as notícias são o miolo da Início: a linha do tempo inteira depois do que retomar e do que funciona sem internet
-  el.appendChild(__m37.createNoticiasScreen({ noticias, share: platform.share, gesto: el, ancora }));
+  el.appendChild(__m37.createNoticiasScreen({ noticias, share: platform.share, gesto: el, ancora, cartas: cartasDasNoticias }));
   perfil.get().then(p => {
     nomeDoPerfil = p && p.nome ? p.nome : null;
     nome.textContent = nomeDoPerfil ? `, ${nomeDoPerfil}` : '';
