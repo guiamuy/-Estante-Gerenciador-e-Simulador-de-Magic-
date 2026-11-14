@@ -1269,6 +1269,84 @@ test('e2e · G-390 DS-K3 K3-8 Balcão da Coleção: o total é o título do cabe
   assert.deepEqual(errors, []);
 });
 
+/* ---------------- DS-K3 K3-9 (G-394) · o hero da Lista sobre a arte da carta-chave ---------------- */
+test('e2e · G-394 DS-K3 K3-9 hero da Lista: o topo é a arte da carta-chave sob o véu (≥ 210 px, a largura da tela menos as margens); selo do formato a 12/16 px do canto, 24 px, e "100% jogável" só com o motor a 100 %; embaixo o rótulo "Carta-chave · Delver of Secrets", o nome em Cormorant 26 (--fg-sobre-arte) com o excluir de 44 px na mesma linha, as contagens e a posse em fio de 2 px; nada encosta nos selos nem sai da caixa, AA sobre o véu mesmo com arte branca; sem arte, a placa nas cores; o fio cresce ao entrar (Completo --dur-4, Moderado --dur-3, Reduzido no lugar); 360 e 412, dois temas; /ds com a amostra', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  // a arte chega branca: o pior caso para o texto sobre o véu
+  const BRANCO = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAD0lEQVR4nGP4jwMwDC0JALoev0Ewkwr8AAAAAElFTkSuQmCC', 'base64');
+  await page.route('https://**.scryfall.io/**', r => r.fulfill({ status: 200, contentType: 'image/png', body: BRANCO, headers: { 'access-control-allow-origin': '*' } }));
+  await createDeck(page, base, 'Ursos', '20 Forest\n20 Grizzly Bear', 'pauper');
+  await createDeck(page, base, 'Mono Azul Delver de Nome Comprido', '20 Island\n4 Delver of Secrets', 'pauper');
+  const mede = () => page.evaluate(() => {
+    const hero = document.querySelector('#deck-topo'), r = el => el.getBoundingClientRect(), b = r(hero);
+    const h1 = hero.querySelector('h1'), selo = hero.querySelector('.deck-hero__selo'), corpo = hero.querySelector('.deck-hero__corpo'), x = hero.querySelector('#deck-delete');
+    const rotulo = hero.querySelector('.deck-hero__rotulo'), primeira = rotulo || h1, posse = hero.querySelector('#deck-posse .deck-item__posse'), img = hero.querySelector('.deck-item__img');
+    const rgb = c => c.match(/[\d.]+/g).slice(0, 3).map(Number), lum = ([a, b2, c]) => { const f = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(a) + 0.7152 * f(b2) + 0.0722 * f(c); };
+    const ct = (p, q) => { const [m, n] = [lum(p), lum(q)].sort((u, v) => v - u); return (m + 0.05) / (n + 0.05); };
+    const sobreBranco = a => [10, 7, 4].map(c => c * a + 255 * (1 - a)); // ébano a `a` sobre arte branca
+    const cor = el => rgb(getComputedStyle(el).color);
+    const caixas = [...hero.querySelectorAll('.deck-hero__selo, .deck-hero__rotulo, h1, #deck-delete, #deck-counts, #deck-posse-texto')].map(r);
+    return { w: Math.round(b.width), h: Math.round(b.height), left: Math.round(b.left), arte: hero.querySelector('.deck-item__arte').dataset.arte, carregou: !!(img && img.complete && img.naturalWidth > 0),
+      cobre: (() => { const a = r(hero.querySelector('.deck-item__arte')); return Math.round(a.width) === Math.round(b.width) && Math.round(a.height) === Math.round(b.height); })(),
+      selo: [Math.round(r(selo).left - b.left), Math.round(r(selo).top - b.top), Math.round(r(selo).height), selo.textContent, getComputedStyle(selo).textTransform, getComputedStyle(selo).backgroundColor],
+      jogavel: !!hero.querySelector('#deck-topo-jogavel'), motor100: /Motor: 100% completo/.test(document.querySelector('#deck-coverage').innerText),
+      seloAntes: [...hero.querySelectorAll('.deck-hero__selo')].every(s => r(s).bottom <= r(primeira).top - 4),
+      rotulo: rotulo ? rotulo.textContent : null, rotuloLang: rotulo ? rotulo.querySelector('[lang="en"]').textContent : null,
+      nome: [h1.textContent, getComputedStyle(h1).fontSize, /Cormorant/.test(getComputedStyle(h1).fontFamily), getComputedStyle(h1).color],
+      excluir: [Math.round(r(x).width), Math.round(r(x).height), r(x).top < r(h1).bottom && r(x).bottom > r(h1).top, Math.round(b.right - r(x).right), r(x).left >= r(h1).right],
+      veu: Math.round(r(primeira).top - r(corpo).top), dentro: caixas.every(c => c.left >= b.left && c.right <= b.right + 0.5 && c.top >= b.top && c.bottom <= b.bottom + 0.5),
+      posse: posse ? [Math.round(r(posse).height), posse.getAttribute('aria-valuenow'), posse.getAttribute('aria-valuemax')] : null, posseTexto: document.querySelector('#deck-posse-texto').textContent,
+      contagem: document.querySelector('#deck-counts').textContent,
+      aa: [ct(cor(h1), sobreBranco(.72)), ct(cor(document.querySelector('#deck-counts')), sobreBranco(.72)), ct(cor(document.querySelector('#deck-posse-texto')), sobreBranco(.72)), rotulo ? ct(cor(rotulo), sobreBranco(.72)) : 9, ct(cor(selo), sobreBranco(.78)), ct(cor(x), sobreBranco(.78))],
+      anima: (() => { const p = getComputedStyle(hero.querySelector('.deck-item__posse-barra')); return [p.animationName, p.animationDuration]; })(), largura: document.documentElement.scrollWidth <= innerWidth };
+  });
+  const abre = async nome => { await page.goto(base + '#/listas'); await page.waitForSelector('#decks-list .deck-item--ladrilho'); await page.click(`#decks-list .deck-item--ladrilho >> text=${nome}`); await page.waitForSelector('#deck-topo.deck-hero'); };
+  await abre('Mono Azul Delver');
+  await page.waitForFunction(() => { const i = document.querySelector('#deck-topo .deck-item__img'); return i && i.complete && i.naturalWidth > 0; });
+  for (const [w, hgt] of [[360, 780], [412, 891]]) {
+    await page.setViewportSize({ width: w, height: hgt });
+    for (const tema of ['dark', 'light']) {
+      await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(120);
+      const m = await mede(), nome = `${w} ${tema}`, d = `${nome}: ${JSON.stringify(m)}`;
+      assert.ok(m.h >= 210 && m.w === w - 32 && m.left === 16, 'hero de 210 px, na largura da tela: ' + d);
+      assert.deepEqual([m.arte, m.carregou, m.cobre], ['carta', true, true], 'a arte da carta-chave cobre o hero: ' + d);
+      assert.deepEqual(m.selo, [16, 12, 24, 'Pauper', 'uppercase', 'rgba(10, 7, 4, 0.78)'], 'selo do formato no canto, em ébano quase cheio nos dois temas: ' + d);
+      assert.equal(m.jogavel, m.motor100, '"100% jogável" só com o motor a 100 %: ' + d);
+      assert.ok(m.seloAntes, 'nada encosta nos selos: ' + d);
+      assert.deepEqual([m.rotulo, m.rotuloLang], ['Carta-chave · Delver of Secrets', 'Delver of Secrets'], d);
+      assert.deepEqual(m.nome, ['Mono Azul Delver de Nome Comprido', '26px', true, 'rgb(246, 238, 221)'], 'nome em Cormorant 26 sobre o véu: ' + d);
+      assert.deepEqual(m.excluir, [44, 44, true, 16, true], 'excluir de 44 px na linha do nome, a 16 px da borda: ' + d);
+      assert.ok(m.veu >= 24, 'o véu do texto chega a .72 antes da primeira linha: ' + d);
+      assert.deepEqual([m.dentro, m.largura], [true, true], 'nada sai da caixa do hero nem da tela: ' + d);
+      assert.deepEqual([m.posse, m.posseTexto, m.contagem], [[2, '0', '24'], '0% na coleção · faltam 24 cartas', '24 no deck'], d);
+      assert.ok(m.aa.every(x => x >= 4.5), `${nome}: AA sobre o véu e os selos com arte branca ${m.aa.map(x => x.toFixed(2)).join(' / ')}`);
+      assert.deepEqual(m.anima, ['ladrilho-posse', '0.42s'], 'Completo: o fio cresce em --dur-4: ' + d);
+      await auditaTela(page, `G-394 hero da Lista ${nome}`);
+      if (process.env.SHOTS && w === 360) await page.screenshot({ path: process.env.SHOTS + `/g-393-lista-${tema}.png`, clip: { x: 0, y: 0, width: 360, height: 520 } });
+    }
+  }
+  await page.setViewportSize({ width: 360, height: 780 }); await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  // sem imagem nos dados (o urso): a placa nas cores da lista com o símbolo; o rótulo nomeia a carta-chave mesmo assim
+  await abre('Ursos');
+  { const m = await mede(); assert.deepEqual([m.arte, m.cobre, m.rotulo, m.dentro, m.excluir[2]], ['placa', true, 'Carta-chave · Grizzly Bear', true, true], JSON.stringify(m));
+    assert.equal(await page.locator('#deck-topo .deck-item__placa .ds-sym').count(), 1); await auditaTela(page, 'G-394 hero com a placa'); }
+  // Moderado: o fio cresce mais curto (--dur-3); Reduzido: o fio já no lugar
+  await page.evaluate(() => document.documentElement.setAttribute('data-movimento', 'moderado'));
+  await abre('Mono Azul Delver');
+  assert.deepEqual((await mede()).anima, ['ladrilho-posse', '0.28s'], 'Moderado');
+  await page.evaluate(() => document.documentElement.setAttribute('data-movimento', 'reduzido'));
+  await abre('Mono Azul Delver');
+  assert.equal(await page.evaluate(() => { const a = document.querySelector('#deck-topo .deck-item__posse-barra').getAnimations()[0]; return !a || a.playState === 'finished' || a.effect.getComputedTiming().duration < 1; }), true, 'Reduzido: o fio já no lugar');
+  await page.evaluate(() => document.documentElement.removeAttribute('data-movimento'));
+  // o excluir segue pedindo confirmação
+  await page.click('#deck-delete'); await page.waitForSelector('.ds-dialog'); await page.click('.ds-dialog >> text=Cancelar'); await page.waitForSelector('.ds-dialog', { state: 'detached' });
+  // /ds: a amostra em placa, com os dois selos
+  await page.goto(base + '#/ds'); await page.waitForSelector('#ds-hero-lista .deck-hero');
+  assert.deepEqual(await page.evaluate(() => [document.querySelector('#ds-hero .deck-item__arte').dataset.arte, document.querySelectorAll('#ds-hero .deck-hero__selo').length, document.querySelector('#ds-hero h3').textContent]), ['placa', 2, 'Dimir Faeries']);
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · C11 importar por lista: conferir, importar, pendências com sugestão e desfazer', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.addInitScript(FAKE_DEVICE(true));            // sem câmera: só a base de nomes interessa
@@ -10654,10 +10732,12 @@ test('e2e · DS-K2 L1 · Lista: o topo em ébano mostra a carta-chave (72 px) ao
     await page.goto(base + '#/listas'); await page.waitForSelector('#decks-list .ds-list__item'); await page.click('#decks-list .ds-list__item'); await page.waitForSelector('#deck-posse');
     for (const tema of (w === 360 ? ['dark', 'light'] : ['dark'])) {
       await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(450);
-      const m = await page.evaluate(() => { const a = document.querySelector('#deck-topo .deck-topo__arte'), h1 = document.querySelector('#deck-topo h1'), p = document.querySelector('#deck-posse [role="meter"]');
-        return { arte: Math.round(a.getBoundingClientRect().width), ladoALado: Math.abs(a.getBoundingClientRect().top - h1.getBoundingClientRect().top) < 24 && a.getBoundingClientRect().right <= h1.getBoundingClientRect().left + 1,
+      // DS-K3 K3-9 (G-394) · expectativa mudada de propósito: a carta-chave de 72 px ao lado do nome virou a arte que cobre o
+      // hero (o nome mora sobre o véu, embaixo); a medida do hero mora no e2e "G-394"
+      const m = await page.evaluate(() => { const topo = document.querySelector('#deck-topo'), a = topo.querySelector('.deck-item__arte'), h1 = topo.querySelector('h1'), p = document.querySelector('#deck-posse [role="meter"]');
+        return { arte: Math.round(a.getBoundingClientRect().width) === Math.round(topo.getBoundingClientRect().width), nomeSobreAArte: h1.getBoundingClientRect().bottom <= a.getBoundingClientRect().bottom,
           posse: [p.getAttribute('aria-valuenow'), p.getAttribute('aria-valuemax'), p.dataset.completa], texto: document.querySelector('#deck-posse-texto').textContent }; });
-      assert.deepEqual([m.arte, m.ladoALado, m.posse, m.texto], [72, true, ['0', '32', 'false'], '0% na coleção · faltam 32 cartas'], `${w} ${tema}: ${JSON.stringify(m)}`);
+      assert.deepEqual([m.arte, m.nomeSobreAArte, m.posse, m.texto], [true, true, ['0', '32', 'false'], '0% na coleção · faltam 32 cartas'], `${w} ${tema}: ${JSON.stringify(m)}`);
       await auditaTela(page, `DS-K2 L1 · Lista ${w} ${tema}`);
       if (process.env.SHOTS && w === 360) await page.screenshot({ path: process.env.SHOTS + `/ds-k2-l1-${tema}.png`, clip: { x: 0, y: 0, width: 360, height: 420 } });
     }
@@ -20757,12 +20837,16 @@ test('e2e · DS-K F2.3 · o topo da Lista é o cartão de ébano: nome em Cormor
       const rgb = c => { cx.clearRect(0, 0, 1, 1); cx.fillStyle = c; cx.fillRect(0, 0, 1, 1); return [...cx.getImageData(0, 0, 1, 1).data].slice(0, 3); };
       const lum = c => rgb(c).map(x => x / 255).map(x => x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4).reduce((a, x, i) => a + x * [0.2126, 0.7152, 0.0722][i], 0);
       const r = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
-      const h1 = topo.querySelector('h1'), selo = topo.querySelector('.ds-badge--accent'), conta = topo.querySelector('#deck-counts');
-      return { fundo: cs.backgroundColor === probe('--bg-elev-0'), filete: /linear-gradient\(90deg/.test(cs.backgroundImage), fonte: getComputedStyle(h1).fontFamily, nome: h1.textContent,
-        aa: [r(getComputedStyle(h1).color, cs.backgroundColor), r(getComputedStyle(selo).color, cs.backgroundColor), r(getComputedStyle(conta).color, cs.backgroundColor)], excluir: !!topo.querySelector('#deck-delete'), canto: (() => { const x = topo.querySelector('#deck-delete').getBoundingClientRect(), t = topo.getBoundingClientRect(), n = h1.getBoundingClientRect(); return Math.abs(x.top - n.top) <= 12 && t.right - x.right <= 24; })() }; });
-    assert.equal(m.fundo, true, `ébano (${tema})`); assert.equal(m.filete, true, `filete de latão (${tema})`);
-    assert.match(m.fonte, /Cormorant/, 'nome em Cormorant'); assert.equal(m.nome, 'Mono Red Madness'); assert.equal(m.excluir, true, 'o excluir segue no topo'); assert.equal(m.canto, true, 'o excluir fica no canto de cima, na linha do nome');
-    assert.ok(m.aa.every(x => x >= 4.5), `nome, formato e contagens em AA sobre o ébano (${tema}): ${m.aa.map(x => x.toFixed(2)).join(' / ')}`);
+      // DS-K3 K3-9 (G-394) · expectativa mudada de propósito: o cartão de ébano com filete virou o hero sobre a arte da
+      // carta-chave (ou a placa nas cores); nome, formato e contagens passam AA sobre o véu (ébano a .72; o selo a .78) com
+      // arte branca, o pior caso; o excluir segue na linha do nome, no canto direito
+      const h1 = topo.querySelector('h1'), selo = topo.querySelector('.deck-hero__selo'), conta = topo.querySelector('#deck-counts');
+      const veu = a => `rgb(${[10, 7, 4].map(c => Math.round(c * a + 255 * (1 - a))).join(', ')})`;
+      return { fundo: !!topo.querySelector('.deck-item__arte'), filete: probe('--bg-elev-0') !== '' && !/linear-gradient\(90deg/.test(cs.backgroundImage), fonte: getComputedStyle(h1).fontFamily, nome: h1.textContent,
+        aa: [r(getComputedStyle(h1).color, veu(.72)), r(getComputedStyle(selo).color, veu(.78)), r(getComputedStyle(conta).color, veu(.72))], excluir: !!topo.querySelector('#deck-delete'), canto: (() => { const x = topo.querySelector('#deck-delete').getBoundingClientRect(), t = topo.getBoundingClientRect(), n = h1.getBoundingClientRect(); return x.top < n.bottom && x.bottom > n.top && t.right - x.right <= 24; })() }; });
+    assert.equal(m.fundo, true, `arte da carta-chave no hero (${tema})`); assert.equal(m.filete, true, `sem o filete do ébano (${tema})`);
+    assert.match(m.fonte, /Cormorant/, 'nome em Cormorant'); assert.equal(m.nome, 'Mono Red Madness'); assert.equal(m.excluir, true, 'o excluir segue no topo'); assert.equal(m.canto, true, 'o excluir fica no canto direito, na linha do nome');
+    assert.ok(m.aa.every(x => x >= 4.5), `nome, formato e contagens em AA sobre o véu (${tema}): ${m.aa.map(x => x.toFixed(2)).join(' / ')}`);
     await auditaTela(page, `DS-K F2.3 · topo da lista (${tema})`);
     if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + `/ds-k-f23-lista-${tema}.png`, clip: { x: 0, y: 0, width: 360, height: 420 } });
   }

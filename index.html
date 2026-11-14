@@ -262,6 +262,11 @@
   --text-ladrilho: calc(17px * var(--escala-texto));
   --simbolo-ladrilho: 14px;
   --simbolo-placa: 56px;
+  /* DS-K3 K3-9 (G-394) · hero da Lista sobre a arte da carta-chave: 210 px (a tela-modelo da Lista), selo de 24 px, título
+     em Cormorant 26; iguais nos dois temas, como os do ladrilho (a arte é escura em qualquer tema). */
+  --hero-lista-alt: 210px;
+  --selo-alt: 24px;
+  --text-hero-lista: calc(26px * var(--escala-texto));
   /* DS-K3 K3-2 (G-362) · barra inferior flutuante: pílula de --navbar-alt a --navbar-folga das bordas (e da área segura), o
      Jogar sobe --navbar-ressalto acima dela. Vidro (E4 a 92 % + desfoque) só na barra; reserva opaca (E4 cheio) quando não há
      backdrop-filter, com Movimento reduzido, transparência reduzida ou contraste alto. O texto da barra passa AA mesmo com
@@ -579,16 +584,36 @@ a { color: var(--accent); }
   background-image: linear-gradient(90deg, transparent, var(--accent-lo) 18%, var(--accent-hi) 50%, var(--accent-lo) 82%, transparent);
   background-size: 100% 1px; background-position: top; background-repeat: no-repeat;
   border: 1px solid color-mix(in srgb, var(--accent-lo) 40%, var(--border)); box-shadow: var(--shadow-2), inset 0 -1px 0 var(--latao-labio); }
-/* DS-K F2.3 · no topo da lista o nome ocupa a largura e o excluir fica no canto de cima (sem cair sozinho numa linha);
-   nome longo quebra de forma equilibrada */
-.deck-topo > .ds-row { flex-wrap: nowrap; align-items: flex-start; }
-.deck-topo > .ds-row > .ds-stack { flex: 1 1 auto; min-width: 0; }
-.deck-topo > .ds-row > .ds-grow { display: none; }
-.deck-topo h1 { text-wrap: balance; }
-/* DS-K2 L1 (G-324) · hero da lista: carta-chave à esquerda (72 px), nome e meta ao lado, posse embaixo */
-.deck-hero__arte.deck-topo__arte { width: 72px; flex: none; }
-.deck-topo__posse { display: grid; gap: var(--space-1); margin-top: var(--space-1); max-width: 260px; }
-.deck-topo__posse .deck-item__posse { height: 4px; }
+/* DS-K3 K3-9 (G-394) · o topo da Lista é o hero (antes: F2.3, cartão de ébano, e L1, a carta-chave de 72 px ao lado do
+   nome): a arte da carta-chave (art_crop, a mesma do ladrilho da K3-5) sob o --scrim-art, --hero-lista-alt de altura, raio
+   --radius-3, aresta, sombra chave e de contato. Em cima, à esquerda, os selos (formato e, com o motor a 100 %, "100% jogável")
+   em ébano quase cheio, sem desfoque. Embaixo, sobre o véu do texto (--veu-texto-arte, a partir de --veu-texto-alt), o rótulo
+   "Carta-chave · …" em latão, o nome em Cormorant 26 com o excluir (44 px) na mesma linha, a mana e as contagens, e a posse em
+   fio de latão que cresce ao entrar (--dur-4 · --ease-out; Moderado e Reduzido pelos tokens). A caixa cresce com o texto:
+   nome longo quebra e empurra o hero, nunca passa por cima dos selos. */
+.deck-hero { position: relative; isolation: isolate; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; gap: 0;
+  min-height: var(--hero-lista-alt); padding: calc(var(--space-6) + var(--space-3)) var(--space-4) var(--space-3); border-radius: var(--radius-3);
+  background: var(--elev-2); color: var(--fg-sobre-arte); box-shadow: var(--shadow-key), var(--shadow-contact); }
+.deck-hero::before { content: ""; position: absolute; inset: 0; z-index: 1; border-radius: inherit; box-shadow: inset 0 1px 0 var(--edge-strong); pointer-events: none; }
+.deck-hero .deck-item__img { object-position: 50% 25%; }
+.deck-hero__selos { position: absolute; top: var(--space-3); left: var(--space-4); right: var(--space-4); z-index: 1; display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.deck-hero__selo { display: inline-flex; align-items: center; height: var(--selo-alt); padding: 0 9px; border: 1px solid var(--latao-sobre-arte-lo); border-radius: var(--radius-full);
+  font-size: var(--text-xs); letter-spacing: .06em; text-transform: uppercase; font-weight: var(--weight-medium); white-space: nowrap; color: var(--latao-sobre-arte); background: var(--selo-sobre-arte); }
+.deck-hero__selo--jogavel { color: var(--positivo-sobre-arte); border-color: var(--positivo-sobre-arte); }
+.deck-hero__corpo { display: flex; flex-direction: column; gap: var(--space-1); margin: 0 calc(-1 * var(--space-4)); padding: var(--veu-texto-alt) var(--space-4) 0; background: var(--veu-texto-arte); }
+.deck-hero__rotulo { font-size: var(--text-2xs); line-height: var(--lh-xs); letter-spacing: .18em; text-transform: uppercase; font-weight: var(--weight-medium); color: var(--latao-sobre-arte); overflow-wrap: anywhere; }
+.deck-hero__titulo { display: flex; align-items: center; gap: var(--space-2); }
+.deck-hero__nome { flex: 1 1 auto; min-width: 0; margin: 0; font-family: var(--font-display); font-size: var(--text-hero-lista); line-height: 1; letter-spacing: -.015em; font-weight: var(--weight-medium);
+  color: var(--fg-sobre-arte); text-wrap: balance; overflow-wrap: anywhere; }
+.deck-hero .deck-hero__excluir { flex: none; color: var(--fg-sobre-arte-muted); background: var(--selo-sobre-arte); border-color: transparent; box-shadow: none; }
+.deck-hero__linha { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--fg-sobre-arte-muted); }
+.deck-hero__linha .ds-pips { font-size: var(--simbolo-ladrilho); }
+.deck-hero__posse { display: grid; gap: var(--space-1); margin-top: var(--space-1); }
+.deck-hero .deck-item__posse { height: 2px; background: var(--trilho-sobre-arte); }
+.deck-hero .deck-item__posse-barra, .deck-hero .deck-item__posse[data-completa="true"] .deck-item__posse-barra { background: linear-gradient(90deg, var(--latao-sobre-arte-lo), var(--latao-sobre-arte));
+  transform-origin: left center; animation: ladrilho-posse var(--dur-4) var(--ease-out) both; }
+.deck-hero__posse-texto { font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--fg-sobre-arte-muted); }
+.deck-hero + .deck-etq { margin-top: calc(-1 * var(--space-1)); }
 .ds-destaque .ds-expansivel__selo { background-color: var(--accent); background-image: linear-gradient(160deg, var(--accent-hi), var(--accent) 55%, var(--accent-lo)); color: var(--accent-fg);
   box-shadow: inset 0 1px 0 var(--latao-luz), inset 0 -1px 0 var(--latao-labio); } /* DS-K F2.4 · o selo do bloco em destaque é latão */
 .ds-destaque .col-dash__tile { background: var(--bg-elev-1); box-shadow: inset 0 1px 0 var(--latao-luz); } /* placas um degrau acima do ébano */
@@ -6693,6 +6718,14 @@ function renderDS() {
         __m15.DeckLinha({ nome: 'Mono Red Madness', formato: 'pauper', cores: 'R', main: 60, side: 0, posse: { have: 60, need: 60 }, arte: { carta: null }, indice: 1, onClick: () => toast('Lista') }),
         __m15.DeckLinha({ nome: 'Golgari Gardens', formato: 'modern', cores: 'BG', main: 60, side: 0, posse: { have: 31, need: 60 }, arte: { carta: null }, indice: 2, onClick: () => toast('Lista') })),
       Text('--scrim-art · --veu-texto-arte · --selo-sobre-arte · --latao-sobre-arte(-lo) · --trilho-sobre-arte · --positivo/--alerta-sobre-arte · --ladrilho-alt 150 · --ladrilho-alt-largo 120', { size: 'xs', tone: 'subtle' })),
+
+    // DS-K3 K3-9 (G-394) · hero da Lista: o topo da tela da lista sobre a arte da carta-chave; aqui a placa (sem carta no /ds)
+    Section('Hero da Lista',
+      Text('O topo da lista: a arte da carta-chave sob o véu (sem arte, a placa nas cores), os selos do formato e do motor em cima; o nome com o excluir na mesma linha, a mana, as contagens e a posse em fio embaixo.', { size: 'sm', tone: 'muted' }),
+      h('div', { id: 'ds-hero-lista' },
+        __m15.HeroDaLista({ id: 'ds-hero', titulo: 'h3', nome: 'Dimir Faeries', formato: 'pauper', cores: 'UB', jogavel: true, contagem: '60 no deck · 15 na reserva',
+          posse: { have: 52, need: 75, texto: '69% na coleção · faltam 23 cartas' }, acao: IconButton('lixeira', 'Excluir lista', { variant: 'ghost', classe: 'deck-hero__excluir', onClick: () => toast('Excluir') }) })),
+      Text('--hero-lista-alt 210 · --selo-alt 24 · --text-hero-lista 26 · --veu-texto-arte · --selo-sobre-arte · --latao-sobre-arte · --positivo-sobre-arte', { size: 'xs', tone: 'subtle' })),
 
     Section('Cartas',
       CardGrid(
@@ -21390,6 +21423,24 @@ function ArteDoLadrilho(carta, cores) {
   } else el.appendChild(placa());
   return el;
 }
+/** DS-K3 K3-9 (G-394) · o hero da Lista: a arte da carta-chave sob o véu (sem carta, sem arte ou sem rede, a placa nas cores,
+    a mesma cadeia do ladrilho da K3-5), os selos do formato e de "100% jogável" em cima; embaixo o rótulo "Carta-chave · …",
+    o nome (h1; `titulo` troca o nível) com a `acao` na mesma linha, a mana e a `contagem`, e a posse em fio com o `texto` dela. Os ids são os do topo
+    de antes (`deck-topo`, `deck-counts`, `deck-posse`, `deck-posse-texto`): quem os lê continua lendo. */
+function HeroDaLista({ nome, formato, cores, chave = null, jogavel = false, contagem = '', posse = null, acao = null, id = 'deck-topo', titulo = 'h1' }) {
+  return h('section', { class: 'deck-hero', id, 'aria-labelledby': id + '-nome' },
+    ArteDoLadrilho(chave, cores),
+    h('div', { class: 'deck-hero__selos' }, h('span', { class: 'deck-hero__selo', id: id + '-formato' }, FORMATS[formato] || formato),
+      jogavel ? h('span', { class: 'deck-hero__selo deck-hero__selo--jogavel', id: id + '-jogavel' }, '100% jogável') : null),
+    h('div', { class: 'deck-hero__corpo' },
+      chave ? h('span', { class: 'deck-hero__rotulo', id: id + '-chave' }, 'Carta-chave · ', h('span', { lang: 'en' }, chave.name)) : null,
+      h('div', { class: 'deck-hero__titulo' }, h(titulo, { class: 'deck-hero__nome', id: id + '-nome' }, nome), acao),
+      h('div', { class: 'deck-hero__linha' }, cores ? ManaPips(cores) : null, h('span', { id: id === 'deck-topo' ? 'deck-counts' : id + '-contagem' }, contagem)),
+      posse ? h('div', { class: 'deck-hero__posse', id: id === 'deck-topo' ? 'deck-posse' : id + '-posse' },
+        h('span', { class: 'deck-item__posse', role: 'meter', 'aria-valuemin': '0', 'aria-valuemax': String(posse.need), 'aria-valuenow': String(posse.have), 'aria-label': `tenho ${posse.have} de ${posse.need}`, dataset: { completa: String(posse.have === posse.need) } },
+          h('span', { class: 'deck-item__posse-barra', style: { width: `${posse.need ? Math.round(posse.have / posse.need * 100) : 0}%` } })),
+        h('span', { class: 'deck-hero__posse-texto', id: id === 'deck-topo' ? 'deck-posse-texto' : id + '-posse-texto' }, posse.texto)) : null));
+}
 /** Uma lista da estante. Com `arte` ({ carta, cores }), o ladrilho da K3-5 (arte da carta-chave sob véu, selo do formato,
     nome, mana e "60 · 52 na coleção", posse em fio); `largo` ocupa a linha inteira; `indice` escalona o fio de posse. */
 function DeckLinha({ nome, formato, cores, main, side, posse, fim, onClick, dataset, tag = 'div', attrs = {}, etiquetas = null, valor = null, motor = null, arte = null, largo = false, indice = 0 }) {
@@ -23436,28 +23487,20 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files, s
     const ajustarChip = Chip('Ajustar', { id: 'deck-ajustar', icone: 'cartaMais', pressed: state.ajustando, onClick: () => { state.ajustando = !state.ajustando; if (state.ajustando) { state.marking = false; if (names && names.ensure) names.ensure({ online: typeof navigator === 'undefined' || navigator.onLine !== false }).then(() => { if (state.ajustando && root.isConnected) paint(); }).catch(() => {}); } paint(); if (state.ajustando) addIn.focus({ preventScroll: true }); } });
     ajustarChip.title = 'Somar, tirar e adicionar cartas sem colar a lista de novo';
 
+    const cvTopo = deckCoverage(d.entries, state.cards); // K3-9 (G-394) · o selo "100% jogável" do hero e o bloco do motor
     mount(root,
-      // DS-K F2.3 (G-295) · o topo da lista é o destaque em ébano da tela: nome em Cormorant, formato em latão, contagens
-      Surface({ class: 'ds-destaque ds-surface--pad deck-topo', id: 'deck-topo' }, Row({ class: 'ds-row--wrap' },
-        // DS-K2 L1 (G-324) · a carta-chave da lista em arte ao lado do nome, como na proposta; a posse na coleção numa barra fina
-        LadrilhoDaCarta(cartaChaveDaLista(d, state.cards), { classe: 'deck-hero__arte deck-topo__arte', tamanho: '72px' }),
-        Stack({ style: { gap: 'var(--space-1)' } },
-          Text(d.name, { size: '2xl', display: true, as: 'h1' }),
-          Row({ class: 'ds-row--wrap' }, Badge(FORMATS[d.format] || d.format, { tone: 'accent' }), identity ? ManaPips(identity) : null,
-            Text(`${stats.main} no deck` + (stats.companion ? ' · + companheiro' : '') + (stats.side ? ` · ${stats.side} na reserva` : ''), { size: 'sm', tone: 'muted', attrs: { id: 'deck-counts' } })),
-          stats.need ? h('div', { class: 'deck-topo__posse', id: 'deck-posse' },
-            h('span', { class: 'deck-item__posse', role: 'meter', 'aria-valuemin': '0', 'aria-valuemax': String(stats.need), 'aria-valuenow': String(stats.have), 'aria-label': `tenho ${stats.have} de ${stats.need}`, dataset: { completa: String(stats.have === stats.need) } },
-              h('span', { class: 'deck-item__posse-barra', style: { width: `${Math.round(stats.have / stats.need * 100)}%` } })),
-            Text(stats.have === stats.need ? 'Tudo na coleção' : `${Math.round(stats.have / stats.need * 100)}% na coleção · ${stats.missing === 1 ? 'falta 1 carta' : `faltam ${stats.missing} cartas`}`, { size: 'xs', tone: 'muted', attrs: { id: 'deck-posse-texto' } })) : null,
-          // G2 · etiquetas da lista e o botão que as muda, juntos sob o título (na linha de Editar/Exportar/Excluir o
-          // quarto botão derrubava o Excluir para a linha de baixo com a fonte larga do CI — leva 170)
-          etiquetas ? Row({ class: 'ds-row--wrap deck-etq' }, __m32.Pilulas(__m32.de(state.etq, 'listas', d.id), { id: 'deck-etiquetas-da-lista' }),
-            Button('Etiquetas', { variant: 'ghost', icone: 'etiqueta', id: 'deck-etiquetas', onClick: () => __m32.folha({ servico: etiquetas, tipo: 'listas', chaves: [d.id], titulo: d.name, onMuda: e => { state.etq = e; paint(); } }) })) : null),
-        h('div', { class: 'ds-grow' }),
-        Row({ class: 'ds-row--wrap' },
-          // J7 · Editar e Exportar moram no botão de ação (com Jogar); no topo fica só o excluir, discreto e com confirmação
-          IconButton('lixeira', 'Excluir lista', { id: 'deck-delete', variant: 'ghost', classe: 'ds-btn--perigo', onClick: () => Dialog({ title: 'Excluir lista?', body: Text(`"${d.name}" some deste aparelho. A coleção não é afetada.`, { tone: 'muted' }),
-            actions: [Button('Cancelar', { onClick: closeDialog }), Button('Excluir', { variant: 'danger', onClick: async () => { closeDialog(); await decks.remove(d.id); if (etiquetas) await etiquetas.esquece('listas', d.id); toast('Lista excluída'); go('/listas'); } })] }) })))),
+      // DS-K3 K3-9 (G-394) · o topo da lista é o hero (antes: F2.3, cartão de ébano, e L1, a carta-chave de 72 px ao lado do
+      // nome): a arte da carta-chave sob o véu, os selos do formato e do motor em cima; embaixo o rótulo da carta-chave, o nome
+      // com o excluir na mesma linha (J7: Editar e Exportar moram no botão de ação), a mana e as contagens e a posse em fio.
+      // Sem carta, sem arte ou sem rede: a placa nas cores da lista (a mesma cadeia do ladrilho da K3-5).
+      HeroDaLista({ nome: d.name, formato: d.format, cores: identity || coresDaLista(d.entries, state.cards), chave: cartaChaveDaLista(d, state.cards), jogavel: cvTopo.pct === 100,
+        contagem: `${stats.main} no deck` + (stats.companion ? ' · + companheiro' : '') + (stats.side ? ` · ${stats.side} na reserva` : ''),
+        posse: stats.need ? { have: stats.have, need: stats.need, texto: stats.have === stats.need ? 'Tudo na coleção' : `${Math.round(stats.have / stats.need * 100)}% na coleção · ${stats.missing === 1 ? 'falta 1 carta' : `faltam ${stats.missing} cartas`}` } : null,
+        acao: IconButton('lixeira', 'Excluir lista', { id: 'deck-delete', variant: 'ghost', classe: 'deck-hero__excluir', onClick: () => Dialog({ title: 'Excluir lista?', body: Text(`"${d.name}" some deste aparelho. A coleção não é afetada.`, { tone: 'muted' }),
+            actions: [Button('Cancelar', { onClick: closeDialog }), Button('Excluir', { variant: 'danger', onClick: async () => { closeDialog(); await decks.remove(d.id); if (etiquetas) await etiquetas.esquece('listas', d.id); toast('Lista excluída'); go('/listas'); } })] }) }) }),
+      // G2 · etiquetas da lista e o botão que as muda, logo abaixo do hero (K3-9: fora da arte, para o hero ter só o nome e a posse)
+      etiquetas ? Row({ class: 'ds-row--wrap deck-etq' }, __m32.Pilulas(__m32.de(state.etq, 'listas', d.id), { id: 'deck-etiquetas-da-lista' }),
+            Button('Etiquetas', { variant: 'ghost', icone: 'etiqueta', id: 'deck-etiquetas', onClick: () => __m32.folha({ servico: etiquetas, tipo: 'listas', chaves: [d.id], titulo: d.name, onMuda: e => { state.etq = e; paint(); } }) })) : null,
       // D8 · estado da lista numa linha: sem rede, avisos e erros de validação (ou "válida"); o toque abre a folha com tudo
       LinhaEstado([
         state.degraded ? { icone: 'semRede', tom: 'warning', rotulo: 'Sem internet', detalhe: 'Sem conexão com a Scryfall: mostrando as cartas guardadas no aparelho.' } : null,
@@ -23466,7 +23509,7 @@ function createDeckScreen({ decks, collection, cardRepo, images, share, files, s
           avisos.length ? { icone: 'alerta', tom: 'warning', rotulo: avisos.length === 1 ? '1 aviso' : `${avisos.length} avisos`, detalhe: __m3.seguro`${avisos.map((i, k) => __m3.seguro`${k ? __m3.seguro`<br>` : ''}<b>!</b> ${i.message}`)}` } : null,
           !issues.length && d.format !== 'livre' ? { icone: 'marcar', tom: 'positive', rotulo: `Válida · ${FORMATS[d.format]}`, detalhe: __m3.seguro`<b>✓</b> Lista válida para ${FORMATS[d.format]}.` } : null]; })()
       ], { id: 'deck-estado', titulo: 'Estado da lista' }),
-      (() => { const cv = deckCoverage(d.entries, state.cards); return Surface({ class: 'ds-surface--pad', id: 'deck-coverage' }, Stack({ style: { gap: 'var(--space-1)' } },
+      (() => { const cv = cvTopo; return Surface({ class: 'ds-surface--pad', id: 'deck-coverage' }, Stack({ style: { gap: 'var(--space-1)' } },
         Row({ class: 'ds-row--wrap' }, Text(`Motor: ${cv.pct}% completo`, { size: 'lg', display: true }),
           // U2 parte 3 · selos com ícone desenhado no lugar de ✓ ◐ ✎
           Badge([Icone('marcar', { tamanho: 14 }), ` ${cv.completo}`], { tone: 'positive' }), cv.parcial ? Badge([Icone('meia', { tamanho: 14 }), ` ${cv.parcial}`]) : null, cv.manual ? Badge([Icone('editar', { tamanho: 14 }), ` ${cv.manual}`]) : null,
@@ -24616,7 +24659,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
 }
 
 
-return { cartaChaveDaLista, LadrilhoDaCarta, createPortaDeEntrada, dialogoEntrarComEmail, PainelEstatisticas, createDecksHome, createStarterDecks, createDeckEditor, createDeckScreen, createCollectionScreen, createPerfilScreen, createFichasScreen, createTerrenosScreen, createPlaymatsScreen, createAteliePlaymatScreen, createPartidasScreen, DeckLinha, motorDaLista, SeloMotor, contaMotor };
+return { cartaChaveDaLista, LadrilhoDaCarta, createPortaDeEntrada, HeroDaLista, dialogoEntrarComEmail, PainelEstatisticas, createDecksHome, createStarterDecks, createDeckEditor, createDeckScreen, createCollectionScreen, createPerfilScreen, createFichasScreen, createTerrenosScreen, createPlaymatsScreen, createAteliePlaymatScreen, createPartidasScreen, DeckLinha, motorDaLista, SeloMotor, contaMotor };
 })();
 
 
