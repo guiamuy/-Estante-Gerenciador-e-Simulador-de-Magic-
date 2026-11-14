@@ -1226,6 +1226,25 @@ test('DS-K3 K3-5 · ladrilho de lista: tokens sobre arte iguais nos dois temas; 
 });
 
 /* ---------------- DS-K3 K3-6 (G-384) · vitrine vazia ---------------- */
+test('DS-K3 K3-8 (G-390) · Balcão da Coleção: o total é o título (sufixo em caixa alta de 12,5 px, .08em); seis colunas W U B R G C em grade de 6 com 6 px de vão, cada uma um botão de 44 px; barra de 54 px em --mana-*, raio 4 4 2 2, brilho no topo e sombra de contato, tudo por token; a ligada acende em latão e as outras apagam a .4; parado (o FLIP e as molas são da MV-3)', () => {
+  const regra = sel => { const i = componentCss.indexOf(sel + ' {'); assert.ok(i >= 0, sel); return componentCss.slice(i, componentCss.indexOf('}', i)); };
+  assert.match(regra('.col-total__sufixo'), /font-family: var\(--font-ui\); font-size: var\(--text-sm\);[^}]*letter-spacing: \.08em; text-transform: uppercase; color: var\(--fg-muted\)/);
+  assert.match(regra('.col-balcao'), /padding: var\(--space-3\) var\(--space-4\)/);
+  assert.match(regra('.col-balcao__cores'), /grid-template-columns: repeat\(6, minmax\(0, 1fr\)\); gap: calc\(var\(--space-1\) \* 1\.5\)/);
+  assert.match(regra('.col-balcao__cor'), /min-height: var\(--tap-min\)/);
+  assert.match(regra('.col-balcao__trilho'), /box-sizing: content-box; height: 54px; border-bottom: 1px solid var\(--border\)/);
+  assert.match(regra('.col-balcao__barra'), /border-radius: var\(--radius-1\) var\(--radius-1\) 2px 2px;[\s\S]*box-shadow: inset 0 1px 0 var\(--edge-strong\), inset 0 0 0 1px var\(--border\), var\(--shadow-contact\)/);
+  for (const c of 'wubrgc') assert.match(componentCss, new RegExp(`\\.col-balcao__barra--${c} \\{ background: var\\(--mana-${c}\\); \\}`), c);
+  assert.match(regra('.col-balcao__cor--on'), /background: var\(--accent-soft\); box-shadow: inset 0 0 0 1px var\(--accent\)/);
+  assert.match(componentCss, /\.col-balcao\[data-ligada="true"\] \.col-balcao__cor:not\(\.col-balcao__cor--on\) \.col-balcao__barra \{ opacity: \.4; \}/);
+  const balcao = componentCss.split('\n').filter(l => /col-balcao|col-total/.test(l)).join('\n');
+  assert.ok(!/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i.test(balcao), 'nenhuma cor literal no Balcão');
+  assert.ok(!/animation|transition|backdrop-filter/.test(balcao), 'o Balcão é parado nesta fatia');
+  // as barras contam pela regra do filtro (multicolor em cada cor) e o toque usa o mesmo filtro da barra do Painel
+  assert.match(HTML, /const cores = FL\.porCorDaColecao\(state\.items, state\.cards\)/);
+  assert.match(HTML, /onClick: \(\) => aplicaFatia\('cor', c\.chave\) \}/);
+});
+
 test('DS-K3 K3-6 · vitrine vazia: madeira da prateleira nos três blocos (escuro, claro e claro automático); placa de 150 px raio 14 sobre E1 → E0 com o radial de latão a .22; quatro silhuetas de 46 × 64 tracejadas a .45, a do meio acesa (.7, 24 px a .35); prateleira de 6 px a 26 do pé; título Cormorant 24/1.05; texto à esquerda; primário e secundário lado a lado; gaveta escondida; sem desfoque fora do foco; parada (o traço que se desenha é da MV-11)', () => {
   assert.deepEqual([DARK['--madeira-hi'], DARK['--madeira-lo']], ['#4a3a27', '#2a2118']);
   assert.deepEqual([LIGHT['--madeira-hi'], LIGHT['--madeira-lo']], ['#b79c6a', '#8a7046']);

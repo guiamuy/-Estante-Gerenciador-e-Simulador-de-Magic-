@@ -15137,7 +15137,7 @@ implementar sem abrir os artefatos).
 | K3-5 | ladrilho com arte da carta-chave sob véu | ✅ G-378 (parcial: Listas prontas seguem no cartão do catálogo, com a arte em miniatura) |
 | K3-6 | vitrine vazia (estado vazio com arte e um próximo passo) | ✅ G-384 (parcial: Início vazio vai com a K3-7) |
 | K3-7 | Início na direção Vitrine | ⬜ |
-| K3-8 + MV-3 | Coleção; FLIP, odômetro e chips | ⬜ |
+| K3-8 + MV-3 | Coleção; FLIP, odômetro e chips | 🟡 G-390 (fatia 1, Balcão: o total é o título e as seis cores filtram; chips, gaveta, linhas densas e MV-3 seguem) |
 | K3-9 | Lista (hero com arte, posse) | ⬜ |
 | MV-2 | ladrilho → destaque e espiar | ⬜ |
 | K3-10 | Notícias e scanner | ⬜ |
@@ -15660,6 +15660,35 @@ Cloudflare) ficam do nosso lado, para gerar e validar. Cinco fatias MK3-P1…P5 
   gaveta encosta 6 px nos botões. Texto das Listas sem o "Sete listas … jogam a 100%" da proposta: o catálogo de Pauper tem
   centenas de listas e nem todas jogam inteiras hoje. A ilustração que se desenha é da MV-11; a "porta de vitrine", da K3-12;
   o momento "primeira lista na estante", da MV-8.
+
+#### K3-8 · Coleção na direção Vitrine, fatia 1: o Balcão (🟡 G-390, 14/11/2026 · parcial declarada)
+- **Valor:** abrir a Coleção diz de relance quanto se tem e em que cores, e um toque numa cor já filtra: o número grande é o
+  título, as seis cores são seis botões.
+- **Aceite:** com cartas, o cabeçalho editorial da Coleção (K3-4) troca "Minha coleção / Coleção" por rótulo "Coleção · N
+  cartas únicas" e título "1.248 CARTAS" (o número em `--font-display`, −.02em, algarismos alinhados; o sufixo em
+  `--font-ui` 12,5 px, 700, .08em, caixa alta, `--fg-muted`); vazia ou carregando, volta a "Minha coleção / Coleção". Logo
+  abaixo, o Balcão por cor (`.ds-surface`, padding 12 16): "POR COR · TOQUE FILTRA" à esquerda e "R$ 2.140 · estimado" à
+  direita (só com preço guardado); seis colunas W U B R G C em grade de 6 com 6 px de vão, cada uma um `button` de no mínimo
+  44 px com `aria-pressed` e nome falado ("Verde: 1 carta(s), 4 cópia(s)"): barra de até 54 px em `--mana-*` (raio 4 4 2 2,
+  brilho no topo por `--edge-strong`, contorno `--border`, `--shadow-contact`) sobre o fio da prateleira, o símbolo de mana
+  de 16 px e o número de cópias. A altura é a parte da coleção inteira naquela cor (as outras não somem com uma ligada); o
+  número é o mesmo que o toque filtra (`porCorDaColecao` no módulo do filtro, regra "qualquer": multicolor conta em cada
+  cor, sem cor é C, sem dados fica fora). Tocar liga a cor pelo mesmo filtro da barra do Painel (os dois acendem juntos);
+  tocar de novo desliga; ligada, a coluna ganha `--accent-soft` com fio de latão e as outras barras apagam a .4. Textos novos
+  em en/es. Sem token novo.
+- **Testes:** `filter.unit` "DS-K3 K3-8 (G-390)" (as seis contagens, multicolor em cada cor, incolor em C, sem dados fora,
+  e o número de cada barra igual ao recorte do filtro dela); contrato visual "DS-K3 K3-8 (G-390)" (sufixo, grade, 44 px,
+  barra só com tokens, ligada e apagadas, nenhuma cor literal, parado); e2e "G-390" (360 × 780 e 412 × 891 nos dois temas:
+  rótulo e total, título numa linha, ordem W U B R G C, alturas na proporção da mais alta, colunas de 44 px dentro do
+  cartão, número cabe, AA do número e do título sobre E3, parado, `auditaTela`; o toque no verde filtra, acende a barra do
+  Painel junto e apaga as outras; Moderado e Reduzido parados).
+- **Parcial / fora:** chips em fio (Tudo · Pauper · Faltam nas listas · Repetidas), busca no topo, linhas densas e a gaveta
+  com vistas, CSV, "pelo nome" e exportar seguem na fatia 2 da K3-8; FLIP, odômetro do total, chip que muda de forma e
+  barras que mudam de altura com mola são da MV-3 (nesta fatia o Balcão é parado nos três níveis). O título do total usa o
+  tamanho do cabeçalho editorial (34 px, que recolhe a 18 px com a K3-4), não os 40 px da proposta: o cabeçalho é o mesmo das
+  outras telas. O "Por cor" do Painel continua (é o detalhe com cartas e cópias; a fatia 2 decide se sai). A linha do
+  16º-uq na ordem por dependência não foi tocada nesta leva (a G-388 da K3-7 está na fila mudando a mesma linha; a próxima
+  rodada junta as duas).
 
 ## Trilha homologacao · prova de partida do catálogo (H)
 
