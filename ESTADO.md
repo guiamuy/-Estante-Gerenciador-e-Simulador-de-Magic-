@@ -59,6 +59,7 @@ Leitura e fila dos relatos: seção "Relatos do dono" do `CLAUDE.md`.
 - Escopo negativo: gerador de decks, sugestão de cartas, ranking de metagame, marketplace, multiplayer com mais de dois. Online 1x1 está dentro (U14).
 - Design vigente: DS-K "Ébano e Ouro" (decisão de 24/10): `claude/DESIGN-direcoes-2026-10-24.md` e `claude/DIRETRIZ-animacao.md`.
 - Sem teste no aparelho: scanner S-613…S-618, mesa DS-K2 (J-37…J-41), faixa sem internet (G-332).
+- Padrão de entrega (14/11): excelência e economia de tokens e custo; regra no `CLAUDE.md`.
 - Pendências do dono: o artefato "Pendências da Estante", atualizado todo dia pela rotina e triado pela `mtg-triagem-pendencias`. Os `claude/PENDENCIAS-dono-*.md` são históricos.
 
 ## Onde mora o detalhe
@@ -81,4 +82,4 @@ Os documentos `claude/…` moram no Projeto do claude.ai, fora do repositório: 
 
 No commit de docs de cada leva (o mesmo que atualiza o ROADMAP): reescreva a **sua** linha na tabela de trilhas, atualize relatos e pendências se mudaram e troque a data abaixo. Edite por patch, nunca o arquivo inteiro. Conflito no rebase: fique com as linhas das outras trilhas e a sua. Passou de 8 KB: resuma, não acrescente.
 
-Atualizado: 14/11/2026 · M-623 · G-387 · J-79 · G-384 · M-633 · I-333 · J-64 · B-216 (bot) · M-634 · G-391 · G-393 · G-389 · J-75 · I-334 · M-628 · J-73
+Atualizado: 14/11/2026 · J-73 · G-399 · M-626 · J-69 · G-386 · M-616
