@@ -732,7 +732,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-vf ✅ | Relato #137 (J-70): com o detalhe da pilha aberto, tocar de novo na faixa (na seta) recolhe; antes nada acontecia e só Esc ou toque fora fechavam (J-70, 11/11/2026) | J | 1 | — |
 | 16º-vh 🟡 | Relato #135, fatia 1 (G-379, 11/11/2026): lista pronta do Pauper que o motor não joga inteira (medida da sentinela abaixo de 100%) sai das Listas prontas e das prontas do Jogar, com a linha "N listas de Pauper estão fora…"; a medida a 100% a traz de volta sozinha. Fatia 2: a rotina Sentinela do Pauper trata primeiro as listas que saíram | G | 1 de 2 | 16º-vd |
 | 16º-vi ✅ | Relato #136 (J-69): o ⋯ da mesa abre o menu (Desfazer, Registro, Desistir), nunca o relato: a aba de relatar da borda direita ganha um piso medido no ⋯ (base dele + 8 px), refeito a cada pintura, rolagem e mudança de tamanho; com a barra de cima mais baixa (recorte da câmera no app instalado) ou a aba arrastada ao alto, ela não cobre mais o ⋯. A posição guardada não muda (leva J-69, 11/11/2026) | J | ½ | 16º-vd |
-| 16º-vw 🟡 | Relato #152, fatia 1 (J-72, 12/11/2026): na cena do turno do oponente, cada jogada dele fica o tempo de ler a legenda (1,6 s no mínimo, até 3,2 s nas frases longas) e o turno comprido encolhe primeiro os passos sem jogada; a jogada dele nunca passa de 1,1 s (antes: 12 s divididos por todos os quadros, ~0,4 s cada). Fatia 2 (J-75, 13/11): Pausar e Seguir na legenda da cena. Fatia 3 (no meu toque, só o que vale acompanhar) segue | J | 1 | H5 |
+| 16º-vw ✅ | Relato #152, fatia 1 (J-72, 12/11/2026): na cena do turno do oponente, cada jogada dele fica o tempo de ler a legenda (1,6 s no mínimo, até 3,2 s nas frases longas) e o turno comprido encolhe primeiro os passos sem jogada; a jogada dele nunca passa de 1,1 s (antes: 12 s divididos por todos os quadros, ~0,4 s cada). Fatia 2 (J-75, 13/11): Pausar e Seguir na legenda da cena. Fatia 3 (J-77, 14/11): chave "No meu toque" no menu da vez: cada jogada do oponente espera o Seguir, a mesma jogada repetida em seguida vira um quadro ("(2×)") e a carta dela ganha o anel do oponente | J | 1 | H5 |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -15685,7 +15685,7 @@ Cloudflare) ficam do nosso lado, para gerar e validar. Cinco fatias MK3-P1…P5 
 - **Parcial / fora:** Início e Notícias têm cabeçalho próprio (data, saudação, sino; faixa de notícias) e entram no editorial
   com a K3-7 (Início na direção Vitrine) e a K3-10 (Notícias); as subtelas seguem no 44 · 1fr · 44 (a faixa compacta de 18 px
   nelas fica para a FA-2, que fecha contra as telas-modelo); a paralaxe do hero por `scroll()` entra com o hero da K3-9.
-#### Relato #152 · o turno do oponente no ritmo de ler (🟡 fatia 1 ✅ J-72, 12/11/2026; fatia 2 ✅ J-75, 13/11/2026; `16º-vw`)
+#### Relato #152 · o turno do oponente no ritmo de ler (✅ fatia 1 J-72, 12/11/2026; fatia 2 J-75, 13/11/2026; fatia 3 J-77, 14/11/2026; `16º-vw`)
 - **Valor:** o dono não conseguia acompanhar o turno do Shark ("na velocidade da luz"). A cena da H5 cabia sempre em 12 s: num turno
   com Ponder, Thought Scour e escolhas, cada jogada ficava ~0,4 s na tela.
 - **Aceite (fatia 1):** jogada do oponente fica `max(1,6 s, 0,4 s + 40 ms por letra da legenda)`, até 3,2 s; passo visto sem
@@ -15700,8 +15700,16 @@ Cloudflare) ficam do nosso lado, para gerar e validar. Cinco fatias MK3-P1…P5 
   Uma pintura no meio da pausa não some com a legenda. Nenhuma regra muda.
 - **Testes (fatia 2):** e2e "J-75 relato #152 fatia 2" (360×780; parada mais longa que o quadro mais longo, 3,6 s, sem mudar
   de jogada; Seguir anda um quadro; falhava antes). Gancho `__estanteMesa.pausaCena()` e `cena().pausada`.
-- **Fora (próxima fatia):** 3 · modo "no meu toque" (a próxima jogada só vem quando o jogador sinaliza), escolhas repetidas
-  juntas e o destaque visual na carta da jogada.
+- **Aceite (fatia 3, J-77):** chave "No meu toque" no menu da vez, logo abaixo de "Ver jogadas" (só aparece com ela ligada;
+  desligada por padrão; preferência `mesa.cenaNoToque`, só no aparelho: entrar no backup pediria regra nova no Firebase). Ligada: cada
+  quadro que é jogada do oponente para sozinho na legenda com o botão já em Seguir (borda no ouro); os passos sem jogada correm no
+  ritmo da fatia 1; Seguir mostra o quadro seguinte. A mesma jogada dele repetida em seguida vira um quadro só, "(2×)", com a mesa
+  depois da última (`juntaRepetidas`, opção `junta` do `roteiroDaJogada`; desligada, nada muda). A carta de que a legenda fala,
+  quando está à vista, ganha o anel do oponente (`data-cena-foco`, contorno `--player-opp`), que sai com a cena. Nenhuma regra muda.
+- **Testes (fatia 3):** `sentidos.unit` "J-77" (2× e 3× juntas, frase separada não junta, desligado igual); e2e "J-77 relato
+  #152 fatia 3" (360×780; chave no menu da vez; a jogada fica 3,6 s sem andar; Seguir até o fim da cena; o anel sai com ela).
+  Ganchos `__estanteMesa.noToque()` e `cena().jogada/oid/noToque`. Falhavam antes. Textos novos em en/es.
+- **Fora:** o anel não aparece quando a carta da jogada está empilhada sob outra igual (só a de cima tem lugar na mesa).
 
 #### Relato #137 · a seta da pilha recolhe o detalhe (✅ J-70, 11/11/2026; `16º-vf`)
 - **Valor:** na mesa, com a pilha expandida, a seta da faixa não recolhia o detalhe; agora o mesmo toque que abre também fecha.

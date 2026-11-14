@@ -9964,6 +9964,52 @@ test('e2e · J-75 relato #152 fatia 2: Pausar segura a jogada do oponente na leg
   assert.deepEqual(errors, []);
 });
 
+test('e2e · J-77 relato #152 fatia 3: no meu toque, a jogada do oponente espera o Seguir, a carta dela ganha o anel e a chave fica no menu da vez', { skip }, async t => {
+  const { page, errors, base } = await open(t, { cena: true });
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'Delver', PAUPER);
+  await page.goto(base + '#/mesa'); await page.fill('#mesa-seed', '9');
+  await page.waitForFunction(() => { const c = document.querySelector('[data-opponent="shark"]'); return c && !c.disabled; }, null, { timeout: 8000 });
+  await page.click('[data-opponent="shark"]'); await page.waitForSelector('#mesa-bot-deck');
+  await page.waitForFunction(() => { const c = document.querySelector('[data-mode="full"]'); return c && !c.disabled; }, null, { timeout: 8000 });
+  await page.click('[data-mode="full"]'); await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep');
+  // a chave mora no menu da vez, ao lado de "Ver jogadas", e começa desligada
+  await page.waitForSelector('#tb-no-toque', { state: 'attached' });
+  assert.equal(await page.$eval('#tb-no-toque', b => b.getAttribute('aria-pressed')), 'false');
+  await page.$eval('#tb-no-toque', b => b.click());
+  await page.waitForFunction(() => { const b = document.querySelector('#tb-no-toque'); return b && b.getAttribute('aria-pressed') === 'true'; }, null, { timeout: 4000 });
+  const fimDaCena = () => page.waitForFunction(() => !document.querySelector('#tb').dataset.cena && !document.querySelector('#tb').dataset.pensando, null, { timeout: 45000 });
+  const C = () => page.evaluate(() => window.__estanteMesa.cena());
+  const minhaVez = async () => { for (let i = 0; i < 60; i++) { if (await C()) await page.evaluate(() => window.__estanteMesa.pulaCena()); await fimDaCena(); const e = await page.evaluate(() => { const s = window.__estanteMesa.estado(); return { meu: s.turn.active === 0 && s.turn.priority === 0 && !s.pending && !s.stack.length, pend: s.pending && s.pending.kind }; });
+    if (e.meu && await page.locator('#tb-pass-turn').count()) return; if (e.pend === 'discard') { await page.locator('#tb-hand .tb-card').first().click(); await escolhe(page); continue; }
+    for (const id of ['#tb-no-block', '#tb-no-attack', '#tb-pass']) if (await page.locator(id).count()) { await page.click(id).catch(() => {}); break; } await page.waitForTimeout(80); } };
+  // uma cena em que o Shark joga: no meu toque, ela para sozinha na jogada dele
+  let p1 = null;
+  for (let i = 0; i < 10 && !p1; i++) { await minhaVez(); await page.click('#tb-pass-turn'); await semPensar(page); await page.waitForTimeout(150);
+    if (await page.evaluate(() => { const s = window.__estanteMesa.estado(); return !!(s.pending && s.pending.kind === 'discard'); }) && !(await C())) { await page.locator('#tb-hand .tb-card').first().click(); await escolhe(page); }
+    try { await page.waitForFunction(() => { const c = window.__estanteMesa.cena(); return c && c.jogada && c.pausada; }, null, { timeout: 8000 }); } catch (e) { continue; }
+    p1 = await C(); }
+  assert.ok(p1, 'o Shark não jogou nada em dez turnos');
+  assert.equal(p1.noToque, true);
+  assert.equal(await page.getAttribute('#tb-cena-pausa', 'aria-label'), 'Seguir'); assert.equal(await page.getAttribute('#tb-cena', 'data-pausada'), 'true');
+  const leg1 = await page.innerText('#tb-cena-legenda');
+  // a carta da jogada, quando está à vista na mesa, ganha o anel do oponente
+  if (p1.oid != null && await page.locator(`#tb .tb-card[data-oid="${p1.oid}"]`).count()) assert.equal(await page.getAttribute(`#tb .tb-card[data-oid="${p1.oid}"]`, 'data-cena-foco'), 'true');
+  // espera de verdade: mais que o quadro mais longo (3,2 s) sem andar; a mesa segue sem toque
+  await page.waitForTimeout(3600);
+  const p2 = await C(); assert.equal(p2 && p2.quadro, p1.quadro, 'no meu toque, a jogada não anda sozinha'); assert.equal(await page.innerText('#tb-cena-legenda'), leg1);
+  assert.equal(await page.$eval('.tb-board', el => getComputedStyle(el).pointerEvents), 'none');
+  await auditaTela(page, 'cena do oponente no meu toque');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/j77-no-meu-toque.png' });
+  // Seguir anda: cada jogada dele para de novo, o passo sem jogada corre sozinho, até o fim da cena
+  for (let k = 0; k < 60 && await C(); k++) { const c = await C(); if (c && c.pausada) await page.click('#tb-cena-pausa').catch(() => {}); await page.waitForTimeout(150); }
+  await fimDaCena(); assert.equal(await C(), null);
+  assert.equal(await page.$eval('.tb-board', el => getComputedStyle(el).pointerEvents), 'auto');
+  assert.equal(await page.locator('#tb .tb-card[data-cena-foco]').count(), 0, 'o anel sai com a cena');
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · H5 ver o oponente jogar: o turno do Shark passa quadro a quadro com legenda, a mesa não aceita toque durante a cena, Pular vai ao fim, e dá para desligar', { skip }, async t => {
   const { page, errors, base } = await open(t, { cena: true });
   await page.addInitScript(() => { window.__MTG_TEST = true; });
