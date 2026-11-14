@@ -775,6 +775,8 @@ body[data-cab="compacto"] .ds-cabecalho--editorial .ds-cabecalho__rotulo { visib
 .tb-cena__texto span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
 .tb-cena[data-pausada="true"] { border-color: var(--accent); }
 .tb-cena[data-pausada="true"] .tb-cena__conta { color: var(--accent); }
+/* J-77 · relato #152, fatia 3: a carta de que a legenda fala ganha o anel do oponente na mesa */
+.tb-card[data-cena-foco="true"] { outline: 2px solid var(--player-opp); outline-offset: 2px; box-shadow: var(--shadow-3); }
 .tb-cena__conta { flex: none; font-size: var(--text-xs); color: var(--fg-muted); font-variant-numeric: tabular-nums; }
 .tb-cena > .ds-btn { flex: none; }
 #tb[data-cena="true"] .tb-board, #tb[data-cena="true"] .tb-top__actions, #tb[data-cena="true"] .tb-dock { pointer-events: none; }
@@ -16358,7 +16360,7 @@ const REGISTRO = [
   ['scanner.zoom', 'aparelho', false], ['scanner.lente', 'aparelho', false], ['scanner.idioma', 'aparelho', false], /* S-601 · idioma impresso que o leitor do nome lê */ ['scanner.lot', 'aparelho', false],
   ['offline.', 'aparelho', false], ['ocr.ready', 'aparelho', false], ['noticias.vista', 'aparelho', false],
   ['ui.ultimaLista', 'aparelho', false], ['collection.pending', 'aparelho', false], ['match.', 'aparelho', false],
-  ['ui.entrada', 'aparelho', false], ['ponte.levada', 'aparelho', false], /* I-329 · quando este aparelho levou tudo do github.io para a Vercel */ ['idioma', 'aparelho', false], /* G-361 · idioma do app, por aparelho (sem regra nova no banco) */ ['estante.idioma', 'aparelho', false], /* G-361 · cópia do idioma no localStorage, lida antes de pintar */ // G-274 · a porta de entrada já foi atravessada neste aparelho (com conta ou sem)
+  ['ui.entrada', 'aparelho', false], ['mesa.cenaNoToque', 'aparelho', false], /* J-77 · relato #152, fatia 3: no meu toque, por aparelho (no backup pediria regra nova no Firebase) */ ['ponte.levada', 'aparelho', false], /* I-329 · quando este aparelho levou tudo do github.io para a Vercel */ ['idioma', 'aparelho', false], /* G-361 · idioma do app, por aparelho (sem regra nova no banco) */ ['estante.idioma', 'aparelho', false], /* G-361 · cópia do idioma no localStorage, lida antes de pintar */ // G-274 · a porta de entrada já foi atravessada neste aparelho (com conta ou sem)
   ['playmats.', 'aparelho', false], // MK3-P4 (J-76) · playmats criados e a cota do dia, neste aparelho; o backup deles é da MK3-P5
   ['uso.compartilhar', 'aparelho', false], ['uso.envio', 'aparelho', false], ['uso.scanner', 'aparelho', false], // G-286 · uso agregado opt-in: consentimento deste aparelho, último envio e leituras do scanner
   // derivado
@@ -44181,7 +44183,7 @@ function legendaDosSentidos(sentidos, nomeDe) {
     : e.tipo === 'morre' || e.tipo === 'destroi' ? 'Uma permanente foi para o cemitério' : e.tipo === 'entra' || e.tipo === 'ficha' || e.tipo === 'terreno' ? 'Uma permanente entrou no campo' : '';
   return [...new Set(sentidos.map(frase).filter(Boolean))].slice(0, 2).join(' · ');
 }
-function roteiroDaJogada(passos, { eu = 0, stats = null, tipos = null, teto = 12000, max = 40 } = {}) {
+function roteiroDaJogada(passos, { eu = 0, stats = null, tipos = null, teto = 12000, max = 40, junta = false } = {}) {
   const quadros = [];
   let oponenteAgiu = false;
   (passos || []).forEach((p, i) => {
@@ -44203,13 +44205,29 @@ function roteiroDaJogada(passos, { eu = 0, stats = null, tipos = null, teto = 12
   // quadro sem nada a dizer nem a mostrar (uma virada de etapa) junta-se ao anterior
   const uteis = quadros.filter((q, i) => i === 0 || q.legenda || q.sentidos.length);
   uteis[uteis.length - 1].estado = quadros[quadros.length - 1].estado; // o último quadro é sempre o estado final
-  const corte = uteis.slice(0, max); corte[corte.length - 1].estado = quadros[quadros.length - 1].estado;
+  const lista = junta ? juntaRepetidas(uteis) : uteis;
+  const corte = lista.slice(0, max); corte[corte.length - 1].estado = quadros[quadros.length - 1].estado;
   return cabeNoTeto(corte, teto);
 }
 /* J-72 · relato #152 (o turno do Shark "na velocidade da luz"): a jogada do oponente fica na tela o tempo de ler a legenda
    (1,6 s no mínimo, 40 ms por letra até 3,2 s). Turno comprido encolhe primeiro os passos sem jogada (até 300 ms) e só
    depois as jogadas dele, nunca abaixo de PISO_DA_JOGADA: a cena passa do teto em vez de virar um borrão; o Pular segue ali. */
 const PISO_DA_JOGADA = 1100;
+/* J-77 · relato #152, fatia 3 ("no meu toque"): a mesma jogada do oponente repetida em seguida (o Shark escolhe Sleep of
+   the Dead duas vezes) vira um quadro só, com "(2×)" na legenda e o estado da última: um toque por jogada que vale olhar. */
+function juntaRepetidas(quadros) {
+  const fora = [];
+  for (const q of quadros) {
+    const ant = fora[fora.length - 1];
+    if (ant && ant.jogada && q.jogada && !ant.meu && ant.quem === q.quem && q.legenda && (ant.base || ant.legenda) === q.legenda) {
+      ant.base = ant.base || ant.legenda; ant.vezes = (ant.vezes || 1) + 1; ant.legenda = `${ant.base} (${ant.vezes}×)`;
+      ant.estado = q.estado; ant.eventos = [...ant.eventos, ...q.eventos]; ant.sentidos = [...ant.sentidos, ...q.sentidos]; ant.ms = tempoDeLer(ant.legenda);
+      continue;
+    }
+    fora.push({ ...q });
+  }
+  return fora;
+}
 const tempoDeLer = legenda => Math.max(1600, Math.min(3200, 400 + 40 * String(legenda || '').length));
 function cabeNoTeto(quadros, teto) {
   const soma = qs => qs.reduce((n, q) => n + q.ms, 0);
@@ -45756,7 +45774,10 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     // H5 · ver as jogadas do oponente uma a uma (só contra o bot)
     if (!sinc && table.options && table.options.bot) {
       const c = Chip('Ver jogadas', { icone: 'pular', pressed: verJogadas, id: 'tb-ver-jogadas', onClick: () => { verJogadas = !verJogadas; store.set(VER_KEY, verJogadas).catch(() => {}); semSentidos = true; paint(); toast(verJogadas ? 'As jogadas do oponente passam uma a uma' : 'O turno do oponente aparece de uma vez'); } });
-      c.classList.add('tb-vez-pop__som'); c.setAttribute('aria-label', verJogadas ? 'Ver as jogadas do oponente uma a uma: ligado' : 'Ver as jogadas do oponente uma a uma: desligado'); vezPop.appendChild(c); }
+      c.classList.add('tb-vez-pop__som'); c.setAttribute('aria-label', verJogadas ? 'Ver as jogadas do oponente uma a uma: ligado' : 'Ver as jogadas do oponente uma a uma: desligado'); vezPop.appendChild(c);
+      // J-77 · relato #152, fatia 3: no meu toque, cada jogada do oponente espera o Seguir
+      if (verJogadas) { const t = Chip('No meu toque', { icone: 'seguir', pressed: cenaNoToque, id: 'tb-no-toque', onClick: () => { cenaNoToque = !cenaNoToque; store.set(NO_TOQUE_KEY, cenaNoToque).catch(() => {}); semSentidos = true; paint(); toast(cenaNoToque ? 'Cada jogada do oponente espera o seu toque em Seguir' : 'As jogadas do oponente passam no ritmo de ler'); } });
+        t.classList.add('tb-vez-pop__som'); t.setAttribute('aria-label', cenaNoToque ? 'Jogadas do oponente no meu toque: ligado' : 'Jogadas do oponente no meu toque: desligado'); vezPop.appendChild(t); } }
     vezPop.hidden = !vezAberto;
     return vezEl;
   }
@@ -45897,7 +45918,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   // gancho de teste: o portão precisa provocar uma recusa que a folha de ações nunca oferece
   if (typeof window !== 'undefined' && window.__MTG_TEST) window.__estanteMesa = { act: a => act(a, { sincrono: true }), pensando: () => !!pensando, pinturas: () => (pinturas || []).splice(0), perguntas: () => T.legaisDe.perguntas, repinta: () => paint(), estado: () => table && T.esqueceEstado(table.state), som, sentidos: () => sentidosAgora.slice(), efeitos: () => fxLog.slice(),
     // H5 · a cena em curso (ou null), o que já foi narrado, ligar/desligar e pular
-    manaManual: sim => { manaManual = !!sim; }, imagens: () => __m17.imagensRetidas(), gravado: () => gravando, cena: () => (cena ? { quadro: cena.i, total: cena.quadros.length, pausada: !!cena.pausada } : null), pausaCena: () => alternaPausa(), narrado: () => cenaLog.slice(), verJogadas: sim => { verJogadas = !!sim; }, pulaCena: () => fimDaCena(), estadoFinal: () => T.esqueceEstado((mesaReal || table).state),
+    manaManual: sim => { manaManual = !!sim; }, imagens: () => __m17.imagensRetidas(), gravado: () => gravando, cena: () => (cena ? { quadro: cena.i, total: cena.quadros.length, pausada: !!cena.pausada, noToque: !!cena.noToque, jogada: !!(cena.q && cena.q.jogada && !cena.q.meu), oid: cena.q ? cena.q.oid : null } : null), pausaCena: () => alternaPausa(), noToque: sim => { cenaNoToque = !!sim; }, narrado: () => cenaLog.slice(), verJogadas: sim => { verJogadas = !!sim; }, pulaCena: () => fimDaCena(), estadoFinal: () => T.esqueceEstado((mesaReal || table).state),
     // Leva 121 · sonda de alcance: o que a folha de cada carta oferece, para conferir contra legalActions
     acoesDe: oid => { const d = acoesDe(oid); return d ? d.acoes.filter(x => !x.disabled).flatMap(x => x.opcoes || (x.action ? [x.action] : [])) : []; }, legais: () => table ? E.legalActions(table.state, table.viewer()) : [], quemVe: () => table.viewer(), setup: () => table && table.setup };
   /** Leva 135 · estado do outro aparelho: ausente há mais de 45 s, ou sala encerrada por ele. */
@@ -45931,6 +45952,9 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   const VER_KEY = 'mesa.verJogadas';
   let verJogadas = !(typeof window !== 'undefined' && window.__SEM_CENA), cena = null, mesaReal = null;
   store.get(VER_KEY).then(x => { if (x === false) verJogadas = false; }).catch(() => {});
+  const NO_TOQUE_KEY = 'mesa.cenaNoToque'; // J-77 · relato #152, fatia 3: desligado por padrão; fica só neste aparelho (classe 'aparelho' no REGISTRO)
+  let cenaNoToque = false;
+  store.get(NO_TOQUE_KEY).then(x => { if (x === true) cenaNoToque = true; }).catch(() => {});
   const visaoDaCena = (real, eu) => Object.create(real, { state: { get: () => (cena ? cena.estado : real.state) }, viewer: { value: () => eu }, canUndo: { value: () => false }, desfaziveis: { value: () => 0 } });
   function focaNaCena(q) {
     const alvo = root.querySelector('.tb-board .tb-fx') || (q.oid != null && root.querySelector(`.tb-board .tb-card[data-oid="${q.oid}"]`)) || root.querySelector(q.quem === cena.eu ? '#tb-life-me' : '#tb-life-opp');
@@ -45956,13 +45980,19 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     if (!root.isConnected) return fimDaCena(); // saiu da tela no meio: a partida fica no estado final
     const q = cena.quadros[cena.i];
     cena.estado = q.estado; eventosDaJogada = q.eventos; cena.q = q;
-    paint(); pintaLegenda(q); focaNaCena(q);
+    if (cena.noToque && q.jogada && !q.meu) { clearTimeout(cena.timer); cena.timer = null; cena.pausada = true; } // J-77 · espera o Seguir
+    paint(); pintaLegenda(q); marcaCartaDaCena(q); focaNaCena(q);
     cenaLog.push(q.legenda);
     cena.i++;
     if (!cena.pausada) cena.timer = setTimeout(cena.i >= cena.quadros.length ? fimDaCena : quadroDaCena, q.ms);
   }
   /** J-75 · relato #152, fatia 2: parar na jogada que está na legenda e seguir quando quiser. Seguir não espera o resto do
       tempo do quadro parado: já mostra a próxima jogada (ou o fim) e o ritmo volta ao normal dali em diante. */
+  /** J-77 · relato #152, fatia 3: a carta da jogada do oponente ganha o anel dele na mesa enquanto a legenda fala dela. */
+  function marcaCartaDaCena(q) {
+    if (!q || !q.jogada || q.meu || q.oid == null) return;
+    const el = root.querySelector(`.tb-card[data-oid="${q.oid}"]`); if (el) el.dataset.cenaFoco = 'true';
+  }
   function alternaPausa() {
     if (!cena) return;
     if (!cena.pausada) { clearTimeout(cena.timer); cena.timer = null; cena.pausada = true; const q = cena.q; cena.i--; pintaLegenda(q); cena.i++; return; }
@@ -45970,7 +46000,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     if (cena.i >= cena.quadros.length) fimDaCena(); else quadroDaCena();
   }
   function encena(quadros, eu) {
-    mesaReal = table; cena = { quadros, i: 0, estado: quadros[0].estado, eu, timer: null, el: null };
+    mesaReal = table; cena = { quadros, i: 0, estado: quadros[0].estado, eu, timer: null, el: null, noToque: cenaNoToque };
     table = visaoDaCena(mesaReal, eu); root.dataset.cena = 'true';
     quadroDaCena();
   }
@@ -45988,7 +46018,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
   function desenhaDepoisDe(eu) {
     const passos = table.colhePassos ? table.colhePassos() : [];
     const quadros = verJogadas && !sinc && table.options && table.options.bot && passos.length > 1
-      ? __m33.roteiroDaJogada(passos, { eu, stats: E.stats, tipos: nome => ((table.state.facts || {})[nome] || {}).types || [] }) : [];
+      ? __m33.roteiroDaJogada(passos, { eu, stats: E.stats, tipos: nome => ((table.state.facts || {})[nome] || {}).types || [], junta: cenaNoToque }) : [];
     if (quadros.length) encena(quadros, eu); else paint();
   }
   /* ---- H6 · pagar com as manas que eu escolho ----
