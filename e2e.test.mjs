@@ -1199,6 +1199,76 @@ test('e2e · C14 painel da coleção: números, barra que filtra, curva, recolhe
   assert.deepEqual(errors, []);
 });
 
+test('e2e · G-390 DS-K3 K3-8 Balcão da Coleção: o total é o título do cabeçalho editorial ("22 cartas", rótulo "Coleção · 4 cartas únicas"), as seis cores W U B R G C são seis botões de 44 px que filtram (a altura é a parte da coleção, o número bate com o filtro), a ligada acende e as outras apagam, nada sobreposto em 360 e 412 nos dois temas; parado nos três níveis de movimento', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base + '#/colecao');
+  await page.waitForSelector('#col-import'); await page.click('#col-import');
+  await page.waitForSelector('#col-import-text'); await page.fill('#col-import-text', '12 Island\n4 Counterspell\n2 Sol Ring (CMM) 400\n4 Grizzly Bear');
+  await page.click('#col-import-check'); await page.waitForSelector('#col-import-run'); await page.click('#col-import-run');
+  await page.waitForSelector('.col-row[data-name="Sol Ring"]');
+  await page.waitForFunction(() => /Creature/.test(document.querySelector('.col-row[data-name="Grizzly Bear"]').innerText), null, { timeout: 8000 });
+  await page.evaluate(() => window.scrollTo(0, 0));
+  if (process.env.SHOTS) for (const tema of ['dark', 'light']) { await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(150); await page.screenshot({ path: process.env.SHOTS + `/g-390-colecao-${tema}.png`, clip: { x: 0, y: 0, width: 360, height: 520 } }); }
+  await page.waitForSelector('#col-balcao .col-balcao__cor');
+  const mede = () => page.evaluate(() => {
+    const r = el => el.getBoundingClientRect(), cab = document.querySelector('#outlet .col-topo'), b = document.querySelector('#col-balcao .col-balcao');
+    const tit = cab.querySelector('.ds-cabecalho__titulo'), suf = tit.querySelector('.col-total__sufixo');
+    const rgb = c => c.match(/[\d.]+/g).slice(0, 3).map(Number), lum = ([a, b2, c]) => { const f = x => { x /= 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; }; return 0.2126 * f(a) + 0.7152 * f(b2) + 0.0722 * f(c); };
+    const ct = (x, y) => { const [m, n] = [lum(x), lum(y)].sort((p, q) => q - p); return (m + 0.05) / (n + 0.05); };
+    const sonda = document.createElement('span'); sonda.style.color = 'var(--elev-3)'; document.body.append(sonda); const fundo = rgb(getComputedStyle(sonda).color); sonda.remove();
+    const cores = [...b.querySelectorAll('.col-balcao__cor')];
+    return { rotulo: cab.querySelector('.ds-cabecalho__rotulo').textContent, total: tit.querySelector('.col-total__n').textContent, sufixo: getComputedStyle(suf).textTransform, sufixoPx: getComputedStyle(suf).fontSize,
+      linhas: Math.round(r(tit).height / parseFloat(getComputedStyle(tit).lineHeight)), abaixo: Math.round(r(b).top - r(cab).bottom),
+      ordem: cores.map(c => c.dataset.balcao).join(''), alturas: cores.map(c => Math.round(r(c.querySelector('.col-balcao__barra')).height)), trilho: Math.round(r(cores[0].querySelector('.col-balcao__trilho')).height),
+      toques: cores.map(c => [Math.round(r(c).width), Math.round(r(c).height)]), dentro: cores.every(c => r(c).left >= r(b).left && r(c).right <= r(b).right),
+      numeros: cores.map(c => c.querySelector('.col-balcao__n').textContent).join(','), cabe: cores.every(c => { const n = c.querySelector('.col-balcao__n'); return r(n).width <= r(c).width; }),
+      ct: ct(rgb(getComputedStyle(cores[0].querySelector('.col-balcao__n')).color), fundo), ctTitulo: ct(rgb(getComputedStyle(b.querySelector('.col-balcao__titulo')).color), fundo),
+      anima: b.getAnimations({ subtree: true }).filter(a => a.playState === 'running').length, largura: document.documentElement.scrollWidth <= innerWidth };
+  });
+  for (const [w, hgt] of [[360, 780], [412, 891]]) {
+    await page.setViewportSize({ width: w, height: hgt });
+    for (const tema of ['dark', 'light']) {
+      await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(120);
+      const m = await mede(), nome = `${w} ${tema}`;
+      assert.deepEqual([m.rotulo, m.total, m.sufixo, m.sufixoPx, m.linhas], ['Coleção · 4 cartas únicas', '22', 'uppercase', '12.5px', 1], `${nome}: cabeçalho com o total ${JSON.stringify(m)}`);
+      assert.ok(m.abaixo >= 0, `${nome}: o Balcão vem logo abaixo do cabeçalho (${m.abaixo})`);
+      // na Scryfall de teste a Island é azul: 12 + Counterspell 4 = 16 azuis (a mais alta, o trilho inteiro); Grizzly Bear 4
+      // verdes; Sol Ring 2 incolores; nada branco, preto ou vermelho (barra de altura zero)
+      assert.equal(m.ordem, 'WUBRGC', nome); assert.equal(m.numeros, '0,16,0,0,4,2', nome); assert.equal(m.trilho, 55, `${nome}: 54 px de barra e o fio da prateleira`);
+      assert.deepEqual([m.alturas[0], m.alturas[1], m.alturas[2], m.alturas[3]], [0, 54, 0, 0], `${nome}: alturas ${m.alturas}`);
+      assert.ok(Math.abs(m.alturas[4] - 54 * 4 / 16) <= 1 && Math.abs(m.alturas[5] - 54 * 2 / 16) <= 1, `${nome}: na proporção da mais alta (${m.alturas})`);
+      for (const [lw, lh] of m.toques) assert.ok(lw >= 40 && lh >= 44, `${nome}: coluna de ${lw}×${lh}`);
+      assert.deepEqual([m.dentro, m.cabe, m.largura], [true, true, true], nome);
+      assert.ok(m.ct >= 4.5 && m.ctTitulo >= 4.5, `${nome}: AA ${m.ct.toFixed(2)} / ${m.ctTitulo.toFixed(2)}`);
+      assert.equal(m.anima, 0, `${nome}: parado`);
+      await auditaTela(page, `G-390 Balcão da Coleção ${nome}`);
+    }
+  }
+  await page.setViewportSize({ width: 360, height: 780 }); await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  assert.equal(await page.getAttribute('[data-balcao="G"]', 'aria-label'), 'Verde: 1 carta(s), 4 cópia(s)');
+  // tocar no verde filtra (o mesmo filtro da barra do Painel); as barras seguem a coleção inteira; tocar de novo desliga
+  await page.click('[data-balcao="G"]');
+  await page.waitForFunction(() => document.querySelectorAll('.col-row').length === 1);
+  assert.match(await page.innerText('.col-row'), /Grizzly Bear/);
+  assert.deepEqual(await page.evaluate(() => [document.querySelector('[data-balcao="G"]').getAttribute('aria-pressed'), document.querySelector('[data-dash="cor:G"]').getAttribute('aria-pressed'),
+    document.querySelector('#col-balcao .col-balcao').dataset.ligada, getComputedStyle(document.querySelector('[data-balcao="U"] .col-balcao__barra')).opacity, getComputedStyle(document.querySelector('[data-balcao="G"] .col-balcao__barra')).opacity,
+    [...document.querySelectorAll('.col-balcao__n')].map(n => n.textContent).join(',')]), ['true', 'true', 'true', '0.4', '1', '0,16,0,0,4,2']);
+  await auditaTela(page, 'G-390 Balcão com o verde ligado');
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/g-390-colecao-verde.png', clip: { x: 0, y: 0, width: 360, height: 520 } });
+  await page.click('[data-balcao="G"]');
+  await page.waitForFunction(() => document.querySelectorAll('.col-row').length === 4);
+  assert.equal(await page.getAttribute('[data-balcao="G"]', 'aria-pressed'), 'false');
+  // Moderado e Reduzido: o Balcão está parado e no mesmo lugar
+  for (const nivel of ['moderado', 'reduzido']) {
+    await page.evaluate(n => document.documentElement.setAttribute('data-movimento', n), nivel);
+    await page.goto(base + '#/listas'); await page.goto(base + '#/colecao'); await page.waitForSelector('#col-balcao .col-balcao__cor');
+    const m = await mede(); assert.deepEqual([m.anima, m.numeros, m.alturas[1]], [0, '0,16,0,0,4,2', 54], `${nivel}: ${JSON.stringify(m)}`);
+  }
+  await page.evaluate(() => document.documentElement.removeAttribute('data-movimento'));
+  assert.deepEqual(errors, []);
+});
+
 test('e2e · C11 importar por lista: conferir, importar, pendências com sugestão e desfazer', { skip }, async t => {
   const { page, errors, base } = await open(t);
   await page.addInitScript(FAKE_DEVICE(true));            // sem câmera: só a base de nomes interessa

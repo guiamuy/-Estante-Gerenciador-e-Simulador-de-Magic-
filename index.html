@@ -3973,6 +3973,27 @@ button.col-dash__bar:active, .col-dash__bar--on { background: var(--accent-soft)
 .col-dash__fill { display: block; height: 100%; background: var(--accent); border-radius: var(--radius-1); min-width: 2px; }
 .col-dash__fill--w { background: var(--mana-w); } .col-dash__fill--u { background: var(--mana-u); } .col-dash__fill--b { background: var(--mana-b); }
 .col-dash__fill--r { background: var(--mana-r); } .col-dash__fill--g { background: var(--mana-g); } .col-dash__fill--c { background: var(--mana-c); }
+/* DS-K3 K3-8 (G-390) · Balcão da Coleção: o total como título do cabeçalho editorial e as seis cores que filtram */
+.col-topo[data-total] .ds-cabecalho__titulo { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0; }
+.col-total__n { font-variant-numeric: lining-nums tabular-nums; letter-spacing: -.02em; }
+.col-total__sufixo { font-family: var(--font-ui); font-size: var(--text-sm); font-weight: var(--weight-bold); letter-spacing: .08em; text-transform: uppercase; color: var(--fg-muted); white-space: nowrap; }
+.col-balcao { display: grid; gap: var(--space-3); padding: var(--space-3) var(--space-4); }
+.col-balcao__topo { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2); min-width: 0; flex-wrap: wrap; }
+.col-balcao__titulo { margin: 0; font-family: var(--font-ui); font-size: var(--text-xs); line-height: var(--lh-xs); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--fg-muted); }
+.col-balcao__valor { margin: 0; font-size: var(--text-sm); line-height: var(--lh-sm); color: var(--fg-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.col-balcao__cores { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: calc(var(--space-1) * 1.5); }
+.col-balcao__cor { appearance: none; -webkit-appearance: none; display: flex; flex-direction: column; align-items: stretch; gap: var(--space-1); min-width: 0; min-height: var(--tap-min);
+  margin: 0; padding: var(--space-1) var(--space-1) var(--space-2); border: 0; border-radius: var(--radius-2); background: transparent; color: var(--fg); font: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.col-balcao__cor:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.col-balcao__cor--on { background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+.col-balcao__trilho { display: flex; align-items: flex-end; justify-content: center; box-sizing: content-box; height: 54px; border-bottom: 1px solid var(--border); } /* 54 px de barra + o fio da prateleira */
+.col-balcao__barra { display: block; width: 100%; max-width: 40px; border-radius: var(--radius-1) var(--radius-1) 2px 2px;
+  box-shadow: inset 0 1px 0 var(--edge-strong), inset 0 0 0 1px var(--border), var(--shadow-contact); }
+.col-balcao__barra--w { background: var(--mana-w); } .col-balcao__barra--u { background: var(--mana-u); } .col-balcao__barra--b { background: var(--mana-b); }
+.col-balcao__barra--r { background: var(--mana-r); } .col-balcao__barra--g { background: var(--mana-g); } .col-balcao__barra--c { background: var(--mana-c); }
+.col-balcao[data-ligada="true"] .col-balcao__cor:not(.col-balcao__cor--on) .col-balcao__barra { opacity: .4; }
+.col-balcao__base { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; }
+.col-balcao__n { font-size: var(--text-sm); line-height: var(--lh-sm); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .col-dash__n { font-size: var(--text-sm); color: var(--fg-muted); text-align: right; font-variant-numeric: tabular-nums; }
 .col-dash__curve { height: 120px; min-width: 0; }
 .col-dash__col { border: none; background: none; color: inherit; font: inherit; padding: 0; border-radius: var(--radius-1); min-height: var(--tap-min); }
@@ -17526,6 +17547,19 @@ function resumoColecao(itens, cards) {
     cor: fatias('cor'), tipo: fatias('tipo'), raridade: fatias('raridade'), custo: curva
   };
 }
+/** DS-K3 K3-8 · as seis barras do Balcão da Coleção (W U B R G C): cópias e cartas de cada cor pela mesma regra do filtro
+ *  "qualquer" (`cartaPassa`), para o número da barra bater com o que o toque filtra — a multicolor conta em cada cor dela,
+ *  incolor (artefato, terreno) é C; carta sem dados guardados fica fora (a linha "sem dados" do Painel já diz quantas). */
+const CORES_DO_BALCAO = ['W', 'U', 'B', 'R', 'G', 'C'];
+function porCorDaColecao(itens, cards) {
+  const conta = Object.fromEntries(CORES_DO_BALCAO.map(c => [c, { chave: c, cartas: 0, copias: 0 }]));
+  for (const g of itens || []) {
+    const card = cartaDe(g, cards); if (!card) continue;
+    const cores = card.colors || [], n = g.qtyRecorte ?? g.qty;
+    for (const c of cores.length ? cores : ['C']) { const x = conta[c]; if (x) { x.cartas++; x.copias += n; } }
+  }
+  return CORES_DO_BALCAO.map(c => conta[c]);
+}
 /** O que falta para montar uma lista com a coleção: por carta e no total (zona principal e comandante). */
 function faltaParaMontar(deck, owned) {
   const itens = [];
@@ -17579,7 +17613,7 @@ function descreveFiltroDeListas(f, { formatos = {} } = {}) {
   return partes.join(' · ');
 }
 
-return { FILTRO_LISTAS_VAZIO, ORDENS_DE_LISTA, POSSES_DE_LISTA, novoFiltroDeListas, filtrosDeListaAtivos, filtroDeListasVazio, filtraListas, descreveFiltroDeListas, FILTRO_VAZIO, novoFiltro, filtrosAtivos, filtroVazio, filtraColecao, opcoesDeFiltro, descreveFiltro, codificaFiltro, decodificaFiltro, mesmoFiltro, linkDoFiltro, ordenaColecao, agrupaColecao, resumoColecao, faltaParaMontar, AGRUPAMENTOS, ORDENACOES, CORES, TIPOS, TIPOS_PT, RARIDADES, FORMATOS };
+return { FILTRO_LISTAS_VAZIO, ORDENS_DE_LISTA, POSSES_DE_LISTA, novoFiltroDeListas, filtrosDeListaAtivos, filtroDeListasVazio, filtraListas, descreveFiltroDeListas, FILTRO_VAZIO, novoFiltro, filtrosAtivos, filtroVazio, filtraColecao, opcoesDeFiltro, descreveFiltro, codificaFiltro, decodificaFiltro, mesmoFiltro, linkDoFiltro, ordenaColecao, agrupaColecao, resumoColecao, porCorDaColecao, CORES_DO_BALCAO, faltaParaMontar, AGRUPAMENTOS, ORDENACOES, CORES, TIPOS, TIPOS_PT, RARIDADES, FORMATOS };
 })();
 
 /* ==== src/data/remoto.js ==== */
@@ -23611,6 +23645,44 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     closeDialog(); openPending();
   });
 
+  /* ---- DS-K3 K3-8 (G-390) · Balcão da Coleção: o total é o título e as seis cores são seis botões que filtram ----
+     O cabeçalho editorial (K3-4) ganha o número: rótulo "Coleção · N cartas únicas" e título "1.248 cartas" (o sufixo em
+     caixa alta pequena). Logo abaixo, o painel por cor: seis colunas W U B R G C, a altura de cada barra é a parte da
+     coleção inteira naquela cor (não a do recorte, para as outras cores não sumirem quando uma está ligada) e o número
+     embaixo é o mesmo que o toque filtra (`porCorDaColecao`, regra do filtro "qualquer"). Tocar liga a cor; tocar a ligada
+     desliga. Coleção vazia ou carregando: o cabeçalho volta a "Minha coleção" / "Coleção" e o Balcão some. */
+  const balcao = h('div', { id: 'col-balcao' });
+  const fmtN = n => Number(n).toLocaleString('pt-BR');
+  function paintCabecalhoDoTotal() {
+    const cab = root && root.querySelector('.col-topo'); if (!cab) return;
+    const tit = cab.querySelector('.ds-cabecalho__titulo'), rot = cab.querySelector('.ds-cabecalho__rotulo');
+    if (!state.items.length) { cab.removeAttribute('data-total'); tit.textContent = 'Coleção'; rot.textContent = 'Minha coleção'; return; }
+    const unicas = state.items.length, copias = state.items.reduce((s2, g) => s2 + g.qty, 0);
+    cab.dataset.total = String(copias);
+    rot.textContent = unicas === 1 ? 'Coleção · 1 carta única' : `Coleção · ${fmtN(unicas)} cartas únicas`;
+    mount(tit, h('span', { class: 'col-total__n' }, fmtN(copias)), h('span', { class: 'col-total__sufixo' }, copias === 1 ? 'carta' : 'cartas'));
+  }
+  const NOME_DA_COR = { W: 'Branco', U: 'Azul', B: 'Preto', R: 'Vermelho', G: 'Verde', C: 'Incolor' };
+  function paintBalcao() {
+    paintCabecalhoDoTotal();
+    if (!state.items.length) return mount(balcao, null);
+    const cores = FL.porCorDaColecao(state.items, state.cards), max = Math.max(1, ...cores.map(c => c.copias));
+    const algumaLigada = cores.some(c => ligada('cor', c.chave));
+    const v = __m31.soma(__m31.linhasDaColecao(state.items, cardOf), state.taxas || null);
+    mount(balcao, h('section', { class: 'ds-surface col-balcao', 'aria-label': 'Por cor', dataset: { ligada: String(algumaLigada) } },
+      h('div', { class: 'col-balcao__topo' },
+        h('h2', { class: 'col-balcao__titulo' }, 'Por cor · toque filtra'),
+        v.comPreco ? h('p', { class: 'col-balcao__valor', id: 'col-balcao-valor' }, `${__m31.principal(v)} · estimado`) : null),
+      h('div', { class: 'col-balcao__cores' }, ...cores.map(c => {
+        const on = ligada('cor', c.chave), k = c.chave.toLowerCase();
+        return h('button', { class: 'col-balcao__cor' + (on ? ' col-balcao__cor--on' : ''), type: 'button', dataset: { balcao: c.chave },
+          'aria-pressed': String(on), 'aria-label': `${NOME_DA_COR[c.chave]}: ${c.cartas} carta(s), ${c.copias} cópia(s)`, title: NOME_DA_COR[c.chave], onClick: () => aplicaFatia('cor', c.chave) },
+          h('span', { class: 'col-balcao__trilho', 'aria-hidden': 'true' },
+            h('span', { class: `col-balcao__barra col-balcao__barra--${k}`, style: { height: c.copias ? `max(3px, ${Math.round((c.copias / max) * 100)}%)` : '0' } })),
+          h('span', { class: 'col-balcao__base', 'aria-hidden': 'true' }, __m3.Simbolo(c.chave, { tamanho: 16 }), h('span', { class: 'col-balcao__n' }, fmtN(c.copias))));
+      }))));
+  }
+
   /* ---- C14 · painel: números do recorte, cada barra é um filtro, e o que falta para montar ---- */
   const dashboard = h('div', { id: 'col-dashboard' });
   function aplicaFatia(tipo, chave) {
@@ -23957,6 +24029,7 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     if (state.loading) return;
     pintaVazia(!state.items.length);
     // DS-K3 K3-6 (G-384) · vitrine vazia: Escanear e Colar lista lado a lado; CSV, pelo nome e a busca na gaveta "Mais formas de importar"
+    paintBalcao();
     if (!state.items.length) { paintUndo(); paintPending(); mount(dashboard, null); return mount(listEl, __m3.Vitrine({ id: 'col-vazio',
       rotulo: 'Nenhuma carta ainda', titulo: 'Aponte a câmera para a primeira',
       texto: 'O scanner lê o nome e a edição e guarda a carta aqui. Depois, a Coleção mostra o que falta para cada lista.',
@@ -24126,6 +24199,8 @@ function createCollectionScreen({ collection, decks, cardRepo, scryfall, files, 
     // DS-K F2.2 · cabeçalho 44 · 1fr · 44; J6 · "Adicionar" e "Escanear" moram no botão de ação; a busca fica à direita
     __m3.Cabecalho('Coleção', { classe: 'col-topo', rotulo: 'Minha coleção', direita: IconButton('buscar', 'Buscar cartas', { id: 'col-search', onClick: () => go('/cartas') }) }),
     // Leva 149 · ordem pedida: painel, adicionar carta, depois filtro e visões da coleção; ações da lista e backup no fim
+    // DS-K3 K3-8 (G-390) · o Balcão (por cor) vem antes do Painel: é o relance; o Painel é o detalhe
+    balcao,
     dashboard,
     secaoAdicionar,
     secaoExportar,
