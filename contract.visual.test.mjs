@@ -1344,3 +1344,34 @@ test('DS-K3 K3-7 · Início na direção Vitrine (fatia 1, Balcão): cabeçalho 
   // vazio: a vitrine da K3-6 com Ver prontas e Colar lista
   assert.match(HTML, /__m3\.Vitrine\(\{ id: 'home-vazio', titulo: 'Comece pela prateleira de cima'/);
 });
+
+// MK3-8 (J-78, trilha jogabilidade) · zonas-objeto: no lugar do ícone, a zona sobre o tampo — o grimório num maço de verso com o
+// lado das cartas (--maco: 1 px a cada 8, teto 6), o cemitério com a carta do topo, o exílio com a carta do topo sob o véu
+// (--zona-veu, um por tema). A miniatura tem a largura do ícone (16 px) e a proporção da carta, dentro da caixa de 34 px: nenhum
+// pixel de campo a mais. Repouso sem movimento (abrir é a MK3-9). Falhava no main de antes (sem os tokens nem .tb-zobj).
+test('MK3-8 · zonas-objeto: tokens nos três blocos; miniatura na proporção da carta e na caixa do contador; maço, face e véu só com tokens e sem movimento; a mesa passa o objeto do grimório, do cemitério e do exílio; palco no /ds', () => {
+  assert.equal(DARK['--zona-mini-w'], '16px', 'a largura do ícone de 16 px (a faixa não cresce)');
+  assert.equal(DARK['--zona-mini-h'], '22px');
+  assert.ok(Math.abs(16 / 22 - 63 / 88) < 0.02, 'proporção da carta (63:88)');
+  const caixa = parseInt(componentCss.match(/--chip-zona-h: (\d+)px/)[1], 10);
+  assert.ok(22 + 6 <= caixa, 'a face com o maço mais alto (6 px) cabe na caixa do contador');
+  for (const [nome, t] of [['escuro', DARK], ['claro', LIGHT], ['claro automático', { ...DARK, ...AUTO_LIGHT }]]) assert.match(t['--zona-veu'] || '', /^rgba\(\d+, \d+, \d+, \.\d+\)$/, `véu (${nome})`);
+  assert.notEqual(DARK['--zona-veu'], LIGHT['--zona-veu'], 'o véu apaga na direção do tampo de cada tema');
+  assert.equal(LIGHT['--zona-veu'], AUTO_LIGHT['--zona-veu'], 'claro e claro automático iguais');
+  const ini = componentCss.indexOf('.tb-zobj {'), fim = componentCss.indexOf('}', componentCss.indexOf('.tb-zobj__veu {')) + 1;
+  const regras = ini > 0 && fim > ini ? componentCss.slice(ini, fim) : '';
+  assert.ok(regras.length > 200, 'regras .tb-zobj');
+  assert.ok(!/#[0-9a-f]{3,8}\b|rgba?\(/i.test(regras), 'só tokens, nenhuma cor solta');
+  assert.ok(!/animation|transition/.test(regras), 'repouso: nada se move');
+  assert.match(regras, /\.tb-zobj \{[^}]*height: calc\(var\(--zona-mini-h\) \+ var\(--maco, 0px\)\);/, 'o maço cresce em altura, não em largura');
+  assert.match(regras, /\.tb-zobj__face \{[^}]*box-shadow: inset 0 0 0 1px var\(--edge\), 0 var\(--carta-espessura\) 0 var\(--carta-lado\), var\(--shadow-contact\);/s, 'L2: no tampo, lado + contato');
+  assert.match(regras, /\.tb-zobj\[data-tipo="maco"\]::before \{[^}]*repeating-linear-gradient\(180deg, var\(--carta-lado\) 0 1px, var\(--edge-strong\) 1px 2px\)/s, 'o lado das cartas empilhadas');
+  assert.match(regras, /\.tb-zobj__veu \{[^}]*background: var\(--zona-veu\);/s);
+  // a mesa passa o objeto; o oculto é decidido pelo modelo (puro) e vira verso
+  for (const z of ['library', 'graveyard', 'exile']) assert.ok(HTML.includes(`, objeto('${z}'))`), `a mesa passa o objeto de ${z}`);
+  assert.match(HTML, /const ob = T\.objetoDaZona\(s, p, zona, table\.viewer\(\)\);/);
+  assert.match(HTML, /card: o && !ob\.verso \? \{/, 'oculto: sem imagem nem nome da carta');
+  assert.match(HTML, /const face = obj\.verso \|\| !obj\.card \? h\('span', \{ class: 'ds-verso' \}\)/);
+  assert.ok(HTML.includes("h('span', { class: 'tb-zobj', dataset: { tipo: obj.tipo }, 'aria-hidden': 'true' }"), 'desenho fora do leitor de tela');
+  assert.ok(HTML.includes("id: 'ds-zonas-objeto'") && HTML.includes("'ds-zobj-veu-verso'"), 'palco no /ds');
+});
