@@ -20,7 +20,7 @@ Marcos: Pauper 100% (as sete listas revisadas carta a carta; 682 de 686 listas P
 | Trilha | Prefixo | Foco atual | Última leva | Próximo |
 |---|---|---|---|---|
 | `scanner` | S | X16: #90 foil (F1 só foil; F2 selo "Foil?") | S-625 · 11/11 | calibrar o foil e #79 no aparelho |
-| `geral` | G | DS-K3; T-IDIOMA #151 5c: Commander em pt/es por lotes (G-387, G-391) | G-391 · 14/11 | 5c lote 3+ (1.802 pt, 687 es); Darval |
+| `geral` | G | DS-K3 K3-7 f1 (G-388), K3-8 f1 (G-390); #151 5c Commander (G-391) | G-392 · 14/11 | K3-7 f2; K3-8 f2 + MV-3; 5c lote 3+; Darval |
 | `motor` | M | Modern 140/719 (≈160 com a fila) | M-632 · 13/11 | 712.8d (subtipo da face de cima); Arena of Glory |
 | `radar` | R | BI4 · Painel Estante: comparar períodos, metas, tendência | R-44 · 07/11 | BI4-6 em diante; validação do dono após os primeiros pilares |
 | `jogabilidade` | J | MK3 · Mesa Vitrine (rotina) | J-76 · 13/11 | prompt v2 do ateliê; MK3-5; #54 |
@@ -81,4 +81,4 @@ Os documentos `claude/…` moram no Projeto do claude.ai, fora do repositório: 
 
 No commit de docs de cada leva (o mesmo que atualiza o ROADMAP): reescreva a **sua** linha na tabela de trilhas, atualize relatos e pendências se mudaram e troque a data abaixo. Edite por patch, nunca o arquivo inteiro. Conflito no rebase: fique com as linhas das outras trilhas e a sua. Passou de 8 KB: resuma, não acrescente.
 
-Atualizado: 14/11/2026 · G-389 · J-75 · I-334 · M-632 · B-214 · M-626 · J-69 · G-386 · M-616 · G-381 · J-74 · I-333 · J-64 · M-623 · G-387 · G-391
+Atualizado: 14/11/2026 · G-389 · J-75 · I-334 · M-632 · B-214 · M-626 · J-69 · G-386 · J-74 · I-333 · J-64 · M-623 · G-387 · G-391 · G-392
