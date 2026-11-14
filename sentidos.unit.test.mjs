@@ -240,6 +240,26 @@ test('J-72 · relato #152: no turno comprido do oponente, os passos sem jogada e
   assert.equal(S.roteiroDaJogada([mim, dele(0, 'x'.repeat(300))], { eu: 0, tipos })[1].ms, 3200, 'teto da leitura');
 });
 
+test('J-77 · relato #152, fatia 3: no meu toque, a mesma jogada do oponente repetida em seguida vira um quadro só ("(2×)", estado da última); desligado, nada muda', () => {
+  const base = (objs, extra) => st(objs, { players: [{ life: 20, name: 'Você' }, { life: 20, name: 'Shark' }], ...extra });
+  const t = { number: 4, active: 1, step: 'main1' };
+  const s0 = base([ob(1, 'hand', { name: 'Ilha' })]), s1 = base([ob(1, 'battlefield', { name: 'Ilha' })], { turn: t });
+  const mim = { antes: s0, depois: s1, acao: { t: 'play_land', p: 0, oid: 1 }, eventos: [], linhas: ['Você jogou Ilha'] };
+  const dele = (n, frase) => ({ antes: s1, depois: { ...s1, n }, acao: { t: 'choose', p: 1 }, eventos: [], linhas: [frase] });
+  // como no relato: Thought Scour, Sleep of the Dead duas vezes seguidas, Ponder
+  const passos = [mim, dele(0, 'Shark escolheu Thought Scour'), dele(1, 'Shark escolheu Sleep of the Dead'), dele(2, 'Shark escolheu Sleep of the Dead'), dele(3, 'Shark escolheu Ponder')];
+  const junto = S.roteiroDaJogada(passos, { eu: 0, tipos, junta: true });
+  assert.deepEqual(J(junto.map(x => x.legenda)), ['Você jogou Ilha', 'Shark escolheu Thought Scour', 'Shark escolheu Sleep of the Dead (2×)', 'Shark escolheu Ponder']);
+  assert.equal(junto[2].estado, passos[3].depois, 'o quadro junto mostra a mesa depois da última repetição');
+  assert.ok(junto[2].ms >= 1600, 'e fica tempo de ler');
+  assert.equal(junto[junto.length - 1].estado, passos[4].depois, 'o último quadro segue sendo o estado final');
+  // a mesma frase separada por outra jogada não junta; três seguidas viram "(3×)"
+  const tres = S.roteiroDaJogada([mim, dele(0, 'Shark escolheu Ponder'), dele(1, 'Shark escolheu Ponder'), dele(2, 'Shark escolheu Ponder'), dele(3, 'Shark conjurou Bicho'), dele(4, 'Shark escolheu Ponder')], { eu: 0, tipos, junta: true });
+  assert.deepEqual(J(tres.map(x => x.legenda)), ['Você jogou Ilha', 'Shark escolheu Ponder (3×)', 'Shark conjurou Bicho', 'Shark escolheu Ponder']);
+  // desligado (o padrão): um quadro por jogada, como antes
+  assert.equal(S.roteiroDaJogada(passos, { eu: 0, tipos }).length, 5);
+});
+
 test('H5 · o modelo da mesa guarda os passos só quando a tela pede, e a colheita esvazia', () => {
   const setup = T.buildSetup({ format: 'pauper', seed: 21, cards: CARDS, seats: [{ name: 'Você', deck: { entries: PAUPER_DECK } }, { name: 'Shark', deck: { entries: PAUPER_DECK } }], manaCheck: true, mode: 'full' });
   const mesa = T.createTable(setup, { options: { autoPass: true, bot: { nivel: 'shark', seat: 1 } } });
