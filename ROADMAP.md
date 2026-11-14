@@ -728,6 +728,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-vy ✅ | T-IDIOMA relato #151, fatia 5b: fora da folha e da mesa, a Coleção (linha e vista densa) mostra o tipo da carta no idioma do app quando o texto no idioma está guardado no aparelho; os esclarecimentos dizem que só existem em inglês (G-385, 12/11/2026) | T | 1 | 16º-vv |
 | 16º-wa ✅ | T-IDIOMA relatos #53/#66, acerto de termo (G-386, 13/11/2026): ward no texto traduzido em português sai como "Salvaguarda", o termo impresso oficial (Scryfall, printed_text pt, consulta de 13/11/2026); 14 cartas do pacote estavam com "Proteção" (que é protection) ou "Resguardo". O conferidor ganha ward no glossário (pt "salvaguarda", es "custodia"). | T | 1 | 16º-vx |
 | 16º-wb ✅ | T-IDIOMA relato #151, fatia 5c, lote 1: o Oracle das cartas de Commander que faltavam vem do Forge (`idiomas/oficiais-forge-commander.json`, 1.858 cartas; a Scryfall não responde na nuvem) e as mais usadas nas listas de Commander ganham tradução (36 em português, 28 em espanhol: as dez terras duplas originais, Mishra's Workshop, Propaganda, Deadpool…) (G-387, 13/11/2026) | T | 1 | 16º-vx |
+| 16º-wd ✅ | T-IDIOMA relato #151, fatia 5c, lote 2: as próximas cartas de Commander mais usadas nas listas ganham tradução (33 em português, 27 em espanhol: Vesuva, Xorn, Clown Car, Brigid, Gogo, Lhurgoyf, Vendetta, Darksteel Monolith…), com o Oracle da base do Forge ou da cobertura (G-391, 14/11/2026) | 1 | 16º-wb |
 | 16º-vf ✅ | Relato #137 (J-70): com o detalhe da pilha aberto, tocar de novo na faixa (na seta) recolhe; antes nada acontecia e só Esc ou toque fora fechavam (J-70, 11/11/2026) | J | 1 | — |
 | 16º-vh 🟡 | Relato #135, fatia 1 (G-379, 11/11/2026): lista pronta do Pauper que o motor não joga inteira (medida da sentinela abaixo de 100%) sai das Listas prontas e das prontas do Jogar, com a linha "N listas de Pauper estão fora…"; a medida a 100% a traz de volta sozinha. Fatia 2: a rotina Sentinela do Pauper trata primeiro as listas que saíram | G | 1 de 2 | 16º-vd |
 | 16º-vi ✅ | Relato #136 (J-69): o ⋯ da mesa abre o menu (Desfazer, Registro, Desistir), nunca o relato: a aba de relatar da borda direita ganha um piso medido no ⋯ (base dele + 8 px), refeito a cada pintura, rolagem e mudança de tamanho; com a barra de cima mais baixa (recorte da câmera no app instalado) ou a aba arrastada ao alto, ela não cobre mais o ⋯. A posição guardada não muda (leva J-69, 11/11/2026) | J | ½ | 16º-vd |
@@ -13949,6 +13950,17 @@ trilha `geral`, 09/11/2026; relato do dono de 09/11: o Enviar abria o GitHub e o
   fatia 5c, por uso nas listas); 14 sem arquivo no Forge (as de preparação, como Emeritus of Woe // Demonic Tutor, e
   Arvinox, Baldin, Greymond, Mathise, Okaun e Zndrsplt), cartas de adesivo (Unfinity) e Horizon of Progress (o Forge
   difere do Oracle) ficam para o fim. Se o Oracle do Forge divergir do da Scryfall numa carta, o app mostra o inglês.
+- **Fatia 5c, lote 2 (G-391, `16º-wd`, rotina Relatos contínuo, 14/11/2026) ✅ (relato #151):** as próximas cartas de
+  Commander mais usadas nas listas do catálogo, pelo conferidor: 33 em português (Vesuva, Xorn, Clown Car, Arena Rector, Brigid,
+  Clachan's Heart // Brigid, Doun's Mind, Gogo, Irma, Casey Jones, World War Hulk, Vivi's Persistence…) e 27 em espanhol
+  (Altar of the Wretched // Wretched Bonemass, Darksteel Monolith, Doctor Doom, Lhurgoyf, Hammerheim, Vendetta, Tempt with
+  Mayhem…). O original é o Oracle da base do Forge da G-387; sete (Mister Fantastic, Glamer Gifter, Leyline of Transformation,
+  Irma, Doctor Doom, Marneus Calgar, The Mightstone and Weakstone) já tinham o da Scryfall na cobertura do catálogo. Teste U
+  `idioma-commander.unit` G-391 (falhava antes; confere também as duas faces no app). Ficaram de fora deste lote, por o
+  texto do Forge diferir do Oracle (o app mostraria o inglês): Lumra, Bellow of the Woods (o Forge escreve o nome inteiro onde
+  o Oracle diz "Lumra") e Horizon Explorer (o lembrete do Aterrissador sem o {T}); Ransom Note (es) espera o termo oficial
+  de goad e cloak em espanhol. **Parcial, declarado:** seguem em inglês 1.802 cartas de Commander em português e 687 em
+  espanhol (próximos lotes da 5c); as de adesivo (Unfinity) e Horizon of Progress, para o fim.
 - **Fora, declarado (fatias seguintes):** a troca de idioma no Perfil (item 2); os pacotes **es** e **en** (item 3: extrair os
   textos para um dicionário por idioma, história de várias rodadas); texto e nome das cartas (item 4, aguarda decisão
   "oficial"/"automática"); a **camada obrigatória de idioma em toda entrega** (texto novo nasce no dicionário e o teste barra

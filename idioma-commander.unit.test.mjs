@@ -63,3 +63,49 @@ test('G-387 · pacotes: o primeiro lote de Commander está lá, traduz o Oracle 
   assert.equal(lePacote('pt').cartas['Volcanic Island'].texto, '({T}: Adicione {U} ou {R}.)');
   assert.equal(lePacote('es').cartas['Volcanic Island'].tipo, 'Tierra — Isla Montaña');
 });
+
+// G-391 · fatia 5c, lote 2: as próximas cartas de Commander mais usadas nas listas (fora as de adesivo, Horizon of Progress,
+// Lumra e Horizon Explorer, cujo texto no Forge difere do Oracle e nunca apareceriam). Falhava antes: nenhuma no pacote.
+const LOTE2_PT = ['Mister Fantastic, Reed Richards', 'Scour for Scrap', 'Vesuva', 'Xorn', 'Glamer Gifter', 'Opera Love Song', "Peter Parker's Camera",
+  'Leyline of Transformation', 'The Last Agni Kai', 'Apple of Eden, Isu Relic', 'Arena Rector', "Brigid, Clachan's Heart // Brigid, Doun's Mind",
+  'Celestial Reunion', 'Chrome Dome', 'Clown Car', 'Destiny Spinner', 'Flash Thompson, Spider-Fan', 'Generous Patron', 'Irma, Part-Time Mutant',
+  "Louisoix's Sacrifice", 'Patchwork Banner', 'Preston, the Vanisher', 'Razorkin Needlehead', 'Shadow of the Goblin', 'World War Hulk',
+  'All-Fates Stalker', 'Bane of Progress', 'Black Widow, Agile Avenger', 'Blazemire Verge', 'Bonus Round', 'Casey Jones, Back Alley Brute',
+  'Gogo, Mysterious Mime', "Vivi's Persistence"];
+const LOTE2_ES = ['The Vision and Scarlet Witch', 'Altar of the Wretched // Wretched Bonemass', 'Darksteel Monolith', 'Doctor Doom, Unrivaled',
+  'Dwarven Armorer', 'Eladamri, Korvecdal', 'Marneus Calgar', 'The Mightstone and Weakstone', 'Zhulodok, Void Gorger', 'Hei Bai, Forest Guardian',
+  'Icatian Moneychanger', 'Storm of Memories', 'Stunt Double', "Ambassador K'Ehleyr", 'Bag End Banquet', "Fogwell's Gym", 'Hammerheim',
+  'Korok, Liberated Rage', 'Lhurgoyf', 'Lyse Hext', 'Marang River Regent // Coil and Catch', 'Merciful Mandate', 'Seven of Nine, Tertiary Adjunct',
+  'Shore Leave Planet', 'Temporal Tribulation', 'Tempt with Mayhem', 'Vendetta'];
+
+const JA_TINHAM2 = ['Mister Fantastic, Reed Richards', 'Glamer Gifter', 'Leyline of Transformation', 'Irma, Part-Time Mutant',
+  'Doctor Doom, Unrivaled', 'Marneus Calgar', 'The Mightstone and Weakstone'];
+
+test('G-391 · pacotes: o segundo lote de Commander está lá, traduz o Oracle da base, passa no conferidor e vale no app (duas faces incluídas)', () => {
+  const base = new Map(BASE.cartas.map(c => [c.name, c]));
+  for (const lang of IDIOMAS) assert.deepEqual(conferePacote(lePacote(lang), lang), {}, lang);
+  for (const [lang, lote] of [['pt', LOTE2_PT], ['es', LOTE2_ES]]) {
+    const P = lePacote(lang);
+    for (const nome of lote) {
+      const e = P.cartas[nome]; assert.ok(e, `${lang} · ${nome}`);
+      const b = base.get(nome);
+      if (Array.isArray(e.original)) {
+        assert.ok(b && b.card_faces, `${lang} · ${nome}: duas faces na base`);
+        assert.deepEqual(e.original, b.card_faces.map(f => f.oracle_text), `${lang} · ${nome}: o original é o Oracle das faces`);
+        const card = { name: nome, faces: b.card_faces.map(f => ({ oracle_text: f.oracle_text })) };
+        const t = C.traducaoDaCarta(P, card, lang);
+        assert.ok(t && t.faces.length === 2 && t.faces.every(f => f && f.texto && f.tipo), `${lang} · ${nome}: as duas faces aparecem no app`);
+      } else {
+        // estas já tinham o Oracle da Scryfall na cobertura do catálogo (a primeira fonte do --faltam); as outras vêm da base do Forge
+        if (JA_TINHAM2.includes(nome)) assert.ok(!b, `${nome}: fora da base do Forge`);
+        else assert.equal(e.original, b?.oracle_text, `${lang} · ${nome}: o original é o Oracle da base`);
+        assert.ok(typeof e.tipo === 'string' && e.tipo.trim(), `${lang} · ${nome}: tipo`);
+        assert.ok(C.traducaoDaCarta(P, { name: nome, oracle_text: e.original }, lang), `${lang} · ${nome} aparece no app`);
+      }
+    }
+  }
+  // as palavras-chave no termo do idioma e o nome da carta intacto
+  assert.match(lePacote('pt').cartas['Glamer Gifter'].texto, /^Lampejo\nVoar\n/);
+  assert.equal(lePacote('pt').cartas['Clown Car'].texto.split('Clown Car').length - 1, 2);
+  assert.match(lePacote('es').cartas['Altar of the Wretched // Wretched Bonemass'].faces[1].texto, /dañar primero, dañar dos veces, toque mortal, prisa, antimaleficio/);
+});
