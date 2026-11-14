@@ -11132,10 +11132,12 @@ test('e2e · J-47 contadores de zona menores: caixa de 34 px, toque de 44 px, li
     return { token, lados: [...document.querySelectorAll('.tb-board .tb-side')].map(l => { const cab = l.querySelector('.tb-side__head'), carta = l.querySelector('.tb-card');
       // a fileira, não a carta (a carta pode estar no meio de uma transição de entrada ou de toque)
       return { lado: l.className, cab: R(cab).height, cartaAbaixo: carta ? R(carta.closest('.tb-row')).top + parseFloat(getComputedStyle(carta.closest('.tb-row')).paddingTop) - R(l).top : null,
-        chips: [...l.querySelectorAll('.tb-chip')].map(c => { const b = R(c), ps = getComputedStyle(c, '::before'), icone = c.querySelector('.ds-icon svg');
+        // MK3-8 (J-78) · a expectativa muda de propósito: no grimório, no cemitério e no exílio com cartas, a zona-objeto (16 px de
+        // largura, como o ícone) toma o lugar do ícone; mede-se ela, e ela também fica dentro da caixa de 34 px
+        chips: [...l.querySelectorAll('.tb-chip')].map(c => { const b = R(c), ps = getComputedStyle(c, '::before'), icone = c.querySelector('.tb-zobj') || c.querySelector('.ds-icon svg');
           const caixaT = b.top + parseFloat(ps.top), caixaB = b.bottom - parseFloat(ps.bottom), cabR = R(cab);
           return { nome: c.getAttribute('aria-label'), w: b.width, h: b.height, zero: c.dataset.zero === 'true', caixa: ps.content !== 'none' ? caixaB - caixaT : 0, fundo: ps.backgroundColor, icone: icone ? R(icone).width : 0, numero: parseFloat(getComputedStyle(c.querySelector('b')).fontSize),
-            caixaNaLinha: ps.content === 'none' || (caixaT >= cabR.top - 0.5 && caixaB <= cabR.bottom + 0.5), conteudoNaCaixa: (() => { const i = c.querySelector('.ds-icon'); return !i || (R(i).top >= caixaT - 0.5 && R(i).bottom <= caixaB + 0.5); })(),
+            caixaNaLinha: ps.content === 'none' || (caixaT >= cabR.top - 0.5 && caixaB <= cabR.bottom + 0.5), conteudoNaCaixa: (() => { const i = c.querySelector('.tb-zobj') || c.querySelector('.ds-icon'); return !i || (R(i).top >= caixaT - 0.5 && R(i).bottom <= caixaB + 0.5); })(),
             sobraParaCima: b.top < cabR.top - 0.5, sobraParaBaixo: b.bottom > cabR.bottom + 0.5 }; }) }; }) };
   });
   for (const [w, hgt] of [[360, 780], [384, 832], [390, 844], [412, 891]]) for (const tema of ['dark', 'light']) {
@@ -17979,7 +17981,7 @@ test('e2e · MJ1b faixa compacta por lado: vida e contadores numa linha de 44 px
       // DS-K2 M3 (J-39) · a vida foi para a barra de cima: na linha do lado ficam o nome do outro (e notas) e os contadores
       const r = e => e.getBoundingClientRect(), cab = l.querySelector('.tb-side__head'), vida = l.querySelector('.tb-side__info') || cab;
       // J-47 · o meio é o da caixa (sem a sobra de toque do botão de 44 px, que fica fora da linha de 34)
-      const chips = [...l.querySelectorAll('.tb-chip')].map(c => ({ ...((b, cs) => ({ x: b.left, r: b.right, y: b.top, h: b.height, w: b.width, meio: (b.top + parseFloat(cs.paddingTop) + b.bottom - parseFloat(cs.paddingBottom)) / 2 }))(r(c), getComputedStyle(c)), nome: c.getAttribute('aria-label'), icone: !!c.querySelector('.ds-icon svg') }));
+      const chips = [...l.querySelectorAll('.tb-chip')].map(c => ({ ...((b, cs) => ({ x: b.left, r: b.right, y: b.top, h: b.height, w: b.width, meio: (b.top + parseFloat(cs.paddingTop) + b.bottom - parseFloat(cs.paddingBottom)) / 2 }))(r(c), getComputedStyle(c)), nome: c.getAttribute('aria-label'), icone: !!c.querySelector('.tb-zobj, .ds-icon svg') })); // MK3-8 (J-78) · a expectativa muda de propósito: a zona-objeto toma o lugar do ícone
       const carta = l.querySelector('.tb-card'), rotulos = [...l.querySelectorAll('.tb-zone__label')];
       return { lado: l.className, cab: r(cab).height, vida: { r: vida === cab ? r(cab).left : r(vida).right, meio: r(cab).top + r(cab).height / 2, h: r(cab).height }, chips,
         cartaAbaixo: carta ? r(carta).top - r(l).top : null, rotulosVisiveis: rotulos.filter(x => r(x).width > 1).length, rotulosTexto: rotulos.map(x => x.textContent).join(' | ') };
@@ -22663,6 +22665,71 @@ test('e2e · J-65 MK3-2 simetria contra o goldfish: o seu grimório leva data-as
     await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(250);
     assert.equal(await page.getAttribute('#tb-lib-me', 'data-assimetria'), 'o goldfish não tem grimório');
     await auditaSimetria(page, `J-65 · MK3-2 goldfish ${tema}`); await auditaTela(page, `J-65 · MK3-2 goldfish ${tema}`);
+  }
+  assert.deepEqual(errors, []);
+});
+
+// MK3-8 (J-78, trilha jogabilidade) · zonas-objeto: no lugar do ícone, a zona sobre o tampo. O grimório é um maço de verso com o
+// lado das cartas (1 px a cada 8, teto 6; nunca a face: informação oculta), o cemitério mostra a carta do topo e o exílio a
+// carta do topo sob o véu, nos dois lados (espelho). A miniatura cabe na caixa de 34 px do contador: a faixa de identidade
+// continua com a mesma altura e cada zona no mesmo lugar (zero pixel de campo). Repouso sem movimento nos três níveis. O nome
+// do topo entra no nome falado do contador. Quatro medidas, dois temas, auditaSimetria e auditaTela.
+test('e2e · J-78 MK3-8 zonas-objeto: grimório em maço de verso com espessura, cemitério e exílio com a carta do topo (o exílio sob o véu), nos dois lados; faixa da mesma altura, miniatura dentro da caixa do contador, nome do topo no nome falado, nada se move em repouso nos três níveis; quatro medidas, dois temas, auditaSimetria e auditaTela', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  const ELFOS = '4 Elvish Mystic\n11 Forest\n1 Fyndhorn Elves\n4 Generous Ent\n4 Llanowar Elves\n4 Masked Vandal\n4 Nyxborn Hydra\n4 Priest of Titania\n4 Quirion Ranger\n2 Sagu Wildling\n3 Timberwatch Elf\n4 Lead the Stampede\n4 Winding Way\n2 Land Grant\n1 Gingerbread Cabin';
+  await createDeck(page, base, 'Elfos', ELFOS);
+  await page.goto(base + '#/mesa'); await page.fill('#mesa-seed', '1');
+  await page.waitForFunction(() => { const c = document.querySelector('[data-opponent="shark"]'); return c && !c.disabled; }, null, { timeout: 8000 });
+  await page.click('[data-opponent="shark"]'); await page.waitForSelector('#mesa-bot-deck');
+  await escolheLista(page, 'mesa-bot-deck', 'shark-elfos');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await semPensar(page); await page.waitForSelector('#tb-pass, #tb-pass-turn');
+  await page.evaluate(() => window.__estanteMesa.verJogadas(false));
+  const faixas = () => page.evaluate(() => [...document.querySelectorAll('.tb-board > .tb-side > .tb-side__head')].map(e => Math.round(e.getBoundingClientRect().height)));
+  const antes = await faixas();
+  // o grimório já é maço; cemitério e exílio vazios ficam como eram (ícone apagado, sem objeto)
+  const vazio = await page.evaluate(() => ({ lib: !!document.querySelector('#tb-lib-me .tb-zobj[data-tipo="maco"]'), cem: !!document.querySelector('#tb-cemiterio-me .tb-zobj'), icone: !!document.querySelector('#tb-cemiterio-me .tb-chip__icone') }));
+  assert.deepEqual(vazio, { lib: true, cem: false, icone: true }, 'zona vazia sem objeto');
+  // um Forest no cemitério e um Llanowar Elves no exílio de cada lado (o topo do cemitério é o último que chegou)
+  await page.evaluate(() => { const M = window.__estanteMesa, s = M.estado();
+    const pega = (p, nome) => s.zones[p].library.map(x => s.objects[x]).find(o => o.name === nome);
+    for (const p of [0, 1]) { const g1 = pega(p, 'Elvish Mystic'); M.act({ t: 'move', p: M.estado().turn.priority, oid: g1.oid, to: 'graveyard' });
+      const g2 = pega(p, 'Forest'); M.act({ t: 'move', p: M.estado().turn.priority, oid: g2.oid, to: 'graveyard' });
+      const e = pega(p, 'Llanowar Elves'); M.act({ t: 'move', p: M.estado().turn.priority, oid: e.oid, to: 'exile' }); } });
+  await page.waitForFunction(() => document.querySelectorAll('.tb-zobj[data-tipo="veu"]').length === 2);
+  const lido = () => page.evaluate(() => { const M = window.__estanteMesa, s = M.estado(), R = e => e.getBoundingClientRect();
+    return [...document.querySelectorAll('.tb-board > .tb-side')].map(l => { const p = +l.dataset.p, chip = z => l.querySelector(`.tb-chip[data-zona="${z}"]`);
+      const caixa = c => { const b = R(c), ps = getComputedStyle(c, '::before'); return { top: b.top + parseFloat(ps.top), bottom: b.bottom - parseFloat(ps.bottom) }; };
+      const dentro = c => { const o = c.querySelector('.tb-zobj'); if (!o) return null; const b = R(o), cx = caixa(c); return b.top >= cx.top - 0.5 && b.bottom + 2 <= cx.bottom + 0.5; }; // + o fio de lado (2 px)
+      const lib = chip('library'), cem = chip('graveyard'), ex = chip('exile');
+      return { p, maco: lib.querySelector('.tb-zobj').style.getPropertyValue('--maco'), libLen: s.zones[p].library.length, libImg: !!lib.querySelector('img') || !lib.querySelector('.tb-zobj__face .ds-verso'),
+        cem: cem.querySelector('.tb-zobj').dataset.tipo, cemImg: !!cem.querySelector('.tb-zobj__face img, .tb-zobj__face .ds-icon') && !cem.querySelector('.ds-verso'), cemFala: cem.getAttribute('aria-label'),
+        ex: ex.querySelector('.tb-zobj').dataset.tipo, exVeu: !!ex.querySelector('.tb-zobj__veu'), exImg: !!ex.querySelector('.tb-zobj__face img, .tb-zobj__face .ds-icon') && !ex.querySelector('.ds-verso'), exFala: ex.getAttribute('aria-label'),
+        dentro: [lib, cem, ex].map(dentro), oculto: [lib, cem, ex].every(c => c.querySelector('.tb-zobj').getAttribute('aria-hidden') === 'true') }; }); });
+  for (const x of await lido()) {
+    const quem = x.p === 0 ? 'seu lado' : 'lado do outro';
+    assert.equal(x.maco, Math.min(6, Math.ceil(x.libLen / 8)) + 'px', `${quem}: o maço com 1 px a cada 8 cartas (${x.libLen})`);
+    assert.equal(x.libImg, false, `${quem}: o grimório é verso (nenhuma imagem de carta)`);
+    assert.equal(x.cem, 'face'); assert.ok(x.cemImg, `${quem}: a carta do topo do cemitério, de face (a imagem, ou o ícone da zona quando a carta não tem imagem nos dados)`); assert.match(x.cemFala, /^Cemitério: 2, no topo: Forest/, `${quem}: o topo no nome falado`);
+    assert.equal(x.ex, 'veu'); assert.ok(x.exVeu && x.exImg, `${quem}: a carta do exílio sob o véu`); assert.match(x.exFala, /^Exílio: 1, no topo: Llanowar Elves/);
+    assert.deepEqual(x.dentro, [true, true, true], `${quem}: a miniatura dentro da caixa de 34 px do contador`);
+    assert.ok(x.oculto, `${quem}: desenho fora do leitor de tela`);
+  }
+  assert.deepEqual(await faixas(), antes, 'zero pixel de campo: a faixa de identidade com a mesma altura de antes');
+  // repouso: nada se move nas zonas, nos três níveis de Movimento
+  for (const nivel of ['completo', 'moderado', 'reduzido']) {
+    await page.evaluate(n => document.documentElement.setAttribute('data-movimento', n), nivel); await page.waitForTimeout(100);
+    const mexe = await page.evaluate(() => document.getAnimations().filter(a => a.effect && a.effect.target && a.effect.target.closest && a.effect.target.closest('.tb-zobj')).length);
+    assert.equal(mexe, 0, `${nivel}: a zona em repouso não se move`);
+  }
+  await page.evaluate(() => document.documentElement.setAttribute('data-movimento', 'completo'));
+  for (const [w, hgt] of [[360, 780], [384, 832], [390, 844], [412, 891]]) for (const tema of ['dark', 'light']) {
+    await page.setViewportSize({ width: w, height: hgt }); await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(250);
+    const onde = `${w}×${hgt} ${tema}`;
+    await auditaSimetria(page, `J-78 · MK3-8 ${onde}`);
+    await auditaTela(page, `J-78 · MK3-8 ${onde}`);
+    if (process.env.SHOTS && w === 360) await page.screenshot({ path: process.env.SHOTS + `/j-78-mk3-8-${tema}.png`, fullPage: true });
   }
   assert.deepEqual(errors, []);
 });

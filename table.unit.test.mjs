@@ -886,3 +886,27 @@ test('MK3-4 · profundidadeDoLeque: centro 0, pontas 1, simétrica, entre 0 e 1,
     assert.equal(p.length, n); assert.deepEqual(p, p.slice().reverse(), `${n}: simétrica`); assert.ok(p.every(x => x >= 0 && x <= 1));
     assert.deepEqual([p[0], p[n - 1]], [1, 1], `${n}: as pontas recuam inteiras`); }
 });
+
+// MK3-8 (J-78, trilha jogabilidade) · zonas-objeto: o grimório é um maço de verso com 1 px de lado a cada 8 cartas (teto 6); o
+// cemitério mostra a carta do topo (a última da lista, como o motor lê "o topo do cemitério"); o exílio, a carta do topo sob o
+// véu, de verso para quem não é o dono quando está virada para baixo (406.3). Falhava no main de antes (não existia).
+test('MK3-8 · objetoDaZona: maço do grimório com espessura, topo do cemitério, exílio com véu e oculto para o outro; zona vazia sem objeto', () => {
+  assert.deepEqual([0, 1, 7, 8, 9, 16, 41, 53, 99].map(n => T.espessuraDoMaco(n)), [0, 1, 1, 1, 2, 2, 6, 6, 6]);
+  const t = hotseat(), s = J(t.state);
+  const lib = J(T.objetoDaZona(s, 0, 'library', 0));
+  assert.deepEqual(lib, { tipo: 'maco', oid: null, verso: true, maco: T.espessuraDoMaco(s.zones[0].library.length) });
+  assert.equal(T.objetoDaZona(s, 0, 'graveyard', 0), null, 'cemitério vazio: o contador fica como era');
+  const [a, b, c] = s.zones[0].library;
+  s.zones[0].library = s.zones[0].library.filter(x => x !== a && x !== b && x !== c);
+  s.zones[0].graveyard = [a, b]; s.objects[a].zone = s.objects[b].zone = 'graveyard';
+  s.zones[0].exile = [c]; s.objects[c].zone = 'exile';
+  const antes = JSON.stringify(s);
+  assert.deepEqual(J(T.objetoDaZona(s, 0, 'graveyard', 1)), { tipo: 'face', oid: b, verso: false, maco: 0 }, 'o topo é o último');
+  assert.deepEqual(J(T.objetoDaZona(s, 0, 'exile', 1)), { tipo: 'veu', oid: c, verso: false, maco: 0 });
+  s.objects[c].faceDown = true;
+  assert.equal(T.objetoDaZona(s, 0, 'exile', 0).verso, false, 'o dono vê a própria carta exilada virada para baixo');
+  assert.equal(T.objetoDaZona(s, 0, 'exile', 1).verso, true, 'o outro vê o verso (informação oculta)');
+  delete s.objects[c].faceDown;
+  assert.equal(JSON.stringify(s), antes, 'puro: não toca no estado');
+  assert.equal(T.objetoDaZona(s, 0, 'hand', 0), null, 'a mão não vira objeto');
+});
