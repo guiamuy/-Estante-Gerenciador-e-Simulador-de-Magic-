@@ -25921,6 +25921,8 @@ function tiposDeCartaM(card, types) {
   const t = ['artifact', 'battle', 'creature', 'enchantment', 'instant', 'kindred', 'land', 'planeswalker', 'sorcery'].filter(x => new RegExp('\\b' + x + '\\b').test(alvo) || (x === 'kindred' && /\btribal\b/.test(alvo)));
   return t.length === types.length && t.every(x => types.includes(x)) ? {} : { tiposDeCarta: t };
 }
+/** M-634 · a linha de tipo impressa que vale fora da pilha: na dupla face e na aventura, só a da face de cima (o dado da Scryfall traz "A // B"). */
+const linhaDaFaceDeCimaM = card => { const tl = String((card && card.type_line) || ''); return ['transform', 'modal_dfc', 'adventure'].includes(String((card && card.layout) || '').toLowerCase()) ? tl.split(' // ')[0] : tl; };
 function cardFacts(card) {
   const tl = String(card && card.type_line || '').toLowerCase().split('//')[0];
   const types = PERMANENT.concat(['instant', 'sorcery']).filter(t => new RegExp('\\b' + t + '\\b').test(tl)); // M-543 · palavra inteira: "Lander" não é terreno (achado da revisão)
@@ -25971,7 +25973,7 @@ function cardFacts(card) {
     semCusto: !tl.includes('land') && !((card && card.cmc) > 0) && !String((card && (card.mana_cost || (card.faces && card.faces[0] && card.faces[0].mana_cost))) || '').trim(),
     textoK: palavrasDoTextoK(card), // K-15 · palavras-chave das linhas só de palavra-chave do texto (dado sem a lista da Scryfall)
     colors: coresImpressasK(kw.concat(palavrasDoTextoK(card) || []), ((card && (card.colors || card.color_identity)) || []).map(c => String(c).toUpperCase())), // K-1 · 702.114a desprovido
-    typeText: String(card && card.type_line || ''),
+    typeText: linhaDaFaceDeCimaM(card), // M-634 · 712.8a/712.8d/712.8f + 715.4: a dupla face (transformar, modal) e a aventura têm só a linha de tipo da face de cima; a dividida (709.4) fica com as duas metades
     cost: parseCost(card && (card.mana_cost || (card.faces && card.faces[0] && card.faces[0].mana_cost))),
     produces: parseProduction(card),
     script: null // preenchido na criação da partida (S1)
@@ -37868,6 +37870,7 @@ function fatosDeDuasPartesT(s, sc, setup) {
     if ((n !== sc.name && n.split(' // ')[0] !== sc.name && !(sc.self.modal && n === String(sc.name).split(' // ')[0])) || sc.self.dividida) continue; // K-75 · o script lido da modal leva o nome inteiro ("Pinnacle Monk // Mystic Peak") e a lista, o da frente: sem isso a frente criatura ganhava o "{T}: Add {R}" do verso // T-10 · a dividida tem o custo das duas metades (fatosDaDivididaT)
     const mc = String((card && card.mana_cost) || '');
     if (s.facts[n] && mc.includes(' // ')) s.facts[n].cost = parseCost(mc.split(' // ')[0]);
+    if (s.facts[n] && (sc.self.duplaFace || sc.self.modal || sc.self.aventura)) s.facts[n].typeText = String(s.facts[n].typeText || '').split(' // ')[0]; // M-634 · 712.8a/d/f + 715.4: também quando o dado chega sem `layout`
     // T-8 · com as duas faces no dado (rede), a mana que a FRENTE gera sai só do texto da frente (o texto junto daria {W} e {B} à Brightclimb Pathway)
     const f0 = card && Array.isArray(card.faces) && card.faces.length > 1 ? card.faces[0] : null;
     if (s.facts[n] && f0) s.facts[n].produces = parseProduction({ type_line: f0.type_line || '', oracle_text: f0.oracle_text || '' });
