@@ -38681,6 +38681,9 @@ const __m25 = (function () {
    seleção, moer ou impulso, em todos os modos, sem custo adicional) entra com a conta de "a mana ia sobrar" da segunda fase
    (`antesDoCombate`). Antes ele esperava a segunda fase e o ataque virava os elfos de mana: os Elfos seguraram o Lead the Stampede do
    T1 ao fim com dez fontes no campo. 'shark-v31' é o Shark da B-214, congelado.
+   A REMOÇÃO NA AMEAÇA (B25, leva B-216): no meu turno, a remoção que tira do campo a ameaça pelo efeito do outro (`tiraAmeaca`)
+   entra com a mana que ia sobrar, também a instantânea e também na primeira fase (`usaNaAmeaca`). Antes a instantânea ficava na
+   mão "para o turno dele", e ali o Guttersnipe bate a cada mágica antes de qualquer resposta. 'shark-v32' é o Shark da B-215, congelado.
    LIMITES DE HOJE: um lance à frente + resposta do oponente (na pilha e depois dela) + combate; sem plano
    de vários turnos, sem blefe; não joga em volta do truque de combate nem da varredura; na pilha não responde à resposta
    dele (guerra de anulação); não troca reserva na melhor de três; esquece o que a vidência
@@ -39675,9 +39678,14 @@ function jogadaProfissional(s, p, opts = {}) {
       // permanente com lampejo. Antes ela ficava na mão "para o turno do oponente" e passava todos os passos finais: nas partidas
       // narradas de 12/11 as Faeries seguraram três Brainstorm do T13 ao T17 com cinco terras desviradas, contra o Madness.
       const soSeleciona = a => !meu && opts.fimDoOutro && ehInstantanea(a) && ehSelecao(s, s.objects[a.oid]);
-      const lentas = candidatas.filter(a => a.t === 'cast' && (!ehInstantanea(a) || soSeleciona(a)) && (meu || permanente(a) || soSeleciona(a)) && !alvoProprio(a) && sobra(a) && !lampejoEspera(a) && (!antes || soTrazCartas(s, s.objects[a.oid]))); // B-215 · na primeira fase, só o feitiço que traz cartas · B-181 · "a mana ia sobrar" nunca vale mirar o meu lado
+      // B-216 · `usaNaAmeaca` (B25): no meu turno, a remoção que tira do campo a ameaça pelo efeito do outro (`ameacaPeloEfeito`:
+      // gatilho a cada mágica, compra a cada dano, cresce com a mesa) entra com a mana que ia sobrar — também a instantânea, também
+      // na primeira fase. Antes a instantânea ficava na mão "para o turno do oponente", e ali o gatilho a cada mágica já bate antes
+      // de qualquer resposta: a remoção que responde à mágica dele não desfaz o gatilho que a mágica disparou.
+      const naAmeaca = a => meu && opts.usaNaAmeaca && tiraAmeaca(s, W[0], p, a);
+      const lentas = candidatas.filter(a => a.t === 'cast' && (!ehInstantanea(a) || soSeleciona(a) || naAmeaca(a)) && (meu || permanente(a) || soSeleciona(a)) && !alvoProprio(a) && sobra(a) && !lampejoEspera(a) && (!antes || soTrazCartas(s, s.objects[a.oid]) || naAmeaca(a))); // B-216 · a remoção na ameaça também · B-215 · na primeira fase, só o feitiço que traz cartas · B-181 · "a mana ia sobrar" nunca vale mirar o meu lado
       const v = escolhe(lentas, a => media(w => { const sim = simula(w, a); if (!sim) return null; return notaComResposta(resolveSimulado(sim.estado, 8, opts.desdobra ? p : null, opts.av), p, opts); }) - (permanente(a) ? 0 : opts.plano ? 1.5 : 3), opts); // B9 · com o terreno na mão valendo menos, a compra que troca uma carta por um terreno lê −2,5: continua valendo a pena com mana sobrando
-      if (v.acao && v.nota - base >= -4.5) return { acao: v.acao, motivo: antes ? `${motivoDe(s, p, v.acao, 0)}: antes do combate, para ver mais cartas` : `${motivoDe(s, p, v.acao, 0)}: a mana ia sobrar`, ganho: v.nota - base };
+      if (v.acao && v.nota - base >= -4.5) return { acao: v.acao, motivo: naAmeaca(v.acao) ? `${motivoDe(s, p, v.acao, 0)}: a ameaça sai antes do turno dele` : antes ? `${motivoDe(s, p, v.acao, 0)}: antes do combate, para ver mais cartas` : `${motivoDe(s, p, v.acao, 0)}: a mana ia sobrar`, ganho: v.nota - base };
     } else
     if (opts.valor && s.turn.active === p && s.turn.step === 'main2' && !s.stack.length) {
       const lentas = candidatas.filter(a => a.t === 'cast' && !ehInstantanea(a) && !alvoProprio(a));
@@ -40428,6 +40436,27 @@ function ameacaPeloEfeito(s, o) {
   if (pers.some(x => PER_QUE_CRESCE.test(x.slice(7, -1)))) return true;
   return (sc.abilities || []).some(h => h && h.kind === 'triggered' && (h.when === 'other-cast' || (h.when === 'combat-damage' && (h.effects || []).some(e => e.do === 'draw'))));
 }
+/** B-216 · B25 · a ameaça pelo efeito que me cobra: a que cresce com a mesa, a que compra a cada dano, e a de gatilho a cada mágica
+    cujo efeito não é só ganhar vida (o God-Pharaoh's Faithful, 0/4 que ganha 1 de vida por mágica, não pede a remoção no meu turno:
+    piloto Golgari da régua de fora 17 × 21 em 40 pares, 0 só do novo e 4 só do antigo, antes deste corte). */
+function ameacaQueCobra(s, o) {
+  if (!ameacaPeloEfeito(s, o)) return false;
+  const sc = ((s.facts[o.name] || {}).script) || {};
+  const pers = JSON.stringify([sc.produces || [], sc.abilities || []]).match(/"per":"[^"]+"/g) || [];
+  if (pers.some(x => PER_QUE_CRESCE.test(x.slice(7, -1)))) return true;
+  return (sc.abilities || []).some(h => h && h.kind === 'triggered' && ((h.when === 'other-cast' && (h.effects || []).some(e => e && e.do !== 'gain')) || (h.when === 'combat-damage' && (h.effects || []).some(e => e.do === 'draw'))));
+}
+/** B-216 · B25 · `usaNaAmeaca`: a jogada `a` (conjurar) mira uma criatura do oponente que é ameaça que me cobra (`ameacaQueCobra`) e,
+    simulada no mundo possível `w` (informação justa), tira essa criatura do campo. */
+function tiraAmeaca(s, w, p, a) {
+  if (!a || a.t !== 'cast' || !(a.targets || []).length || !w) return false;
+  const d = oponenteDe(s, p);
+  const alvos = a.targets.filter(t => t && t.oid && s.objects[t.oid] && s.objects[t.oid].zone === 'battlefield' && s.objects[t.oid].controller === d && ((s.facts[s.objects[t.oid].name] || {}).types || []).includes('creature') && ameacaQueCobra(s, s.objects[t.oid]));
+  if (!alvos.length) return false;
+  const x = simula(w, a); if (!x) return false;
+  const e = resolveSimulado(x.estado);
+  return alvos.some(t => { const o = e.objects[t.oid]; return !o || o.zone !== 'battlefield' || o.controller !== d; });
+}
 /** B-214 · B25 · `alvoNaAmeaca`: a remoção vai na ameaça pelo efeito. Quando a jogada escolhida tira do campo uma criatura do
     oponente que não é ameaça pelo efeito, e a mesma carta (mesma habilidade, modo, custo e os outros alvos) tira do campo uma que
     é (ameacaPeloEfeito: gatilho a cada mágica, compra a cada dano, cresce com a mesa), o alvo troca. Só o alvo: usar a carta ou
@@ -40588,7 +40617,8 @@ const NOVO28 = { ...NOVO27, impulso: true, ritual: true }; // congelado como 'sh
 const NOVO29 = { ...NOVO28, chao: true }; // congelado como 'shark-v29' (B-213) · B-212 · B25 · régua de fora: o terreno a baixar é escolhido depois do gatilho de entrada e vale pelo chão que fica (chaoDe): piloto Azorius God-Pharaoh's Faithful 30 × 15 em 80 pares contra o Shark da B-210 (18 só do novo, 3 só do antigo); régua de fora × shark-v12 106–97 em 203 (52%; era 95–108). `chaoNaNota` (o chão na avaliação inteira) mediu 9 × 16 no piloto Temur e fica desligado
 const NOVO30 = { ...NOVO29, fimDoOutro: true }; // congelado como 'shark-v30' (B-214) · B-213 · B25 · no passo final do outro, a instantânea que só seleciona cartas (ehSelecao: Brainstorm, Thought Scour, Plunder the Trollshaws) entra com a mana que ia sobrar: neutra em força (Faeries 34 × 35, Terror 23 × 22, Control 17 × 14; 74 × 71 em 160 pares, 11 só do novo, 8 só do antigo), ligada porque tira o erro das partidas narradas (três Brainstorm na mão do T13 ao T17)
 const NOVO31 = { ...NOVO30, alvoNaAmeaca: true }; // congelado como 'shark-v31' (B-215) · B-214 · B25 · a remoção vai na ameaça pelo efeito (alvoNaAmeaca: a mesma carta, que mata as duas, troca o corpo maior pelo Kessig Flamebreather, o Guttersnipe, o Priest of Titania): neutra em força (Faeries 37 × 30 em 80 pares, Control 10 × 12, Madness 28 × 29 em 40; 75 × 71 em 160, 11 só do novo, 7 só do antigo), ligada porque tira o erro da partida narrada 13368 (Cast Down no Sneaky Snacker com o Kessig Flamebreather ao lado)
-const NOVO = { ...NOVO31, antesDoCombate: true }; // B-215 · B25 · na primeira fase principal, o feitiço que só traz cartas (soTrazCartas: Lead the Stampede, Preordain, Ponder, Deep Analysis) entra antes do combate com a conta da segunda fase: piloto Elfos 44 × 36 em 80 pares (8 só do novo, 0 só do antigo) contra o Shark da B-214
+const NOVO32 = { ...NOVO31, antesDoCombate: true }; // congelado como 'shark-v32' (B-216) · B-215 · B25 · na primeira fase principal, o feitiço que só traz cartas (soTrazCartas: Lead the Stampede, Preordain, Ponder, Deep Analysis) entra antes do combate com a conta da segunda fase: piloto Elfos 44 × 36 em 80 pares (8 só do novo, 0 só do antigo) contra o Shark da B-214
+const NOVO = { ...NOVO32, usaNaAmeaca: true }; // B-216 · B25 · no meu turno, a remoção que tira do campo a ameaça pelo efeito do outro (tiraAmeaca: Guttersnipe, Kessig Flamebreather) entra com a mana que ia sobrar, também a instantânea e também antes do combate
 // B-208 · `esperaOLampejo` (no meu turno, com a anulação na mão, a instantânea ou o lampejo que não responde a nada e deixa a anulação sem mana custa 6; B25 classe A das Faeries) foi medida e fica desligada: piloto Faeries 31 × 33 em 96 pares (7 só do novo, 9 só do antigo); acerta a posição `seq-faeries-sprite-espera` da bateria, mas não se paga em partida
 // B-207 · `reservaRemocao` (remoção guardada para a criatura que importa, B25 classe B) foi medida e fica desligada: piloto Faeries 21 × 23 em 48 pares (3 só do novo, 5 só do antigo), Control 16 × 15 em 32 (1 só do novo); acerta a posição `rem-elfo-de-mana` da bateria, mas não se paga em partida
 // B-176 · `ameacas` (ameaças do campo no perfil do Dimir Control) foi medida e fica desligada: 26 de 64 contra 27 de 64 pilotando o Control
@@ -40596,9 +40626,9 @@ const NOVO = { ...NOVO31, antesDoCombate: true }; // B-215 · B25 · na primeira
 function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date.now(), mundos: mundosN = 0, extra: extraOpts = null, pesos = null } = {}) {
   // Leva 117 · 'profissional' e 'shark' são o Shark atual (v4: o v3 com informação justa). 'shark-v3', 'shark-v2'
   // e 'shark-v1' são as versões anteriores, congeladas, só para o torneio — elas simulam sobre o estado real.
-  const v1 = nivel === 'shark-v1', v2 = nivel === 'shark-v2', v3 = nivel === 'shark-v3', v4 = nivel === 'shark-v4', v5 = nivel === 'shark-v5', v6 = nivel === 'shark-v6', v7 = nivel === 'shark-v7', v8 = nivel === 'shark-v8', v9 = nivel === 'shark-v9', v10 = nivel === 'shark-v10', v11 = nivel === 'shark-v11', v12 = nivel === 'shark-v12', v13 = nivel === 'shark-v13', v14 = nivel === 'shark-v14', v15 = nivel === 'shark-v15', v16 = nivel === 'shark-v16', v17 = nivel === 'shark-v17', v18 = nivel === 'shark-v18', v19 = nivel === 'shark-v19', v20 = nivel === 'shark-v20', v21 = nivel === 'shark-v21', v22 = nivel === 'shark-v22', v23 = nivel === 'shark-v23', v24 = nivel === 'shark-v24', v25 = nivel === 'shark-v25', v26 = nivel === 'shark-v26', v27 = nivel === 'shark-v27', v28 = nivel === 'shark-v28', v29 = nivel === 'shark-v29', v30 = nivel === 'shark-v30', v31 = nivel === 'shark-v31';
-  const atual = nivel === 'profissional' || nivel === 'shark' || v4 || v5 || v6 || v7 || v8 || v9 || v10 || v11 || v12 || v13 || v14 || v15 || v16 || v17 || v18 || v19 || v20 || v21 || v22 || v23 || v24 || v25 || v26 || v27 || v28 || v29 || v30 || v31 || !!extraOpts || !!pesos;
-  const ligadas = { ...(v4 ? {} : v5 ? NOVO5 : v6 ? NOVO6 : v7 ? NOVO7 : v8 ? NOVO8 : v9 ? NOVO9 : v10 ? NOVO10 : v11 ? NOVO11 : v12 ? NOVO12 : v13 ? NOVO13 : v14 ? NOVO14 : v15 ? NOVO15 : v16 ? NOVO16 : v17 ? NOVO17 : v18 ? NOVO18 : v19 ? NOVO19 : v20 ? NOVO20 : v21 ? NOVO21 : v22 ? NOVO22 : v23 ? NOVO23 : v24 ? NOVO24 : v25 ? NOVO25 : v26 ? NOVO26 : v27 ? NOVO27 : v28 ? NOVO28 : v29 ? NOVO29 : v30 ? NOVO30 : v31 ? NOVO31 : NOVO), ...(extraOpts || {}) };
+  const v1 = nivel === 'shark-v1', v2 = nivel === 'shark-v2', v3 = nivel === 'shark-v3', v4 = nivel === 'shark-v4', v5 = nivel === 'shark-v5', v6 = nivel === 'shark-v6', v7 = nivel === 'shark-v7', v8 = nivel === 'shark-v8', v9 = nivel === 'shark-v9', v10 = nivel === 'shark-v10', v11 = nivel === 'shark-v11', v12 = nivel === 'shark-v12', v13 = nivel === 'shark-v13', v14 = nivel === 'shark-v14', v15 = nivel === 'shark-v15', v16 = nivel === 'shark-v16', v17 = nivel === 'shark-v17', v18 = nivel === 'shark-v18', v19 = nivel === 'shark-v19', v20 = nivel === 'shark-v20', v21 = nivel === 'shark-v21', v22 = nivel === 'shark-v22', v23 = nivel === 'shark-v23', v24 = nivel === 'shark-v24', v25 = nivel === 'shark-v25', v26 = nivel === 'shark-v26', v27 = nivel === 'shark-v27', v28 = nivel === 'shark-v28', v29 = nivel === 'shark-v29', v30 = nivel === 'shark-v30', v31 = nivel === 'shark-v31', v32 = nivel === 'shark-v32';
+  const atual = nivel === 'profissional' || nivel === 'shark' || v4 || v5 || v6 || v7 || v8 || v9 || v10 || v11 || v12 || v13 || v14 || v15 || v16 || v17 || v18 || v19 || v20 || v21 || v22 || v23 || v24 || v25 || v26 || v27 || v28 || v29 || v30 || v31 || v32 || !!extraOpts || !!pesos;
+  const ligadas = { ...(v4 ? {} : v5 ? NOVO5 : v6 ? NOVO6 : v7 ? NOVO7 : v8 ? NOVO8 : v9 ? NOVO9 : v10 ? NOVO10 : v11 ? NOVO11 : v12 ? NOVO12 : v13 ? NOVO13 : v14 ? NOVO14 : v15 ? NOVO15 : v16 ? NOVO16 : v17 ? NOVO17 : v18 ? NOVO18 : v19 ? NOVO19 : v20 ? NOVO20 : v21 ? NOVO21 : v22 ? NOVO22 : v23 ? NOVO23 : v24 ? NOVO24 : v25 ? NOVO25 : v26 ? NOVO26 : v27 ? NOVO27 : v28 ? NOVO28 : v29 ? NOVO29 : v30 ? NOVO30 : v31 ? NOVO31 : v32 ? NOVO32 : NOVO), ...(extraOpts || {}) };
   let perfil, avPlano = null, passosCombo = 0, turnoCombo = -1; // B9 · perfil do meu baralho, lido na primeira jogada
   const avAtual = ligadas.av4 || ligadas.av5 || ligadas.av6 || ligadas.av7 || pesos ? avaliadorCom({ ...PESOS_ATUAIS, ...(pesos || {}) }, (de => (ligadas.chaoNaNota ? comChao : x => x)((ligadas.impulso ? comImpulso : x => x)((ligadas.grimorio ? comGrimorio : x => x)(ligadas.av7 ? comMotores(de) : de))))(ligadas.av6 ? avaliaV6 : ligadas.av5 ? avaliaV5 : ligadas.av4 ? avaliaV4 : avaliaV3)) : null;
   let plano = []; // leva 143 · ações que faltam do plano de mana em curso
@@ -40643,7 +40673,7 @@ function criaBot({ nivel = 'profissional', orcamentoMs = 400, agora = () => Date
   };
 }
 
-return { PESOS, LIMIAR_RESPOSTA, avalia, avaliaV2, avaliaV3, projetaCombate, riscoDeVolta, danoDeVolta, ehSelecao, soTrazCartas, alvoNaAmeaca, decideMulligan, decideMulligan2, viraTerreno, simula, escolhe, chaveAcao, fontesDeMana,
+return { PESOS, LIMIAR_RESPOSTA, avalia, avaliaV2, avaliaV3, projetaCombate, riscoDeVolta, danoDeVolta, ehSelecao, soTrazCartas, alvoNaAmeaca, tiraAmeaca, ameacaQueCobra, decideMulligan, decideMulligan2, viraTerreno, simula, escolhe, chaveAcao, fontesDeMana,
   jogadaAmador, jogadaProfissional, decideAtaque, decideAtaqueProfissional, decideBloqueio, decideBloqueioProfissional,
   notaComResposta, notaDoAtaque, resumoDoTurno, dicas, visaoDe, sementePublica, atualizaMemoria, MUNDOS, avaliadorCom, PESOS_ATUAIS, politicaRapida, rola, avaliaV4, planoDeMana, PERFIS, AMEACAS_DO_CAMPO, perfilDe, perfilDerivado, tracosDaLista, ameacaPeloEfeito, comboDaLista, perfilPeloPadrao, passoDoCombo, avaliadorDoPlano, avaliaV5, avaliaV6, notaDoAtaqueComTruque, custoDaResposta, criaBot, NOME_DO_BOT, nivelDaMesa, LISTAS_DO_SHARK };
 })();

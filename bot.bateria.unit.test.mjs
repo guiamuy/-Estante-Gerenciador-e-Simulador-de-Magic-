@@ -6,7 +6,7 @@ import { loadModules } from './_load.mjs';
 import { POSICOES, pontua } from './bot.bateria.mjs';
 const { engine: E, bot: B } = loadModules();
 
-const PISO = 34; // B-215 · 34 de 38 (posição nova `seq-elfos-lead-antes`, que o Shark publicado acerta com o `antesDoCombate` e o shark-v31 erra) · B-214 · 33 de 37 (posição nova `rem-faeries-flamebreather`, que o Shark publicado acerta com o `alvoNaAmeaca`) · B-209 · 32 de 36 (posição nova `seq-faeries-duas-anulacoes`, que o Shark publicado erra: a opção `seguraComDuas` acerta e mediu 30 × 38 nas Faeries) · B-208 · 32 de 35 (posições novas `seq-faeries-brainstorm-espera`, que o Shark publicado já acerta, e `seq-faeries-sprite-espera`, que ele erra: a opção `esperaOLampejo` acerta e mediu 31 × 33 nas Faeries) · B-207 · 31 de 33 (posições novas `rem-elfo-de-mana`, que o Shark publicado erra, e `rem-priest-sim`) · B-200 · 30 de 31 com o ninja pelo ataque (erra só a isca `volta-isca`). Era 29 (B-196), 27 (B-195), 26 (B-192), 25 (B-191), 24 (B-190), 22 (B-188)
+const PISO = 35; // B-216 · 35 de 39 (posição nova `rem-controle-guttersnipe`, que o Shark publicado acerta com o `usaNaAmeaca` e o shark-v32 erra) · B-215 · 34 de 38 (posição nova `seq-elfos-lead-antes`, que o Shark publicado acerta com o `antesDoCombate` e o shark-v31 erra) · B-214 · 33 de 37 (posição nova `rem-faeries-flamebreather`, que o Shark publicado acerta com o `alvoNaAmeaca`) · B-209 · 32 de 36 (posição nova `seq-faeries-duas-anulacoes`, que o Shark publicado erra: a opção `seguraComDuas` acerta e mediu 30 × 38 nas Faeries) · B-208 · 32 de 35 (posições novas `seq-faeries-brainstorm-espera`, que o Shark publicado já acerta, e `seq-faeries-sprite-espera`, que ele erra: a opção `esperaOLampejo` acerta e mediu 31 × 33 nas Faeries) · B-207 · 31 de 33 (posições novas `rem-elfo-de-mana`, que o Shark publicado erra, e `rem-priest-sim`) · B-200 · 30 de 31 com o ninja pelo ataque (erra só a isca `volta-isca`). Era 29 (B-196), 27 (B-195), 26 (B-192), 25 (B-191), 24 (B-190), 22 (B-188)
 
 test('B-188 · toda posição da bateria monta, tem classe, porquê, e a jogada certa está entre as legais', () => {
   const ids = new Set();
@@ -102,4 +102,32 @@ test('B-215 · soTrazCartas pelo dado do motor: o feitiço que só traz cartas s
   const de = nome => { const oid = Object.keys(s.objects).find(o => s.objects[o].name === nome); assert.ok(oid, 'falta ' + nome); return B.soTrazCartas(s, s.objects[oid]); };
   for (const n of ['Lead the Stampede', 'Winding Way', 'Ponder', 'Deep Analysis']) assert.equal(de(n), true, n);
   for (const n of ['Brainstorm', 'Land Grant', 'Sleep of the Dead', 'Forest']) assert.equal(de(n), false, n);
+});
+
+test('B-216 · a remoção na ameaça: no meu turno, o Cast Down vai no Guttersnipe com a mana que ia sobrar (na primeira e na segunda fase); o shark-v32 congelado guardava a instantânea e conjurava o Preordain', () => {
+  const P = POSICOES.find(x => x.id === 'rem-controle-guttersnipe'), joga = (nivel, extra, passo) => { const { s } = P.monta(); if (passo) s.turn.step = passo; const j = B.criaBot({ nivel, agora: () => 0, ...(extra ? { extra } : {}) }).jogada(s, 0); return { ok: P.certo(s, j), j }; };
+  const novo = joga('shark'), cedo = joga('shark', null, 'main1'), v32 = joga('shark-v32'), sem = joga('shark', { usaNaAmeaca: false });
+  assert.ok(novo.ok, 'publicado: ' + novo.j.motivo); assert.ok(/a ameaça sai antes do turno dele/.test(novo.j.motivo), 'motivo: ' + novo.j.motivo);
+  assert.ok(cedo.ok, 'primeira fase: ' + cedo.j.motivo);
+  assert.ok(!v32.ok, 'v32: ' + v32.j.motivo); assert.ok(!sem.ok, 'sem a opção: ' + sem.j.motivo);
+});
+
+test('B-216 · tiraAmeaca: só a remoção que tira do campo a criatura do outro que é ameaça pelo efeito (o Cast Down no Guttersnipe sim; o Preordain e a jogada vazia não)', () => {
+  const { s, ids } = POSICOES.find(x => x.id === 'rem-controle-guttersnipe').monta();
+  const W = B.visaoDe(s, 0, 0, new Set());
+  const cast = (nome, alvo) => E.legalActions(s, 0).find(a => a.t === 'cast' && s.objects[a.oid].name === nome && (!alvo || (a.targets || []).some(t => t.oid && s.objects[t.oid].name === alvo)));
+  const cd = cast('Cast Down', 'Guttersnipe'); assert.ok(cd, 'Cast Down no Guttersnipe é legal');
+  assert.equal(B.tiraAmeaca(s, W, 0, cd), true);
+  assert.equal(B.tiraAmeaca(s, W, 0, cast('Preordain')), false);
+  assert.equal(B.tiraAmeaca(s, W, 0, null), false);
+  assert.ok(ids[1].Guttersnipe, 'monta o Guttersnipe');
+});
+
+test('B-216 · ameacaQueCobra: o gatilho a cada mágica que só ganha vida (God-Pharaoh\'s Faithful) não pede a remoção; o que causa dano, cria ficha, compra ou cresce com a mesa pede', async () => {
+  const { listasDeFora, listasDoShark } = await import('./torneio.listas.mjs');
+  const todas = [...listasDeFora(), ...listasDoShark()];
+  const de = nome => { const d = todas.find(x => x.entries.some(e => e.name === nome)); const cards = {}; for (const e of d.entries) cards[e.name] = d.cartas[e.name];
+    const s = E.createGame({ format: 'pauper', seed: 1, mode: 'full', manaCheck: true, cards, players: [{ name: 'a', deck: d.entries }, { name: 'b', deck: d.entries }] }); return B.ameacaQueCobra(s, { name: nome }); };
+  assert.equal(de("God-Pharaoh's Faithful"), false);
+  for (const n of ['Guttersnipe', 'Kessig Flamebreather', 'Murmuring Mystic', 'Priest of Titania', 'Ninja of the Deep Hours']) assert.equal(de(n), true, n);
 });

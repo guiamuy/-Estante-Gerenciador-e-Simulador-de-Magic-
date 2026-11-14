@@ -225,6 +225,12 @@ export const POSICOES = [
   { id: 'mull-elfos-mantem', classe: 'mulligan', lista: ELFOS, porque: 'duas Florestas, dois elfos de mana, Priest e o reabastecimento: mantém',
     mulligan: true, monta: () => maoInicial(ELFOS, MADNESS, ['Forest', 'Forest', 'Llanowar Elves', 'Elvish Mystic', 'Priest of Titania', 'Lead the Stampede', 'Timberwatch Elf']),
     certo: (s, j) => j.acao.t === 'keep' },
+  // B-216 · Control contra o Madness (partidas narradas de 13/11, 14200 T15–T17; e a Snuff Out guardada com 11 de vida, 13100): no
+  // meu turno a remoção instantânea ficava na mão "para o turno do oponente", e ali o Guttersnipe bate a cada mágica antes de
+  // qualquer resposta. A remoção que tira a ameaça pelo efeito sai no meu turno, com a mana que ia sobrar (`usaNaAmeaca`).
+  { id: 'rem-controle-guttersnipe', classe: 'recurso', lista: CONTROLE, porque: 'segunda fase principal, quatro terras, Snuff Out, Cast Down e Preordain na mão, 12 de vida contra o Madness com o Guttersnipe no campo e três cartas: a remoção vai no Guttersnipe agora, antes das mágicas dele',
+    monta: () => monta(CONTROLE, MADNESS, { passo: 'main2', p0: { campo: ['Island', 'Island', 'Swamp', 'Island'], mao: ['Snuff Out', 'Cast Down', 'Preordain'], vida: 12 }, p1: { campo: ['Mountain', 'Mountain', 'Mountain', 'Guttersnipe'], mao: ['Lightning Bolt', 'Fireblast', 'Mountain'] } }),
+    certo: (s, j) => j.acao.t === 'cast' && (j.acao.targets || []).some(t => nomeDe(s, t.oid) === 'Guttersnipe') },
 ];
 
 /** Nota de um nível: acertos por classe e as posições erradas (com o motivo do Shark). */
