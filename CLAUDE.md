@@ -6,6 +6,12 @@ Várias conversas (trilhas) evoluem o mesmo `index.html` ao mesmo tempo. Publica
 
 Toda conversa lê primeiro o `ESTADO.md` (estado por trilha, relatos abertos, onde mora o detalhe; até 8 KB). O `ROADMAP.md` tem ≈ 2,4 MB: **nunca o leia inteiro**, só a seção do item (`grep -n` + `sed -n`). No commit de docs de cada leva, a trilha reescreve a **sua** linha no `ESTADO.md` e a data do rodapé dele.
 
+## Padrão de entrega (decisão do dono, 14/11/2026; toda conversa, rotina e skill)
+
+- **Excelência:** arquitetura que escala e lógica sem caso esquecido; o que o usuário vê ou toca sai no patamar da Apple e dos melhores apps de cartas (Arena, Snap, Moxfield), nunca abaixo do DS-K atual, só com tokens `ds-*`, e com um ganho concreto sobre o que havia.
+- **Economia:** vence a solução mais barata que entrega isso: menos tokens (recorte, patch, nada relido só para conferir), nenhum serviço pago, deployment ou minuto de CI novo sem uma linha de custo e o OK do dono.
+- **Na entrega:** uma linha `Padrão:` com o ganho (ou `n/a` sem interface).
+
 ## Publicar: branch, testes, pull request, prévia, ok do dono, merge
 
 **Ninguém envia para o `main`** (decisão do dono, 07/11/2026, leva I-323). Toda mudança passa por uma prévia que o dono vê antes de ir para produção. O `main` só muda pelo merge do pull request, e o merge só acontece quando o dono pede.
