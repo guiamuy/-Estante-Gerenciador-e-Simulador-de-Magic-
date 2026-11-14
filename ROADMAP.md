@@ -15447,6 +15447,13 @@ Cloudflare) ficam do nosso lado, para gerar e validar. Cinco fatias MK3-P1…P5 
   no text"; uma v2 candidata ("luxurious desk mat surface… edge to edge, no objects on it… no card slots, no grid of
   rectangles", tema só perto das bordas) saiu limpa, sem texto e com o centro calmo. Antes de o dono liberar a chave: trocar
   o prompt base para a v2 em `api/playmat.js` (`PROMPT_BASE_VERSAO` 2) numa leva própria e conferir no FLUX.
+- **Instável quitado (J-79, 14/11/2026):** o e2e "J-76 MK3-P4" caiu no trem de 14/11 07h15 ("expected false, actual true") e,
+  sozinho, caía sempre numa sessão de nuvem de dois núcleos: no reduzido, a medida (`medePousa`) lia a receita do lado do
+  oponente antes de o meu lado terminar (o meu pousa depois do `--escalona-1`; sem distância no reduzido, nada se mexe) e via
+  a classe ainda posta. A medida passa a esperar o fim de todas as animações da receita também quando o lado medido já não
+  tem animação viva; a expectativa é a mesma (a receita sai ao terminar). Só teste: nenhuma mudança no app. O "DS-K FA.1"
+  (folha do `/ds` com CPU 4×), que caiu na mesma rodada, foi medido com e sem o palco "Playmat criado" (sete aberturas de
+  cada, duas vezes): a mesma faixa (34 a 53 quadros/s); a queda foi da máquina.
 - **Fora:** o criado na mesa e no online (MK3-P5); sincronizar os criados entre aparelhos.
 
 #### MK3-P3 · serviço de criação (✅ J-74, 13/11/2026; parcial: em produção responde "Criação ainda não liberada" até o dono pôr a chave)

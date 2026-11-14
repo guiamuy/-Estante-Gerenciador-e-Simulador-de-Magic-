@@ -23360,7 +23360,12 @@ async function medePousa(page, sel) {
     const anims = l.getAnimations({ subtree: true }).filter(a => /^playmat-pousa/.test(a.animationName || ''));
     const corpo = anims.find(a => a.animationName === 'playmat-pousa'), sombra = anims.find(a => a.animationName === 'playmat-pousa-sombra');
     const fim0 = R();
-    if (!corpo) return { anims: anims.length, inicio: fim0, fim: fim0, sombra: false, classe: l.classList.contains('playmat-pousa') };
+    // J-79 · sem animação viva neste lado (o reduzido termina num quadro): a receita sai dos dois lados quando o último
+    // termina — o meu lado ainda espera o --escalona-1 (sem distância no reduzido: nada se mexe) —, então mede depois do
+    // fim de todas, como no caminho de baixo (o e2e J-76 caiu no trem de 14/11 07h15: a classe lida antes do outro lado terminar)
+    if (!corpo) { await Promise.all(document.getAnimations().filter(a => /^playmat-pousa/.test(a.animationName || '')).map(a => a.finished.catch(() => {})));
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      return { anims: anims.length, inicio: fim0, fim: R(), sombra: false, classe: l.classList.contains('playmat-pousa') }; }
     const dur = corpo.effect.getTiming().duration;
     anims.forEach(a => { a.pause(); a.currentTime = 0; }); const inicio = R();
     anims.forEach(a => a.play()); await Promise.all(anims.map(a => a.finished));
