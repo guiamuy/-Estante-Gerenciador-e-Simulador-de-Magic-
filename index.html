@@ -178,6 +178,10 @@
   --mesa-poco: inset 0 2px 8px rgba(0, 0, 0, .55), inset 0 -1px 0 var(--edge);
   /* MK3-1 (J-64) · estojo das fases: um poço pequeno (sombra interna curta de cima e aresta embaixo); o ponto, o traço e o latão do traço */
   --mesa-estojo: inset 0 1px 2px rgba(0, 0, 0, .7), inset 0 -1px 0 var(--edge);
+  /* MK3-8 (J-78) · zonas-objeto: a miniatura da zona (16 × 22 px, proporção da carta, no lugar do ícone de 16 px, dentro da caixa de
+     34 px do contador) e o véu do exílio (a carta do topo apaga na direção do tampo: mais escura no escuro, mais clara no claro) */
+  --zona-mini-w: 16px; --zona-mini-h: 22px;
+  --zona-veu: rgba(10, 8, 6, .58);
   --mesa-fase-ponto: 6px; --mesa-fase-traco: 18px;
   --mesa-fase-latao: linear-gradient(180deg, var(--accent-hi), var(--accent) 60%, var(--accent-lo));
   --sombra-carta: 0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-contact), var(--shadow-key);
@@ -332,6 +336,7 @@
   --carta-laca: linear-gradient(180deg, rgba(255, 255, 255, .16) 0%, rgba(255, 255, 255, 0) 30%);
   --mesa-poco: inset 0 2px 8px rgba(60, 40, 10, .16), inset 0 -1px 0 var(--edge);
   --mesa-estojo: inset 0 1px 2px rgba(60, 40, 10, .24), inset 0 -1px 0 var(--edge); /* MK3-1 */
+  --zona-veu: rgba(250, 246, 238, .62); /* MK3-8 */
   --sombra-carta: 0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-contact), var(--shadow-key);
   --sombra-carta-alta: 0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-float);
   --sombra-carta-deitada: var(--carta-espessura) 0 0 var(--carta-lado), 1px 0 2px rgba(60, 40, 10, .14), 12px 0 28px -14px rgba(60, 40, 10, .35); /* MK3-3 */
@@ -417,6 +422,7 @@
     --carta-laca: linear-gradient(180deg, rgba(255, 255, 255, .16) 0%, rgba(255, 255, 255, 0) 30%);
     --mesa-poco: inset 0 2px 8px rgba(60, 40, 10, .16), inset 0 -1px 0 var(--edge);
     --mesa-estojo: inset 0 1px 2px rgba(60, 40, 10, .24), inset 0 -1px 0 var(--edge); /* MK3-1 */
+    --zona-veu: rgba(250, 246, 238, .62); /* MK3-8 */
     --sombra-carta: 0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-contact), var(--shadow-key);
     --sombra-carta-alta: 0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-float);
     --sombra-carta-deitada: var(--carta-espessura) 0 0 var(--carta-lado), 1px 0 2px rgba(60, 40, 10, .14), 12px 0 28px -14px rgba(60, 40, 10, .35); /* MK3-3 */
@@ -3236,6 +3242,21 @@ body[data-mesa-cheia="true"] .tb > .tb-board { padding-top: var(--space-1); }
 .tb-side--opp .tb-chip__ponto { top: calc(var(--tap-min) - var(--chip-zona-h) + 3px); }
 .tb-chip b { color: var(--fg); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
 .tb-chip__icone { flex: none; }
+/* MK3-8 (J-78) · zonas-objeto: a zona é um objeto sobre o tampo, no lugar do ícone. A face tem o material da carta (fio de lado
+   embaixo + contato: L2, está no tampo); o grimório é um maço — o verso em cima e, embaixo, o lado das cartas empilhadas
+   (--maco: 1 px a cada 8, teto 6), riscado de lado e aresta, com o contato no pé; o cemitério mostra a carta do topo; o
+   exílio, a carta do topo sob o véu (--zona-veu) com o selo do exílio. Repouso: nada se move (abrir é a MK3-9). */
+.tb-zobj { position: relative; flex: none; display: block; width: var(--zona-mini-w); height: calc(var(--zona-mini-h) + var(--maco, 0px)); }
+.tb-zobj__face { position: absolute; left: 0; top: 0; width: var(--zona-mini-w); height: var(--zona-mini-h); overflow: hidden; border-radius: var(--radius-0);
+  background: var(--bg-elev-3); color: var(--fg-muted); display: flex; align-items: center; justify-content: center;
+  box-shadow: inset 0 0 0 1px var(--edge), 0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-contact); }
+.tb-zobj__face img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.tb-zobj__face .ds-verso { box-shadow: inset 0 0 0 1px var(--accent-soft); }
+.tb-zobj[data-tipo="maco"]::before { content: ''; position: absolute; left: 0; right: 0; top: calc(var(--zona-mini-h) - var(--radius-0)); height: calc(var(--maco, 0px) + var(--radius-0));
+  border-radius: 0 0 var(--radius-0) var(--radius-0); background: repeating-linear-gradient(180deg, var(--carta-lado) 0 1px, var(--edge-strong) 1px 2px); box-shadow: var(--shadow-contact); }
+.tb-zobj[data-tipo="maco"] .tb-zobj__face { box-shadow: inset 0 0 0 1px var(--edge); }
+.tb-zobj__veu { position: absolute; left: 0; top: 0; width: var(--zona-mini-w); height: var(--zona-mini-h); border-radius: var(--radius-0); background: var(--zona-veu);
+  color: var(--fg); display: flex; align-items: center; justify-content: center; }
 .tb-chip__rotulo { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 /* J-40 · relato #45 · masmorra na mesa: o selo de 44 px com a miniatura do mapa (a sala de quem é o lado acesa na cor dele:
    latão para você, a cor do oponente para ele) e a bandeira da iniciativa no canto; nenhum texto na mesa, o nome inteiro
@@ -6809,6 +6830,16 @@ function renderDS() {
           // J-42 (relato #48) · o terreno básico sem imagem: o símbolo de mana desenhado e o nome numa linha (nunca "Is-land")
           h('span', { id: 'ds-basico-sem-arte' }, M.TableCard(demo('Island'))),
           M.ZoneChip('Cemitério', 4, () => toast('Cemitério'))),
+        // MK3-8 (J-78) · zonas-objeto: o grimório em maço (53 cartas → 6 px de lado, 9 → 2 px), o cemitério com a carta do topo, o
+        // exílio com a carta do topo sob o véu e de verso quando ela é oculta; zero continua só o ícone apagado
+        h('div', { class: 'tb-chips ds-row ds-row--wrap', id: 'ds-zonas-objeto' },
+          M.ZoneChip('Grimório', 53, () => toast('Grimório'), 'ds-zobj-maco', 0, { tipo: 'maco', verso: true, maco: __m18.espessuraDoMaco(53) }),
+          M.ZoneChip('Grimório', 9, () => toast('Grimório'), 'ds-zobj-maco-fino', 0, { tipo: 'maco', verso: true, maco: __m18.espessuraDoMaco(9) }),
+          M.ZoneChip('Cemitério', 3, () => toast('Cemitério'), 'ds-zobj-face', 0, { tipo: 'face', card: { name: 'Island' }, nome: 'Island' }),
+          M.ZoneChip('Exílio', 2, () => toast('Exílio'), 'ds-zobj-veu', 0, { tipo: 'veu', card: { name: 'Island' }, nome: 'Island' }),
+          M.ZoneChip('Exílio', 1, () => toast('Exílio'), 'ds-zobj-veu-verso', 0, { tipo: 'veu', verso: true, nome: 'Carta virada para baixo' }),
+          M.ZoneChip('Cemitério', 0, () => toast('Cemitério'), 'ds-zobj-zero', 0, null)),
+        Text('Zonas-objeto (MK3-8): no lugar do ícone, a zona sobre o tampo — o grimório num maço de verso com o lado das cartas (--maco, 1 px a cada 8, teto 6), o cemitério e o exílio com a carta do topo (o exílio sob --zona-veu). Tokens: --zona-mini-w, --zona-mini-h, --zona-veu. Sem movimento em repouso (abrir é a MK3-9).', { size: 'xs', tone: 'muted', attrs: { id: 'ds-zonas-objeto-nota' } }),
         Text('Tokens: --playmat (o playmat dos dois lados da mesa, o mesmo para você e para o oponente; hoje o padrão, o papel do lado).', { size: 'xs', tone: 'muted', attrs: { id: 'ds-playmat' } }),
         Text('Tokens: --vida-disco (o disco da vida na barra, 34 px, no meio do alvo de 44 px; o número centrado pela altura das maiúsculas, algarismos de linha).', { size: 'xs', tone: 'muted', attrs: { id: 'ds-vida-disco' } }),
         // J-48 · os estados da carta na mesa: um ícone por entrada da tabela ESTADOS, na cor da família, como saem na barra de P/R
@@ -41504,9 +41535,20 @@ function LifeCounter({ name, life, active, sub, onClick, id, lado = null }) {
 // Leva 125 · `jogaveis`: quantas cartas da zona têm ação agora (lampejo do passado no cemitério, carta jogável do exílio)
 // MJ1b (leva J-3) · ícone + número numa caixa de 44 px; o nome da zona fica no title, no nome falado e num texto só para o leitor
 const ICONE_DA_ZONA = { 'Mão': 'mao', 'Grimório': 'baralho', 'Cemitério': 'cemiterio', 'Exílio': 'exilio', 'Comando': 'comando', 'Companheiro': 'companheiro' };
-const ZoneChip = (label, n, onClick, id, jogaveis = 0) => h('button', { class: 'tb-chip', type: 'button', onClick, id, title: label, dataset: { ...(jogaveis ? { jogaveis: String(jogaveis) } : {}), ...(!n ? { zero: 'true' } : {}) }, // D6 · zero apagado
-  'aria-label': `${label}: ${n}` + (jogaveis ? `, ${jogaveis === 1 ? 'uma carta pode ser jogada' : jogaveis + ' cartas podem ser jogadas'} agora` : '') },
-  ICONE_DA_ZONA[label] ? Icone(ICONE_DA_ZONA[label], { tamanho: 16, classe: 'tb-chip__icone' }) : null, // J-47 · ícone 18 → 16
+/** MK3-8 (J-78) · zonas-objeto: no lugar do ícone, a zona como objeto sobre o tampo — o grimório num maço de verso com espessura
+    (--maco), o cemitério com a carta do topo, o exílio com a carta do topo sob o véu. Mesma largura do ícone (16 px), dentro da
+    caixa de 34 px: nenhum pixel de campo a mais. Desenho só (aria-hidden); o nome do topo vai no nome falado do contador. */
+const ObjetoDaZona = (obj, label) => {
+  const face = obj.verso || !obj.card ? h('span', { class: 'ds-verso' })
+    : obj.card.image || obj.card.images ? imgDaMesa(obj.card, 'sm') : Icone(ICONE_DA_ZONA[label] || 'baralho', { tamanho: 12 });
+  const el = h('span', { class: 'tb-zobj', dataset: { tipo: obj.tipo }, 'aria-hidden': 'true' }, h('span', { class: 'tb-zobj__face' }, face),
+    obj.tipo === 'veu' ? h('span', { class: 'tb-zobj__veu' }, Icone('exilio', { tamanho: 12 })) : null);
+  if (obj.maco) el.style.setProperty('--maco', obj.maco + 'px');
+  return el;
+};
+const ZoneChip = (label, n, onClick, id, jogaveis = 0, objeto = null) => h('button', { class: 'tb-chip', type: 'button', onClick, id, title: label, dataset: { ...(jogaveis ? { jogaveis: String(jogaveis) } : {}), ...(!n ? { zero: 'true' } : {}), ...(objeto && n ? { objeto: objeto.tipo } : {}) }, // D6 · zero apagado
+  'aria-label': `${label}: ${n}` + (objeto && n && objeto.nome ? `, no topo: ${objeto.nome}` : '') + (jogaveis ? `, ${jogaveis === 1 ? 'uma carta pode ser jogada' : jogaveis + ' cartas podem ser jogadas'} agora` : '') },
+  objeto && n ? ObjetoDaZona(objeto, label) : ICONE_DA_ZONA[label] ? Icone(ICONE_DA_ZONA[label], { tamanho: 16, classe: 'tb-chip__icone' }) : null, // J-47 · ícone 18 → 16 · MK3-8 · ou a zona como objeto
   h('span', { class: 'tb-chip__rotulo' }, label), h('b', {}, String(n)), jogaveis ? h('span', { class: 'tb-chip__ponto', 'aria-hidden': 'true' }) : null);
 
 const PHASES = [['início', ['untap', 'upkeep', 'draw']], ['principal 1', ['main1']],
@@ -42932,6 +42974,23 @@ function agrupaLeque(s, oids, { separa } = {}) {
   }
   return [...pilhas.values()];
 }
+/** MK3-8 (J-78) · zonas-objeto: a espessura do maço do grimório, 1 px a cada 8 cartas (arredondado para cima: uma carta já tem
+    lado), teto de 6 px. Puro. */
+const MACO_PX_POR = 8, MACO_TETO = 6;
+const espessuraDoMaco = n => (n > 0 ? Math.min(MACO_TETO, Math.ceil(n / MACO_PX_POR)) : 0);
+/** MK3-8 (J-78) · o que a zona mostra sobre o tampo, visto por `viewer`: o grimório é um maço de verso (nunca a face: informação
+    oculta); o cemitério, a carta do topo (o fim da lista, como o motor lê o "topo do cemitério"); o exílio, a carta do topo
+    sob um véu, de verso para quem não é o dono se ela está virada para baixo (406.3). Zona vazia ou de outro tipo: null
+    (o contador fica como era: ícone e número apagados). Puro: não toca no estado. */
+function objetoDaZona(s, p, zona, viewer) {
+  const ids = (s && s.zones && s.zones[p] && s.zones[p][zona]) || [];
+  if (!ids.length) return null;
+  if (zona === 'library') return { tipo: 'maco', oid: null, verso: true, maco: espessuraDoMaco(ids.length) };
+  if (zona !== 'graveyard' && zona !== 'exile') return null;
+  const oid = ids[ids.length - 1], o = s.objects[oid] || {};
+  const oculta = zona === 'exile' && !!o.faceDown && o.owner !== viewer;
+  return { tipo: zona === 'exile' ? 'veu' : 'face', oid, verso: oculta, maco: 0 };
+}
 /** R5 · as duas linhas do campo de um jogador, com cada Aura ou Equipamento logo depois de quem o carrega. A Aura presa a um
     terreno vai para a linha dos terrenos, ao lado dele; a que está presa a algo de outro jogador fica no fim da linha de quem a
     controla. Puro. Antes as permanentes vinham na ordem de chegada: com dois Slippery Bogle e cinco Auras não dava para ver
@@ -43754,7 +43813,7 @@ function toquesDaContagem(grupos, conta) {
   for (const g of grupos) { let i = 0; (conta[g.chave] || []).forEach((n, k) => { for (let j = 0; j < n && i < g.oids.length; j++) out.push({ oid: g.oids[i++], option: k }); }); }
   return out;
 }
-return { PALAVRA_PT, textoDoCustoOpcionalM, rotulosDeCiclar, nomesDeCatalogo, LIMITE_COMANDANTE, danoDeComandante, textoDoDanoDeComandante, GRUPOS_DE_PARADA, PARADAS_PADRAO, paradasValidas, grupoDoPasso, usaParadas, paradasAtuais, iconeDaLinhaDoRegistro, donoDaLinha, iconeDaFase, trocaLegitima, cartaDaMesa, fontesDeMana, conferePagamento, planoDePagamento, gruposDeFontes, contagemDosToques, toquesDaContagem, sinaisDoResumo, iconeDaLinhaDoResumo, repeticaoDoCombo, chaveDaRepeticao, linhasDoCampo, rotulosDeAlvos, alvoSemEfeito, enxugaAlvos, LIMITE_DE_ALVOS, SAVE_KEY, SERIE_KEY, novaSerie, resultadoDaSerie, registraJogo, desfechoDaPartida, MOTIVO_DA_DERROTA, moveNaTroca, validaTroca, diffDaTroca, limitesDaTroca, proximoJogo, ZONE_PT, buildSetup, describe, revealed, shouldStop, legaisDe, esqueceEstado, createTable, restoreTable, estadoDaCarta, modificacoesDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, LEQUE, lequeDaMao, profundidadeDoLeque, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveContinuo, descreveDano, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
+return { PALAVRA_PT, textoDoCustoOpcionalM, rotulosDeCiclar, nomesDeCatalogo, LIMITE_COMANDANTE, danoDeComandante, textoDoDanoDeComandante, GRUPOS_DE_PARADA, PARADAS_PADRAO, paradasValidas, grupoDoPasso, usaParadas, paradasAtuais, iconeDaLinhaDoRegistro, donoDaLinha, iconeDaFase, trocaLegitima, cartaDaMesa, fontesDeMana, conferePagamento, planoDePagamento, gruposDeFontes, contagemDosToques, toquesDaContagem, sinaisDoResumo, iconeDaLinhaDoResumo, repeticaoDoCombo, chaveDaRepeticao, linhasDoCampo, espessuraDoMaco, objetoDaZona, rotulosDeAlvos, alvoSemEfeito, enxugaAlvos, LIMITE_DE_ALVOS, SAVE_KEY, SERIE_KEY, novaSerie, resultadoDaSerie, registraJogo, desfechoDaPartida, MOTIVO_DA_DERROTA, moveNaTroca, validaTroca, diffDaTroca, limitesDaTroca, proximoJogo, ZONE_PT, buildSetup, describe, revealed, shouldStop, legaisDe, esqueceEstado, createTable, restoreTable, estadoDaCarta, modificacoesDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, LEQUE, lequeDaMao, profundidadeDoLeque, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveContinuo, descreveDano, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
 })();
 
 
@@ -46990,6 +47049,10 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     const { lands, others } = T.linhasDoCampo(s, z.battlefield); // R5 · cada Aura ao lado de quem a carrega
     const pl = s.players[p];
     const naZona = (k, el) => { if (el) el.dataset.zona = k; return el; }; // MJ3b · o voo de saída procura o contador pela zona
+    // MK3-8 (J-78) · zonas-objeto: grimório em maço, cemitério e exílio com a carta do topo (o verso, se ela é oculta para quem olha)
+    const objeto = zona => { const ob = T.objetoDaZona(s, p, zona, table.viewer()); if (!ob) return null;
+      const o = ob.oid != null ? s.objects[ob.oid] : null;
+      return { ...ob, card: o && !ob.verso ? { name: o.name, image: imgOf(o, 'small'), images: imagensOf(o) } : null, nome: o ? (ob.verso ? VERSO_NOME : o.name) : null }; };
     const chips = h('div', { class: 'tb-chips' },
       // MK3-2 (J-65) · S4: a mão do outro é contada no lado dele; a sua está na bandeja (assimetria declarada, não desloca o eixo)
       mine || pl.dummy ? null : naZona('hand', comAssimetria(ZoneChip('Mão', z.hand.length, null), 'a sua mão está na bandeja')),
@@ -46998,10 +47061,10 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
         if (!hasPriority(v)) return;
         Dialog({ title: `Grimório de ${pl.name}`, body: Text(`${z.library.length} carta(s).`, { tone: 'muted' }),
           actions: [Button('Comprar 1', { onClick: () => { closeDialog(); act({ t: 'draw', p: v, target: p, n: 1 }); } }), Button('Fechar', { onClick: closeDialog })] });
-      }, mine ? 'tb-lib-me' : 'tb-lib-opp'), s.players.some(x => x !== pl && x.dummy) ? 'o goldfish não tem grimório' : null)),
-      naZona('graveyard', ZoneChip('Cemitério', z.graveyard.length, () => openZone(p, 'graveyard', 'Cemitério'), mine ? 'tb-cemiterio-me' : null, mine ? jogaveisEm(z.graveyard) : 0)),
+      }, mine ? 'tb-lib-me' : 'tb-lib-opp', 0, objeto('library')), s.players.some(x => x !== pl && x.dummy) ? 'o goldfish não tem grimório' : null)),
+      naZona('graveyard', ZoneChip('Cemitério', z.graveyard.length, () => openZone(p, 'graveyard', 'Cemitério'), mine ? 'tb-cemiterio-me' : null, mine ? jogaveisEm(z.graveyard) : 0, objeto('graveyard'))),
       // as tramadas já aparecem na bandeja: o ponto do exílio conta só o resto
-      naZona('exile', ZoneChip('Exílio', z.exile.length, () => openZone(p, 'exile', 'Exílio'), mine ? 'tb-exilio-me' : null, mine ? jogaveisEm(z.exile.filter(oid => s.objects[oid].plotted == null)) : 0)),
+      naZona('exile', ZoneChip('Exílio', z.exile.length, () => openZone(p, 'exile', 'Exílio'), mine ? 'tb-exilio-me' : null, mine ? jogaveisEm(z.exile.filter(oid => s.objects[oid].plotted == null)) : 0, objeto('exile'))),
       s.format === 'commander' ? naZona('command', ZoneChip('Comando', z.command.length, () => openZone(p, 'command', 'Zona de comando'))) : null,
       z.companion.length ? ZoneChip('Companheiro', z.companion.length, () => openZone(p, 'companion', 'Companheiro'), mine ? 'tb-comp-me' : 'tb-comp-opp') : null,
       poolView(pl));
