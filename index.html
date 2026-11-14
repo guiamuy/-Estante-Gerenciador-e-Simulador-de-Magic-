@@ -9371,13 +9371,14 @@ function substituiErros(r, tag) {
   if (q.objeto != null && q.objeto !== 'self') { if (typeof q.objeto !== 'object') errs.push(`${tag}: "quando.objeto" precisa ser self ou um seletor`); else errs.push(...seletorErros(q.objeto, `${tag}: objeto`)); }
   return errs;
 }
-const CONDICOES_ENTRA = ['anyPlayerLifeAtMost', 'controlsSubtype', 'revelaSubtipo', 'pagaVida', 'maxOutrasTerras', 'minOutrasTerras', 'minBasicos', 'ateTurnoProprio', 'minOutrosDoSubtipo']; // M-349 · Gingerbread Cabin // M-252 · "you may reveal a Plains or Swamp card from your hand"
+const CONDICOES_ENTRA = ['anyPlayerLifeAtMost', 'controlsSubtype', 'revelaSubtipo', 'pagaVida', 'maxOutrasTerras', 'minOutrasTerras', 'minBasicos', 'ateTurnoProprio', 'minOutrosDoSubtipo', 'contemplaM']; // M-633 · 701.4a "you may behold a Jace" (contemplaM: subtipos) // M-349 · Gingerbread Cabin // M-252 · "you may reveal a Plains or Swamp card from your hand"
 function entraErros(r, tag) {
   if (!r || typeof r !== 'object') return [`${tag}: precisa ser um objeto`];
   const errs = [];
   if (r.afetados !== 'self' && !(r.afetados && typeof r.afetados === 'object')) errs.push(`${tag}: "afetados" precisa ser self ou um seletor`);
   else if (r.afetados !== 'self') { errs.push(...seletorErros(r.afetados, `${tag}: afetados`)); if (r.afetados.palavra || r.afetados.semPalavra) errs.push(`${tag}: afetados não aceita palavra-chave`); }
   if (r.virada != null && r.virada !== true && !(r.virada.aMenosQue && Object.keys(r.virada.aMenosQue).every(k => CONDICOES_ENTRA.includes(k)))) errs.push(`${tag}: "virada" é true ou { aMenosQue }`);
+  if (r.virada && r.virada.aMenosQue && r.virada.aMenosQue.contemplaM != null && !(Array.isArray(r.virada.aMenosQue.contemplaM) && r.virada.aMenosQue.contemplaM.length && r.virada.aMenosQue.contemplaM.every(k => typeof k === 'string' && /^[A-Z][A-Za-z' -]*$/.test(k)))) errs.push(`${tag}: "contemplaM" é a lista de subtipos que se contemplam (701.4a)`); // M-633
   for (const [k, v] of Object.entries(r.marcadores || {})) if (!(Number.isInteger(v) && v > 0) && v !== 'x' && v !== 'kicked') errs.push(`${tag}: marcadores "${k}" precisa ser inteiro, 'x' ou 'kicked'`);
   if (r.virada == null && !Object.keys(r.marcadores || {}).length) errs.push(`${tag}: não muda nada`);
   return errs;
@@ -11544,6 +11545,12 @@ const RAW_SCRIPTS = [
     entra: [{ afetados: 'self', virada: { aMenosQue: { revelaSubtipo: ['Plains', 'Swamp'] } } }], // "As this land enters, you may reveal a Plains or Swamp card from your hand. If you don't, this land enters tapped."
     note: 'jogada da mão, a escolha de revelar vem no botão; posta no campo por outro efeito, entra virada (a mesa ainda não pergunta no meio de um efeito)',
     example: { action: 'etb', target: 'none', expect: { attached: false } } },
+  // M-633 · 701.4a contemplar (behold) na entrada do terreno; texto da API da Scryfall pela coleta de 13/11/2026 (.listas/oficiais-revisadas.json)
+  { name: "Theorist's Sanctum", produces: [['U']], // "({T}: Add {U}.)" (Land — Island, 305.6)
+    entra: [{ afetados: 'self', virada: { aMenosQue: { contemplaM: ['Jace'] } } }], // "As this land enters, you may behold a Jace. If you don't, this land enters tapped." (701.4a: revelar da mão ou escolher um Jace seu)
+    abilities: [{ kind: 'activated', cost: { mana: '{2}{U}', tap: true }, effects: [{ do: 'empower_jace', amount: 2 }] }], // "{2}{U}, {T}: Empower Jace 2." (701.71)
+    note: 'jogada da mão, contemplar vem no botão (revelar um Jace da mão ou escolher um Jace seu no campo); posta no campo por outro efeito (busca), contempla sozinha um Jace seu no campo, se houver, e com um Jace só na mão entra virada (a mesa ainda não pergunta no meio de um efeito)',
+    example: { action: 'activate:0', target: 'none', expect: { tokens: 1 } } },
   // M-253 · veneno e tóxico (texto de 05/10/2026; segunda fonte de 10/10/2026)
   { name: "Skrelv's Hive", abilities: [{ kind: 'triggered', when: 'upkeep', effects: [{ do: 'lose', amount: 1 }, // "At the beginning of your upkeep, you lose 1 life and create a 1/1 colorless Phyrexian Mite artifact creature token with toxic 1 and 'This token can't block.'"
       { do: 'token', amount: 1, token: { name: 'Phyrexian Mite', types: ['artifact', 'creature'], subtypes: ['Phyrexian', 'Mite'], colors: [], power: 1, toughness: 1, self: { toxic: 1, naoBloqueia: true } } }] }],
@@ -26525,7 +26532,7 @@ function entradaModificada(s, o, xPago) {
         (c.minOutrasTerras != null && outrasTerras(s, o) >= c.minOutrasTerras) || (c.minBasicos != null && outrasTerras(s, o, true) >= c.minBasicos) || // M-340 · terras lentas e de batalha
         (c.ateTurnoProprio != null && noTurnoProprioAte(s, o.controller, c.ateTurnoProprio)) || // M-342 · Starting Town
         (c.minOutrosDoSubtipo && outrosDoSubtipo(s, o, c.minOutrosDoSubtipo[0]) >= c.minOutrosDoSubtipo[1]) || (c.seuTurnoM === true && s.turn.active === o.controller); // M-537 · Eddymurk Crab · M-349 · Gingerbread Cabin ("three or more other Forests")
-      virada = !(livre || (c.revelaSubtipo && !!o.revelaAoEntrar)); // M-252 · revelou ao jogar (a escolha vem na ação)
+      virada = !(livre || (c.revelaSubtipo && !!o.revelaAoEntrar) || (c.contemplaM && (!!o.revelaAoEntrar || (!o.jogadaAoEntrarM && contemplaveisNoCampoM(s, o, c.contemplaM).length > 0)))); // M-252 · revelou ao jogar (a escolha vem na ação) · M-633 · 701.4a: contemplou ao jogar; posta por efeito, escolhe sozinha a permanente com o subtipo (escolher não revela nada)
       if (c.pagaVida) { if (jaVirada) virada = true; else pagaVida = c.pagaVida; } // M-330 · "As ~ enters, you may pay 2 life. If you don't, it enters tapped." (outra permanente já a faz entrar virada: pagar não adianta)
     }
     for (const [k, v] of Object.entries(r.marcadores || {})) { const n = v === 'x' ? xPago : v === 'kicked' ? (o.kicked || 0) : v; if (n) marcadores[k] = (marcadores[k] || 0) + n; }
@@ -26773,11 +26780,16 @@ function marcaDanoEmCriatura(s, src, obj, n) { if (infecta(s, src) || murchaK(s,
 function danoEmJogador(s, src, p, n) { danoNoTurnoK(s, p, n); if (infecta(s, src)) darVeneno(s, p, n, null, src.name); else perdeVida(s, p, n); }
 function darVeneno(s, p, n, events, fonte) { if (!(n > 0) || !s.players[p]) return; s.players[p].poison = (s.players[p].poison || 0) + n; (events || []).push({ kind: 'effect', do: 'poison', name: fonte || '', target: s.players[p].name, amount: n }); }
 /** M-252 · cartas da mão que a terra aceita revelar ao entrar (Snarl); `distintas`: uma por nome, para a oferta. */
+/** M-633 · 701.4a: "choose a [quality] permanent you control" — as permanentes suas com o subtipo, fora a que está entrando. */
+function contemplaveisNoCampoM(s, o, subs) {
+  return battlefield(s).filter(x => x.oid !== o.oid && !entrandoJunto(s, x) && x.controller === o.controller && subs.some(k => new RegExp('\\b' + k + '\\b').test(linhaDeTipo(s, x)))).map(x => x.oid);
+}
 function revelaveisAoEntrar(s, p, o, distintas) {
-  const sc = (s.facts[o.name] || {}).script || {}, regra = (SC.substituicoesDoScript(sc).entra || []).find(r => r.afetados === 'self' && r.virada && r.virada.aMenosQue && r.virada.aMenosQue.revelaSubtipo);
+  const sc = (s.facts[o.name] || {}).script || {}, regra = (SC.substituicoesDoScript(sc).entra || []).find(r => r.afetados === 'self' && r.virada && r.virada.aMenosQue && (r.virada.aMenosQue.revelaSubtipo || r.virada.aMenosQue.contemplaM));
   if (!regra) return [];
-  const subs = regra.virada.aMenosQue.revelaSubtipo, vistos = new Set();
-  return s.zones[p].hand.filter(x => x !== o.oid && subs.some(k => new RegExp('\\b' + k + '\\b').test(linhaDeTipo(s, s.objects[x]))))
+  const subs = regra.virada.aMenosQue.revelaSubtipo || regra.virada.aMenosQue.contemplaM, vistos = new Set();
+  const campo = regra.virada.aMenosQue.contemplaM ? contemplaveisNoCampoM(s, { ...o, controller: p }, subs) : []; // M-633 · 701.4a: contemplar = revelar da mão ou escolher uma permanente sua
+  return s.zones[p].hand.filter(x => x !== o.oid && subs.some(k => new RegExp('\\b' + k + '\\b').test(linhaDeTipo(s, s.objects[x])))).concat(campo)
     .filter(x => { if (!distintas) return true; const n = s.objects[x].name; if (vistos.has(n)) return false; vistos.add(n); return true; });
 }
 /** M-248 · 119.3 / 119.4: perder vida (dano, perda ou pagamento) num lugar só, com o rastro "vida perdida neste turno"
@@ -32130,8 +32142,9 @@ const HANDLERS = {
       if (!revelaveisAoEntrar(s, a.p, o).includes(a.revela)) throw new RuleError('escolha', 'revele uma carta da mão que sirva para esta terra');
       o.revelaAoEntrar = a.revela; ev.push({ kind: 'effect', do: 'reveal', name: o.name, target: s.objects[a.revela].name });
     }
+    o.jogadaAoEntrarM = true; // M-633 · jogada da mão: contemplar é a escolha que veio na ação (sem ela, entra virada)
     moveObject(s, a.oid, 'battlefield');
-    delete s.objects[a.oid].revelaAoEntrar;
+    delete s.objects[a.oid].revelaAoEntrar; delete s.objects[a.oid].jogadaAoEntrarM;
     s.players[a.p].landsPlayed++;
     gatilhosDeJogador(s, 'joga-terreno', a.p, a.oid); // M-342 · "When you play another land" (City of Traitors)
     s.turn.passes = 0;
