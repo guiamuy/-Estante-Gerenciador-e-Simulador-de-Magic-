@@ -2583,6 +2583,7 @@ body[data-barra="fora"] .ds-relatar { transition: transform var(--dur-1) var(--e
 .ds-relatar[data-aberto="true"] { color: var(--accent); border-color: var(--accent); }
 .ds-relatar__menu { position: fixed; z-index: var(--z-overlay); display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-2); padding-bottom: var(--space-2); }
 .relato__ver { display: flex; justify-content: center; }
+.perfil-voz { padding: var(--space-1) var(--space-3); border-radius: var(--radius-3); } /* G-398 · a chave do comando de voz, no Perfil do dono */
 /* G-397 · YV3 · relatos #215/#216: a janela do relato por voz, no pé da tela (acompanha a rolagem), translúcida sobre o
    conteúdo (pedido do dono; a única superfície de vidro do app), com profundidade de sombra e o texto ao vivo. */
 body[data-gravando="true"] #relatar-abrir { display: none; }
@@ -16413,7 +16414,7 @@ const REGISTRO = [
   ['etiquetas', 'conteudo', true], ['mesa.som', 'preferencia', true], ['mesa.verJogadas', 'preferencia', true],
   ['mesa.manaManual', 'preferencia', true], ['mesa.paradas', 'preferencia', true], ['fichas.escolhas', 'preferencia', true],
   ['partidas.historico', 'conteudo', true], ['terrenos.escolhas', 'preferencia', true], ['noticias.idiomas', 'preferencia', true],
-  ['noticias.filtro', 'preferencia', true], ['noticias.guardadas', 'conteudo', true], ['relatos.itens', 'conteudo', true],
+  ['noticias.filtro', 'preferencia', true], ['noticias.guardadas', 'conteudo', true], ['relatos.itens', 'conteudo', true], ['relatos.comandoDeVoz', 'aparelho', false], /* G-398 · a chave do microfone vale por aparelho */
   // A-261 · preferências que ficavam fora do backup
   ['ui.apresentacao', 'preferencia', true], ['mesa.relatarY', 'preferencia', true], ['decks.reservaVista.v2', 'preferencia', true],
   ['decks.estatisticas', 'preferencia', true], ['lista.visao', 'preferencia', true], ['catalogo.visao', 'preferencia', true],
@@ -19291,8 +19292,8 @@ const LINKS = [
 const PELO_NAVEGADOR = [
   { id: 'fala', nome: 'Ditado do relato', icone: 'microfone', origens: [],
     vai: 'Só quando você toca em Ditar: sua voz vai para o reconhecimento de fala do navegador (no Chrome, um serviço do Google, o mesmo do ditado do teclado), que devolve o texto para o campo. Sem internet, se o aparelho reconhece o idioma, a voz fica nele. A pontuação é feita no aparelho. A Estante não grava nem guarda áudio.',
-    quando: 'Enquanto o Ditar está ligado no formulário de relato. Ele desliga em Parar, depois de três silêncios seguidos, em três minutos ou ao fechar o formulário.',
-    evitar: 'Digitar o relato. Sem reconhecimento de fala no aparelho, Ditar não liga o microfone.' }
+    quando: 'Enquanto o Ditar está ligado no formulário de relato. Ele desliga em Parar, depois de três silêncios seguidos, em três minutos ou ao fechar o formulário. Na conta do dono, também durante o relato por voz e, com a chave Comando de voz ligada no Perfil, enquanto o app está na tela.', // G-398
+    evitar: 'Digitar o relato e deixar a chave Comando de voz desligada. Sem reconhecimento de fala no aparelho, Ditar não liga o microfone.' }
 ];
 const ORIGENS = [...DESTINOS, ...LINKS].flatMap(d => d.origens);
 
@@ -20022,6 +20023,7 @@ function abreRelato(editando = null) {
   if (!servico) return;
   // T1 · editar: o mesmo formulário, preenchido com o relato; a data, a tela e a partida dele ficam como estavam
   if (editando && !podeEditar(editando, servico.agora())) { toast('Passou de uma hora: o relato não muda mais'); return; }
+  paraEscuta(); // G-398 · o formulário usa o microfone do ditado
   const rascunho = editando ? { tipo: editando.tipo, urgencia: editando.urgencia, descricao: editando.descricao, anexar: false } : rascunhoNovo;
   const hash = typeof location !== 'undefined' ? location.hash : '';
   const area = areaDaRota(hash);
@@ -20077,7 +20079,7 @@ function abreRelato(editando = null) {
     toast(`Relato salvo · ${quando(r.relato.criadoEm)}`, 4200, { acao: { rotulo: 'Ver', icone: 'relato', onClick: () => { location.hash = '#/perfil/relatos'; } } });
   } });
   Dialog({ title: editando ? 'Editar relato' : 'Relatar', body: corpo, actions: [Button('Cancelar', { variant: 'ghost', id: 'relato-cancelar', onClick: closeDialog }), salvar],
-    aoFechar: ditado ? ditado.desliga : null });
+    aoFechar: () => { if (ditado) ditado.desliga(); agendaEscuta(1200); } }); // G-398 · o comando de voz volta a ouvir
 }
 /** G-319 · linha do ditado sob o texto do relato: Ditar/Parar, idioma (PT, EN, ES) e o que está sendo ouvido. G-333 ·
     o falado chega pontuado (`pontuaDitado`), o parcial aparece em itálico e é trocado pelo final, a onda pulsa quando há
@@ -20218,12 +20220,12 @@ function BotaoRelatar() {
    registra o relato como Melhoria · Alta, com a tela de onde saiu, e mostra "Relato registrado"; Cancelar descarta sem
    registrar. Só o dono vê (a conta com o e-mail de `DONOS`): é um atalho de trabalho, não um recurso do produto. */
 const DONOS = ['gui.amuy@gmail.com'];
-let souDono = false, verificaDono = null;
+let souDono = false, verificaDono = null, atualizaDono = null;
 /** O boot entrega quem diz se a conta conectada é a do dono (assíncrono: a conta mora no armazenamento). */
 function usaDono(fn) {
   verificaDono = typeof fn === 'function' ? fn : null;
-  const atualiza = async () => { try { souDono = !!(verificaDono && await verificaDono()); } catch (e) { souDono = false; } };
-  atualiza();
+  const atualiza = async () => { try { souDono = !!(verificaDono && await verificaDono()); } catch (e) { souDono = false; } if (souDono) agendaEscuta(); else paraEscuta(); };
+  atualizaDono = atualiza; atualiza();
   if (typeof addEventListener === 'function') addEventListener('hashchange', atualiza);
   return atualiza;
 }
@@ -20231,9 +20233,72 @@ const ehDono = () => souDono;
 const GRAVACAO_TIPO = 'melhoria', GRAVACAO_URGENCIA = 'alta';
 /** mm:ss do tempo gravado. Puro. */
 const tempoDaGravacao = ms => { const s = Math.max(0, Math.floor((Number(ms) || 0) / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+/* G-398 · YV4 · relatos #215/#216: comandos de voz. "fazer relato" (ou "fazer um relato") abre a janela de gravação;
+   dentro dela, "terminar relato" (ou "encerrar"/"finalizar relato") registra e "cancelar relato" descarta. A frase do
+   comando nunca entra no texto. Só em português, só para o dono, só com a chave "Comando de voz" ligada no Perfil e com
+   o app na tela: a escuta para quando o app sai da tela, quando o formulário de relatar está aberto e durante a gravação. */
+const COMANDOS_DE_RELATO = [['fazer', /(?<![\p{L}\p{N}])faz(?:er)?\s+(?:um\s+|o\s+)?relato(?![\p{L}\p{N}])/iu],
+  ['terminar', /(?<![\p{L}\p{N}])(?:terminar|encerrar|finalizar)\s+(?:o\s+)?relato(?![\p{L}\p{N}])/iu],
+  ['cancelar', /(?<![\p{L}\p{N}])cancelar\s+(?:o\s+)?relato(?![\p{L}\p{N}])/iu]];
+/** O primeiro comando de relato dito no texto: { comando, antes, depois } (o que veio antes e depois da frase, sem
+    sinais e espaços soltos na emenda) ou null. Maiúsculas e a pontuação do ditado não atrapalham. Puro. */
+function comandoDeRelato(texto) {
+  const t = String(texto || '');
+  let melhor = null;
+  for (const [comando, re] of COMANDOS_DE_RELATO) { const m = re.exec(t); if (m && (!melhor || m.index < melhor.m.index)) melhor = { comando, m }; }
+  if (!melhor) return null;
+  const antes = t.slice(0, melhor.m.index).replace(/[\s,;:]+$/u, ''), depois = t.slice(melhor.m.index + melhor.m[0].length).replace(/^[\s,.;:!?…]+/u, '');
+  return { comando: melhor.comando, antes, depois };
+}
+const CHAVE_DO_COMANDO = 'relatos.comandoDeVoz';
+let escutando = false, escutaEspera = null, escutaPresa = false;
+const lerChave = () => { try { return typeof localStorage !== 'undefined' && localStorage.getItem(CHAVE_DO_COMANDO) === 'sim'; } catch (e) { return false; } };
+/** A chave do comando de voz (fica no aparelho). */
+function comandoDeVozLigado() { return lerChave(); }
+function ligaComandoDeVoz(v) {
+  try { if (v) localStorage.setItem(CHAVE_DO_COMANDO, 'sim'); else localStorage.removeItem(CHAVE_DO_COMANDO); } catch (e) { /* sem armazenamento: vale até fechar */ }
+  if (!v) return paraEscuta();
+  Promise.resolve(atualizaDono ? atualizaDono() : null).then(() => agendaEscuta(0)); // a conta pode ter entrado agora, sem trocar de tela
+}
+const telaVisivel = () => typeof document === 'undefined' || document.visibilityState !== 'hidden';
+function podeEscutar() {
+  return souDono && lerChave() && !!fala && fala.available() && !gravacao && !escutaPresa && telaVisivel()
+    && !(typeof document !== 'undefined' && document.getElementById('relato-form'));
+}
+function agendaEscuta(ms = 700) { clearTimeout(escutaEspera); escutaEspera = setTimeout(escuta, ms); }
+function paraEscuta() { clearTimeout(escutaEspera); if (escutando) { escutaPresa = true; fala.stop(); escutaPresa = false; } }
+/** Ouve, em segundo plano na tela, só o "fazer relato". Quando a escuta acaba sozinha (silêncio, tempo, outra fala no
+    lugar), tenta de novo em instantes, se ainda puder. */
+function escuta() {
+  if (escutando || !podeEscutar()) return;
+  escutando = true; let disparou = false;
+  const ok = fala.start({ idioma: 'pt-BR', silencios: 1000, limiteMs: 10 * 60 * 1000,
+    aoTexto: ({ segmentos, parcial }) => {
+      if (disparou) return;
+      const recente = [...segmentos.slice(-2).map(x => x.texto), parcial].join(' ');
+      const c = comandoDeRelato(recente);
+      if (c && c.comando === 'fazer') { disparou = true; fala.stop(); }
+    },
+    aoFim: () => { escutando = false; if (disparou) abreGravacao({ porVoz: true }); else if (!escutaPresa) agendaEscuta(); } });
+  if (!ok) { escutando = false; agendaEscuta(5000); }
+}
+if (typeof document !== 'undefined' && typeof addEventListener === 'function') {
+  document.addEventListener('visibilitychange', () => { if (telaVisivel()) agendaEscuta(); else paraEscuta(); });
+  addEventListener('hashchange', () => agendaEscuta());
+}
+/** A chave do Perfil (só o dono vê): liga o "fazer relato" em qualquer tela. */
+function ChaveDoComandoDeVoz() {
+  const tem = !!fala && fala.available();
+  const c = __m3.Chave('Comando de voz', { ligada: tem && lerChave(), id: 'perfil-comando-voz',
+    detalhe: tem ? 'Diga "fazer relato" em qualquer tela; "terminar relato" ou "cancelar relato" encerram. Só em português. Ligado, o microfone fica aberto enquanto o app está na tela; no Chrome, a voz passa pelo serviço de fala do Google, como no ditado.'
+      : 'Este navegador não reconhece fala. Use Relatar e o microfone do teclado.',
+    onMuda: v => ligaComandoDeVoz(v) });
+  if (!tem) c.disabled = true;
+  return c;
+}
 let gravacao = null;
 /** Abre a janela de gravação e começa a ouvir. Devolve o controle ({ termina, cancela, el }) ou null quando não dá. */
-function abreGravacao() {
+function abreGravacao({ porVoz = false } = {}) {
   if (gravacao) return gravacao;
   if (!servico || !souDono) return null;
   if (!fala || !fala.available()) { toast(textoDaFalhaDoDitado('sem-suporte'), 4200); return null; }
@@ -20251,7 +20316,7 @@ function abreGravacao() {
   const continuar = Button('Continuar', { variant: 'ghost', icone: 'microfone', id: 'relato-voz-continuar', onClick: () => ouve() });
   continuar.hidden = true;
   const terminar = Button('Terminar', { variant: 'primary', icone: 'marcar', id: 'relato-voz-terminar', onClick: () => termina() });
-  const el = h('section', { class: 'relato-voz', id: 'relato-voz', role: 'region', 'aria-label': 'Relato por voz', dataset: { estado, voz: 'false' } },
+  const el = h('section', { class: 'relato-voz', id: 'relato-voz', role: 'region', 'aria-label': 'Relato por voz', dataset: { estado, voz: 'false', porVoz: String(!!porVoz) } },
     h('div', { class: 'relato-voz__topo' }, ponto, titulo, onda, tempo),
     fala$, aviso,
     h('div', { class: 'relato-voz__acoes' }, cancelar, continuar, terminar));
@@ -20273,7 +20338,14 @@ function abreGravacao() {
     const base = texto;
     const ok = fala.start({
       idioma: 'pt-BR',
-      aoTexto: ({ segmentos, parcial, pausa }) => { const r = juntaDitado(base, base.length, textoDaSessao(segmentos, parcial, 'pt-BR', pausa)); mostraTexto(r.texto); },
+      aoTexto: ({ segmentos, parcial, pausa }) => {
+        if (encerrar) return; // pediu para terminar ou cancelar: o resto que chega é a própria frase do comando
+        const r = juntaDitado(base, base.length, textoDaSessao(segmentos, parcial, 'pt-BR', pausa));
+        const c = comandoDeRelato(r.texto); // G-398 · "terminar relato" / "cancelar relato" ditos; "fazer relato" de novo só sai
+        if (!c) return mostraTexto(r.texto);
+        if (c.comando === 'fazer') return mostraTexto([c.antes, c.depois].filter(Boolean).join(' '));
+        mostraTexto(c.antes); encerrar = c.comando; fala.stop();
+      },
       aoVoz: v => { el.dataset.voz = String(!!v && estado === 'ouvindo'); },
       aoErro: codigo => { diz(textoDaFalhaDoDitado(codigo), 'erro'); },
       aoFim: motivo => {
@@ -20316,6 +20388,7 @@ function abreGravacao() {
     if (estado === 'ouvindo') { encerrar = 'cancelar'; try { fala.stop(); } catch (e) { /* já parou */ } }
     el.remove(); document.body.removeAttribute('data-gravando');
     if (motivo === 'cancelado') toast('Relato cancelado', 2600);
+    agendaEscuta(1200); // G-398 · o comando de voz volta a ouvir
   }
   document.body.appendChild(el); document.body.setAttribute('data-gravando', 'true');
   relogio = setInterval(() => { if (estado === 'ouvindo') tempo.textContent = tempoDaGravacao(servico.agora() - inicio); }, 500);
@@ -20721,7 +20794,7 @@ function abrePedidoDeCobertura({ cobertura, lista, motor, aoMudar = () => {} }) 
   pinta();
 }
 
-return { estadoDoEnvio, etapaDoRelato, ESTADO_DO_ENVIO, ETAPAS_DO_REGISTRO, pendentesDeEnvio, createEnvioAutomatico, registraEnvio, AVISO_DA_FALHA, motivoCurto, IDIOMAS_DO_DITADO, idiomaDoDitado, juntaDitado, pontuaDitado, fechaDitado, textoDaSessao, minusculaNoMeio, sinalDaPausa, PAUSAS_DO_DITADO, textoDaFalhaDoDitado, usaFala, relatoDeCobertura, pedidosDeCobertura, pedidoDaLista, etapaDoPedido, ETAPAS_DO_PEDIDO, createCobertura, abrePedidoDeCobertura, situacaoDoEnvio, foiEnviado, textoDaFalha, PRAZO_FILA, URL_FILA_LIGADA, FILA_MEMORIA_MS, filaLigada, relatoParaFila, createEnvioPelaFila, AREAS, URL_SITUACAO, BUSCA_SITUACAO_MS, situacaoDosRegistros, concilia, EDITAR_JANELA_MS, podeEditar, editavelAte, editaRelato, REPOSITORIO, MARCA, dadosDoRelato, registroDoApp, limpaTela, nomeDaTela, FILTRO_VAZIO, filtra, contaFiltros, areasDe, csvDosRelatos, jsonDosRelatos, partidaAbrivel, contextoDaPartida, CHAVE, TIPOS, URGENCIAS, DESCRICAO_MIN, DESCRICAO_MAX, RELATOS_MAX, areaDaRota, confere, novoRelato, ordena, textoDoRelato, textoDosRelatos, createRelatos, usa, usaContexto, abreRelato, BotaoRelatar, createRelatosScreen, rotuloDe, DONOS, usaDono, ehDono, abreGravacao, tempoDaGravacao, GRAVACAO_TIPO, GRAVACAO_URGENCIA };
+return { estadoDoEnvio, etapaDoRelato, ESTADO_DO_ENVIO, ETAPAS_DO_REGISTRO, pendentesDeEnvio, createEnvioAutomatico, registraEnvio, AVISO_DA_FALHA, motivoCurto, IDIOMAS_DO_DITADO, idiomaDoDitado, juntaDitado, pontuaDitado, fechaDitado, textoDaSessao, minusculaNoMeio, sinalDaPausa, PAUSAS_DO_DITADO, textoDaFalhaDoDitado, usaFala, relatoDeCobertura, pedidosDeCobertura, pedidoDaLista, etapaDoPedido, ETAPAS_DO_PEDIDO, createCobertura, abrePedidoDeCobertura, situacaoDoEnvio, foiEnviado, textoDaFalha, PRAZO_FILA, URL_FILA_LIGADA, FILA_MEMORIA_MS, filaLigada, relatoParaFila, createEnvioPelaFila, AREAS, URL_SITUACAO, BUSCA_SITUACAO_MS, situacaoDosRegistros, concilia, EDITAR_JANELA_MS, podeEditar, editavelAte, editaRelato, REPOSITORIO, MARCA, dadosDoRelato, registroDoApp, limpaTela, nomeDaTela, FILTRO_VAZIO, filtra, contaFiltros, areasDe, csvDosRelatos, jsonDosRelatos, partidaAbrivel, contextoDaPartida, CHAVE, TIPOS, URGENCIAS, DESCRICAO_MIN, DESCRICAO_MAX, RELATOS_MAX, areaDaRota, confere, novoRelato, ordena, textoDoRelato, textoDosRelatos, createRelatos, usa, usaContexto, abreRelato, BotaoRelatar, createRelatosScreen, rotuloDe, DONOS, usaDono, ehDono, abreGravacao, tempoDaGravacao, comandoDeRelato, comandoDeVozLigado, ligaComandoDeVoz, ChaveDoComandoDeVoz, GRAVACAO_TIPO, GRAVACAO_URGENCIA };
 })();
 
 /* ==== src/app/catalogo.js ==== */
@@ -22563,6 +22636,8 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
       st.conta && st.conta.email && PAINEL_DONOS.includes(String(st.conta.email).toLowerCase()) ? h('a', { class: 'ds-surface ds-expansivel__cabeca perfil-atalho', id: 'perfil-painel', href: 'painel.html' },
         h('span', { class: 'ds-expansivel__selo' }, Icone('painel', { tamanho: 20 })), h('span', { class: 'ds-expansivel__titulo' }, 'Painel Estante'),
         h('span', { class: 'ds-expansivel__resumo' }, 'Evolução, fila e qualidade · só você vê'), Icone('seguir', { tamanho: 20 })) : null,
+      // G-398 · relatos #215/#216: o comando de voz do relato, só para o dono
+      st.conta && st.conta.email && PAINEL_DONOS.includes(String(st.conta.email).toLowerCase()) ? h('div', { class: 'ds-surface perfil-voz', id: 'perfil-voz' }, __m38.ChaveDoComandoDeVoz()) : null,
       // G-325 · Convidar amigos: link, QR e o passo a passo de instalar no celular de quem recebe
       h('button', { class: 'ds-surface ds-expansivel__cabeca perfil-atalho', type: 'button', id: 'perfil-convidar', onClick: () => go('/perfil/convidar') },
         h('span', { class: 'ds-expansivel__selo' }, Icone('pessoas', { tamanho: 20 })), h('span', { class: 'ds-expansivel__titulo' }, 'Convidar amigos'),

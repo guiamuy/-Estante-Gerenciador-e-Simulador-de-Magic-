@@ -12348,6 +12348,92 @@ test('e2e · G-397 relatos #215/#216: só o dono vê "Por voz" no balão; a jane
   assert.deepEqual(errors, []);
 });
 
+/* ---------------- G-398 · relatos #215/#216: comandos de voz do relato ---------------- */
+test('e2e · G-398 relatos #215/#216: com a chave Comando de voz (só no Perfil do dono), o app ouve em português; "fazer relato" abre a janela, "terminar relato" registra sem a frase do comando, "cancelar relato" descarta; o formulário aberto e a chave desligada param a escuta', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+  let email = 'outra@gmail.com';
+  await page.route('https://www.googleapis.com/**', async r => {
+    const url = r.request().url();
+    if (!/Bearer tok-e2e/.test(r.request().headers().authorization || '')) return r.fulfill({ status: 401, json: {} });
+    if (url.includes('/oauth2/v3/userinfo')) return r.fulfill({ json: { name: 'Conta de teste', email, picture: 'https://lh3.googleusercontent.com/a/foto' } });
+    if (url.includes('/drive/v3/files?spaces=appDataFolder')) return r.fulfill({ json: { files: [] } });
+    if (url.includes('/upload/drive/v3/files')) return r.fulfill({ json: { id: 'f1' } });
+    return r.fulfill({ status: 404, json: {} });
+  });
+  await page.route('https://lh3.googleusercontent.com/**', r => r.fulfill({ status: 200, contentType: 'image/png', body: PNG, headers: { 'access-control-allow-origin': '*' } }));
+  await page.addInitScript(() => {
+    window.__GOOGLE_CLIENT_ID = 'e2e.apps.googleusercontent.com';
+    window.__GOOGLE_FALSO = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }), revoke: (tk, cb) => cb && cb() } } };
+    window.__falas = [];
+    window.SpeechRecognition = class {
+      constructor() { window.__falas.push(this); this.estado = 'novo'; }
+      start() { this.estado = 'ouvindo'; } stop() { this.estado = 'parando'; } abort() { this.estado = 'abortado'; }
+    };
+    window.__dita = (textos, final = true) => { const r = window.__falas.at(-1); r.onresult({ resultIndex: 0, results: textos.map(t => Object.assign([{ transcript: t }], { isFinal: final })) }); };
+    window.__acaba = erro => { const r = window.__falas.at(-1); if (erro) r.onerror({ error: erro }); r.onend(); };
+  });
+  await page.setViewportSize({ width: 360, height: 780 });
+  const ouvindo = () => page.evaluate(() => { const r = window.__falas.at(-1); return !!r && r.estado === 'ouvindo'; });
+  // 1 · outra conta não vê a chave; o dono vê, desligada, com 44 px e o aviso do microfone
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#conta-entrar:not([disabled])');
+  await page.click('#conta-entrar'); await page.waitForSelector('#perfil-conta[data-conectada="true"]');
+  assert.equal(await page.locator('#perfil-comando-voz').count(), 0, 'outra conta não vê');
+  await page.click('#conta-sair'); await page.waitForSelector('#conta-entrar:not([disabled])');
+  email = 'gui.amuy@gmail.com';
+  await page.click('#conta-entrar'); await page.waitForSelector('#perfil-conta[data-conectada="true"]'); await page.waitForSelector('#perfil-comando-voz');
+  assert.equal(await page.getAttribute('#perfil-comando-voz', 'aria-checked'), 'false');
+  assert.ok((await page.$eval('#perfil-comando-voz', b => b.offsetHeight)) >= 44);
+  assert.match(await page.innerText('#perfil-comando-voz'), /fazer relato[\s\S]*microfone fica aberto/);
+  for (const tema of ['dark', 'light']) { await page.evaluate(x => document.documentElement.setAttribute('data-theme', x), tema); await auditaTela(page, `G-398 perfil do dono ${tema}`); }
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  const antesDaChave = await page.evaluate(() => window.__falas.length);
+  await page.waitForTimeout(900); assert.equal(await page.evaluate(() => window.__falas.length), antesDaChave, 'desligada: não ouve');
+  // 2 · ligar: ouve em português, em qualquer tela
+  await page.click('#perfil-comando-voz'); assert.equal(await page.getAttribute('#perfil-comando-voz', 'aria-checked'), 'true');
+  await page.waitForFunction(() => window.__falas.length && window.__falas.at(-1).estado === 'ouvindo');
+  assert.equal(await page.evaluate(() => window.__falas.at(-1).lang), 'pt-BR');
+  await page.goto(base + '#/'); await page.waitForSelector('#home-titulo'); await page.waitForFunction(() => window.__falas.at(-1) && window.__falas.at(-1).estado === 'ouvindo');
+  // conversa comum não abre nada
+  await page.evaluate(() => window.__dita(['o relato de ontem']));
+  await page.waitForTimeout(200); assert.equal(await page.locator('#relato-voz').count(), 0);
+  // 3 · "fazer relato": a janela abre (por voz) e começa a gravar
+  await page.evaluate(() => window.__dita(['Fazer relato'], false));
+  await page.evaluate(() => window.__acaba());
+  await page.waitForSelector('#relato-voz[data-estado="ouvindo"][data-por-voz="true"]');
+  assert.equal(await page.innerText('#relato-voz-texto'), 'Fale o relato…', 'a frase do comando não entra');
+  // 4 · "terminar relato": registra o que veio antes, sem a frase
+  await page.evaluate(() => window.__dita(['o placar some na mesa terminar relato'], false));
+  await page.waitForFunction(() => window.__falas.at(-1).estado === 'parando');
+  assert.equal(await page.innerText('#relato-voz-texto'), 'O placar some na mesa');
+  await page.evaluate(() => window.__acaba());
+  await page.waitForSelector('#relato-voz[data-estado="registrado"]');
+  await page.click('#relato-voz-ver'); await page.waitForSelector('#relatos-lista');
+  assert.match(await page.locator('#relatos-lista .relato-item').first().innerText(), /O placar some na mesa\./);
+  assert.doesNotMatch(await page.innerText('#relatos-lista'), /terminar relato/i);
+  // 5 · a escuta volta depois; "cancelar relato" descarta
+  await page.goto(base + '#/'); await page.waitForSelector('#home-titulo'); await page.waitForFunction(() => window.__falas.at(-1).estado === 'ouvindo' && !document.querySelector('#relato-voz'));
+  await page.evaluate(() => window.__dita(['fazer um relato'])); await page.evaluate(() => window.__acaba());
+  await page.waitForSelector('#relato-voz[data-estado="ouvindo"]');
+  await page.evaluate(() => window.__dita(['isto não vale cancelar relato']));
+  await page.evaluate(() => window.__acaba());
+  await page.waitForSelector('#relato-voz', { state: 'detached' }); assert.match(await page.innerText('#ds-toast'), /Relato cancelado/);
+  // 6 · o formulário aberto para a escuta (o ditado dele usa o microfone); ao fechar, volta
+  await page.waitForFunction(() => window.__falas.at(-1).estado === 'ouvindo');
+  await page.click('#relatar-abrir'); await page.click('#relatar-novo'); await page.waitForSelector('#relato-form');
+  await page.waitForFunction(() => window.__falas.at(-1).estado !== 'ouvindo'); await page.evaluate(() => window.__acaba());
+  const comForm = await page.evaluate(() => window.__falas.length); await page.waitForTimeout(1000);
+  assert.equal(await page.evaluate(() => window.__falas.length), comForm, 'com o formulário aberto, não volta a ouvir');
+  await page.keyboard.press('Escape'); await page.waitForSelector('#relato-form', { state: 'detached' });
+  await page.waitForFunction(() => window.__falas.at(-1).estado === 'ouvindo', null, { timeout: 4000 });
+  // 7 · desligar a chave para a escuta
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#perfil-comando-voz'); await page.click('#perfil-comando-voz');
+  await page.waitForFunction(() => window.__falas.at(-1).estado !== 'ouvindo'); await page.evaluate(() => window.__acaba());
+  const desligada = await page.evaluate(() => window.__falas.length); await page.waitForTimeout(1000);
+  assert.equal(await page.evaluate(() => window.__falas.length), desligada, 'desligada: não volta a ouvir');
+  assert.deepEqual(errors, []);
+});
+
 /* ---------------- G-319 · relato #43: ditar o relato ---------------- */
 test('e2e · G-319 relato #43: ditar o relato em PT, EN ou ES pelo reconhecimento do aparelho; o falado entra no cursor, Parar entrega o que estava no ar, falha vira frase, fechar desliga o microfone; sem reconhecimento, Ditar aponta o teclado', { skip }, async t => {
   const { page, errors, base } = await open(t);

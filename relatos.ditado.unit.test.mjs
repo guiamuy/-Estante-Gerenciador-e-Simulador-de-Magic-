@@ -335,3 +335,19 @@ test('G-396 · relato #214: a maiúscula que o reconhecedor põe no começo de c
   assert.equal(R.juntaDitado('Fim.', 4, 'depois voltou').texto, 'Fim. Depois voltou');
   assert.equal(R.juntaDitado('o botão', 7, 'Shark venceu').texto, 'o botão Shark venceu');
 });
+
+test('G-398 · relatos #215/#216: os comandos de voz do relato (fazer, terminar, cancelar) são achados no texto ditado, com ou sem maiúscula e pontuação, e a frase do comando sai do texto', () => {
+  const C = x => J(R.comandoDeRelato(x));
+  assert.equal(C(''), null); assert.equal(C('o relato saiu errado'), null, 'a palavra relato sozinha não é comando');
+  assert.deepEqual(C('fazer relato'), { comando: 'fazer', antes: '', depois: '' });
+  assert.deepEqual(C('Ok, Fazer um relato.'), { comando: 'fazer', antes: 'Ok', depois: '' });
+  assert.deepEqual(C('o placar some na mesa terminar relato'), { comando: 'terminar', antes: 'o placar some na mesa', depois: '' });
+  assert.deepEqual(C('O placar some na mesa. Terminar o relato'), { comando: 'terminar', antes: 'O placar some na mesa.', depois: '' });
+  assert.deepEqual(C('o placar some, encerrar relato'), { comando: 'terminar', antes: 'o placar some', depois: '' });
+  assert.deepEqual(C('finalizar relato'), { comando: 'terminar', antes: '', depois: '' });
+  assert.deepEqual(C('não ficou bom cancelar relato'), { comando: 'cancelar', antes: 'não ficou bom', depois: '' });
+  assert.deepEqual(C('Cancelar o relato, por favor'), { comando: 'cancelar', antes: '', depois: 'por favor' });
+  assert.equal(C('vou terminar o relatório'), null, 'relatório não é relato');
+  assert.equal(C('perfazer relato')?.comando, undefined, 'só a palavra inteira');
+  assert.equal(C('cancelar relato e terminar relato').comando, 'cancelar', 'vale o primeiro dito');
+});

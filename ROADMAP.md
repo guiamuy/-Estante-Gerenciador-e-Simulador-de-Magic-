@@ -736,7 +736,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-wf ✅ | YV1 · relato #214, fatia 1 (G-395, 14/11/2026): o balão de relatos do canto abre duas opções logo acima dele, Ver relatos e Relatar (toque fora, Esc, rolar ou trocar de tela fecham); o formulário de relatar ganha Ver relatos, centrado, que leva à área de relatos com o rascunho guardado para a volta | — | 1 | — |
 | 16º-wg ✅ | YV2 · relato #214, fatia 2 (G-396, 14/11/2026): o ditado tira a maiúscula que o reconhecedor do Android põe no começo de cada trecho quando ele cai no meio da frase ("o design Continua" → "continua"), também depois de vírgula dita ou da pausa e no ditado que entra no meio de um texto; siglas, palavras com outra maiúscula dentro e os nomes do app e do jogo (Shark, Pauper, GitHub…) ficam | — | 1 | 16º-wf |
 | 16º-wh ✅ | YV3 · relatos #215/#216, fatia 3 (G-397, 14/11/2026): "Por voz" no balão (só o dono) abre a janela flutuante de gravação, translúcida, fixa no pé (acompanha a rolagem e a troca de tela), com ponto que pulsa, tempo, onda da voz e o texto ao vivo; Terminar registra como Melhoria · Alta com a tela de onde saiu e mostra "Relato registrado"; Cancelar descarta; o silêncio pausa e Continuar retoma | — | 1 | 16º-wg |
-| 16º-wi ⬜ | YV4 · relatos #215/#216, fatia 4: comandos de voz "fazer relato", "terminar relato" e "cancelar relato" em qualquer tela, atrás de uma chave no Perfil (só o dono, só português) | — | 1 | 16º-wh |
+| 16º-wi ✅ | YV4 · relatos #215/#216, fatia 4 (G-398, 14/11/2026): com a chave Comando de voz (Perfil do dono), o app ouve em português com ele na tela; "fazer relato" abre a janela, "terminar relato" registra e "cancelar relato" descarta, sem a frase do comando no texto; a escuta para com o formulário aberto, com o app fora da tela e com a chave desligada | — | 1 | 16º-wh |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -13075,7 +13075,24 @@ idiomas. Onde o navegador não reconhece fala contínua (Safari do iPhone), o ca
 - **Divergência registrada:** a identidade do app evita vidro; o dono pediu a janela translúcida e ela é a única exceção.
 - **Fora:** o relato por voz segue o caminho dos outros (fica em Relatos e vai pelo envio automático quando há conta);
   não guarda áudio.
-**YV4 · Comandos de voz** ⬜ (relatos #215/#216 fatia 4; `16º-wi`)
+**YV4 · Comandos de voz** ✅ (leva G-398, 14/11/2026, relatos #215/#216 fatia 4; `16º-wi`)
+- **Valor:** com o app na mão, o dono diz "fazer relato" e dita, sem tocar em nada; "terminar relato" registra e
+  "cancelar relato" descarta.
+- **Aceite:** a chave "Comando de voz" aparece só no Perfil do dono (desligada; 44 px; o texto diz que o microfone fica
+  aberto com o app na tela e que, no Chrome, a voz passa pelo serviço de fala do Google, como no ditado). Ligada, o app
+  ouve em pt-BR em qualquer tela; só "fazer relato" / "fazer um relato" abre a janela da YV3; conversa comum não abre
+  nada. Na janela, "terminar/encerrar/finalizar relato" registra o que veio antes e "cancelar relato" descarta; a frase do
+  comando nunca entra no texto. A escuta para com o formulário de relatar aberto (o ditado dele usa o microfone), com o
+  app fora da tela, durante a gravação e com a chave desligada, e volta sozinha depois. Navegador sem reconhecimento de
+  fala: a chave aparece desligada e explica o caminho pelo toque.
+- **Testes:** unidade "G-398" (`comandoDeRelato`: variações, maiúscula e pontuação, "relatório" não conta, palavra
+  inteira, o primeiro comando vale); e2e "G-398 relatos #215/#216" (outra conta não vê a chave; desligada não ouve;
+  ligada ouve em pt-BR; "fazer relato" abre por voz; "terminar relato" registra sem a frase; "cancelar relato" descarta;
+  formulário aberto para e volta; chave desligada para).
+- **Limites declarados:** a escuta só existe com o app aberto e na tela (o navegador não deixa ouvir em segundo plano);
+  no Chrome do Android cada sessão nova de reconhecimento pode tocar o bipe do sistema e a escuta reabre a cada poucos
+  minutos; no Safari do iPhone a escuta contínua pode não funcionar: o caminho é "Por voz" no balão. Escuta ligada
+  gasta bateria e dados enquanto o app está na tela.
 
 ### T · Relatos do dono (E62, pedido de 09/10/2026)
 
