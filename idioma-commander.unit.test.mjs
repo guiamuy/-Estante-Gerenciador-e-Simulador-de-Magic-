@@ -109,3 +109,40 @@ test('G-391 · pacotes: o segundo lote de Commander está lá, traduz o Oracle d
   assert.equal(lePacote('pt').cartas['Clown Car'].texto.split('Clown Car').length - 1, 2);
   assert.match(lePacote('es').cartas['Altar of the Wretched // Wretched Bonemass'].faces[1].texto, /dañar primero, dañar dos veces, toque mortal, prisa, antimaleficio/);
 });
+
+// G-393 · fatia 5c, lote 3 (rotina Relatos do dono): as próximas cartas de Commander mais usadas nas listas do catálogo. Fora
+// deste lote, por o texto do Forge diferir do Oracle (o app mostraria o inglês): Kavaron, Memorial World (o Forge escreve
+// ": Sacrifice a land:" onde o custo é ", Sacrifice a land:") e Vivien Reid (o Forge escreve [+1] onde o Oracle diz +1:);
+// Alisaie e Alphinaud Leveilleur e TARDIS (es) esperam o termo oficial de "Partner with" e "planeswalk" em espanhol;
+// Crookshank Kobolds e Kobolds of Kher Keep não têm texto. Falhava antes: nenhuma no pacote.
+const LOTE3_PT = ['Skittering Cicada', 'Snort', 'Abigale, Eloquent First-Year', 'Abstergo Entertainment', 'Bartolomé del Presidio', 'Bottle-Cap Blast', 'Captain America, Living Legend', 'Dwarven Mauler', 'Electroduplicate', 'Kutzil, Malamet Exemplar', 'Lifecraft Engine', 'Little Bear', 'The Eternity Elevator', 'The Vision and Scarlet Witch', 'Tome of Legends', 'Warden of the Grove', 'Willowrush Verge', 'Altar of the Wretched // Wretched Bonemass', 'Arcane Lighthouse', 'Darksteel Monolith', "Dina's Guidance", 'Doctor Doom, Unrivaled', 'Dwarven Armorer', 'Eladamri, Korvecdal', 'Marneus Calgar', 'Omni-Changeling', 'Repurposing Bay', "Sorceress's Schemes", 'Stalactite Dagger', 'The Mightstone and Weakstone', 'The Unagi of Kyoshi Island', 'The Wandering Minstrel', 'Venser, Fervent Forger', 'Vow of Malice', 'Water Tribe Rallier', 'Zhulodok, Void Gorger'];
+const LOTE3_ES = ['Jace, Multiverse Architect', 'Active Volcano', 'Chakra Meditation', 'Ezri Dax, Newly Joined', 'Fork', "Galadriel's Dismissal", 'Gallifrey Council Chamber', 'Hammerhead, Maggia Boss', 'Magma Opus', 'Nissa, Leyline Tamer', 'Ominous Cemetery', 'Saffi Eriksdotter', 'Siege-Gang Lieutenant', 'Silverquill Lecturer', 'Smellerbee, Rebel Fighter', 'Thorn Mammoth', 'Trenchpost', 'Abaddon the Despoiler', 'Aether Refinery', 'Aggressive Biomancy', "Alexander, Ship's Fool"];
+// estas já tinham o Oracle da Scryfall na cobertura do catálogo (a primeira fonte do --faltam); as outras vêm da base do Forge
+const JA_TINHAM3 = ['Doctor Doom, Unrivaled', 'Marneus Calgar', 'The Mightstone and Weakstone', 'Jace, Multiverse Architect'];
+
+test('G-393 · pacotes: o terceiro lote de Commander está lá, traduz o Oracle da base, passa no conferidor e vale no app', () => {
+  const base = new Map(BASE.cartas.map(c => [c.name, c]));
+  for (const lang of IDIOMAS) assert.deepEqual(conferePacote(lePacote(lang), lang), {}, lang);
+  for (const [lang, lote] of [['pt', LOTE3_PT], ['es', LOTE3_ES]]) {
+    const P = lePacote(lang);
+    for (const nome of lote) {
+      const e = P.cartas[nome]; assert.ok(e, `${lang} · ${nome}`);
+      const b = base.get(nome);
+      if (Array.isArray(e.original)) {
+        assert.deepEqual(e.original, b.card_faces.map(f => f.oracle_text), `${lang} · ${nome}: o original é o Oracle das faces`);
+        const t = C.traducaoDaCarta(P, { name: nome, faces: b.card_faces.map(f => ({ oracle_text: f.oracle_text })) }, lang);
+        assert.ok(t && t.faces.length === 2 && t.faces.every(f => f && f.texto && f.tipo), `${lang} · ${nome}: as duas faces aparecem no app`);
+        continue;
+      }
+      if (JA_TINHAM3.includes(nome)) assert.ok(!b, `${nome}: fora da base do Forge`);
+      else assert.equal(e.original, b?.oracle_text, `${lang} · ${nome}: o original é o Oracle da base`);
+      assert.ok(typeof e.tipo === 'string' && e.tipo.trim(), `${lang} · ${nome}: tipo`);
+      assert.ok(C.traducaoDaCarta(P, { name: nome, oracle_text: e.original }, lang), `${lang} · ${nome} aparece no app`);
+    }
+  }
+  // os termos do idioma: lampejo do passado, perdurar, salvaguarda com dobra de água; estímulo e aterrizaje em espanhol
+  assert.match(lePacote('pt').cartas['Snort'].texto, /\nLampejo do passado \{5\}\{R\}/);
+  assert.match(lePacote('pt').cartas['The Unagi of Kyoshi Island'].texto, /^Lampejo\nSalvaguarda—Dobra de água \{4\}/);
+  assert.match(lePacote('es').cartas["Galadriel's Dismissal"].texto, /^Estímulo \{2\}\{W\}/);
+  assert.match(lePacote('es').cartas['Nissa, Leyline Tamer'].texto, /^Toque mortal, vigilancia\nAterrizaje — /);
+});
