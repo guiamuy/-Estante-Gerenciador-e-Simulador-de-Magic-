@@ -9062,6 +9062,7 @@ const EFFECTS = {
   resistencia_jogador: { fields: [], targets: ['self'] }, // M-260 · "You … gain hexproof until end of turn" (702.11)
   exilar_fichas_mesmo_nome: { fields: [], targets: ['first-target'] }, // M-258 · "and all tokens that player controls with the same name as that permanent"
   reflexive: { fields: [], targets: ['self'] },
+  vira_atordoa_m: { fields: ['amount'], targets: ['creature'] }, // M-636 · "tap … target creature(s) and put a stun counter on each of them" (701.26a + 122.1d): os dois no mesmo alvo, uma instância por alvo
   // CR2b.5 · "…unless that player pays {N}": aquele jogador decide; se não pagar, os efeitos de dentro acontecem
   unless_pays: { fields: [], targets: ['that-player'] },
   cumulative_upkeep: { fields: [], targets: ['self'] }, // 702.24 · gerado pelo campo `cumulativeUpkeep` do script // CR 603.12 · "quando você fizer isso, …": outra habilidade vai à pilha, com alvo escolhido nessa hora
@@ -9973,6 +9974,8 @@ function effectErrors(effects, label, opcional) {
     if (e.do === 'token') errs.push(...tokenErrors(e.token, `${label} ${i + 1}`));
     if (e.do === 'unless_pays') { if (!String(e.cost || '').match(/\{/)) errs.push(`${label} ${i + 1}: "a menos que pague" precisa do custo`); errs.push(...effectErrors(e.effects, `${label} ${i + 1} (se não pagar)`)); }
     if (e.do === 'reflexive') errs.push(...effectErrors(e.effects, `${label} ${i + 1} (reflexivo)`));
+    if (e.contaAssimM != null && !(e.contaAssimM === true && e.do === 'discard' && (effects[i + 1] || {}).porNaoTerrenoAssimM === true)) errs.push(`${label} ${i + 1}: "contaAssimM" é uma marca (true) do descarte seguido do reflexo com porNaoTerrenoAssimM`); // M-636 · guarda o que foi descartado "this way" (sem o reflexo logo depois, a mão guardada sobraria no estado)
+    if (e.porNaoTerrenoAssimM != null && !(e.porNaoTerrenoAssimM === true && e.do === 'reflexive' && i > 0 && (effects[i - 1] || {}).contaAssimM === true && Array.isArray(e.effects) && e.effects.length && e.effects.every(x => isTargeted(x) && x.targetCount == null))) errs.push(`${label} ${i + 1}: "porNaoTerrenoAssimM" é do reflexivo logo depois do descarte com contaAssimM, e cada efeito dele mira (um alvo por carta que não é terreno descartada)`); // M-636 · 603.12
     if (e.do === 'gatilho_no_turno') { if (e.when !== 'criatura-sua-entra') errs.push(`${label} ${i + 1}: momento "${e.when}" desconhecido para gatilho deste turno`); errs.push(...effectErrors(e.effects, `${label} ${i + 1} (deste turno)`)); } // M-389
     if (e.do === 'delayed') { if (!ATRASOS.includes(e.when)) errs.push(`${label} ${i + 1}: momento "${e.when}" desconhecido para gatilho atrasado`); errs.push(...effectErrors(e.effects, `${label} ${i + 1} (atrasado)`)); }
     if (e.do === 'tap_or_untap' && e.optional != null && typeof e.optional !== 'boolean') errs.push(`${label} ${i + 1}: "opcional" precisa ser verdadeiro ou falso`); // Leva 131
@@ -11584,6 +11587,12 @@ const RAW_SCRIPTS = [
     abilities: [{ kind: 'activated', cost: { mana: '{2}{U}', tap: true }, effects: [{ do: 'empower_jace', amount: 2 }] }], // "{2}{U}, {T}: Empower Jace 2." (701.71)
     note: 'jogada da mão, contemplar vem no botão (revelar um Jace da mão ou escolher um Jace seu no campo); posta no campo por outro efeito (busca), contempla sozinha um Jace seu no campo, se houver, e com um Jace só na mão entra virada (a mesa ainda não pergunta no meio de um efeito)',
     example: { action: 'activate:0', target: 'none', expect: { tokens: 1 } } },
+  // M-636 · 603.12 gatilho reflexo do descarte "this way" + 122.1d atordoamento; texto da API da Scryfall pela coleta de 14/11/2026 (.listas/oficiais-revisadas.json)
+  { name: 'Seasoned Cryomancer', abilities: [
+      { kind: 'triggered', when: 'etb', effects: [{ do: 'draw', amount: 2 }, { do: 'discard', amount: 2, contaAssimM: true }, // "When this creature enters, draw two cards, then discard two cards."
+        { do: 'reflexive', porNaoTerrenoAssimM: true, effects: [{ do: 'vira_atordoa_m', target: 'creature', amount: 1 }] }] }, // "When you discard one or more nonland cards this way, tap up to that many target creatures and put a stun counter on each of them."
+      { kind: 'activated', cost: { mana: '{3}{U}{U}', fromGraveyard: true, exileSelf: true }, effects: [{ do: 'draw', amount: 2 }] }], // "{3}{U}{U}, Exile this card from your graveyard: Draw two cards."
+    example: { action: 'etb', target: 'none', expect: { handDelta: 0 } } },
   // M-253 · veneno e tóxico (texto de 05/10/2026; segunda fonte de 10/10/2026)
   { name: "Skrelv's Hive", abilities: [{ kind: 'triggered', when: 'upkeep', effects: [{ do: 'lose', amount: 1 }, // "At the beginning of your upkeep, you lose 1 life and create a 1/1 colorless Phyrexian Mite artifact creature token with toxic 1 and 'This token can't block.'"
       { do: 'token', amount: 1, token: { name: 'Phyrexian Mite', types: ['artifact', 'creature'], subtypes: ['Phyrexian', 'Mite'], colors: [], power: 1, toughness: 1, self: { toxic: 1, naoBloqueia: true } } }] }],
@@ -29001,6 +29010,7 @@ function applyEffectM449(s, src, eff, tgt, events) {
       // Leva 107 · "cada oponente" não mira ninguém (a mesa é 1 contra 1: o oponente que ainda joga)
       const who = eff.target === 'each-opponent' ? s.players.findIndex((pl, i) => i !== ctrl && !pl.lost) : playerOf();
       if (who < 0) { note({ amount: 0 }); break; }
+      if (eff.contaAssimM) s.descarteAssimM = { p: who, mao: s.zones[who].hand.slice() }; // M-636 · "this way": a mão antes do descarte (o que saiu dela foi descartado, inclusive pela insanidade)
       const n = Math.min(eff.amount, s.zones[who].hand.length);
       if (n > 0) s.pending = { kind: 'discard', p: who, n, reason: 'effect', source: src.name }; // Leva 125 · a mesa diz de qual carta é o descarte
       note({ amount: n }); break;
@@ -29660,7 +29670,14 @@ function applyEffectM449(s, src, eff, tgt, events) {
       break;
     }
     case 'reflexive': { // CR 603.12 · dispara ao acontecer a ação; entra na pilha na próxima vez que alguém receberia prioridade
-      s.queued.push({ source: src.ability ? src.source : src.oid, name: src.name, controller: ctrl, effects: eff.effects, when: 'reflexive' });
+      let efsR = eff.effects;
+      if (eff.porNaoTerrenoAssimM) { // M-636 · "When you discard one or more nonland cards this way, … up to that many target …" (Seasoned Cryomancer): só dispara com ao menos uma; um alvo opcional por carta
+        const r = s.descarteAssimM; delete s.descarteAssimM;
+        const n = r ? r.mao.filter(oid => !s.zones[r.p].hand.includes(oid) && s.objects[oid] && !((s.facts[s.objects[oid].name] || {}).types || []).includes('land')).length : 0;
+        if (!n) { note({ amount: 0 }); break; }
+        efsR = Array.from({ length: n }, () => eff.effects).flat().map((x, k) => { const c = { ...x, upTo: true }; if (k) Object.defineProperty(c, 'mesmaInstrucaoM', { value: true, enumerable: true }); return c; }); // 603.2c · uma instrução só (como a expansão de targetCount)
+      }
+      s.queued.push({ source: src.ability ? src.source : src.oid, name: src.name, controller: ctrl, effects: efsR, when: 'reflexive' });
       note({ amount: 1 }); break;
     }
     case 'draw_up_to': { // "may draw up to N cards": escolhe o número antes de comprar
@@ -29838,6 +29855,11 @@ function applyEffectM449(s, src, eff, tgt, events) {
       // CR2-G R3b · atalho de continuo com uma palavra-chave (S59 · até o seu próximo turno)
       if (alvo) { aplicaTemporario(s, alvo, { palavras: [eff.keyword], ate: eff.until === 'your-next-turn' ? 'seu-proximo-turno' : 'fim-do-turno' }, ctrl); note({ name: alvo.name, palavra: eff.keyword, ate: eff.until === 'your-next-turn' ? 'seu-proximo-turno' : 'fim-do-turno' }); }
       break;
+    }
+    case 'vira_atordoa_m': { // M-636 · 701.26a + 122.1d · "tap … and put a stun counter on each of them": vira (se desvirada) e põe o marcador no mesmo alvo
+      if (!obj || obj.zone !== 'battlefield') { note({ failed: true }); break; }
+      if (!obj.tapped) { obj.tapped = true; noteEnchantedEvent(s, obj); }
+      note({ amount: poeMarcadores(s, obj, 'stun', amountOf(s, src, eff.amount == null ? 1 : eff.amount)), tipo: 'stun' }); break;
     }
     case 'tap': { // S39 · "vire a criatura encantada" chega aqui como self-source
       const alvo = eff.target === 'enchanted' ? criaturaEncantada(s, src) : eff.target === 'self-source' ? (src.ability ? s.objects[src.source] : src) : obj;
@@ -42075,6 +42097,7 @@ function effectLine(ev) {
     case 'sacrifice_it': return ev.failed ? `${ev.name}: o alvo já não estava no campo` : ev.propria ? `${ev.name} foi sacrificada` : `${ev.name}: ${ev.name2 || t} foi sacrificada`; // M-397 · antes "Pestilence: A foi sacrificada"
     case 'reanimate_all': return n ? `${ev.name} devolveu ao campo ${(ev.nomes || []).join(', ')}` : `${ev.name} não devolveu nada`; // CR2c.5
     case 'exile_self': return `${ev.name} foi exilada`;
+    case 'vira_atordoa_m': return ev.failed ? `${ev.name}: o alvo já não estava no campo` : `${ev.name}: ${t} virou e recebeu ${n === 1 ? 'um marcador de atordoamento' : n + ' marcadores de atordoamento'}`; // M-636
     case 'nao_entrou_m': return `${ev.name} não entrou: nenhum terreno descartado, foi para o cemitério`; // M-564
     case 'counter_choice': return `${t} recebeu um marcador de ${PALAVRA_PT[ev.kind] || ev.kind} (${ev.name})`;
     case 'destroy_all': return n ? `${ev.name} destruiu ${(ev.nomes || []).join(', ')}` : `${ev.name} não destruiu nada`; // CR2c.2
@@ -43441,7 +43464,8 @@ function descreveEfeito(e) {
     case 'energia_reanima': return 'você pode pagar energia igual ao valor de mana da carta de artefato ou criatura alvo do seu cemitério; se pagar, ela volta para o campo'; // M-393 · achado da revisão: o alvo saía meio em inglês
     case 'gatilho_no_turno': return `neste turno, sempre que uma criatura sua entrar: ${descreveEfeitos(e.effects).replace(/ em essa permanente/g, ' nela').replace(/essa permanente ganha/g, 'ela ganha')}`; // M-389 (achado da revisão: "delayed object" em inglês)
     case 'delayed': return `${{ 'next-upkeep': 'no início da manutenção do próximo turno', 'next-end-step': 'no início do próximo passo final', 'end-of-combat': 'no fim do combate' }[e.when] || 'mais tarde'}: ${descreveEfeitos(e.effects)}`;
-    case 'reflexive': return `quando fizer isso: ${descreveEfeitos(e.effects)}`;
+    case 'reflexive': return e.porNaoTerrenoAssimM ? `quando descartar assim uma ou mais cartas que não são terreno, uma vez por carta (alvo opcional): ${descreveEfeitos(e.effects)}` : `quando fizer isso: ${descreveEfeitos(e.effects)}`; // M-636
+    case 'vira_atordoa_m': return `vira ${e.upTo && alvo && /^uma? /.test(alvo) ? 'até ' + alvo : alvo || 'uma criatura'} e põe ${n === 1 ? 'um marcador de atordoamento' : n + ' marcadores de atordoamento'} nela`; // M-636
     case 'unless_pays': return `${descreveEfeitos(e.effects)}, a menos que aquele jogador pague ${e.cost}`;
     case 'cumulative_upkeep': return `manutenção cumulativa ${e.mana}: põe um marcador de idade e paga por marcador, ou sacrifica`;
     case 'draw_up_to': return `pode comprar até ${plural(n, 'carta', 'cartas')}`;

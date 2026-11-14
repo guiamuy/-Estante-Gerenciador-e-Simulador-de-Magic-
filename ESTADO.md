@@ -21,7 +21,7 @@ Marcos: Pauper 100% (as sete listas revisadas carta a carta; 682 de 686 listas P
 |---|---|---|---|---|
 | `scanner` | S | X16: #90 foil (F1 só foil; F2 selo "Foil?") | S-625 · 11/11 | calibrar o foil e #79 no aparelho |
 | `geral` | G | DS-K3 K3-7 f1 (G-388), K3-8 f1 (G-390); #151 5c Commander (G-391) | G-392 · 14/11 | K3-7 f2; K3-8 f2 + MV-3; 5c lote 3+; Darval |
-| `motor` | M | Modern 140/719 (≈168 com a fila) | M-634 · 14/11 | Seasoned Cryomancer; Arena of Glory |
+| `motor` | M | Modern 165/735 (≈166) | M-636 · 14/11 | Wan Shi Tong, Tar Pit, Tasigur, Ketramose; Arena of Glory |
 | `radar` | R | BI4 · Painel Estante: comparar períodos, metas, tendência | R-44 · 07/11 | BI4-6 em diante; validação do dono após os primeiros pilares |
 | `jogabilidade` | J | MK3 · Mesa Vitrine (rotina) | J-79 · 14/11 | J-78 MK3-8; prompt v2; MK3-5 |
 | `bot` | B | B25 · força 55%, Faeries 32,5%, fora 50% | B-216 · 14/11 | alcance da queima do outro |
@@ -81,4 +81,4 @@ Os documentos `claude/…` moram no Projeto do claude.ai, fora do repositório: 
 
 No commit de docs de cada leva (o mesmo que atualiza o ROADMAP): reescreva a **sua** linha na tabela de trilhas, atualize relatos e pendências se mudaram e troque a data abaixo. Edite por patch, nunca o arquivo inteiro. Conflito no rebase: fique com as linhas das outras trilhas e a sua. Passou de 8 KB: resuma, não acrescente.
 
-Atualizado: 14/11/2026 · M-626 · J-69 · G-386 · M-616 · G-381 · J-74 · M-623 · G-387 · J-79 · G-384 · M-633 · I-333 · J-64 · B-216 (bot) · M-634 · G-391
+Atualizado: 14/11/2026 · G-381 · J-74 · M-623 · G-387 · J-79 · G-384 · M-633 · I-333 · J-64 · B-216 (bot) · M-634 · G-391 · M-636
