@@ -556,10 +556,11 @@ test('DS-K · F5.2 endereço inexistente e lista inexistente têm cabeçalho com
 test('DS-K2 · L1 o topo da Lista tem a carta-chave (helper compartilhado com o Jogar) e a posse na coleção', () => {
   assert.ok(HTML.includes('function cartaChaveDaLista(d, cards) {') && HTML.includes('function LadrilhoDaCarta(c, {'), 'helpers em decks.js');
   assert.ok(HTML.includes("return { cartaChaveDaLista, LadrilhoDaCarta, createPortaDeEntrada"), 'exportados');
-  assert.ok(HTML.includes("LadrilhoDaCarta(cartaChaveDaLista(d, state.cards), { classe: 'deck-hero__arte deck-topo__arte', tamanho: '72px' })"), 'o topo da lista usa a carta-chave');
+  // DS-K3 K3-9 (G-394) · expectativa mudada de propósito: o topo da lista virou o hero sobre a arte da carta-chave (o mesmo helper)
+  assert.ok(HTML.includes("HeroDaLista({ nome: d.name, formato: d.format, cores: identity || coresDaLista(d.entries, state.cards), chave: cartaChaveDaLista(d, state.cards),"), 'o topo da lista usa a carta-chave');
   assert.ok(HTML.includes("el.prepend(__m15.LadrilhoDaCarta(__m15.cartaChaveDaLista(d, guardadas)))"), 'o Jogar usa o mesmo helper');
-  assert.match(componentCss, /\.deck-hero__arte\.deck-topo__arte \{ width: 72px; flex: none; \}/);
-  assert.ok(HTML.includes("id: 'deck-posse' }"), 'barra de posse no topo');
+  assert.ok(!componentCss.includes('.deck-topo__arte'), 'a carta de 72 px ao lado do nome saiu (K3-9)');
+  assert.ok(HTML.includes("id: id === 'deck-topo' ? 'deck-posse' : id + '-posse' }"), 'barra de posse no topo');
 });
 
 /* ---------------- DS-K2 (G-322) · N1 barra de navegação embaixo ---------------- */
@@ -729,7 +730,8 @@ test('J-47 · o contador de zona pinta uma caixa de 34 px (token) por dentro de 
 
 /* ---------------- DS-K (G-295) · F2.3 topo da Lista em ébano ---------------- */
 test('DS-K · F2.3 o topo da Lista é o destaque em ébano (nome, formato em latão, contagens) e o latão em texto pequeno sobre o ébano usa --accent-lo', () => {
-  assert.match(HTML, /Surface\(\{ class: 'ds-destaque ds-surface--pad deck-topo', id: 'deck-topo' \}/);
+  // DS-K3 K3-9 (G-394) · expectativa mudada de propósito: o topo da Lista saiu do ébano e virou o hero sobre a arte (contrato "DS-K3 K3-9")
+  assert.ok(!HTML.includes("Surface({ class: 'ds-destaque ds-surface--pad deck-topo', id: 'deck-topo' }"), 'o topo da Lista não é mais o ébano');
   assert.match(componentCss, /\.ds-destaque \.ds-badge--accent \{ color: var\(--accent-lo\); border-color: var\(--accent-lo\); \}/);
   for (const [nome, t] of [['escuro', DARK], ['claro', LIGHT]]) assert.ok(ratio(t['--accent-lo'], t['--bg-elev-0']) >= 4.5, `--accent-lo sobre --bg-elev-0 (${nome}): ${ratio(t['--accent-lo'], t['--bg-elev-0']).toFixed(2)}`);
 });
@@ -1217,6 +1219,33 @@ test('DS-K3 K3-4 + MV-7 · cabeçalho editorial: Listas, Coleção e Perfil com 
   assert.match(HTML, /__m3\.Cabecalho\('Partidas', \{ esquerda:/);
 });
 
+
+/* ---------------- DS-K3 K3-9 (G-394) · o hero da Lista sobre a arte da carta-chave ---------------- */
+test('DS-K3 K3-9 · hero da Lista: tokens novos (210 px, selo de 24, título de 26) iguais nos dois temas; arte sob --scrim-art, texto sobre --veu-texto-arte a partir de --veu-texto-alt; selos em ébano quase cheio sem desfoque; nome em Cormorant 26 em --fg-sobre-arte; excluir em ébano; fio de posse em transform com os tokens de movimento; só tokens; /ds com a amostra', () => {
+  const novos = ['--hero-lista-alt', '--selo-alt', '--text-hero-lista'];
+  for (const k of novos) { assert.ok(DARK[k], k); assert.equal(LIGHT[k], DARK[k], `${k} igual no claro`); assert.equal(AUTO_LIGHT[k], undefined, `${k} não muda no claro automático`); }
+  assert.deepEqual([DARK['--hero-lista-alt'], DARK['--selo-alt'], DARK['--text-hero-lista']], ['210px', '24px', 'calc(26px * var(--escala-texto))']);
+  // AA no pior caso (arte branca): o texto sobre o véu (.72), os selos e o excluir sobre o ébano de .78
+  const sobreBranco = a => '#' + [10, 7, 4].map(c => Math.round(c * a + 255 * (1 - a)).toString(16).padStart(2, '0')).join('');
+  for (const k of ['--fg-sobre-arte', '--fg-sobre-arte-muted', '--latao-sobre-arte']) assert.ok(ratio(DARK[k], sobreBranco(.72)) >= 4.5, `${k} sobre o véu: ${ratio(DARK[k], sobreBranco(.72)).toFixed(2)}`);
+  for (const k of ['--latao-sobre-arte', '--positivo-sobre-arte', '--fg-sobre-arte-muted']) assert.ok(ratio(DARK[k], sobreBranco(.78)) >= 4.5, `${k} sobre o selo: ${ratio(DARK[k], sobreBranco(.78)).toFixed(2)}`);
+  const regra = sel => { const i = componentCss.indexOf(sel + ' {'); assert.ok(i >= 0, sel); return componentCss.slice(i, componentCss.indexOf('}', i)); };
+  assert.match(regra('.deck-hero'), /min-height: var\(--hero-lista-alt\);[^}]*border-radius: var\(--radius-3\);[^}]*box-shadow: var\(--shadow-key\), var\(--shadow-contact\)/);
+  assert.match(regra('.deck-hero::before'), /box-shadow: inset 0 1px 0 var\(--edge-strong\)/);
+  assert.match(regra('.deck-hero__corpo'), /padding: var\(--veu-texto-alt\) var\(--space-4\) 0; background: var\(--veu-texto-arte\)/);
+  assert.match(regra('.deck-hero__selo'), /height: var\(--selo-alt\);[^}]*color: var\(--latao-sobre-arte\); background: var\(--selo-sobre-arte\)/);
+  assert.match(regra('.deck-hero__nome'), /font-family: var\(--font-display\); font-size: var\(--text-hero-lista\); line-height: 1;[^}]*color: var\(--fg-sobre-arte\)/);
+  assert.match(regra('.deck-hero .deck-hero__excluir'), /color: var\(--fg-sobre-arte-muted\); background: var\(--selo-sobre-arte\)/);
+  assert.match(regra('.deck-hero .deck-item__posse-barra, .deck-hero .deck-item__posse[data-completa="true"] .deck-item__posse-barra'), /animation: ladrilho-posse var\(--dur-4\) var\(--ease-out\) both/);
+  const hero = componentCss.split('\n').filter(l => /deck-hero/.test(l)).join('\n');
+  assert.ok(!/backdrop-filter|blur\(/.test(hero), 'o hero não desfoca');
+  assert.ok(!/#[0-9a-f]{3,8}\b|rgba?\(|\b\d+ms\b/i.test(hero), 'só tokens no hero');
+  // a tela usa o helper; os ids de antes seguem; o rótulo da carta-chave e o selo do motor; /ds com a amostra antes do uso
+  assert.ok(HTML.includes('function HeroDaLista({ nome, formato, cores, chave = null, jogavel = false,'), 'helper do hero');
+  assert.ok(HTML.includes("jogavel: cvTopo.pct === 100,"), 'o selo "100% jogável" vem do motor');
+  assert.ok(HTML.includes("'Carta-chave · ', h('span', { lang: 'en' }, chave.name)"), 'o nome da carta em inglês, com lang');
+  assert.ok(HTML.includes("h('div', { id: 'ds-hero-lista' },"), '/ds com a amostra');
+});
 
 /* ---------------- DS-K3 K3-5 (G-378) · ladrilho de lista com a arte da carta-chave ---------------- */
 test('DS-K3 K3-5 · ladrilho de lista: tokens sobre arte iguais nos dois temas; AA do selo, do motor e do texto mesmo sobre arte branca (o selo sem véu, o texto sobre .72); arte sob --scrim-art, texto sobre --veu-texto-arte a partir de --veu-texto-alt; selo e motor sem desfoque; o fio de posse cresce só em transform (--dur-4 · --ease-out · --escalona-2)', () => {
