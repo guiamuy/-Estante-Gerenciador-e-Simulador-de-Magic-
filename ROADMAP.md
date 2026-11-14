@@ -735,7 +735,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-vw ✅ | Relato #152, fatia 1 (J-72, 12/11/2026): na cena do turno do oponente, cada jogada dele fica o tempo de ler a legenda (1,6 s no mínimo, até 3,2 s nas frases longas) e o turno comprido encolhe primeiro os passos sem jogada; a jogada dele nunca passa de 1,1 s (antes: 12 s divididos por todos os quadros, ~0,4 s cada). Fatia 2 (J-75, 13/11): Pausar e Seguir na legenda da cena. Fatia 3 (J-77, 14/11): chave "No meu toque" no menu da vez: cada jogada do oponente espera o Seguir, a mesma jogada repetida em seguida vira um quadro ("(2×)") e a carta dela ganha o anel do oponente | J | 1 | H5 |
 | 16º-wf ✅ | YV1 · relato #214, fatia 1 (G-395, 14/11/2026): o balão de relatos do canto abre duas opções logo acima dele, Ver relatos e Relatar (toque fora, Esc, rolar ou trocar de tela fecham); o formulário de relatar ganha Ver relatos, centrado, que leva à área de relatos com o rascunho guardado para a volta | — | 1 | — |
 | 16º-wg ✅ | YV2 · relato #214, fatia 2 (G-396, 14/11/2026): o ditado tira a maiúscula que o reconhecedor do Android põe no começo de cada trecho quando ele cai no meio da frase ("o design Continua" → "continua"), também depois de vírgula dita ou da pausa e no ditado que entra no meio de um texto; siglas, palavras com outra maiúscula dentro e os nomes do app e do jogo (Shark, Pauper, GitHub…) ficam | — | 1 | 16º-wf |
-| 16º-wh ⬜ | YV3 · relatos #215/#216, fatia 3: janela flutuante de gravação (translúcida, fixa no pé, transcrição ao vivo, Terminar e Cancelar), relato salvo como Melhoria · Alta, só o dono | — | 1 | 16º-wg |
+| 16º-wh ✅ | YV3 · relatos #215/#216, fatia 3 (G-397, 14/11/2026): "Por voz" no balão (só o dono) abre a janela flutuante de gravação, translúcida, fixa no pé (acompanha a rolagem e a troca de tela), com ponto que pulsa, tempo, onda da voz e o texto ao vivo; Terminar registra como Melhoria · Alta com a tela de onde saiu e mostra "Relato registrado"; Cancelar descarta; o silêncio pausa e Continuar retoma | — | 1 | 16º-wg |
 | 16º-wi ⬜ | YV4 · relatos #215/#216, fatia 4: comandos de voz "fazer relato", "terminar relato" e "cancelar relato" em qualquer tela, atrás de uma chave no Perfil (só o dono, só português) | — | 1 | 16º-wh |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
@@ -13058,7 +13058,23 @@ idiomas. Onde o navegador não reconhece fala contínua (Safari do iPhone), o ca
 - **Fora (declarado):** palavra trocada pelo reconhecedor ("Sway" no lugar de "UX") não tem como ser corrigida no
   aparelho; maiúscula no meio de um trecho (sem emenda) fica como veio, porque pode ser nome de carta; a vírgula segue
   vindo da pausa (600 ms) ou da palavra "vírgula"; inglês e espanhol usam a mesma regra, sem lista própria de nomes.
-**YV3 · Janela flutuante de gravação** ⬜ (relatos #215/#216 fatia 3; `16º-wh`)
+**YV3 · Janela flutuante de gravação** ✅ (leva G-397, 14/11/2026, relatos #215/#216 fatia 3; `16º-wh`)
+- **Valor:** o dono dita um relato sem abrir formulário nem escolher tipo e urgência, vendo o que está sendo ouvido, de
+  qualquer tela, sem perder a tela de vista.
+- **Aceite:** só a conta do dono (`DONOS`, a mesma lista do Painel) vê "Por voz" no balão, entre Ver relatos e Relatar.
+  A janela fica no pé (fixa: acompanha a rolagem e a troca de tela), centrada, até 480 px, translúcida (vidro com
+  desfoque, pedido do dono; a única superfície de vidro do app), sombra de profundidade; mostra um ponto que pulsa, o
+  tempo, a onda quando há voz e o texto em tempo real (parcial e final, com o ditado da G-396, em português). Terminar
+  entrega o que estava no ar, fecha a frase com ponto e registra como Melhoria · Alta, com a tela de onde a gravação
+  começou; mostra "Relato registrado" com Ver relatos e some em 4 s. Cancelar descarta com o aviso "Relato cancelado".
+  Menos de 5 caracteres não registra ("Fale um pouco mais"); o silêncio pausa e Continuar volta a ouvir depois do que já
+  tinha. O balão some enquanto grava. Botões com 44 px; movimento com regra de movimento reduzido.
+- **Testes:** e2e "G-397 relatos #215/#216" (sem conta e outra conta não veem; o dono vê; janela fixa, centrada, com
+  vidro; texto ao vivo; rolar e trocar de tela não fecham; Terminar registra Melhoria · Alta com a tela de origem;
+  Cancelar descarta; pouco texto pausa; Continuar abre sessão nova; `auditaTela` nas quatro medidas e dois temas).
+- **Divergência registrada:** a identidade do app evita vidro; o dono pediu a janela translúcida e ela é a única exceção.
+- **Fora:** o relato por voz segue o caminho dos outros (fica em Relatos e vai pelo envio automático quando há conta);
+  não guarda áudio.
 **YV4 · Comandos de voz** ⬜ (relatos #215/#216 fatia 4; `16º-wi`)
 
 ### T · Relatos do dono (E62, pedido de 09/10/2026)

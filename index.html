@@ -2583,6 +2583,38 @@ body[data-barra="fora"] .ds-relatar { transition: transform var(--dur-1) var(--e
 .ds-relatar[data-aberto="true"] { color: var(--accent); border-color: var(--accent); }
 .ds-relatar__menu { position: fixed; z-index: var(--z-overlay); display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-2); padding-bottom: var(--space-2); }
 .relato__ver { display: flex; justify-content: center; }
+/* G-397 · YV3 · relatos #215/#216: a janela do relato por voz, no pé da tela (acompanha a rolagem), translúcida sobre o
+   conteúdo (pedido do dono; a única superfície de vidro do app), com profundidade de sombra e o texto ao vivo. */
+body[data-gravando="true"] #relatar-abrir { display: none; }
+.relato-voz { position: fixed; left: 50%; bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px) + var(--navbar-h, 0px)); z-index: var(--z-overlay);
+  width: min(calc(100% - 2 * var(--space-4)), 480px); translate: -50% 0; display: flex; flex-direction: column; gap: var(--space-2);
+  padding: var(--space-3) var(--space-4); border-radius: var(--radius-3); border: 1px solid var(--border-strong);
+  background: color-mix(in srgb, var(--bg-elev-2) 86%, transparent); -webkit-backdrop-filter: blur(14px) saturate(1.15); backdrop-filter: blur(14px) saturate(1.15);
+  box-shadow: var(--shadow-3), inset 0 1px 0 var(--btn-shine); color: var(--fg); animation: relato-voz-entra var(--dur-2) var(--ease-out) both; }
+@keyframes relato-voz-entra { from { opacity: 0; transform: translateY(var(--space-3)); } to { opacity: 1; transform: none; } }
+.relato-voz__topo { display: flex; align-items: center; gap: var(--space-2); min-height: 24px; }
+.relato-voz__titulo { flex: 1; min-width: 0; font-size: var(--text-md); font-weight: var(--weight-bold); }
+.relato-voz__tempo { font-size: var(--text-sm); color: var(--fg-muted); font-variant-numeric: tabular-nums; }
+.relato-voz__ponto { width: 10px; height: 10px; border-radius: var(--radius-full); background: var(--negative); box-shadow: 0 0 0 0 var(--negative); }
+.relato-voz[data-estado="ouvindo"] .relato-voz__ponto { animation: relato-voz-pulsa calc(var(--dur-3) * 5) var(--ease-out) infinite; }
+.relato-voz:not([data-estado="ouvindo"]) .relato-voz__ponto { background: var(--fg-subtle); }
+.relato-voz[data-estado="registrado"] .relato-voz__ponto { background: var(--positive); }
+@keyframes relato-voz-pulsa { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--negative) 55%, transparent); } 100% { box-shadow: 0 0 0 8px transparent; } }
+.relato-voz__onda { display: inline-flex; color: var(--accent); }
+.relato-voz[data-voz="true"] .relato-voz__onda i { animation: relato-onda var(--dur-3) var(--ease-out) infinite alternate; }
+.relato-voz[data-voz="true"] .relato-voz__onda i:nth-child(2) { animation-delay: var(--dur-1); }
+.relato-voz[data-voz="true"] .relato-voz__onda i:nth-child(3) { animation-delay: var(--dur-2); }
+.relato-voz:not([data-estado="ouvindo"]) .relato-voz__onda { display: none; }
+.relato-voz__texto { margin: 0; max-height: calc(4 * var(--lh-md) * var(--text-md)); overflow-y: auto; font-size: var(--text-md); line-height: var(--lh-md); overflow-wrap: anywhere; }
+.relato-voz__texto[data-vazio="true"] { color: var(--fg-muted); font-style: italic; }
+.relato-voz__aviso { margin: 0; font-size: var(--text-sm); color: var(--fg-muted); }
+.relato-voz__aviso[data-tom="erro"] { color: var(--negative); }
+.relato-voz__aviso[data-tom="aviso"] { color: var(--warning); }
+.relato-voz__acoes { display: flex; justify-content: flex-end; gap: var(--space-2); }
+.relato-voz__acoes > .ds-btn[hidden] { display: none; }
+.relato-voz__acoes:empty { display: none; }
+@media (prefers-reduced-motion: reduce) { .relato-voz, .relato-voz[data-estado="ouvindo"] .relato-voz__ponto, .relato-voz[data-voz="true"] .relato-voz__onda i { animation: none; } }
+:root[data-movimento="reduzido"] :is(.relato-voz, .relato-voz__ponto, .relato-voz__onda i) { animation: none !important; }
 body:has(#outlet .ds-fab:not([data-acoes="1"])) #relatar-abrir,
 body:is([data-tela="partida"], [data-tela="scanner"], [data-tela="perfil-relatos"], [data-tela="entrar"]) #relatar-abrir { display: none; }
 body:has(#outlet .ds-fab[data-acoes="1"]) #relatar-abrir { right: calc(var(--space-4) + 4px); bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px) + 56px + var(--space-3) + var(--navbar-h, 0px)); }
@@ -20162,6 +20194,7 @@ function BotaoRelatar() {
     menu = h('div', { class: 'ds-relatar__menu', id: base + '-menu', role: 'menu', 'aria-label': 'Relatos',
       style: { right: `${Math.max(0, Math.round(raiz.clientWidth - r.right))}px`, bottom: `${Math.max(0, Math.round(raiz.clientHeight - r.top))}px` } },
     item(base + '-ver', 'Ver relatos', 'relato', () => { location.hash = '#/perfil/relatos'; }),
+    souDono ? item(base + '-voz', 'Por voz', 'microfone', () => abreGravacao()) : null, // G-397 · só o dono
     item(base + '-novo', 'Relatar', 'editar', () => abreRelato()));
     document.body.appendChild(menu);
     b.setAttribute('aria-controls', menu.id); b.setAttribute('aria-expanded', 'true'); b.dataset.aberto = 'true';
@@ -20177,6 +20210,119 @@ function BotaoRelatar() {
     const primeiro = menu.querySelector('.ds-fab__item:last-child'); if (primeiro) primeiro.focus({ preventScroll: true });
   }
   return b;
+}
+
+/* ---------------- G-397 · YV3 · relatos #215/#216: relato por voz numa janela flutuante (só o dono) ----------------
+   "Por voz" no balão abre uma janela no pé da tela, translúcida, que acompanha a rolagem e não cobre a tela: um ponto que
+   pulsa, o tempo, a onda da voz e o texto ditado em tempo real (o mesmo ditado do formulário, em português). Terminar
+   registra o relato como Melhoria · Alta, com a tela de onde saiu, e mostra "Relato registrado"; Cancelar descarta sem
+   registrar. Só o dono vê (a conta com o e-mail de `DONOS`): é um atalho de trabalho, não um recurso do produto. */
+const DONOS = ['gui.amuy@gmail.com'];
+let souDono = false, verificaDono = null;
+/** O boot entrega quem diz se a conta conectada é a do dono (assíncrono: a conta mora no armazenamento). */
+function usaDono(fn) {
+  verificaDono = typeof fn === 'function' ? fn : null;
+  const atualiza = async () => { try { souDono = !!(verificaDono && await verificaDono()); } catch (e) { souDono = false; } };
+  atualiza();
+  if (typeof addEventListener === 'function') addEventListener('hashchange', atualiza);
+  return atualiza;
+}
+const ehDono = () => souDono;
+const GRAVACAO_TIPO = 'melhoria', GRAVACAO_URGENCIA = 'alta';
+/** mm:ss do tempo gravado. Puro. */
+const tempoDaGravacao = ms => { const s = Math.max(0, Math.floor((Number(ms) || 0) / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+let gravacao = null;
+/** Abre a janela de gravação e começa a ouvir. Devolve o controle ({ termina, cancela, el }) ou null quando não dá. */
+function abreGravacao() {
+  if (gravacao) return gravacao;
+  if (!servico || !souDono) return null;
+  if (!fala || !fala.available()) { toast(textoDaFalhaDoDitado('sem-suporte'), 4200); return null; }
+  const hash = typeof location !== 'undefined' ? location.hash : '';
+  const tela = limpaTela(telaAgora()); // a foto da tela antes de a janela aparecer
+  const extra = contextoExtra ? contextoExtra() : null;
+  let texto = '', estado = 'ouvindo', encerrar = null, inicio = servico.agora(), relogio = null, saida = null;
+  const ponto = h('span', { class: 'relato-voz__ponto', 'aria-hidden': 'true' });
+  const tempo = h('span', { class: 'relato-voz__tempo', id: 'relato-voz-tempo' }, '0:00');
+  const onda = h('span', { class: 'relato__onda relato-voz__onda', 'aria-hidden': 'true' }, h('i'), h('i'), h('i'));
+  const titulo = h('b', { class: 'relato-voz__titulo', id: 'relato-voz-titulo' }, 'Gravando relato');
+  const fala$ = h('p', { class: 'relato-voz__texto', id: 'relato-voz-texto', lang: 'pt-BR', dataset: { vazio: 'true' } }, 'Fale o relato…');
+  const aviso = h('p', { class: 'relato-voz__aviso', id: 'relato-voz-aviso', role: 'status', 'aria-live': 'polite', hidden: true });
+  const cancelar = Button('Cancelar', { variant: 'ghost', icone: 'fechar', id: 'relato-voz-cancelar', onClick: () => cancela() });
+  const continuar = Button('Continuar', { variant: 'ghost', icone: 'microfone', id: 'relato-voz-continuar', onClick: () => ouve() });
+  continuar.hidden = true;
+  const terminar = Button('Terminar', { variant: 'primary', icone: 'marcar', id: 'relato-voz-terminar', onClick: () => termina() });
+  const el = h('section', { class: 'relato-voz', id: 'relato-voz', role: 'region', 'aria-label': 'Relato por voz', dataset: { estado, voz: 'false' } },
+    h('div', { class: 'relato-voz__topo' }, ponto, titulo, onda, tempo),
+    fala$, aviso,
+    h('div', { class: 'relato-voz__acoes' }, cancelar, continuar, terminar));
+  const diz = (t, tom = '') => { aviso.textContent = t || ''; aviso.hidden = !t; aviso.dataset.tom = tom; };
+  const pinta = () => {
+    el.dataset.estado = estado;
+    titulo.textContent = estado === 'ouvindo' ? 'Gravando relato' : estado === 'pausado' ? 'Relato pausado' : estado === 'salvando' ? 'Registrando…' : estado === 'registrado' ? 'Relato registrado' : 'Relato por voz';
+    const fim = estado === 'registrado';
+    cancelar.hidden = fim; terminar.hidden = fim; continuar.hidden = estado !== 'pausado';
+    terminar.disabled = estado === 'salvando'; cancelar.disabled = estado === 'salvando';
+  };
+  const mostraTexto = t => {
+    texto = t; fala$.dataset.vazio = String(!t); fala$.textContent = t || 'Fale o relato…';
+    fala$.scrollTop = fala$.scrollHeight; // o fim do que foi dito fica à vista
+  };
+  function ouve() {
+    if (!el.isConnected) return;
+    estado = 'ouvindo'; pinta(); diz('');
+    const base = texto;
+    const ok = fala.start({
+      idioma: 'pt-BR',
+      aoTexto: ({ segmentos, parcial, pausa }) => { const r = juntaDitado(base, base.length, textoDaSessao(segmentos, parcial, 'pt-BR', pausa)); mostraTexto(r.texto); },
+      aoVoz: v => { el.dataset.voz = String(!!v && estado === 'ouvindo'); },
+      aoErro: codigo => { diz(textoDaFalhaDoDitado(codigo), 'erro'); },
+      aoFim: motivo => {
+        el.dataset.voz = 'false';
+        const pedido = encerrar; encerrar = null;
+        if (pedido === 'cancelar') return fecha('cancelado');
+        if (texto) mostraTexto(fechaDitado(texto, texto.length).texto);
+        if (pedido === 'terminar') return salva();
+        if (estado === 'ouvindo') { estado = 'pausado'; pinta(); if (motivo !== 'erro') diz('Pausado. Toque em Continuar ou Terminar.'); }
+      }
+    });
+    if (!ok) { estado = 'pausado'; pinta(); }
+  }
+  async function salva() {
+    const d = String(texto || '').trim();
+    if (d.length < DESCRICAO_MIN) { estado = 'pausado'; pinta(); diz('Fale um pouco mais para registrar.', 'aviso'); return; }
+    estado = 'salvando'; pinta();
+    let r = null;
+    try { r = await servico.salva({ tipo: GRAVACAO_TIPO, urgencia: GRAVACAO_URGENCIA, descricao: d.slice(0, DESCRICAO_MAX), hash, tela, contexto: { ...contextoDaTela(), ...(extra ? { partida: extra.contexto || {} } : {}) } }); }
+    catch (e) { r = null; }
+    if (!r || !r.ok) { estado = 'pausado'; pinta(); diz('Não deu para registrar. Tente de novo.', 'erro'); return; }
+    estado = 'registrado'; pinta(); diz(`Melhoria · Alta · ${quando(r.relato.criadoEm)}`);
+    el.appendChild(h('div', { class: 'relato-voz__acoes', id: 'relato-voz-feito' },
+      Button('Ver relatos', { variant: 'ghost', icone: 'relato', id: 'relato-voz-ver', onClick: () => { fecha('registrado'); location.hash = '#/perfil/relatos'; } })));
+    saida = setTimeout(() => fecha('registrado'), 4200);
+  }
+  function termina() {
+    if (estado === 'salvando' || estado === 'registrado') return;
+    if (estado === 'ouvindo') { encerrar = 'terminar'; fala.stop(); return; }
+    salva();
+  }
+  function cancela() {
+    if (estado === 'salvando' || estado === 'registrado') return;
+    if (estado === 'ouvindo') { encerrar = 'cancelar'; fala.stop(); return; }
+    fecha('cancelado');
+  }
+  function fecha(motivo) {
+    if (!gravacao) return;
+    gravacao = null; clearInterval(relogio); clearTimeout(saida);
+    if (estado === 'ouvindo') { encerrar = 'cancelar'; try { fala.stop(); } catch (e) { /* já parou */ } }
+    el.remove(); document.body.removeAttribute('data-gravando');
+    if (motivo === 'cancelado') toast('Relato cancelado', 2600);
+  }
+  document.body.appendChild(el); document.body.setAttribute('data-gravando', 'true');
+  relogio = setInterval(() => { if (estado === 'ouvindo') tempo.textContent = tempoDaGravacao(servico.agora() - inicio); }, 500);
+  gravacao = { el, termina, cancela, fecha, get estado() { return estado; }, get texto() { return texto; } };
+  pinta(); ouve();
+  terminar.focus({ preventScroll: true });
+  return gravacao;
 }
 
 /* ---------------- Y3 · recorte, exportação e a partida anexada ---------------- */
@@ -20575,7 +20721,7 @@ function abrePedidoDeCobertura({ cobertura, lista, motor, aoMudar = () => {} }) 
   pinta();
 }
 
-return { estadoDoEnvio, etapaDoRelato, ESTADO_DO_ENVIO, ETAPAS_DO_REGISTRO, pendentesDeEnvio, createEnvioAutomatico, registraEnvio, AVISO_DA_FALHA, motivoCurto, IDIOMAS_DO_DITADO, idiomaDoDitado, juntaDitado, pontuaDitado, fechaDitado, textoDaSessao, minusculaNoMeio, sinalDaPausa, PAUSAS_DO_DITADO, textoDaFalhaDoDitado, usaFala, relatoDeCobertura, pedidosDeCobertura, pedidoDaLista, etapaDoPedido, ETAPAS_DO_PEDIDO, createCobertura, abrePedidoDeCobertura, situacaoDoEnvio, foiEnviado, textoDaFalha, PRAZO_FILA, URL_FILA_LIGADA, FILA_MEMORIA_MS, filaLigada, relatoParaFila, createEnvioPelaFila, AREAS, URL_SITUACAO, BUSCA_SITUACAO_MS, situacaoDosRegistros, concilia, EDITAR_JANELA_MS, podeEditar, editavelAte, editaRelato, REPOSITORIO, MARCA, dadosDoRelato, registroDoApp, limpaTela, nomeDaTela, FILTRO_VAZIO, filtra, contaFiltros, areasDe, csvDosRelatos, jsonDosRelatos, partidaAbrivel, contextoDaPartida, CHAVE, TIPOS, URGENCIAS, DESCRICAO_MIN, DESCRICAO_MAX, RELATOS_MAX, areaDaRota, confere, novoRelato, ordena, textoDoRelato, textoDosRelatos, createRelatos, usa, usaContexto, abreRelato, BotaoRelatar, createRelatosScreen, rotuloDe };
+return { estadoDoEnvio, etapaDoRelato, ESTADO_DO_ENVIO, ETAPAS_DO_REGISTRO, pendentesDeEnvio, createEnvioAutomatico, registraEnvio, AVISO_DA_FALHA, motivoCurto, IDIOMAS_DO_DITADO, idiomaDoDitado, juntaDitado, pontuaDitado, fechaDitado, textoDaSessao, minusculaNoMeio, sinalDaPausa, PAUSAS_DO_DITADO, textoDaFalhaDoDitado, usaFala, relatoDeCobertura, pedidosDeCobertura, pedidoDaLista, etapaDoPedido, ETAPAS_DO_PEDIDO, createCobertura, abrePedidoDeCobertura, situacaoDoEnvio, foiEnviado, textoDaFalha, PRAZO_FILA, URL_FILA_LIGADA, FILA_MEMORIA_MS, filaLigada, relatoParaFila, createEnvioPelaFila, AREAS, URL_SITUACAO, BUSCA_SITUACAO_MS, situacaoDosRegistros, concilia, EDITAR_JANELA_MS, podeEditar, editavelAte, editaRelato, REPOSITORIO, MARCA, dadosDoRelato, registroDoApp, limpaTela, nomeDaTela, FILTRO_VAZIO, filtra, contaFiltros, areasDe, csvDosRelatos, jsonDosRelatos, partidaAbrivel, contextoDaPartida, CHAVE, TIPOS, URGENCIAS, DESCRICAO_MIN, DESCRICAO_MAX, RELATOS_MAX, areaDaRota, confere, novoRelato, ordena, textoDoRelato, textoDosRelatos, createRelatos, usa, usaContexto, abreRelato, BotaoRelatar, createRelatosScreen, rotuloDe, DONOS, usaDono, ehDono, abreGravacao, tempoDaGravacao, GRAVACAO_TIPO, GRAVACAO_URGENCIA };
 })();
 
 /* ==== src/app/catalogo.js ==== */
@@ -22146,7 +22292,7 @@ function createPerfilScreen({ perfil, backup, conta = null, haptics = null, them
     if (senha) senha.focus({ preventScroll: true });
   }
   // R-15 · BI1-11 · contas que veem a entrada do Painel Estante no Perfil (a mesma lista do painel.html; o painel e o banco conferem de novo)
-  const PAINEL_DONOS = ['gui.amuy@gmail.com'];
+  const PAINEL_DONOS = __m38.DONOS; // G-397 · uma lista só: a do painel e a do relato por voz
   function secaoConta() {
     if (!conta) return null;
     const comEmail = !!(conta.comEmailDisponivel && conta.comEmailDisponivel());
@@ -52436,7 +52582,8 @@ const noticias = __m37.createNoticias({ store: platform.store, scryfall }); // N
 const partidas = __m35.createPartidas({ store: platform.store }); // I5
 const relatos = __m38.createRelatos({ store: platform.store }); // Y1 · relatos do usuário
 const catalogo = __m39.createCatalogo({ store: platform.store }); // Z2 · listas oficiais do ramo `catalogo`
-__m38.usa(relatos); __m38.usaFala(platform.fala); __m3.usaRelatar(() => __m38.abreRelato());
+__m38.usa(relatos); __m38.usaFala(platform.fala);
+__m38.usaDono(async () => { const c = await conta.get(); return !!(c && c.email && __m38.DONOS.includes(String(c.email).toLowerCase())); }); /* G-397 */ __m3.usaRelatar(() => __m38.abreRelato());
 // G-243 · relato enviado e ainda aberto: a situação do registro volta do GitHub pouco depois de abrir o app (o Perfil conta os abertos)
 setTimeout(() => { relatos.todos().then(l => { if (l.some(r => (r.enviadoEm || r.registro) && r.status !== 'resolvido')) return relatos.sincroniza(); }).catch(() => {}); }, 4000);
 const som = __m33.createSom({ store: platform.store }); som.init(); // G4 · som da partida

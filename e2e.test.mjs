@@ -12252,6 +12252,102 @@ test('e2e · G-395 relato #214: o balão de relatos abre duas opções (Ver rela
   assert.deepEqual(errors, []);
 });
 
+/* ---------------- G-397 · relatos #215/#216: relato por voz numa janela flutuante, só para o dono ---------------- */
+test('e2e · G-397 relatos #215/#216: só o dono vê "Por voz" no balão; a janela flutuante translúcida fica no pé (acompanha a rolagem), mostra o tempo e o texto ao vivo; Terminar registra como Melhoria · Alta com a tela de onde saiu; Cancelar descarta; pouco texto não registra; sem 44 px nem sobreposição', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+  let email = 'outra@gmail.com';
+  await page.route('https://www.googleapis.com/**', async r => {
+    const url = r.request().url();
+    if (!/Bearer tok-e2e/.test(r.request().headers().authorization || '')) return r.fulfill({ status: 401, json: {} });
+    if (url.includes('/oauth2/v3/userinfo')) return r.fulfill({ json: { name: 'Conta de teste', email, picture: 'https://lh3.googleusercontent.com/a/foto' } });
+    if (url.includes('/drive/v3/files?spaces=appDataFolder')) return r.fulfill({ json: { files: [] } });
+    if (url.includes('/upload/drive/v3/files')) return r.fulfill({ json: { id: 'f1' } });
+    return r.fulfill({ status: 404, json: {} });
+  });
+  await page.route('https://lh3.googleusercontent.com/**', r => r.fulfill({ status: 200, contentType: 'image/png', body: PNG, headers: { 'access-control-allow-origin': '*' } }));
+  await page.addInitScript(() => {
+    window.__GOOGLE_CLIENT_ID = 'e2e.apps.googleusercontent.com';
+    window.__GOOGLE_FALSO = { accounts: { oauth2: { initTokenClient: cfg => ({ requestAccessToken: () => setTimeout(() => cfg.callback({ access_token: 'tok-e2e', expires_in: 3600 }), 0) }), revoke: (tk, cb) => cb && cb() } } };
+    window.__falas = [];
+    window.SpeechRecognition = class {
+      constructor() { window.__falas.push(this); this.estado = 'novo'; }
+      start() { this.estado = 'ouvindo'; } stop() { this.estado = 'parando'; } abort() { this.estado = 'abortado'; }
+    };
+    window.__dita = (textos, final = true) => { const r = window.__falas.at(-1); r.onresult({ resultIndex: 0, results: textos.map(t => Object.assign([{ transcript: t }], { isFinal: final })) }); };
+    window.__acaba = erro => { const r = window.__falas.at(-1); if (erro) r.onerror({ error: erro }); r.onend(); };
+  });
+  await page.setViewportSize({ width: 360, height: 780 });
+  const abreBalao = async () => { await page.click('#relatar-abrir'); await page.waitForSelector('#relatar-menu'); };
+  // 1 · sem conta e com outra conta: o balão continua com duas opções
+  await page.goto(base + '#/'); await page.waitForSelector('#relatar-abrir');
+  await abreBalao(); assert.equal(await page.locator('#relatar-voz').count(), 0, 'sem conta não há relato por voz'); await page.keyboard.press('Escape');
+  await page.goto(base + '#/perfil'); await page.waitForSelector('#conta-entrar:not([disabled])');
+  await page.click('#conta-entrar'); await page.waitForSelector('#perfil-conta[data-conectada="true"]');
+  await page.goto(base + '#/'); await page.waitForSelector('#relatar-abrir'); await page.waitForTimeout(150);
+  await abreBalao(); assert.equal(await page.locator('#relatar-voz').count(), 0, 'outra conta não vê'); await page.keyboard.press('Escape');
+  // 2 · o dono: Por voz entre Ver relatos e Relatar
+  await page.goto(base + '#/perfil'); await page.click('#conta-sair'); await page.waitForSelector('#conta-entrar:not([disabled])');
+  email = 'gui.amuy@gmail.com';
+  await page.click('#conta-entrar'); await page.waitForSelector('#perfil-conta[data-conectada="true"]');
+  await page.goto(base + '#/'); await page.waitForSelector('#home-titulo'); await page.waitForTimeout(150);
+  await abreBalao();
+  assert.deepEqual(await page.$$eval('#relatar-menu .ds-fab__item', bs => bs.map(b => b.textContent.trim())), ['Ver relatos', 'Por voz', 'Relatar']);
+  // 3 · a janela: no pé, centrada, sem cobrir a tela, ouvindo em português; o balão sai enquanto grava
+  await page.click('#relatar-voz'); await page.waitForSelector('#relato-voz[data-estado="ouvindo"]');
+  assert.equal(await page.evaluate(() => window.__falas.at(-1).lang), 'pt-BR');
+  assert.equal(await page.locator('#relatar-abrir').isVisible(), false, 'o balão sai enquanto grava');
+  assert.equal(await page.innerText('#relato-voz-titulo'), 'Gravando relato');
+  assert.equal(await page.innerText('#relato-voz-texto'), 'Fale o relato…');
+  const geo = () => page.$eval('#relato-voz', el => { const r = el.getBoundingClientRect(), cs = getComputedStyle(el); return { pos: cs.position, centro: Math.abs((r.left + r.right) / 2 - innerWidth / 2) <= 1, alturaMax: r.height <= innerHeight * 0.4, embaixo: innerHeight - r.bottom, vidro: /blur/.test(cs.backdropFilter || cs.webkitBackdropFilter || '') }; });
+  const g1 = await geo(); assert.equal(g1.pos, 'fixed'); assert.ok(g1.centro && g1.alturaMax && g1.vidro, JSON.stringify(g1));
+  for (const id of ['#relato-voz-cancelar', '#relato-voz-terminar']) assert.ok((await page.$eval(id, b => b.offsetHeight)) >= 44, id + ' com 44 px');
+  // 4 · o texto aparece em tempo real (parcial e final), com a maiúscula do começo e sem a do meio
+  await page.evaluate(() => window.__dita(['o balão'], false));
+  assert.equal(await page.innerText('#relato-voz-texto'), 'O balão');
+  await page.evaluate(() => window.__dita(['o balão do relato Some no scanner']));
+  assert.equal(await page.innerText('#relato-voz-texto'), 'O balão do relato Some no scanner');
+  for (const tema of ['dark', 'light']) { await page.evaluate(x => document.documentElement.setAttribute('data-theme', x), tema); for (const [w, hh] of MEDIDAS_149) { await page.setViewportSize({ width: w, height: hh }); await auditaTela(page, `G-397 gravando ${w} ${tema}`); } }
+  await page.setViewportSize({ width: 360, height: 780 }); await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/g395-gravando.png' });
+  // 5 · acompanha: rolar e trocar de tela não a fecham
+  await page.evaluate(() => window.scrollBy(0, 300)); const g2 = await geo(); assert.ok(g2.embaixo >= 0 && Math.abs(g2.embaixo - g1.embaixo) <= 24 && g2.centro, `fica no pé, à vista, ao rolar (a barra de baixo pode recolher): ${g1.embaixo} → ${g2.embaixo}`);
+  await page.evaluate(() => { location.hash = '#/listas'; }); await page.waitForSelector('#relato-voz');
+  // 6 · Terminar: entrega o que estava no ar, fecha a frase com ponto e registra como Melhoria · Alta, com a tela de onde saiu
+  await page.click('#relato-voz-terminar');
+  assert.equal(await page.evaluate(() => window.__falas.at(-1).estado), 'parando');
+  await page.evaluate(() => window.__acaba());
+  await page.waitForSelector('#relato-voz[data-estado="registrado"]');
+  assert.equal(await page.innerText('#relato-voz-titulo'), 'Relato registrado');
+  assert.match(await page.innerText('#relato-voz-aviso'), /^Melhoria · Alta · \d{2}\/\d{2}\/\d{4} \d{2}:\d{2}$/);
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/g395-registrado.png' });
+  await page.click('#relato-voz-ver'); await page.waitForFunction(() => location.hash === '#/perfil/relatos'); await page.waitForSelector('#relato-voz', { state: 'detached' });
+  await page.waitForSelector('#relatos-lista');
+  const item = await page.locator('#relatos-lista .relato-item').first().innerText();
+  assert.match(item, /O balão do relato Some no scanner\./); assert.match(item, /Melhoria/); assert.match(item, /Alta/); assert.match(item, /Início/, 'a tela é a de onde saiu, não a de onde terminou');
+  // 7 · Cancelar descarta: nada novo na lista, aviso curto
+  const antes = await page.locator('#relatos-lista .relato-item').count();
+  await page.goto(base + '#/'); await page.waitForSelector('#relatar-abrir'); await abreBalao(); await page.click('#relatar-voz'); await page.waitForSelector('#relato-voz');
+  await page.evaluate(() => window.__dita(['isto não vai ficar']));
+  await page.click('#relato-voz-cancelar'); await page.evaluate(() => window.__acaba());
+  await page.waitForSelector('#relato-voz', { state: 'detached' }); assert.match(await page.innerText('#ds-toast'), /Relato cancelado/);
+  assert.equal(await page.locator('#relatar-abrir').isVisible(), true, 'o balão volta');
+  await page.goto(base + '#/perfil/relatos'); await page.waitForSelector('#relatos-lista'); assert.equal(await page.locator('#relatos-lista .relato-item').count(), antes);
+  // 8 · pouco texto não registra; o silêncio pausa e Continuar volta a ouvir
+  await page.goto(base + '#/'); await page.waitForSelector('#relatar-abrir'); await abreBalao(); await page.click('#relatar-voz'); await page.waitForSelector('#relato-voz');
+  await page.evaluate(() => window.__dita(['oi']));
+  await page.click('#relato-voz-terminar'); await page.evaluate(() => window.__acaba());
+  await page.waitForSelector('#relato-voz[data-estado="pausado"]'); assert.equal(await page.innerText('#relato-voz-aviso'), 'Fale um pouco mais para registrar.');
+  assert.equal(await page.locator('#relato-voz-continuar').isVisible(), true);
+  const sessoes = await page.evaluate(() => window.__falas.length);
+  await page.click('#relato-voz-continuar'); await page.waitForSelector('#relato-voz[data-estado="ouvindo"]');
+  assert.equal(await page.evaluate(() => window.__falas.length), sessoes + 1);
+  await page.evaluate(() => window.__dita(['o placar some']));
+  assert.equal(await page.innerText('#relato-voz-texto'), 'Oi. O placar some', 'retoma depois do que já tinha');
+  await page.click('#relato-voz-cancelar'); await page.evaluate(() => window.__acaba()); await page.waitForSelector('#relato-voz', { state: 'detached' });
+  assert.deepEqual(errors, []);
+});
+
 /* ---------------- G-319 · relato #43: ditar o relato ---------------- */
 test('e2e · G-319 relato #43: ditar o relato em PT, EN ou ES pelo reconhecimento do aparelho; o falado entra no cursor, Parar entrega o que estava no ar, falha vira frase, fechar desliga o microfone; sem reconhecimento, Ditar aponta o teclado', { skip }, async t => {
   const { page, errors, base } = await open(t);

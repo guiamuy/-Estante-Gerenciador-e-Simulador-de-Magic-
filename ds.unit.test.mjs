@@ -112,6 +112,7 @@ test('J1 · contrato: o app só move a rolagem nos pontos declarados, cada um co
     ["if (falta > 0) scrollBy({ top: falta, behavior: menosMovimento() ? 'auto' : 'smooth' });", 'mesa (J-45, decisão do dono de 02/11): a mão abriu e a mesa não encolhe mais; a página desce até o seu campo pousar acima da bandeja'],
     ["if (sua && sua.scrollIntoView) sua.scrollIntoView({ block: 'nearest' });", 'scanner (S-615, relato #65): ao abrir a galeria de edições, a impressão que é a sua aparece sem rolar (rola só a folha, uma vez, na abertura pedida pelo toque)'],
     ['const resto = Math.ceil(meu.getBoundingClientRect().bottom + 8 - doca.getBoundingClientRect().top); if (resto > 0) scrollBy({ top: resto, behavior: \'auto\' }); }, durFx(\'--dur-3\') + 60);', 'mesa (J-45): o acerto final da mesma descida, pela medida real, quando a bandeja termina de abrir'],
+    ['fala$.scrollTop = fala$.scrollHeight; // o fim do que foi dito fica à vista', 'relato por voz (G-397, relatos #215/#216): rola só a caixa do texto ditado, dentro da janela, para o fim do que foi dito'],
   ];
   const linhas = html.split('\n').filter(l => /\.scrollIntoView\(|\bscrollTo\(|\bscrollBy\(|\.scrollTop\s*=[^=]/.test(l) && !/^\s*(\/\/|\*|\/\*)/.test(l) && !/lista\.scrollTop = lista\.scrollHeight/.test(l));
   const semMotivo = linhas.filter(l => !DECLARADOS.some(([trecho]) => l.includes(trecho)));
