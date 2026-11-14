@@ -2061,7 +2061,9 @@ test('e2e · S-607 relato #60/#64: carta sem edição é marcada na pilha, a fol
   await page.evaluate(() => window.__ocrQueue.push('Island'));
   await page.click('#scan-read');
   await page.waitForFunction(() => /Edição incerta/.test((document.querySelector('#scan-edition') || {}).innerText || ''));
-  assert.equal(pedidos.sets, 0, 'o catálogo de coleções só é buscado quando a folha abre');
+  // S-626 · expectativa ajustada (relato #219): a faixa da edição na tela do scanner mostra o símbolo na hora, e o catálogo
+  // (uma vez por sessão) pode vir antes de a folha abrir; antes, só a folha o pedia
+  assert.ok(pedidos.sets <= 1, 'o catálogo de coleções vem no máximo uma vez');
   await abrePilha(page);
   const cartao = page.locator('#scan-pile .scan-pile__card[data-name="Island"]');
   assert.match(await cartao.innerText(), /Escolha a edição/);
@@ -2290,6 +2292,98 @@ test('e2e · S-615 relato #65: a folha de edição mostra a arte de cada impress
   assert.equal(await page.getAttribute('#scan-ed .scan-ed__item[data-set="m21"]', 'aria-pressed'), 'true');
   assert.match(await page.innerText('#scan-ed .scan-ed__item[data-set="m21"]'), /A sua/);
   assert.equal(await page.locator('#scan-ed .scan-ed__sua').count(), 1);
+  assert.deepEqual(errors, []);
+});
+
+// S-626 · relato #219 (360×697, escuro): a edição não saiu da leitura e a escolha aparece na própria tela do scanner, sem abrir
+// a pilha: todas as impressões numa faixa que rola com o dedo (arte, símbolo, sigla e número), o acabamento depois do toque, e
+// um X que fecha e deixa a edição para a Pilha. Nenhum pedido novo de impressões (as da leitura) e o catálogo uma vez só.
+test('e2e · S-626 relato 219: a edição se escolhe na tela do scanner, com todas as impressões, o acabamento e o X', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 697 });
+  await page.emulateMedia({ colorScheme: 'dark' });
+  const jpg = readFileSync(join(ROOT, 'fotos', 'brainstorm-retrato.jpg'));
+  const ARTE = id => `https://cards.scryfall.io/small/front/${id[0]}/${id[1]}/${id}.jpg?1700000000`;
+  const MH2 = 'a1b2c3d4-0000-4000-8000-000000000267', LEA = 'b2c3d4e5-0000-4000-8000-000000000288', M21 = 'c3d4e5f6-0000-4000-8000-000000000260', DMU = 'd4e5f6a7-0000-4000-8000-000000000262';
+  const pedidos = { sets: 0, prints: 0 };
+  await page.route('https://cards.scryfall.io/**', r => r.fulfill({ contentType: 'image/jpeg', body: jpg }));
+  await page.route('https://svgs.scryfall.io/**', r => r.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><circle cx="5" cy="5" r="5"/></svg>' }));
+  await page.route('https://api.scryfall.com/sets', r => { pedidos.sets++; return r.fulfill({ json: { object: 'list', has_more: false, data: [
+    { code: 'mh2', name: 'Modern Horizons 2', released_at: '2021-06-18', icon_svg_uri: 'https://svgs.scryfall.io/sets/mh2.svg?1700000000' }] } }); });
+  await page.route('https://api.scryfall.com/cards/search**', r => {
+    const q = decodeURIComponent(new URL(r.request().url()).searchParams.get('q') || '');
+    if (q !== '!"Island"') return r.fallback();
+    pedidos.prints++;
+    const c = { object: 'card', name: 'Island', type_line: 'Basic Land — Island', color_identity: ['U'], colors: [], cmc: 0, oracle_text: '', legalities: {} };
+    return r.fulfill({ json: { object: 'list', has_more: false, data: [
+      { ...c, id: DMU, set: 'dmu', set_name: 'Dominaria United', collector_number: '262', released_at: '2022-09-09', finishes: ['nonfoil', 'foil'], image_uris: { small: ARTE(DMU) } },
+      { ...c, id: MH2, set: 'mh2', set_name: 'Modern Horizons 2', collector_number: '267', released_at: '2021-06-18', finishes: ['nonfoil', 'foil'], image_uris: { small: ARTE(MH2) } },
+      { ...c, id: M21, set: 'm21', set_name: 'Core Set 2021', collector_number: '260', released_at: '2020-07-03', finishes: ['nonfoil', 'foil'], image_uris: { small: ARTE(M21) } },
+      { ...c, id: 'e5f6a7b8-0000-4000-8000-000000000999', set: 'sld', set_name: 'Secret Lair Drop', collector_number: '999', released_at: '2019-12-02', finishes: ['foil'], image_uris: { small: ARTE('e5f6a7b8-0000-4000-8000-000000000999') } },
+      { ...c, id: LEA, set: 'lea', set_name: 'Limited Edition Alpha', collector_number: '288', released_at: '1993-08-05', finishes: ['nonfoil'], image_uris: { small: ARTE(LEA) } }] } });
+  });
+  await page.addInitScript(FAKE_PHOTO_CAM('data:image/jpeg;base64,' + readFileSync(join(ROOT, 'fotos', 'real-counterspell-playmat.jpg')).toString('base64')));
+  await page.goto(base + '#/scanner');
+  await page.waitForSelector('#scan-read:not([disabled])');
+  await pausaAuto(page);
+  await page.evaluate(() => window.__ocrQueue.push('Island'));
+  await page.click('#scan-read');
+  // sem a linha de coleção: a faixa aparece na tela, com todas as impressões, sem abrir a pilha
+  await page.waitForSelector('#scan-faixa[data-passo="edicao"]');
+  assert.notEqual(await page.evaluate(() => (document.querySelector('#ds-overlay') || { dataset: {} }).dataset.open), 'true', 'a pilha não abre');
+  assert.equal(await page.locator('#scan-pile').count(), 0);
+  assert.deepEqual(await page.$$eval('#scan-faixa [data-printing]', bs => bs.map(b => b.dataset.printing)), ['dmu-262', 'mh2-267', 'm21-260', 'sld-999', 'lea-288'], 'todas, da mais nova para a mais antiga');
+  assert.match(await page.innerText('#scan-faixa'), /Qual é a edição\?[\s\S]*5 impressões · deslize para ver todas/);
+  assert.match(await page.innerText('#scan-faixa [data-printing="mh2-267"]'), /MH2 #267/, 'a sigla e o número da carta');
+  await page.waitForFunction(() => !!document.querySelector('#scan-faixa [data-printing="mh2-267"] .scan-ed__simbolo[data-icone]'), null, { timeout: 6000 });
+  const g = await page.evaluate(() => {
+    const t = document.querySelector('#scan-faixa-trilho'), f = document.querySelector('#scan-faixa'), x = document.querySelector('#scan-faixa-fechar');
+    const cs = getComputedStyle(x);
+    return { rola: t.scrollWidth > t.clientWidth, overflow: getComputedStyle(t).overflowX, lateral: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      dentro: f.getBoundingClientRect().right <= window.innerWidth + 1, artes: [...t.querySelectorAll('.scan-ed__arte')].length,
+      x: { w: x.getBoundingClientRect().width, h: x.getBoundingClientRect().height, rotulo: x.getAttribute('aria-label'), fundo: cs.backgroundColor } };
+  });
+  assert.ok(g.rola && g.overflow === 'auto', 'a faixa rola com o dedo para o lado');
+  assert.ok(g.lateral <= 1, `a tela não rola para o lado (${g.lateral}px)`);
+  assert.ok(g.dentro, 'a faixa cabe na largura');
+  assert.equal(g.artes, 5, 'a arte de cada impressão');
+  assert.ok(g.x.w >= 44 && g.x.h >= 44, 'o X com 44 px');
+  assert.match(g.x.rotulo, /depois, na Pilha/);
+  assert.match(g.x.fundo, /rgba\(.*, 0\.\d+\)|color\(/, `o X é translúcido (${g.x.fundo})`);
+  const pequenos = await page.$$eval('#scan-faixa button', bs => bs.filter(b => b.offsetParent && b.getBoundingClientRect().height < 44).map(b => b.dataset.printing || b.textContent.trim()));
+  assert.deepEqual(pequenos, [], 'alvos de toque com 44 px');
+  await auditaTela(page, 'S-626 faixa da edição no scanner (360×697, escuro)');
+  if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/s626-faixa.png` });
+  // o toque na edição que tem mais de um acabamento pergunta o acabamento, no mesmo lugar
+  await page.click('#scan-faixa [data-printing="mh2-267"]');
+  await page.waitForSelector('#scan-faixa[data-passo="acabamento"]');
+  assert.deepEqual(await page.$$eval('#scan-faixa-acab [data-acab]', bs => bs.map(b => b.dataset.acab)), ['nonfoil', 'foil']);
+  // "Outra edição" volta à faixa
+  await page.click('#scan-faixa-outra');
+  await page.waitForSelector('#scan-faixa[data-passo="edicao"]');
+  await page.click('#scan-faixa [data-printing="mh2-267"]');
+  await page.click('#scan-faixa-acab [data-acab="foil"]');
+  await page.waitForFunction(() => !document.querySelector('#scan-faixa') && /MH2 #267 · Modern Horizons 2 · Foil/.test((document.querySelector('#scan-edition') || {}).innerText || ''));
+  assert.doesNotMatch(await page.innerText('#scan-edition'), /não conferida/);
+  // a impressão de um acabamento só entra direto
+  await page.evaluate(() => window.__ocrQueue.push('Island'));
+  await page.click('#scan-read');
+  await page.waitForSelector('#scan-faixa[data-passo="edicao"]');
+  await page.click('#scan-faixa [data-printing="lea-288"]');
+  await page.waitForFunction(() => !document.querySelector('#scan-faixa') && /LEA #288/.test((document.querySelector('#scan-edition') || {}).innerText || ''));
+  // o X fecha a faixa e a carta fica na pilha com a edição a definir
+  await page.evaluate(() => window.__ocrQueue.push('Island'));
+  await page.click('#scan-read');
+  await page.waitForSelector('#scan-faixa[data-passo="edicao"]');
+  await page.click('#scan-faixa-fechar');
+  await page.waitForFunction(() => !document.querySelector('#scan-faixa'));
+  await abrePilha(page);
+  const pilha = await page.innerText('#scan-pile');
+  assert.match(pilha, /MH2 #267 · Foil/);
+  assert.match(pilha, /LEA #288/);
+  assert.match(pilha, /Edição a definir/);
+  assert.equal(pedidos.prints, 1, 'as impressões da leitura servem à faixa: nenhum pedido novo');
+  assert.equal(pedidos.sets, 1, 'o catálogo de coleções vem uma vez por sessão');
   assert.deepEqual(errors, []);
 });
 

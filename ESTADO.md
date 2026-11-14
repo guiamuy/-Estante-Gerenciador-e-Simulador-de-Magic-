@@ -19,7 +19,7 @@ Marcos: Pauper 100% (as sete listas revisadas carta a carta; 682 de 686 listas P
 
 | Trilha | Prefixo | Foco atual | Última leva | Próximo |
 |---|---|---|---|---|
-| `scanner` | S | X16: #90 foil (F1 só foil; F2 selo "Foil?") | S-625 · 11/11 | calibrar o foil e #79 no aparelho |
+| `scanner` | S | X16: #219 edição na tela (S-626 f1); #90 foil | S-626 · 14/11 | #219 f2 (Pilha); foil e #79 no aparelho |
 | `geral` | G | DS-K3; T-IDIOMA #151 5c: Commander em pt/es por lotes (G-387 a G-393) | G-393 · 14/11 | 5c lote 4+ (1.766 pt, 666 es); Darval |
 | `motor` | M | Modern 140/719 (≈168 com a fila) | M-634 · 14/11 | Seasoned Cryomancer; Arena of Glory |
 | `radar` | R | BI4 · Painel Estante: comparar períodos, metas, tendência | R-44 · 07/11 | BI4-6 em diante; validação do dono após os primeiros pilares |
@@ -46,7 +46,7 @@ Datas no formato dia/mês, horário de Brasília. Trilha que muda de foco atuali
 
 ## Relatos do dono abertos (etiqueta `relato`)
 
-#90 foil (S-623, S-624). #66/#53 idiomas: lotes G-365 a G-380 (Pauper a Commander). #151 idioma: G-381 (mesa), G-385 (Coleção, esclarecimentos), G-387 (5c lote 1). #152 ritmo do turno do oponente: livre. #135: G-379. #136: J-69.
+#90 foil (S-623, S-624). #66/#53 idiomas: lotes G-365 a G-380 (Pauper a Commander). #151 idioma: G-381 (mesa), G-385 (Coleção, esclarecimentos), G-387 (5c lote 1). #152 ritmo do turno do oponente: livre. #219: S-626. #135: G-379. #136: J-69.
 Fila da Relatos contínuo: #90 foil (opção A, fatias em curso: S-623). #66/#53 idiomas: lotes G-365, G-368 (Pauper e Shark), G-373 Standard, G-374 Pioneer/Modern, G-377 Legacy/Vintage, G-380 Commander, G-383 cartas novas. #95 resolvido (G-363, 09/11; #97 duplicata). #106: G-369. Novos: #108, #107. #90 F2: S-624. #107: G-372.
 Leitura e fila dos relatos: seção "Relatos do dono" do `CLAUDE.md`.
 
@@ -81,4 +81,4 @@ Os documentos `claude/…` moram no Projeto do claude.ai, fora do repositório: 
 
 No commit de docs de cada leva (o mesmo que atualiza o ROADMAP): reescreva a **sua** linha na tabela de trilhas, atualize relatos e pendências se mudaram e troque a data abaixo. Edite por patch, nunca o arquivo inteiro. Conflito no rebase: fique com as linhas das outras trilhas e a sua. Passou de 8 KB: resuma, não acrescente.
 
-Atualizado: 14/11/2026 · M-623 · G-387 · J-79 · G-384 · M-633 · I-333 · J-64 · B-216 (bot) · M-634 · G-391 · G-393 · G-389 · J-75 · I-334 · M-628 · J-73
+Atualizado: 14/11/2026 · B-216 (bot) · M-634 · G-391 · G-393 · G-389 · J-75 · I-334 · M-628 · J-73 · M-632 · B-214 · G-392 · S-626

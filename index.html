@@ -4243,6 +4243,39 @@ body[data-tela="scanner"] .ds-appbar { display: none; }
 .scan-result__check { color: var(--positive); flex: none; }
 .scan-result__nome { font-family: var(--font-display); font-weight: var(--weight-regular); font-size: var(--text-lg); line-height: 1.15; }
 .scan-result__ed { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-sm); color: var(--fg-muted); }
+/* S-626 · relato #219: a faixa da edição na própria tela do scanner (sem abrir a pilha): todas as impressões em fila que rola
+   com o dedo, cada uma com a arte, o símbolo da coleção, a sigla e o número; depois do toque, o acabamento; o X translúcido
+   fecha e a escolha fica para a Pilha. */
+.scan-faixa { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2) 0; min-width: 0; }
+.scan-faixa__topo { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); min-height: var(--tap-min); }
+.scan-faixa__titulo { display: flex; flex-direction: column; min-width: 0; }
+.scan-faixa__titulo b { font-family: var(--font-display); font-weight: var(--weight-regular); font-size: var(--text-md); line-height: var(--lh-md); color: var(--fg); }
+.scan-faixa__titulo span { font-size: var(--text-xs); line-height: var(--lh-xs); color: var(--fg-muted); }
+.scan-faixa__fechar { flex: none; display: inline-flex; align-items: center; justify-content: center; width: var(--tap-min); height: var(--tap-min); padding: 0; border: 1px solid color-mix(in srgb, var(--fg) 14%, transparent);
+  border-radius: var(--radius-full); background: color-mix(in srgb, var(--bg-elev-1) 42%, transparent); color: var(--fg-muted); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); cursor: pointer;
+  transition: background var(--dur-2) var(--ease-out), color var(--dur-2) var(--ease-out); }
+.scan-faixa__fechar:active { background: color-mix(in srgb, var(--bg-elev-1) 70%, transparent); color: var(--fg); }
+.scan-faixa__fechar:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.scan-faixa__trilho { display: flex; gap: var(--space-2); overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch;
+  padding: 2px 2px var(--space-1); scrollbar-width: none; }
+.scan-faixa__trilho::-webkit-scrollbar { display: none; }
+.scan-faixa__item { position: relative; flex: none; width: 88px; display: flex; flex-direction: column; gap: 4px; padding: 4px; scroll-snap-align: start; text-align: left; cursor: pointer;
+  border: 1px solid var(--border); border-radius: var(--radius-2); background: color-mix(in srgb, var(--bg-elev-1) 60%, transparent); color: var(--fg);
+  transition: border-color var(--dur-2) var(--ease-out), transform var(--dur-2) var(--ease-out); }
+.scan-faixa__item:active:not(:disabled) { transform: scale(.97); }
+.scan-faixa__item:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.scan-faixa__item[aria-pressed="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.scan-faixa__item:disabled { cursor: progress; }
+.scan-faixa__item:disabled:not([aria-pressed="true"]) { opacity: .55; }
+.scan-faixa__item .scan-ed__arte { border-radius: var(--radius-1); }
+.scan-faixa__provavel { position: absolute; top: 8px; left: 8px; padding: 1px 6px; border-radius: var(--radius-full); background: var(--accent); color: var(--accent-fg); font-size: var(--text-2xs); font-weight: 700; }
+.scan-faixa__rodape { display: grid; grid-template-columns: 16px 1fr; align-items: center; gap: 4px; min-width: 0; }
+.scan-faixa__rodape .scan-ed__simbolo { width: 16px; height: 16px; }
+.scan-faixa__rodape .scan-ed__simbolo--sigla { width: auto; height: auto; font-size: var(--text-3xs); }
+.scan-faixa__codigo { font-size: var(--text-2xs); line-height: 1.2; font-weight: 700; letter-spacing: .02em; font-variant-numeric: tabular-nums; color: var(--fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.scan-faixa__acab { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
+@media (prefers-reduced-motion: reduce) { .scan-faixa__item, .scan-faixa__fechar { transition: none; } .scan-faixa__item:active:not(:disabled) { transform: none; } }
+:root[data-movimento="reduzido"] .scan-faixa__item, :root[data-movimento="reduzido"] .scan-faixa__fechar { transition: none; }
 .scan-status { display: flex; flex-direction: column; gap: var(--space-2); }
 .scan-status:empty { display: none; }
 .scan-suggest { display: flex; flex-wrap: wrap; gap: var(--space-2); }
@@ -50688,16 +50721,92 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
       return mount(result, Row({ class: 'ds-row--wrap scan-result__linha' }, Text('É uma destas?', { size: 'sm', tone: 'muted' }),
         ...[best, ...rest].map(c => { const b = Chip(c.name, { icone: 'mais', dataset: { candidate: c.name } }); b.addEventListener('click', async () => { await aceita(c.name, { found: L.found, texto: L.text }); }); return b; })));
     }
+    const faixa = faixaDaEdicao(L, best);
     const edicao = !state.edition ? null
       : L.pendente ? h('span', { class: 'scan-result__ed', id: 'scan-edition-espera' }, Spinner(), 'edição…')
-      : L.printing ? h('span', { class: 'scan-result__ed', id: 'scan-edition' }, `${printLabel(L.printing)}${L.printing.set_name ? ' · ' + L.printing.set_name : ''}${L.printing.verified ? '' : ' (não conferida)'}`)
-        : h('span', { class: 'scan-result__ed', id: 'scan-edition' }, L.candidates.length ? 'Edição incerta:' : !online() ? 'Sem internet: a cópia entra sem edição (defina depois, na coleção).' : 'Edição não identificada: a cópia entra sem edição.');
+      : L.printing ? h('span', { class: 'scan-result__ed', id: 'scan-edition' }, `${printLabel(L.printing)}${L.printing.set_name ? ' · ' + L.printing.set_name : ''}${L.acabamento && NOME_DO_ACABAMENTO[L.acabamento] ? ' · ' + NOME_DO_ACABAMENTO[L.acabamento] : ''}${L.printing.verified ? '' : ' (não conferida)'}`)
+        : h('span', { class: 'scan-result__ed', id: 'scan-edition' }, L.candidates.length ? 'Edição incerta:' : !online() ? 'Sem internet: a cópia entra sem edição (defina depois, na coleção).' : faixa ? 'Edição não identificada:' : 'Edição não identificada: a cópia entra sem edição.');
     mount(result,
       h('div', { class: 'scan-result__linha' },
         Icone('marcar', { tamanho: 18, classe: 'scan-result__check' }), h('b', { class: 'scan-result__nome' }, best.name), edicao),
-      L.candidates.length ? Row({ class: 'ds-row--wrap' }, ...L.candidates.map(c => Chip(`${printLabel(c)} · ${c.set_name}`, { dataset: { printing: c.set + '-' + c.number }, onClick: async () => {
+      faixa || (L.candidates.length ? Row({ class: 'ds-row--wrap' }, ...L.candidates.map(c => Chip(`${printLabel(c)} · ${c.set_name}`, { dataset: { printing: c.set + '-' + c.number }, onClick: async () => {
         L.key = await lot.rename(L.key, best.name, { ...c, verified: true }) || L.key; L.printing = { ...c, verified: true }; L.candidates = []; paintResult(); toast(`Edição: ${printLabel(c)}`);
-      } }))) : null);
+      } }))) : null));
+  }
+  /* S-626 · relato #219: a edição não saiu da leitura (incerta ou não identificada) e a escolha aparece na própria tela do
+     scanner, sem abrir a pilha. Todas as impressões do nome (as que a leitura da edição já buscou: nenhum pedido novo por
+     carta), as prováveis primeiro, numa fila que rola com o dedo; cada uma com a arte, o símbolo da coleção, a sigla e o
+     número. O toque escolhe; com mais de um acabamento possível, a pergunta do acabamento vem em seguida, no mesmo lugar
+     (uma impressão com um acabamento só entra direto). O X translúcido fecha: a carta fica na pilha com a edição a definir.
+     O catálogo de coleções (o símbolo) vem uma vez por sessão; até chegar, a sigla fica no lugar do símbolo. */
+  const ORDEM_DO_ACABAMENTO = ['nonfoil', 'foil', 'etched'];
+  function faixaDaEdicao(L, best) {
+    if (!state.edition || !L.key || L.pendente || L.printing || L.faixaFechada || !online()) return null;
+    const prints = printsCache.get(best.name) || [];
+    const lista = edicoesDaCarta(prints, colecoesDaFolha);
+    if (!lista.length) return null;
+    const provaveis = (L.candidates || []).map(c => lista.find(e => e.set === String(c.set || '').toLowerCase() && (!c.number || e.number === String(c.number)))).filter(Boolean);
+    const ordem = [...new Set([...provaveis, ...lista])];
+    const box = h('div', { class: 'scan-faixa', id: 'scan-faixa', dataset: { key: L.key, passo: L.faixaEd ? 'acabamento' : 'edicao' } });
+    const topo = (titulo, sub) => {
+      const x = h('button', { class: 'scan-faixa__fechar', type: 'button', id: 'scan-faixa-fechar', 'aria-label': 'Fechar: escolher a edição depois, na Pilha', title: 'Escolher depois, na Pilha' }, Icone('fechar', { tamanho: 18 }));
+      x.addEventListener('click', () => { L.faixaFechada = true; L.faixaEd = null; paintResult(); toast('A edição fica para depois, na Pilha.', 2400); });
+      return h('div', { class: 'scan-faixa__topo' }, h('div', { class: 'scan-faixa__titulo' }, h('b', {}, titulo), sub ? h('span', {}, sub) : null), x);
+    };
+    let gravando = false;
+    const usa = async (e, acab) => {
+      if (gravando) return;
+      gravando = true;
+      box.querySelectorAll('.scan-faixa__item, [data-acab], #scan-faixa-outra').forEach(b => { b.disabled = true; });
+      const img = imagemDaImpressao(prints, { set: e.set, number: e.number, id: e.id });
+      const ed = { set: e.set, number: e.number, set_name: e.set_name, id: e.id };
+      const r = await lot.escolhe(L.key, ed, acab, img);
+      if (!r) { L.faixaFechada = true; paintResult(); toast('A carta saiu da pilha'); return; }
+      L.key = r.key; L.printing = { ...ed, verified: true }; L.acabamento = acab !== 'nonfoil' ? acab : ''; L.candidates = []; L.faixaEd = null;
+      if (state.last === L) paintResult();
+      paintDock();
+      if (state.pilhaAberta && pilhaBox && pilhaBox.isConnected) paintPile(pilhaBox);
+      toast(`${best.name}: ${e.set.toUpperCase()}${e.number ? ' #' + e.number : ''}${L.acabamento ? ' · ' + NOME_DO_ACABAMENTO[L.acabamento] : ''}`, 4000,
+        { acao: { rotulo: 'Desfazer', icone: 'desfazer', onClick: async () => {
+          const k = await r.desfaz();
+          if (k && state.last === L) { L.key = k; L.printing = null; L.acabamento = ''; L.faixaFechada = false; paintResult(); }
+          paintDock(); if (state.pilhaAberta && pilhaBox && pilhaBox.isConnected) paintPile(pilhaBox);
+        } } });
+    };
+    if (L.faixaEd) {
+      const e = L.faixaEd, acabs = ORDEM_DO_ACABAMENTO.filter(a => e.acabamentos.includes(a));
+      mount(box, topo(`${e.set.toUpperCase()}${e.number ? ' #' + e.number : ''} · ${e.set_name}`, 'E o acabamento da sua carta?'),
+        h('div', { class: 'scan-faixa__acab', id: 'scan-faixa-acab' },
+          ...acabs.map(a => Chip(NOME_DO_ACABAMENTO[a], { dataset: { acab: a }, onClick: () => usa(e, a) })),
+          Button('Outra edição', { variant: 'ghost', id: 'scan-faixa-outra', onClick: () => { L.faixaEd = null; paintResult(); } })));
+      return box;
+    }
+    const item = e => {
+      const prov = provaveis.includes(e);
+      const b = h('button', { class: 'scan-faixa__item', type: 'button', role: 'listitem', dataset: { printing: e.set + '-' + e.number },
+        'aria-label': `${e.set_name}, ${e.set.toUpperCase()}${e.number ? ' número ' + e.number : ''}${e.ano ? ', ' + e.ano : ''}${prov ? ', provável' : ''}` },
+        arteNaFolha(e), prov ? h('span', { class: 'scan-faixa__provavel', 'aria-hidden': 'true' }, 'Provável') : null,
+        h('span', { class: 'scan-faixa__rodape' }, simboloDaEdicao(e), h('span', { class: 'scan-faixa__codigo' }, `${e.set.toUpperCase()}${e.number ? ' #' + e.number : ''}`)));
+      b.addEventListener('click', () => {
+        const acabs = ORDEM_DO_ACABAMENTO.filter(a => e.acabamentos.includes(a));
+        if (acabs.length > 1) { L.faixaEd = e; paintResult(); } else { b.setAttribute('aria-pressed', 'true'); usa(e, acabs[0] || 'nonfoil'); }
+      });
+      return b;
+    };
+    const trilho = h('div', { class: 'scan-faixa__trilho', id: 'scan-faixa-trilho', role: 'list', 'aria-label': 'Edições da carta' }, ...ordem.map(item));
+    mount(box, topo('Qual é a edição?', `${lista.length} ${lista.length === 1 ? 'impressão' : 'impressões'}${lista.length > 3 ? ' · deslize para ver todas' : ''}`), trilho);
+    // o símbolo da coleção: o catálogo vem uma vez por sessão; ao chegar, a faixa se refaz no mesmo ponto da rolagem
+    if (!colecoesDaFolha && !state.catalogoDaFaixa) {
+      state.catalogoDaFaixa = true;
+      colecoesParaFolha().then(sets => {
+        if (!sets.length) return;   // sem o catálogo fica a sigla (uma tentativa por sessão; a folha da pilha tenta de novo ao abrir)
+        const agora = document.getElementById('scan-faixa-trilho');
+        if (!agora || state.last !== L || L.faixaEd) return;
+        const x = agora.scrollLeft; paintResult();
+        const novo = document.getElementById('scan-faixa-trilho'); if (novo) novo.scrollLeft = x;
+      }).catch(() => {});
+    }
+    return box;
   }
   async function paintDock() {
     const n = await lot.total();
@@ -50818,6 +50927,30 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
     return printsCache.get(name) || [];
   }
   const BUSCA_A_PARTIR = 8;   // com mais impressões que isso, a folha ganha a busca
+  /* S-626 · o símbolo e a arte da impressão, iguais na folha da pilha e na faixa da tela do scanner */
+  // a sigla aparece já; o símbolo entra no lugar dela quando a imagem chega (sem rede ou sem símbolo, fica a sigla)
+  function simboloDaEdicao(e) {
+    const el = h('span', { class: 'scan-ed__simbolo scan-ed__simbolo--sigla', 'aria-hidden': 'true', dataset: e.icone ? { icone: e.icone } : null }, e.set.toUpperCase().slice(0, 4));
+    if (e.icone) {
+      const img = new Image();
+      img.onload = () => { el.style.setProperty('--scan-ed-icone', `url("${e.icone}")`); el.classList.remove('scan-ed__simbolo--sigla'); el.textContent = ''; };   // endereço já conferido (iconeDoSet)
+      img.src = e.icone;
+    }
+    return el;
+  }
+  // S-615 · relato #65: cada impressão mostra a própria arte (imagem pequena da Scryfall), para escolher vendo a carta.
+  // Enquanto chega, a espera do DS; imagem que falha ou não existe vira a sigla grande no lugar (nunca a arte de outra impressão).
+  function arteNaFolha(e) {
+    const el = h('span', { class: 'scan-ed__arte', 'aria-hidden': 'true', dataset: { arte: e.arte ? 'carregando' : 'sem' } });
+    if (!e.arte) { el.append(h('span', { class: 'scan-ed__arte-sigla' }, e.set.toUpperCase().slice(0, 5))); return el; }
+    const espera = h('span', { class: 'ds-carta-espera' });
+    const img = h('img', { class: 'scan-ed__arte-img', alt: '', loading: 'lazy', decoding: 'async', width: 146, height: 204 });
+    img.onload = () => { el.dataset.arte = 'pronta'; espera.remove(); };
+    img.onerror = () => { el.dataset.arte = 'falhou'; espera.remove(); img.remove(); el.append(h('span', { class: 'scan-ed__arte-sigla' }, e.set.toUpperCase().slice(0, 5))); };
+    img.src = e.arte;   // endereço já conferido (arteDaImpressao)
+    el.append(img, espera);
+    return el;
+  }
   async function openEdicao(x) {
     const box = h('div', { class: 'scan-ed scan-ed--galeria', id: 'scan-ed', dataset: { key: x.key } });
     const voltar = () => { closeDialog(); openPile(); };
@@ -50874,29 +51007,7 @@ function createScannerScreen({ camera, store, names, collection, decks, scryfall
           acabamentos.length > 1 ? Row({ class: 'ds-row--wrap' }, ...acabamentos.map(a => Chip(NOME_DO_ACABAMENTO[a], { pressed: escolha.acab === a, dataset: { acab: a },
             onClick: () => { escolha.acab = a; pintaAcab(); pintaLista(); } }))) : null);
       };
-      // a sigla aparece já; o símbolo entra no lugar dela quando a imagem chega (sem rede ou sem símbolo, fica a sigla)
-      const simbolo = e => {
-        const el = h('span', { class: 'scan-ed__simbolo scan-ed__simbolo--sigla', 'aria-hidden': 'true', dataset: e.icone ? { icone: e.icone } : null }, e.set.toUpperCase().slice(0, 4));
-        if (e.icone) {
-          const img = new Image();
-          img.onload = () => { el.style.setProperty('--scan-ed-icone', `url("${e.icone}")`); el.classList.remove('scan-ed__simbolo--sigla'); el.textContent = ''; };   // endereço já conferido (iconeDoSet)
-          img.src = e.icone;
-        }
-        return el;
-      };
-      // S-615 · relato #65: cada impressão mostra a própria arte (imagem pequena da Scryfall), para escolher vendo a carta.
-      // Enquanto chega, a espera do DS; imagem que falha ou não existe vira a sigla grande no lugar (nunca a arte de outra impressão).
-      const arte = e => {
-        const el = h('span', { class: 'scan-ed__arte', 'aria-hidden': 'true', dataset: { arte: e.arte ? 'carregando' : 'sem' } });
-        if (!e.arte) { el.append(h('span', { class: 'scan-ed__arte-sigla' }, e.set.toUpperCase().slice(0, 5))); return el; }
-        const espera = h('span', { class: 'ds-carta-espera' });
-        const img = h('img', { class: 'scan-ed__arte-img', alt: '', loading: 'lazy', decoding: 'async', width: 146, height: 204 });
-        img.onload = () => { el.dataset.arte = 'pronta'; espera.remove(); };
-        img.onerror = () => { el.dataset.arte = 'falhou'; espera.remove(); img.remove(); el.append(h('span', { class: 'scan-ed__arte-sigla' }, e.set.toUpperCase().slice(0, 5))); };
-        img.src = e.arte;   // endereço já conferido (arteDaImpressao)
-        el.append(img, espera);
-        return el;
-      };
+      const simbolo = simboloDaEdicao, arte = arteNaFolha;
       const item = e => h('button', { class: 'scan-ed__item', type: 'button', role: 'listitem', 'aria-pressed': String(escolha.ed === e), dataset: { set: e.set, number: e.number },
         'aria-label': `${e.set_name}, ${e.set.toUpperCase()}${e.number ? ' número ' + e.number : ''}${e.ano ? ', ' + e.ano : ''}${escolha.ed === e ? ', a sua' : ''}`,
         onClick: ev => usa(e, ev.currentTarget) },
