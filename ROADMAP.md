@@ -734,7 +734,7 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-vi ✅ | Relato #136 (J-69): o ⋯ da mesa abre o menu (Desfazer, Registro, Desistir), nunca o relato: a aba de relatar da borda direita ganha um piso medido no ⋯ (base dele + 8 px), refeito a cada pintura, rolagem e mudança de tamanho; com a barra de cima mais baixa (recorte da câmera no app instalado) ou a aba arrastada ao alto, ela não cobre mais o ⋯. A posição guardada não muda (leva J-69, 11/11/2026) | J | ½ | 16º-vd |
 | 16º-vw ✅ | Relato #152, fatia 1 (J-72, 12/11/2026): na cena do turno do oponente, cada jogada dele fica o tempo de ler a legenda (1,6 s no mínimo, até 3,2 s nas frases longas) e o turno comprido encolhe primeiro os passos sem jogada; a jogada dele nunca passa de 1,1 s (antes: 12 s divididos por todos os quadros, ~0,4 s cada). Fatia 2 (J-75, 13/11): Pausar e Seguir na legenda da cena. Fatia 3 (J-77, 14/11): chave "No meu toque" no menu da vez: cada jogada do oponente espera o Seguir, a mesma jogada repetida em seguida vira um quadro ("(2×)") e a carta dela ganha o anel do oponente | J | 1 | H5 |
 | 16º-wf ✅ | YV1 · relato #214, fatia 1 (G-395, 14/11/2026): o balão de relatos do canto abre duas opções logo acima dele, Ver relatos e Relatar (toque fora, Esc, rolar ou trocar de tela fecham); o formulário de relatar ganha Ver relatos, centrado, que leva à área de relatos com o rascunho guardado para a volta | — | 1 | — |
-| 16º-wg ⬜ | YV2 · relato #214, fatia 2: ditado mais preciso em português (pontuação e maiúsculas pela fala, nomes próprios preservados, sem espaço duplo), regra pura com frases reais dos relatos | — | 1 | 16º-wf |
+| 16º-wg ✅ | YV2 · relato #214, fatia 2 (G-396, 14/11/2026): o ditado tira a maiúscula que o reconhecedor do Android põe no começo de cada trecho quando ele cai no meio da frase ("o design Continua" → "continua"), também depois de vírgula dita ou da pausa e no ditado que entra no meio de um texto; siglas, palavras com outra maiúscula dentro e os nomes do app e do jogo (Shark, Pauper, GitHub…) ficam | — | 1 | 16º-wf |
 | 16º-wh ⬜ | YV3 · relatos #215/#216, fatia 3: janela flutuante de gravação (translúcida, fixa no pé, transcrição ao vivo, Terminar e Cancelar), relato salvo como Melhoria · Alta, só o dono | — | 1 | 16º-wg |
 | 16º-wi ⬜ | YV4 · relatos #215/#216, fatia 4: comandos de voz "fazer relato", "terminar relato" e "cancelar relato" em qualquer tela, atrás de uma chave no Perfil (só o dono, só português) | — | 1 | 16º-wh |
 
@@ -13045,7 +13045,19 @@ idiomas. Onde o navegador não reconhece fala contínua (Safari do iPhone), o ca
   passam a escolher Relatar na lista (expectativa mudou com o relato).
 - **Fora:** o Relatar do menu dos botões de ação de várias opções continua abrindo o formulário direto.
 
-**YV2 · Ditado mais preciso** ⬜ (relato #214 fatia 2; `16º-wg`)
+**YV2 · Ditado mais preciso** ✅ (leva G-396, 14/11/2026, relato #214 fatia 2; `16º-wg`)
+- **Valor:** o relato ditado sai com as maiúsculas no lugar: só no começo de frase e nos nomes próprios, não no meio
+  da frase onde o reconhecedor recomeçou um trecho.
+- **Aceite:** no meio da frase (emenda sem ponto, depois de vírgula, ponto e vírgula ou dois pontos, e no ditado que
+  entra no meio de um texto já escrito), a palavra só com a inicial maiúscula vira minúscula; siglas (UX, IA), palavras
+  com outra maiúscula dentro (GitHub, iPhone) e a lista de nomes do app e do jogo ficam como vieram; começo de frase e
+  depois de ponto continuam com maiúscula. Frases reais do relato #214 no teste ("o design Continua", "ao Adicionar",
+  "da Captação").
+- **Testes:** unidade "G-396 · relato #214" (`minusculaNoMeio`, `textoDaSessao`, `pontuaDitado`, `juntaDitado`); os
+  testes do ditado (G-319, G-333, G-337, G-369) seguem verdes sem mudar.
+- **Fora (declarado):** palavra trocada pelo reconhecedor ("Sway" no lugar de "UX") não tem como ser corrigida no
+  aparelho; maiúscula no meio de um trecho (sem emenda) fica como veio, porque pode ser nome de carta; a vírgula segue
+  vindo da pausa (600 ms) ou da palavra "vírgula"; inglês e espanhol usam a mesma regra, sem lista própria de nomes.
 **YV3 · Janela flutuante de gravação** ⬜ (relatos #215/#216 fatia 3; `16º-wh`)
 **YV4 · Comandos de voz** ⬜ (relatos #215/#216 fatia 4; `16º-wi`)
 

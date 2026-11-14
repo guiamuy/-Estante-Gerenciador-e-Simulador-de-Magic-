@@ -312,3 +312,26 @@ test('G-369 · plataforma: com internet o ditado usa o serviço de fala (mais pr
     f.stop();
   }
 });
+
+test('G-396 · relato #214: a maiúscula que o reconhecedor põe no começo de cada trecho sai no meio da frase; siglas, nomes próprios e começo de frase ficam', () => {
+  const T = R.textoDaSessao, M = R.minusculaNoMeio;
+  // a regra da palavra
+  assert.equal(M('Continua'), 'continua'); assert.equal(M('Adicionar'), 'adicionar'); assert.equal(M('Captação'), 'captação');
+  assert.equal(M('UX'), 'UX', 'sigla fica'); assert.equal(M('GitHub'), 'GitHub', 'outra maiúscula dentro fica'); assert.equal(M('iPhone'), 'iPhone');
+  assert.equal(M('Shark'), 'Shark', 'nome do app fica'); assert.equal(M('Pauper'), 'Pauper'); assert.equal(M('a'), 'a'); assert.equal(M('É'), 'É', 'uma letra só fica');
+  // frases reais do relato #214 (emenda sem pausa longa: o trecho seguinte vinha com maiúscula)
+  assert.equal(T([{ texto: 'garanta que o design da tela de relato', pausa: 0 }, { texto: 'Continua bem simétrico', pausa: 300 }]), 'garanta que o design da tela de relato continua bem simétrico');
+  assert.equal(T([{ texto: 'excelente experiência ao', pausa: 0 }, { texto: 'Adicionar este botão', pausa: 700 }]), 'excelente experiência ao, adicionar este botão', 'depois da vírgula da pausa também');
+  assert.equal(T([{ texto: 'um aprimoramento da', pausa: 0 }, { texto: 'Captação precisa de voz', pausa: 200 }]), 'um aprimoramento da captação precisa de voz');
+  // começo de frase continua com maiúscula; nome próprio no meio também
+  assert.equal(T([{ texto: 'está usando', pausa: 0 }, { texto: 'Letra maiúscula errada', pausa: 2500 }]), 'está usando. Letra maiúscula errada');
+  assert.equal(T([{ texto: 'joguei contra o', pausa: 0 }, { texto: 'Shark ontem', pausa: 200 }]), 'joguei contra o Shark ontem');
+  assert.equal(T([{ texto: 'melhorar a', pausa: 0 }, { texto: 'UX da tela', pausa: 200 }]), 'melhorar a UX da tela');
+  // vírgula dita: a palavra seguinte não fica maiúscula
+  assert.equal(R.pontuaDitado('a carta vírgula Depois voltou'), 'a carta, depois voltou');
+  assert.equal(R.pontuaDitado('a carta ponto Depois voltou'), 'a carta. Depois voltou');
+  // ditado que entra no meio de uma frase já escrita
+  assert.equal(R.juntaDitado('o botão', 7, 'Continua bonito').texto, 'o botão continua bonito');
+  assert.equal(R.juntaDitado('Fim.', 4, 'depois voltou').texto, 'Fim. Depois voltou');
+  assert.equal(R.juntaDitado('o botão', 7, 'Shark venceu').texto, 'o botão Shark venceu');
+});

@@ -20,7 +20,7 @@ Marcos: Pauper 100% (as sete listas revisadas carta a carta; 682 de 686 listas P
 | Trilha | Prefixo | Foco atual | Última leva | Próximo |
 |---|---|---|---|---|
 | `scanner` | S | X16: #90 foil (F1 só foil; F2 selo "Foil?") | S-625 · 11/11 | calibrar o foil e #79 no aparelho |
-| `geral` | G | Relatos por voz (#214–#216, YV1–YV4); DS-K3; T-IDIOMA #151 5c por lotes (G-387, G-391) | G-395 · 14/11 | YV2 ditado; YV3 janela de gravação; YV4 comandos de voz; 5c lote 3+ |
+| `geral` | G | Relatos por voz (#214–#216, YV1–YV4); DS-K3; T-IDIOMA #151 5c por lotes (G-387, G-391) | G-396 · 14/11 | YV3 janela de gravação; YV4 comandos de voz; 5c lote 3+ |
 | `motor` | M | Modern 140/719 (≈168 com a fila) | M-634 · 14/11 | Seasoned Cryomancer; Arena of Glory |
 | `radar` | R | BI4 · Painel Estante: comparar períodos, metas, tendência | R-44 · 07/11 | BI4-6 em diante; validação do dono após os primeiros pilares |
 | `jogabilidade` | J | MK3 · Mesa Vitrine (rotina) | J-79 · 14/11 | J-78 MK3-8; prompt v2; MK3-5 |
@@ -46,7 +46,7 @@ Datas no formato dia/mês, horário de Brasília. Trilha que muda de foco atuali
 
 ## Relatos do dono abertos (etiqueta `relato`)
 
-#90 foil (S-623, S-624). #66/#53 idiomas: lotes G-365 a G-380 (Pauper a Commander). #151 idioma: G-381 (mesa), G-385 (Coleção, esclarecimentos), G-387 (5c lote 1). #152 ritmo do turno do oponente: livre. #135: G-379. #136: J-69. #214/#215/#216 voz e atalho: YV1 G-395; YV2–YV4 com a conversa do orquestrador.
+#90 foil (S-623, S-624). #66/#53 idiomas: lotes G-365 a G-380 (Pauper a Commander). #151 idioma: G-381 (mesa), G-385 (Coleção, esclarecimentos), G-387 (5c lote 1). #152 ritmo do turno do oponente: livre. #135: G-379. #136: J-69. #214/#215/#216 voz e atalho: YV1 G-395, YV2 G-396; YV3–YV4 com a conversa do orquestrador.
 Fila da Relatos contínuo: #90 foil (S-623, S-624). #66/#53 idiomas: lotes G-365 a G-383. Resolvidos: #95 (G-363), #106 (G-369), #107 (G-372).
 Leitura e fila dos relatos: seção "Relatos do dono" do `CLAUDE.md`.
 
@@ -81,4 +81,4 @@ Os documentos `claude/…` moram no Projeto do claude.ai, fora do repositório: 
 
 No commit de docs de cada leva (o mesmo que atualiza o ROADMAP): reescreva a **sua** linha na tabela de trilhas, atualize relatos e pendências se mudaram e troque a data abaixo. Edite por patch, nunca o arquivo inteiro. Conflito no rebase: fique com as linhas das outras trilhas e a sua. Passou de 8 KB: resuma, não acrescente.
 
-Atualizado: 14/11/2026 · M-616 · G-381 · J-74 · M-623 · G-387 · J-79 · G-384 · M-633 · I-333 · J-64 · B-216 (bot) · M-634 · G-391 · J-73 · M-632 · B-214 · G-392 · G-395 · G-389 · J-75 · I-334 · M-628
+Atualizado: 14/11/2026 · J-79 · G-384 · M-633 · I-333 · J-64 · B-216 (bot) · M-634 · G-391 · J-73 · M-632 · B-214 · G-392 · G-395 · G-389 · J-75 · I-334 · M-628 · M-626 · J-69 · G-386 · G-396 · G-371

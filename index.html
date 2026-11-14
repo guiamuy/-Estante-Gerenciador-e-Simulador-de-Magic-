@@ -19647,6 +19647,21 @@ function regrasDe(lingua) {
   return regrasDePontuacao[l];
 }
 const FORCA_DO_SINAL = ['?', '!', '.', '…', ';', ':', ','];
+/* G-396 · relato #214: o reconhecedor do Android começa cada trecho final com maiúscula ("o design Continua bem
+   simétrico", "ao Adicionar este botão"), e a emenda sem ponto deixava essa maiúscula no meio da frase. No meio da frase
+   (depois de vírgula, ponto e vírgula, dois pontos ou numa emenda sem sinal), a palavra só com a inicial maiúscula volta à
+   minúscula; siglas (UX, IA), palavras com mais de uma maiúscula (GitHub, iPhone) e os nomes próprios do app e do jogo
+   abaixo ficam como vieram. */
+const NOMES_DO_DITADO = new Set(['estante', 'shark', 'magic', 'pauper', 'commander', 'modern', 'standard', 'pioneer', 'legacy', 'vintage',
+  'arena', 'moxfield', 'archidekt', 'scryfall', 'google', 'github', 'vercel', 'firebase', 'android', 'iphone', 'chrome', 'safari',
+  'claude', 'guilherme', 'wizards', 'brasil', 'português', 'inglês', 'espanhol', 'deus']);
+/** A palavra que abre um trecho no meio da frase: "Continua" → "continua"; sigla, nome próprio conhecido e palavra com
+    outra maiúscula dentro ficam como vieram. Puro. */
+function minusculaNoMeio(palavra) {
+  const w = String(palavra || '');
+  if (!/^\p{Lu}\p{Ll}+$/u.test(w)) return w;
+  return NOMES_DO_DITADO.has(w.toLocaleLowerCase('pt-BR')) ? w : w.toLocaleLowerCase('pt-BR');
+}
 /** G-333 · texto falado → texto pontuado: comandos de pontuação do idioma viram sinais, sem espaço antes e com um depois,
     sinais seguidos viram um (o mais forte), maiúscula depois de . ? ! e em linha nova. A primeira letra fica como veio
     (quem decide é `juntaDitado`, pelo que está antes do cursor). Números e palavras normais não mudam. Puro. */
@@ -19661,7 +19676,8 @@ function pontuaDitado(texto, lingua = 'pt-BR') {
     .replace(/(^|[^\d])([,;:!?…])(?=\d)/gu, '$1$2 ')
     .replace(/ *\n */g, '\n')
     .replace(/^[ \t]+|[ \t]+$/g, '')
-    .replace(/([.!?…] +|\n)(\p{Ll})/gu, (m, a, b) => a + b.toLocaleUpperCase());
+    .replace(/([.!?…] +|\n)(\p{Ll})/gu, (m, a, b) => a + b.toLocaleUpperCase())
+    .replace(/([,;:] +)(\p{Lu}\p{Ll}+)(?![\p{L}\p{N}])/gu, (m, a, w) => a + minusculaNoMeio(w)); // G-396
   return t;
 }
 const SINAL_NO_COMECO = /^[,.;:!?…]+/;
@@ -19680,6 +19696,7 @@ function juntaDitado(texto, cursor, falado, max = DESCRICAO_MAX) {
     if (!f) return { texto: t, cursor: c, cortado: false };
   }
   if (!semEspaco.trim() || /[.!?…\n]$/.test(semEspaco) || /^[.!?…\n]/.test(f)) f = f.replace(/^([^\p{L}\p{N}]*)(\p{Ll})/u, (m, x, y) => x + y.toLocaleUpperCase());
+  else f = f.replace(/^\p{Lu}\p{Ll}+(?![\p{L}\p{N}])/u, minusculaNoMeio); // G-396 · no meio da frase, sem a maiúscula do reconhecedor
   const sep = antes && !/\s$/.test(antes) && !SINAL_NO_COMECO.test(f) && !f.startsWith('\n') ? ' ' : '';
   const pos = depois && !/^[\s.,;:!?…]/.test(depois) && !f.endsWith('\n') ? ' ' : '';
   const sobra = max - (antes.length + sep.length + pos.length + depois.length);
@@ -19716,6 +19733,8 @@ function textoDaSessao(segmentos, parcial = '', lingua = 'pt-BR', pausaDoParcial
       const sinal = sinalDaPausa(Number(seg.pausa) || 0);
       const ultima = partes[partes.length - 1];
       if (sinal && !/[,.;:!?…\n]$/.test(pontuaDitado(ultima, lingua))) partes[partes.length - 1] = ultima + ' ' + sinal;
+      // G-396 · emenda no meio da frase (sem ponto antes): a maiúscula que o reconhecedor pôs no começo do trecho sai
+      if (!/[.!?…\n]$/.test(pontuaDitado(partes[partes.length - 1], lingua))) { partes.push(t.replace(/^\p{Lu}\p{Ll}+(?![\p{L}\p{N}])/u, minusculaNoMeio)); return; }
     }
     partes.push(t);
   });
@@ -20556,7 +20575,7 @@ function abrePedidoDeCobertura({ cobertura, lista, motor, aoMudar = () => {} }) 
   pinta();
 }
 
-return { estadoDoEnvio, etapaDoRelato, ESTADO_DO_ENVIO, ETAPAS_DO_REGISTRO, pendentesDeEnvio, createEnvioAutomatico, registraEnvio, AVISO_DA_FALHA, motivoCurto, IDIOMAS_DO_DITADO, idiomaDoDitado, juntaDitado, pontuaDitado, fechaDitado, textoDaSessao, sinalDaPausa, PAUSAS_DO_DITADO, textoDaFalhaDoDitado, usaFala, relatoDeCobertura, pedidosDeCobertura, pedidoDaLista, etapaDoPedido, ETAPAS_DO_PEDIDO, createCobertura, abrePedidoDeCobertura, situacaoDoEnvio, foiEnviado, textoDaFalha, PRAZO_FILA, URL_FILA_LIGADA, FILA_MEMORIA_MS, filaLigada, relatoParaFila, createEnvioPelaFila, AREAS, URL_SITUACAO, BUSCA_SITUACAO_MS, situacaoDosRegistros, concilia, EDITAR_JANELA_MS, podeEditar, editavelAte, editaRelato, REPOSITORIO, MARCA, dadosDoRelato, registroDoApp, limpaTela, nomeDaTela, FILTRO_VAZIO, filtra, contaFiltros, areasDe, csvDosRelatos, jsonDosRelatos, partidaAbrivel, contextoDaPartida, CHAVE, TIPOS, URGENCIAS, DESCRICAO_MIN, DESCRICAO_MAX, RELATOS_MAX, areaDaRota, confere, novoRelato, ordena, textoDoRelato, textoDosRelatos, createRelatos, usa, usaContexto, abreRelato, BotaoRelatar, createRelatosScreen, rotuloDe };
+return { estadoDoEnvio, etapaDoRelato, ESTADO_DO_ENVIO, ETAPAS_DO_REGISTRO, pendentesDeEnvio, createEnvioAutomatico, registraEnvio, AVISO_DA_FALHA, motivoCurto, IDIOMAS_DO_DITADO, idiomaDoDitado, juntaDitado, pontuaDitado, fechaDitado, textoDaSessao, minusculaNoMeio, sinalDaPausa, PAUSAS_DO_DITADO, textoDaFalhaDoDitado, usaFala, relatoDeCobertura, pedidosDeCobertura, pedidoDaLista, etapaDoPedido, ETAPAS_DO_PEDIDO, createCobertura, abrePedidoDeCobertura, situacaoDoEnvio, foiEnviado, textoDaFalha, PRAZO_FILA, URL_FILA_LIGADA, FILA_MEMORIA_MS, filaLigada, relatoParaFila, createEnvioPelaFila, AREAS, URL_SITUACAO, BUSCA_SITUACAO_MS, situacaoDosRegistros, concilia, EDITAR_JANELA_MS, podeEditar, editavelAte, editaRelato, REPOSITORIO, MARCA, dadosDoRelato, registroDoApp, limpaTela, nomeDaTela, FILTRO_VAZIO, filtra, contaFiltros, areasDe, csvDosRelatos, jsonDosRelatos, partidaAbrivel, contextoDaPartida, CHAVE, TIPOS, URGENCIAS, DESCRICAO_MIN, DESCRICAO_MAX, RELATOS_MAX, areaDaRota, confere, novoRelato, ordena, textoDoRelato, textoDosRelatos, createRelatos, usa, usaContexto, abreRelato, BotaoRelatar, createRelatosScreen, rotuloDe };
 })();
 
 /* ==== src/app/catalogo.js ==== */
