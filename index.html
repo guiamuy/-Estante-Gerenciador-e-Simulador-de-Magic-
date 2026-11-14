@@ -2579,6 +2579,10 @@ body[data-barra="fora"] .ds-relatar { transition: transform var(--dur-1) var(--e
 .ds-relatar.ds-relatar--catalogo { position: static; display: inline-flex; }
 @media (hover: hover) { .ds-relatar:hover { color: var(--fg); } }
 @media (prefers-reduced-motion: reduce) { .ds-relatar { transition: none; } .ds-relatar:active { transform: none; } }
+/* G-395 · relato #214: o balão aberto acende em latão; a lista (Ver relatos, Relatar) sobe logo acima dele, alinhada pela direita */
+.ds-relatar[data-aberto="true"] { color: var(--accent); border-color: var(--accent); }
+.ds-relatar__menu { position: fixed; z-index: var(--z-overlay); display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-2); padding-bottom: var(--space-2); }
+.relato__ver { display: flex; justify-content: center; }
 body:has(#outlet .ds-fab:not([data-acoes="1"])) #relatar-abrir,
 body:is([data-tela="partida"], [data-tela="scanner"], [data-tela="perfil-relatos"], [data-tela="entrar"]) #relatar-abrir { display: none; }
 body:has(#outlet .ds-fab[data-acoes="1"]) #relatar-abrir { right: calc(var(--space-4) + 4px); bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px) + 56px + var(--space-3) + var(--navbar-h, 0px)); }
@@ -19999,7 +20003,10 @@ function abreRelato(editando = null) {
       h('span', {}, h('b', {}, quando(new Date(aberto).toISOString())), ` · ${nomeTela}`),
       h('span', { class: 'relato__junto', id: editando ? 'relato-prazo' : null }, editando ? 'Dá para corrigir até enviar. A tela e o contexto ficam como estavam.' : extra && extra.anexavel ? 'Vão junto: o turno, a etapa, as últimas jogadas, a versão do motor e a tela.' : 'Vão junto: a tela, a versão do motor, o tema e o tamanho da tela.')),
     // Y2 · na partida: a partida inteira (semente e jogadas) pode ir junto, para abrir igual na correção
-    extra && extra.anexavel ? __m3.Chave('Anexar a partida', { ligada: rascunho.anexar, id: 'relato-anexar', detalhe: 'Para abrir a partida igual depois', onMuda: v => { rascunho.anexar = v; } }) : null);
+    extra && extra.anexavel ? __m3.Chave('Anexar a partida', { ligada: rascunho.anexar, id: 'relato-anexar', detalhe: 'Para abrir a partida igual depois', onMuda: v => { rascunho.anexar = v; } }) : null,
+    // G-395 · relato #214: daqui se vai à área de relatos; o que já foi escrito fica no rascunho para a volta
+    editando || area.rota.startsWith('/perfil/relatos') ? null : h('div', { class: 'relato__ver' },
+      Button('Ver relatos', { variant: 'ghost', icone: 'relato', id: 'relato-ver', onClick: () => { closeDialog(); location.hash = '#/perfil/relatos'; } })));
   const salvar = Button('Salvar', { variant: 'primary', icone: 'marcar', id: 'relato-salvar', onClick: async () => {
     if (editando) {
       const r = await servico.edita(editando.id, { tipo: rascunho.tipo, urgencia: rascunho.urgencia, descricao: rascunho.descricao });
@@ -20111,9 +20118,46 @@ function criaDitado(desc, rascunho, aoMudar) {
 function usaContexto(fn) { contextoExtra = fn || null; }
 
 /* ---------------- botão discreto (telas sem botão de ação) ---------------- */
+/* G-395 · relato #214: o balão abre duas opções logo acima dele, no desenho dos itens do botão de ação — Relatar (o
+   formulário, como antes) e Ver relatos (a área de relatos). Toque fora, Esc, rolar a tela, trocar de tela ou escolher
+   fecham. A lista mora no corpo da página, ancorada na caixa do balão (que muda de lugar com a barra e o botão de ação). */
 function BotaoRelatar() {
-  return h('button', { class: 'ds-relatar', type: 'button', id: 'relatar-abrir', 'aria-label': 'Relatar um problema ou uma ideia', title: 'Relatar', dataset: { sobrepoe: 'acao' }, onClick: () => abreRelato() },
-    Icone('relato', { tamanho: 22 }));
+  let menu = null;
+  const ouvintes = [];
+  const liga = (alvo, tipo, fn, opc) => { alvo.addEventListener(tipo, fn, opc); ouvintes.push([alvo, tipo, fn, opc]); };
+  const engole = e => { e.stopPropagation(); e.preventDefault(); };
+  const b = h('button', { class: 'ds-relatar', type: 'button', id: 'relatar-abrir', 'aria-label': 'Relatos: relatar ou ver', title: 'Relatos',
+    'aria-haspopup': 'menu', 'aria-expanded': 'false', dataset: { sobrepoe: 'acao', aberto: 'false' }, onClick: () => (menu ? fecha() : abre()) },
+  Icone('relato', { tamanho: 22 }));
+  function fecha() {
+    if (!menu) return;
+    menu.remove(); menu = null;
+    b.setAttribute('aria-expanded', 'false'); b.dataset.aberto = 'false';
+    while (ouvintes.length) { const [alvo, tipo, fn, opc] = ouvintes.pop(); alvo.removeEventListener(tipo, fn, opc); }
+  }
+  function abre() {
+    const base = String(b.id || 'relatar-abrir').replace(/-abrir$/, ''); // relatar-ver, relatar-novo; no catálogo /ds, ds-relatar-…
+    const r = b.getBoundingClientRect(), raiz = document.documentElement;
+    const item = (id, rotulo, icone, fazer) => h('button', { class: 'ds-btn ds-fab__item', type: 'button', role: 'menuitem', id, onClick: () => { fecha(); fazer(); } },
+      h('span', { class: 'ds-fab__rotulo' }, rotulo), h('span', { class: 'ds-fab__selo', 'aria-hidden': 'true' }, Icone(icone, { tamanho: 20 })));
+    menu = h('div', { class: 'ds-relatar__menu', id: base + '-menu', role: 'menu', 'aria-label': 'Relatos',
+      style: { right: `${Math.max(0, Math.round(raiz.clientWidth - r.right))}px`, bottom: `${Math.max(0, Math.round(raiz.clientHeight - r.top))}px` } },
+    item(base + '-ver', 'Ver relatos', 'relato', () => { location.hash = '#/perfil/relatos'; }),
+    item(base + '-novo', 'Relatar', 'editar', () => abreRelato()));
+    document.body.appendChild(menu);
+    b.setAttribute('aria-controls', menu.id); b.setAttribute('aria-expanded', 'true'); b.dataset.aberto = 'true';
+    // toque fora só fecha: o clique desse mesmo toque é engolido, para não acionar o que está embaixo
+    liga(document, 'pointerdown', e => {
+      if (!b.isConnected) return fecha();
+      if (b.contains(e.target) || (menu && menu.contains(e.target))) return;
+      fecha(); document.addEventListener('click', engole, { capture: true, once: true }); setTimeout(() => document.removeEventListener('click', engole, true), 400);
+    }, true);
+    liga(document, 'keydown', e => { if (e.key === 'Escape') { fecha(); b.focus({ preventScroll: true }); } }, true);
+    liga(window, 'scroll', () => fecha(), { passive: true });
+    liga(window, 'hashchange', () => fecha());
+    const primeiro = menu.querySelector('.ds-fab__item:last-child'); if (primeiro) primeiro.focus({ preventScroll: true });
+  }
+  return b;
 }
 
 /* ---------------- Y3 · recorte, exportação e a partida anexada ---------------- */

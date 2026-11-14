@@ -733,6 +733,10 @@ atualizada. Tamanhos são estimativas de rodadas; o que passar disso é quebrado
 | 16º-vh 🟡 | Relato #135, fatia 1 (G-379, 11/11/2026): lista pronta do Pauper que o motor não joga inteira (medida da sentinela abaixo de 100%) sai das Listas prontas e das prontas do Jogar, com a linha "N listas de Pauper estão fora…"; a medida a 100% a traz de volta sozinha. Fatia 2: a rotina Sentinela do Pauper trata primeiro as listas que saíram | G | 1 de 2 | 16º-vd |
 | 16º-vi ✅ | Relato #136 (J-69): o ⋯ da mesa abre o menu (Desfazer, Registro, Desistir), nunca o relato: a aba de relatar da borda direita ganha um piso medido no ⋯ (base dele + 8 px), refeito a cada pintura, rolagem e mudança de tamanho; com a barra de cima mais baixa (recorte da câmera no app instalado) ou a aba arrastada ao alto, ela não cobre mais o ⋯. A posição guardada não muda (leva J-69, 11/11/2026) | J | ½ | 16º-vd |
 | 16º-vw ✅ | Relato #152, fatia 1 (J-72, 12/11/2026): na cena do turno do oponente, cada jogada dele fica o tempo de ler a legenda (1,6 s no mínimo, até 3,2 s nas frases longas) e o turno comprido encolhe primeiro os passos sem jogada; a jogada dele nunca passa de 1,1 s (antes: 12 s divididos por todos os quadros, ~0,4 s cada). Fatia 2 (J-75, 13/11): Pausar e Seguir na legenda da cena. Fatia 3 (J-77, 14/11): chave "No meu toque" no menu da vez: cada jogada do oponente espera o Seguir, a mesma jogada repetida em seguida vira um quadro ("(2×)") e a carta dela ganha o anel do oponente | J | 1 | H5 |
+| 16º-wf ✅ | YV1 · relato #214, fatia 1 (G-395, 14/11/2026): o balão de relatos do canto abre duas opções logo acima dele, Ver relatos e Relatar (toque fora, Esc, rolar ou trocar de tela fecham); o formulário de relatar ganha Ver relatos, centrado, que leva à área de relatos com o rascunho guardado para a volta | — | 1 | — |
+| 16º-wg ⬜ | YV2 · relato #214, fatia 2: ditado mais preciso em português (pontuação e maiúsculas pela fala, nomes próprios preservados, sem espaço duplo), regra pura com frases reais dos relatos | — | 1 | 16º-wf |
+| 16º-wh ⬜ | YV3 · relatos #215/#216, fatia 3: janela flutuante de gravação (translúcida, fixa no pé, transcrição ao vivo, Terminar e Cancelar), relato salvo como Melhoria · Alta, só o dono | — | 1 | 16º-wg |
+| 16º-wi ⬜ | YV4 · relatos #215/#216, fatia 4: comandos de voz "fazer relato", "terminar relato" e "cancelar relato" em qualquer tela, atrás de uma chave no Perfil (só o dono, só português) | — | 1 | 16º-wh |
 
 Total estimado: **26 a 33 rodadas** até o Commander voltar. O que ficará sem teste em aparelho cresce com
 cada leva; a recomendação de testar no celular antes de seguir continua de pé em toda entrega.
@@ -13011,6 +13015,39 @@ mesa e o contexto da partida) · Y3 (exportar e filtrar). Três levas.
 - **Limite:** o envio passa pela página do GitHub (o app não guarda chave); sem conta do GitHub logada no navegador, o
   GitHub pede para entrar. Relatos feitos antes da G-231 vão sem endereço completo nem título da tela.
 - **Fora:** envio sem sair do app (pede servidor — T6); a partida anexada inteira no registro.
+
+### YV · Relato por voz e atalho para Relatos (relatos do dono #214, #215 e #216, 14/11/2026)
+
+**Pedido (14/11/2026, relatos #214, #215 e o adendo #216, priorizados pelo dono):** relatar mais rápido e de qualquer
+lugar: o balão de relatos abre Relatar e Ver relatos; a tela de relatar leva à área de relatos; o ditado pontua e
+capitaliza melhor (português primeiro); e, só para o dono, o comando de voz "fazer relato" abre uma janela flutuante
+translúcida que mostra o que está sendo dito, com Terminar e Cancelar, "terminar relato" registra como Melhoria · Alta e
+"cancelar relato" descarta.
+
+**Ordem e tamanho (fatias do orquestrador, valor ÷ risco):** YV1 (balão e atalho) · YV2 (ditado) · YV3 (janela de
+gravação por toque) · YV4 (comandos de voz). Quatro levas, trilha `geral`.
+
+**Fora (as quatro):** escuta com o app fechado ou em segundo plano; gravação ou envio de áudio; comandos de voz em outros
+idiomas. Onde o navegador não reconhece fala contínua (Safari do iPhone), o caminho é o toque no balão, dito na tela.
+
+**YV1 · O balão abre Relatar e Ver relatos** ✅ (leva G-395, 14/11/2026, relato #214 fatia 1; `16º-wf`)
+- **Valor:** do balão do canto se vai direto aos relatos, sem passar pelo Perfil; e quem abriu o formulário só para
+  conferir os relatos chega lá com um toque, sem perder o que já escreveu.
+- **Aceite:** o balão (48 px, mesmo lugar) abre uma lista curta logo acima dele, alinhada pela direita, no desenho dos
+  itens do botão de ação: Ver relatos (em cima) e Relatar (junto do polegar, com o foco); cada item com 44 px; toque fora
+  fecha sem acionar o que está embaixo; Esc fecha e devolve o foco ao balão; rolar a tela ou trocar de tela fecham; aberto,
+  o balão acende em latão. O formulário de relatar ganha Ver relatos (fantasma, ícone de relato, centrado sob o carimbo),
+  que fecha o formulário e vai à área de relatos; o rascunho fica para a volta. Editando um relato ou já na área de
+  relatos, o atalho não aparece. Um primário só (Salvar). Nome falado do balão: "Relatos: relatar ou ver".
+- **Testes:** e2e "G-395 relato #214" (lista acima do balão, alinhada, 44 px, foco, Esc, toque fora engolido, toque de novo
+  fecha, Ver relatos leva à área, Ver relatos do formulário centrado e o rascunho que volta, sem o atalho na área de
+  relatos, rolar fecha; `auditaTela` nos dois temas e nas quatro medidas). Os e2e que abriam o formulário pelo balão
+  passam a escolher Relatar na lista (expectativa mudou com o relato).
+- **Fora:** o Relatar do menu dos botões de ação de várias opções continua abrindo o formulário direto.
+
+**YV2 · Ditado mais preciso** ⬜ (relato #214 fatia 2; `16º-wg`)
+**YV3 · Janela flutuante de gravação** ⬜ (relatos #215/#216 fatia 3; `16º-wh`)
+**YV4 · Comandos de voz** ⬜ (relatos #215/#216 fatia 4; `16º-wi`)
 
 ### T · Relatos do dono (E62, pedido de 09/10/2026)
 

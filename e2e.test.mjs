@@ -12120,11 +12120,11 @@ test('e2e · Y1 relatar de qualquer tela: botão discreto onde não há botão d
   // 1 · Início não tem botão de ação: o Relatar discreto fica no canto, 48 px, sem ser primário
   const geo = sel => page.$eval(sel, b => { const r = b.getBoundingClientRect(); /* G-322 · medido a partir da barra de baixo */ return { w: Math.round(r.width), h: Math.round(r.height), direita: Math.round(innerWidth - r.right), baixo: Math.round(innerHeight - (document.querySelector('#ds-navbar') && getComputedStyle(document.querySelector('#ds-navbar')).display !== 'none' ? (innerHeight - document.querySelector('#ds-navbar').getBoundingClientRect().top) /* G-362 · a barra flutua: mede do topo dela */ : 0) - r.bottom), top: Math.round(r.top), left: Math.round(r.left) }; });
   assert.deepEqual(await geo('#relatar-abrir'), { w: 48, h: 48, direita: 16, baixo: 16, top: 780 - 78 - 16 - 48, left: 360 - 16 - 48 }); // G-322 · acima da barra de baixo; G-362 · a barra flutua (64 px a 14 px do pé)
-  assert.equal(await page.getAttribute('#relatar-abrir', 'aria-label'), 'Relatar um problema ou uma ideia');
+  assert.equal(await page.getAttribute('#relatar-abrir', 'aria-label'), 'Relatos: relatar ou ver'); // G-395 · relato #214: o balão abre Relatar e Ver relatos
   assert.equal(await page.locator('.ds-btn--primary:visible').count(), 1, 'continua um primário: Jogar');
   await auditaTela(page, 'início com relatar');
   // 2 · o formulário: salvar vazio aponta os três campos e põe o foco no primeiro
-  await page.click('#relatar-abrir'); await page.waitForSelector('#relato-form');
+  await page.click('#relatar-abrir'); await page.click('#relatar-novo'); await page.waitForSelector('#relato-form');
   assert.equal(await page.innerText('#ds-dialog-title'), 'Relatar');
   assert.deepEqual(await page.$$eval('#relato-tipo option', os => os.map(o => o.textContent)), ['Escolha…', 'Erro', 'Regra ou carta', 'Visual', 'Melhoria', 'Ideia', 'Lentidão', 'Infraestrutura', 'Outro']); // Y5 · tipos novos
   assert.deepEqual(await page.$$eval('#relato-urgencia option', os => os.map(o => o.textContent)), ['Escolha…', 'Impede o uso', 'Alta', 'Média', 'Baixa']);
@@ -12142,12 +12142,12 @@ test('e2e · Y1 relatar de qualquer tela: botão discreto onde não há botão d
   for (const tema of ['dark', 'light']) { await page.evaluate(t => document.documentElement.setAttribute('data-theme', t), tema); for (const [w, hh] of MEDIDAS_149) { await page.setViewportSize({ width: w, height: hh }); await auditaTela(page, `relatar ${w} ${tema}`); } }
   await page.setViewportSize({ width: 360, height: 780 }); await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
   // 3 · fechar sem salvar não perde o que foi escrito
-  await page.click('#ds-dialog-close'); await page.click('#relatar-abrir'); await page.waitForSelector('#relato-form');
+  await page.click('#ds-dialog-close'); await page.click('#relatar-abrir'); await page.click('#relatar-novo'); await page.waitForSelector('#relato-form');
   assert.equal(await page.inputValue('#relato-descricao'), 'A imagem da Island não aparece na lista.'); assert.equal(await page.inputValue('#relato-tipo'), 'erro');
   // 4 · salvar: carimba, avisa com Ver e limpa o rascunho
   await page.click('#relato-salvar'); await page.waitForSelector('#relato-form', { state: 'detached' });
   assert.match(await page.innerText('#ds-toast'), /Relato salvo · \d{2}\/\d{2}\/\d{4} \d{2}:\d{2}/);
-  await page.click('#relatar-abrir'); await page.waitForSelector('#relato-form'); assert.equal(await page.inputValue('#relato-descricao'), ''); await page.keyboard.press('Escape');
+  await page.click('#relatar-abrir'); await page.click('#relatar-novo'); await page.waitForSelector('#relato-form'); assert.equal(await page.inputValue('#relato-descricao'), ''); await page.keyboard.press('Escape');
   // 5 · lista com quatro ações: o discreto sai e Relatar é o último item do menu; a área vai junto
   await page.waitForSelector('#ds-toast[data-open="false"]', { timeout: 8000 }); // G-322 · o aviso "Relato salvo" (com ação) flutua acima da barra de baixo, sobre o Criar lista em 360×780: espera ele ir embora
   await createDeck(page, base, 'Delver', PAUPER);
@@ -12195,6 +12195,63 @@ test('e2e · Y1 relatar de qualquer tela: botão discreto onde não há botão d
   assert.deepEqual(errors, []);
 });
 
+/* ---------------- G-395 · relato #214: o balão abre Relatar e Ver relatos ---------------- */
+test('e2e · G-395 relato #214: o balão de relatos abre duas opções (Ver relatos e Relatar) logo acima dele, alinhadas pela direita, com 44 px; toque fora, Esc e rolar fecham sem acionar o que está embaixo; o formulário ganha Ver relatos, que leva à área sem perder o rascunho', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.goto(base + '#/'); await page.waitForSelector('#home-titulo'); await page.waitForSelector('#relatar-abrir');
+  // 1 · fechado: nenhuma lista; o balão diz que abre um menu
+  assert.equal(await page.locator('#relatar-menu').count(), 0);
+  assert.equal(await page.getAttribute('#relatar-abrir', 'aria-haspopup'), 'menu');
+  assert.equal(await page.getAttribute('#relatar-abrir', 'aria-expanded'), 'false');
+  // 2 · aberto: Ver relatos em cima, Relatar logo acima do balão (o mais perto do polegar), foco nele, tudo alinhado pela direita
+  await page.click('#relatar-abrir'); await page.waitForSelector('#relatar-menu');
+  assert.equal(await page.getAttribute('#relatar-abrir', 'aria-expanded'), 'true');
+  assert.deepEqual(await page.$$eval('#relatar-menu .ds-fab__item', bs => bs.map(b => b.textContent.trim())), ['Ver relatos', 'Relatar']);
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'relatar-novo');
+  const geo = await page.evaluate(() => { const r = s => document.querySelector(s).getBoundingClientRect(); const b = r('#relatar-abrir'), ver = r('#relatar-ver'), novo = r('#relatar-novo');
+    return { direita: [Math.round(b.right), Math.round(ver.right), Math.round(novo.right)], acima: novo.bottom <= b.top && ver.bottom <= novo.top, alturas: [ver.height, novo.height].map(Math.round), dentro: ver.left >= 0 && ver.top >= 0 }; });
+  assert.deepEqual(geo.direita, [geo.direita[0], geo.direita[0], geo.direita[0]], 'alinhadas pela direita com o balão');
+  assert.ok(geo.acima, 'a lista sobe acima do balão, sem cobri-lo'); assert.ok(geo.alturas.every(x => x >= 44), 'alvos de 44 px'); assert.ok(geo.dentro);
+  for (const tema of ['dark', 'light']) { await page.evaluate(t => document.documentElement.setAttribute('data-theme', t), tema); await auditaTela(page, `G-395 balão aberto ${tema}`); }
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/g393-balao-aberto.png' });
+  // 3 · Esc fecha e devolve o foco ao balão
+  await page.keyboard.press('Escape'); await page.waitForSelector('#relatar-menu', { state: 'detached' });
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'relatar-abrir');
+  // 4 · toque fora fecha e não aciona o que está embaixo (o toque é engolido)
+  await page.click('#relatar-abrir'); await page.waitForSelector('#relatar-menu');
+  const antes = await page.evaluate(() => location.hash);
+  await page.mouse.click(180, 120); await page.waitForSelector('#relatar-menu', { state: 'detached' });
+  assert.equal(await page.evaluate(() => location.hash), antes, 'o toque fora só fechou');
+  // 5 · tocar de novo no balão também fecha
+  await page.click('#relatar-abrir'); await page.waitForSelector('#relatar-menu'); await page.click('#relatar-abrir'); await page.waitForSelector('#relatar-menu', { state: 'detached' });
+  // 6 · Ver relatos leva à área de relatos
+  await page.click('#relatar-abrir'); await page.click('#relatar-ver'); await page.waitForFunction(() => location.hash === '#/perfil/relatos');
+  await page.waitForSelector('#relatos-lista, .ds-empty');
+  // 7 · Relatar abre o formulário; nele, Ver relatos leva à área e o rascunho fica para a volta
+  await page.goto(base + '#/'); await page.waitForSelector('#relatar-abrir');
+  await page.click('#relatar-abrir'); await page.click('#relatar-novo'); await page.waitForSelector('#relato-form');
+  await page.fill('#relato-descricao', 'Rascunho que não pode sumir.');
+  const ver = await page.$eval('#relato-ver', b => { const r = b.getBoundingClientRect(), f = document.querySelector('#relato-form').getBoundingClientRect(); return { h: b.offsetHeight, centro: Math.abs((r.left + r.right) / 2 - (f.left + f.right) / 2) <= 1, texto: b.textContent.trim() }; });
+  assert.deepEqual(ver, { h: ver.h, centro: true, texto: 'Ver relatos' }); assert.ok(ver.h >= 44);
+  assert.equal(await page.locator('.ds-dialog .ds-btn--primary:visible').count(), 1, 'um primário: Salvar');
+  for (const tema of ['dark', 'light']) { await page.evaluate(t => document.documentElement.setAttribute('data-theme', t), tema); for (const [w, hh] of MEDIDAS_149) { await page.setViewportSize({ width: w, height: hh }); await auditaTela(page, `G-395 relatar ${w} ${tema}`); } }
+  await page.setViewportSize({ width: 360, height: 780 }); await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + '/g393-relatar-ver.png' });
+  await page.click('#relato-ver'); await page.waitForFunction(() => location.hash === '#/perfil/relatos'); await page.waitForSelector('#relato-form', { state: 'detached' });
+  // na área de relatos, o botão da própria tela abre o formulário: sem Ver relatos (já está nela), e o rascunho voltou
+  await page.click('#relatos-novo'); await page.waitForSelector('#relato-form');
+  assert.equal(await page.inputValue('#relato-descricao'), 'Rascunho que não pode sumir.');
+  assert.equal(await page.locator('#relato-ver').count(), 0, 'na área de relatos o atalho some');
+  await page.keyboard.press('Escape');
+  // 8 · rolar a tela fecha a lista
+  await page.goto(base + '#/'); await page.waitForSelector('#relatar-abrir'); await page.setViewportSize({ width: 360, height: 500 });
+  await page.click('#relatar-abrir'); await page.waitForSelector('#relatar-menu');
+  await page.evaluate(() => window.scrollBy(0, 120)); await page.waitForSelector('#relatar-menu', { state: 'detached' });
+  assert.deepEqual(errors, []);
+});
+
 /* ---------------- G-319 · relato #43: ditar o relato ---------------- */
 test('e2e · G-319 relato #43: ditar o relato em PT, EN ou ES pelo reconhecimento do aparelho; o falado entra no cursor, Parar entrega o que estava no ar, falha vira frase, fechar desliga o microfone; sem reconhecimento, Ditar aponta o teclado', { skip }, async t => {
   const { page, errors, base } = await open(t);
@@ -12210,7 +12267,7 @@ test('e2e · G-319 relato #43: ditar o relato em PT, EN ou ES pelo reconheciment
   });
   await page.setViewportSize({ width: 360, height: 780 });
   await page.goto(base + '#/'); await page.waitForSelector('#home-titulo');
-  await page.click('#relatar-abrir'); await page.waitForSelector('#relato-form');
+  await page.click('#relatar-abrir'); await page.click('#relatar-novo'); await page.waitForSelector('#relato-form');
   // 1 · a linha do ditado: Ditar (44 px) e o idioma em três, o do aparelho já escolhido (o Chromium de teste fala inglês)
   assert.equal(await page.innerText('#relato-ditar'), 'Ditar');
   const doAparelho = await page.evaluate(() => navigator.language.toLowerCase().startsWith('es') ? 'ES' : navigator.language.toLowerCase().startsWith('en') ? 'EN' : 'PT');
@@ -12253,14 +12310,14 @@ test('e2e · G-319 relato #43: ditar o relato em PT, EN ou ES pelo reconheciment
   await page.click('#relato-ditar'); await page.keyboard.press('Escape');
   await page.waitForSelector('#relato-form', { state: 'detached' });
   assert.equal(await page.evaluate(() => window.__falas.at(-1).estado), 'parando');
-  await page.click('#relatar-abrir'); await page.waitForSelector('#relato-form');
+  await page.click('#relatar-abrir'); await page.click('#relatar-novo'); await page.waitForSelector('#relato-form');
   assert.equal(await page.getAttribute('#relato-idiomas [data-idioma="en-US"]', 'aria-pressed'), 'true');
   assert.equal(await page.inputValue('#relato-descricao'), 'Na mesa. A carta não virou after blocking.', 'rascunho guardado');
   await page.keyboard.press('Escape');
   // 6 · sem reconhecimento de fala no aparelho (G-333): Ditar diz em uma linha como ditar pelo teclado e põe o foco no campo; sem idiomas nem dica
   await page.addInitScript(() => { delete window.SpeechRecognition; delete window.webkitSpeechRecognition; });
   await page.reload(); await page.waitForSelector('#home-titulo');
-  await page.click('#relatar-abrir'); await page.waitForSelector('#relato-form');
+  await page.click('#relatar-abrir'); await page.click('#relatar-novo'); await page.waitForSelector('#relato-form');
   assert.equal(await page.locator('#relato-idiomas, #relato-dica').count(), 0);
   await page.click('#relato-ditar');
   assert.equal(await page.innerText('#relato-ouvindo'), 'Este navegador não dita. Use o microfone do teclado.');
@@ -12284,7 +12341,7 @@ test('e2e · G-333 relato #49: ditado contínuo que reabre sozinho quando o nave
   });
   await page.setViewportSize({ width: 360, height: 780 });
   await page.goto(base + '#/'); await page.waitForSelector('#home-titulo');
-  await page.click('#relatar-abrir'); await page.waitForSelector('#relato-form');
+  await page.click('#relatar-abrir'); await page.click('#relatar-novo'); await page.waitForSelector('#relato-form');
   await page.click('#relato-idiomas [data-idioma="pt-BR"]');
   // G-337 · o painel "Pontuação falada" saiu (relato #56): os comandos valem em silêncio
   assert.equal(await page.locator('#relato-dica, #relato-dica-abrir, .relato__sinais').count(), 0);
@@ -12340,7 +12397,7 @@ test('e2e · G-337 relato #56: o ditado escreve no campo em tempo real, no lugar
   });
   await page.setViewportSize({ width: 360, height: 697 });
   await page.goto(base + '#/'); await page.waitForSelector('#home-titulo');
-  await page.click('#relatar-abrir'); await page.waitForSelector('#relato-form');
+  await page.click('#relatar-abrir'); await page.click('#relatar-novo'); await page.waitForSelector('#relato-form');
   await page.click('#relato-idiomas [data-idioma="pt-BR"]');
   // 1 · a linha do ditado sem a dica: Ditar, os três idiomas e nada mais
   assert.deepEqual(await page.$$eval('#relato-ditado > *', es => es.map(e => e.id || e.className)), ['relato__ditado-barra', 'relato-ouvindo']);
@@ -12478,7 +12535,7 @@ test('e2e · Y3 relatos para fora: situação e filtros (tipo, urgência, área)
   for (let i = 0; i < 20; i++) { const tn = await page.evaluate(() => window.__estanteMesa.estado().turn.number); if (tn > naHora.turno) break;
     await page.evaluate(() => { const M = window.__estanteMesa, s = M.estado(), ls = M.legais(); M.act(s.pending ? ls[0] : { t: 'pass', p: 0 }); }); await page.waitForTimeout(30); }
   await page.goto(base + '#/'); await page.waitForSelector('#home-titulo');
-  await relata(() => page.click('#relatar-abrir'), 'ideia', 'baixa', 'Ideia da tela inicial.');
+  await relata(async () => { await page.click('#relatar-abrir'); await page.click('#relatar-novo'); }, 'ideia', 'baixa', 'Ideia da tela inicial.');
   await page.goto(base + '#/listas'); await page.waitForSelector('#decks-fab-abrir');
   await relata(() => acaoJ6(page, 'decks-fab', '#decks-fab-relatar'), 'erro', 'media', 'Erro nas listas, já resolvido.');
   await page.goto(base + '#/perfil/relatos'); await page.waitForSelector('#relatos-lista');
