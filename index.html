@@ -182,6 +182,13 @@
      34 px do contador) e o véu do exílio (a carta do topo apaga na direção do tampo: mais escura no escuro, mais clara no claro) */
   --zona-mini-w: 16px; --zona-mini-h: 22px;
   --zona-veu: rgba(10, 8, 6, .58);
+  /* MK3-5 (J-80) · arrastar para jogar: o poço que recebe a carta acende com um fio de latão por dentro (o --accent do tema);
+     com o dedo em cima, o fio engrossa e a luz entra mais; o lugar onde ela vai pousar é um vão rebaixado com aresta de latão */
+  --mesa-alvo: inset 0 0 0 1px var(--accent), inset 0 0 14px -6px var(--accent);
+  --mesa-alvo-sob: inset 0 0 0 2px var(--accent), inset 0 0 24px -8px var(--accent);
+  --carta-lugar: inset 0 1px 3px rgba(0, 0, 0, .55), inset 0 0 0 1px var(--accent);
+  /* MK3-5 (J-80) · a carta que não pode ser jogada agora resiste: segue o dedo só nesta fração; o lugar abre desta escala (1 no moderado e no reduzido) */
+  --carta-resiste: .3; --carta-lugar-escala: .92;
   --mesa-fase-ponto: 6px; --mesa-fase-traco: 18px;
   --mesa-fase-latao: linear-gradient(180deg, var(--accent-hi), var(--accent) 60%, var(--accent-lo));
   --sombra-carta: 0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-contact), var(--shadow-key);
@@ -337,6 +344,8 @@
   --mesa-poco: inset 0 2px 8px rgba(60, 40, 10, .16), inset 0 -1px 0 var(--edge);
   --mesa-estojo: inset 0 1px 2px rgba(60, 40, 10, .24), inset 0 -1px 0 var(--edge); /* MK3-1 */
   --zona-veu: rgba(250, 246, 238, .62); /* MK3-8 */
+  --mesa-alvo: inset 0 0 0 1px var(--accent), inset 0 0 12px -6px var(--accent); --mesa-alvo-sob: inset 0 0 0 2px var(--accent), inset 0 0 20px -8px var(--accent); /* MK3-5 */
+  --carta-lugar: inset 0 1px 3px rgba(60, 40, 10, .22), inset 0 0 0 1px var(--accent); /* MK3-5 */
   --sombra-carta: 0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-contact), var(--shadow-key);
   --sombra-carta-alta: 0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-float);
   --sombra-carta-deitada: var(--carta-espessura) 0 0 var(--carta-lado), 1px 0 2px rgba(60, 40, 10, .14), 12px 0 28px -14px rgba(60, 40, 10, .35); /* MK3-3 */
@@ -423,6 +432,8 @@
     --mesa-poco: inset 0 2px 8px rgba(60, 40, 10, .16), inset 0 -1px 0 var(--edge);
     --mesa-estojo: inset 0 1px 2px rgba(60, 40, 10, .24), inset 0 -1px 0 var(--edge); /* MK3-1 */
     --zona-veu: rgba(250, 246, 238, .62); /* MK3-8 */
+    --mesa-alvo: inset 0 0 0 1px var(--accent), inset 0 0 12px -6px var(--accent); --mesa-alvo-sob: inset 0 0 0 2px var(--accent), inset 0 0 20px -8px var(--accent); /* MK3-5 */
+    --carta-lugar: inset 0 1px 3px rgba(60, 40, 10, .22), inset 0 0 0 1px var(--accent); /* MK3-5 */
     --sombra-carta: 0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-contact), var(--shadow-key);
     --sombra-carta-alta: 0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-float);
     --sombra-carta-deitada: var(--carta-espessura) 0 0 var(--carta-lado), 1px 0 2px rgba(60, 40, 10, .14), 12px 0 28px -14px rgba(60, 40, 10, .35); /* MK3-3 */
@@ -524,6 +535,9 @@ body[data-tela="partida"] { --bg: var(--mesa-bg); --grain-1: var(--mesa-veio-1);
 /* MK3-4 (J-73) · a carta pega da mão: no moderado e no reduzido, sem Z nem giro (segue o dedo e só); o leque sem recuo */
 :root[data-movimento="moderado"], :root[data-movimento="reduzido"] { --carta-pega-z: 0px; --carta-pega-giro: 0deg; --carta-leque-recuo: 0; }
 @media (prefers-reduced-motion: reduce) { :root { --carta-pega-z: 0px; --carta-pega-giro: 0deg; --carta-leque-recuo: 0; } }
+/* MK3-5 (J-80) · o lugar onde a carta vai pousar abre sem crescer no moderado e no reduzido */
+:root[data-movimento="moderado"], :root[data-movimento="reduzido"] { --carta-lugar-escala: 1; }
+@media (prefers-reduced-motion: reduce) { :root { --carta-lugar-escala: 1; } }
 /* D2 · menos movimento por escolha (além do que o sistema pede): tudo instantâneo */
 :root[data-movimento="reduzido"] *, :root[data-movimento="reduzido"] *::before, :root[data-movimento="reduzido"] *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 
@@ -3582,6 +3596,23 @@ body[data-mesa-cheia="true"] .tb > .tb-board { padding-top: var(--space-1); }
 .tb-card[data-pega="fora"] { display: none; }
 .tb-card[data-pega="volta"] { visibility: hidden; }
 @media (prefers-reduced-motion: reduce) { .tb-pega > .tb-pega__carta { animation: none; transition: none; } }
+/* MK3-5 (J-80) · arrastar para jogar. Com uma carta jogável na mão do dedo, o seu poço acende: um fio de latão por dentro
+   (.tb-alvo-jogar, na camada de efeitos, na caixa do seu lado; sem toque, fora do leitor de tela) que engrossa com o dedo
+   em cima (a luz de cima é uma segunda camada que só muda de opacidade). O lugar onde ela vai pousar (.tb-lugar) é um vão
+   rebaixado do tamanho de uma carta do campo, na fileira certa (terreno atrás, permanente na frente), no fim dela ou no
+   monte do mesmo nome; abre com a mola (escala --carta-lugar-escala → 1 e opacidade). Nada aqui ocupa layout. */
+.tb-fx-camada > :is(.tb-alvo-jogar, .tb-lugar) { position: fixed; margin: 0; pointer-events: none; }
+.tb-alvo-jogar { border-radius: var(--radius-2); box-shadow: var(--mesa-alvo); }
+.tb-alvo-jogar::after { content: ''; position: absolute; inset: 0; border-radius: inherit; box-shadow: var(--mesa-alvo-sob); opacity: 0; transition: opacity var(--dur-1) var(--ease-out); }
+.tb-alvo-jogar[data-sob="true"]::after { opacity: 1; }
+.tb-lugar { border-radius: var(--radius-1); background: var(--accent-soft); box-shadow: var(--carta-lugar); opacity: 0; }
+.tb-lugar[data-aberto="true"] { opacity: 1; }
+:root[data-movimento="reduzido"] .tb-alvo-jogar::after { transition: none; }
+@media (prefers-reduced-motion: reduce) { .tb-alvo-jogar::after { transition: none; } }
+/* MK3-5 (J-80) · palco no /ds: o fio cobre o lado de exemplo e o vão ocupa o lugar de uma carta do campo na fileira */
+.ds-palco-jogar { position: relative; }
+.ds-palco-jogar > .tb-alvo-jogar { position: absolute; inset: 0; pointer-events: none; }
+.ds-palco-jogar .tb-lugar { flex: none; width: var(--carta-campo); aspect-ratio: 63 / 88; }
 /* MJ6a · mirar por arrasto: a carta levantada da mão, a seta tracejada (tracejado é alvo) e os alvos legais acesos */
 #tb-hand .tb-card, .tb-side .tb-card[data-mira-origem="true"] { touch-action: pan-x; } /* arrastar de lado rola a fileira; para cima é com a mesa */
 #tb[data-mira] .tb-hand__body { grid-template-rows: 0fr; } /* a mão recolhe enquanto mira: o campo inteiro fica à vista */
@@ -6915,6 +6946,15 @@ function renderDS() {
           const fileira = h('div', { class: 'tb-row' }, carta());
           const gira = () => { virada = !virada; const c = carta(); fileira.replaceChildren(c); M.giraCarta(c, virada ? 'vira' : 'desvira'); };
           return h('div', { class: 'ds-row ds-row--wrap' }, h('div', { class: 'tb-side ds-campo', id: 'ds-giro' }, fileira), Button('Virar', { icone: 'virar', id: 'ds-giro-btn', variant: 'ghost', onClick: gira }));
+        })(),
+        // MK3-5 (J-80) · palco de "arrastar para jogar": o poço aceso com o fio de latão e o vão aberto na fileira, sem partida;
+        // "Dedo em cima" alterna entre o poço só aceso (a carta jogável pega) e com o dedo em cima (fio grosso, vão aberto)
+        (() => {
+          const fio = h('div', { class: 'tb-alvo-jogar', 'aria-hidden': 'true', dataset: { receita: 'jogar', sob: 'true', sobrepoe: 'true' } });
+          const vao = h('div', { class: 'tb-lugar', 'aria-hidden': 'true', dataset: { aberto: 'true' } });
+          const lado = h('div', { class: 'tb-side ds-campo ds-palco-jogar', id: 'ds-jogar' }, h('div', { class: 'tb-row' }, M.TableCard(demo('Forest', { oid: 'ds-jogar-1' }), { pilha: { total: 2, viradas: 0 } }), vao), fio);
+          const alterna = () => { const sob = fio.dataset.sob !== 'true'; fio.dataset.sob = String(sob); vao.dataset.aberto = String(sob); };
+          return h('div', { class: 'ds-row ds-row--wrap' }, lado, Button('Dedo em cima', { id: 'ds-jogar-btn', variant: 'ghost', onClick: alterna }));
         })(),
         // MK3-P1 (J-68) · os seis playmats da casa, cada um num lado da mesa de verdade (.tb-side com o poço e a laca), com uma carta
         // do campo e o texto da mesa por cima, nos dois temas do catálogo
@@ -41400,9 +41440,12 @@ function giraCarta(el, para) {
     e anima a diferença com transform (--mola-firme --dur-3; FLIP, nada de layout animado). Uma cópia numa moldura na camada
     de efeitos segue o dedo 1:1 (a moldura anda; a carta sobe em Z --carta-pega-z e inclina pela velocidade, até
     --carta-pega-giro). `solta()` devolve: a carta volta ao lugar com --mola-macia --dur-3 e as vizinhas reabrem o vão
-    (jogar arrastando é a MK3-5: hoje soltar em qualquer lugar devolve). `cancela()` some com tudo num quadro (a mesa foi
-    redesenhada). As animações vão para `voos` (o próximo toque as conclui, R4). `parado`: segue o dedo, nada anima. */
-function pegaDaMao(el, { x = 0, y = 0, camada, voos = null, parado = false, aoFim = null } = {}) {
+    (MK3-5: quem chama decide se soltar joga; aí chama `cancela()` e a jogada). `cancela()` some com tudo num quadro (a mesa
+    foi redesenhada, ou a carta foi jogada). As animações vão para `voos` (o próximo toque as conclui, R4). `parado`: segue o
+    dedo, nada anima. `resiste` (MK3-5): a fração do dedo que a cópia segue (1; a carta que não pode ser jogada, --carta-resiste).
+    `caixa()`: onde a cópia está agora. */
+function pegaDaMao(el, { x = 0, y = 0, camada, voos = null, parado = false, aoFim = null, resiste = 1 } = {}) {
+  const segue = Math.max(0, Math.min(1, Number(resiste) || 0)) || 1; // MK3-5 (J-80) · a carta que não pode ser jogada agora segue o dedo só nesta fração (--carta-resiste)
   const raiz = getComputedStyle(document.documentElement), tok = n => raiz.getPropertyValue(n).trim();
   const ms = n => { const v = parseFloat(tok(n)); return Number.isFinite(v) && v > 0 ? v : 0; };
   const caixa = c => { const r = c.getBoundingClientRect(), w = c.offsetWidth, hh = c.offsetHeight; // a carta girada do leque: a caixa sem giro, no mesmo centro
@@ -41428,9 +41471,9 @@ function pegaDaMao(el, { x = 0, y = 0, camada, voos = null, parado = false, aoFi
   let ux = x, uy = y, ax = x, t0 = performance.now(), vx = 0, quadro = 0, vivo = true, giro = 0;
   const desenha = () => {
     quadro = 0; if (!vivo) return;
-    const t = performance.now(); vx = __m33.suavizaVelocidade(vx, ux - ax, t - t0); ax = ux; t0 = t;
+    const t = performance.now(); vx = __m33.suavizaVelocidade(vx, (ux - ax) * segue, t - t0); ax = ux; t0 = t;
     giro = __m33.inclinacaoDaPega(vx, { max: giroMax });
-    molde.style.translate = `${Math.round(ux - x)}px ${Math.round(uy - y)}px`;
+    molde.style.translate = `${Math.round((ux - x) * segue)}px ${Math.round((uy - y) * segue)}px`;
     carta.style.rotate = `${giro}deg`; molde.dataset.giro = String(giro);
     if (vx) quadro = requestAnimationFrame(desenha); // o dedo parou: a inclinação ainda volta a zero
   };
@@ -41452,7 +41495,9 @@ function pegaDaMao(el, { x = 0, y = 0, camada, voos = null, parado = false, aoFi
     return [a, b, ...abre];
   };
   const cancela = () => { vivo = false; if (quadro) { cancelAnimationFrame(quadro); quadro = 0; } fim(); };
-  return { molde, carta, move, solta, cancela, get giro() { return giro; } };
+  // MK3-5 (J-80) · onde a cópia está agora (para a carta jogada sair dali e voar até o campo: R1)
+  const caixaAgora = () => { const r = molde.getBoundingClientRect(); return { x: r.left, y: r.top, w: de.w, h: de.h, rot: giro }; };
+  return { molde, carta, move, solta, cancela, caixa: caixaAgora, get giro() { return giro; } };
 }
 
 /** U6b · decide o que um arrasto vertical na borda de cima da bandeja faz. Puro, para testar.
@@ -43007,6 +43052,26 @@ function linhasDoCampo(s, ids) {
   const comAnexos = lista => lista.flatMap(h => [h, ...ids.filter(o => dono(o) === h)]);
   return { lands: comAnexos(livres.filter(terreno)), others: comAnexos(livres.filter(o => !terreno(o))) };
 }
+/** MK3-5 (J-80) · onde a carta da mão vai pousar no campo de `v` se for jogada agora: a fileira (terreno atrás, permanente na
+    frente) e, se ela entra num monte do leque que já está lá (mesmo nome, desvirada, a criatura nova com enjoo, como
+    `agrupaLeque` junta), o primeiro oid desse monte; senão `junta: null` (entra na ponta da fileira, D8). Mágica sem
+    permanente: `fileira: null` (vai para a pilha). É uma previsão para desenhar o vão: o motor decide de verdade (terreno
+    que entra virado cai no monte dos virados). Pura. */
+function lugarDoPouso(s, oid, v, { terreno = null, magica = false } = {}) {
+  const k = String(oid), o = s && s.objects && s.objects[k];
+  if (!o) return null;
+  if (magica) return { fileira: null, junta: null };
+  const tipos = ((s.facts || {})[o.name] || {}).types || [];
+  const ehTerreno = terreno != null ? !!terreno : tipos.includes('land');
+  const campo = ((s.zones || [])[v] || {}).battlefield || [];
+  const { lands, others } = linhasDoCampo(s, campo);
+  const fila = ehTerreno ? lands : others;
+  const novo = { ...o, zone: 'battlefield', controller: v, tapped: false, attacking: null, blocked: null, damage: 0, attachedTo: null, ...(tipos.includes('creature') ? { sick: true } : {}) };
+  const s2 = { ...s, objects: { ...s.objects, [k]: novo } };
+  const pilha = agrupaLeque(s2, [...fila, k]).find(p => p.oids.some(x => String(x) === k));
+  const outro = pilha ? pilha.oids.find(x => String(x) !== k) : null;
+  return { fileira: ehTerreno ? 'lands' : 'permanents', junta: outro != null ? String(outro) : null };
+}
 /** A15 · terrenos iguais numa pilha (hoje é o mesmo leque das outras permanentes). */
 const agrupaTerrenos = (s, oids, opts) => agrupaLeque(s, oids, opts);
 
@@ -43818,7 +43883,7 @@ function toquesDaContagem(grupos, conta) {
   for (const g of grupos) { let i = 0; (conta[g.chave] || []).forEach((n, k) => { for (let j = 0; j < n && i < g.oids.length; j++) out.push({ oid: g.oids[i++], option: k }); }); }
   return out;
 }
-return { PALAVRA_PT, textoDoCustoOpcionalM, rotulosDeCiclar, nomesDeCatalogo, LIMITE_COMANDANTE, danoDeComandante, textoDoDanoDeComandante, GRUPOS_DE_PARADA, PARADAS_PADRAO, paradasValidas, grupoDoPasso, usaParadas, paradasAtuais, iconeDaLinhaDoRegistro, donoDaLinha, iconeDaFase, trocaLegitima, cartaDaMesa, fontesDeMana, conferePagamento, planoDePagamento, gruposDeFontes, contagemDosToques, toquesDaContagem, sinaisDoResumo, iconeDaLinhaDoResumo, repeticaoDoCombo, chaveDaRepeticao, linhasDoCampo, espessuraDoMaco, objetoDaZona, rotulosDeAlvos, alvoSemEfeito, enxugaAlvos, LIMITE_DE_ALVOS, SAVE_KEY, SERIE_KEY, novaSerie, resultadoDaSerie, registraJogo, desfechoDaPartida, MOTIVO_DA_DERROTA, moveNaTroca, validaTroca, diffDaTroca, limitesDaTroca, proximoJogo, ZONE_PT, buildSetup, describe, revealed, shouldStop, legaisDe, esqueceEstado, createTable, restoreTable, estadoDaCarta, modificacoesDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, LEQUE, lequeDaMao, profundidadeDoLeque, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveContinuo, descreveDano, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
+return { lugarDoPouso, PALAVRA_PT, textoDoCustoOpcionalM, rotulosDeCiclar, nomesDeCatalogo, LIMITE_COMANDANTE, danoDeComandante, textoDoDanoDeComandante, GRUPOS_DE_PARADA, PARADAS_PADRAO, paradasValidas, grupoDoPasso, usaParadas, paradasAtuais, iconeDaLinhaDoRegistro, donoDaLinha, iconeDaFase, trocaLegitima, cartaDaMesa, fontesDeMana, conferePagamento, planoDePagamento, gruposDeFontes, contagemDosToques, toquesDaContagem, sinaisDoResumo, iconeDaLinhaDoResumo, repeticaoDoCombo, chaveDaRepeticao, linhasDoCampo, espessuraDoMaco, objetoDaZona, rotulosDeAlvos, alvoSemEfeito, enxugaAlvos, LIMITE_DE_ALVOS, SAVE_KEY, SERIE_KEY, novaSerie, resultadoDaSerie, registraJogo, desfechoDaPartida, MOTIVO_DA_DERROTA, moveNaTroca, validaTroca, diffDaTroca, limitesDaTroca, proximoJogo, ZONE_PT, buildSetup, describe, revealed, shouldStop, legaisDe, esqueceEstado, createTable, restoreTable, estadoDaCarta, modificacoesDaCarta, agrupaTerrenos, agrupaLeque, bandejaDaMao, LEQUE, lequeDaMao, profundidadeDoLeque, vezDaMesa, momentoDaBandeja, MOMENTO_PASSO, descreveEfeito, descreveEfeitos, descreveContinuo, descreveDano, descreveAlvo, linhaOficialDaHabilidade, explicaPilha, resumoDosBloqueios, explicaRecusa, linhaDoTempo, FASE_PT, descrevePrevia, fotoDoTurno, resumoDoTurnoMesa };
 })();
 
 
@@ -44185,6 +44250,33 @@ function inclinacaoDaPega(vx, { max = 8, ganho = PEGA.ganho } = {}) {
   const m = Math.max(0, Number(max) || 0), g = (Number(vx) || 0) * ganho;
   return Math.round(Math.max(-m, Math.min(m, g)) * 10) / 10 || 0; // || 0: sem -0
 }
+/* MK3-5 (J-80) · arrastar para jogar. `jogadaDoArrasto` lê as ações legais da carta da mão (o motor decide o que é legal) e
+   diz o que soltá-la no campo faz, pela mesma ação do toque: `age` (uma ação só: jogar o terreno, conjurar), `pergunta` (a
+   mesma ação, só muda como pagar, X ou cor: a pergunta de sempre) ou `folha` (outra diferença — custo alternativo, face,
+   modo com alvo —: abre a folha da carta, como o toque). Nada legal (sem mana, terreno já jogado, fora da hora): null, e a
+   carta resiste ao dedo. `magica` diz se ela vai para a pilha sem virar permanente (solta também no eixo). `soltaParaJogar`
+   diz se o dedo, ao soltar, está no seu lado (ou, com mágica, no eixo entre os lados), nunca na mão. Puros. */
+const PERMANENTES_DA_MESA = Object.freeze(['creature', 'artifact', 'enchantment', 'planeswalker', 'battle', 'land']);
+function jogadaDoArrasto(legais = [], oid, { tipos = [] } = {}) {
+  const k = String(oid);
+  const daCarta = (legais || []).filter(a => a && String(a.oid) === k && (a.t === 'play_land' || a.t === 'cast'));
+  if (!daCarta.length) return null;
+  const terreno = daCarta.every(a => a.t === 'play_land');
+  const magica = !terreno && !daCarta.some(a => a.faceDown) && !(tipos || []).some(t => PERMANENTES_DA_MESA.includes(t));
+  const base = { acoes: daCarta, terreno, magica };
+  if (daCarta.some(a => Array.isArray(a.targets) && a.targets.length)) return { ...base, como: 'folha' }; // alvo é escolha da folha (ou da mira)
+  if (daCarta.length === 1) return { ...base, como: 'age' };
+  const mesma = (a, b) => a.t === b.t && (a.index ?? null) === (b.index ?? null);
+  return { ...base, como: daCarta.every(a => mesma(a, daCarta[0]) && Object.keys(a).every(c => CHAVES_DA_PERGUNTA.has(c))) ? 'pergunta' : 'folha' };
+}
+function soltaParaJogar(x, y, { lado = null, oponente = null, mao = null, magica = false } = {}) {
+  const ok = r => !!r && r.w > 0 && r.h > 0;
+  if (!ok(lado) || !Number.isFinite(x) || !Number.isFinite(y)) return false;
+  if (ok(mao) && y >= mao.y && x >= mao.x && x <= mao.x + mao.w) return false; // de volta na mão: desiste
+  if (x < lado.x || x > lado.x + lado.w) return false;
+  if (y >= lado.y && y <= lado.y + lado.h) return true;
+  return !!magica && ok(oponente) && y >= oponente.y + oponente.h && y < lado.y; // a mágica também no eixo
+}
 /* ---------------- MJ4a · setas do combate ----------------
    Quem ataca quem e quem bloqueia quem, desenhado entre as cartas: o ataque sai do atacante até a vida do defensor (ou o
    planeswalker atacado), o bloqueio sai do bloqueador até o atacante. Vale para a escolha em curso (`proposta`, o que
@@ -44366,7 +44458,7 @@ function createSom({ store = null, criaContexto = null } = {}) {
     get tocados() { return tocados.slice(); }
   };
 }
-return { eventosSensoriais, planoDeSom, planoDeEfeitos, RECEITAS_DA_MESA, receitaDoEfeito, rolosDaVida, planoDeVoo, ondePousa, planoDeSaida, monteDaPilha, saidasDaPilha, virasDeFace, girosDeVirar, fasesQueAcendem, alvosDoArrasto, origensDaMira, gestoDeMira, PEGA, suavizaVelocidade, inclinacaoDaPega, setasDoCombate, curvaDaSeta, marcasDaPrevia, roteiroDaJogada, createSom, limpaPrefs, duracaoDe, audibilidade, AUDIBILIDADE_MINIMA, PESO_DA_FAIXA, RECEITAS, NOMES, ORDEM, SOM_DO_TIPO, CHAVE, GLOBAL_A_PARTIR_DE };
+return { jogadaDoArrasto, soltaParaJogar, eventosSensoriais, planoDeSom, planoDeEfeitos, RECEITAS_DA_MESA, receitaDoEfeito, rolosDaVida, planoDeVoo, ondePousa, planoDeSaida, monteDaPilha, saidasDaPilha, virasDeFace, girosDeVirar, fasesQueAcendem, alvosDoArrasto, origensDaMira, gestoDeMira, PEGA, suavizaVelocidade, inclinacaoDaPega, setasDoCombate, curvaDaSeta, marcasDaPrevia, roteiroDaJogada, createSom, limpaPrefs, duracaoDe, audibilidade, AUDIBILIDADE_MINIMA, PESO_DA_FAIXA, RECEITAS, NOMES, ORDEM, SOM_DO_TIPO, CHAVE, GLOBAL_A_PARTIR_DE };
 })();
 
 /* ==== src/app/table.js ==== */
@@ -45081,9 +45173,11 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     if (!el.classList.contains('tb-card--leque') || !w || !h) return { x: r.left, y: r.top, w: r.width, h: r.height };
     return { x: r.left + r.width / 2 - w / 2, y: r.top + r.height / 2 - h / 2, w, h, rot: parseFloat(getComputedStyle(el).rotate) || 0 }; };
   function medeVoo() {
+    const solta = soltaDe; soltaDe = null; // MK3-5 (J-80) · vale para a pintura logo depois de soltar, uma vez
     if (semSentidos || !estadoOuvido || menosMovimento()) return null; // abrir, desfazer e movimento reduzido: nada voa
     const antes = {};
     for (const el of root.querySelectorAll('#tb-hand .tb-card[data-oid]')) { const c = caixaReal(el); if (c.w && c.h) antes[el.dataset.oid] = c; }
+    if (solta && solta.caixa && solta.caixa.w && solta.caixa.h) antes[solta.oid] = solta.caixa; // jogada arrastando: voa de onde foi solta
     const faixa = root.querySelector('#tb-stack-btn');
     // MJ3c · o contador da mão do oponente, como estava antes desta jogada, e as cartas que estavam nela
     const chipDele = root.querySelector('.tb-side--opp .tb-chip[data-zona="hand"]'), ladoDele = chipDele && chipDele.closest('.tb-side');
@@ -45179,6 +45273,7 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
      cada quadro (requestAnimationFrame), não a cada evento. ---- */
   let miraAtiva = null; // a mira em curso (redesenhar a mesa no meio dela, por jogada do outro, cancela)
   let pegaAtiva = null; // MK3-4 (J-73) · a carta pega da mão (redesenhar a mesa no meio, cancela)
+  let soltaDe = null; // MK3-5 (J-80) · a carta jogada arrastando: de onde ela foi solta (o voo de chegada parte dali, R1)
   const ALVO_DA_MIRA = '.tb-side .tb-card[data-oid], .tb-side .tb-card[data-oids], #tb-life-me, #tb-life-opp';
   function armaMira(el, oid) {
     let x0 = 0, y0 = 0, id = null, fase = null, mira = null, engole = false, quadro = 0, ux = 0, uy = 0;
@@ -45254,27 +45349,91 @@ function createTableScreen({ store, perfil = null, online = null, som = null, pa
     };
     el.addEventListener('pointerdown', e => { if (e.button != null && e.button !== 0) return; x0 = e.clientX; y0 = e.clientY; id = e.pointerId; fase = 'pronto'; engole = false; });
     /* MK3-4 (J-73) · mão viva: na mão, o gesto para cima decide a partir de 8 px (D6); sem alvo de mira, a carta é pega e
-       segue o dedo (pegaDaMao). O dedo é seguido pela janela (a carta de verdade saiu do leque); soltar devolve. */
+       segue o dedo (pegaDaMao). O dedo é seguido pela janela (a carta de verdade saiu do leque).
+       MK3-5 (J-80) · arrastar para jogar: ao pegar, a mesa lê as ações legais da carta (jogadaDoArrasto: as mesmas do toque).
+       Jogável, o seu poço acende com o fio de latão; com o dedo em cima dele (soltaParaJogar), o fio engrossa e o lugar onde
+       ela vai pousar abre na fileira certa (lugarDoPouso). Soltar ali joga pela mesma ação do toque (uma ação: na hora, com o
+       pagamento de sempre; só muda como pagar: a pergunta de sempre; outra diferença: a folha da carta) e a carta voa de onde
+       foi solta (R1, pelo voo de chegada). Soltar fora, na mão ou com o dedo cancelado devolve. Sem ação legal agora, a carta
+       resiste (segue o dedo a --carta-resiste) e volta. Tudo é medido ao pegar, antes de escrever. */
     const naMao = !!el.closest('#tb-hand');
-    let pega = null;
+    let pega = null, jogo = null;
+    const apagaJogo = j => { if (j && j.fio) j.fio.remove(); if (j && j.vao) j.vao.remove(); delete root.dataset.arrasto; delete root.dataset.arrastoSob; };
+    const lugarNoLado = (lado, onde) => { // a caixa do vão onde a carta vai pousar (só leitura)
+      if (onde.junta) { const t = lado.querySelector(`.tb-card[data-oid="${onde.junta}"]`) || lado.querySelector(`.tb-card[data-oids~="${onde.junta}"]`); if (t) return caixaDe(t); }
+      const ref = lado.querySelector('.tb-row > .tb-card'), L = caixaDe(lado);
+      const tam = ref ? { w: ref.offsetWidth, h: ref.offsetHeight } : (w => ({ w, h: Math.round(w * 88 / 63) }))(Math.round(L.w * 0.18));
+      const zona = lado.querySelector(`.tb-zone[data-zone="${onde.fileira}"]`), fila = zona && zona.querySelector('.tb-row');
+      if (fila && fila.lastElementChild) { const u = caixaDe(fila.lastElementChild), r = caixaDe(fila), gap = parseFloat(getComputedStyle(fila).columnGap) || 4;
+        return { x: Math.max(r.x, Math.min(u.x + u.w + gap, r.x + r.w - tam.w)), y: u.y + (u.h - tam.h) / 2, ...tam }; }
+      const pad = parseFloat(getComputedStyle(lado).paddingLeft) || 12, z = zona ? caixaDe(zona) : null;
+      if (z && z.h >= tam.h / 2) return { x: z.x, y: z.y + z.h / 2 - tam.h / 2, ...tam }; // fileira vazia à vista: no começo dela
+      // a fileira ainda não existe (vazia, escondida): no começo do poço, do lado do eixo (permanente) ou do pé (terreno)
+      return { x: L.x + pad, y: onde.fileira === 'lands' ? L.y + L.h - pad - tam.h : L.y + pad, ...tam };
+    };
+    const preparaJogo = () => {
+      const s = table.state, v = table.viewer(), o = s && s.objects[oid]; let legais = [];
+      try { legais = legaisDe(s, v); } catch (err) { return null; }
+      const j = __m33.jogadaDoArrasto(legais, oid, { tipos: ((o && s.facts[o.name]) || {}).types || [] }); if (!j) return null;
+      const lado = root.querySelector('.tb-side--me'), dele = root.querySelector('.tb-side--opp'), mao = root.querySelector('#tb-hand');
+      if (!lado) return null;
+      const caixas = { lado: caixaDe(lado), oponente: dele ? caixaDe(dele) : null, mao: mao ? caixaDe(mao) : null, magica: j.magica };
+      const onde = j.como === 'age' ? T.lugarDoPouso(s, oid, v, { terreno: j.terreno, magica: j.magica }) : null;
+      return { ...j, caixas, onde, lugar: onde && onde.fileira ? lugarNoLado(lado, onde) : null, sob: false, fio: null, vao: null };
+    };
+    const acendeJogo = j => { // escreve depois de medir: o fio no poço e o vão (fechado), por baixo da carta pega
+      const parado = menosMovimento(), camada = camadaFx(), raiz = getComputedStyle(document.documentElement);
+      const caixa = (d, c) => Object.assign(d.style, { left: `${c.x}px`, top: `${c.y}px`, width: `${c.w}px`, height: `${c.h}px` });
+      j.fio = h('div', { class: 'tb-alvo-jogar', 'aria-hidden': 'true', dataset: { receita: 'jogar', sobrepoe: 'true', sob: 'false', como: j.como } }); caixa(j.fio, j.caixas.lado);
+      if (j.lugar) { j.vao = h('div', { class: 'tb-lugar', 'aria-hidden': 'true', dataset: { sobrepoe: 'true', aberto: 'false', fileira: j.onde.fileira, junta: j.onde.junta || '' } }); caixa(j.vao, j.lugar); }
+      camada.prepend(...[j.fio, j.vao].filter(Boolean));
+      root.dataset.arrasto = j.como; root.dataset.arrastoSob = 'false';
+      const dur = parado ? 0 : durFx('--dur-2');
+      if (dur) j.fio.animate([{ opacity: 0 }, { opacity: 1 }], { duration: dur, easing: raiz.getPropertyValue('--ease-out').trim() || 'ease-out' });
+    };
+    const sobJogo = (x, y) => { // a cada movimento: só conta e, quando muda, escreve o estado (nada de layout)
+      const j = jogo; if (!j) return;
+      const sob = __m33.soltaParaJogar(x, y, j.caixas); if (sob === j.sob) return;
+      j.sob = sob; j.fio.dataset.sob = String(sob); root.dataset.arrastoSob = String(sob);
+      if (sob) __m0.haptics.evento('toque');
+      if (!j.vao) return;
+      j.vao.dataset.aberto = String(sob);
+      if (menosMovimento()) return;
+      const raiz = getComputedStyle(document.documentElement), k = parseFloat(raiz.getPropertyValue('--carta-lugar-escala')) || 1;
+      for (const a of j.vao.getAnimations()) a.cancel();
+      if (sob) j.vao.animate([{ opacity: 0, transform: `scale(${k})` }, { opacity: 1, transform: 'none' }], { duration: durFx('--dur-2'), easing: raiz.getPropertyValue('--mola-firme').trim() || 'ease-out' }); // o vão abre com a mola
+      else j.vao.animate([{ opacity: 1 }, { opacity: 0 }], { duration: durFx('--dur-1'), easing: raiz.getPropertyValue('--sai').trim() || 'ease-in' }); // e fecha pelo --sai
+    };
+    const jogaArrastando = j => { // a mesma ação do toque (alvosDoArrasto tem a mesma divisão age · pergunta · folha)
+      const nome = (table.state.objects[oid] || {}).name || 'a carta';
+      if (j.como === 'age') act(j.acoes[0]);
+      else if (j.como === 'pergunta') escolher(j.terreno ? `Jogar ${nome}` : `Conjurar ${nome}`, j.acoes);
+      else openObject(oid);
+    };
     const largaPega = e => {
       if (!pega || (e && e.pointerId !== id)) return;
       window.removeEventListener('pointermove', segue, true); window.removeEventListener('pointerup', largaPega, true); window.removeEventListener('pointercancel', largaPega, true);
-      const p = pega; pega = null; fase = null; if (pegaAtiva === cancelaPega) pegaAtiva = null;
-      root.dataset.pegou = 'voltou'; p.solta();
-      // o clique que nasce deste soltar (no ancestral comum de onde desceu e de onde subiu) não abre nada
+      const p = pega, j = jogo; pega = null; jogo = null; fase = null; if (pegaAtiva === cancelaPega) pegaAtiva = null;
+      const joga = !!(j && e && e.type === 'pointerup' && __m33.soltaParaJogar(e.clientX, e.clientY, j.caixas));
+      apagaJogo(j);
+      // o clique que nasce deste soltar (no ancestral comum de onde desceu e de onde subiu) não abre nada (nem fecha a pergunta que abrir)
       const engoleClique = ev => { ev.stopImmediatePropagation(); ev.preventDefault(); };
       window.addEventListener('click', engoleClique, true); setTimeout(() => window.removeEventListener('click', engoleClique, true), 400);
+      if (joga) { soltaDe = { oid: String(oid), caixa: p.caixa() }; root.dataset.pegou = 'jogou'; p.cancela(); jogaArrastando(j); return; }
+      root.dataset.pegou = 'voltou'; p.solta();
     };
-    const segue = e => { if (pega && e.pointerId === id) { e.preventDefault(); pega.move(e.clientX, e.clientY); } };
+    const segue = e => { if (pega && e.pointerId === id) { e.preventDefault(); pega.move(e.clientX, e.clientY); sobJogo(e.clientX, e.clientY); } };
     const cancelaPega = () => { if (!pega) return; window.removeEventListener('pointermove', segue, true); window.removeEventListener('pointerup', largaPega, true); window.removeEventListener('pointercancel', largaPega, true);
-      const p = pega; pega = null; fase = null; if (pegaAtiva === cancelaPega) pegaAtiva = null; p.cancela(); };
+      const p = pega; pega = null; apagaJogo(jogo); jogo = null; fase = null; if (pegaAtiva === cancelaPega) pegaAtiva = null; p.cancela(); };
     const podePegar = () => { const s = table.state; return !!(naMao && s && s.status === 'playing' && !handoff && !root.dataset.mira && !document.querySelector('.tb-peek, .ds-dialog')); };
     const comecaPega = (x, y) => {
       if (pegaAtiva) pegaAtiva();
       try { el.dispatchEvent(new PointerEvent('pointerleave', { pointerId: id })); } catch (err) { /* sem PointerEvent: o segurar já perdeu pelo movimento */ } // o segurar (espiar) não abre com a carta na mão
-      pega = __m17.pegaDaMao(el, { x: x0, y: y0, camada: camadaFx(), voos, parado: menosMovimento() });
-      pega.move(x, y); fase = 'pegando'; engole = true; pegaAtiva = cancelaPega; root.dataset.pegou = 'pegando';
+      jogo = preparaJogo(); // MK3-5 (J-80) · mede antes de a carta sair do leque
+      const resiste = jogo ? 1 : (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--carta-resiste')) || 0.3);
+      pega = __m17.pegaDaMao(el, { x: x0, y: y0, camada: camadaFx(), voos, parado: menosMovimento(), resiste });
+      if (jogo) acendeJogo(jogo); else root.dataset.arrasto = 'resiste';
+      pega.move(x, y); sobJogo(x, y); fase = 'pegando'; engole = true; pegaAtiva = cancelaPega; root.dataset.pegou = 'pegando';
       window.addEventListener('pointermove', segue, true); window.addEventListener('pointerup', largaPega, true); window.addEventListener('pointercancel', largaPega, true);
       __m0.haptics.evento('toque');
     };

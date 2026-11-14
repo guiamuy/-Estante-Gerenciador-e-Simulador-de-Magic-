@@ -98,3 +98,24 @@ test('J3 · atacante bloqueada, bloqueadora e quem ainda vai ser escolhida saem 
   // durante a escolha, a tela separa quem pode ser tocada
   assert.deepEqual(J(T.agrupaLeque(s, ['a', 'c'], { separa: o => o === 'c' }).map(p => p.oids)), [['a'], ['c']]);
 });
+
+// MK3-5 (J-80, trilha jogabilidade) · arrastar para jogar: onde a carta da mão vai pousar se for jogada agora. A fileira (terreno
+// atrás, permanente na frente) e o monte do leque em que ela entra (mesmo nome, desvirada, a criatura nova com enjoo, como
+// agrupaLeque junta); mágica sem permanente não pousa no campo. Não muda o estado. Falhava antes (sem lugarDoPouso).
+test('MK3-5 · lugarDoPouso: terreno no monte do mesmo nome desvirado, criatura nova só junta com as de enjoo, outra permanente no fim da fila, mágica na pilha, estado intacto', () => {
+  const s = mesa([{ oid: 'a', name: 'Sky Pike' }, { oid: 'c', name: 'Sky Pike', sick: true }, { oid: 'f1', name: 'Forest' }, { oid: 'f2', name: 'Forest', tapped: true }]);
+  s.facts.Forest = { types: ['land'] };
+  for (const [oid, name] of [['h1', 'Forest'], ['h2', 'Sky Pike'], ['h3', 'Venom Eel']]) s.objects[oid] = { oid, name, zone: 'hand', owner: 0, controller: 0, tapped: false, sick: false, damage: 0, counters: {} };
+  s.zones[0].hand = ['h1', 'h2', 'h3'];
+  const antes = JSON.stringify(s);
+  assert.deepEqual(J(T.lugarDoPouso(s, 'h1', 0, { terreno: true })), { fileira: 'lands', junta: 'f1' }, 'o Forest entra no monte dos desvirados');
+  assert.deepEqual(J(T.lugarDoPouso(s, 'h2', 0)), { fileira: 'permanents', junta: 'c' }, 'a criatura nova tem enjoo: junta com a de enjoo, não com a pronta');
+  assert.deepEqual(J(T.lugarDoPouso(s, 'h3', 0)), { fileira: 'permanents', junta: null }, 'nome novo: a ponta da fileira');
+  assert.deepEqual(J(T.lugarDoPouso(s, 'h3', 0, { magica: true })), { fileira: null, junta: null }, 'mágica: para a pilha');
+  assert.deepEqual(J(T.lugarDoPouso(s, 'h1', 1, { terreno: true })), { fileira: 'lands', junta: null }, 'o campo do outro lado não tem Forest');
+  assert.equal(T.lugarDoPouso(s, 'nada', 0), null, 'carta que não existe');
+  s.objects.f1.tapped = true;
+  assert.deepEqual(J(T.lugarDoPouso(s, 'h1', 0, { terreno: true })), { fileira: 'lands', junta: null }, 'todos virados: a ponta da fileira');
+  s.objects.f1.tapped = false;
+  assert.equal(JSON.stringify(s), antes, 'não muda o estado');
+});

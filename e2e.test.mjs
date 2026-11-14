@@ -23018,7 +23018,10 @@ test('e2e · J-73 MK3-4 mão viva: pegar a carta da mão (sai do leque, segue o 
     const x = await pega(u), onde = nivel + ': ';
     assert.equal(x.fora.pega, 'fora', onde + 'a carta sai do leque ' + JSON.stringify(x.fora));
     assert.deepEqual([x.meio.receita, x.meio.oid, x.meio.aria, x.meio.pegou, x.meio.mira], ['pegar', u, 'true', 'pegando', null], onde + 'a cópia na camada de efeitos, fora do leitor de tela; não é mira ' + JSON.stringify(x.meio));
-    assert.equal(x.parado, '120px -60px', onde + 'segue o dedo 1:1 ' + JSON.stringify(x));
+    // MK3-5 (J-80) · a expectativa muda de propósito: o Grizzly Bear daqui não pode ser conjurado (só uma Montanha no campo), e
+    // desde a MK3-5 a carta que não pode ser jogada agora resiste: segue o dedo a --carta-resiste (.3), 120 × .3 = 36 e −60 × .3 = −18.
+    // A carta jogável segue 1:1 (o e2e "J-80 MK3-5" mede isso).
+    assert.equal(x.parado, '36px -18px', onde + 'segue o dedo a 30 % (resiste: não pode ser jogada) ' + JSON.stringify(x));
     assert.equal(x.meio.sombra, '1', onde + 'levantada: sombra flutuante');
     if (nivel === 'completo') {
       assert.equal(x.meio.z, 40, onde + 'sobe em Z --carta-pega-z');
@@ -23096,6 +23099,154 @@ test('e2e · J-73 MK3-4 mão viva: pegar a carta da mão (sai do leque, segue o 
   await page.mouse.move(d.x, d.y); await page.mouse.down(); await page.mouse.move(d.x, d.y - 40, { steps: 4 });
   assert.ok(await page.evaluate(() => !!document.querySelector('#ds-pega-fx .tb-pega[data-receita="pegar"]')), 'palco: a carta é pega');
   await page.mouse.up(); await page.waitForFunction(() => !document.querySelector('.tb-pega'), null, { timeout: 3000 });
+  assert.deepEqual(errors, []);
+});
+// MK3-5 (J-80, trilha jogabilidade) · arrastar para jogar. Pegar uma carta jogável acende o seu poço (fio de latão, .tb-alvo-jogar
+// na camada de efeitos); com o dedo em cima dele, o fio engrossa e o lugar onde ela vai pousar (.tb-lugar) abre na fileira certa
+// (terreno atrás, no monte do mesmo nome; permanente na frente, no fim da fileira). Soltar ali joga pela mesma ação legal do toque
+// (o terreno, a criatura; a mágica sem permanente também no eixo); soltar na mão devolve; a carta sem ação legal agora (segundo
+// terreno do turno) resiste: segue o dedo a --carta-resiste e volta sem acender nada. O vão abre com --mola-firme --dur-2 no
+// completo, sem repique no moderado e num quadro no reduzido (medido pelas animações, nunca por tempo fixo). Tocar continua
+// abrindo a folha. Falhava no main de antes (sem .tb-alvo-jogar: soltar em qualquer lugar devolvia a carta).
+test('e2e · J-80 MK3-5 arrastar para jogar: o poço acende, o lugar abre na fileira certa, soltar joga pela ação do toque (terreno, criatura, mágica no eixo), soltar na mão devolve, a carta sem jogada resiste; três níveis de Movimento; tocar continua; quatro medidas, dois temas, auditaTela e auditaSimetria', { skip }, async t => {
+  const { page, errors, base } = await open(t);
+  await page.addInitScript(() => { window.__MTG_TEST = true; });
+  await page.setViewportSize({ width: 360, height: 780 });
+  await createDeck(page, base, 'ArrastaJoga', '16 Forest\n8 Island\n16 Grizzly Bear\n4 Preordain', 'livre');
+  await page.goto(base + '#/mesa'); await page.waitForSelector('#mesa-start'); await page.fill('#mesa-seed', '4');
+  await page.click('#mesa-start'); await page.waitForSelector('#tb-keep'); await page.click('#tb-keep'); await page.waitForSelector('#tb-pass');
+  const toca = () => page.evaluate(() => document.querySelector('#tb').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
+  // a mão: um Forest, um Island, dois Grizzly Bear e um Preordain; no campo três Forest e três Island (paga o urso e o Preordain)
+  const c = await page.evaluate(() => { const M = window.__estanteMesa, s = M.estado(), p = s.turn.active;
+    for (const oid of s.zones[p].hand.slice()) M.act({ t: 'move', p, oid, to: 'library' });
+    const lib = nm => Object.values(M.estado().objects).filter(o => o.owner === p && o.name === nm && o.zone === 'library').map(o => String(o.oid));
+    const fo = lib('Forest'), il = lib('Island'), ursos = lib('Grizzly Bear').slice(0, 2), div = lib('Preordain')[0];
+    for (const oid of [...fo.slice(0, 3), ...il.slice(0, 3)]) M.act({ t: 'move', p, oid, to: 'battlefield' });
+    for (const oid of [fo[3], il[3], ...ursos, div]) M.act({ t: 'move', p, oid, to: 'hand' });
+    return { p, forest: fo[3], island: il[3], ursos, div, campoForest: fo.slice(0, 3) }; });
+  await toca(); await page.waitForTimeout(450);
+  const abreMao = async () => { if ((await page.getAttribute('#tb-hand-toggle', 'aria-expanded')) !== 'true') { await page.click('#tb-hand-toggle'); await page.waitForTimeout(450); } };
+  await abreMao();
+  const carta = oid => `#tb-hand .tb-card[data-oid="${oid}"]`;
+  const centro = sel => page.evaluate(sel => { const e = document.querySelector(sel); if (!e) return null; const r = e.getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) }; }, sel);
+  const caixa = sel => page.evaluate(sel => { const e = document.querySelector(sel); if (!e) return null; const r = e.getBoundingClientRect(); return { x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) }; }, sel);
+  const le = () => page.evaluate(() => { const tb = document.querySelector('#tb'), f = document.querySelector('#tb-fx .tb-alvo-jogar'), v = document.querySelector('#tb-fx .tb-lugar'), m = document.querySelector('#tb-fx .tb-pega');
+    const r = v && v.getBoundingClientRect(), so = as => as.filter(a => !(a instanceof CSSAnimation) && !(a instanceof CSSTransition)).map(a => ({ curva: a.effect.getTiming().easing, dur: a.effect.getTiming().duration }));
+    return { arrasto: tb.dataset.arrasto || null, sob: tb.dataset.arrastoSob || null, pegou: tb.dataset.pegou || null, fio: f ? { sob: f.dataset.sob, aria: f.getAttribute('aria-hidden'), receita: f.dataset.receita, luz: getComputedStyle(f, '::after').opacity } : null,
+      vao: v ? { aberto: v.dataset.aberto, fileira: v.dataset.fileira, junta: v.dataset.junta, aria: v.getAttribute('aria-hidden'), caixa: { x: Math.round(r.left), y: Math.round(r.top), w: Math.round(r.width), h: Math.round(r.height) }, anims: so(v.getAnimations()) } : null,
+      translate: m ? m.style.translate : null }; });
+  const fim = () => page.evaluate(() => Promise.all(document.getAnimations().map(a => a.finished.catch(() => null))));
+  // arrasta da carta até (x, y) do seu lado, devagar; `solta` em 'aqui', na 'mao' ou não solta
+  const arrasta = async (oid, para, { solta = 'aqui' } = {}) => {
+    const a = await centro(carta(oid));
+    await page.mouse.move(a.x, a.y); await page.mouse.down();
+    await page.mouse.move(a.x, a.y - 30, { steps: 4 });
+    const pegou = await le();
+    await page.mouse.move(para.x, para.y, { steps: 6 }); await page.waitForTimeout(40); await page.mouse.move(para.x, para.y);
+    const sobre = await le();
+    if (solta === 'mao') { await page.mouse.move(a.x, a.y, { steps: 4 }); await page.mouse.up(); }
+    else if (solta === 'aqui') await page.mouse.up();
+    return { a, pegou, sobre };
+  };
+  const naMao = async (oid, rotulo) => {
+    await page.waitForFunction(() => !document.querySelector('#tb-fx .tb-pega, #tb-fx .tb-alvo-jogar, #tb-fx .tb-lugar'), null, { timeout: 3000 });
+    const r = await page.evaluate(o => { const s = window.__estanteMesa.estado(); return { zona: s.objects[o].zone, dialogo: !!document.querySelector('.ds-dialog'), arrasto: document.querySelector('#tb').dataset.arrasto || null }; }, oid);
+    assert.deepEqual(r, { zona: 'hand', dialogo: false, arrasto: null }, rotulo + ' ' + JSON.stringify(r));
+  };
+  const meuLado = async () => caixa('.tb-side--me');
+  const dur2 = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--dur-2')));
+  // 1 · o urso nos três níveis: o poço acende, o vão abre na fileira da frente (com o dedo em cima) e soltar na mão devolve
+  for (const nivel of ['completo', 'moderado', 'reduzido']) {
+    await page.evaluate(n => document.documentElement.setAttribute('data-movimento', n), nivel); await page.waitForTimeout(450);
+    const L = await meuLado(), onde = nivel + ': ';
+    const x = await arrasta(c.ursos[0], { x: L.x + L.w / 2, y: L.y + Math.round(L.h * 0.3) }, { solta: 'nao' });
+    if (process.env.SHOTS && nivel === 'completo') { await fim(); await page.screenshot({ path: process.env.SHOTS + '/j-80-mk3-5-criatura.png' }); }
+    x.vaoAberto = (await le()).vao; await page.mouse.move(x.a.x, x.a.y, { steps: 4 }); await page.mouse.up(); // de volta na mão: desiste
+    assert.deepEqual([x.pegou.arrasto, x.pegou.fio && x.pegou.fio.aria, x.pegou.fio && x.pegou.fio.receita], ['age', 'true', 'jogar'], onde + 'jogável: o poço acende, fora do leitor de tela ' + JSON.stringify(x.pegou));
+    assert.deepEqual([x.sobre.sob, x.sobre.fio.sob, x.sobre.vao && x.sobre.vao.aberto, x.sobre.vao && x.sobre.vao.fileira, x.sobre.vao && x.sobre.vao.junta], ['true', 'true', 'true', 'permanents', ''], onde + 'com o dedo no poço, o vão abre na fileira da frente ' + JSON.stringify(x.sobre));
+    const t = x.sobre.translate.split(' ').map(parseFloat), dx = L.x + L.w / 2 - x.a.x, dy = L.y + Math.round(L.h * 0.3) - x.a.y;
+    assert.ok(Math.abs(t[0] - dx) <= 1 && Math.abs(t[1] - dy) <= 1, onde + 'a carta jogável segue o dedo 1:1 ' + JSON.stringify({ t, dx, dy }));
+    const va = x.sobre.vao.anims;
+    if (nivel === 'completo') assert.ok(va.length === 1 && /^linear\(/.test(va[0].curva) && va[0].dur === dur2, onde + 'o vão abre com --mola-firme --dur-2 ' + JSON.stringify(va));
+    else if (nivel === 'moderado') assert.ok(va.length === 1 && /^cubic-bezier/.test(va[0].curva), onde + 'o vão abre sem repique ' + JSON.stringify(va));
+    else assert.equal(va.length, 0, onde + 'nada anima no reduzido');
+    const vb = x.vaoAberto.caixa; // a fileira da frente está vazia: o vão fica dentro do seu poço, do tamanho de uma carta do campo
+    assert.ok(vb.w > 20 && vb.h > vb.w && vb.x >= L.x && vb.x + vb.w <= L.x + L.w && vb.y >= L.y && vb.y + vb.h <= L.y + L.h, onde + 'o vão dentro do poço ' + JSON.stringify({ vb, L }));
+    await naMao(c.ursos[0], onde + 'soltar na mão devolve: nada jogado');
+  }
+  await page.evaluate(() => document.documentElement.setAttribute('data-movimento', 'completo')); await fim();
+  // capturas com a carta sobre o poço (o lugar aberto), nos dois temas
+  for (const tema of ['dark', 'light']) {
+    await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(450);
+    const L = await meuLado(); await arrasta(c.forest, { x: L.x + L.w / 2, y: L.y + Math.round(L.h * 0.75) }, { solta: 'nao' }); await fim();
+    if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + `/j-80-mk3-5-arrasta-${tema}.png` });
+    const a = await centro(carta(c.forest)) || { x: 180, y: 740 }; await page.mouse.move(180, 770, { steps: 4 }); await page.mouse.up(); await naMao(c.forest, tema + ': soltar na mão devolve');
+  }
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  // 2 · o terreno: o lugar é o monte de Forest do campo (fileira de trás); soltar joga o terreno pela ação do toque
+  await page.waitForTimeout(450);
+  { const L = await meuLado(); const x = await arrasta(c.forest, { x: L.x + L.w / 2, y: L.y + Math.round(L.h * 0.75) }, { solta: 'nao' });
+    assert.deepEqual([x.sobre.sob, x.sobre.vao && x.sobre.vao.fileira], ['true', 'lands'], 'o terreno vai para a fileira de trás ' + JSON.stringify(x.sobre));
+    assert.ok(c.campoForest.includes(x.sobre.vao.junta), 'entra no monte de Forest ' + JSON.stringify(x.sobre.vao));
+    await fim(); const aberto = (await le()).vao; // o vão aberto (a mola terminou: medido no fim, não em tempo fixo)
+    const pilha = await caixa(`.tb-side--me .tb-card[data-oid="${x.sobre.vao.junta}"], .tb-side--me .tb-card[data-oids~="${x.sobre.vao.junta}"]`);
+    assert.deepEqual(aberto.caixa, pilha, 'o vão está sobre o monte ' + JSON.stringify([aberto.caixa, pilha]));
+    await page.mouse.up();
+    await page.waitForFunction(o => window.__estanteMesa.estado().objects[o].zone === 'battlefield', c.forest, { timeout: 3000 });
+    const r = await page.evaluate(() => ({ pegou: document.querySelector('#tb').dataset.pegou, dialogo: !!document.querySelector('.ds-dialog'), fio: !!document.querySelector('.tb-alvo-jogar, .tb-lugar, .tb-pega') }));
+    assert.deepEqual(r, { pegou: 'jogou', dialogo: false, fio: false }, 'soltar no poço jogou o terreno, sem folha ' + JSON.stringify(r)); }
+  await fim(); await abreMao();
+  // 3 · o segundo terreno do turno não pode ser jogado: resiste (segue o dedo a 30 %), nada acende, soltar no poço devolve
+  await page.waitForTimeout(450);
+  { const L = await meuLado(), para = { x: L.x + L.w / 2, y: L.y + Math.round(L.h * 0.75) }; const x = await arrasta(c.island, para);
+    assert.deepEqual([x.pegou.arrasto, x.pegou.fio, x.sobre.vao], ['resiste', null, null], 'sem jogada: nada acende ' + JSON.stringify(x));
+    const t = x.sobre.translate.split(' ').map(parseFloat);
+    assert.ok(Math.abs(t[0] - Math.round((para.x - x.a.x) * 0.3)) <= 1 && Math.abs(t[1] - Math.round((para.y - x.a.y) * 0.3)) <= 1, 'resiste: segue o dedo a 30 % ' + JSON.stringify({ t, para, a: x.a }));
+    await naMao(c.island, 'a carta sem jogada volta para a mão'); }
+  // tocar continua abrindo a folha da carta (o arrasto não tirou o toque)
+  await page.waitForTimeout(450);
+  await page.click(carta(c.ursos[1])); await page.waitForSelector('.ds-dialog');
+  await page.keyboard.press('Escape'); await page.waitForFunction(() => !document.querySelector('.ds-dialog'));
+  // se a mesa pedir como pagar (mana manual), paga com o que ela sugere: o arrasto usa o mesmo pagamento do toque
+  const pagaSePedir = async oid => {
+    await page.waitForFunction(o => window.__estanteMesa.estado().objects[o].zone !== 'hand' || !!document.querySelector('.ds-dialog'), oid, { timeout: 3000 });
+    const pediu = await page.evaluate(() => !!document.querySelector('.ds-dialog'));
+    if (pediu) await page.click('.ds-dialog .ds-btn--primary');
+    await page.waitForFunction(o => window.__estanteMesa.estado().objects[o].zone !== 'hand', oid, { timeout: 3000 });
+    return pediu;
+  };
+  // 4 · a criatura: soltar no poço conjura (a mesma ação do toque); resolvida (o goldfish passa), a pilha esvazia
+  await page.waitForTimeout(450);
+  { const L = await meuLado(); await arrasta(c.ursos[0], { x: L.x + L.w / 2, y: L.y + Math.round(L.h * 0.3) });
+    await pagaSePedir(c.ursos[0]);
+    assert.ok(['stack', 'battlefield'].includes(await page.evaluate(o => window.__estanteMesa.estado().objects[o].zone, c.ursos[0])), 'o urso foi conjurado');
+    await page.waitForFunction(() => !document.querySelector('.ds-dialog'), null, { timeout: 3000 });
+    await page.evaluate(p => { const M = window.__estanteMesa; if (M.estado().stack.length) M.act({ t: 'pass', p }); }, c.p); // o goldfish passa de volta: o urso resolve
+    await page.waitForFunction(o => window.__estanteMesa.estado().objects[o].zone === 'battlefield', c.ursos[0], { timeout: 3000 }); }
+  await fim(); await page.waitForTimeout(800);
+  // a mesa depois das jogadas por arrasto (urso e terreno no campo, sem camada sobrando), nas quatro medidas e nos dois temas
+  assert.ok(await page.evaluate(() => !document.querySelector('.tb-alvo-jogar, .tb-lugar, .tb-pega')), 'nada sobra na camada de efeitos');
+  for (const [w, hgt] of [[360, 780], [384, 832], [390, 844], [412, 891]]) for (const tema of ['dark', 'light']) {
+    await page.setViewportSize({ width: w, height: hgt }); await page.evaluate(tm => document.documentElement.setAttribute('data-theme', tm), tema); await page.waitForTimeout(250);
+    await auditaTela(page, `J-80 · MK3-5 ${w}×${hgt} ${tema}`);
+    await auditaSimetria(page, `J-80 · MK3-5 ${w}×${hgt} ${tema}`);
+    if (process.env.SHOTS && w === 360) await page.screenshot({ path: process.env.SHOTS + `/j-80-mk3-5-${tema}.png` });
+  }
+  await page.setViewportSize({ width: 360, height: 780 }); await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark')); await page.waitForTimeout(450); await abreMao();
+  // 5 · a mágica sem permanente (Preordain): soltar no eixo, entre os dois lados, conjura (sem vão no campo: ela vai para a pilha)
+  { const op = await caixa('.tb-side--opp'), L = await meuLado();
+    const x = await arrasta(c.div, { x: L.x + L.w / 2, y: Math.round((op.y + op.h + L.y) / 2) }, { solta: 'nao' });
+    assert.deepEqual([x.pegou.arrasto, x.sobre.sob, x.sobre.vao], ['age', 'true', null], 'a mágica acende no eixo, sem vão no campo ' + JSON.stringify(x));
+    await page.mouse.up(); await pagaSePedir(c.div);
+    assert.equal(await page.evaluate(o => window.__estanteMesa.estado().objects[o].zone, c.div), 'stack', 'a mágica foi para a pilha'); }
+  // palco do /ds: o poço aceso com o fio e o vão aberto; "Dedo em cima" alterna, sem partida
+  await page.goto(base + '#/ds'); await page.waitForSelector('#ds-jogar .tb-alvo-jogar');
+  const palco = () => page.evaluate(() => { const f = document.querySelector('#ds-jogar .tb-alvo-jogar'), v = document.querySelector('#ds-jogar .tb-lugar');
+    return [f.dataset.sob, getComputedStyle(f, '::after').opacity, v.dataset.aberto, getComputedStyle(v).opacity, Math.round(v.getBoundingClientRect().width) > 40]; });
+  await page.evaluate(() => document.documentElement.setAttribute('data-movimento', 'reduzido'));
+  assert.deepEqual(await palco(), ['true', '1', 'true', '1', true], 'palco: com o dedo em cima');
+  await page.click('#ds-jogar-btn'); await fim(); // medido no fim do que estiver em curso no palco, não em tempo fixo
+  assert.deepEqual(await palco(), ['false', '0', 'false', '0', true], 'palco: só aceso');
   assert.deepEqual(errors, []);
 });
 // J-66 · relato #124 (Benevolent Blessing dava proteção contra verde e a carta não dizia nada): a permanente que ganhou proteção mostra o

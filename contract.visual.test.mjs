@@ -1375,3 +1375,37 @@ test('MK3-8 · zonas-objeto: tokens nos três blocos; miniatura na proporção d
   assert.ok(HTML.includes("h('span', { class: 'tb-zobj', dataset: { tipo: obj.tipo }, 'aria-hidden': 'true' }"), 'desenho fora do leitor de tela');
   assert.ok(HTML.includes("id: 'ds-zonas-objeto'") && HTML.includes("'ds-zobj-veu-verso'"), 'palco no /ds');
 });
+
+// MK3-5 (J-80, trilha jogabilidade) · arrastar para jogar: o poço que recebe a carta acende com um fio de latão por dentro
+// (--mesa-alvo, o --accent do tema) e engrossa com o dedo em cima (--mesa-alvo-sob, numa segunda camada que só muda de
+// opacidade); o lugar onde ela vai pousar é um vão rebaixado com aresta de latão (--carta-lugar) que abre de --carta-lugar-escala
+// (1 no moderado e no reduzido); a carta sem jogada segue o dedo a --carta-resiste. Tokens nos três blocos, regras só com
+// tokens, fora do layout e do toque. A mesa usa a mesma ação legal do toque. Falhava no main de antes (sem os tokens nem as regras).
+test('MK3-5 · arrastar para jogar: tokens do fio, do vão e da resistência nos três blocos; regras na camada de efeitos só com tokens; abrir sem crescer no moderado e no reduzido; a mesma ação do toque', () => {
+  for (const [nome, t] of [['escuro', DARK], ['claro', LIGHT], ['claro automático', { ...DARK, ...AUTO_LIGHT }]]) {
+    assert.match(t['--mesa-alvo'] || '', /^inset 0 0 0 1px var\(--accent\), inset 0 0 \d+px -6px var\(--accent\)$/, `fio de latão (${nome})`);
+    assert.match(t['--mesa-alvo-sob'] || '', /^inset 0 0 0 2px var\(--accent\), inset 0 0 \d+px -8px var\(--accent\)$/, `fio com o dedo em cima (${nome})`);
+    assert.match(t['--carta-lugar'] || '', /^inset 0 1px 3px rgba\([^)]*\), inset 0 0 0 1px var\(--accent\)$/, `vão rebaixado com aresta (${nome})`);
+  }
+  assert.notEqual(DARK['--carta-lugar'], LIGHT['--carta-lugar'], 'a sombra do vão muda com o tema');
+  assert.ok(AUTO_LIGHT['--mesa-alvo'] && AUTO_LIGHT['--carta-lugar'], 'claro automático tem os seus');
+  assert.equal(DARK['--carta-resiste'], '.3'); assert.equal(DARK['--carta-lugar-escala'], '.92');
+  assert.ok(tokenCss.includes(':root[data-movimento="moderado"], :root[data-movimento="reduzido"] { --carta-lugar-escala: 1; }'), 'moderado e reduzido: o vão abre sem crescer');
+  assert.ok(tokenCss.includes('@media (prefers-reduced-motion: reduce) { :root { --carta-lugar-escala: 1; } }'));
+  const regra = sel => { const i = componentCss.indexOf(sel + ' {'); assert.ok(i >= 0, 'regra ' + sel); return componentCss.slice(i, componentCss.indexOf('}', i) + 1); };
+  assert.match(regra('.tb-fx-camada > :is(.tb-alvo-jogar, .tb-lugar)'), /position: fixed; margin: 0; pointer-events: none;/, 'na camada de efeitos, sem toque');
+  assert.match(regra('.tb-alvo-jogar'), /box-shadow: var\(--mesa-alvo\);/);
+  const luz = regra('.tb-alvo-jogar::after');
+  assert.match(luz, /box-shadow: var\(--mesa-alvo-sob\); opacity: 0; transition: opacity var\(--dur-1\) var\(--ease-out\);/, 'a luz com o dedo em cima só muda de opacidade');
+  assert.match(regra('.tb-alvo-jogar[data-sob="true"]::after'), /opacity: 1;/);
+  const vao = regra('.tb-lugar');
+  assert.match(vao, /background: var\(--accent-soft\); box-shadow: var\(--carta-lugar\); opacity: 0;/);
+  for (const r of [regra('.tb-alvo-jogar'), luz, vao]) assert.ok(!/#[0-9a-f]{3,6}\b|rgba?\(|\d+ms|\d+px/.test(r), 'só tokens ' + r);
+  assert.match(componentCss, /:root\[data-movimento="reduzido"\] \.tb-alvo-jogar::after \{ transition: none; \}/);
+  assert.match(componentCss, /@media \(prefers-reduced-motion: reduce\) \{ \.tb-alvo-jogar::after \{ transition: none; \} \}/);
+  // a tela nunca decide regra: a jogada é a das ações legais (legaisDe), dividida como o mirar; o voo parte de onde foi solta
+  assert.match(HTML, /const j = __m33\.jogadaDoArrasto\(legais, oid, \{ tipos: /);
+  assert.match(HTML, /if \(j\.como === 'age'\) act\(j\.acoes\[0\]\);/);
+  assert.match(HTML, /if \(solta && solta\.caixa && solta\.caixa\.w && solta\.caixa\.h\) antes\[solta\.oid\] = solta\.caixa;/, 'R1: voa de onde foi solta');
+  assert.match(HTML, /'aria-hidden': 'true', dataset: \{ receita: 'jogar'/, 'fora do leitor de tela');
+});

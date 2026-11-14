@@ -177,6 +177,13 @@
      34 px do contador) e o véu do exílio (a carta do topo apaga na direção do tampo: mais escura no escuro, mais clara no claro) */
   --zona-mini-w: 16px; --zona-mini-h: 22px;
   --zona-veu: rgba(10, 8, 6, .58);
+  /* MK3-5 (J-80) · arrastar para jogar: o poço que recebe a carta acende com um fio de latão por dentro (o --accent do tema);
+     com o dedo em cima, o fio engrossa e a luz entra mais; o lugar onde ela vai pousar é um vão rebaixado com aresta de latão */
+  --mesa-alvo: inset 0 0 0 1px var(--accent), inset 0 0 14px -6px var(--accent);
+  --mesa-alvo-sob: inset 0 0 0 2px var(--accent), inset 0 0 24px -8px var(--accent);
+  --carta-lugar: inset 0 1px 3px rgba(0, 0, 0, .55), inset 0 0 0 1px var(--accent);
+  /* MK3-5 (J-80) · a carta que não pode ser jogada agora resiste: segue o dedo só nesta fração; o lugar abre desta escala (1 no moderado e no reduzido) */
+  --carta-resiste: .3; --carta-lugar-escala: .92;
   --mesa-fase-ponto: 6px; --mesa-fase-traco: 18px;
   --mesa-fase-latao: linear-gradient(180deg, var(--accent-hi), var(--accent) 60%, var(--accent-lo));
   --sombra-carta: 0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-contact), var(--shadow-key);
@@ -332,6 +339,8 @@
   --mesa-poco: inset 0 2px 8px rgba(60, 40, 10, .16), inset 0 -1px 0 var(--edge);
   --mesa-estojo: inset 0 1px 2px rgba(60, 40, 10, .24), inset 0 -1px 0 var(--edge); /* MK3-1 */
   --zona-veu: rgba(250, 246, 238, .62); /* MK3-8 */
+  --mesa-alvo: inset 0 0 0 1px var(--accent), inset 0 0 12px -6px var(--accent); --mesa-alvo-sob: inset 0 0 0 2px var(--accent), inset 0 0 20px -8px var(--accent); /* MK3-5 */
+  --carta-lugar: inset 0 1px 3px rgba(60, 40, 10, .22), inset 0 0 0 1px var(--accent); /* MK3-5 */
   --sombra-carta: 0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-contact), var(--shadow-key);
   --sombra-carta-alta: 0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-float);
   --sombra-carta-deitada: var(--carta-espessura) 0 0 var(--carta-lado), 1px 0 2px rgba(60, 40, 10, .14), 12px 0 28px -14px rgba(60, 40, 10, .35); /* MK3-3 */
@@ -418,6 +427,8 @@
     --mesa-poco: inset 0 2px 8px rgba(60, 40, 10, .16), inset 0 -1px 0 var(--edge);
     --mesa-estojo: inset 0 1px 2px rgba(60, 40, 10, .24), inset 0 -1px 0 var(--edge); /* MK3-1 */
     --zona-veu: rgba(250, 246, 238, .62); /* MK3-8 */
+    --mesa-alvo: inset 0 0 0 1px var(--accent), inset 0 0 12px -6px var(--accent); --mesa-alvo-sob: inset 0 0 0 2px var(--accent), inset 0 0 20px -8px var(--accent); /* MK3-5 */
+    --carta-lugar: inset 0 1px 3px rgba(60, 40, 10, .22), inset 0 0 0 1px var(--accent); /* MK3-5 */
     --sombra-carta: 0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-contact), var(--shadow-key);
     --sombra-carta-alta: 0 var(--carta-espessura) 0 var(--carta-lado), var(--shadow-float);
     --sombra-carta-deitada: var(--carta-espessura) 0 0 var(--carta-lado), 1px 0 2px rgba(60, 40, 10, .14), 12px 0 28px -14px rgba(60, 40, 10, .35); /* MK3-3 */
@@ -519,6 +530,9 @@ body[data-tela="partida"] { --bg: var(--mesa-bg); --grain-1: var(--mesa-veio-1);
 /* MK3-4 (J-73) · a carta pega da mão: no moderado e no reduzido, sem Z nem giro (segue o dedo e só); o leque sem recuo */
 :root[data-movimento="moderado"], :root[data-movimento="reduzido"] { --carta-pega-z: 0px; --carta-pega-giro: 0deg; --carta-leque-recuo: 0; }
 @media (prefers-reduced-motion: reduce) { :root { --carta-pega-z: 0px; --carta-pega-giro: 0deg; --carta-leque-recuo: 0; } }
+/* MK3-5 (J-80) · o lugar onde a carta vai pousar abre sem crescer no moderado e no reduzido */
+:root[data-movimento="moderado"], :root[data-movimento="reduzido"] { --carta-lugar-escala: 1; }
+@media (prefers-reduced-motion: reduce) { :root { --carta-lugar-escala: 1; } }
 /* D2 · menos movimento por escolha (além do que o sistema pede): tudo instantâneo */
 :root[data-movimento="reduzido"] *, :root[data-movimento="reduzido"] *::before, :root[data-movimento="reduzido"] *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 

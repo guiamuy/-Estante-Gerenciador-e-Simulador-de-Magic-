@@ -627,3 +627,31 @@ test('MK3-4 · mão viva: limiar de 8 px na mão, inclinação pela velocidade c
   assert.deepEqual(com.filter(x => x.fx === 'compra').map(x => x.atraso), [0, 90, 180], '--escalona-2');
   assert.deepEqual(com.filter(x => x.fx === 'ataque').map(x => x.atraso), [0, 60], 'a fila dos atacantes não muda');
 });
+
+// MK3-5 (J-80, trilha jogabilidade) · arrastar para jogar: soltar a carta da mão no campo faz a mesma ação legal do toque.
+// `jogadaDoArrasto` divide como o mirar (age · pergunta · folha) e diz se é terreno ou mágica sem permanente; sem ação legal,
+// null (a carta resiste). `soltaParaJogar`: o dedo no seu lado (ou, com mágica, no eixo), nunca de volta na mão. Falhava antes.
+test('MK3-5 · jogadaDoArrasto e soltaParaJogar: a ação do toque, sem jogada a carta resiste, mágica também no eixo, a mão desiste', () => {
+  const pass = { t: 'pass', p: 0 };
+  assert.equal(S.jogadaDoArrasto([pass, { t: 'tap_mana', p: 0, oid: 'x' }], 'h1'), null, 'sem ação da carta: resiste');
+  assert.equal(S.jogadaDoArrasto([{ t: 'discard', p: 0, oid: 'h1' }, { t: 'plot', p: 0, oid: 'h1' }], 'h1'), null, 'descartar e tramar não são jogar');
+  const terra = S.jogadaDoArrasto([pass, { t: 'play_land', p: 0, oid: 'h1' }], 'h1', { tipos: ['land'] });
+  assert.deepEqual(J([terra.como, terra.terreno, terra.magica, terra.acoes.length]), ['age', true, false, 1], 'jogar o terreno: na hora');
+  const urso = S.jogadaDoArrasto([{ t: 'cast', p: 0, oid: 'h2' }, { t: 'cast', p: 0, oid: 'h9' }], 'h2', { tipos: ['creature'] });
+  assert.deepEqual(J([urso.como, urso.terreno, urso.magica, urso.acoes]), ['age', false, false, [{ t: 'cast', p: 0, oid: 'h2' }]], 'só as ações desta carta');
+  assert.equal(S.jogadaDoArrasto([{ t: 'cast', p: 0, oid: 7 }], '7', { tipos: ['sorcery'] }).magica, true, 'feitiço: mágica sem permanente (oid número ou texto)');
+  assert.equal(S.jogadaDoArrasto([{ t: 'cast', p: 0, oid: 'h4', faceDown: true }], 'h4', { tipos: ['instant'] }).magica, false, 'virada para baixo entra como permanente');
+  assert.equal(S.jogadaDoArrasto([{ t: 'cast', p: 0, oid: 'h2', pay: { sacrifice: ['a'] } }, { t: 'cast', p: 0, oid: 'h2', pay: { sacrifice: ['b'] } }], 'h2').como, 'pergunta', 'só muda como pagar: a pergunta de sempre');
+  assert.equal(S.jogadaDoArrasto([{ t: 'cast', p: 0, oid: 'h2' }, { t: 'cast', p: 0, oid: 'h2', alt: 0 }], 'h2').como, 'folha', 'custo alternativo: a folha');
+  assert.equal(S.jogadaDoArrasto([{ t: 'play_land', p: 0, oid: 'h1' }, { t: 'play_land', p: 0, oid: 'h1', revela: 'h5' }], 'h1').como, 'folha', 'Snarl: revelar ou não, na folha');
+  assert.equal(S.jogadaDoArrasto([{ t: 'cast', p: 0, oid: 'h2', targets: [{ oid: 'a' }, { oid: 'b' }] }], 'h2').como, 'folha', 'alvo é escolha da folha');
+  const lado = { x: 10, y: 400, w: 340, h: 200 }, oponente = { x: 10, y: 100, w: 340, h: 200 }, mao = { x: 0, y: 640, w: 360, h: 140 };
+  assert.equal(S.soltaParaJogar(180, 500, { lado, oponente, mao }), true, 'no seu lado');
+  assert.equal(S.soltaParaJogar(180, 350, { lado, oponente, mao }), false, 'permanente no eixo: não');
+  assert.equal(S.soltaParaJogar(180, 350, { lado, oponente, mao, magica: true }), true, 'mágica no eixo: sim');
+  assert.equal(S.soltaParaJogar(180, 250, { lado, oponente, mao, magica: true }), false, 'no lado do oponente: não');
+  assert.equal(S.soltaParaJogar(180, 700, { lado: { ...lado, h: 300 }, oponente, mao }), false, 'de volta na mão: desiste, mesmo sob o lado');
+  assert.equal(S.soltaParaJogar(5, 500, { lado, oponente, mao }), false, 'fora do lado, de lado');
+  assert.equal(S.soltaParaJogar(180, 500, { lado: null }), false, 'sem lado medido: não');
+  assert.equal(S.soltaParaJogar(NaN, 500, { lado }), false);
+});
