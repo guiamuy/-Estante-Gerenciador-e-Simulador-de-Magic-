@@ -231,6 +231,10 @@ export const POSICOES = [
   { id: 'rem-controle-guttersnipe', classe: 'recurso', lista: CONTROLE, porque: 'segunda fase principal, quatro terras, Snuff Out, Cast Down e Preordain na mão, 12 de vida contra o Madness com o Guttersnipe no campo e três cartas: a remoção vai no Guttersnipe agora, antes das mágicas dele',
     monta: () => monta(CONTROLE, MADNESS, { passo: 'main2', p0: { campo: ['Island', 'Island', 'Swamp', 'Island'], mao: ['Snuff Out', 'Cast Down', 'Preordain'], vida: 12 }, p1: { campo: ['Mountain', 'Mountain', 'Mountain', 'Guttersnipe'], mao: ['Lightning Bolt', 'Fireblast', 'Mountain'] } }),
     certo: (s, j) => j.acao.t === 'cast' && (j.acao.targets || []).some(t => nomeDe(s, t.oid) === 'Guttersnipe') },
+  // B-217 · o alcance da queima (partida narrada 14200: o Control virou as quatro terras no Thorn com 12 de vida e morreu de queima no turno seguinte)
+  { id: 'alcance-controle-thorn', classe: 'papel', lista: CONTROLE, porque: 'primeira fase principal, quatro terras, Thorn of the Black Rose e Counterspell na mão, 7 de vida contra o Madness de quatro Mountain e três cartas na mão (a lista dele é queima): virar tudo no Thorn deixa a Fireblast, o Lightning Bolt e a Lava Dart fecharem a conta; com a Counterspell de pé, a maior queima não resolve',
+    monta: () => monta(CONTROLE, MADNESS, { passo: 'main1', p0: { campo: ['Island', 'Island', 'Island', 'Swamp'], mao: ['Thorn of the Black Rose', 'Counterspell'], vida: 7 }, p1: { campo: ['Mountain', 'Mountain', 'Mountain', 'Mountain'], mao: ['Lightning Bolt', 'Fireblast', 'Lava Dart'], soNoGrimorio: ['Lightning Bolt', 'Fireblast', 'Lava Dart'] } }),
+    certo: (s, j) => !(j.acao.t === 'cast' && nomeDe(s, j.acao.oid) === 'Thorn of the Black Rose') },
 ];
 
 /** Nota de um nível: acertos por classe e as posições erradas (com o motivo do Shark). */
